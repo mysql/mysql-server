@@ -471,6 +471,11 @@ class ha_innopart : public ha_innobase,
 
   int cmp_ref(const uchar *ref1, const uchar *ref2) const override;
 
+  int bulk_load_end(THD *thd, void *load_ctx, bool is_error) override;
+
+  int bulk_load_preserve_auto_increment(
+      ulonglong auto_increment_value) override;
+
   int read_range_first(const key_range *start_key, const key_range *end_key,
                        bool eq_range_arg, bool sorted) override {
     return (Partition_helper::ph_read_range_first(start_key, end_key,

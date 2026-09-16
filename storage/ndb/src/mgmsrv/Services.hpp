@@ -147,6 +147,7 @@ class MgmApiSession : public SocketServer::Session {
 
   void listSessions(Parser_t::Context &ctx, Properties const &args);
   void listCerts(Parser_t::Context &ctx, Properties const &args);
+  void listTrustedCerts(Parser_t::Context &ctx, Properties const &args);
   void getTlsStats(Parser_t::Context &ctx, Properties const &args);
 
   void getSessionId(Parser_t::Context &ctx, Properties const &args);

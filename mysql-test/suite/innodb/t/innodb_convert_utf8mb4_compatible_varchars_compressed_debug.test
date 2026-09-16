@@ -1,0 +1,9 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# ROW_FORMAT=COMPRESSED requires a 16 KiB InnoDB page size, so this case is
+# separate from the uncompressed row-format matrix.
+--source include/have_innodb_max_16k.inc
+
+let $row_format = COMPRESSED;
+--source suite/innodb/include/innodb_convert_utf8mb4_online_rebuild.inc

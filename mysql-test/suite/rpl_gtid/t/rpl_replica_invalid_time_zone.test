@@ -57,6 +57,7 @@ call mtr.add_suppression("Replica SQL for channel '': ... The replica coordinato
 call mtr.add_suppression("Replica SQL for channel '':.*failed executing transaction.*");
 call mtr.add_suppression("Replica SQL for channel '': Error 'Table 'mysql.time_zone' doesn't exist' on query.*");
 call mtr.add_suppression("Replica: Unknown or incorrect time zone: 'UTC'.*");
+call mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
 --source include/rpl/start_receiver.inc
 --source include/rpl/wait_for_receiver_to_start.inc
 START REPLICA SQL_THREAD;

@@ -133,6 +133,7 @@
 
 #include "../libmysql/init_commands_array.h"
 #include "../libmysql/mysql_trace.h" /* MYSQL_TRACE() instrumentation */
+#include "scope_guard.h"
 #include "sql_common.h"
 #ifdef MYSQL_SERVER
 #include "mysql_com_server.h"
@@ -212,11 +213,6 @@ void init_client_psi_keys(void) {
 }
 
 #endif /* HAVE_PSI_INTERFACE */
-
-/* SSL_SESSION_is_resumable is openssl 1.1.1+ */
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-#define SSL_SESSION_is_resumable(x) true
-#endif
 
 uint mysql_port = 0;
 char *mysql_unix_port = nullptr;
@@ -742,6 +738,12 @@ static void free_state_change_info(MYSQL_EXTENSION *ext) {
   memset(info, 0, sizeof(STATE_INFO));
 }
 
+void mysql_clear_session_track_info(MYSQL *mysql) {
+  if (mysql == nullptr || mysql->extension == nullptr) return;
+
+  free_state_change_info(static_cast<MYSQL_EXTENSION *>(mysql->extension));
+}
+
 /**
   Helper function to check if the buffer has at least bytes remaining
 
@@ -800,13 +802,47 @@ inline my_ulonglong net_field_length_ll_safe(MYSQL *mysql, uchar **packet,
   return net_field_length_ll(packet);
 }
 
-/**
- Read Ok packet along with the server state change information.
+static inline bool payload_buffer_check_remaining(MYSQL *mysql,
+                                                  const uchar *payload,
+                                                  uchar *packet,
+                                                  size_t payload_length,
+                                                  size_t bytes) {
+  size_t remaining_bytes;
+  if (packet < payload || payload_length < (size_t)(packet - payload)) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return false;
+  }
+  remaining_bytes = payload_length - (packet - payload);
+  if (remaining_bytes < bytes) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return false;
+  }
+  return true;
+}
+
+static inline my_ulonglong net_field_length_ll_payload_safe(
+    MYSQL *mysql, const uchar *payload, uchar **packet, size_t payload_length,
+    bool *is_error) {
+  const size_t sizeof_len = net_field_length_size(*packet);
+  if (!payload_buffer_check_remaining(mysql, payload, *packet, payload_length,
+                                      sizeof_len)) {
+    *is_error = true;
+    return 0;
+  }
+
+  *is_error = false;
+  return net_field_length_ll(packet);
+}
+
+/*
+  Extracted from read_ok_ex() so command services can reuse the same
+  session-state cache population logic
 */
-void read_ok_ex(MYSQL *mysql, ulong length) {
+bool mysql_decode_session_track_payload(MYSQL *mysql, const uchar *payload,
+                                        size_t payload_length) {
   size_t total_len, len;
   uchar *pos, *saved_pos;
-  my_ulonglong affected_rows, insert_id;
+  my_ulonglong type;
   char *db;
   char *data_str;
 
@@ -816,6 +852,269 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
   STATE_INFO *info = nullptr;
   LIST *element = nullptr;
   LEX_STRING *data = nullptr;
+  bool is_error;
+
+  pos = const_cast<uchar *>(payload);
+  total_len = payload_length;
+
+  auto cleanup_session_track_info = create_scope_guard([mysql] {
+    /*
+      Drop any tracker entries decoded before a failure. This covers OOM and
+      malformed-packet errors after one or more entries were added to
+      state_change
+    */
+    mysql_clear_session_track_info(mysql);
+  });
+
+  while (total_len > 0) {
+    saved_pos = pos;
+    type = net_field_length_ll_payload_safe(mysql, payload, &pos,
+                                            payload_length, &is_error);
+    if (is_error) return true;
+
+    switch (type) {
+      case SESSION_TRACK_SYSTEM_VARIABLES:
+        /* Validate the total length of the changed entity. */
+        len = (size_t)net_field_length_ll_payload_safe(
+            mysql, payload, &pos, payload_length, &is_error);
+        if (is_error) return true;
+        if (!payload_buffer_check_remaining(mysql, payload, pos, payload_length,
+                                            len))
+          return true;
+
+        /* Name of the system variable. */
+        len = (size_t)net_field_length_ll_payload_safe(
+            mysql, payload, &pos, payload_length, &is_error);
+        if (is_error) return true;
+        if (!payload_buffer_check_remaining(mysql, payload, pos, payload_length,
+                                            len))
+          return true;
+
+        if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
+                             &element, sizeof(LIST), &data, sizeof(LEX_STRING),
+                             &data_str, len, NullS)) {
+          set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+          return true;
+        }
+
+        data->str = data_str;
+        memcpy(data->str, (char *)pos, len);
+        data->length = len;
+        pos += len;
+
+        element->data = data;
+        ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
+
+        /*
+         Check if the changed variable was charset. In that case we need
+         to update mysql->charset.
+         */
+        is_charset =
+            (strncmp(data->str, "character_set_client", data->length) == 0);
+
+        /* Value of the system variable. */
+        len = (size_t)net_field_length_ll_payload_safe(
+            mysql, payload, &pos, payload_length, &is_error);
+        if (is_error) return true;
+        if (!payload_buffer_check_remaining(mysql, payload, pos, payload_length,
+                                            len))
+          return true;
+
+        if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
+                             &element, sizeof(LIST), &data, sizeof(LEX_STRING),
+                             &data_str, len, NullS)) {
+          set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+          return true;
+        }
+
+        data->str = data_str;
+        memcpy(data->str, (char *)pos, len);
+        data->length = len;
+        pos += len;
+
+        element->data = data;
+        ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
+
+        if (is_charset == 1) {
+          char charset_name[MY_CS_NAME_SIZE * 8]{};  // MY_CS_BUFFER_SIZE
+          saved_cs = mysql->charset;
+
+          memcpy(charset_name, data->str,
+                 std::min(data->length, sizeof(charset_name) - 1));
+
+          if (!(mysql->charset = get_charset_by_csname(
+                    charset_name, MY_CS_PRIMARY, MYF(MY_WME)))) {
+            DBUG_PRINT("warning",
+                       ("session tracker supplied %s is not a valid charset."
+                        " Keeping the old one.",
+                        charset_name));
+            mysql->charset = saved_cs;
+          }
+        }
+        break;
+      case SESSION_TRACK_TRANSACTION_STATE:
+        [[fallthrough]];
+      case SESSION_TRACK_TRANSACTION_CHARACTERISTICS:
+        [[fallthrough]];
+      case SESSION_TRACK_SCHEMA: {
+        /* Move past the total length of the changed entity. */
+        (void)net_field_length_ll_payload_safe(mysql, payload, &pos,
+                                               payload_length, &is_error);
+        if (is_error) return true;
+        len = (size_t)net_field_length_ll_payload_safe(
+            mysql, payload, &pos, payload_length, &is_error);
+        if (is_error) return true;
+        if (!payload_buffer_check_remaining(mysql, payload, pos, payload_length,
+                                            len))
+          return true;
+
+        if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
+                             &element, sizeof(LIST), &data, sizeof(LEX_STRING),
+                             &data_str, len, NullS)) {
+          set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+          return true;
+        }
+
+        data->str = data_str;
+        memcpy(data->str, (char *)pos, len);
+        data->length = len;
+        pos += len;
+
+        element->data = data;
+        ADD_INFO(info, element, type);
+
+        if (type == SESSION_TRACK_SCHEMA) {
+          if (!(db = (char *)my_malloc(key_memory_MYSQL_state_change_info,
+                                       data->length + 1, MYF(MY_WME)))) {
+            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+            return true;
+          }
+
+          if (mysql->db) my_free(mysql->db);
+
+          memcpy(db, data->str, data->length);
+          db[data->length] = '\0';
+          mysql->db = db;
+        }
+
+        break;
+      }
+      case SESSION_TRACK_GTIDS: {
+        /* Move past the total length of the changed entity. */
+        (void)net_field_length_ll_payload_safe(mysql, payload, &pos,
+                                               payload_length, &is_error);
+        if (is_error) return true;
+        /* read (and ignore for now) the GTIDS encoding specification code */
+        (void)net_field_length_ll_payload_safe(mysql, payload, &pos,
+                                               payload_length, &is_error);
+        if (is_error) return true;
+
+        /*
+           For now we ignore the encoding specification, since only one
+           is supported. In the future the decoding of what comes next
+           depends on the specification code.
+           */
+
+        /* read the length of the encoded string. */
+        len = (size_t)net_field_length_ll_payload_safe(
+            mysql, payload, &pos, payload_length, &is_error);
+        if (is_error) return true;
+        if (!payload_buffer_check_remaining(mysql, payload, pos, payload_length,
+                                            len))
+          return true;
+
+        if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
+                             &element, sizeof(LIST), &data, sizeof(LEX_STRING),
+                             &data_str, len, NullS)) {
+          set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+          return true;
+        }
+
+        data->str = data_str;
+        memcpy(data->str, (char *)pos, len);
+        data->length = len;
+        pos += len;
+
+        element->data = data;
+        ADD_INFO(info, element, SESSION_TRACK_GTIDS);
+        break;
+      }
+      case SESSION_TRACK_STATE_CHANGE: {
+        /* Move past the total length of the changed entity. */
+        len = (size_t)net_field_length_ll_payload_safe(
+            mysql, payload, &pos, payload_length, &is_error);
+        if (is_error) return true;
+
+        /* length for boolean tracker is always 1 */
+        assert(len == 1);
+        if (len != 1) {
+          set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+          return true;
+        }
+        if (!payload_buffer_check_remaining(mysql, payload, pos, payload_length,
+                                            len))
+          return true;
+
+        if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
+                             &element, sizeof(LIST), &data, sizeof(LEX_STRING),
+                             &data_str, len, NullS)) {
+          set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+          return true;
+        }
+
+        data->str = data_str;
+        memcpy(data->str, (char *)pos, len);
+        data->length = len;
+        pos += len;
+
+        element->data = data;
+        ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
+        break;
+      }
+      default: {
+        /*
+         Unknown/unsupported type received, get the total length and
+         move past it.
+         */
+        len = (size_t)net_field_length_ll_payload_safe(
+            mysql, payload, &pos, payload_length, &is_error);
+        if (is_error) return true;
+        if (type > SESSION_TRACK_END) {
+          DBUG_PRINT("warning",
+                     ("invalid/unknown session tracker type received: %llu",
+                      static_cast<unsigned long long>(type)));
+        }
+        if (!payload_buffer_check_remaining(mysql, payload, pos, payload_length,
+                                            len))
+          return true;
+        pos += len;
+        break;
+      }
+    }
+
+    total_len -= (pos - saved_pos);
+  }
+
+  if (info != nullptr) {
+    for (int itype = SESSION_TRACK_BEGIN; itype <= SESSION_TRACK_END; itype++) {
+      if (info->info_list[itype].head_node) {
+        info->info_list[itype].current_node = info->info_list[itype].head_node =
+            list_reverse(info->info_list[itype].head_node);
+      }
+    }
+  }
+
+  cleanup_session_track_info.release();
+  return false;
+}
+
+/**
+ Read Ok packet along with the server state change information.
+*/
+void read_ok_ex(MYSQL *mysql, ulong length) {
+  size_t total_len;
+  uchar *pos, *saved_pos;
+  my_ulonglong affected_rows, insert_id;
   bool is_error;
 
   pos = mysql->net.read_pos + 1;
@@ -862,7 +1161,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
   DBUG_PRINT("info", ("status: %u  warning_count: %u", mysql->server_status,
                       mysql->warning_count));
   if (mysql->server_capabilities & CLIENT_SESSION_TRACK) {
-    free_state_change_info(static_cast<MYSQL_EXTENSION *>(mysql->extension));
+    mysql_clear_session_track_info(mysql);
 
     if (pos < mysql->net.read_pos + length) {
       /* get the info field */
@@ -882,226 +1181,9 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
         if (is_error) return;
         /* ensure that mysql->info is zero-terminated */
         if (mysql->info) *saved_pos = 0;
-
-        while (total_len > 0) {
-          saved_pos = pos;
-          const my_ulonglong type =
-              net_field_length_ll_safe(mysql, &pos, length, &is_error);
-          if (is_error) return;
-          switch (type) {
-            case SESSION_TRACK_SYSTEM_VARIABLES:
-              /* Move past the total length of the changed entity. */
-              (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
-              if (is_error) return;
-
-              /* Name of the system variable. */
-              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
-                                                     &is_error);
-              if (is_error) return;
-              if (!buffer_check_remaining(mysql, pos, length, len)) return;
-
-              if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
-                                   &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
-
-              data->str = data_str;
-              memcpy(data->str, (char *)pos, len);
-              data->length = len;
-              pos += len;
-
-              element->data = data;
-              ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
-
-              /*
-               Check if the changed variable was charset. In that case we need
-               to update mysql->charset.
-               */
-              if (!strncmp(data->str, "character_set_client", data->length))
-                is_charset = true;
-              else
-                is_charset = false;
-
-              /* Value of the system variable. */
-              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
-                                                     &is_error);
-              if (is_error) return;
-              if (!buffer_check_remaining(mysql, pos, length, len)) return;
-
-              if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
-                                   &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
-
-              data->str = data_str;
-              memcpy(data->str, (char *)pos, len);
-              data->length = len;
-              pos += len;
-
-              element->data = data;
-              ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
-
-              if (is_charset == 1) {
-                char charset_name[MY_CS_NAME_SIZE * 8];  // MY_CS_BUFFER_SIZE
-                size_t charset_name_length =
-                    std::min(data->length, sizeof(charset_name) - 1);
-                saved_cs = mysql->charset;
-
-                memcpy(charset_name, data->str, charset_name_length);
-                charset_name[charset_name_length] = 0;
-
-                if (!(mysql->charset = get_charset_by_csname(
-                          charset_name, MY_CS_PRIMARY, MYF(MY_WME)))) {
-                  DBUG_PRINT(
-                      "warning",
-                      ("session tracker supplied %s is not a valid charset."
-                       " Keeping the old one.",
-                       charset_name));
-                  mysql->charset = saved_cs;
-                }
-              }
-              break;
-            case SESSION_TRACK_TRANSACTION_STATE:
-            case SESSION_TRACK_TRANSACTION_CHARACTERISTICS:
-            case SESSION_TRACK_SCHEMA:
-
-              /* Move past the total length of the changed entity. */
-              (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
-              if (is_error) return;
-              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
-                                                     &is_error);
-              if (is_error) return;
-              if (!buffer_check_remaining(mysql, pos, length, len)) return;
-
-              if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
-                                   &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
-
-              data->str = data_str;
-              memcpy(data->str, (char *)pos, len);
-              data->length = len;
-              pos += len;
-
-              element->data = data;
-              ADD_INFO(info, element, type);
-
-              if (type == SESSION_TRACK_SCHEMA) {
-                if (!(db = (char *)my_malloc(key_memory_MYSQL_state_change_info,
-                                             data->length + 1, MYF(MY_WME)))) {
-                  set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                  return;
-                }
-
-                if (mysql->db) my_free(mysql->db);
-
-                memcpy(db, data->str, data->length);
-                db[data->length] = '\0';
-                mysql->db = db;
-              }
-
-              break;
-            case SESSION_TRACK_GTIDS:
-              /* Move past the total length of the changed entity. */
-              (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
-              if (is_error) return;
-
-              /* read (and ignore for now) the GTIDS encoding specification code
-               */
-              (void)net_field_length_ll_safe(mysql, &pos, length, &is_error);
-              if (is_error) return;
-
-              /*
-                 For now we ignore the encoding specification, since only one
-                 is supported. In the future the decoding of what comes next
-                 depends on the specification code.
-                 */
-
-              /* read the length of the encoded string. */
-              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
-                                                     &is_error);
-              if (is_error) return;
-              if (!buffer_check_remaining(mysql, pos, length, len)) return;
-
-              if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
-                                   &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
-
-              data->str = data_str;
-              memcpy(data->str, (char *)pos, len);
-              data->length = len;
-              pos += len;
-
-              element->data = data;
-              ADD_INFO(info, element, SESSION_TRACK_GTIDS);
-              break;
-            case SESSION_TRACK_STATE_CHANGE:
-              /* Get the length of the boolean tracker */
-              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
-                                                     &is_error);
-              if (is_error) return;
-
-              /* length for boolean tracker is always 1 */
-              assert(len == 1);
-              if (!buffer_check_remaining(mysql, pos, length, len)) return;
-
-              if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
-                                   &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), &data_str, len, NullS)) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
-
-              data->str = data_str;
-              memcpy(data->str, (char *)pos, len);
-              data->length = len;
-              pos += len;
-
-              element->data = data;
-              ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
-
-              break;
-            default:
-              if (type > SESSION_TRACK_END) {
-                DBUG_PRINT(
-                    "warning",
-                    ("invalid/unknown session tracker type received: %llu",
-                     (unsigned long long)type));
-              }
-              /*
-               Unknown/unsupported type received, get the total length and
-               move past it.
-               */
-
-              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
-                                                     &is_error);
-              if (is_error) return;
-              if (!buffer_check_remaining(mysql, pos, length, len)) return;
-              pos += len;
-              break;
-          }
-          total_len -= (pos - saved_pos);
-        }
-        if (info) {
-          int itype;
-          for (itype = SESSION_TRACK_BEGIN; itype <= SESSION_TRACK_END;
-               itype++) {
-            if (info->info_list[itype].head_node) {
-              info->info_list[itype].current_node =
-                  info->info_list[itype].head_node =
-                      list_reverse(info->info_list[itype].head_node);
-            }
-          }
-        }
+        if (!buffer_check_remaining(mysql, pos, length, total_len)) return;
+        if (mysql_decode_session_track_payload(mysql, pos, total_len)) return;
+        pos += total_len;
       }
     }
   } else if (pos < mysql->net.read_pos + length && net_field_length(&pos))
@@ -2025,6 +2107,9 @@ static const char *default_options[] = {"port",
                                         "optional-resultset-metadata",
                                         "ssl-fips-mode",
                                         "tls-ciphersuites",
+                                        "tls-kex",
+                                        "force-pqc",
+                                        "use-pqc-sign",
                                         NullS};
 enum option_id {
   OPT_port = 1,
@@ -2068,6 +2153,9 @@ enum option_id {
   OPT_optional_resultset_metadata,
   OPT_ssl_fips_mode,
   OPT_tls_ciphersuites,
+  OPT_tls_kex,
+  OPT_force_pqc,
+  OPT_use_pqc_sign,
   OPT_keep_this_one_last
 };
 
@@ -2236,6 +2324,19 @@ void mysql_read_default_options(struct st_mysql_options *options,
             break;
           case OPT_tls_ciphersuites:
             EXTENSION_SET_STRING(options, tls_ciphersuites, opt_arg);
+            break;
+          case OPT_tls_kex:
+            EXTENSION_SET_STRING(options, tls_kex, opt_arg);
+            break;
+          case OPT_force_pqc:
+            ENSURE_EXTENSIONS_PRESENT(options);
+            options->extension->force_pqc =
+                opt_arg ? (atoi(opt_arg) != 0) : false;
+            break;
+          case OPT_use_pqc_sign:
+            ENSURE_EXTENSIONS_PRESENT(options);
+            options->extension->use_pqc_sign =
+                opt_arg ? (atoi(opt_arg) != 0) : false;
             break;
           case OPT_tls_version:
             EXTENSION_SET_SSL_STRING(options, tls_version, opt_arg,
@@ -3389,10 +3490,15 @@ static void release_services(mysql_command_consumer_refs *consumer_refs,
                              mysql_service_registry_t *srv_registry) {
   if (consumer_refs) {
     if (consumer_refs->factory_srv) {
-      /* This service call is used to free the memory, the allocation
-         was happened through factory_srv->start() service api. */
-      consumer_refs->factory_srv->end(
-          reinterpret_cast<SRV_CTX_H>(mcs_ext->consumer_srv_data));
+      /*
+        consumer_srv_data is set only after factory_srv->start() succeeds and
+        is cleared after factory_srv->end(), so cleanup may not have an active
+        context to end.
+      */
+      if (mcs_ext->consumer_srv_data != nullptr) {
+        consumer_refs->factory_srv->end(mcs_ext->consumer_srv_data);
+        mcs_ext->consumer_srv_data = nullptr;
+      }
       srv_registry->release(reinterpret_cast<my_h_service>(
           const_cast<SERVICE_TYPE_NO_CONST(mysql_text_consumer_factory_v1) *>(
               consumer_refs->factory_srv)));
@@ -3585,6 +3691,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
     my_free(mysql->options.extension->ssl_crl);
     my_free(mysql->options.extension->ssl_crlpath);
     my_free(mysql->options.extension->tls_ciphersuites);
+    my_free(mysql->options.extension->tls_kex);
     my_free(mysql->options.extension->load_data_dir);
     my_free(mysql->options.extension->tls_sni_servername);
     for (unsigned int idx = 0; idx < MAX_AUTHENTICATION_FACTOR; idx++) {
@@ -3611,6 +3718,9 @@ static void mysql_ssl_free(MYSQL *mysql) {
     mysql->options.extension->ssl_mode = SSL_MODE_DISABLED;
     mysql->options.extension->ssl_fips_mode = SSL_FIPS_MODE_OFF;
     mysql->options.extension->tls_ciphersuites = nullptr;
+    mysql->options.extension->tls_kex = nullptr;
+    mysql->options.extension->force_pqc = false;
+    mysql->options.extension->use_pqc_sign = false;
     mysql->options.extension->load_data_dir = nullptr;
     mysql->options.extension->tls_sni_servername = nullptr;
   }
@@ -3787,14 +3897,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   X509 *server_cert = nullptr;
   int ret_validation = 1;
 
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
-  int cn_loc = -1;
-  char *cn = nullptr;
-  ASN1_STRING *cn_asn1 = nullptr;
-  X509_NAME_ENTRY *cn_entry = nullptr;
-  X509_NAME *subject = nullptr;
-#endif
-
   DBUG_TRACE;
   DBUG_PRINT("enter", ("server_hostname: %s", server_hostname));
 
@@ -3823,56 +3925,11 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
     are what we expect.
   */
 
-  /* Use OpenSSL certificate matching functions instead of our own if we
-     have OpenSSL. The X509_check_* functions return 1 on success.
-  */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
   /*
-    For OpenSSL 1.0.2 and up we already set certificate verification
-    parameters in the new_VioSSLFd() to perform automatic checks.
+    Certificate verification parameters were already set in new_VioSSLFd()
+    to perform automatic checks.
   */
   ret_validation = 0;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-  /*
-     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
-     Use deprecated X509_get_subject_name() instead.
-  */
-  subject = X509_get_subject_name((X509 *)server_cert);
-  // Find the CN location in the subject
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    *errptr = "Failed to get CN location in the certificate subject";
-    goto error;
-  }
-
-  // Get the CN entry for given location
-  cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == nullptr) {
-    *errptr = "Failed to get CN entry using CN location";
-    goto error;
-  }
-
-  // Get CN from common name entry
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == nullptr) {
-    *errptr = "Failed to get CN from CN entry";
-    goto error;
-  }
-
-  cn = (char *)ASN1_STRING_data(cn_asn1);
-
-  // There should not be any NULL embedded in the CN
-  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn)) {
-    *errptr = "NULL embedded in the certificate CN";
-    goto error;
-  }
-
-  DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
-  if (!strcmp(cn, server_hostname)) {
-    /* Success */
-    ret_validation = 0;
-  }
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
   *errptr = "SSL certificate validation success";
 
@@ -4499,6 +4556,28 @@ static SSL_SESSION *ssl_session_deserialize_from_data(MYSQL *mysql) {
       reinterpret_cast<char *>(mysql->options.extension->ssl_session_data));
 }
 
+static bool adjust_tls_flags_for_force_pqc(long *ssl_ctx_flags [[maybe_unused]],
+                                           bool force_pqc,
+                                           enum enum_ssl_init_error *error) {
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (force_pqc) {
+    if (*ssl_ctx_flags & SSL_OP_NO_TLSv1_3) {
+      *error = SSL_INITERR_PQC_UNSUPPORTED;
+      return true;
+    }
+
+    *ssl_ctx_flags |= SSL_OP_NO_TLSv1_2;
+  }
+#else
+  if (force_pqc) {
+    *error = SSL_INITERR_PQC_UNSUPPORTED;
+    return true;
+  }
+#endif
+
+  return false;
+}
+
 /**
   Establishes SSL if requested and supported.
 
@@ -4550,6 +4629,11 @@ static int cli_establish_ssl(MYSQL *mysql) {
     char buff[33], *end;
     const bool verify_identity =
         mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT;
+    long ssl_ctx_flags =
+        options->extension ? options->extension->ssl_ctx_flags : 0;
+    const bool force_pqc = options->extension && options->extension->force_pqc;
+    const bool use_pqc_sign =
+        options->extension && options->extension->use_pqc_sign;
 
     /* check if server supports compression else turn off client capability */
     if (!(mysql->server_capabilities & CLIENT_ZSTD_COMPRESSION_ALGORITHM))
@@ -4577,6 +4661,14 @@ static int cli_establish_ssl(MYSQL *mysql) {
     MYSQL_TRACE_STAGE(mysql, SSL_NEGOTIATION);
 
     /* Create the VioSSLConnectorFd - init SSL and load certs */
+    if (adjust_tls_flags_for_force_pqc(&ssl_ctx_flags, force_pqc,
+                                       &ssl_init_error)) {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER_CLIENT(CR_SSL_CONNECTION_ERROR),
+                               sslGetErrString(ssl_init_error));
+      goto error;
+    }
+
     if (!(ssl_fd = new_VioSSLConnectorFd(
               options->ssl_key, options->ssl_cert, options->ssl_ca,
               options->ssl_capath, options->ssl_cipher,
@@ -4585,7 +4677,8 @@ static int cli_establish_ssl(MYSQL *mysql) {
               &ssl_init_error,
               options->extension ? options->extension->ssl_crl : nullptr,
               options->extension ? options->extension->ssl_crlpath : nullptr,
-              options->extension ? options->extension->ssl_ctx_flags : 0,
+              ssl_ctx_flags, force_pqc, use_pqc_sign,
+              options->extension ? options->extension->tls_kex : nullptr,
               verify_identity ? mysql->host : nullptr))) {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SSL_CONNECTION_ERROR),
@@ -4741,12 +4834,23 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
     size_t ret;
     const bool verify_identity =
         mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT;
+    long ssl_ctx_flags =
+        options->extension ? options->extension->ssl_ctx_flags : 0;
+    const bool force_pqc = options->extension && options->extension->force_pqc;
+    const bool use_pqc_sign =
+        options->extension && options->extension->use_pqc_sign;
 
     MYSQL_TRACE_STAGE(mysql, SSL_NEGOTIATION);
 
     if (!mysql->connector_fd) {
-      const long flags =
-          options->extension ? options->extension->ssl_ctx_flags : 0;
+      if (adjust_tls_flags_for_force_pqc(&ssl_ctx_flags, force_pqc,
+                                         &ssl_init_error)) {
+        set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
+                                 unknown_sqlstate,
+                                 ER_CLIENT(CR_SSL_CONNECTION_ERROR),
+                                 sslGetErrString(ssl_init_error));
+        goto error;
+      }
 
       /* Create the VioSSLConnectorFd - init SSL and load certs */
       if (!(ssl_fd = new_VioSSLConnectorFd(
@@ -4757,7 +4861,9 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
                 &ssl_init_error,
                 options->extension ? options->extension->ssl_crl : nullptr,
                 options->extension ? options->extension->ssl_crlpath : nullptr,
-                flags, verify_identity ? mysql->host : nullptr))) {
+                ssl_ctx_flags, force_pqc, use_pqc_sign,
+                options->extension ? options->extension->tls_kex : nullptr,
+                verify_identity ? mysql->host : nullptr))) {
         set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
                                  unknown_sqlstate,
                                  ER_CLIENT(CR_SSL_CONNECTION_ERROR),
@@ -8804,6 +8910,18 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
       EXTENSION_SET_STRING(&mysql->options, tls_ciphersuites,
                            static_cast<const char *>(arg));
       break;
+    case MYSQL_OPT_TLS_KEX:
+      EXTENSION_SET_STRING(&mysql->options, tls_kex,
+                           static_cast<const char *>(arg));
+      break;
+    case MYSQL_OPT_FORCE_PQC:
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      mysql->options.extension->force_pqc = *static_cast<const bool *>(arg);
+      break;
+    case MYSQL_OPT_USE_PQC_SIGN:
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      mysql->options.extension->use_pqc_sign = *static_cast<const bool *>(arg);
+      break;
     case MYSQL_OPT_SSL_CRL:
       if (mysql->options.extension)
         my_free(mysql->options.extension->ssl_crl);
@@ -9004,7 +9122,8 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
     MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE,
     MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
     MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
-    MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
+    MYSQL_OPT_OPTIONAL_RESULTSET_METADATA, MYSQL_OPT_FORCE_PQC,
+    MYSQL_OPT_USE_PQC_SIGN
 
   const char *
     MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
@@ -9012,7 +9131,8 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
     MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND,
     MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH, MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT,
     MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
-    MYSQL_OPT_TLS_CIPHERSUITES, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
+    MYSQL_OPT_TLS_CIPHERSUITES, MYSQL_OPT_TLS_KEX, MYSQL_OPT_SSL_CRL,
+    MYSQL_OPT_SSL_CRLPATH,
     MYSQL_OPT_TLS_VERSION, MYSQL_SERVER_PUBLIC_KEY, MYSQL_OPT_SSL_FIPS_MODE,
     MYSQL_OPT_TLS_SNI_SERVERNAME
 
@@ -9139,9 +9259,24 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
           mysql->options.extension ? mysql->options.extension->tls_ciphersuites
                                    : nullptr;
       break;
+    case MYSQL_OPT_TLS_KEX:
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->tls_kex
+                                   : nullptr;
+      break;
     case MYSQL_OPT_TLS_SNI_SERVERNAME:
       *(static_cast<char **>(const_cast<void *>(arg))) =
           MYSQL_OPTIONS_EXTENSION_PTR(mysql, tls_sni_servername);
+      break;
+    case MYSQL_OPT_FORCE_PQC:
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->force_pqc
+                                   : false;
+      break;
+    case MYSQL_OPT_USE_PQC_SIGN:
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->use_pqc_sign
+                                   : false;
       break;
     case MYSQL_OPT_RETRY_COUNT:
       *(const_cast<uint *>(static_cast<const uint *>(arg))) =

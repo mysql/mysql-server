@@ -37,6 +37,7 @@ ib_buffer_pool
 ibdata1
 mysql
 mysql.ibd
+mysql.log
 mysql_upgrade_history
 performance_schema
 private_key.pem

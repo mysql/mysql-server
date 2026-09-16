@@ -1,0 +1,76 @@
+
+#  1. Setup replication
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+#  2. Run queries including rotations of the relay log
+
+[connection master]
+CREATE TABLE t1(c1 INT PRIMARY KEY);
+CREATE TABLE t2(c1 INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+[connection master]
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (2);
+include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+[connection master]
+INSERT INTO t1 VALUES (3);
+INSERT INTO t2 VALUES (3);
+include/rpl/sync_to_replica.inc
+
+#  3. Check that all relay log files except the last one are deleted
+
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+
+#  4. Run more queries including rotations, with one offending transaction in
+#     inner relay log file.
+
+INSERT INTO t2 VALUES (50);
+FLUSH TABLE t2 WITH READ LOCK;
+[connection master]
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+[connection master]
+INSERT INTO t2 VALUES (50);
+include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+[connection master]
+INSERT INTO t1 VALUES (6);
+include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+[connection master]
+INSERT INTO t1 VALUES (7);
+[connection slave]
+SELECT WAIT_FOR_EXECUTED_GTID_SET("SOURCE_UUID:12-13", 60);
+WAIT_FOR_EXECUTED_GTID_SET("SOURCE_UUID:12-13", 60)
+0
+UNLOCK TABLES;
+include/rpl/wait_for_applier_to_stop.inc
+
+#  5. Check that file containing offending transaction and files
+#     following this transaction are kept, even if following relay log
+#     files are correctly applied
+
+
+#  6. Cleanup
+
+DELETE FROM t2 WHERE c1=50;
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+[connection slave]
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("Replica SQL for channel '': Could not execute Write_rows event on");
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

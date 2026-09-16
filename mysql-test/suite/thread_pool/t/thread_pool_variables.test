@@ -1,0 +1,35 @@
+###### plugin/thread_pool/tests/mtr/t/thread_pool_variables.test ####
+#                                                                   #
+# Show the list of "pool of threads" related server variables.      #
+#                                                                   #
+# This test should                                                  #
+# - fail in case such a variable gets added or removed              #
+# - do nothing else in order to avoid that multipe tests run the    #
+#   same checks. For example *_basic.test and *_func.test check     #
+#   the properties of server variables and their impact on the      #
+#   system behavior.                                                #
+#                                                                   #
+# Creation Date: 2010-12-13                                         #
+# Author:        Matthias Leich                                     #
+#                                                                   #
+#####################################################################
+
+--source include/have_thread_pool.inc
+
+# We do not care where (global/session) these variables belong to.
+# thread_pool_*_basic.test already check this.
+--disable_warnings
+SELECT variable_name FROM performance_schema.global_variables
+WHERE variable_name LIKE '%thread_pool%'
+AND variable_name <> 'thread_pool_max_transactions_limit'
+AND variable_name <> 'thread_pool_dedicated_listeners'
+AND variable_name <> 'thread_pool_connection_report_interval'
+UNION
+SELECT variable_name FROM performance_schema.session_variables
+WHERE variable_name LIKE '%thread_pool%'
+AND variable_name <> 'thread_pool_max_transactions_limit'
+AND variable_name <> 'thread_pool_dedicated_listeners'
+AND variable_name <> 'thread_pool_connection_report_interval'
+ORDER BY variable_name;
+--enable_warnings
+

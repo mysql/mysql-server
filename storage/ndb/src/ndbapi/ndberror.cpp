@@ -1131,6 +1131,9 @@ static const ErrorBundle ErrorCodes[] = {
     {2811, DMEC, TR, "Error with file permissions, please check file system"},
     {2815, DMEC, TR, "Error in reading files, please check file system"},
     {920, DMEC, AE, "Row operation defined after refreshTuple()"},
+    {927, DMEC, AE,
+     "Too many row versions in one transaction "
+     "(increase MaxRowVersionsPerTransaction)"},
 
     /**
      * NdbQueryBuilder API errors

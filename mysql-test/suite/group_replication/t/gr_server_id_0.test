@@ -59,6 +59,7 @@ SET SESSION sql_log_bin= 1;
 --echo
 --echo ############################################################
 --echo # 2. Both start and install plugin must fail.
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
@@ -75,9 +76,11 @@ START GROUP_REPLICATION;
 --eval SET GLOBAL server_id= $_server_id
 --source include/install_group_replication_plugin.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

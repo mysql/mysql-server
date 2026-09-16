@@ -213,6 +213,50 @@ SELECT round(@cost4 / @cost2);
 
 set tmp_table_size=@orig_tmp_table_size;
 
+--echo #
+--echo # Bug#36834773: Costing for materializing subquery is not considered
+--echo #               for some cases in HG
+--echo #
+
+--source include/elide_costs.inc
+
+CREATE TABLE num10 (n INT PRIMARY KEY);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (a INT NOT NULL, b INT, PRIMARY KEY (a));
+INSERT INTO t1 SELECT x1.n + x2.n*10 + x3.n*100, x1.n
+  FROM num10 x1, num10 x2, num10 x3 WHERE x3.n < 4;
+
+CREATE TABLE t2 (a INT NOT NULL, KEY (a));
+INSERT INTO t2 VALUES (2), (3), (4), (5), (6), (7), (8), (9);
+
+CREATE TABLE t3 (a INT NOT NULL, KEY (a));
+INSERT INTO t3 SELECT x1.n + x2.n*10 + x3.n*100
+  FROM num10 x1, num10 x2, num10 x3 WHERE x3.n < 4;
+
+ANALYZE TABLE num10, t1, t2, t3;
+
+--echo # Small outer table, large inner table: per-row IN-to-EXISTS lookup is
+--echo # cheaper than materializing t1. Before the fix the materialization
+--echo # build cost was under-counted and materialize was wrongly chosen.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ NO_SEMIJOIN() */ a FROM t1);
+
+--echo # Large outer table: materialize is the right choice. Verify that the
+--echo # top Filter cost now includes the one-time materialization build cost
+--echo # (>=100 for a 400-row inner table; was <10 before the fix).
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT * FROM t3 WHERE t3.a IN (SELECT /*+ NO_SEMIJOIN() */ a FROM t1);
+
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t3 WHERE t3.a IN (SELECT /*+ NO_SEMIJOIN() */ a FROM t1);
+SELECT JSON_EXTRACT(@var, '$.query_plan.estimated_total_cost') >= 100
+  AS materialize_cost_included;
+
+DROP TABLE num10, t1, t2, t3;
+
 # Cleanup
 DROP TABLE tv;
 DROP FUNCTION get_cost;

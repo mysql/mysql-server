@@ -121,6 +121,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_compatibility_higher_patch_version';
 --eval SET PERSIST  group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST  group_replication_local_address= "$_group_replication_local_address2"
 --eval SET PERSIST  group_replication_group_seeds= "$_group_replication_group_seeds2"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_start_on_boot= ON;

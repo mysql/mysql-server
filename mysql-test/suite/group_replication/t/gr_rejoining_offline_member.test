@@ -69,6 +69,7 @@ call gr_rejoining_offline_member_proc(100);
 
 --let $rpl_connection_name= server1
 --source include/connection.inc
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --reap
 
 --let $group_replication_member_state= ONLINE

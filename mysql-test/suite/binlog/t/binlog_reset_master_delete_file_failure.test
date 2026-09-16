@@ -36,6 +36,7 @@ call mtr.add_suppression("Failed to delete file.*");
 RESET BINARY LOGS AND GTIDS;
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
 --let $BACKUP_DATADIR = $MYSQL_TMP_DIR/data_new
+--source suite/innodb/include/await_empty_redo_log.inc
 --force-cpdir $MYSQLD_DATADIR $BACKUP_DATADIR
 
 --echo #

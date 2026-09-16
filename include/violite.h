@@ -213,21 +213,6 @@ int vio_getnameinfo(const struct sockaddr *sa, char *hostname,
                     size_t hostname_size, char *port, size_t port_size,
                     int flags);
 
-extern "C" {
-#include <openssl/opensslv.h>
-}
-#if OPENSSL_VERSION_NUMBER < 0x0090700f
-#define DES_cblock des_cblock
-#define DES_key_schedule des_key_schedule
-#define DES_set_key_unchecked(k, ks) des_set_key_unchecked((k), *(ks))
-#define DES_ede3_cbc_encrypt(i, o, l, k1, k2, k3, iv, e) \
-  des_ede3_cbc_encrypt((i), (o), (l), *(k1), *(k2), *(k3), (iv), (e))
-#endif
-
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define HAVE_OPENSSL11 1
-#endif  // OPENSSL_VERSION_NUMBER
-
 #define HEADER_DES_LOCL_H dummy_something
 
 #include <openssl/err.h>
@@ -247,14 +232,22 @@ enum enum_ssl_init_error {
   SSL_FIPS_MODE_INVALID,
   SSL_FIPS_MODE_FAILED,
   SSL_INITERR_ECDHFAIL,
+  SSL_INITERR_KEX_GROUPS,
+  SSL_INITERR_PQC_UNSUPPORTED,
   SSL_INITERR_X509_VERIFY_PARAM,
   SSL_INITERR_INVALID_CERTIFICATES,
+  SSL_INITERR_SIGALGS,
+  SSL_INITERR_SESSION_ID_CONTEXT,
   SSL_INITERR_LASTERR
 };
 const char *sslGetErrString(enum enum_ssl_init_error err);
 
 struct st_VioSSLFd {
   SSL_CTX *ssl_context;
+  bool tls_force_pqc{false};
+  bool tls_session_cache_pqc_only{false};
+  bool tls_use_pqc_sign{false};
+  char *tls_kex{nullptr};
 };
 
 int sslaccept(struct st_VioSSLFd *, MYSQL_VIO, long timeout,
@@ -267,7 +260,8 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host);
+    const long ssl_ctx_flags, bool tls_force_pqc, bool tls_use_pqc_sign,
+    const char *tls_kex, const char *server_host);
 
 long process_tls_version(const char *tls_version);
 
@@ -275,7 +269,8 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags);
+    const long ssl_ctx_flags, bool tls_force_pqc, bool tls_use_pqc_sign,
+    const char *tls_kex);
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();

@@ -1,0 +1,110 @@
+SELECT @@innodb_buffer_pool_size / 16 / 1024 - @@innodb_lru_scan_depth > 128;
+@@innodb_buffer_pool_size / 16 / 1024 - @@innodb_lru_scan_depth > 128
+1
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE sbtest1 (
+id INT NOT NULL,
+k INT NOT NULL,
+c CHAR(120) NOT NULL,
+pad CHAR(60) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB STATS_PERSISTENT=0;
+CREATE FUNCTION get_n_cached_pages(table_name VARCHAR(512),
+index_name VARCHAR(64))
+RETURNS BIGINT
+READS SQL DATA
+BEGIN
+DECLARE pages BIGINT DEFAULT 0;
+SELECT COALESCE(SUM(c.N_CACHED_PAGES), 0)
+INTO pages
+FROM INFORMATION_SCHEMA.INNODB_TABLES t
+JOIN INFORMATION_SCHEMA.INNODB_INDEXES i
+ON i.TABLE_ID = t.TABLE_ID
+LEFT JOIN INFORMATION_SCHEMA.INNODB_CACHED_INDEXES c
+ON c.SPACE_ID = i.SPACE
+AND c.INDEX_ID = i.INDEX_ID
+WHERE t.NAME = table_name
+AND i.NAME = index_name;
+RETURN pages;
+END|
+CREATE FUNCTION count_index_pages_in_lru(table_name VARCHAR(512),
+index_name VARCHAR(64))
+RETURNS BIGINT
+READS SQL DATA
+BEGIN
+DECLARE pages BIGINT DEFAULT 0;
+SELECT COUNT(*)
+INTO pages
+FROM INFORMATION_SCHEMA.INNODB_TABLES t
+JOIN INFORMATION_SCHEMA.INNODB_INDEXES i
+ON i.TABLE_ID = t.TABLE_ID
+JOIN INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU bp
+ON bp.SPACE = i.SPACE
+AND bp.INDEX_NAME = i.NAME
+WHERE t.NAME = table_name
+AND i.NAME = index_name
+AND bp.PAGE_TYPE IN ('INDEX', 'RTREE_INDEX');
+RETURN pages;
+END|
+INSERT INTO sbtest1 VALUES (1, 1, REPEAT('c', 120), REPEAT('p', 60));
+INSERT INTO sbtest1 SELECT id + 1, k + 1, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 2, k + 2, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 4, k + 4, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 8, k + 8, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 16, k + 16, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 32, k + 32, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 64, k + 64, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 128, k + 128, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 256, k + 256, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 512, k + 512, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 1024, k + 1024, c, pad FROM sbtest1;
+ALTER TABLE sbtest1 ADD KEY k_1(k), ALGORITHM=INPLACE;
+INSERT INTO sbtest1 SELECT id + 2048, k + 2048, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 4096, k + 4096, c, pad FROM sbtest1;
+SET GLOBAL innodb_monitor_enable = index_page_splits;
+SET GLOBAL innodb_monitor_reset = index_page_splits;
+SET GLOBAL innodb_monitor_enable = index_page_merge_successful;
+SET GLOBAL innodb_monitor_reset = index_page_merge_successful;
+SET GLOBAL innodb_purge_stop_now = ON;
+UPDATE sbtest1 SET k = id + 1000000 WHERE MOD(id, 4) <> 0 ORDER BY id;
+SET GLOBAL innodb_purge_run_now = ON;
+SET GLOBAL innodb_purge_stop_now = ON;
+UPDATE sbtest1 SET k = id WHERE MOD(id, 4) <> 0 ORDER BY id;
+SET GLOBAL innodb_purge_run_now = ON;
+SET GLOBAL innodb_purge_stop_now = ON;
+UPDATE sbtest1 SET k = id + 2000000 WHERE MOD(id, 5) <> 0 ORDER BY id;
+SET GLOBAL innodb_purge_run_now = ON;
+SET GLOBAL innodb_purge_stop_now = ON;
+UPDATE sbtest1 SET k = id WHERE MOD(id, 5) <> 0 ORDER BY id;
+SET GLOBAL innodb_purge_run_now = ON;
+SELECT name, count_reset > 0 AS happened
+FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE name IN ('index_page_splits', 'index_page_merge_successful')
+ORDER BY name;
+name	happened
+index_page_merge_successful	1
+index_page_splits	1
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM sbtest1 WHERE id > 128;
+SET GLOBAL innodb_purge_run_now = ON;
+INSERT INTO sbtest1 SELECT id + 128, k + 128, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 256, k + 256, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 512, k + 512, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 1024, k + 1024, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 2048, k + 2048, c, pad FROM sbtest1;
+INSERT INTO sbtest1 SELECT id + 4096, k + 4096, c, pad FROM sbtest1;
+ALTER TABLE sbtest1 DROP INDEX k_1;
+DROP FUNCTION count_index_pages_in_lru;
+DROP FUNCTION get_n_cached_pages;
+DROP TABLE sbtest1;
+CREATE TABLE failed_unique_index (
+id INT NOT NULL,
+k INT NOT NULL
+) ENGINE=InnoDB STATS_PERSISTENT=0;
+INSERT INTO failed_unique_index VALUES (1, 1), (2, 1);
+CREATE UNIQUE INDEX k_idx ON failed_unique_index(k);
+ERROR 23000: Duplicate entry '1' for key 'failed_unique_index.k_idx'
+DROP TABLE failed_unique_index;
+SET GLOBAL innodb_log_checkpoint_now = 1;
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;

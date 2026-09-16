@@ -197,17 +197,12 @@ struct ViewCheck {
   const ReadView *m_prev_view;
 };
 
-/**
-Validates a read view list. */
-
-bool MVCC::validate() const {
+void MVCC::validate() const {
   ViewCheck check;
 
   ut_ad(trx_sys_mutex_own());
 
   ut_list_map(m_views, check);
-
-  return (true);
 }
 #endif /* UNIV_DEBUG */
 
@@ -239,11 +234,6 @@ void ReadView::ids_t::reserve(ulint n) {
     ut::delete_arr(p);
   }
 }
-
-/**
-Copy and overwrite this array contents
-@param start            Source array
-@param end              Pointer to end of array */
 
 void ReadView::ids_t::assign(const value_type *start, const value_type *end) {
   ut_ad(end >= start);
@@ -335,6 +325,11 @@ MVCC::MVCC(ulint size) : m_free(), m_views() {
 
     UT_LIST_ADD_FIRST(m_free, view);
   }
+}
+
+void MVCC::initialize(trx_id_t /*max_assigned_trx_id*/,
+                      trx_ids_t /*active_ids*/) {
+  /* Nothing to do. */
 }
 
 MVCC::~MVCC() {
@@ -468,11 +463,6 @@ void ReadView::prepare(trx_id_t id) {
   m_closed.store(false);
 }
 
-/**
-Find a free view from the active list, if none found then allocate
-a new view.
-@return a view to use */
-
 ReadView *MVCC::get_view() {
   ut_ad(trx_sys_mutex_own());
 
@@ -492,20 +482,16 @@ ReadView *MVCC::get_view() {
   return (view);
 }
 
-/** Allocate and create a view.
-@param view     View owned by this class created for the caller. Must be
-freed by calling view_close()
-@param trx      Transaction instance of caller */
+void MVCC::view_open(Read_view_interface *&view, trx_t *trx) {
+  view_open((ReadView *&)view, trx);
+}
+
 void MVCC::view_open(ReadView *&view, trx_t *trx) {
   ut_ad(!srv_read_only_mode);
 
-  /** If no new RW transaction has been started since the last view
-  was created then reuse the the existing view. */
+  /* If no new RW transaction has been started since the last view
+  was created then reuse the existing view. */
   if (view != nullptr) {
-    uintptr_t p = reinterpret_cast<uintptr_t>(view);
-
-    view = reinterpret_cast<ReadView *>(p & ~1);
-
     ut_ad(view->m_closed.load());
 
     /* The following method of reopening views, makes following assumptions:
@@ -630,7 +616,7 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
 
     ut_ad(!view->is_closed());
 
-    ut_ad(validate());
+    ut_d(validate());
   }
 
   trx_sys_mutex_exit();
@@ -682,14 +668,59 @@ void ReadView::copy_complete() {
   m_creator_trx_id = 0;
 }
 
-void MVCC::clone_oldest_view(ReadView *view) {
+void MVCC::view_free(Read_view_interface *&view) {
+  if (view != nullptr) {
+    /* This is a rare case in normal operation, as usually the view is already
+    nullptr before we get called. It is not null in following cases:
+    - a background transaction was run in read only mode and has established a
+      read view,
+    - this is a temporary read-view created by debug code,
+    - this is the read view instance used by purge thread.
+    If the read view belongs to m_views (closed or open, doesn't matter), we
+    have to move it to m_free list to not deplete the pool. Otherwise, we should
+    simply free it not to cause the pool to grow indefinitely. */
+    trx_sys_mutex_enter();
+    auto *rv = (ReadView *)view;
+    ut_a(rv != nullptr);
+    ut_a(rv->is_closed());
+    if (m_views.first_element == rv || rv->m_view_list.prev != nullptr) {
+      /* m_view_list.prev() != nullptr means view is either in m_view list or in
+      m_free list, but it can't be in m_free list, when the caller holds a
+      pointer to it, thus it must be in m_views. Also, we've already asserted
+      that it is closed. We need to simply move it from m_views to m_free, and
+      this is exactly what MVCC::view_close implementation does if passed true
+      as second argument, so we reuse this logic. */
+      view_close(view, true);
+      ut_a(view == nullptr);
+    } else {
+      /* view is not in any list, so we can't and don't have to remove it from
+      m_view list. Also, we don't need to add it to the m_free list. */
+      ut_a(rv->is_closed());
+      ut::delete_(rv);
+      view = nullptr;
+    }
+    trx_sys_mutex_exit();
+  }
+}
+
+void MVCC::clone_oldest_view(Read_view_interface *&view) {
+  clone_oldest_view((ReadView *&)view);
+}
+
+void MVCC::clone_oldest_view(ReadView *&view) {
+  if (view == nullptr) {
+    view = ut::new_withkey<ReadView>(UT_NEW_THIS_FILE_PSI_KEY);
+  } else {
+    ut_a(view->is_closed());
+  }
   trx_sys_mutex_enter();
 
   ReadView *oldest_view;
   for (oldest_view = UT_LIST_GET_LAST(m_views); oldest_view != nullptr;
        oldest_view = UT_LIST_GET_PREV(m_view_list, oldest_view)) {
     if (!oldest_view->is_closed()) {
-      if (oldest_view->low_limit_no() <= view->low_limit_no()) {
+      if (oldest_view->get_lowest_needed_trx_no() <=
+          view->get_lowest_needed_trx_no()) {
         /* We won't gain anything by switching to oldest_view - as purge will
         not be able to move any further than low_limit_no(). More importantly,
         switching to oldest_view poses a risk of a crash, if it saw a strictly
@@ -717,57 +748,45 @@ void MVCC::clone_oldest_view(ReadView *view) {
 
     view->copy_complete();
   }
+  view->m_closed.store(true);
 }
 
-/**
-@return the number of active views */
-
-ulint MVCC::size() const {
+size_t MVCC::get_open_views_count() const {
   trx_sys_mutex_enter();
 
-  ulint size = 0;
+  size_t open_views_count = 0;
 
   for (const ReadView *view : m_views) {
     if (!view->is_closed()) {
-      ++size;
+      ++open_views_count;
     }
   }
 
   trx_sys_mutex_exit();
 
-  return (size);
+  return open_views_count;
 }
 
-/**
-Close a view created by the above function.
-@param view             view allocated by trx_open.
-@param own_mutex        true if caller owns trx_sys_t::mutex */
+void MVCC::undo_purge_is_starting() {}
 
+void MVCC::undo_purge_has_shutdown() {}
+
+void MVCC::view_close(Read_view_interface *&view, bool own_mutex) {
+  view_close((ReadView *&)view, own_mutex);
+}
 void MVCC::view_close(ReadView *&view, bool own_mutex) {
-  uintptr_t p = reinterpret_cast<uintptr_t>(view);
+  /* Note: this can be called for a read view that was already closed. */
+  if (!view->m_closed.load()) {
+    view->m_closed.store(true);
+  }
 
   /* Note: The assumption here is that AC-NL-RO transactions will
   call this function with own_mutex == false. */
-  if (!own_mutex) {
-    /* Sanitise the pointer first. */
-    ReadView *ptr = reinterpret_cast<ReadView *>(p & ~1);
-
-    /* Note this can be called for a read view that was already closed. */
-    if (!ptr->m_closed.load()) {
-      ptr->m_closed.store(true);
-    }
-
-    /* Set the view as closed. */
-    view = reinterpret_cast<ReadView *>(p | 0x1);
-  } else {
-    view = reinterpret_cast<ReadView *>(p & ~1);
-
-    view->close();
-
+  if (own_mutex) {
     UT_LIST_REMOVE(m_views, view);
     UT_LIST_ADD_LAST(m_free, view);
 
-    ut_ad(validate());
+    ut_d(validate());
 
     view = nullptr;
   }

@@ -100,7 +100,7 @@ bool Compression::is_valid_page_version(uint8_t version) {
   return (version == FIL_PAGE_VERSION_1 || version == FIL_PAGE_VERSION_2);
 }
 
-/** Deserizlise the page header compression meta-data
+/** Deserialise the page header compression meta-data
 @param[in]      page            Pointer to the page header
 @param[out]     control         Deserialised data */
 void Compression::deserialize_header(const byte *page,
@@ -215,7 +215,7 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
         buffer if the data is malformed. According to
         the LZ4 documentation it is a little faster
         than the above function. When recovering from
-        the double write buffer we can afford to us the
+        the double write buffer we can afford to use the
         slower function above. */
 
         ret = LZ4_decompress_fast(reinterpret_cast<char *>(ptr),

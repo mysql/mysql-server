@@ -15,9 +15,11 @@ create table mysqltest_bar (m int);
 insert into mysqltest_bar values(15);
 create table t1 (k int);
 insert into t1 values(55);
+include/rpl/sync_to_replica.inc
 select mysqltest_foo.n,mysqltest_bar.m,t1.k from mysqltest_foo,mysqltest_bar,t1;
 n	m	k
 4	15	55
 drop table mysqltest_foo,mysqltest_bar,t1;
+include/rpl/sync_to_replica.inc
 drop table mysqltest_foo,mysqltest_bar,t1;
 include/rpl/deinit.inc

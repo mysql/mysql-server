@@ -226,6 +226,39 @@ if ($rpl_multi_source)
   }
 }
 
+if(!$rpl_skip_applier_version_reset) {
+  # Restore applier version
+  if ($rpl_applier_version != '')
+  {
+    --let $_rpl_server= $rpl_server_count
+    while ($_rpl_server)
+    {
+      --let $rpl_connection_name= server_$_rpl_server
+      --source include/connection.inc
+
+      --disable_query_log
+      --let $_for_channel_str=
+      if($rpl_group_replication) {
+        --let $_for_channel_str=FOR CHANNEL ''
+      }
+      if ($rpl_multi_source)
+      {
+        if($rpl_channel_name)
+        {
+          --let $_for_channel_str=FOR CHANNEL $rpl_channel_name
+        }
+        if(!$rpl_channel_name)
+        {
+          --let $_for_channel_str=FOR CHANNEL ''
+        }
+      }
+      --eval CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0, SOURCE_AUTO_POSITION= 0, SOURCE_LOG_FILE='FIRST', SOURCE_LOG_POS=4 $_for_channel_str
+      --enable_query_log
+      --dec $_rpl_server
+    }
+  }
+}
+
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
 

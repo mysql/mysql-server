@@ -1,0 +1,29 @@
+if (!$GROUP_REPLICATION)
+{
+  --skip Need Group Replication plugin
+}
+
+if (!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='group_replication'`)
+{
+  --skip Need Group Replication plugin
+}
+
+SELECT @@GLOBAL.group_replication_use_pqc_sign;
+
+SELECT @@group_replication_use_pqc_sign = @@GLOBAL.group_replication_use_pqc_sign;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.group_replication_use_pqc_sign;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.group_replication_use_pqc_sign;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_use_pqc_sign = ON;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_use_pqc_sign = 'invalid';
+
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='group_replication_use_pqc_sign';

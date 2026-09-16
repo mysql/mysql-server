@@ -38,6 +38,9 @@
 # the test is binlog-format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc
+# This test is MTA-specific, requires synchronization during transaction dispatch,
+# which is not supported in CSA
+--source include/have_mta.inc
 --source include/rpl/init_source_replica.inc
 
 --source common/rpl/ps_connection_applier_status.inc

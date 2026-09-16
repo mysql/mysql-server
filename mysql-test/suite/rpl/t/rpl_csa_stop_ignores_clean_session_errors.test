@@ -1,0 +1,102 @@
+# ==== PURPOSE ====
+#
+# Verify that a clean CSA session interrupted by STOP REPLICA does not leave
+# the channel failed with an error produced by the stop itself.
+#
+# ==== IMPLEMENTATION ====
+#
+# Test steps
+#
+# 1. Create matching local tables and start GTID replication with CSA.
+# 2. Pause the first replicated transaction in a CSA worker.
+# 3. Issue STOP REPLICA SQL_THREAD while the clean session is paused.
+# 4. Release the session and verify that the channel has no SQL error.
+# 5. Restart the applier and verify that the stopped transaction is replayed.
+#
+# Test pass conditions
+#
+# STOP REPLICA SQL_THREAD completes without setting Last_SQL_Errno, and the
+# transaction interrupted by STOP is applied after START REPLICA.
+#
+# ==== REFERENCES ====
+#
+# Bug#39477524
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_csa.inc
+--source include/have_binlog_format_row.inc
+
+--let $use_gtids= 1
+--let $rpl_extra_connections_per_server= 1
+--let $rpl_skip_start_slave= 1
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Configure source-replica replication and local test tables.
+--echo #
+
+--source include/rpl/connection_source.inc
+--source include/rpl/disable_binlog.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--source include/rpl/restore_binlog.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/disable_binlog.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--source include/rpl/restore_binlog.inc
+--let $debug_point= pause_csa_before_releasing_event_memory
+--source include/add_debug_point.inc
+--source include/rpl/start_replica.inc
+
+--echo #
+--echo # Stop the SQL thread while a clean CSA session is paused in apply.
+--echo #
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (1, REPEAT('A', 4000));
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+
+--source include/rpl/connection_replica1.inc
+--send STOP REPLICA SQL_THREAD
+
+--source include/rpl/connection_replica.inc
+--let $debug_point= pause_csa_before_releasing_event_memory
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+
+--source include/rpl/connection_replica1.inc
+--reap
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC= 'RESET';
+
+--source include/rpl/assert_replica_no_error.inc
+
+--echo #
+--echo # Restart the applier and verify that the transaction is replayed.
+--echo #
+
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $assert_text= The stopped transaction must be applied after restart.
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE a = 1] = 1
+--source include/assert.inc
+--let $assert_text= The replayed transaction must contain the full row data.
+--let $assert_cond= [SELECT LENGTH(data) FROM t1 WHERE a = 1] = 4000
+--source include/assert.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

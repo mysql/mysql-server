@@ -139,8 +139,7 @@ introduced where a call to log_free_check() is bypassed. */
     err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG |
                                         BTR_KEEP_SYS_FLAG | BTR_KEEP_POS_FLAG,
                                     btr_cur, offsets, offsets_heap,
-                                    node->update, node->cmpl_info, thr,
-                                    thr_get_trx(thr)->id, mtr);
+                                    node->update, node->cmpl_info, thr, mtr);
   } else {
     big_rec_t *dummy_big_rec;
 
@@ -148,7 +147,7 @@ introduced where a call to log_free_check() is bypassed. */
         BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG |
             BTR_KEEP_POS_FLAG,
         btr_cur, offsets, offsets_heap, heap, &dummy_big_rec, node->update,
-        node->cmpl_info, thr, thr_get_trx(thr)->id, node->undo_no, mtr, pcur);
+        node->cmpl_info, thr, node->undo_no, mtr, pcur);
 
     const rec_t *rec = btr_cur_get_rec(btr_cur);
     ut_a(!dummy_big_rec || materialize_instant_default(btr_cur->index, rec));
@@ -745,8 +744,7 @@ try_again:
 
         /* TODO: pass offsets, not &offsets */
         err = btr_cur_optimistic_update(flags, btr_cur, &offsets, &offsets_heap,
-                                        update, 0, thr, thr_get_trx(thr)->id,
-                                        &mtr);
+                                        update, 0, thr, &mtr);
         switch (err) {
           case DB_OVERFLOW:
           case DB_UNDERFLOW:
@@ -756,9 +754,9 @@ try_again:
             break;
         }
       } else {
-        err = btr_cur_pessimistic_update(
-            flags, btr_cur, &offsets, &offsets_heap, heap, &dummy_big_rec,
-            update, 0, thr, thr_get_trx(thr)->id, undo_no, &mtr);
+        err = btr_cur_pessimistic_update(flags, btr_cur, &offsets,
+                                         &offsets_heap, heap, &dummy_big_rec,
+                                         update, 0, thr, undo_no, &mtr);
         ut_a(!dummy_big_rec);
       }
 

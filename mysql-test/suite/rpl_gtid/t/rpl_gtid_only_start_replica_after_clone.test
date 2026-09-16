@@ -63,8 +63,8 @@ USE test;
 
 --source include/rpl/stop_replica.inc
 
-CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT=0;
+--let $rpl_reset_slave_all= 1
+--source include/rpl/reset_replica.inc
 
---source include/rpl/start_replica.inc
-
+--let $rpl_only_running_threads=1
 --source include/rpl/deinit.inc

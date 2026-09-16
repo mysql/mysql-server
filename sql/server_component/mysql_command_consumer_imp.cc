@@ -23,17 +23,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/server_component/mysql_command_consumer_imp.h"
 #include <mysql/components/minimal_chassis.h>
-#include "include/my_byteorder.h"
+#include <limits>
 #include "include/my_sys.h"
 #include "include/my_thread_local.h"
 #include "include/my_time.h"
-#include "include/mysql/service_command.h"
 #include "include/mysql/strings/int2str.h"
-#include "include/mysql/strings/m_ctype.h"
 #include "include/mysqld_error.h"
+#include "my_alloc.h"
+#include "mysql/service_mysql_alloc.h"
 #include "sql-common/my_decimal.h"
 #include "sql/server_component/mysql_command_services_imp.h"
-#include "sql_string.h"  // String
 
 PSI_memory_key key_memory_cc_MYSQL_DATA;
 PSI_memory_key key_memory_cc_MYSQL;
@@ -48,7 +47,7 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::start,
     ctx->m_mysql = mysql_handle->mysql;
     *srv_ctx_h = reinterpret_cast<SRV_CTX_H>(ctx);
     auto *mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(ctx->m_mysql);
-    mcs_extn->consumer_srv_data = reinterpret_cast<SRV_CTX_H *>(ctx);
+    mcs_extn->consumer_srv_data = reinterpret_cast<SRV_CTX_H>(ctx);
     ctx->m_result = &mcs_extn->data;
     if (!(*ctx->m_result = (MYSQL_DATA *)my_malloc(
               key_memory_cc_MYSQL_DATA, sizeof(MYSQL_DATA),
@@ -64,6 +63,8 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::start,
     ctx->m_message = new std::string();
     ctx->m_err_msg = new std::string();
     ctx->m_sqlstate = new std::string();
+    *ctx->m_sqlstate = not_error_sqlstate;
+    ctx->m_cur_row_data = new std::string();
     ctx->m_data = *ctx->m_result;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
@@ -102,6 +103,29 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::start_result_metadata,
     memset(ctx->m_fields, 0, sizeof(MYSQL_FIELD) * num_cols);
     ctx->m_data->fields = ctx->m_mysql->field_count = num_cols;
 
+    if (ctx->m_cur_field_capacity < num_cols) {
+      if (ctx->m_cur_field_offsets != nullptr) {
+        my_free(ctx->m_cur_field_offsets);
+        ctx->m_cur_field_offsets = nullptr;
+      }
+      ctx->m_cur_field_capacity = 0;
+
+      if (num_cols > 0) {
+        /*
+          Reuse one offset array while materializing rows. Non-NULL fields store
+          their byte offset into m_cur_row_data, and max size_t means no field
+          data has been staged and is materialized as SQL NULL.
+        */
+        ctx->m_cur_field_offsets = static_cast<size_t *>(my_malloc(
+            key_memory_cc_MYSQL, num_cols * sizeof(size_t), MYF(MY_WME)));
+        if (ctx->m_cur_field_offsets == nullptr) {
+          my_error(ER_DA_OOM, MYF(0));
+          return true;
+        }
+        ctx->m_cur_field_capacity = num_cols;
+      }
+    }
+
     // Prepare for rows
     ctx->m_prev_ptr = &ctx->m_data->data;
     ctx->m_data->rows = 0;
@@ -120,20 +144,35 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::field_metadata,
     auto *ctx = reinterpret_cast<Dom_ctx *>(srv_ctx_h);
     if (ctx == nullptr) return true;
     /* The field metadata strings are part of the query context and will be
-       freed after query execution. Copy the metadata strings into the result
-       set context so they can be accessed upon return to the caller.
+       freed after query execution. Copy them into MYSQL::field_alloc so
+       mysql_store_result() or mysql_use_result() transfers their ownership to
+       MYSQL_RES together with the MYSQL_FIELD array.
     */
-    MEM_ROOT *mem_root = (*ctx->m_result)->alloc;
+    MEM_ROOT *mem_root = ctx->m_mysql->field_alloc;
+    /*
+      Keep MYSQL_FIELD string metadata compatible with results materialized by
+      libmysql: the catalog is "def", and every copied string has its byte
+      length recorded in the corresponding length member.
+    */
+    constexpr char catalog[] = "def";
+    ctx->m_fields->catalog_length = sizeof(catalog) - 1;
+    ctx->m_fields->catalog =
+        strmake_root(mem_root, catalog, ctx->m_fields->catalog_length);
+    ctx->m_fields->db_length = strlen(field->db_name);
     ctx->m_fields->db =
-        strmake_root(mem_root, field->db_name, strlen(field->db_name));
+        strmake_root(mem_root, field->db_name, ctx->m_fields->db_length);
+    ctx->m_fields->table_length = strlen(field->table_name);
     ctx->m_fields->table =
-        strmake_root(mem_root, field->table_name, strlen(field->table_name));
+        strmake_root(mem_root, field->table_name, ctx->m_fields->table_length);
+    ctx->m_fields->org_table_length = strlen(field->org_table_name);
     ctx->m_fields->org_table = strmake_root(mem_root, field->org_table_name,
-                                            strlen(field->org_table_name));
+                                            ctx->m_fields->org_table_length);
+    ctx->m_fields->name_length = strlen(field->col_name);
     ctx->m_fields->name =
-        strmake_root(mem_root, field->col_name, strlen(field->col_name));
+        strmake_root(mem_root, field->col_name, ctx->m_fields->name_length);
+    ctx->m_fields->org_name_length = strlen(field->org_col_name);
     ctx->m_fields->org_name = strmake_root(mem_root, field->org_col_name,
-                                           strlen(field->org_col_name));
+                                           ctx->m_fields->org_name_length);
     ctx->m_fields->length = field->length;
     ctx->m_fields->charsetnr = field->charsetnr;
     ctx->m_fields->flags = field->flags;
@@ -165,13 +204,25 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::start_row,
       return true;
     }
     *ctx->m_prev_ptr = ctx->m_cur_row;
-    ctx->m_cur_row->data = (MYSQL_ROW)ctx->m_data->alloc->Alloc(
-        ctx->m_data->fields * sizeof(char *));
-    if (ctx->m_cur_row->data == nullptr) {
+    const auto field_count = ctx->m_data->fields;
+
+    if (field_count > 0 && (ctx->m_cur_field_offsets == nullptr ||
+                            ctx->m_cur_field_capacity < field_count)) {
       free_rows(ctx->m_data);
       my_error(ER_DA_OOM, MYF(0));
       return true;
     }
+
+    /*
+      Stage field bytes for this row first. end_row() copies the staged bytes
+      into the result MEM_ROOT and converts the offsets into MYSQL_ROW pointers.
+    */
+    ctx->m_cur_row_data->clear();
+    for (unsigned int i = 0; i < field_count; ++i) {
+      ctx->m_cur_field_offsets[i] = std::numeric_limits<size_t>::max();
+    }
+
+    ctx->m_cur_row->data = nullptr;
     ctx->m_cur_row->length = 0;
     ctx->m_cur_row->next = nullptr;
     ctx->m_cur_field_num = 0;
@@ -193,6 +244,8 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::abort_row,
     while (--count) last_row_hook = &(*last_row_hook)->next;
     *last_row_hook = nullptr;
     ctx->m_prev_ptr = last_row_hook;
+    ctx->m_cur_row = nullptr;
+    ctx->m_cur_row_data->clear();
     ctx->m_data->rows--;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
@@ -206,6 +259,47 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::end_row,
   try {
     auto *ctx = reinterpret_cast<Dom_ctx *>(srv_ctx_h);
     if (ctx == nullptr) return true;
+
+    /*
+      Materialize one row as:
+
+      [field pointers][extra end pointer][non-NULL field bytes + trailing NULs]
+
+      SQL NULL fields remain nullptr. The extra end pointer lets
+      csi_fetch_lengths() derive the last non-NULL field length.
+    */
+    const auto field_count = ctx->m_data->fields;
+    const size_t row_data_size = ctx->m_cur_row_data->size();
+    const size_t pointer_count = static_cast<size_t>(field_count) + 1;
+    const size_t row_data_offset = pointer_count * sizeof(char *);
+    if (row_data_size > std::numeric_limits<size_t>::max() - row_data_offset) {
+      my_error(ER_DA_OOM, MYF(0));
+      return true;
+    }
+    auto *row = static_cast<MYSQL_ROW>(
+        ctx->m_data->alloc->Alloc(row_data_offset + row_data_size));
+    if (row == nullptr) {
+      my_error(ER_DA_OOM, MYF(0));
+      return true;
+    }
+
+    ctx->m_cur_row->data = row;
+    char *field_data = reinterpret_cast<char *>(row + pointer_count);
+    if (row_data_size > 0)
+      memcpy(field_data, ctx->m_cur_row_data->data(), row_data_size);
+
+    const size_t null_offset = std::numeric_limits<size_t>::max();
+    for (unsigned int i = 0; i < field_count; ++i) {
+      if (ctx->m_cur_field_offsets[i] == null_offset) {
+        row[i] = nullptr;
+        continue;
+      }
+
+      row[i] = field_data + ctx->m_cur_field_offsets[i];
+    }
+    row[field_count] = field_data + row_data_size;
+    ctx->m_cur_row_data->clear();
+
     ctx->m_prev_ptr = &ctx->m_cur_row->next;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
@@ -255,10 +349,14 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::get, (SRV_CTX_H srv_ctx_h)) {
   try {
     auto *ctx = reinterpret_cast<Dom_ctx *>(srv_ctx_h);
     if (ctx == nullptr) return true;
-    char buff[5] = {"NULL"}; /* Store 'NULL' as null value into the data */
-    const bool ret = store_data(srv_ctx_h, buff, 4);
+    const auto field_index = ctx->m_cur_field_num;
+    /*
+      SQL NULL fields have no staged bytes. Keep the NULL offset sentinel so
+      end_row() materializes this column as a nullptr MYSQL_ROW entry.
+    */
+    ctx->m_cur_field_offsets[field_index] = std::numeric_limits<size_t>::max();
     ++ctx->m_cur_field_num;
-    return ret;
+    return false;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
     return true;
@@ -311,9 +409,8 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::get,
     if (ctx == nullptr) return true;
     char buff[DECIMAL_MAX_STR_LENGTH + 1];
     int string_length = DECIMAL_MAX_STR_LENGTH + 1;
-    String str(buff, sizeof(buff), &my_charset_bin);
     decimal2string(value, buff, &string_length);
-    const bool ret_val = store_data(srv_ctx_h, str.ptr(), str.length());
+    const bool ret_val = store_data(srv_ctx_h, buff, string_length) != 0;
     ++ctx->m_cur_field_num;
     return ret_val;
   } catch (...) {
@@ -441,6 +538,8 @@ DEFINE_METHOD(void, mysql_command_consumer_dom_imp::end,
   try {
     auto *ctx = reinterpret_cast<Dom_ctx *>(srv_ctx_h);
     if (ctx == nullptr) return;
+    auto *mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(ctx->m_mysql);
+    if (mcs_extn != nullptr) mcs_extn->consumer_srv_data = nullptr;
     // Free MYSQL_FIELD buffer allocated in start_result_metadata()
     if (ctx->m_mysql && ctx->m_mysql->field_alloc) {
       ctx->m_mysql->field_alloc->Clear();
@@ -449,14 +548,20 @@ DEFINE_METHOD(void, mysql_command_consumer_dom_imp::end,
       ctx->m_mysql->fields = nullptr;
     }
 
-    /* The m_result is freed by
-       free_result->mysql_free_result()->free_rows() api.
-       In non result cases, it has to be freed here. */
+    /*
+      mysql_free_result() normally releases result data. If the consumer is
+      ended first, release it here and clear both extension aliases so later
+      cleanup cannot observe freed storage.
+    */
     if (*ctx->m_result) {
       (*ctx->m_result)->alloc->Clear();
       my_free((*ctx->m_result)->alloc);
       my_free(*ctx->m_result);
+      *ctx->m_result = nullptr;
     }
+    if (mcs_extn != nullptr) mcs_extn->use_result_cursor = nullptr;
+    if (ctx->m_cur_field_offsets != nullptr) my_free(ctx->m_cur_field_offsets);
+    delete ctx->m_cur_row_data;
     delete ctx->m_message;
     delete ctx->m_err_msg;
     delete ctx->m_sqlstate;
@@ -472,14 +577,30 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::store_data,
   try {
     auto *ctx = reinterpret_cast<Dom_ctx *>(srv_ctx_h);
     assert(ctx);
-    char *&field_buf = ctx->m_cur_row->data[ctx->m_cur_field_num];
-    field_buf = (char *)ctx->m_data->alloc->Alloc(length + 1);
-    if (field_buf == nullptr) {
+    if (length > std::numeric_limits<ulong>::max() ||
+        length == std::numeric_limits<size_t>::max()) {
       my_error(ER_DA_OOM, MYF(0));
       return true;
     }
-    memcpy(field_buf, (const uchar *)data, length);
-    field_buf[length] = '\0';
+
+    const auto field_index = ctx->m_cur_field_num;
+    /*
+      Store the field bytes plus a trailing NUL byte. The saved offset is
+      converted to a MYSQL_ROW pointer in end_row().
+    */
+    const size_t field_offset = ctx->m_cur_row_data->size();
+    if (length >= ctx->m_cur_row_data->max_size() - field_offset) {
+      my_error(ER_DA_OOM, MYF(0));
+      return true;
+    }
+
+    const size_t required_capacity = field_offset + length + 1;
+    if (ctx->m_cur_row_data->capacity() < required_capacity)
+      ctx->m_cur_row_data->reserve(required_capacity);
+
+    if (length > 0) ctx->m_cur_row_data->append(data, length);
+    ctx->m_cur_row_data->push_back('\0');
+    ctx->m_cur_field_offsets[field_index] = field_offset;
     ctx->m_cur_row->length += length;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);

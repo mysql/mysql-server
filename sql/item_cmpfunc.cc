@@ -1132,7 +1132,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
                                             : MYSQL_TIMESTAMP_DATETIME);
       String tmp;
       String *str_val = str_arg->val_str(&tmp);
-      if (str_arg->null_value) return true;
+      if (str_val == nullptr) return true;
       bool error;
       value = get_date_from_str(thd, str_val, t_type, date_arg->item_name.ptr(),
                                 &error);
@@ -2278,14 +2278,17 @@ int Arg_comparator::compare_row() {
   Compare two argument items, or a pair of elements from two argument rows,
   for NULL values.
 
-  @param a First item
-  @param b Second item
+  @param a         First item
+  @param a_is_null True if a is NULL, ie. if the row it belongs to is NULL
+  @param b         Second item
+  @param b_is_null True if b is NULL, ie. if the row it belongs to is NULL
   @param[out] result True if both items are NULL, false otherwise,
                      when return value is true.
 
   @returns true if at least one of the items is NULL
 */
-static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
+static bool compare_pair_for_nulls(Item *a, bool a_is_null, Item *b,
+                                   bool b_is_null, bool *result) {
   if (a->result_type() == ROW_RESULT) {
     a->bring_value();
     b->bring_value();
@@ -2296,17 +2299,18 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
     */
     bool have_null_items = false;
     for (uint i = 0; i < a->cols(); i++) {
-      if (compare_pair_for_nulls(a->element_index(i), b->element_index(i),
-                                 result)) {
+      if (compare_pair_for_nulls(
+              a->element_index(i), a_is_null || a->null_value,
+              b->element_index(i), b_is_null || b->null_value, result)) {
         have_null_items = true;
         if (!*result) return true;
       }
     }
     return have_null_items;
   }
-  const bool a_null = a->is_nullable() && a->is_null();
+  const bool a_null = a_is_null || a->is_null();
   if (current_thd->is_error()) return false;
-  const bool b_null = b->is_nullable() && b->is_null();
+  const bool b_null = b_is_null || b->is_null();
   if (current_thd->is_error()) return false;
   if (a_null || b_null) {
     *result = a_null == b_null;
@@ -2324,7 +2328,7 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
 */
 bool Arg_comparator::compare_null_values() {
   bool result;
-  (void)compare_pair_for_nulls(*left, *right, &result);
+  (void)compare_pair_for_nulls(*left, false, *right, false, &result);
   if (current_thd->is_error()) return false;
   return result;
 }
@@ -3202,7 +3206,7 @@ void Item_func_interval::print(const THD *thd, String *str,
     item twice.
 
   @return
-    - -1 if null value,
+    - -1 if null value or error,
     - 0 if lower than lowest
     - 1 - arg_count-1 if between args[n] and args[n+1]
     - arg_count if higher than biggest argument
@@ -3260,7 +3264,10 @@ longlong Item_func_interval::val_int() {
       my_decimal e_dec_buf;
       my_decimal *e_dec = el->val_decimal(&e_dec_buf);
       /* Skip NULL ranges. */
-      if (el->null_value) continue;
+      if (e_dec == nullptr) {
+        if (el->null_value) continue;
+        return -1;
+      }
       if (my_decimal_cmp(e_dec, dec) > 0) return i - 1;
     } else {
       const double val = el->val_real();
@@ -3689,6 +3696,7 @@ longlong Item_func_between::val_int() {  // ANSI BETWEEN
     if (args[0]->null_value) return 0; /* purecov: inspected */
     if (!args[1]->null_value && !args[2]->null_value) return value;
   } else if (cmp_type == DECIMAL_RESULT) {
+    null_value = false;
     my_decimal dec_buf, a_buf, b_buf;
     my_decimal *dec = args[0]->val_decimal(&dec_buf);
     if (dec == nullptr) {
@@ -3801,6 +3809,7 @@ my_decimal *Item_func_ifnull::decimal_op(my_decimal *decimal_value) {
     null_value = args[1]->null_value;
     return nullptr;
   }
+  null_value = false;
   return value;
 }
 
@@ -4050,13 +4059,6 @@ bool Item_func_nullif::resolve_type_inner(THD *thd) {
   set_data_type_from_item(args[0]);
   cached_result_type = args[0]->result_type();
 
-  // This class does not implement temporal data types
-  if (is_temporal()) {
-    set_data_type_string(args[0]->max_length);
-    if (agg_arg_charsets_for_comparison(cmp.cmp_collation, args, arg_count))
-      return true;
-    cached_result_type = STRING_RESULT;
-  }
   return false;
 }
 
@@ -4120,6 +4122,33 @@ my_decimal *Item_func_nullif::val_decimal(my_decimal *decimal_value) {
   my_decimal *res = args[0]->val_decimal(decimal_value);
   null_value = args[0]->null_value;
   return res;
+}
+
+bool Item_func_nullif::val_date(Date_val *date, my_time_flags_t flags) {
+  assert(fixed);
+  if (!cmp.compare()) {
+    null_value = true;
+    return true;
+  }
+  return val_arg0_date(date, flags);
+}
+
+bool Item_func_nullif::val_time(Time_val *time) {
+  assert(fixed);
+  if (!cmp.compare()) {
+    null_value = true;
+    return true;
+  }
+  return val_arg0_time(time);
+}
+
+bool Item_func_nullif::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
+  assert(fixed);
+  if (!cmp.compare()) {
+    null_value = true;
+    return true;
+  }
+  return val_arg0_datetime(dt, flags);
 }
 
 bool Item_func_nullif::val_json(Json_wrapper *wr) {
@@ -5025,7 +5054,7 @@ bool In_vector_int::val_item(Item *item, packed_longlong *result) {
 bool In_vector_time::find_item(Item *item) {
   if (m_used_size == 0) return false;
   Time_val time;
-  if (item->val_time(&time)) return true;
+  if (item->val_time(&time)) return false;
   return std::binary_search(base.begin(), base.begin() + m_used_size, time);
 }
 
@@ -5045,7 +5074,7 @@ void In_vector_time::sort_array() {
 bool In_vector_date::find_item(Item *item) {
   if (m_used_size == 0) return false;
   Date_val date;
-  if (item->val_date(&date, 0)) return true;
+  if (item->val_date(&date, 0)) return false;
   return std::binary_search(m_base.begin(), m_base.begin() + m_used_size, date);
 }
 

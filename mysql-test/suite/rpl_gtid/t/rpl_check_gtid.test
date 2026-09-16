@@ -72,6 +72,8 @@
 ################################################################################
 --source include/not_windows.inc
 --source include/have_debug.inc
+# See rpl_check_gtid_csa.test
+--source include/have_mta.inc
 --source include/rpl/init_source_replica.inc
 
 # this test case requires that certain events appear in a given

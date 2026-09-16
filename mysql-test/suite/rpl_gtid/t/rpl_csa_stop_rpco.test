@@ -1,0 +1,67 @@
+# ==== PURPOSE ====
+#
+# This test validates that stopping the CSA applier does not leave gaps in the executed
+# GTIDs, ensuring all events up to the stop point are applied contiguously.
+#
+# ==== IMPLEMENTATION ====
+#
+#     Test steps:
+#
+#     1. Set up replication with APPLIER_VERSION=2 and multiple workers
+#     2. On source: Create table and insert 500 rows to generate load
+#     3. Start replica and allow some application
+#     4. Stop replica immediately
+#     5. Verify GTID executed is a single contiguous range (no gaps)
+#     6. Restart replica
+#     7. Cleanup
+#
+# ==== REFERENCES ====
+#
+# WL#10500 MTA: Optimized and generic change stream applier
+#
+
+--source include/have_binlog_format_row.inc
+
+# Test scenario is constructed assuming replica_preserve_commit_order=1
+--source include/have_replica_preserve_commit_order.inc
+
+--let $rpl_applier_version=2:2
+--let $rpl_applier_worker_count=2:4
+--let $rpl_skip_start_slave=1
+--source include/rpl/init_source_replica.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, val INT);
+
+--disable_query_log
+--disable_result_log
+--let $num_tx = 500
+while ($num_tx > 0)
+{
+  --eval INSERT INTO t1 (val) VALUES ($num_tx)
+  --dec $num_tx
+}
+DROP TABLE t1;
+--enable_query_log
+--enable_result_log
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+
+--sleep 1
+
+--source include/rpl/stop_replica.inc
+
+# Record GTID executed after immediate stop
+--let $gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+# Verify no gaps in GTID executed
+SELECT @@GLOBAL.gtid_executed REGEXP '^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:1(-[0-9]+)?)?$' INTO @regex_match;
+--let $has_single_contiguous = `SELECT @regex_match`
+
+--let $assert_text = Verify no gaps in GTID executed: should be a single contiguous range uuid:1-K
+--let $assert_cond = $has_single_contiguous = 1
+--source include/assert.inc
+
+--source include/rpl/start_replica.inc
+call mtr.add_suppression("Query execution was interrupted.");
+--source include/rpl/deinit.inc

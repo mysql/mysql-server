@@ -40,7 +40,7 @@ GRANT EXECUTE ON PROCEDURE p1 TO user1@localhost, user2@localhost;
 REVOKE EXECUTE ON PROCEDURE p1 FROM user1@localhost, user2@localhost;
 
 CREATE FUNCTION f1() RETURNS INT RETURN 123;
-GRANT EXECUTE ON FUNCTION f1 /*before to*/TO/*after to*/ user1@localhost/*!10000 , user2@localhost*/ /*!99999 THIS_WOULD_BREAK */;
+GRANT EXECUTE ON FUNCTION f1 /*before to*/TO/*after to*/ user1@localhost/*!10000 , user2@localhost*/ /*!999999 THIS_WOULD_BREAK */;
 REVOKE EXECUTE ON FUNCTION f1 FROM user1@localhost, user2@localhost;
 
 DROP USER user1@localhost, user2@localhost;

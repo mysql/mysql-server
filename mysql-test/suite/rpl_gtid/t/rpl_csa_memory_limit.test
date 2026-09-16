@@ -1,0 +1,103 @@
+# ==== PURPOSE ====
+#
+# This test validates that the CSA applier waits when the configured
+# APPLIER_EVENT_MEMORY_LIMIT is reached.
+#
+# ==== IMPLEMENTATION ====
+#
+#     Test steps:
+#
+#     1. Set up replication with APPLIER_VERSION=2 and small APPLIER_EVENT_MEMORY_LIMIT
+#     2. Start replica
+#     3. On source: Create table and insert large data to exceed memory limit
+#     4. On replica: Verify applier threads are waiting for channel memory
+#     5. Allow application by stopping source or syncing
+#     6. Verify data is applied
+#     7. Cleanup
+#
+# ==== REFERENCES ====
+#
+# WL#10500 MTA: Optimized and generic change stream applier
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+# MTA does not support APPLIER_EVENT_MEMORY_LIMIT
+--source include/have_csa.inc
+
+--echo
+--echo # 1. Set up replication with CSA (APPLIER_VERSION=2) and small event memory limit
+--echo
+
+--let $rpl_skip_start_slave=1
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+SET @tmp_max= @@global.replica_max_allowed_packet;
+SET @@global.replica_max_allowed_packet=4096;
+
+CHANGE REPLICATION SOURCE TO
+  APPLIER_VERSION=2,
+  APPLIER_WORKER_COUNT=4,
+  APPLIER_EVENT_MEMORY_LIMIT=5000;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+
+--echo # Create table for large inserts
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  data LONGBLOB
+);
+
+--source include/rpl/sync_to_replica.inc
+
+--let $debug_point=pause_csa_before_releasing_event_memory
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+
+--echo # Execute multiple separate transactions with events below the limit, but larger than configured event memory limit. Parallel worker will exceed the event limit.
+--disable_query_log
+let $i=1;
+while ($i <= 12) {  # 6 transactions
+  BEGIN;
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('A', 4000));
+  --inc $i
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('A', 2000));
+  COMMIT;
+  --inc $i
+}
+--enable_query_log
+
+--echo # Wait for 1 applier worker to lock event memory and block the rest
+--source include/rpl/connection_replica.inc
+--let $wait_condition = SELECT COUNT(*) = 3 FROM information_schema.processlist WHERE STATE = "Waiting for Replica Workers to free pending events"
+--source include/wait_condition.inc
+
+--echo # Wait until the worker holding channel memory reaches the debug sync point
+SET DEBUG_SYNC='now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+
+# Remove debug point
+--source include/remove_debug_point.inc
+
+SET DEBUG_SYNC='now SIGNAL signal_continue_csa_releasing_event_memory';
+
+
+--echo # Sync and verify data applied after wait (increase limit or let process)
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+SELECT COUNT(*) = 6 FROM t1;
+
+--echo # Cleanup
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+SET @@global.replica_max_allowed_packet=@tmp_max;
+
+--source include/rpl/deinit.inc

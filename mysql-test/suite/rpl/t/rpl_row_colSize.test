@@ -160,6 +160,7 @@ connection slave;
 call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column 0 ...e mismatch.* Error_code: MY-001535");
 call mtr.add_suppression("Replica SQL.*Column 1 .* of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 
 --echo *** Cleanup  ***
 connection master;

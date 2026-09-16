@@ -1,0 +1,15 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Feature request
+description: Propose an enhancement
+labels: ["feature-request", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations: { required: true }

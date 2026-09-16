@@ -48,12 +48,14 @@
 #include "mysql/service_thd_wait.h"
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
+#include "mysql/utils/enumeration_utils.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "nulls.h"
 #include "sql/auth/auth_acls.h"  // SUPER_ACL
 #include "sql/auth/roles.h"      // Roles::Role_activation
 #include "sql/auth/sql_auth_cache.h"
+#include "sql/changestreams/apply/csa_worker_context.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/log_event.h"  // Log_event
@@ -66,6 +68,7 @@
 #include "sql/rpl_msr.h"  // channel_map
 #include "sql/rpl_relay_log_sanitizer.h"
 #include "sql/rpl_replica.h"
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
 #include "sql/rpl_reporting.h"
 #include "sql/rpl_rli_pdb.h"  // Slave_worker
 #include "sql/rpl_trx_boundary_parser.h"
@@ -93,22 +96,24 @@ using std::min;
   what follows. For now, this is just used to get the number of
   fields.
 */
-const char *info_rli_fields[] = {
-    "number_of_lines",
-    "group_relay_log_name",
-    "group_relay_log_pos",
-    "group_source_log_name",
-    "group_source_log_pos",
-    "sql_delay",
-    "number_of_workers",
-    "id",
-    "channel_name",
-    "privilege_checks_user",
-    "privilege_checks_hostname",
-    "require_row_format",
-    "require_table_primary_key_check",
-    "assign_gtids_to_anonymous_transactions_type",
-    "assign_gtids_to_anonymous_transactions_value"};
+const char *info_rli_fields[] = {"number_of_lines",
+                                 "group_relay_log_name",
+                                 "group_relay_log_pos",
+                                 "group_source_log_name",
+                                 "group_source_log_pos",
+                                 "sql_delay",
+                                 "number_of_workers",
+                                 "id",
+                                 "channel_name",
+                                 "privilege_checks_user",
+                                 "privilege_checks_hostname",
+                                 "require_row_format",
+                                 "require_table_primary_key_check",
+                                 "assign_gtids_to_anonymous_transactions_type",
+                                 "assign_gtids_to_anonymous_transactions_value",
+                                 "applier_version",
+                                 "applier_worker_count",
+                                 "applier_event_memory_limit"};
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
@@ -1300,7 +1305,10 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
     */
     info_thd->reset_query();
     info_thd->reset_query_for_display();
-    delete rows_query_ev;
+    if (!is_csa_enabled()) {
+      // event memory controlled by CSA (shared pointers)
+      delete rows_query_ev;
+    }
     rows_query_ev = nullptr;
     DBUG_EXECUTE_IF("after_deleting_the_rows_query_ev", {
       const char action[] =
@@ -2040,6 +2048,29 @@ bool Relay_log_info::clear_info() {
       this->handler->set_info((ulong)this->m_require_table_primary_key_check))
     return true;
 
+  if (this->handler->set_info(
+          (ulong)m_assign_gtids_to_anonymous_transactions_info.get_type())) {
+    return true;
+  }
+
+  if (this->handler->set_info(
+          m_assign_gtids_to_anonymous_transactions_info.get_value().c_str())) {
+    return true;
+  }
+
+  if (this->handler->set_info((ulong)this->m_applier_version)) {
+    return true;
+  }
+
+  if (this->handler->set_info(
+          (ulong)this->get_configured_applier_worker_count())) {
+    return true;
+  }
+
+  if (this->handler->set_info(this->get_applier_event_memory_limit())) {
+    return true;
+  }
+
   if (this->handler->flush_info(true)) return true;
 
   this->group_relay_log_name[0] = '\0';
@@ -2283,6 +2314,40 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
         APPLIER_METADATA_LINES_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE)
       return true;
   }
+  if (lines >= APPLIER_METADATA_LINES_WITH_APPLIER_VERSION) {
+    long unsigned int tmp_long_applier_version = 0;
+    if (!!from->get_info((&tmp_long_applier_version), 1)) {
+      return true;
+    }
+    if (tmp_long_applier_version >= cs::apply::Applier_version::unknown) {
+      return true;
+    }
+    m_applier_version = tmp_long_applier_version;
+  }
+
+  if (lines >= APPLIER_METADATA_LINES_WITH_APPLIER_WORKER_COUNT) {
+    long unsigned int tmp_applier_worker_count = 0;
+    if (!!from->get_info((&tmp_applier_worker_count), 1)) {
+      return true;
+    }
+    if (tmp_applier_worker_count > MTS_MAX_WORKERS) {
+      return true;
+    }
+    if (tmp_applier_worker_count > 0) {
+      set_applier_worker_count(tmp_applier_worker_count);
+    }
+  }
+
+  if (lines >= APPLIER_METADATA_LINES_WITH_APPLIER_EVENT_MEMORY_LIMIT) {
+    long unsigned int tmp_applier_ev_mem_limit = 0;
+    if (!!from->get_info((&tmp_applier_ev_mem_limit), 1)) {
+      return true;
+    }
+    if (tmp_applier_ev_mem_limit < applier_event_memory_limit_default) {
+      return true;
+    }
+    set_applier_event_memory_limit(tmp_applier_ev_mem_limit);
+  }
 
   group_relay_log_pos = temp_group_relay_log_pos;
   group_master_log_pos = temp_group_master_log_pos;
@@ -2382,7 +2447,21 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
           m_assign_gtids_to_anonymous_transactions_info.get_value().c_str())) {
     return true; /* purecov: inspected */
   }
+  if (to->set_info((ulong)m_applier_version)) {
+    return true;
+  }
+  if (to->set_info((ulong)get_configured_applier_worker_count())) {
+    return true;
+  }
+  if (to->set_info(get_applier_event_memory_limit())) {
+    return true;
+  }
+
   return false;
+}
+
+void Relay_log_info::set_fde_ptr(Format_description_log_event *fe) {
+  rli_description_event = fe;
 }
 
 /**
@@ -2670,10 +2749,13 @@ ulong Relay_log_info::adapt_to_master_version_updown(ulong master_version,
 }
 
 const char *Relay_log_info::get_for_channel_str(bool upper_case) const {
-  if (rli_fake || mi == nullptr)
+  if (m_csa_worker_context) {
+    return m_csa_worker_context->get_for_channel_id(upper_case);
+  } else if (rli_fake || mi == nullptr) {
     return "";
-  else
+  } else {
     return mi->get_for_channel_str(upper_case);
+  }
 }
 
 enum_return_status Relay_log_info::add_gtid_set(const Gtid_set *gtid_set) {
@@ -2761,6 +2843,13 @@ int Relay_log_info::init_until_option(THD *thd,
     }
   } catch (...) {
     return ER_OUTOFMEMORY;
+  }
+
+  if (is_csa_enabled() && until_condition != UNTIL_SQL_AFTER_GTIDS &&
+      until_condition != UNTIL_SQL_BEFORE_GTIDS &&
+      until_condition != UNTIL_NONE) {
+    // CSA supports UNTIL_SQL_AFTER_GTIDS and UNTIL_SQL_BEFORE_GTIDS
+    return ER_CSA_UNSUPPORTED_UNTIL_COND;
   }
 
   if (until_condition == UNTIL_MASTER_POS ||
@@ -3390,6 +3479,18 @@ MDL_lock_guard::~MDL_lock_guard() {
 
 bool MDL_lock_guard::is_locked() { return this->m_request.ticket != nullptr; }
 
+static bool is_client_binlog_statement(Relay_log_info const *rli,
+                                       THD const *thd [[maybe_unused]]) {
+  assert(rli != nullptr);
+  assert(thd != nullptr);
+  assert(rli->info_thd == thd);
+
+  const bool belongs_to_client = rli->belongs_to_client();
+  assert(!belongs_to_client || thd->rli_fake == rli);
+
+  return belongs_to_client;
+}
+
 Applier_security_context_guard::Applier_security_context_guard(
     Relay_log_info const *rli, THD const *thd)
     : m_target{rli},
@@ -3398,16 +3499,10 @@ Applier_security_context_guard::Applier_security_context_guard(
       m_previous{nullptr},
       m_privilege_checks_none{
           this->m_target->get_privilege_checks_username().length() == 0 &&
-          (this->m_thd->lex == nullptr ||
-           this->m_thd->lex->binlog_stmt_arg.length == 0 ||
-           this->m_thd->lex->binlog_stmt_arg.length >= 2048 ||
-           this->m_thd->lex->binlog_stmt_arg.str == nullptr)} {
+          !is_client_binlog_statement(this->m_target, this->m_thd)} {
   DBUG_TRACE;
 
-  if (this->m_thd->lex != nullptr &&
-      this->m_thd->lex->binlog_stmt_arg.length != 0 &&
-      this->m_thd->lex->binlog_stmt_arg.length < 2048 &&
-      this->m_thd->lex->binlog_stmt_arg.str != nullptr) {
+  if (is_client_binlog_statement(this->m_target, this->m_thd)) {
     Security_context *standing_ctx = this->m_thd->security_context();
     if (standing_ctx != nullptr &&
         (standing_ctx->check_access(SUPER_ACL) ||
@@ -3543,4 +3638,109 @@ void Applier_security_context_guard::extract_columns_to_check(
       columns.push_back(table->field[idx]->field_name);
     }
   }
+}
+
+void Relay_log_info::set_applier_version(uint version) {
+  m_applier_version = version;
+}
+
+bool Relay_log_info::is_csa_enabled() const {
+  return m_applier_version == cs::apply::Applier_version::csa;
+}
+
+void Relay_log_info::enable_csa_stop_error_suppression_if_clean() {
+  mysql_mutex_lock(&err_lock);
+  const bool can_suppress = m_last_error.number == 0;
+  m_csa_stop_error_suppression.store(can_suppress, std::memory_order_release);
+  mysql_mutex_unlock(&err_lock);
+}
+
+bool Relay_log_info::is_csa_stop_error_suppression_enabled() const {
+  return m_csa_stop_error_suppression.load(std::memory_order_acquire);
+}
+
+loglevel Relay_log_info::get_effective_report_level(loglevel level, int) const {
+  mysql_mutex_assert_owner(&err_lock);
+
+  if (level == ERROR_LEVEL && is_csa_stop_error_suppression_enabled()) {
+    return INFORMATION_LEVEL;
+  }
+  return level;
+}
+
+void Relay_log_info::set_applier_worker_count(uint number) {
+  if (number > 0) {
+    m_applier_worker_count = number;
+    return;
+  }
+}
+
+uint Relay_log_info::get_applier_worker_count() const {
+  if (m_applier_worker_count > 0) {
+    return m_applier_worker_count;
+  }
+  /// if m_applier_worker_count was not set, but option was set, pick option
+  if (opt_replica_parallel_workers > 0 &&
+      opt_replica_parallel_workers <= MTS_MAX_WORKERS) {
+    return opt_replica_parallel_workers;
+  } else if (replica_parallel_workers > 0) {
+    return replica_parallel_workers;
+  } else if (opt_mts_replica_parallel_workers > 0) {
+    return opt_mts_replica_parallel_workers;
+  }
+  return 1;
+}
+
+uint Relay_log_info::get_configured_applier_worker_count() const {
+  return m_applier_worker_count;
+}
+
+void Relay_log_info::set_applier_event_memory_limit(ulong number) {
+  if (number > 0) {
+    m_applier_event_memory_limit = number;
+    return;
+  }
+  m_applier_event_memory_limit = applier_event_memory_limit_default;
+}
+
+ulong Relay_log_info::get_applier_event_memory_limit() {
+  if (m_applier_event_memory_limit > 0) {
+    return m_applier_event_memory_limit;
+  }
+  return applier_event_memory_limit_default;
+}
+
+void Relay_log_info::set_channel_instance_id(std::size_t chid) {
+  m_channel_instance_id = chid;
+}
+
+std::size_t Relay_log_info::get_channel_instance_id() const {
+  return m_channel_instance_id;
+}
+
+void Relay_log_info::set_csa_worker_context(
+    Parallel_worker_context *csa_worker_context) {
+  m_csa_worker_context = csa_worker_context;
+}
+
+Relay_log_info::Parallel_worker_context *
+Relay_log_info::get_parallel_worker_context() {
+  if (m_csa_worker_context == nullptr) {
+    // return MTA worker context
+    auto *slave_ptr = dynamic_cast<Slave_worker *>(this);
+    assert(slave_ptr);
+    return slave_ptr;
+  }
+  return m_csa_worker_context;
+}
+
+void Relay_log_info::set_parent_rli(Relay_log_info *parent_rli) {
+  m_parent_rli = parent_rli;
+}
+
+Relay_log_info *Relay_log_info::get_parent_rli() const {
+  if (m_parent_rli) {
+    return m_parent_rli;
+  }
+  return static_cast<const Slave_worker *>(this)->c_rli;
 }

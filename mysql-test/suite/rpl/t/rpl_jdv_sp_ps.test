@@ -17,6 +17,7 @@
 
 --echo ################################################
 --echo # Initialize the Replication setup
+--source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/rpl/init_source_replica.inc
 --echo ################################################
 

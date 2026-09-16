@@ -32,7 +32,8 @@
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "sql/changestreams/apply/commit_order_queue.h"  // Commit_order_queue
-#include "sql/rpl_rli_pdb.h"                             // get_thd_worker
+#include "sql/changestreams/apply/parallel_worker_context.h"  // Parallel_worker_context
+#include "sql/rpl_rli_pdb.h"                                  // get_thd_worker
 
 class THD;
 class Commit_order_lock_graph;
@@ -196,6 +197,7 @@ class Commit_order_lock_graph;
  */
 class Commit_order_manager {
  public:
+  using Parallel_worker_context = cs::apply::Parallel_worker_context;
   Commit_order_manager(uint32 worker_numbers);
   // Copy logic is not available
   Commit_order_manager(const Commit_order_manager &) = delete;
@@ -204,12 +206,15 @@ class Commit_order_manager {
   // Copy logic is not available
   Commit_order_manager &operator=(const Commit_order_manager &) = delete;
 
+  std::size_t pool_size() const;
+
   /**
     Initializes the MDL context for a given worker in the commit order queue.
 
-    @param worker The worker to initialize the context for
+    @param worker_id Sequence id of the worker
+    @param thd Session pointer
    */
-  void init_worker_context(Slave_worker &worker);
+  void init_worker_context(std::size_t worker_id, THD *thd);
 
   /**
     Register the worker into commit order queue when coordinator dispatches a
@@ -217,7 +222,7 @@ class Commit_order_manager {
 
     @param[in] worker The worker which the transaction will be dispatched to.
   */
-  void register_trx(Slave_worker *worker);
+  void register_trx(Parallel_worker_context *worker);
 
  private:
   /**
@@ -229,7 +234,8 @@ class Commit_order_manager {
 
     @return false if the worker is ready to commit, true if not.
    */
-  bool wait_on_graph(Slave_worker *worker);
+  bool wait_on_graph(Parallel_worker_context *worker);
+
   /**
     Wait for its turn to commit or unregister.
 
@@ -240,7 +246,7 @@ class Commit_order_manager {
     @retval true   One or more previous transactions rollback, so this
                    transaction should rollback.
   */
-  bool wait(Slave_worker *worker);
+  bool wait(Parallel_worker_context *worker);
 
   /**
     Unregister the thread from the commit order queue and signal
@@ -248,7 +254,7 @@ class Commit_order_manager {
 
     @param[in] worker     The worker which is executing the transaction.
   */
-  void finish_one(Slave_worker *worker);
+  void finish_one(Parallel_worker_context *worker);
 
   /**
     Unregister the transaction from the commit order queue and signal the next
@@ -256,7 +262,7 @@ class Commit_order_manager {
 
     @param[in] worker     The worker which is executing the transaction.
   */
-  void finish(Slave_worker *worker);
+  void finish(Parallel_worker_context *worker);
 
   /**
     Reset server_status value of the commit group.
@@ -284,7 +290,7 @@ class Commit_order_manager {
   */
   void unset_rollback_status();
 
-  void report_deadlock(Slave_worker *worker);
+  void report_deadlock(Parallel_worker_context *worker);
 
   std::atomic<bool> m_rollback_trx;
 
@@ -299,7 +305,7 @@ class Commit_order_manager {
 
     @param[in] worker  The worker which is executing the transaction.
   */
-  void flush_engine_and_signal_threads(Slave_worker *worker);
+  void flush_engine_and_signal_threads(Parallel_worker_context *worker);
 
  public:
   /**

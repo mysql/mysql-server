@@ -1,0 +1,156 @@
+# WL#17817 : Innodb: Remove CREATE UNDO TABLESPACE dependency on
+  # truncate_log_file
+
+# These tests try to simulate upgrade from versions which don't
+# have "WL16989 Innodb: Make UNDO log truncation crash safe"
+# and trying to upgrade from a crashed data directory
+
+# This test uses debug settings like innodb_purge_stop_now.
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+ --source include/not_crashrep.inc
+
+# The test must start with only 2 undo tablespaces
+--source include/have_innodb_default_undo_tablespaces.inc
+
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+
+--echo # Scenario 1
+# Older versions tried to create a undo tablespace using "CREATE UNDO
+# TABLESPACE" command and crashed just after creating the truncate
+# log file.
+
+
+--echo # shutdown the server
+--source include/stop_mysqld.inc
+
+--echo # create the truncate log file on an explicit space num
+
+--write_file $MYSQLD_DATADIR/undo_3_trunc.log
+1
+EOF
+
+--echo # Start the server
+--source include/start_mysqld.inc
+
+--echo # Check if the truncate log is present. (It should be absent)
+--list_files $MYSQLD_DATADIR/ *.log*
+
+SELECT name, space_type, state, autoextend_size FROM
+    INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+
+--echo # Scenario 2
+# Older versions tried to create a undo tablespace using "CREATE UNDO
+# TABLESPACE" command and crashed  after creating the undo file.
+# Therfore now both undo file and truncate log file is present
+
+SET  GLOBAL DEBUG ="+d,create_crash_after_undo_tablespace_create";
+--source include/expect_crash.inc
+--error 2013
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+
+--echo # create the truncate log file on an explicit space num
+--write_file $MYSQLD_DATADIR/undo_3_trunc.log
+1
+EOF
+
+--echo # list 
+--list_files $MYSQLD_DATADIR/ *.log
+--list_files $MYSQLD_DATADIR/ undo_0*
+
+--echo # Restart server normally
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
+
+--list_files $MYSQLD_DATADIR/ *.log
+--list_files $MYSQLD_DATADIR/ undo_0*
+
+SELECT name, space_type, state, autoextend_size FROM
+    INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+
+
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+
+--list_files $MYSQLD_DATADIR/ *.log
+--list_files $MYSQLD_DATADIR/ undo_0*
+
+--let $inactive_undo_space = undo_003
+--source include/wait_until_undo_space_is_empty.inc
+
+DROP UNDO TABLESPACE undo_003;
+
+--echo # Scenario 3
+# Older versions crashed during truncate after creating the 
+# truncate log file
+
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+
+--echo # Crash just after writing truncation flags to tablespace header
+set global debug='+d,ib_undo_trunc_after_writing_unusable_flag';
+--source include/expect_crash.inc
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+--source include/wait_until_disconnected.inc
+
+--echo # create the truncate log file on an explicit space num
+--write_file $MYSQLD_DATADIR/undo_3_trunc.log
+1
+EOF
+
+--echo # Before restart
+--list_files $MYSQLD_DATADIR/ *.log
+--list_files $MYSQLD_DATADIR/ undo_0*
+
+--echo # Restart server normally
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
+
+--list_files $MYSQLD_DATADIR/ *.log
+--list_files $MYSQLD_DATADIR/ undo_0*
+
+SELECT name, space_type, state, autoextend_size FROM
+    INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+
+DROP UNDO TABLESPACE undo_003;
+
+--echo # Scenario 4
+# Older versions crashed during truncate after deleting the 
+# existing undo file
+
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+
+--echo # Crash after delete of old undo file
+set global debug='+d,ib_undo_trunc_after_delete_undo_tablespace';
+--source include/expect_crash.inc
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+--source include/wait_until_disconnected.inc
+
+--echo # create the truncate log file on an explicit space num
+--write_file $MYSQLD_DATADIR/undo_3_trunc.log
+1
+EOF
+
+--echo # Before restart
+--list_files $MYSQLD_DATADIR/ *.log
+--list_files $MYSQLD_DATADIR/ undo_0*
+
+--echo # Restart server normally
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
+
+--list_files $MYSQLD_DATADIR/ *.log
+--list_files $MYSQLD_DATADIR/ undo_0*
+
+SELECT name, space_type, state, autoextend_size FROM
+    INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+DROP UNDO TABLESPACE undo_003;
+
+
+
+

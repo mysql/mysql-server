@@ -43,6 +43,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push outer joined table 'table2' as child of 'table1', join-nest containing the table has FILTER conditions
 Note	1003	Can't push table 'table3' as child, column 'col_char_16_unique' does not have same datatype as ref'ed column 'table2.col_varchar_256_unique'
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`n` `table1` left join (`test`.`w` `table2` left join `test`.`w` `table3` on((`table2`.`col_varchar_256_unique` = `table3`.`col_char_16_unique`))) on(((`table2`.`col_int_key` = `table1`.`col_int`) and (`table3`.`col_int` is null))) where true
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM n AS table1
@@ -212,6 +213,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table6' as child of 'table2', as it would make the parent table 'table5' depend on table(s) outside of its join-nest
+Note	1003	/* select#1 */ select straight_join `table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table1`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table5`.`pk` AS `pk`,`table6`.`pk` AS `pk` from `test`.`r` `table2` left join `test`.`c` `table3` on((`table3`.`col_int_unique` = `table2`.`col_int_unique`)) join `test`.`m` `table1` left join `test`.`r` `table4` on((`table4`.`col_int_key` = `table2`.`pk`)) left join `test`.`e` `table5` on((`table5`.`col_int_unique` = `table3`.`col_int_unique`)) left join `test`.`s` `table6` on(((`table6`.`col_int_unique` = `table5`.`col_int_unique`) and (`table6`.`col_int` = `table1`.`col_int`))) where ((`table1`.`col_int_key` = `table2`.`pk`) and (`table2`.`pk` between 2 and 3))
 SELECT straight_join
 table2.pk, table3.pk, table1.pk, table4.pk, table5.pk, table6.pk
 FROM r AS table2
@@ -333,6 +335,8 @@ EXPLAIN
         -> Index lookup on table2s using PRIMARY (col_int = table3.col_int), child of table3 in pushed join, with pushed condition: (table2s.col_varchar_256_unique is not null)
         -> Index lookup on table1s using col_varchar_256_key (col_varchar_256_key = table2s.col_varchar_256_unique), child of table2s in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`e` `table1` join `test`.`w` `table3` join `test`.`w` `table4` semi join (`test`.`o` `table1s` join `test`.`x` `table2s`) where ((`table3`.`col_int_key` = `table1`.`col_int_unique`) and (`table4`.`col_int_key` = `table1`.`col_int_unique`) and (`table1s`.`col_varchar_256_key` = `table2s`.`col_varchar_256_unique`) and (`table4`.`col_int` = `table3`.`col_int`) and (`table2s`.`col_int` = `table3`.`col_int`) and (`table1`.`pk` = 3))
 SELECT
 table1.pk, table3.pk, table4.pk
 FROM e AS table1
@@ -388,6 +392,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`f` `table1` left join `test`.`y` `table2` on((`table1`.`col_int` not in (1,9))) semi join (`test`.`r` `table1s` join `test`.`c` `table2s` join `test`.`g` `table3s`) where ((`table1s`.`col_int` = `table2s`.`col_int_key`) and (`table3s`.`col_int_unique` = `table1s`.`col_int_unique`) and (`table3s`.`col_int` = `table2s`.`col_int`) and (`table1`.`pk` < 3))
 SELECT
 table1.pk, table2.pk
 FROM f AS table1
@@ -452,6 +457,8 @@ EXPLAIN
         -> Single-row index lookup on table3 using ix1 (col_int = table1.col_int_unique, col_int_unique = table2.col_int_unique), child of table2 in pushed join
         -> Index lookup on table4 using PRIMARY (pk = table1.col_int_unique), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`h` `table1` join `test`.`y` `table2` left join (`test`.`q` `table3` left join `test`.`k` `table4` on((`table4`.`pk` = `table1`.`col_int_unique`))) on(((`table3`.`col_int_unique` = `table2`.`col_int_unique`) and (`table3`.`col_int` = `table1`.`col_int_unique`))) where (`table2`.`col_int` = `table1`.`col_int_unique`)
 SELECT straight_join
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM h AS table1
@@ -494,6 +501,8 @@ EXPLAIN
     -> Filter: (table6.col_int = table4.col_int)
         -> Single-row index lookup on table6 using ix2 (col_int_key = table2.col_int_key, col_int_unique = table5.col_int_unique), child of table5 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table5`.`pk` AS `pk`,`table6`.`pk` AS `pk` from `test`.`e` `table1` join `test`.`d` `table2` left join (`test`.`m` `table3` left join `test`.`q` `table4` on((`table4`.`col_int` = `table1`.`col_int_key`))) on((`table3`.`col_int_key` = `table1`.`col_int_key`)) left join `test`.`s` `table5` on((`table5`.`col_int` = `table3`.`col_int_unique`)) left join `test`.`t` `table6` on(((`table6`.`col_int_unique` = `table5`.`col_int_unique`) and (`table6`.`col_int_key` = `table2`.`col_int_key`) and (`table6`.`col_int` = `table4`.`col_int`))) where ((`table2`.`col_int_unique` = `table1`.`pk`) and (`table1`.`pk` between 1 and 3))
 SELECT straight_join
 table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
 FROM e AS table1
@@ -550,6 +559,8 @@ EXPLAIN
         -> Single-row index lookup on table3 using ix1 (col_int = table1.col_int, col_int_unique = table1.col_int_unique), child of table2 in pushed join, with pushed condition: (table3.col_int_key = table2.col_int_key)
         -> Single-row index lookup on table4 using PRIMARY (col_int = table2.col_int_key, pk = table1.col_int_unique), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`c` `table1` join `test`.`f` `table2` left join (`test`.`p` `table3` left join `test`.`u` `table4` on(((`table4`.`pk` = `table1`.`col_int_unique`) and (`table4`.`col_int` = `table2`.`col_int_key`)))) on(((`table3`.`col_int_unique` = `table1`.`col_int_unique`) and (`table3`.`col_int_key` = `table2`.`col_int_key`) and (`table3`.`col_int` = `table1`.`col_int`))) where (`table2`.`col_int` = `table1`.`col_int_unique`)
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM c AS table1
@@ -588,6 +599,8 @@ EXPLAIN
         -> Single-row index lookup on table4 using ix3 (col_int = table3.col_int, col_int_key = table2.col_int_key, col_int_unique = table2.col_int_unique), child of table2 in pushed join
         -> Index lookup on table5 using ix1 (col_int = table3.col_int), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table3`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table1`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table5`.`pk` AS `pk` from `test`.`u` `table1` join `test`.`q` `table2` USE INDEX FOR JOIN (`ix1`) join `test`.`h` `table3` left join (`test`.`n` `table4` left join `test`.`q` `table5` on((`table5`.`col_int` = `table3`.`col_int`))) on(((`table4`.`col_int_unique` = `table2`.`col_int_unique`) and (`table4`.`col_int_key` = `table2`.`col_int_key`) and (`table4`.`col_int` = `table3`.`col_int`))) where ((`table2`.`col_int` = `table3`.`col_int`) and (`table1`.`col_int_key` = `table2`.`col_int_key`) and (`table3`.`pk` between 0 and 1) and (`table2`.`pk` between 4 and 5))
 SELECT
 # NOTE: NO_BNL is a synonym for NO_HASH_JOIN
 /*+ JOIN_ORDER(table3,table2,table1,table4,table5) NO_BNL() */
@@ -631,6 +644,8 @@ EXPLAIN
         -> Single-row index lookup on table1s using PRIMARY (pk = table1.pk), child of table1 in pushed join
     -> Index lookup on table2s using col_int_key (col_int_key = table1.pk), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`d` `table1s` join `test`.`x` `table1` join `test`.`y` `table2` semi join (`test`.`m` `table2s`) where ((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table2`.`col_int` = `table1`.`col_int`) and (`table1s`.`pk` = `table1`.`pk`) and (`table2s`.`col_int_key` = `table1`.`pk`))
 SELECT
 table1.pk, table2.pk
 FROM x AS table1
@@ -661,6 +676,8 @@ EXPLAIN
             -> Index lookup on table2 using ix3 (col_int = table1.col_int_unique), child of table1 in pushed join
         -> Index lookup on table4 using ix1 (col_int = table2.col_int_key), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`t` `table1` left join (`test`.`q` `table3` join `test`.`m` `table2` left join `test`.`r` `table4` on((`table4`.`col_int` = `table2`.`col_int_key`))) on(((`table3`.`col_int_key` = `table1`.`col_int_unique`) and (`table2`.`col_int` = `table1`.`col_int_unique`))) where (`table1`.`pk` = 14)
 SELECT straight_join
 table1.pk, table3.pk, table2.pk, table4.pk
 FROM t AS table1
@@ -881,6 +898,8 @@ EXPLAIN
         -> Index lookup on table2 using col_int_key (col_int_key = table1.col_int_unique), child of table1 in pushed join
         -> Index lookup on table3 using ix1 (col_int_unique = table1.col_int_unique), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`r` `table1` left join (`test`.`z` `table2` join `test`.`f` `table3`) on(((`table2`.`col_int_key` = `table1`.`col_int_unique`) and (`table3`.`col_int_unique` = `table1`.`col_int_unique`))) where true
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM r AS table1
@@ -938,6 +957,8 @@ EXPLAIN
         -> Single-row index lookup on table2 using ix1 (col_int_unique = table1.col_int_key), child of table1 in pushed join
         -> Index lookup on table3 using col_int_key (col_int_key = table1.col_int_key), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table2`.`pk` AS `field1`,`table2`.`col_int_unique` AS `field2` from `test`.`v` `table1` left join (`test`.`g` `table2` left join `test`.`u` `table3` on((`table3`.`col_int_key` = `table1`.`col_int_key`))) on((`table2`.`col_int_unique` = `table1`.`col_int_key`)) where true
 SELECT
 table2.pk AS field1, table2.col_int_unique AS field2
 FROM v AS table1
@@ -1027,6 +1048,8 @@ EXPLAIN
             -> Index lookup on table4 using ix3 (col_int = table1.col_int), child of table1 in pushed join
         -> Index lookup on table3 using col_int_key (col_int_key = table4.col_int_key), child of table4 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`t` `table1` left join (`test`.`f` `table2` join `test`.`r` `table3` join `test`.`i` `table4`) on(((`table3`.`col_int_key` = `table4`.`col_int_key`) and (`table2`.`col_int_unique` = `table1`.`col_int`) and (`table4`.`col_int` = `table1`.`col_int`))) where ((`table1`.`pk` > 8) and (`table1`.`pk` < 11))
 SELECT
 table1.pk, table2.pk, table4.pk, table3.pk
 FROM t AS table1
@@ -1066,6 +1089,8 @@ EXPLAIN
             -> Single-row index lookup on table4 using ix1 (col_int_unique = table1.col_int_key), child of table1 in pushed join
             -> Index lookup on table3 using col_int_key (col_int_key = table1.col_int_key), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`i` `table1` left join (`test`.`j` `table2` left join (`test`.`d` `table3` join `test`.`e` `table4`) on(((`table4`.`col_int_unique` = `table1`.`col_int_key`) and (`table3`.`col_int_key` = `table1`.`col_int_key`)))) on((`table2`.`col_int_key` = `table1`.`col_int_key`)) where ((`table1`.`pk` > 2) and (`table1`.`pk` < 5))
 SELECT
 table1.pk, table2.pk, table4.pk, table3.pk
 FROM i AS table1
@@ -1137,6 +1162,7 @@ Warnings:
 Note	1003	Can't push outer joined table 'table2' as child of 'table1', join-nest containing the table has FILTER conditions
 Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.pk' refers a table which was not pushed
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`s` `table1` left join (`test`.`t` `table2` left join `test`.`q` `table3` on(((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table3`.`col_int_unique` = `table1`.`col_int_unique`))) left join `test`.`o` `table4` on((`table4`.`col_int` = `table2`.`pk`))) on(((`table2`.`col_int_key` = `table1`.`col_int_unique`) and (`table4`.`col_int` is null))) where true
 SELECT straight_join
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM s AS table1
@@ -1193,6 +1219,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`c` `table1` join `test`.`x` `table2` left join `test`.`j` `table3` on((`table3`.`col_int_key` = `table1`.`col_int_unique`)) where (`table2`.`col_int_unique` = `table1`.`col_int_unique`)
 SELECT straight_join
 table1.pk, table2.pk, table3.pk
 FROM c AS table1
@@ -1218,6 +1245,7 @@ Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-probe-branch which can't be referred.
 Note	1003	Can't push table 'table3' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`s` `table1` left join `test`.`c` `table2` on((`table2`.`pk` = `table1`.`col_int`)) left join `test`.`w` `table3` on((`table3`.`col_int_key` = `table2`.`col_int`)) where true
 SELECT straight_join
 table1.pk, table2.pk, table3.pk
 FROM s AS table1
@@ -1327,6 +1355,8 @@ EXPLAIN
         -> Single-row index lookup on table2 using ix1 (col_int_unique = table1.pk), child of table1 in pushed join
         -> Index lookup on table3 using col_int_key (col_int_key = table1.pk), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`r` `table1` left join (`test`.`g` `table2` left join `test`.`j` `table3` on((`table3`.`col_int_key` = `table1`.`pk`))) on((`table2`.`col_int_unique` = `table1`.`pk`)) where (`table1`.`pk` < 3)
 SELECT straight_join
 table1.pk, table2.pk, table3.pk
 FROM r AS table1
@@ -1349,6 +1379,8 @@ EXPLAIN
         -> Single-row index lookup on table2 using PRIMARY (pk = table1.pk), child of table1 in pushed join
     -> Index lookup on table3 using ix3 (col_int = table2.col_int_unique), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`c` `table1` join `test`.`p` `table2` left join `test`.`i` `table3` on((`table3`.`col_int` = `table2`.`col_int_unique`)) where (`table2`.`pk` = `table1`.`pk`)
 SELECT straight_join
 table1.pk, table2.pk, table3.pk
 FROM c AS table1
@@ -1383,6 +1415,7 @@ Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push anti joined table 'table1s' as child of 'table2', join-nest containing the table has FILTER conditions
 Note	1003	Can't push table 'table2s' as child, access type 'Range-scan' not implemented
+Note	1003	/* select#1 */ select `table2`.`col_int_key` AS `field2` from `test`.`z` `table2` anti join (`test`.`f` `table1s` left join `test`.`u` `table2s` on((`table2s`.`col_int` in (6,6,7)))) on(((`table1s`.`col_int_key` = `table2`.`col_int_unique`) and ((`table2`.`pk` = 9) or (`table2s`.`col_int` = 1)))) where true
 SELECT
 table2.col_int_key AS field2
 FROM z AS table2
@@ -1467,6 +1500,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `table1`.`col_int_key` AS `field1` from `test`.`t` `table1` anti join (`test`.`z` `table1s` join `test`.`v` `table2s`) on(((`table2s`.`col_int_unique` = `table1s`.`col_int_unique`) and (`table2s`.`col_int` = `table1s`.`col_int`) and (`table1s`.`pk` = `table1`.`col_int`))) where true
 SELECT
 table1.col_int_key AS field1
 FROM t AS table1
@@ -1523,6 +1557,8 @@ EXPLAIN
             -> Index lookup on table4 using ix1 (col_int = table2.col_int_unique), child of table2 in pushed join
             -> Single-row index lookup on table5 using ix1 (col_int_unique = table1.col_int_key), child of table2 in pushed join, with pushed condition: (table5.col_int_key = table2.col_int_unique)
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`b` `table1` left join (`test`.`z` `table2` join `test`.`z` `table3` left join (`test`.`q` `table4` join `test`.`b` `table5`) on(((`table4`.`col_int` = `table2`.`col_int_unique`) and (`table5`.`col_int_key` = `table2`.`col_int_unique`) and (`table5`.`col_int_unique` = `table1`.`col_int_key`)))) on(((`table3`.`col_int_key` = `table2`.`pk`) and (`table2`.`col_int_key` = `table1`.`col_int_key`))) where true
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM b AS table1
@@ -1581,6 +1617,8 @@ EXPLAIN
         -> Single-row index lookup on table2s using ix1 (col_int_unique = table1.col_int_key), child of table1 in pushed join, with pushed condition: (table2s.col_int is not null)
     -> Index lookup on table1s using PRIMARY (col_int = table2s.col_int), child of table2s in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `table2`,`table1`,`table2s`,`table1s`) */ `table2`.`pk` AS `pk`,`table1`.`pk` AS `pk` from `test`.`h` `table2s` join `test`.`p` `table2` join `test`.`o` `table1` semi join (`test`.`l` `table1s` USE INDEX FOR JOIN (PRIMARY)) where ((`table1`.`col_int` = `table2`.`col_int`) and (`table1s`.`col_int` = `table2s`.`col_int`) and (`table2s`.`col_int_unique` = `table1`.`col_int_key`))
 SELECT
 /*+ JOIN_ORDER(table2,table1,table2s,table1s) */
 table2.pk, table1.pk
@@ -1637,6 +1675,8 @@ EXPLAIN
         -> Index lookup on table1s using PRIMARY (col_int = table1.col_int), child of table1 in pushed join, with pushed condition: (table1s.col_int_key is not null)
         -> Index lookup on table2s using col_int_key (col_int_key = table1s.col_int_key), child of table1s in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk` from `test`.`i` `table1` semi join (`test`.`y` `table1s` join `test`.`y` `table2s`) where ((`table2s`.`col_int_key` = `table1s`.`col_int_key`) and (`table1s`.`col_int` = `table1`.`col_int`))
 SELECT
 table1.pk
 FROM i AS table1
@@ -1675,6 +1715,8 @@ EXPLAIN
         -> Index lookup on table1s using col_int_key (col_int_key = table1.col_int), child of table1 in pushed join
     -> Index lookup on table2 using col_int_key (col_int_key = table1.col_int_key), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`j` `table1` join `test`.`z` `table2` semi join (`test`.`u` `table1s`) where ((`table2`.`col_int_key` = `table1`.`col_int_key`) and (`table1s`.`col_int_key` = `table1`.`col_int`) and (`table1`.`pk` in (1,2)))
 SELECT
 table1.pk, table2.pk
 FROM j AS table1
@@ -1725,6 +1767,8 @@ EXPLAIN
         -> Index lookup on table1s using col_int_key (col_int_key = table1.col_int), child of table1 in pushed join
     -> Index lookup on table2 using col_int_key (col_int_key = table1.col_int_key), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`j` `table1` join `test`.`z` `table2` semi join (`test`.`u` `table1s`) where ((`table2`.`col_int_key` = `table1`.`col_int_key`) and (`table1s`.`col_int_key` = `table1`.`col_int`) and (`table1`.`pk` in (4,5)))
 SELECT
 table1.pk, table2.pk
 FROM j AS table1
@@ -1772,6 +1816,8 @@ EXPLAIN
         -> Index lookup on table1s using col_int_key (col_int_key = table1.col_int), child of table1 in pushed join
     -> Index lookup on table2 using col_int_key (col_int_key = table1.col_int_unique), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`f` `table1` join `test`.`r` `table2` semi join (`test`.`w` `table1s`) where ((`table2`.`col_int_key` = `table1`.`col_int_unique`) and (`table1s`.`col_int_key` = `table1`.`col_int`))
 SELECT
 table1.pk, table2.pk
 FROM f AS table1
@@ -1808,6 +1854,8 @@ EXPLAIN
         -> Single-row index lookup on table3 using ix3 (col_int = table1.col_int, col_int_key = table1.col_int_key, col_int_unique = table2.col_int_unique), child of table2 in pushed join
         -> Index lookup on table4 using col_int_key (col_int_key = table1.col_int_key), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`j` `table1` left join `test`.`a` `table2` on((`table2`.`pk` = `table1`.`col_int_unique`)) left join (`test`.`m` `table3` left join `test`.`o` `table4` on((`table4`.`col_int_key` = `table1`.`col_int_key`))) on(((`table3`.`col_int_unique` = `table2`.`col_int_unique`) and (`table3`.`col_int_key` = `table1`.`col_int_key`) and (`table3`.`col_int` = `table1`.`col_int`))) where true
 SELECT straight_join
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM j AS table1
@@ -1862,6 +1910,7 @@ Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELEC
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1', it is in a hash-probe-branch which can't be referred.
 Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`v` `table1` left join `test`.`o` `table2` on((`table2`.`pk` = 11)) anti join (`test`.`m` `table2s`) on((`table2s`.`pk` = `table2`.`pk`)) where (`table1`.`pk` = 11)
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -1903,6 +1952,7 @@ Note	1003	Can't push table 'table1s' as child of 'table1', it is in a hash-probe
 Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 'table1s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Push of table 'table1s' as scan-child with lookup-root 'table2s' not implemented
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`v` `table1` left join `test`.`o` `table2` on((`table2`.`pk` = 11)) anti join (`test`.`d` `table1s` join `test`.`m` `table2s`) on(((`table1s`.`col_char_16_key` = `table2s`.`col_char_16_key`) and (`table2s`.`pk` = `table2`.`pk`))) where (`table1`.`pk` = 11)
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -1932,6 +1982,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.table1.col_int_key' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`t` `table1` join `test`.`x` `table2` anti join (`test`.`b` `table1s`) on(((`table1s`.`col_int_key` = `table1`.`col_int_key`) and (`table2`.`col_int` = `table1`.`col_int_key`))) where ((`table2`.`col_int` = `table1`.`col_int_key`) and (`table1`.`pk` = 2))
 SELECT
 table1.pk, table2.pk
 FROM t AS table1
@@ -1971,6 +2022,7 @@ Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELEC
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1', it is in a hash-probe-branch which can't be referred.
 Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`v` `table1` left join `test`.`o` `table2` on((`table2`.`pk` = 11)) anti join (`test`.`m` `table2s`) on((`table2s`.`pk` = `table2`.`pk`)) where (`table1`.`pk` = 11)
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -2005,6 +2057,7 @@ Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELEC
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1', it is in a hash-probe-branch which can't be referred.
 Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`v` `table1` left join `test`.`o` `table2` on((`table2`.`pk` = 11)) anti join (`test`.`m` `table2s`) on((`table2s`.`col_int` = `table2`.`pk`)) where (`table1`.`pk` = 11)
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -2031,6 +2084,8 @@ EXPLAIN
         -> Single-row index lookup on table1s using PRIMARY (pk = table1.pk), child of table1 in pushed join
     -> Index lookup on table2 using col_int_key (col_int_key = table1.col_int_key), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`b` `table1s` join `test`.`n` `table1` join `test`.`t` `table2` where ((`table2`.`col_int_key` = `table1`.`col_int_key`) and (`table1s`.`pk` = `table1`.`pk`))
 SELECT
 table1.pk, table2.pk
 FROM n AS table1
@@ -2074,6 +2129,7 @@ Note	1276	Field or reference 'test.table3.col_char_16' of SELECT #2 was resolved
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 'table1s' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`w` `table1` join `test`.`v` `table2` left join `test`.`i` `table3` on(((`table3`.`col_int_key` = `table1`.`col_int_key`) and (`table3`.`col_int` = `table1`.`col_int_key`))) anti join (`test`.`u` `table1s`) on((`table1s`.`col_char_16` = `table3`.`col_char_16`)) where ((`table1`.`col_int_unique` = `table1`.`col_int_key`) and (`table2`.`pk` = `table1`.`col_int_key`) and (`table1`.`pk` between 4 and 6))
 SELECT
 table1.pk, table2.pk, table3.pk
 FROM w AS table1
@@ -2149,6 +2205,7 @@ Note	1003	Can't push table 'table5' as child of 'table3', no parent-child depend
 Note	1003	Can't push table 'table10' as child of 'table7', column 'table9.col_int_unique' refers a table which was not pushed
 Note	1003	Can't push table 'table5' as child of 'table7', no parent-child dependency exists between these tables
 Note	1003	Can't push table 'table5' as child of 'table9', no parent-child dependency exists between these tables
+Note	1003	/* select#1 */ select `table6`.`col_varchar_256` AS `field1`,`table3`.`col_varchar_256` AS `field2` from `test`.`f` `table1` left join `test`.`a` `table2` on((`table2`.`col_int_unique` = `table1`.`col_int`)) left join (`test`.`r` `table3` join `test`.`g` `table4`) on(((`table4`.`col_int_unique` = `table3`.`col_int_unique`) and (`table3`.`col_int` = 9) and (`table4`.`col_int` = 9))) left join (`test`.`f` `table5` join `test`.`z` `table6` join `test`.`g` `table7` left join (`test`.`b` `table8` left join `test`.`m` `table9` on((((`table2`.`col_int` = `table9`.`col_int`) and (`table8`.`col_int_key` = `table9`.`col_int_key`) and (`table2`.`col_int_unique` = `table9`.`col_int_unique`)) is true)) left join `test`.`h` `table10` on(((`table10`.`col_int_unique` = `table9`.`col_int_unique`) and (`table10`.`col_int_key` = `table8`.`col_int_key`)))) on(((`table8`.`col_int_unique` = `table2`.`col_int_unique`) and (`table8`.`col_int` = `table2`.`col_int`)))) on(((`table6`.`col_int_key` = `table7`.`pk`) and (`table6`.`col_int_unique` = `table2`.`col_int_unique`) and (`table6`.`col_int` = `table2`.`col_int`) and (`table5`.`col_int` = `table2`.`col_int`))) where true
 SELECT
 table6.col_varchar_256 AS field1, table3.col_varchar_256 AS field2
 FROM
@@ -2208,6 +2265,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2' as child of 'table1', it is in a sorted-branch which can't be referred.
 Note	1003	Can't push table 'table3' as child of 'table1', it is in a sorted-branch which can't be referred.
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table1`.`col_int_unique` AS `field1`,`table1`.`col_varchar_256_unique` AS `field2` from `test`.`p` `table1` join `test`.`m` `table2` left join `test`.`h` `table3` on(((`table3`.`col_int_unique` = `table2`.`col_int_unique`) and (`table3`.`col_int` = `table1`.`col_int`))) where (`table2`.`pk` = `table1`.`col_int_key`) order by `field1`,`field2`
 SELECT straight_join
 table1.pk, table2.pk, table3.pk,
 table1.col_int_unique AS field1, table1.col_varchar_256_unique AS field2
@@ -2246,6 +2304,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2' as child, access type 'Range-scan' not implemented
 Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`k` `table1` join `test`.`m` `table2` join `test`.`q` `table3` where ((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table3`.`col_int_unique` = `table1`.`col_int_unique`) and (`table3`.`col_int` = `table2`.`col_int`))
 SELECT
 table1.pk, table2.pk, table3.pk
 FROM k AS table1
@@ -2278,6 +2337,7 @@ Warnings:
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 'table4' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select distinct `table2`.`col_varchar_256_unique` AS `field1`,`table1`.`col_varchar_256_unique` AS `field2` from `test`.`d` `table1` join `test`.`d` `table2` join `test`.`h` `table3` join `test`.`e` `table4` where ((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table4`.`col_int_unique` = `table1`.`col_int_unique`) and ((`table4`.`col_int_key` = `table3`.`col_int_key`) or (`table1`.`col_int_unique` = `table3`.`col_int_unique`)))
 SELECT
 DISTINCT table2.col_varchar_256_unique AS field1, table1.col_varchar_256_unique AS field2
 FROM d AS table1
@@ -2300,6 +2360,8 @@ EXPLAIN
         -> Index lookup on table1s using col_int_key (col_int_key = table1.col_int_key), child of table1 in pushed join
     -> Index lookup on table2 using ix1 (col_int = table1.col_int, col_int_unique = table1.col_int_unique), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`j` `table1` join `test`.`r` `table2` semi join (`test`.`z` `table1s`) where ((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table2`.`col_int` = `table1`.`col_int`) and (`table1s`.`col_int_key` = `table1`.`col_int_key`))
 SELECT
 table1.pk, table2.pk
 FROM j AS table1
@@ -2334,6 +2396,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.table1.col_int_unique' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2' as child, column 'col_varchar_10_key' does not have same datatype as ref'ed column 'table1.col_varchar_256'
+Note	1003	/* select#1 */ select `table2`.`col_int_unique` AS `field1`,`table1`.`col_int` AS `field` from `test`.`m` `table1` join `test`.`x` `table2` semi join (`test`.`z` `table1s` join `test`.`t` `table2s` join `test`.`l` `table3s`) where ((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table3s`.`col_int_key` = `table2s`.`col_int`) and (`table1s`.`pk` = `table2s`.`col_int_unique`) and (`table2`.`col_int_key` = `table1`.`col_int_key`) and (`table2s`.`col_int_key` = `table1`.`col_int_key`) and (`table2`.`col_varchar_10_key` = `table1`.`col_varchar_256`) and ((`table1`.`col_int_unique` = 4) is null))
 SELECT
 table2.col_int_unique AS field1, table1.col_int AS field
 FROM m AS table1
@@ -2368,6 +2431,8 @@ EXPLAIN
         -> Index lookup on table3 using col_int_key (col_int_key = table5.pk), child of table1 in pushed join
         -> Index lookup on table4 using col_int_key (col_int_key = table5.pk), child of table1 in pushed join, with pushed condition: (table4.col_int_unique = table1.col_int_unique)
 
+Warnings:
+Note	1003	/* select#1 */ select `table5`.`pk` AS `pk`,`table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`q` `table1` straight_join `test`.`h` `table2` left join (`test`.`u` `table3` straight_join `test`.`x` `table4`) on(((`table4`.`col_int_unique` = `table1`.`col_int_unique`) and (`table3`.`col_int_key` = `table5`.`pk`) and (`table4`.`col_int_key` = `table5`.`pk`))) join `test`.`f` `table5` where ((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table1`.`col_int_key` = `table5`.`pk`) and (`table2`.`col_int_key` = `table5`.`pk`))
 SELECT
 table5.pk, table1.pk, table2.pk, table3.pk, table4.pk
 FROM q AS table1
@@ -2396,6 +2461,8 @@ EXPLAIN
         -> Single-row index lookup on table4 using PRIMARY (pk = table1.col_int_unique), child of table2 in pushed join
         -> Index lookup on table3 using PRIMARY (col_int = table1.col_int_unique), child of table2 in pushed join, with pushed condition: (table3.col_int_unique = table2.col_int_key)
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`n` `table1` join `test`.`a` `table2` left join (`test`.`x` `table3` join `test`.`m` `table4`) on(((`table4`.`pk` = `table1`.`col_int_unique`) and (`table3`.`col_int` = `table1`.`col_int_unique`) and (`table3`.`col_int_unique` = `table2`.`col_int_key`))) where ((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table2`.`col_int` = `table1`.`col_int`))
 SELECT
 table1.pk, table2.pk, table4.pk, table3.pk
 FROM n AS table1
@@ -2426,6 +2493,8 @@ EXPLAIN
     -> Filter: (((table3.col_int = 4) and (table3.col_int_unique = 7)) or (table3.col_int_unique <> 9) or (table1.col_varchar_10 = table1.col_varchar_256_unique))
         -> Single-row index lookup on table1 using ix1 (col_int = table3.col_int, col_int_unique = table3.col_int_unique), child of table2 in pushed join, with pushed condition: (table1.col_int_key = table2.col_int_key)
 
+Warnings:
+Note	1003	/* select#1 */ select `table2`.`col_varchar_10_key` AS `field1` from `test`.`p` `table1` join `test`.`a` `table2` join `test`.`v` `table3` where ((`table2`.`col_int_unique` = `table3`.`col_int_unique`) and (`table1`.`col_int_unique` = `table3`.`col_int_unique`) and (`table1`.`col_int_key` = `table2`.`col_int_key`) and (`table2`.`col_int` = `table3`.`col_int`) and (`table1`.`col_int` = `table3`.`col_int`) and (((`table3`.`col_int` = 4) and (`table3`.`col_int_unique` = 7)) or (`table3`.`col_int_unique` <> 9) or (`table1`.`col_varchar_10` = `table1`.`col_varchar_256_unique`)))
 SELECT
 table2.col_varchar_10_key AS field1
 FROM p AS table1
@@ -2454,6 +2523,8 @@ EXPLAIN
         -> Index lookup on table2 using col_int_key (col_int_key = table1.col_int_key), child of table1 in pushed join, with pushed condition: (table2.col_int_unique = table1.col_int_unique)
     -> Index lookup on table3 using col_int_key (col_int_key = table2.col_int_key), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`i` `table1` left join `test`.`z` `table2` on(((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table2`.`col_int_key` = `table1`.`col_int_key`))) left join `test`.`m` `table3` on((`table3`.`col_int_key` = `table2`.`col_int_key`)) where true
 SELECT
 table1.pk, table2.pk, table3.pk
 FROM i AS table1
@@ -2517,6 +2588,7 @@ Note	1003	Can't push table 'table2' as child of 'table1', column 'table3.col_int
 Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.col_int_key' refers a table which was not pushed
 Note	1003	Can't push table 'table5' as child of 'table1', column 'table2.col_int_key' refers a table which was not pushed
 Note	1003	Can't push table 'table6' as child of 'table1', column 'table2.col_int_key' refers a table which was not pushed
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table5`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table6`.`pk` AS `pk` from `test`.`f` `table1` left join (`test`.`j` `table3` straight_join `test`.`x` `table2` left join (`test`.`d` `table4` straight_join `test`.`b` `table5` left join `test`.`x` `table6` on((`table6`.`col_int` = `table3`.`col_int_key`))) on(((`table5`.`col_int_key` = `table1`.`pk`) and (`table4`.`pk` = `table3`.`col_int_key`) and (`table5`.`col_int_unique` = `table3`.`col_int_key`)))) on(((`table2`.`col_int_key` = `table3`.`col_int_key`) and (`table3`.`col_int_unique` = `table1`.`pk`) and (`table2`.`col_int_unique` = `table1`.`pk`))) where true
 SELECT
 table1.pk, table3.pk, table2.pk, table5.pk, table4.pk, table6.pk
 FROM f AS table1
@@ -2578,6 +2650,7 @@ Note	1003	Can't push table 'table2' as child of 'table1', column 'table3.col_int
 Note	1003	Can't push table 'table5' as child of 'table1', column 'table2.col_int_key' refers a table which was not pushed
 Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.col_int_key' refers a table which was not pushed
 Note	1003	Can't push table 'table6' as child of 'table1', column 'table2.col_int_key' refers a table which was not pushed
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table5`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table6`.`pk` AS `pk` from `test`.`f` `table1` left join (`test`.`j` `table3` straight_join `test`.`x` `table2` left join (`test`.`b` `table5` join `test`.`d` `table4` left join `test`.`x` `table6` on((`table6`.`col_int` = `table3`.`col_int_key`))) on(((`table5`.`col_int_key` = `table1`.`pk`) and (`table5`.`col_int_unique` = `table3`.`col_int_key`) and (`table4`.`pk` = `table3`.`col_int_key`)))) on(((`table2`.`col_int_key` = `table3`.`col_int_key`) and (`table3`.`col_int_unique` = `table1`.`pk`) and (`table2`.`col_int_unique` = `table1`.`pk`))) where true
 SELECT
 table1.pk, table3.pk, table2.pk, table5.pk, table4.pk, table6.pk
 FROM f AS table1
@@ -2632,6 +2705,8 @@ EXPLAIN
             -> Single-row index lookup on table4 using PRIMARY (pk = table3.col_int_key), child of table3 in pushed join, with pushed condition: (table4.col_int = table2.col_int)
         -> Index lookup on table5 using col_int_key (col_int_key = table1.col_int_unique), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table5`.`pk` AS `pk` from `test`.`b` `table1` join `test`.`b` `table2` left join (`test`.`c` `table3` join `test`.`q` `table4` join `test`.`i` `table5`) on(((`table4`.`pk` = `table3`.`col_int_key`) and (`table3`.`col_int_unique` = `table1`.`col_int_unique`) and (`table5`.`col_int_key` = `table1`.`col_int_unique`) and (`table4`.`col_int` = `table2`.`col_int`))) where ((`table2`.`col_int_key` = `table1`.`col_int_unique`) and (`table2`.`col_int_unique` = `table1`.`col_int_key`))
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
 FROM
@@ -2656,6 +2731,8 @@ EXPLAIN
     -> Index range scan on table1 using ix1 over (col_int = 7 AND col_int_unique = 4) OR (col_int = 8 AND col_int_unique = 4), activating pushed join of 2 tables, with pushed condition: ((table1.col_int_unique = 4) and (table1.col_int in (8,7)))
     -> Single-row index lookup on table2 using PRIMARY (pk = table1.pk), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`t` `table1` join `test`.`b` `table2` where ((`table2`.`pk` = `table1`.`pk`) and (`table1`.`col_int_unique` = 4) and (`table1`.`col_int` in (8,7)))
 SELECT table1.pk, table2.pk
 FROM t AS table1
 JOIN b AS table2 on table2.pk = table1.pk
@@ -2680,6 +2757,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`c` `table1` join `test`.`g` `table2` left join `test`.`e` `table3` on(((`table3`.`col_int_unique` = `table2`.`col_int_unique`) and (`table3`.`pk` = `table2`.`col_int_key`))) where (`table3`.`col_int` is null)
 SELECT
 table1.pk, table2.pk, table3.pk
 FROM  c AS table1
@@ -2812,6 +2890,7 @@ Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.col_int_key' is in a hash-probe-branch which can't be referred
 Note	1003	Can't push table 'table4' as child of 'table2', it is in a hash-probe-branch which can't be referred.
 Note	1003	Can't push table 'table4' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select distinct `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`a` `table1` left join (`test`.`d` `table2` left join `test`.`r` `table3` on((`table1`.`col_int_key` is null))) on(((`table1`.`col_int_unique` = `table1`.`col_int_key`) and (`table2`.`col_int` = `table1`.`col_int_key`))) left join `test`.`q` `table4` on(((`table4`.`col_int_unique` = `table2`.`col_int_unique`) and (`table4`.`col_int_key` = `table2`.`col_int_key`) and (`table4`.`col_int` = `table3`.`col_int`))) where true
 SELECT DISTINCT
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM a AS table1
@@ -2845,6 +2924,7 @@ Warnings:
 Note	1276	Field or reference 'test.table1.col_varchar_10_unique' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table1s' as child of 'table1', it is in a query-branch which can't be referred.
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`p` `table1` join `test`.`d` `table2` anti join (`test`.`k` `table1s` join `test`.`c` `table2s`) on(((`table1s`.`pk` = `table2s`.`pk`))) where (`table2`.`pk` = `table1`.`col_int_unique`)
 SELECT table1.pk, table2.pk
 FROM p AS table1
 JOIN d AS table2 ON table1.col_int_unique = table2.pk
@@ -2870,6 +2950,8 @@ EXPLAIN
                     -> Single-row index lookup on table2 using ix1 (col_int_unique = table3.col_int_unique), child of table3 in pushed join, with pushed condition: ((table2.pk < table2.col_int_key) and (table2.col_int <> 5))
                 -> Index lookup on table1 using col_int_key (col_int_key = table3.col_int_unique), child of table3 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `table1`.`pk` AS `field1` from `test`.`y` `table1` join `test`.`d` `table2` join `test`.`y` `table3` where ((`table2`.`col_int_unique` = `table3`.`col_int_unique`) and (`table1`.`col_int_key` = `table3`.`col_int_unique`) and (`table2`.`pk` < `table2`.`col_int_key`) and (`table2`.`col_int` <> 5)) having (`field1` <= 2)
 SELECT DISTINCT
 table1.pk AS field1
 FROM y AS table1
@@ -2902,6 +2984,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select distinct `table2`.`col_int_key` AS `field1`,`table2`.`col_int` AS `field2`,`table2`.`col_int_key` AS `field3` from `test`.`t` `table1` left join `test`.`z` `table2` on((`table2`.`col_int` = `table1`.`pk`)) join `test`.`c` `table3` where (((`table2`.`pk` = `table3`.`pk`) or (`table3`.`col_int` between 3 and <cache>((3 + 3)))) and ((`table1`.`col_int_key` <> `table3`.`col_int_key`) or (`table1`.`col_int_unique` <> `table3`.`col_int_unique`))) having (`field1` <> 6)
 SELECT DISTINCT
 table2.col_int_key AS field1, table2.col_int AS field2, table2.col_int_key AS field3
 FROM t AS table1
@@ -2957,6 +3040,7 @@ Note	1003	Can't push table 'table1' as child of 'table2s', it is in a materializ
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table2s', it is in a materialized-branch which can't be referred.
 Note	1003	Can't push table 'table2s' as child of 'table2', column 'table1s.col_int' refers a table which was not pushed
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) JOIN_ORDER(@`select#1` `table2s`@`subq1`,`table1s`@`subq1`,`table2`,`table1`,`table1s`@`subq2`,`table2s`@`subq2`) */ `table1`.`col_varchar_10_unique` AS `field1`,`table1`.`col_char_16` AS `field2` from `test`.`e` `table1` join `test`.`c` `table2` semi join (`test`.`j` `table1s` join `test`.`d` `table2s`) semi join (`test`.`e` `table1s` join `test`.`u` `table2s`) where ((`table1`.`col_int_unique` = `table2`.`col_int_unique`) and (`table1`.`col_int_key` = `table2`.`col_int_key`) and (`table1s`.`col_int_key` = `table2s`.`col_int_key`) and (`table2s`.`col_int_unique` = `table1s`.`col_int_unique`) and (`table2s`.`col_int` = `table1s`.`col_int`) and (`table1s`.`col_varchar_10` = `table2`.`col_varchar_10_unique`) and (`table2`.`col_int_unique` <> 2) and (`table1`.`col_varchar_256` = `<subquery2>`.`field3`))
 SELECT
 /*+ JOIN_ORDER(table2s@subq1, table1s@subq1, table2, table1, table1s@subq2, table2s@subq2)
 SEMIJOIN(@subq1 MATERIALIZATION)
@@ -2991,6 +3075,8 @@ EXPLAIN
                 -> Table scan on table1, activating pushed join of 2 tables
                 -> Index lookup on table2 using col_int_key (col_int_key = table1.pk), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table2`.`col_int` AS `field1` from `test`.`j` `table1` join `test`.`v` `table2` where (`table2`.`col_int_key` = `table1`.`pk`) order by `field1` limit 1
 SELECT
 table2.col_int AS field1
 FROM j AS table1
@@ -3022,6 +3108,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table5' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `table6`.`col_int` AS `field1`,`table6`.`col_varchar_10_key` AS `field2` from `test`.`f` `table1` join `test`.`q` `table2` join `test`.`u` `table3` join `test`.`w` `table4` left join `test`.`b` `table5` on((`table3`.`col_int` = 5)) join `test`.`d` `table6` where ((`table1`.`col_int_key` = `table3`.`pk`) and (`table1`.`col_int_unique` = `table3`.`pk`) and (`table2`.`col_int_key` = `table3`.`pk`) and (`table2`.`col_int_unique` = `table3`.`pk`) and (`table6`.`col_int_key` = `table3`.`col_int_unique`) and (`table4`.`col_int_key` = `table3`.`col_int_unique`))
 SELECT
 table6.col_int AS field1, table6.col_varchar_10_key AS field2
 FROM f AS table1
@@ -3056,6 +3143,7 @@ Warnings:
 Note	1276	Field or reference 'test.table2.col_varchar_10' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `table2`.`col_int` AS `field1` from `test`.`q` `table1` join `test`.`i` `table2` semi join (`test`.`b` `table1s` left join `test`.`w` `table2s` on((`table1s`.`col_int` = `table2s`.`col_int`))) where ((`table1`.`col_int` = 5) and (`table1`.`pk` = `table2`.`col_int_key`) and (`table2`.`col_varchar_10` = 'vp')) having (`field1` <= 3) order by `field1` limit 1
 SELECT
 table2.col_int AS field1
 FROM q AS table1
@@ -3098,6 +3186,7 @@ Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table4' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table5' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 'table5' as child of 'table1', column 'table4.col_int' refers a table which was not pushed
+Note	1003	/* select#1 */ select distinct `table5`.`col_varchar_256` AS `field1`,`table2`.`col_varchar_10_key` AS `field2`,`table5`.`col_int_key` AS `field3` from `test`.`x` `table1` join `test`.`p` `table2` join `test`.`j` `table3` left join (`test`.`n` `table4` left join `test`.`s` `table5` on(((`table5`.`col_int_unique` = `table1`.`col_int_unique`) and (`table5`.`col_int` = `table4`.`col_int`)))) on((`table4`.`col_int_unique` = `table1`.`col_int_unique`)) where ((`table2`.`pk` = `table3`.`col_int_unique`) and (`table2`.`col_int` in (5,9))) having ((`field1` <> 6) or (`field3` < 6))
 SELECT  DISTINCT
 table5.col_varchar_256 AS field1, table2.col_varchar_10_key AS field2, table5.col_int_key AS field3
 FROM x AS table1
@@ -3149,6 +3238,7 @@ Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table8' as child of 'table6', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 'table8' as child of 'table7', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 'table8' as child of 'table1', column 'table3.pk' is in a hash-bucket-branch which can't be referred
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `table6`,`table5`,`table3`,`table4`,`table7`,`table2`,`table1`,`table8`) */ `table3`.`col_varchar_10` AS `field1`,(5 + char_length(`table7`.`col_varchar_256_key`)) AS `field2` from `test`.`k` `table1` join `test`.`x` `table2` join `test`.`y` `table3` join `test`.`m` `table4` join `test`.`h` `table5` join `test`.`c` `table6` left join `test`.`c` `table7` USE INDEX FOR JOIN (`ix1`) on(((`table7`.`col_int_unique` = `table5`.`col_int_unique`) and (`table7`.`col_int_key` = `table3`.`col_int_key`))) join `test`.`z` `table8` where ((`table1`.`col_int_unique` = `table2`.`col_int_unique`) and (`table4`.`col_int_key` = `table3`.`col_int_key`) and (`table5`.`pk` = `table6`.`col_int_key`) and (`table3`.`col_int_unique` = `table6`.`col_int_unique`) and (`table4`.`col_int_unique` = `table6`.`col_int_unique`) and (`table3`.`col_int` = `table5`.`col_int`) and (`table2`.`col_int_key` = `table5`.`col_int_unique`) and (`table8`.`col_int_key` = `table3`.`pk`))
 SELECT
 /*+ JOIN_ORDER(table6,table5,table3,table4,table7,table2,table1,table8) */
 table3.col_varchar_10 AS field1, 5 + (CHAR_LENGTH(table7.col_varchar_256_key)) AS field2
@@ -3179,6 +3269,8 @@ EXPLAIN
 -> Sort: table1.col_int_key, table1.col_int
     -> Table scan on table1, with pushed condition: (field1 = 9)
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`col_int` AS `field1`,`table1`.`col_int_key` AS `field2` from `test`.`a` `table1` where true having (`field1` = 9) order by `field2`,`field1`
 SELECT STRAIGHT_JOIN
 table1.col_int AS field1, table1.col_int_key AS field2
 FROM a AS table1 WHERE EXISTS (
@@ -3224,6 +3316,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.table3.col_int_unique' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table3s' as child, column 'col_varchar_256_unique' does not have same datatype as ref'ed column 'table2s.col_varchar_10_key'
+Note	1003	/* select#1 */ select distinct `table2`.`col_char_16_unique` AS `field1` from `test`.`y` `table1` join `test`.`m` `table2` left join `test`.`h` `table3` on(((`table3`.`col_int_unique` = `table1`.`col_int_unique`) and (`table3`.`col_int` = `table1`.`col_int`))) where ((`table2`.`col_int_key` = `table1`.`col_int_unique`) and <nop>(<in_optimizer>('sgxf',<exists>(/* select#2 */ select 'ls' AS `field2` from `test`.`r` `table1s` join `test`.`c` `table2s` left join `test`.`x` `table3s` on((`table2s`.`col_varchar_10_key` = `table3s`.`col_varchar_256_unique`)) where ((`table1s`.`col_int` = `table2s`.`col_int`) and (`table3`.`col_int_unique` <> 6)))))) having ((`field1` >= 7) and (`field1` = 4))
 SELECT DISTINCT
 table2.col_char_16_unique AS field1
 FROM y AS table1
@@ -3277,6 +3370,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.table3.col_int_key' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 'gscm' AS `field1`,`table2`.`col_char_16` AS `field2` from `test`.`c` `table1` left join `test`.`x` `table2` on((`table2`.`col_int_key` = `table1`.`col_int_unique`)) left join `test`.`m` `table3` on((`table3`.`pk` = `table2`.`col_int`)) where ((`table1`.`pk` <> 5) and <not>(<in_optimizer>(144,<exists>(/* select#2 */ select 3 AS `field3` from `test`.`g` `table1s` join `test`.`n` `table2s` left join `test`.`c` `table3s` on((`table3s`.`col_int_key` = `table2s`.`col_int`)) where ((`table1s`.`col_int_key` = `table2s`.`col_int`) and (`table3`.`col_int_key` not between 2 and <cache>((2 + 3)))))))) order by `field1`,`field1`
 SELECT
 'gscm' AS field1, table2.col_char_16 AS field2
 FROM c AS table1
@@ -3313,6 +3407,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `table2`.`col_char_16_unique` AS `field1`,`table3`.`col_int_key` AS `field2` from `test`.`t` `table1` join `test`.`n` `table2` join `test`.`l` `table3` where ((`table2`.`col_int_key` = `table3`.`col_int_unique`) and (`table1`.`col_int_unique` = `table3`.`col_int_unique`) and (`table2`.`col_int` = `table2`.`col_int`))
 SELECT
 table2.col_char_16_unique AS field1, table3.col_int_key AS field2
 FROM t AS table1
@@ -3337,6 +3432,8 @@ AND table1s.col_int_unique = table3s.col_int_unique
 EXPLAIN
 -> Zero rows (Impossible WHERE)
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table2`.`col_int_unique` AS `field1`,`table1`.`col_varchar_10` AS `field2`,`table2`.`col_varchar_256_unique` AS `field3` from `test`.`s` `table2` join `test`.`w` `table3` join `test`.`z` `table1` where false
 SELECT STRAIGHT_JOIN
 table2.col_int_unique AS field1, table1.col_varchar_10 AS field2, table2.col_varchar_256_unique AS field3
 FROM (s AS table2
@@ -3383,6 +3480,7 @@ Note	1276	Field or reference 'test.table1s.col_int_key' of SELECT #3 was resolve
 Note	1003	Can't push table 'table1ss' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1s', it is in a hash-probe-branch which can't be referred.
 Note	1003	Can't push table 'table2s' as child of 'table1ss', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk` from `test`.`s` `table1` where <in_optimizer>('xyz',<exists>(/* select#2 */ select `table1`.`col_varchar_10` AS `field4` from `test`.`i` `table1s` join `test`.`c` `table2s` semi join (`test`.`s` `table1ss`) where ((`table1s`.`col_int_key` = 5) and (`table2s`.`col_int_unique` = 5) and ('xyz' = `table1`.`col_varchar_10`))))
 SELECT STRAIGHT_JOIN
 table1.pk
 FROM s AS table1
@@ -3422,6 +3520,7 @@ Note	1003	Push of table 'table2s' as scan-child with lookup-root 'table1s' not i
 Note	1003	Can't push table 'table1' as child of 'table1s', column 'table2s.col_int_key' refers a table which was not pushed
 Note	1003	Push of table 'table2' as scan-child with lookup-root 'table1s' not implemented
 Note	1003	Can't push table 'table2' as scan-child of 'table2s', depends on tables being 'skip-read'
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` LOOSESCAN) */ `table2`.`col_int_key` AS `col_int_key` from `test`.`p` `table1s` join `test`.`h` `table1` join `test`.`s` `table2` semi join (`test`.`l` `table2s`) where ((`table2`.`col_int_key` = `table1`.`col_int_unique`) and (`table1`.`pk` = `table2s`.`col_int_key`) and (`table1s`.`pk` = 8) and (`table2s`.`col_int` = 8))
 SELECT
 table2.col_int_key
 FROM h AS table1
@@ -3458,6 +3557,7 @@ Note	1003	Push of table 'table2s' as scan-child with lookup-root 'table1s' not i
 Note	1003	Can't push table 'table1' as child of 'table1s', column 'table2s.col_int_key' refers a table which was not pushed
 Note	1003	Push of table 'table2' as scan-child with lookup-root 'table1s' not implemented
 Note	1003	Can't push table 'table2' as scan-child of 'table2s', depends on tables being 'skip-read'
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` LOOSESCAN) */ `table2`.`col_int_key` AS `col_int_key` from `test`.`p` `table1s` join `test`.`h` `table1` join `test`.`s` `table2` semi join (`test`.`l` `table2s`) where ((`table1`.`col_int_unique` = `table2s`.`col_int_key`) and (`table2`.`col_int_key` = `table2s`.`col_int_key`) and (`table1s`.`pk` = 1) and (`table2s`.`col_int` = 1))
 SELECT
 table2.col_int_key
 FROM h AS table1
@@ -3496,6 +3596,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table1' as child of 'table1s', no parent-child dependency exists between these tables
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select distinct `table1`.`col_int` AS `field1`,`table2`.`col_char_16_key` AS `field2` from `test`.`a` `table1` left join `test`.`n` `table2` on((`table2`.`col_int` = `table1`.`col_int`)) semi join (`test`.`i` `table1s`) where (`table1`.`col_int_key` = 9)
 SELECT DISTINCT
 table1.col_int AS field1, table2.col_char_16_key AS field2
 FROM a AS table1
@@ -3513,6 +3614,8 @@ EXPLAIN
         -> Temporary table
             -> Table scan on table1
 
+Warnings:
+Note	1003	/* select#1 */ select distinct 4 AS `field1` from `test`.`f` `table1` left join `test`.`p` `table2` on((`table1`.`col_int` is null)) where true
 SELECT DISTINCT
 4 AS field1
 FROM f AS table1
@@ -3546,6 +3649,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child of 'table1', column 'table2.col_int_unique' refers a table which was not pushed
+Note	1003	/* select#1 */ select `table3`.`col_int_key` AS `field1` from `test`.`k` `table1` left join (`test`.`w` `table2` join `test`.`v` `table3`) on(((`table3`.`col_int_key` = `table2`.`col_int_unique`) and (`table3`.`col_int_unique` = `table1`.`col_int_unique`))) where <not>(<in_optimizer>(`table2`.`col_int`,<exists>(/* select#2 */ select `table1s`.`pk` from `test`.`w` `table1s` join `test`.`i` `table2s` where (`table1s`.`col_int_key` = `table2s`.`pk`) having ((`table1s`.`pk` = 6) and <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int`) <> <ref_null_helper>(`table1s`.`pk`)), true)))))
 SELECT table3.col_int_key AS field1
 FROM k AS table1
 LEFT JOIN w AS table2
@@ -3577,6 +3681,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table3' as child, access type 'Multi-range' not implemented
 Note	1003	Can't push outer joined table 'table2' as child of 'table1', some tables in embedding join-nest(s) are not part of pushed join
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`h` `table1` left join (`test`.`v` `table2` join `test`.`t` `table3`) on(((`table2`.`col_int_key` = `table1`.`col_int_key`) and (`table3`.`pk` = `table1`.`col_int_key`) and (`table2`.`col_int_unique` = `table1`.`col_int`) and (`table3`.`col_int` = `table1`.`col_int`))) where true
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM h AS table1
@@ -3625,6 +3730,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.table1.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ `table1`.`pk` AS `pk` from `test`.`u` `table1` anti join (`test`.`p` `table1s`) on((`table1`.`pk` = 9)) where true
 SELECT
 table1.pk
 FROM u AS table1 WHERE NOT EXISTS (
@@ -3684,6 +3790,7 @@ Warnings:
 Note	1276	Field or reference 'test.table2.col_int' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1', it is in a query-branch which can't be referred.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`x` `table1` join `test`.`b` `table2` semi join (`test`.`r` `table1s` join `test`.`e` `table2s`) where ((`table2`.`col_int_unique` = `table1`.`pk`) and (`<subquery2>`.`col_int_key` = `table2`.`col_int`) and (`table2s`.`col_int_key` = `table1s`.`pk`))
 SELECT
 table1.pk, table2.pk
 FROM x AS table1
@@ -3720,6 +3827,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2s' as child, access type 'Range-scan' not implemented
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ distinct `table1`.`pk` AS `pk` from `test`.`y` `table1` semi join (`test`.`o` `table1s` join `test`.`i` `table2s`) where ((`table1s`.`col_int_unique` = `table2s`.`col_int`) and (`<subquery2>`.`field3` = `table1`.`col_int_unique`) and (`table2s`.`col_int` between 2 and 10))
 SELECT DISTINCT
 table1.pk
 FROM y AS table1
@@ -3759,6 +3867,7 @@ Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table4' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 'table3' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push outer joined table 'table3' as child of 'table1', condition on its dependant table 'table4' is not pushed down
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`r` `table1` join `test`.`s` `table2` left join (`test`.`k` `table3` join `test`.`e` `table4`) on(((`table1`.`col_int_unique` = `table1`.`col_int_key`) and (`table4`.`col_int_unique` = `table1`.`col_int_key`) and (`table3`.`col_int_key` = `table1`.`col_int_key`))) where ((`table1`.`pk` = `table2`.`col_int_unique`) and (`table2`.`col_int_key` <> 5))
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk
 #table3.col_int AS field1, table3.col_int_key AS field2
@@ -3798,6 +3907,8 @@ EXPLAIN
             -> Limit: 1 row(s)
                 -> Index lookup on table2 using col_int_key (col_int_key = table1.col_int_key), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `table3`.`col_int_key` AS `field1`,`table1`.`col_int` AS `field2`,`table1`.`col_int` AS `field3` from `test`.`t` `table1` join `test`.`u` `table2` left join `test`.`i` `table3` on((`table3`.`col_int_key` = `table1`.`col_int`)) where (`table2`.`col_int_key` = `table1`.`col_int_key`)
 SELECT DISTINCT
 table3.col_int_key AS field1, table1.col_int AS field2, table1.col_int AS field3
 FROM t AS table1
@@ -3832,6 +3943,7 @@ Note	1003	Can't push table 'table1s' as child of 'table1', it is in a sorted-bra
 Note	1003	Can't push table 'table2s' as child of 'table1', it is in a sorted-branch which can't be referred.
 Note	1003	Can't push table 'table2' as child of 'table1', it is in a sorted-branch which can't be referred.
 Note	1003	Can't push table 'table2' as child of 'table1s', column 'table1.pk' is in a sorted-branch which can't be referred
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table1`.`col_varchar_10_unique` AS `field3` from `test`.`l` `table1` join `test`.`j` `table2` semi join (`test`.`i` `table1s` join `test`.`z` `table2s`) where ((`table1s`.`col_int` = `table1`.`pk`) and (`table2s`.`col_int_key` = `table1`.`pk`) and (`table2`.`col_int_key` = `table1`.`pk`)) order by `field3`
 SELECT
 table1.pk, table2.pk, table1.col_varchar_10_unique AS field3
 FROM l AS table1
@@ -3876,6 +3988,8 @@ EXPLAIN
             -> Limit: 1 row(s)
                 -> Index lookup on table1 using col_int_key (col_int_key = table2.col_int_unique), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `table4`.`col_int_unique` AS `col_int_unique` from `test`.`u` `table1` join `test`.`v` `table2` left join `test`.`w` `table3` on((`table3`.`col_varchar_256_unique` = `table2`.`col_varchar_256_unique`)) join `test`.`c` `table4` where ((`table4`.`col_int` = `table2`.`col_int_unique`) and (`table1`.`col_int_key` = `table2`.`col_int_unique`))
 SELECT
 DISTINCT table4.col_int_unique
 FROM u AS table1
@@ -3927,6 +4041,7 @@ Note	1003	Can't push table 'table4' as child, column 'col_varchar_10_key' does n
 Note	1003	Can't push table 'table1s' as child, column 'col_varchar_10_key' does not have same datatype as ref'ed column 'table2s.col_varchar_256_unique'
 Note	1003	Can't push semi joined table 'table2s' as child of 'table2', some tables in embedding join-nest(s) are not part of pushed join
 Note	1003	Can't push table 'table2s' as child of 'table4', no parent-child dependency exists between these tables
+Note	1003	/* select#1 */ select distinct `table3`.`col_char_16_unique` AS `field1`,`table2`.`col_varchar_256_unique` AS `field2` from `test`.`b` `table3s` join `test`.`w` `table1` join `test`.`c` `table2` join `test`.`d` `table3` join `test`.`r` `table4` semi join (`test`.`t` `table1s` join `test`.`i` `table2s`) where ((`table3`.`pk` = `table2`.`pk`) and (`table1`.`col_int_key` = `table2`.`col_int`) and (`table1`.`col_int_unique` = `table2`.`col_int`) and (`table2s`.`col_int_unique` = `table3s`.`col_int_unique`) and (`table2s`.`col_int` = `table3s`.`col_int`) and (`table3s`.`pk` = `table3`.`col_int_key`) and (`table4`.`col_varchar_10_key` = `table2`.`col_varchar_256`) and (`table1s`.`col_varchar_10_key` = `table2s`.`col_varchar_256_unique`) and (`table3`.`col_int` is null))
 SELECT DISTINCT
 table3.col_char_16_unique AS field1, table2.col_varchar_256_unique AS field2
 FROM w AS table1
@@ -3962,6 +4077,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table1' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select `table1`.`col_varchar_256_unique` AS `field1` from `test`.`o` `table1` join `test`.`x` `table2` join `test`.`n` `table3` where ((`table1`.`col_int_key` = `table2`.`pk`) and (`table1`.`pk` = `table3`.`pk`)) group by `field1`
 SELECT table1.col_varchar_256_unique AS field1
 FROM o AS table1
 JOIN x AS table2 ON table1.col_int_key = table2.pk
@@ -4003,6 +4119,8 @@ EXPLAIN
             -> Single-row index lookup on table2s using ix1 (col_int_unique = table1s.col_int_unique), child of table1s in pushed join
     -> Index lookup on table1 using col_int_key (col_int_key = table2.pk), child of table2 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`x` `table1` join `test`.`b` `table2` semi join (`test`.`f` `table1s` join `test`.`g` `table2s`) where ((`table2s`.`col_int_unique` = `table1s`.`col_int_unique`) and (`table1s`.`col_int` = `table2`.`pk`) and (`table1`.`col_int_key` = `table2`.`pk`))
 SELECT table1.pk, table2.pk
 FROM x AS table1
 JOIN b AS table2 ON table1.col_int_key = table2.pk
@@ -4042,6 +4160,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2s' as child, column 'col_int_unique' does neither 'ref' a column nor a constant
 Note	1003	Can't push semi joined table 'table1s' as child of 'table2', some tables in embedding join-nest(s) are not part of pushed join
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`x` `table1` join `test`.`b` `table2` semi join (`test`.`f` `table1s` join `test`.`g` `table2s`) where ((`table1s`.`col_int` = `table2`.`pk`) and (`table1`.`col_int_key` = `table2`.`pk`) and ((`table1s`.`col_int_unique` + 0) = `table2s`.`col_int_unique`))
 SELECT table1.pk, table2.pk
 FROM x AS table1
 JOIN b AS table2 ON table1.col_int_key = table2.pk
@@ -4079,6 +4198,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2s' as child of 'table2', it is in a query-branch which can't be referred.
 Note	1003	Can't push table 'table1' as child of 'table2', it is in a query-branch which can't be referred.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq` DUPSWEEDOUT) JOIN_ORDER(@`select#1` `table2`,`table2s`@`subq`,`table1`) */ `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk` from `test`.`z` `table1` join `test`.`b` `table2` semi join (`test`.`q` `table2s`) where ((`table2s`.`col_int_key` = `table2`.`pk`) and (`table1`.`col_int_key` = `table2`.`pk`))
 SELECT
 /*+ JOIN_ORDER(table2,table2s@subq,table1) SEMIJOIN(@subq DUPSWEEDOUT) */
 table1.pk, table2.pk
@@ -4126,6 +4246,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table3' as child, access type 'Multi-range' not implemented
 Note	1003	Can't push table 'table1' as child of 'table2', it is in a batched-keys-branch which can't be referred.
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`i` `table2` join `test`.`i` `table3` join `test`.`t` `table1` where ((`table3`.`col_int_key` = `table2`.`col_int_key`) and (`table3`.`col_int_unique` = `table2`.`col_int_unique`) and (`table1`.`col_int_unique` = `table2`.`col_int_unique`) and (`table3`.`col_int` = `table2`.`col_int`) and (`table1`.`col_int` = `table2`.`col_int`))
 SELECT straight_join
 table1.pk, table2.pk, table3.pk
 FROM i AS table2
@@ -4166,6 +4287,8 @@ EXPLAIN
             -> Index lookup on table5 using col_int_key (col_int_key = table2.col_int_unique), child of table1 in pushed join
             -> Index lookup on table4 using col_int_key (col_int_key = table2.col_int_unique), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table2`.`pk` AS `pk`,`table1`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table5`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`v` `table2` straight_join `test`.`u` `table1` left join (`test`.`m` `table3` left join (`test`.`u` `table5` straight_join `test`.`n` `table4`) on(((`table5`.`col_int_key` = `table2`.`col_int_unique`) and (`table4`.`col_int_key` = `table2`.`col_int_unique`)))) on(((`table3`.`col_int_unique` = `table2`.`col_int_unique`) and (`table3`.`col_int` = `table1`.`col_int`))) where (`table1`.`col_int_key` = `table2`.`col_int`)
 SELECT
 table2.pk, table1.pk, table3.pk, table5.pk, table4.pk
 FROM (v AS table2
@@ -4462,6 +4585,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table1s' as child, column 'col_varchar_256_unique' does not have same datatype as ref'ed column 'table3s.col_char_16_key'
 Note	1003	Can't push semi joined table 'table3s' as child of 'table1', some tables in embedding join-nest(s) are not part of pushed join
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk` from `test`.`v` `table1` semi join (`test`.`w` `table3s` left join `test`.`d` `table2s` on((`table2s`.`pk` = `table3s`.`col_int_key`)) left join `test`.`q` `table1s` on((`table1s`.`col_varchar_256_unique` = `table3s`.`col_char_16_key`))) where (`table3s`.`col_int_key` = `table1`.`col_int_unique`)
 SELECT
 table1.pk
 FROM v AS table1
@@ -4505,6 +4629,8 @@ EXPLAIN
             -> Index lookup on table3 using col_int_key (col_int_key = table4.col_int_key), child of table5 in pushed join
     -> Single-row index lookup on table6 using ix2 (col_int_key = table1.col_int_key, col_int_unique = table5.col_int_unique), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table5`.`pk` AS `pk`,`table6`.`pk` AS `pk` from `test`.`c` `table4` join `test`.`g` `table5` left join (`test`.`j` `table1` join `test`.`w` `table2` join `test`.`n` `table3`) on(((`table1`.`col_int_unique` = `table2`.`col_int_unique`) and (`table1`.`col_int_key` = `table2`.`col_int_key`) and (`table1`.`col_int` = `table2`.`col_int`) and (`table2`.`pk` = `table4`.`col_int_key`) and (`table3`.`col_int_key` = `table4`.`col_int_key`))) left join `test`.`s` `table6` on(((`table6`.`col_int_unique` = `table5`.`col_int_unique`) and (`table6`.`col_int_key` = `table1`.`col_int_key`))) where (`table5`.`col_int_key` = `table4`.`col_int_key`)
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
 FROM (j AS table1
@@ -4573,6 +4699,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Table 'table4' is not pushable: Access type was not chosen at 'prepare' time
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table5`.`pk` AS `pk` from `test`.`q` `table5` left join `test`.`p` `table4` on((((`table4`.`col_int_unique` = `table5`.`col_int_unique`) and (`table4`.`col_int_key` = `table5`.`col_int_key`)) or (`table4`.`pk` = `table5`.`col_int_key`))) left join (`test`.`d` `table1` left join (`test`.`v` `table2` join `test`.`q` `table3`) on(((`table3`.`col_int_unique` = `table5`.`col_int_unique`) and (`table2`.`col_int_unique` = `table5`.`col_int_unique`) and (`table3`.`col_int_key` = `table5`.`col_int_key`) and (`table2`.`col_int_key` = `table5`.`col_int_key`)))) on(((`table1`.`col_int_unique` = `table5`.`col_int_unique`) and (`table1`.`col_int_key` = `table5`.`col_int_key`))) where true
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
 FROM d AS table1
@@ -4635,6 +4762,8 @@ EXPLAIN
         -> Index lookup on table4 using col_int_key (col_int_key = table3.col_int_key), child of table3 in pushed join
         -> Single-row index lookup on table5 using PRIMARY (col_int = table1.col_int, pk = table4.col_int_unique), child of table4 in pushed join, with pushed condition: (table5.col_int_unique = table1.col_int_unique)
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table5`.`pk` AS `pk` from `test`.`j` `table1` join `test`.`j` `table2` left join `test`.`w` `table3` on((`table3`.`col_int_key` = `table2`.`pk`)) left join (`test`.`w` `table4` join `test`.`x` `table5`) on(((`table5`.`pk` = `table4`.`col_int_unique`) and (`table5`.`col_int_unique` = `table1`.`col_int_unique`) and (`table4`.`col_int_key` = `table3`.`col_int_key`) and (`table5`.`col_int` = `table1`.`col_int`))) where (`table2`.`col_int_key` = `table1`.`col_int_key`)
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
 FROM j AS table1
@@ -4868,6 +4997,8 @@ EXPLAIN
             -> Index lookup on table1 using PRIMARY (col_int = table2.col_int_unique), child of table2 in pushed join
     -> Index lookup on table4 using col_int_key (col_int_key = table1.col_int_unique), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`n` `table2` join `test`.`w` `table3` left join `test`.`y` `table1` on((`table1`.`col_int` = `table2`.`col_int_unique`)) join `test`.`l` `table4` where ((`table3`.`col_int_unique` = `table2`.`col_int_unique`) and (`table3`.`col_int_key` = `table2`.`col_int_key`) and (`table3`.`col_int` = `table2`.`col_int`) and (`table4`.`col_int_key` = `table1`.`col_int_unique`))
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM y AS table1
@@ -4897,6 +5028,8 @@ EXPLAIN
         -> Single-row index lookup on table2 using ix1 (col_int_unique = table1.col_int_unique), child of table1 in pushed join
     -> Index lookup on table3 using col_int_key (col_int_key = table1.col_int), child of table2 in pushed join, with pushed condition: ((table3.pk = 8) or (table3.col_varchar_256_key = table2.col_varchar_256))
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`p` `table1` join `test`.`g` `table2` join `test`.`n` `table3` where ((`table2`.`col_int_unique` = `table1`.`col_int_unique`) and (`table3`.`col_int_key` = `table1`.`col_int`) and ((`table3`.`pk` = 8) or (`table3`.`col_varchar_256_key` = `table2`.`col_varchar_256`)))
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM p AS table1
@@ -4919,6 +5052,8 @@ EXPLAIN
     -> Filter: ((table3.pk = 8) or (table3.col_varchar_256_key = table2.col_varchar_256))
         -> Index lookup on table3 using col_int_key (col_int_key = table1.col_int), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`p` `table1` join `test`.`g` `table2` join `test`.`n` `table3` where ((`table2`.`col_int_key` = `table1`.`col_int_key`) and (`table3`.`col_int_key` = `table1`.`col_int`) and ((`table3`.`pk` = 8) or (`table3`.`col_varchar_256_key` = `table2`.`col_varchar_256`)))
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM p AS table1
@@ -4975,6 +5110,8 @@ EXPLAIN
     -> Filter: ((table3.pk = 8) or (table3.col_varchar_256_key = table2.col_varchar_256))
         -> Index lookup on table3 using col_int_key (col_int_key = table1.col_int), child of table1 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`p` `table1` left join `test`.`g` `table2` on((`table2`.`col_int_unique` = `table1`.`col_int_unique`)) join `test`.`n` `table3` where ((`table3`.`col_int_key` = `table1`.`col_int`) and ((`table3`.`pk` = 8) or (`table3`.`col_varchar_256_key` = `table2`.`col_varchar_256`)))
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM p AS table1
@@ -5008,6 +5145,8 @@ EXPLAIN
         -> Single-row index lookup on table2 using ix1 (col_int_unique = table1.pk), child of table4 in pushed join
     -> Index lookup on table3 using col_int_key (col_int_key = table4.col_int_key), child of table2 in pushed join, with pushed condition: (table3.col_int = table2.pk)
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`d` `table4` join `test`.`d` `table3` join `test`.`a` `table2` join `test`.`c` `table1` where ((`table3`.`col_int` = `table2`.`pk`) and (`table3`.`col_int_key` = `table4`.`col_int_key`) and (`table4`.`col_int_unique` = `table1`.`pk`) and (`table2`.`col_int_unique` = `table1`.`pk`) and (`table1`.`col_int_unique` > 9))
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM c AS table1
@@ -5034,6 +5173,8 @@ EXPLAIN
         -> Index lookup on table4 using col_int_key (col_int_key = table2.col_int_unique), child of table1 in pushed join
     -> Index lookup on table3 using col_int_key (col_int_key = table4.col_int), child of table4 in pushed join, with pushed condition: (table3.col_int_unique = table1.pk)
 
+Warnings:
+Note	1003	/* select#1 */ select `table3`.`col_char_16_unique` AS `field1` from `test`.`j` `table4` join `test`.`d` `table1` join `test`.`m` `table2` join `test`.`m` `table3` where ((`table1`.`col_int_unique` = `table2`.`pk`) and (`table3`.`col_int_unique` = `table1`.`pk`) and (`table4`.`col_int_key` = `table2`.`col_int_unique`) and (`table3`.`col_int_key` = `table4`.`col_int`) and (`table2`.`col_int` = 76))
 SELECT table3.col_char_16_unique AS field1
 FROM d AS table1
 JOIN m AS table2 ON table1.col_int_unique = table2.pk
@@ -5063,6 +5204,8 @@ EXPLAIN
         -> Index lookup on table3 using ix3 (col_int = table2.pk), child of table5 in pushed join
     -> Single-row index lookup on table4 using ix1 (col_int_unique = table3.col_int_key), child of table3 in pushed join, with pushed condition: (table4.col_int_key = table5.col_int_key)
 
+Warnings:
+Note	1003	/* select#1 */ select `table2`.`col_int_key` AS `field1` from `test`.`d` `table1` join `test`.`f` `table2` join `test`.`e` `table4` join `test`.`m` `table3` join `test`.`h` `table5` where ((`table2`.`col_int_key` = `table1`.`col_int_unique`) and (`table4`.`col_int_unique` = `table3`.`col_int_key`) and (`table3`.`col_int` = `table2`.`pk`) and (`table5`.`col_int_unique` = `table2`.`col_int_unique`) and (`table4`.`col_int_key` = `table5`.`col_int_key`))
 SELECT
 table2.col_int_key AS field1
 FROM d AS table1
@@ -5103,6 +5246,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push outer joined table 'table3' as child of 'table6', table condition can not be fully evaluated by pushed join
 Note	1003	Can't push outer joined table 'table2' as child of 'table6', some tables in embedding join-nest(s) are not part of pushed join
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk`,`table5`.`pk` AS `pk`,`table6`.`pk` AS `pk` from `test`.`w` `table4` join `test`.`v` `table6` left join `test`.`l` `table5` on((`table5`.`col_varchar_10_unique` = `table6`.`col_varchar_10_unique`)) left join (`test`.`r` `table3` join `test`.`a` `table1` join `test`.`k` `table2`) on(((`table1`.`col_int_unique` = `table2`.`col_int`) and (`table3`.`col_varchar_10_key` = `table1`.`col_varchar_10_key`) and (`table3`.`col_int_unique` = `table4`.`col_int_unique`) and (`table2`.`col_int_key` = `table5`.`col_int_key`))) where ((`table4`.`pk` = `table6`.`col_int_unique`) and (`table6`.`col_int_unique` >= 3))
 SELECT
 #table2.col_char_16_unique AS field1
 table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
@@ -5149,6 +5293,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2' as scan-child of 'u', depends on tables being 'skip-read'
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` LOOSESCAN) */ distinct `table2`.`col_varchar_256_unique` AS `col_varchar_256_unique` from `test`.`r` `table1` join `test`.`q` `table2` semi join (`test`.`u`) where ((`table2`.`col_int` = `test`.`u`.`col_int_key`) and (`test`.`u`.`col_int_key` is not null))
 SELECT DISTINCT
 table2.col_varchar_256_unique
 FROM r AS table1
@@ -5202,6 +5347,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table1' as scan-child of 'table2s', depends on tables being 'skip-read'
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` LOOSESCAN) */ `table2`.`col_int_key` AS `field1`,`table1`.`col_int_unique` AS `field2`,`table2`.`col_int` AS `field3` from `test`.`q` `table1` join `test`.`h` `table2` semi join (`test`.`o` `table1s` join `test`.`l` `table2s`) where ((`table1`.`col_int` = `table2`.`col_int_key`) and (`table1s`.`col_int` = `table2s`.`col_int`) and (`table2`.`col_int_unique` = `table2s`.`col_int_key`) and (`table2s`.`col_int_key` <= 3))
 SELECT
 table2.col_int_key AS field1,
 table1.col_int_unique AS field2,
@@ -5247,6 +5393,8 @@ EXPLAIN
         -> Single-row index lookup on table2 using ix1 (col_int = table3.col_int, col_int_unique = table3.col_int_unique), child of table3 in pushed join
     -> Index lookup on table1 using PRIMARY (col_int = table4.col_int_unique), child of table4 in pushed join
 
+Warnings:
+Note	1003	/* select#1 */ select `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk`,`table4`.`pk` AS `pk` from `test`.`x` `table1` join `test`.`q` `table3` join `test`.`x` `table4` left join `test`.`q` `table2` on(((`table2`.`col_int_unique` = `table3`.`col_int_unique`) and (`table2`.`col_int` = `table3`.`col_int`))) where ((`table4`.`col_int_key` = `table3`.`pk`) and (`table1`.`col_int` = `table4`.`col_int_unique`))
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM x AS table1

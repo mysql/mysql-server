@@ -36,8 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 
-#include "fil0fil.h"
-#include "mtr0mtr.h"
+#include "fil0types.h" /* FIL_ADDR_SIZE */
+#include "mtr0mtr.h"   /* mtr_t */
 
 /* The C 'types' of base node and list node: these should be used to
 write self-documenting code. Of course, the sizeof macro cannot be
@@ -78,7 +78,7 @@ void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr);
 /** Get the length of a list.
 @param[in]      base    base node
 @return length */
-static inline ulint flst_get_len(const flst_base_node_t *base);
+static inline uint32_t flst_get_len(const flst_base_node_t *base);
 
 /** Gets list first node address.
 @param[in]      base    Pointer to base node

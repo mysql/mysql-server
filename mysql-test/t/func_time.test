@@ -1467,3 +1467,39 @@ SELECT CEILING(CONVERT_TZ('2025-01-01' ,'-01:00','-08:00')) AS ceil;
 --echo #
 
 SELECT SEC_TO_TIME(-00.0000004584) AS tv;
+
+--echo #
+--echo # Bug#34499767: TIMESTAMPDIFF function does not work as expected on where
+--echo #
+
+CREATE TABLE t
+ (id int NOT NULL,
+  dt datetime,
+  PRIMARY KEY (id)
+);
+
+INSERT INTO t(id, dt) VALUES (1, '2022-08-03 10:37:33');
+
+SELECT TIMESTAMPDIFF(DAY, dt, '2022-08-16 04:30:58')    AS day_diff,
+       TIMESTAMPDIFF(MINUTE, dt, '2022-08-16 04:30:58') AS min_diff
+FROM t
+WHERE id = 1 AND
+      TIMESTAMPDIFF(DAY, dt, '2022-08-16 04:30:58') = 12 AND
+      TIMESTAMPDIFF(MINUTE, dt,'2022-08-16 04:30:58') = 18353;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#39649755: IN (DATE/TIME constant list) wrongly TRUE for
+--echo #               non-temporal string
+--echo #
+
+SELECT 'abc' IN (DATE'2024-02-29', DATE'2026-06-25') AS d,
+       'abc' IN (TIME'01:00:00', TIME'02:00:00') AS t,
+       'abc' IN (TIMESTAMP'2024-02-29 01:00:00',
+                 TIMESTAMP'2026-06-25 02:00:00') AS dt;
+
+CREATE TABLE s (id INT, v VARCHAR(20));
+INSERT INTO s VALUES (1,'abc'), (2,'2024-02-29'), (3,'xyz'),(4,'2026-06-25');
+SELECT id, v FROM s WHERE v IN (DATE'2024-02-29', DATE'2026-06-25');
+DROP TABLE s;

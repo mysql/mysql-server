@@ -36,6 +36,7 @@
 #include "my_compiler.h"
 
 #include "mutex_lock.h"
+#include "sql/changestreams/apply/service/csa_service.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/raii/read_write_lock_guard.h"
@@ -113,6 +114,16 @@ PFS_engine_table_share table_replication_applier_status_by_worker::m_share = {
     false /* m_in_purgatory */
 };
 
+namespace detail {
+
+// helpers
+
+bool is_sta(Master_info *mi) { return mi->rli->get_worker_count() == 0; }
+
+bool is_csa(Master_info *mi) { return mi->rli->is_csa_enabled(); }
+
+}  // namespace detail
+
 bool PFS_index_rpl_applier_status_by_worker_by_channel::match(Master_info *mi) {
   if (m_fields >= 1) {
     st_row_worker row;
@@ -136,8 +147,21 @@ bool PFS_index_rpl_applier_status_by_worker_by_channel::match(Master_info *mi) {
   return true;
 }
 
+std::optional<ulonglong>
+PFS_index_rpl_applier_status_by_worker_by_channel::extract_id(
+    Slave_worker *worker) {
+  if (!worker) return {};
+  return worker->get_internal_id();
+}
+
+std::optional<ulonglong>
+PFS_index_rpl_applier_status_by_worker_by_channel::extract_id(
+    const mysql::csa::Session_legacy_stats &stats) {
+  return stats.m_psf_worker_id;
+}
+
 bool PFS_index_rpl_applier_status_by_worker_by_channel::match(
-    Master_info *mi, Slave_worker *worker) {
+    Master_info *mi, std::optional<ulonglong> internal_id) {
   if (m_fields >= 1) {
     st_row_worker row;
 
@@ -152,7 +176,10 @@ bool PFS_index_rpl_applier_status_by_worker_by_channel::match(
   }
 
   if (m_fields >= 2) {
-    if (!m_key_2.match_not_null(worker->get_internal_id())) {
+    if (!internal_id.has_value()) {
+      return false;
+    }
+    if (!m_key_2.match_not_null(internal_id.value())) {
       return false;
     }
   }
@@ -171,7 +198,7 @@ bool PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi) {
 
     if (mi->rli->slave_running) {
       /* STS will use SQL thread as workers on this table */
-      if (mi->rli->get_worker_count() == 0) {
+      if (detail::is_sta(mi)) {
         PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
         if (psi != nullptr) {
           row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -188,25 +215,37 @@ bool PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi) {
   return true;
 }
 
+std::optional<ulonglong>
+PFS_index_rpl_applier_status_by_worker_by_thread::extract_id(
+    Slave_worker *worker) {
+  if (!worker) return {};
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi = thd_get_psi(worker->info_thd);
+  if (psi) {
+    return PSI_THREAD_CALL(get_thread_internal_id)(psi);
+  }
+#endif  // HAVE_PSI_THREAD_INTERFACE
+  return {};
+}
+
+std::optional<ulonglong>
+PFS_index_rpl_applier_status_by_worker_by_thread::extract_id(
+    const mysql::csa::Session_legacy_stats &stats) {
+  return stats.m_thread_id;
+}
+
 bool PFS_index_rpl_applier_status_by_worker_by_thread::match(
-    Master_info *mi, Slave_worker *worker) {
+    Master_info *mi, std::optional<ulonglong> internal_id) {
   if (m_fields >= 1) {
     st_row_worker row;
     /* NULL THREAD_ID is represented by 0 */
     row.thread_id = 0;
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
     mysql_mutex_assert_owner(&mi->rli->data_lock);
 
-    if (mi->rli->slave_running) {
-      if (worker) {
-        PSI_thread *psi = thd_get_psi(worker->info_thd);
-        if (psi != nullptr) {
-          row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
-        }
-      }
+    if (mi->rli->slave_running && internal_id.has_value()) {
+      row.thread_id = internal_id.value();
     }
-#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     if (!m_key.match(row.thread_id)) {
       return false;
@@ -264,24 +303,38 @@ int table_replication_applier_status_by_worker::rnd_next() {
       continue;
     }
 
+    if (detail::is_csa(mi)) {
+      wc = get_csa_service().get_workers_number(mi->get_channel());
+      for (; m_pos.m_index_2 < wc; m_pos.next_worker()) {
+        auto result = get_csa_service().get_session_legacy_stats(
+            mi->get_channel(), m_pos.m_index_2);
+        if (result.has_value()) {
+          MUTEX_LOCK(lock, &mi->rli->data_lock);
+          make_row(result.value());
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
+      }
+      continue;
+    }
+
     // prevent worker deletion
     MUTEX_LOCK(lock, &mi->rli->data_lock);
-
     wc = mi->rli->get_worker_count();
     if (wc == 0) {
-      /* Single Thread Slave */
+      // Single-Threaded Applier
       make_row(mi);
       m_next_pos.set_channel_after(&m_pos);
       return 0;
-    }
-    for (; m_pos.m_index_2 < wc; m_pos.next_worker()) {
-      /* Multi Thread Slave */
-
-      worker = mi->rli->get_worker(m_pos.m_index_2);
-      if (worker) {
-        make_row(worker);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+    } else {
+      // Multi-Threaded Applier
+      for (; m_pos.m_index_2 < wc; m_pos.next_worker()) {
+        worker = mi->rli->get_worker(m_pos.m_index_2);
+        if (worker) {
+          make_row(worker);
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
       }
     }
   }
@@ -304,17 +357,33 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos) {
     return res;
   }
 
+  if (detail::is_csa(mi)) {
+    wc = get_csa_service().get_workers_number(mi->get_channel());
+    // Change Stream Applier
+    if (m_pos.m_index_2 < wc) {
+      auto result = get_csa_service().get_session_legacy_stats(
+          mi->get_channel(), m_pos.m_index_2);
+      if (result.has_value()) {
+        MUTEX_LOCK(lock, &mi->rli->data_lock);
+        auto &data = result.value();
+        make_row(data);
+        return 0;
+      }
+    }
+    return res;
+  }
+
   // prevent worker deletion
   MUTEX_LOCK(lock, &mi->rli->data_lock);
 
   wc = mi->rli->get_worker_count();
 
-  if (wc == 0) {
-    /* Single Thread Slave */
+  if (detail::is_sta(mi)) {
+    // Single-Threaded Applier
     make_row(mi);
     res = 0;
   } else {
-    /* Multi Thread Slave */
+    // Multi-Threaded Applier
     if (m_pos.m_index_2 < wc) {
       Slave_worker *worker = mi->rli->get_worker(m_pos.m_index_2);
       if (worker != nullptr) {
@@ -369,8 +438,32 @@ int table_replication_applier_status_by_worker::index_next() {
       continue;
     }
 
-    // prevent worker deletion
+    if (detail::is_csa(mi)) {
+      wc = get_csa_service().get_workers_number(mi->get_channel());
+      for (; m_pos.m_index_2 < wc + 1; m_pos.m_index_2++) {
+        if (m_pos.m_index_2 == 0) {
+          continue;
+        }
+        if ((m_pos.m_index_2 >= 1) && (m_pos.m_index_2 <= wc)) {
+          auto worker_id = m_pos.m_index_2 - 1;
+          auto result = get_csa_service().get_session_legacy_stats(
+              mi->get_channel(), worker_id);
+          if (result.has_value()) {
+            MUTEX_LOCK(lock, &mi->rli->data_lock);
+            auto &data = result.value();
+            if (m_opened_index->match(mi, m_opened_index->extract_id(data))) {
+              if (!make_row(data)) {
+                m_next_pos.set_after(&m_pos);
+                return 0;
+              }
+            }
+          }
+        }
+      }
+      continue;
+    }
 
+    // prevent worker deletion
     MUTEX_LOCK(lock, &mi->rli->data_lock);
 
     wc = mi->rli->get_worker_count();
@@ -391,9 +484,10 @@ int table_replication_applier_status_by_worker::index_next() {
         /* Looking for Multi Thread Slave */
 
         if ((m_pos.m_index_2 >= 1) && (m_pos.m_index_2 <= wc)) {
-          worker = mi->rli->get_worker(m_pos.m_index_2 - 1);
+          auto worker_id = m_pos.m_index_2 - 1;
+          worker = mi->rli->get_worker(worker_id);
           if (worker) {
-            if (m_opened_index->match(mi, worker)) {
+            if (m_opened_index->match(mi, m_opened_index->extract_id(worker))) {
               if (!make_row(worker)) {
                 m_next_pos.set_after(&m_pos);
                 return 0;
@@ -472,6 +566,37 @@ int table_replication_applier_status_by_worker::make_row(Master_info *mi) {
                                                     &last_applied_trx);
 
   populate_trx_info(applying_trx, last_applied_trx);
+
+  return 0;
+}
+
+int table_replication_applier_status_by_worker::make_row(
+    const mysql::csa::Session_legacy_stats &stats) {
+  m_row.channel_name_length = stats.m_channel_id.size();
+  memcpy(m_row.channel_name, stats.m_channel_id.data(),
+         m_row.channel_name_length);
+
+  m_row.worker_id = stats.m_psf_worker_id;
+  m_row.thread_id = stats.m_thread_id;
+  m_row.thread_id_is_null = (m_row.thread_id == 0);
+  auto &error_obj = stats.m_error;
+  m_row.service_state = PS_RPL_NO;
+  if (stats.m_is_on) {
+    m_row.service_state = PS_RPL_YES;
+  }
+  m_row.last_error_number = error_obj.number;
+  m_row.last_error_message_length = 0;
+  m_row.last_error_timestamp = 0;
+
+  if (m_row.last_error_number) {
+    const char *temp_store = stats.m_error.message;
+    m_row.last_error_message_length = strlen(temp_store);
+    memcpy(m_row.last_error_message, error_obj.message,
+           m_row.last_error_message_length);
+    /// us since epoch
+    m_row.last_error_timestamp = (ulonglong)error_obj.skr;
+  }
+  populate_trx_info(stats.m_ongoing_trx, stats.m_applied_trx);
 
   return 0;
 }

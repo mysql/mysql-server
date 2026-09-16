@@ -60,6 +60,5 @@ call mtr.add_suppression("Applier metadata information for channel '' was found 
 SET SESSION sql_log_bin=1;
 [connection slave]
 include/rpl/stop_replica.inc
-CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT=0;
-include/rpl/start_replica.inc
+include/rpl/reset_replica.inc
 include/rpl/deinit.inc

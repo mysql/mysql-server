@@ -29,14 +29,10 @@
 
 #include "debugger/EventLogger.hpp"
 #include "portlib/NdbTick.h"
-#include "portlib/ndb_openssl_version.h"
 #include "util/NdbSocket.h"
 #include "util/ndb_openssl3_compat.h"
 #include "util/require.h"
 #include "util/socket_io.h"
-
-static constexpr bool openssl_version_ok =
-    (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
 /* Utility Functions */
 
@@ -47,11 +43,6 @@ static constexpr bool openssl_version_ok =
 #endif
 
 static inline SSL *new_ssl(SSL_CTX *ctx) {
-  if constexpr (!openssl_version_ok) {
-    g_eventLogger->error("NDB TLS: OpenSSL version '%s' is not supported",
-                         OPENSSL_VERSION_TEXT);
-    return nullptr;
-  }
   if (!ctx) return nullptr;
   return SSL_new(ctx);
 }
@@ -126,8 +117,6 @@ int NdbSocket::set_nonblocking(int on) const {
 }
 
 /* NdbSocket private instance methods */
-
-#if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL
 
 static void log_ssl_error(const char *fn_name) {
   const int code = ERR_peek_last_error();
@@ -335,19 +324,6 @@ ssize_t NdbSocket::ssl_send(const char *buf, size_t len) const {
   require(err != SSL_ERROR_WANT_READ);
   return handle_ssl_error(err, "SSL_write");
 }
-
-#else
-static constexpr ssize_t too_old = NDB_OPENSSL_TOO_OLD;
-bool NdbSocket::ssl_handshake() { return false; }
-bool NdbSocket::update_keys(bool) const { return false; }
-bool NdbSocket::renegotiate() { return false; }
-bool NdbSocket::key_update_pending() const { return false; }
-ssize_t NdbSocket::ssl_recv(char *, size_t) const { return too_old; }
-ssize_t NdbSocket::ssl_peek(char *, size_t) const { return too_old; }
-ssize_t NdbSocket::ssl_send(const char *, size_t) const { return too_old; }
-void NdbSocket::ssl_close() {}
-int NdbSocket::ssl_shutdown() const { return -1; }
-#endif
 
 /*
  * writev()

@@ -30,11 +30,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <vector>
 
 #include <mysql/components/component_implementation.h>
+#include <mysql/components/services/bits/mysql_field_types_bits.h>
 #include <mysql/components/services/mysql_statement_service.h>
 #include "include/mysql/components/services/bits/stored_program_bits.h"
 #include "mysql/components/services/defs/mysql_string_defs.h"
 
-#include "field_types.h"
 #include "scope_guard.h"
 
 #include "utils.h"
@@ -183,6 +183,70 @@ static auto test_execute_regular_statement(UDF_INIT *, UDF_ARGS *arguments,
   return print_output(result, length, output);
 }
 
+static auto test_execute_regular_statement_field_metadata(
+    UDF_INIT *, UDF_ARGS *arguments, char *result, unsigned long *length,
+    unsigned char *, unsigned char *error) -> char * {
+  *error = 1;
+
+  auto *statement = my_h_statement{nullptr};
+  auto query =
+      mysql_cstring_with_length{arguments->args[0], strlen(arguments->args[0])};
+
+  if (SERVICE_PLACEHOLDER(mysql_stmt_factory)->init(&statement) != 0) return {};
+
+  Scope_guard const free_statement_guard(
+      [&] { SERVICE_PLACEHOLDER(mysql_stmt_factory)->close(statement); });
+
+  if (SERVICE_PLACEHOLDER(mysql_stmt_execute_direct)
+          ->execute(query, statement) != 0) {
+    return handle_error(statement, error, result, length);
+  }
+
+  auto field_count = uint32_t{};
+  if (SERVICE_PLACEHOLDER(mysql_stmt_resultset_metadata)
+          ->field_count(statement, &field_count) != 0) {
+    return {};
+  }
+
+  auto output = std::string{};
+  auto *field = my_h_field{nullptr};
+  auto *field_name = static_cast<char const *>(nullptr);
+
+  for (auto i = size_t{}; i < field_count; ++i) {
+    if (SERVICE_PLACEHOLDER(mysql_stmt_resultset_metadata)
+            ->fetch_field(statement, i, &field) != 0) {
+      return {};
+    }
+
+    if (SERVICE_PLACEHOLDER(mysql_stmt_resultset_metadata)
+            ->field_info(field, "col_name", &field_name) != 0) {
+      return {};
+    }
+
+    auto mysql_type = mysql_field_type_t{};
+    if (SERVICE_PLACEHOLDER(mysql_stmt_resultset_metadata)
+            ->field_info(field, "mysql_type", &mysql_type) != 0) {
+      return {};
+    }
+
+    auto sp_arg_type = uint64_t{};
+    if (SERVICE_PLACEHOLDER(mysql_stmt_resultset_metadata)
+            ->field_info(field, "type", &sp_arg_type) != 0) {
+      return {};
+    }
+
+    if (i != 0) output += "\t";
+
+    output += std::string{field_name} +
+              ":MYSQL_FIELD_TYPE=" + std::to_string(mysql_type) +
+              ":MYSQL_SP_ARG_TYPE=" + std::to_string(sp_arg_type);
+  }
+
+  output += "\n";
+  *error = 0;
+  return print_output(result, length, output);
+}
+
 auto test_execute_regular_statement_init(UDF_INIT *udf_init, UDF_ARGS *, char *)
     -> bool {
   if (SERVICE_PLACEHOLDER(mysql_udf_metadata)
@@ -203,11 +267,35 @@ static auto init() -> mysql_service_status_t {
     return 1;
   }
 
+  Udf_func_string field_metadata_udf =
+      test_execute_regular_statement_field_metadata;
+  if (SERVICE_PLACEHOLDER(udf_registration)
+          ->udf_register("test_execute_regular_statement_field_metadata",
+                         STRING_RESULT,
+                         reinterpret_cast<Udf_func_any>(field_metadata_udf),
+                         reinterpret_cast<Udf_func_init>(
+                             test_execute_regular_statement_init),
+                         nullptr)) {
+    int was_present = 0;
+    SERVICE_PLACEHOLDER(udf_registration)
+        ->udf_unregister("test_execute_regular_statement", &was_present);
+    fprintf(stderr,
+            "Can't register the "
+            "test_execute_regular_statement_field_metadata UDF\n");
+    return 1;
+  }
+
   return 0;
 }
 
 static auto deinit() -> mysql_service_status_t {
   int was_present = 0;
+  if (SERVICE_PLACEHOLDER(udf_registration)
+          ->udf_unregister("test_execute_regular_statement_field_metadata",
+                           &was_present))
+    fprintf(stderr,
+            "Can't unregister the "
+            "test_execute_regular_statement_field_metadata UDF\n");
   if (SERVICE_PLACEHOLDER(udf_registration)
           ->udf_unregister("test_execute_regular_statement", &was_present))
     fprintf(stderr,

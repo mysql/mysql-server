@@ -1,0 +1,73 @@
+# ==== PURPOSE ====
+#
+# This test validates that unblocking the applier preserves RPCO guarantees
+#
+# ==== IMPLEMENTATION ====
+#
+#     Test steps:
+#
+#     1. Set up replication with APPLIER_VERSION=2 and multiple workers
+#     2. On the replica, block the first GTID
+#     3. On the source: generate some transactions
+#     4. Wait for applier to call unblocking function, it triggers when stalled for 10s
+#     5. Check that no GTID is committed.
+#     6. Unblock the GTID.
+#     7. Rollback blocking transaction and synchronize
+#     8. Cleanup
+#
+# ==== REFERENCES ====
+#
+# WL#10500 MTA: Optimized and generic change stream applier
+#
+
+--source include/big_test.inc
+--source include/have_binlog_format_row.inc
+
+# Test scenario is constructed assuming replica_preserve_commit_order=1
+--source include/have_replica_preserve_commit_order.inc
+
+--let $rpl_applier_version=2:2
+--let $rpl_applier_worker_count=2:4
+--source include/rpl/init_source_replica.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY);
+
+--source include/rpl/sync_to_replica.inc
+
+BEGIN; INSERT INTO t1 VALUES (1);
+
+--source include/rpl/connection_source.inc
+
+--disable_query_log
+--disable_result_log
+--let $num_tx = 10
+--let $trx_id = 1
+while ($num_tx > 0)
+{
+  --eval INSERT INTO t1 VALUES ($trx_id)
+  --dec $num_tx
+  --inc $trx_id
+}
+DROP TABLE t1;
+--enable_query_log
+--enable_result_log
+
+--source include/rpl/connection_replica.inc
+
+# Wait for unblock, waiting time is doubled since first DDL will be marked as progress
+--sleep 22
+
+# Verify no GTID was added
+SELECT @@GLOBAL.gtid_executed REGEXP '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:1$' INTO @regex_match;
+--let $regex_matches = `SELECT @regex_match`
+
+--let $assert_text = Verify no GTID was added
+--let $assert_cond = $regex_matches = 1
+--source include/assert.inc
+
+ROLLBACK;
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

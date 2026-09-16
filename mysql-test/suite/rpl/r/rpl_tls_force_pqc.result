@@ -1,0 +1,83 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+SET SESSION sql_log_bin=0;
+CREATE USER 'replpqc'@'%' IDENTIFIED BY 'password' REQUIRE SSL;
+GRANT REPLICATION SLAVE ON *.* TO 'replpqc'@'%';
+SET SESSION sql_log_bin=1;
+SET @tls_version_saved= @@GLOBAL.tls_version;
+SET GLOBAL tls_version='TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+CREATE TABLE test.t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (1);
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_SSL=1, SOURCE_TLS_VERSION='TLSv1.2';
+include/save_error_log_position.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --skip-replica-start=1 --replication-force-pqc=ON]
+[connection slave]
+Startup disables replication_force_pqc when channel TLS version excludes TLSv1.3
+SELECT @@GLOBAL.replication_force_pqc;
+@@GLOBAL.replication_force_pqc
+0
+include/assert_error_log.inc [server: 2, pattern: replication_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but SOURCE_TLS_VERSION=TLSv1.2 for channel .* disables TLSv1.3; setting replication_force_pqc=OFF]
+Runtime validation rejects replication_force_pqc when channel TLS version excludes TLSv1.3
+SET GLOBAL replication_force_pqc=ON;
+ERROR 42000: Variable 'replication_force_pqc' can't be set to the value of 'ON'
+SELECT @@GLOBAL.replication_force_pqc;
+@@GLOBAL.replication_force_pqc
+0
+0 Expected
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='replpqc', SOURCE_PASSWORD='password', SOURCE_SSL=1, SOURCE_SSL_CA='MYSQL_TEST_DIR/std_data/cacert.pem', SOURCE_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem', SOURCE_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem', SOURCE_TLS_VERSION='TLSv1.3';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+SET GLOBAL replication_force_pqc=ON;
+Runtime validation rejects non-PQC replication_tls_kex when replication_force_pqc=ON
+SET GLOBAL replication_tls_kex = 'X25519';
+ERROR 42000: Variable 'replication_tls_kex' can't be set to the value of 'X25519'
+Runtime validation rejects invalid replication_use_pqc_sign
+SET GLOBAL replication_use_pqc_sign = 'not_a_bool';
+ERROR 42000: Variable 'replication_use_pqc_sign' can't be set to the value of 'not_a_bool'
+SET GLOBAL replication_tls_kex = 'X25519MLKEM768';
+SET GLOBAL replication_use_pqc_sign = ON;
+SELECT @@GLOBAL.replication_tls_kex = 'X25519MLKEM768' AS replication_tls_kex_configured,
+@@GLOBAL.replication_use_pqc_sign AS replication_use_pqc_sign_enabled;
+replication_tls_kex_configured	replication_use_pqc_sign_enabled
+1	1
+include/rpl/start_replica.inc
+include/assert.inc [Replica I/O uses TLS when replication_force_pqc is enabled]
+[connection master]
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE USER='replpqc' AND COMMAND LIKE 'Binlog Dump%'
+  INTO @master_dump_pid;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+SELECT VARIABLE_VALUE LIKE '%MLKEM%' AS uses_pqc
+FROM performance_schema.status_by_thread
+WHERE VARIABLE_NAME='Tls_key_exchange_algorithm'
+    AND THREAD_ID = (
+SELECT THREAD_ID FROM performance_schema.threads
+WHERE PROCESSLIST_ID=@master_dump_pid
+);
+uses_pqc
+1
+INSERT INTO test.t1 VALUES (2);
+[connection slave]
+include/rpl/sync.inc
+include/assert.inc [Replica received rows through a PQC-enforced TLS I/O channel]
+include/rpl/stop_replica.inc
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection slave]
+[connection master]
+SET @@GLOBAL.tls_version= @tls_version_saved;
+ALTER INSTANCE RELOAD TLS;
+SET SESSION sql_log_bin=0;
+DROP USER 'replpqc'@'%';
+SET SESSION sql_log_bin=1;
+DROP TABLE test.t1;
+include/rpl/deinit.inc

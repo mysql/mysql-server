@@ -41,10 +41,56 @@
 #include "sql/sql_list.h"
 #include "sql_string.h"
 
+#include <optional>
+#include <utility>
+
 class Item;
+class Load_data_partition_list;
 class READ_INFO;
+struct TABLE;
 class THD;
 class Table_ref;
+
+enum class Load_data_partition_mode { NAMES_ONLY, NAME_WITH_FILES };
+
+class Load_data_partition_spec {
+ public:
+  explicit Load_data_partition_spec(const LEX_STRING &name) : m_name(name) {}
+
+  Load_data_partition_spec(const LEX_STRING &name, ulong first_file,
+                           ulong last_file)
+      : m_name(name), m_files_range(std::make_pair(first_file, last_file)) {}
+
+  const LEX_STRING &name() const { return m_name; }
+  const std::optional<std::pair<ulong, ulong>> &files_range() const {
+    return m_files_range;
+  }
+
+ private:
+  LEX_STRING m_name;
+  std::optional<std::pair<ulong, ulong>> m_files_range;
+};
+
+class Load_data_partition_list {
+ public:
+  Load_data_partition_list(THD *thd, Load_data_partition_mode mode)
+      : m_mode(mode), m_partitions(thd->mem_root), m_partition_names() {}
+
+  bool push_back_name(THD *thd, const LEX_STRING &name);
+  bool push_back_range(THD *thd, const LEX_STRING &name, ulong first_file,
+                       ulong last_file);
+
+  Load_data_partition_mode mode() const { return m_mode; }
+  const mem_root_deque<Load_data_partition_spec *> &partitions() const {
+    return m_partitions;
+  }
+  List<String> *partition_names() { return &m_partition_names; }
+
+ private:
+  Load_data_partition_mode m_mode;
+  mem_root_deque<Load_data_partition_spec *> m_partitions;
+  List<String> m_partition_names;
+};
 
 class Sql_cmd_load_table final : public Sql_cmd {
  public:
@@ -52,7 +98,7 @@ class Sql_cmd_load_table final : public Sql_cmd {
       enum_filetype filetype, bool is_local_file, enum_source_type source_type,
       const LEX_STRING &filename, ulong file_count, bool in_key_order,
       On_duplicate on_duplicate, Table_ident *table,
-      List<String> *opt_partitions, const CHARSET_INFO *opt_charset,
+      Load_data_partition_list *opt_partitions, const CHARSET_INFO *opt_charset,
       LEX_CSTRING compression_algorithm, String *opt_xml_rows_identified_by,
       const Field_separators *field_separators,
       const Line_separators *line_separators, ulong skip_lines,
@@ -128,7 +174,7 @@ class Sql_cmd_load_table final : public Sql_cmd {
  public:
   const On_duplicate m_on_duplicate;
   Table_ident *const m_table;
-  List<String> *const m_opt_partitions;
+  Load_data_partition_list *const m_opt_partitions;
   mem_root_deque<Item *> m_opt_fields_or_vars;
   mem_root_deque<Item *> m_opt_set_fields;
   mem_root_deque<Item *> m_opt_set_exprs;
@@ -146,6 +192,8 @@ class Sql_cmd_load_table final : public Sql_cmd {
 
   bool execute_bulk(THD *thd);
 
+  bool validate_check_constraints_for_bulk_load(THD *thd, TABLE *table);
+
   bool truncate_table_for_bulk_load(THD *thd, Table_ref *const table_ref,
                                     dd::Table *table_def);
 
@@ -153,10 +201,6 @@ class Sql_cmd_load_table final : public Sql_cmd {
 
   bool validate_table_for_bulk_load(THD *thd, Table_ref *const table_ref,
                                     dd::Table *table_def, handlerton **hton);
-
-  bool rename_table_for_incremental_bulk_load(
-      THD *thd, const std::string &schema_name,
-      const std::string &old_table_name, const std::string &new_table_name);
 
   bool duplicate_table_for_bulk_load(THD *thd, std::string &temp_name,
                                      const std::string &schema_name,
@@ -166,6 +210,13 @@ class Sql_cmd_load_table final : public Sql_cmd {
                            const TABLE *duplicate_table,
                            const Bulk_load_file_info &info, Bulk_source src,
                            size_t &affected_rows);
+
+  bool run_bulk_driver_for_target(THD *thd, Table_ref *table_ref,
+                                  Table_ref *new_table_ref,
+                                  bool has_duplicate_table,
+                                  const std::string *partition_name_ptr,
+                                  Bulk_load_file_info &info, Bulk_source src,
+                                  size_t &affected_rows);
 
   bool read_fixed_length(THD *thd, COPY_INFO &info, Table_ref *table_list,
                          READ_INFO &read_info, ulong skip_lines);

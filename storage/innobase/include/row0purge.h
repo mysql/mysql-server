@@ -189,11 +189,6 @@ struct purge_node_t {
   acquires shared MDL table locks, the caller should not hold any latches. */
   void free_lob_pages();
 
-  /** Check if undo records of given table_id is there in this purge node.
-  @param[in]    table_id        look for undo records of this table id.
-  @return true if undo records of table id exists, false otherwise. */
-  bool is_table_id_exists(table_id_t table_id) const;
-
 #ifdef UNIV_DEBUG
   /** Check if there are more than one undo record with same (trx_id, undo_no)
   combination.

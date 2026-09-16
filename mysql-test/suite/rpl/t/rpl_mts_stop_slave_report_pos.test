@@ -25,6 +25,8 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
+# CSA does not report positions
+--source include/have_mta.inc
 # do not execute when binlog compression is on as the debug
 # point below is not activated
 --source include/not_binlog_transaction_compression_on.inc

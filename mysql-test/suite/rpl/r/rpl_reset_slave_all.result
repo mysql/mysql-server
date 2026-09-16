@@ -22,6 +22,7 @@ include/rpl/stop_receiver.inc
 CALL mtr.add_suppression(".*worker thread retried transaction 1 time.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are "
                          "stopped, possibly leaving data in inconsistent.*");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
 include/assert.inc [count_transactions_retries should be greater than 0]
 RESET REPLICA ALL;
 include/assert.inc [count_transactions_retries should be 0]

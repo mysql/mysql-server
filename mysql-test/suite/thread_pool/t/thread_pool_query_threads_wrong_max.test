@@ -1,0 +1,17 @@
+--source ../inc/thread_pool_err.inc
+
+--let $error_pattern= $tp_qtpg_max_warn
+
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.4096. exceeds transaction threads limit per group");
+
+--source ../inc/wrong_value.inc
+
+# Test by setting a wrong max value at runtime
+--error ER_GLOBAL_VARIABLE
+SET SESSION thread_pool_query_threads_per_group = 4097;
+
+--error ER_TP_QUERY_THRS_PER_GRP_EXCEEDS_TXN_THR_LIMIT
+SET GLOBAL thread_pool_query_threads_per_group = 4096;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL thread_pool_query_threads_per_group = 4097;

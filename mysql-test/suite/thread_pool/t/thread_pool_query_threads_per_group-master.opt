@@ -1,0 +1,5 @@
+--thread-pool-size=1
+--thread-pool-query-threads-per-group=4
+--thread-pool-max-transactions-limit=4097
+--thread-pool-algorithm=1
+--thread-pool-max-unused-threads=4

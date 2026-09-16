@@ -908,11 +908,7 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     )
 
   IF(WIN32)
-    ADD_CUSTOM_COMMAND(TARGET ${_dll} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:${_dll}>"
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:${_dll}>"
-      )
+    COPY_TARGET_DLL_TO_RUNTIME(${_dll})
     SET_TARGET_PROPERTIES(${_dll} PROPERTIES
       DEBUG_POSTFIX "-debug")
     INSTALL_DEBUG_TARGET(${_dll}

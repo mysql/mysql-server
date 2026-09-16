@@ -1,0 +1,65 @@
+# ==== Purpose ====
+#
+# Verify crash recovery when XA PREPARE has updated XA RECOVER bookkeeping
+# but has not yet updated GTID state, with binary logging disabled.
+#
+# ==== Requirements ====
+#
+# R1. After recovery, XA RECOVER should list the prepared XID.
+# R2. After recovery, GTID_EXECUTED should contain the recovered XA PREPARE
+#     GTID.
+#
+# ==== References ====
+#
+# Bug#35872823: XA RECOVER may miss XID after XA PREPARE GTID is visible
+
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--let $option_name = log_bin
+--let $option_value = 0
+--source include/only_with_option.inc
+--let $option_name = gtid_mode
+--let $option_value = 'ON'
+--source include/only_with_option.inc
+
+--let $xid_data = xid1
+--let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
+--source common/xa_crash_safe/setup.inc
+--let $prepare_gtid = 72e9b9d8-8a89-11ec-8f56-6f896ffede71:1
+RESET BINARY LOGS AND GTIDS;
+
+--connect(con1, localhost, root,,)
+--connection con1
+--eval SET @@SESSION.gtid_next = '$prepare_gtid'
+--eval XA START $xid
+INSERT INTO t1 VALUES (1);
+--eval XA END $xid
+
+--let $auxiliary_connection = default
+--let $statement_connection = con1
+--let $statement = XA PREPARE $xid
+--let $sync_point = after_call_actions_before_gtid_state_update
+--source include/execute_to_conditional_timestamp_sync_point.inc
+--source include/dbug_crash_safe.inc
+--source common/xa_crash_safe/cleanup_connection.inc
+
+--source include/start_mysqld.inc
+
+--let $assert_select = Successfully prepared 1 XA transaction
+--source common/xa_crash_safe/assert_recovery_message.inc
+
+--let $expected_prepared_xa_count = 1
+--source common/xa_crash_safe/assert_xa_recover.inc
+
+--let $assert_text = GTID_EXECUTED contains the recovered XA PREPARE GTID
+--let $has_gtid = `SELECT GTID_SUBSET('$prepare_gtid', @@GLOBAL.gtid_executed)`
+--let $assert_cond = "$has_gtid" = "1"
+--source include/assert.inc
+
+--let $expected_row_count = 1
+--source common/xa_crash_safe/assert_row_count.inc
+
+--eval XA ROLLBACK $xid
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;

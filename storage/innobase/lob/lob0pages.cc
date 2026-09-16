@@ -48,16 +48,9 @@ void data_page_t::replace_inline(ulint offset, const byte *&ptr, ulint &want,
   want -= data_to_copy;
 }
 
-/** Create a new data page and replace some or all parts of the old data
-with data.
-@param[in]      trx     Current transaction.
-@param[in]      offset  Offset where replace begins.
-@param[in,out]  ptr     Pointer to new data.
-@param[in]      want    Amount of data the caller wants to replace.
-@param[in]      mtr     Mini-transaction context.
-@return the buffer block of the new data page. */
 buf_block_t *data_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
                                   ulint &want, mtr_t *mtr) {
+  ut_ad(trx != nullptr);
   ulint cur_data_len = get_data_len();
   ut_a(offset > 0 || want < cur_data_len);
   buf_block_t *new_block = nullptr;
@@ -137,8 +130,6 @@ ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
 
   return written;
 }
-
-ulint data_page_t::space_left() const { return (payload() - get_data_len()); }
 
 buf_block_t *data_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
   ut_ad(m_block == nullptr);

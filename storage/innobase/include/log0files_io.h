@@ -102,6 +102,8 @@ This includes functions to:
 /* ut::vector */
 #include "ut0new.h"
 
+#include "log0handler_interface.h"
+
 /** Atomic pointer to the log checksum calculation function. This is actually
 the only remaining "state" of the library. Hopefully can become removed. */
 extern Log_checksum_algorithm_atomic_ptr log_checksum_algorithm_ptr;
@@ -251,10 +253,12 @@ dberr_t log_checkpoint_header_read(
 @param[in]   file_handle           handle for the opened log file
 @param[in]   checkpoint_header_no  checkpoint header to read
 @param[out]  header                the checkpoint header read
+@param[out]  block                 to be filled with block containing checkpoint
 @return DB_SUCCESS or error */
-dberr_t log_checkpoint_header_read(
+[[nodiscard]] dberr_t log_checkpoint_header_read(
     Log_file_handle &file_handle, Log_checkpoint_header_no checkpoint_header_no,
-    Log_checkpoint_header &header);
+    Log_checkpoint_header &header,
+    ib::redo::Handler_interface::Metadata_value &block);
 
 /** @} */
 
@@ -279,16 +283,19 @@ dberr_t log_data_blocks_write(Log_file_handle &file_handle,
                               const byte *buf);
 
 /** Reads log blocks with redo records from the log file, starting at
-the given offset. The log blocks must exist within single log file.
+the given offset. The log blocks must exist within a single log file.
 @param[in]  file_handle  handle for the opened log file
 @param[in]  read_offset  offset from the beginning of the given file
 @param[in]  read_size    size of the data to read (must be divisible
                          by OS_FILE_LOG_BLOCK_SIZE)
 @param[out] buf          allocated buffer to fill by the read
+@param[in]  can_decrypt  whether decryption may be attempted for encrypted
+                         blocks; an encrypted block returns DB_IO_DECRYPT_FAIL
+                         when this is false
 @return DB_SUCCESS or error */
 dberr_t log_data_blocks_read(Log_file_handle &file_handle,
                              os_offset_t read_offset, size_t read_size,
-                             byte *buf);
+                             byte *buf, bool can_decrypt = true);
 
 /** @} */
 

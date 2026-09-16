@@ -40,7 +40,16 @@ let $wait_condition = SELECT ENCRYPTION = 'N'
 --source include/wait_condition.inc
 
 --echo # Search the pattern in error log
---source $MYSQLTEST_VARDIR/tmp/unencryption_error_log.inc
+# On a running server, it is safer to query the PFS than grepping the file
+# because logs might not be flushed yet. Note the my_restart.err is already
+# empty before starting the server so it will not match old entries.
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+  WHERE DATA LIKE '%Resuming DECRYPTION for tablespace encrypt_ts%';
+
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+  WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
+
+--remove_file $MYSQLTEST_VARDIR/log/my_restart.err
 
 --echo # RESTART $rc : WITHOUT KEYRING COMPONENT
 --source include/keyring_tests/helper/instance_backup_manifest.inc

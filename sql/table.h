@@ -1059,7 +1059,7 @@ struct TABLE_SHARE {
   dd::Table *tmp_table_def{nullptr};
 
   /// For materialized derived tables; @see add_derived_key().
-  Query_block *owner_of_possible_tmp_keys{nullptr};
+  Query_block *owner_of_tmp_keys{nullptr};
 
   /**
     Arrays with descriptions of foreign keys in which this table participates

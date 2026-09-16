@@ -30,6 +30,7 @@
 ##
 ## opentelemetry-cpp --> opentelemetry-proto
 ## opentelemetry-cpp --> protoc (compiler, used at build time)
+## opentelemetry-cpp --> rapidyaml
 ##
 ## For the OTLP HTTP exporter:
 ## opentelemetry-cpp --> nlohmann_json
@@ -97,6 +98,9 @@ ADD_SUBDIRECTORY(
   ${CMAKE_BINARY_DIR}/extra/opentelemetry-proto)
 
 ADD_SUBDIRECTORY(
+  ${CMAKE_SOURCE_DIR}/extra/rapidyaml
+  ${CMAKE_BINARY_DIR}/extra/rapidyaml)
+
+ADD_SUBDIRECTORY(
   ${CMAKE_SOURCE_DIR}/extra/opentelemetry-cpp
   ${CMAKE_BINARY_DIR}/extra/opentelemetry-cpp)
-

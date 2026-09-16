@@ -1,0 +1,22 @@
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+FLUSH ENGINE LOGS;
+
+--echo #
+--echo # Stop the page cleaner and other background threads
+--echo #
+--source ../include/stop_dirty_page_flushing_and_background_redo_producers.inc
+
+CREATE TABLE t1 (c1 INT DEFAULT NULL, c2 TEXT NOT NULL) ENGINE=InnoDB KEY_BLOCK_SIZE=16;
+
+# Kill the server to trigger recovery on start
+--source include/kill_mysqld.inc
+
+--let restart_parameters="restart:"
+--source include/start_mysqld.inc
+
+--echo
+--echo # cleanup
+--echo
+DROP TABLE t1;

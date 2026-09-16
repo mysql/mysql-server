@@ -8,6 +8,8 @@
 # Non-Windows platforms
 #
 perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug-server --force  --comment=all-default-debug --vardir=var-all-default --skip-combinations --unit-tests-report --no-skip --exclude-platform=windows --skip-ndb
+# Additional rpl suites with APPLIER_VERSION=2 (Change Stream Applier)
+perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug-server --force --comment=rpl_csa --vardir=var-rpl_csa --suite=rpl,rpl_gtid --defaults-extra-file=include/rpl_change_stream_applier.cnf --no-skip --exclude-platform=windows
 #
 # Windows - run RPL separately with 8 threads
 #
@@ -24,5 +26,10 @@ perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --timer --testcase-t
 #
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_csa --vardir=var-group_replication-csa --suite=group_replication --defaults-extra-file=include/rpl_change_stream_applier.cnf
 
 perl mysql-test-run.pl --force --timer --comment=classic_hashing --vardir=var-classic_hashing  --suite=classic_hashing  --no-skip --big-test
+
+# Thread Pool Plugin
+perl mysql-test-run.pl --debug-server --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+

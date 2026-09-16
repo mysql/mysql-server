@@ -7,6 +7,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=77)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -39,6 +41,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -71,6 +75,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c is null)) and ((t.b = 2) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` is null))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -103,6 +109,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` is null) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -125,6 +133,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 2)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` is null) or (`test`.`t`.`b` = 2)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -157,6 +167,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=12)
     -> Covering index skip scan for deduplication on t using k1  (rows=77)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
 a
@@ -189,6 +201,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
 a	b	MAX(d)	MIN(d)
@@ -223,6 +237,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -268,6 +284,8 @@ EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
     -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15)  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and multiple equal(1, `test`.`t`.`a`))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
 a
@@ -291,6 +309,8 @@ EXPLAIN
     -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
         -> Covering index lookup on t using k1 (a = 1)  (rows=209)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 1) or (`test`.`t`.`d` = 9)) and multiple equal(1, `test`.`t`.`a`)) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
 GROUP BY a, b;
@@ -318,6 +338,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -343,6 +365,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a < 2) or (t.a > 11)))  (rows=1.32)
     -> Covering index skip scan for grouping on t using k1 over (NULL < a < 2) OR (11 < a)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` < 2) or (`test`.`t`.`a` > 11)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -367,6 +391,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 a	b
@@ -390,6 +416,8 @@ EXPLAIN
 -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for deduplication on t using k1 over (a = 1) OR (a = 12)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
 a
@@ -413,6 +441,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.a = 1) or (t.a = 12)) and ((t.b < 4) or (t.b > 10)))  (rows=2.65)
     -> Covering index skip scan for grouping on t using k1 over (a = 1 AND NULL < b < 4) OR (a = 1 AND 10 < b) OR (2 more)  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` < 4) or (`test`.`t`.`b` > 10)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -440,6 +470,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=1.73)
     -> Covering index skip scan for grouping on t using k1 over (a = 1) OR (9 < a)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` > 9)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a;
@@ -466,6 +498,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
         -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t`.`a`,`test`.`t`.`b`) AS `COUNT(DISTINCT a, b)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 COUNT(DISTINCT a, b)
@@ -488,6 +522,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=51)
         -> Covering index skip scan for deduplication on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t`.`a`) AS `AVG(DISTINCT a)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 SUM(DISTINCT a)	AVG(DISTINCT a)
@@ -510,6 +546,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=51)
         -> Covering index skip scan for deduplication on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t`.`a`) AS `AVG(DISTINCT a)`,count(distinct `test`.`t`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 SUM(DISTINCT a)	AVG(DISTINCT a)	COUNT(DISTINCT a)
@@ -534,6 +572,8 @@ EXPLAIN
     -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.0533)
         -> Covering index range scan on t using k1 over (11 < a)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 11) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 1) or (`test`.`t`.`c` = 2) or (`test`.`t`.`c` = 4))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
 (c = 3 OR c = 1 OR c = 2 OR c = 4)
@@ -557,6 +597,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1 over (d = 2) OR (7 < d)  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` > 7) or (`test`.`t`.`d` = 2))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
 a	b	MAX(d)	MIN(d)
@@ -630,6 +672,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2) or (t.d is null)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 2) OR (7 < d)  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` > 7) or (`test`.`t`.`d` = 2) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
 GROUP BY a, b;
@@ -706,6 +750,8 @@ EXPLAIN
 -> Filter: ((t.a > 5) and ((t.c = 3) or (t.c = 40)) and ((t.d < <cache>(-(24))) or (t.d = 3) or (t.d is null)))  (rows=24.6)
     -> Covering index skip scan for grouping on t using k1 over (NULL <= d < -24) OR (d = 3)  (rows=57)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 5) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < <cache>(-(24))) or (`test`.`t`.`d` = 3) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
 (d  < -24 OR d = 3 OR d IS NULL)
@@ -755,6 +801,8 @@ EXPLAIN
 -> Filter: ((t.a > 5) and ((t.c = 3) or (t.c = 40)) and ((t.d < 1) or (t.d = 9)))  (rows=24.3)
     -> Covering index skip scan for grouping on t using k1 over (NULL < d < 1) OR (d = 9)  (rows=57)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 5) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < 1) or (`test`.`t`.`d` = 9))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
 GROUP BY a, b;
@@ -806,6 +854,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d = 1) or (t.d = 9) or (t.d is null)))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 1) OR (d = 9)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 1) or (`test`.`t`.`d` = 9) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  =  1 OR d = 9 OR d IS NULL)
@@ -836,6 +886,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d = 0) or (t.d = 9) or (t.d is null)))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 0) OR (d = 9)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)`,max(`test`.`t`.`d`) AS `MAX(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 0) or (`test`.`t`.`d` = 9) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  =  0 OR d = 9 OR d IS NULL)
@@ -866,6 +918,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and (((t.d > 0) and (t.d < 2)) or ((t.d > 3) and (t.d < 5)) or (t.d is null)))  (rows=1.78)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (0 < d < 2) OR (3 < d < 5)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)`,max(`test`.`t`.`d`) AS `MAX(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and (((`test`.`t`.`d` > 0) and (`test`.`t`.`d` < 2)) or ((`test`.`t`.`d` > 3) and (`test`.`t`.`d` < 5)) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
@@ -896,6 +950,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d < 2) or (t.d > 5) or (t.d is null)))  (rows=2.87)
     -> Covering index skip scan for grouping on t using k1 over (NULL <= d < 2) OR (5 < d)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < 2) or (`test`.`t`.`d` > 5) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d < 2 OR d > 5 OR d IS NULL)
@@ -930,6 +986,8 @@ EXPLAIN
 -> Filter: ((t.a >= 10) and ((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = -23) OR (d = -10)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `max(d)` from `test`.`t` where ((`test`.`t`.`a` >= 10) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` is null) or (`test`.`t`.`d` = <cache>(-(10))) or (`test`.`t`.`d` = <cache>(-(23))))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
 (d is NULL or d = -10 or d = -23)
@@ -956,6 +1014,8 @@ EXPLAIN
 -> Filter: ((t.a >= 10) and ((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = -23) OR (d = -10)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `min(d)` from `test`.`t` where ((`test`.`t`.`a` >= 10) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` is null) or (`test`.`t`.`d` = <cache>(-(10))) or (`test`.`t`.`d` = <cache>(-(23))))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
 (d is NULL or d = -10 or d = -23)
@@ -980,6 +1040,8 @@ EXPLAIN
 -> Filter: (t.a > 9)  (rows=1)
     -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,min(`test`.`t`.`b`) AS `MIN(b)`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` where (`test`.`t`.`a` > 9) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
 a	MIN(b)	MAX(b)
@@ -1079,6 +1141,8 @@ EXPLAIN
     -> Filter: ((t.c = 3) or (t.c > 6))  (rows=532)
         -> Covering index range scan on t using k1 over (4 < a)  (rows=1508)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where ((`test`.`t`.`a` > 4) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` > 6))) group by `test`.`t`.`a`,`test`.`t`.`b`
 EXPLAIN FORMAT=TREE SELECT a, b FROM t  WHERE (a > 4) AND (c = 3 OR c = 40) AND
 (d = -1 OR d = -2 OR d > 7)  GROUP BY a, b;
 EXPLAIN
@@ -1086,6 +1150,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d = <cache>(-(1))) or (t.d = <cache>(-(2))) or (t.d > 7)))  (rows=29.5)
         -> Covering index range scan on t using k1 over (4 < a)  (rows=1508)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where ((`test`.`t`.`a` > 4) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = <cache>(-(1))) or (`test`.`t`.`d` = <cache>(-(2))) or (`test`.`t`.`d` > 7))) group by `test`.`t`.`a`,`test`.`t`.`b`
 ALTER TABLE t DROP KEY k1;
 ALTER TABLE t ADD KEY k1(a, b, c, d DESC);
 ANALYZE TABLE t;
@@ -1096,6 +1162,8 @@ EXPLAIN
 -> Filter: ((t.c = 3) and (t.a > 9))  (rows=2.24)
     -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and multiple equal(3, `test`.`t`.`c`)) group by `test`.`t`.`a`,`test`.`t`.`b`
 SELECT a, b, MIN(d) FROM t WHERE (a > 9) AND (c = 3) GROUP BY a, b;
 a	b	MIN(d)
 10	1	1
@@ -1112,6 +1180,8 @@ EXPLAIN
 -> Filter: ((t.c = 3) and (t.a > 9))  (rows=2.24)
     -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)`,max(`test`.`t`.`d`) AS `MAX(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and multiple equal(3, `test`.`t`.`c`)) group by `test`.`t`.`a`,`test`.`t`.`b`
 SELECT a, b, MIN(d), MAX(d) FROM t WHERE (a > 9) AND (c = 3) GROUP BY a, b;
 a	b	MIN(d)	MAX(d)
 10	1	1	10
@@ -1133,6 +1203,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=77)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -1165,6 +1237,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -1197,6 +1271,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c is null)) and ((t.b = 2) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` is null))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -1229,6 +1305,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` is null) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -1251,6 +1329,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 2)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` is null) or (`test`.`t`.`b` = 2)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -1283,6 +1363,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=12)
     -> Covering index skip scan for deduplication on t using k1  (rows=77)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
 a
@@ -1315,6 +1397,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
 a	b	MAX(d)	MIN(d)
@@ -1349,6 +1433,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -1394,6 +1480,8 @@ EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
     -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15)  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and multiple equal(1, `test`.`t`.`a`))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
 a
@@ -1417,6 +1505,8 @@ EXPLAIN
     -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
         -> Covering index lookup on t using k1 (a = 1)  (rows=209)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 1) or (`test`.`t`.`d` = 9)) and multiple equal(1, `test`.`t`.`a`)) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
 GROUP BY a, b;
@@ -1444,6 +1534,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for grouping on t using k1 over (a = 12 AND b = 2) OR (a = 12 AND b = 15) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -1469,6 +1561,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a < 2) or (t.a > 11)))  (rows=1.32)
     -> Covering index skip scan for grouping on t using k1 over (a < 11) OR (2 < a < NULL)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` < 2) or (`test`.`t`.`a` > 11)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -1493,6 +1587,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for deduplication on t using k1 over (a = 12 AND b = 2) OR (a = 12 AND b = 15) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 a	b
@@ -1516,6 +1612,8 @@ EXPLAIN
 -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for deduplication on t using k1 over (a = 12) OR (a = 1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
 a
@@ -1539,6 +1637,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.a = 1) or (t.a = 12)) and ((t.b < 4) or (t.b > 10)))  (rows=2.65)
     -> Covering index skip scan for grouping on t using k1 over (a = 12 AND NULL < b < 4) OR (a = 12 AND 10 < b) OR (2 more)  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` < 4) or (`test`.`t`.`b` > 10)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -1566,6 +1666,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=1.73)
     -> Covering index skip scan for grouping on t using k1 over (a < 9) OR (a = 1)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` > 9)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a;
@@ -1592,6 +1694,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
         -> Covering index skip scan for deduplication on t using k1 over (a = 12 AND b = 2) OR (a = 12 AND b = 15) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t`.`a`,`test`.`t`.`b`) AS `COUNT(DISTINCT a, b)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 COUNT(DISTINCT a, b)
@@ -1614,6 +1718,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=51)
         -> Covering index skip scan for deduplication on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t`.`a`) AS `AVG(DISTINCT a)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 SUM(DISTINCT a)	AVG(DISTINCT a)
@@ -1636,6 +1742,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=51)
         -> Covering index skip scan for deduplication on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t`.`a`) AS `AVG(DISTINCT a)`,count(distinct `test`.`t`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 SUM(DISTINCT a)	AVG(DISTINCT a)	COUNT(DISTINCT a)
@@ -1660,6 +1768,8 @@ EXPLAIN
     -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.0533)
         -> Covering index range scan on t using k1 over (a < 11)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 11) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 1) or (`test`.`t`.`c` = 2) or (`test`.`t`.`c` = 4))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
 (c = 3 OR c = 1 OR c = 2 OR c = 4)
@@ -1683,6 +1793,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1 over (d = 2) OR (7 < d)  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` > 7) or (`test`.`t`.`d` = 2))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
 a	b	MAX(d)	MIN(d)
@@ -1756,6 +1868,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2) or (t.d is null)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 2) OR (7 < d)  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` > 7) or (`test`.`t`.`d` = 2) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
 GROUP BY a, b;
@@ -1832,6 +1946,8 @@ EXPLAIN
 -> Filter: ((t.a > 5) and ((t.c = 3) or (t.c = 40)) and ((t.d < <cache>(-(24))) or (t.d = 3) or (t.d is null)))  (rows=24.6)
     -> Covering index skip scan for grouping on t using k1 over (NULL <= d < -24) OR (d = 3)  (rows=57)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 5) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < <cache>(-(24))) or (`test`.`t`.`d` = 3) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
 (d  < -24 OR d = 3 OR d IS NULL)
@@ -1881,6 +1997,8 @@ EXPLAIN
 -> Filter: ((t.a > 5) and ((t.c = 3) or (t.c = 40)) and ((t.d < 1) or (t.d = 9)))  (rows=24.3)
     -> Covering index skip scan for grouping on t using k1 over (NULL < d < 1) OR (d = 9)  (rows=57)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 5) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < 1) or (`test`.`t`.`d` = 9))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
 GROUP BY a, b;
@@ -1932,6 +2050,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d = 1) or (t.d = 9) or (t.d is null)))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 1) OR (d = 9)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 1) or (`test`.`t`.`d` = 9) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  =  1 OR d = 9 OR d IS NULL)
@@ -1962,6 +2082,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d = 0) or (t.d = 9) or (t.d is null)))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 0) OR (d = 9)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)`,max(`test`.`t`.`d`) AS `MAX(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 0) or (`test`.`t`.`d` = 9) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  =  0 OR d = 9 OR d IS NULL)
@@ -1992,6 +2114,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and (((t.d > 0) and (t.d < 2)) or ((t.d > 3) and (t.d < 5)) or (t.d is null)))  (rows=1.78)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (0 < d < 2) OR (3 < d < 5)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)`,max(`test`.`t`.`d`) AS `MAX(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and (((`test`.`t`.`d` > 0) and (`test`.`t`.`d` < 2)) or ((`test`.`t`.`d` > 3) and (`test`.`t`.`d` < 5)) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
@@ -2022,6 +2146,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d < 2) or (t.d > 5) or (t.d is null)))  (rows=2.87)
     -> Covering index skip scan for grouping on t using k1 over (NULL <= d < 2) OR (5 < d)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < 2) or (`test`.`t`.`d` > 5) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d < 2 OR d > 5 OR d IS NULL)
@@ -2056,6 +2182,8 @@ EXPLAIN
 -> Filter: ((t.a >= 10) and ((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = -23) OR (d = -10)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `max(d)` from `test`.`t` where ((`test`.`t`.`a` >= 10) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` is null) or (`test`.`t`.`d` = <cache>(-(10))) or (`test`.`t`.`d` = <cache>(-(23))))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
 (d is NULL or d = -10 or d = -23)
@@ -2082,6 +2210,8 @@ EXPLAIN
 -> Filter: ((t.a >= 10) and ((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = -23) OR (d = -10)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `min(d)` from `test`.`t` where ((`test`.`t`.`a` >= 10) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` is null) or (`test`.`t`.`d` = <cache>(-(10))) or (`test`.`t`.`d` = <cache>(-(23))))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
 (d is NULL or d = -10 or d = -23)
@@ -2106,6 +2236,8 @@ EXPLAIN
 -> Filter: (t.a > 9)  (rows=1)
     -> Covering index skip scan for grouping on t using k1 over (a < 9)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,min(`test`.`t`.`b`) AS `MIN(b)`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` where (`test`.`t`.`a` > 9) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
 a	MIN(b)	MAX(b)
@@ -2134,6 +2266,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=77)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -2166,6 +2300,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -2198,6 +2334,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c is null)) and ((t.b = 2) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` is null))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -2230,6 +2368,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` is null) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -2252,6 +2392,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 2)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` is null) or (`test`.`t`.`b` = 2)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -2284,6 +2426,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=12)
     -> Covering index skip scan for deduplication on t using k1  (rows=77)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
 a
@@ -2316,6 +2460,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
 a	b	MAX(d)	MIN(d)
@@ -2350,6 +2496,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -2395,6 +2543,8 @@ EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
     -> Covering index range scan on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2)  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and multiple equal(1, `test`.`t`.`a`))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
 a
@@ -2418,6 +2568,8 @@ EXPLAIN
     -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
         -> Covering index lookup on t using k1 (a = 1)  (rows=209)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 1) or (`test`.`t`.`d` = 9)) and multiple equal(1, `test`.`t`.`a`)) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
 GROUP BY a, b;
@@ -2445,6 +2597,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -2470,6 +2624,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a < 2) or (t.a > 11)))  (rows=1.32)
     -> Covering index skip scan for grouping on t using k1 over (NULL < a < 2) OR (11 < a)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` < 2) or (`test`.`t`.`a` > 11)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -2494,6 +2650,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 a	b
@@ -2517,6 +2675,8 @@ EXPLAIN
 -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for deduplication on t using k1 over (a = 1) OR (a = 12)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
 a
@@ -2540,6 +2700,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.a = 1) or (t.a = 12)) and ((t.b < 4) or (t.b > 10)))  (rows=2.65)
     -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b < 10) OR (a = 1 AND 4 < b < NULL) OR (2 more)  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` < 4) or (`test`.`t`.`b` > 10)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -2567,6 +2729,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=1.73)
     -> Covering index skip scan for grouping on t using k1 over (a = 1) OR (9 < a)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` > 9)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a;
@@ -2593,6 +2757,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
         -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t`.`a`,`test`.`t`.`b`) AS `COUNT(DISTINCT a, b)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 COUNT(DISTINCT a, b)
@@ -2615,6 +2781,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=51)
         -> Covering index skip scan for deduplication on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t`.`a`) AS `AVG(DISTINCT a)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 SUM(DISTINCT a)	AVG(DISTINCT a)
@@ -2637,6 +2805,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=51)
         -> Covering index skip scan for deduplication on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t`.`a`) AS `AVG(DISTINCT a)`,count(distinct `test`.`t`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 SUM(DISTINCT a)	AVG(DISTINCT a)	COUNT(DISTINCT a)
@@ -2661,6 +2831,8 @@ EXPLAIN
     -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.0533)
         -> Covering index range scan on t using k1 over (11 < a)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 11) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 1) or (`test`.`t`.`c` = 2) or (`test`.`t`.`c` = 4))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
 (c = 3 OR c = 1 OR c = 2 OR c = 4)
@@ -2684,6 +2856,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1 over (d = 2) OR (7 < d)  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` > 7) or (`test`.`t`.`d` = 2))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
 a	b	MAX(d)	MIN(d)
@@ -2757,6 +2931,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2) or (t.d is null)))  (rows=56)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 2) OR (7 < d)  (rows=113)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` > 7) or (`test`.`t`.`d` = 2) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
 GROUP BY a, b;
@@ -2833,6 +3009,8 @@ EXPLAIN
 -> Filter: ((t.a > 5) and ((t.c = 3) or (t.c = 40)) and ((t.d < <cache>(-(24))) or (t.d = 3) or (t.d is null)))  (rows=24.6)
     -> Covering index skip scan for grouping on t using k1 over (NULL <= d < -24) OR (d = 3)  (rows=57)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 5) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < <cache>(-(24))) or (`test`.`t`.`d` = 3) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
 (d  < -24 OR d = 3 OR d IS NULL)
@@ -2882,6 +3060,8 @@ EXPLAIN
 -> Filter: ((t.a > 5) and ((t.c = 3) or (t.c = 40)) and ((t.d < 1) or (t.d = 9)))  (rows=24.3)
     -> Covering index skip scan for grouping on t using k1 over (NULL < d < 1) OR (d = 9)  (rows=57)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 5) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < 1) or (`test`.`t`.`d` = 9))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
 GROUP BY a, b;
@@ -2933,6 +3113,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d = 1) or (t.d = 9) or (t.d is null)))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 1) OR (d = 9)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 1) or (`test`.`t`.`d` = 9) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  =  1 OR d = 9 OR d IS NULL)
@@ -2963,6 +3145,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d = 0) or (t.d = 9) or (t.d is null)))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 0) OR (d = 9)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)`,max(`test`.`t`.`d`) AS `MAX(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 0) or (`test`.`t`.`d` = 9) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  =  0 OR d = 9 OR d IS NULL)
@@ -2993,6 +3177,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and (((t.d > 0) and (t.d < 2)) or ((t.d > 3) and (t.d < 5)) or (t.d is null)))  (rows=1.78)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (0 < d < 2) OR (3 < d < 5)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)`,max(`test`.`t`.`d`) AS `MAX(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and (((`test`.`t`.`d` > 0) and (`test`.`t`.`d` < 2)) or ((`test`.`t`.`d` > 3) and (`test`.`t`.`d` < 5)) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
@@ -3023,6 +3209,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d < 2) or (t.d > 5) or (t.d is null)))  (rows=2.87)
     -> Covering index skip scan for grouping on t using k1 over (NULL <= d < 2) OR (5 < d)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < 2) or (`test`.`t`.`d` > 5) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d < 2 OR d > 5 OR d IS NULL)
@@ -3057,6 +3245,8 @@ EXPLAIN
 -> Filter: ((t.a >= 10) and ((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = -23) OR (d = -10)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `max(d)` from `test`.`t` where ((`test`.`t`.`a` >= 10) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` is null) or (`test`.`t`.`d` = <cache>(-(10))) or (`test`.`t`.`d` = <cache>(-(23))))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
 (d is NULL or d = -10 or d = -23)
@@ -3083,6 +3273,8 @@ EXPLAIN
 -> Filter: ((t.a >= 10) and ((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=0.282)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = -23) OR (d = -10)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `min(d)` from `test`.`t` where ((`test`.`t`.`a` >= 10) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` is null) or (`test`.`t`.`d` = <cache>(-(10))) or (`test`.`t`.`d` = <cache>(-(23))))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
 (d is NULL or d = -10 or d = -23)
@@ -3107,6 +3299,8 @@ EXPLAIN
 -> Filter: (t.a > 9)  (rows=1)
     -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,min(`test`.`t`.`b`) AS `MIN(b)`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` where (`test`.`t`.`a` > 9) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
 a	MIN(b)	MAX(b)
@@ -3135,6 +3329,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=77)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -3167,6 +3363,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -3199,6 +3397,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c is null)) and ((t.b = 2) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` is null))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c IS NULL) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -3231,6 +3431,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 15)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` is null) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 15) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -3253,6 +3455,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b is null) or (t.b = 2)))  (rows=12)
     -> Covering index skip scan for grouping on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` is null) or (`test`.`t`.`b` = 2)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (b IS NULL OR b = 2) AND (c = 3 OR c = 40) GROUP BY a;
 a	MAX(d)	MIN(d)
@@ -3285,6 +3489,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=12)
     -> Covering index skip scan for deduplication on t using k1  (rows=77)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40) GROUP BY a;
 a
@@ -3317,6 +3523,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=55.7)
     -> Covering index skip scan for grouping on t using k1  (rows=111)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40) GROUP BY a, b;
 a	b	MAX(d)	MIN(d)
@@ -3351,6 +3559,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15) or (t.b = 3)))  (rows=55.7)
     -> Covering index skip scan for grouping on t using k1  (rows=111)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15) or (`test`.`t`.`b` = 3)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (b = 2 OR b = 15 OR b = 3) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -3396,6 +3606,8 @@ EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
     -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15)  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and multiple equal(1, `test`.`t`.`a`))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
 a
@@ -3419,6 +3631,8 @@ EXPLAIN
     -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.185)
         -> Covering index lookup on t using k1 (a = 1)  (rows=209)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 1) or (`test`.`t`.`d` = 9)) and multiple equal(1, `test`.`t`.`a`)) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
 GROUP BY a, b;
@@ -3446,6 +3660,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -3471,6 +3687,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a < 2) or (t.a > 11)))  (rows=1.37)
     -> Covering index skip scan for grouping on t using k1 over (NULL < a < 2) OR (11 < a)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` < 2) or (`test`.`t`.`a` > 11)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a < 2 OR a > 11) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -3495,6 +3713,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 a	b
@@ -3518,6 +3738,8 @@ EXPLAIN
 -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
     -> Covering index skip scan for deduplication on t using k1 over (a = 1) OR (a = 12)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)))
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
 a
@@ -3541,6 +3763,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.a = 1) or (t.a = 12)) and ((t.b < 4) or (t.b > 10)))  (rows=2.65)
     -> Covering index skip scan for grouping on t using k1 over (a = 1 AND NULL < b < 4) OR (a = 1 AND 10 < b) OR (2 more)  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` < 4) or (`test`.`t`.`b` > 10)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b < 4 OR b > 10) AND (c = 3 OR c = 40)
 GROUP BY a, b;
@@ -3568,6 +3792,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=2.65)
     -> Covering index skip scan for grouping on t using k1 over (a = 1) OR (9 < a)  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` > 9)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a;
@@ -3594,6 +3820,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
         -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t`.`a`,`test`.`t`.`b`) AS `COUNT(DISTINCT a, b)` from `test`.`t` where (((`test`.`t`.`a` = 1) or (`test`.`t`.`a` = 12)) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT COUNT(DISTINCT a, b) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 COUNT(DISTINCT a, b)
@@ -3616,6 +3844,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=51)
         -> Covering index skip scan for deduplication on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t`.`a`) AS `AVG(DISTINCT a)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT SUM(DISTINCT a), AVG(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 SUM(DISTINCT a)	AVG(DISTINCT a)
@@ -3638,6 +3868,8 @@ EXPLAIN
     -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)))  (rows=51)
         -> Covering index skip scan for deduplication on t using k1  (rows=51)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(distinct `test`.`t`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t`.`a`) AS `AVG(DISTINCT a)`,count(distinct `test`.`t`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t` where (((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)))
 FLUSH STATUS;
 SELECT SUM(DISTINCT a), AVG(DISTINCT a), COUNT(DISTINCT a) FROM t  WHERE (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 SUM(DISTINCT a)	AVG(DISTINCT a)	COUNT(DISTINCT a)
@@ -3662,6 +3894,8 @@ EXPLAIN
     -> Filter: (((t.b = 2) or (t.b = 15)) and ((t.c = 3) or (t.c = 1) or (t.c = 2) or (t.c = 4)))  (rows=0.178)
         -> Covering index range scan on t using k1 over (11 < a)  (rows=13)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 11) and ((`test`.`t`.`b` = 2) or (`test`.`t`.`b` = 15)) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 1) or (`test`.`t`.`c` = 2) or (`test`.`t`.`c` = 4))) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a > 11) AND (b = 2 OR b = 15) AND
 (c = 3 OR c = 1 OR c = 2 OR c = 4)
@@ -3685,6 +3919,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2)))  (rows=55.7)
     -> Covering index skip scan for grouping on t using k1 over (d = 2) OR (7 < d)  (rows=111)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` > 7) or (`test`.`t`.`d` = 2))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2) GROUP BY a, b;
 a	b	MAX(d)	MIN(d)
@@ -3758,6 +3994,8 @@ EXPLAIN
 -> Filter: (((t.c = 3) or (t.c = 40)) and ((t.d > 7) or (t.d = 2) or (t.d is null)))  (rows=55.7)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 2) OR (7 < d)  (rows=111)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where (((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` > 7) or (`test`.`t`.`d` = 2) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (c = 3 OR c = 40) AND (d  > 7 OR d =2 OR d IS NULL)
 GROUP BY a, b;
@@ -3834,6 +4072,8 @@ EXPLAIN
 -> Filter: ((t.a > 5) and ((t.c = 3) or (t.c = 40)) and ((t.d < <cache>(-(24))) or (t.d = 3) or (t.d is null)))  (rows=25.1)
     -> Covering index skip scan for grouping on t using k1 over (NULL <= d < -24) OR (d = 3)  (rows=55)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 5) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < <cache>(-(24))) or (`test`.`t`.`d` = 3) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND
 (d  < -24 OR d = 3 OR d IS NULL)
@@ -3883,6 +4123,8 @@ EXPLAIN
 -> Filter: ((t.a > 5) and ((t.c = 3) or (t.c = 40)) and ((t.d < 1) or (t.d = 9)))  (rows=24.8)
     -> Covering index skip scan for grouping on t using k1 over (NULL < d < 1) OR (d = 9)  (rows=55)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 5) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < 1) or (`test`.`t`.`d` = 9))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 5) AND (c = 3 OR c = 40) AND (d  <  1 OR d = 9)
 GROUP BY a, b;
@@ -3934,6 +4176,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d = 1) or (t.d = 9) or (t.d is null)))  (rows=0.307)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 1) OR (d = 9)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `MAX(d)`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 1) or (`test`.`t`.`d` = 9) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  =  1 OR d = 9 OR d IS NULL)
@@ -3964,6 +4208,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d = 0) or (t.d = 9) or (t.d is null)))  (rows=0.307)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = 0) OR (d = 9)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)`,max(`test`.`t`.`d`) AS `MAX(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` = 0) or (`test`.`t`.`d` = 9) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  =  0 OR d = 9 OR d IS NULL)
@@ -3994,6 +4240,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and (((t.d > 0) and (t.d < 2)) or ((t.d > 3) and (t.d < 5)) or (t.d is null)))  (rows=1.87)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (0 < d < 2) OR (3 < d < 5)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)`,max(`test`.`t`.`d`) AS `MAX(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and (((`test`.`t`.`d` > 0) and (`test`.`t`.`d` < 2)) or ((`test`.`t`.`d` > 3) and (`test`.`t`.`d` < 5)) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d), MAX(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d  > 0 AND d < 2 OR d > 3 AND d < 5 OR d IS NULL)
@@ -4024,6 +4272,8 @@ EXPLAIN
 -> Filter: ((t.a > 9) and ((t.c = 3) or (t.c = 40)) and ((t.d < 2) or (t.d > 5) or (t.d is null)))  (rows=3.02)
     -> Covering index skip scan for grouping on t using k1 over (NULL <= d < 2) OR (5 < d)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `MIN(d)` from `test`.`t` where ((`test`.`t`.`a` > 9) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` < 2) or (`test`.`t`.`d` > 5) or (`test`.`t`.`d` is null))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b, MIN(d) FROM t  WHERE (a > 9) AND (c = 3 OR c = 40) AND
 (d < 2 OR d > 5 OR d IS NULL)
@@ -4058,6 +4308,8 @@ EXPLAIN
 -> Filter: ((t.a >= 10) and ((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=0.307)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = -23) OR (d = -10)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,max(`test`.`t`.`d`) AS `max(d)` from `test`.`t` where ((`test`.`t`.`a` >= 10) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` is null) or (`test`.`t`.`d` = <cache>(-(10))) or (`test`.`t`.`d` = <cache>(-(23))))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b , max(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
 (d is NULL or d = -10 or d = -23)
@@ -4084,6 +4336,8 @@ EXPLAIN
 -> Filter: ((t.a >= 10) and ((t.c = 3) or (t.c = 40)) and ((t.d is null) or (t.d = <cache>(-(10))) or (t.d = <cache>(-(23)))))  (rows=0.307)
     -> Covering index skip scan for grouping on t using k1 over (d = NULL) OR (d = -23) OR (d = -10)  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,min(`test`.`t`.`d`) AS `min(d)` from `test`.`t` where ((`test`.`t`.`a` >= 10) and ((`test`.`t`.`c` = 3) or (`test`.`t`.`c` = 40)) and ((`test`.`t`.`d` is null) or (`test`.`t`.`d` = <cache>(-(10))) or (`test`.`t`.`d` = <cache>(-(23))))) group by `test`.`t`.`a`,`test`.`t`.`b`
 FLUSH STATUS;
 SELECT a, b , min(d) FROM t  WHERE (a >= 10) AND (c = 3 or c=40) AND
 (d is NULL or d = -10 or d = -23)
@@ -4108,6 +4362,8 @@ EXPLAIN
 -> Filter: (t.a > 9)  (rows=1)
     -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,min(`test`.`t`.`b`) AS `MIN(b)`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` where (`test`.`t`.`a` > 9) group by `test`.`t`.`a`
 FLUSH STATUS;
 SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
 a	MIN(b)	MAX(b)

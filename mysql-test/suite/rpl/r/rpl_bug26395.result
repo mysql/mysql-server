@@ -4,7 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ==== Initialize ====
-[on master]
+[on source]
+[connection master]
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 CREATE TABLE tinnodb (a INT) ENGINE = INNODB;
 SHOW CREATE TABLE tinnodb;
@@ -19,20 +20,22 @@ INSERT INTO tinnodb VALUES (1);
 SELECT * FROM tinnodb ORDER BY a;
 a
 1
-[on slave]
+[on replica]
 include/rpl/sync_to_replica_received.inc
-==== Verify results on slave ====
+==== Verify results on replica ====
 include/rpl/stop_replica.inc
-Replica_IO_State = ''
-Last_SQL_Error = '... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state. A restart should restore consistency automatically, although using non-transactional storage for data or info tables or DDL queries could lead to problems. In such cases you have to examine your data (see documentation for details).'
-Last_IO_Error = ''
-include/assert.inc [Assert that the slave table has no rows]
+include/assert.inc [Assert that receiver status is off]
+include/assert.inc [Assert expected error / no error code reported]
+include/assert.inc [Assert expected applier error / no error message reported]
+include/assert.inc [Assert that the replica table has no rows]
 ==== Clean up ====
-[on master]
+[on source]
+[connection master]
 DROP TABLE tinnodb;
 set @@debug= @old_debug;
 RESET BINARY LOGS AND GTIDS;
-[on slave]
+[on replica]
+[connection slave]
 DROP TABLE tinnodb;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;

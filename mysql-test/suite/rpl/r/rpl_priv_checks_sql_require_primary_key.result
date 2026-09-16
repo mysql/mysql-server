@@ -10,6 +10,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO 'u'@'localhost';
 CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error.*");
 [connection master]
 SET @@global.sql_require_primary_key = 1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY);

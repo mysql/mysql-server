@@ -1,0 +1,18 @@
+--source include/not_windows.inc # Disable test on windows.
+--source include/have_debug.inc
+--source include/have_thread_pool.inc
+
+SET GLOBAL DEBUG = "+d, test_throttle_thread_create";
+# Make connections and sleep. The wait on sleep is notified
+# to thread pool and thread throttle code is exercised.
+connect (con1,localhost,root,,);
+SELECT SLEEP(10);
+connect (con2,localhost,root,,);
+SELECT SLEEP(10);
+connect (con3,localhost,root,,);
+SELECT SLEEP(10);
+connection default;
+SET GLOBAL DEBUG= "-d, test_throttle_thread_create";
+disconnect con1;
+disconnect con2;
+disconnect con3;

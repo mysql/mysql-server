@@ -252,6 +252,17 @@ Option_descriptor get_option_descriptor(const XSession::Mysqlx_option option) {
     case Mysqlx_option::Allowed_tls:
       return Option_descriptor{new Ssl_str_store<&Ssl_config::m_tls_version>()};
 
+    case Mysqlx_option::Tls_kex:
+      return Option_descriptor{new Ssl_str_store<&Ssl_config::m_tls_kex>()};
+
+    case Mysqlx_option::Force_pqc:
+      return Option_descriptor{
+          new Ssl_bool_store<&Ssl_config::m_tls_force_pqc>()};
+
+    case Mysqlx_option::Use_pqc_sign:
+      return Option_descriptor{
+          new Ssl_bool_store<&Ssl_config::m_tls_use_pqc_sign>()};
+
     case Mysqlx_option::Ssl_mode:
       return Option_descriptor{new Ssl_mode_validator()};
 

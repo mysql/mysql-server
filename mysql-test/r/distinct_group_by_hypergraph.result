@@ -128,6 +128,8 @@ EXPLAIN
     -> Temporary table with deduplication  (rows=14.2)
         -> Table scan on tb1  (rows=24)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result `test`.`tb1`.`id` AS `id`,`test`.`tb1`.`id2` AS `id2` from `test`.`tb1` group by `test`.`tb1`.`id2`,`test`.`tb1`.`id`
 SELECT SQL_SMALL_RESULT DISTINCT id, id2 FROM tb1 GROUP BY id2, id;
 id	id2
 7	10
@@ -387,6 +389,8 @@ EXPLAIN
     -> Temporary table with deduplication  (rows=12)
         -> Index scan on tb2 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result `test`.`tb2`.`id2` AS `id2` from `test`.`tb2` group by `test`.`tb2`.`id`
 SELECT SQL_SMALL_RESULT DISTINCT avg(id), JSON_ARRAYAGG(id) FROM tb1 t1
 GROUP BY id2, id WITH ROLLUP ORDER BY 1, 2;
 avg(id)	JSON_ARRAYAGG(id)
@@ -422,6 +426,8 @@ EXPLAIN
                 -> Sort: t1.id2, t1.id  (rows=24)
                     -> Table scan on t1  (rows=24)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_small_result rollup_sum_switcher(avg(`t1`.`id`)) AS `avg(id)`,rollup_sum_switcher(json_arrayagg(`t1`.`id`)) AS `JSON_ARRAYAGG(id)` from `test`.`tb1` `t1` group by `t1`.`id2`,`t1`.`id` with rollup order by `avg(id)`,`JSON_ARRAYAGG(id)`
 SELECT SQL_SMALL_RESULT SQL_BIG_RESULT DISTINCT avg(id), JSON_ARRAYAGG(id) FROM tb1 t1
 GROUP BY id2, id WITH ROLLUP ORDER BY 1, 2;
 avg(id)	JSON_ARRAYAGG(id)
@@ -457,6 +463,8 @@ EXPLAIN
                 -> Sort: t1.id2, t1.id  (rows=24)
                     -> Table scan on t1  (rows=24)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_small_result sql_big_result rollup_sum_switcher(avg(`t1`.`id`)) AS `avg(id)`,rollup_sum_switcher(json_arrayagg(`t1`.`id`)) AS `JSON_ARRAYAGG(id)` from `test`.`tb1` `t1` group by `t1`.`id2`,`t1`.`id` with rollup order by rollup_sum_switcher(avg(`t1`.`id`)),rollup_sum_switcher(json_arrayagg(`t1`.`id`))
 #
 # Bug#36625150 WL#16122: BIT values displayed differently with ORDER BY
 #

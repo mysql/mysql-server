@@ -51,10 +51,6 @@
 #include "my_compiler.h"
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#include <openssl/engine.h>
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-
 #include "xcom/retry.h"
 #include "xcom/task_debug.h"
 #include "xcom/x_platform.h"
@@ -107,19 +103,11 @@ static DH *get_dh2048(void) {
   if ((dh = DH_new())) {
     BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), nullptr);
     BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), nullptr);
-    if (!p || !g
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-        || !DH_set0_pqg(dh, p, nullptr, g)
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
-    ) {
+    if (!p || !g || !DH_set0_pqg(dh, p, nullptr, g)) {
       /* DH_free() will free 'p' and 'g' at once. */
       DH_free(dh);
       return nullptr;
     }
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    dh->p = p;
-    dh->g = g;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   }
   return (dh);
 }
@@ -139,26 +127,14 @@ SSL_CTX *client_ctx = nullptr;
 static long process_tls_version(const char *tls_version) {
   const char *separator = ", ";
   char *token = nullptr;
-#ifdef HAVE_TLSv13
   const char *tls_version_name_list[] = {"TLSv1.2", "TLSv1.3"};
-#else
-  const char *tls_version_name_list[] = {"TLSv1.2"};
-#endif /* HAVE_TLSv13 */
 #define TLS_VERSIONS_COUNTS \
   (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
   unsigned int tls_versions_count = TLS_VERSIONS_COUNTS;
-#ifdef HAVE_TLSv13
   const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {SSL_OP_NO_TLSv1_2,
                                                   SSL_OP_NO_TLSv1_3};
   const char *ctx_flag_default = "TLSv1.2,TLSv1.3";
-  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
-                      SSL_OP_NO_TLSv1_3 | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
-#else
-  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {SSL_OP_NO_TLSv1_2};
-  const char *ctx_flag_default = "TLSv1.2";
-  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
-                      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
-#endif /* HAVE_TLSv13 */
+  long tls_ctx_flag = SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3;
   unsigned int index = 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
   int tls_found = 0;
@@ -187,6 +163,14 @@ static long process_tls_version(const char *tls_version) {
     return tls_ctx_flag;
 }
 
+static int get_min_tls_version(long ssl_ctx_flags) {
+  return (ssl_ctx_flags & SSL_OP_NO_TLSv1_2) ? TLS1_3_VERSION : TLS1_2_VERSION;
+}
+
+static int get_max_tls_version(long ssl_ctx_flags) {
+  return (ssl_ctx_flags & SSL_OP_NO_TLSv1_3) ? TLS1_2_VERSION : TLS1_3_VERSION;
+}
+
 /* purecov: begin deadcode */
 static int PasswordCallBack(char *passwd, int sz, int rw [[maybe_unused]],
                             void *userdata [[maybe_unused]]) {
@@ -198,16 +182,11 @@ static int PasswordCallBack(char *passwd, int sz, int rw [[maybe_unused]],
 
 static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
                                     const char *tls_version,
-                                    const char *tls_ciphersuites
-                                    [[maybe_unused]]) {
+                                    const char *tls_ciphersuites) {
   bool tls_valid_ciphersuite = false;
-  long ssl_ctx_options =
-      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
   char tls12_cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
   long ssl_ctx_flags = -1;
-#ifdef HAVE_TLSv13
   int tlsv1_3_enabled = 0;
-#endif /* HAVE_TLSv13 */
 
   SSL_CTX_set_default_passwd_cb(ssl_ctx, PasswordCallBack);
   SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_OFF);
@@ -218,20 +197,16 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
     return 1;
   }
 
-#ifdef HAVE_TLSv13
-  ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
-                    (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
-                     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3);
-#else
-  ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
-                    (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
-                     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2);
-#endif /* HAVE_TLSv13 */
+  const int min_tls_version = get_min_tls_version(ssl_ctx_flags);
+  const int max_tls_version = get_max_tls_version(ssl_ctx_flags);
 
-  SSL_CTX_set_options(ssl_ctx, ssl_ctx_options);
+  if (SSL_CTX_set_min_proto_version(ssl_ctx, min_tls_version) != 1 ||
+      SSL_CTX_set_max_proto_version(ssl_ctx, max_tls_version) != 1) {
+    G_ERROR("Failed to set TLS protocol version");
+    return 1;
+  }
 
-#ifdef HAVE_TLSv13
-  tlsv1_3_enabled = ((ssl_ctx_options & SSL_OP_NO_TLSv1_3) == 0);
+  tlsv1_3_enabled = ((ssl_ctx_flags & SSL_OP_NO_TLSv1_3) == 0);
   if (tlsv1_3_enabled) {
     /* Set OpenSSL TLS v1.3 ciphersuites.
        If the ciphersuites are unspecified, i.e. tls_ciphersuites == NULL, then
@@ -262,7 +237,6 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
       return 1;
     }
   }
-#endif /* HAVE_TLSv13 */
 
   /*
     Set the ciphers that can be used. Note, however, that the
@@ -477,11 +451,7 @@ int Xcom_network_provider_ssl_library::xcom_init_ssl(
   }
 
   G_DEBUG("Configuring SSL for the server")
-#ifdef HAVE_TLSv13
   server_ctx = SSL_CTX_new(TLS_server_method());
-#else
-  server_ctx = SSL_CTX_new(SSLv23_server_method());
-#endif /* HAVE_TLSv13 */
 
   if (!server_ctx) {
     G_ERROR("Error allocating SSL Context object for the server");
@@ -497,11 +467,7 @@ int Xcom_network_provider_ssl_library::xcom_init_ssl(
   SSL_CTX_set_verify(server_ctx, verify_server, nullptr);
 
   G_DEBUG("Configuring SSL for the client")
-#ifdef HAVE_TLSv13
   client_ctx = SSL_CTX_new(TLS_client_method());
-#else
-  client_ctx = SSL_CTX_new(SSLv23_client_method());
-#endif /* HAVE_TLSv13 */
   if (!client_ctx) {
     G_ERROR("Error allocating SSL Context object for the client");
     goto error;
@@ -526,11 +492,7 @@ error:
   return !ssl_init_done;
 }
 
-void Xcom_network_provider_ssl_library::xcom_cleanup_ssl() {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-}
+void Xcom_network_provider_ssl_library::xcom_cleanup_ssl() {}
 
 void Xcom_network_provider_ssl_library::xcom_destroy_ssl() {
   G_DEBUG("Destroying SSL");
@@ -548,9 +510,6 @@ void Xcom_network_provider_ssl_library::xcom_destroy_ssl() {
   }
 
 #if defined(WITH_SSL_STANDALONE)
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ENGINE_cleanup();
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
   ERR_free_strings();
@@ -565,14 +524,6 @@ int Xcom_network_provider_ssl_library::ssl_verify_server_cert(
     SSL *ssl, const char *server_hostname) {
   X509 *server_cert = nullptr;
   int ret_validation = 1;
-
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
-  int cn_loc = -1;
-  char *cn = NULL;
-  ASN1_STRING *cn_asn1 = NULL;
-  X509_NAME_ENTRY *cn_entry = NULL;
-  X509_NAME *subject = NULL;
-#endif
 
   G_DEBUG("Verifying server certificate and expected host name: %s",
           server_hostname);
@@ -604,7 +555,6 @@ int Xcom_network_provider_ssl_library::ssl_verify_server_cert(
   /* Use OpenSSL certificate matching functions instead of our own if we
      have OpenSSL. The X509_check_* functions return 1 on success.
   */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
   if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
                        nullptr) != 1) &&
       (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
@@ -617,55 +567,6 @@ int Xcom_network_provider_ssl_library::ssl_verify_server_cert(
     /* Success */
     ret_validation = 0;
   }
-#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-  /*
-     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
-     Use deprecated X509_get_subject_name() instead.
-  */
-  subject = X509_get_subject_name((X509 *)server_cert);
-  /* Find the CN location in the subject */
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    G_ERROR("Failed to get CN location in the server certificate subject");
-    goto error;
-  }
-
-  /* Get the CN entry for given location */
-  cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == NULL) {
-    G_ERROR(
-        "Failed to get CN entry using CN location in the server "
-        "certificate");
-    goto error;
-  }
-
-  /* Get CN from common name entry */
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == NULL) {
-    G_ERROR("Failed to get CN from CN entry in the server certificate");
-    goto error;
-  }
-
-  cn = (char *)ASN1_STRING_data(cn_asn1);
-
-  /* There should not be any NULL embedded in the CN */
-  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn)) {
-    G_ERROR("NULL embedded in the server certificate CN");
-    goto error;
-  }
-
-  G_DEBUG("Server hostname in cert: %s", cn);
-
-  if (!strcmp(cn, server_hostname)) {
-    /* Success */
-    ret_validation = 0;
-  } else {
-    G_ERROR(
-        "Expected hostname is '%s' but found the name '%s' in the "
-        "server certificate",
-        cn, server_hostname);
-  }
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
 error:
   if (server_cert) X509_free(server_cert);

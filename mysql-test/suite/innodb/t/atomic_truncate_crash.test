@@ -10,7 +10,11 @@
 # [Note] Unable to open tablespace ...
 #        This should be fixed after data dictionary and DDL recovery later.
 # ... and the crash recovery has finally success.
+
+--disable_query_log
 CALL mtr.add_suppression(".*Could not find a valid tablespace file for");
+--enable_query_log
+
 let $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
 
 CREATE TABLE t2 (a INT);

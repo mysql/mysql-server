@@ -77,6 +77,12 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     "COLLATE utf8mb3_bin null "
     "    COMMENT 'Indicates the UUID used while generating GTIDs for anonymous"
     " transactions',\n"
+    "  APPLIER_VERSION INTEGER UNSIGNED not null COMMENT "
+    "    'Version of the applier used (either 1 or 2)',\n"
+    "  APPLIER_WORKER_COUNT INTEGER UNSIGNED not null COMMENT "
+    "    'Number of worker threads utilized by the applier',\n"
+    "  APPLIER_EVENT_MEMORY_LIMIT INTEGER UNSIGNED not null COMMENT "
+    "    'Number of worker threads utilized by the applier',\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -256,6 +262,14 @@ int table_replication_applier_configuration::make_row(Master_info *mi) {
   m_row.assign_gtids_to_anonymous_transactions_value.assign(
       mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_value());
 
+  m_row.applier_version = mi->rli->is_csa_enabled()
+                              ? cs::apply::Applier_version::csa
+                              : cs::apply::Applier_version::mta;
+
+  m_row.applier_worker_count = mi->rli->get_applier_worker_count();
+
+  m_row.applier_event_memory_limit = mi->rli->get_applier_event_memory_limit();
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -308,6 +322,16 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
                 &my_charset_utf8mb4_bin);
           else
             f->set_null();
+          break;
+        case 7: /** applier_version */
+          set_field_ulong(f, static_cast<ulong>(m_row.applier_version));
+          break;
+        case 8: /** applier_worker_count */
+          set_field_ulong(f, static_cast<ulong>(m_row.applier_worker_count));
+          break;
+        case 9: /** applier_event_memory_limit */
+          set_field_ulong(f,
+                          static_cast<ulong>(m_row.applier_event_memory_limit));
           break;
         default:
           assert(false);

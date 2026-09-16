@@ -304,7 +304,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   hasn't exited since then. Each time the log_writer enters that margin,
   it pauses all user threads at log_free_check() calls and emits warning
   to the log. When the writer exits the extra margin, notice is emitted.
-  Protected by: log_limits_mutex and writer_mutex. */
+  Modified while holding log_limits_mutex and writer_mutex. */
   bool m_writer_inside_extra_margin;
 
 #endif /* !UNIV_HOTBACKUP */
@@ -511,7 +511,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   please use following functions: @see log_consumer_register() and
   @see log_consumer_unregister(). The details of implementation
   related to redo log consumers can be found in log0consumer.cc.
-  Protected by: m_files_mutex (unless it is the startup phase or
+  Protected by: limits_mutex (unless it is the startup phase or
   the shutdown phase). */
   ut::unordered_set<Log_consumer *> m_consumers;
 
@@ -554,9 +554,6 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** @{ */
 
-  /** Lsn from which recovery has been started. */
-  lsn_t recovered_lsn;
-
   /** Format of the redo log: e.g., Log_format::CURRENT. */
   Log_format m_format;
 
@@ -569,17 +566,6 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** Log UUID */
   Log_uuid m_log_uuid;
 
-  /** Used only in recovery: recovery scan succeeded up to this lsn. */
-  lsn_t m_scanned_lsn;
-
-#ifdef UNIV_DEBUG
-
-  /** When this is set, writing to the redo log should be disabled.
-  We check for this in functions that write to the redo log. */
-  bool disable_redo_writes;
-
-#endif /* UNIV_DEBUG */
-
   /** @} */
 
   /**************************************************/ /**
@@ -591,89 +577,23 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** @{ */
 
-  /** Mutex which protects fields: available_for_checkpoint_lsn,
-  requested_checkpoint_lsn. It also synchronizes updates of:
-  free_check_limit_lsn, concurrency_margin, dict_persist_margin.
-  It protects reads and writes of m_writer_inside_extra_margin.
-  It also protects the srv_checkpoint_disabled (together with the
-  checkpointer_mutex). */
-  alignas(ut::INNODB_CACHE_LINE_SIZE) mutable ib_mutex_t limits_mutex;
-
-  /** A new checkpoint could be written for this lsn value.
-  Up to this lsn value, all dirty pages have been added to flush
-  lists and flushed. Updated in the log checkpointer thread by
-  taking minimum oldest_modification out of the last dirty pages
-  from each flush list minus buf_flush_list_added->order_lag(). However
-  it will not be bigger than the current value of
-  buf_flush_list_added->smallest_not_added_lsn().
-  Read by: user threads when requesting fuzzy checkpoint
-  Read by: log_print() (printing status of redo)
-  Updated by: log_checkpointer
-  Protected by: limits_mutex. */
-  lsn_t available_for_checkpoint_lsn;
-
-  /** When this is larger than the latest checkpoint, the log checkpointer
-  thread will be forced to write a new checkpoint (unless the new latest
-  checkpoint lsn would still be smaller than this value).
-  Read by: log_checkpointer
-  Updated by: user threads (log_free_check() or for sharp checkpoint)
-  Protected by: limits_mutex. */
-  lsn_t requested_checkpoint_lsn;
-
-  /** Maximum lsn allowed for checkpoint by dict_persist or zero.
-  This will be set by dict_persist_to_dd_table_buffer(), which should
-  be always called before really making a checkpoint.
-  If non-zero, up to this lsn value, dynamic metadata changes have been
-  written back to mysql.innodb_dynamic_metadata under dict_persist->mutex
-  protection. All dynamic metadata changes after this lsn have to
-  be kept in redo logs, but not discarded. If zero, just ignore it.
-  Updated by: DD (when persisting dynamic meta data)
-  Updated by: log_checkpointer (reset when checkpoint is written)
-  Protected by: limits_mutex. */
-  lsn_t dict_max_allowed_checkpoint_lsn;
-
-  /** If should perform checkpoints every innodb_log_checkpoint_every ms.
-  Disabled during startup / shutdown. Enabled in srv_start_threads.
-  Updated by: starting thread (srv_start_threads)
-  Read by: log_checkpointer */
-  bool periodical_checkpoints_enabled;
-
-  /** If checkpoints are allowed. When this is set to false, neither new
-  checkpoints might be written nor lsn available for checkpoint might be
-  updated. This is useful in recovery period, when neither flush lists can
-  be trusted nor DD dynamic metadata redo records might be reclaimed.
-  This is never set from true to false after log_start(). */
-  std::atomic_bool m_allow_checkpoints;
-
   /** Maximum lsn up to which there is free space in the redo log.
   Threads check this limit and compare to current lsn, when they
   are outside mini-transactions and hold no latches. The formula used
   to compute the limitation takes into account maximum size of mtr and
   thread concurrency to include proper margins and avoid issues with
   race condition (in which all threads check the limitation and then
-  all proceed with their mini-transactions). Also extra margin is
-  there for dd table buffer cache (dict_persist_margin).
+  all proceed with their mini-transactions).
   Read by: user threads (log_free_check())
-  Updated by: log_checkpointer (after update of checkpoint_lsn)
-  Updated by: log_writer (after pausing/resuming user threads)
-  Updated by: DD (after update of dict_persist_margin)
+  Updated by: update_free_check_limit() called (indirectly) by:
+  * log_checkpointer (after update of checkpoint_lsn and each iteration)
+  * log_files_governor (on each iteration)
+  * user threads (after innodb_redo_log_capacity and innodb_thread_concurrency
+  changes)
+  Affected (indirectly) by m_writer_inside_extra_margin set by
+  * log_writer (after pausing/resuming user threads)
   Protected by (updates only): limits_mutex. */
-  atomic_lsn_t free_check_limit_lsn;
-
-  /** Margin used in calculation of @see free_check_limit_lsn.
-  Protected by (updates only): limits_mutex. */
-  atomic_sn_t concurrency_margin;
-
-  /** True iff current concurrency_margin isn't truncated because of too small
-  redo log capacity.
-  Protected by (updates only): limits_mutex. */
-  std::atomic<bool> concurrency_margin_is_safe;
-
-  /** Margin used in calculation of @see free_check_limit_lsn.
-  Read by: page_cleaners, log_checkpointer
-  Updated by: DD
-  Protected by (updates only): limits_mutex. */
-  atomic_sn_t dict_persist_margin;
+  atomic_lsn_t m_free_check_limit_lsn;
 
   /** @} */
 
@@ -685,33 +605,10 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** @{ */
 
-  /** Event used by the log checkpointer thread to wait for requests. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE) os_event_t checkpointer_event;
-
-  /** Mutex which can be used to pause log checkpointer thread.
-  This is used by log_position_lock() together with log_buffer_x_lock(),
-  to pause any changes to current_lsn or last_checkpoint_lsn. */
-  mutable ib_mutex_t checkpointer_mutex;
-
-  /** Latest checkpoint lsn.
-  Read by: user threads, log_print (no protection)
-  Read by: log_writer (under writer_mutex)
-  Updated by: log_checkpointer (under both mutexes)
-  Protected by (updates only): checkpointer_mutex + writer_mutex. */
-  atomic_lsn_t last_checkpoint_lsn;
-
   /** Next checkpoint header to use.
   Updated by: log_checkpointer
-  Protected by: checkpointer_mutex */
+  Protected by: checkpoint_mutex */
   Log_checkpoint_header_no next_checkpoint_header_no;
-
-  /** Event signaled when last_checkpoint_lsn is advanced by
-  the log_checkpointer thread. */
-  os_event_t next_checkpoint_event;
-
-  /** Latest checkpoint wall time.
-  Used by (private): log_checkpointer. */
-  Log_clock_point last_checkpoint_time;
 
   /** Redo log consumer which is always registered and which is responsible
   for protecting redo log records at lsn >= last_checkpoint_lsn. */
@@ -720,11 +617,6 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** Throttles writing to log a message about the user threads not able to
   reserve space in the redo log. The default value is 10s. */
   ib::Throttler m_THREADS_WAITING_FOR_REDO_throttler;
-
-#ifdef UNIV_DEBUG
-  /** THD used by the log_checkpointer thread. */
-  THD *m_checkpointer_thd;
-#endif /* UNIV_DEBUG */
 
   /** @} */
 

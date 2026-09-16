@@ -287,6 +287,8 @@ const ParserRow<MgmApiSession> commands[] = {
 
     MGM_CMD("get tls stats", &MgmApiSession::getTlsStats, "Get TLS statistics",
             &Basic),
+    MGM_CMD("get tls trust", &MgmApiSession::listTrustedCerts,
+            "Get TLS Trust Store", &Basic),
 
     MGM_CMD("get session id", &MgmApiSession::getSessionId, "", &Basic),
 
@@ -368,8 +370,7 @@ extern int g_errorInsert;
 
 MgmApiSession::MgmApiSession(class MgmtSrvr &mgm, NdbSocket &&sock,
                              Uint64 session_id)
-    : SocketServer::Session(m_secure_socket),
-      m_secure_socket(std::move(sock)),
+    : m_secure_socket(std::move(sock)),
       m_mgmsrv(mgm),
       m_session_id(session_id),
       m_name("unknown:0") {
@@ -1133,8 +1134,8 @@ void MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   m_output->println("%s", "");
 }
 
-static bool isEventLogFilterEnabled(int severity) {
-  return g_eventLogger->isEnable((Logger::LoggerLevel)severity);
+static bool isEventLogFilterEnabled(Logger::LoggerLevel severity) {
+  return g_eventLogger->isEnable(severity);
 }
 
 void MgmApiSession::getInfoClusterLog(Parser<MgmApiSession>::Context &,
@@ -1144,7 +1145,10 @@ void MgmApiSession::getInfoClusterLog(Parser<MgmApiSession>::Context &,
 
   m_output->println("clusterlog");
   for (int i = 0; i < 7; i++) {
-    m_output->println("%s: %d", names[i], isEventLogFilterEnabled(i));
+    auto level = Logger::to_enum_LoggerLevel(i);
+    assert(level.has_value());
+    bool enabled = level.has_value() && isEventLogFilterEnabled(level.value());
+    m_output->println("%s: %d", names[i], enabled);
   }
   m_output->println("%s", "");
 }
@@ -1400,7 +1404,7 @@ void MgmApiSession::startTls(Parser<MgmApiSession>::Context &,
   if (m_secure_socket.has_tls()) {
     result = "Already Connected";
   } else {
-    ctx = m_mgmsrv.theFacade->get_registry()->getTlsKeyManager()->ctx();
+    ctx = m_mgmsrv.tlsKeyManager()->ctx();
   }
 
   if (ctx) ssl = NdbSocket::get_server_ssl(ctx);
@@ -1425,8 +1429,8 @@ void MgmApiSession::startTls(Parser<MgmApiSession>::Context &,
   }
 }
 
-static bool setEventLogFilter(int severity, int enable) {
-  Logger::LoggerLevel level = (Logger::LoggerLevel)severity;
+static bool setEventLogFilter(Logger::LoggerLevel severity, int enable) {
+  Logger::LoggerLevel level = severity;
   if (enable > 0) {
     g_eventLogger->enable(level);
   } else if (enable == 0) {
@@ -1449,8 +1453,15 @@ void MgmApiSession::setLogFilter(Parser_t::Context &ctx,
   args.get("level", &severity);
   args.get("enable", &enable);
 
-  bool result = setEventLogFilter(severity, enable);
+  auto level = Logger::to_enum_LoggerLevel(severity);
+  if (!level.has_value()) {
+    m_output->println("set logfilter reply");
+    m_output->println("result: Invalid level: %u", severity);
+    m_output->println("%s", "");
+    return;
+  }
 
+  bool result = setEventLogFilter(level.value(), enable);
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);
   m_output->println("%s", "");
@@ -2001,6 +2012,29 @@ void MgmApiSession::getTlsStats(Parser_t::Context &ctx,
                     m_mgmsrv.m_tls_stats[MgmtSrvr::TlsStats::tls].load());
   m_output->println("authfail: %u",
                     m_mgmsrv.m_tls_stats[MgmtSrvr::TlsStats::authfail].load());
+  m_output->println("%s", "");
+}
+
+void MgmApiSession::listTrustedCerts(Parser_t::Context &ctx,
+                                     Properties const &args) {
+  TlsKeyManager::CA_Table trustTable(*m_mgmsrv.tlsKeyManager());
+
+  m_output->println("get tls trust reply");
+
+  for (cert_table_entry &cert : trustTable) {
+    char expiretime[128];
+    CertLifetime lifetime(cert.cert);
+    lifetime.print_expire_time(expiretime, sizeof(expiretime));
+
+    m_output->println("certificate: %d", trustTable.id() + 1);
+    m_output->println("name: %s", cert.name);
+    m_output->println("expires: %s", expiretime);
+    m_output->println("serial: %s", cert.serial);
+    m_output->println("flags: %d", cert.flags);
+    m_output->println("use_count: %d", cert.use_count);
+    m_output->println("last_use: %ld", cert.last_use);
+  }
+
   m_output->println("%s", "");
 }
 

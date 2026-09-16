@@ -1,0 +1,105 @@
+# ==== PURPOSE ====
+#
+# This test checks that a skip-log-bin replica crash after XA PREPARE has
+# marked the transaction as prepared in TC, but before the XA PREPARE GTID is
+# added to GTID_EXECUTED, recovers with XA RECOVER and GTID_EXECUTED in sync.
+#
+# ==== IMPLEMENTATION ====
+#
+# To reproduce and verify the issue, this test stops the applier at the
+# debug-sync point immediately after before-GTID-state-update actions run,
+# crashes the skip-log-bin replica, restarts it without starting replication,
+# and checks recovered XA and GTID state.
+#
+# Test steps:
+#
+# 1. Create a source-to-replica GTID topology with replica binary logging off.
+# 2. Run XA PREPARE up to the crash window.
+# 3. Crash and restart the replica with the applier stopped.
+# 4. Verify that the prepared XID and XA PREPARE GTID both survived recovery.
+# 5. Let replication continue and clean up.
+#
+# Test pass conditions:
+#
+# - After recovery, XA RECOVER lists the prepared XID.
+# - After recovery, GTID_EXECUTED contains the recovered XA PREPARE GTID.
+#
+# ==== REFERENCES ====
+#
+# BUG#35872823: XA RECOVER may miss XID after XA PREPARE GTID is visible
+#
+--source include/have_binlog_format_row.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+
+--source include/rpl/connection_source.inc
+--let $xid_data = xid_setup
+--let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
+--source common/xa_crash_safe/setup.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_source1.inc
+--let $xid_data = xid_prepare
+--let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
+--eval XA START $xid
+INSERT INTO t1 VALUES (1);
+--eval XA END $xid
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+--let $src_before = `SELECT @@GLOBAL.gtid_executed`
+
+--source include/rpl/connection_replica.inc
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+--let $auxiliary_connection = slave
+--let $statement_connection = master1
+--let $statement = XA PREPARE $xid
+--let $sync_point = after_call_actions_before_gtid_state_update
+--source include/execute_to_conditional_timestamp_sync_point.inc
+
+--source include/rpl/connection_source.inc
+--let $src_after = `SELECT @@GLOBAL.gtid_executed`
+--let $prepare_gtid = `SELECT GTID_SUBTRACT('$src_after', '$src_before')`
+
+--source include/rpl/connection_replica.inc
+--source include/dbug_crash_safe.inc
+
+--let $restart_parameters=restart:--skip-replica-start --skip-log-bin
+--source include/start_mysqld.inc
+--let $rpl_server_number= 2
+--source include/rpl/reconnect.inc
+
+--source include/rpl/connection_replica.inc
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_text = GTID_EXECUTED has been updated after XA PREPARE recovery
+--let $assert_cond = "$before_gtid_executed" != "$after_gtid_executed"
+--source include/assert.inc
+--let $assert_text = GTID_EXECUTED contains the recovered XA PREPARE GTID
+--let $has_gtid = `SELECT GTID_SUBSET('$prepare_gtid', @@GLOBAL.gtid_executed)`
+--let $assert_cond = "$has_gtid" = "1"
+--source include/assert.inc
+
+--let $expected_prepared_xa_count = 1
+--source common/xa_crash_safe/assert_xa_recover.inc
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source1.inc
+--eval XA ROLLBACK $xid
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $expected_prepared_xa_count = 0
+--source common/xa_crash_safe/assert_xa_recover.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/deinit.inc

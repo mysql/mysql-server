@@ -68,6 +68,7 @@
 #include "nulls.h"
 #include "prealloced_array.h"
 #include "print_version.h"
+#include "scope_guard.h"
 #include "strxmov.h"
 #include "welcome_copyright_notice.h"
 
@@ -398,8 +399,25 @@ static void compare_and_move_file(const std::string &source_filename,
 }
 
 static int create_header_files(struct errors *error_head) {
-  FILE *er_definef, *er_namef;
-  FILE *er_errmsg;
+  FILE *er_definef = nullptr;
+  FILE *er_namef = nullptr;
+  FILE *er_errmsg = nullptr;
+
+  auto fcgrd = create_scope_guard([&]() {
+    if (er_definef != nullptr) {
+      my_fclose(er_definef, MYF(0));
+      er_definef = nullptr;
+    }
+    if (er_namef != nullptr) {
+      my_fclose(er_namef, MYF(0));
+      er_namef = nullptr;
+    }
+    if (er_errmsg != nullptr) {
+      my_fclose(er_errmsg, MYF(0));
+      er_errmsg = nullptr;
+    }
+  });
+
   struct errors *tmp_error;
   struct message *er_msg;
   const char *er_text;
@@ -414,12 +432,9 @@ static int create_header_files(struct errors *error_head) {
     return 1;
   }
   if (!(er_namef = my_fopen(namefile_tmp.c_str(), O_WRONLY, MYF(MY_WME)))) {
-    my_fclose(er_definef, MYF(0));
     return 1;
   }
   if (!(er_errmsg = my_fopen(msgfile_tmp.c_str(), O_WRONLY, MYF(MY_WME)))) {
-    my_fclose(er_definef, MYF(0));
-    my_fclose(er_namef, MYF(0));
     return 1;
   }
 
@@ -576,9 +591,8 @@ static int create_header_files(struct errors *error_head) {
   /* finishing off with mysqld_error.h */
   fprintf(er_definef, "#endif\n");
   fprintf(er_errmsg, "#endif\n");
-  my_fclose(er_definef, MYF(0));
-  my_fclose(er_namef, MYF(0));
-  my_fclose(er_errmsg, MYF(0));
+  // Need to close FILEs before call to compare_and_move_file().
+  fcgrd.reset();
 
   compare_and_move_file(headerfile_tmp, HEADERFILE);
   compare_and_move_file(namefile_tmp, NAMEFILE);
@@ -805,13 +819,15 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
         fail = "\n";
         goto done;
       }
+      auto current_message_grd = create_scope_guard([&] {
+        my_free(current_message.lang_short_name);
+        my_free(current_message.text);
+      });
       if (!find_language(*top_lang, current_message.lang_short_name)) {
         fprintf(stderr,
                 "Message string for error '%s'"
                 " in unregistered language '%s'",
                 current_error->er_name, current_message.lang_short_name);
-        my_free(current_message.lang_short_name);
-        my_free(current_message.text);
         fail = "\n";
         goto done;
       }
@@ -833,6 +849,7 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
         goto done;
       }
       if (current_error->msg.push_back(current_message)) goto done;
+      current_message_grd.release();
       continue;
     }
     if (is_prefix(str, ER_PREFIX) || is_prefix(str, WARN_PREFIX) ||
@@ -862,7 +879,7 @@ done:
   *last_error = tail_error;
 
   my_fclose(file, MYF(0));
-
+  reserved_sections.clear();
   if (fail != nullptr) {
     fputs(fail, stderr);
     return 0;
@@ -872,7 +889,7 @@ done:
 }
 
 static uint parse_error_offset(char *str) {
-  char *soffset;
+  char *soffset = nullptr;
   const char *end;
   int error;
   uint ioffset;
@@ -886,6 +903,7 @@ static uint parse_error_offset(char *str) {
 
   /* reading the error offset */
   if (!(soffset = get_word(&str))) return 0; /* OOM: Fatal error */
+  auto soffset_grd = create_scope_guard([&] { my_free(soffset); });
   DBUG_PRINT("info", ("default_error_offset: %s", soffset));
 
   /* skipping space(s) and/or tabs after the error offset */
@@ -910,7 +928,6 @@ static uint parse_error_offset(char *str) {
     }
   }
 
-  my_free(soffset);
   return ioffset;
 }
 
@@ -986,7 +1003,8 @@ static bool parse_reserved_error_section(char *str) {
 /* Parsing of the default language line. e.g. "default-language eng" */
 
 static char *parse_default_language(char *str) {
-  char *slang;
+  char *slang = nullptr;
+  auto slang_grd = create_scope_guard([&] { my_free(slang); });
 
   DBUG_TRACE;
   /* skipping the "default-language" keyword */
@@ -1011,6 +1029,7 @@ static char *parse_default_language(char *str) {
     return nullptr;
   }
   DBUG_PRINT("info", ("str: %s", str));
+  slang_grd.release();
   return slang;
 }
 
@@ -1210,6 +1229,12 @@ static struct message *parse_message_string(const struct errors *current_error,
                                             struct message *new_message,
                                             char *str) {
   char *start;
+  new_message->lang_short_name = nullptr;
+  new_message->text = nullptr;
+  auto message_grd = create_scope_guard([&] {
+    my_free(new_message->lang_short_name);
+    my_free(new_message->text);
+  });
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("str: %s", str));
@@ -1255,6 +1280,7 @@ static struct message *parse_message_string(const struct errors *current_error,
     return nullptr; /* Fatal error */
   DBUG_PRINT("info", ("msg_text: %s", new_message->text));
 
+  message_grd.release();
   return new_message;
 }
 
@@ -1272,7 +1298,19 @@ static struct errors *parse_error_string(char *str, int er_count,
   /* create a new element */
   void *rawmem =
       my_malloc(PSI_NOT_INSTRUMENTED, sizeof(*new_error), MYF(MY_WME));
+  if (rawmem == nullptr) return nullptr;
   new_error = new (rawmem) errors();
+  new_error->er_name = nullptr;
+  new_error->sql_code1 = nullptr;
+  new_error->sql_code2 = nullptr;
+  new_error->next_error = nullptr;
+  auto error_grd = create_scope_guard([&] {
+    my_free(const_cast<char *>(new_error->sql_code1));
+    my_free(const_cast<char *>(new_error->sql_code2));
+    my_free(const_cast<char *>(new_error->er_name));
+    new_error->~errors();
+    my_free(new_error);
+  });
 
   /* getting the error name */
   str = skip_delimiters(str);
@@ -1322,6 +1360,7 @@ static struct errors *parse_error_string(char *str, int er_count,
 
   /* if we reached EOL => no more codes, but this can happen */
   if (!*str) {
+    error_grd.release();
     new_error->sql_code1 = empty_string;
     new_error->sql_code2 = empty_string;
     DBUG_PRINT("info", ("str: %s", str));
@@ -1338,6 +1377,7 @@ static struct errors *parse_error_string(char *str, int er_count,
 
   /* if we reached EOL => no more codes, but this can happen */
   if (!*str) {
+    error_grd.release();
     new_error->sql_code2 = empty_string;
     DBUG_PRINT("info", ("str: %s", str));
     return new_error;
@@ -1355,6 +1395,7 @@ static struct errors *parse_error_string(char *str, int er_count,
     return nullptr;
   }
 
+  error_grd.release();
   return new_error;
 }
 
@@ -1379,10 +1420,25 @@ static struct languages *parse_charset_string(char *str) {
   str = skip_delimiters(str);
   if (*str == ';' || !*str) return nullptr;
 
+  auto lang_grd = create_scope_guard([&] {
+    struct languages *tmp_lang, *next_language;
+    for (tmp_lang = head; tmp_lang; tmp_lang = next_language) {
+      next_language = tmp_lang->next_lang;
+      my_free(tmp_lang->lang_short_name);
+      my_free(tmp_lang->lang_long_name);
+      my_free(tmp_lang->charset);
+      my_free(tmp_lang);
+    }
+  });
+
   do {
     /*creating new element of the linked list */
     new_lang = (struct languages *)my_malloc(PSI_NOT_INSTRUMENTED,
                                              sizeof(*new_lang), MYF(MY_WME));
+    if (new_lang == nullptr) return nullptr;
+    new_lang->lang_long_name = nullptr;
+    new_lang->lang_short_name = nullptr;
+    new_lang->charset = nullptr;
     new_lang->next_lang = head;
     head = new_lang;
 
@@ -1411,6 +1467,7 @@ static struct languages *parse_charset_string(char *str) {
   } while (*str != ';' && *str);
 
   DBUG_PRINT("info", ("long name: %s", new_lang->lang_long_name));
+  lang_grd.release();
   return head;
 }
 

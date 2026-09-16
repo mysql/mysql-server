@@ -139,6 +139,16 @@ bool resolve_ip_addr_from_hostname(const std::string &name,
                                    std::vector<std::string> &ip);
 
 /**
+  Converts the peer address of a connected socket to a string.
+
+  @param[in] fd Connected socket file descriptor.
+  @param[out] out String representation of the peer address.
+
+  @return false on success, true otherwise.
+ */
+bool sock_descriptor_to_string(int fd, std::string &out);
+
+/**
  Converts an address in string format (X.X.X.X/XX) into network octet format
 
  @param[in]  addr     IP address in X.X.X.X format

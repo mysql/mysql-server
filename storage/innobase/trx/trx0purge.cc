@@ -32,6 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include <sys/types.h>
+#include <algorithm>
+#include <atomic>
 #include <new>
 #include <unordered_map>
 
@@ -45,8 +47,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0types.h"
 #include "fut0fut.h"
 #include "ha_prototypes.h"
-#include "log0buf.h"
 #include "log0chkp.h"
+#include "log0helpers.h"
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "my_compiler.h"
@@ -54,7 +56,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_inttypes.h"
 #include "os0thread.h"
 #include "que0que.h"
-#include "read0read.h"
+#include "read0mvcc_interface.h"
+#include "read0read_view_interface.h"
 #include "row0purge.h"
 #include "row0upd.h"
 #include "srv0mon.h"
@@ -73,6 +76,12 @@ ulong srv_max_purge_lag = 0;
 
 /** Max DML user threads delay in micro-seconds. */
 ulong srv_max_purge_lag_delay = 0;
+
+/** Whether the purge history length is above innodb_max_purge_lag. */
+static std::atomic_bool srv_max_purge_lag_exceeded{false};
+
+/** Whether DML statements are being delayed due to purge lag. */
+static std::atomic_bool srv_dml_purge_delay_active{false};
 
 /** The global data structure coordinating a purge */
 trx_purge_t *purge_sys = nullptr;
@@ -222,7 +231,7 @@ void trx_purge_sys_mem_create() {
 
   new (&purge_sys->iter) purge_iter_t;
   new (&purge_sys->limit) purge_iter_t;
-  new (&purge_sys->undo_trunc) undo::Truncate;
+  new (&purge_sys->undo_trunc) undo_truncate::Truncate;
   new (&purge_sys->rsegs_queue) std::vector<trx_rseg_t *>;
 #ifdef UNIV_DEBUG
   new (&purge_sys->done) purge_iter_t;
@@ -251,14 +260,24 @@ Note that m_lowest_needed_trx_no might be lower than needed by purge_sys->view
 in case GTID persistor is lagging. */
 static void trx_purge_update_oldest_needed() {
   rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
-  trx_sys->mvcc->clone_oldest_view(&purge_sys->view);
-  const auto needed_by_purge_view = purge_sys->view.low_limit_no();
+
+  trx_sys->mvcc->clone_oldest_view(purge_sys->view);
+  ut_a(purge_sys->view != nullptr);
+  /* The purge_sys->view should be a *clone* of an open read view, but itself it
+  should not be considered open, so it doesn't participate in competition for
+  the oldest open read view in clone_oldest_view() when we call it next time.
+  We'd like to assert ut_a(!trx_sys->mvcc->is_view_open(purge_sys->view)) here,
+  but the is_view_open(..) can not be called on pointers obtained from
+  clone_oldest_view(), because MVCC::is_view_open() uses information encoded in
+  the lowest bit of a pointer by view_open(..) and view_close(..), which only
+  works for trx->read_view fields. */
+  const auto needed_by_purge_view = purge_sys->view->get_lowest_needed_trx_no();
   /* The Clone_persist_gtid::get_oldest_trx_no() can return TRX_ID_MAX, if there
   are no GTIDs pending to be persisted. It is crucial for correctness, that
   get_oldest_trx_no() must be called after the oldest view was cloned, so that
   in case it returns TRX_ID_MAX, we properly cap it to no more than
   trx_sys->serialisation_min_trx_no seen at an earlier moment (which is an upper
-  bound for purge_sys->view->low_limit_no() on the one hand, and at
+  bound for purge_sys->view->get_lowest_needed_trx_no() on the one hand, and at
   the same time a lower bound for trx->no of any trx assigned a new GTID since
   then and at the same time ). If we do that in opposite order, it could be the
   case that new GTIDs were assigned after the get_oldest_trx_no() has returned
@@ -269,6 +288,7 @@ static void trx_purge_update_oldest_needed() {
       clone_sys->get_gtid_persistor().get_oldest_trx_no();
   purge_sys->m_lowest_needed_trx_no =
       std::min(needed_by_purge_view, needed_by_persistor);
+
   rw_lock_x_unlock(&purge_sys->latch);
 }
 
@@ -297,7 +317,9 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
 
   purge_sys->query = trx_purge_graph_build(purge_sys->trx, n_purge_threads);
 
-  new (&purge_sys->view) ReadView();
+  trx_sys->mvcc->undo_purge_is_starting();
+
+  ut_a(purge_sys->view == nullptr);
   trx_purge_update_oldest_needed();
 
   purge_sys->rseg_iter = ut::new_withkey<TrxUndoRsegsIterator>(
@@ -316,8 +338,12 @@ void trx_purge_sys_close() {
 
   purge_sys->sess = nullptr;
 
-  purge_sys->view.close();
-  purge_sys->view.~ReadView();
+  trx_sys->mvcc->view_free(purge_sys->view);
+
+  /* The MVCC will not be used by the Undo Purge anymore, any Undo-related
+  support in the MVCC can be cleaned up now, as the trx_sys will be
+  deinitialized soon after this call. */
+  trx_sys->mvcc->undo_purge_has_shutdown();
 
   rw_lock_free(&purge_sys->latch);
   mutex_free(&purge_sys->pq_mutex);
@@ -634,584 +660,6 @@ loop:
   goto loop;
 }
 
-namespace undo {
-
-/** Mutext for serializing undo tablespace related DDL.  These have to do with
-creating and dropping undo tablespaces. */
-ib_mutex_t ddl_mutex;
-
-/** A global object that contains a vector of undo::Tablespace structs. */
-Tablespaces *spaces;
-
-/** List of currently used undo space IDs for each undo space number
-along with a boolean showing whether the undo space number is in use. */
-struct space_id_account *space_id_bank;
-
-/** Initialize the undo tablespace space_id bank which is a lock free
-repository for information about the space IDs used for undo tablespaces.
-It is used during creation in order to assign an unused space number and
-during truncation in order to assign the next space_id within that
-space_number range.
-It is initialized with the minimum value in the range so that if a new
-space ID is needed in that range the max space ID will be used first.
-As truncation occurs, the space_ids are assigned from max down to min. */
-void init_space_id_bank() {
-  space_id_bank = ut::new_arr_withkey<struct space_id_account>(
-      ut::make_psi_memory_key(mem_key_undo_spaces),
-      ut::Count{FSP_MAX_UNDO_TABLESPACES});
-
-  for (size_t slot = 0; slot < FSP_MAX_UNDO_TABLESPACES; slot++) {
-    undo::space_id_bank[slot].space_id = SPACE_UNKNOWN;
-    undo::space_id_bank[slot].in_use = false;
-  }
-}
-
-/** Note that the undo space number for a space ID is being used.
-Put that space_id into the space_id_bank.
-@param[in] space_id  undo tablespace number */
-void use_space_id(space_id_t space_id) {
-  size_t slot = undo::id2num(space_id) - 1;
-
-  ut_ad(!space_id_bank[slot].in_use);
-
-  space_id_bank[slot].space_id = space_id;
-  space_id_bank[slot].in_use = true;
-}
-
-/** Mark an undo number associated with a given space_id as unused and
-available to be resused.  This happens when the fil_space_t is closed
-associated with a drop undo tablespace.
-@param[in] space_id  Undo Tablespace ID */
-void unuse_space_id(space_id_t space_id) {
-  ut_ad(fsp_is_undo_tablespace(space_id));
-
-  space_id_t space_num = undo::id2num(space_id);
-  size_t slot = space_num - 1;
-
-  space_id_bank[slot].in_use = false;
-}
-
-/** Given a valid undo space_id or SPACE_UNKNOWN, return the next space_id
-for the given space number.
-@param[in]  space_id   undo tablespace ID
-@param[in]  space_num  undo tablespace number
-@return the next tablespace ID to use */
-space_id_t next_space_id(space_id_t space_id, space_id_t space_num) {
-  ut_ad(space_id == SPACE_UNKNOWN || fsp_is_undo_tablespace(space_id));
-  ut_ad(space_id != SPACE_UNKNOWN ||
-        (space_num > 0 && space_num <= FSP_MAX_UNDO_TABLESPACES));
-
-  space_id_t first_id = dict_sys_t::s_max_undo_space_id + 1 - space_num;
-  space_id_t last_id = first_id - (FSP_MAX_UNDO_TABLESPACES *
-                                   (dict_sys_t::s_undo_space_id_range - 1));
-  return (space_id == SPACE_UNKNOWN || space_id == last_id
-              ? first_id
-              : space_id - FSP_MAX_UNDO_TABLESPACES);
-}
-
-/** Given a  valid undo space_id, return the next space_id for that
-space number.
-@param[in]  space_id  undo tablespace ID
-@return the next tablespace ID to use */
-space_id_t next_space_id(space_id_t space_id) {
-  ut_ad(space_id != SPACE_UNKNOWN);
-  ut_ad(fsp_is_undo_tablespace(space_id));
-
-  space_id_t space_num = undo::id2num(space_id);
-
-  return (next_space_id(space_id, space_num));
-}
-
-/** Mark that the given undo space number is being used and
-return the next available space_id for that space number.
-@param[in]  space_num  undo tablespace number
-@return the next tablespace ID to use */
-space_id_t use_next_space_id(space_id_t space_num) {
-  size_t slot = space_num - 1;
-
-  ut_ad(!space_id_bank[slot].in_use);
-
-  space_id_t cur_id = space_id_bank[slot].space_id;
-  space_id_t next_id = next_space_id(cur_id, space_num);
-
-  space_id_bank[slot].space_id = next_id;
-  space_id_bank[slot].in_use = true;
-
-  return (next_id);
-}
-
-/** Return the next available undo space ID to be used for a new explicit
-undo tablespaces. The slot will be marked as in-use.
-@return next available undo space number if successful.
-@return SPACE_UNKNOWN if failed */
-space_id_t get_next_available_space_num() {
-  for (space_id_t slot = FSP_IMPLICIT_UNDO_TABLESPACES;
-       slot < FSP_MAX_UNDO_TABLESPACES; ++slot) {
-    space_id_t space_num = slot + 1;
-
-    if (!space_id_bank[slot].in_use) {
-      return (use_next_space_id(space_num));
-    }
-    /* Slot is in use.  Try the next slot. */
-  }
-
-  return (SPACE_UNKNOWN);
-}
-
-bool Tablespace::needs_truncation() {
-  /* If it is already inactive, even implicitly, then proceed. */
-  m_rsegs->s_lock();
-  if (m_rsegs->is_inactive_implicit() || m_rsegs->is_inactive_explicit()) {
-    m_rsegs->s_unlock();
-    return (true);
-  }
-
-  /* If implicit undo truncation is turned off, or if the rsegs don't exist
-  yet, don't bother checking the size. */
-  if (!srv_undo_log_truncate || m_rsegs == nullptr || m_rsegs->is_empty() ||
-      m_rsegs->is_init()) {
-    m_rsegs->s_unlock();
-    return (false);
-  }
-  ut_ad(m_rsegs->is_active());
-  m_rsegs->s_unlock();
-
-  /* Check if undo truncation is happening so often that too many pages
-  from old space IDs are still in memory. Since undo spaces are deleted
-  with BUF_REMOVE_NONE, the actual space is not deleted for that old
-  space ID until all pages have been passively removed from the buffer
-  pool. */
-  auto count = fil_count_undo_deleted(undo::id2num(m_id));
-  if (count > CONCURRENT_UNDO_TRUNCATE_LIMIT) {
-    ib::warn(ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN);
-    return (false);
-  }
-
-  ut_ad(fil_space_get_undo_initial_size(m_id) != 0);
-
-  page_no_t trunc_size = std::max(
-      static_cast<page_no_t>(srv_max_undo_tablespace_size / srv_page_size),
-      fil_space_get_undo_initial_size(m_id));
-
-  if (fil_space_get_size(m_id) > trunc_size) {
-    return (true);
-  }
-
-  return (false);
-}
-
-/** Change the space_id from its current value.
-@param[in]  space_id  The new undo tablespace ID */
-void Tablespace::set_space_id(space_id_t space_id) {
-  ut_ad_eq(num(), id2num(space_id));
-  m_id = space_id;
-}
-
-/** Build a standard undo tablespace name from a space_id.
-@param[in]      space_id        id of the undo tablespace.
-@return tablespace name of the undo tablespace file */
-char *make_space_name(space_id_t space_id) {
-  /* 8.0 undo tablespace names have an extra '_' */
-  bool old = (id2num(space_id) == space_id);
-
-  size_t size = sizeof(undo_space_name) + 3 + (old ? 0 : 1);
-
-  char *name =
-      static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size));
-
-  snprintf(name, size, (old ? "%s%03" SPACE_ID_PFS : "%s_%03" SPACE_ID_PFS),
-           undo_space_name, static_cast<unsigned>(id2num(space_id)));
-
-  return (name);
-}
-
-/** Build a standard undo tablespace file name from a space_id.
-This will create a name like 'undo_001' if the space_id is in the
-reserved range, else it will be like 'undo001'.
-@param[in]      space_id        id of the undo tablespace.
-@return file_name of the undo tablespace file */
-char *make_file_name(space_id_t space_id) {
-  /* 8.0 undo tablespace names have an extra '_' */
-  size_t len = strlen(srv_undo_dir);
-  bool with_sep = (srv_undo_dir[len - 1] == OS_PATH_SEPARATOR);
-  bool old = (id2num(space_id) == space_id);
-
-  size_t size = strlen(srv_undo_dir) + (with_sep ? 0 : 1) + sizeof("undo000") +
-                (old ? 0 : 1);
-
-  char *name =
-      static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size));
-
-  memcpy(name, srv_undo_dir, len);
-
-  if (!with_sep) {
-    name[len++] = OS_PATH_SEPARATOR;
-  }
-
-  memcpy(&name[len], "undo", 4);
-  len += 4;
-
-  if (!old) {
-    name[len++] = '_';
-  }
-
-  snprintf(&name[len], size - len, "%03" SPACE_ID_PFS,
-           static_cast<unsigned>(id2num(space_id)));
-
-  return (name);
-}
-
-void Tablespace::set_space_name(const char *new_space_name) {
-  if (m_space_name != nullptr) {
-    ut::free(m_space_name);
-    m_space_name = nullptr;
-  }
-
-  size_t size = strlen(new_space_name) + 1;
-  m_space_name =
-      static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size));
-
-  strncpy(m_space_name, new_space_name, size);
-}
-
-void Tablespace::set_file_name(const char *file_name) {
-  /* Make a copy of the filename and normalize it. */
-  char norm_fn[FN_REFLEN];
-  strncpy(norm_fn, file_name, FN_REFLEN - 1);
-  Fil_path::normalize(norm_fn);
-  std::string tmp_fn{norm_fn};
-
-  /* This name can come in three forms: absolute path, relative path,
-  and basename. ADD DATAFILE for undo tablespaces does not accept a
-  relative path. If a relative path comes in here, it was the scanned
-  name and is relative to the datadir. So only prepend the undo_dir if
-  this is just a basename. */
-  std::string final_fn;
-  if (tmp_fn.find_first_of(":/\\") == std::string::npos) {
-    /* Prepend the undo directory. */
-    bool is_circ = MySQL_undo_path.is_circular();
-    final_fn += (is_circ ? MySQL_undo_path.abs_path() : MySQL_undo_path.path());
-    char back = (is_circ ? MySQL_undo_path.abs_path().back()
-                         : MySQL_undo_path.path().back());
-    final_fn += (back == OS_PATH_SEPARATOR ? "" : OS_PATH_SEPARATOR_STR);
-  }
-  final_fn += tmp_fn;
-
-  /* We are going to replace any existing m_file_name. */
-  if (m_file_name != nullptr) {
-    ut::free(m_file_name);
-  }
-
-  size_t len = final_fn.size();
-  m_file_name = static_cast<char *>(
-      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len + 1));
-  memcpy(m_file_name, final_fn.c_str(), len);
-  m_file_name[len] = '\0';
-}
-
-char *Tablespace::make_log_file_name(space_id_t space_id,
-                                     const char *location) {
-  size_t size = strlen(location) + 22 + 1 /* NUL */
-                + strlen(undo::s_log_prefix) + strlen(undo::s_log_ext);
-
-  char *name =
-      static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size));
-
-  memset(name, 0, size);
-
-  strcpy(name, location);
-  ulint len = strlen(name);
-
-  if (name[len - 1] != OS_PATH_SEPARATOR) {
-    name[len] = OS_PATH_SEPARATOR;
-    len = strlen(name);
-  }
-
-  snprintf(name + len, size - len, "%s%lu_%s", undo::s_log_prefix,
-           (ulong)id2num(space_id), s_log_ext);
-
-  return (name);
-}
-
-void Tablespace::alter_active() {
-  m_rsegs->x_lock();
-  ut_d(ib::info(ER_IB_MSG_UNDO_ALTERED_ACTIVE, file_name()));
-  if (m_rsegs->is_empty()) {
-    m_rsegs->set_active();
-  } else if (m_rsegs->is_inactive_explicit()) {
-    if (purge_sys->undo_trunc.is_marked() &&
-        purge_sys->undo_trunc.get_marked_space_num() == num()) {
-      m_rsegs->set_inactive_implicit();
-    } else {
-      m_rsegs->set_active();
-    }
-  }
-  m_rsegs->x_unlock();
-}
-
-#ifdef UNIV_DEBUG
-void inject_crash(const char *injection_point_name) {
-  DBUG_EXECUTE_IF(injection_point_name,
-                  ib::info(ER_IB_MSG_INJECT_CRASH, injection_point_name);
-                  log_buffer_flush_to_disk(); DBUG_SUICIDE(););
-}
-
-bool Inject_failure_once::should_fail() {
-  DBUG_EXECUTE_IF(m_inject_name, {
-    if (!m_already_failed) {
-      m_already_failed = true;
-      ib::info(ER_IB_MSG_INJECT_FAILURE, m_inject_name);
-      return true;
-    }
-  });
-  return false;
-}
-
-#endif /* UNIV_DEBUG */
-
-dberr_t start_logging(Tablespace *undo_space) {
-#ifdef UNIV_DEBUG
-  static undo::Inject_failure_once injector("ib_undo_trunc_fail_start_logging");
-  if (injector.should_fail()) {
-    return (DB_OUT_OF_MEMORY);
-  }
-#endif /* UNIV_DEBUG */
-
-  char *log_file_name = undo_space->log_file_name();
-
-  /* Delete the log file if it exists. */
-  os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
-
-  /* Create the log file, open it and write 0 to indicate
-  init phase. */
-  bool ret;
-  pfs_os_file_t handle =
-      os_file_create(innodb_log_file_key, log_file_name, OS_FILE_CREATE,
-                     OS_LOG_FILE, srv_read_only_mode, &ret);
-  if (!ret) {
-    return (DB_IO_ERROR);
-  }
-
-  ulint sz = UNIV_PAGE_SIZE;
-  void *buf = ut::aligned_zalloc(sz, UNIV_PAGE_SIZE);
-  if (buf == nullptr) {
-    os_file_close(handle);
-    return (DB_OUT_OF_MEMORY);
-  }
-
-  IORequest request(IORequest::WRITE);
-
-  request.disable_compression();
-
-  const dberr_t err = os_file_write(request, log_file_name, handle, buf, 0, sz);
-
-  os_file_flush(handle);
-  os_file_close(handle);
-  ut::aligned_free(buf);
-
-  return (err);
-}
-
-void done_logging(space_id_t space_num) {
-  /* Get the first space id for this space_num. That is good enough since we
-  only need the log_file_name. */
-  Tablespace undo_space(num2id(space_num, 0));
-
-  char *log_file_name = undo_space.log_file_name();
-
-  /* If this file does not exist, there is nothing to do. */
-  if (!os_file_exists(log_file_name)) {
-    return;
-  }
-
-  /* Open log file and write magic number to indicate done phase. */
-  bool ret;
-  pfs_os_file_t handle = os_file_create_simple_no_error_handling(
-      innodb_log_file_key, log_file_name, OS_FILE_OPEN, OS_FILE_READ_WRITE,
-      srv_read_only_mode, &ret);
-
-  if (!ret) {
-    os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
-    return;
-  }
-
-  ulint sz = UNIV_PAGE_SIZE;
-  byte *buf = static_cast<byte *>(ut::aligned_zalloc(sz, UNIV_PAGE_SIZE));
-  if (buf == nullptr) {
-    os_file_close(handle);
-    os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
-    return;
-  }
-
-  mach_write_to_4(buf, undo::s_magic);
-
-  IORequest request(IORequest::WRITE);
-
-  request.disable_compression();
-
-  const dberr_t err = os_file_write(request, log_file_name, handle, buf, 0, sz);
-
-  ut_a(err == DB_SUCCESS);
-
-  os_file_flush(handle);
-  os_file_close(handle);
-
-  ut::aligned_free(buf);
-  os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
-}
-
-bool is_active_truncate_log_present(space_id_t space_num) {
-  /* Get the first space id for thus space_num. That is good enough since we
-  only need the log_file_name. */
-  Tablespace undo_space(num2id(space_num, 0));
-
-  /* The truncation log file location changed to a new default location.
-  Check if it exists in either location. */
-  char *log_file_name = undo_space.log_file_name();
-  if (!os_file_exists(log_file_name)) {
-    log_file_name = undo_space.log_file_name_old();
-    if (!os_file_exists(log_file_name)) {
-      log_file_name = nullptr;
-    }
-  }
-
-  /* If the log file exists, check it for presence of magic
-  number.  If found, then delete the file and report file
-  doesn't exist as presence of magic number suggest that
-  truncate action was complete. */
-  if (log_file_name != nullptr) {
-    bool ret;
-    pfs_os_file_t handle = os_file_create_simple_no_error_handling(
-        innodb_log_file_key, log_file_name, OS_FILE_OPEN, OS_FILE_READ_WRITE,
-        srv_read_only_mode, &ret);
-    if (!ret) {
-      os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
-      return (false);
-    }
-
-    ulint sz = UNIV_PAGE_SIZE;
-    byte *buf = static_cast<byte *>(ut::aligned_zalloc(sz, UNIV_PAGE_SIZE));
-    if (buf == nullptr) {
-      os_file_close(handle);
-      os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
-      return (false);
-    }
-
-    IORequest request(IORequest::READ);
-
-    request.disable_compression();
-
-    dberr_t err;
-
-    err = os_file_read(request, log_file_name, handle, buf, 0, sz);
-
-    os_file_close(handle);
-
-    if (err != DB_SUCCESS) {
-      ib::info(ER_IB_MSG_UNDO_TRUNCATE_FAIL_TO_READ_LOG_FILE, log_file_name,
-               ut_strerr(err));
-
-      os_file_delete(innodb_log_file_key, log_file_name);
-
-      ut::aligned_free(buf);
-
-      return (false);
-    }
-
-    ulint magic_no = mach_read_from_4(buf);
-
-    ut::aligned_free(buf);
-
-    if (magic_no == undo::s_magic) {
-      /* Found magic number. */
-      os_file_delete(innodb_log_file_key, log_file_name);
-      return (false);
-    }
-
-    return (true);
-  }
-
-  return (false);
-}
-
-/** Add undo tablespace to s_under_construction vector.
-@param[in]      space_id        space id of tablespace to
-truncate */
-void add_space_to_construction_list(space_id_t space_id) {
-  s_under_construction.push_back(space_id);
-}
-
-/** Clear the s_under_construction vector. */
-void clear_construction_list() { s_under_construction.clear(); }
-
-/** Is an undo tablespace under construction at the moment.
-@param[in]      space_id        space id to check
-@return true if marked for truncate, else false. */
-bool is_under_construction(space_id_t space_id) {
-  for (auto construct_id : s_under_construction) {
-    if (construct_id == space_id) {
-      return (true);
-    }
-  }
-
-  return (false);
-}
-
-/* Set an undo tablespace active. */
-void set_active(space_id_t space_id) {
-  ut_ad(spaces != nullptr);
-  ut_ad(fsp_is_undo_tablespace(space_id));
-
-  spaces->s_lock();
-  Tablespace *undo_space = spaces->find(id2num(space_id));
-
-  if (undo_space != nullptr) {
-    undo_space->set_active();
-  }
-  spaces->s_unlock();
-}
-
-/* Return whether the undo tablespace is active.  If this is a
-non-undo tablespace, then it will not be found in spaces and it
-will not be under construction, so this function will return true.
-@param[in]  space_id   Undo Tablespace ID
-@param[in]  get_latch  Specifies whether the rsegs->s_lock() is needed.
-@return true if active (non-undo spaces are always active) */
-bool is_active(space_id_t space_id, bool get_latch) {
-  if (!fsp_is_undo_tablespace(space_id)) {
-    return (true);
-  }
-
-  if (spaces == nullptr) {
-    return (!is_under_construction(space_id));
-  }
-
-  if (get_latch) {
-    undo::spaces->s_lock();
-  }
-  Tablespace *undo_space = spaces->find(id2num(space_id));
-
-  if (undo_space == nullptr) {
-    if (get_latch) {
-      undo::spaces->s_unlock();
-    }
-    return (!is_under_construction(space_id));
-  }
-
-  bool ret =
-      (get_latch ? undo_space->is_active() : undo_space->is_active_no_latch());
-
-  if (get_latch) {
-    undo::spaces->s_unlock();
-  }
-
-  return (ret);
-}
-}  // namespace undo
-
-/* Declare this global object. */
-Space_Ids undo::s_under_construction;
-
 /** Decide if an undo truncation needs to be done at this time. If an undo
 tablespace is already marked, return that so that this truncation will get
 finished. If none is marked, iterate over all the UNDO tablespaces and check
@@ -1236,7 +684,7 @@ if any qualify to be truncated.
 static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
   /* We always have at least 2 undo spaces, even though one of them may be
   inactive. */
-  ut_a(undo::spaces->size() >= FSP_IMPLICIT_UNDO_TABLESPACES);
+  ut_a(undo_truncate::spaces->size() >= FSP_IMPLICIT_UNDO_TABLESPACES);
 
   /* Note if we are currently in a fast or slow shutdown. */
   bool normal_operation = (srv_shutdown_state == SRV_SHUTDOWN_NONE);
@@ -1255,7 +703,7 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
     return (true);
   }
 
-  undo::spaces->s_lock();
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
 
   /* In order to implicitly select an undo space to truncate, we need
   at least 2 active UNDO tablespaces.  As long as there is one undo
@@ -1263,14 +711,15 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
   size_t num_active = 0;
 
   /* Look for any undo space that is inactive explicitly. */
-  auto undo_ts = undo::spaces->find_first_inactive_explicit(&num_active);
+  auto undo_ts =
+      undo_truncate::spaces->find_first_inactive_explicit(&num_active);
   if (undo_ts != nullptr) {
     undo_trunc->mark(undo_ts);
-    undo::spaces->s_unlock();
+    undo_truncate::spaces->s_unlock();
     return (true);
   }
 
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
   /* If we get here, there are no undo spaces currently being truncated
   and none that are SET INACTIVE explicitly. */
@@ -1301,7 +750,7 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
   }
 
   /* Find an undo tablespace that is too big and needs to be truncated. */
-  undo::spaces->s_lock();
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
 
   /* Avoid bias selection and so start the scan immediately after the
   last space selected for truncate. Scan through all undo tablespaces. */
@@ -1309,11 +758,13 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
   space_id_t first_space_num_scanned = space_num;
 
   do {
-    auto undo_space = undo::spaces->find(space_num);
+    auto undo_space = undo_truncate::spaces->find(space_num);
 
     if (undo_space->needs_truncation()) {
-      /* Tablespace qualifies for truncate. */
-      undo_trunc->increment_scan();
+      /* Tablespace qualifies for truncate.
+      We don't want the current tablespace's ID to be modified as it would be
+      needed later for truncation, so we ignore the return value below. */
+      (void)undo_trunc->increment_scan();
       undo_trunc->mark(undo_space);
       break;
     }
@@ -1322,7 +773,7 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
 
   } while (space_num != first_space_num_scanned);
 
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
   /* Return false if no undo space needs to be truncated. */
   if (!undo_trunc->is_marked()) {
@@ -1334,7 +785,7 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
   return (true);
 }
 
-void undo::Truncate::mark(Tablespace *undo_space) {
+void undo_truncate::Truncate::mark(Tablespace *undo_space) {
   /* Set the internal state of this undo space to inactive_implicit so that its
   rsegs will not be allocated to any new transaction.
   If the space is already in the inactive_explicit state, it will stay there.
@@ -1349,12 +800,12 @@ void undo::Truncate::mark(Tablespace *undo_space) {
   ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_FOR_TRUNCATE, undo_space->file_name()));
 }
 
-size_t undo::Truncate::s_scan_pos;
+size_t undo_truncate::Truncate::s_scan_pos;
 
 /** Iterate over selected UNDO tablespace and check if all the rsegs
 that resides in the tablespace have been freed. */
 static bool trx_purge_check_if_marked_undo_is_empty() {
-  undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
+  undo_truncate::Truncate *undo_trunc = &purge_sys->undo_trunc;
 
   ut_ad(undo_trunc->is_marked());
 
@@ -1364,9 +815,10 @@ static bool trx_purge_check_if_marked_undo_is_empty() {
     return (true);
   }
 
-  undo::spaces->s_lock();
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
   space_id_t space_num = undo_trunc->get_marked_space_num();
-  undo::Tablespace *marked_space = undo::spaces->find(space_num);
+  undo_truncate::Tablespace *marked_space =
+      undo_truncate::spaces->find(space_num);
   Rsegs *marked_rsegs = marked_space->rsegs();
 
   /* Scan over each rseg in this inactive undo tablespace and ensure that it
@@ -1402,27 +854,28 @@ static bool trx_purge_check_if_marked_undo_is_empty() {
 
   marked_rsegs->x_unlock();
 
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
   return (all_free);
 }
 
 /** Truncate the marked undo tablespace. This layer handles locking of
-marked_rsegs and undo::spaces.
+marked_rsegs and undo_truncate::spaces.
 @return true for success, false for failure */
 static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
                                                std::string space_name) {
-  undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
+  undo_truncate::Truncate *undo_trunc = &purge_sys->undo_trunc;
 
   /* Get the undo space pointer again. */
-  undo::spaces->s_lock();
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
 
-  undo::Tablespace *marked_space = undo::spaces->find(space_num);
+  undo_truncate::Tablespace *marked_space =
+      undo_truncate::spaces->find(space_num);
 
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
 #ifdef UNIV_DEBUG
-  static undo::Inject_failure_once inject_marked_space(
+  static undo_truncate::Inject_failure_once inject_marked_space(
       "ib_undo_trunc_fail_marked_space");
   if (inject_marked_space.should_fail()) {
     marked_space = nullptr;
@@ -1433,24 +886,36 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
     return (false);
   }
 
-  ut_d(undo::inject_crash("ib_undo_trunc_before_ddl_log_start"));
+  ut_d(undo_truncate::inject_crash(
+      "ib_undo_trunc_before_writing_unusable_flag"));
 
-  MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_START_LOGGING_COUNT, 1);
-  dberr_t err = undo::start_logging(marked_space);
-  if (err != DB_SUCCESS) {
-    ib::error(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LOG_CREATE, space_name.c_str());
-    return (false);
+  if (fil_space_get(marked_space->id())) {
+    marked_space->truncate_in_progress = true;
+    mtr_t mtr;
+    mtr.start();
+    undo_truncate::mark_undo_tablespace_unusable(marked_space->id(), &mtr);
+    mtr.commit();
+  } else {
+    /* During UNDO tablespace truncation, fil_space_t is removed from the fil
+    cache. If truncation is unsuccessful for some reason, fil_space_t for this
+    marked UNDO tablespace is not loaded again into the fil cache. However, in
+    the next iteration, truncation is attempted again for this tablespace, and
+    fil_space_get() may return nullptr. This is acceptable because, in the
+    previous attempt, the unusable flag would have been persisted in the
+    tablespace header. With this assert, we are making sure that truncation was
+    in progress for this UNDO tablespace. */
+    ut_ad(marked_space->truncate_in_progress);
   }
-  ut_ad(err == DB_SUCCESS);
 
-  ut_d(undo::inject_crash("ib_undo_trunc_before_truncate"));
+  ut_d(
+      undo_truncate::inject_crash("ib_undo_trunc_after_writing_unusable_flag"));
 
   /* Don't do the actual truncate if we are doing a fast shutdown.
   The fixup routines will do it at startup. */
   bool in_fast_shutdown = (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
                            srv_fast_shutdown != 0);
 #ifdef UNIV_DEBUG
-  static undo::Inject_failure_once inject_fast_shutdown(
+  static undo_truncate::Inject_failure_once inject_fast_shutdown(
       "ib_undo_trunc_fail_fast_shutdown");
   if (inject_fast_shutdown.should_fail()) {
     in_fast_shutdown = true;
@@ -1481,14 +946,14 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
     return (false);
   }
 
-  ut_d(undo::inject_crash("ib_undo_trunc_before_state_update"));
+  ut_d(undo_truncate::inject_crash("ib_undo_trunc_before_state_update"));
 
   space_id_t new_space_id = marked_space->id();
 
   /* Determine the next state. */
   dd_space_states next_state;
 
-  undo::spaces->s_lock();
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
 
   Rsegs *marked_rsegs = marked_space->rsegs();
   marked_rsegs->x_lock();
@@ -1512,17 +977,32 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   }
 
   marked_rsegs->x_unlock();
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
   undo_trunc->reset();
 
-  ut_d(undo::inject_crash("ib_undo_trunc_before_dd_update"));
+  mtr_t mtr;
+  mtr.start();
+  /* Unset the header flag to indicate that undo tablespace is usable */
+  undo_truncate::mark_undo_tablespace_usable(new_space_id, &mtr);
+  mtr.commit();
+
+  ut_d(undo_truncate::inject_crash("ib_undo_trunc_after_unsetting_the_flag"));
 
   /* Update the DD with the new space ID and state. */
-  if (DD_FAILURE == dd_tablespace_set_id_and_state(space_name.c_str(),
-                                                   new_space_id, next_state)) {
-    return (false);
+  bool dd_result = dd_tablespace_get_mdl(space_name.c_str());
+  if (dd_result == DD_SUCCESS) {
+    dd_result = dd_tablespace_set_id_and_state(space_name.c_str(), new_space_id,
+                                               next_state);
   }
+
+  if (dd_result == DD_FAILURE) {
+    return false;
+  }
+
+  ut_d(undo_truncate::inject_crash("ib_undo_trunc_after_state_update"));
+
+  marked_space->truncate_in_progress = false;
 
   return (true);
 }
@@ -1535,19 +1015,20 @@ static bool trx_purge_truncate_marked_undo() {
   auto counter_time_truncate = std::chrono::steady_clock::now();
 
   /* Initialize variables */
-  undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
+  undo_truncate::Truncate *undo_trunc = &purge_sys->undo_trunc;
   ut_ad(undo_trunc->is_marked());
   ut_ad(undo_trunc->is_marked_space_empty());
 
-  undo::spaces->s_lock();
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
   space_id_t space_num = undo_trunc->get_marked_space_num();
-  undo::Tablespace *marked_space = undo::spaces->find(space_num);
+  undo_truncate::Tablespace *marked_space =
+      undo_truncate::spaces->find(space_num);
   std::string space_name = marked_space->space_name();
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
   ib::info(ER_IB_MSG_UNDO_TRUNCATE_START, space_name.c_str());
 
-  ut_d(undo::inject_crash("ib_undo_trunc_before_mdl"));
+  ut_d(undo_truncate::inject_crash("ib_undo_trunc_before_mdl"));
 
   /* Get the MDL lock to prevent an ALTER or DROP command from interfering
   with this undo tablespace while it is being truncated. */
@@ -1556,7 +1037,8 @@ static bool trx_purge_truncate_marked_undo() {
       dd_tablespace_get_mdl(space_name.c_str(), &mdl_ticket, false);
 
 #ifdef UNIV_DEBUG
-  static undo::Inject_failure_once injector("ib_undo_trunc_fail_get_mdl");
+  static undo_truncate::Inject_failure_once injector(
+      "ib_undo_trunc_fail_get_mdl");
   if (injector.should_fail()) {
     dd_release_mdl(mdl_ticket);
     dd_result = DD_FAILURE;
@@ -1580,33 +1062,26 @@ static bool trx_purge_truncate_marked_undo() {
   }
 
   /* Serialize this truncate with all undo tablespace DDLs */
-  mutex_enter(&undo::ddl_mutex);
+  mutex_enter(&undo_truncate::ddl_mutex);
 
   if (!trx_purge_truncate_marked_undo_low(space_num, space_name)) {
-    mutex_exit(&undo::ddl_mutex);
+    mutex_exit(&undo_truncate::ddl_mutex);
     dd_release_mdl(mdl_ticket);
     MONITOR_INC_TIME(MONITOR_UNDO_TRUNCATE_MICROSECOND, counter_time_truncate);
     return (false);
   }
-
-  ut_d(undo::inject_crash("ib_undo_trunc_before_done_logging"));
-
-  undo::spaces->x_lock();
-  undo::done_logging(space_num);
-  undo::spaces->x_unlock();
-  MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_DONE_LOGGING_COUNT, 1);
 
   /* Truncate is complete. Now it is safe to re-use the tablespace. */
   ib::info(ER_IB_MSG_UNDO_TRUNCATE_COMPLETE, space_name.c_str());
 
   dd_release_mdl(mdl_ticket);
 
-  ut_d(undo::inject_crash("ib_undo_trunc_done"));
+  ut_d(undo_truncate::inject_crash("ib_undo_trunc_done"));
 
-  mutex_exit(&undo::ddl_mutex);
+  mutex_exit(&undo_truncate::ddl_mutex);
 
   MONITOR_INC_TIME(MONITOR_UNDO_TRUNCATE_MICROSECOND, counter_time_truncate);
-  return (true);
+  return true;
 }
 
 /** Removes unnecessary history data from rollback segments.
@@ -1634,11 +1109,11 @@ static void trx_purge_truncate_history(purge_iter_t *limit) {
   some time and we do not want an undo DDL to attempt an x_lock during
   this time.  If it did, all other transactions seeking a short s_lock()
   would line up behind it.  So get the ddl_mutex before this s_lock(). */
-  mutex_enter(&undo::ddl_mutex);
-  undo::spaces->s_lock();
-  for (auto undo_space : undo::spaces->m_spaces) {
+  mutex_enter(&undo_truncate::ddl_mutex);
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
     /* Skip undo tablespace that is already empty and marked for truncation. */
-    undo::Truncate &ut = purge_sys->undo_trunc;
+    undo_truncate::Truncate &ut = purge_sys->undo_trunc;
 
     if (ut.is_equal(undo_space->id()) && ut.is_marked() &&
         ut.is_marked_space_empty()) {
@@ -1654,8 +1129,8 @@ static void trx_purge_truncate_history(purge_iter_t *limit) {
     undo_space->rsegs()->s_unlock();
   }
 
-  undo::spaces->s_unlock();
-  mutex_exit(&undo::ddl_mutex);
+  undo_truncate::spaces->s_unlock();
+  mutex_exit(&undo_truncate::ddl_mutex);
 
   /* Purge rollback segments in the temporary tablespace. */
   trx_sys->tmp_rsegs.s_lock();
@@ -1675,7 +1150,7 @@ static void trx_purge_truncate_undo_spaces() {
 
   /* Truncate as many undo spaces as can be truncated.
   Break the loop and return whenever the process cannot be completed. */
-  for (size_t i = 0; i < undo::spaces->size(); ++i) {
+  for (size_t i = 0; i < undo_truncate::spaces->size(); ++i) {
     /* Check current activity and if conditions allow, mark the undo space that
     needs to be truncated. */
     if (!trx_purge_mark_undo_for_truncate(i)) {
@@ -2324,15 +1799,38 @@ static ulint trx_purge_dml_delay(void) {
   thread. */
   ulint delay = 0; /* in microseconds; default: no delay */
 
+  const ulong max_purge_lag = srv_max_purge_lag;
+  const ulong max_purge_lag_delay = srv_max_purge_lag_delay;
+  const ulong purge_threads = srv_n_purge_threads;
+  const ulong purge_batch_size = srv_purge_batch_size;
+  const auto rseg_history_len = trx_sys->rseg_history_len.load();
+  const auto purge_lag_rearm_threshold =
+      static_cast<ulint>(static_cast<ulonglong>(max_purge_lag) * 9 / 10);
+  const auto dml_delay_activation_threshold = std::max(
+      ulonglong{max_purge_lag}, ulonglong{purge_threads} * purge_batch_size);
+  const auto dml_delay_rearm_threshold =
+      static_cast<ulint>(dml_delay_activation_threshold * 9 / 10);
+
+  if (max_purge_lag > 0 && rseg_history_len > max_purge_lag) {
+    if (!srv_max_purge_lag_exceeded.exchange(true, std::memory_order_relaxed)) {
+      ib::warn(ER_IB_MSG_MAX_PURGE_LAG_EXCEEDED, ulonglong{rseg_history_len},
+               max_purge_lag);
+    }
+  } else if (max_purge_lag == 0 ||
+             rseg_history_len <= purge_lag_rearm_threshold) {
+    /* Re-arm after the purge lag has recovered by 10%, avoiding warning
+    churn when the history length hovers around the configured limit. */
+    srv_max_purge_lag_exceeded.store(false, std::memory_order_relaxed);
+  }
+
   /* If purge lag is set (ie. > 0) then calculate the new DML delay.
   Note: we do a dirty read of the trx_sys_t data structure here,
   without holding trx_sys->mutex. */
 
-  if (srv_max_purge_lag > 0 && trx_sys->rseg_history_len.load() >
-                                   srv_n_purge_threads * srv_purge_batch_size) {
+  if (max_purge_lag > 0 && rseg_history_len > dml_delay_activation_threshold) {
     float ratio;
 
-    ratio = float(trx_sys->rseg_history_len.load()) / srv_max_purge_lag;
+    ratio = float(rseg_history_len) / max_purge_lag;
 
     if (ratio > 1.0) {
       /* If the history list length exceeds the srv_max_purge_lag, the data
@@ -2340,11 +1838,23 @@ static ulint trx_purge_dml_delay(void) {
       delay = (ulint)((ratio - 0.9995) * 10000);
     }
 
-    if (delay > srv_max_purge_lag_delay) {
-      delay = srv_max_purge_lag_delay;
+    if (delay > max_purge_lag_delay) {
+      delay = max_purge_lag_delay;
     }
+  }
 
-    MONITOR_SET(MONITOR_DML_PURGE_DELAY, delay);
+  MONITOR_SET(MONITOR_DML_PURGE_DELAY, delay);
+
+  if (delay > 0) {
+    if (!srv_dml_purge_delay_active.exchange(true, std::memory_order_relaxed)) {
+      ib::warn(ER_IB_MSG_DML_PURGE_DELAY_STARTED, static_cast<ulong>(delay),
+               ulonglong{rseg_history_len}, max_purge_lag, max_purge_lag_delay);
+    }
+  } else if (max_purge_lag == 0 || max_purge_lag_delay == 0 ||
+             rseg_history_len <= dml_delay_rearm_threshold) {
+    /* Re-arm after the DML delay activation threshold has recovered by 10%,
+    avoiding warning churn when the history length hovers around that limit. */
+    srv_dml_purge_delay_active.store(false, std::memory_order_relaxed);
   }
 
   return (delay);
@@ -2380,7 +1890,6 @@ static void trx_purge_wait_for_workers_to_complete() {
 /** Remove old historical changes from the rollback segments. */
 static void trx_purge_truncate(void) {
   ut_ad(trx_purge_check_limit());
-
   if (purge_sys->limit.trx_no == 0) {
     trx_purge_truncate_history(&purge_sys->iter);
   } else {
@@ -2410,6 +1919,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
   ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
   trx_purge_update_oldest_needed();
+
   CONDITIONAL_SYNC_POINT("after_clone_oldest_view");
 #ifdef UNIV_DEBUG
   if (srv_purge_view_update_only_debug) {
@@ -2587,8 +2097,8 @@ void trx_purge_run() {
   srv_purge_wakeup();
 }
 
-/** Initialize the undo::Tablespaces object. */
-void undo::Tablespaces::init() {
+/** Initialize the undo_truncate::Tablespaces object. */
+void undo_truncate::Tablespaces::init() {
   /** Fix the size of the vector so that it will not do
   allocations for inserts. This way the contents can be
   read without using a latch. */
@@ -2602,8 +2112,8 @@ void undo::Tablespaces::init() {
   mutex_create(LATCH_ID_UNDO_DDL, &ddl_mutex);
 }
 
-/** De-initialize the undo::Tablespaces object. */
-void undo::Tablespaces::deinit() {
+/** De-initialize the undo_truncate::Tablespaces object. */
+void undo_truncate::Tablespaces::deinit() {
   clear();
 
   rw_lock_free(m_latch);
@@ -2612,12 +2122,7 @@ void undo::Tablespaces::deinit() {
   mutex_free(&ddl_mutex);
 }
 
-/** Add a new space_id to the back of the vector.
-The vector has been pre-allocated to 128 so read threads will
-not loose what is pointed to. If tablespace_name and file_name
-are standard names, they are optional.
-@param[in]      ref_undo_space  undo tablespace */
-void undo::Tablespaces::add(Tablespace &ref_undo_space) {
+void undo_truncate::Tablespaces::add(Tablespace &ref_undo_space) {
   ut_ad(is_reserved(ref_undo_space.id()));
 
   if (contains(ref_undo_space.num())) {
@@ -2630,9 +2135,7 @@ void undo::Tablespaces::add(Tablespace &ref_undo_space) {
   m_spaces.push_back(undo_space);
 }
 
-/** Drop an existing explicit undo::Tablespace.
-@param[in]      undo_space      pointer to undo space */
-void undo::Tablespaces::drop(Tablespace *undo_space) {
+void undo_truncate::Tablespaces::drop(Tablespace *undo_space) {
   ut_ad(is_reserved(undo_space->id()));
   ut_ad(contains(undo_space->num()));
 
@@ -2645,9 +2148,7 @@ void undo::Tablespaces::drop(Tablespace *undo_space) {
   }
 }
 
-/** Drop an existing explicit undo::Tablespace.
-@param[in]      ref_undo_space  reference to undo space */
-void undo::Tablespaces::drop(Tablespace &ref_undo_space) {
+void undo_truncate::Tablespaces::drop(Tablespace &ref_undo_space) {
   ut_ad(is_reserved(ref_undo_space.id()));
 
   for (auto it = m_spaces.begin(); it != m_spaces.end(); it++) {

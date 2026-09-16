@@ -36,8 +36,6 @@
 
 #include <openssl/evp.h>
 
-#include "openssl_version.h"
-
 /**
  * message digest.
  *
@@ -61,15 +59,9 @@ class Digest {
    *
    * initializes the digest function.
    */
-  Digest(Type type) : type_{type}, ctx_ {
-#if defined(OPENSSL_VERSION_NUMBER) && \
-    (OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0))
-    EVP_MD_CTX_new(), &EVP_MD_CTX_free
-#else
-    EVP_MD_CTX_create(), &EVP_MD_CTX_destroy
-#endif
+  Digest(Type type) : type_{type}, ctx_{EVP_MD_CTX_new(), &EVP_MD_CTX_free} {
+    reinit();
   }
-  { reinit(); }
 
   /**
    * initialize or reinitialize the message digest functions.
@@ -77,12 +69,7 @@ class Digest {
    * Allows reused of the Digest function without reallocating memory.
    */
   void reinit() {
-#if defined(OPENSSL_VERSION_NUMBER) && \
-    (OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0))
     EVP_MD_CTX_reset(ctx_.get());
-#else
-    EVP_MD_CTX_cleanup(ctx_.get());
-#endif
     EVP_DigestInit(ctx_.get(), Digest::get_evp_md(type_));
   }
 
@@ -165,15 +152,7 @@ class Digest {
     return nullptr;
   }
   Type type_;
-  std::unique_ptr<EVP_MD_CTX, decltype(
-#if defined(OPENSSL_VERSION_NUMBER) && \
-    (OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0))
-                                  &EVP_MD_CTX_free
-#else
-                                  &EVP_MD_CTX_destroy
-#endif
-                                  )>
-      ctx_;
+  std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> ctx_;
 };
 
 #endif

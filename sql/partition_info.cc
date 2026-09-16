@@ -298,6 +298,7 @@ bool partition_info::set_partition_bitmaps(Table_ref *table_list) {
   @param update_fields In case of ON DUPLICATE UPDATE, which fields to update
   @param fields        Listed fields
   @param empty_values  True if values is empty (only defaults)
+  @param insert_values List of value rows to be inserted
   @param[out] prune_needs_default_values  Set on return if copying of default
                                           values is needed
   @param[out] can_prune_partitions        Enum showing if possible to prune
@@ -313,6 +314,7 @@ bool partition_info::can_prune_insert(
     THD *thd, enum_duplicates duplic, COPY_INFO &update,
     const mem_root_deque<Item *> &update_fields,
     const mem_root_deque<Item *> &fields, bool empty_values,
+    const mem_root_deque<mem_root_deque<Item *> *> &insert_values,
     enum_can_prune *can_prune_partitions, bool *prune_needs_default_values,
     MY_BITMAP *used_partitions) {
   *can_prune_partitions = PRUNE_NO;
@@ -363,15 +365,65 @@ bool partition_info::can_prune_insert(
     }
   }
 
-  if (table->found_next_number_field) {
-    /*
-      If the field is used in the partitioning expression, we cannot prune.
-      TODO: If all rows have not null values and
-      is not 0 (with NO_AUTO_VALUE_ON_ZERO sql_mode), then pruning is possible!
-    */
-    if (bitmap_is_set(&full_part_field_set,
-                      table->found_next_number_field->field_index()))
-      return false;
+  /*
+    If the AUTO_INCREMENT field is used in the partitioning expression and is
+    not assigned a value in every row, we cannot prune since the value is then
+    generated at execution time. If every row supplies a non-NULL value that is
+    either non-zero, or zero with NO_AUTO_VALUE_ON_ZERO sql_mode, the value is
+    deterministic and pruning is possible.
+  */
+  if (table->found_next_number_field &&
+      bitmap_is_set(&full_part_field_set,
+                    table->found_next_number_field->field_index())) {
+    // Position of the autoinc column in each row of insert_values:
+    size_t autoinc_index;
+    if (fields.empty()) {
+      // INSERT VALUES (), all columns including autoinc need a default.
+      if (empty_values) return false;
+
+      // INSERT VALUES (expr_1, ...), ...
+      autoinc_index = table->found_next_number_field->field_index();
+    } else {
+      // INSERT (columns) VALUES ...
+      auto it = fields.begin();
+      while (it != fields.end()) {
+        const Item_field *const field = (*it)->field_for_view_update();
+        assert(field != nullptr && field->field->table == table);
+        if (field->field == table->found_next_number_field) break;
+        ++it;
+      }
+      /*
+        Autoinc column is not in the insert column list, so its value will be
+        generated at execution time.
+      */
+      if (it == fields.end()) return false;
+
+      autoinc_index = it - fields.begin();
+    }
+
+    for (const mem_root_deque<Item *> *values : insert_values) {
+      Item *const autoinc_value = (*values)[autoinc_index];
+      /*
+        If the autoinc value is NULL, or is zero and SQL mode is not
+        MODE_NO_AUTO_VALUE_ON_ZERO, the value will be generated at execution
+        time and we cannot prune. We require the value to be evaluable in the
+        current phase: literals during preparation, and additionally values
+        that are constant for one execution (e.g. statement parameters) once
+        execution has started. A value that is not yet evaluable defers the
+        decision to the execution-time call.
+
+        Exception: bare DEFAULT (Item_default_value with no argument) must be
+        rejected explicitly by type. It never binds a Field pointer, so the
+        inherited Item_field::is_null()/val_int() would dereference null; and
+        for an AUTO_INCREMENT column DEFAULT requests a generated value, so
+        pruning is not possible anyway.
+      */
+      if (autoinc_value->type() == Item::DEFAULT_VALUE_ITEM ||
+          !autoinc_value->may_evaluate_const(thd) || autoinc_value->is_null() ||
+          (autoinc_value->val_int() == 0 &&
+           !(thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)))
+        return false;
+    }
   }
 
   /*

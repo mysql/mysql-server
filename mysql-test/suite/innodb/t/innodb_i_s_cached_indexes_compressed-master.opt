@@ -1,0 +1,1 @@
+--innodb-buffer-pool-size=64M --innodb-change-buffering=none --innodb-lru-scan-depth=100

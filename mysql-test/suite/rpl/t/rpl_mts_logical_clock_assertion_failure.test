@@ -6,6 +6,8 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
+# This test is MTA-specific
+--source include/have_mta.inc
 --source include/rpl/init_source_replica.inc
 
 ################################################################################

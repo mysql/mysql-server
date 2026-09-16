@@ -1647,6 +1647,9 @@ class Item_func_nullif final : public Item_bool_func2 {
   longlong val_int() override;
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
+  bool val_date(Date_val *date, my_time_flags_t flags) override;
+  bool val_time(Time_val *time) override;
+  bool val_datetime(Datetime_val *dt, my_time_flags_t flags) override;
   bool val_json(Json_wrapper *wr) override;
   Item_result result_type() const override { return cached_result_type; }
   enum_field_types default_data_type() const override {

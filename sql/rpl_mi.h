@@ -285,6 +285,9 @@ class Master_info : public Rpl_info {
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
   char tls_version[FN_REFLEN];
+  bool force_pqc;
+  bool use_pqc_sign;
+  char tls_kex[FN_REFLEN];
   /*
     Ciphersuites used for TLS 1.3 communication with the master server.
     tls_ciphersuites = NULL means that TLS 1.3 default ciphersuites

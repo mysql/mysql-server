@@ -82,7 +82,6 @@ generated and assigned to the log.m_log_uuid (identifying the new log files).
                                 block in which flushed_lsn is located, and
                                 flushed_lsn should point right after this block
                                 header.
-
 @return DB_SUCCESS or error code */
 dberr_t log_files_create(log_t &log, lsn_t flushed_lsn);
 
@@ -144,11 +143,6 @@ changed. It is called when user requests to change innodb_redo_log_capacity
 in runtime.
 @param[in,out]  log  redo log */
 void log_files_resize_requested(log_t &log);
-
-/** Updates capacity limitations after srv_thread_concurrency has been changed.
-It is called when user requests to change innodb_thread_concurrency in runtime.
-@param[in,out]  log  redo log */
-void log_files_thread_concurrency_updated(log_t &log);
 
 /** Disallows to generate dummy redo records and waits until
 the log_files_governor thread promised not to generate them.

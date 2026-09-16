@@ -1,0 +1,37 @@
+# ==== PURPOSE ====
+#
+# This test checks the crash window after XA COMMIT or XA ROLLBACK has marked
+# the transaction cache entry finalized for SQL XA RECOVER, and before the
+# second-phase GTID is added to GTID_EXECUTED. After restart, XA RECOVER and
+# GTID_EXECUTED must be in sync when the replica runs with --skip-log-bin.
+#
+# ==== IMPLEMENTATION ====
+#
+# To reproduce and verify the issue, this test stops the applier at the
+# debug-sync point immediately after before-GTID-state-update actions run,
+# crashes the skip-log-bin replica, restarts it without starting replication,
+# and checks recovered XA and GTID state. It does this once for XA COMMIT
+# and once for XA ROLLBACK.
+#
+# Test steps:
+#
+# 1. Create a source-to-replica GTID topology with replica binary logging off.
+# 2. Prepare an XA transaction, then run XA COMMIT up to the crash window.
+# 3. Crash and restart the replica with the applier stopped.
+# 4. Repeat the same crash/recovery check for XA ROLLBACK.
+# 5. Let replication continue and clean up.
+#
+# Test pass conditions:
+#
+# - After recovery, XA RECOVER does not list the completed XID.
+# - Before statement cleanup, the completed XID remains reserved.
+# - After recovery, GTID_EXECUTED contains the recovered second-phase GTID.
+# - The committed row is present and the rolled-back row is absent.
+#
+# ==== REFERENCES ====
+#
+# BUG#36505659: XA RECOVER may list XID after GTID for XA COMMIT or
+#               XA ROLLBACK is visible
+#
+--let $replica_has_binlog = 0
+--source common/rpl/rpl_gtid_xa_second_phase_recover_after_gtid_action_crash.inc

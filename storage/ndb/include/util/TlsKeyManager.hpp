@@ -25,6 +25,8 @@
 #ifndef NDB_UTIL_TLS_KEY_MANAGER_H
 #define NDB_UTIL_TLS_KEY_MANAGER_H
 
+#include <atomic>
+
 #include "ndb_limits.h"  // MAX_NODES
 
 #include "portlib/NdbMutex.h"
@@ -34,14 +36,46 @@
 
 struct cert_table_entry {
   time_t expires;
+  time_t last_use;
   const char *name;
   const char *serial;
+  x509_st *cert;
+  unsigned short use_count;
+  unsigned short flags;
 };
 
 class ClientAuthorization;
 
 class TlsKeyManager {
  public:
+  /* Constants used as flags in cert_table_entry */
+  static constexpr unsigned short CA_IS_ROOT = 1;
+  static constexpr unsigned short CA_IN_TRUST_STORE = 2;
+  static constexpr unsigned short CA_IN_CERT_CHAIN = 4;
+
+  /* CA_Table allows a user to iterate trusted CAs using a range-based for loop.
+        TlsKeyManager t;
+        TlsKeyManager::CA_Table caTable(t);
+        for(cert_table_entry & cert : caTable) { ... }
+  */
+  class CA_Table {
+    const TlsKeyManager &tlsKeyManager;
+    cert_table_entry buffer;
+    int idx;
+
+   public:
+    // clang-format off
+    CA_Table(const TlsKeyManager & parent) : tlsKeyManager(parent) {}
+    CA_Table & begin()              { idx = 0; return *this; }
+    int end() const                 { return tlsKeyManager.m_trusted_certs; }
+    CA_Table & operator++()         { idx += 1; return *this; }
+    bool operator==(int j) const    { return idx == j; }
+    int id() const                  { return idx; }
+    cert_table_entry & operator*();
+    // clang-format on
+  };
+  friend class CA_Table;
+
   struct cert_record {
     static constexpr size_t SN_buf_len = 65;
     static constexpr size_t CN_buf_len = 65;
@@ -77,7 +111,7 @@ class TlsKeyManager {
   }
 
   /* Get SSL_CTX */
-  struct ssl_ctx_st *ctx() const { return m_ctx; }
+  struct ssl_ctx_st *ctx() const { return canUseTls ? m_ctx : nullptr; }
 
   /* Certificate table routines */
   void cert_table_set(int node_id, struct x509_st *);
@@ -151,7 +185,25 @@ class TlsKeyManager {
       /* indexed to NODE_TYPE_DB, NODE_TYPE_API, NODE_TYPE_MGM */
       Node::Type::DB, Node::Type::Client, Node::Type::MGMD};
 
+  void add_trusted_cert(x509_st *);
+  void add_trusted_cert(struct x509_store_st *, x509_st *,
+                        unsigned short flags);
+
  private:
+  static constexpr size_t CA_TABLE_SIZE = 8;
+  struct Trusted_CA {
+    cert_record record;
+    x509_st *cert{nullptr};
+    std::atomic<time_t> last_use;
+    std::atomic<unsigned short> use_count;
+    unsigned short flags;
+  } m_CA_table[CA_TABLE_SIZE];
+
+  bool canUseTls{false};
+
+  struct stack_st_X509 *m_trusted;
+  size_t m_trusted_certs{0};
+
   PkiFile::PathName m_key_file, m_cert_file;
   char *m_path_string{nullptr};
   TlsSearchPath *m_search_path{nullptr};

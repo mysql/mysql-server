@@ -2861,7 +2861,7 @@ void fts_optimize_sync_table(table_id_t table_id) {
 
   if (table) {
     if (dict_table_has_fts_index(table) && table->fts->cache) {
-      fts_sync_table(table, true, false, true);
+      fts_sync_table(table, true, false);
     }
 
     dd_table_close(table, thd, &mdl, false);

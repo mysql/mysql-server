@@ -57,8 +57,6 @@ Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
 void os_event_set(os_event_t event); /*!< in/out: event to set */
 
-bool os_event_try_set(os_event_t event);
-
 /**
 Check if the event is set.
 @return true if set */

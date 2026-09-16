@@ -24,10 +24,14 @@
 #ifndef PFS_H
 #define PFS_H
 
+#include <cstdint>
+
 /**
   @file storage/perfschema/pfs.h
   Performance schema instrumentation (declarations).
 */
+
+typedef std::uint64_t pfs_identity;
 
 void record_main_thread_id();
 

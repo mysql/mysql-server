@@ -20,7 +20,7 @@ GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 # TC2. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user
 #      doesn't have CREATE privilege on the active database.
 # -------------------------------------------------------------------
-CALL mtr.add_suppression(".CREATE command denied to user.");
+CALL mtr.add_suppression("Access denied for user.*to database.*");
 RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_SOURCE_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_SOURCE_LOG_POS;
@@ -29,9 +29,11 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA;
 [connection master]
+CREATE DATABASE db1;
+USE db1;
 CREATE TABLE t1 (c1 INT);
 [connection slave]
-include/rpl/wait_for_applier_error.inc [errno=1142]
+include/rpl/wait_for_applier_error.inc [errno=1044]
 include/rpl/stop_replica.inc
 GRANT CREATE ON *.* TO 'u1'@'localhost';
 include/rpl/start_replica.inc
@@ -83,6 +85,7 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_
 START REPLICA;
 [connection master]
 DROP TABLE t1;
+DROP DATABASE db1;
 include/rpl/sync_to_replica.inc
 include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';

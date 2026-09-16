@@ -50,6 +50,7 @@ int opt_port = 4400;
 int opt_last_test = INT16_MAX;
 const char *opt_cert_test_host = "www.kth.se";
 bool opt_cert_test = true;
+bool strict = false;
 
 static struct my_option options[] = {
     NdbStdOpt::help,
@@ -64,6 +65,8 @@ static struct my_option options[] = {
      "hostname with a stable set of addresses for testing bound certificates",
      &opt_cert_test_host, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+    {"strict", 's', "exit after first failed test", &strict, nullptr, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     NdbStdOpt::end_of_options};
 
 /* This is a reimplementation of TAP that supports opt_last_test */
@@ -96,6 +99,7 @@ void emit(bool p, const char *dir, const char *fmt, std::va_list ap) {
   line.replace_end_if_truncated("...");
   puts(line.c_str());
   if (globalTestInfo.run == opt_last_test) exit(exit_status());
+  if (strict && !p) exit(1);
 }
 
 void ok(bool p, const char *fmt, ...) {
@@ -144,9 +148,10 @@ class CertAuthority {
   X509 *CA_cert{nullptr};
 };
 
-int finish_node_cert(const Test::CertAuthority *ca, NodeCertificate *nc) {
+int finish_node_cert(const Test::CertAuthority *ca, NodeCertificate *nc,
+                     bool chain = true) {
   nc->create_keys("P-256");
-  return nc->finalise(ca->cert(), ca->key());
+  return nc->finalise(ca->cert(), ca->key(), chain);
 }
 
 class Cluster {
@@ -221,20 +226,22 @@ class Cluster {
    server writes one byte of application data over the connection, and the
    client reads it.
 */
-class Client : public SocketClient {
+class Client : public SocketClient, public TlsKeyManager {
  public:
-  Client(Test::Cluster *ndb, int id) {
+  Client(Test::Cluster *ndb, int id, X509 *trust = nullptr) {
     require(SocketClient::init(AF_INET));
     require(ndb->nc[id]);
-    m_keyManager.init(id, ndb->nc[id]);
-    m_ssl_ctx = m_keyManager.ctx();
+    if (trust) add_trusted_cert(trust);
+    TlsKeyManager::init(id, ndb->nc[id]);
+    m_ssl_ctx = ctx();
   }
-  Client(int id, STACK_OF(X509) * certs, EVP_PKEY *key) {
+  Client(int id, STACK_OF(X509) * certs, EVP_PKEY *key, X509 *trust = nullptr) {
     require(SocketClient::init(AF_INET));
-    m_keyManager.init(id, certs, key);
-    m_ssl_ctx = m_keyManager.ctx();
+    if (trust) add_trusted_cert(trust);
+    TlsKeyManager::init(id, certs, key);
+    m_ssl_ctx = ctx();
   }
-  Client(SSL_CTX *km) : m_ssl_ctx(km) {}
+  Client(SSL_CTX *ctx) : m_ssl_ctx(ctx) {}
 
   ~Client() {
     if (m_socket.is_valid()) m_socket.close();
@@ -242,7 +249,6 @@ class Client : public SocketClient {
   bool connect(int port, bool expectSuccess = true);
   bool connect(ndb_sockaddr &, bool);
 
-  TlsKeyManager m_keyManager;
   SSL_CTX *m_ssl_ctx;
   const char *required_host{nullptr};
   NdbSocket m_socket;
@@ -289,9 +295,7 @@ class Session : public SocketServer::Session {
 
  public:
   Session(NdbSocket &&socket, class Service *server)
-      : SocketServer::Session(m_socket),
-        m_server(server),
-        m_socket(std::move(socket)) {}
+      : m_server(server), m_socket(std::move(socket)) {}
   void runSession() override;
 };
 
@@ -333,8 +337,10 @@ class TestTlsKeyManager : public TlsKeyManager {
   ndb_sockaddr m_addr;
 
  public:
-  TestTlsKeyManager(Test::Cluster *ndb, int server_node_id, bool start = true)
+  TestTlsKeyManager(Test::Cluster *ndb, int server_node_id, bool start = true,
+                    X509 *trust = nullptr)
       : m_ndb(ndb), m_addr(opt_port + server_node_id) {
+    if (trust) add_trusted_cert(trust);
     init(server_node_id, m_ndb->nc[server_node_id]);
     if (start && ctx()) {
       auto *service = new Test::Service(*this);
@@ -554,6 +560,95 @@ void test_cluster_ca_self_signed(Test::CertAuthority &ca) {
   test_outside_certs(t, ca);
 }
 
+/* Auth depends on a root CA present in the trust store. */
+void trust_test_1(Test::CertAuthority &oldCa) {
+  Test::Cluster ndb;
+
+  Test::CertAuthority newCa("Trusted");
+  newCa.sign(newCa);
+
+  /* Server, signed by old CA, also trusts new CA */
+  finish_node_cert(&oldCa, ndb.nc[145]);  // mgm server
+  TestTlsKeyManager t(&ndb, 145, true, newCa.cert());
+
+  /* Client, signed by new CA, also trusts old CA */
+  finish_node_cert(&newCa, ndb.nc[200]);
+  Test::Client client(&ndb, 200, oldCa.cert());
+
+  ok(t.test_connect_ok(client), "Client connects using trust store");
+}
+
+/* Auth depends on a root CA present in the trust store, via an unknown
+   intermediate CA.
+
+   Root1 signs Intermediate1 signs server cert
+   Root2 signs Intermediate2 signs client cert
+*/
+void trust_test_2(Test::CertAuthority &root1Ca) {
+  Test::CertAuthority root2Ca("Root-2");
+  Test::CertAuthority inter1Ca("Intermediate-1");
+  Test::CertAuthority inter2Ca("Intermediate-2");
+
+  root2Ca.sign(root2Ca);
+  root1Ca.sign(inter1Ca);
+  root2Ca.sign(inter2Ca);
+
+  Test::Cluster ndb;
+
+  {
+    /*              Client             Server
+                    ------             ------
+                    Entity cert        Entity cert
+      Chained:      Int2 & Root2       Intermediate1 & Root1
+      Trust store:  Root1              Root2
+    */
+    /* Server */
+    finish_node_cert(&inter1Ca, ndb.nc[145]);
+    ndb.nc[145]->push_extra_ca_cert(root1Ca.cert());
+    TestTlsKeyManager t(&ndb, 145, true, root2Ca.cert());
+
+    /* Client */
+    finish_node_cert(&inter2Ca, ndb.nc[200]);
+    ndb.nc[200]->push_extra_ca_cert(root2Ca.cert());
+    Test::Client client(&ndb, 200, root1Ca.cert());
+
+    ok(t.test_connect_ok(client), "Unknown intermediates and trusted roots");
+  }
+
+  {
+    /*              Client             Server
+                    ------             ------
+                    Entity cert        Entity cert
+     Chained:       Intermediate2      Intermediate1
+                    Root2              Root1
+     Trust store:   Intermediate1      Intermediate2
+    */
+
+    /* Server */
+    finish_node_cert(&inter1Ca, ndb.nc[1]);
+    require(ndb.nc[1]->push_extra_ca_cert(root1Ca.cert()));
+    TestTlsKeyManager t(&ndb, 1, true, inter2Ca.cert());
+
+    TlsKeyManager::CA_Table table(t);
+    for (cert_table_entry &cert : table)
+      printf("Name:%s, Flags: %hu \n", cert.name, cert.flags);
+
+    /* Client */
+    finish_node_cert(&inter2Ca, ndb.nc[151]);
+    require(ndb.nc[151]->push_extra_ca_cert(root2Ca.cert()));
+    Test::Client client(&ndb, 151, inter1Ca.cert());
+
+    ok(t.test_connect_ok(client), "Trusted intermediates & unknown roots");
+  }
+}
+
+void test_trust_store(Test::CertAuthority &ca) {
+  printf("\nTesting trust store:\n");
+
+  trust_test_1(ca);
+  trust_test_2(ca);
+}
+
 // Run basic tests.
 // In this test the cluster CA is not self-signed. Each node certificate
 // requires the whole chain back to the root.
@@ -613,15 +708,18 @@ void test_old_and_new_ca(Test::CertAuthority &oldCa) {
   ndb.nc[2]->push_extra_ca_cert(oldCa.cert());
   ndb.nc[153]->push_extra_ca_cert(oldCa.cert());
 
-  TestTlsKeyManager t1(&ndb, 1);
-  TestTlsKeyManager t2(&ndb, 2);
-
-  ok(t1.test_connect_ok(2), "      2 connecting to 1");
-  ok(t1.test_connect_ok(151), "    151 connecting to 1");
-  ok(t1.test_connect_ok(153), "    153 connecting to 1");
-  ok(t2.test_connect_ok(1), "      1 connecting to 2");
-  ok(t2.test_connect_ok(151), "    151 connecting to 2");
-  ok(t2.test_connect_ok(153), "    153 connecting to 2");
+  {
+    TestTlsKeyManager t1(&ndb, 1);
+    ok(t1.test_connect_ok(2), "      2 connecting to 1");
+    ok(t1.test_connect_ok(151), "    151 connecting to 1");
+    ok(t1.test_connect_ok(153), "    153 connecting to 1");
+  }
+  {
+    TestTlsKeyManager t2(&ndb, 2);
+    ok(t2.test_connect_ok(1), "      1 connecting to 2");
+    ok(t2.test_connect_ok(151), "    151 connecting to 2");
+    ok(t2.test_connect_ok(153), "    153 connecting to 2");
+  }
 }
 
 void test_secondary_auth(Test::CertAuthority &ca) {
@@ -753,8 +851,6 @@ int main(int argc, char **argv) {
   int r = opts.handle_options();
   if (r) return r;
 
-#if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL
-
   Test::CertAuthority ca;
   ca.sign(ca);  // self-signed
 
@@ -778,11 +874,7 @@ int main(int argc, char **argv) {
 
   test_key_replace(ca);
 
-#else
-
-  printf("Test disabled: OpenSSL version too old.\n");
-
-#endif
+  test_trust_store(ca);
 
   ndb_end(0);
   return exit_status();

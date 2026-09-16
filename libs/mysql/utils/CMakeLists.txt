@@ -28,13 +28,16 @@ SET(TARGET_HEADERS
   deprecate_header.h
   enumeration_utils.h
   error.h
+  error_metadata.h
   forward_like.h
   is_same_object.h
+  is_specialization.h
   return_status.h
   tuple_find.h
 )
 
 SET(TARGET_SRCS
+  error_metadata.cpp
 )
 
 

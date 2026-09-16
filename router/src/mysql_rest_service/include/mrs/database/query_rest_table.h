@@ -27,6 +27,7 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_QUERY_H_
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -114,6 +115,41 @@ class QueryRestTable : protected Query {
 
   void extend_where(mysqlrouter::sqlstring &where,
                     const FilterObjectGenerator &fog);
+};
+
+class QueryRestTableMedia : public QueryRestTable {
+ public:
+  using Column = entry::Column;
+
+  explicit QueryRestTableMedia(uint64_t max_execution_time_ms = 0)
+      : QueryRestTable(nullptr, false, false, max_execution_time_ms) {}
+
+  void query_media_entries(MySQLSession *session,
+                           std::shared_ptr<database::entry::Object> object,
+                           const Column &column, const uint64_t offset,
+                           const uint64_t limit,
+                           const ObjectRowOwnership &row_ownership = {},
+                           const FilterObjectGenerator &fog = {});
+
+  void query_entry(MySQLSession *session,
+                   std::shared_ptr<database::entry::Object> object,
+                   const Column &column, const PrimaryKeyColumnValues &pk,
+                   const ObjectRowOwnership &row_ownership = {},
+                   const FilterObjectGenerator &fog = {});
+
+  std::optional<std::string> media_response;
+
+ private:
+  void on_row(const ResultRow &r) override;
+
+  void build_query(const Column &column, const uint64_t offset,
+                   const uint64_t limit,
+                   const ObjectRowOwnership &row_ownership,
+                   const FilterObjectGenerator &fog);
+
+  void build_query(const Column &column, const PrimaryKeyColumnValues &pk,
+                   const ObjectRowOwnership &row_ownership,
+                   const FilterObjectGenerator &fog);
 };
 
 }  // namespace database

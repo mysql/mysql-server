@@ -148,3 +148,14 @@ bool Owned_gtids::is_owned_by(const Gtid &gtid,
   }
   return false;
 }
+
+bool Owned_gtids::has_owner(const Gtid &gtid, const my_thread_id thd_id) const {
+  malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>> *hash =
+      get_hash(gtid.sidno);
+  auto it_range = hash->equal_range(gtid.gno);
+
+  for (auto it = it_range.first; it != it_range.second; ++it) {
+    if (it->second->owner == thd_id) return true;
+  }
+  return false;
+}

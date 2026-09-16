@@ -42,55 +42,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace log_pre_8_0_30 {
 
-static os_offset_t compute_size_offset(os_offset_t file_size,
-                                       os_offset_t real_offset) {
-  const auto files_before = real_offset / file_size;
-  return real_offset - LOG_FILE_HDR_SIZE * (1 + files_before);
-}
-
-static os_offset_t compute_real_offset(os_offset_t file_size,
-                                       os_offset_t size_offset) {
-  const auto files_before = size_offset / (file_size - LOG_FILE_HDR_SIZE);
-  return size_offset + LOG_FILE_HDR_SIZE * (1 + files_before);
-}
-
-os_offset_t compute_real_offset_for_lsn(size_t n_files, os_offset_t file_size,
-                                        lsn_t some_file_lsn,
-                                        os_offset_t some_file_offset,
-                                        lsn_t requested_lsn) {
-  os_offset_t size_offset;
-  os_offset_t size_capacity;
-  os_offset_t delta;
-
-  size_capacity = n_files * (file_size - LOG_FILE_HDR_SIZE);
-
-  if (requested_lsn >= some_file_lsn) {
-    delta = requested_lsn - some_file_lsn;
-    delta = delta % size_capacity;
-  } else {
-    /* Special case because lsn and offset are unsigned. */
-    delta = some_file_lsn - requested_lsn;
-    delta = size_capacity - delta % size_capacity;
-  }
-
-  size_offset = compute_size_offset(file_size, some_file_offset);
-  size_offset = (size_offset + delta) % size_capacity;
-
-  return compute_real_offset(file_size, size_offset);
-}
-
-bool checkpoint_header_deserialize(const byte *buf, Checkpoint_header &header) {
-  header.m_checkpoint_no = mach_read_from_8(buf + FIELD_CHECKPOINT_NO);
-
-  header.m_checkpoint_lsn = mach_read_from_8(buf + FIELD_CHECKPOINT_LSN);
-
-  header.m_checkpoint_offset = mach_read_from_8(buf + FIELD_CHECKPOINT_OFFSET);
-
-  header.m_log_buf_size = mach_read_from_8(buf + FIELD_CHECKPOINT_LOG_BUF_SIZE);
-
-  return log_header_checksum_is_ok(buf);
-}
-
 std::string file_name(Log_file_id file_id) {
   ut_a(file_id <= FILE_MAX_ID);
   std::ostringstream str;

@@ -2226,19 +2226,16 @@ void Clone_Handle::set_abort() {
 int Clone_Handle::open_file(Clone_Task *task, const Clone_file_ctx *file_ctx,
                             ulint file_type, bool create_file,
                             File_init_cbk &init_cbk) {
-  os_file_type_t type;
-  bool exists;
   std::string file_name;
-
   file_ctx->get_file_name(file_name);
 
   /* Check if file exists */
-  auto status = os_file_status(file_name.c_str(), &exists, &type);
-
-  if (!status) {
+  const auto type = os_file_type(file_name.c_str());
+  if (!os_file_status_is_conclusive(type)) {
     return (0);
   }
 
+  const bool exists = os_file_exists(type);
   ulint option;
   bool read_only;
 

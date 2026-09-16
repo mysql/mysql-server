@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <algorithm>
 
 #include "clone0clone.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0sysspace.h"
 #include "fut0lst.h"
 #include "log0chkp.h"
@@ -303,7 +304,7 @@ static trx_rseg_t *trx_rseg_physical_initialize(trx_rseg_t *rseg,
       mutex is needed here. */
       ut_ad(srv_is_being_started);
 
-      ut_ad(undo::is_reserved(rseg->space_id));
+      ut_ad(undo_truncate::is_reserved(rseg->space_id));
 
       mutex_enter(&purge_sys->pq_mutex);
       purge_queue->push(std::move(elem));
@@ -316,11 +317,6 @@ static trx_rseg_t *trx_rseg_physical_initialize(trx_rseg_t *rseg,
   return (rseg);
 }
 
-/** Return a page number from a slot in the rseg_array page of an
-undo tablespace.
-@param[in]      space_id        undo tablespace ID
-@param[in]      rseg_id         rollback segment ID
-@return page_no Page number of the rollback segment header page */
 page_no_t trx_rseg_get_page_no(space_id_t space_id, ulint rseg_id) {
   mtr_t mtr;
   mtr.start();
@@ -436,7 +432,7 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
       mutex is needed here. */
       ut_ad(srv_is_being_started);
 
-      ut_ad(undo::is_reserved(rseg->space_id));
+      ut_ad(undo_truncate::is_reserved(rseg->space_id));
 
       purge_queue->push(elem);
     }
@@ -463,8 +459,8 @@ void trx_rsegs_init_start(purge_pq_t *purge_queue) {
 
   mtr_t mtr;
 
-  undo::spaces->s_lock();
-  for (auto undo_space : undo::spaces->m_spaces) {
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
     /* Remember the size of the purge queue before processing this
     undo tablespace. */
     size_t purge_queue_size = purge_queue->size();
@@ -508,7 +504,7 @@ void trx_rsegs_init_start(purge_pq_t *purge_queue) {
       }
     }
   }
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 }
 
 void trx_rsegs_init_end() {
@@ -593,8 +589,9 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
   gtid_persistor.set_oldest_trx_no_recovery(gtid_trx_no);
 
-  undo::spaces->s_lock();
-  for (auto undo_space : undo::spaces->m_spaces) {
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
     /* Remember the size of the purge queue before processing this
     undo tablespace. */
     const size_t purge_queue_size = purge_queue->size();
@@ -637,14 +634,18 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
       }
     }
   }
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 }
 
 page_no_t trx_rseg_create(space_id_t space_id, ulint rseg_id) {
   mtr_t mtr;
   fil_space_t *space = fil_space_get(space_id);
 
-  log_free_check();
+  /* Temporary tablespace doesn't require redo logging.
+  There is no need to check for space in the redo log. */
+  if (!fsp_is_system_temporary(space_id)) {
+    log_free_check();
+  }
 
   mtr_start(&mtr);
 
@@ -788,7 +789,10 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
     }
 
     if (page_no == FIL_NULL) {
-      /* Create the missing rollback segment if allowed. */
+      /* Create the missing rollback segment in the undo space if allowed -
+      either if it is a temporary space that doesn’t require redo logging,
+      or if the space requires redo logging and InnoDB is in a state that
+      permits it. */
       if (type == TEMP || (!srv_read_only_mode && srv_force_recovery == 0)) {
         page_no = trx_rseg_create(space_id, rseg_id);
         if (page_no == FIL_NULL) {
@@ -835,7 +839,7 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
   std::ostringstream loc;
   switch (type) {
     case UNDO:
-      loc << "undo tablespace number " << undo::id2num(space_id);
+      loc << "undo tablespace number " << undo_truncate::id2num(space_id);
       break;
     case TEMP:
       loc << "the temporary tablespace";
@@ -927,22 +931,22 @@ bool trx_rseg_adjust_rollback_segments(ulong target_rollback_segments) {
   /* Adjust the number of rollback segments in each Undo Tablespace
   whether or not it is currently active. If rollback segments are written
   to the tablespace, they will be checkpointed. But we cannot hold
-  undo::spaces->s_lock while doing a checkpoint because of latch order
+  undo_truncate::spaces->s_lock while doing a checkpoint because of latch order
   violation.  So traverse the list by ID. */
-  undo::spaces->s_lock();
-  for (auto undo_space : undo::spaces->m_spaces) {
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
     if (!trx_rseg_add_rollback_segments(
             undo_space->id(), target_rollback_segments, undo_space->rsegs(),
             &n_total_created)) {
-      undo::spaces->s_unlock();
+      undo_truncate::spaces->s_unlock();
       return (false);
     }
   }
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
   /* Make sure these rollback segments are checkpointed. */
   if (n_total_created > 0 && !srv_read_only_mode && srv_force_recovery == 0) {
-    log_make_latest_checkpoint();
+    pages_persistence->request_sharp_checkpoint();
   }
 
   return (true);
@@ -959,10 +963,11 @@ bool trx_rseg_init_rollback_segments(space_id_t space_id,
   /** The number of rollback segments created in the datafile. */
   ulint n_total_created = 0;
 
-  undo::spaces->s_lock();
-  space_id_t space_num = undo::id2num(space_id);
-  undo::Tablespace *undo_space = undo::spaces->find(space_num);
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+  space_id_t space_num = undo_truncate::id2num(space_id);
+  undo_truncate::Tablespace *undo_space =
+      undo_truncate::spaces->find(space_num);
+  undo_truncate::spaces->s_unlock();
 
   if (!trx_rseg_add_rollback_segments(space_id, target_rollback_segments,
                                       undo_space->rsegs(), &n_total_created)) {

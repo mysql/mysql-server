@@ -75,6 +75,11 @@ class Histogram_sampler {
   @return DB_SUCCESS or error code. */
   dberr_t run();
 
+  /** @return the number of global parallel-read slots reserved. */
+  [[nodiscard]] size_t max_threads() const {
+    return m_parallel_reader.max_threads();
+  }
+
   /** Check if the processing of the record needs to be skipped.
   In case of record belonging to non-leaf page, we decide if the child page
   pertaining to the record needs to be skipped.

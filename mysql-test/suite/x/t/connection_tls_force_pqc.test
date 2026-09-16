@@ -1,0 +1,151 @@
+--source include/no_valgrind_without_big.inc
+--source include/have_tlsv13.inc
+
+--let $openssl_binary_version=OpenSSL (3\.[5-9]|3\.[1-9][0-9]|[4-9][0-9]*)\.
+--source include/have_openssl_binary_version.inc
+
+--let $xplugin_disable_ssl_for_x_at_client_side=1
+--let $xplugin_cache_x_root=1
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([-0-9]*\\)'");
+call mtr.add_suppression("Plugin mysqlx reported: '[-0-9]*: Error during SSL handshake'");
+
+--let $xtest_file= $MYSQL_TMP_DIR/connection_mysqlx_force_pqc.xpl
+--write_file $xtest_file
+-->quiet
+-->sql
+SHOW STATUS LIKE 'Mysqlx_ssl_version';
+-->endsql
+EOF
+
+--let $restart_parameters = restart: --mysqlx-force-pqc=ON
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+SELECT @@GLOBAL.mysqlx_force_pqc;
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'Mysqlx_force_pqc';
+
+--exec $MYSQLXTEST -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.3 --file=$xtest_file 2>&1
+--replace_regex /error:[0-9A-F]+:SSL routines:[^:]*:tlsv1 alert protocol version/TLS version is invalid/ /error:[0-9A-F]+:SSL routines::tlsv1 alert protocol version/TLS version is invalid/
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.2 --sql "SELECT 1" 2>&1
+
+--source include/save_error_log_position.inc
+--let $restart_parameters = restart: --tls-version=TLSv1.2 --mysqlx-force-pqc=ON
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+SELECT @@GLOBAL.mysqlx_force_pqc;
+SELECT @@GLOBAL.tls_version;
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'Mysqlx_force_pqc';
+
+--let $error_pattern=Plugin mysqlx reported: 'mysqlx_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but tls_version=TLSv1.2 disables TLSv1.3; setting mysqlx_force_pqc=OFF'
+--source include/assert_error_log.inc
+
+--exec $MYSQLXTEST -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.2 --file=$xtest_file 2>&1
+
+--source include/save_error_log_position.inc
+--let $restart_parameters = restart:
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+--let $error_pattern=TLS channel 'mysqlx' is not configured to require post-quantum key exchange algorithms; future TLS sessions may use a non-post-quantum key exchange algorithm because force_pqc is disabled
+--let $messages= $error_pattern
+--let $suppress_mode= IGNORE_GLOBAL_SUPPRESSIONS
+--let $suppress_silent= 1
+--source include/suppress_messages.inc
+--let $messages=
+--let $suppress_mode=
+--let $suppress_silent=
+--source include/assert_error_log.inc
+
+--source ../include/xplugin_wait_for_connection_closure.inc
+
+--echo Runtime rejects read-only X Plugin tls_kex
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL mysqlx_tls_kex = 'X25519MLKEM768';
+
+--echo Runtime rejects read-only X Plugin use_pqc_sign
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL mysqlx_use_pqc_sign = ON;
+
+--echo X Plugin falls back to server PQC variables when mysqlx PQC variables are defaults
+--let $restart_parameters = restart: --tls-version=TLSv1.3 --tls-kex=X25519MLKEM768 --force-pqc=ON --use-pqc-sign=ON
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+SELECT @@GLOBAL.mysqlx_tls_kex = '' AS mysqlx_tls_kex_default,
+       @@GLOBAL.mysqlx_force_pqc AS mysqlx_force_pqc,
+       @@GLOBAL.mysqlx_use_pqc_sign AS mysqlx_use_pqc_sign;
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME IN ('Mysqlx_tls_kex', 'Mysqlx_force_pqc',
+                        'Mysqlx_use_pqc_sign')
+ORDER BY VARIABLE_NAME;
+--exec $MYSQLXTEST -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.3 --file=$xtest_file 2>&1
+--replace_regex /error:[0-9A-F]+:SSL routines:[^:]*:tlsv1 alert protocol version/TLS version is invalid/ /error:[0-9A-F]+:SSL routines::tlsv1 alert protocol version/TLS version is invalid/
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.2 --sql "SELECT 1" 2>&1
+
+--echo X Plugin starts with configured PQC tls_kex and use_pqc_sign enabled
+--let $restart_parameters = restart: --mysqlx-tls-kex=X25519MLKEM768 --mysqlx-use-pqc-sign=ON
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+SELECT @@GLOBAL.mysqlx_tls_kex = 'X25519MLKEM768' AS mysqlx_tls_kex_configured,
+       @@GLOBAL.mysqlx_use_pqc_sign AS mysqlx_use_pqc_sign_enabled;
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME IN ('Mysqlx_tls_kex', 'Mysqlx_force_pqc',
+                        'Mysqlx_use_pqc_sign')
+ORDER BY VARIABLE_NAME;
+--exec $MYSQLXTEST -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.3 --file=$xtest_file 2>&1
+--source ../include/xplugin_wait_for_connection_closure.inc
+
+--let $restart_parameters = restart:
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+--source ../include/xplugin_wait_for_connection_closure.inc
+--exec $MYSQLXTEST -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.2 --file=$xtest_file 2>&1
+
+--echo Runtime rejects read-only mysqlx_force_pqc
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL mysqlx_force_pqc = ON;
+SELECT @@GLOBAL.mysqlx_force_pqc AS mysqlx_force_pqc;
+--exec $MYSQLXTEST -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.2 --file=$xtest_file 2>&1
+
+--source ../include/xplugin_wait_for_connection_closure.inc
+--let $restart_parameters = restart: --mysqlx-force-pqc=ON
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+SELECT @@GLOBAL.mysqlx_force_pqc;
+
+--echo Runtime rejects read-only mysqlx_tls_kex when mysqlx_force_pqc=ON
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL mysqlx_tls_kex = 'X25519';
+
+--exec $MYSQLXTEST -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.3 --file=$xtest_file 2>&1
+--replace_regex /error:[0-9A-F]+:SSL routines:[^:]*:tlsv1 alert protocol version/TLS version is invalid/ /error:[0-9A-F]+:SSL routines::tlsv1 alert protocol version/TLS version is invalid/
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR -u x_root --password='' --ssl-mode=REQUIRED --tls-version=TLSv1.2 --sql "SELECT 1" 2>&1
+
+--let $restart_parameters = restart:
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--disable_query_log
+--eval DELETE FROM mtr.test_ignored_global_suppressions WHERE pattern = "$error_pattern"
+--enable_query_log
+
+--echo X Plugin PQC variables are persistable with PERSIST_ONLY
+SET PERSIST_ONLY mysqlx_force_pqc = ON;
+SET PERSIST_ONLY mysqlx_tls_kex = 'X25519MLKEM768';
+SET PERSIST_ONLY mysqlx_use_pqc_sign = ON;
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.persisted_variables
+WHERE VARIABLE_NAME IN ('mysqlx_force_pqc', 'mysqlx_tls_kex',
+                        'mysqlx_use_pqc_sign')
+ORDER BY VARIABLE_NAME;
+SELECT @@GLOBAL.mysqlx_force_pqc AS mysqlx_force_pqc,
+       @@GLOBAL.mysqlx_tls_kex = '' AS mysqlx_tls_kex_default,
+       @@GLOBAL.mysqlx_use_pqc_sign AS mysqlx_use_pqc_sign;
+RESET PERSIST mysqlx_force_pqc;
+RESET PERSIST mysqlx_tls_kex;
+RESET PERSIST mysqlx_use_pqc_sign;
+
+--source ../include/xplugin_cleanup.inc

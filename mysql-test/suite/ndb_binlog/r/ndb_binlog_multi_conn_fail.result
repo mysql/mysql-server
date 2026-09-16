@@ -1,0 +1,586 @@
+call mtr.add_suppression("cluster disconnect An incident event has been written");
+Determine which nodeid each connection uses
+create table t1 (a int) engine=ndb;
+Test 1 : Show main connection activity unaffected
+by failures of secondary connections
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce non-main connections
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Test 2 : Show secondary conn2
+unaffected by failure of secondary
+conn3
+Connection 2 (nodeid 32)
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (3 / 63)
+Sending dump signal with data:
+0x00000384 0x0000003f 
+Sending dump signal with data:
+0x00000384 0x0000003f 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Test 3 : Show secondary conn3
+unaffected by failure of secondary
+conn2
+Connection 3 (nodeid 63)
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Bounce other connection (2 / 32)
+Sending dump signal with data:
+0x00000384 0x00000020 
+Sending dump signal with data:
+0x00000384 0x00000020 
+
+Show query successful
+select * from t1 LIMIT 1;
+a
+1
+Show dml successful
+insert into t1 values (1);
+Show DDL successful
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Test 4 : Show main connection
+failure affects all connections
+but not in a permanent way
+Main : Main
+Bounce main connection (1 / 49)
+Sending dump signal with data:
+0x00000384 0x00000031 
+Sending dump signal with data:
+0x00000384 0x00000031 
+
+Show query fails
+select * from t1 LIMIT 1;
+Got one of the listed errors
+Show dml fails
+insert into t1 values (1);
+Got one of the listed errors
+Show DDL fails
+create table test.t2 (a int primary key) engine=ndb;
+Got one of the listed errors
+Main : 2
+Bounce main connection (1 / 49)
+Sending dump signal with data:
+0x00000384 0x00000031 
+Sending dump signal with data:
+0x00000384 0x00000031 
+
+Query will fail during BI reinit
+select * from t1 LIMIT 1;
+Got one of the listed errors
+DML will fail during BI reinit
+insert into t1 values (1);
+Got one of the listed errors
+Show DDL fails
+create table test.t2 (a int primary key) engine=ndb;
+Got one of the listed errors
+Main : 3
+Bounce main connection (1 / 49)
+Sending dump signal with data:
+0x00000384 0x00000031 
+Sending dump signal with data:
+0x00000384 0x00000031 
+
+Query will fail during BI reinit
+select * from t1 LIMIT 1;
+Got one of the listed errors
+DML will fail during BI reinit
+insert into t1 values (1);
+Got one of the listed errors
+Show DDL fails
+create table test.t2 (a int primary key) engine=ndb;
+Got one of the listed errors
+Show all working again
+Main
+select * from t1 LIMIT 1;
+a
+1
+insert into t1 values (1);
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Conn 2
+select * from t1 LIMIT 1;
+a
+1
+insert into t1 values (1);
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+Conn 3
+select * from t1 LIMIT 1;
+a
+1
+insert into t1 values (1);
+create table test.t2 (a int primary key) engine=ndb;
+drop table test.t2;
+drop table t1;

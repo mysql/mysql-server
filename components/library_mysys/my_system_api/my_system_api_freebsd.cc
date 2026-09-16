@@ -31,7 +31,7 @@
 #include "my_system_api.h"
 
 /**
-  @file components/library_mysys/my_system_api/my_system_api_apple.cc
+  @file components/library_mysys/my_system_api/my_system_api_freebsd.cc
   Functions to fetch the number of VCPUs from the system. APIs retrieve this
   information using the affinity between the process and the VCPU or by reading
   the system configuration

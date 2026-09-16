@@ -30,6 +30,7 @@
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
 #include <ctime>
+#include <optional>
 #include "portlib/ndb_compiler.h"
 
 #define MAX_LOG_MESSAGE_SIZE 1024
@@ -149,6 +150,11 @@ class Logger {
     LL_ALL,
     LL_UNDEFINED_LEVEL = 255
   };
+  static constexpr std::optional<LoggerLevel> to_enum_LoggerLevel(int level) {
+    // Treat LL_UNDEFINED_LEVEL as invalid only needed for LogHandler::append
+    if (level < LL_ON || level > LL_ALL) return {};
+    return static_cast<LoggerLevel>(level);
+  }
 
   /**
    * String representation of the the log levels.

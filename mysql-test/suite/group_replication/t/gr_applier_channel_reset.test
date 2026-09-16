@@ -61,6 +61,7 @@ RESET BINARY LOGS AND GTIDS;
 # C. The applier fails and its initialization processes catches the error.
 #    During the start, it is known that the applier failed so the START
 #    GROUP_REPLICATION fails with: ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error 0, ER_GROUP_REPLICATION_CONFIGURATION, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 

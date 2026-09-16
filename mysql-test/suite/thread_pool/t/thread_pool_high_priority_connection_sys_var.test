@@ -1,0 +1,11 @@
+--echo #
+--echo #
+--echo # Bug 16310373 - THREAD_POOL_HIGH_PRIORITY_CONNECTION IS NOT
+--echo # RECOGNIZED A CONFIGURATION OPTION
+--echo #
+--echo #
+
+SELECT @@GLOBAL.thread_pool_high_priority_connection;
+--echo 1 Expected
+
+--echo # End of test

@@ -2519,6 +2519,42 @@ int runTestSetLogFilter(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+static bool test_set_logfilter(NdbMgmd &mgmd, int level, int value,
+                               const char *expected_result) {
+  Properties args;
+  Properties reply;
+
+  g_info << "test_set_logfilter: set logfilter, level: " << level
+         << ", enable: " << value << endl;
+
+  args.put("level", level);
+  args.put("enable", value);
+  if (!mgmd.call("set logfilter", args, "set logfilter reply", reply)) {
+    g_err << "test_set_logfilter: mgmd.call failed for set logfilter for level "
+          << level << endl;
+    return false;
+  }
+  const char *result = get_result(reply);
+  if (strcmp(result, expected_result) != 0) {
+    g_err << "test_set_logfilter: failed, got result '" << result
+          << "' expected '" << expected_result << "' for level " << level << "."
+          << endl;
+    return false;
+  }
+  return true;
+}
+
+static int runTestFailSetLogFilter(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbMgmd mgmd;
+  if (!mgmd.connect()) return NDBT_FAILED;
+  if (!test_set_logfilter(mgmd, -1, 0, "Invalid level: 4294967295"))
+    return NDBT_FAILED;
+  if (!test_set_logfilter(mgmd, NDB_MGM_EVENT_SEVERITY_ALL + 1, 0,
+                          "Invalid level: 8"))
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
 int runTestBug40922(NDBT_Context *ctx, NDBT_Step *step) {
   NdbMgmd mgmd;
 
@@ -3425,6 +3461,10 @@ TESTCASE("TestConnectionParameter", "Test 'get/set connection parameter'") {
 }
 TESTCASE("TestSetLogFilter", "Test 'set logfilter' and 'get info clusterlog'") {
   INITIALIZER(runTestSetLogFilter);
+}
+TESTCASE("TestFailSetLogFilter",
+         "Test that 'set logfilter' command fails for bad level") {
+  STEP(runTestFailSetLogFilter);
 }
 #ifdef NOT_YET
 TESTCASE("TestRestartMgmd", "Test restart of ndb_mgmd(s)") {

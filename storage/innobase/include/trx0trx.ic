@@ -31,8 +31,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 3/26/1996 Heikki Tuuri
  *******************************************************/
 
-#include "read0read.h"
-
 static inline bool trx_state_eq(const trx_t *trx, trx_state_t state) {
   const auto trx_state = trx->state.load(std::memory_order_relaxed);
 #ifdef UNIV_DEBUG
@@ -234,20 +232,6 @@ static inline void trx_release_reference(trx_t *trx) {
   --trx->n_ref;
 
   trx_mutex_exit(trx);
-}
-
-/**
-@param trx              Get the active view for this transaction, if one exists
-@return the transaction's read view or NULL if one not assigned. */
-static inline ReadView *trx_get_read_view(trx_t *trx) {
-  return (!MVCC::is_view_active(trx->read_view) ? nullptr : trx->read_view);
-}
-
-/**
-@param trx              Get the active view for this transaction, if one exists
-@return the transaction's read view or NULL if one not assigned. */
-static inline const ReadView *trx_get_read_view(const trx_t *trx) {
-  return (!MVCC::is_view_active(trx->read_view) ? nullptr : trx->read_view);
 }
 
 /**

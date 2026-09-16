@@ -146,7 +146,8 @@ void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer,
     return;
   }
 
-  X509_NAME_oneline(X509_get_issuer_name(cert), issuer, (int)issuer_size);
+  X509_NAME_oneline(const_cast<X509_NAME *>(X509_get_issuer_name(cert)), issuer,
+                    (int)issuer_size);
   X509_free(cert);
 }
 
@@ -166,7 +167,8 @@ void ssl_wrapper_get_peer_certificate_subject(Vio *vio, char *subject,
     return;
   }
 
-  X509_NAME_oneline(X509_get_subject_name(cert), subject, (int)subject_size);
+  X509_NAME_oneline(const_cast<X509_NAME *>(X509_get_subject_name(cert)),
+                    subject, (int)subject_size);
   X509_free(cert);
 }
 
@@ -289,9 +291,4 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl) {
   Cleanup data allocated by SSL on thread stack
 
 */
-void ssl_wrapper_thread_cleanup() {
-  ERR_clear_error();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-}
+void ssl_wrapper_thread_cleanup() { ERR_clear_error(); }

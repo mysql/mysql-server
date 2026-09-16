@@ -33,7 +33,7 @@ source common/rpl/rpl_tmp_table_and_DDL.test;
 
 # Create t2 based on temporary tables
 CREATE TABLE t2 LIKE temp_t2;
---sync_slave_with_master
+--source include/rpl/sync_to_replica.inc
 
 # On master
 --connection master

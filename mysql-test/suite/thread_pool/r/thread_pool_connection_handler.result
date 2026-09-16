@@ -1,0 +1,57 @@
+# Need to start with just one connection. Otherwise the check against
+# max_connections = 3 will fail earlier than expected. With thread pool
+# connections are established asynchronously by a connection handler
+# thread so it may take a while for the connection_count variable to
+# be decremented when connection creation fails.
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	1
+SET @old_debug= @@GLOBAL.debug;
+SET @orig_max_connections= @@global.max_connections;
+connect  con1, localhost, root,,mysql;
+SELECT 1;
+1
+1
+connect  con2, localhost, root,,mysql;
+SELECT 1;
+1
+1
+connect  con3, localhost, root,,mysql;
+SELECT 1;
+1
+1
+disconnect con3;
+connection con2;
+disconnect con2;
+connection con1;
+disconnect con1;
+connection default;
+set global max_connections= 3;
+connect  con1, localhost, root,,mysql;
+connect  con2, localhost, root,,mysql;
+connect  con3, localhost, root,,mysql;
+connect(localhost,root,,mysql,MYSQL_PORT,MYSQL_SOCK);
+connect  con4, localhost, root,,mysql;
+ERROR HY000: Too many connections
+connection con3;
+disconnect con3;
+connection con2;
+disconnect con2;
+connection con1;
+disconnect con1;
+connection default;
+SET GLOBAL debug= '+d,simulate_resource_failure';
+SHOW VARIABLES like 'DEBUG';
+Variable_name	Value
+debug	d,simulate_resource_failure
+call mtr.add_suppression("Failed to allocate thd");
+call mtr.add_suppression("Out of memory");
+connect(localhost,root,,mysql,MYSQL_PORT,MYSQL_SOCK);
+connect  con1, localhost, root,,mysql;
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connection default;
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	1
+SET GLOBAL debug= @old_debug;
+SET GLOBAL max_connections= @orig_max_connections;

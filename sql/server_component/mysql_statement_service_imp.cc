@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_sys.h"
 #include "mysql/com_data.h"
 #include "mysql/components/services/bits/mle_time_bits.h"
-#include "mysql/components/services/bits/stored_program_bits.h"  // stored_program_argument_type
+#include "mysql/components/services/bits/stored_program_bits.h"  // MYSQL_SP_ARG_TYPE_*
 #include "mysql/components/services/defs/mysql_string_defs.h"
 #include "mysql/components/services/mysql_statement_service.h"
 #include "mysql_time.h"
@@ -89,8 +89,13 @@ DEFINE_BOOL_METHOD(mysql_stmt_metadata_imp::param_count,
   return MYSQL_SUCCESS;
 }
 
-auto enum_field_type_to_int(enum_field_types field_type, uint flags)
-    -> uint64_t {
+/**
+  Convert raw MYSQL_TYPE_* plus field flags to the legacy statement service
+  MYSQL_SP_ARG_TYPE_* domain. MYSQL_TYPE_STRING needs flags to distinguish CHAR
+  from ENUM and SET.
+*/
+static auto enum_field_type_to_sp_arg_type(enum_field_types field_type,
+                                           uint flags) -> uint64_t {
   switch (field_type) {
     case MYSQL_TYPE_DECIMAL:
       return MYSQL_SP_ARG_TYPE_DECIMAL;
@@ -188,8 +193,10 @@ DEFINE_BOOL_METHOD(mysql_stmt_metadata_imp::param_metadata,
     *static_cast<bool *>(data) = param->null_value;
     return MYSQL_SUCCESS;
   } else if (strcmp(metadata, "type") == 0) {
-    *static_cast<uint64_t *>(data) =
-        enum_field_type_to_int(param->data_type(), 0);
+    auto const sp_arg_type =
+        enum_field_type_to_sp_arg_type(param->data_type(), 0);
+    assert(sp_arg_type != MYSQL_SP_ARG_TYPE_INVALID);
+    *static_cast<uint64_t *>(data) = sp_arg_type;
     return MYSQL_SUCCESS;
   } else if (strcmp(metadata, "is_unsigned") == 0) {
     *static_cast<bool *>(data) = param->unsigned_flag;
@@ -233,7 +240,11 @@ MYSQL_TIME convert_to_mysql_time(const mle_time &value) {
   return result;
 }
 
-auto int_to_enum_field_type(uint64_t type) -> std::optional<enum_field_types> {
+/**
+  Convert bind_param()'s MYSQL_SP_ARG_TYPE_* input to raw enum_field_types.
+*/
+static auto sp_arg_type_to_enum_field_type(uint64_t type)
+    -> std::optional<enum_field_types> {
   switch (type) {
     case MYSQL_SP_ARG_TYPE_DECIMAL:
       return enum_field_types::MYSQL_TYPE_DECIMAL;
@@ -303,12 +314,19 @@ auto int_to_enum_field_type(uint64_t type) -> std::optional<enum_field_types> {
       return enum_field_types::MYSQL_TYPE_STRING;
     case MYSQL_SP_ARG_TYPE_GEOMETRY:
       return enum_field_types::MYSQL_TYPE_GEOMETRY;
+    case MYSQL_SP_ARG_TYPE_VECTOR:
+      return enum_field_types::MYSQL_TYPE_VECTOR;
     default:
       return {};
   }
 }
 
-auto is_temporal_type(uint64_t type) -> bool {
+static auto is_valid_sp_arg_type(uint64_t type) -> bool {
+  return type != MYSQL_SP_ARG_TYPE_INVALID &&
+         sp_arg_type_to_enum_field_type(type).has_value();
+}
+
+static auto is_temporal_sp_arg_type(uint64_t type) -> bool {
   switch (type) {
     case MYSQL_SP_ARG_TYPE_TIMESTAMP:
       return true;
@@ -342,19 +360,19 @@ DEFINE_BOOL_METHOD(mysql_stmt_bind_imp::bind_param,
 
   auto *prepared_statement =
       static_cast<Prepared_statement_handle *>(statement);
-  bool is_temporal = is_temporal_type(type);
-  auto field_type = int_to_enum_field_type(type);
-  if (!field_type) return MYSQL_FAILURE;
+  if (!is_valid_sp_arg_type(type)) return MYSQL_FAILURE;
+  auto mysql_field_type = sp_arg_type_to_enum_field_type(type);
 
+  bool is_temporal = is_temporal_sp_arg_type(type);
   if (is_temporal && !is_null) {
     auto temporal_data = MYSQL_TIME{};
     temporal_data = convert_to_mysql_time(*static_cast<const mle_time *>(data));
     return prepared_statement->set_parameter(
-        index, is_null, *field_type, is_unsigned, &temporal_data,
+        index, is_null, *mysql_field_type, is_unsigned, &temporal_data,
         sizeof(temporal_data), name, name_length);
   }
 
-  if (prepared_statement->set_parameter(index, is_null, *field_type,
+  if (prepared_statement->set_parameter(index, is_null, *mysql_field_type,
                                         is_unsigned, data, data_length, name,
                                         name_length))
     return MYSQL_FAILURE;
@@ -632,10 +650,23 @@ DEFINE_BOOL_METHOD(mysql_stmt_resultset_metadata_imp::field_info,
     *reinterpret_cast<bool *>(value) = column->flags & ZEROFILL_FLAG;
   } else if (strcmp(name, "col_name") == 0) {
     *reinterpret_cast<char const **>(value) = column->column_name;
+  } else if (strcmp(name, "mysql_type") == 0) {
+    // Raw type copied from Send_field::type. ENUM and SET may be reported as
+    // MYSQL_TYPE_STRING here, their logical type is stored in flags
+    auto const sp_arg_type =
+        enum_field_type_to_sp_arg_type(column->type, column->flags);
+    assert(sp_arg_type != MYSQL_SP_ARG_TYPE_INVALID);
+    if (sp_arg_type == MYSQL_SP_ARG_TYPE_INVALID) return MYSQL_FAILURE;
+    *reinterpret_cast<mysql_field_type_t *>(value) =
+        static_cast<mysql_field_type_t>(column->type);
   } else if (strcmp(name, "type") == 0) {
-    auto enum_type = enum_field_type_to_int(column->type, column->flags);
-    if (enum_type == MYSQL_SP_ARG_TYPE_INVALID) return MYSQL_FAILURE;
-    *reinterpret_cast<uint64_t *>(value) = enum_type;
+    // Legacy service type. Unlike "mysql_type", this maps MYSQL_TYPE_STRING
+    // plus ENUM_FLAG/SET_FLAG to MYSQL_SP_ARG_TYPE_ENUM/SET.
+    auto sp_arg_type =
+        enum_field_type_to_sp_arg_type(column->type, column->flags);
+    assert(sp_arg_type != MYSQL_SP_ARG_TYPE_INVALID);
+    if (sp_arg_type == MYSQL_SP_ARG_TYPE_INVALID) return MYSQL_FAILURE;
+    *reinterpret_cast<uint64_t *>(value) = sp_arg_type;
   } else {
     return MYSQL_FAILURE;
   }

@@ -1,0 +1,81 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_thread_pool.inc
+
+# The test hangs endless when using "cursor-protocol".
+if(`SELECT $CURSOR_PROTOCOL > 0`)
+{
+   --skip Test requires: cursor-protocol disabled
+}
+
+SET @initial_debug_sync = @@DEBUG_SYNC;
+
+# The test case must be executed with thread_pool_size = 2.
+if(`SELECT @@global.thread_pool_size <> 2`)
+{
+   --die @@global.thread_pool_size must be 2, please check <testcase>-master.opt
+}
+
+# The connections are named <letter>_<number> to indicate they are belonging to
+# thread group <letter> and <number> within this group.
+let $connection= conn_A_1_to_be_killed;
+--connect ($connection, localhost, root,,)
+let $target_id_A_1_to_be_killed= `SELECT CONNECTION_ID()`;
+let $id_list= $target_id_A_1_to_be_killed;
+
+let $connection= conn_B_1;
+--connect ($connection, localhost, root,,)
+let $target_id_B_1= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $target_id_B_1;
+--replace_result $target_id_A_1_to_be_killed <target_id_A_1_to_be_killed>
+eval SET @kill_target_id = $target_id_A_1_to_be_killed;
+SET SESSION debug="+d,info,enter,sleep_after_connection_killed";
+
+--connection conn_A_1_to_be_killed
+SET DEBUG_SYNC='sleep_after_cleanup_started WAIT_FOR kill_flag EXECUTE 3';
+SET DEBUG_SYNC='handle_failed_connection_cleanup_started SIGNAL kill_flag EXECUTE 3';
+--send
+SELECT SLEEP(3);
+
+--connection conn_B_1
+KILL @kill_target_id;
+
+let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.processlist
+WHERE id = @kill_target_id AND command = 'Sleep';
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: KILL @kill_target_id did not work well
+   --echo #        Expect to see this session with command = 'Sleep' because
+   --echo #        the DEBUG_SYNC setting delays its rempval from processlist.
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id;
+   sleep 30;
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id;
+   --echo # abort
+   exit;
+}
+
+# Cleanup
+#--------------------------------------------------------------------------------
+# We have manipulated DEBUG_SYNC therefore we must reset it to the initial value.
+#    Attention: SET DEBUG_SYNC = <initial value> is not allowed.
+--connection default
+SET DEBUG_SYNC='RESET';
+# Stability tests revealed that the reset is asynchronous.
+# Therefore we poll till we have the initial setting again
+let $wait_condition= SELECT @@DEBUG_SYNC = @initial_debug_sync;
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: SET DEBUG_SYNC='RESET' did not work well
+   --echo #        curent value is @@DEBUG_SYNC, expected value is @initial_debug_sync
+   SELECT @@DEBUG_SYNC, @initial_debug_sync;
+   sleep 30;
+   SELECT @@DEBUG_SYNC, @initial_debug_sync;
+   --echo # abort
+   exit;
+}
+--disconnect conn_B_1
+# Take care that all disconnected session disappeared from processlist
+--source ../inc/wait_until_disappeared.inc
+

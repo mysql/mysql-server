@@ -34,33 +34,34 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef srv0start_h
 #define srv0start_h
 
-#include "os0thread-create.h"
 #ifndef UNIV_HOTBACKUP
+#if !defined(UNIV_LIBRARY) && !defined(INNORWLOCKTEST)
+#include "os0thread-create.h"
+#endif
 #include "sync0rw.h"
-#endif /* !UNIV_HOTBACKUP */
-#include "trx0purge.h"
+#endif                /* !UNIV_HOTBACKUP */
+#include "srv0srv.h"  // srv_force_recovery_crash
 #include "univ.i"
 #include "ut0byte.h"
+#include "ut0dbg.h"
 
 // Forward declaration
 struct dict_table_t;
+namespace undo_truncate {
+struct Tablespace;
+}
 
-#ifndef UNIV_DEBUG
-#define RECOVERY_CRASH(x) \
-  do {                    \
-  } while (0)
-#else
-#define RECOVERY_CRASH(x)                                  \
-  do {                                                     \
-    if (srv_force_recovery_crash == x) {                   \
-      flush_error_log_messages();                          \
-      fprintf(stderr, "innodb_force_recovery_crash=%lu\n", \
-              srv_force_recovery_crash);                   \
-      fflush(stderr);                                      \
-      _exit(3);                                            \
-    }                                                      \
-  } while (0)
-#endif /* UNIV_DEBUG */
+static inline void srv_recovery_crash([[maybe_unused]] ulong x) {
+#ifdef UNIV_DEBUG
+  if (srv_force_recovery_crash == x) {
+    fprintf(stderr, "innodb_force_recovery_crash=%lu\n", x);
+    /* This causes the ut_fatal_error to not generate core file nor print
+    stacks, just terminate. */
+    set_my_abort([]() { std::_Exit(3); });
+    ut_fatal_error();
+  }
+#endif
+}
 
 /** If buffer pool is less than the size,
 only one buffer pool instance is used. */
@@ -78,9 +79,12 @@ char *srv_add_path_separator_if_needed(
 #ifndef UNIV_HOTBACKUP
 
 /** Open an undo tablespace.
-@param[in]  undo_space  Undo tablespace
+@param[in]  undo_space                  Undo tablespace
+@param[in]  expected_to_be_unusable     true if tablespace is expected to be
+                                        unusable
 @return DB_SUCCESS or error code */
-dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space);
+[[nodiscard]] dberr_t srv_undo_tablespace_open(
+    undo_truncate::Tablespace &undo_space, bool expected_to_be_unusable);
 
 /** Start InnoDB.
 @param[in]      create_new_db           Whether to create a new database
@@ -93,7 +97,7 @@ is available so now we know the space_name, file_name and previous space_id.
 @param[in]  space_name  undo tablespace name
 @param[in]  file_name   undo tablespace file name
 @param[in]  space_id    undo tablespace ID
-@return error code */
+@return DB_SUCCESS or error code */
 dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
                                   space_id_t space_id);
 
@@ -126,9 +130,12 @@ void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
 extern bool srv_is_being_started;
 /** true if SYS_TABLESPACES is available for lookups */
 extern bool srv_sys_tablespaces_open;
+
+#ifndef UNIV_HOTBACKUP
 /** true if the server is being started, before rolling back any
 incomplete transactions */
 extern bool srv_startup_is_before_trx_rollback_phase;
+#endif
 
 /** true if a raw partition is in use */
 extern bool srv_start_raw_disk_in_use;

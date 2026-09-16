@@ -1,7 +1,6 @@
 #
 # BUG#22516559 MYSQL INSTANCE STALLS WHEN SYNCING FTS INDEX
 #
---source include/big_test.inc
 --source include/have_debug_sync.inc
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc
@@ -186,9 +185,16 @@ SET SESSION debug="-d,fts_instrument_sync_request";
 
 SET GLOBAL innodb_ft_aux_table="test/t1";
 
-# If FTS SYNC is in progress then wait for SYNC to finish.
+# Read the cache before the auxiliary index table.  FTS SYNC may move rows
+# between these two statements, so materialize both snapshots and inspect
+# their set union instead of assuming which table contains the rows.
+CREATE TEMPORARY TABLE observed_fts_index AS
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+INSERT INTO observed_fts_index
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SELECT DISTINCT * FROM observed_fts_index
+ORDER BY WORD, FIRST_DOC_ID, LAST_DOC_ID, DOC_COUNT, DOC_ID, POSITION;
+DROP TEMPORARY TABLE observed_fts_index;
 SET GLOBAL innodb_ft_aux_table=default;
 
 SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');

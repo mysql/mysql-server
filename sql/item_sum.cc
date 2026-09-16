@@ -3548,12 +3548,13 @@ void Item_sum_avg::reset_field() {
     longlong tmp;
     my_decimal value;
     my_decimal *arg_dec = args[0]->val_decimal(&value);
-    if (args[0]->null_value) {
+    if (arg_dec == nullptr) {  // NULL value or error
       value.init();
       arg_dec = &value;
       tmp = 0;
-    } else
+    } else {
       tmp = 1;
+    }
     my_decimal2binary(E_DEC_FATAL_ERROR, arg_dec, res, f_precision, f_scale);
     res += dec_bin_size;
     int8store(res, tmp);
@@ -4332,17 +4333,19 @@ int dump_leaf_key(void *key_arg, element_count count [[maybe_unused]],
       We also can't use table->field array to access the fields
       because it contains both order and arg list fields.
      */
-    if ((*arg)->const_item())
+    if ((*arg)->const_item()) {
       res = (*arg)->val_str(&tmp);
-    else {
+    } else {
       Field *field = (*arg)->get_tmp_table_field();
-      if (field) {
+      if (field != nullptr) {
+        field->set_ignore_nulls();
         const uint offset =
             (field->offset(field->table->record[0]) - table->s->null_bytes);
         assert(offset < table->s->reclength);
         res = field->val_str(&tmp, key + offset);
-      } else
+      } else {
         res = (*arg)->val_str(&tmp);
+      }
     }
     if (res) result->append(*res);
   }
@@ -6179,20 +6182,22 @@ my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
                                    decimal_value);
 }
 
-bool Item_sum_json::val_date(Date_val *date, my_time_flags_t) {
+bool Item_sum_json::val_date(Date_val *date, my_time_flags_t flags) {
   if (null_value || m_wrapper->empty()) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return m_wrapper->coerce_date(JsonCoercionWarnHandler{func_name()},
                                 JsonCoercionDeprecatedDefaultHandler{}, date,
-                                DatetimeConversionFlags(current_thd));
+                                flags);
 }
 
-bool Item_sum_json::val_datetime(Datetime_val *dt, my_time_flags_t) {
+bool Item_sum_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
   if (null_value || m_wrapper->empty()) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return m_wrapper->coerce_datetime(JsonCoercionWarnHandler{func_name()},
                                     JsonCoercionDeprecatedDefaultHandler{}, dt,
-                                    DatetimeConversionFlags(current_thd));
+                                    flags);
 }
 
 bool Item_sum_json::val_time(Time_val *time) {
@@ -6723,7 +6728,21 @@ void Item_rollup_sum_switcher::print(const THD *thd, String *str,
 }
 
 Field *Item_rollup_sum_switcher::create_tmp_field(bool group, TABLE *table) {
-  return master()->create_tmp_field(group, table);
+  Item_sum *const master_item = master();
+  const bool item_name_diff =
+      item_name.is_set() != master_item->item_name.is_set() ||
+      (item_name.is_set() && !item_name.eq_bin(master_item->item_name));
+
+  if (!item_name_diff) return master_item->create_tmp_field(group, table);
+
+  /*
+    The wrapper may have a derived column name alias. Use it when creating the
+    temporary table field so later references can find the field by that name.
+  */
+  Variable_scope_guard<Item_name_string> restore_name(master_item->item_name);
+  master_item->item_name = item_name;
+
+  return master_item->create_tmp_field(group, table);
 }
 
 void Item_rollup_sum_switcher::clear() {

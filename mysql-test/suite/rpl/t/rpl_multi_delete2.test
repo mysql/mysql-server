@@ -45,9 +45,8 @@ save_master_pos;
 select * from t1;
 select * from t2;
 
-connection slave;
 # BUG#3461 would cause sync to fail
-sync_with_master;
+--source include/rpl/sync_to_replica.inc
 error 1146;
 select * from t1;
 error 1146;

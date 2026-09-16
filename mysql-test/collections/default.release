@@ -17,6 +17,8 @@ perl mysql-test-run.pl --timer --testcase-timeout=60 --suite-timeout=600 --force
 perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-normal   --vardir=var-ndb-normal --report-features --with-ndb-only --skip-suite=ndb_tls
 perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb_tls-normal   --vardir=var-ndb-tls-normal --report-features --suite=ndb_tls
 
+# Additional rpl suites with APPLIER_VERSION=2 (Change Stream Applier)
+perl mysql-test-run.pl --timer --testcase-timeout=60 --suite-timeout=600 --force --comment=rpl_csa --vardir=var-rpl_csa --suite=rpl,rpl_gtid --defaults-extra-file=include/rpl_change_stream_applier.cnf --no-skip --exclude-platform=windows
 
 #
 perl mysql-test-run.pl --force --timer  --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2
@@ -28,3 +30,8 @@ perl mysql-test-run.pl --force --timer  --comment=nist+ps    --vardir=var-nist_p
 
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_csa --vardir=var-group_replication-csa --suite=group_replication --defaults-extra-file=include/rpl_change_stream_applier.cnf
+
+# Thread Pool Plugin
+perl mysql-test-run.pl --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+

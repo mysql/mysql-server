@@ -88,6 +88,7 @@ GRANT SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN ON *.* TO 'no_priv_user'@l
 while ( $var_id <= $count_vars )
 {
   --let $var_names= `SELECT var_name FROM gr_vars WHERE id=$var_id`
+  --disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
   if ($var_names == "group_replication_consistency")
   {
     --error ER_SPECIFIC_ACCESS_DENIED_ERROR

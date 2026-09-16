@@ -56,8 +56,13 @@ void Single_primary_message::decode_payload(const unsigned char *buffer,
   unsigned long long payload_item_length = 0;
 
   uint16 single_primary_message_type_aux = 0;
-  decode_payload_item_int2(&slider, &payload_item_type,
-                           &single_primary_message_type_aux);
+  if (decode_payload_item_int2(&slider, &payload_item_type, end,
+                               &single_primary_message_type_aux) ||
+      payload_item_type != PIT_SINGLE_PRIMARY_MESSAGE_TYPE) {
+    set_error("gr::Single_primary_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   single_primary_message_type =
       (Single_primary_message_type)single_primary_message_type_aux;
 
@@ -65,27 +70,40 @@ void Single_primary_message::decode_payload(const unsigned char *buffer,
     // Read payload item header to find payload item length.
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
+    if (slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length) {
+      set_error("gr::Single_primary_message", __FILE__, __LINE__,
+                "Malformed payload length");
+      return;
+    }
 
     switch (payload_item_type) {
       case PIT_SINGLE_PRIMARY_SERVER_UUID:
-        if (slider + payload_item_length <= end) {
-          assert(single_primary_message_type ==
-                 SINGLE_PRIMARY_PRIMARY_ELECTION);
-          primary_uuid.assign(slider, slider + payload_item_length);
+        if (single_primary_message_type != SINGLE_PRIMARY_PRIMARY_ELECTION) {
+          set_error("gr::Single_primary_message", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        primary_uuid.assign(slider, slider + payload_item_length);
+        slider += payload_item_length;
         break;
 
       case PIT_SINGLE_PRIMARY_ELECTION_MODE:
-        if (slider + payload_item_length <= end) {
-          assert(single_primary_message_type ==
-                 SINGLE_PRIMARY_PRIMARY_ELECTION);
-          uint16 const election_mode_aux = uint2korr(slider);
-          election_mode = (enum_primary_election_mode)election_mode_aux;
+        if (payload_item_length != 2 ||
+            single_primary_message_type != SINGLE_PRIMARY_PRIMARY_ELECTION) {
+          set_error("gr::Single_primary_message", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
-    }
+        election_mode =
+            static_cast<enum_primary_election_mode>(uint2korr(slider));
+        slider += payload_item_length;
+        break;
 
-    // Seek to next payload item.
-    slider += payload_item_length;
+      default:
+        slider += payload_item_length;
+        break;
+    }
   }
 }
 

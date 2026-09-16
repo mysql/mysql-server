@@ -154,7 +154,7 @@ INSERT INTO dd_check_table(t)
     IFNULL(options, 'NULL'), '-',
     IFNULL(INSERT(se_private_data,
              INSTR(se_private_data, 'server_version'),
-             20, 'server_version=x'),
+             21, 'server_version=x'),
       'NULL'),
     '-', comment, '-', engine)
   FROM mysql.tablespaces

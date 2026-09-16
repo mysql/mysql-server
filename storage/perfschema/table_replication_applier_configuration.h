@@ -34,6 +34,7 @@
 #include <time.h>
 
 #include "my_base.h"
+#include "sql/changestreams/apply/applier_version.h"
 #include "sql/rpl_info.h" /*CHANNEL_NAME_LENGTH*/
 #include "sql/rpl_rli.h"  /*enum_require_table_primary_key*/
 #include "storage/perfschema/pfs_engine_table.h"
@@ -70,6 +71,9 @@ struct st_row_applier_config {
       assign_gtids_to_anonymous_transactions_type{
           Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF};
   std::string assign_gtids_to_anonymous_transactions_value;
+  uint applier_version{cs::apply::Applier_version::unspecified};
+  std::size_t applier_worker_count;
+  ulong applier_event_memory_limit;
 };
 
 class PFS_index_rpl_applier_config : public PFS_engine_index {

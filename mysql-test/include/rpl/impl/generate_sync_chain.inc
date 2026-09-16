@@ -70,13 +70,35 @@ while ($_rpl_start_server)
 {
   --let $_rpl_server= `SELECT RPAD('$_rpl_start_server', $rpl_server_count_length, ' ')`
   --let $_rpl_seen_list=
-  --let $_rpl_continue_loop= 1
+  --let $_rpl_continue_loop=
+  # Only enter loop if there's a server configured, else skip it
+  if (`SELECT LOCATE('s$_rpl_server', '$rpl_connection_list') != 0`)
+  {
+    --let $_rpl_continue_loop= 1
+  }
+  # else
+  if (!$_rpl_continue_loop)
+  {
+    # mark as seen
+    --let $_rpl_server_marks= `SELECT INSERT('$_rpl_server_marks', $_rpl_server, 1, '1')`
+  }
   while ($_rpl_continue_loop)
   {
     # Set $_rpl_master to the master of $_rpl_server, or '' if it does
     # not have one.
-    --let $_rpl_slave_position= LOCATE('s$_rpl_server ', '$rpl_connection_list')
-    --let $_rpl_master= `SELECT IF($_rpl_slave_position > 0, SUBSTRING('$rpl_connection_list', $_rpl_slave_position - 1 - $rpl_server_count_length, $rpl_server_count_length), '$_rpl_no_server')`
+    --let $_rpl_slave_position= `SELECT LOCATE('s$_rpl_server', '$rpl_connection_list')`
+    # Source start offset (soffset).
+    # Servers are spaced by $rpl_server_count_length (e.g., mXX  sYY) so subtract spaces, possible digits and the 'm'
+    # Take the following as an example with both 1 digit and 2 digit server ids:
+    # m1  s4  m4  s1  m2  s7  m7  s2  m3  s10  m10  s3
+    #                                     37
+    #                                               47
+    --let $_rpl_master_soffset= `SELECT LOCATE('m', '$rpl_connection_list', $_rpl_slave_position - 1 - 2*$rpl_server_count_length)`
+    # The first server might get the soffset of 0 which is wrong
+    if (!$_rpl_master_soffset) {
+       --let $_rpl_master_soffset= 1
+    }
+    --let $_rpl_master= `SELECT IF($_rpl_slave_position > 0, SUBSTRING('$rpl_connection_list', $_rpl_master_soffset + 1, $rpl_server_count_length), '$_rpl_no_server')`
 
     # We need to delimit elements of $_rpl_seen_list with commas, so
     # that LOCATE() below will not find spurious matches that begin in
@@ -84,7 +106,7 @@ while ($_rpl_start_server)
     --let $_rpl_seen_list= $_rpl_server,$_rpl_seen_list
     # If server is marked seen or synced, or has no master
 
-    if (`SELECT SUBSTRING('$_rpl_server_marks', $_rpl_server, 1) != 0 OR '$_rpl_master' = ' '`)
+    if (`SELECT SUBSTRING('$_rpl_server_marks', $_rpl_server, 1) != 0 OR '$_rpl_master' = '$_rpl_no_server'`)
     {
       # If server is marked seen but not synced.
       if (`SELECT SUBSTRING('$_rpl_server_marks', $_rpl_server, 1) = 1`)

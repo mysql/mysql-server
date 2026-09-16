@@ -2160,3 +2160,119 @@ FROM t1 AS outr
 ORDER BY WEEK(field1, 3);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#38969673: Inconsistent query results when using <=> to compare
+--echo #               row data with empty set subquery result
+--echo # Bug#37607443: result error when row compared with scalar subquery
+--echo #               using '<=>'
+--echo #
+--echo # When a multi-column singlerow subquery returns an empty set, its
+--echo # null_value is set but the per-column cache cells are not nulled.
+--echo # compare_pair_for_nulls() read element_index(i)->is_null() and saw
+--echo # residual data from the inner table scan instead of NULL.
+--echo #
+
+CREATE TABLE t1(c1 INT, c2 INT);
+CREATE TABLE t2(c1 INT, c2 INT);
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t2 VALUES (1, 1);
+
+--echo # Subquery is empty -> RHS is (NULL,NULL); (1,NULL)<=>(NULL,NULL) is FALSE
+--echo # Expected: empty
+SELECT * FROM t1
+ WHERE (c1, c2) <=> (SELECT c1, c2 FROM t2 WHERE c1 = 4 ORDER BY c1, c2 LIMIT 1);
+
+INSERT INTO t2 VALUES (2, NULL);
+
+--echo # Subquery still empty (no row with c1=4). Residual scan row is (2,NULL).
+--echo # Expected: empty   Bug: returns (1, NULL)
+SELECT * FROM t1
+ WHERE (c1, c2) <=> (SELECT c1, c2 FROM t2 WHERE c1 = 4 ORDER BY c1, c2 LIMIT 1);
+
+--echo # 3-column variant
+CREATE TABLE t3(a INT, b INT, c INT);
+CREATE TABLE t4(a INT, b INT, c INT);
+INSERT INTO t3 VALUES (1, NULL, NULL);
+INSERT INTO t4 VALUES (9, NULL, NULL);
+--echo # Expected: empty   Bug: returns (1, NULL, NULL)
+SELECT * FROM t3
+ WHERE (a, b, c) <=> (SELECT a, b, c FROM t4 WHERE a = 0 LIMIT 1);
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo # Bug#37607443 case: nested scalar subquery
+CREATE TABLE t3(c1 VARCHAR(10), c2 INT);
+CREATE TABLE t2 LIKE t3;
+CREATE TABLE t1 LIKE t3;
+INSERT INTO t1 VALUES (NULL, 1992), ('a', NULL);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 VALUES ('b', 1995);
+INSERT INTO t1 VALUES ('b', NULL);
+
+--echo # Inner subquery is empty (no t2.c1 = 'b'). Residual scan row is ('a',NULL).
+--echo # Expected: empty   Bug: returns ('a',NULL),('b',NULL)
+SELECT c1, c2 FROM t1
+ WHERE (c1, c2) <=>
+       (SELECT c1, c2 FROM t2 WHERE c1 = (SELECT c1 FROM t3));
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#38249983: Select Query is showing wrong column name alias
+--echo #                from sub-query
+--echo #
+
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+SELECT dt.*, a AS b
+FROM (
+  SELECT 1 AS a
+  FROM t1
+  ORDER BY RAND()
+) AS dt;
+
+SELECT DISTINCT dt.*, a AS b
+FROM (
+  SELECT 1 AS a
+  FROM t1
+) AS dt;
+
+SELECT DISTINCT dt.*, a AS b
+FROM (
+  SELECT ABS(1) AS a
+  FROM t1
+) AS dt;
+
+CREATE TABLE t2 AS
+SELECT DISTINCT dt.*, a AS b
+FROM (
+  SELECT ABS(1) AS a
+  FROM t1
+) AS dt;
+SELECT COLUMN_NAME, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't2'
+ORDER BY ORDINAL_POSITION;
+DROP TABLE t2;
+
+SELECT DISTINCT dt.*, a AS b
+FROM (
+  SELECT (SELECT 1) AS a
+  FROM t1
+) AS dt;
+
+SET @bug38249983_arg = 1;
+PREPARE bug38249983_stmt FROM
+  'SELECT DISTINCT dt.*, a AS b
+   FROM (
+     SELECT ? AS a
+     FROM t1
+   ) AS dt';
+EXECUTE bug38249983_stmt USING @bug38249983_arg;
+SET @bug38249983_arg = 2;
+EXECUTE bug38249983_stmt USING @bug38249983_arg;
+DEALLOCATE PREPARE bug38249983_stmt;
+
+DROP TABLE t1;

@@ -6,6 +6,8 @@
 # rpl tests in all 3 modes row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90    --comment=all-default-big  --vardir=var-all-default-big  --report-features --unit-tests-report --no-skip --skip-ndb
+# Additional rpl suites with APPLIER_VERSION=2 (Change Stream Applier)
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90    --comment=rpl_csa --vardir=var-rpl_csa --suite=rpl,rpl_gtid --defaults-extra-file=include/rpl_change_stream_applier.cnf --no-skip
 # Run all ndb tests separately.
 # If no Ndb support, no tests will be attempted.
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90    --comment=all-ndb  --vardir=var-ndb-big  --report-features --no-skip --with-ndb-only --skip-suite=ndb_tls
@@ -39,9 +41,14 @@ perl mysql-test-run.pl --timer --force   --comment=eits-tests-innodb-engine  --v
 
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_csa --vardir=var-group_replication-csa --suite=group_replication --defaults-extra-file=include/rpl_change_stream_applier.cnf
 
 # Connection Control component
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60     --comment=component_connection_control-big  --vardir=var-component_connection_control-big --suite=component_connection_control --no-skip
 
 # Connection Control plugin
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60     --comment=connection_control-big  --vardir=var-connection_control-big --suite=connection_control --no-skip
+
+# Thread Pool Plugin
+perl mysql-test-run.pl --timer --big-test --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+

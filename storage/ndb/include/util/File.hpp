@@ -89,6 +89,13 @@ class File_class {
   static bool remove(const char *aFileName);
 
   /**
+   * Resolve pathname to a real absolute path using realpath() or
+   * GetFullPathName()
+   *
+   */
+  static bool realpath(const char *name, char *resolved, size_t buffer_len);
+
+  /**
    * Default constructor.
    */
   File_class();

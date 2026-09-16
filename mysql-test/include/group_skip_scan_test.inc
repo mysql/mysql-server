@@ -2423,3 +2423,14 @@ eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#38627346: row number become less after changing
+--echo #               COUNT(DISTINCT) to COUNT
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, KEY(f1, f2));
+INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (3,4);
+SELECT COUNT(DISTINCT f2), DENSE_RANK() OVER () FROM t1 GROUP BY f1;
+SELECT COUNT(f2), DENSE_RANK() OVER () FROM t1 GROUP BY f1;
+SELECT COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
+DROP TABLE t1;

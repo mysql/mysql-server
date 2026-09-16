@@ -206,6 +206,7 @@ ALTER TABLE t2 SECONDARY_ENGINE=NULL;
 
 # Load the table on master.
 ALTER TABLE t2 SECONDARY_LOAD;
+--source include/rpl/save_server_position.inc
 
 --connection slave
 --echo [ Connection Slave ]
@@ -214,9 +215,7 @@ ALTER TABLE t2 SECONDARY_LOAD;
 ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
 
 --source include/rpl/start_applier.inc
---let $slave_param= Replica_SQL_Running_State
---let $slave_param_value= Replica has read all relay log; waiting for more updates
---source include/rpl/wait_for_replica_status.inc
+--source include/rpl/sync_with_saved.inc
 
 # This should execute on MOCK engine.
 FLUSH STATUS;
@@ -291,6 +290,7 @@ UNINSTALL PLUGIN mock;
 # Check if table gets loaded on master even if there is no plugin installed on
 # slave.
 ALTER TABLE t1 SECONDARY_LOAD;
+--source include/rpl/save_server_position.inc
 
 --connection slave
 --echo [ Connection Slave ]
@@ -301,9 +301,7 @@ ALTER TABLE t1 SECONDARY_LOAD;
 
 --sleep 3
 --source include/rpl/start_applier.inc
---let $slave_param= Replica_SQL_Running_State
---let $slave_param_value= Replica has read all relay log; waiting for more updates
---source include/rpl/wait_for_replica_status.inc
+--source include/rpl/sync_with_saved.inc
 
 FLUSH STATUS;
 SELECT * FROM t1;

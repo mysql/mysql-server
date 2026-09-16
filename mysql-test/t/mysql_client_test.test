@@ -2,6 +2,8 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
+call mtr.add_suppression("TLS session on channel 'mysql_main' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
+
 # need to have the dynamic loading turned on for the client plugin tests
 --source include/have_plugin_auth.inc
 

@@ -29,8 +29,19 @@
 #include <array>
 
 static constexpr std::array http_server_supported_options [[maybe_unused]]{
-    "static_folder", "bind_address", "require_realm", "ssl_cert", "ssl_key",
-    "ssl_cipher",    "ssl_dh_param", "ssl_curves",    "ssl",      "port",
+    "static_folder",
+    "bind_address",
+    "require_realm",
+    "ssl_cert",
+    "ssl_key",
+    "ssl_cipher",
+    "ssl_dh_param",
+    "ssl_curves",
+    "ssl",
+    "port",
+    "max_http_connections",
+    "max_request_body_size",
+    "max_response_body_size",
 };
 
 static constexpr std::array http_auth_realm_suported_options [[maybe_unused]]{

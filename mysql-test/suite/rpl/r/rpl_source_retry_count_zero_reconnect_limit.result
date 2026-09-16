@@ -1,0 +1,17 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= 1, SOURCE_RETRY_COUNT= 0;
+# Adding debug point 'simulate_reconnect_after_failed_binlog_dump_twice' to @@GLOBAL.debug
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t_retry_zero (id INT PRIMARY KEY);
+INSERT INTO t_retry_zero VALUES (1);
+include/rpl/sync_to_replica.inc
+# Removing debug point 'simulate_reconnect_after_failed_binlog_dump_twice' from @@GLOBAL.debug
+[connection master]
+DROP TABLE t_retry_zero;
+include/rpl/deinit.inc

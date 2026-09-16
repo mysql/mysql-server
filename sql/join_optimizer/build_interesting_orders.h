@@ -94,6 +94,17 @@ struct SortAheadOrdering {
   ORDER *order;
 };
 
+// The orderings that a scan along some window of an index's key parts can
+// deliver. Zero means that there is no such ordering.
+struct IndexOrderingInfo {
+  LogicalOrderings::StateIndex forward_order = 0;
+  LogicalOrderings::StateIndex reverse_order = 0;
+  // Reverse index range scans need to know whether they should use the
+  // extended key parts, so we also keep the ordering for a reverse scan that
+  // only uses the user-defined key parts.
+  LogicalOrderings::StateIndex reverse_order_without_extended_key_parts = 0;
+};
+
 // An index that we can use in the query, either for index lookup (ref access)
 // or for scanning along to get an interesting ordering.
 struct ActiveIndexInfo {
@@ -101,6 +112,14 @@ struct ActiveIndexInfo {
   int key_idx;
   LogicalOrderings::StateIndex forward_order = 0, reverse_order = 0,
                                reverse_order_without_extended_key_parts = 0;
+
+  // For a multi-valued index the fields above stay 0, since a full index
+  // traversal is not row-ordered. A range scan that reads only index entries
+  // with the same value for the key parts up to and including the array key
+  // part does, however, deliver the key parts after it in order. That
+  // conditional ordering is registered here, and may only be applied by
+  // ProposeRangeScans() to such a range.
+  IndexOrderingInfo mvi_range_ordering;
 };
 
 // A spatial index that we can use in a knn query to get an interesting

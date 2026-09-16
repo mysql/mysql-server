@@ -1057,6 +1057,8 @@ EXPLAIN
                                         -> Limit table size: 3 unique row(s)
                                             -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	(/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` union (/* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s` order by `test`.`s`.`a` limit 1) union (/* select#3 */ select `test`.`s`.`a` AS `a` from `test`.`s` union /* select#4 */ select 2 AS `2` limit 3) order by `a` limit 3) order by `a`
 # Test no result if no materializaton
 EXPLAIN SELECT 1 UNION ALL SELECT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1506,6 +1508,8 @@ EXPLAIN
         -> Table scan on r  (rows=4)
         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` intersect /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`
 EXPLAIN SELECT * FROM r INTERSECT ALL SELECT * FROM s;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	r	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
@@ -1521,6 +1525,8 @@ EXPLAIN
         -> Table scan on r  (rows=4)
         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` intersect all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`
 #
 # EXCEPT operator
 #
@@ -1539,6 +1545,8 @@ EXPLAIN
         -> Table scan on r  (rows=4)
         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`
 EXPLAIN SELECT * FROM r EXCEPT ALL SELECT * FROM s;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	r	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
@@ -1554,4 +1562,6 @@ EXPLAIN
         -> Table scan on r  (rows=4)
         -> Table scan on s  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`r`.`a` AS `a` from `test`.`r` except all /* select#2 */ select `test`.`s`.`a` AS `a` from `test`.`s`
 DROP TABLE r, s, t;

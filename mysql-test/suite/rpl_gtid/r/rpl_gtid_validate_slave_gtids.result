@@ -20,6 +20,7 @@ include/assert_grep.inc [Found warning continaining lost GTIDs]
 include/rpl/reset.inc
 CREATE TABLE t1(i INT);
 DROP TABLE t1;
+include/rpl/sync_to_replica.inc
 include/rpl/stop_replica.inc
 FLUSH LOGS;
 DELETE FROM mysql.gtid_executed;

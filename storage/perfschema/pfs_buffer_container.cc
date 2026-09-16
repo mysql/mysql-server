@@ -37,6 +37,26 @@
 #include "storage/perfschema/pfs_lock.h"
 #include "storage/perfschema/pfs_user.h"
 
+pfs_identity make_identity(pfs_container_id container_id, pfs_page_id page_id,
+                           pfs_object_id object_id,
+                           pfs_dirty_state *dirty_state) {
+  /* See pfs_lock, the version number is stored in the high 30 bits. */
+  uint32_t version_32 = (dirty_state->m_version_state & VERSION_MASK) >> 2;
+  /* Isolate 16 least significant bits from the version number. */
+  uint16_t version_16 = version_32 & 0xFFFF;
+  pfs_identity id;
+  id = container_id;
+  id <<= 16;
+  id += page_id;
+  id <<= 16;
+  id += object_id;
+  id <<= 16;
+  id += version_16;
+  return id;
+}
+
+std::atomic<pfs_container_id> global_container_id{1};
+
 PFS_buffer_default_allocator<PFS_mutex> default_mutex_allocator(
     &builtin_memory_mutex);
 PFS_mutex_container global_mutex_container(&default_mutex_allocator);

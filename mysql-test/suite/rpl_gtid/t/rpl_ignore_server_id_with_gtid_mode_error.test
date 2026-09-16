@@ -25,6 +25,9 @@
 --source include/have_binlog_format_row.inc
 
 --source include/not_rpl_gtid_only.inc
+# CSA does not support GTID_MODE set to ON_PERMISSIVE
+# IGNORE_SERVER_IDS feature is not needed for channels that work with GTIDs.
+--source include/have_mta.inc
 --let $rpl_skip_start_slave=1
 --source include/rpl/init_source_replica.inc
 

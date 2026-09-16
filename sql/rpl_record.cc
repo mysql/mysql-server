@@ -558,7 +558,6 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           if (marked_columns == 1) {
             const char act[] =
                 "now SIGNAL signal.rpl_row_jsondiff_binarydiff_marked_columns";
-            assert(opt_debug_sync_timeout > 0);
             assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
           }
         };);
@@ -655,7 +654,9 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
         uint32 event_len = event_end - pack_ptr;
         DBUG_PRINT("info", ("calc_field_size ret=%d event_len=%d", (int)len,
                             (int)event_len));
-        if (len > event_len) {
+        // Reject fields whose reported packed length exceeds either the
+        // remaining event payload or the maximum packed destination size.
+        if (len > event_len || len > f->max_packed_col_length()) {
           my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
           return true;
         }

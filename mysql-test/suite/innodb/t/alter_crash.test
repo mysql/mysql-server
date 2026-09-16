@@ -150,3 +150,33 @@ SHOW TABLES;
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#38706605 Assertion failure: fil0fil.cc:1351:cache_entry
+--echo #              != m_flags_cache->end()
+
+CREATE TABLE t1 (a INT) ENGINE = INNODB;
+INSERT INTO t1 VALUES (1);
+
+SET DEBUG = '+d,crash_after_alter_renames_are_complete';
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+OPTIMIZE TABLE t1;
+
+--echo # Restart mysqld after the crash and reconnect.
+--source include/start_mysqld.inc
+
+SET DEBUG = '+d,crash_after_alter_renames_are_complete';
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+OPTIMIZE TABLE t1;
+
+--echo # Restart mysqld after the crash and reconnect.
+--let $restart_parameters = restart: --debug="+d,replay_rename_for_ddl_do_not_cache_space"
+--source include/start_mysqld.inc
+
+--echo # Files in datadir after recovery.
+--list_files $MYSQLD_DATADIR/test
+
+SELECT * FROM t1;
+DROP TABLE t1;

@@ -47,12 +47,15 @@
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/scheduler/logger_stream.h"
 #include "mysql/thread_type.h"
-#include "prealloced_array.h"  // Prealloced_array
-#include "sql/binlog.h"        // MYSQL_BIN_LOG
+#include "prealloced_array.h"                         // Prealloced_array
+#include "sql/binlog.h"                               // MYSQL_BIN_LOG
+#include "sql/changestreams/apply/applier_version.h"  // Applier_version
 #include "sql/changestreams/apply/metrics/applier_metrics.h"
 #include "sql/changestreams/apply/metrics/applier_metrics_stub.h"
-#include "sql/log_event.h"  //Gtid_log_event
+#include "sql/changestreams/apply/parallel_worker_context.h"  // Parallel_worker_context
+#include "sql/log_event.h"                                    //Gtid_log_event
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"         // Gtid_set
@@ -206,6 +209,11 @@ class Relay_log_info : public Rpl_info {
   friend class Rpl_info_factory;
 
  public:
+  using Parallel_worker_context_ptr = cs::apply::Parallel_worker_context_ptr;
+  using Parallel_worker_context = cs::apply::Parallel_worker_context;
+  using Trx_id = Parallel_worker_context::Trx_id;
+  using Worker_id = Parallel_worker_context::Worker_id;
+
   /**
     Set of possible return values for the member methods related to
     `PRIVILEGE_CHECKS_USER` management.
@@ -299,7 +307,7 @@ class Relay_log_info : public Rpl_info {
     thread and nonzero for Relay_log_info objects that belong to
     clients.
   */
-  inline bool belongs_to_client() {
+  inline bool belongs_to_client() const {
     assert(info_thd);
     return !info_thd->slave_thread;
   }
@@ -1222,10 +1230,10 @@ class Relay_log_info : public Rpl_info {
   long mts_worker_underrun_level;   // % of WQ size at which W is considered
                                     // hungry
   ulong mts_coordinator_basic_nap;  // C sleeps to avoid WQs overrun
-  ulong
-      opt_replica_parallel_workers;  // cache for ::opt_replica_parallel_workers
-  ulong
-      replica_parallel_workers;  // the one slave session time number of workers
+  ulong opt_replica_parallel_workers{
+      0};  // cache for ::opt_replica_parallel_workers
+  ulong replica_parallel_workers{
+      0};  // the one slave session time number of workers
   ulong
       exit_counter;  // Number of workers contributed to max updated group index
   ulonglong max_updated_index;
@@ -1711,6 +1719,8 @@ class Relay_log_info : public Rpl_info {
   */
   virtual int set_rli_description_event(Format_description_log_event *fdle);
 
+  void set_fde_ptr(Format_description_log_event *fdle);
+
   /**
     Return the current Format_description_log_event.
   */
@@ -1906,6 +1916,13 @@ class Relay_log_info : public Rpl_info {
   static const int
       APPLIER_METADATA_LINES_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE =
           14;
+
+  static const int APPLIER_METADATA_LINES_WITH_APPLIER_VERSION = 15;
+
+  static const int APPLIER_METADATA_LINES_WITH_APPLIER_WORKER_COUNT = 16;
+
+  static const int APPLIER_METADATA_LINES_WITH_APPLIER_EVENT_MEMORY_LIMIT = 17;
+
   /*
     Total lines in applier metadata.
     This has to be updated every time a member is added or removed.
@@ -1915,7 +1932,7 @@ class Relay_log_info : public Rpl_info {
     preserved.
   */
   static const int MAXIMUM_APPLIER_METADATA_LINES =
-      APPLIER_METADATA_LINES_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE;
+      APPLIER_METADATA_LINES_WITH_APPLIER_EVENT_MEMORY_LIMIT;
 
   bool read_info(Rpl_info_handler *from) override;
   bool write_info(Rpl_info_handler *to) override;
@@ -2115,6 +2132,84 @@ class Relay_log_info : public Rpl_info {
     @param on_rollback  when true the method carries out rollback action
   */
   virtual void post_commit(bool on_rollback);
+
+ public:
+  /// Sets version of the applier - taken into account when channel starts
+  /// @param version Requested version of the applier
+  void set_applier_version(uint version);
+  /// Sets the number of applier workers - taken into account when channel
+  /// starts
+  /// @param number Requested number of applier workers
+  void set_applier_worker_count(uint number);
+  /// Obtain an actual and valid number of applier workers
+  uint get_applier_worker_count() const;
+  /// Get configured number of applier workers (may be invalid)
+  uint get_configured_applier_worker_count() const;
+  /// Checks if new applier is enabled for this channel RLI
+  bool is_csa_enabled() const;
+  /// Enables CSA stop error suppression if no error was reported yet.
+  void enable_csa_stop_error_suppression_if_clean();
+  /// Checks whether CSA stop error suppression is currently enabled.
+  bool is_csa_stop_error_suppression_enabled() const;
+  /// Sets channel instance id used in CSA
+  /// @param channel_instance_id Channel instance id assigned during creation
+  /// of this RLI
+  void set_channel_instance_id(std::size_t channel_instance_id);
+  /// Get channel instance id used in CSA
+  /// @return Channel instance id
+  std::size_t get_channel_instance_id() const;
+  /// Sets the limit of applier memory for keeping binlog events
+  /// @param number Requested memory limit
+  void set_applier_event_memory_limit(ulong number);
+  /// Accesses the limit of applier memory for keeping binlog events
+  /// @return The maximum amount of memory the channel can use to keep binlog
+  /// events
+  ulong get_applier_event_memory_limit();
+  /// Set CSA worker context used by commit order manager
+  /// @param csa_worker_context CSA worker context
+  void set_csa_worker_context(Parallel_worker_context *csa_worker_context);
+  /// Obtain parallel worker context, non-owning pointer
+  /// @return pointer to object containing worker context, may be underlying
+  /// pointer to Slave_worker (MTA) or Csa_worker_context (CSA)
+  Parallel_worker_context *get_parallel_worker_context();
+
+  /// Set Coordinator RLI
+  /// @param parent_rli Coordinator (SQL) thread RLI
+  void set_parent_rli(Relay_log_info *parent_rli);
+  /// Obtain Coordinator RLI
+  /// @return Coordinator (SQL) thread RLI
+  Relay_log_info *get_parent_rli() const;
+
+ protected:
+  /// Downgrades stop-generated CSA session errors for sessions that were clean
+  /// when stop began. Called with err_lock held, so the decision is serialized
+  /// with normal Last_Error publication and clean-stop marking.
+  /// @param level Report level requested by the caller.
+  /// @param err_code Error code requested by the caller.
+  /// @return Effective report level.
+  loglevel get_effective_report_level(loglevel level,
+                                      int err_code) const override;
+
+ private:
+  /// Used version of the applier, taken into account only when channel starts
+  uint m_applier_version{cs::apply::Applier_version::mta};
+  /// Used number of applier workers, taken into account only when channel
+  /// starts
+  uint m_applier_worker_count{0};
+  /// Unique id for the channel with which this RLI is associated to
+  std::size_t m_channel_instance_id{0};
+  /// Used limit of event memory, taken into account only when channel
+  /// starts
+  uint m_applier_event_memory_limit{0};
+  /// default value for the m_applier_event_memory_limit
+  static constexpr ulong applier_event_memory_limit_default =
+      1024 * 1024 * 1024;
+  /// Non-owning, parallel CSA worker execution context, set by CSA
+  Parallel_worker_context *m_csa_worker_context{nullptr};
+  /// Coordinator RLI. Used in CSA to attach/detach temporary tables
+  Relay_log_info *m_parent_rli{nullptr};
+  /// Downgrade errors produced after a clean CSA stop request.
+  std::atomic<bool> m_csa_stop_error_suppression{false};
 };
 
 /**

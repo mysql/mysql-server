@@ -1,0 +1,19 @@
+SELECT @@GLOBAL.mysqlx_use_pqc_sign;
+@@GLOBAL.mysqlx_use_pqc_sign
+0
+SELECT @@mysqlx_use_pqc_sign = @@GLOBAL.mysqlx_use_pqc_sign;
+@@mysqlx_use_pqc_sign = @@GLOBAL.mysqlx_use_pqc_sign
+1
+SELECT @@SESSION.mysqlx_use_pqc_sign;
+ERROR HY000: Variable 'mysqlx_use_pqc_sign' is a GLOBAL variable
+SELECT @@LOCAL.mysqlx_use_pqc_sign;
+ERROR HY000: Variable 'mysqlx_use_pqc_sign' is a GLOBAL variable
+SET @@SESSION.mysqlx_use_pqc_sign = ON;
+ERROR HY000: Variable 'mysqlx_use_pqc_sign' is a read only variable
+SET @@GLOBAL.mysqlx_use_pqc_sign = ON;
+ERROR HY000: Variable 'mysqlx_use_pqc_sign' is a read only variable
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='mysqlx_use_pqc_sign';
+VARIABLE_VALUE
+OFF

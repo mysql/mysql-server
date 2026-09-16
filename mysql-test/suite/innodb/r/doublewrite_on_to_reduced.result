@@ -8,6 +8,7 @@ SHOW VARIABLES LIKE 'innodb_saved_page_number_debug';
 Variable_name	Value
 innodb_saved_page_number_debug	0
 # Wait for purge to complete
+SET GLOBAL innodb_log_checkpoint_now = ON;
 create table t1 (f1 int primary key, f2 blob) engine=innodb STATS_PERSISTENT=0;
 START TRANSACTION;
 INSERT INTO t1 VALUES(1, repeat('#',12));

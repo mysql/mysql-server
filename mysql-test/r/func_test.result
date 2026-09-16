@@ -1022,3 +1022,20 @@ FROM_UNIXTIME(GREATEST(d, t, y))
 1970-08-23 12:01:41.000000
 SET TIMESTAMP = DEFAULT;
 DROP TABLE t1;
+#
+# Bug#36065440: Unexpected result for LEAST function
+#
+CREATE TABLE t0(c0 LONGTEXT);
+INSERT INTO t0(c0) VALUES(0.1);
+CREATE TABLE t1(c0 INT ZEROFILL PRIMARY KEY);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+INSERT IGNORE INTO t1(c0) VALUES(NULL);
+Warnings:
+Warning	1048	Column 'c0' cannot be null
+SELECT NOT (LEAST(t0.c0, t1.c0) OR t1.c0) AS c FROM t1, t0;
+c
+0
+SELECT * FROM t1, t0 WHERE NOT (LEAST(t0.c0, t1.c0) OR t1.c0);
+c0	c0
+DROP TABLE t0, t1;

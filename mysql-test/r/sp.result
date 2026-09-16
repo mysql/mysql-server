@@ -6245,14 +6245,14 @@ select 1;
 /*! select 2; */
 select 3;
 /*!00000 select 4; */
-/*!99999 select 5; */
+/*!999999 select 5; */
 end
 $$
 create procedure proc_25411_b(
 /* real comment */
 /*! p1 int, */
 /*!00000 p2 int */
-/*!99999 ,p3 int */
+/*!999999 ,p3 int */
 )
 begin
 select p1, p2;
@@ -6261,9 +6261,9 @@ $$
 create procedure proc_25411_c()
 begin
 select 1/*!,2*//*!00000,3*//*!99999,4*/;
-select 1/*! ,2*//*!00000 ,3*//*!99999 ,4*/;
+select 1/*! ,2*//*!00000 ,3*//*!999999 ,4*/;
 select 1/*!,2 *//*!00000,3 *//*!99999,4 */;
-select 1/*! ,2 *//*!00000 ,3 *//*!99999 ,4 */;
+select 1/*! ,2 *//*!00000 ,3 *//*!999999 ,4 */;
 select 1 /*!,2*/ /*!00000,3*/ /*!99999,4*/ ;
 end
 $$
@@ -6319,9 +6319,9 @@ proc_25411_b	begin
 proc_25411_c	begin
 select 1 ,2  ,3 ;
 select 1 ,2  ,3 ;
-select 1 ,2 ,3  ;
-select 1,2 ,3 ;
-select 1,2 ,3 ;
+select 1 ,2 ,3 ,4 ;
+select 1,2 ,3 ,4 ;
+select 1,2 ,3 ,4 ;
 select 1;
 select 3;
 select p1, p2;
@@ -6334,23 +6334,23 @@ show create procedure proc_25411_c;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_25411_c		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_c`()
 begin
-select 1,2 ,3 ;
+select 1,2 ,3 ,4 ;
 select 1 ,2  ,3 ;
-select 1,2 ,3 ;
+select 1,2 ,3 ,4 ;
 select 1 ,2  ,3 ;
-select 1 ,2 ,3  ;
+select 1 ,2 ,3 ,4 ;
 end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call proc_25411_c();
+1	2	3	4
+1	2	3	4
 1	2	3
 1	2	3
+1	2	3	4
+1	2	3	4
 1	2	3
 1	2	3
-1	2	3
-1	2	3
-1	2	3
-1	2	3
-1	2	3
-1	2	3
+1	2	3	4
+1	2	3	4
 drop procedure proc_25411_a;
 drop procedure proc_25411_b;
 drop procedure proc_25411_c;

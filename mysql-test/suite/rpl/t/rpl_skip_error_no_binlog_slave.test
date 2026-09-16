@@ -17,6 +17,9 @@
 # BUG#22268777 BINLOGLESS SLAVE DOES NOT UPDATE EXEC_MASTER_LOG_POS
 #              WITH REPLICA_SKIP_ERRORS
 
+# CSA does not support sync with positions (ignore_gtids_on_sync)
+--source include/have_mta.inc
+
 --source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1_trans (n INT NOT NULL PRIMARY KEY) ENGINE=INNODB;

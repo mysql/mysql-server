@@ -34,6 +34,8 @@
 # on its size to test the functionality. Skipping compression
 # so that the test is deterministic
 --source include/not_binlog_transaction_compression_on.inc
+# CSA does not support replica_pending_jobs_size_max, see APPLIER_EVENT_MEMORY_LIMIT
+--source include/have_mta.inc
 
 --let $rpl_skip_start_slave= 1
 --source include/rpl/init_source_replica.inc

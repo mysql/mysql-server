@@ -1,0 +1,9 @@
+INSTALL COMPONENT "file://component_test_mysql_command_services";
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE test.tg (c INT);
+# Test : GTID tracker data is exposed through mysql_command_session_state
+SELECT test_mysql_command_session_state_sequence_udf("SET @@session.session_track_gtids='OWN_GTID'", "SET @test_mysql_command_services_gtid=1", "INSERT INTO test.tg VALUES (1)", "SESSION_TRACK_GTIDS");
+test_mysql_command_session_state_sequence_udf("SET @@session.session_track_gtids='OWN_GTID'", "SET @test_mysql_command_services_gtid=1", "INSERT INTO test.tg VALUES (1)", "SESSION_TRACK_GTIDS")
+<GTID>
+DROP TABLE test.tg;
+UNINSTALL COMPONENT "file://component_test_mysql_command_services";

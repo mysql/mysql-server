@@ -4,7 +4,7 @@
 # Stop the running the server
 # Copy and unzip the datadir.
 # Restart the server against the unzipped datadir
-# restart: --datadir=DATADIR --innodb-page-size=4k
+# restart: --datadir=DATADIR --innodb-page-size=4k --lower_case_table_names=1
 ##############################################
 # Test instant ADD/DROP COLUMN for REDUNDANT format
 ##############################################

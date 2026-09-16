@@ -31,10 +31,20 @@
 # WL#10493: Add transaction length to gtid_log_event
 #
 --source include/rpl/set_privilege_checks_user_as_system_user.inc
---source include/rpl/init_source_replica.inc
-
 # this test uses large transactions, tence cannot use compression
 --source include/not_binlog_transaction_compression_on.inc
+--let $rpl_skip_start_slave=1
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+# Turn off relay log purge, so that logs are available when we scan them
+SET @saved_relay_log_purge = @@global.relay_log_purge;
+SET @@global.relay_log_purge = OFF;
+
+START REPLICA;
+
+--source include/rpl/connection_source.inc
 
 --echo ###################################################
 --echo # Step 1                                          #
@@ -194,4 +204,8 @@ DROP TABLE t6;
 # Assert the transaction length in all source log files
 --source include/rpl/connection_source.inc
 --source include/rpl/assert_transaction_length_all_logs.inc
+
+--source include/rpl/connection_replica.inc
+SET @@global.relay_log_purge = @saved_relay_log_purge;
+
 --source include/rpl/deinit.inc

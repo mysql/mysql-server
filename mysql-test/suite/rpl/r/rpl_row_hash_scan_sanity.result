@@ -13,9 +13,13 @@ INSERT INTO t3 VALUES (1);
 INSERT INTO t4 VALUES (1);
 include/rpl/sync_to_replica.inc
 UPDATE t1 SET c1= 6;
+include/rpl/sync_to_replica.inc
 UPDATE t2 SET c1= 6;
+include/rpl/sync_to_replica.inc
 UPDATE t3 SET c1= 6;
+include/rpl/sync_to_replica.inc
 UPDATE t4 SET c1= 6;
+include/rpl/sync_to_replica.inc
 CREATE TABLE t5(c1 INT, c2 INT, KEY(c2));
 INSERT INTO t5 VALUES (1,1),(2,2),(3,1),(4,NULL),(5,2),(6,3);
 DELETE FROM t5 ORDER BY c1;
@@ -40,6 +44,7 @@ call mtr.add_suppression("Could not execute Delete_rows event on table test.t6")
 call mtr.add_suppression("Could not execute Update_rows event on table test.t6");
 call mtr.add_suppression("Can't find record in 't6'");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 [connection master]
 CREATE TABLE t6(num INT, year INT, KEY year (year))
 PARTITION BY HASH(num) PARTITIONS 5;

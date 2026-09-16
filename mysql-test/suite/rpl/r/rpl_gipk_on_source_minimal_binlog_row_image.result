@@ -50,6 +50,7 @@ include/suppress_messages.inc
 # Connection 2 suppresses message <Replica SQL for channel .*: ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
 # Connection 2 suppresses message <Replica SQL for channel .*: Could not execute Update_rows event on table test.t1>.
 # Connection 2 suppresses message <Replica: Can.* find record in 't1'>.
+# Connection 2 suppresses message <Change Stream Applier channel stopped because of error>.
 [connection master]
 DROP TABLE t1;
 include/rpl/deinit.inc

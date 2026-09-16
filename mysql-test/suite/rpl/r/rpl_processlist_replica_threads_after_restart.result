@@ -1,0 +1,20 @@
+# Configure two servers to be source and replica.
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Verify replica processlist rows before restart.
+include/rpl/sync_to_replica.inc
+include/assert.inc [Before restart, P_S threads should expose both replica PROCESSLIST_ID values.]
+include/assert.inc [Before restart, I_S processlist should contain both replica threads.]
+include/assert.inc [Before restart, P_S processlist should contain both replica threads.]
+# Restart the replica server.
+include/rpl/restart_server.inc [server_number=2 parameters: --skip-replica-start=0]
+[connection slave]
+include/rpl/wait_for_replica_to_start.inc
+# Verify replica processlist rows after restart.
+include/assert.inc [After restart, P_S threads should expose both replica PROCESSLIST_ID values.]
+include/assert.inc [After restart, I_S processlist should contain both replica threads.]
+include/assert.inc [After restart, P_S processlist should contain both replica threads.]
+include/rpl/deinit.inc

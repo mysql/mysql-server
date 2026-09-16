@@ -49,6 +49,7 @@ LOCK TABLE t1 WRITE;
 
 --let $rpl_connection_name= server2
 --source include/connection.inc
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

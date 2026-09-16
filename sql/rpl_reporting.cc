@@ -141,11 +141,17 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
   char *curr_buff;
   uint pbuffsize = sizeof(buff);
 
+  if (err_code == ER_QUERY_INTERRUPTED && (!thd || !thd->is_fatal_error())) {
+    // don't report self kill as error, until error is marked as fatal
+    level = INFORMATION_LEVEL;
+  }
+
   if (thd && level == ERROR_LEVEL && has_temporary_error(thd, err_code) &&
       !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION))
     level = WARNING_LEVEL;
 
   mysql_mutex_lock(&err_lock);
+  level = get_effective_report_level(level, err_code);
   switch (level) {
     case ERROR_LEVEL:
       /*

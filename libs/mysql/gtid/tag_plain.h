@@ -28,6 +28,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <type_traits>
 
 #include "mysql/gtid/gtid_constants.h"  // tag_max_length
 

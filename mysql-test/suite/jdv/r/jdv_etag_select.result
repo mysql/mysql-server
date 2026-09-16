@@ -99,4 +99,480 @@ data	data
 {"T2X": [{"T2C1": 3, "T2C2": 3.1}], "_id": 3, "T1C2": 3.0999999046325684, "_metadata": {"etag": "71bba5cfe50a93126e31596223e317ec"}}	{"T2X": [{"T2C1": 3, "T2C2": 3.1}], "_id": 3, "T1C2": 3.0999999046325684, "_metadata": {"etag": "71bba5cfe50a93126e31596223e317ec"}}
 DROP VIEW dv_float;
 DROP VIEW dv_test;
+################################################################################
+# WL#17054: ETAG selection with effective CHECK tags
+################################################################################
+# 1. Root-column CHECK and NO CHECK behavior
+# Setup for 1.1 through 1.5: prepare root CHECK/NO CHECK ETAG
+# behavior and optimistic-concurrency checks.
+CREATE TABLE gct_etag_root (
+id INT PRIMARY KEY,
+checked_value INT,
+no_check_value INT,
+mutable_value INT
+);
+INSERT INTO gct_etag_root VALUES (1, 10, 20, 100);
+CREATE JSON DUALITY VIEW gct_etag_root_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"_id" : id WITH NO CHECK,
+"checked_value" : checked_value WITH CHECK,
+"no_check_value" : no_check_value WITH NO CHECK,
+"mutable_value" : mutable_value
+)
+FROM gct_etag_root;
+# Record the starting document and ETAG.
+SELECT data FROM gct_etag_root_view;
+data
+{"_id": 1, "_metadata": {"etag": "c8dc3b0346ff3f9447503842e26a1efb"}, "checked_value": 10, "mutable_value": 100, "no_check_value": 20}
+# 1.1: a JDV update of an effective NO CHECK column preserves
+# the ETAG while changing the visible value.
+UPDATE gct_etag_root_view
+SET data = JSON_SET(data, '$.no_check_value', 21)
+WHERE data->>'$._id' = 1;
+SELECT data FROM gct_etag_root_view;
+data
+{"_id": 1, "_metadata": {"etag": "c8dc3b0346ff3f9447503842e26a1efb"}, "checked_value": 10, "mutable_value": 100, "no_check_value": 21}
+SELECT @etag_before_jdv_no_check =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS jdv_no_check_update_keeps_etag
+FROM gct_etag_root_view;
+jdv_no_check_update_keeps_etag
+1
+# 1.2: a direct base-table update of an effective NO CHECK
+# column also preserves the ETAG.
+UPDATE gct_etag_root SET no_check_value = 22 WHERE id = 1;
+SELECT data FROM gct_etag_root_view;
+data
+{"_id": 1, "_metadata": {"etag": "c8dc3b0346ff3f9447503842e26a1efb"}, "checked_value": 10, "mutable_value": 100, "no_check_value": 22}
+SELECT @etag_before_direct_no_check =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS direct_no_check_update_keeps_etag
+FROM gct_etag_root_view;
+direct_no_check_update_keeps_etag
+1
+# 1.3: a JDV update of an effective CHECK column changes ETAG.
+UPDATE gct_etag_root_view
+SET data = JSON_SET(data, '$.checked_value', 11)
+WHERE data->>'$._id' = 1;
+SELECT data FROM gct_etag_root_view;
+data
+{"_id": 1, "_metadata": {"etag": "ef8ee7cf8d3e61e9e1baf96a107ec771"}, "checked_value": 11, "mutable_value": 100, "no_check_value": 22}
+SELECT @etag_before_jdv_check <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS jdv_check_update_changes_etag
+FROM gct_etag_root_view;
+jdv_check_update_changes_etag
+1
+# 1.3: the direct base-table CHECK path changes ETAG as well.
+UPDATE gct_etag_root SET checked_value = 12 WHERE id = 1;
+SELECT data FROM gct_etag_root_view;
+data
+{"_id": 1, "_metadata": {"etag": "283e46dd0cbb0b2186934ee47da55e60"}, "checked_value": 12, "mutable_value": 100, "no_check_value": 22}
+SELECT @etag_before_direct_check <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS direct_check_update_changes_etag
+FROM gct_etag_root_view;
+direct_check_update_changes_etag
+1
+# 1.4: after a CHECK value changes, submitting the captured
+# document fails with ER_JDV_ETAG_MISMATCH.
+UPDATE gct_etag_root SET checked_value = 13 WHERE id = 1;
+UPDATE gct_etag_root_view
+SET data = JSON_SET(@stale_checked_document, '$.mutable_value', 101)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Cannot update JSON duality view. The ETAG of the document in the database did not match the ETAG '"283e46dd0cbb0b2186934ee47da55e60"' passed in.
+# The rejected stale request did not change mutable_value.
+SELECT id, checked_value, no_check_value, mutable_value
+FROM gct_etag_root;
+id	checked_value	no_check_value	mutable_value
+1	13	22	100
+# 1.5: changing only a NO CHECK base value leaves the captured
+# ETAG valid, so an otherwise valid stale-document update succeeds.
+UPDATE gct_etag_root SET no_check_value = 23 WHERE id = 1;
+UPDATE gct_etag_root_view
+SET data = JSON_SET(
+JSON_REMOVE(@stale_no_check_document, '$.no_check_value'),
+'$.mutable_value', 102)
+WHERE data->>'$._id' = 1;
+SELECT data FROM gct_etag_root_view;
+data
+{"_id": 1, "_metadata": {"etag": "5358cf6cad2f14a98c7485a98a3cfd59"}, "checked_value": 13, "mutable_value": 102, "no_check_value": 23}
+SELECT id, checked_value, no_check_value, mutable_value
+FROM gct_etag_root;
+id	checked_value	no_check_value	mutable_value
+1	13	23	102
+DROP VIEW gct_etag_root_view;
+DROP TABLE gct_etag_root;
+# 2. Child-column CHECK and NO CHECK behavior
+#
+# Setup for 2.1 and 2.2: prepare one document with singleton and nested
+# children having independent CHECK and NO CHECK columns.
+CREATE TABLE gct_etag_singleton (
+id INT PRIMARY KEY,
+checked_value INT,
+no_check_value INT
+);
+CREATE TABLE gct_etag_parent (
+id INT PRIMARY KEY,
+singleton_id INT,
+FOREIGN KEY (singleton_id) REFERENCES gct_etag_singleton(id)
+);
+CREATE TABLE gct_etag_nested (
+id INT PRIMARY KEY,
+parent_id INT,
+checked_value INT,
+no_check_value INT,
+FOREIGN KEY (parent_id) REFERENCES gct_etag_parent(id)
+);
+INSERT INTO gct_etag_singleton VALUES (10, 100, 200);
+INSERT INTO gct_etag_parent VALUES (1, 10);
+INSERT INTO gct_etag_nested VALUES (100, 1, 1000, 2000);
+CREATE JSON DUALITY VIEW gct_etag_child_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"_id" : p.id,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"id" : s.id,
+"checked_value" : s.checked_value WITH CHECK,
+"no_check_value" : s.no_check_value
+)
+FROM gct_etag_singleton AS s
+WHERE s.id = p.singleton_id
+),
+"nested" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"id" : n.id,
+"checked_value" : n.checked_value WITH CHECK,
+"no_check_value" : n.no_check_value
+)
+)
+FROM gct_etag_nested AS n
+WHERE n.parent_id = p.id
+)
+)
+FROM gct_etag_parent AS p;
+SELECT data FROM gct_etag_child_view;
+data
+{"_id": 1, "nested": [{"id": 100, "checked_value": 1000, "no_check_value": 2000}], "_metadata": {"etag": "31b130ed647719a37921cf3c1223bde3"}, "singleton": {"id": 10, "checked_value": 100, "no_check_value": 200}}
+# 2.1: a singleton NO CHECK change preserves the root ETAG.
+UPDATE gct_etag_singleton SET no_check_value = 201 WHERE id = 10;
+SELECT @etag_before_singleton_no_check =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS singleton_no_check_keeps_etag
+FROM gct_etag_child_view;
+singleton_no_check_keeps_etag
+1
+# 2.1: a singleton CHECK change modifies the root ETAG.
+UPDATE gct_etag_singleton SET checked_value = 101 WHERE id = 10;
+SELECT @etag_before_singleton_check <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS singleton_check_changes_etag
+FROM gct_etag_child_view;
+singleton_check_changes_etag
+1
+# 2.2: a nested-child NO CHECK change preserves the root ETAG.
+UPDATE gct_etag_nested SET no_check_value = 2001 WHERE id = 100;
+SELECT @etag_before_nested_no_check =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS nested_no_check_keeps_etag
+FROM gct_etag_child_view;
+nested_no_check_keeps_etag
+1
+# 2.2: a nested-child CHECK change modifies the root ETAG.
+UPDATE gct_etag_nested SET checked_value = 1001 WHERE id = 100;
+SELECT @etag_before_nested_check <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS nested_check_changes_etag
+FROM gct_etag_child_view;
+nested_check_changes_etag
+1
+SELECT data FROM gct_etag_child_view;
+data
+{"_id": 1, "nested": [{"id": 100, "checked_value": 1001, "no_check_value": 2001}], "_metadata": {"etag": "10c2a326aa78bc81d0793dc565ca9ccd"}, "singleton": {"id": 10, "checked_value": 101, "no_check_value": 201}}
+#
+# 3. Collection ordering and subtree membership
+#
+# 3.1: removing a singleton subtree that contains CHECK values
+# changes ETAG and records the child as null.
+UPDATE gct_etag_parent SET singleton_id = NULL WHERE id = 1;
+SELECT data FROM gct_etag_child_view;
+data
+{"_id": 1, "nested": [{"id": 100, "checked_value": 1001, "no_check_value": 2001}], "_metadata": {"etag": "8d87f086f9e84bbc158600b0f7acc24a"}, "singleton": null}
+SELECT @etag_before_singleton_remove <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS checked_singleton_remove_changes_etag
+FROM gct_etag_child_view;
+checked_singleton_remove_changes_etag
+1
+# Restoring that checked singleton subtree changes ETAG again.
+UPDATE gct_etag_parent SET singleton_id = 10 WHERE id = 1;
+SELECT data FROM gct_etag_child_view;
+data
+{"_id": 1, "nested": [{"id": 100, "checked_value": 1001, "no_check_value": 2001}], "_metadata": {"etag": "10c2a326aa78bc81d0793dc565ca9ccd"}, "singleton": {"id": 10, "checked_value": 101, "no_check_value": 201}}
+SELECT @etag_before_singleton_restore <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS checked_singleton_restore_changes_etag
+FROM gct_etag_child_view;
+checked_singleton_restore_changes_etag
+1
+DROP VIEW gct_etag_child_view;
+DROP TABLE gct_etag_nested;
+DROP TABLE gct_etag_parent;
+DROP TABLE gct_etag_singleton;
+# 3.2: prepare a nested array whose keys are NO CHECK and whose
+# unchanged CHECK values will be made to appear in reverse array order.
+CREATE TABLE gct_order_parent (id INT PRIMARY KEY);
+CREATE TABLE gct_order_child (
+id INT PRIMARY KEY,
+parent_id INT,
+checked_value INT,
+FOREIGN KEY (parent_id) REFERENCES gct_order_parent(id)
+);
+INSERT INTO gct_order_parent VALUES (1);
+INSERT INTO gct_order_child VALUES (10, 1, 100), (20, 1, 200);
+CREATE JSON DUALITY VIEW gct_order_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"_id" : p.id,
+"children" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"id" : c.id,
+"checked_value" : c.checked_value WITH CHECK
+)
+)
+FROM gct_order_child AS c
+WHERE c.parent_id = p.id
+)
+)
+FROM gct_order_parent AS p;
+# Record the original child ordering and ETAG.
+SELECT data FROM gct_order_view;
+data
+{"_id": 1, "children": [{"id": 10, "checked_value": 100}, {"id": 20, "checked_value": 200}], "_metadata": {"etag": "7fd2362ba689436f653e5709aca123e8"}}
+# Swap the NO CHECK child keys, reversing checked-value row order.
+UPDATE gct_order_child SET id = 30 WHERE id = 10;
+UPDATE gct_order_child SET id = 10 WHERE id = 20;
+UPDATE gct_order_child SET id = 20 WHERE id = 30;
+# The array order changes, but order-independent checked hashing keeps ETAG.
+SELECT data FROM gct_order_view;
+data
+{"_id": 1, "children": [{"id": 10, "checked_value": 200}, {"id": 20, "checked_value": 100}], "_metadata": {"etag": "7fd2362ba689436f653e5709aca123e8"}}
+SELECT @etag_before_order_change =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS nested_array_order_keeps_etag
+FROM gct_order_view;
+nested_array_order_keeps_etag
+1
+DROP VIEW gct_order_view;
+DROP TABLE gct_order_child;
+DROP TABLE gct_order_parent;
+# 3.3 through 3.6: prepare checked and all-NO-CHECK child subtrees.
+CREATE TABLE gct_membership_parent (id INT PRIMARY KEY);
+CREATE TABLE gct_checked_child (
+id INT PRIMARY KEY,
+parent_id INT,
+checked_value INT,
+FOREIGN KEY (parent_id) REFERENCES gct_membership_parent(id)
+);
+CREATE TABLE gct_unchecked_child (
+id INT PRIMARY KEY,
+parent_id INT,
+unchecked_value INT,
+FOREIGN KEY (parent_id) REFERENCES gct_membership_parent(id)
+);
+CREATE TABLE gct_recursive_child (
+id INT PRIMARY KEY,
+parent_id INT,
+unchecked_value INT,
+FOREIGN KEY (parent_id) REFERENCES gct_membership_parent(id)
+);
+CREATE TABLE gct_recursive_checked_leaf (
+id INT PRIMARY KEY,
+child_id INT,
+checked_value INT,
+FOREIGN KEY (child_id) REFERENCES gct_recursive_child(id)
+);
+CREATE TABLE gct_recursive_unchecked_leaf (
+id INT PRIMARY KEY,
+child_id INT,
+unchecked_value INT,
+FOREIGN KEY (child_id) REFERENCES gct_recursive_child(id)
+);
+INSERT INTO gct_membership_parent VALUES (1);
+INSERT INTO gct_checked_child VALUES (10, 1, 100);
+INSERT INTO gct_unchecked_child VALUES (20, 1, 200);
+INSERT INTO gct_recursive_child VALUES (30, 1, 300);
+INSERT INTO gct_recursive_checked_leaf VALUES (300, 30, 3000);
+INSERT INTO gct_recursive_unchecked_leaf VALUES (400, 30, 4000);
+CREATE JSON DUALITY VIEW gct_membership_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"_id" : p.id,
+"checked_children" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH CHECK
+"id" : c.id WITH NO CHECK,
+"checked_value" : c.checked_value
+)
+)
+FROM gct_checked_child AS c
+WHERE c.parent_id = p.id
+),
+"unchecked_children" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"id" : u.id,
+"unchecked_value" : u.unchecked_value
+)
+)
+FROM gct_unchecked_child AS u
+WHERE u.parent_id = p.id
+),
+"recursive_children" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"id" : r.id,
+"unchecked_value" : r.unchecked_value,
+"checked_grandchildren" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH CHECK
+"id" : rc.id WITH NO CHECK,
+"checked_value" : rc.checked_value
+)
+)
+FROM gct_recursive_checked_leaf AS rc
+WHERE rc.child_id = r.id
+),
+"unchecked_grandchildren" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"id" : ru.id,
+"unchecked_value" : ru.unchecked_value
+)
+)
+FROM gct_recursive_unchecked_leaf AS ru
+WHERE ru.child_id = r.id
+)
+)
+)
+FROM gct_recursive_child AS r
+WHERE r.parent_id = p.id
+)
+)
+FROM gct_membership_parent AS p;
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "b84c7a1d9dc0c3f9e8077695d94781c0"}, "checked_children": [{"id": 10, "checked_value": 100}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}]}
+# 3.3: adding a child with an effective CHECK projection changes ETAG.
+INSERT INTO gct_checked_child VALUES (11, 1, 101);
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "35a78785a76811d5b928a8071207ad75"}, "checked_children": [{"id": 10, "checked_value": 100}, {"id": 11, "checked_value": 101}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}]}
+SELECT @etag_before_checked_add <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS checked_child_add_changes_etag
+FROM gct_membership_view;
+checked_child_add_changes_etag
+1
+# 3.3: removing a child with an effective CHECK projection changes ETAG.
+DELETE FROM gct_checked_child WHERE id = 11;
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "b84c7a1d9dc0c3f9e8077695d94781c0"}, "checked_children": [{"id": 10, "checked_value": 100}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}]}
+SELECT @etag_before_checked_remove <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS checked_child_remove_changes_etag
+FROM gct_membership_view;
+checked_child_remove_changes_etag
+1
+# 3.4: adding a complete NO CHECK child subtree preserves ETAG.
+INSERT INTO gct_unchecked_child VALUES (21, 1, 201);
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "b84c7a1d9dc0c3f9e8077695d94781c0"}, "checked_children": [{"id": 10, "checked_value": 100}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}, {"id": 21, "unchecked_value": 201}]}
+SELECT @etag_before_unchecked_add =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS unchecked_child_add_keeps_etag
+FROM gct_membership_view;
+unchecked_child_add_keeps_etag
+1
+# 3.4: removing a complete NO CHECK child subtree preserves ETAG.
+DELETE FROM gct_unchecked_child WHERE id = 21;
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "b84c7a1d9dc0c3f9e8077695d94781c0"}, "checked_children": [{"id": 10, "checked_value": 100}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}]}
+SELECT @etag_before_unchecked_remove =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS unchecked_child_remove_keeps_etag
+FROM gct_membership_view;
+unchecked_child_remove_keeps_etag
+1
+# 3.5: adding a CHECK grandchild below a NO CHECK intermediate changes
+# ETAG, exercising recursive checked-subtree detection.
+INSERT INTO gct_recursive_checked_leaf VALUES (301, 30, 3001);
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "4cd371b71e0ab94049b576d2d325d040"}, "checked_children": [{"id": 10, "checked_value": 100}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}, {"id": 301, "checked_value": 3001}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}]}
+SELECT @etag_before_checked_grandchild_add <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS checked_grandchild_add_changes_etag
+FROM gct_membership_view;
+checked_grandchild_add_changes_etag
+1
+# 3.5: removing that recursively checked grandchild changes ETAG again.
+DELETE FROM gct_recursive_checked_leaf WHERE id = 301;
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "b84c7a1d9dc0c3f9e8077695d94781c0"}, "checked_children": [{"id": 10, "checked_value": 100}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}]}
+SELECT @etag_before_checked_grandchild_remove <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS checked_grandchild_remove_changes_etag
+FROM gct_membership_view;
+checked_grandchild_remove_changes_etag
+1
+# 3.6: adding an all-NO-CHECK grandchild is visible but preserves ETAG.
+INSERT INTO gct_recursive_unchecked_leaf VALUES (401, 30, 4001);
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "b84c7a1d9dc0c3f9e8077695d94781c0"}, "checked_children": [{"id": 10, "checked_value": 100}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}, {"id": 401, "unchecked_value": 4001}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}]}
+SELECT @etag_before_unchecked_grandchild_add =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS unchecked_grandchild_add_keeps_etag
+FROM gct_membership_view;
+unchecked_grandchild_add_keeps_etag
+1
+# 3.6: removing the all-NO-CHECK grandchild also preserves ETAG.
+DELETE FROM gct_recursive_unchecked_leaf WHERE id = 401;
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "b84c7a1d9dc0c3f9e8077695d94781c0"}, "checked_children": [{"id": 10, "checked_value": 100}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}]}
+SELECT @etag_before_unchecked_grandchild_remove =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS unchecked_grandchild_remove_keeps_etag
+FROM gct_membership_view;
+unchecked_grandchild_remove_keeps_etag
+1
+SELECT data FROM gct_membership_view;
+data
+{"_id": 1, "_metadata": {"etag": "b84c7a1d9dc0c3f9e8077695d94781c0"}, "checked_children": [{"id": 10, "checked_value": 100}], "recursive_children": [{"id": 30, "unchecked_value": 300, "checked_grandchildren": [{"id": 300, "checked_value": 3000}], "unchecked_grandchildren": [{"id": 400, "unchecked_value": 4000}]}], "unchecked_children": [{"id": 20, "unchecked_value": 200}]}
+DROP VIEW gct_membership_view;
+DROP TABLE gct_recursive_unchecked_leaf;
+DROP TABLE gct_recursive_checked_leaf;
+DROP TABLE gct_recursive_child;
+DROP TABLE gct_unchecked_child;
+DROP TABLE gct_checked_child;
+DROP TABLE gct_membership_parent;
+#
 DROP DATABASE DB1;

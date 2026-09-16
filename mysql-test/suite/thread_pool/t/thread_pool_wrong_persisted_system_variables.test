@@ -1,0 +1,40 @@
+--source include/force_restart.inc
+--source ../inc/thread_pool_err.inc
+
+# This test passes wrong values to all thread pool options via SET PERSIST
+
+# As there are only a few variables which are persisted in the static section
+# of the mysqld-auto.cnf. We only test those variables here.
+
+SET PERSIST_ONLY thread_pool_algorithm = 1234;
+SET PERSIST_ONLY thread_pool_dedicated_listeners = -1;
+SET PERSIST_ONLY thread_pool_max_transactions_limit = 1100000;
+SET PERSIST_ONLY thread_pool_query_threads_per_group = 0;
+SET PERSIST_ONLY thread_pool_size = 0;
+
+--echo #
+--echo # Restart mysqld server
+--echo #
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+
+--let $error_pattern= $tp_algo_max_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_dl_min_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_mtl_max_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_qtpg_min_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_size_min_warn
+--source ../inc/wrong_value.inc
+
+# Add suppression for the message that says
+# thread_pool_query_threads_per_group(1) is not recommended when used with
+# HIGH_CONCURRENCY_ALGORITHM
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

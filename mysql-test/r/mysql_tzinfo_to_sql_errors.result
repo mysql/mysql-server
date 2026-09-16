@@ -1,0 +1,15 @@
+# Bug#36624161: Contribution: mysql_tzinfo_to_sql: suppress expected warnings
+# Non-zoneinfo file (regular mode).
+File 'non_zoneinfo.txt' is not a zoneinfo file
+# Malformed zoneinfo file (regular mode).
+Failed to parse zoneinfo file 'broken_zoneinfo.tzif'
+# Short non-zoneinfo file (regular mode).
+File 'short_non_zoneinfo.bin' is not a zoneinfo file
+# Non-zoneinfo file (--leap mode).
+File 'non_zoneinfo.txt' is not a zoneinfo file
+# Malformed zoneinfo file (--leap mode).
+Failed to parse zoneinfo file 'broken_zoneinfo.tzif'
+# Directory mode: non-zoneinfo file is skipped silently.
+# Directory mode: short non-zoneinfo file is skipped silently.
+# Directory mode: malformed zoneinfo file warning.
+Warning: Failed to parse zoneinfo file 'broken_zoneinfo_dir/broken_zoneinfo.tzif'. Skipping it.

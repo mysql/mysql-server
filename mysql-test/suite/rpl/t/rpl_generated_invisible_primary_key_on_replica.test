@@ -256,6 +256,7 @@ Replica SQL for channel '': Error 'Multiple primary key defined' on query.
 Replica: Multiple primary key defined Error_code:
 Replica SQL for channel '': Error 'Failed to generate invisible primary key. Column 'my_row_id' already exists.'
 Replica: Failed to generate invisible primary key. Column 'my_row_id' already exists.
+Change Stream Applier channel stopped because of error
 ;
 --let $suppress_on_current_connection = 1
 --source include/suppress_messages.inc

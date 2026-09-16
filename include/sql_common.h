@@ -121,6 +121,11 @@ MYSQL_EXTENSION *mysql_extension_init(MYSQL *);
 void mysql_extension_free(MYSQL_EXTENSION *);
 /* cleanup for the MYSQL extension bind structure */
 void mysql_extension_bind_free(MYSQL_EXTENSION *ext);
+/* cleanup for the MYSQL extension session state cache */
+void mysql_clear_session_track_info(MYSQL *mysql);
+/* decode a session-tracker payload into MYSQL extension state */
+bool mysql_decode_session_track_payload(MYSQL *mysql, const uchar *payload,
+                                        size_t payload_length);
 /*
   Note: Allocated extension structure is freed in mysql_close_free()
   called by mysql_close().
@@ -191,6 +196,9 @@ struct st_mysql_options_extention {
   struct client_authentication_info client_auth_info[MAX_AUTHENTICATION_FACTOR];
   void *ssl_session_data;   /** the session serialization to use */
   char *tls_sni_servername; /* TLS sni server name */
+  char *tls_kex;
+  bool force_pqc;
+  bool use_pqc_sign;
 };
 
 #define MYSQL_OPTIONS_EXTENSION_PTR(H, what) \

@@ -1,0 +1,19 @@
+SELECT LENGTH(@@GLOBAL.mysqlx_tls_kex);
+
+SELECT @@mysqlx_tls_kex = @@GLOBAL.mysqlx_tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.mysqlx_tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.mysqlx_tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@SESSION.mysqlx_tls_kex = 'secp256r1';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.mysqlx_tls_kex = 'X25519MLKEM768';
+
+SELECT LENGTH(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='mysqlx_tls_kex';

@@ -86,7 +86,7 @@ SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
 SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
-ERROR HY000: Clone Donor MySQL version: 9.7.0 is different from Recipient MySQL version 10.7.0.
+ERROR HY000: Clone Donor MySQL version: 9.7.0 is different from Recipient MySQL version 28.4.0.
 select ID, STATE, ERROR_NO from performance_schema.clone_status;
 ID	STATE	ERROR_NO
 1	Failed	3864

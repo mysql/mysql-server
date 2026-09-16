@@ -61,6 +61,7 @@ call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': 
 call mtr.add_suppression("Replica I/O thread couldn't register on source");
 call mtr.add_suppression(".*This member has more executed transactions *.*");
 call mtr.add_suppression("The member contains transactions not present in the group. It is only allowed to *.*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Change Stream Applier channel stopped because of error*");
 SET SESSION sql_log_bin= 1;
 SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';

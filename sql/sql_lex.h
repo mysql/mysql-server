@@ -463,6 +463,25 @@ struct LEX_SOURCE_INFO {
 
   const char *assign_gtids_to_anonymous_transactions_manual_uuid{nullptr};
 
+  struct Applier_version {
+    static constexpr uint unspecified{0};  ///< use previous or default
+    static constexpr uint mta{1};          ///< use Multi-threaded applier
+    static constexpr uint csa{2};          ///< use new Change Stream Aplier
+    static constexpr uint unknown{3};      ///< "unknown" guard
+  };
+
+  /// Used applier version, default - use MTA
+  uint applier_version{Applier_version::unspecified};
+  /// constant - unspecified applier_worker_count option
+  static constexpr int applier_worker_count_unspecified{-1};
+  /// Used workers number, default - applier_use_replica_parallel_workers
+  int applier_worker_count{applier_worker_count_unspecified};
+  /// constant - unspecified applier_event_memory_limit option
+  static constexpr int applier_event_memory_limit_unspecified{0};
+  /// The maximum amout of memory that can be used by the channel to keep
+  /// binlog events
+  ulong applier_event_memory_limit{applier_event_memory_limit_unspecified};
+
   /// Initializes everything to zero/NULL/empty.
   void initialize();
   /// Sets all fields to their "unspecified" value.
@@ -4647,6 +4666,9 @@ struct LEX : public Query_tables_list {
 
   // Maximum execution time for a statement.
   ulong max_execution_time;
+
+  /// Value of RESOURCE_GROUP hint for a statement (nullptr if no hint).
+  const char *switch_resource_group = nullptr;
 
   /*
     To flag the current statement as dependent for binary logging

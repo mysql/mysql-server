@@ -1,0 +1,9 @@
+# ==== Purpose ====
+# Changes replication applier version to change stream applier
+
+[ENV]
+# By default, CHANGE REPLICATION SOURCE is executed without specifying the
+# `APPLIER_VERSION` parameter. This variable causes CHANGE REPLICATION SOURCE
+# TO to specifiy APPLIER_VERSION=2. We use the default number of workers.
+RPL_CHANGE_STREAM_APPLIER=2
+

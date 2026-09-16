@@ -49,9 +49,11 @@ SET(TESTS
   ha_innodb
   fts0fts
   log0log
+  log0redo
   mem0mem
   os0file
   os0thread-create
+  rem0rec
   srv0conc
   sync0rw
   ut0bitset
@@ -61,6 +63,8 @@ SET(TESTS
   ut0mem
   ut0new
   ut0object_cache
+  ut0per_thread
+  ut0prefix_cache
   ut0rbt
   ut0rnd
 )
@@ -86,6 +90,7 @@ MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
   ADD_TEST merge_innodb_tests-t
   EXCLUDE_FROM_GCOV
   LINK_LIBRARIES gunit_large server_unittest_library
+  ${LINK_FILESYSTEM_LIBRARY}
   )
 
 # Download TBB from https://www.threadingbuildingblocks.org
@@ -100,6 +105,7 @@ FOREACH(test ${TESTS})
     EXCLUDE_FROM_ALL
     SKIP_INSTALL
     LINK_LIBRARIES gunit_large server_unittest_library
+    ${LINK_FILESYSTEM_LIBRARY}
     DEPENDENCIES GenError
     ADD_GCOV_TEST ${test}
     )

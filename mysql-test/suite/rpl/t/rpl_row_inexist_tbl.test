@@ -32,6 +32,7 @@ connection slave;
 # 1146 = ER_NO_SUCH_TABLE
 call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t1. doesn.t exist., Error_code: MY-001146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 
 --let $slave_sql_errno= 1146
 --source include/rpl/wait_for_applier_error.inc

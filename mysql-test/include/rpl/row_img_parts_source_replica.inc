@@ -53,7 +53,9 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 -- connection master
--- sync_slave_with_master
+-- let $include_silent=1
+-- source include/rpl/sync_to_replica.inc
+-- let $include_silent=0
 
 -- let $row_img_pos_slave= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
@@ -85,7 +87,9 @@ if (!$iterations)
 }
 
 # now sync the slave
--- sync_slave_with_master
+-- let $include_silent=1
+-- source include/rpl/sync_to_replica.inc
+-- let $include_silent=0
 
 # master assertion
 -- connection master

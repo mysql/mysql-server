@@ -1,0 +1,108 @@
+#
+# Bug 36061036 - Explain plan shows dynamic range,
+# but bug causes no chance to use for LEFT JOIN
+#
+SET @old_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch = 'hypergraph_optimizer=off';
+CREATE TABLE digits (d TINYINT PRIMARY KEY);
+INSERT INTO digits VALUES
+(0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+CREATE TABLE seq_0_to_999 AS
+SELECT ones.d + 10 * tens.d + 100 * hundreds.d AS n
+FROM digits AS ones
+CROSS JOIN digits AS tens
+CROSS JOIN digits AS hundreds;
+CREATE TABLE t2 (
+id INT NOT NULL,
+value VARCHAR(32) NOT NULL,
+PRIMARY KEY (id),
+KEY idx_value (value)
+);
+INSERT INTO t2
+SELECT n + 1, CONCAT('name', LPAD(n + 1, 5, '0'))
+FROM seq_0_to_999
+WHERE n < 923
+ORDER BY n;
+CREATE TABLE t1 (
+id INT NOT NULL,
+status CHAR(2) NOT NULL,
+name VARCHAR(32) NOT NULL,
+sequence INT NOT NULL,
+PRIMARY KEY (id),
+KEY idx_name (name)
+);
+INSERT INTO t1
+SELECT n + 1,
+CASE MOD(n, 4)
+WHEN 0 THEN 'NG'
+         WHEN 1 THEN 'FA'
+         WHEN 2 THEN 'IT'
+         ELSE 'OK'
+       END,
+CONCAT('name', LPAD(MOD(n, 923) + 1, 5, '0')),
+MOD(n * 7, 923) + 1
+FROM (
+SELECT n FROM seq_0_to_999
+UNION ALL
+SELECT n + 1000 FROM seq_0_to_999 WHERE n < 285
+) AS generated_rows
+ORDER BY n;
+INSERT INTO t1 VALUES (2000, 'NG', 'not-in-t2', 2000);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT COUNT(0)
+FROM t1
+JOIN t2
+ON t2.value = t1.name
+OR t2.id = t1.sequence
+WHERE t1.status IN ('NG', 'FA', 'IT');
+COUNT(0)
+1927
+EXPLAIN ANALYZE SELECT COUNT(0)
+FROM t1
+JOIN t2
+ON t2.value = t1.name
+OR t2.id = t1.sequence
+WHERE t1.status IN ('NG', 'FA', 'IT');
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=67658)
+        -> Filter: (t1.`status` in ('NG','FA','IT'))  (rows=386)
+            -> Table scan on t1  (rows=1286)
+        -> Filter: ((t2.`value` = t1.`name`) or (t2.id = t1.sequence))  (rows=175)
+            -> Index range scan on t2 (re-planned for each iteration)  (rows=923)
+
+SELECT COUNT(0)
+FROM t1
+LEFT JOIN t2
+ON t2.value = t1.name
+OR t2.id = t1.sequence
+WHERE t1.status IN ('NG', 'FA', 'IT');
+COUNT(0)
+1928
+SELECT SUM(t2.id IS NULL) AS unmatched_rows
+FROM t1
+LEFT JOIN t2
+ON t2.value = t1.name
+OR t2.id = t1.sequence
+WHERE t1.status IN ('NG', 'FA', 'IT');
+unmatched_rows
+1
+EXPLAIN ANALYZE SELECT COUNT(0)
+FROM t1
+LEFT JOIN t2
+ON t2.value = t1.name
+OR t2.id = t1.sequence
+WHERE t1.status IN ('NG', 'FA', 'IT');
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop left join  (rows=356093)
+        -> Filter: (t1.`status` in ('NG','FA','IT'))  (rows=386)
+            -> Table scan on t1  (rows=1286)
+        -> Filter: ((t2.`value` = t1.`name`) or (t2.id = t1.sequence))  (rows=923)
+            -> Index range scan on t2 (re-planned for each iteration)  (rows=923)
+
+DROP TABLE t1, t2, seq_0_to_999, digits;
+SET optimizer_switch = @old_optimizer_switch;

@@ -1,0 +1,19 @@
+SET @group_replication_communication_stack_saved= @@GLOBAL.group_replication_communication_stack;
+SET @@GLOBAL.group_replication_communication_stack= 1;
+Warnings:
+Warning	1681	'group_replication_communication_stack' is deprecated and will be removed in a future release.
+include/assert.inc [Numeric value 1 sets group_replication_communication_stack to MySQL]
+SET @@GLOBAL.group_replication_communication_stack= 0;
+Warnings:
+Warning	1681	'group_replication_communication_stack' is deprecated and will be removed in a future release.
+include/assert.inc [Numeric value 0 sets group_replication_communication_stack to XCom]
+SET @@GLOBAL.group_replication_communication_stack= NULL;
+ERROR 42000: Variable 'group_replication_communication_stack' can't be set to the value of 'NULL'
+include/assert.inc [group_replication_communication_stack value must remain XCom]
+SET @@GLOBAL.group_replication_communication_stack= "OLA";
+ERROR 42000: Variable 'group_replication_communication_stack' can't be set to the value of 'OLA'
+include/assert.inc [group_replication_communication_stack value must remain XCom]
+SET @@GLOBAL.group_replication_communication_stack= 10;
+ERROR 42000: Variable 'group_replication_communication_stack' can't be set to the value of '10'
+include/assert.inc [group_replication_communication_stack value must remain XCom]
+SET @@GLOBAL.group_replication_communication_stack= @group_replication_communication_stack_saved;

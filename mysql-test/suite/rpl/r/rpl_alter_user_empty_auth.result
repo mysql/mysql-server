@@ -1,0 +1,52 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Bug#38478657: ALTER USER with empty authentication data should not
+# expire passwords on replicas.
+#
+CREATE USER 'rpl_empty_auth_by'@'%'
+  IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER 'rpl_empty_auth_with'@'%'
+  IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER 'rpl_empty_auth_as'@'%'
+  IDENTIFIED WITH 'caching_sha2_password' BY '';
+include/rpl/sync_to_replica.inc
+ALTER USER 'rpl_empty_auth_by'@'%'
+  IDENTIFIED WITH caching_sha2_password BY '';
+ALTER USER 'rpl_empty_auth_with'@'%'
+  IDENTIFIED WITH caching_sha2_password;
+ALTER USER 'rpl_empty_auth_as'@'%'
+  IDENTIFIED WITH caching_sha2_password AS '';
+include/rpl/sync_to_replica.inc
+SET @sql_log_bin_saved = @@sql_log_bin;
+SET sql_log_bin = 0;
+CREATE TABLE test.rpl_empty_auth_master
+SELECT user, host, plugin, authentication_string, password_expired
+FROM mysql.user
+WHERE user LIKE 'rpl_empty_auth_%'
+ORDER BY user;
+SET sql_log_bin = @sql_log_bin_saved;
+SET @sql_log_bin_saved = @@sql_log_bin;
+SET sql_log_bin = 0;
+CREATE TABLE test.rpl_empty_auth_slave
+SELECT user, host, plugin, authentication_string, password_expired
+FROM mysql.user
+WHERE user LIKE 'rpl_empty_auth_%'
+ORDER BY user;
+SET sql_log_bin = @sql_log_bin_saved;
+include/diff_tables.inc [master:test.rpl_empty_auth_master, slave:test.rpl_empty_auth_slave]
+DROP USER 'rpl_empty_auth_by'@'%', 'rpl_empty_auth_with'@'%',
+'rpl_empty_auth_as'@'%';
+SET @sql_log_bin_saved = @@sql_log_bin;
+SET sql_log_bin = 0;
+DROP TABLE test.rpl_empty_auth_master;
+SET sql_log_bin = @sql_log_bin_saved;
+include/rpl/sync_to_replica.inc
+SET @sql_log_bin_saved = @@sql_log_bin;
+SET sql_log_bin = 0;
+DROP TABLE test.rpl_empty_auth_slave;
+SET sql_log_bin = @sql_log_bin_saved;
+include/rpl/deinit.inc

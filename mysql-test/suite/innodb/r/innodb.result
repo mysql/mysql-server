@@ -1863,7 +1863,7 @@ variable_value
 {checked_valid}
 SELECT sum(variable_value) - @innodb_rows_deleted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_deleted';
 sum(variable_value) - @innodb_rows_deleted_orig
-1846
+1844
 SELECT sum(variable_value) - @innodb_rows_inserted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) like 'innodb%_rows_inserted';
 sum(variable_value) - @innodb_rows_inserted_orig
 2733

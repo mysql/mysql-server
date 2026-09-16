@@ -256,14 +256,6 @@ ulint innobase_get_table_cache_size(void);
  @return value of lower_case_table_names */
 ulint innobase_get_lower_case_table_names(void);
 
-/** Compare two character strings case insensitively according to their
-charset.
-@param[in]  cs  character set
-@param[in]  s1  string 1
-@param[in]  s2  string 2
-@return 0 if the two strings are equal */
-int innobase_nocase_compare(const void *cs, const char *s1, const char *s2);
-
 /** Returns true if transaction should be flagged as read-only.
  @return true if the thd is marked as read-only */
 bool thd_trx_is_read_only(THD *thd); /*!< in/out: thread handle */
@@ -365,6 +357,7 @@ inline void send_errno_warn(THD *thd, int err, const std::string &context) {
 }  // namespace ib
 
 extern const char *TROUBLESHOOTING_MSG;
+extern const char *TROUBLESHOOT_DATADICT_URL;
 extern const char *TROUBLESHOOT_DATADICT_MSG;
 extern const char *FORCE_RECOVERY_MSG;
 extern const char *ERROR_CREATING_MSG;

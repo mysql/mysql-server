@@ -106,17 +106,12 @@ DROP TABLE t1;
 
 --echo
 --echo # T1.3. On the replica: Check that SQL thread has stopped
---echo
-
---let $is_sql_thread_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
---let $assert_text= "SQL thread should be stopped"
---let $assert_cond= "$is_sql_thread_running" = "No"
---source include/assert.inc
-
---echo
 --echo # T1.4. On the replica: Check that a correct message has been printed
 --echo #       into the error log
 --echo
+
+--let $slave_sql_errno= convert_error(ER_REPLICA_RELAY_LOG_READ_FAILURE)
+--source include/rpl/wait_for_applier_error.inc
 
 --let $error_pattern = Unrecognized event format. The event appears to originate from a future server version
 --source include/assert_error_log.inc
@@ -156,6 +151,9 @@ DROP TABLE t1;
 --echo
 
 --source include/rpl/connection_replica.inc
+
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
+--source include/rpl/wait_for_receiver_error.inc
 
 --let $is_io_thread_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
 --let $assert_text= "IO thread should be stopped"

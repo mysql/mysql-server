@@ -1,0 +1,26 @@
+--source include/have_debug.inc
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title TEXT,
+  body TEXT,
+  FULLTEXT KEY (title),
+  FULLTEXT KEY (body)
+) ENGINE=InnoDB;
+
+INSERT INTO t1(title, body) VALUES ('alpha beta', 'gamma delta epsilon');
+
+SET GLOBAL innodb_ft_aux_table='test/t1';
+SELECT WORD,POSITION FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY WORD;
+
+SET SESSION DEBUG = '+d,i_s_fts_index_cache_fill_out_of_memory';
+SELECT WORD,POSITION FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY WORD;
+
+SET SESSION DEBUG = '+d,i_s_fts_index_cache_fill_out_of_memory,raise_error';
+--replace_regex /in table '[^']+'/in table 'tmp_table'/
+--error ER_DUP_KEY
+SELECT WORD,POSITION FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY WORD;
+SET SESSION DEBUG = '-d,raise_error';
+
+
+SET GLOBAL innodb_ft_aux_table=default;
+DROP TABLE t1;

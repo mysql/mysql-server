@@ -383,12 +383,6 @@ struct index_entry_t {
   @return the buffer block containing the index entry. */
   buf_block_t *load_x(const fil_addr_t &addr);
 
-  /** Load the index entry available in the given file address.
-  Take s-latch on the index page.
-  @param[in]    addr    the file location of index entry.
-  @return the buffer block. */
-  buf_block_t *load_s(const fil_addr_t &addr);
-
   void insert_after(flst_base_node_t *base, index_entry_t &entry) {
     flst_insert_after(base, m_node, entry.get_node(), m_mtr);
   }

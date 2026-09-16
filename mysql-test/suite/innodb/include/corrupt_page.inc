@@ -8,7 +8,7 @@
 # Wait for the server to be fully closed. Otherwise we could try to open
 # a file that is still used leading to an error on Windows. It should be
 # caller's responsibility to do that, but all current usages allow to have it
-# just once, here.
+# just once, here. This can be moved to callers if starts to be an issue.
 --source include/wait_until_disconnected.inc
 
 perl;

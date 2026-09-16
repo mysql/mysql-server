@@ -845,6 +845,38 @@ void Query_expression::create_access_paths(THD *thd) {
   } else {
     // Just append all the UNION ALL sub-blocks.
     assert(streaming_allowed);
+    const auto has_unknown_costs = [](const AppendPathParameters &child) {
+      return child.path->init_cost() < 0.0 || child.path->cost() < 0.0 ||
+             child.path->num_output_rows() < 0.0;
+    };
+    const bool limit_can_short_circuit =
+        limit != HA_POS_ERROR && !calc_found_rows;
+    const bool subquery_can_short_circuit =
+        item != nullptr &&
+        (item->subquery_type() == Item_subselect::EXISTS_SUBQUERY ||
+         item->subquery_type() == Item_subselect::IN_SUBQUERY);
+
+    // When the consumer can stop after early rows (LIMIT without
+    // SQL_CALC_FOUND_ROWS, or EXISTS/IN subquery execution where only the first
+    // matching row is needed), evaluate the branch with the lowest first-row
+    // cost first. This reorders only physical streaming children; Query_term
+    // order, result metadata, and item-copy mappings have already been fixed.
+    // Restricted to the hypergraph optimizer to avoid changing row order for
+    // queries that read all branches anyway, and skipped for secondary engines,
+    // which may rely on Append children matching Query_term order.
+    const bool can_short_circuit =
+        limit_can_short_circuit || subquery_can_short_circuit;
+    if (can_short_circuit && thd->lex->using_hypergraph_optimizer() &&
+        thd->secondary_engine_optimization() !=
+            Secondary_engine_optimization::SECONDARY &&
+        std::none_of(union_all_sub_paths->begin(), union_all_sub_paths->end(),
+                     has_unknown_costs)) {
+      std::stable_sort(
+          union_all_sub_paths->begin(), union_all_sub_paths->end(),
+          [](const AppendPathParameters &a, const AppendPathParameters &b) {
+            return a.path->first_row_cost() < b.path->first_row_cost();
+          });
+    }
     m_root_access_path = NewAppendAccessPath(thd, union_all_sub_paths);
   }
 

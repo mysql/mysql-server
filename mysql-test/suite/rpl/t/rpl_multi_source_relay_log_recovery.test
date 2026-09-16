@@ -30,8 +30,11 @@
 # and there are no gaps in MTS execution and it is up and running.
 
 --source include/not_rpl_gtid_only.inc
+--source include/have_gtid_mode_off.inc
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
+# CSA supports GTID_MODE=ON
+--source include/have_mta.inc
 --source include/force_restart.inc
 --source include/have_binlog_format_row.inc
 

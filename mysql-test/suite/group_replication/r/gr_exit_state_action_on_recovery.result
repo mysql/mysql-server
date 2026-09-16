@@ -29,6 +29,7 @@ call mtr.add_suppression("The server was automatically set into offline mode aft
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error in the recovery module of Group Replication.");
 call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Change Stream Applier channel stopped because of error*");
 SET sql_log_bin = 1;
 
 #########################################################################

@@ -27,16 +27,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 *****************************************************************************/
 
 /**************************************************/ /**
- @file log/log0chkp.cc
 
  Redo log checkpointing.
 
- File consists of four groups:
-   1. Coordination between log and buffer pool (oldest_lsn).
-   2. Making checkpoints (including the log_checkpointer thread).
-   3. Free check.
-
  *******************************************************/
+#include "log0chkp.h"
 
 /* std::chrono::X */
 #include <chrono>
@@ -53,13 +48,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* buf_flush_fsync */
 #include "buf0flu.h"
 
-/* dict_persist_to_dd_table_buffer */
-#include "dict0dict.h"
+/* pages_persistence */
+#include "fil0pages_persistence_interface.h"
 
 /* log_buffer_ready_for_write_lsn */
 #include "log0buf.h"
-
-#include "log0chkp.h"
 
 /* log_can_encrypt */
 #include "log0encryption.h"
@@ -72,6 +65,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* recv_recovery_is_on() */
 #include "log0recv.h"
+
+/* ib::redo::handler */
+#include "log0handler_interface.h"
 
 /* log_t::X */
 #include "log0sys.h"
@@ -94,6 +90,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* os_event_wait_time_low */
 #include "os0event.h"
 
+/* os_thread_create */
+#include "os0thread-create.h"
+
+/* create_internal_thd */
+#include "sql_thd_internal_api.h"
+
 /* MONITOR_INC, ... */
 #include "srv0mon.h"
 
@@ -108,59 +110,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #ifndef UNIV_HOTBACKUP
 
-/** Updates lsn available for checkpoint.
-@param[in,out]  log redo log */
-static void log_update_available_for_checkpoint_lsn(log_t &log);
-
-/** Checks if checkpoint should be written. Checks time elapsed since the last
-checkpoint, age of the last checkpoint and if there was any extra request to
-write the checkpoint (e.g. coming from log_make_latest_checkpoint()).
-@return true if checkpoint should be written */
-static bool log_should_checkpoint(log_t &log);
-
-/** Considers writing next checkpoint. Checks if checkpoint should be written
-(using log_should_checkpoint()) and writes the checkpoint if that's the case. */
-static void log_consider_checkpoint(log_t &log);
-
-/** Considers requesting page cleaners to execute sync flush. */
-static void log_consider_sync_flush(log_t &log);
-
-/** Makes a checkpoint. Note that this function does not flush dirty blocks
-from the buffer pool. It only checks what is lsn of the oldest modification
-in the buffer pool, and writes information about the lsn in log files.
-@param[in,out]  log  redo log */
-static void log_checkpoint(log_t &log);
-
-/** Calculates time that elapsed since last checkpoint.
-@return Time duration elapsed since the last checkpoint */
-static std::chrono::steady_clock::duration log_checkpoint_time_elapsed(
-    const log_t &log);
+Log_checkpointing *log_checkpointing;
 
 /** Waits for checkpoint advanced to at least that lsn.
-@param[in]      log     redo log
 @param[in]      lsn     lsn up to which we are waiting */
-static void log_wait_for_checkpoint(const log_t &log, lsn_t lsn);
+static void log_wait_for_checkpoint(lsn_t lsn);
 
 /** Requests for urgent flush of dirty pages, to advance oldest_lsn
-in flush lists to provided value. This should force page cleaners
+in flush lists. This should force page cleaners
 to perform the sync-flush in which case the innodb_max_io_capacity
 is not respected. This should be called when we are close to running
-out of space in redo log (close to free_check_limit_lsn).
-@param[in]  log         redo log
-@param[in]  new_oldest  oldest_lsn to stop flush at (or greater)
-@retval  true   requested page flushing
-@retval  false  did not request page flushing (either because it is
-                unit test for redo log or sync flushing is disabled
-                by sys_var: innodb_flush_sync) */
-static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest);
-
-/**************************************************/ /**
-
- @name Log - coordination with buffer pool and oldest_lsn
-
- *******************************************************/
-
-/** @{ */
+out of space in redo log (close to m_free_check_limit_lsn).
+*/
+static void log_request_sync_flush();
 
 /** Calculates lsn at which we might write a next checkpoint. It does the
 best effort, but possibly the maximum allowed lsn, could be even bigger.
@@ -175,11 +137,11 @@ value cannot be larger than the buf_flush_list_added->smallest_not_added_lsn()
 added).
 
 It is guaranteed, that the returned value will not be smaller than
-the log.last_checkpoint_lsn.
+the log_checkpointer.m_checkpoint_lsn.
 
 @return lsn for which we might write the checkpoint */
-static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
-  /* The buf_flush_list_added->smallest_not_added_lsn() can only increase,
+[[nodiscard]] static lsn_t log_compute_available_for_checkpoint_lsn() {
+  /* The buf_flush_list_added->assume_added_up_to() can only increase,
   and that happens only after all related dirty pages have been added
   to the flush lists.
 
@@ -199,8 +161,10 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
 
   const lsn_t dpa_lsn = buf_flush_list_added->smallest_not_added_lsn();
 
-  ut_ad(dpa_lsn >= log.last_checkpoint_lsn.load() ||
-        !log_checkpointer_mutex_own(log));
+  ut_ad(dpa_lsn >= log_checkpointing->get_checkpoint() ||
+        !log_checkpointer_mutex_own());
+
+  ut_ad(log_is_data_lsn(dpa_lsn));
 
   log_sync_point("log_get_available_for_chkp_lsn_before_buf_pool");
 
@@ -215,6 +179,7 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
     /* Empty flush list. */
     lwm_lsn = dpa_lsn;
   } else {
+    ut_ad(log_is_data_lsn(lwm_lsn));
     lwm_lsn = std::min(lwm_lsn, dpa_lsn);
   }
 
@@ -231,10 +196,9 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
   log records without dirty pages (during page flush we anyway wait
   for redo flushed up to page's newest_modification). */
 
-  const lsn_t flushed_lsn = log.flushed_to_disk_lsn.load();
-
+  const lsn_t flushed_lsn = ib::redo::handler->peek_first_nonpersisted_lsn();
+  ut_ad(log_is_data_lsn(lwm_lsn));
   lsn_t lsn = std::min(lwm_lsn, flushed_lsn);
-
   /* We expect in recovery that checkpoint_lsn is within data area
   of log block. In future we could get rid of this assumption, but
   we would need to ensure that recovery handles that properly.
@@ -243,99 +207,82 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
   phases:
           1. Looking for the proper mtr boundary to start at (only parse).
           2. Actual parsing and applying changes. */
+  if (flushed_lsn < lwm_lsn) {
+    if (!log_is_data_lsn(lsn)) {
+      /* The only possible reason lsn is not inside a block, is that we've used
+      flushed_lsn as the value for it, and that it is at block boundary */
+      ut_a(lsn == flushed_lsn);
+      ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
+      /* As flushed_lsn marks end of the log, and during recovery InnoDB scans
+      from the block containing checkpoint_lsn *forward* searching for a block
+      which has a known mtr boundary, we have to ensure that there will be at
+      least one such block with non-zero FIRST_REC_GROUP header. As the scenario
+      where flushed_lsn is smaller than lwm_lsn implies that the current end of
+      redo log contains mtrs which do not dirty any pages, and such mtrs contain
+      paths to tablespaces etc. they can be quite long, but not much longer than
+      a few FN_REFLEN. Therefore we back off by 10*FN_REFLEN to be sure we move
+      back past the last of these mtrs, and thus have at least one mtr boundary
+      ahead of us.
+      Note: Recovery can not scan backwards, as the old files could be removed.
+      Note: Checkpointer can't wait for log writer to write more, as log writer
+            can already be waiting for checkpointer to free up old logs. */
 
-  if (lsn % OS_FILE_LOG_BLOCK_SIZE == 0) {
-    /* Do not make checkpoints at block boundary.
-
-    We hopefully will get rid of this exception and allow
-    recovery to start at arbitrary checkpoint value. */
-    lsn = lsn - OS_FILE_LOG_BLOCK_SIZE + LOG_BLOCK_HDR_SIZE;
+      lsn = lsn - ut_uint64_align_up(FN_REFLEN * 10, OS_FILE_LOG_BLOCK_SIZE) +
+            LOG_BLOCK_HDR_SIZE;
+    }
   }
+  ut_ad(log_is_data_lsn(lsn));
+  lsn = std::max(lsn, log_checkpointing->get_checkpoint());
 
-  ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE >= LOG_BLOCK_HDR_SIZE);
+  ut_ad(lsn >= log_checkpointing->get_checkpoint() ||
+        !log_checkpointer_mutex_own());
 
-  ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE <
-       OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
-
-  lsn = std::max(lsn, log.last_checkpoint_lsn.load());
-
-  ut_ad(lsn >= log.last_checkpoint_lsn.load() ||
-        !log_checkpointer_mutex_own(log));
-
-  ut_a(lsn <= log.flushed_to_disk_lsn.load());
+  ut_a(lsn <= ib::redo::handler->peek_first_nonpersisted_lsn());
 
   return lsn;
 }
 
-static void log_update_available_for_checkpoint_lsn(log_t &log) {
-  /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in recv_sys->metadata_recover are applied to dict_table_t
-  objects; or in log_start() if recovery was not needed. We can't trust
-  flush lists until recovery is finished, so we must not update lsn available
-  for checkpoint (as update would be based on what we can see inside them). */
-  if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
-    return;
-  }
+lsn_t Log_checkpointing::update_available_for_checkpoint_lsn() {
+  ut_ad(log_checkpointer_is_active());
 
   /* Update lsn available for checkpoint. */
-  const lsn_t oldest_lsn = log_compute_available_for_checkpoint_lsn(log);
+  lsn_t oldest_lsn = log_compute_available_for_checkpoint_lsn();
 
-  log_limits_mutex_enter(log);
+  log_limits_mutex_enter();
 
   /* 1. The oldest_lsn can decrease in case previously buffer pool flush
         lists were empty and now a new dirty page appeared, which causes
-        a maximum delay of buf_flush_list_added->order_lag() being suddenly
-        subtracted.
+        a maximum delay of Buf_flush_list_added_lsns::order_lag() being
+        suddenly subtracted.
 
-     2. Race between concurrent log_update_available_for_checkpoint_lsn is
-        also possible. */
+     2. Race between concurrent calls to
+        Log_checkpointing::update_available_for_checkpoint_lsn is also possible.
+  */
 
-  if (oldest_lsn > log.available_for_checkpoint_lsn) {
-    log.available_for_checkpoint_lsn = oldest_lsn;
-  }
-
-  log_limits_mutex_exit(log);
-}
-
-/** @} */
-
-/**************************************************/ /**
-
- @name Log - making checkpoints
-
- *******************************************************/
-
-/** @{ */
-
-void log_set_dict_max_allowed_checkpoint_lsn(log_t &log, lsn_t max_lsn) {
-  log_limits_mutex_enter(log);
-  log.dict_max_allowed_checkpoint_lsn = max_lsn;
-  log_limits_mutex_exit(log);
-}
-
-static lsn_t log_determine_checkpoint_lsn(log_t &log) {
-  ut_ad(log_checkpointer_mutex_own(log));
-  ut_ad(log.m_allow_checkpoints.load());
-
-  log_limits_mutex_enter(log);
-
-  const lsn_t oldest_lsn = log.available_for_checkpoint_lsn;
-
-  const lsn_t dict_lsn = log.dict_max_allowed_checkpoint_lsn;
-
-  log_limits_mutex_exit(log);
-
-  ut_a(dict_lsn == 0 || dict_lsn >= log.last_checkpoint_lsn.load());
-
-  if (dict_lsn == 0) {
-    return oldest_lsn;
+  if (oldest_lsn > m_available_for_checkpoint_lsn) {
+    m_available_for_checkpoint_lsn = oldest_lsn;
   } else {
-    return std::min(oldest_lsn, dict_lsn);
+    oldest_lsn = m_available_for_checkpoint_lsn;
   }
+
+  log_limits_mutex_exit();
+  return oldest_lsn;
+}
+
+lsn_t Log_checkpointing::determine_checkpoint_lsn() {
+  ut_ad(log_checkpointer_mutex_own());
+
+  log_limits_mutex_enter();
+
+  const lsn_t oldest_lsn = m_available_for_checkpoint_lsn;
+
+  log_limits_mutex_exit();
+
+  return oldest_lsn;
 }
 
 dberr_t log_files_next_checkpoint(log_t &log, lsn_t next_checkpoint_lsn) {
-  ut_ad(log_checkpointer_mutex_own(log));
+  ut_ad(log_checkpointer_mutex_own());
   ut_a(!srv_read_only_mode);
 
   IB_mutex_guard writer_latch{&(log.writer_mutex), UT_LOCATION_HERE};
@@ -351,7 +298,7 @@ dberr_t log_files_next_checkpoint(log_t &log, lsn_t next_checkpoint_lsn) {
 
   log_sync_point("log_before_checkpoint_write");
 
-  const lsn_t prev_checkpoint_lsn = log.last_checkpoint_lsn.load();
+  const lsn_t prev_checkpoint_lsn = log_checkpointing->get_checkpoint();
   if (prev_checkpoint_lsn != 0) {
     const auto prev_file = log.m_files.find(prev_checkpoint_lsn);
     ut_a(prev_file != log.m_files.end());
@@ -390,26 +337,51 @@ dberr_t log_files_next_checkpoint(log_t &log, lsn_t next_checkpoint_lsn) {
       log_next_checkpoint_header(log.next_checkpoint_header_no);
 
   log_sync_point("log_before_checkpoint_lsn_update");
-
-  log.last_checkpoint_lsn.store(next_checkpoint_lsn);
+  /* We do it here under log.writer_mutex protection, and then the caller of
+  store_metadata(Metadata_key::CHECKPOINT, ..) will do it again. This is because
+  in ib::redo::Handler we need the changes of
+  Log_checkpointing::m_checkpoint_lsn to be protected by log.writer_mutex (and
+  they are, as we *change* it here, and then we just do an idempotent store),
+  while in general a Redo Log Handler does not even know what a
+  log.writer_mutex is, and only cares about log_checkpointing->checkpoint_mutex
+  which we do hold in both places.
+  We also hold log.m_files_mutex, which is relevant to synchronize with
+  log_files_logical_size_and_checkpoint_age() which also holds it. */
+  log_checkpointing->set_checkpoint(next_checkpoint_lsn);
 
   ut_a(!next_file->m_consumed);
 
   log_sync_point("log_before_checkpoint_limits_update");
 
-  log_limits_mutex_enter(log);
-  log_update_limits_low(log);
-  log_update_exported_variables(log);
-  log.dict_max_allowed_checkpoint_lsn = 0;
-  log_limits_mutex_exit(log);
-
   if (log.m_writer_inside_extra_margin) {
     log_writer_check_if_exited_extra_margin(log);
   }
 
-  os_event_set(log.next_checkpoint_event);
-
   return DB_SUCCESS;
+}
+
+Log_checkpointing::Log_checkpointing() {
+  mutex_create(LATCH_ID_LOG_CHECKPOINTER, &checkpoint_mutex);
+  mutex_create(LATCH_ID_LOG_LIMITS, &limits_mutex);
+  m_event = os_event_create();
+  m_next_checkpoint_event = os_event_create();
+}
+
+Log_checkpointing::~Log_checkpointing() {
+  mutex_free(&checkpoint_mutex);
+  mutex_free(&limits_mutex);
+  os_event_destroy(m_event);
+  os_event_destroy(m_next_checkpoint_event);
+}
+
+void Log_checkpointing::init() {
+  log_checkpointing =
+      ut::aligned_new<Log_checkpointing>(alignof(Log_checkpointing));
+}
+
+void Log_checkpointing::deinit() {
+  ut::aligned_delete(log_checkpointing);
+  log_checkpointing = nullptr;
 }
 
 Log_checkpoint_header_no log_next_checkpoint_header(
@@ -427,7 +399,7 @@ Log_checkpoint_header_no log_next_checkpoint_header(
 dberr_t log_files_write_checkpoint_low(
     log_t &log, Log_file_handle &checkpoint_file_handle,
     Log_checkpoint_header_no checkpoint_header_no, lsn_t checkpoint_lsn) {
-  ut_ad(checkpoint_lsn == 0 || log_checkpointer_mutex_own(log));
+  ut_ad(checkpoint_lsn == 0 || log_checkpointer_mutex_own());
   ut_ad(log_writer_mutex_own(log));
   ut_ad(srv_is_being_started || log_files_mutex_own(log));
   ut_a(!srv_read_only_mode);
@@ -441,20 +413,19 @@ dberr_t log_files_write_checkpoint_low(
                                      checkpoint_header_no, checkpoint_header);
 }
 
-static void log_checkpoint(log_t &log) {
-  ut_ad(log_checkpointer_mutex_own(log));
+void Log_checkpointing::create_checkpoint() {
+  ut_ad(log_checkpointer_mutex_own());
   ut_a(!srv_read_only_mode);
   ut_ad(!srv_checkpoint_disabled);
-  ut_ad(log.m_allow_checkpoints.load());
 
-  /* Read the comment from log_should_checkpoint() from just before
-  acquiring the limits mutex. It is ok if available_for_checkpoint_lsn
+  /* Read the comment from should_checkpoint() from just before
+  acquiring the limits mutex. It is ok if m_available_for_checkpoint_lsn
   is advanced just after we released limits_mutex here. It can only be
   increased. Also, if the value for which we will write checkpoint is
   higher than the value for which we decided that it is worth to write
-  checkpoint (in log_should_checkpoint) - it is even better for us. */
+  checkpoint (in should_checkpoint) - it is even better for us. */
 
-  const lsn_t checkpoint_lsn = log_determine_checkpoint_lsn(log);
+  const lsn_t checkpoint_lsn = determine_checkpoint_lsn();
 
   if (arch_page_sys != nullptr) {
     arch_page_sys->flush_at_checkpoint(checkpoint_lsn);
@@ -468,35 +439,54 @@ static void log_checkpoint(log_t &log) {
     log_test->fsync_written_pages();
   }
 
-  ut_a(checkpoint_lsn >= log.last_checkpoint_lsn.load());
+  ut_a(checkpoint_lsn >= get_checkpoint());
 
   ut_a(checkpoint_lsn <= buf_flush_list_added->smallest_not_added_lsn());
 
 #ifdef UNIV_DEBUG
-  if (checkpoint_lsn > log.flushed_to_disk_lsn.load()) {
+  if (checkpoint_lsn > ib::redo::handler->peek_first_nonpersisted_lsn()) {
     /* We need log_flusher, because we need redo flushed up
     to the oldest_lsn, and it's not been flushed yet. */
-
-    log_background_threads_active_validate(log);
+    ut_a(log_sys == nullptr || log_flusher_is_active());
   }
 #endif
 
-  ut_a(log.flushed_to_disk_lsn.load() >= checkpoint_lsn);
+  ut_a(ib::redo::handler->peek_first_nonpersisted_lsn() >= checkpoint_lsn);
 
-  const auto current_time = std::chrono::high_resolution_clock::now();
-
-  log.last_checkpoint_time = current_time;
+  m_last_checkpoint_time = std::chrono::high_resolution_clock::now();
 
   DBUG_PRINT("ib_log", ("Starting checkpoint at " LSN_PF, checkpoint_lsn));
 
-  const dberr_t err = log_files_next_checkpoint(log, checkpoint_lsn);
-  if (err != DB_SUCCESS) {
+  if (!save_checkpoint_value(checkpoint_lsn)) {
     return;
   }
 
-  DBUG_PRINT("ib_log",
-             ("checkpoint ended at " LSN_PF ", log flushed to " LSN_PF,
-              log.last_checkpoint_lsn.load(), log.flushed_to_disk_lsn.load()));
+  log_limits_mutex_enter();
+  /* Inform the handler, so that it may remove the lsn(s) lower than the
+  checkpoint */
+  update_limits();
+  /* This updates the Innodb_redo_log_checkpoint_lsn status variable, which can
+  be used by an external log consumer to figure out the read position.
+  It is therefore crucial that log_checkpointing->set_checkpoint(x) which
+  changes the value and the subsequent call to log_update_exported_lsns()
+  happens in a same critical section protected by the same
+  log_checkpointing->checkpoint_mutex which is used by
+  meb::redo_log_consumer_register. Otherwise a race condition would be possible
+  in which a consumer was registered at "new checkpoint lsn", but got the "old"
+  when querying Innodb_redo_log_checkpoint_lsn and thus wrongly believed it is
+  at an older position than it really is (in the worst case: leading to crash,
+  when it will try to read a file already reclaimed as no longer needed by
+  consumers)
+  */
+  log_update_exported_lsns();
+  log_limits_mutex_exit();
+
+  os_event_set(m_next_checkpoint_event);
+
+  DBUG_PRINT(
+      "ib_log",
+      ("checkpoint ended at " LSN_PF ", log flushed to " LSN_PF,
+       get_checkpoint(), ib::redo::handler->peek_first_nonpersisted_lsn()));
 
   MONITOR_INC(MONITOR_LOG_CHECKPOINTS);
 
@@ -533,38 +523,12 @@ dberr_t log_files_write_first_data_block_low(log_t &log,
                                OS_FILE_LOG_BLOCK_SIZE, block);
 }
 
-void log_request_checkpoint_low(log_t &log, lsn_t requested_lsn) {
-  ut_a(requested_lsn <= log_get_lsn(log));
-  ut_ad(log_limits_mutex_own(log));
-
-  ut_a(requested_lsn % OS_FILE_LOG_BLOCK_SIZE >= LOG_BLOCK_HDR_SIZE);
-
-  ut_a(requested_lsn % OS_FILE_LOG_BLOCK_SIZE <
-       OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
-
-  /* Update log.requested_checkpoint_lsn only to greater value. */
-
-  if (requested_lsn > log.requested_checkpoint_lsn) {
-    log.requested_checkpoint_lsn = requested_lsn;
-
-    if (requested_lsn > log.last_checkpoint_lsn.load()) {
-      os_event_set(log.checkpointer_event);
-    }
-  }
-}
-
-static void log_wait_for_checkpoint(const log_t &log, lsn_t requested_lsn) {
-  ut_d(log_background_threads_active_validate(log));
-
-  auto stop_condition = [&log, requested_lsn](bool) {
-    return log.last_checkpoint_lsn.load() >= requested_lsn;
-  };
-
-  ut::wait_for(0, std::chrono::microseconds{100}, stop_condition);
-}
-
-static bool log_request_checkpoint_validate(const log_t &log) {
-  ut_ad(log_limits_mutex_own(log));
+/** Check if the checkpointing is enabled
+@retval true  checkpointing is enabled
+@retval false checkpointing is disabled
+*/
+[[nodiscard]] static bool log_request_checkpoint_validate() {
+  ut_ad(log_limits_mutex_own());
 
 #ifdef UNIV_DEBUG
   if (srv_checkpoint_disabled) {
@@ -578,71 +542,66 @@ static bool log_request_checkpoint_validate(const log_t &log) {
   return true;
 }
 
-void log_request_checkpoint(log_t &log, bool sync) {
-  log_update_available_for_checkpoint_lsn(log);
+bool Log_checkpointing::request_checkpoint(lsn_t requested_lsn) {
+  ut_a(requested_lsn <= ib::redo::handler->peek_first_unassigned_lsn());
+  ut_ad(log_limits_mutex_own());
 
-  log_limits_mutex_enter(log);
+  ut_a(log_is_data_lsn(requested_lsn));
 
-  if (!log_request_checkpoint_validate(log)) {
-    log_limits_mutex_exit(log);
-    if (sync) {
+  const bool enabled = log_request_checkpoint_validate();
+  if (enabled) {
+    /* Update m_requested_checkpoint_lsn only to greater value. */
+    if (requested_lsn > m_requested_checkpoint_lsn) {
+      m_requested_checkpoint_lsn = requested_lsn;
+
+      if (requested_lsn > get_checkpoint()) {
+        os_event_set(m_event);
+      }
+    }
+  }
+  return enabled;
+}
+
+static void log_wait_for_checkpoint(lsn_t requested_lsn) {
+  ut_a(log_checkpointer_is_active());
+
+  auto stop_condition = [requested_lsn](bool) {
+    return log_checkpointing->get_checkpoint() >= requested_lsn;
+  };
+
+  ut::wait_for(0, std::chrono::microseconds{100}, stop_condition);
+}
+
+void Log_checkpointing::request_fuzzy_checkpoint(bool sync) {
+  const auto lsn = update_available_for_checkpoint_lsn();
+  {
+    IB_mutex_guard guard{&log_checkpointing->limits_mutex, UT_LOCATION_HERE};
+    if (!request_checkpoint(lsn)) {
+      ut_a(!sync);
+      return;
+    }
+  }
+  if (sync) {
+    log_wait_for_checkpoint(lsn);
+  }
+}
+
+void Log_checkpointing::request_sharp_checkpoint() {
+  const lsn_t lsn = ib::redo::handler->peek_first_unassigned_lsn();
+
+  {
+    IB_mutex_guard guard{&log_checkpointing->limits_mutex, UT_LOCATION_HERE};
+    if (!request_checkpoint(lsn)) {
       ut_error;
     }
-    return;
   }
 
-  const lsn_t lsn = log.available_for_checkpoint_lsn;
-
-  log_request_checkpoint_low(log, lsn);
-
-  log_limits_mutex_exit(log);
-
-  if (sync) {
-    log_wait_for_checkpoint(log, lsn);
-  }
+  log_wait_for_checkpoint(lsn);
 }
 
-bool log_request_latest_checkpoint(log_t &log, lsn_t &requested_lsn) {
-  const lsn_t lsn = log_get_lsn(log);
-
-  if (lsn <= log.last_checkpoint_lsn.load()) {
-    return false;
-  }
-
-  log_limits_mutex_enter(log);
-
-  if (!log_request_checkpoint_validate(log)) {
-    log_limits_mutex_exit(log);
-    ut_error;
-  }
-
-  requested_lsn = lsn;
-
-  log_request_checkpoint_low(log, requested_lsn);
-
-  log_limits_mutex_exit(log);
-
-  return true;
-}
-
-bool log_make_latest_checkpoint(log_t &log) {
-  lsn_t lsn;
-  if (!log_request_latest_checkpoint(log, lsn)) {
-    return false;
-  }
-
-  log_wait_for_checkpoint(log, lsn);
-
-  return true;
-}
-
-bool log_make_latest_checkpoint() {
-  return log_make_latest_checkpoint(*log_sys);
-}
-
-static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
+static void log_request_sync_flush() {
   if (log_test != nullptr) {
-    return false;
+    return;
   }
 
   /* A flush is urgent: we have to do a synchronous flush,
@@ -651,17 +610,16 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
   Note, that this could fire even if we did not run out
   of space in log files (users still may write to redo). */
 
-  if (new_oldest == LSN_MAX
+  if (
       /* Forced flush request is processed by page_cleaner, if
       it's not active, then we must do flush ourselves. */
-      || !buf_flush_page_cleaner_is_active()
+      !buf_flush_page_cleaner_is_active()
       /* Reason unknown. */
       || srv_is_being_started) {
     buf_flush_sync_all_buf_pools();
-
-    return true;
-
-  } else if (srv_flush_sync) {
+    return;
+  }
+  if (srv_flush_sync) {
     /* Wake up page cleaner asking to perform sync flush
     (unless user explicitly disabled sync-flushes). */
 
@@ -678,54 +636,89 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
     In such case, it is very desired to move checkpoint forward even a little
     bit. If there is a sequence of such pages, then it becomes problematic and
     we would better not delay the checkpointing that much.
+    */
 
-    The log.m_writer_inside_extra_margin is read without mutex protection for
-    performance reasons (not to keep the mutex acquired when waiting below).
-    In case of torn read or race, in the worst case we would use different
-    timeout than the desired one. It doesn't affect correctness. */
-
-    const auto time_to_wait_ms = log.m_writer_inside_extra_margin ? 1 : 1000;
+    const auto soft_logical_capacity =
+        ib::redo::handler->get_capacity_estimate().soft_logical_capacity();
+    const auto checkpoint_lsn = log_checkpointing->get_checkpoint();
+    const auto current_lsn = ib::redo::handler->peek_first_unassigned_lsn();
+    const auto time_to_wait_ms =
+        checkpoint_lsn + soft_logical_capacity < current_lsn ? 1 : 1000;
 
     os_event_wait_time_low(buf_flush_tick_event,
                            std::chrono::milliseconds{time_to_wait_ms},
                            sig_count);
-
-    return true;
-
-  } else {
-    return false;
   }
 }
 
-lsn_t log_sync_flush_lsn(log_t &log) {
-  /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
+static lsn_t get_soft_logical_capacity() {
+  return ib::redo::handler->get_capacity_estimate().soft_logical_capacity();
+}
+
+[[nodiscard]] static lsn_t adaptive_flush_max_age(lsn_t soft_logical_capacity) {
+  return Log_files_capacity::sync_flush_logical_capacity_for_soft(
+      soft_logical_capacity);
+}
+
+lsn_t Log_checkpointing::adaptive_flush_max_age() {
+  return ::adaptive_flush_max_age(get_soft_logical_capacity());
+}
+
+static lsn_t adaptive_flush_min_age(lsn_t soft_logical_capacity) {
+  return ut_uint64_align_down(
+      soft_logical_capacity -
+          soft_logical_capacity / LOG_FORCING_ADAPTIVE_FLUSH_RATIO_MIN,
+      OS_FILE_LOG_BLOCK_SIZE);
+}
+
+lsn_t Log_checkpointing::adaptive_flush_min_age() {
+  return ::adaptive_flush_min_age(get_soft_logical_capacity());
+}
+
+static lsn_t aggressive_checkpoint_min_age(lsn_t soft_logical_capacity) {
+  return ut_uint64_align_down(
+      soft_logical_capacity -
+          soft_logical_capacity / LOG_AGGRESSIVE_CHECKPOINT_RATIO_MIN,
+      OS_FILE_LOG_BLOCK_SIZE);
+}
+
+lsn_t Log_checkpointing::aggressive_checkpoint_min_age() {
+  return ::aggressive_checkpoint_min_age(get_soft_logical_capacity());
+}
+
+lsn_t Log_checkpointing::get_sync_flush_lsn() {
+  /* Note: log checkpointer thread is started after recovery is finished,
   and changes gathered in recv_sys->metadata_recover are applied to dict_table_t
-  objects; or in log_start() if recovery was not needed. Until that happens
-  checkpoints are disallowed, so sync flush decisions (based on checkpoint age)
-  should be postponed. */
-  if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
+  objects. Until that happens checkpoints are disallowed, so sync flush
+  decisions (based on checkpoint age) should be postponed. */
+  if (!log_checkpointer_is_active()) {
     return 0;
   }
-
-  log_update_available_for_checkpoint_lsn(log);
+  update_available_for_checkpoint_lsn();
 
   /* We acquire limits mutex only for a short period. Afterwards these
-  values might be changed (advanced to higher values). However, in the
-  worst case we would request sync flush for too small value, and the
-  function which requests the sync flush is safe to be used with any
-  lsn value. It ensures itself that maximum of all requested lsn values
-  is taken. In next iteration of log_checkpointer we would notice the
-  higher values and re-request the sync flush if needed (or user threads
-  waiting in log_free_check() would request it themselves meanwhile). */
+  values might be changed:
+  1. requested checkpoint lsn can increase
+  2. capacity estimate could change due to reconfiguration
+  3. the value of peek_first_unassigned_lsn() can march forward at any moment,
+  and in particular might be "fresher" than the estimate for capacity. As we
+  might request sync flush for current_lsn + margin - max_age, this means we
+  might flush more or less than actually needed, in case the estimation of
+  margin_length or max_history_length changed since then. None of this is a
+  problem, because writing a few dirty pages more, based on slightly stale
+  estimates is not a correctness issue. Writing a few too little, will be
+  automatically fixed in the next iteration of log checkpointer's loop. */
 
-  log_limits_mutex_enter(log);
-  const lsn_t oldest_lsn = log.available_for_checkpoint_lsn;
-  const lsn_t requested_checkpoint_lsn = log.requested_checkpoint_lsn;
-  log_limits_mutex_exit(log);
+  log_limits_mutex_enter();
+  const lsn_t oldest_lsn = get_available_for_checkpoint_lsn();
+  const lsn_t requested_checkpoint_lsn = get_requested_checkpoint_lsn();
+  const auto estimate = ib::redo::handler->get_capacity_estimate();
+  const lsn_t margin = estimate.margin_length;
+  log_limits_mutex_exit();
 
   lsn_t flush_up_to = oldest_lsn;
 
-  lsn_t current_lsn = log_get_lsn(log);
+  const lsn_t current_lsn = ib::redo::handler->peek_first_unassigned_lsn();
 
   ut_a(flush_up_to <= current_lsn);
 
@@ -733,14 +726,13 @@ lsn_t log_sync_flush_lsn(log_t &log) {
     return 0;
   }
 
-  const lsn_t margin = log_free_check_margin(log);
+  const lsn_t max_age =
+      ::adaptive_flush_max_age(estimate.soft_logical_capacity());
 
-  const lsn_t adaptive_flush_max_age = log.m_capacity.adaptive_flush_max_age();
+  if (current_lsn + margin - oldest_lsn > max_age) {
+    ut_a(current_lsn + margin > max_age);
 
-  if (current_lsn + margin - oldest_lsn > adaptive_flush_max_age) {
-    ut_a(current_lsn + margin > adaptive_flush_max_age);
-
-    flush_up_to = current_lsn + margin - adaptive_flush_max_age;
+    flush_up_to = current_lsn + margin - max_age;
   }
 
   if (requested_checkpoint_lsn > flush_up_to) {
@@ -760,41 +752,32 @@ lsn_t log_sync_flush_lsn(log_t &log) {
   return 0;
 }
 
-static void log_consider_sync_flush(log_t &log) {
-  ut_ad(log_checkpointer_mutex_own(log));
+void Log_checkpointing::consider_sync_flush() {
+  ut_ad(log_checkpointer_mutex_own());
 
-  const auto flush_up_to = log_sync_flush_lsn(log);
+  requested_sync_flush_lsn.store(get_sync_flush_lsn());
 
-  if (flush_up_to != 0) {
-    log_checkpointer_mutex_exit(log);
+  if (requested_sync_flush_lsn.load() != 0) {
+    log_checkpointer_mutex_exit();
 
-    log_request_sync_flush(log, flush_up_to);
+    log_request_sync_flush();
 
-    log_checkpointer_mutex_enter(log);
+    log_checkpointer_mutex_enter();
 
-    /* It's very probable that forced flush will result in maximum
-    lsn available for creating a new checkpoint, just try to update
+    /* It's very probable that forced flush will increase the maximum
+    lsn available for creating a new checkpoint. Just try to update
     it to not wait for next checkpointer loop. */
-    log_update_available_for_checkpoint_lsn(log);
+    update_available_for_checkpoint_lsn();
   }
 }
 
-static std::chrono::steady_clock::duration log_checkpoint_time_elapsed(
-    const log_t &log) {
-  ut_ad(log_checkpointer_mutex_own(log));
-
-  return std::chrono::high_resolution_clock::now() - log.last_checkpoint_time;
+std::chrono::steady_clock::duration Log_checkpointing::time_since_checkpoint() {
+  ut_ad(log_checkpointer_mutex_own());
+  return std::chrono::high_resolution_clock::now() - m_last_checkpoint_time;
 }
 
-static bool log_should_checkpoint(log_t &log) {
-  lsn_t last_checkpoint_lsn;
-  lsn_t oldest_lsn;
-  lsn_t current_lsn;
-  lsn_t requested_checkpoint_lsn;
-  lsn_t checkpoint_age;
-  bool periodical_checkpoints_enabled;
-
-  ut_ad(log_checkpointer_mutex_own(log));
+bool Log_checkpointing::should_checkpoint() {
+  ut_ad(log_checkpointer_mutex_own());
 
 #ifdef UNIV_DEBUG
   if (srv_checkpoint_disabled) {
@@ -802,15 +785,7 @@ static bool log_should_checkpoint(log_t &log) {
   }
 #endif /* UNIV_DEBUG */
 
-  /* Note: log.allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in recv_sys->metadata_recover are applied to dict_table_t
-  objects; or in log_start() if recovery was not needed. We can't reclaim
-  free space in redo log until DD dynamic metadata records are safe. */
-  if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
-    return false;
-  }
-
-  last_checkpoint_lsn = log.last_checkpoint_lsn.load();
+  const lsn_t last_checkpoint_lsn = get_checkpoint();
 
   /* We read the values under log_limits_mutex and release the mutex.
   The values might be changed just afterwards and that's fine. Note,
@@ -826,27 +801,25 @@ static bool log_should_checkpoint(log_t &log) {
   next iteration. The event is signaled under the limits_mutex in the
   same critical section in which requirements are updated. */
 
-  log_limits_mutex_enter(log);
-  oldest_lsn = log.available_for_checkpoint_lsn;
-  requested_checkpoint_lsn = log.requested_checkpoint_lsn;
-  periodical_checkpoints_enabled = log.periodical_checkpoints_enabled;
-  log_limits_mutex_exit(log);
+  log_limits_mutex_enter();
+  const lsn_t oldest_lsn = get_available_for_checkpoint_lsn();
+  const lsn_t requested_checkpoint_lsn = get_requested_checkpoint_lsn();
+  bool periodical_checkpoints_enabled = are_periodical_checkpoints_enabled();
+  const auto estimate = ib::redo::handler->get_capacity_estimate();
+  const lsn_t margin = estimate.margin_length;
+  log_limits_mutex_exit();
 
   if (oldest_lsn <= last_checkpoint_lsn) {
     return false;
   }
 
-  current_lsn = log_get_lsn(log);
+  const lsn_t current_lsn = ib::redo::handler->peek_first_unassigned_lsn();
 
   ut_a(last_checkpoint_lsn <= oldest_lsn);
   ut_a(oldest_lsn <= current_lsn);
 
-  const lsn_t margin = log_free_check_margin(log);
-
-  checkpoint_age = current_lsn + margin - last_checkpoint_lsn;
-
+  const lsn_t checkpoint_age = current_lsn + margin - last_checkpoint_lsn;
   /* Update checkpoint_lsn stored in header of log files if:
-
           a) periodical checkpoints are enabled and more than 1s
              elapsed since the last checkpoint,
           b) or checkpoint age is greater than aggressive_checkpoint_min_age,
@@ -855,58 +828,31 @@ static bool log_should_checkpoint(log_t &log) {
 
   if ((last_checkpoint_lsn < requested_checkpoint_lsn &&
        requested_checkpoint_lsn <= oldest_lsn) ||
-      checkpoint_age >= log.m_capacity.aggressive_checkpoint_min_age()) {
+      ::aggressive_checkpoint_min_age(estimate.soft_logical_capacity()) <=
+          checkpoint_age) {
     return true;
   }
 
   DBUG_EXECUTE_IF("periodical_checkpoint_disabled",
                   periodical_checkpoints_enabled = false;);
 
-  if (!periodical_checkpoints_enabled) {
-    return false;
-  }
-
-  return get_srv_log_checkpoint_every() <= log_checkpoint_time_elapsed(log);
+  return periodical_checkpoints_enabled &&
+         get_srv_log_checkpoint_every() <= time_since_checkpoint();
 }
 
-static void log_consider_checkpoint(log_t &log) {
-  ut_ad(log_checkpointer_mutex_own(log));
+void Log_checkpointing::consider_checkpoint() {
+  ut_ad(log_checkpointer_mutex_own());
 
-  if (!log_should_checkpoint(log)) {
-    return;
+  if (should_checkpoint()) {
+    create_checkpoint();
   }
-
-  /* It's clear that a new checkpoint should be written.
-  So do write back the dynamic metadata. Since the checkpointer
-  mutex is low-level one, it has to be released first. */
-  log_checkpointer_mutex_exit(log);
-
-  if (log_test == nullptr) {
-    dict_persist_to_dd_table_buffer();
-  }
-
-  log_checkpointer_mutex_enter(log);
-
-  /* We need to re-check if checkpoint should really be
-  written, because we re-acquired the checkpointer_mutex.
-  Some conditions could have changed - e.g. user could
-  acquire the mutex and specify srv_checkpoint_disabled=T.
-  Instead of trying to figure out which conditions could
-  have changed, we follow a simple way and perform a full
-  re-check of all conditions. */
-  if (!log_should_checkpoint(log)) {
-    return;
-  }
-
-  log_checkpoint(log);
 }
 
-void log_checkpointer(log_t *log_ptr) {
-  ut_a(log_ptr != nullptr);
+void Log_checkpointing::log_checkpointer() { log_checkpointing->do_work(); }
 
-  log_t &log = *log_ptr;
-
-  ut_d(log.m_checkpointer_thd = create_internal_thd());
+void Log_checkpointing::do_work() {
+  /* As a side effect this sets current_thd and lets us use debug syncpoints. */
+  m_checkpointer_thd = create_internal_thd();
 
   static const uint64_t log_busy_checkpoint_interval =
       7; /*SRV_MASTER_CHECKPOINT_INTERVAL*/
@@ -914,10 +860,14 @@ void log_checkpointer(log_t *log_ptr) {
   ulint error = OS_SYNC_TIME_EXCEEDED;
 
   for (;;) {
-    log_checkpointer_mutex_enter(log);
+    log_limits_mutex_enter();
+    update_limits();
+    log_limits_mutex_exit();
 
-    const auto sig_count = os_event_reset(log.checkpointer_event);
-    const lsn_t requested_checkpoint_lsn = log.requested_checkpoint_lsn;
+    log_checkpointer_mutex_enter();
+
+    const auto sig_count = os_event_reset(m_event);
+    const lsn_t requested_checkpoint_lsn = get_requested_checkpoint_lsn();
 
     bool system_is_busy = false;
     if (error == OS_SYNC_TIME_EXCEEDED &&
@@ -928,297 +878,166 @@ void log_checkpointer(log_t *log_ptr) {
     }
 
     if (error != OS_SYNC_TIME_EXCEEDED || !system_is_busy ||
-        requested_checkpoint_lsn >
-            log.last_checkpoint_lsn.load(std::memory_order_acquire) ||
-        log_checkpoint_time_elapsed(log) >=
+        requested_checkpoint_lsn > get_checkpoint() ||
+        time_since_checkpoint() >=
             log_busy_checkpoint_interval * get_srv_log_checkpoint_every()) {
       /* Consider flushing some dirty pages. */
-      log_consider_sync_flush(log);
+      consider_sync_flush();
 
       log_sync_point("log_checkpointer_before_consider_checkpoint");
 
       /* Consider writing checkpoint. */
-      log_consider_checkpoint(log);
+      consider_checkpoint();
     }
 
-    log_checkpointer_mutex_exit(log);
+    log_checkpointer_mutex_exit();
 
-    if (requested_checkpoint_lsn >
-        log.last_checkpoint_lsn.load(std::memory_order_relaxed)) {
+    if (requested_checkpoint_lsn > get_checkpoint()) {
       /* not satisfied. retry. */
       error = 0;
     } else {
-      error = os_event_wait_time_low(log.checkpointer_event,
-                                     get_srv_log_checkpoint_every(), sig_count);
+      error = os_event_wait_time_low(m_event, get_srv_log_checkpoint_every(),
+                                     sig_count);
     }
 
     /* Check if we should close the thread. */
-    if (log.should_stop_threads.load()) {
-      ut_ad(!log.writer_threads_paused.load());
-      if (!log_flusher_is_active() && !log_writer_is_active()) {
-        lsn_t end_lsn = log.write_lsn.load();
+    if (m_thread_should_stop.load()) {
+      /* The ib::redo::handler->persist_available() should have been called
+      before setting m_thread_should_stop to true. We can't call it from here
+      directly, as this could block on log writer waiting for checkpoint which
+      can only be created by us - deadlock. */
+
+      ut_a_eq(ib::redo::handler->peek_first_unassigned_lsn(),
+              ib::redo::handler->peek_first_nonpersisted_lsn());
+      ut_a_eq(buf_flush_list_added->smallest_not_added_lsn(),
+              ib::redo::handler->peek_first_nonpersisted_lsn());
+
+      if (log_sys != nullptr) {
+        log_t &log = *log_sys;
+        const lsn_t end_lsn = log.write_lsn.load();
 
         ut_a(log_is_data_lsn(end_lsn));
-        ut_a(end_lsn == log.flushed_to_disk_lsn.load());
+
         ut_a(end_lsn == log_buffer_ready_for_write_lsn(log));
-
-        ut_a(end_lsn >= buf_flush_list_added->smallest_not_added_lsn());
-
-        if (buf_flush_list_added->smallest_not_added_lsn() == end_lsn) {
-          /* All confirmed reservations have been written
-          to redo and all dirty pages related to those
-          writes have been added to flush lists.
-
-          However, there could be user threads, which are
-          in the middle of log_buffer_reserve(), reserved
-          range of sn values, but could not confirm.
-
-          Note that because log_writer is already not alive,
-          the only possible reason guaranteed by its death,
-          is that there is x-lock at end_lsn, in which case
-          end_lsn separates two regions in log buffer:
-          completely full and completely empty. */
-          const lsn_t ready_lsn = log_buffer_ready_for_write_lsn(log);
-
-          const lsn_t current_lsn = log_get_lsn(log);
-
-          if (current_lsn > ready_lsn) {
-            log.recent_written.validate_no_links(ready_lsn, current_lsn);
-            buf_flush_list_added->validate_not_added(ready_lsn, current_lsn);
-          }
-
-          break;
-        }
-        /* We need to wait until remaining dirty pages
-        have been added. */
       }
-      /* We prefer to wait until all writing is done. */
+      break;
     }
   }
 
-  ut_d(destroy_internal_thd(log.m_checkpointer_thd));
+  destroy_internal_thd(m_checkpointer_thd);
 }
 
-/** @} */
-
-/**************************************************/ /**
-
- @name Log - free check
-
- *******************************************************/
-
-/** @{ */
-
-sn_t log_concurrency_margin(lsn_t log_capacity, bool &is_safe) {
-  /* Add number of background threads that might use mini-transactions
-  and modify pages (generating new redo records). */
-
-  /* NOTE: When srv_thread_concurrency = 0 (stands for unlimited thread
-  concurrency), we compute the concurrency margin only for the background
-  threads. There is no guarantee provided by the log_free_check calls then. */
-
-  const size_t max_total_threads =
-      srv_thread_concurrency + LOG_BACKGROUND_THREADS_USING_RW_MTRS;
-
-  /* A thread, which keeps latches of the oldest dirty pages, might
-  need to finish its mini-transaction to unlock those pages and allow
-  to flush them and advance checkpoint (to reclaim free space in redo).
-  Therefore check of free space must be performed when thread is not
-  holding latches of pages (or other latches which prevent other threads,
-  waiting for such latches, from finishing their mini-transactions).
-  Ideally each thread should check for free space, when not holding any
-  latches, before it starts next mini-transaction. However, to mitigate
-  performance drawbacks, we decided that few (still, limited number)
-  mini-transactions could be executed between consecutive such checks.
-  Also, each mini-transaction needs to have limited space it might take
-  in the redo log. Thanks to that, capacity of redo reserved by single
-  thread between its consecutive checks of free space, is limited.
-  It is guaranteed not to exceed:
-      LOG_CHECKPOINT_FREE_PER_THREAD * UNIV_PAGE_SIZE.
-  @note The aforementioned checks of free space are handled by calls to
-  log_free_check(). */
-  const auto margin_per_thread =
-      LOG_CHECKPOINT_FREE_PER_THREAD * UNIV_PAGE_SIZE;
-
-  /* We have guarantee to have at most max_threads concurrent threads.
-  Each of them might need the free space reservation for itself, for
-  writes between checks (because in the worst case, they could all
-  check together there is enough space in the same time, before any
-  of them starts to commit any mini-transaction.
-  @note This mechanism works only if number of threads is really capped
-  by the provided value. However, there is currently no semaphore which
-  would ensure that the promise holds. What's more, we actually know that
-  it holds only when innodb_thread_concurrency is non-zero (stands for
-  limited concurrency). */
-  sn_t margin = margin_per_thread * max_total_threads;
-
-  /* Add margin for the log_files_governor, so it could safely use dummy
-  log records to fill up the current redo log file if needed (during resize).
-  @see LOG_FILES_DUMMY_INTAKE_SIZE */
-  margin += LOG_FILES_DUMMY_INTAKE_SIZE;
-
-  /* Add extra safety calculated from redo-size. This is yet another
-  "just in case", but being proportional to the total redo capacity. */
-  margin += ut_uint64_align_down(
-      static_cast<lsn_t>(LOG_EXTRA_CONC_MARGIN_PCT / 100.0 * log_capacity),
-      OS_FILE_LOG_BLOCK_SIZE);
-
-  /* If maximum number of concurrent threads is relatively big in comparison
-  to the total capacity of redo log, it might happen, that the concurrency
-  margin required to avoid deadlocks, is too big. In such case, we use smaller
-  margin and report that the margin is unsafe for current concurrency and redo
-  capacity. It's up to user to take required steps to protect from deadlock. */
-
-  const auto max_margin = log_translate_lsn_to_sn(ut_uint64_align_down(
-      log_capacity *
-          (LOG_CONCCURENCY_MARGIN_MAX_PCT + LOG_EXTRA_CONC_MARGIN_PCT) / 100.0,
-      OS_FILE_LOG_BLOCK_SIZE));
-
-  if (margin > max_margin) {
-    margin = max_margin;
-    is_safe = false;
-  } else {
-    is_safe = true;
-  }
-
-  return margin;
+void Log_checkpointing::start_thread() {
+  ut_a(!srv_read_only_mode);
+  m_thread_should_stop.store(false);
+  srv_threads.m_log_checkpointer = os_thread_create(
+      log_checkpointer_thread_key, 0, Log_checkpointing::log_checkpointer);
+  srv_threads.m_log_checkpointer.start();
 }
 
-void log_update_concurrency_margin(log_t &log) {
-  ut_ad(srv_is_being_started || log_limits_mutex_own(log));
-
-  const lsn_t log_capacity = log.m_capacity.soft_logical_capacity();
-
-  bool is_safe;
-  const sn_t margin = log_concurrency_margin(log_capacity, is_safe);
-
-  log.concurrency_margin.store(margin);
-  log.concurrency_margin_is_safe.store(is_safe);
-
-  MONITOR_SET(MONITOR_LOG_CONCURRENCY_MARGIN, margin);
+void Log_checkpointing::stop_thread_no_wait() {
+  m_thread_should_stop.store(true);
+  os_event_set(m_event);
 }
 
-void log_update_limits_low(log_t &log) {
-  ut_ad(srv_is_being_started ||
-        (log_files_mutex_own(log) && log_limits_mutex_own(log)));
-
-  log_update_concurrency_margin(log);
-
-  if (log.m_writer_inside_extra_margin) {
-    /* Stop all new incoming user threads at safe place. */
-    log.free_check_limit_lsn.store(0);
-    return;
-  }
-
-  const lsn_t current_lsn = log_get_lsn(log);
-  const lsn_t log_capacity = log_free_check_capacity(log);
-  lsn_t oldest_needed_lsn;
-  auto consumer = log_consumer_get_oldest(log, oldest_needed_lsn);
-
-  const lsn_t limit_lsn = oldest_needed_lsn + log_capacity;
-
-  log.free_check_limit_lsn.store(limit_lsn);
-
-  /* During the server start, we do not own the limits mutex and the only
-  consumer here is checkpointer thread. We can't call consumption_requested()
-  without the mutex, and even if we could, it is not permitted to advance the
-  checkpoint during recovery. So we skip the consumption_requested() in the
-  recovery part. */
-  if (!srv_is_being_started && current_lsn > log.free_check_limit_lsn.load()) {
-    consumer->consumption_requested(current_lsn - log_capacity);
-    if (log.m_THREADS_WAITING_FOR_REDO_throttler.apply()) {
-      ib::log_warn(ER_IB_MSG_WAITING_ON_LAGGING_REDO_LOG_CONSUMER,
-                   consumer->get_name().c_str(), ulonglong{oldest_needed_lsn});
-      log_sync_point("threads_waiting_on_lagging_consumer");
-    }
+void Log_checkpointing::stop_thread_and_wait() {
+  stop_thread_no_wait();
+  while (log_checkpointer_is_active()) {
+    os_event_set(m_event);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
 }
-void log_set_dict_persist_margin(log_t &log, sn_t margin) {
-  log_files_mutex_enter(log);
-  log_limits_mutex_enter(log);
-  log.dict_persist_margin.store(margin);
-  log_update_limits_low(*log_sys);
-  log_limits_mutex_exit(log);
-  log_files_mutex_exit(log);
-}
 
-lsn_t log_free_check_margin(const log_t &log) {
-  sn_t margins = log.concurrency_margin.load();
-
-  margins += log.dict_persist_margin.load();
-
-  return log_translate_sn_to_lsn(margins);
-}
-
-lsn_t log_free_check_capacity(const log_t &log, lsn_t free_check_margin) {
-  ut_ad(srv_is_being_started || log_limits_mutex_own(log));
-  const lsn_t soft_logical_capacity = log.m_capacity.soft_logical_capacity();
-  ut_a(free_check_margin < soft_logical_capacity);
-  return ut_uint64_align_down(soft_logical_capacity - free_check_margin,
-                              OS_FILE_LOG_BLOCK_SIZE);
-}
-
-lsn_t log_free_check_capacity(const log_t &log) {
-  return log_free_check_capacity(log, log_free_check_margin(log));
-}
-
-void log_free_check_wait(log_t &log) {
-  DBUG_EXECUTE_IF("log_free_check_skip", return;);
-
-  const lsn_t current_lsn = log_get_lsn(log);
-
-  /* We are not sure here if the Log Checkpointer is the most lagging consumer,
-  but checking that requires acquiring two mutexes, and is a job of
-  log_update_limits_low(), which is only executed infrequently from a few
-  background threads, to not cause congestion. Waking up Log Checkpointer
-  spuriously is not a big problem - it will check there's nothing to do and go
-  to sleep again. However, if the Log Checkpointer actually is the one blocking
-  everyone, then the sooner we wake it up, the better, so we don't want to wait
-  for background threads to do it. */
-  os_event_set(log.checkpointer_event);
-  auto stop_condition = [&log, current_lsn](bool) {
-    return current_lsn <= log.free_check_limit_lsn.load();
-  };
-
-  const auto wait_stats =
-      ut::wait_for(0, std::chrono::microseconds{100}, stop_condition);
-
-  MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_FILE_SPACE_, wait_stats);
-}
-
-#ifdef UNIV_DEBUG
-void log_free_check_validate() {
-  /* This function may be called while holding some latches. This is OK,
-  as long as we are not holding any latches on buffer blocks or file spaces.
-  The following latches are not held by any thread that frees up redo log
-  space. */
-  static const latch_level_t latches[] = {
-      SYNC_NO_ORDER_CHECK, /* used for non-labeled latches */
-      SYNC_RSEGS,          /* rsegs->x_lock in trx_rseg_create() */
-      SYNC_UNDO_DDL,       /* undo::ddl_mutex */
-      SYNC_UNDO_SPACES,    /* undo::spaces::m_latch */
-      SYNC_FTS_CACHE,      /* fts_cache_t::lock */
-      SYNC_DICT,           /* dict_sys->mutex in commit_try_rebuild() */
-      SYNC_DICT_OPERATION, /* X-latch in commit_try_rebuild() */
-      SYNC_INDEX_TREE      /* index->lock */
-  };
-
-  sync_allowed_latches check(latches,
-                             latches + sizeof(latches) / sizeof(*latches));
-
-  if (sync_check_iterate(check)) {
-#ifndef UNIV_NO_ERR_MSGS
-    ib::error(ER_IB_MSG_1381)
-#else
-    ib::error()
-#endif
-        << "log_free_check() was called while holding an un-listed latch.";
-    ut_error;
+void Log_checkpointing::update_limits() {
+  ut_ad(log_limits_mutex_own());
+  const auto checkpoint_lsn = m_checkpoint_lsn.load();
+  auto status = ib::redo::handler->do_not_need_smaller_than(checkpoint_lsn);
+  if (status != ib::redo::Status::SUCCESS) {
+    ib::error(ER_IB_REDO_HANDLER_COULD_NOT_ACK_TO_TRUNCATE_LSN, checkpoint_lsn);
   }
-  mtr_t::check_my_thread_mtrs_are_not_latching();
 }
-#endif /* !UNIV_DEBUG */
 
-/** @} */
+bool Log_checkpointing::save_checkpoint_value(lsn_t checkpoint_lsn) {
+  using Metadata_value = ib::redo::Handler_interface::Metadata_value;
+  using Metadata_key = ib::redo::Metadata_key;
+  using Status = ib::redo::Status;
+
+  Metadata_value value;
+  log_checkpoint_header_serialize({checkpoint_lsn}, value.data());
+  if (ib::redo::handler->store_metadata(Metadata_key::CHECKPOINT, value) ==
+      Status::SUCCESS) {
+    /* The log_sys requires all changes to checkpoint lsn to happen under the
+    log_sys.writer_mutex. Therefore we assert that the call to set_checkpoint()
+    in following line will not change the checkpoint lsn value, as it was
+    already changed during ib::redo::Handler::store_metadata() in previous
+    line where it was properly guarded by the log_sys.writer_mutex." */
+    ut_a(log_sys == nullptr || checkpoint_lsn == get_checkpoint());
+    set_checkpoint(checkpoint_lsn);
+    return true;
+  }
+  return false;
+}
+
+dberr_t Log_checkpointing::load_checkpoint_value() {
+  using Metadata_value = ib::redo::Handler_interface::Metadata_value;
+  using Metadata_key = ib::redo::Metadata_key;
+  using Status = ib::redo::Status;
+
+  /* Call the redo log handler API to get the block having checkpoint LSN */
+  Metadata_value cp_block{0};
+  if (ib::redo::handler->get_metadata(Metadata_key::CHECKPOINT, cp_block) !=
+      Status::SUCCESS) {
+    return DB_ERROR;
+  }
+
+  /* Read checkpoint LSN from the read block */
+  Log_checkpoint_header header;
+  if (!log_checkpoint_header_deserialize(cp_block.data(), header)) {
+    DBUG_PRINT("ib_log",
+               ("invalid checkpoint " UINT32PF " checksum %lx", uint32_t{(1)},
+                ulong{log_block_get_checksum(cp_block.data())}));
+    return DB_CORRUPTION;
+  }
+  const lsn_t checkpoint_lsn = header.m_checkpoint_lsn;
+
+  /* ib::redo::Handler::start_reading() should've already found the same lsn */
+  ut_a(log_sys == nullptr || checkpoint_lsn == get_checkpoint());
+
+  set_checkpoint(checkpoint_lsn);
+
+  return DB_SUCCESS;
+}
+
+void Log_checkpointing::get_limits(lsn_t &limit_for_free_check,
+                                   lsn_t &limit_for_dirty_page_age) {
+  IB_mutex_guard limits_latch{&limits_mutex, UT_LOCATION_HERE};
+  const auto estimate = ib::redo::handler->get_capacity_estimate();
+  const lsn_t min_age =
+      ::adaptive_flush_min_age(estimate.soft_logical_capacity());
+  ut_a(min_age != 0);
+
+  limit_for_free_check =
+      ut_uint64_align_down(estimate.max_history_length, OS_FILE_LOG_BLOCK_SIZE);
+
+  limit_for_dirty_page_age = ut_uint64_align_down(
+      min_age - estimate.margin_length, OS_FILE_LOG_BLOCK_SIZE);
+}
+
+void log_update_exported_lsns() {
+  ut_ad(log_limits_mutex_own());
+  /* The order of this loads is important, as the underlying atomics can change
+  even though we hold the limits mutex. The goal is to provide inequalities:
+  checkpoint_lsn <= flushed_to_disk_lsn <= current_lsn.
+  The mutex only ensures that the writes to export_vars have defined behaviour
+  even though they are not atomics. */
+  export_vars.innodb_redo_log_checkpoint_lsn =
+      pages_persistence->get_checkpoint_lsn();
+
+  export_vars.innodb_redo_log_flushed_to_disk_lsn =
+      ib::redo::handler->peek_first_nonpersisted_lsn();
+
+  export_vars.innodb_redo_log_current_lsn =
+      ib::redo::handler->peek_first_unassigned_lsn();
+}
 
 #endif /* !UNIV_HOTBACKUP */

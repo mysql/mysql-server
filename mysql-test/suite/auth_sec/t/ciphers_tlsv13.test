@@ -11,6 +11,8 @@
 --echo
 
 CALL mtr.add_suppression("Value for option .* contains cipher .* that is blocked.");
+call mtr.add_suppression("TLS session on channel 'mysql_main' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
+call mtr.add_suppression("TLS session on channel 'mysql_admin' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
 
 --connection default
 CREATE USER arthurdent@localhost;

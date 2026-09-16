@@ -1,0 +1,269 @@
+# Case 1:
+# Start the server with the thread_pool plugin.
+# Check the performance_schema tables are visible.
+SELECT TABLE_SCHEMA, TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE 'tp_%' or TABLE_NAME LIKE 'TP_%';
+TABLE_SCHEMA	TABLE_NAME
+information_schema	TP_THREAD_GROUP_STATE
+information_schema	TP_THREAD_GROUP_STATS
+information_schema	TP_THREAD_STATE
+performance_schema	tp_connections
+performance_schema	tp_thread_group_state
+performance_schema	tp_thread_group_stats
+performance_schema	tp_thread_state
+show create table performance_schema.tp_thread_state;
+Table	Create Table
+tp_thread_state	CREATE TABLE `tp_thread_state` (
+  `TP_GROUP_ID` int unsigned NOT NULL,
+  `TP_THREAD_NUMBER` int unsigned NOT NULL,
+  `PROCESS_COUNT` bigint unsigned NOT NULL,
+  `WAIT_TYPE` varchar(30) DEFAULT NULL,
+  `TP_THREAD_TYPE` varchar(32) NOT NULL,
+  `THREAD_ID` bigint unsigned DEFAULT NULL,
+  `TIME_OF_ATTACH` bigint unsigned NOT NULL,
+  `MARKED_STALLED` int unsigned NOT NULL,
+  `STATE` varchar(32) NOT NULL,
+  `EVENT_COUNT` bigint unsigned NOT NULL,
+  `ACCUMULATED_EVENT_TIME` bigint unsigned NOT NULL,
+  `EXEC_COUNT` bigint unsigned NOT NULL,
+  `ACCUMULATED_EXEC_TIME` bigint unsigned NOT NULL,
+  UNIQUE KEY `TP_GROUP_ID` (`TP_GROUP_ID`,`TP_THREAD_NUMBER`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table performance_schema.tp_thread_group_state;
+Table	Create Table
+tp_thread_group_state	CREATE TABLE `tp_thread_group_state` (
+  `TP_GROUP_ID` int unsigned NOT NULL,
+  `CONSUMER_THREADS` int unsigned NOT NULL,
+  `RESERVE_THREADS` int unsigned NOT NULL,
+  `CONNECT_THREAD_COUNT` int unsigned NOT NULL,
+  `CONNECTION_COUNT` int unsigned NOT NULL,
+  `QUEUED_QUERIES` int unsigned NOT NULL,
+  `QUEUED_TRANSACTIONS` int unsigned NOT NULL,
+  `STALL_LIMIT` int unsigned NOT NULL,
+  `PRIO_KICKUP_TIMER` int unsigned NOT NULL,
+  `ALGORITHM` varchar(20) NOT NULL,
+  `THREAD_COUNT` int unsigned NOT NULL,
+  `ACTIVE_THREAD_COUNT` int unsigned NOT NULL,
+  `STALLED_THREAD_COUNT` int unsigned NOT NULL,
+  `WAITING_THREAD_NUMBER` int unsigned DEFAULT NULL,
+  `OLDEST_QUEUED` bigint unsigned DEFAULT NULL,
+  `MAX_THREAD_IDS_IN_GROUP` int unsigned NOT NULL,
+  `EFFECTIVE_MAX_TRANSACTIONS_LIMIT` int unsigned DEFAULT NULL,
+  `NUM_QUERY_THREADS` bigint unsigned NOT NULL,
+  `TIME_OF_LAST_THREAD_CREATION` bigint unsigned DEFAULT NULL,
+  `NUM_CONNECT_HANDLER_THREAD_IN_SLEEP` int unsigned NOT NULL,
+  `THREADS_BOUND_TO_TRANSACTION` int unsigned NOT NULL,
+  `QUERY_THREADS_COUNT` int unsigned NOT NULL,
+  `TIME_OF_EARLIEST_CON_EXPIRE` bigint unsigned DEFAULT NULL,
+  `TIME_OF_LAST_LONGRUNNING_TRXS_CHECK` bigint unsigned DEFAULT NULL,
+  UNIQUE KEY `TP_GROUP_ID` (`TP_GROUP_ID`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table performance_schema.tp_thread_group_stats;
+Table	Create Table
+tp_thread_group_stats	CREATE TABLE `tp_thread_group_stats` (
+  `TP_GROUP_ID` int unsigned NOT NULL,
+  `CONNECTIONS_STARTED` bigint unsigned NOT NULL,
+  `CONNECTIONS_CLOSED` bigint unsigned NOT NULL,
+  `QUERIES_EXECUTED` bigint unsigned NOT NULL,
+  `QUERIES_QUEUED` bigint unsigned NOT NULL,
+  `THREADS_STARTED` bigint unsigned NOT NULL,
+  `PRIO_KICKUPS` bigint unsigned NOT NULL,
+  `STALLED_QUERIES_EXECUTED` bigint unsigned NOT NULL,
+  `BECOME_CONSUMER_THREAD` bigint unsigned NOT NULL,
+  `BECOME_RESERVE_THREAD` bigint unsigned NOT NULL,
+  `BECOME_WAITING_THREAD` bigint unsigned NOT NULL,
+  `WAKE_THREAD_STALL_CHECKER` bigint unsigned NOT NULL,
+  `SLEEP_WAITS` bigint unsigned NOT NULL,
+  `DISK_IO_WAITS` bigint unsigned NOT NULL,
+  `ROW_LOCK_WAITS` bigint unsigned NOT NULL,
+  `GLOBAL_LOCK_WAITS` bigint unsigned NOT NULL,
+  `META_DATA_LOCK_WAITS` bigint unsigned NOT NULL,
+  `TABLE_LOCK_WAITS` bigint unsigned NOT NULL,
+  `USER_LOCK_WAITS` bigint unsigned NOT NULL,
+  `BINLOG_WAITS` bigint unsigned NOT NULL,
+  `GROUP_COMMIT_WAITS` bigint unsigned NOT NULL,
+  `FSYNC_WAITS` bigint unsigned NOT NULL,
+  UNIQUE KEY `TP_GROUP_ID` (`TP_GROUP_ID`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table performance_schema.tp_connections;
+Table	Create Table
+tp_connections	CREATE TABLE `tp_connections` (
+  `CONNECTION_ID` int unsigned NOT NULL,
+  `TP_GROUP_ID` int unsigned NOT NULL,
+  `TP_PROCESSING_THREAD_NUMBER` int unsigned DEFAULT NULL,
+  `THREAD_ID` bigint unsigned DEFAULT NULL,
+  `STATE` varchar(30) NOT NULL,
+  `ACTIVE_FLAG` int unsigned NOT NULL,
+  `KILLED_STATE` varchar(30) NOT NULL,
+  `CLEANUP_STATE` varchar(30) NOT NULL,
+  `TIME_OF_LAST_EVENT_COMPLETION` bigint unsigned NOT NULL,
+  `TIME_OF_EXPIRY` bigint unsigned NOT NULL,
+  `TIME_OF_ADD` bigint unsigned NOT NULL,
+  `TIME_OF_POP` bigint unsigned NOT NULL,
+  `TIME_OF_ARM` bigint unsigned NOT NULL,
+  `CONNECT_HANDLER_INDEX` int unsigned NOT NULL,
+  `TYPE` varchar(30) NOT NULL,
+  `DIRECT_QUERY_EVENTS` bigint unsigned NOT NULL,
+  `QUEUED_QUERY_EVENTS` bigint unsigned NOT NULL,
+  `TIME_OF_EVENT_ARRIVAL` bigint unsigned NOT NULL,
+  `MANAGEMENT_TIME` bigint unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(*) != 0 as with_data from performance_schema.tp_thread_state;
+with_data
+1
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_state;
+with_data
+1
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_stats;
+with_data
+1
+select count(*) != 0 as with_data from performance_schema.tp_connections;
+with_data
+1
+# Case 2:
+# Restart the server without the thread_pool plugin.
+# Check the performance_schema tables are removed.
+# restart:TP_THREAD_STATE_PLUGIN_OPT --plugin_load=TP_THREAD_GROUP_STATE=thread_pool.<extension>
+SELECT TABLE_SCHEMA, TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE 'tp_%' or TABLE_NAME LIKE 'TP_%';
+TABLE_SCHEMA	TABLE_NAME
+information_schema	TP_THREAD_GROUP_STATE
+performance_schema	tp_connections
+performance_schema	tp_thread_group_state
+performance_schema	tp_thread_group_stats
+performance_schema	tp_thread_state
+show create table performance_schema.tp_thread_state;
+ERROR 42S02: Table 'performance_schema.tp_thread_state' doesn't exist
+show create table performance_schema.tp_thread_group_state;
+ERROR 42S02: Table 'performance_schema.tp_thread_group_state' doesn't exist
+show create table performance_schema.tp_thread_group_stats;
+ERROR 42S02: Table 'performance_schema.tp_thread_group_stats' doesn't exist
+select count(*) != 0 as with_data from performance_schema.tp_thread_state;
+ERROR 42S02: Table 'performance_schema.tp_thread_state' doesn't exist
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_state;
+ERROR 42S02: Table 'performance_schema.tp_thread_group_state' doesn't exist
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_stats;
+ERROR 42S02: Table 'performance_schema.tp_thread_group_stats' doesn't exist
+# Case 3:
+# Restart the server with the thread_pool plugin.
+# Check the performance_schema tables are added.
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension>
+SELECT TABLE_SCHEMA, TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE 'tp_%' or TABLE_NAME LIKE 'TP_%';
+TABLE_SCHEMA	TABLE_NAME
+performance_schema	tp_connections
+performance_schema	tp_thread_group_state
+performance_schema	tp_thread_group_stats
+performance_schema	tp_thread_state
+show create table performance_schema.tp_thread_state;
+Table	Create Table
+tp_thread_state	CREATE TABLE `tp_thread_state` (
+  `TP_GROUP_ID` int unsigned NOT NULL,
+  `TP_THREAD_NUMBER` int unsigned NOT NULL,
+  `PROCESS_COUNT` bigint unsigned NOT NULL,
+  `WAIT_TYPE` varchar(30) DEFAULT NULL,
+  `TP_THREAD_TYPE` varchar(32) NOT NULL,
+  `THREAD_ID` bigint unsigned DEFAULT NULL,
+  `TIME_OF_ATTACH` bigint unsigned NOT NULL,
+  `MARKED_STALLED` int unsigned NOT NULL,
+  `STATE` varchar(32) NOT NULL,
+  `EVENT_COUNT` bigint unsigned NOT NULL,
+  `ACCUMULATED_EVENT_TIME` bigint unsigned NOT NULL,
+  `EXEC_COUNT` bigint unsigned NOT NULL,
+  `ACCUMULATED_EXEC_TIME` bigint unsigned NOT NULL,
+  UNIQUE KEY `TP_GROUP_ID` (`TP_GROUP_ID`,`TP_THREAD_NUMBER`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table performance_schema.tp_thread_group_state;
+Table	Create Table
+tp_thread_group_state	CREATE TABLE `tp_thread_group_state` (
+  `TP_GROUP_ID` int unsigned NOT NULL,
+  `CONSUMER_THREADS` int unsigned NOT NULL,
+  `RESERVE_THREADS` int unsigned NOT NULL,
+  `CONNECT_THREAD_COUNT` int unsigned NOT NULL,
+  `CONNECTION_COUNT` int unsigned NOT NULL,
+  `QUEUED_QUERIES` int unsigned NOT NULL,
+  `QUEUED_TRANSACTIONS` int unsigned NOT NULL,
+  `STALL_LIMIT` int unsigned NOT NULL,
+  `PRIO_KICKUP_TIMER` int unsigned NOT NULL,
+  `ALGORITHM` varchar(20) NOT NULL,
+  `THREAD_COUNT` int unsigned NOT NULL,
+  `ACTIVE_THREAD_COUNT` int unsigned NOT NULL,
+  `STALLED_THREAD_COUNT` int unsigned NOT NULL,
+  `WAITING_THREAD_NUMBER` int unsigned DEFAULT NULL,
+  `OLDEST_QUEUED` bigint unsigned DEFAULT NULL,
+  `MAX_THREAD_IDS_IN_GROUP` int unsigned NOT NULL,
+  `EFFECTIVE_MAX_TRANSACTIONS_LIMIT` int unsigned DEFAULT NULL,
+  `NUM_QUERY_THREADS` bigint unsigned NOT NULL,
+  `TIME_OF_LAST_THREAD_CREATION` bigint unsigned DEFAULT NULL,
+  `NUM_CONNECT_HANDLER_THREAD_IN_SLEEP` int unsigned NOT NULL,
+  `THREADS_BOUND_TO_TRANSACTION` int unsigned NOT NULL,
+  `QUERY_THREADS_COUNT` int unsigned NOT NULL,
+  `TIME_OF_EARLIEST_CON_EXPIRE` bigint unsigned DEFAULT NULL,
+  `TIME_OF_LAST_LONGRUNNING_TRXS_CHECK` bigint unsigned DEFAULT NULL,
+  UNIQUE KEY `TP_GROUP_ID` (`TP_GROUP_ID`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table performance_schema.tp_thread_group_stats;
+Table	Create Table
+tp_thread_group_stats	CREATE TABLE `tp_thread_group_stats` (
+  `TP_GROUP_ID` int unsigned NOT NULL,
+  `CONNECTIONS_STARTED` bigint unsigned NOT NULL,
+  `CONNECTIONS_CLOSED` bigint unsigned NOT NULL,
+  `QUERIES_EXECUTED` bigint unsigned NOT NULL,
+  `QUERIES_QUEUED` bigint unsigned NOT NULL,
+  `THREADS_STARTED` bigint unsigned NOT NULL,
+  `PRIO_KICKUPS` bigint unsigned NOT NULL,
+  `STALLED_QUERIES_EXECUTED` bigint unsigned NOT NULL,
+  `BECOME_CONSUMER_THREAD` bigint unsigned NOT NULL,
+  `BECOME_RESERVE_THREAD` bigint unsigned NOT NULL,
+  `BECOME_WAITING_THREAD` bigint unsigned NOT NULL,
+  `WAKE_THREAD_STALL_CHECKER` bigint unsigned NOT NULL,
+  `SLEEP_WAITS` bigint unsigned NOT NULL,
+  `DISK_IO_WAITS` bigint unsigned NOT NULL,
+  `ROW_LOCK_WAITS` bigint unsigned NOT NULL,
+  `GLOBAL_LOCK_WAITS` bigint unsigned NOT NULL,
+  `META_DATA_LOCK_WAITS` bigint unsigned NOT NULL,
+  `TABLE_LOCK_WAITS` bigint unsigned NOT NULL,
+  `USER_LOCK_WAITS` bigint unsigned NOT NULL,
+  `BINLOG_WAITS` bigint unsigned NOT NULL,
+  `GROUP_COMMIT_WAITS` bigint unsigned NOT NULL,
+  `FSYNC_WAITS` bigint unsigned NOT NULL,
+  UNIQUE KEY `TP_GROUP_ID` (`TP_GROUP_ID`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table performance_schema.tp_connections;
+Table	Create Table
+tp_connections	CREATE TABLE `tp_connections` (
+  `CONNECTION_ID` int unsigned NOT NULL,
+  `TP_GROUP_ID` int unsigned NOT NULL,
+  `TP_PROCESSING_THREAD_NUMBER` int unsigned DEFAULT NULL,
+  `THREAD_ID` bigint unsigned DEFAULT NULL,
+  `STATE` varchar(30) NOT NULL,
+  `ACTIVE_FLAG` int unsigned NOT NULL,
+  `KILLED_STATE` varchar(30) NOT NULL,
+  `CLEANUP_STATE` varchar(30) NOT NULL,
+  `TIME_OF_LAST_EVENT_COMPLETION` bigint unsigned NOT NULL,
+  `TIME_OF_EXPIRY` bigint unsigned NOT NULL,
+  `TIME_OF_ADD` bigint unsigned NOT NULL,
+  `TIME_OF_POP` bigint unsigned NOT NULL,
+  `TIME_OF_ARM` bigint unsigned NOT NULL,
+  `CONNECT_HANDLER_INDEX` int unsigned NOT NULL,
+  `TYPE` varchar(30) NOT NULL,
+  `DIRECT_QUERY_EVENTS` bigint unsigned NOT NULL,
+  `QUEUED_QUERY_EVENTS` bigint unsigned NOT NULL,
+  `TIME_OF_EVENT_ARRIVAL` bigint unsigned NOT NULL,
+  `MANAGEMENT_TIME` bigint unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(*) != 0 as with_data from performance_schema.tp_thread_state;
+with_data
+1
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_state;
+with_data
+1
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_stats;
+with_data
+1
+select count(*) != 0 as with_data from performance_schema.tp_connections;
+with_data
+1

@@ -25,7 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/** @file fsp/fsp0space.cc
+/** @file fsp/fsp0sysspace.cc
  Multi file, shared, system tablespace implementation.
 
  Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
@@ -34,8 +34,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stdlib.h>
 #include <sys/types.h>
+#include <optional>
 
 #include "dict0load.h"
+#include "fil0tablespace_node_handle_interface.h"
+#include "fil0tablespaces_nodes_interface.h"
 #include "fsp0sysspace.h"
 #ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"
@@ -50,35 +53,26 @@ direct reference to server header and global variable */
 #ifndef UNIV_HOTBACKUP
 #include "row0mysql.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "page0page.h"
 #include "srv0start.h"
 #include "trx0sys.h"
 #include "ut0new.h"
 
 /** The control info of the system tablespace. */
-SysTablespace srv_sys_space;
+ib::fsp::SysTablespace srv_sys_space(TRX_SYS_SPACE, FIL_TYPE_TABLESPACE);
 
 /** The control info of a temporary table shared tablespace. */
-SysTablespace srv_tmp_space;
+ib::fsp::SysTablespace srv_tmp_space(dict_sys_t::s_temp_space_id,
+                                     FIL_TYPE_TEMPORARY);
 
-/** If the last data file is auto-extended, we add this many pages to it
-at a time. We have to make this public because it is a config variable. */
 ulong sys_tablespace_auto_extend_increment;
 
 #ifdef UNIV_DEBUG
-/** Control if extra debug checks need to be done for temporary tablespace.
-Default = true that is disable such checks.
-This variable is not exposed to end-user but still kept as variable for
-developer to enable it during debug. */
 bool srv_skip_temp_table_checks_debug = true;
 #endif /* UNIV_DEBUG */
 
-/** Put the pointer to the next byte after a valid file name. Note that we must
-step over the ':' in a Windows filepath.
-A Windows path normally looks like "C:\ibdata\ibdata1:1G", but a Windows raw
-partition may have a specification like "\\.\C::1Gnewraw" or
-"\\.\PHYSICALDRIVE2:1Gnewraw".
-@param[in]      ptr             system tablespace file path spec
-@return next character in string after the file name */
+namespace ib::fsp {
+
 char *SysTablespace::parse_file_name(char *ptr) {
   const char *start = ptr;
 
@@ -91,13 +85,7 @@ char *SysTablespace::parse_file_name(char *ptr) {
   return (ptr);
 }
 
-/** Convert a numeric string representing a number of bytes
-optionally ending in upper or lower case G, M, or K,
-to a number of megabytes, rounding down to the nearest megabyte.
-Then return the number of pages in the file.
-@param[in,out]  ptr     Pointer to a numeric string
-@return the number of pages in the file. */
-page_no_t SysTablespace::parse_units(char *&ptr) {
+page_no_t SysTablespace::parse_suffixed_page_count(char *&ptr) {
   char *endp;
   ulint num = strtoul(ptr, &endp, 10);
   ulint megs;
@@ -129,16 +117,12 @@ page_no_t SysTablespace::parse_units(char *&ptr) {
   return (static_cast<page_no_t>(megs * (1024 * 1024 / UNIV_PAGE_SIZE)));
 }
 
-/** Parse the input params and populate member variables.
-@param[in]      filepath_spec   path to data files
-@param[in]      supports_raw    true if the tablespace supports raw devices
-@return true on success parse */
-bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
+bool SysTablespace::parse_params(const char *filepath_spec) {
   char *filepath;
   page_no_t size;
   ulint n_files = 0;
 
-  ut_ad(m_last_file_size_max == 0);
+  ut_ad(m_last_file_size_in_pages_max == 0);
   ut_ad(!m_auto_extend_last_file);
 
   char *input_str = mem_strdup(filepath_spec);
@@ -169,7 +153,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 
     ptr++;
 
-    size = parse_units(ptr);
+    size = parse_suffixed_page_count(ptr);
 
     if (size == 0) {
     invalid_size:
@@ -187,7 +171,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       if (0 == strncmp(ptr, ":max:", (sizeof ":max:") - 1)) {
         ptr += (sizeof ":max:") - 1;
 
-        page_no_t max = parse_units(ptr);
+        page_no_t max = parse_suffixed_page_count(ptr);
 
         if (max < size) {
           goto invalid_size;
@@ -210,16 +194,6 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
     }
 
     if (0 == strncmp(ptr, "raw", (sizeof "raw") - 1)) {
-      if (!supports_raw) {
-        ib::error(ER_IB_MSG_435)
-            << "Invalid File Path Specification: '" << filepath_spec
-            << "' Tablespace"
-               " doesn't support raw devices";
-
-        ut::free(input_str);
-        return (false);
-      }
-
       ptr += (sizeof "raw") - 1;
     }
 
@@ -263,7 +237,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       ptr++;
     }
 
-    size = parse_units(ptr);
+    size = parse_suffixed_page_count(ptr);
     ut_ad(size > 0);
 
     if (0 == strncmp(ptr, ":autoextend", (sizeof ":autoextend") - 1)) {
@@ -274,627 +248,431 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       if (0 == strncmp(ptr, ":max:", (sizeof ":max:") - 1)) {
         ptr += (sizeof ":max:") - 1;
 
-        m_last_file_size_max = parse_units(ptr);
+        m_last_file_size_in_pages_max = parse_suffixed_page_count(ptr);
       }
     }
-
-    m_files.push_back(Datafile(filepath, flags(), size, order));
-    Datafile *datafile = &m_files.back();
-    datafile->make_filepath(path(), filepath, NO_EXT);
 
     if (0 == strncmp(ptr, "new", (sizeof "new") - 1)) {
       ptr += (sizeof "new") - 1;
     }
 
+    node_device_type_t device_type{node_device_type_t::REGULAR_FILE};
     if (0 == strncmp(ptr, "raw", (sizeof "raw") - 1)) {
-      ut_a(supports_raw);
-
       ptr += (sizeof "raw") - 1;
 
       /* Initialize new raw device only during initialize */
-      m_files.back().m_type =
+      device_type =
 #ifndef UNIV_HOTBACKUP
-          opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
+          opt_initialize ? node_device_type_t::NEW_RAW
+                         : node_device_type_t::OLD_RAW;
 #else  /* !UNIV_HOTBACKUP */
-          SRV_OLD_RAW;
+          node_device_type_t::OLD_RAW;
 #endif /* !UNIV_HOTBACKUP */
     }
 
     if (*ptr == ';') {
       ++ptr;
     }
+
+    m_nodes.emplace_back(std::string{filepath}, size, order, device_type);
+
     order++;
   }
 
-  ut_ad(n_files == ulint(m_files.size()));
+  ut_ad(n_files == ulint(m_nodes.size()));
 
   ut::free(input_str);
 
   return (true);
 }
 
-/** Frees the memory allocated by the parse method. */
-void SysTablespace::shutdown() {
-  Tablespace::shutdown();
-
-  m_auto_extend_last_file = false;
-  m_last_file_size_max = 0;
-  m_created_new_raw = false;
-  m_is_tablespace_full = false;
-  m_sanity_checks_done = false;
-}
-
-/** Verify the size of the physical file.
-@param[in]      file    data file object
-@return DB_SUCCESS if OK else error code. */
-dberr_t SysTablespace::check_size(Datafile &file) {
-  os_offset_t size = os_file_get_size(file.m_handle);
-  ut_a(size != (os_offset_t)-1);
-
-  /* Under some error conditions like disk full scenarios
-  or file size reaching filesystem limit the data file
-  could contain an incomplete extent at the end. When we
-  extend a data file and if some failure happens, then
-  also the data file could contain an incomplete extent.
-  So we need to round the size downward to a megabyte. */
-
-  page_no_t rounded_size_pages = get_pages_from_size(size);
+dberr_t SysTablespace::check_size(
+    SysTablespace_node &node,
+    const ib::fil::Tablespaces_nodes_interface::Node_info &node_info) {
+  ut_a(node_info.size != std::numeric_limits<page_no_t>::max());
 
   /* If last file */
-  if (&file == &m_files.back() && m_auto_extend_last_file) {
-    if (file.m_size > rounded_size_pages ||
-        (m_last_file_size_max > 0 &&
-         m_last_file_size_max < rounded_size_pages)) {
-      ib::error(ER_IB_MSG_438)
-          << "The Auto-extending " << name() << " data file '"
-          << file.filepath()
-          << "' is"
-             " of a different size "
-          << rounded_size_pages
-          << " pages (rounded down to MB) than specified"
-             " in the .cnf file: initial "
-          << file.m_size << " pages, max " << m_last_file_size_max
-          << " (relevant if non-zero) pages!";
-      return (DB_ERROR);
+  if (node.order() == m_nodes.size() - 1 && m_auto_extend_last_file) {
+    if (node.expected_size_in_pages() > node_info.size ||
+        (m_last_file_size_in_pages_max > 0 &&
+         m_last_file_size_in_pages_max < node_info.size)) {
+      ib::error(ER_IB_AUTO_EXTENDING_SPACE_NODE_HAS_UNEXPECTED_SIZE, name(),
+                get_node_full_path(node).c_str(), ulong{node_info.size},
+                ulong{node.expected_size_in_pages()},
+                ulong{m_last_file_size_in_pages_max});
+      return DB_ERROR;
     }
-
-    file.m_size = rounded_size_pages;
+  } else if (node_info.size != node.expected_size_in_pages()) {
+    ib::error(ER_IB_SPACE_NODE_HAS_UNEXPECTED_SIZE, name(),
+              get_node_full_path(node).c_str(), ulong{node_info.size},
+              ulong{node.expected_size_in_pages()});
+    return DB_ERROR;
   }
 
-  if (rounded_size_pages != file.m_size) {
-    ib::error(ER_IB_MSG_439)
-        << "The " << name() << " data file '" << file.filepath()
-        << "' is of a different size " << rounded_size_pages
-        << " pages (rounded down to MB)"
-           " than the "
-        << file.m_size
-        << " pages specified in"
-           " the .cnf file!";
-    return (DB_ERROR);
-  }
-
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
-/** Set the size of the file.
-@param[in,out]  file    data file object
-@return DB_SUCCESS or error code */
-dberr_t SysTablespace::set_size(Datafile &file) {
-  ut_a(!srv_read_only_mode || m_ignore_read_only);
+ut::Expected<SysTablespace::Opened_storage_node> SysTablespace::create_node(
+    SysTablespace_node &node) {
+  using Status = ib::fil::Tablespace_node_handle_interface::Status;
+  using Create_error = ib::fil::Tablespaces_nodes_interface::Create_error;
 
-  /* We created the data file and now write it full of zeros */
-  ib::info(ER_IB_MSG_440)
-      << "Setting file '" << file.filepath() << "' size to "
-      << (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
-      << " MB."
-         " Physically writing the file full; Please wait ...";
+  ut_a(!is_read_only());
+  ut_a((!node.node_storage_exists() &&
+        node.device_type() == node_device_type_t::REGULAR_FILE) ||
+       (node.node_storage_exists() &&
+        node.device_type() == node_device_type_t::NEW_RAW));
 
-  bool success = os_file_set_size(
-      file.m_filepath, file.m_handle, 0,
-      static_cast<os_offset_t>(file.m_size) << UNIV_PAGE_SIZE_SHIFT, true);
+  ut_ad(page_size_t{flags()}.physical() == UNIV_PAGE_SIZE);
+  const auto node_path = get_node_full_path(node);
+  auto created_node = tablespaces_nodes->create(
+      space_id(), node.order(),
+      {.m_base_hints = {.m_path = node_path,
+                        .m_is_raw_disk = node.device_type() !=
+                                         node_device_type_t::REGULAR_FILE}},
+      flags(), 0);
+  if (!created_node) {
+    dberr_t err;
+    switch (created_node.error()) {
+      case Create_error::NODE_EXISTS:
+        ib::error(ER_IB_MSG_UNEXPECTED_FILE_EXISTS, node_path.c_str(),
+                  node_path.c_str());
+        err = DB_TABLESPACE_EXISTS;
+        break;
 
-  if (success) {
-    ib::info(ER_IB_MSG_441)
-        << "File '" << file.filepath() << "' size is now "
-        << (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT)) << " MB.";
-  } else {
-    ib::error(ER_IB_MSG_442)
-        << "Could not set the file size of '" << file.filepath()
-        << "'. Probably out of disk space";
+      case Create_error::FILE_NAME_TOO_LONG:
+        ib::error(ER_IB_MSG_TOO_LONG_PATH, node_path.c_str());
+        err = DB_TOO_LONG_PATH;
+        break;
 
-    return (DB_ERROR);
+      case Create_error::OUT_OF_DISK_SPACE:
+        err = DB_OUT_OF_DISK_SPACE;
+        break;
+
+      case Create_error::IO_ERROR:
+        err = DB_ERROR;
+        break;
+      case Create_error::UNSUPPORTED:
+        err = DB_UNSUPPORTED;
+        break;
+
+      default:
+        ut_error;
+    }
+    ib::error(ER_IB_NODE_CREATION_FAILED, node_path.c_str(), ut_strerr(err));
+    return ut::Unexpected(err);
   }
 
-  return (DB_SUCCESS);
+  ib::info(
+      ER_IB_NODE_IS_BEING_PREPARED, node_path.c_str(),
+      ulonglong{node.expected_size_in_pages()} >> (20 - UNIV_PAGE_SIZE_SHIFT));
+
+  const auto zeroing_status =
+      (*created_node)
+          ->fill_range_with_zeros(0, node.expected_size_in_pages(),
+                                  !tbsp_extend_and_initialize);
+  if (zeroing_status != Status::SUCCESS) {
+    ut_ad(zeroing_status == Status::IO_ERROR);
+    ib::error(ER_IB_NODE_FILLING_FAILED, node_path.c_str(),
+              ut_strerr(DB_IO_ERROR));
+    return ut::Unexpected(DB_IO_ERROR);
+  }
+
+  ib::info(
+      ER_IB_NODE_CREATION_FINISHED, node_path.c_str(),
+      ulonglong{node.expected_size_in_pages()} >> (20 - UNIV_PAGE_SIZE_SHIFT));
+
+  node.set_node_storage_exists();
+  m_sum_of_new_sizes_in_pages += node.expected_size_in_pages();
+
+  return Opened_storage_node(node, std::move(*created_node));
 }
 
-/** Create a data file.
-@param[in,out]  file    data file object
-@return DB_SUCCESS or error code */
-dberr_t SysTablespace::create_file(Datafile &file) {
-  dberr_t err = DB_SUCCESS;
+ut::Expected<SysTablespace::Opened_storage_node> SysTablespace::open_node(
+    const SysTablespace_node &node) {
+  using Open_error = ib::fil::Tablespaces_nodes_interface::Open_error;
 
-  ut_a(!file.m_exists);
-  ut_a(!srv_read_only_mode || m_ignore_read_only);
+  ut_a(node.node_storage_exists());
 
-  switch (file.m_type) {
-    case SRV_NEW_RAW:
-
-      /* The partition is opened, not created; then it is
-      written over */
-      m_created_new_raw = true;
-
-      [[fallthrough]];
-
-    case SRV_OLD_RAW:
-
+  switch (node.device_type()) {
+    case node_device_type_t::OLD_RAW:
       srv_start_raw_disk_in_use = true;
 
-      [[fallthrough]];
-
-    case SRV_NOT_RAW:
-      err =
-          file.open_or_create(m_ignore_read_only ? false : srv_read_only_mode);
-      break;
-  }
-
-  if (err == DB_SUCCESS && file.m_type != SRV_OLD_RAW) {
-    err = set_size(file);
-  }
-
-  return (err);
-}
-
-/** Open a data file.
-@param[in,out]  file    data file object
-@return DB_SUCCESS or error code */
-dberr_t SysTablespace::open_file(Datafile &file) {
-  dberr_t err = DB_SUCCESS;
-
-  ut_a(file.m_exists);
-
-  switch (file.m_type) {
-    case SRV_NEW_RAW:
-      /* The partition is opened, not created; then it is
-      written over */
-      m_created_new_raw = true;
-
-      [[fallthrough]];
-
-    case SRV_OLD_RAW:
-      srv_start_raw_disk_in_use = true;
-
-      if (srv_read_only_mode && !m_ignore_read_only) {
-        ib::error(ER_IB_MSG_443)
-            << "Can't open a raw device '" << file.m_filepath
-            << "' when"
-               " --innodb-read-only is set";
-
-        return (DB_ERROR);
+      if (is_read_only()) {
+        ib::error(ER_IB_OPEN_RAW_DEVICE_IN_READONLY_MODE, node.name().c_str());
+        return ut::Unexpected(DB_ERROR);
       }
-
       [[fallthrough]];
+    case node_device_type_t::REGULAR_FILE: {
+      auto opened_node = tablespaces_nodes->open(
+          space_id(), node.order(),
+          {.m_path = get_node_full_path(node),
+           .m_is_raw_disk =
+               node.device_type() != node_device_type_t::REGULAR_FILE},
+          UNIV_PAGE_SIZE, is_read_only());
+      if (!opened_node) {
+        switch (opened_node.error()) {
+          case Open_error::NODE_DOES_NOT_EXIST:
+          case Open_error::IO_ERROR:
+            return ut::Unexpected(DB_CANNOT_OPEN_FILE);
 
-    case SRV_NOT_RAW:
-      err =
-          file.open_or_create(m_ignore_read_only ? false : srv_read_only_mode);
-
-      if (err != DB_SUCCESS) {
-        return (err);
+          default:
+            ut_error;
+        }
       }
-      break;
+      return Opened_storage_node(node, std::move(*opened_node));
+    } break;
+
+    default:
+      ut_error;
   }
-
-  switch (file.m_type) {
-    case SRV_NEW_RAW:
-      /* Set file size for new raw device. */
-      err = set_size(file);
-      break;
-
-    case SRV_NOT_RAW:
-      /* Check file size for existing file. */
-      err = check_size(file);
-      break;
-
-    case SRV_OLD_RAW:
-      err = DB_SUCCESS;
-      break;
-  }
-
-  if (err != DB_SUCCESS) {
-    file.close();
-  }
-
-  return (err);
 }
 
 #ifndef UNIV_HOTBACKUP
 
-dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
+ut::Expected<lsn_t> SysTablespace::read_lsn_and_check_flags() {
+  /* Methods like page_get_page_no() are checking for UNIV_PAGE_SIZE alignment
+  where for IO the UNIV_SECTOR_SIZE would be sufficient. */
+  const auto page =
+      ut::make_unique_aligned<byte[]>(UNIV_PAGE_SIZE, UNIV_PAGE_SIZE_MAX);
+
   /* Only relevant for the system tablespace. */
   ut_ad(space_id() == TRX_SYS_SPACE);
 
-  files_t::iterator it = m_files.begin();
-
-  ut_a(it->m_exists);
-  ut_ad(it->is_open());
-  dberr_t err = it->read_first_page();
-
-  if (err != DB_SUCCESS) {
-    return (err);
-  }
-
-  ut_a(it->order() == 0);
-
-  err = recv_sys->dblwr->load();
-
-  if (err != DB_SUCCESS) {
-    return (err);
-  }
-
-  err = recv_sys->dblwr->reduced_load();
-
-  if (err != DB_SUCCESS) {
-    return (err);
-  }
-
-  /* Check the contents of the first page of the first datafile. */
-  err = it->validate_first_page(space_id(), flushed_lsn, false);
-  if (err != DB_SUCCESS) {
-    /* Perhaps the first page was torn? Recover it and validate again. */
-    if (it->open_or_create(srv_read_only_mode) != DB_SUCCESS ||
-        it->restore_from_doublewrite(0) != DB_SUCCESS) {
-      it->close();
-      return err;
-    }
-    err = it->validate_first_page(space_id(), flushed_lsn, false);
-    if (err != DB_SUCCESS) {
-      return err;
-    }
-  }
-  ut_ad(!it->is_open());
-
-  /* The flags of srv_sys_space do not have SDI Flag set.
-  Update the flags of system tablespace to indicate the presence
-  of SDI */
-  set_flags(it->flags());
-
-  return (DB_SUCCESS);
-}
-
-/** Check if a file can be opened in the correct mode.
-@param[in,out]  file    data file object
-@param[out]     reason  exact reason if file_status check failed.
-@return DB_SUCCESS or error code. */
-dberr_t SysTablespace::check_file_status(const Datafile &file,
-                                         file_status_t &reason) {
-  os_file_stat_t stat;
-
-  memset(&stat, 0x0, sizeof(stat));
-
-  dberr_t err =
-      os_file_get_status(file.m_filepath, &stat, true,
-                         m_ignore_read_only ? false : srv_read_only_mode);
-
-  reason = FILE_STATUS_VOID;
-  /* File exists but we can't read the rw-permission settings. */
-  switch (err) {
-    case DB_FAIL:
-      ib::error(ER_IB_MSG_445)
-          << "os_file_get_status() failed on '" << file.filepath()
-          << "'. Can't determine file permissions";
-      err = DB_ERROR;
-      reason = FILE_STATUS_RW_PERMISSION_ERROR;
-      break;
-
-    case DB_SUCCESS:
-
-      /* Note: stat.rw_perm is only valid for "regular" files */
-
-      if (stat.type == OS_FILE_TYPE_FILE) {
-        if (!stat.rw_perm) {
-          const char *p = (!srv_read_only_mode || m_ignore_read_only)
-                              ? "writable"
-                              : "readable";
-
-          ib::error(ER_IB_MSG_446) << "The " << name() << " data file"
-                                   << " '" << file.name() << "' must be " << p;
-
-          err = DB_ERROR;
-          reason = FILE_STATUS_READ_WRITE_ERROR;
-        }
-
-      } else {
-        /* Not a regular file, bail out. */
-        ib::error(ER_IB_MSG_447)
-            << "The " << name() << " data file '" << file.name()
-            << "' is not a regular"
-               " InnoDB data file.";
-
-        err = DB_ERROR;
-        reason = FILE_STATUS_NOT_REGULAR_FILE_ERROR;
-      }
-      break;
-
-    case DB_NOT_FOUND:
-      break;
-
-    default:
-      ut_d(ut_error);
-  }
-
-  return (err);
-}
-
-/** Note that the data file was not found.
-@param[in]      file            data file object
-@param[in]      create_new_db   true if a new instance to be created
-@return DB_SUCCESS or error code */
-dberr_t SysTablespace::file_not_found(Datafile &file, bool create_new_db) {
-  file.m_exists = false;
-
-  if (srv_read_only_mode && !m_ignore_read_only) {
-    ib::error(ER_IB_MSG_448) << "Can't create file '" << file.filepath()
-                             << "' when --innodb-read-only is set";
-
-    return (DB_ERROR);
-
-  } else if (&file == &m_files.front()) {
-    /* First data file. */
-
-    if (space_id() == TRX_SYS_SPACE && create_new_db) {
-      ib::info(ER_IB_MSG_449)
-          << "The first " << name() << " data file '" << file.name()
-          << "' did not exist."
-             " A new tablespace will be created!";
-    }
-
+  /* We want to open all files in this tablespace and keep them open as they are
+  not part of the opened nodes LRU. */
+  if (const auto open_res = fil_space_open(TRX_SYS_SPACE); !open_res) {
+    return open_res.error();
   } else {
-    ib::info(ER_IB_MSG_450) << "Need to create a new " << name()
-                            << " data file '" << file.name() << "'.";
+    fil_space_release(*open_res);
   }
 
-  /* We allow add new files at end even if dict_init_mode is
-  not creating files. */
-  if (!create_new_db && (&file == &m_files.front())) {
-    return (DB_SUCCESS);
+  {
+    /* We use NO_COMPRESSION to not transform the page content in any way. We
+    want first validate this page is valid, we don't want the fil system to
+    even attempt checking the fields on compression, even if currently the
+    fil_io does not run decompression or decryption for page 0. */
+    const auto err =
+        fil_io(IORequest::Type::READ | IORequest::Type::NO_COMPRESSION, true,
+               page_id_t{TRX_SYS_SPACE, 0}, univ_page_size, UNIV_PAGE_SIZE,
+               page.get(), nullptr, false);
+    if (err != DB_SUCCESS) {
+      ib::error(ER_IB_MSG_393) << "Cannot read first page of '"
+                               << m_nodes[0].name() << "' " << ut_strerr(err);
+
+      return err;
+    }
   }
+  uint32_t space_flags_on_disk;
+  /** TODO: Enable following after WL#11063-related comment in
+  fsp_header_validate() is fixed.
+  const auto server_version = fsp_header_get_server_version(page.get());
+  const auto space_version = fsp_header_get_space_version(page.get());
+  */
 
-  /* Set the file create mode. */
-  switch (file.m_type) {
-    case SRV_NOT_RAW:
-      file.set_open_flags(OS_FILE_CREATE);
-      break;
-
-    case SRV_NEW_RAW:
-    case SRV_OLD_RAW:
-      file.set_open_flags(OS_FILE_OPEN_RAW);
-      break;
+  Encryption_metadata encryption_metadata{};
+  Encryption_key encryption_key{encryption_metadata.m_key,
+                                encryption_metadata.m_iv};
+  const auto err =
+      fsp_header_validate(page.get(), space_id(), space_flags_on_disk,
+                          get_node_full_path(0), false, encryption_key);
+  if (err != DB_SUCCESS) {
+    return err;
   }
-
-  return (DB_SUCCESS);
+  /* The System Tablespaces are never encrypted. Match against empty key to
+  check no non-zero key was extracted from FSP header. */
+  ut_a(Encryption_metadata{}.match(encryption_metadata));
+  /* The flags of srv_sys_space do not have SDI Flag set.
+  Update the flags of system tablespace to indicate the presence of SDI */
+  set_flags(space_flags_on_disk);
+  return mach_read_from_8(page.get() + FIL_PAGE_FILE_FLUSH_LSN);
 }
 
-/** Note that the data file was found.
-@param[in,out]  file    data file object */
-void SysTablespace::file_found(Datafile &file) {
-  /* Note that the file exists and can be opened
-  in the appropriate mode. */
-  file.m_exists = true;
-
-  /* Set the file open mode */
-  switch (file.m_type) {
-    case SRV_NOT_RAW:
-      file.set_open_flags(&file == &m_files.front() ? OS_FILE_OPEN_RETRY
-                                                    : OS_FILE_OPEN);
-      break;
-
-    case SRV_NEW_RAW:
-    case SRV_OLD_RAW:
-      file.set_open_flags(OS_FILE_OPEN_RAW);
-      break;
-  }
-}
-
-/** Check the data file specification.
-@param[in]  create_new_db     True if a new database is to be created
-@param[in]  min_expected_size Minimum expected tablespace size in bytes
-@return DB_SUCCESS if all OK else error code */
-dberr_t SysTablespace::check_file_spec(bool create_new_db,
-                                       ulint min_expected_size) {
-  if (m_files.size() >= 1000) {
-    ib::error(ER_IB_MSG_451) << "There must be < 1000 data files in " << name()
-                             << " but " << m_files.size()
-                             << " have been"
-                                " defined.";
-
-    return (DB_ERROR);
-  }
-
-  if (get_sum_of_sizes() < min_expected_size / UNIV_PAGE_SIZE) {
+dberr_t SysTablespace::check_file_spec(bool create_new_tablespace,
+                                       uint64_t min_expected_size,
+                                       bool supports_raw_devices) {
+  ut_a(min_expected_size % UNIV_PAGE_SIZE == 0);
+  if (get_sum_of_expected_sizes_in_pages() <
+      min_expected_size / UNIV_PAGE_SIZE) {
     ib::error(ER_IB_MSG_452) << "Tablespace size must be at least "
                              << min_expected_size / (1024 * 1024) << " MB";
 
-    return (DB_ERROR);
+    return DB_ERROR;
   }
 
-  dberr_t err = DB_SUCCESS;
+  /* Files specifications should have been already parsed. */
+  ut_a(!m_nodes.empty());
+  const auto node_description_for_error = [this](const auto &node) {
+    return ib::logger::msg(ER_IB_SYS_SPACE_NODE_ERROR_INFO, node.name().c_str(),
+                           get_node_full_path(node).c_str(), this->name());
+  };
 
-  ut_a(!m_files.empty());
+  bool seen_nonexisting_node = false;
+  for (auto &node : m_nodes) {
+    if (node.device_type() != node_device_type_t::REGULAR_FILE &&
+        !supports_raw_devices) {
+      ib::error(ER_IB_MSG_NO_RAW_DEVICES_SUPPORT_FOR_TABLESPACE,
+                node_description_for_error(node).c_str());
+      return DB_ERROR;
+    }
 
-  /* If there is more than one data file and the last data file
-  doesn't exist, that is OK. We allow adding of new data files. */
+    const auto node_info = tablespaces_nodes->get_node_info(
+        space_id(), node.order(),
+        {.m_path = get_node_full_path(node),
+         .m_is_raw_disk =
+             node.device_type() != node_device_type_t::REGULAR_FILE,
+         .m_check_permissions = true},
+        page_size_t{flags()}.physical());
+    if (!node_info) {
+      switch (node_info.error()) {
+        case ib::fil::Tablespaces_nodes_interface::Node_error::IO_ERROR:
+          ib::error(ER_IB_NODE_STAT_FAILED,
+                    node_description_for_error(node).c_str());
+          return DB_ERROR;
 
-  files_t::iterator begin = m_files.begin();
-  files_t::iterator end = m_files.end();
+        case ib::fil::Tablespaces_nodes_interface::Node_error::NOT_A_NODE:
+          ib::error(ER_IB_NODE_NOT_A_REGULAR_FILE,
+                    node_description_for_error(node).c_str());
+          return DB_ERROR;
 
-  for (files_t::iterator it = begin; it != end; ++it) {
-    file_status_t reason_if_failed;
-    err = check_file_status(*it, reason_if_failed);
+        case ib::fil::Tablespaces_nodes_interface::Node_error::
+            NODE_DOES_NOT_EXIST:
+          if (is_read_only()) {
+            ib::error(ER_IB_NODE_CREATION_IN_READONLY_MODE,
+                      node_description_for_error(node).c_str());
+            return DB_ERROR;
+          } else if (node.device_type() != node_device_type_t::REGULAR_FILE) {
+            ib::error(ER_IB_CANT_CREATE_RAW_DEVICE,
+                      node_description_for_error(node).c_str());
+            return DB_ERROR;
+          } else if (node.order() == 0) {
+            if (create_new_tablespace) {
+              if (fsp_is_system_tablespace(space_id())) {
+                ib::info(ER_IB_FIRST_NODE_OF_TABLESPACE_WILL_BE_CREATED,
+                         node_description_for_error(node).c_str());
+              }
+            } else {
+              ib::error(ER_IB_TABLESPACE_FILE_MISSING,
+                        node_description_for_error(node).c_str());
+              return DB_ERROR;
+            }
+          } else if (!create_new_tablespace) {
+            /* We allow the user to restart server with a path specification
+            that has:
+            - last node size changed from the `autoextend` to the actual size,
+            - new nodes specified at the end of the previous specification.
+            This way, the user can request InnoDB to create new nodes which will
+            extend the System Tablespace (perhaps even onto another drives). The
+            way this situation would manifest here is that a non-empty prefix of
+            the list of paths from the specification would already exist, and
+            the rest of it (a non-empty suffix starts where the before mentioned
+            prefix ended) would be all missing. We don't know what the previous
+            specification really was used. Currently we can assume that it had
+            to have at least one, first, node, with correct tablespaces header,
+            but all other nodes could differ.
+            Later in the `srv_start()` we will:
+            - add the sum of sizes of nodes created in the
+            `SysTablespace::prepare_nodes()` called after this method finishes,
+            to the size stored in the tablespace header.
+            - validate the updated size stored in header is not larger than the
+            sum of actual file sizes, and in case last file is not `autoextend`,
+            if they are equal.
+            To be done: this method should check space ID and page numbers
+            stored in subsequent nodes from the specification are almost
+            consistent (excluding corrupted pages). Currently we don't validate
+            the any pages but first.*/
+            seen_nonexisting_node = true;
+          }
+          ib::info(ER_IB_INFO_TABLESPACE_NODE_WILL_BE_CREATED,
+                   node_description_for_error(node).c_str());
+          break;
 
-    if (err == DB_NOT_FOUND) {
-      err = file_not_found(*it, create_new_db);
-
-      if (err != DB_SUCCESS) {
-        break;
+        default:
+          ut_error;
       }
-
-    } else if (err != DB_SUCCESS) {
-      if (reason_if_failed == FILE_STATUS_READ_WRITE_ERROR) {
-        const char *p = (!srv_read_only_mode || m_ignore_read_only)
-                            ? "writable"
-                            : "readable";
-        ib::error(ER_IB_MSG_453) << "The " << name() << " data file"
-                                 << " '" << it->name() << "' must be " << p;
-      }
-
-      ut_a(err != DB_FAIL);
-      break;
-
-    } else if (create_new_db && !(*it).is_raw_type()) {
-      ib::error(ER_IB_MSG_454)
-          << "The " << name() << " data file '" << begin->m_name
-          << "' was not found but"
-             " one of the other data files '"
-          << it->m_name << "' exists.";
-
-      err = DB_ERROR;
-      break;
-
     } else {
-      ut_ad(err == DB_SUCCESS);
-      file_found(*it);
+      /* Node exists. */
+
+      /* If we see an existing node, but we are to create all the tablespace
+      nodes, or we have seen non-existing node already, we emit error and stop,
+      as there is evidently some problem with the path specification provided by
+      the user. However it is ok for the RAW device to exist when @p
+      create_new_tablespace is specified. */
+      if ((node.device_type() == node_device_type_t::REGULAR_FILE &&
+           create_new_tablespace) ||
+          seen_nonexisting_node) {
+        ib::error(ER_IB_TABLESPACE_NODE_SHOULD_NOT_EXIST,
+                  node_description_for_error(node).c_str());
+        return DB_ERROR;
+      }
+
+      if (is_read_only() ? !node_info->access_permissions.has_read_access
+                         : !node_info->access_permissions.has_write_access) {
+        ib::error(ER_IB_NODE_MUST_BE_ACCESSIBLE,
+                  node_description_for_error(node).c_str(),
+                  is_read_only() ? "readable" : "writable");
+
+        return DB_ERROR;
+      }
+      node.set_node_storage_exists();
+      const auto err = check_size(node, *node_info);
+      if (err != DB_SUCCESS) {
+        return err;
+      }
     }
   }
 
-  /* We assume doublewirte blocks in the first data file. */
-  if (err == DB_SUCCESS && begin->m_size < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3) {
-    ib::error(ER_IB_MSG_455)
-        << "The " << name() << " data file "
-        << "'" << begin->name() << "' must be at least "
-        << TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3 * UNIV_PAGE_SIZE / (1024 * 1024)
-        << " MB";
+  /* We assume doublewrite blocks in the first data file. */
+  if (space_id() == TRX_SYS_SPACE && m_nodes[0].expected_size_in_pages() <
+                                         TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3) {
+    ib::error(ER_IB_TABLESPACE_TOO_SMALL,
+              node_description_for_error(m_nodes[0]).c_str(),
+              ulong{TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3 * UNIV_PAGE_SIZE /
+                    (1024 * 1024)});
 
-    err = DB_ERROR;
+    return DB_ERROR;
   }
 
-  return (err);
+  return DB_SUCCESS;
 }
 
-dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
-                                      page_no_t *sum_new_sizes,
-                                      lsn_t *flush_lsn) {
-  dberr_t err = DB_SUCCESS;
-  fil_space_t *space = nullptr;
+dberr_t SysTablespace::prepare_nodes() {
+  ut_ad(!m_nodes.empty());
 
-  ut_ad(!m_files.empty());
+  for (auto &node : m_nodes) {
+    auto res = (node.node_storage_exists() &&
+                node.device_type() != node_device_type_t::NEW_RAW)
+                   ? open_node(node)
+                   : create_node(node);
 
-  if (sum_new_sizes) {
-    *sum_new_sizes = 0;
-  }
-
-  files_t::iterator begin = m_files.begin();
-  files_t::iterator end = m_files.end();
-
-  ut_ad(begin->order() == 0);
-
-  for (files_t::iterator it = begin; it != end; ++it) {
-    if (it->m_exists) {
-      err = open_file(*it);
-
-      /* For new raw device increment new size. */
-      if (sum_new_sizes && it->m_type == SRV_NEW_RAW) {
-        *sum_new_sizes += it->m_size;
-      }
-
-    } else {
-      err = create_file(*it);
-
-      if (sum_new_sizes) {
-        *sum_new_sizes += it->m_size;
-      }
-
-      /* Set the correct open flags now that we have
-      successfully created the file. */
-      if (err == DB_SUCCESS) {
-        /* We ignore new_db OUT parameter here
-        as the information is known at this stage */
-        file_found(*it);
-      }
-    }
-
-    if (err != DB_SUCCESS) {
-      return (err);
+    if (!res) {
+      return res.error();
     }
   }
+  /* Create the tablespace entry for the multi-file
+  tablespace in the tablespace manager. */
+  const auto space =
+      fil_space_create(name(), space_id(), flags(), space_type());
+  ut_ad(fil_validate());
+  ut_a(space != nullptr);
 
-  if (flush_lsn != nullptr) {
-    if (create_new_db) {
-      /* There are no data files, so we assign the initial value
-      to flush_lsn instead of reading it from disk. */
-      *flush_lsn = LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
-    } else {
-      /* Validate the header page in the first datafile in the
-      system tablespace and read flush_lsn from the validated
-      header page. */
-      err = read_lsn_and_check_flags(flush_lsn);
-      if (err != DB_SUCCESS) {
-        return (err);
-      }
-    }
-  }
-
-  /* Close the current handles, add space and file info to the
-  fil_system cache and the Data Dictionary, and re-open them
-  in file_system cache so that they stay open until shutdown. */
-  ulint node_counter = 0;
-  for (files_t::iterator it = begin; it != end; ++it) {
-    it->close();
-    it->m_exists = true;
-
-    if (it == begin) {
-      /* First data file. */
-
-      /* Create the tablespace entry for the multi-file
-      tablespace in the tablespace manager. */
-      space =
-          fil_space_create(name(), space_id(), flags(),
-                           is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
-    }
-
-    ut_ad(fil_validate());
+  for (auto &node : m_nodes) {
+    ut_a(node.node_storage_exists());
 
     page_no_t max_size =
-        (++node_counter == m_files.size()
-             ? (m_last_file_size_max == 0 ? PAGE_NO_MAX : m_last_file_size_max)
-             : it->m_size);
+        (&node == &m_nodes.back() ? (m_last_file_size_in_pages_max == 0
+                                         ? PAGE_NO_MAX
+                                         : m_last_file_size_in_pages_max)
+                                  : node.expected_size_in_pages());
 
     /* Add the datafile to the fil_system cache. */
-    if (!fil_node_create(it->m_filepath, it->m_size, space,
-                         it->m_type != SRV_NOT_RAW, max_size)) {
-      err = DB_ERROR;
-      break;
-    }
+    fil_node_create(get_node_full_path(node).data(), space,
+                    node.device_type() != node_device_type_t::REGULAR_FILE,
+                    max_size);
+    ut_ad(fil_validate());
   }
-
-  return (err);
+  return DB_SUCCESS;
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**
-@return next increment size */
-page_no_t SysTablespace::get_increment() const {
-  page_no_t increment;
-
-  if (m_last_file_size_max == 0) {
-    increment = get_autoextend_increment();
-  } else {
-    increment = m_last_file_size_max - last_file_size();
-  }
-
-  if (increment > get_autoextend_increment()) {
-    increment = get_autoextend_increment();
-  }
-
-  return (increment);
-}
+}  // namespace ib::fsp

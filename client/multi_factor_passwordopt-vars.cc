@@ -66,8 +66,14 @@ void parse_command_line_password_option(const struct my_option *opt,
     while (*argument) *argument++ = 'x';  // Destroy argument
     if (*start) start[1] = 0;
     tty_password[factor] = false;
-  } else
+  } else {
+    // A bare --password<N> overrides a password supplied earlier, for example
+    // through an option file, and requests an interactive prompt instead.
+    // Release the previous value before get_tty_password() replaces it.
+    my_free(opt_password[factor]);
+    opt_password[factor] = nullptr;
     tty_password[factor] = true;
+  }
 }
 
 /**

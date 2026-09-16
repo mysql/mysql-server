@@ -422,7 +422,7 @@ char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
 
 static inline bool is_valid_row_version(const row_version_t version) {
   /* NOTE : 0 is also a valid row versions for rows which are inserted after
-  upgrading from earlier INSTANT implemenation */
+  upgrading from earlier INSTANT implementation */
   if (std::cmp_less_equal(version, MAX_ROW_VERSION)) {
     return true;
   }
@@ -516,7 +516,7 @@ struct dict_col_t {
                             character, in bytes;
                             DATA_MBMINMAXLEN(mbminlen,mbmaxlen);
                             mbminlen=DATA_MBMINLEN(mbminmaxlen);
-                            mbmaxlen=DATA_MBMINLEN(mbminmaxlen) */
+                            mbmaxlen=DATA_MBMAXLEN(mbminmaxlen) */
   /*----------------------*/
   /* End of definitions copied from dtype_t */
   /** @} */
@@ -913,6 +913,8 @@ struct dict_field_t {
 
     return col->get_col_phy_pos();
   }
+
+  size_t get_mbmaxlen() const { return DATA_MBMAXLEN(col->mbminmaxlen); }
 };
 
 /** PADDING HEURISTIC BASED ON LINEAR INCREASE OF PADDING TO AVOID
@@ -2356,25 +2358,43 @@ detect this and will eventually quit sooner. */
   /** Autoinc counter value to give to the next inserted row. */
   uint64_t autoinc;
 
-  /** Mutex protecting the persisted autoincrement counter. */
+  /** Mutex protecting the persisted autoinc_persisted counter. */
   ib_mutex_t *autoinc_persisted_mutex;
 
-  /** Autoinc counter value that has been persisted in redo logs or
-  DDTableBuffer. It's mainly used when we want to write counter back
-  to DDTableBuffer.
+  /** The autoinc counter value that we would like to be persisted to the
+  DDTableBuffer on the next occasion when the persistent metadata of this table
+  will be stored to it.
+  It may be smaller than the currently stored value (autoinc_buffered) due to
+  the innodb_autoinc_preallocate mechanism.
+  It should be equal to autoinc_buffered if dirty_status==METADATA_BUFFERED.
   This is different from the 'autoinc' above, which could be bigger
   than this one, because 'autoinc' will get updated right after
-  some counters are allocated, but we will write the counter to redo
-  logs and update this counter later. Once all allocated counters
-  have been written to redo logs, 'autoinc' should be exact the next
-  counter of this persisted one.
-  We want this counter because when we need to write the counter back
-  to DDTableBuffer, we had better keep it consistency with the counter
-  that has been written to redo logs. Besides, we can't read the 'autoinc'
-  directly easily, because the autoinc_lock is required and there could
-  be a deadlock.
-  This variable is protected by autoinc_persisted_mutex. */
-  uint64_t autoinc_persisted;
+  some counters are allocated, but we will persist the counter later.
+  Eventually autoinc_persisted should match autoinc, and on clean shutdown we
+  should also make autoinc_buffered match the two and the DDTableBuffer.
+  We want this counter because we can't read the 'autoinc' directly easily,
+  because the autoinc_lock is required and there could be a deadlock.
+  This variable is modified under autoinc_persisted_mutex.
+  It might be temporarily modified to a "fake" (too large) value when the
+  innodb_autoinc_preallocate mechanism is persisting it, but then it happens
+  under both: autoinc_persisted_mutex and dict_persist->mutex.
+  Readers can thus read it:
+  a) under dict_persist->mutex if all they care is to not see "a fake" value,
+     but don't really care "which" of "real" values they'll see
+  b) under autoinc_persisted_mutex if they want to see "most current" value
+  c) without any latch if they just want to avoid "torn" reads */
+  std::atomic<uint64_t> autoinc_persisted;
+
+  /** The autoinc counter value that has been persisted to DDTableBuffer last
+  time during this run of mysqld.
+  It might be larger than autoinc_persisted, due to innodb_autoinc_preallocate
+  mechanism.
+  It might also be zero before first store to DDTableBuffer.
+  This variable is modified under dict_persist->mutex.
+  It can be read without any latch, but the reader must be aware that another
+  thread might be setting it to the autoinc_persisted value it seen some time
+  before (but after setting dirty_status to METADATA_BUFFERED). */
+  std::atomic<uint64_t> autoinc_buffered{0};
 
   /** The position of autoinc counter field in clustered index. This would
   be set when CREATE/ALTER/OPEN TABLE and IMPORT TABLESPACE, and used in
@@ -2382,7 +2402,7 @@ detect this and will eventually quit sooner. */
   be no conflict to access it, so no protection is needed. */
   ulint autoinc_field_no;
 
-  /** The transaction that currently holds the the AUTOINC lock on this table.
+  /** The transaction that currently holds the AUTOINC lock on this table.
   Protected by lock_sys table shard latch. To "peek" the current value one
   can read it without any latch, understanding that in general it may change.
   Such access pattern is correct if trx thread wants to check if it has the lock
@@ -2866,13 +2886,13 @@ class Persister {
   @param[in]    size            size of write buffer, should be
                                   at least get_write_size()
   @return the length of bytes written */
-  virtual ulint write(const PersistentTableMetadata &metadata, byte *buffer,
-                      ulint size) const = 0;
+  [[nodiscard]] virtual size_t write(const PersistentTableMetadata &metadata,
+                                     byte *buffer, size_t size) const = 0;
 
   /** Pre-calculate the size of metadata to be written
   @param[in]    metadata        metadata to be written
   @return the size of metadata */
-  virtual ulint get_write_size(
+  [[nodiscard]] virtual size_t get_write_size(
       const PersistentTableMetadata &metadata) const = 0;
 
   /** Read the dynamic metadata from buffer, and store them to
@@ -2885,8 +2905,9 @@ class Persister {
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
   is complete and we get everything, 0 if the buffer is incompleted */
-  virtual ulint read(PersistentTableMetadata &metadata, const byte *buffer,
-                     ulint size, bool *corrupt) const = 0;
+  [[nodiscard]] virtual size_t read(PersistentTableMetadata &metadata,
+                                    const byte *buffer, size_t size,
+                                    bool *corrupt) const = 0;
 
   /** Aggregate metadata entries into a single metadata instance, considering
   version numbers
@@ -2894,14 +2915,6 @@ class Persister {
   @param[in]     new_entry       metadata entry from logs */
   virtual void aggregate(PersistentTableMetadata &metadata,
                          const PersistentTableMetadata &new_entry) const = 0;
-
-  /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic
-  metadata of table
-  @param[in]    id              Table id
-  @param[in]    metadata        Metadata used to write the log
-  @param[in,out]        mtr             Mini-transaction */
-  void write_log(table_id_t id, const PersistentTableMetadata &metadata,
-                 mtr_t *mtr) const;
 };
 
 /** Persister used for corrupted indexes */
@@ -2914,13 +2927,14 @@ class CorruptedIndexPersister : public Persister {
   @param[in]    size            size of write buffer, should be at least
                                   get_write_size()
   @return the length of bytes written */
-  ulint write(const PersistentTableMetadata &metadata, byte *buffer,
-              ulint size) const override;
+  [[nodiscard]] size_t write(const PersistentTableMetadata &metadata,
+                             byte *buffer, size_t size) const override;
 
   /** Pre-calculate the size of metadata to be written
   @param[in]    metadata        metadata to be written
   @return the size of metadata */
-  ulint get_write_size(const PersistentTableMetadata &metadata) const override;
+  [[nodiscard]] size_t get_write_size(
+      const PersistentTableMetadata &metadata) const override;
 
   /** Read the corrupted indexes from buffer, and store them to
   metadata object
@@ -2932,8 +2946,9 @@ class CorruptedIndexPersister : public Persister {
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
   is complete and we get everything, 0 if the buffer is incompleted */
-  ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
-             bool *corrupt) const override;
+  [[nodiscard]] size_t read(PersistentTableMetadata &metadata,
+                            const byte *buffer, size_t size,
+                            bool *corrupt) const override;
 
   void aggregate(PersistentTableMetadata &metadata,
                  const PersistentTableMetadata &new_entry) const override;
@@ -2953,14 +2968,14 @@ class AutoIncPersister : public Persister {
   @param[in]    size            size of write buffer, should be
                                   at least get_write_size()
   @return the length of bytes written */
-  ulint write(const PersistentTableMetadata &metadata, byte *buffer,
-              ulint size) const override;
+  [[nodiscard]] size_t write(const PersistentTableMetadata &metadata,
+                             byte *buffer, size_t size) const override;
 
   /** Pre-calculate the size of metadata to be written
   @param[in]    metadata        metadata to be written
   @return the size of metadata */
-  inline ulint get_write_size(const PersistentTableMetadata &metadata
-                              [[maybe_unused]]) const override {
+  [[nodiscard]] inline size_t get_write_size(
+      const PersistentTableMetadata &metadata [[maybe_unused]]) const override {
     /* We just return the max possible size that would be used
     if the counter exists, so we don't calculate every time.
     Here we need 1 byte for dynamic metadata type and 11 bytes
@@ -2978,8 +2993,9 @@ class AutoIncPersister : public Persister {
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
   is complete and we get everything, 0 if the buffer is incomplete */
-  ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
-             bool *corrupt) const override;
+  [[nodiscard]] size_t read(PersistentTableMetadata &metadata,
+                            const byte *buffer, size_t size,
+                            bool *corrupt) const override;
 
   void aggregate(PersistentTableMetadata &metadata,
                  const PersistentTableMetadata &new_entry) const override;
@@ -3004,7 +3020,7 @@ class Persisters {
   /** Get the persister object with specified type
   @param[in]    type    persister type
   @return Persister object required or NULL if not found */
-  Persister *get(persistent_type_t type) const;
+  [[nodiscard]] Persister *get(persistent_type_t type) const;
 
   /** Add a specified persister of type, we will allocate the Persister
   if there is no such persister exist, otherwise do nothing and return
@@ -3021,7 +3037,8 @@ class Persisters {
   @param[in]    metadata        metadata to serialize
   @param[out]   buffer          buffer to store the serialized metadata
   @return the length of serialized metadata */
-  size_t write(PersistentTableMetadata &metadata, byte *buffer);
+  [[nodiscard]] size_t write(PersistentTableMetadata &metadata,
+                             byte *buffer) const;
 
  private:
   /** A map to store all persisters needed */

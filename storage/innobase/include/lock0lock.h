@@ -52,6 +52,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0prdt.h"
 #include "ut0sharded_bitset.h"
 
+class Read_view_interface;
+
 /**
 @page PAGE_INNODB_LOCK_SYS Innodb Lock-sys
 
@@ -600,29 +602,40 @@ dberr_t lock_clust_rec_read_check_and_lock(
                              LOCK_REC_NOT_GAP */
     que_thr_t *thr);          /*!< in: query thread */
 /** Checks that a record is seen in a consistent read.
- @return true if sees, or false if an earlier version of the record
- should be retrieved */
-bool lock_clust_rec_cons_read_sees(
-    const rec_t *rec,     /*!< in: user record which should be read or
-                          passed over by a read cursor */
-    dict_index_t *index,  /*!< in: clustered index */
-    const ulint *offsets, /*!< in: rec_get_offsets(rec, index) */
-    ReadView *view);      /*!< in: consistent read view */
+@param[in]     rec
+                   user record which should be read or passed over by a read
+                   cursor
+@param[in]     index
+                   clustered index
+@param[in]     offsets
+                   rec_get_offsets(rec, index)
+@param[in]     view
+                   consistent read view
+@return true if sees, or false if an earlier version of the record should be
+retrieved
+*/
+[[nodiscard]] bool lock_clust_rec_cons_read_sees(
+    const rec_t *rec, dict_index_t *index, const ulint *offsets,
+    const Read_view_interface *view);
 /** Checks that a non-clustered index record is seen in a consistent read.
 
  NOTE that a non-clustered index page contains so little information on
  its modifications that also in the case false, the present version of
  rec may be the right, but we must check this from the clustered index
  record.
+@param[in]     rec
+                   user record which should be read or passed over by a read
+                   cursor
+@param[in]     index
+                  a secondary index
+@param[in]     view
+                  consistent read view
+@return true if certainly sees, or false if a check in the clustered index is
+needed to be sure */
+[[nodiscard]] bool lock_sec_rec_cons_read_sees(const rec_t *rec,
+                                               const dict_index_t *index,
+                                               const Read_view_interface *view);
 
- @return true if certainly sees, or false if an earlier version of the
- clustered index record might be needed */
-[[nodiscard]] bool lock_sec_rec_cons_read_sees(
-    const rec_t *rec,          /*!< in: user record which
-                               should be read or passed over
-                               by a read cursor */
-    const dict_index_t *index, /*!< in: index */
-    const ReadView *view);     /*!< in: consistent read view */
 /** Locks the specified database table in the mode given. If the lock cannot
  be granted immediately, the query thread is put to wait.
  @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
@@ -881,7 +894,7 @@ void lock_wait_request_check_for_cycles();
 void lock_wait_suspend_thread(que_thr_t *thr); /*!< in: query thread associated
                                                with the user OS thread */
 /** Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
- function should be called at the the end of an SQL statement, by the
+ function should be called at the end of an SQL statement, by the
  connection thread that owns the transaction (trx->mysql_thd). */
 void lock_unlock_table_autoinc(trx_t *trx); /*!< in/out: transaction */
 

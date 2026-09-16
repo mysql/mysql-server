@@ -36,12 +36,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "clone0api.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0sysspace.h"
 #include "log0meb.h"
 #ifndef UNIV_HOTBACKUP
 #include "clone0clone.h"
 #include "log0buf.h"
 #include "log0chkp.h"
+#include "log0constants.h" /* LOG_CHECKPOINT_FREE_PER_THREAD */
+#include "log0handler_interface.h"
+#include "log0helpers.h"
 #include "log0recv.h"
 #include "log0test.h"
 #include "log0write.h"
@@ -51,6 +55,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "page0types.h"
 #include "trx0purge.h"
+#include "ut0new.h"
+
 #endif /* !UNIV_HOTBACKUP */
 
 static_assert(static_cast<int>(MTR_MEMO_PAGE_S_FIX) ==
@@ -289,6 +295,7 @@ struct Release_all {
   }
 };
 
+#ifdef UNIV_DEBUG
 /** Check that all slots have been handled. */
 struct Debug_check {
   /** @return true always. */
@@ -298,7 +305,6 @@ struct Debug_check {
   }
 };
 
-#ifdef UNIV_DEBUG
 /** Assure that there are no slots that are latching any resources. Only buffer
  fixing a page is allowed. */
 struct Debug_check_no_latching {
@@ -315,40 +321,31 @@ struct Debug_check_no_latching {
 };
 #endif /* UNIV_DEBUG */
 
-/** Add blocks modified by the mini-transaction to the flush list. */
-struct Add_dirty_blocks_to_flush_list {
-  /** Constructor.
-  @param[in]    start_lsn       LSN of the first entry that was
-                                  added to REDO by the MTR
-  @param[in]    end_lsn         LSN after the last entry was
-                                  added to REDO by the MTR
-  @param[in,out]        observer        flush observer */
-  Add_dirty_blocks_to_flush_list(lsn_t start_lsn, lsn_t end_lsn,
-                                 Flush_observer *observer);
-
-  /** Add the modified page to the buffer flush list. */
-  void add_dirty_page_to_flush_list(mtr_memo_slot_t *slot) const {
-    ut_ad(m_end_lsn > m_start_lsn || (m_end_lsn == 0 && m_start_lsn == 0));
-
 #ifndef UNIV_HOTBACKUP
-    buf_block_t *block = reinterpret_cast<buf_block_t *>(slot->object);
-    buf_flush_note_modification(block, m_start_lsn, m_end_lsn,
-                                m_flush_observer);
-#endif /* !UNIV_HOTBACKUP */
-  }
+/** A filter which, if passed to for_each_block_in_reverse, calls the provided
+visitor only for the blocks which were modified by this mtr.
+Note: the pages are considered to be modified if they were X or SX latched, or
+made_dirty_with_no_latch, so there could be false-positives.
+Note: as a side effect made_dirty_with_no_latch gets cleared.
+*/
+struct Process_dirty_blocks {
+  /** Constructor.
+  @param[in]   dirty_page_visitor   A callback to be called for each page
+  dirtied by this mtr*/
+  Process_dirty_blocks(
+      ut::Function_reference<void(buf_block_t *)> dirty_page_visitor)
+      : m_dirty_page_visitor(dirty_page_visitor) {}
 
   /** @return true always. */
   bool operator()(mtr_memo_slot_t *slot) const {
     if (slot->object != nullptr) {
+      auto *block = reinterpret_cast<buf_block_t *>(slot->object);
       if (slot->type == MTR_MEMO_PAGE_X_FIX ||
           slot->type == MTR_MEMO_PAGE_SX_FIX) {
-        add_dirty_page_to_flush_list(slot);
-
+        m_dirty_page_visitor(block);
       } else if (slot->type == MTR_MEMO_BUF_FIX) {
-        buf_block_t *block;
-        block = reinterpret_cast<buf_block_t *>(slot->object);
         if (block->made_dirty_with_no_latch) {
-          add_dirty_page_to_flush_list(slot);
+          m_dirty_page_visitor(block);
           block->made_dirty_with_no_latch = false;
         }
       }
@@ -356,28 +353,9 @@ struct Add_dirty_blocks_to_flush_list {
 
     return true;
   }
-
-  /** Mini-transaction REDO end LSN */
-  const lsn_t m_end_lsn;
-
-  /** Mini-transaction REDO start LSN */
-  const lsn_t m_start_lsn;
-
-  /** Flush observer */
-  Flush_observer *const m_flush_observer;
+  ut::Function_reference<void(buf_block_t *)> m_dirty_page_visitor;
 };
-
-/** Constructor.
-@param[in]      start_lsn       LSN of the first entry that was added
-                                to REDO by the MTR
-@param[in]      end_lsn         LSN after the last entry was added
-                                to REDO by the MTR
-@param[in,out]  observer        flush observer */
-Add_dirty_blocks_to_flush_list::Add_dirty_blocks_to_flush_list(
-    lsn_t start_lsn, lsn_t end_lsn, Flush_observer *observer)
-    : m_end_lsn(end_lsn), m_start_lsn(start_lsn), m_flush_observer(observer) {
-  /* Do nothing */
-}
+#endif /*!UNIV_HOTBACKUP*/
 
 class mtr_t::Command {
  public:
@@ -398,9 +376,6 @@ class mtr_t::Command {
   release the resources. */
   void execute();
 
-  /** Add blocks modified in this mini-transaction to the flush list. */
-  void add_dirty_blocks_to_flush_list(lsn_t start_lsn, lsn_t end_lsn);
-
   /** Release both the latches and blocks used in the mini-transaction. */
   void release_all();
 
@@ -410,8 +385,12 @@ class mtr_t::Command {
  private:
 #ifndef UNIV_HOTBACKUP
   /** Prepare to write the mini-transaction log to the redo log buffer.
-  @return number of bytes to write in finish_write() */
-  ulint prepare_write();
+  @return true iff there is anything to write */
+  [[nodiscard]] bool prepare_write();
+
+  /** Writes the (previously prepared, non-empty) mtr data to the log, assigning
+  lsn range to it. */
+  [[nodiscard]] Log_handle write();
 #endif /* !UNIV_HOTBACKUP */
 
   /** true if it is a sync mini-transaction. */
@@ -493,70 +472,6 @@ mtr_log_t mtr_t::set_log_mode(mtr_log_t mode) {
 
   return old_mode;
 }
-
-#ifndef UNIV_HOTBACKUP
-/** Write the block contents to the REDO log */
-struct mtr_write_log_t {
-  /** Append a block to the redo log buffer.
-  @return whether the appending should continue */
-  bool operator()(const mtr_buf_t::block_t *block) {
-    lsn_t start_lsn;
-    lsn_t end_lsn;
-    bool is_last_block = false;
-
-    ut_ad(block != nullptr);
-
-    if (block->used() == 0) {
-      return true;
-    }
-
-    start_lsn = m_lsn;
-
-    end_lsn =
-        log_buffer_write(*log_sys, block->begin(), block->used(), start_lsn);
-
-    ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE <
-         OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
-
-    m_left_to_write -= block->used();
-
-    if (m_left_to_write == 0) {
-      is_last_block = true;
-      /* This write was up to the end of record group,
-      the last record in group has been written.
-
-      Therefore next group of records starts at m_lsn.
-      We need to find out, if the next group is the first group,
-      that starts in this log block.
-
-      In such case we need to set first_rec_group.
-
-      Now, we could have two cases:
-      1. This group of log records has started in previous block
-         to block containing m_lsn.
-      2. This group of log records has started in the same block
-         as block containing m_lsn.
-
-      Only in case 1), the next group of records is the first group
-      of log records in block containing m_lsn. */
-      if (m_handle.start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
-          end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
-        log_buffer_set_first_record_group(*log_sys, end_lsn);
-      }
-    }
-
-    log_buffer_write_completed(*log_sys, start_lsn, end_lsn, is_last_block);
-
-    m_lsn = end_lsn;
-
-    return true;
-  }
-
-  Log_handle m_handle;
-  lsn_t m_lsn;
-  ulint m_left_to_write;
-};
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 thread_local ut::unordered_set<const mtr_t *> mtr_t::s_my_thread_active_mtrs;
@@ -755,9 +670,7 @@ void mtr_t::release_page(const void *ptr, mtr_memo_type_t type) {
   ut_d(ut_error);
 }
 
-/** Prepare to write the mini-transaction log to the redo log buffer.
-@return number of bytes to write in finish_write() */
-ulint mtr_t::Command::prepare_write() {
+bool mtr_t::Command::prepare_write() {
   switch (m_impl->m_log_mode) {
     case MTR_LOG_SHORT_INSERTS:
       ut_d(ut_error);
@@ -766,31 +679,23 @@ ulint mtr_t::Command::prepare_write() {
     case MTR_LOG_NO_REDO:
     case MTR_LOG_NONE:
       ut_ad(m_impl->m_log.size() == 0);
-      return 0;
+      return false;
     case MTR_LOG_ALL:
       break;
     default:
       ut_d(ut_error);
-      ut_o(return 0);
+      ut_o(return false);
   }
 
   /* No logs records can be produced during recovery. */
   ut_a(!recv_recovery_is_on());
 
-  ulint len = m_impl->m_log.size();
-  ut_ad(len > 0);
-
   const auto n_recs = m_impl->m_n_log_recs;
-  ut_ad(n_recs > 0);
-
-  ut_ad(log_sys != nullptr);
-
-  /* This was not the first time of dirtying a
-  tablespace since the latest checkpoint. */
+  ut_a(0 < n_recs);
+  ut_ad(0 < m_impl->m_log.size());
+  ut_ad(ib::redo::handler != nullptr);
 
   if (n_recs <= 1) {
-    ut_ad(n_recs == 1);
-
     /* Flag the single log record as the
     only record in this mini-transaction. */
 
@@ -802,15 +707,62 @@ ulint mtr_t::Command::prepare_write() {
     at the end. */
 
     mlog_catenate_ulint(&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
-    ++len;
   }
 
-  ut_ad(m_impl->m_log_mode == MTR_LOG_ALL);
-  ut_ad(m_impl->m_log.size() == len);
-  ut_ad(len > 0);
-
-  return len;
+  return true;
 }
+
+Log_handle mtr_t::Command::write() {
+  /* UNIV_PAGE_SIZE is not a constexpr, but typically we use 16K pages, and
+  thus we expect the typical number of blocks to be at most equal to the
+  following expression.
+  Larger mtrs should be rare even when 64K pages are used. */
+  constexpr size_t def_blocks_limit = LOG_CHECKPOINT_FREE_PER_THREAD *
+                                      UNIV_PAGE_SIZE_DEF /
+                                      mtr_buf_t::MAX_DATA_SIZE;
+  constexpr size_t preallocated_blocks_count = def_blocks_limit * 2;
+
+  static_assert(
+      preallocated_blocks_count * sizeof(ib::redo::Buffer) <= 5000,
+      "keep the preallocated Buffers array small to avoid stack overflow");
+
+  std::array<ib::redo::Const_buffer, preallocated_blocks_count> preallocated;
+  const auto count = m_impl->m_log.get_blocks_count();
+  const auto buffers =
+      count <= preallocated.size()
+          ? preallocated.data()
+          : ut::new_arr_withkey<ib::redo::Const_buffer>(
+                ut::make_psi_memory_key(mem_key_mtr_t), ut::Count{count});
+
+  size_t block_index = 0;
+  m_impl->m_log.for_each_block([&](auto *block) {
+    ut_ad(block_index < count);
+    buffers[block_index++] = {block->begin(), block->used()};
+    return true;
+  });
+
+  /* In 5.7, we incremented log_write_requests for each single
+  write to log buffer in commit of mini-transaction.
+
+  However, writes which were solved by log_reserve_and_write_fast
+  missed to increment the counter. Therefore it wasn't reliable.
+
+  We changed meaning of the counter to reflect mtr commit rate. */
+  srv_stats.log_write_requests.inc();
+
+  Log_handle handle;
+  ib::redo::must_succeed(
+      ib::redo::handler->write_mtr({buffers, count}, handle.start_lsn,
+                                   handle.end_lsn),
+      UT_LOCATION_HERE);
+
+  if (preallocated.size() < count) {
+    ib::info() << "mtr_t commit had to allocate " << count << " blocks";
+    ut::delete_arr(buffers);
+  }
+  return handle;
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Release the latches and blocks acquired by this mini-transaction */
@@ -824,55 +776,23 @@ void mtr_t::Command::release_all() {
   m_locks_released = 1;
 }
 
-/** Add blocks modified in this mini-transaction to the flush list. */
-void mtr_t::Command::add_dirty_blocks_to_flush_list(lsn_t start_lsn,
-                                                    lsn_t end_lsn) {
-  Add_dirty_blocks_to_flush_list add_to_flush(start_lsn, end_lsn,
-                                              m_impl->m_flush_observer);
-
-  Iterate<Add_dirty_blocks_to_flush_list> iterator(add_to_flush);
-
-  m_impl->m_memo.for_each_block_in_reverse(iterator);
-}
-
 /** Write the redo log record, add dirty pages to the flush list and release
 the resources. */
 void mtr_t::Command::execute() {
   ut_ad(m_impl->m_log_mode != MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
-  ulint len = prepare_write();
-
-  if (len > 0) {
-    mtr_write_log_t write_log;
-
-    write_log.m_left_to_write = len;
-
-    auto handle = log_buffer_reserve(*log_sys, len);
-
-    write_log.m_handle = handle;
-    write_log.m_lsn = handle.start_lsn;
-
-    m_impl->m_log.for_each_block(write_log);
-
-    ut_ad(write_log.m_left_to_write == 0);
-    ut_ad(write_log.m_lsn == handle.end_lsn);
-
-    buf_flush_list_added->wait_to_add(handle.start_lsn);
-
-    DEBUG_SYNC_C("mtr_redo_before_add_dirty_blocks");
-
-    add_dirty_blocks_to_flush_list(handle.start_lsn, handle.end_lsn);
-
-    buf_flush_list_added->report_added(handle.start_lsn, handle.end_lsn);
-
-    m_impl->m_mtr->m_commit_lsn = handle.end_lsn;
-
-  } else {
-    DEBUG_SYNC_C("mtr_noredo_before_add_dirty_blocks");
-
-    add_dirty_blocks_to_flush_list(0, 0);
-  }
+  const auto handle = prepare_write() ? write() : Log_handle{};
+  auto iterate_over_dirty_pages =
+      [&](ut::Function_reference<void(buf_block_t *)> dirty_page_visitor) {
+        Process_dirty_blocks process_dirty_only(dirty_page_visitor);
+        m_impl->m_memo.for_each_block_in_reverse(
+            Iterate<Process_dirty_blocks>{process_dirty_only});
+      };
+  pages_persistence->mtr_has_dirtied_pages(handle.start_lsn, handle.end_lsn,
+                                           m_impl->m_flush_observer,
+                                           &iterate_over_dirty_pages);
+  m_impl->m_mtr->m_commit_lsn = handle.end_lsn;
 #endif /* !UNIV_HOTBACKUP */
 
   release_all();
@@ -923,12 +843,12 @@ int mtr_t::Logging::enable(THD *thd) {
   pages modified before are flushed to disk. Since there could be large
   number of left over pages from LAD operation, we still don't enable
   double-write at this stage. */
-  log_make_latest_checkpoint(*log_sys);
+  pages_persistence->request_sharp_checkpoint();
   m_state.store(ENABLED_DBLWR);
 
   /* 3. Take another checkpoint after enabling double write to ensure any page
   being written without double write are already synced to disk. */
-  log_make_latest_checkpoint(*log_sys);
+  pages_persistence->request_sharp_checkpoint();
 
   /* 4. Mark that it is safe to recover from crash. */
   log_persist_enable(*log_sys);
@@ -1131,13 +1051,12 @@ lsn_t mtr_commit_mlog_test(size_t payload) {
   return mtr.commit_lsn();
 }
 
-static void mtr_commit_mlog_test_filling_block_low(log_t &log,
-                                                   size_t req_space_left,
+static void mtr_commit_mlog_test_filling_block_low(size_t req_space_left,
                                                    size_t recursive_level) {
   ut_a(req_space_left <= LOG_BLOCK_DATA_SIZE);
 
   /* Compute how much free space we have in current log block. */
-  const lsn_t current_lsn = log_get_lsn(log);
+  const lsn_t current_lsn = ib::redo::handler->peek_first_unassigned_lsn();
   size_t cur_space_left = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE -
                           current_lsn % OS_FILE_LOG_BLOCK_SIZE;
 
@@ -1224,18 +1143,18 @@ static void mtr_commit_mlog_test_filling_block_low(log_t &log,
     ut_a(recursive_level + 1 <= MAX_REC_N);
 
     /* Write next MLOG_TEST record(s). */
-    mtr_commit_mlog_test_filling_block_low(log, req_space_left,
-                                           recursive_level + 1);
+    mtr_commit_mlog_test_filling_block_low(req_space_left, recursive_level + 1);
   }
 }
 
-void mtr_commit_mlog_test_filling_block(log_t &log, size_t req_space_left) {
-  mtr_commit_mlog_test_filling_block_low(log, req_space_left, 1);
+void mtr_commit_mlog_test_filling_block(size_t req_space_left) {
+  mtr_commit_mlog_test_filling_block_low(req_space_left, 1);
 }
 
 void mtr_t::wait_for_flush() {
   ut_ad(commit_lsn() > 0);
-  log_write_up_to(*log_sys, commit_lsn(), true);
+  ib::redo::must_succeed(ib::redo::handler->persist_smaller_than(commit_lsn()),
+                         UT_LOCATION_HERE);
 }
 
 #endif /* UNIV_DEBUG */

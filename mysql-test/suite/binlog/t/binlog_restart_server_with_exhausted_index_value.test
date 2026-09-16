@@ -22,7 +22,6 @@
 
 # This test script will be run only in non GR set up.
 --source include/not_group_replication_plugin.inc
---source include/not_windows.inc
 --source include/not_valgrind.inc
 
 # Test in this file is binlog format agnostic, thus no need
@@ -45,6 +44,9 @@ call mtr.add_suppression("Attempting backtrace. You can use the following inform
   {
     --die !!!ERROR IN TEST: you must set $error_log
   }
+  
+  --source include/wait_until_disconnected.inc
+  
   --let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_params
   --error 1
   --exec $mysqld

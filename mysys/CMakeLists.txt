@@ -62,6 +62,7 @@ SET(MYSYS_SOURCES
   my_bitmap.cc
   my_chmod.cc
   my_chsize.cc
+  my_clone.cc
   my_compare.cc
   my_compress.cc
   my_copy.cc
@@ -98,7 +99,7 @@ SET(MYSYS_SOURCES
   my_thread.cc
   my_thr_init.cc
   my_user.cc
-  my_version.cc
+  my_server_version.cc
   my_write.cc
   pack.cc
   print_version.cc

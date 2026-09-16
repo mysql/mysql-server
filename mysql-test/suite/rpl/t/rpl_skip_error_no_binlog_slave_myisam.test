@@ -20,6 +20,8 @@
 --source include/rpl/init_source_replica.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
+# CSA does not support synchronizing on positions
+--source include/have_mta.inc
 
 
 CREATE TABLE t1_nontrans (n INT NOT NULL PRIMARY KEY) ENGINE=MYISAM;

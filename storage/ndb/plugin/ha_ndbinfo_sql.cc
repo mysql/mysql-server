@@ -690,6 +690,11 @@ static struct view {
      " connect_count, "
      " overloaded, overload_count, slowdown, slowdown_count, encrypted "
      "FROM `ndbinfo`.`ndb$transporters`"},
+    {"ndbinfo", "trusted_certs",
+     "SELECT node_id as Node_id, name as Name, serial as Serial, "
+     "from_unixtime(expires, '%d-%b-%Y') as Expires, "
+     "from_unixtime(last_use, '%d-%b-%Y') as Last_Use, "
+     "use_count as Use_Count FROM `ndbinfo`.ndb$trusted_certs"},
 };
 
 static constexpr size_t num_views = sizeof(views) / sizeof(views[0]);

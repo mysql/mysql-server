@@ -1,0 +1,43 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+include/suppress_messages.inc
+# Connection 1 suppresses message <Found .* prepared XA transactions>.
+# Connection 1 suppresses message <.*Checksum mismatch in datafile.*>.
+# Connection 2 suppresses message <Found .* prepared XA transactions>.
+# Connection 2 suppresses message <.*Checksum mismatch in datafile.*>.
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+XA START X'78696431',X'',1;
+INSERT INTO t1 VALUES (2);
+XA END X'78696431',X'',1;
+XA PREPARE X'78696431',X'',1;
+XA COMMIT X'78696431',X'',1;
+include/rpl/sync_to_replica.inc
+include/rpl/save_binlog_file_position.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection master1]
+XA START X'78696431',X'',1;
+INSERT INTO t1 VALUES (1);
+XA END X'78696431',X'',1;
+[connection master]
+include/rpl/sync_to_replica.inc
+include/execute_to_conditional_timestamp_sync_point.inc [before_commit_in_engines]
+XA COMMIT X'78696431',X'',1 ONE PHASE;
+[connection slave]
+# Kill the server
+# restart:--skip-replica-start
+include/rpl/reconnect.inc
+include/assert.inc [Found 1 log message(s) for "Successfully committed 1 XA transaction"]
+[connection slave]
+include/rpl/assert_binlog_events.inc [Gtid # Query/XA START X'78696431',X'',1 # Table_map # Write_rows # Query/XA END X'78696431',X'',1 # XA_prepare/XA COMMIT X'78696431',X'',1 ONE PHASE]
+include/assert.inc [GTID_EXECUTED has been updated]
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [Table 'test.t1' record count must be 2]
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/deinit.inc

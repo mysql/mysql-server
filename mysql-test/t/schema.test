@@ -318,7 +318,7 @@ CALL mtr.add_suppression("Failed to find tablespace");
 CALL mtr.add_suppression("Ignoring tablespace");
 CALL mtr.add_suppression("Cannot rename");
 CALL mtr.add_suppression("Cannot calculate");
-CALL mtr.add_suppression("Cannot open datafile");
+CALL mtr.add_suppression("\\[ERROR\\].* A tablespace file '.*' cannot be opened. InnoDB error code: 65 \\(Cannot open a file\\)");
 CALL mtr.add_suppression("The error means the system cannot find");
 CALL mtr.add_suppression("File ./s/t_innodb.ibd");
 CALL mtr.add_suppression("Operating system error number");

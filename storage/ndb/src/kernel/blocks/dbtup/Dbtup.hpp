@@ -193,6 +193,7 @@ inline const Uint32 *ALIGN_WORD(const void *ptr) {
 #define ZNO_COPY_TUPLE_MEMORY_ERROR 921
 #define ZNO_UNDO_BUFFER_MEMORY_ERROR 923
 #define ZOUT_OF_STORED_PROC_MEMORY_ERROR 924
+#define ZTOO_MANY_ROW_VERSIONS_ERROR 927
 
 #define ZINVALID_CHAR_FORMAT 744
 #define ZROWID_ALLOCATED 899
@@ -3508,6 +3509,7 @@ class Dbtup : public SimulatedBlock {
 
   /* read ahead in pages during disk order scan */
   Uint32 m_max_page_read_ahead;
+  Uint16 m_max_row_versions_per_transaction;
 
  public:
   Tablerec *tablerec;

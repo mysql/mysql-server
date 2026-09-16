@@ -15,6 +15,8 @@
 #
 ###############################################################################
 --source include/have_debug_sync.inc
+# This test is MTA-specific
+--source include/have_mta.inc
 --let rpl_skip_start_slave=1
 --source include/rpl/init_source_replica.inc
 

@@ -8,12 +8,12 @@ DROP TABLE IF EXISTS t1;
 include/rpl/sync_to_replica.inc
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Query caused different errors on source and replica");
+call mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
 SET @@global.debug="+d,simulate_error_in_ddl";
 [connection master]
 CREATE TABLE t1 (a int);
 [connection slave]
 include/rpl/wait_for_applier_error.inc [errno=13113]
-START REPLICA SQL_THREAD;
 include/rpl/wait_for_applier_error.inc [errno=13113]
 SET @@global.debug="-d,simulate_error_in_ddl";
 include/rpl/start_applier.inc

@@ -11,6 +11,8 @@
 # rpl and binlog suites run with all 3
 # binlog-formats  row, stmt and mixed
 perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=all-default  --vardir=var-all-default  --report-features  --unit-tests-report --no-skip --skip-ndb
+# Additional rpl suites with APPLIER_VERSION=2 (Change Stream Applier)
+perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600 --comment=rpl_csa --vardir=var-rpl_csa --suite=rpl,rpl_gtid --defaults-extra-file=include/rpl_change_stream_applier.cnf --no-skip
 # Run all ndb tests separately.
 # If no Ndb support, no tests will be attempted.
 perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb  --vardir=var-ndb  --report-features --no-skip --with-ndb-only --skip-suite=ndb_tls
@@ -38,6 +40,7 @@ perl mysql-test-run.pl --debug-server --timer --force   --comment=eits-tests-inn
 
 # Group Replication
 perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication-debug --vardir=var-group_replication-debug --suite=group_replication
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_csa-debug --vardir=var-group_replication_csa-debug --suite=group_replication --defaults-extra-file=include/rpl_change_stream_applier.cnf
 # Run the big tests only on 32-bit EL6 RPM
 perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --only-big-test --testcase-timeout=60 --suite-timeout=360 --comment=group_replication-debug-big --vardir=var-group_replication-debug-big --suite=group_replication --platform=el6-x86-32bit
 # Run the default suites with the hypergraph optimizer

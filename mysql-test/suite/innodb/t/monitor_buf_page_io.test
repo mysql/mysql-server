@@ -1,0 +1,58 @@
+# This is the test for Metrics Monitor Table feature.
+# Test the metrics monitor system's control system
+# and counter accuracy.
+
+# This o/p keeps varying so running with gtid_mode=OFF
+--source include/rpl/set_gtid_mode_off.inc
+
+set global innodb_monitor_disable = All;
+
+--echo #
+--echo # Bug#22576241 SETTING INNODB_MONITOR_ENABLE TO ALL DOES NOT ENABLE ALL
+--echo # MONITORS
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+let $innodb_monitor_enable = `SELECT @@innodb_monitor_enable`;
+
+--replace_regex /[1-9][0-9]*/NNNN/
+SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME
+LIKE 'buffer_page_written_index_leaf';
+
+SET GLOBAL innodb_monitor_enable='module_buffer_page';
+INSERT INTO t1 VALUES (1), (2), (3), (4); FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+--replace_regex /[1-9][0-9]*/NNNN/
+SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME
+LIKE 'buffer_page_written_index_leaf';
+
+SET GLOBAL innodb_monitor_disable='module_buffer_page';
+SET GLOBAL innodb_monitor_reset_all='module_buffer_page';
+--replace_regex /[1-9][0-9]*/NNNN/
+SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME
+LIKE 'buffer_page_written_index_leaf';
+
+SET GLOBAL innodb_monitor_enable='%';
+INSERT INTO t1 VALUES (5), (6), (7), (8); FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+--replace_regex /[1-9][0-9]*/NNNN/
+SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME
+LIKE 'buffer_page_written_index_leaf';
+
+SET GLOBAL innodb_monitor_disable='%';
+SET GLOBAL innodb_monitor_reset_all='%';
+--replace_regex /[1-9][0-9]*/NNNN/
+SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME
+LIKE 'buffer_page_written_index_leaf';
+
+SET GLOBAL innodb_monitor_enable='ALL';
+INSERT INTO t1 VALUES (9), (10), (11), (12); FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+--replace_regex /[1-9][0-9]*/NNNN/
+SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME
+LIKE 'buffer_page_written_index_leaf';
+
+DROP TABLE t1;
+--source include/innodb_monitor_restore.inc
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

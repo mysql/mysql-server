@@ -47,12 +47,10 @@ EOF
 
 --source $MYSQLD_DATADIR/compr.inc
 --remove_file $MYSQLD_DATADIR/compr.inc
-LET IGNORE_PUNCH_HOLE=1;
 if ($no_holes)
 {
   --source include/have_debug.inc
   --disable_query_log
-  LET IGNORE_PUNCH_HOLE=1;
   SET DEBUG='+d,ignore_punch_hole';
   --enable_query_log
 }
@@ -85,7 +83,7 @@ SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHE
 --echo # Bug#21687636 COMPRESSION COLUMN IN INNODB_TABLESPACES IS NOT CORRECT
 --echo #
 --source include/restart_mysqld.inc
-IF ($IGNORE_PUNCH_HOLE)
+if ($no_holes)
 {
   --disable_query_log
   SET DEBUG='+d,ignore_punch_hole';

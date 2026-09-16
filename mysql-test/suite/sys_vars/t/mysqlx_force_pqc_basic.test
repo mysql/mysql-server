@@ -1,0 +1,19 @@
+SELECT @@GLOBAL.mysqlx_force_pqc;
+
+SELECT @@mysqlx_force_pqc = @@GLOBAL.mysqlx_force_pqc;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.mysqlx_force_pqc;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.mysqlx_force_pqc;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@SESSION.mysqlx_force_pqc = ON;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.mysqlx_force_pqc = ON;
+
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='mysqlx_force_pqc';

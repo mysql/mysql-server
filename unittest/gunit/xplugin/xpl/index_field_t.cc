@@ -323,12 +323,19 @@ class Index_field_is_column_exists_test : public ::testing::Test {
     ASSERT_ERROR_CODE(ER_X_SUCCESS, error);
   }
 
+  void expect_no_backslash_escapes(const bool value = false) {
+    EXPECT_CALL(data_context,
+                is_sql_mode_set(Eq(std::string("NO_BACKSLASH_ESCAPES"))))
+        .WillOnce(Return(value));
+  }
+
   using Sql = ngs::PFS_string;
   ::testing::StrictMock<mock::Sql_session> data_context;
   std::unique_ptr<const Index_field> field;
 };
 
 TEST_F(Index_field_is_column_exists_test, column_is_not_exist) {
+  expect_no_backslash_escapes();
   EXPECT_CALL(data_context,
               execute(Eq(Sql(SHOW_COLUMNS("$ix_i_r_" PATH_HASH))), _, _))
       .WillOnce(Return(ngs::Success()));
@@ -339,6 +346,7 @@ TEST_F(Index_field_is_column_exists_test, column_is_not_exist) {
 }
 
 TEST_F(Index_field_is_column_exists_test, column_is_not_exist_error) {
+  expect_no_backslash_escapes();
   EXPECT_CALL(data_context,
               execute(Eq(Sql(SHOW_COLUMNS("$ix_i_r_" PATH_HASH))), _, _))
       .WillOnce(Return(ngs::Error(ER_X_ARTIFICIAL1, "internal error")));
@@ -350,6 +358,7 @@ TEST_F(Index_field_is_column_exists_test, column_is_not_exist_error) {
 
 TEST_F(Index_field_is_column_exists_test, column_is_exist) {
   One_row_resultset data{"anything"};
+  expect_no_backslash_escapes();
   EXPECT_CALL(data_context,
               execute(Eq(Sql(SHOW_COLUMNS("$ix_i_r_" PATH_HASH))), _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));

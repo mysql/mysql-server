@@ -1,3 +1,6 @@
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
 #
 # Bug#37235041 - Duplicate Detection Flaw for NULL Values in UK During
 # DDL Rollback Operations
@@ -6,12 +9,13 @@ CREATE TABLE t1 (id int primary key, c1 int,c2 int);
 INSERT INTO t1 VALUES (1,1,null);
 INSERT INTO t1 VALUES (2,2,null);
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
-SET DEBUG_SYNC = 'row_log_apply_after  WAIT_FOR s3';
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL s4 WAIT_FOR s3';
 ALTER TABLE t1 ADD UNIQUE KEY uk1(c1,c2);
 SET DEBUG_SYNC = 'now WAIT_FOR s1';
 BEGIN;
 DELETE FROM t1 where id=1;
 SET DEBUG_SYNC = 'now SIGNAL s2';
+SET DEBUG_SYNC = 'now WAIT_FOR s4';
 INSERT INTO t1 VALUES (3,1,null);
 ROLLBACK;
 SET DEBUG_SYNC = 'now SIGNAL s3';
@@ -29,12 +33,13 @@ DROP TABLE t1;
 CREATE TABLE t1 (id int primary key, c1 int);
 INSERT INTO t1 VALUES (1,1);
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
-SET DEBUG_SYNC = 'row_log_apply_after  WAIT_FOR s3';
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL s4 WAIT_FOR s3';
 ALTER TABLE t1 ADD UNIQUE KEY uk2(c1);
 SET DEBUG_SYNC = 'now WAIT_FOR s1';
 BEGIN;
 DELETE FROM t1 where id=1;
 SET DEBUG_SYNC = 'now SIGNAL s2';
+SET DEBUG_SYNC = 'now WAIT_FOR s4';
 INSERT INTO t1 VALUES (2,1);
 ROLLBACK;
 SET DEBUG_SYNC = 'now SIGNAL s3';
@@ -54,3 +59,5 @@ id	c1
 1	1
 2	1
 DROP TABLE t1;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

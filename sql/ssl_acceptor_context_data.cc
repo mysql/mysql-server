@@ -251,6 +251,9 @@ static std::string Ssl_acceptor_context_propert_type_names[] = {
     "Current_tls_crlpath",
     "Current_tls_key",
     "Current_tls_version",
+    "Force_pqc",
+    "Use_pqc_sign",
+    "Tls_kex",
     "Ssl_finished_accepts",
     "Ssl_finished_connects",
     "Ssl_server_not_after",
@@ -271,6 +274,15 @@ std::string Ssl_ctx_property_name(
       property_type)];
 }
 
+static void log_tls_channel_without_force_pqc(const std::string &channel
+                                              [[maybe_unused]],
+                                              bool force_pqc [[maybe_unused]]) {
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (!force_pqc)
+    LogErr(WARNING_LEVEL, ER_WARN_TLS_SESSION_WITHOUT_PQC, channel.c_str());
+#endif
+}
+
 Ssl_acceptor_context_property_type &operator++(
     Ssl_acceptor_context_property_type &property_type) {
   property_type = static_cast<Ssl_acceptor_context_property_type>(
@@ -286,15 +298,18 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
     bool report_ssl_error /* = true */, enum enum_ssl_init_error *out_error)
     : channel_(std::move(channel)),
       ssl_acceptor_fd_(nullptr),
-      acceptor_(nullptr) {
+      acceptor_(nullptr),
+      current_tls_session_cache_timeout_(0),
+      current_tls_session_cache_mode_(false),
+      current_tls_force_pqc_(false),
+      current_tls_use_pqc_sign_(false) {
   enum enum_ssl_init_error error_num = SSL_INITERR_NOERROR;
-  {
-    callbacks->read_parameters(
-        &current_ca_, &current_capath_, &current_version_, &current_cert_,
-        &current_cipher_, &current_ciphersuites_, &current_key_, &current_crl_,
-        &current_crlpath_, &current_tls_session_cache_mode_,
-        &current_tls_session_cache_timeout_);
-  }
+  callbacks->read_parameters(
+      &current_ca_, &current_capath_, &current_version_, &current_cert_,
+      &current_cipher_, &current_ciphersuites_, &current_key_, &current_crl_,
+      &current_crlpath_, &current_tls_kex_, &current_tls_force_pqc_,
+      &current_tls_use_pqc_sign_, &current_tls_session_cache_mode_,
+      &current_tls_session_cache_timeout_);
 
   /* Verify server certificate */
   if (verify_individual_certificate(
@@ -314,16 +329,40 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
       return;
     }
   }
+
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
+  if (current_tls_force_pqc_) {
+    error_num = SSL_INITERR_PQC_UNSUPPORTED;
+    if (out_error) *out_error = error_num;
+    assert(ssl_acceptor_fd_ == nullptr);
+    return;
+  }
+#endif
+
   long ssl_flags = process_tls_version(current_version_.c_str());
 
-  /* Turn off server's ticket sending for TLS 1.2 if requested */
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (current_tls_force_pqc_) {
+    if (ssl_flags & SSL_OP_NO_TLSv1_3) {
+      error_num = SSL_INITERR_PQC_UNSUPPORTED;
+      if (out_error) *out_error = error_num;
+      assert(ssl_acceptor_fd_ == nullptr);
+      return;
+    }
+
+    ssl_flags |= SSL_OP_NO_TLSv1_2;
+  }
+#endif
+
+  /* Turn off server ticket sending for TLS 1.2 if requested */
   if (!current_tls_session_cache_mode_) ssl_flags |= SSL_OP_NO_TICKET;
 
   ssl_acceptor_fd_ = new_VioSSLAcceptorFd(
       current_key_.c_str(), current_cert_.c_str(), current_ca_.c_str(),
       current_capath_.c_str(), current_cipher_.c_str(),
       current_ciphersuites_.c_str(), &error_num, current_crl_.c_str(),
-      current_crlpath_.c_str(), ssl_flags);
+      current_crlpath_.c_str(), ssl_flags, current_tls_force_pqc_,
+      current_tls_use_pqc_sign_, current_tls_kex_.c_str());
 
   if (!ssl_acceptor_fd_ && report_ssl_error) {
     LogErr(WARNING_LEVEL, ER_WARN_TLS_CHANNEL_INITIALIZATION_ERROR,
@@ -340,13 +379,15 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
                                        : SSL_SESS_CACHE_OFF);
     SSL_CTX_set_timeout(ssl_acceptor_fd_->ssl_context,
                         current_tls_session_cache_timeout_);
-#ifdef HAVE_TLSv13
     /* Turn off server's ticket sending for TLS 1.3 if requested */
     if (!current_tls_session_cache_mode_ && !(ssl_flags & SSL_OP_NO_TLSv1_3))
       SSL_CTX_set_num_tickets(ssl_acceptor_fd_->ssl_context, 0);
-#endif
   }
   if (out_error) *out_error = error_num;
+}
+
+void Ssl_acceptor_context_data::report_tls_channel_without_force_pqc() const {
+  log_tls_channel_without_force_pqc(channel_, current_tls_force_pqc_);
 }
 
 Ssl_acceptor_context_data::~Ssl_acceptor_context_data() {
@@ -434,6 +475,19 @@ std::string Ssl_acceptor_context_data::show_property(
     case Ssl_acceptor_context_property_type::current_tls_version: {
       const char *cert = current_version();
       output.assign((cert == nullptr) ? "" : cert);
+      break;
+    }
+    case Ssl_acceptor_context_property_type::force_pqc: {
+      output.assign(current_tls_force_pqc_ ? "ON" : "OFF");
+      break;
+    }
+    case Ssl_acceptor_context_property_type::use_pqc_sign: {
+      output.assign(current_tls_use_pqc_sign_ ? "ON" : "OFF");
+      break;
+    }
+    case Ssl_acceptor_context_property_type::tls_kex: {
+      const char *tls_kex = current_tls_kex();
+      output.assign((tls_kex == nullptr) ? "" : tls_kex);
       break;
     }
     case Ssl_acceptor_context_property_type::finished_accepts: {

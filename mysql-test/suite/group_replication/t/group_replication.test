@@ -54,12 +54,14 @@ SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-invalid";
 
 # After the server restart the group name is again set to NULL which will
 # cause an error due to wrong configuration.
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
 --source include/start_group_replication.inc
 
 # This start command will error out since the group is already running.
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_RUNNING
 START GROUP_REPLICATION;
 

@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb_tls/include/check_openssl.inc
 
 # Check there is no --ndb-tls-search-path option for mysql_cluster, will happen
 # when running for example ./mtr --defaults-extra-file=suite/ndb/secure.cnf
@@ -18,4 +17,3 @@ SHOW VARIABLES LIKE 'ndb_tls_search_path';
 
 # The certificates table is empty.
 SELECT * FROM ndbinfo.certificates;
-

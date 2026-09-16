@@ -138,7 +138,7 @@ bool Rpl_applier_reader::open(const char **errmsg) {
   ret = false;
 
 #ifndef NDEBUG
-  debug_print_next_event_positions();
+  if (!rli->is_csa_enabled()) debug_print_next_event_positions();
 #endif
 err:
   if (ret) *errmsg = m_relaylog_file_reader.get_error_str();
@@ -359,7 +359,9 @@ bool Rpl_applier_reader::wait_for_new_event() {
   }
 
   // re-acquire data lock since we released it earlier
+  m_rli->relay_log.unlock_binlog_end_pos();
   mysql_mutex_lock(&m_rli->data_lock);
+  m_rli->relay_log.lock_binlog_end_pos();
   assert(ret == 0 || is_timeout(ret));
   return ret != 0 && !is_timeout(ret);
 }
@@ -477,6 +479,7 @@ bool Rpl_applier_reader::purge_applied_logs() {
   if (!relay_log_purge) return false;
 
   // lock BACKUP lock for the duration of PURGE operation
+  assert(current_thd);
   Shared_backup_lock_guard backup_lock{current_thd};
   switch (backup_lock) {
     case Shared_backup_lock_guard::Lock_result::locked:

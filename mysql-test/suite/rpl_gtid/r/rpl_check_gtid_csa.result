@@ -1,0 +1,425 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Recovery from source pos .*");
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+call mtr.add_suppression("Failed to read information on Previous GTIDs.");
+call mtr.add_suppression("Error reading GTIDs from binary log");
+CREATE TABLE t1(id INTEGER) ENGINE= Innodb;
+==== Part 1 ====
+include/rpl/reset.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+==== Part 2 ====
+Skip for CSA, since it doesn't support position-based replication
+==== Part 3 ====
+include/rpl/reset.inc
+include/rpl/stop_replica.inc
+SET GLOBAL debug="";
+include/rpl/start_replica.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/start_replica.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/start_replica.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/start_replica.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/start_replica.inc
+FLUSH LOGS;
+FLUSH LOGS;
+==== Part 4 ====
+include/rpl/reset.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/start_replica.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/start_replica.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/start_replica.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+common/rpl/check_gtid.inc
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/start_replica.inc
+FLUSH LOGS;
+FLUSH LOGS;
+==== Part 5 ====
+---- i=1 ----
+include/rpl/stop_replica.inc
+RESET REPLICA;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
+include/rpl/start_replica.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=2 ----
+include/rpl/stop_replica.inc
+RESET REPLICA;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
+include/rpl/start_replica.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=3 ----
+include/rpl/stop_replica.inc
+RESET REPLICA;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
+include/rpl/start_replica.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+---- i=4 ----
+include/rpl/stop_replica.inc
+RESET REPLICA;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
+include/rpl/start_replica.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+include/rpl/sync_to_replica.inc
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+FLUSH LOGS;
+==== Part 6 ====
+include/rpl/stop_replica.inc
+RESET REPLICA;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1, SOURCE_LOG_FILE= 'master-bin.000001', SOURCE_LOG_POS= 4;
+ERROR HY000: Parameters SOURCE_LOG_FILE, SOURCE_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when SOURCE_AUTO_POSITION is active.
+include/rpl/start_replica.inc
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:1');
+SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:1-2');
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'SLAVE_SOURCE_HOST', SOURCE_AUTO_POSITION= 1;
+include/rpl/start_replica.inc
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:1-3', 300);
+SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:1-4', 300);
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'SLAVE_SOURCE_HOST', SOURCE_AUTO_POSITION= 1;
+include/rpl/start_replica.inc
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:1-5');
+SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:1-6');
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'SLAVE_SOURCE_HOST', SOURCE_AUTO_POSITION= 1;
+include/rpl/start_replica.inc
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:1-7', 300);
+SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:1-8', 300);
+common/rpl/check_gtid.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'SLAVE_SOURCE_HOST', SOURCE_AUTO_POSITION= 1;
+include/rpl/start_replica.inc
+FLUSH LOGS;
+==== Part 7 ====
+include/rpl/stop_replica.inc
+RESET REPLICA;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'SLAVE_SOURCE_HOST', SOURCE_AUTO_POSITION= 1;
+---- i=1 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:2";
+include/rpl/wait_for_applier_to_stop.inc
+include/rpl/stop_replica.inc
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+---- i=2 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4";
+include/rpl/wait_for_applier_to_stop.inc
+include/rpl/stop_replica.inc
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+---- i=3 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:6";
+include/rpl/wait_for_applier_to_stop.inc
+include/rpl/stop_replica.inc
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+---- i=4 ----
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START REPLICA UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:8";
+include/rpl/wait_for_applier_to_stop.inc
+include/rpl/stop_replica.inc
+common/rpl/check_gtid.inc
+FLUSH LOGS;
+[connection slave]
+RESET BINARY LOGS AND GTIDS;
+RESET REPLICA;
+[connection master]
+RESET BINARY LOGS AND GTIDS;
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_AUTO_POSITION= 1;
+START REPLICA;
+==== Part 8 ====
+Skip : CSA does not support postion-based replication
+==== Part 9 ====
+include/rpl/reset.inc
+include/rpl/reset.inc
+DROP TABLE t1;
+# Failure on creating compression thread
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+call mtr.add_suppression("Can not create thread to compress gtid_executed table .*");
+include/rpl/restart_server.inc [server_number=2 parameters: --debug=d,simulate_create_compress_thread_failure]
+include/assert.inc [compression thread is destroied;]
+call mtr.add_suppression("Plugin 'InnoDB' will be forced to shutdown");
+call mtr.add_suppression("Plugin 'InnoDB' has ref_count=.* after shutdown");
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

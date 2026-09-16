@@ -119,8 +119,7 @@ void page_zip_set_alloc(void *stream, mem_heap_t *heap);
  @return true on success, false on failure; page_zip will be left
  intact on failure. */
 bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
-                                                  n_blobs, m_start, m_end,
-                                                  m_nonempty */
+                                                  n_blobs, m_start, m_end */
                        const page_t *page,       /*!< in: uncompressed page */
                        dict_index_t *index,      /*!< in: index tree */
                        ulint level,              /*!< in: compression level */
@@ -146,7 +145,7 @@ ulint page_zip_fields_encode(
  @return true on success, false on failure */
 bool page_zip_decompress(
     page_zip_des_t *page_zip, /*!< in: data, ssize;
-                             out: m_start, m_end, m_nonempty, n_blobs */
+                               out: m_start, m_end, n_blobs */
     page_t *page,             /*!< out: uncompressed page, may be trashed */
     bool all);                /*!< in: true=decompress the whole page;
                                false=verify but do not copy some
@@ -316,7 +315,7 @@ bool page_zip_reorganize(
     buf_block_t *block,  /*!< in/out: page with compressed page;
                          on the compressed page, in: size;
                          out: data, n_blobs,
-                         m_start, m_end, m_nonempty */
+                         m_start, m_end */
     dict_index_t *index, /*!< in: index of the B-tree node */
     mtr_t *mtr);         /*!< in: mini-transaction */
 /** Copy the records of a page byte for byte.  Do not copy the page header
@@ -326,7 +325,7 @@ bool page_zip_reorganize(
 void page_zip_copy_recs(
     page_zip_des_t *page_zip,      /*!< out: copy of src_zip
                                    (n_blobs, m_start, m_end,
-                                   m_nonempty, data[0..size-1]) */
+                                    data[0..size-1]) */
     page_t *page,                  /*!< out: copy of src */
     const page_zip_des_t *src_zip, /*!< in: compressed page */
     const page_t *src,             /*!< in: page */

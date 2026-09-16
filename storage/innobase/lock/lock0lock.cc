@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0priv.h"
 #include "os0thread.h"
 #include "pars0pars.h"
+#include "read0read_view_interface.h"
 #include "row0mysql.h"
 #include "row0sel.h"
 #include "srv0mon.h"
@@ -230,16 +231,9 @@ bool lock_check_trx_id_sanity(trx_id_t trx_id, const rec_t *rec,
   return (is_ok);
 }
 
-/** Checks that a record is seen in a consistent read.
- @return true if sees, or false if an earlier version of the record
- should be retrieved */
-bool lock_clust_rec_cons_read_sees(
-    const rec_t *rec,     /*!< in: user record which should be read or
-                          passed over by a read cursor */
-    dict_index_t *index,  /*!< in: clustered index */
-    const ulint *offsets, /*!< in: rec_get_offsets(rec, index) */
-    ReadView *view)       /*!< in: consistent read view */
-{
+bool lock_clust_rec_cons_read_sees(const rec_t *rec, dict_index_t *index,
+                                   const ulint *offsets,
+                                   const Read_view_interface *view) {
   ut_ad(index->is_clustered());
   ut_ad(page_rec_is_user_rec(rec));
   ut_ad(rec_offs_validate(rec, index, offsets));
@@ -256,27 +250,18 @@ bool lock_clust_rec_cons_read_sees(
   /* NOTE that we call this function while holding the search
   system latch. */
 
-  trx_id_t trx_id = row_get_rec_trx_id(rec, index, offsets);
-
-  return (view->changes_visible(trx_id, index->table->name));
+  const trx_id_t trx_id = row_get_rec_trx_id(rec, index, offsets);
+  if (view->changes_visible(trx_id)) {
+    return true;
+  }
+  /* Note: trx_sys_check_id_sanity() may cause congestion on a global atomic, so
+  we avoid calling it if trx_id is small enough that read view sees it.*/
+  trx_sys_check_id_sanity(trx_id, index->table->name);
+  return false;
 }
 
-/** Checks that a non-clustered index record is seen in a consistent read.
-
- NOTE that a non-clustered index page contains so little information on
- its modifications that also in the case false, the present version of
- rec may be the right, but we must check this from the clustered index
- record.
-
- @return true if certainly sees, or false if an earlier version of the
- clustered index record might be needed */
-bool lock_sec_rec_cons_read_sees(
-    const rec_t *rec,          /*!< in: user record which
-                               should be read or passed over
-                               by a read cursor */
-    const dict_index_t *index, /*!< in: index */
-    const ReadView *view)      /*!< in: consistent read view */
-{
+bool lock_sec_rec_cons_read_sees(const rec_t *rec, const dict_index_t *index,
+                                 const Read_view_interface *view) {
   ut_ad(page_rec_is_user_rec(rec));
 
   /* NOTE that we might call this function while holding the search
@@ -298,7 +283,7 @@ bool lock_sec_rec_cons_read_sees(
 
   ut_ad(max_trx_id > 0);
 
-  return (view->sees(max_trx_id));
+  return view->sees_all_trxs_with_id_smaller_or_equal_to(max_trx_id);
 }
 
 /** Creates the lock system at database start. */
@@ -4568,10 +4553,10 @@ void lock_trx_print_wait_and_mvcc_state(FILE *file, const trx_t *trx) {
 
   trx_print_latched(file, trx, 3000);
 
-  const ReadView *read_view = trx_get_read_view(trx);
+  const Read_view_interface *read_view = trx_get_read_view(trx);
 
   if (read_view != nullptr) {
-    read_view->print_limits(file);
+    read_view->print(file);
   }
 
   if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
@@ -5756,7 +5741,7 @@ void lock_cancel_waiting_and_release(trx_t *trx) {
 }
 
 /** Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
- function should be called at the the end of an SQL statement, by the
+ function should be called at the end of an SQL statement, by the
  connection thread that owns the transaction (trx->mysql_thd). */
 void lock_unlock_table_autoinc(trx_t *trx) /*!< in/out: transaction */
 {

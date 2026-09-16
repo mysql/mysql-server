@@ -25,8 +25,17 @@ LET $INNODB_PAGE_SIZE=`select @@innodb_page_size`;
 
 --mkdir $KNOWN_DIR
 --mkdir $UNKNOWN_DIR
+--mkdir $UNDO_DIR
 
 --enable_query_log
+
+# Stop the running server
+--source include/shutdown_mysqld.inc
+--move_file $MYSQLD_DATADIR/undo_001 $UNDO_DIR/undo_001 30
+--move_file $MYSQLD_DATADIR/undo_002 $UNDO_DIR/undo_002 30
+# Restart the server
+--let $restart_parameters=restart: --innodb-undo-directory=$UNDO_DIR
+--source include/start_mysqld_no_echo.inc
 
 --echo #
 --echo # Create a table in a known directory.

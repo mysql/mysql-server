@@ -7,8 +7,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
-# 2) Create a table on master, sync it, stop the slave threads and dump
-#    thread on master.
+# 2) Create a table on source, sync it, stop the replica threads and dump
+#    thread on source.
 #
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 include/rpl/sync_to_replica.inc
@@ -16,7 +16,7 @@ include/rpl/stop_replica.inc
 [connection master]
 include/rpl/stop_dump_threads.inc
 #
-# 3) On master, generate a transaction, flush the binary log and execute
+# 3) On source, generate a transaction, flush the binary log and execute
 #    PURGE BINARY LOGS TO command so that only remaining binlog only contains
 #    transaction UUID:3.
 #
@@ -26,7 +26,7 @@ INSERT INTO t1 VALUES (2);
 PURGE BINARY LOGS TO 'master-bin.000002';
 include/assert.inc [PURGE BINARY LOGS successfully removed all but the latest file]
 #
-# 4) Verify that the slave fails if it tries to connect using CHANGE
+# 4) Verify that the replica fails if it tries to connect using CHANGE
 #    REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1.
 #
 [connection slave]
@@ -45,20 +45,26 @@ include/rpl/stop_applier.inc
 SET GLOBAL DEBUG= @saved_debug;
 [connection slave]
 #
-# 5) Verify that appropriate messages are logged into master's and slave's
-#    error log.
+# 5) Verify that appropriate messages are logged into source's and
+#    replica's error log.
 #
-include/assert_grep.inc [Found a message about the long GTIDs in the slave error log.]
+include/assert_grep.inc [Found a message about the long GTIDs in the replica error log.]
 #
-# 6) Verify that replication succeeds if it tries to connect using CHANGE
-#    REPLICATION SOURCE TO SOURCE_LOG_POS.
+# 6) Verify that replication succeeds after missing GTIDs are
+#    skipped
 #
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = 'MASTER_FILE', SOURCE_LOG_POS = MASTER_POS, SOURCE_AUTO_POSITION = 0;
+SET GTID_NEXT="UUID:1";
+COMMIT;
+SET GTID_NEXT="UUID:2";
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
 include/rpl/start_replica.inc
-include/assert.inc [t1 should contain only one row with the value 2]
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [t1 should contain only one row with t he value 2]
 include/rpl/stop_replica.inc
-include/assert_grep.inc [Found warning containing lost GTIDs in the master error log.]
-include/assert_grep.inc [Found warning containing lost GTIDs in the slave error log.]
+include/assert_grep.inc [Found warning containing lost GTIDs in the source error log.]
+include/assert_grep.inc [Found warning containing lost GTIDs in the replica error log.]
 [connection master]
 CALL mtr.add_suppression("Cannot replicate to server.*server has purged required binary logs.*");
 [connection slave]

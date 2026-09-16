@@ -135,6 +135,7 @@ bool is_aligned_as(void const *const ptr) {
   aligned. In other words, compiler could optimize out the whole function. */
   return reinterpret_cast<uintptr_t>(ptr) % alignof(T) == 0;
 }
+
 /** Checks if memory range is all zeros.
 @param[in]  start            The pointer to first byte of a buffer
 @param[in]  number_of_bytes  The number of bytes in the buffer
@@ -148,6 +149,7 @@ zeros. */
 }
 
 }  // namespace ut
+
 #include "ut0mem.ic"
 
 #endif

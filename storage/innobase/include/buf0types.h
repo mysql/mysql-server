@@ -79,22 +79,6 @@ enum buf_flush_t : uint8_t {
   BUF_FLUSH_N_TYPES
 };
 
-/** Algorithm to remove the pages for a tablespace from the buffer pool.
-See buf_LRU_flush_or_remove_pages(). */
-enum buf_remove_t {
-  /** Don't remove any pages. */
-  BUF_REMOVE_NONE,
-
-  /** Remove all pages from the buffer pool, don't write or sync to disk */
-  BUF_REMOVE_ALL_NO_WRITE,
-
-  /** Remove only from the flush list, don't write or sync to disk */
-  BUF_REMOVE_FLUSH_NO_WRITE,
-
-  /** Flush dirty pages to disk only don't remove from the buffer pool */
-  BUF_REMOVE_FLUSH_WRITE
-};
-
 /** Flags for io_fix types */
 enum buf_io_fix : uint8_t {
   /** no pending I/O */
@@ -236,15 +220,15 @@ class page_id_t {
 
   /** Retrieve the tablespace id.
   @return tablespace id */
-  inline space_id_t space() const { return (m_space); }
+  space_id_t space() const { return (m_space); }
 
   /** Retrieve the page number.
   @return page number */
-  inline page_no_t page_no() const { return (m_page_no); }
+  page_no_t page_no() const { return (m_page_no); }
 
   /** Retrieve the hash value.
   @return hashed value */
-  inline uint64_t hash() const {
+  uint64_t hash() const {
     constexpr uint64_t HASH_MASK = 1653893711;
     return (((uint64_t)m_space << 20) + m_space + m_page_no) ^ HASH_MASK;
   }
@@ -252,33 +236,38 @@ class page_id_t {
   /** Reset the values from a (space, page_no).
   @param[in]    space   tablespace id
   @param[in]    page_no page number */
-  inline void reset(space_id_t space, page_no_t page_no) {
+  void reset(space_id_t space, page_no_t page_no) {
     m_space = space;
     m_page_no = page_no;
   }
 
   /** Reset the page number only.
   @param[in]    page_no page number */
-  inline void set_page_no(page_no_t page_no) { m_page_no = page_no; }
+  void set_page_no(page_no_t page_no) { m_page_no = page_no; }
 
   /** Check if a given page_id_t object is equal to the current one.
   @param[in]    a       page_id_t object to compare
   @return true if equal */
-  inline bool operator==(const page_id_t &a) const {
+  bool operator==(const page_id_t &a) const {
     return (a.space() == m_space && a.page_no() == m_page_no);
   }
 
   /** Check if a given page_id_t object is not equal to the current one.
   @param[in]    a       page_id_t object to compare
   @return true if not equal */
-  inline bool operator!=(const page_id_t &a) const { return !(*this == a); }
+  bool operator!=(const page_id_t &a) const { return !(*this == a); }
 
   /** Provides a lexicographic ordering on <space_id,page_no> pairs
   @param[in]    other   page_id_t object to compare
   @return true if this is strictly smaller than other */
-  inline bool operator<(const page_id_t &other) const {
+  bool operator<(const page_id_t &other) const {
     return m_space < other.space() ||
            (m_space == other.space() && m_page_no < other.page_no());
+  }
+  std::string to_string() const {
+    std::ostringstream oss;
+    oss << *this;
+    return oss.str();
   }
 
  private:

@@ -70,11 +70,13 @@ Table_map_event::Table_map_event(const char *buf,
   /* Read the variable part of the event */
 
   READER_TRY_SET(m_dblen, net_field_length_ll);
+  if (m_dblen > NAME_LEN) READER_THROW("Invalid database name length");
 
   ptr_dbnam = READER_TRY_CALL(ptr, m_dblen + 1);
   m_dbnam = std::string(ptr_dbnam, m_dblen);
 
   READER_TRY_SET(m_tbllen, net_field_length_ll);
+  if (m_tbllen > NAME_LEN) READER_THROW("Invalid table name length");
 
   ptr_tblnam = READER_TRY_CALL(ptr, m_tbllen + 1);
   m_tblnam = std::string(ptr_tblnam, m_tbllen);
@@ -484,7 +486,8 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
   }
 
   READER_TRY_SET(m_width, net_field_length_ll);
-  if (m_width == 0) READER_THROW("Invalid m_width");
+  if (m_width == 0 || m_width > Rows_event::max_fields)
+    READER_THROW("Invalid m_width");
   n_bits_len = (m_width + 7) / 8;
   READER_TRY_CALL(assign, &columns_before_image, n_bits_len);
 

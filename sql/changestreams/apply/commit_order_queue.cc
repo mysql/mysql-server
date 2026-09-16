@@ -138,6 +138,10 @@ cs::apply::Commit_order_queue::Node &cs::apply::Commit_order_queue::operator[](
   return this->m_workers[idx];
 }
 
+std::size_t cs::apply::Commit_order_queue::size() const {
+  return this->m_workers.size();
+}
+
 cs::apply::Commit_order_queue::queue_type::enum_queue_state
 cs::apply::Commit_order_queue::get_state() {
   return this->m_commit_queue.get_state();

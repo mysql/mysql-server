@@ -22,3 +22,80 @@ ndb-data-node-cert
 ndb-data-node-private-key
 ndb-mgm-server-cert
 ndb-mgm-server-private-key
+** Trust Step 1 **
+
+Current NDB trust store (node type:  api)
+-----------------------------------------
+ndb-tls-search-path='-MASKED_DIR-',
+TLS is available.
+  Trusted CA
+     Name: MySQL NDB Cluster First Certificate
+     Serial: -MASKED_SERIAL-
+     Expires: -MASKED_DATE-
+     Flags: from_cert_chain self-signed 
+     
+
+Trusted Certificate files
+-------------------------
+  No files found.
+
+Available CA certificates
+-------------------------
+CA-search-path='', CA-cert='NDB-Cluster-cert'
+   1 
+     Name: MySQL NDB Cluster First Certificate
+     Serial: -MASKED_SERIAL-
+     Expires: -MASKED_DATE-
+
+Destination directory: -MASKED_DIR-
+
+** Trust Step 2 **
+Certificate:
+     Name: MySQL NDB Cluster Extra Certificate
+     Serial: -MASKED_SERIAL-
+     Expires: -MASKED_DATE-
+Added to NDB-trusted-certs in directory '-MASKED_DIR-'.
+
+** Trust Step 3 **
+
+Current NDB trust store (node type:  api)
+-----------------------------------------
+ndb-tls-search-path='-MASKED_DIR-',
+TLS is available.
+  Trusted CA
+     Name: MySQL NDB Cluster Extra Certificate
+     Serial: -MASKED_SERIAL-
+     Expires: -MASKED_DATE-
+     Flags: from_trust_file self-signed 
+     
+  Trusted CA
+     Name: MySQL NDB Cluster First Certificate
+     Serial: -MASKED_SERIAL-
+     Expires: -MASKED_DATE-
+     Flags: from_cert_chain self-signed 
+     
+
+Trusted Certificate files
+-------------------------
+  -MASKED_DIR- [1 certificate]
+
+Contents of Trusted Certificate Files
+-------------------------------------
+   1 
+     Name: MySQL NDB Cluster Extra Certificate
+     Serial: -MASKED_SERIAL-
+     Expires: -MASKED_DATE-
+
+Available CA certificates
+-------------------------
+CA-search-path='', CA-cert='NDB-Cluster-cert'
+   1 
+     Name: MySQL NDB Cluster First Certificate
+     Serial: -MASKED_SERIAL-
+     Expires: -MASKED_DATE-
+
+Destination directory: -MASKED_DIR-
+
+** Trust Step 4 **
+Removed NDB-trusted-certs file in directory '-MASKED_DIR-'.
+

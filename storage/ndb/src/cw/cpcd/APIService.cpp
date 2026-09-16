@@ -128,19 +128,14 @@ const ParserRow<CPCDAPISession> commands[] = {
 
     CPCD_END()};
 CPCDAPISession::CPCDAPISession(NdbSocket &&sock, CPCD &cpcd)
-    : SocketServer::Session(m_secure_socket),
-      m_cpcd(cpcd),
-      m_secure_socket(std::move(sock)),
-      m_protocol_version(1) {
+    : m_cpcd(cpcd), m_secure_socket(std::move(sock)), m_protocol_version(1) {
   m_input = new SocketInputStream(m_secure_socket, 7 * 24 * 60 * 60000);
   m_output = new SocketOutputStream(m_secure_socket);
   m_parser = new Parser<CPCDAPISession>(commands, *m_input);
 }
 
 CPCDAPISession::CPCDAPISession(FILE *f, CPCD &cpcd)
-    : SocketServer::Session(m_secure_socket),
-      m_cpcd(cpcd),
-      m_protocol_version(1) {
+    : m_cpcd(cpcd), m_protocol_version(1) {
   m_input = new FileInputStream(f);
   m_parser = new Parser<CPCDAPISession>(commands, *m_input);
   m_output = nullptr;

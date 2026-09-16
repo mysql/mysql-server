@@ -1,0 +1,4 @@
+--admin-address=127.0.0.1
+--admin-port=$MASTER_ADMINPORT
+--loose_thread_pool_connection_report_interval=1
+

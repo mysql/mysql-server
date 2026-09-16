@@ -49,8 +49,9 @@ extern "C" {
 
 /**
   Column types for MySQL
-  Note: Keep include/mysql/components/services/bits/stored_program_bits.h in
-  sync with this
+  Note: Keep include/mysql/components/services/bits/stored_program_bits.h and
+  include/mysql/components/services/bits/mysql_field_types_bits.h in sync with
+  this.
 */
 enum enum_field_types {
   MYSQL_TYPE_DECIMAL,

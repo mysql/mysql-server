@@ -1,0 +1,70 @@
+--source include/have_thread_pool.inc
+
+--echo #
+--echo # Tests for the Performance Schema native functions ps_thread_id()
+--echo # and ps_current_thread_id() with the thread pool plugin.
+--echo
+--echo # 'connection ID' is the MySQL server processlist ID
+--echo # 'thread ID' is the Performance Schema thread ID assigned to the connection ID
+--echo
+
+--echo
+USE test;
+
+--echo # Get the connection ID of this connection
+SELECT connection_id() INTO @cid;
+
+--echo
+--echo # Get the thread ID for this connection
+SELECT thread_id FROM performance_schema.threads
+  WHERE PROCESSLIST_ID = @cid INTO @tid;
+
+--echo
+--echo # Verify this is a thread pool connection
+SELECT name AS "Expect 'thread/thread_pool/tp_one_connection'" FROM performance_schema.threads
+  WHERE thread_id = @tid;
+
+--echo
+--echo # Open another connection, get the connection ID
+connect(con1, localhost, root,,);
+let $con1_id = `SELECT connection_id()`;
+# debug eval SELECT $con1_id;
+
+--connection default
+--echo
+--disable_query_log
+eval SELECT $con1_id INTO @cid_1;
+--enable_query_log
+
+--echo
+--echo # Get the thread ID for the remote thread
+SELECT thread_id FROM performance_schema.threads
+  WHERE PROCESSLIST_ID = @cid_1 INTO @tid_1;
+
+--echo
+--echo # Verify the remote thread is a thread pool connection
+SELECT name AS "Expect 'thread/thread_pool/tp_one_connection'" FROM performance_schema.threads
+  WHERE thread_id = @tid_1;
+
+--echo
+--echo # Verify that the remote thread IDs are different
+SELECT @cid <> @cid_1 AS "Expect 1";
+SELECT @tid <> @tid_1 AS "Expect 1";
+
+## ps_current_thread_id()
+
+--echo
+--echo # Returns the current thread ID
+SELECT ps_current_thread_id() - @tid AS "Expect 0";
+
+## ps_thread_id()
+
+--echo
+--echo # The current connection ID returns the current thread ID
+SELECT ps_thread_id(@cid) - @tid AS "Expect 0";
+
+--echo
+--echo # Another connection ID returns the corresponding thread ID
+SELECT ps_thread_id(@cid_1) - @tid_1 AS "Expect 0";
+
+--disconnect con1

@@ -83,10 +83,10 @@ DD_properties::DD_properties() : m_properties() {
       MYSQLD_VERSION_HI         Highest server version which has
                                 been using the data directory.
       MYSQLD_VERSION            Current server version.
-      MINOR_DOWNGRADE_THRESHOLD The current DD can be used by
-                                previous MRUs, unless their
-                                target DD version is less than
-                                the downgrade threshold.
+      MINOR_DOWNGRADE_THRESHOLD The current DD can be used by previous
+                                releases in the same DD compatibility range,
+                                unless their target DD version is less than the
+                                downgrade threshold.
       SYSTEM_TABLES             List of system tables with
                                 definitions.
       UPGRADE_TARGET_SCHEMA     Temporary schema used during
@@ -95,17 +95,19 @@ DD_properties::DD_properties() : m_properties() {
                                 upgrade.
       MYSQLD_VERSION_UPGRADED   The server version of the last
                                 completed successful upgrade.
-      MYSQL_VERSION_STABILITY   Maturity (should have had a different
-                                key) of the GA release of the
-                                server version MYSQLD_VERSION. Should be
-                                "LTS" or "INNOVATION". In the source code,
-                                we take a specific action if the value is
-                                "LTS". There is no validation of the value
-                                that is set.
+      MYSQL_VERSION_STABILITY   Persisted release maturity (the source metadata
+                                name is MYSQL_VERSION_MATURITY) for
+                                MYSQLD_VERSION. Should be "LTS" or
+                                "INNOVATION". In the source code, we take a
+                                specific action if the value is "LTS". There is
+                                no validation of the value that is set.
+      MYSQL_PREVIOUS_LTS_VERSION Previous LTS release base from which server
+                                compatibility lineage is derived. Missing
+                                metadata is treated as legacy metadata.
       SERVER_DOWNGRADE_THRESHOLD Limit for how far back within an LTS
-                                release series we can downgrade.
-      SERVER_UPGRADE_THRESHOLD  The lowest innovation release we can upgrade
-                                to from an LTS release.
+                                release's patch line we can downgrade.
+      SERVER_UPGRADE_THRESHOLD  The lowest target version allowed for an
+                                otherwise supported upgrade.
   */
   m_property_desc = {
       {"DD_VERSION", Property_type::UNSIGNED_INT_32},
@@ -123,6 +125,7 @@ DD_properties::DD_properties() : m_properties() {
       {"UPGRADE_ACTUAL_SCHEMA", Property_type::CHARACTER_STRING},
       {"MYSQLD_VERSION_UPGRADED", Property_type::UNSIGNED_INT_32},
       {"MYSQL_VERSION_STABILITY", Property_type::CHARACTER_STRING},
+      {"MYSQL_PREVIOUS_LTS_VERSION", Property_type::UNSIGNED_INT_32},
       {"SERVER_DOWNGRADE_THRESHOLD", Property_type::UNSIGNED_INT_32},
       {"SERVER_UPGRADE_THRESHOLD", Property_type::UNSIGNED_INT_32}};
 }
@@ -261,7 +264,7 @@ bool DD_properties::get(THD *thd, const String_type &key, uint *value,
          m_property_desc[key] == Property_type::UNSIGNED_INT_32);
   String_type val_str;
   return unchecked_get(thd, key, &val_str, exists) ||
-         dd::Properties::from_str(val_str, value);
+         (*exists && dd::Properties::from_str(val_str, value));
 }
 
 // Set the integer property for the given key.

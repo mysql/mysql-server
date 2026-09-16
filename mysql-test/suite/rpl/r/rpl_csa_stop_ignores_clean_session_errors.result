@@ -1,0 +1,50 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Configure source-replica replication and local test tables.
+#
+[connection master]
+include/rpl/disable_binlog.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+include/rpl/restore_binlog.inc
+[connection slave]
+include/rpl/disable_binlog.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+include/rpl/restore_binlog.inc
+# Adding debug point 'pause_csa_before_releasing_event_memory' to @@GLOBAL.debug
+include/rpl/start_replica.inc
+#
+# Stop the SQL thread while a clean CSA session is paused in apply.
+#
+[connection master]
+INSERT INTO t1 VALUES (1, REPEAT('A', 4000));
+[connection slave]
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+[connection slave1]
+STOP REPLICA SQL_THREAD;
+[connection slave]
+# Removing debug point 'pause_csa_before_releasing_event_memory' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+[connection slave1]
+[connection slave]
+SET DEBUG_SYNC= 'RESET';
+include/rpl/assert_replica_no_error.inc
+#
+# Restart the applier and verify that the transaction is replayed.
+#
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/assert.inc [The stopped transaction must be applied after restart.]
+include/assert.inc [The replayed transaction must contain the full row data.]
+#
+# Cleanup
+#
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

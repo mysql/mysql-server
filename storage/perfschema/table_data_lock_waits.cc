@@ -354,7 +354,7 @@ int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row->m_requesting_event_id);
           break;
         case 5: /* REQUESTING_OBJECT_INSTANCE_BEGIN */
-          set_field_ulonglong(f, (intptr)m_row->m_requesting_identity);
+          set_field_ulonglong(f, m_row->m_requesting_identity);
           break;
         case 6: /* BLOCKING_ENGINE_LOCK_ID */
           set_field_varchar_utf8mb4(
@@ -371,7 +371,7 @@ int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row->m_blocking_event_id);
           break;
         case 10: /* BLOCKING_OBJECT_INSTANCE_BEGIN */
-          set_field_ulonglong(f, (intptr)m_row->m_blocking_identity);
+          set_field_ulonglong(f, m_row->m_blocking_identity);
           break;
         default:
           assert(false);

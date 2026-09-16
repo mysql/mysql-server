@@ -2,6 +2,8 @@
 --let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 
+call mtr.add_suppression("TLS session on channel 'mysqlx' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
+
 --let $UNIX_SOCKET_TESTING= 0
 --let $USER_CIPHER= --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256'
 

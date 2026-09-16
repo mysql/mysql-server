@@ -104,7 +104,6 @@ federated_bug_25714.test
 
 # 4.4
 check_openssl_version.inc
-check_openssl.inc
 have_tlsv13.inc
 not_have_tlsv13.inc
 not_tlsv13.inc
@@ -366,3 +365,8 @@ external_table.test
 
 # 45. These tests require a server with non LTS version
 have_mysql_version_maturity_non_lts.inc
+
+# 46. Replication applier version
+have_mta.inc
+have_csa.inc
+have_csa_requirements.inc

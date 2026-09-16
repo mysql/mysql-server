@@ -13,7 +13,7 @@
 # Please update the test case when the variable count changes
 # add/remove variable
 let $wait_condition=
-  SELECT COUNT(*)=78 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
+  SELECT COUNT(*)=81 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
 --source include/wait_condition_or_abort.inc
 
 # Values for variables that were overwritten by MTR
@@ -293,6 +293,18 @@ if (`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 
 --let $assert_text= Mysqlx_ssl_active should be empty
 --let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_ssl_server_not_before", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_tls_kex should be empty by default
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_tls_kex", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_force_pqc should be OFF by default
+--let $assert_cond= [select VARIABLE_VALUE="OFF" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_force_pqc", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_use_pqc_sign should be OFF by default
+--let $assert_cond= [select VARIABLE_VALUE="OFF" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_use_pqc_sign", Value, 1] = 1
 --source include/assert.inc
 
 --let $assert_text= Mysqlx_address must match default value which is "::"

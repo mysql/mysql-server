@@ -1,0 +1,161 @@
+#
+# Bug#39634208 EXCHANGE PARTITION validates destination CHECK constraints
+#
+CREATE TABLE t_part (
+a INT,
+CONSTRAINT t_part_chk CHECK (a > 0)
+)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+CREATE TABLE t_swap (
+a INT,
+CONSTRAINT t_swap_chk CHECK (a > 50)
+);
+INSERT INTO t_part PARTITION (p0) VALUES (10), (20);
+ALTER TABLE t_part EXCHANGE PARTITION p0 WITH TABLE t_swap;
+ERROR HY000: Check constraint 't_swap_chk' is violated.
+ALTER TABLE t_part EXCHANGE PARTITION p0 WITH TABLE t_swap WITHOUT VALIDATION;
+ERROR HY000: Check constraint 't_swap_chk' is violated.
+SELECT * FROM t_part PARTITION (p0) ORDER BY a;
+a
+10
+20
+SELECT * FROM t_swap ORDER BY a;
+a
+DROP TABLE t_part, t_swap;
+# Different virtual generated column expressions are incompatible.
+CREATE TABLE t_part (
+a INT,
+b INT GENERATED ALWAYS AS (a - 1) VIRTUAL,
+INDEX idx_b (b)
+)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN MAXVALUE
+);
+CREATE TABLE t_swap (
+a INT,
+b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+INDEX idx_b (b)
+);
+INSERT INTO t_swap (a) VALUES (0);
+ALTER TABLE t_part EXCHANGE PARTITION p0 WITH TABLE t_swap;
+ERROR HY000: Tables have different definitions
+SELECT * FROM t_part PARTITION (p0) ORDER BY a;
+a	b
+SELECT * FROM t_swap ORDER BY a;
+a	b
+0	1
+DROP TABLE t_part, t_swap;
+# Different stored generated column expressions are incompatible.
+CREATE TABLE t_part (
+a INT,
+b INT GENERATED ALWAYS AS (a - 1) STORED,
+CONSTRAINT b_positive CHECK (b > 0)
+)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN MAXVALUE
+);
+CREATE TABLE t_swap (
+a INT,
+b INT GENERATED ALWAYS AS (a + 1) STORED
+);
+INSERT INTO t_swap (a) VALUES (5);
+ALTER TABLE t_part EXCHANGE PARTITION p0 WITH TABLE t_swap;
+ERROR HY000: Tables have different definitions
+SELECT * FROM t_part PARTITION (p0) ORDER BY a;
+a	b
+SELECT * FROM t_swap ORDER BY a;
+a	b
+5	6
+DROP TABLE t_part, t_swap;
+# Matching virtual and stored generated columns can be exchanged.
+CREATE TABLE t_part (
+a INT,
+b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+c INT GENERATED ALWAYS AS (a + 2) STORED,
+CONSTRAINT t_part_chk CHECK (b > 0)
+)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN MAXVALUE
+);
+CREATE TABLE t_swap (
+a INT,
+b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+c INT GENERATED ALWAYS AS (a + 2) STORED,
+CONSTRAINT t_swap_chk CHECK (c < 20)
+);
+INSERT INTO t_part PARTITION (p0) (a) VALUES (3);
+INSERT INTO t_swap (a) VALUES (7);
+ALTER TABLE t_part EXCHANGE PARTITION p0 WITH TABLE t_swap;
+SELECT * FROM t_part PARTITION (p0) ORDER BY a;
+a	b	c
+7	8	9
+SELECT * FROM t_swap ORDER BY a;
+a	b	c
+3	4	5
+DROP TABLE t_part, t_swap;
+# Both directions satisfy their destination CHECK constraints.
+CREATE TABLE t_part (
+a INT,
+CONSTRAINT t_part_chk CHECK (a > 0)
+)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+CREATE TABLE t_swap (
+a INT,
+CONSTRAINT t_swap_chk CHECK (a > 50)
+);
+INSERT INTO t_part PARTITION (p0) VALUES (60);
+INSERT INTO t_swap VALUES (70);
+ALTER TABLE t_part EXCHANGE PARTITION p0 WITH TABLE t_swap;
+SELECT * FROM t_part PARTITION (p0) ORDER BY a;
+a
+70
+SELECT * FROM t_swap ORDER BY a;
+a
+60
+DROP TABLE t_part, t_swap;
+CREATE TABLE t_part (
+a INT,
+CONSTRAINT t_part_chk CHECK (a > 50)
+)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+CREATE TABLE t_swap (
+a INT,
+CONSTRAINT t_swap_chk CHECK (a > 0)
+);
+INSERT INTO t_swap VALUES (10), (20);
+ALTER TABLE t_part EXCHANGE PARTITION p0 WITH TABLE t_swap;
+ERROR HY000: Check constraint 't_part_chk' is violated.
+DROP TABLE t_part, t_swap;
+# Both exchange directions violate their destination CHECK constraints.
+CREATE TABLE t_part (
+a INT,
+CONSTRAINT t_part_chk CHECK (a > 0)
+)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (200),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+CREATE TABLE t_swap (
+a INT,
+CONSTRAINT t_swap_chk CHECK (a < 100)
+);
+INSERT INTO t_part PARTITION (p0) VALUES (150);
+INSERT INTO t_swap VALUES (-1);
+ALTER TABLE t_part EXCHANGE PARTITION p0 WITH TABLE t_swap;
+ERROR HY000: Check constraint 't_part_chk' is violated.
+SELECT * FROM t_part PARTITION (p0) ORDER BY a;
+a
+150
+SELECT * FROM t_swap ORDER BY a;
+a
+-1
+DROP TABLE t_part, t_swap;

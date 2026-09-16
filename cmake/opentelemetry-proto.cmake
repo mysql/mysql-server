@@ -23,7 +23,7 @@
 
 # See extra/opentelemetry-proto/
 
-SET(OPENTELEMETRY_PROTO_TAG "opentelemetry-proto-1.7.0")
+SET(OPENTELEMETRY_PROTO_TAG "opentelemetry-proto-1.10.0")
 
 MACRO(MYSQL_USE_BUNDLED_OPENTELEMETRY_PROTO)
 

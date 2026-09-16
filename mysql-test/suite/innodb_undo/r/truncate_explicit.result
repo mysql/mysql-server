@@ -21,64 +21,41 @@ innodb_undo_001	Undo	empty	0
 innodb_undo_002	Undo	empty	0
 undo_003	Undo	active	0
 undo_004	Undo	active	0
-# Turn off purging so that undo logs build up in the undo tablespaces.
+# Turn off purging so that UPDATE undo logs build up in the undo tablespaces.
 SET GLOBAL innodb_purge_stop_now=ON;
-# Perform enough DML action so that undo tablespace sizes grow beyond
+# Perform enough DML action so that both undo tablespaces grow beyond
 # the threshold set by --innodb-max-undo-log-size.
-create table t1(
-keyc int,
-c1 char(255),
-c2 char(255),
-c3 char(255),
-c4 char(255),
-c5 char(255),
-c6 char(255),
-primary key(keyc)) engine = innodb;
-CREATE PROCEDURE populate_t1()
+CREATE TABLE t1(
+id INT PRIMARY KEY,
+c1 CHAR(255) NOT NULL,
+c2 CHAR(255) NOT NULL,
+c3 CHAR(255) NOT NULL
+);
+INSERT INTO t1 VALUES
+(1, 'ab', 'ab', 'ab'),
+(2, 'ab', 'ab', 'ab'),
+(3, 'ab', 'ab', 'ab'),
+(4, 'ab', 'ab', 'ab');
+CREATE PROCEDURE generate_many_update_undo_logs(tid INT)
 BEGIN
 DECLARE i INT DEFAULT 1;
-while (i <= 16000) DO
-insert into t1 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
+while (i <= 10000) DO
+UPDATE t1 SET c1=REVERSE(c1),c2=REVERSE(c2),c3=REVERSE(c3) WHERE id=tid;
 SET i = i + 1;
 END WHILE;
 END |
-call populate_t1();
-delete from t1 where keyc < 10000;
-update t1 set c1 = 'mysql' where keyc > 10000;
-update t1 set c2 = 'mysql' where keyc > 10000;
-update t1 set c3 = 'mysql' where keyc > 10000;
-update t1 set c4 = 'mysql' where keyc > 10000;
-update t1 set c5 = 'mysql' where keyc > 10000;
-update t1 set c6 = 'mysql' where keyc > 10000;
-# Start a new transaction for both tablespaces to get utilized
-create table t2 (
-keyc int,
-c1 char(255),
-c2 char(255),
-c3 char(255),
-c4 char(255),
-c5 char(255),
-c6 char(255),
-primary key(keyc)) engine = innodb;
-CREATE PROCEDURE populate_t2()
-BEGIN
-DECLARE i INT DEFAULT 1;
-while (i <= 16000) DO
-insert into t2 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
-SET i = i + 1;
-END WHILE;
-END |
-call populate_t2();
-delete from t2 where keyc < 10000;
-update t2 set c1 = 'mysql' where keyc > 10000;
-update t2 set c2 = 'mysql' where keyc > 10000;
-update t2 set c3 = 'mysql' where keyc > 10000;
-update t2 set c4 = 'mysql' where keyc > 10000;
-update t2 set c5 = 'mysql' where keyc > 10000;
-update t2 set c6 = 'mysql' where keyc > 10000;
-drop PROCEDURE populate_t1;
-drop PROCEDURE populate_t2;
-drop table t1, t2;
+SET @saved_innodb_flush_log_at_trx_commit = @@innodb_flush_log_at_trx_commit;
+SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+SET @saved_sync_binlog = @@sync_binlog;
+SET GLOBAL sync_binlog = 0;
+CALL generate_many_update_undo_logs(1);
+CALL generate_many_update_undo_logs(2);
+CALL generate_many_update_undo_logs(3);
+CALL generate_many_update_undo_logs(4);
+SET GLOBAL innodb_flush_log_at_trx_commit = @saved_innodb_flush_log_at_trx_commit;
+SET GLOBAL sync_binlog = @saved_sync_binlog;
+DROP PROCEDURE generate_many_update_undo_logs;
+DROP TABLE t1;
 SELECT NAME, SPACE_TYPE, STATE, AUTOEXTEND_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE	AUTOEXTEND_SIZE

@@ -17,7 +17,8 @@
 --source include/rpl/init_source_replica.inc
 CREATE TABLE t1(i VARCHAR(20)) CHARACTER SET latin1;
 INSERT INTO t1 VALUES (0xFFFF);
---sync_slave_with_master
+--source include/rpl/sync_to_replica.inc
+
 --let diff_tables=master:t1, slave:t1
 --source include/diff_tables.inc
 # Cleanup

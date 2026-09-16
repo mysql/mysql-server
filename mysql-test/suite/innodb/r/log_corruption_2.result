@@ -1,0 +1,20 @@
+# Ensure there is a lot of free space in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+# Disable checkpointing.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# Create at least few redo records...
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+INSERT INTO t(a) VALUES(42);
+# Kill MySQL...
+# Kill the server
+#
+# Induce invalid block during finding MTR boundary to start scan with
+#
+# Start MySQL...
+# Expect found
+Pattern "Could not find the start point for REDO parsing. REDO log may be corrupted. Recovery can't continue." found
+#
+# CLEANUP
+#
+# Start MySQL...
+DROP TABLE t;

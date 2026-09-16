@@ -46,6 +46,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "current_thd.h"
 #include "dict0dd.h"
 #include "fil0fil.h"
+#include "fil0pages_persistence_interface.h"
+#include "fil0tablespaces_nodes_interface.h"
 #include "log0chkp.h"
 #include "log0write.h"
 #include "mach0data.h"
@@ -146,7 +148,9 @@ static ulint trx_undo_insert_header_reuse(
 
 #ifndef UNIV_HOTBACKUP
 /** Gets the previous record in an undo log from the previous page.
- @return undo log record, the page s-latched, NULL if none */
+NOTE! In case of shared=false, which is used in scanning for tablespace ids, but
+not in rollback, this function attempts to skip over pages with no new info.
+@return undo log record, the page s-latched, NULL if none */
 static trx_undo_rec_t *trx_undo_get_prev_rec_from_prev_page(
     trx_undo_rec_t *rec, /*!< in: undo record */
     page_no_t page_no,   /*!< in: undo log header page number */
@@ -155,15 +159,27 @@ static trx_undo_rec_t *trx_undo_get_prev_rec_from_prev_page(
     mtr_t *mtr)          /*!< in: mtr */
 {
   space_id_t space;
-  page_no_t prev_page_no;
+  page_no_t prev_page_no = 0;
   page_t *prev_page;
   page_t *undo_page;
 
   undo_page = page_align(rec);
-
-  prev_page_no = flst_get_prev_addr(
-                     undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr)
-                     .page;
+  if (!shared) {
+    /* we use this mode when searching for unique table ids, so we can skip
+    pages which do not mention anything new, by following this link.
+    It might be 0:
+    - when upgrading from versions older than MySQL 10.0
+    - if the very first Undo Log Record didn't fit the first page of Undo
+      Segment, and thus the Undo Log "starts from a second page" and we
+      haven't yet seen any earlier modification, so set FIL_PAGE_PREV to 0
+    - if due to partial rollback we've reset the info about the last page */
+    prev_page_no = mach_read_from_4(undo_page + FIL_PAGE_PREV);
+  }
+  if (prev_page_no == 0U) {
+    prev_page_no = flst_get_prev_addr(
+                       undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr)
+                       .page;
+  }
 
   if (prev_page_no == FIL_NULL) {
     return (nullptr);
@@ -187,15 +203,8 @@ static trx_undo_rec_t *trx_undo_get_prev_rec_from_prev_page(
   return (trx_undo_page_get_last_rec(prev_page, page_no, offset));
 }
 
-/** Gets the previous record in an undo log.
- @return undo log record, the page s-latched, NULL if none */
-trx_undo_rec_t *trx_undo_get_prev_rec(
-    trx_undo_rec_t *rec, /*!< in: undo record */
-    page_no_t page_no,   /*!< in: undo log header page number */
-    ulint offset,        /*!< in: undo log header offset on page */
-    bool shared,         /*!< in: true=S-latch, false=X-latch */
-    mtr_t *mtr)          /*!< in: mtr */
-{
+trx_undo_rec_t *trx_undo_get_prev_rec(trx_undo_rec_t *rec, page_no_t page_no,
+                                      ulint offset, bool shared, mtr_t *mtr) {
   trx_undo_rec_t *prev_rec;
 
   prev_rec = trx_undo_page_get_prev_rec(rec, page_no, offset);
@@ -974,6 +983,16 @@ buf_block_t *trx_undo_add_page(
                 new_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr);
   undo->size++;
   rseg->incr_curr_size();
+  /* to speed up finding unique tablespace ids modified by the transaction
+  we link the pages which mention something new using FIL_PAGE_PREV, but
+  this is only needed for non-temporary tables (and thus undo spaces). */
+  if (!fsp_is_system_temporary(rseg->space_id)) {
+    ut_a_eq(mach_read_from_4(new_page + FIL_PAGE_PREV), 0);
+    mlog_write_ulint(
+        new_page + FIL_PAGE_PREV,
+        trx->undo_page_with_last_new_table_mod[undo->type != TRX_UNDO_INSERT],
+        MLOG_4BYTES, mtr);
+  }
 
   return (new_block);
 }
@@ -2038,9 +2057,10 @@ void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx, bool prepared) {
   }
 }
 
-bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
+bool trx_undo_truncate_tablespace(undo_truncate::Tablespace *marked_space) {
 #ifdef UNIV_DEBUG
-  static undo::Inject_failure_once injector("ib_undo_trunc_fail_truncate");
+  static undo_truncate::Inject_failure_once injector(
+      "ib_undo_trunc_fail_truncate");
   if (injector.should_fail()) {
     return (false);
   };
@@ -2049,12 +2069,12 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   bool is_encrypted;
 
   auto old_space_id = marked_space->id();
-  auto space_num = undo::id2num(old_space_id);
+  auto space_num = undo_truncate::id2num(old_space_id);
   auto marked_rsegs = marked_space->rsegs();
 
-  undo::unuse_space_id(old_space_id);
+  undo_truncate::unuse_space_id(old_space_id);
 
-  auto new_space_id = undo::use_next_space_id(space_num);
+  auto new_space_id = undo_truncate::use_next_space_id(space_num);
 
   auto space = fil_space_get(old_space_id);
 
@@ -2076,30 +2096,55 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   if (space != nullptr) {
     is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
 
-    if (fil_delete_tablespace(old_space_id, BUF_REMOVE_NONE) != DB_SUCCESS) {
+    if (fil_delete_tablespace(old_space_id) != DB_SUCCESS) {
       return false;
     }
   } else {
     /* For example on Windows the file deletion can fail if the file
     is being used. Just try again to remove it if it still exists. */
-    os_file_delete_if_exists(innodb_data_file_key, marked_space->file_name(),
-                             nullptr);
+    (void)tablespaces_nodes->remove(old_space_id, 0,
+                                    {.m_path = marked_space->file_name()});
 
     /* We don't know if the undo was encrypted or not, just use the
     srv_undo_log_encrypt value. */
     is_encrypted = true;
   }
 
-  /* Step-2: Re-create tablespace with new file. */
-  ulint flags = fsp_flags_init(univ_page_size, false, false, false, false);
+  ut_d(undo_truncate::inject_crash(
+      "ib_undo_trunc_after_delete_undo_tablespace"));
 
-  /* Create the new UNDO tablespace. */
-  if (fil_ibd_create(new_space_id, marked_space->space_name(),
-                     marked_space->file_name(), flags, n_pages) != DB_SUCCESS) {
+  /* Step-2: Re-create tablespace with new file. */
+  uint32_t flags = fsp_flags_init(univ_page_size, false, false, false, false);
+  auto space_name = marked_space->space_name();
+  fsp_flags_set_undo_unusable(flags);
+
+  /* Write the new space_id to the DD */
+  bool dd_result = dd_tablespace_get_mdl(space_name);
+  if (dd_result == DD_SUCCESS) {
+    dd_result =
+        dd_tablespace_set_space_id(marked_space->space_name(), new_space_id);
+  }
+  if (dd_result == DD_FAILURE) {
     return false;
   }
 
-  ut_d(undo::inject_crash("ib_undo_trunc_empty_file"));
+  /* Create the new UNDO tablespace. */
+  /* The dict_sys->mutex avoids a race with fil_space_get_first_path() called
+  from i_s_dict_fill_innodb_tablespaces(), so that if it sees the fil_space_t
+  added then it also sees it has fil_node_t already. */
+  dict_sys_mutex_enter();
+
+  /* Create the new UNDO tablespace. */
+  if (fil_undo_create(new_space_id, marked_space->space_name(),
+                      marked_space->file_name(), flags, n_pages,
+                      marked_space->is_explicit()) != DB_SUCCESS) {
+    dict_sys_mutex_exit();
+    return false;
+  }
+
+  dict_sys_mutex_exit();
+
+  ut_d(undo_truncate::inject_crash("ib_undo_trunc_empty_file"));
 
   /* This undo tablespace is unused. Lock the Rsegs before the
   file_space because SYNC_RSEGS > SYNC_FSP. */
@@ -2113,6 +2158,9 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   mtr.start();
 
   fsp_header_init(new_space_id, n_pages, &mtr);
+
+  ut_d(undo_truncate::inject_crash(
+      "ib_undo_trunc_after_tablespace_header_init"));
 
   /* If tablespace is to be encrypted, encrypt it now */
   if (is_encrypted && srv_undo_log_encrypt) {
@@ -2129,10 +2177,10 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   /* Step-5: Add rollback segment header pages.
   This is different from trx_rseg_add_rollback_segments() in that the
-  undo::Tablespace::m_rsegs already exist and we are assigning a new
+  undo_truncate::Tablespace::m_rsegs already exist and we are assigning a new
   space_id to each rseg as we create the rseg header page. */
 
-  ut_d(undo::inject_crash("ib_undo_trunc_before_rsegs"));
+  ut_d(undo_truncate::inject_crash("ib_undo_trunc_before_rsegs"));
 
   for (auto rseg : *marked_rsegs) {
     log_free_check();

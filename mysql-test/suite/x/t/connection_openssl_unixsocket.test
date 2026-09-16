@@ -5,5 +5,7 @@
 --let $ERROR_IF_CHANNEL_UNSECURE=0
 --let $NO_SSL_ACCESS_DENIED_ERROR=ER_ACCESS_DENIED_ERROR
 
+call mtr.add_suppression("TLS session on channel 'mysqlx' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
+
 --let $USER_AUTH_PLUGIN= 'caching_sha2_password'
 --source ../include/connection_ssl.inc

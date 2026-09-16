@@ -35,10 +35,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef log0encryption_h
 #define log0encryption_h
 
+#include "log0handler_interface.h" /* ib::redo::Handler_interface::Metadata_value */
+#include "log0sys.h"               /* log_t */
+#include "os0enc.h"                /* Encryption_metadata */
 #ifndef UNIV_HOTBACKUP
 
-/* byte */
-#include "univ.i"
+#include "log0log.h" /* log_t */
+#include "os0enc.h"  /* Encryption_metadata */
+#include "univ.i"    /* byte */
 
 /**************************************************/ /**
 
@@ -52,42 +56,44 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]      encryption_metadata   encryption metadata (algorithm, key, iv)
 @param[in]      encrypt_key           encrypt with master key
 @param[in,out]  buf                   log file encryption header */
-bool log_file_header_fill_encryption(
+[[nodiscard]] bool log_file_header_fill_encryption(
     const Encryption_metadata &encryption_metadata, bool encrypt_key,
     byte *buf);
 
 /** Reads the log encryption header to get the redo log encryption information.
 Read is done using the file which contains the current checkpoint_lsn.
-Updates: log.m_encryption_metadata and log.m_encryption_buf.
-@param[in,out]  log          redo log
+@param[in]  log          redo log
+@param[out] block        block to read encryption information into
 @return DB_SUCCESS or DB_ERROR */
-dberr_t log_encryption_read(log_t &log);
+[[nodiscard]] dberr_t log_encryption_read(
+    log_t &log, ib::redo::Handler_interface::Metadata_value &block);
 
-/** Reads the log encryption header to get the redo log encryption information.
-Read is done using the provided file.
-Updates: log.m_encryption_metadata and log.m_encryption_buf.
-@param[in,out]  log          redo log
-@param[in]      file         redo file to read from
+/** Read the log encryption information from Redo Log Handler and update
+log.m_encryption_metadata and log.m_encryption_buf.
+@param[out] log          redo log
 @return DB_SUCCESS or DB_ERROR */
-dberr_t log_encryption_read(log_t &log, const Log_file &file);
+[[nodiscard]] dberr_t log_read_encryption_info(log_t &log);
 
-/** Enables the redo log encryption and generates new encryption metadata.
-Writes the generated metadata to the log encryption header in the log file
-containing the current checkpoint lsn (log.last_checkpoint_lsn).
-@param[in,out]  log         redo log
+/** Update in-mem encryption information with the new information and also
+write this new information to encryption header.
+@param[in,out] log   redo log
+@param[in]     block block containing new encryption information
 @return DB_SUCCESS or DB_ERROR */
-dberr_t log_encryption_generate_metadata(log_t &log);
+[[nodiscard]] dberr_t log_encryption_update_and_write_header(
+    log_t &log, const ib::redo::Handler_interface::Metadata_value block);
 
-/** Re-encrypts the redo log's encryption metadata using the current master key
-and writes it encrypted to the log encryption header in the log file containing
-the current checkpoint lsn (log.last_checkpoint_lsn)).
-@remarks This is called after the new master key has been generated.
+/** Generates enough dummy redo to cross a physical redo block boundary and
+waits until the barrier is written using the current value of
+srv_redo_log_encrypt. */
+void log_encryption_write_dummy_barrier();
+
+/** Generate new encryption information for REDO log.
 @return DB_SUCCESS or DB_ERROR */
-dberr_t log_encryption_on_master_key_changed(log_t &log);
+[[nodiscard]] dberr_t log_encryption_generate_metadata();
 
 /** @return true iff redo log is encrypted (checks in-memory metadata in log_t).
  */
-bool log_can_encrypt(const log_t &log);
+[[nodiscard]] bool log_can_encrypt(const log_t &log);
 
 /** @} */
 

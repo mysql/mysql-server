@@ -41,7 +41,7 @@ dberr_t Arch_Page_Sys::recover() {
 
   auto err = arch_recv.init_dblwr();
 
-  if (err == DB_FILE_READ_BEYOND_SIZE) {
+  if (err == DB_FILE_ACCESS_BEYOND_SIZE) {
     ib::error(ER_IB_ERR_PAGE_ARCH_DBLWR_INIT_FAILED);
   }
 
@@ -105,7 +105,7 @@ dberr_t Arch_Dblwr_Ctx::read_file() {
   }
 
   if (m_file_ctx.get_phy_size() < m_file_size) {
-    return DB_FILE_READ_BEYOND_SIZE;
+    return DB_FILE_ACCESS_BEYOND_SIZE;
   }
 
   ut_ad(m_buf != nullptr);
@@ -246,12 +246,13 @@ void Arch_Page_Sys::Recovery::read_group_files(const std::string dir_path,
 }
 
 bool Arch_Page_Sys::Recovery::scan_for_groups() {
-  os_file_type_t type;
-  bool exists;
+  const auto type = os_file_type(m_arch_dir_name.c_str());
 
-  os_file_status(m_arch_dir_name.c_str(), &exists, &type);
+  if (!os_file_status_is_conclusive(type)) {
+    return false;
+  }
 
-  if (!exists || type != OS_FILE_TYPE_DIR) {
+  if (type != OS_FILE_TYPE_DIR) {
     return false;
   }
 
@@ -338,8 +339,8 @@ dberr_t Arch_Group::Recovery::cleanup_if_required(Arch_Recv_Group_Info &info) {
   Arch_scope_guard file_ctx_guard([&file_ctx] { file_ctx.close(); });
 
   /* We check whether the archive file has anything else apart from the header
-   * that was written to it during creation phase and treat it as an empty file
-   * if it only has the header. */
+  that was written to it during creation phase and treat it as an empty file
+  if it only has the header. */
 
   if (file_ctx.get_phy_size() > m_group->m_header_len && info.m_durable) {
     return DB_SUCCESS;
@@ -633,7 +634,7 @@ dberr_t Arch_File_Ctx::Recovery::parse_stop_points(bool last_file,
   }
 
   if (phy_size < offset + ARCH_PAGE_BLK_SIZE) {
-    return DB_FILE_READ_BEYOND_SIZE;
+    return DB_FILE_ACCESS_BEYOND_SIZE;
   }
 
   auto err = m_file_ctx.read(buf, offset, ARCH_PAGE_BLK_SIZE);
@@ -666,7 +667,7 @@ dberr_t Arch_File_Ctx::Recovery::parse_reset_points(
   byte buf[ARCH_PAGE_BLK_SIZE];
 
   if (m_file_ctx.get_phy_size() < ARCH_PAGE_BLK_SIZE) {
-    return DB_FILE_READ_BEYOND_SIZE;
+    return DB_FILE_ACCESS_BEYOND_SIZE;
   }
 
   /* Read reset block to fetch reset points. */

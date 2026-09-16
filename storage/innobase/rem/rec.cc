@@ -408,6 +408,9 @@ ulint *rec_get_offsets(const rec_t *rec, const dict_index_t *index,
 
   rec_offs_set_n_fields(offsets, n);
   rec_init_offsets(rec, index, offsets);
+#ifdef UNIV_ROW_IMPORT_DBG
+  row_import_assert_rec_metadata_valid(rec, index);
+#endif /* UNIV_ROW_IMPORT_DBG */
   return (offsets);
 }
 

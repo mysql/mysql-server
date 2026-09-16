@@ -1,0 +1,5 @@
+--thread-pool-size=1
+--loose_thread_pool_max_transactions_limit=1
+--loose_thread_pool_dedicated_listeners=ON
+--admin-address=127.0.0.1
+--admin-port=$MASTER_ADMINPORT

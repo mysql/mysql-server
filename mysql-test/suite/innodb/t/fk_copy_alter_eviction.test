@@ -1,0 +1,155 @@
+--source include/have_debug_sync.inc
+
+#
+# Bug#39134921: COPY ALTER TABLE + FK + concurrent table open race condition
+#
+# COPY ALTER creates a temp table (#sql-xxx) and loads its FK via
+# row_table_load_foreign_constraints -> dict_foreign_add_to_cache.
+# Without the fix, dict_foreign_add_to_cache registers the temp table's
+# FK into the referenced table's referenced_set and calls
+# dict_table_prevent_eviction on it.
+#
+# dd_open_table_one has a window between dict_table_add_to_cache (table
+# globally visible) and dd_table_load_fk (FK loaded): the dict_sys mutex
+# is released in between.  If COPY ALTER's dict_foreign_add_to_cache
+# runs in this window, it mutates a half-initialized referenced table,
+# leading to a crash.
+#
+# The fix adds skip_referenced to dict_foreign_add_to_cache.  When the
+# foreign table is a COPY ALTER temp table (#sql-xxx), skip_referenced
+# is set to true, so the FK is NOT registered into the referenced
+# table's referenced_set and dict_table_prevent_eviction is skipped.
+# FK constraint checking is unaffected because
+# row_ins_check_foreign_constraints dynamically opens the referenced
+# table via dd_table_open_on_name when referenced_table is nullptr.
+#
+# The test reproduces the race with three sync points:
+#
+#   before_copy_ddl_tmp_table_fk_inserted   (ha_innodb.cc, create_table)
+#     — fires before row_table_load_foreign_constraints
+#
+#   after_copy_ddl_tmp_table_fk_inserted    (ha_innodb.cc, detach)
+#     — fires after FK inserted, before detach allows eviction
+#
+#   after_dict_table_add_to_cache_before_load_fk (dict0dd.cc, dd_open_table_one)
+#     — fires after dict_table_add_to_cache + mutex release, before
+#       dd_table_load_fk;  gated by DBUG "t2_before_load_fk" and only
+#       triggers for table test/t2
+#
+# Timeline:
+#
+#   Con1 (ALTER t3 COPY)          Con2 (SELECT t1)
+#   ────────────────────          ─────────────────
+#   hit before_...fk_inserted
+#   SIGNAL do_select_1
+#   WAIT_FOR create_tmp
+#                                 WAIT_FOR do_select_1
+#                                 SELECT t1 → opens t1 →
+#                                   dd_open_table_one(t1) →
+#                                     dd_table_check_for_child finds t2 →
+#                                       dd_open_table_one(t2):
+#                                         dict_table_add_to_cache(t2)
+#                                         dict_sys_mutex_exit()
+#                                         ── race window ──
+#                                         hit after_dict_table_add_to_cache...
+#                                         SIGNAL create_tmp
+#                                         WAIT_FOR do_select_2
+#   create_table:
+#     row_table_load_foreign_constraints
+#       dict_foreign_add_to_cache
+#         (without fix: mutates t2 → crash)
+#         (with fix: skip_referenced → safe)
+#   hit after_...fk_inserted
+#   SIGNAL do_select_2
+#   WAIT_FOR commit_tmp
+#                                 dd_table_load_fk(t2) ← resumes
+#                                 SELECT completes
+#   ← commit_tmp received
+#   ALTER completes
+#
+
+
+
+--echo #
+--echo # Prepare
+--echo # t1 <-- t2 <-- t3
+--echo #
+
+CREATE TABLE `t1`(`id` int KEY, `c1` int);
+CREATE TABLE `t2`(`id` int KEY, `c1` int, CONSTRAINT `fk_t2_t1` FOREIGN KEY(`id`) REFERENCES `t1`(`id`));
+CREATE TABLE `t3`(`id` int KEY, `c1` int, CONSTRAINT `fk_t3_t2` FOREIGN KEY(`id`) REFERENCES `t2`(`id`));
+
+# Restart to evict all tables from InnoDB dict cache.
+--source include/restart_mysqld.inc
+
+
+
+--echo #
+--echo # Session 1 (DDL): ALTER t3 with COPY.
+--echo #
+--connect(con1, localhost, root,,)
+SET DEBUG_SYNC = 'before_copy_ddl_tmp_table_fk_inserted SIGNAL do_select_1 WAIT_FOR create_tmp';
+SET DEBUG_SYNC = 'after_copy_ddl_tmp_table_fk_inserted SIGNAL do_select_2 WAIT_FOR commit_tmp';
+--send ALTER TABLE `t3` ADD COLUMN `dummy` INT DEFAULT NULL, ALGORITHM=COPY
+
+
+--echo #
+--echo # Session 2 (query): SELECT t1.
+--echo #
+--connect(con2, localhost, root,,)
+SET DEBUG = '+d,t2_before_load_fk';
+SET DEBUG_SYNC = 'now WAIT_FOR do_select_1';
+SET DEBUG_SYNC = 'after_dict_table_add_to_cache_before_load_fk SIGNAL create_tmp WAIT_FOR do_select_2';
+--send SELECT * FROM `t1` LIMIT 1;
+
+
+--echo #
+--echo # Reap Session 2 (crash without fix, success with fix).
+--echo #
+--connection con2
+--reap
+
+--echo #
+--echo # Let DDL complete and verify FK constraints still work.
+--echo # After COPY ALTER with skip_referenced, the dynamic FK check path
+--echo # (dd_table_open_on_name when referenced_table == nullptr) must
+--echo # correctly enforce constraints.
+--echo #
+
+--connection default
+SET DEBUG_SYNC = 'now SIGNAL commit_tmp';
+
+--connection con1
+--reap
+
+--connection default
+
+INSERT INTO `t1` VALUES (1, 10);
+INSERT INTO `t2` VALUES (1, 20);
+INSERT INTO `t3` VALUES (1, 30, NULL);
+
+--echo # Child row violating FK must be rejected
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO `t3` VALUES (999, 30, NULL);
+
+--echo # Parent delete with existing child must be rejected
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM `t1` WHERE id = 1;
+
+--echo # Valid delete chain (leaf first) must succeed
+DELETE FROM `t3` WHERE id = 1;
+DELETE FROM `t2` WHERE id = 1;
+DELETE FROM `t1` WHERE id = 1;
+
+
+
+--echo #
+--echo # Cleanup
+--echo #
+
+SET DEBUG_SYNC = 'RESET';
+
+DROP TABLE `t1`, `t2`, `t3`;
+
+--disconnect con1
+--disconnect con2

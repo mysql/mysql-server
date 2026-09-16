@@ -32,6 +32,8 @@
 
 # Test is binlog_format-agnostic
 --source include/have_binlog_format_row.inc
+# Test is MTA-specific
+--source include/have_mta.inc
 --let $rpl_skip_start_slave= 1
 --source include/rpl/init_source_replica.inc
 

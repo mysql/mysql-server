@@ -1,0 +1,49 @@
+--source include/have_debug_sync.inc
+
+--echo # -----
+--echo # Setup
+--echo # -----
+
+CREATE TABLE t1 (c1 INT);
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let $MYSQLD_ERROR_LOG= $MYSQLTEST_VARDIR/log/my_restart.err
+
+--echo # -----------------------------------------------------------------------
+--echo # Scenario 1 : When tablespace file wasn't found on which REDOs are there
+--echo #              to be applied. It shall write an error in server log and
+--echo #              abort server startup.
+--echo # -----------------------------------------------------------------------
+
+--echo # Stop the page cleaners so that REDOs are there to be applied on this
+--echo # tablespace during recovery
+--disable_query_log
+--source ../include/stop_dirty_page_flushing_and_background_redo_producers.inc
+--enable_query_log
+
+INSERT INTO t1 VALUES (1);
+
+--source include/kill_mysqld.inc
+
+--echo # Remove the file from datadir
+--move_file $MYSQLD_DATADIR/test/t1.ibd $MYSQL_TMP_DIR/t1.ibd
+
+--echo # Start the server. It shall abort as tablespace file isn't found.
+--error 1,2,42
+--exec $MYSQLD_CMD --log-error=$MYSQLD_ERROR_LOG
+
+--let SEARCH_FILE=$MYSQLD_ERROR_LOG
+--let SEARCH_PATTERN=Could not find any file associated with the tablespace ID: \d+
+--echo # Expect found
+--source include/search_pattern.inc
+
+--remove_file $SEARCH_FILE
+
+--echo # -------
+--echo # Cleanup
+--echo # -------
+# Restore the server state
+--move_file $MYSQL_TMP_DIR/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
+--source include/start_mysqld_no_echo.inc
+SELECT * FROM t1;
+DROP TABLE t1;

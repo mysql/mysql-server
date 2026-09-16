@@ -31,8 +31,17 @@ enum CNO_ERRNO {
   CNO_ERRNO_DISCONNECT = 9,   // connection has already been closed
 };
 
+enum CNO_ERROR_DETAIL {
+  CNO_ERROR_DETAIL_NONE = 0,
+  CNO_ERROR_DETAIL_INVALID_CONTENT_LENGTH = 1,
+  CNO_ERROR_DETAIL_MULTIPLE_CONTENT_LENGTHS = 2,
+};
+
 struct cno_error_t {
   int code;
+  // Optional structured detail for callers that need to handle a specific
+  // parser error. `text` remains diagnostic.
+  int detail;
   char text[256];
 };
 
@@ -42,8 +51,12 @@ const struct cno_error_t *cno_error(void);
 // Fail with a specified error code and message.
 int cno_error_set(int code, const char *fmt, ...)
     ATTRIBUTE((format(printf, 2, 3)));
+int cno_error_set_detail(int code, int detail, const char *fmt, ...)
+    ATTRIBUTE((format(printf, 3, 4)));
 
 #define CNO_ERROR(n, ...) cno_error_set(CNO_ERRNO_##n, __VA_ARGS__)
+#define CNO_ERROR_WITH_DETAIL(n, d, ...) \
+  cno_error_set_detail(CNO_ERRNO_##n, CNO_ERROR_DETAIL_##d, __VA_ARGS__)
 #define CNO_ERROR_UP() (-1)
 
 struct cno_buffer_t {

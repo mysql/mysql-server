@@ -2712,7 +2712,7 @@ struct st_mysql_plugin i_s_innodb_ft_being_deleted = {
     STRUCT_FLD(flags, 0UL),
 };
 
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED and
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE and
 INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
 Every time any column gets changed, added or removed, please remember
 to change i_s_innodb_plugin_version_postfix accordingly, so that
@@ -2763,14 +2763,13 @@ static ST_FIELD_INFO i_s_fts_index_fields_info[] = {
     END_OF_ST_FIELD_INFO};
 
 /** Go through the Doc Node and its ilist, fill the dynamic table
- INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED for one FTS index on the table.
- @return 0 on success, 1 on failure */
+ INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE for one FTS index on the table.
+ @return 0 on success, 2 if in-memory table is full, 1 on any other failure. */
 static int i_s_fts_index_cache_fill_one_index(
     fts_index_cache_t *index_cache, /*!< in: FTS index cache */
     THD *thd,                       /*!< in: thread */
-    Table_ref *tables)              /*!< in/out: tables to fill */
+    TABLE *table)                   /*!< in/out: table to fill */
 {
-  TABLE *table = (TABLE *)tables->table;
   Field **fields;
   CHARSET_INFO *index_charset;
   const ib_rbt_node_t *rbt_node;
@@ -2839,7 +2838,11 @@ static int i_s_fts_index_cache_fill_one_index(
 
           OK(fields[I_S_FTS_ILIST_DOC_POS]->store(pos, true));
 
-          OK(schema_table_store_record(thd, table));
+          const auto err = schema_table_store_record2(thd, table, false);
+          if (err == HA_ERR_RECORD_FILE_FULL) {
+            return 2;
+          }
+          OK(err);
         }
 
         ++ptr;
@@ -2851,7 +2854,7 @@ static int i_s_fts_index_cache_fill_one_index(
 
   return 0;
 }
-/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED
+/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
  @return 0 on success, 1 on failure */
 static int i_s_fts_index_cache_fill(
     THD *thd,          /*!< in: thread */
@@ -2886,10 +2889,10 @@ static int i_s_fts_index_cache_fill(
   if (!user_table) {
     return 0;
   }
+  Scope_guard close_user_table{
+      [&]() { dd_table_close(user_table, thd, &mdl, false); }};
 
   if (user_table->fts == nullptr || user_table->fts->cache == nullptr) {
-    dd_table_close(user_table, thd, &mdl, false);
-
     return 0;
   }
 
@@ -2897,24 +2900,46 @@ static int i_s_fts_index_cache_fill(
 
   ut_a(cache);
 
-  /* Check if cache is being synced.
-  Note: we wait till cache is being synced. */
-  while (cache->sync->in_progress) {
-    os_event_wait(cache->sync->event);
+  TABLE *table = tables->table;
+  ut_a(table != nullptr);
+  ut_a(table->next == nullptr);
+
+  fts_cache_lock_for_read(cache, UT_LOCATION_HERE);
+
+  /* In most cases this loop makes just one iteration. In case results do not
+  fit in memory, i_s_fts_index_cache_fill_one_index() returns 2, and we convert
+  the result table to on-disc. We don't want to do it under s-latch, to not
+  block others and to avoid a possibility of a deadlock due to latch-order
+  violation, so we temporarily release it. This in turn means another thread
+  might modify, or even free some of the cache's structures, making it difficult
+  to find the exact spot from which we should continue gathering of results.
+  Therefore, we simply empty the result table and start over from scratch in
+  such case, which is easier to reason about and avoids duplicates and holes. */
+  while (true) {
+    ut_ad(rw_lock_own(&cache->lock, RW_LOCK_S));
+    bool need_to_convert = false;
+    Vector_wrapper<fts_index_cache_t> indexes{*cache->indexes};
+    for (auto &index : indexes) {
+      auto err = i_s_fts_index_cache_fill_one_index(&index, thd, table);
+      DBUG_EXECUTE_IF("i_s_fts_index_cache_fill_out_of_memory", {
+        err = 2;
+        DBUG_SET("-d,i_s_fts_index_cache_fill_out_of_memory");
+      });
+      if (err == 2) {
+        need_to_convert = true;
+        break;
+      }
+    }
+    rw_lock_s_unlock(&cache->lock);
+    if (!need_to_convert) {
+      return 0;
+    }
+    if (convert_heap_table_to_ondisk(thd, table, HA_ERR_RECORD_FILE_FULL) ||
+        table->empty_result_table()) {
+      return 1;
+    }
+    rw_lock_s_lock(&cache->lock, UT_LOCATION_HERE);
   }
-
-  for (ulint i = 0; i < ib_vector_size(cache->indexes); i++) {
-    fts_index_cache_t *index_cache;
-
-    index_cache =
-        static_cast<fts_index_cache_t *>(ib_vector_get(cache->indexes, i));
-
-    i_s_fts_index_cache_fill_one_index(index_cache, thd, tables);
-  }
-
-  dd_table_close(user_table, thd, &mdl, false);
-
-  return 0;
 }
 
 /** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
@@ -4474,16 +4499,13 @@ static int i_s_innodb_buffer_page_fill(
     /* If this is an index page, fetch the index name
     and table name */
     switch (page_info->page_type) {
-      const dict_index_t *index;
-
       case I_S_PAGE_TYPE_INDEX:
       case I_S_PAGE_TYPE_RTREE:
       case I_S_PAGE_TYPE_SDI: {
-        index_id_t id(page_info->space_id, page_info->index_id);
+        const index_id_t id(page_info->space_id, page_info->index_id);
 
         dict_sys_mutex_enter();
-        index = dict_index_find(id);
-      }
+        const dict_index_t *index = dict_index_find(id);
 
         if (index) {
           table_name_end = innobase_convert_name(
@@ -4500,6 +4522,8 @@ static int i_s_innodb_buffer_page_fill(
         }
 
         dict_sys_mutex_exit();
+        break;
+      }
     }
 
     OK(fields[IDX_BUFFER_PAGE_NUM_RECS]->store(page_info->num_recs, true));
@@ -5085,28 +5109,32 @@ static int i_s_innodb_buf_page_lru_fill(
 
     /* If this is an index page, fetch the index name
     and table name */
-    if (page_info->page_type == I_S_PAGE_TYPE_INDEX) {
-      index_id_t id(page_info->space_id, page_info->index_id);
-      const dict_index_t *index;
+    switch (page_info->page_type) {
+      case I_S_PAGE_TYPE_INDEX:
+      case I_S_PAGE_TYPE_RTREE:
+      case I_S_PAGE_TYPE_SDI: {
+        const index_id_t id(page_info->space_id, page_info->index_id);
 
-      dict_sys_mutex_enter();
-      index = dict_index_find(id);
+        dict_sys_mutex_enter();
+        const dict_index_t *index = dict_index_find(id);
 
-      if (index) {
-        table_name_end = innobase_convert_name(table_name, sizeof(table_name),
-                                               index->table_name,
-                                               strlen(index->table_name), thd);
+        if (index) {
+          table_name_end = innobase_convert_name(
+              table_name, sizeof(table_name), index->table_name,
+              strlen(index->table_name), thd);
 
-        OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
-            table_name, static_cast<size_t>(table_name_end - table_name),
-            system_charset_info));
-        fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
+          OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
+              table_name, static_cast<size_t>(table_name_end - table_name),
+              system_charset_info));
+          fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
 
-        OK(field_store_index_name(fields[IDX_BUF_LRU_PAGE_INDEX_NAME],
-                                  index->name));
+          OK(field_store_index_name(fields[IDX_BUF_LRU_PAGE_INDEX_NAME],
+                                    index->name));
+        }
+
+        dict_sys_mutex_exit();
+        break;
       }
-
-      dict_sys_mutex_exit();
     }
 
     OK(fields[IDX_BUF_LRU_PAGE_NUM_RECS]->store(page_info->num_recs, true));
@@ -6970,8 +6998,9 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   OK(field_store_string(fields[INNODB_TABLESPACES_ROW_FORMAT], row_format));
 
-  OK(fields[INNODB_TABLESPACES_PAGE_SIZE]->store(univ_page_size.physical(),
-                                                 true));
+  ut_ad(univ_page_size.physical() == page_size.logical());
+
+  OK(fields[INNODB_TABLESPACES_PAGE_SIZE]->store(page_size.logical(), true));
 
   OK(fields[INNODB_TABLESPACES_ZIP_PAGE_SIZE]->store(
       page_size.is_compressed() ? page_size.physical() : 0, true));
@@ -6991,49 +7020,32 @@ static int i_s_dict_fill_innodb_tablespaces(
     filepath = Fil_path::make_ibd_from_table_name(name);
   }
 
-  os_file_stat_t stat;
-  os_file_size_t file;
+  ut_a(filepath != nullptr);
 
-  memset(&file, 0xff, sizeof(file));
-  memset(&stat, 0x0, sizeof(stat));
+  uint32_t block_size = 0;
+  uint64_t total_size = 0;
+  uint64_t alloc_size = 0;
+  using ib::fil::Tablespaces_nodes_interface;
 
-  if (filepath != nullptr) {
-    /* Get the file system (or Volume) block size. */
-    dberr_t err = os_file_get_status(filepath, &stat, false, false);
+  const auto node_info = tablespaces_nodes->get_node_info(
+      space_id, 0, {.m_path = filepath}, page_size.physical());
 
-    switch (err) {
-      case DB_FAIL:
-        ib::warn(ER_IB_MSG_603) << "File '" << filepath << "', failed to get "
-                                << "stats";
-        break;
-
-      case DB_SUCCESS:
-        file = os_file_get_size(filepath);
-        break;
-
-      case DB_NOT_FOUND:
-        break;
-
-      default:
-        ib::error(ER_IB_MSG_604)
-            << "File '" << filepath << "' " << ut_strerr(err);
-        break;
-    }
-
-    ut::free(filepath);
+  if (node_info) {
+    block_size = node_info->block_size;
+    alloc_size = node_info->alloc_size;
+    total_size = node_info->size * page_size.physical();
+  } else if (node_info.error() !=
+             Tablespaces_nodes_interface::Node_error::NODE_DOES_NOT_EXIST) {
+    ib::warn(ER_IB_MSG_FAILED_TO_GET_FILE_STATS, filepath);
   }
 
-  if (file.m_total_size == static_cast<os_offset_t>(~0)) {
-    stat.block_size = 0;
-    file.m_total_size = 0;
-    file.m_alloc_size = 0;
-  }
+  ut::free(filepath);
 
-  OK(fields[INNODB_TABLESPACES_FS_BLOCK_SIZE]->store(stat.block_size, true));
+  OK(fields[INNODB_TABLESPACES_FS_BLOCK_SIZE]->store(block_size, true));
 
-  OK(fields[INNODB_TABLESPACES_FILE_SIZE]->store(file.m_total_size, true));
+  OK(fields[INNODB_TABLESPACES_FILE_SIZE]->store(total_size, true));
 
-  OK(fields[INNODB_TABLESPACES_ALLOC_SIZE]->store(file.m_alloc_size, true));
+  OK(fields[INNODB_TABLESPACES_ALLOC_SIZE]->store(alloc_size, true));
 
   OK(field_store_string(fields[INNODB_TABLESPACES_STATE], state));
 
@@ -7461,7 +7473,7 @@ static int i_s_innodb_session_temp_tablespaces_fill_one(
   size_t size = 0;
   if (space != nullptr) {
     page_size_t page_size(space->flags);
-    size = space->size * page_size.physical();
+    size = space->m_size_in_pages * page_size.physical();
   }
   OK(fields[INNODB_SESSION_TEMP_TABLESPACES_SIZE]->store(size, true));
 

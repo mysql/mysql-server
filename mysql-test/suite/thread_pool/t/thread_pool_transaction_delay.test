@@ -1,0 +1,111 @@
+--source include/have_thread_pool.inc
+--source include/reopen_default_connection_as_tcpip.inc
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
+--let $saved_transaction_delay = `SELECT @@GLOBAL.thread_pool_transaction_delay`
+
+--echo # Basic testing
+SHOW VARIABLES LIKE 'thread_pool_transaction_delay';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL thread_pool_transaction_delay = -1;
+
+SET GLOBAL thread_pool_transaction_delay = 10;
+
+SELECT @@GLOBAL.thread_pool_transaction_delay;
+
+CREATE TABLE t1(i INT);
+
+INSERT INTO t1 VALUES (0), (1), (2);
+
+BEGIN WORK;
+SELECT * FROM t1 LIMIT 1;
+SELECT * FROM t1;
+COMMIT WORK;
+SELECT * FROM t1 LIMIT 2;
+DROP TABLE t1;
+
+--echo # Verify that the time taken to to run transactions increases as
+--echo # expected, when setting thread_pool_transaction_delay
+SET GLOBAL thread_pool_transaction_delay = 0;
+
+CREATE TABLE t1(ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP);
+
+--echo # No second level diff expected here
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+SELECT (MAX(ts) - MIN(ts)) <= 5 FROM t1;
+DELETE FROM t1;
+
+SET GLOBAL  thread_pool_transaction_delay = 5000;
+
+--echo # Verify that there is now at least 5 second diff between the statements
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+SELECT (MAX(ts) - MIN(ts)) >= 5 FROM t1;
+
+DELETE FROM t1;
+
+--echo # Verify that the each new statement (autocommit) is delayed
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+SELECT (MAX(ts) - MIN(ts)) >= (6 * 5) FROM t1;
+
+--echo # Verify that no delay is added for statements that are part of a
+--echo # transaction
+DELETE FROM t1;
+BEGIN WORK;
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+COMMIT WORK;
+SELECT MAX(ts) - MIN(ts) <= 5 FROM t1;
+
+DELETE FROM t1;
+
+--echo # Verify that BEGIN WORK is delayed
+INSERT INTO t1 VALUES();
+BEGIN WORK;
+INSERT INTO t1 VALUES();
+COMMIT;
+SELECT max(ts) - MIN(ts) >= 5 FROM t1;
+DELETE FROM t1;
+
+--echo # Verify that no delay is added when using admin connection
+connect(acon,127.0.0.1,root,,,$MASTER_ADMINPORT,,);
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+SELECT MAX(ts) - MIN(ts) <= 5 FROM t1;
+DELETE FROM t1;
+
+disconnect acon;
+--source include/wait_until_disconnected.inc
+
+connection default;
+--echo # Verify that no delay is added when thread_pool_transaction_delay
+--echo # is set to DEFAULT value.
+SET GLOBAL thread_pool_transaction_delay = DEFAULT;
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES ();
+SELECT (MAX(ts) - MIN(ts)) <= 5 FROM t1;
+
+DROP TABLE t1;
+--eval SET GLOBAL thread_pool_transaction_delay = $saved_transaction_delay
+

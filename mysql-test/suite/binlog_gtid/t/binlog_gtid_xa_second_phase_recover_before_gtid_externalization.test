@@ -1,0 +1,104 @@
+# ==== Purpose ====
+#
+# Verify that XA COMMIT and XA ROLLBACK update XA RECOVER before their GTIDs
+# become visible.
+#
+# ==== Requirements ====
+#
+# R1. While XA COMMIT is paused before GTID externalization, XA RECOVER
+#     should not list the committed XID.
+# R2. While XA ROLLBACK is paused before GTID externalization, XA RECOVER
+#     should not list the rolled back XID.
+# R3. The second-phase GTID should not be visible while paused, but should
+#     become visible after XA COMMIT or XA ROLLBACK completes.
+#
+# ==== References ====
+#
+# Bug#36505659: XA RECOVER may list XID after GTID for XA COMMIT or
+#               XA ROLLBACK is visible
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (a INT);
+
+--connect(con1,localhost,root,,)
+--connect(con2,localhost,root,,)
+--connection con1
+SET @@SESSION.xa_detach_on_prepare = ON;
+XA START 'xa_commit';
+INSERT INTO t1 VALUES (1);
+XA END 'xa_commit';
+XA PREPARE 'xa_commit';
+
+--connection con2
+--let $commit_gtid = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1
+--eval SET GTID_NEXT = '$commit_gtid'
+--connection default
+--let $auxiliary_connection = default
+--let $statement_connection = con2
+--let $statement = XA COMMIT 'xa_commit'
+--let $sync_point = after_call_actions_before_gtid_state_update
+--source include/execute_to_conditional_timestamp_sync_point.inc
+
+--let $expected_prepared_xa_count = 0
+--source common/xa_crash_safe/assert_xa_recover.inc
+--let $assert_text = GTID_EXECUTED does not contain the XA COMMIT GTID yet
+--let $has_gtid = `SELECT GTID_SUBSET('$commit_gtid', @@GLOBAL.gtid_executed)`
+--let $assert_cond = "$has_gtid" = "0"
+--source include/assert.inc
+
+--let $reap_statement_connection = 1
+--source include/execute_from_conditional_timestamp_sync_point.inc
+--let $reap_statement_connection = 0
+--let $assert_text = GTID_EXECUTED contains the XA COMMIT GTID
+--let $has_gtid = `SELECT GTID_SUBSET('$commit_gtid', @@GLOBAL.gtid_executed)`
+--let $assert_cond = "$has_gtid" = "1"
+--source include/assert.inc
+
+--connection con2
+SET GTID_NEXT = AUTOMATIC;
+
+--connection con1
+XA START 'xa_rollback';
+INSERT INTO t1 VALUES (2);
+XA END 'xa_rollback';
+XA PREPARE 'xa_rollback';
+
+--connection con2
+--let $rollback_gtid = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2
+--eval SET GTID_NEXT = '$rollback_gtid'
+--connection default
+--let $auxiliary_connection = default
+--let $statement_connection = con2
+--let $statement = XA ROLLBACK 'xa_rollback'
+--let $sync_point = after_call_actions_before_gtid_state_update
+--source include/execute_to_conditional_timestamp_sync_point.inc
+
+--let $expected_prepared_xa_count = 0
+--source common/xa_crash_safe/assert_xa_recover.inc
+--let $assert_text = GTID_EXECUTED does not contain the XA ROLLBACK GTID yet
+--let $has_gtid = `SELECT GTID_SUBSET('$rollback_gtid', @@GLOBAL.gtid_executed)`
+--let $assert_cond = "$has_gtid" = "0"
+--source include/assert.inc
+
+--let $reap_statement_connection = 1
+--source include/execute_from_conditional_timestamp_sync_point.inc
+--let $reap_statement_connection = 0
+--let $assert_text = GTID_EXECUTED contains the XA ROLLBACK GTID
+--let $has_gtid = `SELECT GTID_SUBSET('$rollback_gtid', @@GLOBAL.gtid_executed)`
+--let $assert_cond = "$has_gtid" = "1"
+--source include/assert.inc
+
+--connection con2
+SET GTID_NEXT = AUTOMATIC;
+
+SELECT * FROM t1;
+
+--disconnect con2
+--disconnect con1
+--connection default
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;

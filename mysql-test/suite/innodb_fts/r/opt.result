@@ -372,6 +372,8 @@ WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
 FLUSH STATUS;
 SELECT COUNT(*)
 FROM wp
@@ -395,6 +397,8 @@ WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`wp`.`title`) AS `COUNT(title)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
 SELECT COUNT(title)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
@@ -1138,6 +1142,8 @@ EXPLAIN
     -> Filter:
         -> Full-text covering index search on t1 using ft_idx (title = '+database')
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) AS `rank` from `test`.`t1` where ((match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) and (`test`.`t1`.`FTS_DOC_ID` > 1)) order by (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) desc limit 3
 SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC

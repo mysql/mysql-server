@@ -483,6 +483,9 @@ select collation(soundex(_latin2'ab')), coercibility(soundex(_latin2'ab'));
 select collation(substring(_latin2'ab',1)), coercibility(substring(_latin2'ab',1));
 select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_latin2'abcd',2,3,_latin2'ef'));
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
+select collation(greatest(date'2010-01-01', date'2011-01-01'));
+select collation(least(date'2010-01-01', date'2011-01-01'));
+select collation(coalesce(null, date'2010-01-01', date'2011-01-01'));
 
 create table t1 charset latin1
 select
@@ -3116,7 +3119,7 @@ SELECT ST_POINTATDISTANCE(ST_GEOMCOLLFROMWKB(ST_ASWKB(POINT(4389, -24885)), 0,
                          );
 
 --echo #
---echo # Bug39056621: Function find_in_set returns wrong result
+--echo # Bug#39056621: Function find_in_set returns wrong result
 --echo #
 
 SET collation_connection = 'utf8mb4_0900_ai_ci';
@@ -3126,3 +3129,57 @@ SELECT FIND_IN_SET('ắ', 'a');
 SELECT FIND_IN_SET('ắ', 'a,b,c');
 
 SET collation_connection = default;
+
+--echo #
+--echo # Bug#36289412: Fix offset check for insert position overflow
+--echo #
+
+SET names utf8mb4;
+SELECT INSERT('A', 2, 1, 'a');
+SELECT INSERT('Å', 2, 1, 'a');
+SET names DEFAULT;
+
+--echo #
+--echo # Bug#39392429: AVG(ASCII()) result truncated to 99.9999 with
+--echo #               SQL_BUFFER_RESULT due to incorrect decimal precision
+--echo #
+
+CREATE TABLE users (
+  id INT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO users (id, username) VALUES
+  (1, 'alice'), (2, 'bob'), (3, 'charlie'), (4, 'diana'),
+  (5, 'edward'), (6, 'fiona'), (7, 'george'), (8, 'hannah'),
+  (9, 'ivan'), (10, 'julia'), (11, 'kevin'), (12, 'lisa'),
+  (13, 'mike'), (14, 'nancy'), (15, 'oscar');
+
+SELECT SQL_BUFFER_RESULT id, AVG(ASCII(username)) AS avg_val
+FROM users
+GROUP BY id;
+
+SELECT SQL_BUFFER_RESULT id, AVG(LENGTH(username)) AS avg_val
+FROM users
+GROUP BY id;
+
+SELECT SQL_BUFFER_RESULT id, AVG(CHAR_LENGTH(username)) AS avg_val
+FROM users
+GROUP BY id;
+
+SELECT SQL_BUFFER_RESULT id, AVG(BIT_LENGTH(username)) AS avg_val
+FROM users
+GROUP BY id;
+SELECT SQL_BUFFER_RESULT id, AVG(INSTR(username, 'i')) AS avg_val
+FROM users
+GROUP BY id;
+
+SELECT SQL_BUFFER_RESULT id, AVG(FIELD(username, 'alice', 'ivan')) AS avg_val
+FROM users
+GROUP BY id;
+
+SELECT SQL_BUFFER_RESULT id, AVG(FIND_IN_SET(username, 'alice,ivan')) AS avg_val
+FROM users
+GROUP BY id;
+
+DROP TABLE users;

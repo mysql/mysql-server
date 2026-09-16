@@ -60,7 +60,7 @@ EXPLAIN SELECT * FROM t1 ot
 WHERE ot.b<0 OR EXISTS(SELECT * FROM t2 it WHERE ot.a=it.a+1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	9	test.ot.a	7	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	7	100.00	Using where
 2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	48	100.00	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
@@ -74,7 +74,7 @@ EXPLAIN SELECT * FROM t1 ot
 WHERE ot.b<0 OR EXISTS(SELECT it.b FROM t2 it WHERE ot.a=it.a+1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	9	test.ot.a	7	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	7	100.00	Using where
 2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	48	100.00	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.ot.a' of SELECT #2 was resolved in SELECT #1
@@ -88,7 +88,7 @@ EXPLAIN SELECT * FROM t1 ot
 WHERE ot.b<0 OR EXISTS(SELECT it.b,ot.b FROM t2 it WHERE ot.a=it.a+1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	9	test.ot.a	7	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	7	100.00	Using where
 2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	48	100.00	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.ot.b' of SELECT #2 was resolved in SELECT #1

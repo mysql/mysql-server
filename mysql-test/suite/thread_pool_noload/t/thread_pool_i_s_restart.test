@@ -1,0 +1,198 @@
+# This test is added to test WL#9495.
+#
+# As this WL updates DD tables with INFORMATION_SCHEMA table plugin's
+# metadata, the following test cases make sure if server restarts does
+# proper updates to DD tables.
+#
+# Case1: Check if TP_THREAD_STATE is seen through I_S interface.
+#
+# Case2: Restart server with TP_THREAD_GROUP_STATE INFORMATION_SCHEMA
+# plugin and check if it is seen through I_S interface.
+#
+# Case3: Restart server with TP_THREAD_STATE and TP_THREAD_GROUP_STATS
+# INFORMATION_SCHEMA plugin and check if both I_S tables are seen through
+# I_S interface.
+#
+
+--source include/have_debug.inc
+--source include/big_test.inc
+--source include/have_thread_pool.inc
+
+--echo # Case 1:
+--echo # Check TP_THREAD_STATE is visible, which is added by .opt.
+--replace_result .so .<extension> .dll .<extension>
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY
+  FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME LIKE 'TP_%';
+SELECT TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'TP_%';
+
+--echo # Case 2:
+--echo # Restart server with TP_THREAD_GROUP_STATE plugin.
+--echo # Check TP_THREAD_GROUP_STATE is visible and not TP_THREAD_STATE
+--replace_result $TP_THREAD_STATE_PLUGIN_OPT TP_THREAD_STATE_PLUGIN_OPT .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$TP_THREAD_GROUP_STATE_PLUGIN_OPT $TP_THREAD_GROUP_STATE_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+--replace_result .so .<extension> .dll .<extension>
+--sorted_result
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY
+  FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME LIKE 'TP_%';
+--sorted_result
+SELECT TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'TP_%';
+
+--echo # Case 3:
+--echo # Restart server with TP_THREAD_STATE and TP_THREAD_GROUP_STATS
+--echo # Check that TP_THREAD_STATE and TP_THREAD_GROUP_STATS are visible.
+--replace_result $TP_THREAD_STATE_PLUGIN_OPT TP_THREAD_STATE_PLUGIN_OPT .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$TP_THREAD_TWO_PLUGIN_OPT $TP_THREAD_TWO_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+--replace_result .so .<extension> .dll .<extension>
+--sorted_result
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY
+  FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME LIKE 'TP_%';
+--sorted_result
+SELECT TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'TP_%';
+
+--echo # Case 4:
+--echo # Restart server should fail if I_S version is changed
+--echo # and --innodb-read-only mode is ON.
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+--let $MYSQLD_PLUGIN_DIR=`SELECT @@plugin_dir`
+--source include/shutdown_mysqld.inc
+
+--let LOG_FILE = $MYSQL_TMP_DIR/mysqld_abort.err
+--let CMD = $MYSQLD_CMD --no-defaults --innodb_dedicated_server=OFF --debug=+d,test_i_s_metadata_version --innodb-read-only --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --plugin-dir=$MYSQLD_PLUGIN_DIR --secure-file-priv="" --log-error=$LOG_FILE 2>&1
+--error 1
+--exec $CMD
+
+--let SEARCH_FILE= $LOG_FILE
+--let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Failed to update plugin metadata in dictionary tables
+--source include/search_pattern.inc
+--remove_file $LOG_FILE
+
+--echo # Case 5:
+--echo # Restart server with TP_THREAD_STATE and TP_THREAD_GROUP_STATS with
+--echo # status OFF.
+--echo # Check TP_THREAD_STATE is present and TP_THREAD_GROUP_STATS is disabled.
+--replace_result $TP_THREAD_STATE_PLUGIN_OPT TP_THREAD_STATE_PLUGIN_OPT .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$TP_THREAD_TWO_PLUGIN_OPT $TP_THREAD_TWO_PLUGIN_LOAD --tp_thread_group_stats=off
+--source include/start_mysqld.inc
+--replace_result .so .<extension> .dll .<extension>
+--sorted_result
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY
+  FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME LIKE 'TP_%';
+--sorted_result
+SELECT TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'TP_%';
+
+--echo # Case 6:
+--echo # UNINSTALL TP_THREAD_STATE and make sure it is not
+--echo # present in INFORMATION_SCHEMA.TABLES.
+UNINSTALL PLUGIN TP_THREAD_STATE;
+--replace_result .so .<extension> .dll .<extension>
+--sorted_result
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY
+  FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME LIKE 'TP_%';
+--sorted_result
+SELECT TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'TP_%';
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN tp_thread_state SONAME '$TP_THREAD_STATE_PLUGIN';
+--replace_result .so .<extension> .dll .<extension>
+--sorted_result
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY
+  FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME LIKE 'TP_%';
+--sorted_result
+SELECT TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'TP_%';
+UNINSTALL PLUGIN TP_THREAD_STATE;
+
+--echo # Case 6.1:
+--echo # Bug#25750159 - Attempt to uninstall a plugin which is
+--echo # stated with PLUGIN_OFF load_option causes a crash.
+--echo # Following statement causes crash without fix.
+UNINSTALL PLUGIN tp_thread_group_stats;
+
+--echo # Case 7:
+--echo # Restart server with changing the I_S version number.
+--echo # - Using a debug flag for testing.
+--echo # - Check that TP_THREAD_STATE and TP_THREAD_GROUP_STATS are visible
+--echo #   in INFORMATION_SCHEMA.PLUGINS/TABLES
+--echo # - Check if abandoned I_S views are removed, if server version is
+--echo #   changed. The test case expects I_S.EVENTS to be abandoned.
+--replace_result $TP_THREAD_STATE_PLUGIN_OPT TP_THREAD_STATE_PLUGIN_OPT .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$TP_THREAD_TWO_PLUGIN_OPT $TP_THREAD_TWO_PLUGIN_LOAD --debug=+d,test_i_s_metadata_version
+--source include/restart_mysqld.inc
+--replace_result .so .<extension> .dll .<extension>
+--sorted_result
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY
+  FROM INFORMATION_SCHEMA.PLUGINS
+  WHERE PLUGIN_NAME LIKE 'TP_%';
+--sorted_result
+SELECT TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'TP_%';
+
+--error ER_UNKNOWN_TABLE
+SELECT * FROM INFORMATION_SCHEMA.EVENTS;
+
+--echo #
+--echo # Bug#25761992 - VIEW VALIDATION WHEN PLUGINS ARE LOADED/UNLOADED.
+--echo #
+
+--echo # Create a view v1 referencing the INFORMATION_SCHEMA.TP_THREAD_STATE
+--echo # loaded from a INFORMATION_SCHEMA plugin.
+CREATE VIEW v1 AS SELECT * FROM INFORMATION_SCHEMA.TP_THREAD_STATE;
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='v1';
+
+--echo # Uninstall plugin and check status of a views referencing the
+--echo # INFORMATION_SCHEMA.TP_THREAD_STATE.
+--echo # UNINSTALL PLUGIN set state of views referencing a plugin as
+--echo # "Invalid".
+UNINSTALL PLUGIN TP_THREAD_STATE;
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='v1';
+
+--echo # Re-install plugin and check status of a views referencing the
+--echo # INFORMATION_SCHEMA.TP_THREAD_STATE.
+--echo # INSTALL PLUGIN resets state of a views referencing the plugin as
+--echo # "Valid".
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN tp_thread_state SONAME '$TP_THREAD_STATE_PLUGIN';
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='v1';
+
+--echo # Uninstall TP_THREAD_STATE plugin.
+UNINSTALL PLUGIN TP_THREAD_STATE;
+--echo # Restart server without TP_THREAD_STATE and check status of a views referencing the
+--echo # INFORMATION_SCHEMA.TP_THREAD_STATE.
+--echo # Since TP_THREAD_STATE plugin is not loaded on server restart, status of the view
+--echo # remains as "Invalid".
+--replace_result $TP_THREAD_STATE_PLUGIN_OPT TP_THREAD_STATE_PLUGIN_OPT .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$TP_THREAD_GROUP_STATE_PLUGIN_OPT $TP_THREAD_GROUP_STATE_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='v1';
+
+--echo # Restart server *with* TP_THREAD_STATE and check status of a view referencing the
+--echo # INFORMATION_SCHEMA.TP_THREAD_STATE.
+--echo # Since TP_THREAD_STATE plugin is loaded on server restart, status of the view
+--echo # is changed to "Valid".
+--replace_result $TP_THREAD_STATE_PLUGIN_OPT TP_THREAD_STATE_PLUGIN_OPT .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$TP_THREAD_TWO_PLUGIN_OPT $TP_THREAD_TWO_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='v1';
+
+# Cleanup
+DROP VIEW v1;

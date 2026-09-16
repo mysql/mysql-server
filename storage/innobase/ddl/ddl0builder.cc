@@ -207,6 +207,11 @@ struct File_cursor : public Load_cursor {
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
   [[nodiscard]] dberr_t next() noexcept override;
 
+  /** @return the underlying index for the file reader. */
+  [[nodiscard]] const dict_index_t *index() const noexcept {
+    return m_reader.m_index;
+  }
+
  private:
   /** Prepare to fetch the current row.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
@@ -1184,14 +1189,22 @@ void Builder::batch_insert_deep_copy_tuples(size_t thread_id) noexcept {
 dberr_t Builder::key_buffer_sort(size_t thread_id) noexcept {
   auto key_buffer = m_thread_ctxs[thread_id]->m_key_buffer;
 
-  if (key_buffer->is_unique()) {
+  if (key_buffer->is_duplicate_check_required()) {
     auto index = key_buffer->m_index;
     Dup dup = {index, m_ctx.m_table, m_ctx.m_col_map, 0};
 
     key_buffer->sort(&dup);
 
     if (dup.m_n_dup > 0) {
-      if (set_error(DB_DUPLICATE_KEY)) {
+      /* A non-unique secondary index includes the clustered-key columns in
+      its internal records. Therefore, a complete duplicate secondary record
+      identifies a duplicate primary key, which must be reported as PRIMARY. */
+      const auto duplicate_primary_key =
+          !index->is_clustered() && !dict_index_is_unique(index);
+
+      if (duplicate_primary_key
+              ? m_ctx.set_error(DB_DUPLICATE_KEY, SERVER_CLUSTER_INDEX_ID)
+              : set_error(DB_DUPLICATE_KEY)) {
         dup.report();
       }
       return get_error();
@@ -1204,6 +1217,7 @@ dberr_t Builder::key_buffer_sort(size_t thread_id) noexcept {
 }
 
 dberr_t Builder::handle_error(dberr_t err) noexcept {
+  ut_ad(err != DB_SUCCESS);
   set_error(err);
 
   if (m_btr_load != nullptr) {
@@ -1492,17 +1506,7 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
         if (!cursor.eof()) {
           /* Copy the row data and release any latches held by the parallel
           scan thread. Required for the log_free_check() during mtr.commit(). */
-          err = cursor.copy_row(thread_id, row);
-
-          if (DBUG_EVALUATE_IF("builder_bulk_add_row_trigger_error_2", true,
-                               false)) {
-            err = DB_INVALID_NULL;
-          }
-
-          if (err != DB_SUCCESS) {
-            set_error(err);
-            return get_error();
-          }
+          cursor.copy_row(thread_id, row);
 
           err = latch_release();
 
@@ -1978,7 +1982,7 @@ dberr_t Builder::fts_sort_and_build() noexcept {
   }
 }
 
-dberr_t Builder::finalize() noexcept {
+void Builder::finalize() noexcept {
   ut_a(m_ctx.m_need_observer);
   ut_a(get_state() == State::FINISH);
 
@@ -2010,8 +2014,6 @@ dberr_t Builder::finalize() noexcept {
   if (err != DB_SUCCESS) {
     set_error(err);
   }
-
-  return err;
 }
 
 dberr_t Builder::merge_sort(size_t thread_id) noexcept {
@@ -2080,23 +2082,15 @@ dberr_t Builder::finish() noexcept {
     thread_ctx->m_file.m_file.close();
   }
 
-  dberr_t err{DB_SUCCESS};
-
   if (get_error() != DB_SUCCESS || !m_ctx.m_online) {
     /* Do not apply any online log. */
   } else if (m_ctx.m_old_table != m_ctx.m_new_table) {
     ut_a(!m_index->online_log);
     ut_a(m_index->online_status == ONLINE_INDEX_COMPLETE);
 
-    auto observer = m_ctx.m_trx->flush_observer;
-    observer->flush();
-
+    m_ctx.m_trx->flush_observer->flush();
   } else {
-    err = finalize();
-
-    if (err != DB_SUCCESS) {
-      set_error(err);
-    }
+    finalize();
   }
 
   set_next_state();

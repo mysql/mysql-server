@@ -380,6 +380,15 @@ static inline ulint page_rec_get_heap_no(
 @return pointer to next record */
 static inline const rec_t *page_rec_get_next_low(const rec_t *rec, ulint comp);
 
+/** Gets the offset of the next record on the page after validating that it is
+safe for page-level record access.
+@param[in]      rec     pointer to record
+@param[in]      comp    true iff compact page layout is used
+@return the page offset of the next chained record, or unexpected offset in case
+the encoded next field is invalid. */
+[[nodiscard]] static inline ut::Expected<uint16_t, uint16_t>
+page_rec_try_get_next_offs(const rec_t *rec, bool comp);
+
 /** Gets the pointer to the next record on the page.
  @return pointer to next record */
 static inline rec_t *page_rec_get_next(
@@ -781,15 +790,6 @@ const rec_t *page_find_rec_with_heap_no(
 @return the last record, not delete-marked
 @retval infimum record if all records are delete-marked */
 const rec_t *page_find_rec_last_not_deleted(const page_t *page);
-
-/** Issue a warning when the checksum that is stored in the page is valid,
-but different than the global setting innodb_checksum_algorithm.
-@param[in]      curr_algo       current checksum algorithm
-@param[in]      page_checksum   page valid checksum
-@param[in]      page_id         page identifier */
-void page_warn_strict_checksum(srv_checksum_algorithm_t curr_algo,
-                               srv_checksum_algorithm_t page_checksum,
-                               const page_id_t &page_id);
 
 /** Check that a page_size is correct for InnoDB.
 If correct, set the associated page_size_shift which is the power of 2

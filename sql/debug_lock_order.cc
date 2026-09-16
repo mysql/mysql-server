@@ -7444,6 +7444,13 @@ void lo_statement_abort_telemetry(struct PSI_statement_locker *locker) {
   }
 }
 
+void lo_digest_set(struct PSI_statement_locker *locker,
+                   const struct sql_digest_storage *digest) {
+  if (g_statement_chain != nullptr) {
+    g_statement_chain->digest_set(locker, digest);
+  }
+}
+
 static void lo_start_file_open_wait(PSI_file_locker *locker,
                                     const char *src_file, uint src_line) {
   auto *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
@@ -7917,7 +7924,7 @@ static void *lo_get_idle_interface(int version) {
 
 struct PSI_idle_bootstrap LO_idle_bootstrap = {lo_get_idle_interface};
 
-PSI_statement_service_v5 LO_statement_v5 = {
+PSI_statement_service_v6 LO_statement_v6 = {
     lo_register_statement,
     lo_get_thread_statement_locker,
     lo_refine_statement,
@@ -7956,7 +7963,8 @@ PSI_statement_service_v5 LO_statement_v5 = {
     lo_end_sp,
     lo_drop_sp,
     lo_notify_statement_query_attributes,
-    lo_statement_abort_telemetry};
+    lo_statement_abort_telemetry,
+    lo_digest_set};
 
 static void *lo_get_statement_interface(int version) {
   switch (version) {
@@ -7964,9 +7972,10 @@ static void *lo_get_statement_interface(int version) {
     case PSI_STATEMENT_VERSION_2:
     case PSI_STATEMENT_VERSION_3:
     case PSI_STATEMENT_VERSION_4:
-      return nullptr;
     case PSI_STATEMENT_VERSION_5:
-      return &LO_statement_v5;
+      return nullptr;
+    case PSI_STATEMENT_VERSION_6:
+      return &LO_statement_v6;
     default:
       return nullptr;
   }

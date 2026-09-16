@@ -27,8 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <cstddef>
 #include "mysql/components/services/bits/mle_time_bits.h"
+#include "mysql/components/services/bits/mysql_field_types_bits.h"
 #include "mysql/components/services/bits/stored_program_bits.h"
 #include "mysql/components/services/defs/mysql_string_defs.h"
 
@@ -65,7 +65,8 @@ DEFINE_SERVICE_HANDLE(my_h_warning);
 
     // For first parameter
     SERVICE_PLACEHOLDER(mysql_stmt_bind)->bind_param(statement, 0, false,
-                                      MYSQL_TYPE_LONG, false, 4, 1, nullptr, 0);
+                                                     MYSQL_SP_ARG_TYPE_LONG,
+                                                     false, 4, 1, nullptr, 0);
 
     SERVICE_PLACEHOLDER(mysql_stmt_execute)->execute(statement)
 
@@ -124,7 +125,8 @@ END_SERVICE_DEFINITION(mysql_stmt_factory)
   SERVICE_PLACEHOLDER(mysql_stmt_execute)->prepare("SELECT * FROM my_table WHERE
  col_c = ?", statement)
   SERVICE_PLACEHOLDER(mysql_stmt_bind)->bind_param(statement, 0, false,
-                                      MYSQL_TYPE_LONG, false, 4, 1, nullptr, 0);
+                                                   MYSQL_SP_ARG_TYPE_LONG,
+                                                   false, 4, 1, nullptr, 0);
 
   // To reset the parameter to bind it with new values
   SERVICE_PLACEHOLDER(mysql_stmt_execute)->reset(statement)
@@ -209,7 +211,8 @@ END_SERVICE_DEFINITION(mysql_stmt_execute_direct)
 
    // For first parameter
    SERVICE_PLACEHOLDER(mysql_stmt_bind)->bind_param(statement, 0, false,
-                                              MYSQL_TYPE_LONG, false, 4, 1, nullptr, 0);
+                                                    MYSQL_SP_ARG_TYPE_LONG,
+                                                    false, 4, 1, nullptr, 0);
 
 */
 
@@ -223,12 +226,13 @@ BEGIN_SERVICE_DEFINITION(mysql_stmt_bind)
   these, the rest will use the cached values.
   @note Calling bind with the same index multiple times, only the last value is
   kept.
+  @note The type argument uses the statement-service MYSQL_SP_ARG_TYPE_* domain,
+  not raw MYSQL_TYPE_* or MYSQL_FIELD_TYPE_* values.
 
   @param [in] statement A handle to the statement
   @param [in] index 0-based index of the parameter to be bound
   @param [in] is_null Whether the parameter can be null
-  @param [in] type Type of the parameter. List of supported types: Table 6.1 at
-  https://dev.mysql.com/doc/c-api/8.0/en/c-api-prepared-statement-type-codes.html
+  @param [in] type Type of the parameter. Must be a MYSQL_SP_ARG_TYPE_* value.
   @param [in] bool Whether the value is unsigned
   @param [in] data The data argument is the value for the member
   @param [in] data_length Length of the data
@@ -588,7 +592,7 @@ DECLARE_BOOL_METHOD(param_count,
   The following attributes are supported:
 
   - Parameter is null ("null_bit" of the returned bool type)
-  - Parameter type ("type" of the returned uint64_t type)
+  - Parameter type ("type" of the returned uint64_t MYSQL_SP_ARG_TYPE_* type)
   - Parameter is unsigned ("is_unsigned" of the returned bool type)
   - Parameter charset ("charset" of the returned const char* type)
   - Parameter max_byte_length ("max_byte_length" of the returned size_t type)
@@ -672,7 +676,9 @@ DECLARE_BOOL_METHOD(field_count,
   - Database name ("db_name" of the returned const char* type)
   - Table name ("table_name" of the returned const char* type)
   - Original table name ("org_table_name" of the returned const char* type)
-  - Field type ("type" of the returned uint64_t type)
+  - Field type ("type" of the returned uint64_t MYSQL_SP_ARG_TYPE_* type)
+  - Raw MySQL field type ("mysql_type" of the returned mysql_field_type_t
+    MYSQL_FIELD_TYPE_* type)
   - Charset number ("charsetnr" of the returned uint type)
   - Charset name ("charset_name" of the returned const char* type)
   - Collation name ("collation_name" of the returned const char* type)
@@ -681,6 +687,10 @@ DECLARE_BOOL_METHOD(field_count,
   - Field length ("length" of the returned ulong type)
   - Whether the field is unsigned ("is_unsigned" of the returned bool type)
   - Whether the field is zerofill ("is_zerofill" of the returned bool type)
+
+  @note "type" and "mysql_type" use different ABI domains. "type" returns the
+  legacy statement-service MYSQL_SP_ARG_TYPE_* value. "mysql_type" returns the
+  raw MYSQL_FIELD_TYPE_* value corresponding to enum_field_types.
 
   @param [out] data The returned information
   @return Status of the performed operation

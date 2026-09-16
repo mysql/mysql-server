@@ -102,6 +102,9 @@ source include/rpl/start_replica.inc;
 connection master;
 --source include/rpl/sync_to_replica.inc
 
+# CSA may report interruption during STOP REPLICA
+CALL mtr.add_suppression("Query execution was interrupted");
+
 # assertion: assert that the slave got the updates even
 #            if the file was removed before the slave started,
 #            meaning that contents were indeed transfered

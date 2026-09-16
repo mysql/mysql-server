@@ -41,7 +41,7 @@ SHOW WARNINGS;
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .* File .*undo.*");
 call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 123 in a file operation");
-call mtr.add_suppression("\\[ERROR\\] .* Can't create UNDO tablespace undo_99");
+call mtr.add_suppression("\\[ERROR\\] .* Could not create undo tablespace 'undo_99'");
 --enable_query_log
 
 --echo #

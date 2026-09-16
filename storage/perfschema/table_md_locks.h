@@ -51,7 +51,7 @@ struct THR_LOCK;
 /** A row of table PERFORMANCE_SCHEMA.MUTEX_INSTANCES. */
 struct row_metadata_lock {
   /** Column OBJECT_INSTANCE_BEGIN. */
-  const void *m_identity;
+  pfs_identity m_identity;
   opaque_mdl_type m_mdl_type;
   opaque_mdl_duration m_mdl_duration;
   opaque_mdl_status m_mdl_status;

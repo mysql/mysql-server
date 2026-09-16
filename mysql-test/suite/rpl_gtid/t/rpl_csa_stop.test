@@ -1,0 +1,72 @@
+# ====Purpose====
+#
+# Check CSA stops immediately after STOP REPLICA is called. Here, we test
+# behavior of the STOP REPLICA when applier worker is blocked.
+#
+# ====Requirements====
+#
+# R1. When STOP REPLICA is called, CSA should stop immediately
+#
+# ====Implementation====
+#
+#  1. Setup replication
+#  2. On replica: take read lock on tables
+#  3. On source: run some queries
+#  4. On replica: run STOP REPLICA and observe that applier stops
+#  5. Cleanup
+
+# This test is binlog format agnostic
+--source include/have_binlog_format_row.inc
+
+--echo
+--echo #  1. Setup replication, prepare data
+--echo
+--let $rpl_applier_version=2:2
+--let $rpl_applier_worker_count=2:8
+--source include/rpl/init_source_replica.inc
+
+CREATE TABLE t1(c1 INT PRIMARY KEY);
+
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo #  2. On replica: start transaction that will block the applier
+--echo
+
+--source include/rpl/connection_replica.inc
+
+LOCK TABLES t1 WRITE;
+
+--echo
+--echo #  3. On source: run some queries
+--echo
+
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 VALUES (2);
+
+--echo
+--echo #  4. On replica: run STOP REPLICA and observe that applier stops
+--echo
+
+--source include/rpl/connection_replica.inc
+
+--connect(con1,127.0.0.1,root,,test,$SLAVE_MYPORT,)
+--let $rpl_connection_name = con1
+--source include/connection.inc
+
+--source include/rpl/stop_replica.inc
+
+--echo
+--echo #  5. Cleanup
+--echo
+
+--source include/rpl/connection_replica.inc
+UNLOCK TABLES;
+CALL mtr.add_suppression("Replica SQL for channel '':.*Query execution was interrupted");
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/deinit.inc

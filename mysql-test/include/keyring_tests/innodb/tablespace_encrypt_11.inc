@@ -111,8 +111,17 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 
 --echo # INJECT error TOO_MANY_CONCURRENT_TXNS in startup location $location.
 --echo # It will cause FATAL error and server abort.
---error 0,2,-2147483645
---exec $MYSQLD_CMD $PLUGIN_DIR_OPT --log-error=$MYSQLTEST_VARDIR/log/my_restart.err --debug=+d,$location
+# We are using the mysqltest_safe_process as we need to start the Server
+# synchronously with expectation it will crash. We don't want any message boxes
+# on Windows, so we need the `mysqltest_safe_process --nocore` to be used.
+# Normally we would use `start_mysqld.inc` infrastructure for that as it will
+# use the `mysqltest_safe_process --nocore` seeing the `--skip-core-file`
+# argument in the `.opt` file. However, it will start the server asynchronously,
+# and we would have to synchronize with it stopping, for which I couldn't find a
+# way. And even if there is one, this solution will be shorter, without any
+# disadvantages.
+--error 1,2,17,-2147483645
+--exec $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD $PLUGIN_DIR_OPT --log-error=$MYSQLTEST_VARDIR/log/my_restart.err --debug=+d,$location
 
 --echo # Search the failure pattern in error log
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err

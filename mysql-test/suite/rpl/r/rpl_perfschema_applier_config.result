@@ -54,4 +54,12 @@ include/assert.inc [Value for Assign_gtids_to_anonymous_transactions_type is ini
 # Verify that `assign_gtids_to_anonymous_transactions_value` is initialized to NULL.
 
 include/assert.inc [Value for Assign_gtids_to_anonymous_transactions_value is initialized to NULL]
+
+# Verify that `Applier_version` is initialized to MTA.
+
+include/assert.inc [Value for Applier_version is initialized to MTA]
+
+# Verify that `Applier_worker_count` is initialized to 4.
+
+include/assert.inc [Value for Applier_worker_count is initialized to 4]
 include/rpl/deinit.inc

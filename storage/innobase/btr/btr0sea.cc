@@ -323,7 +323,6 @@ bool btr_search_disable() {
   ut_a(btr_search_enabled);
 
   btr_search_enabled = false;
-  srv_btr_search_enabled = false;
   btr_search_x_unlock_all();
 
   /* Clear AHI info for all non-private blocks from Buffer Pool. */
@@ -356,19 +355,28 @@ bool btr_search_disable() {
   return true;
 }
 
-void btr_search_enable() {
+bool btr_search_enable() {
   os_rmb;
   /* Don't allow enabling AHI if buffer pool resize is happening.
   Ignore it silently. */
-  if (srv_buf_pool_old_size != srv_buf_pool_size) return;
+  if (srv_buf_pool_old_size != srv_buf_pool_size) return false;
 
   /* We need to synchronize with any threads that are in the middle of
   btr_search_disable() - they must first clear all structures before we can
   re-enable AHI again. */
   mutex_enter(&btr_search_enabled_mutex);
+
+  /* srv_btr_search_enabled stores the desired user-visible sysvar state.
+  Re-check it while holding btr_search_enabled_mutex so buffer pool resize
+  completion cannot re-enable AHI after a concurrent SET GLOBAL ... = OFF. */
+  if (!srv_btr_search_enabled) {
+    mutex_exit(&btr_search_enabled_mutex);
+    return false;
+  }
+
   btr_search_enabled = true;
-  srv_btr_search_enabled = true;
   mutex_exit(&btr_search_enabled_mutex);
+  return true;
 }
 
 btr_search_t *btr_search_info_create(mem_heap_t *heap) {
@@ -909,6 +917,18 @@ bool btr_search_guess_on_hash(const dtuple_t *tuple, ulint mode,
   if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
     ut_ad(buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
 
+    if (!has_search_latch) {
+      btr_leaf_page_release(block, latch_mode, mtr);
+    }
+
+    return false;
+  }
+
+  if (block->page.was_stale()) {
+    /* DISCARD TABLESPACE leaves stale pages in the buffer pool until lazy
+    eviction. IMPORT TABLESPACE reuses the space ID, so the AHI fast path can
+    reach such a page. Treat it as a miss and use normal B-tree traversal to
+    read the current tablespace generation. */
     if (!has_search_latch) {
       btr_leaf_page_release(block, latch_mode, mtr);
     }

@@ -53,6 +53,8 @@ let PAGE_NO=`select @page_no`;
 let FILE_NAME=`select @space_file_name`;
 let PAGE_SIZE=`select @space_page_size`;
 
+SET GLOBAL innodb_log_flush_now = ON;
+
 --source include/kill_mysqld.inc
 
 --echo # Corrupt the root page of table t1 in the user tablespace.

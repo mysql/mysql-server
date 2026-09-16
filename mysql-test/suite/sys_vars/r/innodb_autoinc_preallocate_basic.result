@@ -1,0 +1,99 @@
+SET @start_global_value = @@global.innodb_autoinc_preallocate;
+SELECT @start_global_value;
+@start_global_value
+50
+Valid values are zero or above
+select @@global.innodb_autoinc_preallocate >=0;
+@@global.innodb_autoinc_preallocate >=0
+1
+select @@session.innodb_autoinc_preallocate;
+ERROR HY000: Variable 'innodb_autoinc_preallocate' is a GLOBAL variable
+show global variables like 'innodb_autoinc_preallocate';
+Variable_name	Value
+innodb_autoinc_preallocate	50
+show session variables like 'innodb_autoinc_preallocate';
+Variable_name	Value
+innodb_autoinc_preallocate	50
+select * from performance_schema.global_variables where variable_name='innodb_autoinc_preallocate';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_autoinc_preallocate	50
+select * from performance_schema.session_variables where variable_name='innodb_autoinc_preallocate';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_autoinc_preallocate	50
+set global innodb_autoinc_preallocate=10;
+select @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+10
+select * from performance_schema.global_variables where variable_name='innodb_autoinc_preallocate';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_autoinc_preallocate	10
+select * from performance_schema.session_variables where variable_name='innodb_autoinc_preallocate';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_autoinc_preallocate	10
+set session innodb_autoinc_preallocate=1;
+ERROR HY000: Variable 'innodb_autoinc_preallocate' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_autoinc_preallocate=DEFAULT;
+select @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+50
+set global innodb_autoinc_preallocate=0;
+select @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+0
+set global innodb_autoinc_preallocate=1;
+select @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+1
+set global innodb_autoinc_preallocate=1000000000;
+select @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+1000000000
+set global innodb_autoinc_preallocate=18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'innodb_autoinc_preallocate'
+set global innodb_autoinc_preallocate=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_autoinc_preallocate'
+set global innodb_autoinc_preallocate=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_autoinc_preallocate'
+set global innodb_autoinc_preallocate="foo";
+ERROR 42000: Incorrect argument type to variable 'innodb_autoinc_preallocate'
+set global innodb_autoinc_preallocate=' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_autoinc_preallocate'
+select @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+1000000000
+set global innodb_autoinc_preallocate=" ";
+ERROR 42000: Incorrect argument type to variable 'innodb_autoinc_preallocate'
+select @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+1000000000
+set global innodb_autoinc_preallocate=-7;
+Warnings:
+Warning	1292	Truncated incorrect innodb_autoinc_preallocate value: '-7'
+select @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+0
+set global innodb_autoinc_preallocate=-1024;
+Warnings:
+Warning	1292	Truncated incorrect innodb_autoinc_preallocate value: '-1024'
+select @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+0
+select * from performance_schema.global_variables where variable_name='innodb_autoinc_preallocate';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_autoinc_preallocate	0
+SET @@global.innodb_autoinc_preallocate = 4294967296;
+SELECT @@global.innodb_autoinc_preallocate IN (4294967296,4294967295);
+@@global.innodb_autoinc_preallocate IN (4294967296,4294967295)
+1
+SET @@global.innodb_autoinc_preallocate = 12345678901;
+SELECT @@global.innodb_autoinc_preallocate IN (12345678901,4294967295);
+@@global.innodb_autoinc_preallocate IN (12345678901,4294967295)
+1
+SET @@global.innodb_autoinc_preallocate = 18446744073709551615;
+SELECT @@global.innodb_autoinc_preallocate IN (18446744073709551615,4294967295);
+@@global.innodb_autoinc_preallocate IN (18446744073709551615,4294967295)
+1
+SET @@global.innodb_autoinc_preallocate = @start_global_value;
+SELECT @@global.innodb_autoinc_preallocate;
+@@global.innodb_autoinc_preallocate
+50

@@ -151,7 +151,7 @@ int Query_Manager::run_query(const Query &query_info, Result_Set &result_set) {
       return 1;
     Row row;
     for (unsigned int j = 0; j < col_count; j++) {
-      row.emplace_back(mysql_row[j]);
+      row.emplace_back(nullptr == mysql_row[j] ? "NULL" : mysql_row[j]);
     }
     result_set.push_back(row);
   }

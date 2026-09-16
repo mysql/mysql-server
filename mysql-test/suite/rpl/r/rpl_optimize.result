@@ -20,7 +20,9 @@ INSERT INTO t1 (a) SELECT null FROM t1;
 INSERT INTO t1 (a) SELECT null FROM t1;
 update t1 set b=(a/2*rand());
 delete from t1 order by b limit 10000;
+include/rpl/sync_to_replica.inc
 optimize table t1;
+include/rpl/sync_to_replica.inc
 drop table t1;
 include/rpl/sync_to_replica.inc
 include/rpl/deinit.inc

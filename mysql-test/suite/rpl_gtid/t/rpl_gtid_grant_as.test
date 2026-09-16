@@ -63,7 +63,7 @@ ALTER USER foo DEFAULT ROLE ALL;
 CREATE USER u1, u2, u3, u4, u5, u6, u7;
 
 
-# 1.3 Various cases for GRANT ... AS ... 
+# 1.3 Various cases for GRANT ... AS ...
 GRANT INSERT, SELECT ON *.* TO u1 AS foo WITH ROLE r1, r2;
 GRANT INSERT, SELECT ON *.* TO u2 AS foo WITH ROLE ALL;
 GRANT INSERT, SELECT ON *.* TO u3 AS foo WITH ROLE ALL EXCEPT r1;
@@ -80,9 +80,9 @@ GRANT INSERT, SELECT ON *.* TO u7;
 --disconnect foo_conn
 
 
-# 1.4 Verify that both - master and slave has consistent grants
-# Sync it with slave
---sync_slave_with_master
+# 1.4 Verify that both - source and replica has consistent grants
+# Sync it with replica
+--source include/rpl/sync_to_replica.inc
 
 --let $user_number = 1
 while ($user_number <= 7) {
@@ -124,8 +124,8 @@ DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
 
-# Sync it with slave
---sync_slave_with_master
+# Sync it with replica
+--source include/rpl/sync_to_replica.inc
 
 # 1.6.1 Restore original value of partial_revokes
 --let $rpl_connection_name = master
@@ -164,7 +164,7 @@ ALTER USER foo DEFAULT ROLE ALL;
 CREATE USER u1, u2, u3, u4, u5, u6, u7;
 
 
-# 2.3 Various cases for GRANT ... AS ... 
+# 2.3 Various cases for GRANT ... AS ...
 GRANT INSERT, SELECT ON *.* TO u1 AS foo WITH ROLE r1, r2;
 GRANT INSERT, SELECT ON *.* TO u2 AS foo WITH ROLE ALL;
 GRANT INSERT, SELECT ON *.* TO u3 AS foo WITH ROLE ALL EXCEPT r1;
@@ -180,9 +180,9 @@ GRANT INSERT, SELECT ON *.* TO u7;
 --source include/connection.inc
 --disconnect foo_conn
 
-# 2.4 Verify that both - master and slave has consistent grants
-# Sync it with slave
---sync_slave_with_master
+# 2.4 Verify that both - source and replica has consistent grants
+# Sync it with replica
+--source include/rpl/sync_to_replica.inc
 
 --let $user_number = 1
 while ($user_number <= 7) {

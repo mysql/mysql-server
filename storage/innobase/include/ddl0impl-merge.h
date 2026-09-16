@@ -75,7 +75,7 @@ struct Merge_file_sort {
   explicit Merge_file_sort(Context *merge_ctx) noexcept
       : m_merge_ctx(merge_ctx) {}
 
-  /** Merge the the blocks.
+  /** Merge the blocks.
   @param[in,out] builder        Builder instance used for building index.
   @param[in,out] offsets        Offsets from where to start the merge.
   @return DB_SUCCESS or error code. */
@@ -83,6 +83,13 @@ struct Merge_file_sort {
 
   /** @return the number of rows in the sorted file. */
   [[nodiscard]] uint64_t get_n_rows() const noexcept { return m_n_rows; }
+
+  /** @return the underlying index, if available. */
+  [[nodiscard]] const dict_index_t *index() const noexcept {
+    return m_merge_ctx != nullptr && m_merge_ctx->m_dup != nullptr
+               ? m_merge_ctx->m_dup->m_index
+               : nullptr;
+  }
 
  private:
   /** Merge the rows.

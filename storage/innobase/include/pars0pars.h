@@ -419,14 +419,6 @@ void pars_info_add_ull_literal(pars_info_t *info, /*!< in: info struct */
                                const char *name,  /*!< in: name */
                                uint64_t val);     /*!< in: value */
 
-/** If the literal value already exists then it rebinds otherwise it
- creates a new entry.
-@param[in] info Info struct
-@param[in] name Name
-@param[in] val Value */
-void pars_info_bind_ull_literal(pars_info_t *info, const char *name,
-                                const uint64_t *val);
-
 /** Add bound id.
 @param[in]      info    info struct
 @param[in]      name    name

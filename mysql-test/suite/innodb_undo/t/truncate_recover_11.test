@@ -1,0 +1,11 @@
+--echo #
+--echo # WL#6965: Truncate UNDO logs during recovery.
+--echo # Crash after initializing the header of the undo tablespace during
+--echo # truncate operation
+--echo #
+
+let CRASH_ON_SHUTDOWN = 1;
+let CRASH_POINT = ib_undo_trunc_after_tablespace_header_init;
+let USE_EXPLICIT = 0;
+
+--source suite/innodb_undo/include/truncate_at_shutdown.inc

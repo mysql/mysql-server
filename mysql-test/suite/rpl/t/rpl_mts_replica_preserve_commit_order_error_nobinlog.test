@@ -11,6 +11,7 @@ CALL mtr.add_suppression("Worker .* failed executing transaction");
 CALL mtr.add_suppression("Replica worker has stopped since one or more of the
   previous worker(s) have encountered an error and replica-preserve-commit-order
   is enabled.*");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
 
 --let $debug_point= set_commit_parent_100
 --source include/add_debug_point.inc
@@ -68,9 +69,24 @@ UNLOCK TABLES;
 --let $slave_sql_errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --source include/rpl/wait_for_applier_error.inc
 
---let $assert_text='Rows have been inserted to table t_w1'
---let $assert_cond= ["SELECT COUNT(*) as count FROM t_w1", count, 1] = 5
---source include/assert.inc
+# After an error, CSA may not commit transactions
+--let $assert_text='MTA: verify rows in t_w1, CSA: verify no gaps in gtid_executed'
+if($rpl_applier_version == '')
+{
+  --let $assert_cond= ["SELECT COUNT(*) as count FROM t_w1", count, 1] = 5
+  --source include/assert.inc
+}
+if($rpl_applier_version != '')
+{
+  # Verify no gaps in GTID executed: should be a single contiguous range uuid:1-K
+  # for each UUID or simply an empty string
+  --disable_query_log
+  SELECT @@GLOBAL.gtid_executed REGEXP '^(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:1(-[0-9]+)?)(,\n[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:1(-[0-9]+)?)*)?$' INTO @regex_match;
+  --enable_query_log
+  --let $has_single_contiguous = `SELECT @regex_match`
+  --let $assert_cond = $has_single_contiguous = 1
+  --source include/assert.inc
+}
 
 --let $assert_text='No rows have been inserted to table t_w2'
 --let $assert_cond= ["SELECT COUNT(*) as count FROM t_w2", count, 1] = 1

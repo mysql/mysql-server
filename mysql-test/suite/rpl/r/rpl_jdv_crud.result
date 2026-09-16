@@ -155,4 +155,335 @@ include/rpl/sync_to_replica.inc
 # Switch back to source
 [connection master]
 ################################################
+################################################
+# WL#17054: replicate granular JSON Duality View annotations
+################################################
+# Create an isolated root/singleton schema for the WL#17054 cases.
+CREATE TABLE gct_rpl_singleton (
+id INT PRIMARY KEY,
+inherited_value INT,
+check_value INT,
+update_value INT
+);
+CREATE TABLE gct_rpl_parent (
+id INT PRIMARY KEY,
+singleton_id INT,
+inherited_value INT,
+check_value INT,
+update_value INT,
+FOREIGN KEY (singleton_id) REFERENCES gct_rpl_singleton(id)
+);
+# 1: CREATE replicates mixed root/singleton table and column annotations.
+CREATE JSON DUALITY VIEW gct_rpl_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : p.id,
+"root_value" : p.inherited_value,
+"root_check_value" : p.check_value WITH NO CHECK,
+"root_update_value" : p.update_value WITH NO UPDATE,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO UPDATE, NO CHECK)
+"id" : s.id,
+"singleton_value" : s.inherited_value,
+"singleton_check_value" : s.check_value WITH CHECK,
+"singleton_update_value" : s.update_value WITH UPDATE
+)
+FROM gct_rpl_singleton AS s
+WHERE s.id = p.singleton_id
+)
+)
+FROM gct_rpl_parent AS p;
+# Record the definition and effective annotations on the source.
+SHOW CREATE VIEW gct_rpl_view;
+View	Create View	character_set_client	collation_connection
+gct_rpl_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_rpl_view` AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`p`.`id`,'root_value':`p`.`inherited_value`,'root_check_value':`p`.`check_value` /*!261000 WITH (NO CHECK) */,'root_update_value':`p`.`update_value` /*!261000 WITH (NO UPDATE) */,'singleton':(select json_duality_object( WITH (/*!261000 NO CHECK, */ NO UPDATE) 'id':`s`.`id`,'singleton_value':`s`.`inherited_value`,'singleton_check_value':`s`.`check_value` /*!261000 WITH (CHECK) */,'singleton_update_value':`s`.`update_value` /*!261000 WITH (UPDATE) */) from `gct_rpl_singleton` `s` where (`s`.`id` = `p`.`singleton_id`))) AS `Name_exp_1` from `gct_rpl_parent` `p`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	ALLOW_UPDATE	IS_ROOT_TABLE
+gct_rpl_parent	1	1	1
+gct_rpl_singleton	0	0	0
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_CHECK	ALLOW_UPDATE
+gct_rpl_parent	check_value	root_check_value	0	1
+gct_rpl_parent	id	_id	1	0
+gct_rpl_parent	inherited_value	root_value	1	1
+gct_rpl_parent	update_value	root_update_value	1	0
+gct_rpl_singleton	check_value	singleton_check_value	1	0
+gct_rpl_singleton	id	id	0	0
+gct_rpl_singleton	inherited_value	singleton_value	0	0
+gct_rpl_singleton	update_value	singleton_update_value	0	1
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+include/rpl/sync_to_replica.inc
+# Record the replicated definition and effective annotations.
+SHOW CREATE VIEW gct_rpl_view;
+View	Create View	character_set_client	collation_connection
+gct_rpl_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_rpl_view` AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`p`.`id`,'root_value':`p`.`inherited_value`,'root_check_value':`p`.`check_value` /*!261000 WITH (NO CHECK) */,'root_update_value':`p`.`update_value` /*!261000 WITH (NO UPDATE) */,'singleton':(select json_duality_object( WITH (/*!261000 NO CHECK, */ NO UPDATE) 'id':`s`.`id`,'singleton_value':`s`.`inherited_value`,'singleton_check_value':`s`.`check_value` /*!261000 WITH (CHECK) */,'singleton_update_value':`s`.`update_value` /*!261000 WITH (UPDATE) */) from `gct_rpl_singleton` `s` where (`s`.`id` = `p`.`singleton_id`))) AS `Name_exp_1` from `gct_rpl_parent` `p`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	ALLOW_UPDATE	IS_ROOT_TABLE
+gct_rpl_parent	1	1	1
+gct_rpl_singleton	0	0	0
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_CHECK	ALLOW_UPDATE
+gct_rpl_parent	check_value	root_check_value	0	1
+gct_rpl_parent	id	_id	1	0
+gct_rpl_parent	inherited_value	root_value	1	1
+gct_rpl_parent	update_value	root_update_value	1	0
+gct_rpl_singleton	check_value	singleton_check_value	1	0
+gct_rpl_singleton	id	id	0	0
+gct_rpl_singleton	inherited_value	singleton_value	0	0
+gct_rpl_singleton	update_value	singleton_update_value	0	1
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+[connection master]
+# 2.1: ALTER adding combined column overrides replicates.
+ALTER JSON DUALITY VIEW gct_rpl_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : p.id,
+"root_value" : p.inherited_value WITH (NO UPDATE, NO CHECK),
+"root_check_value" : p.check_value WITH NO CHECK,
+"root_update_value" : p.update_value WITH NO UPDATE,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO UPDATE, NO CHECK)
+"id" : s.id,
+"singleton_value" : s.inherited_value WITH (UPDATE, CHECK),
+"singleton_check_value" : s.check_value WITH CHECK,
+"singleton_update_value" : s.update_value WITH UPDATE
+)
+FROM gct_rpl_singleton AS s
+WHERE s.id = p.singleton_id
+)
+)
+FROM gct_rpl_parent AS p;
+# Record the altered definition and effective annotations on the source.
+SHOW CREATE VIEW gct_rpl_view;
+View	Create View	character_set_client	collation_connection
+gct_rpl_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_rpl_view` AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`p`.`id`,'root_value':`p`.`inherited_value` /*!261000 WITH (NO UPDATE,NO CHECK) */,'root_check_value':`p`.`check_value` /*!261000 WITH (NO CHECK) */,'root_update_value':`p`.`update_value` /*!261000 WITH (NO UPDATE) */,'singleton':(select json_duality_object( WITH (/*!261000 NO CHECK, */ NO UPDATE) 'id':`s`.`id`,'singleton_value':`s`.`inherited_value` /*!261000 WITH (UPDATE,CHECK) */,'singleton_check_value':`s`.`check_value` /*!261000 WITH (CHECK) */,'singleton_update_value':`s`.`update_value` /*!261000 WITH (UPDATE) */) from `gct_rpl_singleton` `s` where (`s`.`id` = `p`.`singleton_id`))) AS `Name_exp_1` from `gct_rpl_parent` `p`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	ALLOW_UPDATE	IS_ROOT_TABLE
+gct_rpl_parent	1	1	1
+gct_rpl_singleton	0	0	0
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_CHECK	ALLOW_UPDATE
+gct_rpl_parent	check_value	root_check_value	0	1
+gct_rpl_parent	id	_id	1	0
+gct_rpl_parent	inherited_value	root_value	0	0
+gct_rpl_parent	update_value	root_update_value	1	0
+gct_rpl_singleton	check_value	singleton_check_value	1	0
+gct_rpl_singleton	id	id	0	0
+gct_rpl_singleton	inherited_value	singleton_value	1	1
+gct_rpl_singleton	update_value	singleton_update_value	0	1
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+include/rpl/sync_to_replica.inc
+# Record the replicated ALTER result.
+SHOW CREATE VIEW gct_rpl_view;
+View	Create View	character_set_client	collation_connection
+gct_rpl_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_rpl_view` AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`p`.`id`,'root_value':`p`.`inherited_value` /*!261000 WITH (NO UPDATE,NO CHECK) */,'root_check_value':`p`.`check_value` /*!261000 WITH (NO CHECK) */,'root_update_value':`p`.`update_value` /*!261000 WITH (NO UPDATE) */,'singleton':(select json_duality_object( WITH (/*!261000 NO CHECK, */ NO UPDATE) 'id':`s`.`id`,'singleton_value':`s`.`inherited_value` /*!261000 WITH (UPDATE,CHECK) */,'singleton_check_value':`s`.`check_value` /*!261000 WITH (CHECK) */,'singleton_update_value':`s`.`update_value` /*!261000 WITH (UPDATE) */) from `gct_rpl_singleton` `s` where (`s`.`id` = `p`.`singleton_id`))) AS `Name_exp_1` from `gct_rpl_parent` `p`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	ALLOW_UPDATE	IS_ROOT_TABLE
+gct_rpl_parent	1	1	1
+gct_rpl_singleton	0	0	0
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_CHECK	ALLOW_UPDATE
+gct_rpl_parent	check_value	root_check_value	0	1
+gct_rpl_parent	id	_id	1	0
+gct_rpl_parent	inherited_value	root_value	0	0
+gct_rpl_parent	update_value	root_update_value	1	0
+gct_rpl_singleton	check_value	singleton_check_value	1	0
+gct_rpl_singleton	id	id	0	0
+gct_rpl_singleton	inherited_value	singleton_value	1	1
+gct_rpl_singleton	update_value	singleton_update_value	0	1
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+[connection master]
+# 2.2: ALTER reversing table settings and column overrides replicates.
+ALTER JSON DUALITY VIEW gct_rpl_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO UPDATE, NO CHECK)
+"_id" : p.id,
+"root_value" : p.inherited_value WITH (UPDATE, CHECK),
+"root_check_value" : p.check_value WITH CHECK,
+"root_update_value" : p.update_value WITH UPDATE,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"id" : s.id,
+"singleton_value" : s.inherited_value WITH (NO UPDATE, NO CHECK),
+"singleton_check_value" : s.check_value WITH NO CHECK,
+"singleton_update_value" : s.update_value WITH NO UPDATE
+)
+FROM gct_rpl_singleton AS s
+WHERE s.id = p.singleton_id
+)
+)
+FROM gct_rpl_parent AS p;
+# Record the reversed definition and effective annotations on the source.
+SHOW CREATE VIEW gct_rpl_view;
+View	Create View	character_set_client	collation_connection
+gct_rpl_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_rpl_view` AS select json_duality_object( WITH (/*!261000 NO CHECK, */ NO UPDATE) '_id':`p`.`id`,'root_value':`p`.`inherited_value` /*!261000 WITH (UPDATE,CHECK) */,'root_check_value':`p`.`check_value` /*!261000 WITH (CHECK) */,'root_update_value':`p`.`update_value` /*!261000 WITH (UPDATE) */,'singleton':(select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) 'id':`s`.`id`,'singleton_value':`s`.`inherited_value` /*!261000 WITH (NO UPDATE,NO CHECK) */,'singleton_check_value':`s`.`check_value` /*!261000 WITH (NO CHECK) */,'singleton_update_value':`s`.`update_value` /*!261000 WITH (NO UPDATE) */) from `gct_rpl_singleton` `s` where (`s`.`id` = `p`.`singleton_id`))) AS `Name_exp_1` from `gct_rpl_parent` `p`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	ALLOW_UPDATE	IS_ROOT_TABLE
+gct_rpl_parent	0	0	1
+gct_rpl_singleton	1	1	0
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_CHECK	ALLOW_UPDATE
+gct_rpl_parent	check_value	root_check_value	1	0
+gct_rpl_parent	id	_id	0	0
+gct_rpl_parent	inherited_value	root_value	1	1
+gct_rpl_parent	update_value	root_update_value	0	1
+gct_rpl_singleton	check_value	singleton_check_value	0	1
+gct_rpl_singleton	id	id	1	0
+gct_rpl_singleton	inherited_value	singleton_value	0	0
+gct_rpl_singleton	update_value	singleton_update_value	1	0
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+include/rpl/sync_to_replica.inc
+# Record the replicated reverse ALTER result.
+SHOW CREATE VIEW gct_rpl_view;
+View	Create View	character_set_client	collation_connection
+gct_rpl_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_rpl_view` AS select json_duality_object( WITH (/*!261000 NO CHECK, */ NO UPDATE) '_id':`p`.`id`,'root_value':`p`.`inherited_value` /*!261000 WITH (UPDATE,CHECK) */,'root_check_value':`p`.`check_value` /*!261000 WITH (CHECK) */,'root_update_value':`p`.`update_value` /*!261000 WITH (UPDATE) */,'singleton':(select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) 'id':`s`.`id`,'singleton_value':`s`.`inherited_value` /*!261000 WITH (NO UPDATE,NO CHECK) */,'singleton_check_value':`s`.`check_value` /*!261000 WITH (NO CHECK) */,'singleton_update_value':`s`.`update_value` /*!261000 WITH (NO UPDATE) */) from `gct_rpl_singleton` `s` where (`s`.`id` = `p`.`singleton_id`))) AS `Name_exp_1` from `gct_rpl_parent` `p`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	ALLOW_UPDATE	IS_ROOT_TABLE
+gct_rpl_parent	0	0	1
+gct_rpl_singleton	1	1	0
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_CHECK	ALLOW_UPDATE
+gct_rpl_parent	check_value	root_check_value	1	0
+gct_rpl_parent	id	_id	0	0
+gct_rpl_parent	inherited_value	root_value	1	1
+gct_rpl_parent	update_value	root_update_value	0	1
+gct_rpl_singleton	check_value	singleton_check_value	0	1
+gct_rpl_singleton	id	id	1	0
+gct_rpl_singleton	inherited_value	singleton_value	0	0
+gct_rpl_singleton	update_value	singleton_update_value	1	0
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+[connection master]
+# 2.3: ALTER removing explicit annotations replicates default inheritance.
+ALTER JSON DUALITY VIEW gct_rpl_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : p.id,
+"root_value" : p.inherited_value,
+"root_check_value" : p.check_value,
+"root_update_value" : p.update_value,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+"id" : s.id,
+"singleton_value" : s.inherited_value,
+"singleton_check_value" : s.check_value,
+"singleton_update_value" : s.update_value
+)
+FROM gct_rpl_singleton AS s
+WHERE s.id = p.singleton_id
+)
+)
+FROM gct_rpl_parent AS p;
+# Record the defaulted definition and effective annotations on the source.
+SHOW CREATE VIEW gct_rpl_view;
+View	Create View	character_set_client	collation_connection
+gct_rpl_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_rpl_view` AS select json_duality_object('_id':`p`.`id`,'root_value':`p`.`inherited_value`,'root_check_value':`p`.`check_value`,'root_update_value':`p`.`update_value`,'singleton':(select json_duality_object('id':`s`.`id`,'singleton_value':`s`.`inherited_value`,'singleton_check_value':`s`.`check_value`,'singleton_update_value':`s`.`update_value`) from `gct_rpl_singleton` `s` where (`s`.`id` = `p`.`singleton_id`))) AS `Name_exp_1` from `gct_rpl_parent` `p`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	ALLOW_UPDATE	IS_ROOT_TABLE
+gct_rpl_parent	1	0	1
+gct_rpl_singleton	1	0	0
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_CHECK	ALLOW_UPDATE
+gct_rpl_parent	check_value	root_check_value	1	0
+gct_rpl_parent	id	_id	1	0
+gct_rpl_parent	inherited_value	root_value	1	0
+gct_rpl_parent	update_value	root_update_value	1	0
+gct_rpl_singleton	check_value	singleton_check_value	1	0
+gct_rpl_singleton	id	id	1	0
+gct_rpl_singleton	inherited_value	singleton_value	1	0
+gct_rpl_singleton	update_value	singleton_update_value	1	0
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+include/rpl/sync_to_replica.inc
+# Record the replicated annotation removal and default inheritance.
+SHOW CREATE VIEW gct_rpl_view;
+View	Create View	character_set_client	collation_connection
+gct_rpl_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_rpl_view` AS select json_duality_object('_id':`p`.`id`,'root_value':`p`.`inherited_value`,'root_check_value':`p`.`check_value`,'root_update_value':`p`.`update_value`,'singleton':(select json_duality_object('id':`s`.`id`,'singleton_value':`s`.`inherited_value`,'singleton_check_value':`s`.`check_value`,'singleton_update_value':`s`.`update_value`) from `gct_rpl_singleton` `s` where (`s`.`id` = `p`.`singleton_id`))) AS `Name_exp_1` from `gct_rpl_parent` `p`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, ALLOW_UPDATE, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	ALLOW_UPDATE	IS_ROOT_TABLE
+gct_rpl_parent	1	0	1
+gct_rpl_singleton	1	0	0
+SELECT REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME, JSON_KEY_NAME,
+ALLOW_CHECK, ALLOW_UPDATE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_rpl_view'
+ORDER BY REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME;
+REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_CHECK	ALLOW_UPDATE
+gct_rpl_parent	check_value	root_check_value	1	0
+gct_rpl_parent	id	_id	1	0
+gct_rpl_parent	inherited_value	root_value	1	0
+gct_rpl_parent	update_value	root_update_value	1	0
+gct_rpl_singleton	check_value	singleton_check_value	1	0
+gct_rpl_singleton	id	id	1	0
+gct_rpl_singleton	inherited_value	singleton_value	1	0
+gct_rpl_singleton	update_value	singleton_update_value	1	0
+include/rpl/disable_binlog.inc
+include/rpl/restore_binlog.inc
+[connection master]
+# Clean up the WL#17054 replication objects.
+DROP VIEW gct_rpl_view;
+DROP TABLE gct_rpl_parent;
+DROP TABLE gct_rpl_singleton;
+include/rpl/sync_to_replica.inc
+# The replicated cleanup removes all JDV metadata.
+[connection master]
 include/rpl/deinit.inc

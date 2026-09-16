@@ -711,3 +711,60 @@ SELECT substr(hex(statement_digest_text(CONVERT(@v USING latin1))), -6, 4);
 SHOW variables LIKE 'character_set_client';
 
 SET NAMES DEFAULT;
+
+--echo
+--echo #
+--echo # Bug#36997723: STATEMENT_DIGEST() adds trailing semicolon to digest
+--echo #
+
+--let $stmt1 = SELECT statement_digest('select 1;')
+--let $stmt2 = SELECT statement_digest('select 1')
+--let $digest1 = `$stmt1`
+--let $digest2 = `$stmt2`
+
+--echo $stmt1
+--echo $digest1
+--echo
+--echo $stmt2
+--echo $digest2
+--echo
+--let $assert_text = statement_digest() ignores trailing semicolon
+--let $assert_cond = "$digest1" = "$digest2"
+--source include/assert.inc
+
+--let $stmt3 = SELECT statement_digest_text('select 1;')
+--let $text3 = `$stmt3`
+
+--echo
+--echo $stmt3
+--echo $text3
+--echo
+--let $assert_text = statement_digest_text() normalizes to SELECT ?
+--let $assert_cond = "$text3" = "SELECT ?"
+--source include/assert.inc
+
+--let $stmt4 = SELECT statement_digest_text('select 1')
+--let $text4 = `$stmt4`
+--echo
+--echo $stmt4
+--echo $text4
+--echo
+--let $assert_text = statement_digest_text() unaffected by semicolon
+--let $assert_cond = "$text4" = "SELECT ?"
+--source include/assert.inc
+
+
+--echo #
+--echo # Bug#33073320: DIGEST USER FUNCTIONS POLLUTE CURRENT THD
+--echo #
+
+SELECT statement_digest_text(
+"UPDATE `t0009` SET `c0002` = json_merge_patch("
+"conv(8955667655109960103, "
+"  COUNT(aes_encrypt(0x14dc2daf, from_unixtime(1536999166))) "
+"  OVER(), "
+"  st_hausdorffdistance("
+"    LINESTRING(POINT(17, 125), POINT(253,35)), "
+"    asin(`c0002`))), "
+"CHARSET(1), ROW_COUNT()) "
+"WHERE `c0003` XOR from_unixtime(1536999166) LIMIT 10");

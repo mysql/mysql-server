@@ -1,0 +1,141 @@
+# Online rebuild with ROW_FORMAT=REDUNDANT
+CREATE TABLE t1 (
+id INT NOT NULL,
+c1 VARCHAR(32),
+c2 VARCHAR(86)
+) ENGINE=InnoDB ROW_FORMAT=REDUNDANT
+DEFAULT CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES
+(1, 'old', REPEAT('a', 86)),
+(2, 'delete', REPEAT('b', 86));
+SELECT TABLE_ID INTO @old_table_id
+FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME = 'test/t1';
+SET DEBUG_SYNC =
+'alter_table_inplace_after_lock_downgrade
+   SIGNAL modify_REDUNDANT WAIT_FOR continue_REDUNDANT';
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4,
+ADD PRIMARY KEY (id), ALGORITHM = INPLACE, LOCK = NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR modify_REDUNDANT';
+UPDATE t1
+SET c1 = 'updated', c2 = REPEAT('c', 86)
+WHERE id = 1;
+DELETE FROM t1 WHERE id = 2;
+INSERT INTO t1 VALUES (3, 'inserted', REPEAT('d', 86));
+SET DEBUG_SYNC = 'now SIGNAL continue_REDUNDANT';
+SET DEBUG_SYNC = 'RESET';
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT id, c1, CHAR_LENGTH(c2), LEFT(c2, 1)
+FROM t1 ORDER BY id;
+id	c1	CHAR_LENGTH(c2)	LEFT(c2, 1)
+1	updated	86	c
+3	inserted	86	d
+SELECT @old_table_id <> TABLE_ID AS table_was_rebuilt
+FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME = 'test/t1';
+table_was_rebuilt
+1
+SELECT ROW_FORMAT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+ROW_FORMAT
+Redundant
+DROP TABLE t1;
+# Online rebuild with ROW_FORMAT=COMPACT
+CREATE TABLE t1 (
+id INT NOT NULL,
+c1 VARCHAR(32),
+c2 VARCHAR(86)
+) ENGINE=InnoDB ROW_FORMAT=COMPACT
+DEFAULT CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES
+(1, 'old', REPEAT('a', 86)),
+(2, 'delete', REPEAT('b', 86));
+SELECT TABLE_ID INTO @old_table_id
+FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME = 'test/t1';
+SET DEBUG_SYNC =
+'alter_table_inplace_after_lock_downgrade
+   SIGNAL modify_COMPACT WAIT_FOR continue_COMPACT';
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4,
+ADD PRIMARY KEY (id), ALGORITHM = INPLACE, LOCK = NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR modify_COMPACT';
+UPDATE t1
+SET c1 = 'updated', c2 = REPEAT('c', 86)
+WHERE id = 1;
+DELETE FROM t1 WHERE id = 2;
+INSERT INTO t1 VALUES (3, 'inserted', REPEAT('d', 86));
+SET DEBUG_SYNC = 'now SIGNAL continue_COMPACT';
+SET DEBUG_SYNC = 'RESET';
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT id, c1, CHAR_LENGTH(c2), LEFT(c2, 1)
+FROM t1 ORDER BY id;
+id	c1	CHAR_LENGTH(c2)	LEFT(c2, 1)
+1	updated	86	c
+3	inserted	86	d
+SELECT @old_table_id <> TABLE_ID AS table_was_rebuilt
+FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME = 'test/t1';
+table_was_rebuilt
+1
+SELECT ROW_FORMAT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+ROW_FORMAT
+Compact
+DROP TABLE t1;
+# Online rebuild with ROW_FORMAT=DYNAMIC
+CREATE TABLE t1 (
+id INT NOT NULL,
+c1 VARCHAR(32),
+c2 VARCHAR(86)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC
+DEFAULT CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES
+(1, 'old', REPEAT('a', 86)),
+(2, 'delete', REPEAT('b', 86));
+SELECT TABLE_ID INTO @old_table_id
+FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME = 'test/t1';
+SET DEBUG_SYNC =
+'alter_table_inplace_after_lock_downgrade
+   SIGNAL modify_DYNAMIC WAIT_FOR continue_DYNAMIC';
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4,
+ADD PRIMARY KEY (id), ALGORITHM = INPLACE, LOCK = NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR modify_DYNAMIC';
+UPDATE t1
+SET c1 = 'updated', c2 = REPEAT('c', 86)
+WHERE id = 1;
+DELETE FROM t1 WHERE id = 2;
+INSERT INTO t1 VALUES (3, 'inserted', REPEAT('d', 86));
+SET DEBUG_SYNC = 'now SIGNAL continue_DYNAMIC';
+SET DEBUG_SYNC = 'RESET';
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT id, c1, CHAR_LENGTH(c2), LEFT(c2, 1)
+FROM t1 ORDER BY id;
+id	c1	CHAR_LENGTH(c2)	LEFT(c2, 1)
+1	updated	86	c
+3	inserted	86	d
+SELECT @old_table_id <> TABLE_ID AS table_was_rebuilt
+FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME = 'test/t1';
+table_was_rebuilt
+1
+SELECT ROW_FORMAT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+ROW_FORMAT
+Dynamic
+DROP TABLE t1;

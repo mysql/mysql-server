@@ -32,10 +32,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "arch0log.h"
 #include "clone0clone.h"
+#include "fil0pages_persistence_interface.h"
 #include "log0buf.h"
 #include "log0chkp.h"
 #include "log0encryption.h"
 #include "log0files_governor.h"
+#include "log0handler_interface.h"
+#include "log0helpers.h"
 #include "log0write.h"
 #include "srv0start.h"
 #include "ut0mutex.h"
@@ -237,7 +240,9 @@ void Arch_Log_Sys::update_header(byte *header, lsn_t file_start_lsn,
     return;
   }
   byte *dest = header + LOG_ENCRYPTION;
-  log_file_header_fill_encryption(log_sys->m_encryption_metadata, false, dest);
+  [[maybe_unused]] const bool ret = log_file_header_fill_encryption(
+      log_sys->m_encryption_metadata, false, dest);
+  ut_ad(ret);
 }
 
 /** Start redo log archiving.
@@ -254,7 +259,8 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
 
   memset(header, 0, LOG_FILE_HDR_SIZE);
 
-  log_request_checkpoint(*log_sys, true);
+  ut_a(log_checkpointing != nullptr);
+  log_checkpointing->request_fuzzy_checkpoint(true);
 
   arch_mutex_enter();
 
@@ -302,10 +308,10 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
   }
 
   /* Start archiving from checkpoint LSN. */
-  log_writer_mutex_enter(*log_sys); /* protects log_sys->last_checkpoint_lsn */
+  log_writer_mutex_enter(*log_sys); /* protects checkpoint lsn */
   log_files_mutex_enter(*log_sys);  /* protects log_sys->m_files */
 
-  start_lsn = log_sys->last_checkpoint_lsn.load();
+  start_lsn = pages_persistence->get_checkpoint_lsn();
 
   const auto file = log_sys->m_files.find(start_lsn);
 
@@ -400,12 +406,15 @@ void Arch_Group::adjust_end_lsn(lsn_t &stop_lsn, uint32_t &blk_len) {
 
   stop_lsn += get_file_size() - LOG_FILE_HDR_SIZE;
   blk_len = 0;
+  ut_a(ib::redo::handler->get_capabilities().supports_clone);
 
   /* Increase Stop LSN 64 bytes ahead of file end not exceeding
   redo block size. */
   DBUG_EXECUTE_IF(
       "clone_arch_log_extra_bytes", blk_len = OS_FILE_LOG_BLOCK_SIZE;
-      stop_lsn += 64; stop_lsn = std::min(stop_lsn, log_get_lsn(*log_sys)););
+      stop_lsn += 64;
+      stop_lsn =
+          std::min(stop_lsn, ib::redo::handler->peek_first_unassigned_lsn()););
 }
 
 void Arch_Group::adjust_copy_length(lsn_t arch_lsn, uint32_t &copy_len) {
@@ -806,7 +815,12 @@ int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
 
             /* Write system redo log if needed. */
             if (flush) {
-              log_write_up_to(*log_sys, target_lsn, false);
+              ut_a(ib::redo::handler->get_capabilities().supports_clone);
+              ib::redo::must_succeed(
+                  ib::redo::handler->persist_smaller_than(
+                      target_lsn,
+                      ib::redo::Handler_interface::Durability::OUTLIVE_PROCESS),
+                  UT_LOCATION_HERE);
             }
             /* Print messages every 1 minute - default is 5 seconds. */
             if (alert && ++alert_count == 12) {
@@ -923,24 +937,27 @@ bool Arch_Log_Sys::archive(bool init, Arch_File_Ctx *curr_ctx, lsn_t *arch_lsn,
 
 void Arch_Log_Sys::update_state(Arch_State state) {
   log_t &log = *log_sys;
+  ut_ad(mutex_own(&m_mutex));
   IB_mutex_guard writer_latch{&(log.writer_mutex), UT_LOCATION_HERE};
-  IB_mutex_guard files_latch{&(log.m_files_mutex), UT_LOCATION_HERE};
   update_state_low(state);
 }
 
 void Arch_Log_Sys::update_state_low(Arch_State state) {
   log_t &log = *log_sys;
+  ut_ad(mutex_own(&m_mutex));
   ut_ad(log_writer_mutex_own(log));
-  ut_ad(log_files_mutex_own(log));
+  IB_mutex_guard limits_latch{&log_checkpointing->limits_mutex,
+                              UT_LOCATION_HERE};
 
   const bool was_active = is_active();
   m_state = state;
-  const bool is_active_now = is_active();
-
-  if (was_active && !is_active_now) {
+  if (is_active() == was_active) {
+    return;
+  }
+  if (was_active) {
     // De-register - transiting to active state
     log_consumer_unregister(log, &m_log_consumer);
-  } else if (!was_active && is_active_now) {
+  } else {
     // Register - transitioning inactive state
     log_consumer_register(log, &m_log_consumer);
   }
@@ -949,6 +966,12 @@ void Arch_Log_Sys::update_state_low(Arch_State state) {
 void Arch_Log_Sys::async_abort_if_below(lsn_t requested_lsn) {
   m_abort_if_below_lsn.store(requested_lsn);
   os_event_set(log_archiver_thread_event);
+}
+
+bool Arch_Log_Sys::is_active() const {
+  ut_ad(log_writer_mutex_own(*log_sys) || log_limits_mutex_own() ||
+        mutex_own(&m_mutex));
+  return (m_state == ARCH_STATE_ACTIVE || m_state == ARCH_STATE_PREPARE_IDLE);
 }
 
 const std::string &Arch_log_consumer::get_name() const {
@@ -970,10 +993,9 @@ void Arch_log_consumer::consumption_requested(lsn_t request_lsn) {
   /* The logic below accesses m_last_rushed_at and m_problem_started_at to
   make comparison and arithmetic which assumes nobody else is modifying them
   concurrently, so we need to protect it with some mutex. Thankfully,
-  the contract of consumption_requested() requires following both mutexes to be
-  held by the caller, and any single one of them would be sufficient here. */
-  ut_ad(log_files_mutex_own(*log_sys));
-  ut_ad(log_limits_mutex_own(*log_sys));
+  the contract of consumption_requested() requires the caller to hold
+  log.limits_mutex. */
+  ut_ad(log_limits_mutex_own());
   arch_wake_threads();
 
   /* If we are lagging behind, the consumption_requested() will be called with a

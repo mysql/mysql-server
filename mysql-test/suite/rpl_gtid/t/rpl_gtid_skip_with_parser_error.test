@@ -105,4 +105,5 @@ SET GTID_NEXT=AUTOMATIC;
 --source include/rpl/start_applier.inc
 --source include/rpl/sync_with_recieved.inc
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
 --source include/rpl/deinit.inc

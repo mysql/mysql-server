@@ -28,9 +28,11 @@
 #include <vector>
 
 #include "sql/dd/dd.h"
+#include "sql/dd/impl/types/column_impl.h"
 #include "sql/dd/impl/types/table_impl.h"
 #include "sql/dd/properties.h"
 #include "sql/dd/types/column.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace dd_columns_unittest {
 
@@ -110,6 +112,29 @@ TEST_F(ColumnsTest, Collection) {
   EXPECT_EQ(c3, columns()[2]);
   EXPECT_EQ(c4, columns()[3]);
   EXPECT_EQ(c5, columns()[4]);
+}
+
+//
+// Bug#Bug#36357937: Contribution: fix typo change ENUM to SET
+//
+TEST_F(ColumnsTest, ValidateEnum) {
+  dd::Column *c1 = add_column();
+  c1->set_name("col1");
+  c1->set_collation_id(42);
+  c1->set_type(dd::enum_column_types::ENUM);
+  my_testing::Server_initializer::set_expected_error(ER_INVALID_DD_OBJECT);
+  EXPECT_TRUE(dynamic_cast<dd::Column_impl *>(c1)->validate());
+  my_testing::Server_initializer::set_expected_error(0);
+}
+
+TEST_F(ColumnsTest, ValidateSet) {
+  dd::Column *c1 = add_column();
+  c1->set_name("col1");
+  c1->set_collation_id(42);
+  c1->set_type(dd::enum_column_types::SET);
+  my_testing::Server_initializer::set_expected_error(ER_INVALID_DD_OBJECT);
+  EXPECT_TRUE(dynamic_cast<dd::Column_impl *>(c1)->validate());
+  my_testing::Server_initializer::set_expected_error(0);
 }
 
 }  // namespace dd_columns_unittest

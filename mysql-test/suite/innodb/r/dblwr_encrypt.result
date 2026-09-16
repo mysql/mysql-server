@@ -33,7 +33,7 @@ INSERT INTO t1 VALUES(4, repeat('.',12));
 SET SESSION innodb_interpreter = CONCAT('dblwr_force_crash ', @space_id, ' 0');
 SET SESSION innodb_interpreter = CONCAT('make_page_dirty ', @space_id, ' 0');
 ERROR HY000: Lost connection to MySQL server during query
-Pattern "\[Note\] .* Restoring page \[page id: space=\d+, page number=0\] of datafile .* from the doublewrite buffer. Writing .*" found
+Pattern "\[Note\] .* Recovered page \[page id: space=\d+, page number=0\] from the doublewrite buffer.*" found
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK

@@ -1,0 +1,4 @@
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [The thread_pool_dedicated_listeners option can only be set to ON if thread_pool_max_transaction_limit > 0 found]
+# Restart mysqld server with valid options.
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension> --thread_pool_dedicated_listeners=ON --thread_pool_max_transactions_limit=16

@@ -34,57 +34,83 @@
 
 namespace xpl {
 
-struct Ssl_context::Config {
-  class Value {
-   public:
-    Value(const char *value)  // NOLINT(runtime/explicit)
-        : m_value(value ? value : "") {}
-    operator const char *() const {
-      return m_value.empty() ? nullptr : m_value.c_str();
+static bool adjust_tls_flags_for_pqc(long *ssl_ctx_flags [[maybe_unused]],
+                                     bool tls_force_pqc,
+                                     enum_ssl_init_error *error) {
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (tls_force_pqc) {
+    if (*ssl_ctx_flags & SSL_OP_NO_TLSv1_3) {
+      *error = SSL_INITERR_PQC_UNSUPPORTED;
+      return true;
     }
 
-   private:
-    std::string m_value;
-  };
-  Value tls_version;
-  Value ssl_key;
-  Value ssl_ca;
-  Value ssl_capath;
-  Value ssl_cert;
-  Value ssl_cipher;
-  Value ssl_crl;
-  Value ssl_crlpath;
-};
+    *ssl_ctx_flags |= SSL_OP_NO_TLSv1_2;
+  }
+#else
+  if (tls_force_pqc) {
+    *error = SSL_INITERR_PQC_UNSUPPORTED;
+    return true;
+  }
+#endif
+
+  return false;
+}
+
+static void warn_tls_channel_without_force_pqc(bool force_pqc
+                                               [[maybe_unused]]) {
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (!force_pqc) log_warning(ER_WARN_TLS_SESSION_WITHOUT_PQC, "mysqlx");
+#endif
+}
+
+static const char *null_when_empty(const std::string &value) {
+  return value.empty() ? nullptr : value.c_str();
+}
 
 Ssl_context::Ssl_context()
     : m_ssl_acceptor(nullptr), m_options(new Ssl_context_options()) {}
 
-bool Ssl_context::setup(const char *tls_version, const char *ssl_key,
-                        const char *ssl_ca, const char *ssl_capath,
-                        const char *ssl_cert, const char *ssl_cipher,
-                        const char *ssl_crl, const char *ssl_crlpath) {
-  m_config = std::make_unique<Config>(Config{tls_version, ssl_key, ssl_ca,
-                                             ssl_capath, ssl_cert, ssl_cipher,
-                                             ssl_crl, ssl_crlpath});
-  return setup(*m_config);
+bool Ssl_context::setup(const iface::Ssl_context_config &config) {
+  auto new_config = std::make_unique<iface::Ssl_context_config>(config);
+
+  if (!setup(*new_config, true)) return false;
+
+  m_config = std::move(new_config);
+  return true;
 }
 
-bool Ssl_context::setup(const Config &config) {
+bool Ssl_context::setup(const iface::Ssl_context_config &config,
+                        bool warn_without_force_pqc) {
   enum_ssl_init_error error = SSL_INITERR_NOERROR;
 
-  int64_t ssl_ctx_flags = process_tls_version(config.tls_version);
+  long ssl_ctx_flags = process_tls_version(null_when_empty(config.tls_version));
+  const auto tls_force_pqc = config.tls_force_pqc;
+  const auto tls_use_pqc_sign = config.tls_use_pqc_sign;
+  const char *tls_kex = null_when_empty(config.tls_kex);
 
-  m_ssl_acceptor = new_VioSSLAcceptorFd(
-      config.ssl_key, config.ssl_cert, config.ssl_ca, config.ssl_capath,
-      config.ssl_cipher, nullptr, &error, config.ssl_crl, config.ssl_crlpath,
-      ssl_ctx_flags);
-
-  if (nullptr == m_ssl_acceptor) {
+  if (adjust_tls_flags_for_pqc(&ssl_ctx_flags, tls_force_pqc, &error)) {
     log_warning(ER_XPLUGIN_FAILED_AT_SSL_CONF, sslGetErrString(error));
     return false;
   }
 
-  m_options = std::make_unique<Ssl_context_options>(m_ssl_acceptor);
+  auto *new_ssl_acceptor = new_VioSSLAcceptorFd(
+      null_when_empty(config.ssl_key), null_when_empty(config.ssl_cert),
+      null_when_empty(config.ssl_ca), null_when_empty(config.ssl_capath),
+      null_when_empty(config.ssl_cipher), nullptr, &error,
+      null_when_empty(config.ssl_crl), null_when_empty(config.ssl_crlpath),
+      ssl_ctx_flags, tls_force_pqc, tls_use_pqc_sign, tls_kex);
+
+  if (nullptr == new_ssl_acceptor) {
+    log_warning(ER_XPLUGIN_FAILED_AT_SSL_CONF, sslGetErrString(error));
+    return false;
+  }
+
+  auto new_options = std::make_unique<Ssl_context_options>(
+      new_ssl_acceptor, config.tls_kex, tls_force_pqc, tls_use_pqc_sign);
+  if (m_ssl_acceptor) free_vio_ssl_acceptor_fd(m_ssl_acceptor);
+  m_ssl_acceptor = new_ssl_acceptor;
+  m_options = std::move(new_options);
+  if (warn_without_force_pqc) warn_tls_channel_without_force_pqc(tls_force_pqc);
 
   return true;
 }
@@ -108,10 +134,9 @@ bool Ssl_context::activate_tls(iface::Vio *conn,
   return true;
 }
 
-void Ssl_context::reset() {
-  if (!m_config || !m_ssl_acceptor) return;
-  free_vio_ssl_acceptor_fd(m_ssl_acceptor);
-  setup(*m_config);
+bool Ssl_context::reset() {
+  if (!m_config) return true;
+  return setup(*m_config, false);
 }
 
 }  // namespace xpl

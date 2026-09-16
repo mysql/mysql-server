@@ -2321,6 +2321,7 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
 static bool strnstr(const char *str, size_t length, const char *substr) {
   size_t substr_len = strlen(substr);
   if (substr_len == 0) return true;
+  if (length < substr_len) return false;
 
   for (const char *p = str; p <= str + length - substr_len; p++)
     if (strncmp(p, substr, substr_len) == 0) return true;
@@ -2358,7 +2359,7 @@ static size_t find_dollar_quote(const st_sp_chistics *chistics,
   do {
     ha_checksum chk =
         my_checksum(i++, reinterpret_cast<const unsigned char *>(sp_body),
-                    std::max((int)sp_body_len, 20));
+                    std::min<size_t>(sp_body_len, 20));
     snprintf(quote, max_quote_len, "$%u$", chk);
   } while (strnstr(sp_body, sp_body_len, quote));
   return strlen(quote);

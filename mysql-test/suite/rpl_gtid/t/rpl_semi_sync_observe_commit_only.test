@@ -81,6 +81,11 @@ CREATE TABLE t (a int);
 
 --echo # 4. Sanity check - check whether semi-sync replication was correctly restarted
 
+# Wait, IO may be in "Connecting" state
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= Yes
+--source include/rpl/wait_for_replica_status.inc
+
 --source include/rpl/assert_replica_running.inc
 --source include/rpl/assert_replica_no_error.inc
 --let $assert_text= Semi sync should be enabled on the replica

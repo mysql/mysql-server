@@ -75,14 +75,7 @@ void arch_remove_file(const char *file_path, const char *file_name) {
   snprintf(path, sizeof(path), "%s%c%s", file_path, OS_PATH_SEPARATOR,
            file_name);
 
-#ifdef UNIV_DEBUG
-  os_file_type_t type;
-  bool exists;
-
-  os_file_status(path, &exists, &type);
-  ut_ad(exists);
-  ut_ad(type == OS_FILE_TYPE_FILE);
-#endif /* UNIV_DEBUG */
+  ut_ad(os_file_type(path) == OS_FILE_TYPE_FILE);
 
   os_file_delete(innodb_arch_file_key, path);
 }
@@ -101,14 +94,7 @@ void arch_remove_dir(const char *dir_path, const char *dir_name) {
 
   snprintf(path, sizeof(path), "%s%c%s", dir_path, OS_PATH_SEPARATOR, dir_name);
 
-#ifdef UNIV_DEBUG
-  os_file_type_t type;
-  bool exists;
-
-  os_file_status(path, &exists, &type);
-  ut_ad(exists);
-  ut_ad(type == OS_FILE_TYPE_DIR);
-#endif /* UNIV_DEBUG */
+  ut_ad(os_file_type(path) == OS_FILE_TYPE_DIR);
 
   os_file_scan_directory(path, arch_remove_file, true);
 }
@@ -282,13 +268,9 @@ bool Arch_File_Ctx::delete_file(uint file_index, lsn_t begin_lsn) {
 
   build_name(file_index, begin_lsn, file_name, MAX_ARCH_PAGE_FILE_NAME_LEN);
 
-  os_file_type_t type;
-  bool exists;
-
-  success = os_file_status(file_name, &exists, &type);
-
-  if (!success || !exists) {
-    return (false);
+  const auto type = os_file_type(file_name);
+  if (!os_file_exists(type)) {
+    return false;
   }
 
   ut_ad(type == OS_FILE_TYPE_FILE);
@@ -299,14 +281,11 @@ bool Arch_File_Ctx::delete_file(uint file_index, lsn_t begin_lsn) {
 }
 
 void Arch_File_Ctx::delete_files(lsn_t begin_lsn) {
-  bool exists;
-  os_file_type_t type;
   char dir_name[MAX_ARCH_DIR_NAME_LEN];
 
   build_dir_name(begin_lsn, dir_name, MAX_ARCH_DIR_NAME_LEN);
-  os_file_status(dir_name, &exists, &type);
-
-  if (exists) {
+  const auto type = os_file_type(dir_name);
+  if (os_file_exists(type)) {
     ut_ad(type == OS_FILE_TYPE_DIR);
     os_file_scan_directory(dir_name, arch_remove_file, true);
   }
@@ -375,27 +354,25 @@ dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
 
   build_name(m_index, start_lsn, nullptr, 0);
 
-  bool exists;
-  os_file_type_t type;
+  const auto type = os_file_type(m_name_buf);
+  bool exists = os_file_exists(type);
 
-  bool success = os_file_status(m_name_buf, &exists, &type);
-
-  if (!success) {
-    return (DB_CANNOT_OPEN_FILE);
+  if (!os_file_status_is_conclusive(type)) {
+    return DB_CANNOT_OPEN_FILE;
   }
 
   os_file_create_t option;
 
   if (read_only) {
     if (!exists) {
-      return (DB_CANNOT_OPEN_FILE);
+      return DB_CANNOT_OPEN_FILE;
     }
-
     option = OS_FILE_OPEN;
   } else {
     option = exists ? OS_FILE_OPEN : OS_FILE_CREATE_PATH;
   }
 
+  bool success;
   m_file = os_file_create(innodb_arch_file_key, m_name_buf, option,
                           OS_CLONE_LOG_FILE, read_only, &success);
 
@@ -408,10 +385,14 @@ dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
   length to be written. */
   if (!exists && file_offset != 0 && !read_only) {
     /* This call would extend the length by multiple of UNIV_PAGE_SIZE. This is
-    not an issue but we need to lseek to keep the current position at offset. */
-    success = os_file_set_size(m_name_buf, m_file, 0, file_offset, false);
+    not an issue but we need to lseek to keep the current position at offset.
+    The file is opened in buffered mode because of usage of OS_CLONE_LOG_FILE in
+    `os_create_file`, so offset and length does not need to meet any alignment
+    restrictions. */
+    const auto err = os_file_fill_range_with_zeros(
+        m_name_buf, m_file, 0, file_offset, false, tbsp_extend_and_initialize);
 
-    exists = success;
+    exists = err == DB_SUCCESS;
   }
 
   if (success) {
@@ -457,9 +438,7 @@ dberr_t Arch_File_Ctx::read(byte *to_buffer, uint64_t offset, uint size) {
   ut_ad(offset + size <= m_size);
   ut_ad(!is_closed());
 
-  IORequest request(IORequest::READ);
-  request.disable_compression();
-  request.clear_encrypted();
+  IORequest request(IORequest::Type::READ | IORequest::Type::NO_COMPRESSION);
 
   auto err =
       os_file_read(request, m_path_name, m_file, to_buffer, offset, size);
@@ -506,10 +485,7 @@ dberr_t Arch_File_Ctx::write(Arch_File_Ctx *from_file, byte *from_buffer,
 
   } else {
     /* write from buffer */
-    IORequest request(IORequest::WRITE);
-    request.disable_compression();
-    request.clear_encrypted();
-
+    IORequest request(IORequest::Type::WRITE | IORequest::Type::NO_COMPRESSION);
     err = os_file_write(request, "Track file", m_file, from_buffer, m_offset,
                         size);
   }

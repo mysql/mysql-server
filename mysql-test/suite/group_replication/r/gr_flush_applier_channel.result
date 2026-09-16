@@ -7,8 +7,10 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 #
-# There are two relay logs of Group Replication applier
+# MTA: There are two relay logs of Group Replication applier
 # channel before the attempt to flush it.
+# CSA: There is a guarantee that the last relay log file exists. The
+# previous one are immediately purged after events are read.
 #
 #
 # Try flush applier channel with Group Replication working.

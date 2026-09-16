@@ -1,0 +1,157 @@
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+#include <cassert>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "opentelemetry/nostd/function_ref.h"
+#include "opentelemetry/nostd/string_view.h"
+#include "opentelemetry/sdk/common/global_log_handler.h"
+#include "opentelemetry/sdk/instrumentationscope/instrumentation_scope.h"
+#include "opentelemetry/sdk/metrics/aggregation/aggregation_config.h"
+#include "opentelemetry/sdk/metrics/aggregation/default_aggregation.h"
+#include "opentelemetry/sdk/metrics/instruments.h"
+#include "opentelemetry/sdk/metrics/view/instrument_selector.h"
+#include "opentelemetry/sdk/metrics/view/meter_selector.h"
+#include "opentelemetry/sdk/metrics/view/predicate.h"
+#include "opentelemetry/sdk/metrics/view/view.h"
+#include "opentelemetry/sdk/metrics/view/view_registry.h"
+#include "opentelemetry/version.h"
+
+OPENTELEMETRY_BEGIN_NAMESPACE
+namespace sdk
+{
+namespace metrics
+{
+
+RegisteredView::RegisteredView(
+    std::unique_ptr<opentelemetry::sdk::metrics::InstrumentSelector> instrument_selector,
+    std::unique_ptr<opentelemetry::sdk::metrics::MeterSelector> meter_selector,
+    std::unique_ptr<opentelemetry::sdk::metrics::View> view)
+    : instrument_selector_{std::move(instrument_selector)},
+      meter_selector_{std::move(meter_selector)},
+      view_{std::move(view)}
+{}
+
+void ViewRegistry::AddView(
+    std::unique_ptr<opentelemetry::sdk::metrics::InstrumentSelector> instrument_selector,
+    std::unique_ptr<opentelemetry::sdk::metrics::MeterSelector> meter_selector,
+    std::unique_ptr<opentelemetry::sdk::metrics::View> view)
+{
+  // TBD - thread-safe ?
+
+  // Validate parameters
+  if (!instrument_selector || !meter_selector || !view)
+  {
+    OTEL_INTERNAL_LOG_ERROR(
+        "[ViewRegistry::AddView] Invalid parameters: instrument_selector, meter_selector, and "
+        "view cannot be null. Ignoring AddView call.");
+    return;
+  }
+
+  auto aggregation_config = view->GetAggregationConfig();
+  if (aggregation_config)
+  {
+    bool valid                   = false;
+    auto aggregation_config_type = aggregation_config->GetType();
+    auto aggregation_type        = view->GetAggregationType();
+
+    if (aggregation_type == AggregationType::kDefault)
+    {
+      bool is_monotonic{false};
+      aggregation_type = DefaultAggregation::GetDefaultAggregationType(
+          instrument_selector->GetInstrumentType(), is_monotonic);
+    }
+
+    switch (aggregation_type)
+    {
+      case AggregationType::kHistogram:
+        valid = (aggregation_config_type == AggregationType::kHistogram);
+        break;
+
+      case AggregationType::kBase2ExponentialHistogram:
+        valid = (aggregation_config_type == AggregationType::kBase2ExponentialHistogram);
+        break;
+
+      case AggregationType::kDrop:
+      case AggregationType::kLastValue:
+      case AggregationType::kSum:
+        valid = (aggregation_config_type == AggregationType::kDefault);
+        break;
+
+      default:
+        // Unreachable: all AggregationType enum values are handled above
+        assert(false && "Unreachable: unhandled AggregationType");
+        valid = false;
+    }
+
+    if (!valid)
+    {
+      OTEL_INTERNAL_LOG_ERROR(
+          "[ViewRegistry::AddView] AggregationType and AggregationConfig type mismatch. "
+          "Ignoring AddView call.");
+      return;
+    }
+  }
+
+  auto registered_view = std::unique_ptr<RegisteredView>(new RegisteredView{
+      std::move(instrument_selector), std::move(meter_selector), std::move(view)});
+  registered_views_.push_back(std::move(registered_view));
+}
+
+bool ViewRegistry::FindViews(
+    const opentelemetry::sdk::metrics::InstrumentDescriptor &instrument_descriptor,
+    const opentelemetry::sdk::instrumentationscope::InstrumentationScope &instrumentation_scope,
+    nostd::function_ref<bool(const View &)> callback) const
+{
+  bool found = false;
+  for (auto const &registered_view : registered_views_)
+  {
+    if (MatchMeter(registered_view->meter_selector_.get(), instrumentation_scope) &&
+        MatchInstrument(registered_view->instrument_selector_.get(), instrument_descriptor))
+    {
+      found = true;
+      if (!callback(*(registered_view->view_.get())))
+      {
+        return false;
+      }
+    }
+  }
+  // return default view if none found;
+  if (!found)
+  {
+    static const View view("");
+    if (!callback(view))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ViewRegistry::MatchMeter(
+    opentelemetry::sdk::metrics::MeterSelector *selector,
+    const opentelemetry::sdk::instrumentationscope::InstrumentationScope &instrumentation_scope)
+{
+  return selector->GetNameFilter()->Match(instrumentation_scope.GetName()) &&
+         (instrumentation_scope.GetVersion().size() == 0 ||
+          selector->GetVersionFilter()->Match(instrumentation_scope.GetVersion())) &&
+         (instrumentation_scope.GetSchemaURL().size() == 0 ||
+          selector->GetSchemaFilter()->Match(instrumentation_scope.GetSchemaURL()));
+}
+
+bool ViewRegistry::MatchInstrument(
+    opentelemetry::sdk::metrics::InstrumentSelector *selector,
+    const opentelemetry::sdk::metrics::InstrumentDescriptor &instrument_descriptor)
+{
+  return selector->GetNameFilter()->Match(instrument_descriptor.name_) &&
+         selector->GetUnitFilter()->Match(instrument_descriptor.unit_) &&
+         (selector->GetInstrumentType() == instrument_descriptor.type_);
+}
+
+}  // namespace metrics
+}  // namespace sdk
+OPENTELEMETRY_END_NAMESPACE

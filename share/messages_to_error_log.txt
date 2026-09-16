@@ -3339,7 +3339,7 @@ ER_DD_UPGRADE_VERSION_NOT_SUPPORTED
 ER_DD_UPGRADE_SCHEMA_UNAVAILABLE
   eng "Upgrading the data dictionary failed, temporary schema name '%-.192s' not available."
 
-ER_DD_MINOR_DOWNGRADE
+OBSOLETE_ER_DD_MINOR_DOWNGRADE
   eng "Data dictionary minor downgrade from version '%u' to '%u'."
 
 ER_DD_MINOR_DOWNGRADE_VERSION_NOT_SUPPORTED
@@ -5961,11 +5961,11 @@ ER_IB_MSG_141
 ER_IB_MSG_142
   eng "%s"
 
-ER_IB_MSG_143
-  eng "%s"
+ER_IB_EXTENDING_IN_RECOVERY
+  eng "Extending tablespace : %lu space name: '%s' from %lu pages to %lu pages to fit page number: %lu"
 
-ER_IB_MSG_144
-  eng "%s"
+ER_IB_EXTENDING_IN_RECOVERY_FAILED
+  eng "Could not extend tablespace: %lu space name: '%s' to %lu pages during recovery."
 
 ER_IB_MSG_145
   eng "%s"
@@ -6330,28 +6330,28 @@ OBSOLETE_ER_IB_MSG_264
 OBSOLETE_ER_IB_MSG_265
   eng "%s"
 
-ER_IB_MSG_266
+OBSOLETE_ER_IB_MSG_266
   eng "%s"
 
-ER_IB_MSG_267
+ER_IB_MSG_TABLESPACE_NAME_FORMAT_LIKE_UNDO_BUT_ID_IS_NOT
+  eng "Tablespace '%s' naming format is like an undo tablespace but its ID %lu is not in the undo tablespace range"
+
+OBSOLETE_ER_IB_MSG_CANNOT_OPEN_TABLESPACE_FILE
+  eng "Cannot open '%s'. Have you deleted .ibd files under a running mysqld server?"
+
+ER_IB_MSG_TABLESPACE_FILE_SIZE_MISMATCH
+  eng "The size of tablespace file %s is only %llu, should be at least %llu!"
+
+ER_IB_MSG_TABLESPACE_ID_MISMATCH
+  eng "Tablespace id is %lu in the data dictionary but in file %s it is %lu!"
+
+ER_IB_MSG_TABLESPACE_PAGE_SIZE_MISMATCH
   eng "%s"
 
-ER_IB_MSG_268
-  eng "%s"
-
-ER_IB_MSG_269
-  eng "%s"
-
-ER_IB_MSG_270
-  eng "%s"
-
-ER_IB_MSG_271
-  eng "%s"
-
-ER_IB_MSG_272
+ER_IB_MSG_TABLESPACE_FLAGS_MISMATCH
   eng "Table flags are 0x%lx in the data dictionary but the flags in file %s  are 0x%llx!"
 
-ER_IB_MSG_273
+ER_IB_MSG_CANNOT_READ_TABLESPACE_KEY
   eng "Can't read encryption key from file %s!"
 
 OBSOLETE_ER_IB_MSG_274
@@ -6375,8 +6375,8 @@ OBSOLETE_ER_IB_MSG_279
 ER_IB_MSG_280
   eng "%s"
 
-ER_IB_MSG_281
-  eng "%s"
+ER_IB_ADDING_SPACE_WITH_NAME_ALREADY_IN_USE
+  eng "Trying to add tablespace '%s' with id %lu to the tablespace memory cache, but tablespace '%s' already exists in the cache with space ID %lu. It maps to the following file(s): %s"
 
 ER_IB_MSG_282
   eng "%s"
@@ -6384,7 +6384,7 @@ ER_IB_MSG_282
 ER_IB_MSG_283
   eng "%s"
 
-ER_IB_MSG_284
+OBSOLETE_ER_IB_MSG_284
   eng "You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all redo log files and all system tablespace files open for the whole time mysqld is running, and needs to open also some .ibd files if the file-per-table storage model is used. Current open files %zu, max allowed open files %zu."
 
 ER_IB_MSG_285
@@ -6417,37 +6417,37 @@ ER_IB_MSG_293
 ER_IB_MSG_294
   eng "Cannot rename '%s' to '%s' for space ID %lu because the target file exists. Remove the target file and try again."
 
-ER_IB_MSG_295
+ER_IB_MSG_CANT_RENAME_TABLESPACE_FILE
   eng "Cannot rename file '%s' (space id %lu) retried %llu times. There are either pending IOs or flushes or the file is being extended."
 
-ER_IB_MSG_296
+ER_IB_MSG_CANT_FIND_TABLESPACE_IN_CACHE
   eng "Cannot find space id %lu in the tablespace memory cache, though the file '%s' in a rename operation should have that ID."
 
-ER_IB_MSG_297
+ER_IB_MSG_RENAME_WAITING_FOR_IO_RESUME
   eng "Rename waiting for IO to resume"
 
-ER_IB_MSG_298
+OBSOLETE_ER_IB_MSG_298
   eng "Cannot find tablespace for '%s' in the tablespace memory cache"
 
-ER_IB_MSG_299
+ER_IB_MSG_TABLESPACE_NOT_FOUND_IN_CACHE
   eng "Cannot find tablespace for '%s' in the tablespace memory cache"
 
-ER_IB_MSG_300
+ER_IB_MSG_TABLESPACE_ALREADY_EXISTS_IN_CACHE
   eng "Tablespace '%s' is already in the tablespace memory cache"
 
-ER_IB_MSG_301
+ER_IB_MSG_CAN_NOT_CREATE_FILE
   eng "Cannot create file '%s'"
 
 ER_IB_MSG_UNEXPECTED_FILE_EXISTS
   eng "The file '%s' already exists though the corresponding table did not exist. Have you moved InnoDB .ibd files around without using the SQL commands DISCARD TABLESPACE and IMPORT TABLESPACE, or did mysqld crash in the middle of CREATE TABLE? You can resolve the problem by removing the file '%s' under the 'datadir' of MySQL."
 
-ER_IB_MSG_303
+OBSOLETE_ER_IB_MSG_303
   eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d - %s. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Refer to your operating system documentation for operating system error code information."
 
-ER_IB_MSG_304
+ER_IB_MSG_WRITE_INITIAL_PAGES
   eng "Could not write the first page to tablespace '%s'"
 
-ER_IB_MSG_305
+ER_IB_MSG_FILE_FLUSH_FAILED
   eng "File flush of tablespace '%s' failed"
 
 ER_IB_MSG_306
@@ -6489,7 +6489,7 @@ ER_IB_MSG_317
 ER_IB_MSG_318
   eng "%s"
 
-ER_IB_MSG_319
+OBSOLETE_ER_IB_MSG_319
   eng "%s"
 
 ER_IB_MSG_320
@@ -6531,8 +6531,8 @@ ER_IB_MSG_331
 ER_IB_MSG_332
   eng "%s"
 
-ER_IB_MSG_333
-  eng "%s"
+ER_IB_MSG_PUNCH_HOLE_FAILED
+  eng "Punch hole failed for '%s'"
 
 ER_IB_MSG_334
   eng "%s"
@@ -6582,8 +6582,8 @@ ER_IB_MSG_348
 ER_IB_MSG_349
   eng "%s"
 
-ER_IB_MSG_350
-  eng "%s"
+ER_IB_MSG_LOG_DDL_RENAME_SPACE_NOT_FOUND
+  eng "Can not find space with space ID %lu when replaying the DDL log rename from '%s' to '%s'"
 
 OBSOLETE_ER_IB_MSG_351
   eng "%s"
@@ -6594,14 +6594,14 @@ ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED
 OBSOLETE_ER_IB_MSG_353
   eng "%s"
 
-ER_IB_MSG_354
+ER_IB_MSG_TABLESPACE_FILE_NOT_FOUND
+  eng "Could not find any file associated with the tablespace ID: %lu"
+
+ER_IB_MSG_REDO_CREATE_TABLESPACE_INVALID_FILE_NAME
   eng "%s"
 
-ER_IB_MSG_355
-  eng "%s"
-
-OBSOLETE_ER_IB_MSG_356
-  eng "%s"
+OBSOLETE_ER_IB_MSG_REDO_CREATE_TABLESPACE_FAILED
+  eng "Create %s failed!"
 
 ER_IB_MSG_357
   eng "%s"
@@ -6624,8 +6624,8 @@ ER_IB_MSG_362
 OBSOLETE_ER_IB_MSG_363
   eng "%s"
 
-ER_IB_MSG_364
-  eng "%s"
+ER_IB_MSG_INCORRECT_REDO_ENCRYPTION_INFO
+  eng "Encryption information in the redo log of space with ID of %lu is invalid"
 
 ER_IB_MSG_365
   eng "%s"
@@ -6633,19 +6633,19 @@ ER_IB_MSG_365
 ER_IB_MSG_IGNORE_SCAN_PATH
   eng "Scan path '%s' is ignored because %s"
 
-ER_IB_MSG_367
+OBSOLETE_ER_IB_MSG_367
   eng "%s"
 
-ER_IB_MSG_368
+ER_IB_MSG_RENAME_FILE_ALREADY_AT_DESTINATION
+  eng "Tablespace ID already maps to '%s', rename ignored."
+
+OBSOLETE_ER_IB_MSG_369
   eng "%s"
 
-ER_IB_MSG_369
-  eng "%s"
+ER_IB_MSG_RENAME_FAILED_DESTINATION_FILE_EXISTS
+  eng "Cannot rename '%s' to '%s'. The file '%s' already exists on disk. You will need to verify and move either file manually and retry recovery!"
 
-ER_IB_MSG_370
-  eng "%s"
-
-ER_IB_MSG_371
+OBSOLETE_ER_IB_MSG_371
   eng "%s"
 
 ER_IB_MSG_372
@@ -6669,8 +6669,8 @@ ER_IB_MSG_377
 ER_IB_MSG_378
   eng "%s"
 
-ER_IB_MSG_379
-  eng "%s"
+ER_IB_MSG_SCANNING_DIR
+  eng "Scanning '%s'"
 
 ER_IB_MSG_380
   eng "%s"
@@ -6702,11 +6702,11 @@ ER_IB_MSG_GENERAL_TABLESPACE_UNDER_DATADIR
 ER_IB_MSG_IMPLICIT_TABLESPACE_IN_DATADIR
   eng "A file-per-table tablespace cannot be located in the datadir. Cannot open file '%s'."
 
-ER_IB_MSG_390
+OBSOLETE_ER_IB_MSG_390
   eng "%s"
 
-ER_IB_MSG_391
-  eng "%s"
+ER_IB_MSG_CANNOT_OPEN_TABLESPACE_FILE
+  eng "A tablespace file '%s' cannot be opened. InnoDB error code: %d (%s)"
 
 ER_IB_MSG_392
   eng "%s"
@@ -6729,8 +6729,8 @@ ER_IB_MSG_397
 ER_IB_MSG_398
   eng "%s"
 
-ER_IB_MSG_399
-  eng "%s"
+ER_IB_MSG_DATAFILE_VALIDATION_ERROR
+  eng "%s in datafile: '%s', Space ID: %lu, Flags: %lu. Please refer to %s for how to resolve the issue."
 
 OBSOLETE_ER_IB_MSG_400
   eng "%s"
@@ -6744,7 +6744,7 @@ ER_IB_MSG_402
 ER_IB_MSG_403
   eng "%s"
 
-ER_IB_MSG_404
+OBSOLETE_ER_IB_MSG_404
   eng "%s"
 
 ER_IB_MSG_405
@@ -6768,10 +6768,10 @@ ER_IB_MSG_410
 ER_IB_MSG_411
   eng "%s"
 
-ER_IB_MSG_412
-  eng "%s"
+ER_IB_MSG_CORRUPTED_PAGE_NOT_RECOVERABLE
+  eng "Corrupted page %s of datafile '%s' could not be found in the doublewrite buffer. It cannot be recovered, but it is needed for recovery to proceed."
 
-ER_IB_MSG_413
+OBSOLETE_ER_IB_MSG_413
   eng "%s"
 
 ER_IB_MSG_414
@@ -6783,7 +6783,7 @@ ER_IB_MSG_415
 ER_IB_MSG_416
   eng "%s"
 
-ER_IB_MSG_417
+OBSOLETE_ER_IB_MSG_417
   eng "%s"
 
 ER_IB_MSG_418
@@ -6792,8 +6792,8 @@ ER_IB_MSG_418
 ER_IB_MSG_419
   eng "%s"
 
-ER_IB_MSG_420
-  eng "%s"
+ER_IB_SHOULD_EXTEND_BY_EXTENTS
+  eng "Trying to extend a single-table tablespace %lu by single page(s) to fit page no %lu, though the space size is already %lu, so we should extend by whole extents"
 
 ER_IB_MSG_421
   eng "%s"
@@ -6822,8 +6822,8 @@ ER_IB_MSG_428
 ER_IB_MSG_429
   eng "%s"
 
-ER_IB_MSG_430
-  eng "%s"
+ER_IB_REMOVED_TEMPORARY_TABLESPACE_FILE
+  eng "Removed temporary tablespace data file: '%s'."
 
 ER_IB_MSG_431
   eng "%s"
@@ -6837,8 +6837,8 @@ ER_IB_MSG_433
 ER_IB_MSG_434
   eng "%s"
 
-ER_IB_MSG_435
-  eng "%s"
+ER_IB_MSG_NO_RAW_DEVICES_SUPPORT_FOR_TABLESPACE
+  eng "Invalid tablespace path specification, the %s is specified to use raw device while this tablespace does not support raw devices."
 
 ER_IB_MSG_436
   eng "%s"
@@ -6846,44 +6846,44 @@ ER_IB_MSG_436
 ER_IB_MSG_437
   eng "%s"
 
-ER_IB_MSG_438
-  eng "%s"
+ER_IB_AUTO_EXTENDING_SPACE_NODE_HAS_UNEXPECTED_SIZE
+  eng "The Auto-extending %s data file '%s' is of a different size %lu pages than specified in the .cnf file: initial %lu pages, max %lu (relevant if non-zero) pages!"
 
-ER_IB_MSG_439
-  eng "%s"
+ER_IB_SPACE_NODE_HAS_UNEXPECTED_SIZE
+  eng "The %s data file '%s' is of a different size %lu pages than the %lu pages specified in the .cnf file!"
 
-ER_IB_MSG_440
-  eng "%s"
+ER_IB_NODE_IS_BEING_PREPARED
+  eng "Setting file '%s' size to %llu MB. Physically writing the file full; Please wait..."
 
-ER_IB_MSG_441
-  eng "%s"
+ER_IB_NODE_CREATION_FINISHED
+  eng "File '%s' size is now %llu MB."
 
-ER_IB_MSG_442
-  eng "%s"
+ER_IB_NODE_CREATION_FAILED
+  eng "Could not create the file '%s'. Error message: %s"
 
-ER_IB_MSG_443
-  eng "%s"
+ER_IB_OPEN_RAW_DEVICE_IN_READONLY_MODE
+  eng "Can't open a raw device '%s' when --innodb-read-only is set."
 
 OBSOLETE_ER_IB_MSG_444
   eng "%s"
 
-ER_IB_MSG_445
-  eng "%s"
+ER_IB_NODE_STAT_FAILED
+  eng "Can't query file information for the %s."
 
-ER_IB_MSG_446
-  eng "%s"
+ER_IB_NODE_MUST_BE_ACCESSIBLE
+  eng "The %s must be %s."
 
-ER_IB_MSG_447
-  eng "%s"
+ER_IB_NODE_NOT_A_REGULAR_FILE
+  eng "The %s is not a regular InnoDB data file."
 
-ER_IB_MSG_448
-  eng "%s"
+ER_IB_NODE_CREATION_IN_READONLY_MODE
+  eng "Can't create the %s when --innodb-read-only is set"
 
-ER_IB_MSG_449
-  eng "%s"
+ER_IB_FIRST_NODE_OF_TABLESPACE_WILL_BE_CREATED
+  eng "The first %s did not exist. New files for this tablespace will be created!"
 
-ER_IB_MSG_450
-  eng "%s"
+ER_IB_INFO_TABLESPACE_NODE_WILL_BE_CREATED
+  eng "Need to create a new %s."
 
 ER_IB_MSG_451
   eng "%s"
@@ -6894,11 +6894,11 @@ ER_IB_MSG_452
 ER_IB_MSG_453
   eng "%s"
 
-ER_IB_MSG_454
-  eng "%s"
+ER_IB_TABLESPACE_NODE_SHOULD_NOT_EXIST
+  eng "The %s exists while it should not, because we are about to create a new tablespace or extend suffix of existing one by creating new files."
 
-ER_IB_MSG_455
-  eng "%s"
+ER_IB_TABLESPACE_TOO_SMALL
+  eng "The %s must be at least %luMB."
 
 ER_IB_MSG_456
   eng "%s"
@@ -7110,10 +7110,10 @@ ER_IB_MSG_524
 ER_IB_MSG_525
   eng "%s"
 
-ER_IB_MSG_526
-  eng "%s"
+ER_IB_MSG_TABLESPACE_FILE_MISSING
+  eng "%sTablespace %lu, name '%s', file '%s' is missing!"
 
-ER_IB_MSG_527
+OBSOLETE_ER_IB_MSG_527
   eng "%s"
 
 OBSOLETE_ER_IB_MSG_528
@@ -7122,8 +7122,8 @@ OBSOLETE_ER_IB_MSG_528
 OBSOLETE_ER_IB_MSG_529
   eng "%s"
 
-ER_IB_MSG_530
-  eng "%s"
+ER_IB_MSG_TABLESPACE_FILE_OPEN_FAILED
+  eng "%sTablespace %lu, name '%s', unable to open file '%s' - %s"
 
 ER_IB_MSG_531
   eng "%s"
@@ -7167,11 +7167,11 @@ ER_IB_MSG_543
 ER_IB_MSG_544
   eng "%s"
 
-ER_IB_MSG_545
-  eng "%s"
+ER_IB_MSG_SYSTEM_TABLESPACE_SPECIFICATION_ERROR
+  eng "Unable to parse System Tablespace nodes specification from innodb_data_file_path with value of '%s'"
 
-ER_IB_MSG_546
-  eng "%s"
+ER_IB_MSG_SYSTEM_TEMPORARY_TABLESPACE_SPECIFICATION_ERROR
+  eng "Unable to parse System Temporary Tablespace nodes specification from innodb_temp_data_file_path with value of '%s'"
 
 ER_IB_MSG_547
   eng "%s"
@@ -7341,11 +7341,11 @@ ER_IB_MSG_601
 ER_IB_MSG_602
   eng "%s"
 
-ER_IB_MSG_603
-  eng "%s"
+ER_IB_MSG_FAILED_TO_GET_FILE_STATS
+  eng "Failed to get file '%s' stats"
 
-ER_IB_MSG_604
-  eng "%s"
+OBSOLETE_ER_IB_MSG_FAILED_TO_GET_FILE_STATS_DUE_TO_ERROR
+  eng "File '%s' %s"
 
 ER_IB_MSG_605
   eng "%s"
@@ -7614,28 +7614,28 @@ OBSOLETE_ER_IB_MSG_692
 OBSOLETE_ER_IB_MSG_693
   eng "Waiting for archiver to finish archiving page and log"
 
-ER_IB_MSG_694
+ER_IB_ERR_CORRUPT_LOG_RECORD_FOUND
   eng "############### CORRUPT LOG RECORD FOUND ###############"
 
-ER_IB_MSG_695
-  eng "Log record type %d, page %lu:%lu. Log parsing proceeded successfully up to %llu. Previous log record type %d, is multi %llu Recv offset %zd, prev %llu"
+ER_IB_MSG_LOG_TYPE_PARSED_UP_TO
+  eng "Log record type %d. Log parsing proceeded successfully up to %llu."
 
-ER_IB_MSG_696
-  eng "Hex dump starting %llu bytes before and ending %llu bytes after the corrupted record:"
+ER_IB_MSG_DUMP_BUFFER
+  eng "Hex dump starting %zu bytes before and ending %zu bytes after the corrupted record: %s"
 
-ER_IB_MSG_697
+OBSOLETE_ER_IB_MSG_697
   eng "Set innodb_force_recovery to ignore this error."
 
-ER_IB_MSG_LOG_CORRUPT
+ER_IB_WARN_LOG_CORRUPT
   eng "The redo log file may have been corrupt and it is possible that the log scan did not proceed far enough in recovery! Please run CHECK TABLE on your InnoDB tables to check that they are ok! If mysqld crashes after this recovery; %s"
 
 ER_IB_MSG_UNPROCESSED_REDO_LOG_RECORDS
   eng "%zu pages with log records were left unprocessed!"
 
-ER_IB_MSG_LOG_FORMAT_OLD_AND_LOG_CORRUPTED
+OBSOLETE_ER_IB_MSG_LOG_FORMAT_OLD_AND_LOG_CORRUPTED
   eng "Upgrade after a crash is not supported. This redo log was created with %s, and it appears corrupted. Please follow the instructions at %s"
 
-ER_IB_MSG_LOG_FORMAT_OLD_AND_NO_CLEAN_SHUTDOWN
+OBSOLETE_ER_IB_MSG_LOG_FORMAT_OLD_AND_NO_CLEAN_SHUTDOWN
   eng "Upgrade is not supported after a crash or shutdown with innodb_fast_shutdown = 2. This redo log was created with %s, and it appears logically non empty. Please follow the instructions at %s"
 
 OBSOLETE_ER_IB_MSG_702
@@ -7668,11 +7668,11 @@ ER_IB_MSG_710
 ER_IB_MSG_711
   eng "%s"
 
-ER_IB_MSG_712
-  eng "%s"
+ER_IB_CANNOT_READ_FROM_TABLESPACE_PAGE
+  eng "Cannot read from tablespace %lu page number %lu"
 
-ER_IB_MSG_713
-  eng "%s"
+ER_IB_CANNOT_WRITE_TO_TABLESPACE_PAGE
+  eng "Cannot write to tablespace %lu page number %lu"
 
 ER_IB_MSG_714
   eng "%s"
@@ -8718,8 +8718,8 @@ ER_IB_MSG_1060
 ER_IB_MSG_LOG_FILE_OS_CREATE_FAILED
   eng "Cannot create %s"
 
-ER_IB_MSG_FILE_RESIZE
-  eng "Setting file %s size to %llu MB. Progress : %u%%"
+ER_IB_MSG_FILE_FILL_RANGE_WITH_ZEROS
+  eng "Filling a range of %llu MB in file %s with zeros. Progress: %u%%"
 
 ER_IB_MSG_LOG_FILE_RESIZE_FAILED
   eng "Cannot resize redo log file %s to %llu MB (%s)"
@@ -8742,46 +8742,46 @@ ER_IB_MSG_LOG_FILES_INITIALIZED
 ER_IB_MSG_LOG_FILE_OPEN_FAILED
   eng "Unable to open '%s' (error: %d)."
 
-ER_IB_MSG_1070
+ER_IB_MSG_CREATE_CONSTRUCTION_LOG_FILE_FAILED
   eng "Cannot create construction log file '%s' for undo tablespace '%s'."
 
-ER_IB_MSG_1071
+ER_IB_MSG_CREATING_UNDO
   eng "Creating UNDO Tablespace %s"
 
-ER_IB_MSG_1072
+ER_IB_MSG_SETTING_FILE_SIZE
   eng "Setting file %s size to %llu MB"
 
-ER_IB_MSG_1073
+ER_IB_MSG_WRITING_FILE_FULL
   eng "Physically writing the file full"
 
-ER_IB_MSG_1074
+ER_IB_MSG_CREATE_FILE_OUT_OF_DISK_SPACE
   eng "Error in creating %s: probably out of disk space"
 
 ER_IB_MSG_1075
   eng "Can't set encryption metadata for space %s"
 
-ER_IB_MSG_1076
+ER_IB_MSG_FIRST_PAGE_READ_FAILED
   eng "Cannot read first page of '%s' - %s"
 
-ER_IB_MSG_1077
+ER_IB_MSG_UNDO_TRUNCATE_DURING_SHUTDOWN_OR_CRASH
   eng "Undo tablespace number %lu was being truncated when mysqld quit."
 
-ER_IB_MSG_1078
+ER_IB_MSG_UNDO_RECOVER_FAILED_READ_ONLY_MODE
   eng "Cannot recover a truncated undo tablespace in read-only mode"
 
-ER_IB_MSG_1079
+ER_IB_MSG_UNDO_TABLESPACE_RECONSTRUCTING
   eng "Reconstructing undo tablespace number %lu."
 
-ER_IB_MSG_1080
+ER_IB_MSG_UNDO_TABLESPACE_CREATE_FAILED_ALREADY_EXIST
   eng "Cannot create %s because %s already uses Space ID=%lu! Did you change innodb_undo_directory?"
 
-ER_IB_MSG_1081
-  eng "UNDO tablespace %s must be %s"
+ER_IB_MSG_UNDO_TABLESPACE_WRONG_MODE
+  eng "UNDO tablespace file '%s' must be %s"
 
-ER_IB_MSG_1082
+OBSOLETE_ER_IB_MSG_1082
   eng "Error creating file for %s"
 
-ER_IB_MSG_1083
+ER_IB_MSG_ENCRYPTION_READ_FAILED
   eng "Error reading encryption for %s"
 
 OBSOLETE_ER_IB_MSG_CANNOT_OPEN_57_UNDO
@@ -8790,28 +8790,28 @@ OBSOLETE_ER_IB_MSG_CANNOT_OPEN_57_UNDO
 ER_IB_MSG_OPENED_N_UNDO_TS
   eng "Opened %zu existing undo tablespaces."
 
-ER_IB_MSG_1086
+OBSOLETE_ER_IB_MSG_CANT_CREATE_UNDO_TS_IN_READONLY_OR_RECOVERY
   eng "Cannot create undo tablespaces since innodb_%s has been set. Using %llu existing undo tablespaces."
 
-ER_IB_MSG_1087
+OBSOLETE_ER_IB_MSG_STARTUP_FAIL_NO_UNDO_TS
   eng "Cannot continue InnoDB startup in %s mode because there are no existing undo tablespaces found."
 
-ER_IB_MSG_1088
+ER_IB_MSG_UNDO_TABLESPACE_CREATE_FAILED
   eng "Could not create undo tablespace '%s'."
 
-ER_IB_MSG_1089
+ER_IB_MSG_NEW_UNDO_TABLESPACE_OPEN_ERROR
   eng "Error %d - %s - opening newly created undo tablespace '%s'."
 
-ER_IB_MSG_1090
-  eng "Created %llu undo tablespaces."
+ER_IB_MSG_CREATED_N_UNDO_TABLESPACES
+  eng "Created %zu undo tablespaces."
 
-ER_IB_MSG_1091
+ER_IB_MSG_ENCRYPTED_UNDO_CREATE_FAILED
   eng "Unable to create encrypted undo tablespace number %lu. please check if the keyring is initialized correctly"
 
-ER_IB_MSG_1092
+OBSOLETE_ER_IB_MSG_1092
   eng "Encryption is enabled for undo tablespace number %lu."
 
-ER_IB_MSG_1093
+ER_IB_MSG_UNDO_HEADER_INITIALIZE_FAIL
   eng "Unable to initialize the header page in undo tablespace number %lu."
 
 OBSOLETE_ER_IB_MSG_1094
@@ -8829,17 +8829,17 @@ ER_IB_MSG_1097
 ER_IB_MSG_1098
   eng "Creating shared tablespace for temporary tables"
 
-ER_IB_MSG_1099
-  eng "The %s data file must be writable!"
+OBSOLETE_ER_IB_MSG_1099
+  eng "The %s must be writable!"
 
-ER_IB_MSG_1100
+OBSOLETE_ER_IB_MSG_1100
   eng "Could not create the shared %s."
 
 ER_IB_MSG_1101
   eng "Unable to create the shared %s."
 
 ER_IB_MSG_1102
-  eng "The %s data file cannot be re-opened after check_file_spec() succeeded!"
+  eng "The %s data file cannot be opened after we checked the file should be able to be opened successfully!"
 
 ER_IB_MSG_1103
   eng "%d threads created by InnoDB had not exited at shutdown!"
@@ -8952,7 +8952,7 @@ ER_IB_MSG_LOG_FILES_DIFFERENT_SIZES
 ER_IB_MSG_1139
   eng "Use --innodb-directories to find the tablespace files. If that fails then use --innodb-force-recovery=1 to ignore this and to permanently lose all changes to the missing tablespace(s)"
 
-ER_IB_MSG_RECOVERY_CORRUPT
+OBSOLETE_ER_IB_MSG_RECOVERY_CORRUPT
   eng "The redo log file may have been corrupt and it is possible that the log scan or parsing did not proceed far enough in recovery. Please run CHECK TABLE on your InnoDB tables to check that they are ok! It may be safest to recover your InnoDB database from a backup!"
 
 OBSOLETE_ER_IB_MSG_LOG_FILES_RESIZE_ON_START_IN_READ_ONLY_MODE
@@ -8961,7 +8961,7 @@ OBSOLETE_ER_IB_MSG_LOG_FILES_RESIZE_ON_START_IN_READ_ONLY_MODE
 ER_IB_MSG_1142
   eng "Cannot open DD tablespace."
 
-ER_IB_MSG_LOG_FILES_REWRITING
+OBSOLETE_ER_IB_MSG_LOG_FILES_REWRITING
   eng "Starting to delete and rewrite redo log files."
 
 OBSOLETE_ER_IB_MSG_1144
@@ -9000,7 +9000,7 @@ ER_IB_MSG_1154
 ER_IB_MSG_1155
   eng "Shutdown completed; log sequence number %llu"
 
-ER_IB_MSG_1156
+OBSOLETE_ER_IB_MSG_1156
   eng "Cannot continue operation."
 
 ER_IB_MSG_1157
@@ -9045,7 +9045,7 @@ ER_IB_MSG_UNDO_TRUNCATE_START
 OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_DDL_LOG_START
   eng "%s"
 
-ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LOG_CREATE
+OBSOLETE_ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LOG_CREATE
   eng "Cannot create truncate log for undo tablespace '%s'."
 
 OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_TRUNCATE
@@ -9135,8 +9135,8 @@ ER_IB_MSG_1199
 ER_IB_MSG_1200
   eng "%s"
 
-ER_IB_MSG_1201
-  eng "%s"
+ER_IB_MSG_OPEN_READ_VIEWS_ON_SHUTDOWN
+  eng "All read views were not closed before shutdown: %zu read views open"
 
 ER_IB_MSG_1202
   eng "%s"
@@ -9174,7 +9174,7 @@ ER_IB_MSG_1212
 ER_IB_MSG_1213
   eng "gettimeofday() failed: %s"
 
-ER_IB_MSG_1214
+OBSOLETE_ER_IB_MSG_CANT_CREATE_UNDO_TABESPACE
   eng "Can't create UNDO tablespace %s %s"
 
 ER_IB_MSG_WILL_CREATE_N_UNDO_TS
@@ -9316,7 +9316,7 @@ ER_IB_MSG_1260
   eng "%s"
 
 ER_IB_MSG_1261
-  eng "%s"
+  eng "Starting to parse redo log at lsn = %llu, whereas checkpoint_lsn = %llu and start_lsn = %llu"
 
 ER_IB_MSG_1262
   eng "%s"
@@ -9824,7 +9824,7 @@ ER_IB_MSG_USING_UNDO_SPACE
   eng "Using undo tablespace '%s'."
 
 ER_IB_MSG_FAIL_TO_SAVE_SPACE_STATE
-  eng "%s Unable to save the current state of tablespace '%s' to the data dictionary"
+  eng "%sUnable to save the current state of tablespace '%s' to the data dictionary"
 
 ER_IB_MSG_MAX_UNDO_SPACES_REACHED
   eng "Cannot create undo tablespace %s at %s because %d undo tablespaces already exist."
@@ -9863,7 +9863,7 @@ OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_RSEG
   eng "ib_undo_trunc_before_rsegs"
 
 ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
-  eng "%s Failed to finish truncating Undo Tablespace '%s'"
+  eng "%sFailed to finish truncating Undo Tablespace '%s'"
 
 OBSOLETE_ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES
   eng "The setting INNODB_UNDO_TABLESPACES is deprecated and is no longer used.  InnoDB always creates 2 undo tablespaces to start with. If you need more, please use CREATE UNDO TABLESPACE."
@@ -10622,13 +10622,13 @@ OBSOLETE_ER_IB_MSG_FIL_STATE_MOVED_CORRECTED
   eng "%s DD ID: %llu - Partition tablespace %u, name '%s' is corrected to '%s'"
 
 ER_IB_MSG_FIL_STATE_MOVED_CHANGED_PATH
-  eng "%s DD ID: %llu - Tablespace %u, name '%s', '%s' is moved to '%s'"
+  eng "%sDD ID: %llu - Tablespace %u, name '%s', '%s' is moved to '%s'"
 
 OBSOLETE_ER_IB_MSG_FIL_STATE_MOVED_CHANGED_NAME
   eng "%s DD ID: %llu - Partition tablespace %u, name '%s', '%s' is updated to '%s'"
 
 ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY
-  eng "%s Too many files have been moved, disabling logging of detailed messages"
+  eng "%sToo many files have been moved, disabling logging of detailed messages"
 
 ER_GR_ELECTED_PRIMARY_GTID_INFORMATION
   eng "Elected primary member %s: %s"
@@ -10738,11 +10738,11 @@ ER_IB_MSG_DBLWR_1311
 ER_IB_MSG_DBLWR_1312
   eng "%s"
 
-ER_IB_MSG_DBLWR_1313
-  eng "%s"
+ER_IB_MSG_INNODB_DBLWR_OUT_OF_BOUNDS
+  eng "Page stored in the Double-write file is not within tablespace bounds of %lu bytes. PageID: %s in file '%s' at page %lu."
 
 ER_IB_MSG_DBLWR_1314
-  eng "%s"
+  eng "A read of a page with ID %s for which an entry in the Double-write buffer was found, failed in file '%s' at page %lu with an error: '%s'"
 
 ER_IB_MSG_DBLWR_1315
   eng "%s"
@@ -10946,7 +10946,7 @@ ER_IB_MSG_1359
   eng "%s"
 
 ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE
-  eng "%s"
+  eng "Failed to delete the tablespace file %s"
 
 ER_IB_UNABLE_TO_EXPAND_TEMPORARY_TABLESPACE_POOL
   eng "%s"
@@ -11008,8 +11008,8 @@ ER_IB_ERR_ZLIB_DATA_ERROR
 ER_IB_ERR_ZLIB_UNKNOWN_ERROR
   eng "%s"
 
-ER_IB_MSG_1381
-  eng "%s"
+ER_IB_MSG_HOLDING_LATCHES_WAITING_FOR_SPACE
+  eng "ib::redo::handler->wait_for_space() was called while holding an un-listed latch."
 
 ER_IB_ERR_INDEX_RECORDS_WRONG_ORDER
   eng "%s"
@@ -11693,7 +11693,7 @@ OBSOLETE_ER_IB_MSG_LOG_PARAMS_N_FILES_UNUSED
 ER_IB_MSG_LOG_UPGRADE_FORCED_RECV
   eng "Cannot upgrade format (v%lu) of redo log files when innodb-force-recovery > 0."
 
-ER_IB_MSG_LOG_UPGRADE_IN_READ_ONLY_MODE
+OBSOLETE_ER_IB_MSG_LOG_UPGRADE_IN_READ_ONLY_MODE
   eng "Cannot upgrade format (v%lu) of redo log files in read-only mode (--innodb-read-only)."
 
 ER_IB_MSG_LOG_UPGRADE_CLONED_DB
@@ -11702,7 +11702,7 @@ ER_IB_MSG_LOG_UPGRADE_CLONED_DB
 ER_IB_MSG_LOG_UPGRADE_UNINITIALIZED_FILES
   eng "Cannot upgrade format (v%lu) of redo log files because they are marked as uninitialized. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
 
-ER_IB_MSG_LOG_UPGRADE_CORRUPTION__UNEXPECTED
+OBSOLETE_ER_IB_MSG_LOG_UPGRADE_CORRUPTION__UNEXPECTED
   eng "Cannot upgrade format (v%lu) of redo log files when the redo log is corrupted. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
 
 OBSOLETE_ER_IB_MSG_LOG_UPGRADE_NON_PERSISTED_DD_METADATA
@@ -11742,7 +11742,7 @@ ER_IB_MSG_LOG_FILES_RESIZE_FINISHED
   eng "Redo log has been resized to %lluM."
 
 ER_IB_MSG_LOG_FILES_UPGRADE
-  eng "Upgrading redo log: %lluM, LSN=%llu."
+  eng "Upgrading redo log: Old log was logically empty: ended right after checkpoint at LSN=%llu. Removing it and recreating a new redo log file with size %lluM."
 
 ER_IB_MSG_LOG_FILE_MARK_CURRENT_AS_INCOMPLETE
   eng "Marked the current redo log file %s as incomplete."
@@ -12218,10 +12218,10 @@ ER_COMPONENT_MASKING_CANNOT_ACCESS_TABLE
   eng "Cannot access %s.%s table."
 
 ER_REDUCED_DBLWR_FILE_CORRUPTED
-  eng "Cannot recover from detect_only doublewrite buffer as page %u from batch doublewrite file is corrupted."
+  eng "Cannot deserialize a page of the reduced Double-write Buffer as page %u from Double-write Buffer file is corrupted."
 
-ER_REDUCED_DBLWR_PAGE_FOUND
-  eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
+ER_IB_REDUCED_DBLWR_PAGE_FOUND
+  eng "Database page corruption of tablespace space_id: %lu page_no: %lu, in file '%s' at page %lu. Cannot recover it from the Double-write buffer because the server was running with --innodb_doublewrite=DETECT_ONLY before the crash."
 
 ER_CONN_INIT_CONNECT_IGNORED_MFA
   eng "init_connect variable is ignored for user: %s host: %s due to multi-factor registration required sandboxing"
@@ -12257,7 +12257,7 @@ ER_BEYOND_SERVER_UPGRADE_THRESHOLD
   eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. Target MySQL server version is lower than the server upgrade threshold %u."
 
 ER_INVALID_SERVER_UPGRADE_NOT_LTS
-  eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. Upgrade to next major version is only allowed from the last LTS release, which version %u is not."
+  eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. The source and target must be in the same compatibility lineage, unless the source is the immediately preceding LTS for the target."
 
 ER_INVALID_SERVER_DOWNGRADE_NOT_PATCH
   eng "Invalid MySQL server downgrade: Cannot downgrade from %u to %u. Downgrade is only permitted between patch releases."
@@ -12375,6 +12375,9 @@ ER_AUDIT_LOG_JSON_INVALID_FILTER_CANNOT_BE_USED
 ER_WARN_AUDIT_LOG_FILTER_RECOVERY_LOGGING_DISABLED_LOG
   eng "The '%s' variable is set to LOG_NOTHING_IF_INVALID_FILTER_DETECTED, meaning audit events will not be logged if the filter is invalid. Consider changing this variable to LOG_ALL_IF_INVALID_FILTER_DETECTED to ensure that all events are logged, even when the filter is invalid."
 
+ER_SERVER_UPGRADE_CHECK_STATUS_MESSAGE
+  eng "%s"
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #
@@ -12397,7 +12400,7 @@ ER_LANGUAGE_COMPONENT_WARNING
 ER_LANGUAGE_COMPONENT_ERROR
   eng "%s"
 
-ER_IB_BULK_FLUSHER_PUNCH_HOLE
+OBSOLETE_ER_IB_BULK_FLUSHER_PUNCH_HOLE
   eng "bulkflusher: Failed to punch hole: table=%s, index=%s, space_id=%zu, page_no=%zu, disk_page_size=%zu, hole_size=%zu, file=%s, err=%zu"
 
 ER_GRP_RPL_CONN_KILLED
@@ -13374,7 +13377,6 @@ ER_AUDIT_LOG_DATABASE_NAME_TOO_LONG
 ER_AUDIT_LOG_DATABASE_NAME_EMPTY
   eng "Database name cannot be empty."
 
-
 ER_RPL_REPLICA_VERSION_INCOMPATIBLE
   eng "Replication from higher version source (%s) to lower version replica (%s) is disallowed due to replica_allow_higher_version_source=OFF."
 
@@ -13450,6 +13452,102 @@ ER_WARN_AUDIT_LOG_SYSVAR_ADJUSTED
 ER_WARN_AUDIT_LOG_SYSVAR_DISCARDED
   eng "Variable '%s' value change was discarded, to make pruning slower than rotation."
 
+ER_WARN_TLS_SESSION_WITHOUT_PQC
+  eng "TLS channel '%s' is not configured to require post-quantum key exchange algorithms; future TLS sessions may use a non-post-quantum key exchange algorithm because force_pqc is disabled"
+
+#
+# End of 9.7 error messages intended to be written to the server error log.
+#
+
+
+#
+# MySQL moves from semantic-style versioning to calendar-based versioning
+# starting with the 26.7 release base. Upgrade/downgrade compatibility is
+# tracked through compatibility lineage. The first calendar release base, 26.7,
+# belongs to the 9.7 CalVer compatibility lineage. If 28.4 becomes LTS, the
+# 9.7 lineage continues through 28.4. The first Innovation release after that,
+# 28.7, starts the 28.4 compatibility lineage.
+#
+
+#
+# Start of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages intended
+# to be written to the server error log.
+#
+# Append 9.7 error log messages to the end of the previous section.
+# Messages intended to be sent to _clients_ go in messages_to_clients.txt!
+#
+
+start-error-number 16000
+
+ER_CSA_RPL_RECOVERY_SKIPPED
+  eng "Relay log recovery skipped for Change Stream Applier."
+
+ER_CSA_MSG
+  eng "%s"
+
+ER_IB_MSG_TABLESPACE_NOT_OPENED
+  eng "Tablespace with id '%lu' can not be opened. Recovery can't continue."
+
+ER_IB_MSG_REDO_PARSE_START_NOT_FOUND
+  eng "Could not find the start point for REDO parsing. REDO log may be corrupted. Recovery can't continue."
+
+ER_IB_MSG_PARSE_START_AND_CHECKPOINT
+  eng "Starting to parse redo log at lsn = %llu, whereas checkpoint_lsn = %llu"
+
+ER_IB_ERR_INNODB_REDO_HANDLER_FAILURE
+  eng "The %s failed because of %s reporting an error: %s."
+
+ER_IB_REDO_HANDLER_NO_ENCRYPTION_SUPPORT
+  eng "The Redo Log Handler doesn't support Redo log encryption."
+
+ER_IB_REDO_HANDLER_COULD_NOT_ACK_TO_TRUNCATE_LSN
+  eng "The Redo Log Handler could not acknowledge to truncate logs smaller than lsn = %llu. It indicates that server may run out of the redo log capacity in future."
+
+ER_IB_ERR_INNODB_PAGES_PERSISTENCE_FAILURE
+  eng "The %s failed because of %s returning %llu."
+
+ER_IB_CANT_CREATE_RAW_DEVICE
+  eng "Can't create the %s because it should be an existing raw device."
+
+ER_IB_TABLESPACE_FILE_MISSING
+  eng "The %s is missing, but it should exist as it is a part of the tablespace."
+
+ER_IB_NODE_FILLING_FAILED
+  eng "Could not set the file size of '%s'. Error message: %s"
+
+ER_IB_INVALID_PAGE_SIZE
+  eng "Invalid page size specification in tablespace flags: Physical size %lu is larger than logical %lu. FSP flags: %lu."
+
+ER_IB_SYS_SPACE_NODE_ERROR_INFO
+  eng "node '%s' with expected path of '%s' of tablespace %s"
+
+ER_IB_MSG_TABLESPACE_FILE_NAME_MISMATCH
+  eng "%sTablespace %lu, name '%s', expected file name '%s' differs from the actual file '%s' that contains this tablespace."
+
+ER_INNODB_VIO_WRITE_FAILED
+  eng "Failed to write data to file: %s. Got os error %s. Expected %zu but only %zu were written."
+
+ER_IB_UNEXPECTED_GET_NODE_INFO
+  eng "Unexpected get_node_info(%s) result: %s."
+
+ER_IB_MSG_UNDO_TS_NOT_FOUND
+  eng "No undo tablespaces found. Cannot continue operation."
+
+ER_DD_DOWNGRADE
+  eng "Data dictionary downgrade from version '%u' to '%u'."
+
+ER_INVALID_SERVER_UPGRADE_SKIPS_LTS_LINEAGE
+  eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. Target MySQL server version belongs to a compatibility lineage whose previous LTS is %u, not %u."
+
+ER_IB_MSG_MAX_PURGE_LAG_EXCEEDED
+  eng "InnoDB purge history list length %llu has exceeded innodb_max_purge_lag=%lu."
+
+ER_IB_MSG_DML_PURGE_DELAY_STARTED
+  eng "InnoDB DML operations are being delayed by %lu microseconds due to purge lag. History list length is %llu, innodb_max_purge_lag=%lu, innodb_max_purge_lag_delay=%lu."
+
+#
+# End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.
+#
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

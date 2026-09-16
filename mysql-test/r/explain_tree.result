@@ -10,6 +10,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f1 INT );
@@ -18,6 +20,8 @@ EXPLAIN
 -> Insert into t2
     -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f2 INT );
@@ -29,6 +33,8 @@ EXPLAIN
         -> Filter: (t2.f2 = t1.f1)  (rows=1)
             -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`f1` = (`test`.`t1`.`f1` + 2),`test`.`t2`.`f2` = (`test`.`t2`.`f2` + 1) where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f2 INT );
@@ -39,6 +45,8 @@ EXPLAIN
         -> Table scan on t1  (rows=1)
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2`
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
@@ -57,6 +65,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,((/* select#2 */ select min(`i`.`f1`) from `test`.`t1` `i` where (`i`.`f1` > `test`.`t1`.`f1`)) < 3) AS `(SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3` from `test`.`t1`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -69,6 +78,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
 EXPLAIN
 -> Covering index scan on t1 using PRIMARY (reverse)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` order by `test`.`t1`.`f1` desc
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT, INDEX ( f1 ) );
 INSERT INTO t1 VALUES ( 1 );
@@ -82,21 +93,29 @@ EXPLAIN
 -> Aggregate: sum(t1.f1)  (rows=1)
     -> Covering index scan on t1 using f1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`f1`) AS `SUM(f1)` from `test`.`t1`
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
 EXPLAIN
 -> Group (no aggregates)  (rows=1.73)
     -> Covering index scan on t1 using f1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` group by `test`.`t1`.`f1`
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
 EXPLAIN
 -> Group aggregate: count(0)  (rows=1.73)
     -> Covering index scan on t1 using f1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,count(0) AS `COUNT(*)` from `test`.`t1` group by `test`.`t1`.`f1`
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: count(0)  (rows=2.73)
     -> Covering index scan on t1 using f1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`f1`,0) AS `f1`,rollup_sum_switcher(count(0)) AS `COUNT(*)` from `test`.`t1` group by `test`.`t1`.`f1` with rollup
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -109,6 +128,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1=2;
 EXPLAIN
 -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `f1` from `test`.`t1` where true
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -127,6 +148,8 @@ EXPLAIN
     -> Filter: (t1.f1 = <cache>((3 + 2)))  (rows=1)
         -> Constant row from t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`f1` = 3) and (`test`.`t1`.`f1` = <cache>((3 + 2))))) where true
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -144,6 +167,8 @@ EXPLAIN
     -> Filter: (t2.f1 = 2)  (rows=3)
         -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `f1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f1` = 2)) where true
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( a INT );
 CREATE TABLE t2 ( a INT );
@@ -166,6 +191,8 @@ EXPLAIN
             -> Filter: (t3.a = t2.a)  (rows=1)
                 -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`b` is null)) where true
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -184,6 +211,8 @@ EXPLAIN
         -> Filter: (t2.f1 = t1.f1)  (rows=1)
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f1` = `test`.`t1`.`f1`)) where (`test`.`t2`.`f1` is null)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, c INT, KEY(a));
@@ -207,6 +236,8 @@ EXPLAIN
                 -> Filter: (t2.c <= 3)  (rows=1.67)
                     -> Index lookup on t2 using a (a = t1.a)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`c` <= 3))
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
@@ -220,6 +251,8 @@ EXPLAIN
 -> Sort: t1.f1 DESC  (rows=3)
     -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` order by `test`.`t1`.`f1` desc
 DROP TABLE t1;
 CREATE TABLE t1 ( a LONGBLOB, b INT );
 INSERT INTO t1 VALUES ('a', 0);
@@ -239,6 +272,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 0 AS `foo` from `test`.`t1` where (0 = (/* select#2 */ select group_concat(`test`.`t1`.`b` separator ',') from `test`.`t1` `t` group by `test`.`t1`.`a`))
 DROP TABLE t1;
 CREATE TABLE t1 (a text, b varchar(10));
 INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
@@ -251,6 +285,8 @@ EXPLAIN
     -> Temporary table with deduplication  (rows=2)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select substr(`test`.`t1`.`a`,1,10) AS `SUBSTRING(a,1,10)`,length(`test`.`t1`.`a`) AS `LENGTH(a)` from `test`.`t1` group by `test`.`t1`.`a`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 VARCHAR(100) );
 INSERT INTO t1 VALUES ('abc');
@@ -269,6 +305,8 @@ EXPLAIN
             -> Limit table size: 2 unique row(s)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`f1` AS `f1` from `test`.`t1` limit 2
 DROP TABLE t1;
 CREATE TABLE t1 (a int PRIMARY KEY);
 INSERT INTO t1 values (1), (2);
@@ -284,6 +322,8 @@ EXPLAIN
                 -> Limit table size: 1 row(s)
                     -> Covering index scan on t1 using PRIMARY  (rows=2)
 
+Warnings:
+Note	1003	insert into `test`.`t1` /* select#1 */ select sql_buffer_result (`test`.`t1`.`a` + 2) AS `a + 2` from `test`.`t1` limit 1
 DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
@@ -302,6 +342,8 @@ EXPLAIN
                     -> Sort: t1.a  (rows=11)
                         -> Table scan on t1  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct (count(distinct `test`.`t1`.`b`) + 1) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -321,6 +363,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select min(`i`.`f1`) from `test`.`t1` `i` where (`i`.`f1` > `test`.`t1`.`f1`)))
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 EXPLAIN
 -> Filter: (t1.f1 > (select #2))  (rows=2)
@@ -329,6 +372,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Covering index scan on t1 using PRIMARY  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` limit 1))
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -350,6 +395,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select ((/* select#3 */ select min(`ii`.`f1`) from `test`.`t1` `ii` where (`ii`.`f1` > `test`.`t1`.`f1`)) > `i`.`f1`) from `test`.`t1` `i`))
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -370,6 +416,7 @@ Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #4 was resolved in SELECT #1
 Note	1249	Select 3 was reduced during optimization
 Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select (((/* select#4 */ select min(`i`.`f1`) from `test`.`t1` `i` where (`i`.`f1` > `test`.`t1`.`f1`)) + 1) + 1) AS `( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 )` from `test`.`t1`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -390,6 +437,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `inner_t1`.`f1` from `test`.`t1` `inner_t1` where (`inner_t1`.`f1` > `test`.`t1`.`f1`) limit 1) AS `tmp1` from `test`.`t1` order by `tmp1`
 DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
@@ -404,6 +452,8 @@ EXPLAIN
     -> Filter: (t1.a > 3)  (rows=11)
         -> Table scan on t1  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` > 3) order by `test`.`t1`.`b`
 DROP TABLE t1;
 CREATE TABLE t1 (i INT);
 EXPLAIN INSERT INTO t1 VALUES (10);
@@ -416,6 +466,11 @@ EXPLAIN
 -> Insert into t1
     -> Rows fetched before execution
 
+Warnings:
+Note	1003	insert into `test`.`t1` values (10)
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	insert into `test`.`t1` values (10)
 EXPLAIN REPLACE INTO t1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
@@ -426,7 +481,35 @@ EXPLAIN
 -> Replace into t1
     -> Rows fetched before execution
 
+Warnings:
+Note	1003	replace into `test`.`t1` values (10)
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	replace into `test`.`t1` values (10)
 DROP TABLE t1;
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (i INT);
+EXPLAIN FORMAT=tree UPDATE t1 SET i = i + 1
+WHERE i = (SELECT MIN(i) FROM t2);
+EXPLAIN
+-> <not executable by iterator executor>
+
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = (`test`.`t1`.`i` + 1) where (`test`.`t1`.`i` = (/* select#2 */ select min(`test`.`t2`.`i`) from `test`.`t2`))
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = (`test`.`t1`.`i` + 1) where (`test`.`t1`.`i` = (/* select#2 */ select min(`test`.`t2`.`i`) from `test`.`t2`))
+EXPLAIN FORMAT=tree DELETE FROM t1
+WHERE i = (SELECT MAX(i) FROM t2);
+EXPLAIN
+-> <not executable by iterator executor>
+
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`i` = (/* select#2 */ select max(`test`.`t2`.`i`) from `test`.`t2`))
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`i` = (/* select#2 */ select max(`test`.`t2`.`i`) from `test`.`t2`))
+DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
@@ -440,6 +523,8 @@ EXPLAIN
     -> Sort: t1.b, limit input to 3 row(s) per chunk  (rows=11)
         -> Table scan on t1  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` limit 3
 DROP TABLE t1;
 CREATE TABLE t1 ( a INTEGER );
 CREATE TABLE t2 ( a INTEGER );
@@ -470,6 +555,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`t3d`.`a` AS `a`,`t4d`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) join lateral (/* select#2 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` = `test`.`t2`.`a`) limit 1) `t3d` join lateral (/* select#3 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` > `test`.`t1`.`a`) limit 1) `t4d` where true
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 ( a INTEGER );
 CREATE TABLE t2 ( a INTEGER );
@@ -496,6 +582,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`t4d`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`a` = `test`.`t2`.`a`)) join lateral (/* select#2 */ select `test`.`t4`.`a` AS `a` from `test`.`t4` where (`test`.`t4`.`a` = `test`.`t3`.`a`) limit 1) `t4d`) on((`t4d`.`a` = `test`.`t1`.`a`)) where true
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 ( f1 INTEGER );
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
@@ -511,6 +598,8 @@ EXPLAIN
             -> Aggregate: max(t1.f1)  (rows=1)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `alias1`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` limit 1,2) `alias1` where <nop>((`alias1`.`f1` <= (/* select#3 */ select max(`test`.`t1`.`f1`) from `test`.`t1`))) order by `alias1`.`f1`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f1 INT );
@@ -523,6 +612,8 @@ EXPLAIN
             -> Limit: 3 row(s)  (rows=1)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	with `my_cte` as (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` limit 3) /* select#1 */ select `my_cte`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `my_cte` join `test`.`t2`
 DROP TABLE t1;
 DROP TABLE t2;
 CREATE TABLE t1 (i INTEGER);
@@ -534,6 +625,8 @@ EXPLAIN
     -> Filter: (t2.i = t1.i)  (rows=1)
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`i` = `test`.`t1`.`i`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER);
 CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER);
@@ -553,6 +646,8 @@ EXPLAIN
             -> Table scan on t3  (rows=1)
         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `pk`,'3' AS `i`,'4' AS `pk`,'5' AS `i` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t3`.`i` = '3'))
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
@@ -568,6 +663,8 @@ EXPLAIN
             -> Filter: (t2.i = t3.i)  (rows=1)
                 -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` left join `test`.`t3` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and ((`test`.`t3`.`j` = 1234) or (`test`.`t3`.`j` is null)))
 DROP TABLE t1, t2, t3;
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='firstmatch=off';
@@ -587,6 +684,8 @@ EXPLAIN
     -> Filter: (t1.a = `<subquery2>`.a)  (rows=1)
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `<subquery2>`.`a`) and (`test`.`t1`.`b` = 2))
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
 set @old_opt_switch=@@optimizer_switch;
@@ -606,6 +705,8 @@ EXPLAIN
                 -> Filter: (t1.b > 2)  (rows=3)
                     -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` anti join (`test`.`t1`) on(((`<subquery2>`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`b` > 2))) where true
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
 set @old_opt_switch=@@optimizer_switch;
@@ -626,6 +727,8 @@ EXPLAIN
                     -> Filter: (t1.b = 2)  (rows=1)
                         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1` where (`test`.`t1`.`b` = 2) having (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(max(`test`.`t1`.`a`)))))
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
 set @old_opt_switch=@@optimizer_switch;
@@ -646,6 +749,8 @@ EXPLAIN
         -> Filter: (t1.i = t2.i)  (rows=1)
             -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`i` = `test`.`t2`.`i`)
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
@@ -667,6 +772,8 @@ EXPLAIN
         -> Filter: (t2.i = t1.i)  (rows=1)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`i` = `test`.`t1`.`i`)
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
@@ -688,6 +795,8 @@ EXPLAIN
             -> Covering index scan on t2 using i1  (rows=4)
     -> Single-row covering index lookup on t1 using PRIMARY (i = t2.i)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`i` = `test`.`t2`.`i`)
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
@@ -711,6 +820,8 @@ EXPLAIN
     -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (rows=1)
         -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array) = json'"1"')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t1`@`select#1`) NO_BNL(`t2`@`select#1`) */ `test`.`t2`.`col_int` AS `col_int`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_json` AS `col_json` from `test`.`t2` join `test`.`t1` where json'"1"' member of (cast(json_extract(`col_json`,_utf8mb4'$[*]') as char(40) array))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY ( a ));
 INSERT INTO t1 VALUES (1,3), (2,4), (3,5);
@@ -739,6 +850,9 @@ EXPLAIN ANALYZE FOR CONNECTION 1;
 ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE FOR CONNECTION'
 EXPLAIN ANALYZE FORMAT=TRADITIONAL SELECT 1;
 ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE with TRADITIONAL format'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1235	This version of MySQL doesn't yet support 'EXPLAIN ANALYZE with TRADITIONAL format'
 SET explain_json_format_version = 1;
 EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
 ERROR 0A000: EXPLAIN ANALYZE does not support FORMAT=JSON with explain_json_format_version=1.
@@ -770,6 +884,16 @@ EXPLAIN
 -> Table scan on ENGINES  (rows=2)
     -> Fill information schema table ENGINES
 
+SET @explain_tree_into = 'unchanged';
+EXPLAIN FORMAT=TREE INTO @explain_tree_into SELECT 1;
+ERROR 0A000: EXPLAIN INTO does not support FORMAT=TREE.
+SHOW WARNINGS;
+Level	Code	Message
+Error	6007	EXPLAIN INTO does not support FORMAT=TREE.
+SELECT @explain_tree_into;
+@explain_tree_into
+unchanged
+SET @explain_tree_into = NULL;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES (1), (2), (3);
 ANALYZE TABLE t1;
@@ -784,6 +908,8 @@ EXPLAIN
             -> Covering index scan on t1 using PRIMARY  (rows=3)
             -> Covering index scan on t1 using PRIMARY  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`d1`.`f1` AS `f1` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`f1` + 10) AS `f1 + 10` from `test`.`t1`) `d1`
 EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 10 FROM t1 ) d1;
 EXPLAIN
 -> Nested loop inner join  (rows=18)
@@ -793,6 +919,8 @@ EXPLAIN
             -> Covering index scan on t1 using PRIMARY  (rows=3)
             -> Covering index scan on t1 using PRIMARY  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`d1`.`f1` AS `f1` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` union all /* select#3 */ select (`test`.`t1`.`f1` + 10) AS `f1 + 10` from `test`.`t1`) `d1`
 DROP TABLE t1;
 #
 # Bug #30444266: EXPLAIN ANALYZE DOES NOT EXECUTE THE SUBQUERIES IN THE SELECT LIST
@@ -829,6 +957,8 @@ EXPLAIN
         -> Table scan on t1  (rows=1)
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1,`test`.`t2`.`b` = 1
 EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1 WHERE t2.a=t1.a;
 EXPLAIN
 -> Update t1 (buffered), t2 (buffered)
@@ -837,6 +967,8 @@ EXPLAIN
         -> Filter: (t2.a = t1.a)  (rows=1)
             -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1,`test`.`t2`.`b` = 1 where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 EXPLAIN FORMAT=TREE DELETE t1.*,t2.* FROM t1,t2;
 EXPLAIN
 -> Delete from t1 (immediate), t2 (buffered)  (rows=1)
@@ -844,6 +976,8 @@ EXPLAIN
         -> Table scan on t1  (rows=1)
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2`
 EXPLAIN FORMAT=TREE DELETE t1.*,t1bis.* FROM t1, t1 AS t1bis;
 EXPLAIN
 -> Delete from t1 (buffered), t1bis (buffered)  (rows=1)
@@ -851,6 +985,8 @@ EXPLAIN
         -> Table scan on t1  (rows=1)
         -> Table scan on t1bis  (rows=1)
 
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t1` from `test`.`t1` join `test`.`t1` `t1bis`
 DROP TABLE t1,t2;
 #
 # Bug #30941336: EXPLAIN ANAYLZE SELECT COUNT(*) FROM MYSQL.USER COREDUMP UNDER DEBUG VERSION
@@ -869,6 +1005,8 @@ EXPLAIN FORMAT=tree SELECT (1 IN (SELECT 1 FROM t1)) WHERE FALSE;
 EXPLAIN
 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select <in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(1) = 1))) AS `(1 IN (SELECT 1 FROM t1))` from DUAL  where false
 DROP TABLE t1;
 #
 # Bug #32688540: MATERIALIZE ITERATORS HAVE SKEWED TIMINGS FROM SKIPPED MATERIALIZATIONS
@@ -910,6 +1048,7 @@ EXPLAIN
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Note	1003	/* select#1 */ select <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in d on <auto_key0> checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = `d`.`a`) or (`d`.`a` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`d`.`a`), true)))) AS `a IN (SELECT a FROM (table t1) AS d)` from `test`.`t1` group by (@b:=5)
 SET sql_mode=DEFAULT;
 DROP TABLE t1;
 #
@@ -927,6 +1066,8 @@ EXPLAIN
     -> Stream results  (rows=0)
         -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` union all /* select#2 */ select <in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t1` where (<cache>(1) = 1))) AS `1 IN (SELECT 1 FROM t1)` from `test`.`t1` where false
 DROP TABLE t1;
 CREATE TABLE t1 (pk INTEGER NOT NULL, a INTEGER, b INTEGER, KEY (a), KEY (b), PRIMARY KEY (pk));
 ANALYZE TABLE t1;
@@ -937,11 +1078,15 @@ SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
 EXPLAIN
 -> Index range scan (Multi-Range Read) on t1 using a over (a = 2) OR (a = 4) OR (3 more), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (2,4,6,8,10))
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE a IN (2,4,6,8,10) ORDER BY a DESC;
 EXPLAIN
 -> Index range scan (Multi-Range Read) on t1 using a over (a = 2) OR (a = 4) OR (3 more) (reverse), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (2,4,6,8,10)) order by `test`.`t1`.`a` desc
 EXPLAIN ANALYZE
 SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;
 EXPLAIN
@@ -963,6 +1108,8 @@ EXPLAIN
 -> Filter: ((t1.b = 5) and (t1.a in (2,4,6,8,10)) and (t1.e between 100 and 200))  (rows=5)
     -> Covering index skip scan on t1 using idx1 over a IN (2, 4, (3 more)), b = 5, 100 <= e <= 200  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where ((`test`.`t1`.`b` = 5) and (`test`.`t1`.`a` in (2,4,6,8,10)) and (`test`.`t1`.`e` between 100 and 200))
 DROP TABLE t1;
 #
 # Bug#33343948: Multi-valued index ranges are printed as binary
@@ -977,12 +1124,16 @@ EXPLAIN
 -> Filter: ((t.a > 'abc') and (t.a < 'ghi'))  (rows=1)
     -> Covering index range scan on t using a over ('abc' < a < 'ghi')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((`test`.`t`.`a` > 'abc') and (`test`.`t`.`a` < 'ghi'))
 EXPLAIN FORMAT=tree
 SELECT * FROM t WHERE a > 'abc''def' AND a < CONCAT('z', UNHEX('090A1A5C0D'));
 EXPLAIN
 -> Filter: ((t.a > 'abc\'def') and (t.a < <cache>(concat('z',unhex('090A1A5C0D')))))  (rows=2)
     -> Covering index range scan on t using a over ('abc\'def' < a < 'z	\n\Z\\\r')  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((`test`.`t`.`a` > 'abc\'def') and (`test`.`t`.`a` < <cache>(concat('z',unhex('090A1A5C0D')))))
 DROP TABLE t;
 #
 # Bug#33364732: Preliminary fixes for WL#14673
@@ -997,6 +1148,8 @@ EXPLAIN
 -> Delete from t (buffered)  (rows=0)
     -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	delete `test`.`t` from `test`.`t` where false
 EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
 EXPLAIN
 -> Delete from t1 (buffered)  (rows=9) (actual rows=0 loops=1)
@@ -1087,6 +1240,8 @@ EXPLAIN
         -> Table scan on tx  (rows=1)
             -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1)
 
+Warnings:
+Note	1003	with `tx` as (/* select#2 */ select floor((5 * rand(0))) AS `i1` from `test`.`t1` `j1` join `test`.`t1` `j2` where (`j2`.`a` = `j1`.`b`)) /* select#1 */ select 1 AS `1` from `test`.`t1` `d1` join `test`.`t1` `d2` join `tx` where ((`d2`.`b` = `tx`.`i1`) and (`d1`.`a` = -(`d2`.`a`))) union /* select#3 */ select 2 AS `2` from `tx`
 EXPLAIN ANALYZE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 SELECT 2 FROM tx UNION
@@ -1247,6 +1402,8 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t;
 EXPLAIN
 -> Covering index scan on t using x  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t`
 EXPLAIN ANALYZE SELECT 1 FROM t;
 EXPLAIN
 -> Covering index scan on t using x  (rows=160) (actual rows=160 loops=1)
@@ -1255,6 +1412,8 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
 -> Covering index lookup on t using x (x = 4)  (rows=16)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where (`test`.`t`.`x` = 4)
 EXPLAIN ANALYZE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
 -> Covering index lookup on t using x (x = 4)  (rows=16) (actual rows=16 loops=1)
@@ -1264,6 +1423,8 @@ EXPLAIN
 -> Filter: (t.x > 4)  (rows=96)
     -> Covering index range scan on t using x over (4 < x)  (rows=96)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where (`test`.`t`.`x` > 4)
 EXPLAIN ANALYZE SELECT 1 FROM t WHERE x > 4;
 EXPLAIN
 -> Filter: (t.x > 4)  (rows=96) (actual rows=96 loops=1)
@@ -1274,6 +1435,8 @@ EXPLAIN
 -> Sort: (t.x % 2)  (rows=160)
     -> Covering index scan on t using x  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` order by (`test`.`t`.`x` % 2)
 EXPLAIN ANALYZE SELECT x FROM t ORDER BY MOD(x, 2);
 EXPLAIN
 -> Sort: (t.x % 2)  (rows=160) (actual rows=160 loops=1)
@@ -1286,6 +1449,8 @@ EXPLAIN
     -> Filter: (t1.x < t2.y)  (rows=53.3)
         -> Index range scan on t1 (re-planned for each iteration)  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`x` AS `x` from `test`.`t` `t1` join `test`.`t` `t2` where (`t1`.`x` < `t2`.`y`)
 EXPLAIN ANALYZE SELECT t1.x FROM t t1, t t2 WHERE t1.x < t2.y;
 EXPLAIN
 -> Nested loop inner join  (rows=8532) (actual rows=11520 loops=1)
@@ -1315,6 +1480,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`x2`.`a` = (/* select#2 */ select min(`x3`.`a`) from `test`.`t1` `x3` where (`x1`.`a` = `x3`.`a`)))
 EXPLAIN FORMAT=TREE
 SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x2.a<
 (SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
@@ -1330,6 +1496,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`x2`.`a` < (/* select#2 */ select min(`x3`.`a`) from `test`.`t1` `x3` where (`x1`.`a` = `x3`.`a`)))) where true
 DROP TABLE t1;
 #
 # Bug#34569685 No explain output for subquery
@@ -1349,6 +1516,8 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select last_value((/* select#2 */ select `x1`.`a` from `test`.`t1`)) OVER (PARTITION BY `x1`.`b` )  AS `LAST_VALUE((SELECT x1.a FROM t1))
+OVER (PARTITION BY b)` from `test`.`t1` `x1`
 DROP TABLE t1;
 #
 # Bug#36773414: Explain format=tree does not display
@@ -1374,6 +1543,8 @@ EXPLAIN
             -> Filter: (4 = (t.b + 1))  (rows=2)
                 -> Table scan on t  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` semi join (`test`.`t`) where (4 = (`test`.`t`.`b` + 1))
 EXPLAIN FORMAT=JSON INTO @var SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
@@ -1394,6 +1565,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t`) where (`test`.`t`.`a` = `test`.`t`.`b`)
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE b IN (SELECT a FROM t);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
@@ -1420,6 +1593,8 @@ EXPLAIN
         -> Filter: (t2.b = t.a)  (rows=1)
             -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`t1`.`a` = `test`.`t`.`a`) and (`t2`.`b` = `test`.`t`.`a`))
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1
 JOIN t AS t2 ON t1.a=t2.b);
 SELECT
@@ -1445,6 +1620,8 @@ EXPLAIN
             -> Covering index scan on t1 using b  (rows=2)
     -> Covering index lookup on t using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1`) where (`test`.`t`.`a` = `t1`.`b`)
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b FROM t AS t1);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS loosescan,
@@ -1470,6 +1647,8 @@ EXPLAIN
         -> Covering index scan on t2 using b  (rows=2)
     -> Covering index lookup on t using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`test`.`t`.`a` = `t1`.`b`) and (0 <> `t1`.`b`))
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a  IN (SELECT t1.b
 FROM t AS t1 JOIN t AS t2 ON t1.b);
 SELECT
@@ -1480,6 +1659,14 @@ first_match_with_loosescan	operation_contains_loosescan
 ["firstmatch_with_loosescan"]	1
 set optimizer_switch="loosescan=off,duplicateweedout=on";
 EXPLAIN SELECT b FROM t WHERE a IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	b	b	5	NULL	2	50.00	Using where; Using index; Start temporary
+1	SIMPLE	t	NULL	ref	a	a	5	test.t1.b	1	100.00	Using index
+1	SIMPLE	t2	NULL	index	NULL	b	5	NULL	2	100.00	Using index; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`test`.`t`.`a` = `test`.`t1`.`b`) and (0 <> `test`.`t1`.`b`))
+EXPLAIN FORMAT=TRADITIONAL SELECT b FROM t WHERE a IN (SELECT t1.b
 FROM t AS t1 JOIN t AS t2 ON t1.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	b	b	5	NULL	2	50.00	Using where; Using index; Start temporary
@@ -1499,14 +1686,30 @@ EXPLAIN
                     -> Covering index scan on t1 using b  (rows=2)
                 -> Covering index lookup on t using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`test`.`t`.`a` = `t1`.`b`) and (0 <> `t1`.`b`))
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b
 FROM t AS t1 JOIN t AS t2 ON t1.b);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS weedout,
 JSON_SEARCH(@var, 'one', '%weedout%', NULL, '$**.operation') IS NOT NULL
-AS operation_contains_weedout;
-weedout	operation_contains_weedout
-["weedout"]	1
+AS operation_contains_weedout,
+JSON_SEARCH(@var, 'one', 'weedout', NULL, '$**.access_type') IS NOT NULL
+AS access_type_is_weedout;
+weedout	operation_contains_weedout	access_type_is_weedout
+["weedout"]	1	1
+SET @saved_explain_json_format_version = @@explain_json_format_version;
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$**.duplicates_removal')
+AS json_v1_duplicates_removal,
+JSON_SEARCH(@var, 'one', 'weedout', NULL, '$**.access_type') IS NULL
+AS json_v1_has_no_weedout_access_type;
+json_v1_duplicates_removal	json_v1_has_no_weedout_access_type
+1	1
+SET explain_json_format_version = @saved_explain_json_format_version;
 set optimizer_switch="materialization=on,duplicateweedout=off";
 EXPLAIN SELECT * FROM t WHERE t.a IN (SELECT a FROM t AS t1
 WHERE t1.b <> 30);
@@ -1528,6 +1731,8 @@ EXPLAIN
                 -> Filter: (t1.b <> 30)  (rows=2)
                     -> Covering index scan on t1 using a  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1`) where ((`<subquery2>`.`a` = `test`.`t`.`a`) and (`t1`.`b` <> 30))
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE t.a IN (SELECT a FROM t AS t1
 WHERE t1.b <> 30);
 SELECT

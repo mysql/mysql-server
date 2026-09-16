@@ -163,6 +163,9 @@ if ($applier_worker_wait_stage == '') {
       --let $_applier_worker_wait_stage = $_applier_worker_wait_stage,
     }
     --let $_default_stage = "Waiting for an event from Coordinator"
+    if($rpl_applier_version != '') {
+      --let $_default_stage = "Session detached from worker thread."
+    }
     if ($_preserve_commit_order) {
       --let $_order = $json_order_of_statements_value
       --let $dollar = `SELECT CHAR(36)`
@@ -266,7 +269,7 @@ while (!$json_order_of_statements_done) {
 
   --source include/rpl/connection_replica.inc
 
-  --echo include/wait_condition.inc [ Wait for '$_wait_for_state' ]
+  --echo include/wait_condition.inc [ Wait for expected number of idle workers ]
   --let $wait_condition = SELECT count(*) >= ($_wait_for_num + 1) FROM information_schema.processlist WHERE STATE = "$_wait_for_state"
   --source include/wait_condition.inc
 

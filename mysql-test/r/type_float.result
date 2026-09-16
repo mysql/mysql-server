@@ -710,3 +710,85 @@ Warnings:
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP PROCEDURE p1;
+#
+# Bug#35100734: Unexpected query result fetched from an indexed column
+#
+CREATE TABLE t0(c0 DOUBLE UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+CREATE INDEX i0 ON t0(c0 DESC);
+INSERT INTO t0(c0) VALUES(0);
+# Expect: empty result
+SELECT c0 FROM t0 WHERE (IFNULL(-1123870957, '')) IN (t0.c0);
+c0
+# Expect: empty result
+SELECT c0 FROM t0 WHERE t0.c0 = IFNULL(-1123870957, '');
+c0
+ALTER TABLE t0 DROP INDEX i0;
+# No-index control (expect empty)
+SELECT c0 FROM t0 WHERE (IFNULL(-1123870957, '')) IN (t0.c0);
+c0
+DROP TABLE t0;
+CREATE TABLE t1(c0 DOUBLE UNSIGNED, KEY i0(c0));
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+INSERT INTO t1 VALUES (0), (1), (2);
+# Expect: empty (negative string vs unsigned)
+SELECT c0 FROM t1 WHERE c0 = '-1';
+c0
+# Expect: empty
+SELECT c0 FROM t1 WHERE c0 = IFNULL(-1, '');
+c0
+# Expect: empty
+SELECT c0 FROM t1 WHERE c0 <=> '-5.5';
+c0
+# Expect: empty (IN list with negative string)
+SELECT c0 FROM t1 WHERE c0 IN ('-1', '-2');
+c0
+EXPLAIN FORMAT=TREE SELECT c0 FROM t1 WHERE c0 = '-1';
+EXPLAIN
+-> Zero rows (Impossible WHERE)  (cost=*** rows=***)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c0` AS `c0` from `test`.`t1` where false
+# Expect: 1 row (c0=0)
+SELECT c0 FROM t1 WHERE c0 = '0';
+c0
+0
+# Expect: 1 row (c0=1)
+SELECT c0 FROM t1 WHERE c0 = IFNULL(1, '');
+c0
+1
+# Expect: 1 row (c0=2)
+SELECT c0 FROM t1 WHERE c0 = 2.0;
+c0
+2
+# Expect: 3 rows (all >= -1)
+SELECT c0 FROM t1 WHERE c0 > '-1' ORDER BY c0;
+c0
+0
+1
+2
+# Expect: empty (none < -1)
+SELECT c0 FROM t1 WHERE c0 < '-1';
+c0
+DROP TABLE t1;
+CREATE TABLE t2(c0 FLOAT UNSIGNED, KEY i0(c0));
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+INSERT INTO t2 VALUES (0), (1);
+# Expect: empty
+SELECT c0 FROM t2 WHERE c0 = '-1';
+c0
+# Expect: empty
+SELECT c0 FROM t2 WHERE c0 = IFNULL(-1, '');
+c0
+DROP TABLE t2;
+CREATE TABLE t3(c0 DECIMAL(10,2) UNSIGNED, KEY i0(c0));
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+INSERT INTO t3 VALUES (0), (1);
+# Expect: empty (decimal control)
+SELECT c0 FROM t3 WHERE c0 = '-1';
+c0
+DROP TABLE t3;

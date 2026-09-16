@@ -6078,6 +6078,8 @@ EXPLAIN
                     -> Sort: t1.f1, t1.f0, limit input to 100 row(s) per chunk  (rows=500)
                         -> Table scan on t1  (rows=500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`v1`.`f0` AS `f0`,`test`.`v1`.`f1` AS `f1`,`test`.`v1`.`f2` AS `f2` from `test`.`v1` order by `test`.`v1`.`f2`,`test`.`v1`.`f0` limit 30
 CREATE VIEW v2 as SELECT * FROM t1 ORDER BY f2, f0 LIMIT 100;
 SELECT * FROM v1 JOIN v2 on v1.f1=v2.f1 ORDER BY v1.f2,v1.f0,v2.f0
 LIMIT 30;

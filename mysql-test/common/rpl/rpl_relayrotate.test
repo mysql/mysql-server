@@ -12,7 +12,6 @@
 # before we stop it. If not, we get errors about UNIX_TIMESTAMP() in the log.
 connection master;
 --source include/rpl/sync_to_replica.inc
-connection slave;
 STOP REPLICA;
 connection master;
 --disable_warnings
@@ -54,9 +53,9 @@ START REPLICA;
 # And see if the table contains $loop_max
 # which proves that the transaction restarted at
 # the right place.
-# We must wait for the transaction to commit before
-# reading, with a sync_with_master.
-sync_with_master;
+# We must wait for the transaction to commit before reading
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --replace_result $loop_max loop_max
 select max(a) from t1;
 connection master;
@@ -72,8 +71,6 @@ connection master;
 # InnoDB: data dictionary. Have you deleted the .frm file etc
 drop table t1;
 # wait until this drop is executed on slave
-save_master_pos;
-connection slave;
-sync_with_master;
+--source include/rpl/sync_to_replica.inc
 
 # End of 4.1 tests

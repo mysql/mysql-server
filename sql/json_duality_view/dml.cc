@@ -251,6 +251,17 @@ static bool is_nil_dom(Json_dom *jdom) {
 }
 
 /**
+  Get the location of a Json_dom converted to std::string. If the dom is
+  nullptr, use "null".
+
+  @param jdom dom to get location for
+  @return location of dom as string, or "null" for nullptr
+ */
+static std::string get_location_or_null(Json_dom *jdom) {
+  return jdom == nullptr ? "null" : em_wrap(jdom->get_location());
+}
+
+/**
  Convenience wrapper predicate which returns true for AUTO_INCREMENT columns.
 
  @param fld column to report for.
@@ -1356,7 +1367,8 @@ template <typename BV>
               same_pk_bin.bound_object->get_location(),
               ct_node.quoted_qualified_table_name(),
               first_pk_pkrc.kci->column_name(), mmr.in1->kci->column_name(),
-              mmr.in2->value->get_location(), mmr.in1->value->get_location());
+              get_location_or_null(mmr.in2->value),
+              get_location_or_null(mmr.in1->value));
           return true;
         }
         // If same_pk_bin is actually identical, mark it as empty so that no
@@ -1653,7 +1665,7 @@ static bool is_equal(Json_dom *ajd, Json_dom *bjd) {
   Json_array *existing_child_array = inspect_valid_dom<Json_array>(
       get_val(stk[pbx].existing_object, child_name));
 
-  Json_dom *bound_child_dom = stk[pbx].bound_object->get(child_name);
+  Json_dom *bound_child_dom = get_val(stk[pbx].bound_object, child_name);
   auto [jtc, bound_child_array] = inspect_dom<Json_array>(bound_child_dom);
   if (jtc == enum_json_type::J_ERROR) {
     my_jdv_error<ER_JDV_UNEXPECTED_JSON_TYPE>(
@@ -1861,6 +1873,32 @@ constexpr std::size_t BINDINGS_RESERVE_SIZE = 48;
 enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
 
 /**
+  Rejects an attempt to change a column whose effective tag is NO UPDATE.
+
+  This common check ensures that every statement-generation path, including
+  duplicate-key updates and singleton remapping, enforces the same column-level
+  update restriction.
+
+  @param ct_node       content-tree node containing the column
+  @param kci           column information, including its effective update tag
+  @param updated_value value supplied for the column
+
+  @retval false the column allows updates
+  @retval true  the column does not allow updates and an error was reported
+*/
+[[nodiscard]] static bool check_column_update_allowed(
+    const Content_tree_node &ct_node, const Key_column_info &kci,
+    const Json_dom *updated_value) {
+  if (kci.allows_update()) return false;
+
+  assert(updated_value != nullptr);
+  my_jdv_error<ER_JDV_MISSING_UPDATE_TAG>(ct_node.quoted_qualified_table_name(),
+                                          kci.column_name(),
+                                          updated_value->get_location());
+  return true;
+}
+
+/**
   Produces an INSERT statement from a binding. For INSERT this is
   a Single_object_binding, but when an update decays into an INSERT,
   this function is also invoked with a Two_object_binding.
@@ -1956,6 +1994,22 @@ enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
         }
         return Stmt_state::SKIP;
       }
+
+      // Existing child rows must honor the same NO UPDATE tags as normal
+      // updates.
+      const auto &column_info = ct_node.key_column_info_list();
+      for (std::size_t i = 0; i < dr->size(); ++i) {
+        if (dr->at(i) &&
+            check_column_update_allowed(ct_node, column_info.at(i),
+                                        c_resolved_columns.at(i).value)) {
+          return Stmt_state::ERROR;
+        }
+      }
+
+      // No values changed, so no update permission or statement is needed.
+      if (std::ranges::none_of(*dr, std::identity{})) {
+        return Stmt_state::SKIP;
+      }
     }
   }
 
@@ -1990,7 +2044,8 @@ enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
     return Stmt_state::EXECUTE;
   }
 
-  // Updatable sub-nodes can have existing row, so need ON DUPLICATE KEY UPDATE
+  // Child rows may already exist, so INSERT must preserve update behavior on
+  // duplicate keys.
   auto values_pos = sbuf.size();
   for (const Resolve_column &rc : c_resolved_columns) {
     DBUG_LOG("jdv_dml", "DML-INSERT: Considering " << rc.kci->column_name()
@@ -2007,6 +2062,20 @@ enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
       values_pos += 9;
       continue;
     }
+
+    // NO UPDATE columns may be populated in a new row, but must not become
+    // assignments when this statement takes its duplicate-key update path.
+    if (!rc.kci->allows_update()) {
+      std::string value;
+      if (append_json_dom(&value, rc.value, col_expects_b64(*rc.kci))) {
+        return Stmt_state::ERROR;
+      }
+      value.append(", ");
+      sbuf.insert(values_pos, value);
+      values_pos += value.size();
+      continue;
+    }
+
     append_identifier(&sbuf, rc.kci->column_name());
     sbuf.append(" = ");
     auto vstart = sbuf.size();
@@ -2034,7 +2103,8 @@ enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
   return Stmt_state::EXECUTE;
 }
 
-static Stmt_state make_delete(THD *, const Single_object_binding &, auto *);
+static Stmt_state make_delete(THD *, const Json_object &,
+                              const Content_tree_node &, auto *);
 
 /**
   Obtains the dom of the etag sub-object.
@@ -2047,12 +2117,12 @@ static Json_dom *etag_dom(Json_object *root_object) {
   if (root_object == nullptr) {
     return nullptr;
   }
-  Json_dom *metadata = root_object->get(metadatakey);
+  Json_object *metadata =
+      inspect_dom<Json_object>(root_object->get(metadatakey)).second;
   if (metadata == nullptr) {
     return nullptr;
   }
-  Json_object *metadata_object = down_cast<Json_object *>(metadata);
-  return metadata_object->get(etagkey);
+  return metadata->get(etagkey);
 }
 
 /**
@@ -2080,9 +2150,8 @@ static bool check_etag(const Two_object_binding &binding) {
 }
 
 /**
-  Produces an UPDATE statement from a Two_object_binding. If there is no
-  existing object an INSERT is generated. If there is no bound object a DELETE
-  statement is generated.
+  Produces an UPDATE statement from a Two_object_binding. Only called for
+  bindings which have non-nullptr existing_object and bound_object.
 
   @param thd THD
   @param binding updatee
@@ -2096,25 +2165,8 @@ static bool check_etag(const Two_object_binding &binding) {
   const Content_tree_node &ct_node = *binding.ct_node;
   assert(!ct_node.key_column_info_list().empty());
   assert(binding.resolve_row);
-
-  if (binding.existing_object == nullptr) {
-    DBUG_LOG("jdv_dml",
-             "DML-UPDATE: b.existing_object == nullptr for UPDATE of "
-                 << ct_node << ", generating INSERT of bound object instead.");
-    return make_insert(thd, binding, sbufp);
-  }
   assert(binding.existing_object != nullptr);
-  if (binding.bound_object == nullptr) {
-    DBUG_LOG("jdv_dml",
-             "DML-UPDATE: b.bound_object == nullptr for UPDATE of "
-                 << ct_node.name()
-                 << ", generating DELETE of existing object instead.");
-    return make_delete(thd,
-                       {.bound_object = binding.existing_object,
-                        .ct_node = binding.ct_node,
-                        .resolve_row = {}},
-                       sbufp);
-  }
+  assert(binding.bound_object != nullptr);
 
   // Check if any singleton child is removed or set to null
   for (const auto &c : binding.ct_node->children()) {
@@ -2140,20 +2192,6 @@ static bool check_etag(const Two_object_binding &binding) {
 
   const auto &resolved_columns = binding.resolve_row->columns;
   assert(resolved_columns.size() == ct_node.key_column_info_list().size());
-
-  // On update all columns must be resolved in order the perform
-  // etag check.
-  if (std::ranges::any_of(resolved_columns, [&](const auto &rc) {
-        if (rc.value == nullptr) {
-          my_jdv_error<ER_JDV_MISSING_VALUE>(
-              binding.bound_object->get_location(),
-              ct_node.quoted_qualified_table_name(), rc.kci->column_name());
-          return true;
-        }
-        return false;
-      })) {
-    return Stmt_state::ERROR;
-  }
 
   const auto &pk_col_info = ct_node.primary_key_column();
   Json_dom *pk_edom = binding.existing_object->get(pk_col_info.key());
@@ -2200,17 +2238,19 @@ static bool check_etag(const Two_object_binding &binding) {
       return Stmt_state::SKIP;
     }
 
-    // Must generate an update statement for this existing row. However,
-    // comparisons with the existing json object from the binding is
-    // meaningless since the row which will actually be updated is completely
-    // unrelated in this case.
+    // Remapping selects an existing destination row. Any changes made to that
+    // row are updates and must honor its column-level NO UPDATE restrictions.
     const auto &kcis = ct_node.key_column_info_list();
     for (std::size_t i = 0; i < dr->size(); ++i) {
-      if ((*dr)[i]) {
-        append_identifier(&sbuf, kcis[i].column_name());
+      if (dr->at(i)) {
+        if (check_column_update_allowed(ct_node, kcis.at(i),
+                                        resolved_columns.at(i).value)) {
+          return Stmt_state::ERROR;
+        }
+        append_identifier(&sbuf, kcis.at(i).column_name());
         sbuf.append(" = ");
-        if (append_json_dom(&sbuf, resolved_columns[i].value,
-                            col_expects_b64(kcis[i]))) {
+        if (append_json_dom(&sbuf, resolved_columns.at(i).value,
+                            col_expects_b64(kcis.at(i)))) {
           return Stmt_state::ERROR;
         }
         sbuf.append(", ");
@@ -2248,10 +2288,7 @@ static bool check_etag(const Two_object_binding &binding) {
       }
       assert(rc.kci != &ct_node.primary_key_column());
 
-      if (!rc.kci->allows_update()) {
-        my_jdv_error<ER_JDV_MISSING_UPDATE_TAG>(
-            ct_node.quoted_qualified_table_name(), rc.kci->column_name(),
-            updated_val->get_location());
+      if (check_column_update_allowed(ct_node, *rc.kci, updated_val)) {
         return Stmt_state::ERROR;
       }
 
@@ -2282,21 +2319,19 @@ static bool check_etag(const Two_object_binding &binding) {
 }
 
 /**
-  Produces a delete statement from a Single_object_binding.
-  When an update decays into a DELETE, this function is called
-  a with a Single_object_binding created on the fly from
-  the Two_object_binding - which is only possible because
-  DELETE does not require a populated resolve_row.
+  Produces a delete statement from a Json_object and a Content_tree_node.
+  Called both when executing DELETE and when UPDATE triggers a delete of a
+  nested child.
 
-  @param binding deletee
+  @param del_obj Json_object to delete (by primary key)
+  @param ct_node Content_tree_node for base table
   @param sbufp statement text buffer
   @return Statement_status - indicates if statement must be executed, skipped or
   an error occured
  */
-[[nodiscard]] static Stmt_state make_delete(
-    THD *, const Single_object_binding &binding, auto *sbufp) {
-  assert(binding.bound_object != nullptr);
-  const auto &ct_node = *binding.ct_node;
+[[nodiscard]] static Stmt_state make_delete(THD *, const Json_object &del_obj,
+                                            const Content_tree_node &ct_node,
+                                            auto *sbufp) {
   assert(!ct_node.key_column_info_list().empty());
   if (!ct_node.allows_delete()) {
     if (ct_node.is_singleton_child()  //&&
@@ -2305,11 +2340,10 @@ static bool check_etag(const Two_object_binding &binding) {
     ) {
       return Stmt_state::SKIP;
     }
-    DBUG_LOG("jdv_dml", "DELETE on " << *binding.ct_node
-                                     << " rejected due to missing TAG");
+    DBUG_LOG("jdv_dml",
+             "DELETE on " << ct_node << " rejected due to missing TAG");
     my_jdv_error<ER_JDV_MISSING_DELETE_TAG>(
-        binding.ct_node->quoted_qualified_table_name(),
-        binding.bound_object->get_location());
+        ct_node.quoted_qualified_table_name(), del_obj.get_location());
     return Stmt_state::ERROR;
   }
 
@@ -2323,20 +2357,11 @@ static bool check_etag(const Two_object_binding &binding) {
   append_identifier(&sbuf, ct_node.primary_key_column().column_name());
   sbuf.append(" = ");
 
-  Json_dom *pk_val =
-      binding.bound_object->get(ct_node.primary_key_column().key());
+  Json_dom *pk_val = del_obj.get(ct_node.primary_key_column().key());
   assert(pk_val != nullptr);
   assert(!col_expects_b64(ct_node.primary_key_column()));
   return append_json_dom(&sbuf, pk_val) ? Stmt_state::ERROR
                                         : Stmt_state::EXECUTE;
-}
-
-[[nodiscard]] static bool check_input_json(Json_dom *input_dom) {
-  if (input_dom->json_type() != enum_json_type::J_OBJECT) {
-    my_jdv_error<ER_JDV_UNEXPECTED_JSON_TYPE>("$", "Json_object");
-    return true;
-  }
-  return false;
 }
 
 /**
@@ -2344,24 +2369,18 @@ static bool check_etag(const Two_object_binding &binding) {
   orders them, creates and executes INSERT statements against the base tables.
 
   @param thd THD
-  @param jw JSON object to insert
+  @param null_checked_root_object JSON object to insert
   @param ct_node content tree root node of view
   @param[out] affected_rows number of affected base table rows
  */
-[[nodiscard]] static bool jdv_handle_insert(THD *thd, Json_wrapper *jw,
-                                            Content_tree_node *ct_node,
-                                            ulonglong *affected_rows) {
-  Json_dom *dom = jw->to_dom();
-  assert(dom != nullptr);
-  if (check_input_json(dom)) {
-    return true;
-  }
-  assert(dom->json_type() == enum_json_type::J_OBJECT);
-
+[[nodiscard]] static bool jdv_handle_insert(
+    THD *thd, Json_object *null_checked_root_object, Content_tree_node *ct_node,
+    ulonglong *affected_rows) {
   std::vector<Single_object_binding> bindings;
   bindings.reserve(BINDINGS_RESERVE_SIZE);
-  bindings.push_back({down_cast<Json_object *>(dom), ct_node,
-                      std::make_unique<Resolve_row>()});
+  bindings.push_back({.bound_object = null_checked_root_object,
+                      .ct_node = ct_node,
+                      .resolve_row = std::make_unique<Resolve_row>()});
 
   if (flatten(&bindings)) {
     return true;
@@ -2470,30 +2489,21 @@ static bool check_etag(const Two_object_binding &binding) {
   statements against the base tables.
 
   @param thd THD
-  @param jw updated JSON object
-  @param existing existing JSON object
+  @param null_checked_update_root updated JSON object
+  @param null_checked_existing_root existing JSON object
   @param ct_node content tree root node
   @param[out] affected_rows affected base table rows
  */
-[[nodiscard]] static bool jdv_handle_update(THD *thd, Json_wrapper *jw,
-                                            Json_wrapper *existing,
-                                            Content_tree_node *ct_node,
-                                            ulonglong *affected_rows) {
-  assert(jw != nullptr);
-  assert(existing != nullptr);
-  assert(ct_node != nullptr);
-  Json_dom *dom = jw->to_dom();
-  assert(dom != nullptr);
-  if (check_input_json(dom)) {
-    return true;
-  }
-  assert(dom->json_type() == enum_json_type::J_OBJECT);
-
+[[nodiscard]] static bool jdv_handle_update(
+    THD *thd, Json_object *null_checked_update_root,
+    Json_object *null_checked_existing_root, Content_tree_node *ct_node,
+    ulonglong *affected_rows) {
   std::vector<Two_object_binding> bindings;
   bindings.reserve(BINDINGS_RESERVE_SIZE);
-  bindings.push_back({down_cast<Json_object *>(dom),
-                      down_cast<Json_object *>(existing->to_dom()), ct_node,
-                      std::make_unique<Resolve_row>()});
+  bindings.push_back({.bound_object = null_checked_update_root,
+                      .existing_object = null_checked_existing_root,
+                      .ct_node = ct_node,
+                      .resolve_row = std::make_unique<Resolve_row>()});
 
   if (check_etag(bindings.front())) {
     return true;
@@ -2550,15 +2560,50 @@ static bool check_etag(const Two_object_binding &binding) {
 
   return do_in_substatement_context(thd, [&](Diagnostics_area *caller_da) {
     std::string stmt;
+
+    // Unpaired deletes must be executed in reverse order to satisfy FK
+    // contraints
+    if (std::ranges::any_of(
+            std::ranges::reverse_view{rank_index},
+            [&](const Index_entry<Two_object_binding> &ie) {
+              const Two_object_binding &bin = ie.get();
+              if (bin.is_empty() ||
+                  // Skip if insert/update
+                  bin.bound_object != nullptr) {
+                return false;
+              }
+
+              stmt.resize(0);
+              auto res =
+                  make_delete(thd, *bin.existing_object, *bin.ct_node, &stmt);
+              DBUG_LOG("jdv_dml",
+                       "DML-UPDATE: REVERESE unpaired delete from node '"
+                           << *bin.ct_node << "'"
+                           << " using '" << stmt << "'");
+
+              return res == Stmt_state::ERROR ||
+                     (res != Stmt_state::SKIP &&
+                      run_substmt(thd, caller_da, stmt, affected_rows));
+            })) {
+      return true;
+    }
+
+    // Unpaired inserts and updates are executed in the normal order (skipping
+    // over deletes already executed)
     return std::ranges::any_of(
         rank_index, [&](const Index_entry<Two_object_binding> &ie) {
           const Two_object_binding &bin = ie.get();
-          if (bin.is_empty()) {
+          if (bin.is_empty() ||
+              // Skip if unpaired delete
+              bin.bound_object == nullptr) {
             return false;
           }
+
           stmt.resize(0);
-          auto res = make_update(thd, bin, &stmt);
-          DBUG_LOG("jdv_dml", "DML-UPDATE: Update from node '"
+          auto res =
+              (bin.existing_object == nullptr ? make_insert(thd, bin, &stmt)
+                                              : make_update(thd, bin, &stmt));
+          DBUG_LOG("jdv_dml", "DML-UPDATE: FORWARD Update/insert from node '"
                                   << *bin.ct_node << "'"
                                   << " using '" << stmt << "'");
 
@@ -2574,21 +2619,17 @@ static bool check_etag(const Two_object_binding &binding) {
   orders them, creates and executes DELETE statements against the base tables.
 
   @param thd THD
-  @param jw existing JSON object to delete
+  @param null_checked_root_object existing JSON object to delete
   @param ct_node content tree root node
   @param[out] affected_rows affected base table rows
  */
-[[nodiscard]] static bool jdv_handle_delete(THD *thd, Json_wrapper *jw,
-                                            Content_tree_node *ct_node,
-                                            ulonglong *affected_rows) {
-  assert(jw != nullptr);
-  Json_dom *dom = jw->to_dom();
-  assert(dom != nullptr);
-  assert(dom->json_type() == enum_json_type::J_OBJECT);
-
+[[nodiscard]] static bool jdv_handle_delete(
+    THD *thd, Json_object *null_checked_root_object, Content_tree_node *ct_node,
+    ulonglong *affected_rows) {
   std::vector<Single_object_binding> bindings;
-  bindings.push_back({down_cast<Json_object *>(dom), ct_node,
-                      std::make_unique<Resolve_row>()});
+  bindings.push_back({.bound_object = null_checked_root_object,
+                      .ct_node = ct_node,
+                      .resolve_row = std::make_unique<Resolve_row>()});
 
   if (flatten(&bindings)) {
     return true;
@@ -2602,7 +2643,7 @@ static bool check_etag(const Two_object_binding &binding) {
         std::ranges::reverse_view{bindings},
         [&](const Single_object_binding &bin) {
           stmt.resize(0);
-          auto res = make_delete(thd, bin, &stmt);
+          auto res = make_delete(thd, *bin.bound_object, *bin.ct_node, &stmt);
           DBUG_LOG("jdv_dml", "DML-DELETE: Delete from node '"
                                   << *bin.ct_node << "'"
                                   << " using '" << stmt << "'");
@@ -2827,6 +2868,52 @@ static bool write_binlog(THD *thd) {
 }
 
 /**
+  Convert an item to root Json object.
+
+  @param item JSON value to convert.
+
+  @return tuple containing Json_object*, the backing Json_wrapper, and String
+  buffer. Json_object pointer is nullptr in case of errors
+*/
+template <int NULL_ERROR>
+[[nodiscard]] static std::tuple<Json_object *, Json_wrapper, String>
+get_root_object_from_item(Item *item) {
+  DBUG_TRACE;
+  std::tuple<Json_object *, Json_wrapper, String> ret;
+  auto &[tobject, jw, buf] = ret;
+
+  if (get_json_wrapper(&item, 0, &buf, "get_json_wrapper", &jw)) {
+    DBUG_LOG("jdv_dml",
+             "item data type:" << item->data_type()
+                               << ", error from get_json_wrapper(): "
+                               << current_thd->get_stmt_da()->message_text());
+    return ret;
+  }
+  if (!jw.is_dom()) {
+    my_jdv_error<NULL_ERROR>();
+    return ret;
+  }
+  if (jw.empty()) {
+    DBUG_LOG("jdv_dml",
+             "item data type:" << item->data_type()
+                               << ", produced an empty json wrapper.");
+
+    my_jdv_error<NULL_ERROR>();
+    return ret;
+  }
+  DBUG_LOG("jdv_dml", "new value: " << json_wrapper_to_string(jw));
+  Json_dom *input_dom = jw.to_dom();
+  auto [type, object] = inspect_dom<Json_object>(input_dom);
+
+  if (type != enum_json_type::J_OBJECT) {
+    my_jdv_error<ER_JDV_UNEXPECTED_JSON_TYPE>("$", "Json_object");
+    return ret;
+  }
+  tobject = object;
+  return ret;
+}
+
+/**
   Entry point called from sql_insert.cc,
   bool Sql_cmd_insert_values::execute_inner(THD *thd);
 
@@ -2861,26 +2948,14 @@ bool jdv_insert(THD *thd, const Table_ref *dvtr,
         my_jdv_error<ER_JDV_INSERT_VALUE_NOT_FIXED>();
         return true;
       }
-      Json_wrapper jw;
-      String buf;
-      if (get_json_wrapper(&itm, 0, &buf, "get_json_wrapper", &jw)) {
-        DBUG_LOG("jdv_dml", "DML-INSERT item data type:"
-                                << itm->data_type()
-                                << ", error from get_json_wrapper(): "
-                                << thd->get_stmt_da()->message_text());
+      auto ro = get_root_object_from_item<ER_JDV_NULL_INSERT_VALUE>(itm);
+      Json_object *root_object = std::get<Json_object *>(ro);
+      if (root_object == nullptr) {
+        assert(thd->is_error());
         return true;
       }
-      if (jw.empty()) {
-        DBUG_LOG("jdv_dml", "DML-INSERT item data type:"
-                                << itm->data_type()
-                                << ", produced an empty json wrapper.");
 
-        my_jdv_error<ER_JDV_NULL_INSERT_VALUE>();
-        return true;
-      }
-      DBUG_LOG("jdv_dml",
-               "DML-INSERT: new value: " << json_wrapper_to_string(jw));
-      if (jdv_handle_insert(thd, &jw, &content_tree, &affected_rows)) {
+      if (jdv_handle_insert(thd, root_object, &content_tree, &affected_rows)) {
         return true;
       }
     }
@@ -2935,6 +3010,18 @@ bool jdv_update(THD *thd, const Table_ref *dvtr,
   if (sel_func_item->val_json(&sel_jw)) {
     return true;
   }
+  assert(sel_jw.is_dom());
+  assert(!sel_jw.empty());
+  if (!sel_jw.is_dom() || sel_jw.empty()) {
+    my_jdv_error<ER_JDV_UNEXPECTED_INVALID_VALUE>();
+    return true;
+  }
+  auto [stype, select_root_object] = inspect_dom<Json_object>(sel_jw.to_dom());
+  assert(stype == enum_json_type::J_OBJECT && select_root_object != nullptr);
+  if (stype != enum_json_type::J_OBJECT) {
+    my_jdv_error<ER_JDV_UNEXPECTED_INVALID_VALUE>();
+    return true;
+  }
   DBUG_LOG("jdv_dml",
            "DML-UPDATE: selected data: " << json_wrapper_to_string(sel_jw));
 
@@ -2950,21 +3037,27 @@ bool jdv_update(THD *thd, const Table_ref *dvtr,
     DBUG_LOG("jdv_dml", "DML-UPDATE: Stripping ref-layer from upd-item");
   }
 
+  if (upd_itm->null_value) {
+    my_jdv_error<ER_JDV_NULL_UPDATE_VALUE>();
+    return true;
+  }
+
   if (!upd_itm->fixed) {
     my_jdv_error<ER_JDV_UPDATE_VALUE_NOT_FIXED>();
     return true;
   }
 
-  Json_wrapper upd_jw;
-  String buf;
-  if (get_json_wrapper(&upd_itm, 0, &buf, "get_json_wrapper", &upd_jw)) {
-    DBUG_LOG("jdv_dml", "DML-UPDATE: item data type:" << upd_itm->data_type());
+  auto uro = get_root_object_from_item<ER_JDV_NULL_UPDATE_VALUE>(upd_itm);
+  Json_object *update_root_object = std::get<Json_object *>(uro);
+  if (update_root_object == nullptr) {
+    assert(thd->is_error());
     return true;
   }
-  DBUG_LOG("jdv_dml",
-           "DML-UPDATE: set data to: " << json_wrapper_to_string(upd_jw));
+  DBUG_LOG("jdv_dml", "DML-UPDATE: set data to: "
+                          << json_dom_to_string(update_root_object));
 
-  if (jdv_handle_update(thd, &upd_jw, &sel_jw, content_tree, affected_rows)) {
+  if (jdv_handle_update(thd, update_root_object, select_root_object,
+                        content_tree, affected_rows)) {
     assert(thd->is_error());
     return true;
   }
@@ -2988,20 +3081,16 @@ bool jdv_delete(THD *thd, const Table_ref *dvtr, ulonglong *affected_rows) {
   DBUG_LOG("jdv_dml", "DML-DELETE:  for query:'" << thd->query().str);
   Item *field_xlation = dvtr->field_translation->item;
 
-  Json_wrapper fldx_jw;
-  String fldx_buf;
-  if (get_json_wrapper(&field_xlation, 0, &fldx_buf, "get_json_wrapper",
-                       &fldx_jw)) {
-    DBUG_LOG("jdv_dml", "DML-DELETE: data type:" << field_xlation->data_type());
+  auto ro =
+      get_root_object_from_item<ER_JDV_UNEXPECTED_INVALID_VALUE>(field_xlation);
+  Json_object *root_object = std::get<Json_object *>(ro);
+  if (root_object == nullptr) {
+    assert(thd->is_error());
     return true;
   }
-  DBUG_LOG("jdv_dml", "DML-DELETE: field_translation item = "
-                          << json_wrapper_to_string(fldx_jw));
 
-  assert(dvtr != nullptr && dvtr->is_json_duality_view() &&
-         dvtr->jdv_content_tree != nullptr);
-
-  if (jdv_handle_delete(thd, &fldx_jw, dvtr->jdv_content_tree, affected_rows)) {
+  if (jdv_handle_delete(thd, root_object, dvtr->jdv_content_tree,
+                        affected_rows)) {
     assert(thd->is_error());
     return true;
   }

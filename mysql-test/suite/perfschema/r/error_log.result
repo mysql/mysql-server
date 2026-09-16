@@ -93,7 +93,7 @@ AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
 "MY-013884", "MY-013908", "MY-013930", "MY-014013",
 "MY-000068", "MY-014066", "MY-014067", "MY-014068",
 "MY-013932", "MY-010101", "MY-010099", "MY-011070",
-"MY-011872", "MY-011874", "MY-015140")
+"MY-011872", "MY-011874", "MY-015140", "MY-015696")
 ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-015015	Server
@@ -106,9 +106,6 @@ Note	MY-012944	InnoDB
 Note	MY-012945	InnoDB
 Note	MY-012948	InnoDB
 Note	MY-012951	InnoDB
-Note	MY-012203	InnoDB
-Note	MY-012204	InnoDB
-Note	MY-012208	InnoDB
 Note	MY-012955	InnoDB
 Note	MY-012957	InnoDB
 Note	MY-013532	InnoDB
@@ -117,7 +114,11 @@ Note	MY-013566	InnoDB
 Note	MY-013565	InnoDB
 Note	MY-013532	InnoDB
 Note	MY-013532	InnoDB
+Note	MY-012203	InnoDB
+Note	MY-012204	InnoDB
+Note	MY-012208	InnoDB
 Note	MY-013086	InnoDB
+Note	MY-016004	InnoDB
 Note	MY-012532	InnoDB
 Note	MY-012535	InnoDB
 Note	MY-013083	InnoDB
@@ -128,6 +129,7 @@ Note	MY-011980	InnoDB
 Note	MY-013776	InnoDB
 Note	MY-013777	InnoDB
 Note	MY-012923	InnoDB
+Note	MY-012275	InnoDB
 Note	MY-012265	InnoDB
 Note	MY-012266	InnoDB
 Note	MY-013627	InnoDB
@@ -163,7 +165,7 @@ AND prio!="Note"
 "MY-000067", "MY-010159", "MY-013595", "MY-013602",
 "MY-010108", "MY-012363", "MY-013711", "MY-013908",
 "MY-013930", "MY-000068", "MY-015015", "MY-010101",
-"MY-010099", "MY-011070", "MY-015603")
+"MY-010099", "MY-011070", "MY-015603", "MY-015696")
 ORDER BY logged;
 prio	error_code	subsystem	data
 System	MY-013576	InnoDB	InnoDB initialization has started.

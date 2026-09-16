@@ -148,7 +148,7 @@ Tables::Tables() {
                          "  IS_VISIBLE_DD_OBJECT(tbl.hidden, FALSE,"
                          "    tbl.options) IS FALSE,"
                          "  ts.se_private_data,"
-                         "  COALESCE(stat.auto_increment, 0),"
+                         "  COALESCE(stat.auto_increment, CAST(0 AS UNSIGNED)),"
                          "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0), "
                          "tbl.se_private_data))");
   m_target_def.add_field(FIELD_UPDATE_TIME, "UPDATE_TIME",

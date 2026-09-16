@@ -34,6 +34,7 @@ a
 select * from t2;
 a
 1
+include/rpl/sync_to_replica.inc
 select * from t1;
 ERROR 42S02: Table 'mysqltest_to.t1' doesn't exist
 select * from t2;

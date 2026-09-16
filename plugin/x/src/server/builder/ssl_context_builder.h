@@ -41,6 +41,12 @@ class Ssl_context_builder {
   std::unique_ptr<iface::Ssl_context> get_result_context() const;
 
  private:
+  struct Pqc_config {
+    std::string m_tls_kex;
+    bool m_tls_force_pqc = false;
+    bool m_tls_use_pqc_sign = false;
+  };
+
   struct Ssl_config_local {
     std::string m_ssl_key;
     std::string m_ssl_ca;
@@ -50,12 +56,14 @@ class Ssl_context_builder {
     std::string m_ssl_crl;
     std::string m_ssl_crlpath;
     std::string m_ssl_tls_version;
+    Pqc_config m_pqc;
     bool m_have_ssl = false;
   };
 
   xpl::Ssl_config choose_ssl_config(const bool mysqld_have_ssl,
                                     const xpl::Ssl_config &mysqld_ssl,
                                     const xpl::Ssl_config &mysqlx_ssl) const;
+  Pqc_config choose_pqc_config(const Ssl_config_local &mysqld_ssl) const;
   Ssl_config_local get_mysqld_ssl_config() const;
   void setup_ssl_context(iface::Ssl_context *ssl_context) const;
 };

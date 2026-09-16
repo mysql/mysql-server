@@ -4,7 +4,6 @@
 ##########################################################################
 
 --source include/not_valgrind.inc
---source include/have_lowercase0.inc
 
 # ------------------------------------------------------------
 # Tables created on 8.0.28 with following (specific to this test)
@@ -75,7 +74,7 @@
 # Alter table t2_compact add column c5 INT, algorithm=INSTANT;
 # ALTER TABLE t2_compact TRUNCATE PARTITION p0, p1, p2;
 #
-# -- Upgrade to 8.4.3 and zip data directory
+# -- Upgrade to 8.4.3 then to 9.7.1 and zip data directory
 # ------------------------------------------------------------
 
 --echo #########
@@ -86,14 +85,14 @@
 --source include/shutdown_mysqld.inc
 
 --echo # Copy and unzip the datadir.
---copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade_part_8_4_3.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip
---file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip
---exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip -d $MYSQL_TMP_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade_part_9.7.1.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_9.7.1.zip
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_9.7.1.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_9.7.1.zip -d $MYSQL_TMP_DIR
 let $DATADIR = $MYSQL_TMP_DIR/data;
 
 --echo # Restart the server against the unzipped datadir
 --replace_result $DATADIR DATADIR
---let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k
+--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k --lower_case_table_names=1
 --let $wait_counter=3000
 --source include/start_mysqld.inc
 
@@ -123,9 +122,9 @@ let $row_format = compact;
 --source include/shutdown_mysqld.inc
 
 --echo # Remove copied files
---file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_9.7.1.zip
 --force-rmdir $MYSQL_TMP_DIR/data
---remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip
+--remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_9.7.1.zip
 
 --echo # Restarting server to restore server state
 let $restart_parameters =;

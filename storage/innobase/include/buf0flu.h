@@ -34,8 +34,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef buf0flu_h
 #define buf0flu_h
 
+#include <atomic>
+
 #include "buf0types.h"
-#include "log0types.h"
+#include "log0types.h" /* lsn_t */
 #include "univ.i"
 #include "ut0byte.h"
 #include "ut0cpu_cache.h"
@@ -58,6 +60,9 @@ extern os_event_t buf_flush_event;
 
 /** Event to wait for one flushing step */
 extern os_event_t buf_flush_tick_event;
+
+/** lsn that indicates there is need to do sync flush operation */
+extern std::atomic<lsn_t> requested_sync_flush_lsn;
 
 class Alter_stage;
 
@@ -227,14 +232,6 @@ Requires buf_page_get_mutex(bpage).
 [[nodiscard]] bool buf_flush_ready_for_flush(buf_page_t *bpage,
                                              buf_flush_t flush_type);
 
-/** Check if there are any dirty pages that belong to a space id in the flush
- list in a particular buffer pool.
- @return number of dirty pages present in a single buffer pool */
-ulint buf_pool_get_dirty_pages_count(
-    buf_pool_t *buf_pool,      /*!< in: buffer pool */
-    space_id_t id,             /*!< in: space id to check */
-    Flush_observer *observer); /*!< in: flush observer to check */
-
 /** Executes fsync for all tablespaces, to fsync all pages written to disk. */
 void buf_flush_fsync();
 
@@ -250,6 +247,34 @@ are not changed in background.
 @return true if all flush lists were empty. */
 bool buf_are_flush_lists_empty_validate();
 
+#ifdef UNIV_DEBUG
+/** Counts how many dirty pages that belong to a tablespace with a specified ID
+are in all BufferPool instances.
+@param[in] space_id ID of tablespace for which to count the dirty pages.
+@return number of dirty pages present in all BufferPool instances. */
+size_t buf_flush_get_dirty_pages_count_for_space(space_id_t space_id);
+#endif /* UNIV_DEBUG */
+
+/** Flushes all dirty pages inside all buffer pool instances belonging to a
+given tablespace or belonging to the specified flush observer. This will handle
+all pages that were dirty before this call - in case there are more pages made
+dirty during the call, they may get not flushed. Exactly one of @p id and @p
+observer can be specified valid. If a transaction is specified, its flush
+observer must be the same as specified in the @p observer and it will be used to
+check if the transaction was interrupted, and in such case:
+- if @p observer is not nullptr, the dirty pages are removed from the flush
+list. The pages still remain dirty and a part of LRU and are evicted from the
+list as they age towards the tail of the LRU.
+- otherwise all not yet processed dirty pages will be left in the flush list.
+@param[in]  id          Tablespace ID to flush pages from or SPACE_UNKNOWN iff
+                        the @p observer is not nullptr.
+@param[in]  observer    Pointer to a FlushObserver to identify specific pages
+                        or nullptr.
+@param[in]  trx         Pointer to a transaction to check if the operation was
+                        interrupted or nullptr if such checks should not be
+                        performed. */
+void buf_flush_pages(space_id_t id, Flush_observer *observer, const trx_t *trx);
+
 /** We use Flush_observer to track flushing of non-redo logged pages in bulk
 create index(btr0load.cc).Since we disable redo logging during a index build,
 we need to make sure that all dirty pages modified by the index build are
@@ -258,12 +283,11 @@ flushed to disk before any redo logged operations go to the index. */
 class Flush_observer {
  public:
   /** Constructor
-  @param[in] space_id   table space id
   @param[in] trx                trx instance
   @param[in,out] stage PFS progress monitoring instance, it's used by
   ALTER TABLE. It is passed to log_preflush_pool_modified_pages() for
   accounting. */
-  Flush_observer(space_id_t space_id, trx_t *trx, Alter_stage *stage) noexcept;
+  Flush_observer(const trx_t &trx, Alter_stage *stage) noexcept;
 
   /** Destructor */
   ~Flush_observer() noexcept;
@@ -304,6 +328,9 @@ class Flush_observer {
   @param[in]    bpage           buffer page flushed */
   void notify_remove(buf_pool_t *buf_pool, buf_page_t *bpage);
 
+  /** Returns the transaction the observer was created for. */
+  const trx_t &get_trx() const { return m_trx; }
+
  private:
   using Counter = std::atomic_int;
   using Counters = std::vector<Counter, ut::allocator<Counter>>;
@@ -312,11 +339,8 @@ class Flush_observer {
   [[nodiscard]] bool validate() const noexcept;
 #endif /* UNIV_DEBUG */
 
-  /** Tablespace ID. */
-  space_id_t m_space_id{};
-
   /** Trx instance */
-  trx_t *m_trx{};
+  const trx_t &m_trx;
 
   /** Performance schema accounting object, used by ALTER TABLE.
   If not nullptr, then stage->begin_phase_flush() will be called initially,
@@ -358,12 +382,6 @@ class Buf_flush_list_added_lsns {
   aligned to the cache line boundary. This is needed since C++17 doesn't
   guarantee allocating aligned types dynamically */
   static Buf_flush_list_added_lsns_aligned_ptr create();
-
-  /** Validates using assertions that the specified LSN range is not yet added
-  to the flush lists.
-  @param[in]    begin   start LSN of the range
-  @param[in]    end     end LSN of the range*/
-  void validate_not_added(lsn_t begin, lsn_t end);
 
   /** Assume that the start_lsn is the start lsn of the first mini-transaction,
   for which report_added(mtr.start_lsn, mtr.end_lsn) was not yet called.

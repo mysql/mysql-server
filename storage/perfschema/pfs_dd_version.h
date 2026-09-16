@@ -288,8 +288,16 @@
      - New table temporary_account_locks.
      - New column host_cache.COUNT_ACCOUNT_LOCKED_ERRORS.
      - New column host_cache.COUNT_TEMPORARY_ACCOUNT_LOCKED_ERRORS.
+
+  260700:
+
+   - WL#10500 MTA: Optimized and generic change stream applier
+     Modified 'replication_applier_configuration' performance schema table:
+     - new column APPLIER_VERSION
+     - new column APPLIER_WORKER_COUNT
+     - new column APPLIER_EVENT_MEMORY_LIMIT
 */
 
-static const uint PFS_DD_VERSION = 90600;
+static const uint PFS_DD_VERSION = 260700;
 
 #endif /* PFS_DD_VERSION_H */

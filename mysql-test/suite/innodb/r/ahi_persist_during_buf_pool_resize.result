@@ -1,0 +1,16 @@
+RESET PERSIST IF EXISTS innodb_adaptive_hash_index;
+# Reproduce the transient OFF state during buffer pool resize
+SET GLOBAL debug = '+d,ib_buf_pool_resize_after_disable_ahi';
+SET GLOBAL innodb_adaptive_hash_index = ON;
+SET GLOBAL innodb_buffer_pool_size = @new_innodb_buffer_pool_size;
+# Verify resize has already disabled AHI
+include/assert_grep.inc [mysqld.err shows AHI was disabled by buffer pool resize]
+# Persist the user-requested value while resize still keeps AHI disabled
+SET PERSIST innodb_adaptive_hash_index = ON;
+# Verify the fixed persisted result
+include/assert_grep.inc [mysqld-auto.cnf persists innodb_adaptive_hash_index=ON]
+SET GLOBAL debug = '-d,ib_buf_pool_resize_after_disable_ahi';
+SET GLOBAL innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
+SET GLOBAL innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+RESET PERSIST IF EXISTS innodb_adaptive_hash_index;
+SET GLOBAL debug = @old_debug;

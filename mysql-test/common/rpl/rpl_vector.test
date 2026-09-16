@@ -224,6 +224,7 @@ SELECT pk, FROM_VECTOR(v1) FROM b;
 --source include/rpl/connection_replica.inc
 CALL mtr.add_suppression(".Column 2 .* of table 'test.B' cannot be converted from type 'vector.16.' to type 'blob'");
 CALL mtr.add_suppression(".The replica coordinator and worker threads are stopped.");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
 --let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
 --source include/rpl/wait_for_applier_error.inc
 

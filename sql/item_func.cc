@@ -3061,7 +3061,7 @@ double Item_func_pow::val_real() {
 
   const double val2 = args[1]->val_real();
   if (current_thd->is_error()) return 0.0;
-  if ((null_value = args[0]->null_value)) return 0.0;
+  if ((null_value = args[1]->null_value)) return 0.0;
 
   const double pow_result = pow(value, val2);
   return check_float_overflow(pow_result);
@@ -4089,6 +4089,11 @@ bool Item_func_min_max::resolve_type_inner(THD *thd) {
                               "comparison of JSON in the "
                               "LEAST and GREATEST operators");
   if (data_type() == MYSQL_TYPE_JSON) set_data_type(MYSQL_TYPE_VARCHAR);
+
+  for (uint i = 0; i < arg_count; i++) {
+    args[i]->cmp_context = hybrid_type;
+  }
+
   return false;
 }
 
@@ -4635,7 +4640,7 @@ longlong Item_func_field::val_int() {
 bool Item_func_field::resolve_type(THD *thd) {
   if (Item_int_func::resolve_type(thd)) return true;
   set_nullable(false);
-  max_length = 3;
+  max_length = MY_INT32_NUM_DECIMAL_DIGITS;
   cmp_type = args[0]->result_type();
   for (uint i = 1; i < arg_count; i++)
     cmp_type = item_cmp_type(cmp_type, args[i]->result_type());
@@ -4683,7 +4688,7 @@ longlong Item_func_ord::val_int() {
 
 bool Item_func_find_in_set::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
-  max_length = 3;  // 1-999
+  max_length = MY_INT32_NUM_DECIMAL_DIGITS;
 
   if (agg_arg_charsets_for_comparison(cmp_collation, args, 2)) {
     return true;
@@ -6672,17 +6677,13 @@ my_decimal *user_var_entry::val_decimal(bool *null_value,
 }
 
 /**
-  This functions is invoked on SET \@variable or
-  \@variable:= expression.
+  This functions is invoked on SET \@variable or \@variable:= expression.
 
   Evaluate (and check expression), store results.
 
-  @note
-    For now it always return OK. All problem with value evaluating
-    will be caught by thd->is_error() check in sql_set_variables().
-
-  @retval
-    false OK.
+  @param use_result_field if true, evaluate result field, otherwise evaluate
+                          first argument
+  @returns false on success, true on error
 */
 
 bool Item_func_set_user_var::check(bool use_result_field) {
@@ -6719,7 +6720,7 @@ bool Item_func_set_user_var::check(bool use_result_field) {
       assert(0);
       break;
   }
-  return false;
+  return current_thd->is_error();
 }
 
 /**
@@ -6727,9 +6728,11 @@ bool Item_func_set_user_var::check(bool use_result_field) {
   This function is invoked on "SELECT ... INTO @var ...".
 
   @param    item    An item to get value from.
+
+  @returns false on success, true on error
 */
 
-void Item_func_set_user_var::save_item_result(Item *item) {
+bool Item_func_set_user_var::save_item_result(Item *item) {
   DBUG_TRACE;
 
   switch (cached_result_type) {
@@ -6752,6 +6755,7 @@ void Item_func_set_user_var::save_item_result(Item *item) {
       assert(0);
       break;
   }
+  return current_thd->is_error();
 }
 
 /**
@@ -6810,29 +6814,29 @@ bool Item_func_set_user_var::update() {
 
 double Item_func_set_user_var::val_real() {
   assert(fixed);
-  check(false);
-  update();  // Store expression
+  if (check(false)) return 0.0;
+  if (update()) return 0.0;  // Store expression
   return entry->val_real(&null_value);
 }
 
 longlong Item_func_set_user_var::val_int() {
   assert(fixed);
-  check(false);
-  update();  // Store expression
+  if (check(false)) return 0;
+  if (update()) return 0;  // Store expression
   return entry->val_int(&null_value);
 }
 
 String *Item_func_set_user_var::val_str(String *str) {
   assert(fixed);
-  check(false);
-  update();  // Store expression
+  if (check(false)) return nullptr;
+  if (update()) return nullptr;  // Store expression
   return entry->val_str(&null_value, str, decimals);
 }
 
 my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val) {
   assert(fixed);
-  check(false);
-  update();  // Store expression
+  if (check(false)) return nullptr;
+  if (update()) return nullptr;  // Store expression
   return entry->val_decimal(&null_value, val);
 }
 
@@ -6860,8 +6864,8 @@ uint64_t Item_func_set_user_var::hash() {
 
 bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg) {
   if (result_field) {
-    check(true);
-    update();
+    if (check(true)) return true;
+    if (update()) return true;
     /*
       TODO This func have to be changed to avoid sending data as a field.
     */
@@ -6925,24 +6929,21 @@ type_conversion_status Item_func_set_user_var::save_in_field(
   type_conversion_status error;
 
   /* Update the value of the user variable */
-  check(use_result_field);
-  update();
+  if (check(use_result_field)) return TYPE_ERR_BAD_VALUE;
+  if (update()) return TYPE_ERR_BAD_VALUE;
 
   if (result_type() == STRING_RESULT ||
       (result_type() == REAL_RESULT && field->result_type() == STRING_RESULT)) {
-    String *result;
     const CHARSET_INFO *cs = collation.collation;
     char buff[MAX_FIELD_WIDTH];  // Alloc buffer for small columns
     str_value.set_quick(buff, sizeof(buff), cs);
-    result = entry->val_str(&null_value, &str_value, decimals);
-
+    String *result = entry->val_str(&null_value, &str_value, decimals);
     if (null_value) {
       str_value.set_quick(nullptr, 0, cs);
       return set_field_to_null_with_conversions(field, no_conversions);
+    } else if (result == nullptr) {
+      return TYPE_ERR_BAD_VALUE;
     }
-
-    /* NOTE: If null_value == false, "result" must be not NULL.  */
-
     field->set_notnull();
     error = field->store(result->ptr(), result->length(), cs);
     str_value.set_quick(nullptr, 0, cs);
@@ -6954,7 +6955,11 @@ type_conversion_status Item_func_set_user_var::save_in_field(
   } else if (result_type() == DECIMAL_RESULT) {
     my_decimal decimal_value;
     my_decimal *val = entry->val_decimal(&null_value, &decimal_value);
-    if (null_value) return set_field_to_null(field);
+    if (null_value) {
+      return set_field_to_null(field);
+    } else if (val == nullptr) {
+      return TYPE_ERR_BAD_VALUE;
+    }
     field->set_notnull();
     error = field->store_decimal(val);
   } else {

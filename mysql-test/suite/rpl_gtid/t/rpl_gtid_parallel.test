@@ -185,4 +185,6 @@ eval DROP TABLE t1_$t, t2_$t;
 DROP TABLE t_end;
 DROP PROCEDURE show_slave_status;
 DROP PROCEDURE read_gtid_executed;
-CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
+
+--let $rpl_reset_slave_all= 1
+--source include/rpl/reset_replica.inc

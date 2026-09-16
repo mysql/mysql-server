@@ -853,39 +853,20 @@ bool table_def::compute_source_table_gipk_info(THD &thd, TABLE *table) {
 
 #endif /* MYSQL_SERVER */
 
-/**
-  Decode field metadata from a char buffer (serialized form) into an int
-  (packed form).
-
-  @note On little-endian platforms (e.g Intel) this function effectively
-  inverts order of bytes compared to what Field::save_field_metadata()
-  writes. E.g for MYSQL_TYPE_NEWDECIMAL save_field_metadata writes precision
-  into the first byte and decimals into the second, this function puts
-  precision into the second byte and decimals into the first. This layout
-  is expected by replication code that reads metadata in the uint form.
-  Due to this design feature show_sql_type() can't correctly print
-  immediate output of save_field_metadata(), this function have to be used
-  as translator.
-
-  @param buffer Field metadata, in the character stream form produced by
-                save_field_metadata.
-  @param binlog_type The type of the field, in the form returned by
-                      Field::binlog_type and stored in Table_map_log_event.
-  @retval pair where:
-  - the first component is the length of the metadata within 'buffer',
-    i.e., how much the buffer pointer should move forward in order to skip it.
-  - the second component is pair containing:
-    - the metadata, encoded as an 'uint', in the form required by e.g.
-      show_sql_type.
-    - bool indicating whether the field is array (true) or a scalar (false)
-*/
-
-std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
-    const uchar *buffer, enum_field_types binlog_type) {
+std::tuple<bool, my_off_t, std::pair<uint, bool>> read_field_metadata(
+    const uchar *buffer, uint metadata_size, enum_field_types binlog_type) {
   bool is_array = false;
   uint metadata = 0;
   uint index = 0;
+
+  auto is_insufficient_metadata_size_in_bytes =
+      [&](uint required_bytes) -> bool {
+    return index > metadata_size || required_bytes > metadata_size - index;
+  };
+
   if (binlog_type == MYSQL_TYPE_TYPED_ARRAY) {
+    if (is_insufficient_metadata_size_in_bytes(1))
+      return std::make_tuple(true, 0, std::make_pair(0, false));
     binlog_type = static_cast<enum_field_types>(buffer[index++]);
     is_array = true;
   }
@@ -905,17 +886,23 @@ std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
       /*
         These types store a single byte.
       */
+      if (is_insufficient_metadata_size_in_bytes(1))
+        return std::make_tuple(true, 0, std::make_pair(0, false));
       metadata = buffer[index++];
       break;
     }
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_STRING: {
+      if (is_insufficient_metadata_size_in_bytes(2))
+        return std::make_tuple(true, 0, std::make_pair(0, false));
       metadata = buffer[index++] << 8U;  // real_type
       metadata += buffer[index++];       // pack or field length
       break;
     }
     case MYSQL_TYPE_BIT: {
+      if (is_insufficient_metadata_size_in_bytes(2))
+        return std::make_tuple(true, 0, std::make_pair(0, false));
       metadata = buffer[index++];
       metadata += (buffer[index++] << 8U);
       break;
@@ -925,15 +912,21 @@ std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
         These types store two bytes.
       */
       if (is_array) {
+        if (is_insufficient_metadata_size_in_bytes(3))
+          return std::make_tuple(true, 0, std::make_pair(0, false));
         metadata = uint3korr(buffer + index);
         index = index + 3;
       } else {
+        if (is_insufficient_metadata_size_in_bytes(2))
+          return std::make_tuple(true, 0, std::make_pair(0, false));
         metadata = uint2korr(buffer + index);
         index = index + 2;
       }
       break;
     }
     case MYSQL_TYPE_NEWDECIMAL: {
+      if (is_insufficient_metadata_size_in_bytes(2))
+        return std::make_tuple(true, 0, std::make_pair(0, false));
       metadata = buffer[index++] << 8U;  // precision
       metadata += buffer[index++];       // decimals
       break;
@@ -942,7 +935,7 @@ std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
       metadata = 0;
       break;
   }
-  return std::make_pair(index, std::make_pair(metadata, is_array));
+  return std::make_tuple(false, index, std::make_pair(metadata, is_array));
 }
 
 PSI_memory_key key_memory_table_def_memory;
@@ -984,17 +977,23 @@ table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
   if (m_size && metadata_size) {
     int index = 0;
     for (unsigned int i = 0; i < m_size; i++) {
-      std::pair<my_off_t, std::pair<uint, bool>> pack = read_field_metadata(
-          static_cast<const uchar *>(field_metadata + index), binlog_type(i));
+      const auto &[insufficient_metadata_size, metadata_length, metadata_info] =
+          read_field_metadata(
+              static_cast<const uchar *>(field_metadata + index),
+              static_cast<uint>(metadata_size - index), binlog_type(i));
+      if (insufficient_metadata_size) {
+        m_is_valid = false;
+        break;
+      }
       // Update type of the typed array
       if (binlog_type(i) == MYSQL_TYPE_TYPED_ARRAY)
         m_type[i] = static_cast<enum_field_types>(field_metadata[index]);
       // Fill in read metadata
-      m_field_metadata[i] = pack.second.first;
-      m_is_array[i] = pack.second.second;
-      index += pack.first;
-      assert(index <= metadata_size);
+      m_field_metadata[i] = metadata_info.first;
+      m_is_array[i] = metadata_info.second;
+      index += metadata_length;
     }
+    if (m_is_valid && index != metadata_size) m_is_valid = false;
   }
   if (m_size && null_bitmap) memcpy(m_null_bits, null_bitmap, (m_size + 7) / 8);
 }

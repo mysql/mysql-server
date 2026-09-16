@@ -205,3 +205,10 @@ UNION
 SELECT 'invalid column  ', FIND_IN_SET(z, s), s FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#39136916: INTERVAL() is failing in decimal_cmp
+--echo #
+
+--error ER_WRONG_ARGUMENTS
+SELECT INTERVAL(BIT_OR(UTC_TIMESTAMP), ORD(PERIOD_ADD(-12795,-17171)));

@@ -385,8 +385,8 @@ CODE_STATE **my_thread_var_dbug() {
 #ifdef _WIN32
 /*
   In Visual Studio 2005 and later, default SIGABRT handler will overwrite
-  any unhandled exception filter set by the application  and will try to
-  call JIT debugger. This is not what we want, this we calling __debugbreak
+  any unhandled exception filter set by the application and will try to
+  call JIT debugger. This is not what we want, thus we are calling __debugbreak
   to stop in debugger, if process is being debugged or to generate
   EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
 */

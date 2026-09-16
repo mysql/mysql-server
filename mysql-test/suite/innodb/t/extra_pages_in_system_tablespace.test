@@ -1,0 +1,25 @@
+# This tests simulates a situation in which MySQL has crashed while extending
+# a space, i.e. managed to enlarge the file on disc by a few pages, but not
+# a multiple of 1MB (nor "an extent") and didn't get to update FSP_SIZE.
+# Moreover we assume MLOG_FILE_EXTEND record was already removed from redo log
+# which is possible, as nothing is preventing this.
+# In this scenario the size of the file on disc is not a multiple of 1MB
+# and slightly larger than what is stored in FSP_SIZE header of the space.
+# The expected behaviour is that InnoDB should start without any issues,
+# as FSP_SIZE <= real size on disc, should be the sufficient condition,
+# and it is not really important if the size is divisible by 1MB or not.
+# Also it's not relevant if the file size is a multiple of "an extent", as
+# conceptually it is FSP_SIZE which determines the logical size of the space
+# and determines page allocation behaviour.
+
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+--source include/shutdown_mysqld.inc
+perl;
+use strict;
+use warnings;
+my $dir = $ENV{'MYSQLD_DATADIR'};
+open FILE, ">>", "$dir/ibdata1" or die $!;
+print FILE chr(0) x (2**16);
+close(FILE);
+EOF
+--source include/start_mysqld.inc

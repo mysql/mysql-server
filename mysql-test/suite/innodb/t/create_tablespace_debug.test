@@ -124,7 +124,6 @@ SELECT @is_tbs_row_cnt = @matching_is_tbs_row_cnt ;
 call mtr.add_suppression("\\[ERROR\\].* Operating system error number .* in a file operation");
 call mtr.add_suppression("\\[ERROR\\].* The error means that another program is using InnoDB's files");
 call mtr.add_suppression("\\[ERROR\\].* The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\].* Cannot open datafile for read-only");
 call mtr.add_suppression("\\[ERROR\\].* Could not find a valid tablespace file for");
 call mtr.add_suppression("\\[ERROR\\].* File .*s_def.ibd: 'delete' returned OS error [0-9]*");
 call mtr.add_suppression("\\[ERROR\\].* Failed to delete the datafile of tablespace ID=[0-9]+, file '.*s_def.ibd'!");

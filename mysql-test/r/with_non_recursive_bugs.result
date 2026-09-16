@@ -905,7 +905,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	outr2	NULL	ref	col_int_key	col_int_key	5	test.outr1.col_int	1	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.outr1.col_int	2	100.00	NULL
 3	SUBQUERY	innr1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using temporary
-3	SUBQUERY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Distinct; Using join buffer (hash join)
+3	SUBQUERY	<derived2>	NULL	range	<auto_key0>,<auto_key1>,<auto_key2>	<auto_key0>	4	NULL	2	100.00	Range checked for each record (index map: 0x7); Distinct
 2	DERIVED	alias2	NULL	range	PRIMARY,col_varchar_key	PRIMARY	4	NULL	2	100.00	Using where
 2	DERIVED	alias1	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias2.col_varchar_key	1	100.00	Using index
 Warnings:
@@ -1227,3 +1227,55 @@ cte2 AS (SELECT COUNT(*) FROM cte1) SELECT * from cte1,cte2;
 f1	COUNT(*)
 x	1
 DROP TABLE t1;
+#
+# Bug#39321676: WHERE equality condition fails to match existing row
+#
+CREATE TABLE parent (
+uuid CHAR(36) NOT NULL PRIMARY KEY
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE child (
+uuid CHAR(36) NOT NULL PRIMARY KEY,
+id VARCHAR(255) NOT NULL,
+version INT NOT NULL,
+parent_uuid CHAR(36) NOT NULL,
+created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+FOREIGN KEY (parent_uuid) REFERENCES parent (uuid)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE sub_child(
+uuid CHAR(36) NOT NULL PRIMARY KEY,
+child_uuid CHAR(36) NOT NULL,
+FOREIGN KEY (child_uuid) REFERENCES child (uuid)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+INSERT INTO parent VALUES
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+INSERT INTO child VALUES
+(UUID(), "A", 1, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', CURRENT_TIMESTAMP());
+INSERT INTO sub_child
+SELECT UUID(), c.uuid
+FROM child c;
+WITH ranked_children AS
+(SELECT c.uuid AS child_uuid,
+c.parent_uuid,
+c.created_at,
+ROW_NUMBER() OVER (PARTITION BY c.id ORDER BY c.version DESC) AS rn
+FROM child AS c
+GROUP BY c.uuid
+)
+SELECT p.uuid
+FROM parent AS p JOIN ranked_children AS all_rc
+ON p.uuid = all_rc.parent_uuid AND all_rc.rn = 1
+JOIN sub_child AS all_sc
+ON all_sc.child_uuid = all_rc.child_uuid
+JOIN ranked_children AS rc
+ON rc.child_uuid = (select rc2.child_uuid
+from ranked_children AS rc2
+where p.uuid = rc2.parent_uuid and rc2.rn = 1
+order by rc2.created_at desc
+limit 1
+)
+JOIN sub_child AS sc ON sc.child_uuid = rc.child_uuid
+WHERE p.uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+GROUP BY p.uuid;
+uuid
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+DROP TABLE parent, child, sub_child;

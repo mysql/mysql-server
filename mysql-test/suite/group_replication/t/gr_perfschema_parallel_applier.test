@@ -31,30 +31,37 @@
 --echo # 1. Before start Group Replication channels are not present
 --echo #    on common replication P_S tables.
 # Cause it was configured, the recovery channel appears on some tables
+# In case of CSA, channels appear on PFS tables after configuration
+if($rpl_applier_version == '') {
+  --let $check_cond = = 0
+}
+if($rpl_applier_version != '') {
+  --let $check_cond = >= 0
+}
+
 --let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_connection_configuration table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
+--let $assert_cond= COUNT(*) $check_cond FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
 
 --let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_connection_status table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
+--let $assert_cond= COUNT(*) $check_cond FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
 
 --let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_configuration table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
+--let $assert_cond= COUNT(*) $check_cond FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
 
 --let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
+--let $assert_cond= COUNT(*) $check_cond FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
 
 --let $assert_text= 'There are no Group Replication channels on performance_schema.replication_applier_status_by_coordinator table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_coordinator;
+--let $assert_cond= COUNT(*) $check_cond FROM performance_schema.replication_applier_status_by_coordinator;
 --source include/assert.inc
 
 --let $assert_text= 'There are no Group Replication channels on performance_schema.replication_applier_status_by_worker table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_worker;
+--let $assert_cond= COUNT(*) $check_cond FROM performance_schema.replication_applier_status_by_worker;
 --source include/assert.inc
-
 
 --echo
 --echo ############################################################
@@ -120,7 +127,9 @@ INSERT INTO t1 VALUES (1);
 
 # Wait that performance schema update LAST_APPLIED_TRANSACTION so
 # APPLYING_TRANSACTION* columns be 0
---let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name="group_replication_applier" AND LAST_APPLIED_TRANSACTION="$group_replication_group_name:2"
+# CSA: in case one worker applies the transaction and the other one commits,
+# performance_schema.replication_applier_status_by_worker will show 2 entries
+--let $wait_condition= SELECT COUNT(*) >= 1 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name="group_replication_applier" AND LAST_APPLIED_TRANSACTION="$group_replication_group_name:2"
 --source include/wait_condition.inc
 
 --echo
@@ -130,14 +139,14 @@ INSERT INTO t1 VALUES (1);
 --replace_column 13 [ORIGINAL_COMMIT_TIMESTAMP] 14 [IMMEDIATE_COMMIT_TIMESTAMP] 15 [START_QUEUE_TIMESTAMP] 16 [END_QUEUE_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
 
---echo
+--replace_column 8 [APPLIER_VERSION] 9 [APPLIER_WORKER_COUNT] 10 [APPLIER_MEMORY_THRESHOLD]
 --query_vertical SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
 
 --echo
 --query_vertical SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
 
 --echo
---replace_column 2 [THREAD_ID] 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
+--replace_column 2 [THREAD_ID] 7 [GTID] 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
 
 --echo
@@ -202,13 +211,14 @@ DROP TABLE t1;
 --query_vertical SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
 
 --echo
+--replace_column 8 [APPLIER_VERSION] 9 [APPLIER_WORKER_COUNT] 10 [APPLIER_MEMORY_THRESHOLD]
 --query_vertical SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier"
 
 --echo
 --query_vertical SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
 
 --echo
---replace_column 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
+--replace_column 7 [GTID] 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
 
 --echo

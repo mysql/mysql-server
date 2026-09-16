@@ -23,6 +23,8 @@
 ################################################################################
 --source include/big_test.inc
 --source include/have_debug.inc
+# CSA does not support legacy VCLE
+--source include/have_mta.inc
 --let $group_replication_group_name= bebf367f-1ef4-11e6-b127-00212844d44e
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

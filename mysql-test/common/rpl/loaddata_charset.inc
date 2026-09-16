@@ -18,18 +18,15 @@ if ($LOAD_LOCAL)
   FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
 }
 
-save_master_pos;
 echo ----------content on master----------;
 SELECT hex(cl) FROM t;
 
-connection slave;
-sync_with_master;
+--source include/rpl/sync_to_replica.inc
+
 echo ----------content on slave----------;
 USE mysqltest;
 SELECT hex(cl) FROM t;
 
 connection master;
 DROP DATABASE mysqltest;
-save_master_pos;
-connection slave;
-sync_with_master;
+--source include/rpl/sync_to_replica.inc

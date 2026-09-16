@@ -80,7 +80,9 @@ INSERT INTO t1 VALUES (1);
 
 --source include/rpl/deprecated/show_binlog_events.inc
 
---sync_slave_with_master
+--let $include_silent=1
+--source include/rpl/sync_to_replica.inc
+--let $include_silent=0
 
 --source include/rpl/connection_source.inc
 
@@ -117,7 +119,9 @@ INSERT INTO t1 VALUES (1);
 
 --source include/rpl/deprecated/show_binlog_events.inc
 
---sync_slave_with_master
+--let $include_silent=1
+--source include/rpl/sync_to_replica.inc
+--let $include_silent=0
 
 --source include/rpl/connection_source.inc
 

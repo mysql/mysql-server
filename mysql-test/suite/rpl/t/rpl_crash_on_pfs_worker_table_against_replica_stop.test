@@ -21,6 +21,9 @@
 
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
+# CSA does not support used debug point, because data lock is not taken when
+# creating the row
+--source include/have_mta.inc
 --let $rpl_extra_connections_per_server = 2
 --source include/rpl/init_source_replica.inc
 

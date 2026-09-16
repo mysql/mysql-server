@@ -3976,25 +3976,52 @@ bool check_field_is_const(Item *cond, const Item *order_item,
   }
   if (cond->type() != Item::FUNC_ITEM) return false;
   Item_func *const func = down_cast<Item_func *>(cond);
-  if (func->functype() != Item_func::EQUAL_FUNC &&
-      func->functype() != Item_func::EQ_FUNC)
-    return false;
-  Item_func_comparison *comp = down_cast<Item_func_comparison *>(func);
-  Item *left = comp->arguments()[0];
-  Item *right = comp->arguments()[1];
-  if (equal(left, order_item, order_field)) {
-    if (equality_determines_uniqueness(comp, left, right)) {
-      if (*const_item != nullptr) return right->eq(*const_item);
-      *const_item = right;
+  if (func->functype() == Item_func::EQUAL_FUNC ||
+      func->functype() == Item_func::EQ_FUNC) {
+    Item_func_comparison *comp = down_cast<Item_func_comparison *>(func);
+    Item *left = comp->arguments()[0];
+    Item *right = comp->arguments()[1];
+    Item *candidate_const = nullptr;
+
+    if (equal(left, order_item, order_field)) {
+      if (equality_determines_uniqueness(comp, left, right))
+        candidate_const = right;
+    } else if (equal(right, order_item, order_field)) {
+      if (equality_determines_uniqueness(comp, right, left))
+        candidate_const = left;
+    }
+
+    if (candidate_const != nullptr) {
+      if (*const_item != nullptr) {
+        // "f = const OR f IS NULL" is not a single constant. NULL constants
+        // are compatible with IS NULL, e.g. "f <=> NULL OR f IS NULL".
+        if (is_function_of_type(*const_item, Item_func::ISNULL_FUNC)) {
+          if (candidate_const->type() == Item::NULL_ITEM) return true;
+          return false;
+        }
+        return candidate_const->eq(*const_item);
+      }
+      *const_item = candidate_const;
       return true;
     }
-  } else if (equal(right, order_item, order_field)) {
-    if (equality_determines_uniqueness(comp, right, left)) {
-      if (*const_item != nullptr) return left->eq(*const_item);
-      *const_item = left;
+  } else if (func->functype() == Item_func::ISNULL_FUNC) {
+    const Item *arg = func->arguments()[0];
+    if (!equal(arg, order_item, order_field)) return false;
+    // "field IS NULL" determines a unique constant value for the field.
+    // Record the IS NULL function itself as a sentinel to keep OR-level
+    // consistency checks simple.
+    if (*const_item == nullptr) {
+      *const_item = cond;
       return true;
     }
+    // const_item may already hold Item_null from prior constant folding;
+    // treat it as compatible with IS NULL.
+    if ((*const_item)->type() == Item::NULL_ITEM) return true;
+    if (is_function_of_type(*const_item, Item_func::ISNULL_FUNC))
+      return equal(down_cast<const Item_func *>(*const_item)->arguments()[0],
+                   order_item, order_field);
   }
+
   return false;
 }
 
@@ -4710,7 +4737,8 @@ bool JOIN::make_tmp_tables_info() {
       */
       if (qep_tab[0].range_scan() &&
           is_loose_index_scan(qep_tab[0].range_scan()))
-        tmp_table_param.precomputed_group_by = true;
+        tmp_table_param.precomputed_group_by =
+            !is_agg_loose_index_scan(qep_tab[0].range_scan());
 
       ORDER_with_src dummy;  // TODO can use table->group here also
 
@@ -5168,6 +5196,7 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
 /**
   Find a cheaper access key than a given key.
 
+  @param          thd                 Thread handler
   @param          tab                 NULL or JOIN_TAB of the accessed table
   @param          order               Linked list of ORDER BY arguments
   @param          table               Table if tab == NULL or tab->table()
@@ -5201,13 +5230,11 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
     required for them.
 */
 
-bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
-                              TABLE *table, Key_map usable_keys, int ref_key,
-                              ha_rows select_limit, int *new_key,
-                              int *new_key_direction, ha_rows *new_select_limit,
-                              uint *new_used_key_parts,
-                              uint *saved_best_key_parts,
-                              double *new_read_time) {
+bool test_if_cheaper_ordering(
+    THD *thd, const JOIN_TAB *tab, ORDER_with_src *order, TABLE *table,
+    Key_map usable_keys, int ref_key, ha_rows select_limit, int *new_key,
+    int *new_key_direction, ha_rows *new_select_limit, uint *new_used_key_parts,
+    uint *saved_best_key_parts, double *new_read_time) {
   DBUG_TRACE;
   /*
     Check whether there is an index compatible with the given order
@@ -5262,6 +5289,14 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
     assert(refkey_rows_estimate >= 1.0);
   }
 
+  Opt_trace_context *const trace = &thd->opt_trace;
+  const Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_cheaper(trace, "test_if_cheaper_ordering");
+  trace_cheaper.add("read_cost", read_time)
+      .add("fanout", fanout)
+      .add("refkey_rows_estimate", refkey_rows_estimate);
+  Opt_trace_array trace_indexes(trace, "indexes");
+
   for (nr = 0; nr < table->s->keys; nr++) {
     int direction = 0;
     uint used_key_parts;
@@ -5270,9 +5305,12 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
     if (usable_keys.is_set(nr) &&
         (direction = test_if_order_by_key(order, table, nr, &used_key_parts,
                                           &skip_quick))) {
+      Opt_trace_object trace_idx(trace);
+      trace_idx.add_utf8("index", table->key_info[nr].name);
       const bool is_covering = table->covering_keys.is_set(nr) ||
                                (nr == table->s->primary_key &&
                                 table->file->primary_key_is_clustered());
+      trace_idx.add("is_covering", is_covering);
       // Don't allow backward scans on indexes with mixed ASC/DESC key parts
       if (skip_quick) table->quick_keys.clear_bit(nr);
 
@@ -5369,6 +5407,9 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
             min<double>(table->file->page_read_cost(nr, rec_per_key),
                         table_scan_time.total_cost());
 
+        trace_idx.add("select_limit", (ulonglong)select_limit)
+            .add("index_scan_cost", index_scan_time);
+
         /*
           Switch to index that gives order if its scan time is smaller than
           read_time of current chosen access method. In addition, if the
@@ -5387,8 +5428,11 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
                   : HA_POS_ERROR;
 
           if ((is_best_covering && !is_covering) ||
-              (is_covering && refkey_select_limit < select_limit))
+              (is_covering && refkey_select_limit < select_limit)) {
+            trace_idx.add("best_so_far", false)
+                .add_alnum("cause", "covering_index_better");
             continue;
+          }
           if (table->quick_keys.is_set(nr))
             quick_records = table->quick_rows[nr];
           if (best_key < 0 ||
@@ -5407,10 +5451,27 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
             is_best_covering = is_covering;
             best_key_direction = direction;
             best_select_limit = select_limit;
+            trace_idx.add("rows", (ulonglong)quick_records)
+                .add("best_so_far", true);
+          } else {
+            trace_idx.add("rows", (ulonglong)quick_records)
+                .add("best_so_far", false)
+                .add_alnum("cause", "not_better_than_chosen");
           }
+        } else {
+          trace_idx.add("best_so_far", false).add_alnum("cause", "cost");
         }
+      } else {
+        trace_idx.add("best_so_far", false)
+            .add_alnum("cause", "no_limit_and_not_covering");
       }
     }
+  }
+  trace_indexes.end();
+  if (best_key >= 0) {
+    trace_cheaper.add_utf8("selected_index", table->key_info[best_key].name);
+  } else {
+    trace_cheaper.add_null("selected_index");
   }
 
   if (best_key < 0 || best_key == ref_key) return false;
@@ -5427,6 +5488,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
 /**
   Find a key to apply single table UPDATE/DELETE by a given ORDER
 
+  @param       thd             Thread handler
   @param       order           Linked list of ORDER BY arguments
   @param       table           Table to find a key
   @param       limit           LIMIT clause parameter
@@ -5447,8 +5509,8 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
       to table->file->stats.records.
 */
 
-uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
-                         AccessPath *range_scan, bool *need_sort,
+uint get_index_for_order(THD *thd, ORDER_with_src *order, TABLE *table,
+                         ha_rows limit, AccessPath *range_scan, bool *need_sort,
                          bool *reverse) {
   if (range_scan &&
       unique_key_range(range_scan)) {  // Single row select (always
@@ -5515,7 +5577,7 @@ uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
     table->quick_condition_rows = table->file->stats.records;
 
     int key, direction;
-    if (test_if_cheaper_ordering(nullptr, order, table,
+    if (test_if_cheaper_ordering(thd, nullptr, order, table,
                                  table->keys_in_use_for_order_by, -1, limit,
                                  &key, &direction, &limit)) {
       *need_sort = false;

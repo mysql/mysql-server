@@ -1,0 +1,19 @@
+SELECT @@GLOBAL.mysqlx_force_pqc;
+@@GLOBAL.mysqlx_force_pqc
+0
+SELECT @@mysqlx_force_pqc = @@GLOBAL.mysqlx_force_pqc;
+@@mysqlx_force_pqc = @@GLOBAL.mysqlx_force_pqc
+1
+SELECT @@SESSION.mysqlx_force_pqc;
+ERROR HY000: Variable 'mysqlx_force_pqc' is a GLOBAL variable
+SELECT @@LOCAL.mysqlx_force_pqc;
+ERROR HY000: Variable 'mysqlx_force_pqc' is a GLOBAL variable
+SET @@SESSION.mysqlx_force_pqc = ON;
+ERROR HY000: Variable 'mysqlx_force_pqc' is a read only variable
+SET @@GLOBAL.mysqlx_force_pqc = ON;
+ERROR HY000: Variable 'mysqlx_force_pqc' is a read only variable
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='mysqlx_force_pqc';
+VARIABLE_VALUE
+OFF

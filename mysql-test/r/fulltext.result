@@ -17,6 +17,8 @@ EXPLAIN
 -> Filter: (match t1.a,t1.b against ('collections'))  (cost=0.35 rows=1)
     -> Full-text index search on t1 using a (a = 'collections')  (cost=0.35 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections'))
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Full-text indexes	are called collections

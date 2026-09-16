@@ -69,6 +69,8 @@ Json_duality_view_columns::Json_duality_view_columns() {
                          "columns.allow_update");
   m_target_def.add_field(FIELD_ALLOW_DELETE, "ALLOW_DELETE",
                          "columns.allow_delete");
+  m_target_def.add_field(FIELD_ALLOW_CHECK, "ALLOW_CHECK",
+                         "columns.allow_check");
   m_target_def.add_field(FIELD_READ_ONLY, "READ_ONLY", "columns.read_only");
 
   m_target_def.add_from("mysql.tables tbl");
@@ -96,6 +98,7 @@ Json_duality_view_columns::Json_duality_view_columns() {
       "    allow_insert TINYINT PATH '$.allow_insert', "
       "    allow_update TINYINT PATH '$.allow_update', "
       "    allow_delete TINYINT PATH '$.allow_delete', "
+      "    allow_check  TINYINT PATH '$.allow_check',"
       "    read_only TINYINT PATH '$.read_only' "
       "  ) "
       ") "

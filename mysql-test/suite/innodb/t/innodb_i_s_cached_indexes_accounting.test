@@ -1,0 +1,154 @@
+#
+# Check that INFORMATION_SCHEMA.INNODB_CACHED_INDEXES agrees with a direct
+# INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU walk after secondary index
+# split/merge activity.
+#
+
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+# These config values are meant to prevent page cleaners from evicting pages of
+# k_1 index from the buffer pool while the test is running, to make it more
+# predictable, so please do not change them. We use 16KB pages, and the index
+# seems to take no more than 128 pages in our testing.
+SELECT @@innodb_buffer_pool_size / 16 / 1024 - @@innodb_lru_scan_depth > 128;
+
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = ON;
+
+# This table shape is inspired by sysbench's default oltp_insert table, except
+# k_1 is intentionally missing here and added later by ALTER TABLE.
+CREATE TABLE sbtest1 (
+  id INT NOT NULL,
+  k INT NOT NULL,
+  c CHAR(120) NOT NULL,
+  pad CHAR(60) NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB STATS_PERSISTENT=0;
+
+--let $cached_index_pages_table= test/sbtest1
+--let $cached_index_pages_index= k_1
+--source suite/innodb/include/create_cached_index_page_functions.inc
+
+INSERT INTO sbtest1 VALUES (1, 1, REPEAT('c', 120), REPEAT('p', 60));
+
+--let $row_count = 1
+while ($row_count < 2048)
+{
+  --eval INSERT INTO sbtest1 SELECT id + $row_count, k + $row_count, c, pad FROM sbtest1
+  --let $row_count = `SELECT $row_count * 2`
+}
+
+# k_1 does not exist yet, so both accounting methods should report 0 pages.
+--let $cached_index_pages_checkpoint= before bulk secondary-index build
+--let $expected_non_leaf_pages= 0
+--source suite/innodb/include/check_cached_index_pages.inc
+
+ALTER TABLE sbtest1 ADD KEY k_1(k), ALGORITHM=INPLACE;
+
+# Sorted index build copies the last top-level page into the root and frees the
+# original page without removing or scrubbing its buffer frame. The buffer pool
+# can therefore show both the root and the freed top-level page as k_1 index
+# pages.
+--let $cached_index_pages_checkpoint= bulk secondary-index build
+--let $expected_non_leaf_pages= 2
+--source suite/innodb/include/check_cached_index_pages.inc
+
+while ($row_count < 8192)
+{
+  --eval INSERT INTO sbtest1 SELECT id + $row_count, k + $row_count, c, pad FROM sbtest1
+  --let $row_count = `SELECT $row_count * 2`
+}
+
+SET GLOBAL innodb_monitor_enable = index_page_splits;
+SET GLOBAL innodb_monitor_reset = index_page_splits;
+SET GLOBAL innodb_monitor_enable = index_page_merge_successful;
+SET GLOBAL innodb_monitor_reset = index_page_merge_successful;
+
+# Pause purge before changing many secondary-key values, then resume and wait.
+# This gives the test a predictable point where delete-marked secondary-index
+# records are physically purged, which is when page merges are expected.
+SET GLOBAL innodb_purge_stop_now = ON;
+UPDATE sbtest1 SET k = id + 1000000 WHERE MOD(id, 4) <> 0 ORDER BY id;
+SET GLOBAL innodb_purge_run_now = ON;
+--source include/wait_innodb_all_purged.inc
+--let $cached_index_pages_checkpoint= first secondary-index expansion
+--let $expected_non_leaf_pages= 1
+--source suite/innodb/include/check_cached_index_pages.inc
+
+SET GLOBAL innodb_purge_stop_now = ON;
+UPDATE sbtest1 SET k = id WHERE MOD(id, 4) <> 0 ORDER BY id;
+SET GLOBAL innodb_purge_run_now = ON;
+--source include/wait_innodb_all_purged.inc
+--let $cached_index_pages_checkpoint= first secondary-index restore
+--let $expected_non_leaf_pages= 1
+--source suite/innodb/include/check_cached_index_pages.inc
+
+SET GLOBAL innodb_purge_stop_now = ON;
+UPDATE sbtest1 SET k = id + 2000000 WHERE MOD(id, 5) <> 0 ORDER BY id;
+SET GLOBAL innodb_purge_run_now = ON;
+--source include/wait_innodb_all_purged.inc
+--let $cached_index_pages_checkpoint= second secondary-index expansion
+--let $expected_non_leaf_pages= 1
+--source suite/innodb/include/check_cached_index_pages.inc
+
+SET GLOBAL innodb_purge_stop_now = ON;
+UPDATE sbtest1 SET k = id WHERE MOD(id, 5) <> 0 ORDER BY id;
+SET GLOBAL innodb_purge_run_now = ON;
+--source include/wait_innodb_all_purged.inc
+--let $cached_index_pages_checkpoint= second secondary-index restore
+--let $expected_non_leaf_pages= 1
+--source suite/innodb/include/check_cached_index_pages.inc
+
+# Meta-test that the update/restore workload really produced both split and
+# merge activity before moving to the root-shrink part of the scenario.
+SELECT name, count_reset > 0 AS happened
+FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE name IN ('index_page_splits', 'index_page_merge_successful')
+ORDER BY name;
+
+# Pause purge while deleting most rows, then resume and wait so root shrink is
+# checked after physical cleanup has had a chance to run.
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM sbtest1 WHERE id > 128;
+SET GLOBAL innodb_purge_run_now = ON;
+--source include/wait_innodb_all_purged.inc
+--let $cached_index_pages_checkpoint= root shrink
+--let $expected_non_leaf_pages= 0
+--source suite/innodb/include/check_cached_index_pages.inc
+
+--let $row_count = 128
+while ($row_count < 8192)
+{
+  --eval INSERT INTO sbtest1 SELECT id + $row_count, k + $row_count, c, pad FROM sbtest1
+  --let $row_count = `SELECT $row_count * 2`
+}
+
+--let $cached_index_pages_checkpoint= final regrowth
+--let $expected_non_leaf_pages= 1
+--source suite/innodb/include/check_cached_index_pages.inc
+
+ALTER TABLE sbtest1 DROP INDEX k_1;
+--let $cached_index_pages_checkpoint= drop secondary index
+--let $expected_non_leaf_pages= 0
+--source suite/innodb/include/check_cached_index_pages.inc
+
+DROP FUNCTION count_index_pages_in_lru;
+DROP FUNCTION get_n_cached_pages;
+DROP TABLE sbtest1;
+
+# A failed unique secondary-index build invalidates the temporary index root by
+# setting PAGE_INDEX_ID to BTR_FREED_INDEX_ID. Checkpointing must not later
+# mistake that invalidated root page for a cached leaf page of index id 0.
+CREATE TABLE failed_unique_index (
+  id INT NOT NULL,
+  k INT NOT NULL
+) ENGINE=InnoDB STATS_PERSISTENT=0;
+INSERT INTO failed_unique_index VALUES (1, 1), (2, 1);
+--error ER_DUP_ENTRY
+CREATE UNIQUE INDEX k_idx ON failed_unique_index(k);
+DROP TABLE failed_unique_index;
+SET GLOBAL innodb_log_checkpoint_now = 1;
+
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+--source include/innodb_monitor_restore.inc

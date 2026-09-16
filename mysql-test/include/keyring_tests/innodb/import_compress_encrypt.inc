@@ -31,12 +31,10 @@ EOF
 
 --source $MYSQLD_DATADIR/compr.inc
 --remove_file $MYSQLD_DATADIR/compr.inc
-LET IGNORE_PUNCH_HOLE=1;
 if ($no_holes)
 {
   --source include/have_debug.inc
   --disable_query_log
-  LET IGNORE_PUNCH_HOLE=1;
   SET DEBUG='+d,ignore_punch_hole';
   --enable_query_log
 }

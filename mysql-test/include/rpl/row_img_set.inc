@@ -41,8 +41,12 @@ while (`SELECT HEX('$row_img_set') != HEX('')`)
 
   if ($is_slave_restart == Y)
   {
+    -- let $include_silent=1
+    -- source include/rpl/sync.inc
+    -- let $include_silent=0
     -- source include/rpl/stop_replica.inc
     -- source include/rpl/start_replica.inc
+    -- connection $conn
   }
 
   FLUSH TABLES;

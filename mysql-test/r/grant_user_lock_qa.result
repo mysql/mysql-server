@@ -1,3 +1,4 @@
+call mtr.add_suppression("TLS session on channel 'mysql_main' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
 
 # CREATE USER,ALTER USER,SHOW CREATE USER tests with ACCOUNT UNLOCK/LOCK
 FLUSH STATUS;

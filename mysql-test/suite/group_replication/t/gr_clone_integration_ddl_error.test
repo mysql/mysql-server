@@ -69,6 +69,7 @@ INSERT INTO t1 VALUES (2);
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 
 --let $_group_replication_start_on_boot_save= `SELECT @@GLOBAL.group_replication_start_on_boot`
@@ -93,6 +94,7 @@ SET GLOBAL clone_ddl_timeout = 0;
 
 SET @@GLOBAL.DEBUG='+d,gr_clone_wait';
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
@@ -137,6 +139,7 @@ SET DEBUG_SYNC = 'now SIGNAL gr_clone_continue';
 
 --source include/stop_group_replication.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 --source include/wait_until_disconnected.inc

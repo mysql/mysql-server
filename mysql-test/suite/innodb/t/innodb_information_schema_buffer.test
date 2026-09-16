@@ -62,16 +62,44 @@ SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
   FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
   WHERE TABLE_NAME like "%infoschema_buffer_test%";
 
-# There should be only stale pages.
+# There should be no non-stale pages.
+let $query_no_non_stale = SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
+  WHERE space = $space_id AND is_stale = 'NO';
 --replace_result $space_id {space_id}
---eval $query;
+--eval $query_no_non_stale
 
 --source suite/innodb/include/evict_everything_from_buffer_pool.inc
-
 
 # There should no space pages now, neither stale nor not.
 --replace_result $space_id {space_id}
 --eval $query;
+
+# INNODB_BUFFER_PAGE_LRU should resolve names for spatial index pages the
+# same way INNODB_BUFFER_PAGE does.
+CREATE TABLE infoschema_spatial_buffer_test (
+  id INT PRIMARY KEY,
+  g POINT NOT NULL SRID 0,
+  SPATIAL INDEX g_idx(g)
+) ENGINE=InnoDB STATS_PERSISTENT=0;
+
+INSERT INTO infoschema_spatial_buffer_test VALUES
+  (1, ST_GeomFromText('POINT(0 0)', 0)),
+  (2, ST_GeomFromText('POINT(1 1)', 0)),
+  (3, ST_GeomFromText('POINT(2 2)', 0));
+
+SELECT COUNT(*)
+FROM infoschema_spatial_buffer_test FORCE INDEX(g_idx)
+WHERE MBRContains(ST_GeomFromText('POLYGON((-1 -1,-1 3,3 3,3 -1,-1 -1))'), g);
+
+SELECT PAGE_TYPE, TABLE_NAME IS NOT NULL AS has_table, INDEX_NAME
+FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU
+WHERE SPACE = (SELECT SPACE
+               FROM INFORMATION_SCHEMA.INNODB_TABLES
+               WHERE NAME = 'test/infoschema_spatial_buffer_test')
+  AND PAGE_TYPE IN ('INDEX', 'RTREE_INDEX', 'SDI_INDEX')
+ORDER BY PAGE_TYPE, INDEX_NAME;
+
+DROP TABLE infoschema_spatial_buffer_test;
 
 # Do one more test
 #--replace_regex /'*[0-9]*'/'NUM'/
@@ -91,4 +119,3 @@ SELECT count(*)
 
 DROP TABLE infoschema_child;
 DROP TABLE infoschema_parent;
-

@@ -1,0 +1,43 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+# include-what-you-use mapping file
+
+[
+  # Work around for C++ STL
+  { "include": ["<bits/chrono.h>", "private", "<chrono>", "public"] },
+  { "include": ["<bits/std_abs.h>", "private", "<cstdlib>", "public"] },
+  { "include": ["<ext/alloc_traits.h>", "private", "<memory>", "public"] },
+  { "include": ["<bits/types/struct_tm.h>", "private", "<time.h>", "public"] },
+  { "include": ["<bits/types/struct_FILE.h>", "private", "<stdio.h>", "public"] },
+
+  # Work around for ryml
+  { "include": ["<c4/std/string.hpp>", "private", "<ryml_std.hpp>", "public"] },
+
+  { "include": ["<c4/yml/common.hpp>", "private", "<ryml.hpp>", "public"] },
+  { "include": ["<c4/yml/node.hpp>", "private", "<ryml.hpp>", "public"] },
+  { "include": ["<c4/yml/parse.hpp>", "private", "<ryml.hpp>", "public"] },
+  { "include": ["<c4/yml/parse_engine.hpp>", "private", "<ryml.hpp>", "public"] },
+  { "include": ["<c4/yml/tree.hpp>", "private", "<ryml.hpp>", "public"] },
+  { "include": ["<c4/yml/event_handler_tree.hpp>", "private", "<ryml.hpp>", "public"] },
+  { "include": ["<c4/substr.hpp>", "private", "<ryml.hpp>", "public"] },
+  { "include": ["<c4/substr_fwd.hpp>", "private", "<ryml.hpp>", "public"] },
+
+  # Local opentelemetry-cpp style
+
+  # We prefer to include <gtest/gtest.h> for simplicity
+  { "include": ["<gtest/gtest-message.h>", "private", "<gtest/gtest.h>", "public"] },
+  { "include": ["<gtest/gtest-test-part.h>", "private", "<gtest/gtest.h>", "public"] },
+  { "include": ["<gtest/gtest-param-test.h>", "private", "<gtest/gtest.h>", "public"] },
+  { "include": ["<gtest/gtest_pred_impl.h>", "private", "<gtest/gtest.h>", "public"] },
+  { "include": ["<gtest/gtest-typed-test.h>", "private", "<gtest/gtest.h>", "public"] },
+  { "include": ["<gtest/gtest-assertion-result.h>", "private", "<gtest/gtest.h>", "public"] },
+
+  # We prefer to include <gmock/gmock.h> for simplicity
+  { "include": ["<gmock/gmock-function-mocker.h>", "private", "<gmock/gmock.h>", "public"] },
+  { "include": ["<gmock/gmock-spec-builders.h>", "private", "<gmock/gmock.h>", "public"] },
+
+  # We prefer to include <curl/curl.h> for simplicity
+  { "include": ["<curl/system.h>", "private", "<curl/curl.h>", "public"] },
+]
+

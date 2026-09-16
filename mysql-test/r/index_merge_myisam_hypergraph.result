@@ -45,6 +45,8 @@ explain select * from t0 where key1 < 3 or key1 > 1020;
 EXPLAIN
 -> Index range scan on t0 using i1 over (key1 < 3) OR (1020 < key1)  (rows=78)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key1` > 1020))
 # 2. Simple cases
 explain
 select * from t0 where key1 < 3 or key2 > 1020;
@@ -53,6 +55,8 @@ EXPLAIN
     -> Index range scan on t0 using i1 over (key1 < 3)  (rows=3)
     -> Index range scan on t0 using i2 over (1020 < key2)  (rows=75)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` > 1020))
 select * from t0 where key1 < 3 or key2 > 1020;
 key1	key2	key3	key4	key5	key6	key7	key8
 1	1	1	1	1	1	1	1023
@@ -67,6 +71,8 @@ EXPLAIN
     -> Index range scan on t0 using i1 over (key1 < 2)  (rows=2)
     -> Index range scan on t0 using i2 over (key2 < 3)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key1` < 2) or (`test`.`t0`.`key2` < 3))
 explain
 select * from t0 where (key1 > 30 and key1<35) or (key2 >32 and key2 < 40);
 EXPLAIN
@@ -74,6 +80,8 @@ EXPLAIN
     -> Index range scan on t0 using i1 over (30 < key1 < 35)  (rows=4)
     -> Index range scan on t0 using i2 over (32 < key2 < 40)  (rows=7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where (((`test`.`t0`.`key1` > 30) and (`test`.`t0`.`key1` < 35)) or ((`test`.`t0`.`key2` > 32) and (`test`.`t0`.`key2` < 40)))
 # Bug#21277: InnoDB, wrong result set, index_merge strategy,
 #            second index not evaluated
 select * from t0 where (key1 > 30 and key1<35) or (key2 >32 and key2 < 40);
@@ -93,11 +101,15 @@ EXPLAIN
 -> Filter: ((t0.key1 < 3) or (t0.key2 < 4))  (rows=569)
     -> Table scan on t0  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` IGNORE INDEX (`i2`) where ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 4))
 explain select * from t0 where (key1 < 3 or key2 <4) and key3 = 50;
 EXPLAIN
 -> Filter: ((t0.key1 < 3) or (t0.key2 < 4))  (rows=0.00684)
     -> Index lookup on t0 using i3 (key3 = 50)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where (((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 4)) and multiple equal(50, `test`.`t0`.`key3`))
 explain select * from t0 use index (i1,i2) where (key1 < 2 or key2 <3) and key3 = 50;
 EXPLAIN
 -> Filter: (t0.key3 = 50)  (rows=0.00488)
@@ -105,17 +117,23 @@ EXPLAIN
         -> Index range scan on t0 using i1 over (key1 < 2)  (rows=2)
         -> Index range scan on t0 using i2 over (key2 < 3)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` USE INDEX (`i2`) USE INDEX (`i1`) where (((`test`.`t0`.`key1` < 2) or (`test`.`t0`.`key2` < 3)) and multiple equal(50, `test`.`t0`.`key3`))
 explain select * from t0 where (key1 > 1 or key2  > 2);
 EXPLAIN
 -> Filter: ((t0.key1 > 1) or (t0.key2 > 2))  (rows=1024)
     -> Table scan on t0  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key1` > 1) or (`test`.`t0`.`key2` > 2))
 explain select * from t0 force index (i1,i2) where (key1 > 1 or key2  > 2);
 EXPLAIN
 -> Sort-deduplicate by row ID  (rows=1024)
     -> Index range scan on t0 using i1 over (1 < key1)  (rows=1023)
     -> Index range scan on t0 using i2 over (2 < key2)  (rows=1022)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where ((`test`.`t0`.`key1` > 1) or (`test`.`t0`.`key2` > 2))
 # 4. Check if conjuncts are grouped by keyuse
 explain
 select * from t0 where key1<2 or key2<3 or (key1>5 and key1<7) or
@@ -125,6 +143,8 @@ EXPLAIN
     -> Index range scan on t0 using i1 over (key1 < 2) OR (5 < key1 < 7) OR (10 < key1 < 12)  (rows=4)
     -> Index range scan on t0 using i2 over (key2 < 3) OR (100 < key2 < 102)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key1` < 2) or (`test`.`t0`.`key2` < 3) or ((`test`.`t0`.`key1` > 5) and (`test`.`t0`.`key1` < 7)) or ((`test`.`t0`.`key1` > 10) and (`test`.`t0`.`key1` < 12)) or ((`test`.`t0`.`key2` > 100) and (`test`.`t0`.`key2` < 102)))
 # 5. Check index_merge with conjuncts that are always true/false
 #    verify fallback to "range" if there is only one non-confluent condition
 explain select * from t0 where key2 = 45 or key1 <=> null;
@@ -132,14 +152,20 @@ EXPLAIN
 -> Filter: ((t0.key2 = 45) or (t0.key1 <=> NULL))  (rows=1)
     -> Index range scan on t0 using i2 over (key2 = 45)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key2` = 45) or (`test`.`t0`.`key1` <=> NULL))
 explain select * from t0 where key2 = 45 or key1 is not null;
 EXPLAIN
 -> Table scan on t0  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where true
 explain select * from t0 where key2 = 45 or key1 is null;
 EXPLAIN
 -> Index lookup on t0 using i2 (key2 = 45)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where multiple equal(45, `test`.`t0`.`key2`)
 #   the last conj. is always false and will be discarded
 explain select * from t0 where key2=10 or key3=3 or key4 <=> null;
 EXPLAIN
@@ -147,6 +173,8 @@ EXPLAIN
     -> Index range scan on t0 using i2 over (key2 = 10)  (rows=1)
     -> Index range scan on t0 using i3 over (key3 = 3)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key2` = 10) or (`test`.`t0`.`key3` = 3) or (`test`.`t0`.`key4` <=> NULL))
 #   the last conj. is always true and will cause 'all' scan
 explain select * from t0 where key2=10 or key3=3 or key4 is null;
 EXPLAIN
@@ -154,6 +182,8 @@ EXPLAIN
     -> Index range scan on t0 using i2 over (key2 = 10)  (rows=1)
     -> Index range scan on t0 using i3 over (key3 = 3)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key2` = 10) or (`test`.`t0`.`key3` = 3))
 #   some more complicated cases
 explain select key1 from t0 where (key1 <=> null) or (key2 < 2) or
 (key3=10) or (key4 <=> null);
@@ -162,6 +192,8 @@ EXPLAIN
     -> Index range scan on t0 using i2 over (key2 < 2)  (rows=2)
     -> Index range scan on t0 using i3 over (key3 = 10)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1` from `test`.`t0` where ((`test`.`t0`.`key1` <=> NULL) or (`test`.`t0`.`key2` < 2) or (`test`.`t0`.`key3` = 10) or (`test`.`t0`.`key4` <=> NULL))
 explain select key1 from t0 where (key1 <=> null) or (key1 < 5) or
 (key3=10) or (key4 <=> null);
 EXPLAIN
@@ -169,6 +201,8 @@ EXPLAIN
     -> Index range scan on t0 using i1 over (key1 < 5)  (rows=5)
     -> Index range scan on t0 using i3 over (key3 = 10)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1` from `test`.`t0` where ((`test`.`t0`.`key1` <=> NULL) or (`test`.`t0`.`key1` < 5) or (`test`.`t0`.`key3` = 10) or (`test`.`t0`.`key4` <=> NULL))
 # 6.Several ways to do index_merge, (ignored) index_merge vs. range
 explain select * from t0 where
 (key1 < 2 or key2 < 2) and (key3 < 3 or key4 < 3) and (key5 < 5 or key6 < 5);
@@ -178,6 +212,8 @@ EXPLAIN
         -> Index range scan on t0 using i1 over (key1 < 2)  (rows=2)
         -> Index range scan on t0 using i2 over (key2 < 2)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where (((`test`.`t0`.`key1` < 2) or (`test`.`t0`.`key2` < 2)) and ((`test`.`t0`.`key3` < 3) or (`test`.`t0`.`key4` < 3)) and ((`test`.`t0`.`key5` < 5) or (`test`.`t0`.`key6` < 5)))
 explain
 select * from t0 where (key1 < 2 or key2 < 4) and (key1 < 5 or key3 < 3);
 EXPLAIN
@@ -186,6 +222,8 @@ EXPLAIN
         -> Index range scan on t0 using i1 over (key1 < 2)  (rows=2)
         -> Index range scan on t0 using i2 over (key2 < 4)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where (((`test`.`t0`.`key1` < 2) or (`test`.`t0`.`key2` < 4)) and ((`test`.`t0`.`key1` < 5) or (`test`.`t0`.`key3` < 3)))
 select * from t0 where (key1 < 2 or key2 < 4) and (key1 < 5 or key3 < 3);
 key1	key2	key3	key4	key5	key6	key7	key8
 1	1	1	1	1	1	1	1023
@@ -199,6 +237,8 @@ EXPLAIN
         -> Index range scan on t0 using i5 over (key5 < 2)  (rows=2)
         -> Index range scan on t0 using i6 over (key6 < 2)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where (((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 2)) and ((`test`.`t0`.`key3` < 3) or (`test`.`t0`.`key4` < 3)) and ((`test`.`t0`.`key5` < 2) or (`test`.`t0`.`key6` < 2)))
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 70);
 EXPLAIN
@@ -207,6 +247,8 @@ EXPLAIN
         -> Index range scan on t0 using i1 over (key1 < 3)  (rows=3)
         -> Index range scan on t0 using i2 over (key2 < 3)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where (((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 3)) and (`test`.`t0`.`key3` < 70))
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 1000);
 EXPLAIN
@@ -215,6 +257,8 @@ EXPLAIN
         -> Index range scan on t0 using i1 over (key1 < 3)  (rows=3)
         -> Index range scan on t0 using i2 over (key2 < 3)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where (((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 3)) and (`test`.`t0`.`key3` < 1000))
 # 7. Complex cases
 #   tree_or(List<SEL_IMERGE>, range SEL_TREE).
 explain select * from t0 where
@@ -225,6 +269,8 @@ EXPLAIN
 -> Filter: ((((t0.key1 < 3) or (t0.key2 < 3)) and ((t0.key2 < 4) or (t0.key3 < 3))) or (t0.key2 > 4))  (rows=1024)
     -> Table scan on t0  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 3)) and ((`test`.`t0`.`key2` < 4) or (`test`.`t0`.`key3` < 3))) or (`test`.`t0`.`key2` > 4))
 explain select * from t0 where
 ((key1 < 4 or key2 < 4) and (key2 <4 or key3 < 3))
 or
@@ -235,6 +281,8 @@ EXPLAIN
         -> Index range scan on t0 using i1 over (key1 < 5)  (rows=5)
         -> Index range scan on t0 using i2 over (key2 < 4)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((((`test`.`t0`.`key1` < 4) or (`test`.`t0`.`key2` < 4)) and ((`test`.`t0`.`key2` < 4) or (`test`.`t0`.`key3` < 3))) or (`test`.`t0`.`key1` < 5))
 select * from t0 where
 ((key1 < 4 or key2 < 4) and (key2 <4 or key3 < 3))
 or
@@ -257,6 +305,8 @@ EXPLAIN
         -> Index range scan on t0 using i5 over (key5 < 3)  (rows=3)
         -> Index range scan on t0 using i6 over (key6 < 3)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((((`test`.`t0`.`key1` < 2) or (`test`.`t0`.`key2` < 2)) and ((`test`.`t0`.`key3` < 4) or (`test`.`t0`.`key5` < 3))) or (((`test`.`t0`.`key5` < 3) or (`test`.`t0`.`key6` < 3)) and ((`test`.`t0`.`key7` < 3) or (`test`.`t0`.`key8` < 3))))
 explain select * from t0 where
 ((key3 <3 or key5 < 4) and (key1 < 3 or key2 < 3))
 or
@@ -269,6 +319,8 @@ EXPLAIN
         -> Index range scan on t0 using i7 over (key7 < 5)  (rows=5)
         -> Index range scan on t0 using i8 over (key8 < 3)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((((`test`.`t0`.`key3` < 3) or (`test`.`t0`.`key5` < 4)) and ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 3))) or (((`test`.`t0`.`key7` < 5) or (`test`.`t0`.`key8` < 3)) and ((`test`.`t0`.`key5` < 4) or (`test`.`t0`.`key6` < 4))))
 explain select * from t0 where
 ((key3 <3 or key5 < 4) and (key1 < 3 or key2 < 4))
 or
@@ -279,6 +331,8 @@ EXPLAIN
         -> Index range scan on t0 using i3 over (key3 < 4)  (rows=4)
         -> Index range scan on t0 using i5 over (key5 < 4)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((((`test`.`t0`.`key3` < 3) or (`test`.`t0`.`key5` < 4)) and ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 4))) or (((`test`.`t0`.`key3` < 4) or (`test`.`t0`.`key5` < 2)) and ((`test`.`t0`.`key5` < 5) or (`test`.`t0`.`key6` < 3))))
 explain select * from t0 where
 ((key3 <4 or key5 < 3) and (key1 < 3 or key2 < 3))
 or
@@ -289,6 +343,8 @@ EXPLAIN
         -> Index range scan on t0 using i3 over (key3 < 5)  (rows=5)
         -> Index range scan on t0 using i5 over (key5 < 3)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((((`test`.`t0`.`key3` < 4) or (`test`.`t0`.`key5` < 3)) and ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 3))) or ((((`test`.`t0`.`key3` < 5) and (`test`.`t0`.`key7` < 5)) or (`test`.`t0`.`key5` < 2)) and ((`test`.`t0`.`key5` < 4) or (`test`.`t0`.`key6` < 4))))
 explain select * from t0 where
 ((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
 or
@@ -297,6 +353,8 @@ EXPLAIN
 -> Filter: ((((t0.key3 < 5) or (t0.key5 < 4)) and ((t0.key1 < 4) or (t0.key2 < 4))) or (((t0.key3 > 5) or (t0.key5 < 2)) and ((t0.key5 < 5) or (t0.key6 < 6))))  (rows=1024)
     -> Table scan on t0  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((((`test`.`t0`.`key3` < 5) or (`test`.`t0`.`key5` < 4)) and ((`test`.`t0`.`key1` < 4) or (`test`.`t0`.`key2` < 4))) or (((`test`.`t0`.`key3` > 5) or (`test`.`t0`.`key5` < 2)) and ((`test`.`t0`.`key5` < 5) or (`test`.`t0`.`key6` < 6))))
 explain select * from t0 force index(i1, i2, i3, i4, i5, i6 ) where
 ((key3 <3 or key5 < 4) and (key1 < 3 or key2 < 3))
 or
@@ -307,6 +365,8 @@ EXPLAIN
         -> Index range scan on t0 using i3 over (key3 < 3) OR (4 < key3)  (rows=1023)
         -> Index range scan on t0 using i5 over (key5 < 4)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` FORCE INDEX (`i6`) FORCE INDEX (`i5`) FORCE INDEX (`i4`) FORCE INDEX (`i3`) FORCE INDEX (`i2`) FORCE INDEX (`i1`) where ((((`test`.`t0`.`key3` < 3) or (`test`.`t0`.`key5` < 4)) and ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 3))) or (((`test`.`t0`.`key3` > 4) or (`test`.`t0`.`key5` < 2)) and ((`test`.`t0`.`key5` < 5) or (`test`.`t0`.`key6` < 4))))
 # Can't merge any indexes here (predicate on key3 is always true)
 explain select * from t0 force index(i1, i2, i3, i4, i5, i6 ) where
 ((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
@@ -316,6 +376,8 @@ EXPLAIN
 -> Filter: ((((t0.key3 < 5) or (t0.key5 < 4)) and ((t0.key1 < 4) or (t0.key2 < 4))) or (((t0.key3 >= 5) or (t0.key5 < 2)) and ((t0.key5 < 5) or (t0.key6 < 6))))  (rows=534)
     -> Table scan on t0  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` FORCE INDEX (`i6`) FORCE INDEX (`i5`) FORCE INDEX (`i4`) FORCE INDEX (`i3`) FORCE INDEX (`i2`) FORCE INDEX (`i1`) where ((((`test`.`t0`.`key3` < 5) or (`test`.`t0`.`key5` < 4)) and ((`test`.`t0`.`key1` < 4) or (`test`.`t0`.`key2` < 4))) or (((`test`.`t0`.`key3` >= 5) or (`test`.`t0`.`key5` < 2)) and ((`test`.`t0`.`key5` < 5) or (`test`.`t0`.`key6` < 6))))
 # 8. Verify that "order by" after index merge uses filesort
 select * from t0 where key1 < 3 or key8 < 2 order by key1;
 key1	key2	key3	key4	key5	key6	key7	key8
@@ -331,6 +393,8 @@ EXPLAIN
         -> Index range scan on t0 using i1 over (key1 < 3)  (rows=3)
         -> Index range scan on t0 using i8 over (key8 < 2)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key8` < 2)) order by `test`.`t0`.`key1`
 # 9. Check that index_merge cost is compared to 'index' where possible
 create table t2 like t0;
 insert into t2 select * from t0;
@@ -346,18 +410,24 @@ EXPLAIN
     -> Index range scan on t2 using i1_3 over (key1 = 100)  (rows=1)
     -> Index range scan on t2 using i2_3 over (key2 = 100)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key3` AS `key3` from `test`.`t2` where ((`test`.`t2`.`key1` = 100) or (`test`.`t2`.`key2` = 100))
 #   index_merge vs 'index', 'index' is better.
 explain select key3 from t2 where key1 <100 or key2 < 100;
 EXPLAIN
 -> Filter: ((t2.key1 < 100) or (t2.key2 < 100))  (rows=188)
     -> Covering index scan on t2 using i321  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key3` AS `key3` from `test`.`t2` where ((`test`.`t2`.`key1` < 100) or (`test`.`t2`.`key2` < 100))
 #   index_merge vs 'all', index_merge is better.
 explain select key7 from t2 where key1 <100 or key2 < 100;
 EXPLAIN
 -> Filter: ((t2.key1 < 100) or (t2.key2 < 100))  (rows=188)
     -> Table scan on t2  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`key7` AS `key7` from `test`.`t2` where ((`test`.`t2`.`key1` < 100) or (`test`.`t2`.`key2` < 100))
 # 10. Multipart keys.
 create table t4 (
 key1a int not null,
@@ -385,22 +455,30 @@ EXPLAIN
     -> Index range scan on t4 using i1a over (key1a = 3)  (rows=1)
     -> Index range scan on t4 using i1b over (key1b = 4)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`key1a` AS `key1a`,`test`.`t4`.`key1b` AS `key1b`,`test`.`t4`.`key2` AS `key2`,`test`.`t4`.`key2_1` AS `key2_1`,`test`.`t4`.`key2_2` AS `key2_2`,`test`.`t4`.`key3` AS `key3` from `test`.`t4` where ((`test`.`t4`.`key1a` = 3) or (`test`.`t4`.`key1b` = 4))
 #   and the following will not
 explain select * from t4 where key2 = 1 and (key2_1 = 1 or key3 = 5);
 EXPLAIN
 -> Filter: ((t4.key2_1 = 1) or (t4.key3 = 5))  (rows=1.09)
     -> Index lookup on t4 using i2_1 (key2 = 1)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`key1a` AS `key1a`,`test`.`t4`.`key1b` AS `key1b`,`test`.`t4`.`key2` AS `key2`,`test`.`t4`.`key2_1` AS `key2_1`,`test`.`t4`.`key2_2` AS `key2_2`,`test`.`t4`.`key3` AS `key3` from `test`.`t4` where (((`test`.`t4`.`key2_1` = 1) or (`test`.`t4`.`key3` = 5)) and multiple equal(1, `test`.`t4`.`key2`))
 explain select * from t4 where key2 = 1 and (key2_1 = 1 or key2_2 = 5);
 EXPLAIN
 -> Filter: ((t4.key2_1 = 1) or (t4.key2_2 = 5))  (rows=1.09)
     -> Index lookup on t4 using i2_1 (key2 = 1)  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`key1a` AS `key1a`,`test`.`t4`.`key1b` AS `key1b`,`test`.`t4`.`key2` AS `key2`,`test`.`t4`.`key2_1` AS `key2_1`,`test`.`t4`.`key2_2` AS `key2_2`,`test`.`t4`.`key3` AS `key3` from `test`.`t4` where (((`test`.`t4`.`key2_1` = 1) or (`test`.`t4`.`key2_2` = 5)) and multiple equal(1, `test`.`t4`.`key2`))
 explain select * from t4 where key2_1 = 1 or key2_2 = 5;
 EXPLAIN
 -> Filter: ((t4.key2_1 = 1) or (t4.key2_2 = 5))  (rows=112)
     -> Table scan on t4  (rows=1024)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`key1a` AS `key1a`,`test`.`t4`.`key1b` AS `key1b`,`test`.`t4`.`key2` AS `key2`,`test`.`t4`.`key2_1` AS `key2_1`,`test`.`t4`.`key2_2` AS `key2_2`,`test`.`t4`.`key3` AS `key3` from `test`.`t4` where ((`test`.`t4`.`key2_1` = 1) or (`test`.`t4`.`key2_2` = 5))
 # 11. Multitable selects
 create table t1 like t0;
 insert into t1 select * from t0;
@@ -414,6 +492,8 @@ EXPLAIN
         -> Index range scan on t0 using i2 over (key2 = 4)  (rows=1)
     -> Index lookup on t1 using i1 (key1 = t0.key1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t0` left join `test`.`t1` on((`test`.`t0`.`key1` = `test`.`t1`.`key1`)) where ((`test`.`t0`.`key1` = 3) or (`test`.`t0`.`key2` = 4))
 select * from t0 left join t1 on (t0.key1=t1.key1)
 where t0.key1=3 or t0.key2=4;
 key1	key2	key3	key4	key5	key6	key7	key8	key1	key2	key3	key4	key5	key6	key7	key8
@@ -429,6 +509,8 @@ EXPLAIN
     -> Filter: (((t0.key1 = 3) and (t1.key1 = 3)) or (t0.key2 = 4))  (rows=0.00195)
         -> Index lookup on t1 using i1 (key1 = t0.key1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t0` join `test`.`t1` where ((((`test`.`t0`.`key1` = 3) and (`test`.`t1`.`key1` = 3)) or (`test`.`t0`.`key2` = 4)) and (`test`.`t0`.`key1` = `test`.`t1`.`key1`))
 #  index_merge vs. ref
 explain
 select * from t0,t1 where (t0.key1=t1.key1) and
@@ -441,6 +523,8 @@ EXPLAIN
     -> Filter: ((t1.key1 < 200) and (((t0.key1 = 3) and (t1.key1 = 3)) or (t0.key2 = 4)))  (rows=349e-6)
         -> Index lookup on t1 using i1 (key1 = t0.key1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t0` join `test`.`t1` where ((((`test`.`t0`.`key1` = 3) and (`test`.`t1`.`key1` = 3)) or (`test`.`t0`.`key2` = 4)) and (`test`.`t1`.`key1` < 200) and (`test`.`t0`.`key1` = `test`.`t1`.`key1`))
 #  index_merge vs. ref
 explain
 select * from t0,t1 where (t0.key1=t1.key1) and
@@ -452,6 +536,8 @@ EXPLAIN
         -> Filter: (t0.key2 < 4)  (rows=0.00391)
             -> Index lookup on t0 using i1 (key1 = 2)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t0` join `test`.`t1` where ((`test`.`t0`.`key2` < 4) and ((`test`.`t0`.`key1` = 2) and (`test`.`t1`.`key1` = 2)))
 #  index_merge on second table in join
 explain select * from t0,t1 where t0.key1 = 5 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
@@ -463,6 +549,8 @@ EXPLAIN
     -> Hash
         -> Index lookup on t0 using i1 (key1 = 5)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t0` join `test`.`t1` where ((((`test`.`t0`.`key1` = 5) and (`test`.`t1`.`key1` = 5)) or ((`test`.`t0`.`key1` = 5) and (`test`.`t1`.`key8` = 5))) and (`test`.`t0`.`key1` = 5))
 # Fix for bug#1974
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
@@ -472,6 +560,8 @@ EXPLAIN
     -> Hash
         -> Index range scan on t0 using i1 over (key1 < 3)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t0` join `test`.`t1` where ((`test`.`t0`.`key1` < 3) and ((`test`.`t1`.`key1` = `test`.`t0`.`key1`) or (`test`.`t1`.`key8` = `test`.`t0`.`key1`)))
 #  index_merge inside union
 explain select * from t1 where key1=3 or key2=4
 union select * from t1 where key1<4 or key3=5;
@@ -485,6 +575,8 @@ EXPLAIN
             -> Index range scan on t1 using i1 over (key1 < 4)  (rows=4)
             -> Index range scan on t1 using i3 over (key3 = 5)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key1` = 3) or (`test`.`t1`.`key2` = 4)) union /* select#2 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key1` < 4) or (`test`.`t1`.`key3` = 5))
 #  index merge in subselect
 explain select * from (select * from t1 where key1 = 3 or key2 =3) as z where key8 >5;
 EXPLAIN
@@ -493,6 +585,8 @@ EXPLAIN
         -> Index range scan on t1 using i1 over (key1 = 3)  (rows=1)
         -> Index range scan on t1 using i2 over (key2 = 3)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key8` > 5) and ((`test`.`t1`.`key1` = 3) or (`test`.`t1`.`key2` = 3)))
 # 12. check for long index_merges.
 create table t3 like t0;
 insert into t3 select * from t0;
@@ -520,6 +614,8 @@ EXPLAIN
     -> Index range scan on t3 using iB over (keyB = 11)  (rows=1)
     -> Index range scan on t3 using iC over (keyC = 12)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`key1` AS `key1`,`test`.`t3`.`key2` AS `key2`,`test`.`t3`.`key3` AS `key3`,`test`.`t3`.`key4` AS `key4`,`test`.`t3`.`key5` AS `key5`,`test`.`t3`.`key6` AS `key6`,`test`.`t3`.`key7` AS `key7`,`test`.`t3`.`key8` AS `key8`,`test`.`t3`.`key9` AS `key9`,`test`.`t3`.`keyA` AS `keyA`,`test`.`t3`.`keyB` AS `keyB`,`test`.`t3`.`keyC` AS `keyC` from `test`.`t3` where ((`test`.`t3`.`key1` = 1) or (`test`.`t3`.`key2` = 2) or (`test`.`t3`.`key3` = 3) or (`test`.`t3`.`key4` = 4) or (`test`.`t3`.`key5` = 5) or (`test`.`t3`.`key6` = 6) or (`test`.`t3`.`key7` = 7) or (`test`.`t3`.`key8` = 8) or (`test`.`t3`.`key9` = 9) or (`test`.`t3`.`keyA` = 10) or (`test`.`t3`.`keyB` = 11) or (`test`.`t3`.`keyC` = 12))
 select * from t3 where
 key1=1 or key2=2 or key3=3 or key4=4 or
 key5=5 or key6=6 or key7=7 or key8=8 or
@@ -544,6 +640,8 @@ EXPLAIN
     -> Index range scan on t0 using i1 over (key1 < 3)  (rows=3)
     -> Index range scan on t0 using i2 over (key2 < 4)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where ((`test`.`t0`.`key1` < 3) or (`test`.`t0`.`key2` < 4))
 # Bug#21277: InnoDB, wrong result set, index_merge strategy,
 #            second index not evaluated
 select * from t0 where key1 < 3 or key2 < 4;
@@ -586,6 +684,8 @@ EXPLAIN
                 -> Index range scan on b using i1 over (key1 < 500000)  (...)
                 -> Index range scan on b using i2 over (key2 < 3)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select max((((((((((`a`.`key1` + `b`.`key1`) + `a`.`key2`) + `b`.`key2`) + `a`.`key3`) + `b`.`key3`) + `a`.`key4`) + `b`.`key4`) + `a`.`key5`) + `b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` FORCE INDEX (`i2`) FORCE INDEX (`i1`) join `test`.`t0` `b` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where (((`a`.`key1` < 500000) or (`a`.`key2` < 3)) and ((`b`.`key1` < 500000) or (`b`.`key2` < 3)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
 where (a.key1 < 500000 or a.key2 < 3)
@@ -608,6 +708,8 @@ EXPLAIN
                 -> Index range scan on b using i1 over (key1 = 2)  (rows=1)
                 -> Index range scan on b using i2 over (key2 = 2)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select max((((((((((`a`.`key1` + `b`.`key1`) + `a`.`key2`) + `b`.`key2`) + `a`.`key3`) + `b`.`key3`) + `a`.`key4`) + `b`.`key4`) + `a`.`key5`) + `b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` FORCE INDEX (`i2`) FORCE INDEX (`i1`) join `test`.`t0` `b` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where (((`a`.`key1` = 2) or (`a`.`key2` = 2)) and ((`b`.`key1` = 2) or (`b`.`key2` = 2)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
 where (a.key1 = 2 or a.key2 = 2)
@@ -646,6 +748,8 @@ EXPLAIN
                         -> Index range scan on b using i6,i7? over (key6 = 1)  (...)
                     -> Index range scan on b using i8 over (key8 = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select max((((((((((`a`.`key1` + `b`.`key1`) + `a`.`key2`) + `b`.`key2`) + `a`.`key3`) + `b`.`key3`) + `a`.`key4`) + `b`.`key4`) + `a`.`key5`) + `b`.`key5`)) AS `max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)` from `test`.`t0` `a` join `test`.`t0` `b` where ((((`a`.`key1` = 1) and (`a`.`key2` = 1) and (`a`.`key3` = 1) and (`a`.`key4` = 1) and (`a`.`key5` = 1) and (`a`.`key6` = 1) and (`a`.`key7` = 1)) or (`a`.`key8` = 1)) and (((`b`.`key1` = 1) and (`b`.`key2` = 1) and (`b`.`key3` = 1) and (`b`.`key4` = 1) and (`b`.`key5` = 1) and (`b`.`key6` = 1) and (`b`.`key7` = 1)) or (`b`.`key8` = 1)))
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a, t0 as b
 where (a.key1 = 1 and a.key2 = 1 and a.key3 = 1 and a.key4=1 and a.key5=1 and a.key6=1 and a.key7 = 1 or a.key8=1)
@@ -673,18 +777,24 @@ EXPLAIN
     -> Index range scan on t1 using cola over (cola = 'foo')  (rows=504)
     -> Index range scan on t1 using colb over (colb = 'bar')  (rows=504)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where (multiple equal('foo', `test`.`t1`.`cola`) and multiple equal('bar', `test`.`t1`.`colb`))
 explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=29.2)
     -> Index range scan on t1 using cola over (cola = 'foo')  (rows=504)
     -> Index range scan on t1 using colb over (colb = 'bar')  (rows=504)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where (multiple equal('foo', `test`.`t1`.`cola`) and multiple equal('bar', `test`.`t1`.`colb`))
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=29.2)
     -> Index range scan on t1 using cola over (cola = 'foo')  (rows=504)
     -> Index range scan on t1 using colb over (colb = 'bar')  (rows=504)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` FORCE INDEX (`colb`) FORCE INDEX (`cola`) where (multiple equal('foo', `test`.`t1`.`cola`) and multiple equal('bar', `test`.`t1`.`colb`))
 drop table t1;
 #
 # BUG#17314: Index_merge/intersection not choosen by the
@@ -712,12 +822,16 @@ EXPLAIN
     -> Index range scan on t1 using a over (a = 1)  (rows=99)
     -> Index range scan on t1 using b over (b = 1)  (rows=99)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`a`) and multiple equal(1, `test`.`t1`.`b`))
 explain select * from t3 where a=1 and b=1;
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=10)
     -> Index range scan on t3 using a over (a = 1)  (rows=100)
     -> Index range scan on t3 using b over (b = 1)  (rows=100)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler1` AS `filler1`,`test`.`t3`.`filler2` AS `filler2` from `test`.`t3` where (multiple equal(1, `test`.`t3`.`a`) and multiple equal(1, `test`.`t3`.`b`))
 drop table t3;
 drop table t0, t1, t2;
 #
@@ -795,6 +909,8 @@ EXPLAIN
     -> Index range scan on t1 using a over (a = 4)  (rows=2)
     -> Index range scan on t1 using b over (b = 4)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`filler` AS `filler`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 4) or (`test`.`t1`.`b` = 4))
 select * from t1 where a=4 or b=4;
 a	filler	b
 4	4	0
@@ -820,6 +936,8 @@ EXPLAIN
     -> Index range scan on t2 using a over (a = 4)  (...)
     -> Index range scan on t2 using b over (b = 4)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`a` = 4) or (`test`.`t2`.`b` = 4))
 select * from t2 where a=4 or b=4;
 a	filler	b
 4	4	0
@@ -873,6 +991,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where (((`test`.`t3`.`a` = `test`.`t2`.`b`) or (`test`.`t3`.`b` = `test`.`t2`.`b`) or (`test`.`t3`.`b` = (`test`.`t2`.`b` + 1))) and (`test`.`t1`.`a` = `test`.`t2`.`a`))
 select * from t1 
 where exists (select 1 from t2, t3 
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
@@ -907,6 +1026,7 @@ EXPLAIN
 
 Warnings:
 Warning	1300	Invalid utf8mb3 character string: 'FFFFFF'
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (`b`) FORCE INDEX (`a`) where ((`test`.`t1`.`a` like 'a%') or (`test`.`t1`.`b` like 'b%')) order by `test`.`t1`.`a`,`test`.`t1`.`b`
 # we don't actually care about the result : we're checking if it crashes
 SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
 ORDER BY a,b;
@@ -969,6 +1089,8 @@ EXPLAIN
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1` from `test`.`t1` where (multiple equal(100, `test`.`t1`.`key1`) and multiple equal(100, `test`.`t1`.`key1`))
 select key1,key2 from t1 where key1=100 and key2=100;
 key1	key2
 100	100
@@ -983,6 +1105,8 @@ EXPLAIN
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where (((`test`.`t1`.`key1` = 100) and (`test`.`t1`.`key1` = 100)) or ((`test`.`t1`.`key3` = 100) and (`test`.`t1`.`key3` = 100)))
 explain format=json select key1,key1,key3,key3,filler1 from t1 where key1=100 and key1=100 or key3=100 and key3=100;
 EXPLAIN
 {
@@ -1146,6 +1270,8 @@ EXPLAIN
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where (multiple equal(100, `test`.`t1`.`key1`) and multiple equal(100, `test`.`t1`.`key1`))
 select key1,key2,filler1 from t1 where key1=100 and key2=100;
 key1	key2	filler1
 100	100	key1-key2-key3-key4
@@ -1157,6 +1283,8 @@ EXPLAIN
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1` from `test`.`t1` where (multiple equal(100, `test`.`t1`.`key1`) and multiple equal(100, `test`.`t1`.`key1`))
 select key1,key2 from t1 where key1=100 and key2=100;
 key1	key2
 100	100
@@ -1173,6 +1301,8 @@ EXPLAIN
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key3` AS `key3` from `test`.`t1` where (((`test`.`t1`.`key1` = 100) and (`test`.`t1`.`key1` = 100)) or ((`test`.`t1`.`key3` = 100) and (`test`.`t1`.`key3` = 100)))
 select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 key1	key2	key3	key4
 100	100	100	100
@@ -1189,6 +1319,8 @@ EXPLAIN
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where (((`test`.`t1`.`key1` = 100) and (`test`.`t1`.`key1` = 100)) or ((`test`.`t1`.`key3` = 100) and (`test`.`t1`.`key3` = 100)))
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 key1	key2	key3	key4	filler1
 100	100	100	100	key1-key2-key3-key4
@@ -1202,6 +1334,8 @@ EXPLAIN
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1` from `test`.`t1` where (multiple equal(100, `test`.`t1`.`key1`) and multiple equal(100, `test`.`t1`.`key1`) and multiple equal(100, `test`.`t1`.`key1`))
 select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
 key1	key2	key3
 100	100	100
@@ -1216,6 +1350,8 @@ EXPLAIN
             -> Index range scan on t1 using key1 over (key1 = 100)  (...)
         -> Index range scan on t1 using key3 over (key3 = 101)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where (((`test`.`t1`.`key1` = 100) and (`test`.`t1`.`key1` = 100)) or (`test`.`t1`.`key3` = 101))
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
 key1	key2	key3	key4	filler1
 100	100	100	100	key1-key2-key3-key4
@@ -1244,6 +1380,8 @@ EXPLAIN
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where (((`test`.`t1`.`key1` = 100) and (`test`.`t1`.`key1` = 100)) or ((`test`.`t1`.`key3` = 100) and (`test`.`t1`.`key3` = 100)))
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 key1	key2	key3	key4	filler1
 -1	-1	100	100	key4-key3
@@ -1260,6 +1398,8 @@ EXPLAIN
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
             -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where (((`test`.`t1`.`key1` = 100) and (`test`.`t1`.`key1` = 100)) or ((`test`.`t1`.`key3` = 100) and (`test`.`t1`.`key3` = 100)))
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 key1	key2	key3	key4	filler1
 # ROR-intersection with empty result
@@ -1269,6 +1409,8 @@ EXPLAIN
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1` from `test`.`t1` where (multiple equal(100, `test`.`t1`.`key1`) and multiple equal(100, `test`.`t1`.`key1`))
 select key1,key2 from t1 where key1=100 and key2=100;
 key1	key2
 # ROR-union tests with various cases.
@@ -1286,6 +1428,8 @@ EXPLAIN
             -> Index range scan on t1 using key1 over (key1 = 100)  (...)
         -> Index range scan on t1 using key3 over (key3 = 200)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where ((`test`.`t1`.`key3` = 200) or ((`test`.`t1`.`key1` = 100) and (`test`.`t1`.`key1` = 100)) or (`test`.`t1`.`key3` = 200))
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 key1	key2	key3	key4	filler1
 100	100	200	200	key1-key2-key3-key4-3
@@ -1302,6 +1446,8 @@ EXPLAIN
             -> Index range scan on t1 using key1 over (key1 = 100)  (...)
         -> Index range scan on t1 using key3 over (key3 = 200)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where ((`test`.`t1`.`key3` = 200) or ((`test`.`t1`.`key1` = 100) and (`test`.`t1`.`key1` = 100)) or (`test`.`t1`.`key3` = 200))
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 key1	key2	key3	key4	filler1
 100	100	200	200	key1-key2-key3-key4-3
@@ -1319,6 +1465,8 @@ EXPLAIN
             -> Index range scan on t1 using key1 over (key1 = 100)  (...)
         -> Index range scan on t1 using key3 over (key3 = 200)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`filler1` AS `filler1` from `test`.`t1` where ((`test`.`t1`.`key3` = 200) or ((`test`.`t1`.`key1` = 100) and (`test`.`t1`.`key1` = 100)) or (`test`.`t1`.`key3` = 200))
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 key1	key2	key3	key4	filler1
 100	100	200	200	key1-key2-key3-key4-3
@@ -1336,17 +1484,23 @@ EXPLAIN
     -> Index range scan on t1 using st_a over (st_a = 1)  (rows=15093)
     -> Index range scan on t1 using st_b over (st_b = 1)  (rows=15093)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`st_b`))
 explain select st_a,st_b from t1 where st_a=1 and st_b=1;
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=3808)
     -> Index range scan on t1 using st_a over (st_a = 1)  (rows=15093)
     -> Index range scan on t1 using st_b over (st_b = 1)  (rows=15093)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`st_b` AS `st_b` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`st_b`))
 explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 EXPLAIN
 -> Filter: (t1.st_a = 1)  (rows=3808)
     -> Index lookup on t1 using st_b (st_b = 1)  (rows=12961)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a` from `test`.`t1` IGNORE INDEX (`st_a`) where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`st_b`))
 # Do many tests
 # Check that keys that don't improve selectivity are skipped.
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
@@ -1355,11 +1509,15 @@ EXPLAIN
     -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
     -> Index range scan on t1 using sta_swt2a over (st_a = 1 AND swt2a = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`swt1a`) and multiple equal(1, `test`.`t1`.`swt2a`))
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
 -> Filter: (t1.swt2b = 1)  (...)
     -> Index lookup on t1 using stb_swt1b (st_b = 1, swt1b = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`st_b`) and multiple equal(1, `test`.`t1`.`swt1b`) and multiple equal(1, `test`.`t1`.`swt2b`))
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
 -> Filter: (t1.swt2b = 1)  (...)
@@ -1367,6 +1525,8 @@ EXPLAIN
         -> Index range scan on t1 using sta_swt21a over (st_a = 1 AND swt2a = 1 AND swt1a = 1)  (...)
         -> Index range scan on t1 using stb_swt1a_2b over (st_b = 1 AND swt1b = 1 AND swt2a = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`swt1a`) and multiple equal(1, `test`.`t1`.`swt2a`) and multiple equal(1, `test`.`t1`.`st_b`) and multiple equal(1, `test`.`t1`.`swt1b`) and multiple equal(1, `test`.`t1`.`swt2b`))
 explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
@@ -1375,6 +1535,8 @@ EXPLAIN
         -> Index range scan on t1 using sta_swt12a over (st_a = 1 AND swt1a = 1 AND swt2a = 1)  (...)
         -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` IGNORE INDEX (`stb_swt1a_2b`) IGNORE INDEX (`sta_swt21a`) where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`swt1a`) and multiple equal(1, `test`.`t1`.`swt2a`) and multiple equal(1, `test`.`t1`.`st_b`) and multiple equal(1, `test`.`t1`.`swt1b`) and multiple equal(1, `test`.`t1`.`swt2b`))
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
@@ -1384,6 +1546,8 @@ EXPLAIN
         -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
         -> Index range scan on t1 using sta_swt2a over (st_a = 1 AND swt2a = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` IGNORE INDEX (`stb_swt1a_2b`) IGNORE INDEX (`sta_swt12a`) IGNORE INDEX (`sta_swt21a`) where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`swt1a`) and multiple equal(1, `test`.`t1`.`swt2a`) and multiple equal(1, `test`.`t1`.`st_b`) and multiple equal(1, `test`.`t1`.`swt1b`) and multiple equal(1, `test`.`t1`.`swt2b`))
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
@@ -1393,6 +1557,8 @@ EXPLAIN
         -> Index range scan on t1 using sta_swt2a over (st_a = 1 AND swt2a = 1)  (...)
         -> Index range scan on t1 using st_b over (st_b = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` IGNORE INDEX (`stb_swt1b`) IGNORE INDEX (`stb_swt1a_2b`) IGNORE INDEX (`sta_swt12a`) IGNORE INDEX (`sta_swt21a`) where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`swt1a`) and multiple equal(1, `test`.`t1`.`swt2a`) and multiple equal(1, `test`.`t1`.`st_b`) and multiple equal(1, `test`.`t1`.`swt1b`) and multiple equal(1, `test`.`t1`.`swt2b`))
 explain select * from t1
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
 EXPLAIN
@@ -1400,6 +1566,8 @@ EXPLAIN
     -> Index range scan on t1 using sta_swt21a over (st_a = 1 AND swt2a = 1 AND swt1a = 1)  (...)
     -> Index range scan on t1 using stb_swt1a_2b over (st_b = 1 AND swt1b = 1 AND swt2a = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`swt1a`) and multiple equal(1, `test`.`t1`.`swt2a`) and multiple equal(1, `test`.`t1`.`st_b`) and multiple equal(1, `test`.`t1`.`swt1b`))
 explain select * from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 EXPLAIN
@@ -1407,6 +1575,8 @@ EXPLAIN
     -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
     -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`swt1a`) and multiple equal(1, `test`.`t1`.`st_b`) and multiple equal(1, `test`.`t1`.`swt1b`))
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 EXPLAIN
@@ -1414,6 +1584,8 @@ EXPLAIN
     -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
     -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`swt1a`) and multiple equal(1, `test`.`t1`.`st_b`) and multiple equal(1, `test`.`t1`.`swt1b`))
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 EXPLAIN
@@ -1421,6 +1593,8 @@ EXPLAIN
     -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
     -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`st_a`) and multiple equal(1, `test`.`t1`.`swt1a`) and multiple equal(1, `test`.`t1`.`st_b`) and multiple equal(1, `test`.`t1`.`swt1b`))
 drop table t0,t1;
 # 'Partially' covered fields test
 create table t2 (
@@ -1444,6 +1618,8 @@ EXPLAIN
     -> Filter: ((t2.a = 'AAAAAAAA') and (t2.b = 'AAAAAAAA'))  (...)
         -> Index range scan on t2 using b over (b = 'AAAAA')  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t2`.`a`) AS `count(a)` from `test`.`t2` where (multiple equal('AAAAAAAA', `test`.`t2`.`a`) and multiple equal('AAAAAAAA', `test`.`t2`.`b`))
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 count(a)
 4
@@ -1456,6 +1632,8 @@ EXPLAIN
 -> Filter: (t2.a = 'ab')  (...)
     -> Index range scan on t2 using a over (a = 'ab')  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where multiple equal('ab', `test`.`t2`.`a`)
 drop table t2;
 #
 # BUG#25048 - ERROR 126 : Incorrect key file for table '.XXXX.MYI';
@@ -1491,6 +1669,8 @@ EXPLAIN
     -> Index range scan on t1 using i1 over (key1 < 5)  (rows=6)
     -> Index range scan on t1 using i2 over (197 < key2)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key1` < 5) or (`test`.`t1`.`key2` > 197))
 select * from t1 where key1 < 5 or key2 > 197;
 key1	key2
 0	200
@@ -1504,6 +1684,8 @@ EXPLAIN
     -> Index range scan on t1 using i1 over (key1 < 3)  (rows=4)
     -> Index range scan on t1 using i2 over (195 < key2)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key1` < 3) or (`test`.`t1`.`key2` > 195))
 select * from t1 where key1 < 3 or key2 > 195;
 key1	key2
 0	200
@@ -1525,6 +1707,8 @@ EXPLAIN
     -> Index range scan on t1 using i1 over (key1 < 5)  (rows=6)
     -> Index range scan on t1 using i2 over (197 < key2)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`str1` AS `str1`,`test`.`t1`.`zeroval` AS `zeroval`,`test`.`t1`.`str2` AS `str2`,`test`.`t1`.`str3` AS `str3` from `test`.`t1` where ((`test`.`t1`.`key1` < 5) or (`test`.`t1`.`key2` > 197))
 select * from t1 where key1 < 5 or key2 > 197;
 key1	key2	str1	zeroval	str2	str3
 0	200	aaa	0	bbb	200-0_a
@@ -1538,6 +1722,8 @@ EXPLAIN
     -> Index range scan on t1 using i1 over (key1 < 3)  (rows=4)
     -> Index range scan on t1 using i2 over (195 < key2)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`str1` AS `str1`,`test`.`t1`.`zeroval` AS `zeroval`,`test`.`t1`.`str2` AS `str2`,`test`.`t1`.`str3` AS `str3` from `test`.`t1` where ((`test`.`t1`.`key1` < 3) or (`test`.`t1`.`key2` > 195))
 select * from t1 where key1 < 3 or key2 > 195;
 key1	key2	str1	zeroval	str2	str3
 0	200	aaa	0	bbb	200-0_a
@@ -1563,6 +1749,8 @@ EXPLAIN
     -> Index range scan on t1 using key1 over (key1 = 1)  (rows=4)
     -> Index range scan on t1 using key2 over (key2 = 1)  (rows=8)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`key1`) and multiple equal(1, `test`.`t1`.`key2`))
 select pk from t1 where key2 = 1 and key1 = 1;
 pk
 26
@@ -1611,6 +1799,8 @@ EXPLAIN
     -> Filter: ((t1.key2a = 2) and (t1.key2b is null))  (rows=2.48)
         -> Index lookup on t1 using i1 (key1a = 2, key1b = NULL)  (rows=2.48)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key1b` is null) and (`test`.`t1`.`key2b` is null) and multiple equal(2, `test`.`t1`.`key1a`) and multiple equal(2, `test`.`t1`.`key2a`))
 select count(*) from t1 where
 key1a = 2 and key1b is null and key2a = 2 and key2b is null;
 count(*)
@@ -1622,6 +1812,8 @@ EXPLAIN
     -> Filter: ((t1.key3a = 2) and (t1.key3b is null))  (rows=2.48)
         -> Index lookup on t1 using i1 (key1a = 2, key1b = NULL)  (rows=2.48)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key1b` is null) and (`test`.`t1`.`key3b` is null) and multiple equal(2, `test`.`t1`.`key1a`) and multiple equal(2, `test`.`t1`.`key3a`))
 select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 count(*)
@@ -1833,6 +2025,8 @@ EXPLAIN
     -> Index range scan on t1 using i3 over (30 < key3 < 35)  (...)
     -> Index range scan on t1 using i2 over (32 < key2 < 40)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3` from `test`.`t1` where (((`test`.`t1`.`key3` > 30) and (`test`.`t1`.`key3` < 35)) or ((`test`.`t1`.`key2` > 32) and (`test`.`t1`.`key2` < 40)))
 select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 key1	key2	key3
 31	31	31
@@ -1871,6 +2065,8 @@ EXPLAIN
     -> Index range scan on t1 using bd over (b = 1 AND d = 1)  (rows=2)
     -> Index range scan on t1 using c over (c = 1)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`c`) and multiple equal(1, `test`.`t1`.`b`) and multiple equal(1, `test`.`t1`.`d`))
 CREATE TABLE t2 ( a INT )
 SELECT a
 FROM t1
@@ -1926,6 +2122,8 @@ EXPLAIN
 -> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (rows=2)
     -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`col_varchar_key` >= 'l') or (((`test`.`t1`.`pk` = 141) or (`test`.`t1`.`col_varchar_key` <> 'l')) and ((`test`.`t1`.`pk` = 141) or (`test`.`t1`.`col_int_key` > 141))))
 SELECT col_int_key
 FROM t1
 WHERE col_varchar_key >= 'l' OR
@@ -2110,6 +2308,8 @@ EXPLAIN
 -> Filter: (t1.key1 = 0)  (...)
     -> Index range scan on t1 using PRIMARY over (pk1 = 1 AND pk2 < 80)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`pk2` < 80) and multiple equal(1, `test`.`t1`.`pk1`) and multiple equal(0, `test`.`t1`.`key1`))
 # CPK scan + 1 ROR range scan is a special case
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	badkey	filler1	filler2
@@ -2131,6 +2331,8 @@ EXPLAIN
         -> Index range scan on t1 using key1 over (key1 = 10)  (...)
         -> Index range scan on t1 using key2 over (key2 = 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2` from `test`.`t1` where ((((2 * `test`.`t1`.`pk1`) + 1) < <cache>(((2 * 96) + 1))) and multiple equal(10, `test`.`t1`.`key1`) and multiple equal(10, `test`.`t1`.`key2`))
 select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
 pk1	pk2
 95	59
@@ -2151,23 +2353,31 @@ EXPLAIN
 -> Filter: (t1.badkey = 1)  (...)
     -> Index range scan on t1 using key1 over (key1 = 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`badkey`) and multiple equal(10, `test`.`t1`.`key1`))
 # The expected number of rows can vary depending on page size
 explain select * from t1 where pk1 < 7500 and key1 = 10;
 EXPLAIN
 -> Filter: (t1.pk1 < 7500)  (...)
     -> Index range scan on t1 using key1 over (key1 = 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`pk1` < 7500) and multiple equal(10, `test`.`t1`.`key1`))
 # Verify that keys with 'tails' of PK members are ok.
 explain select * from t1 where pktail1ok=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.key1 = 10)  (...)
     -> Index range scan on t1 using pktail1ok over (pktail1ok = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`pktail1ok`) and multiple equal(10, `test`.`t1`.`key1`))
 explain select * from t1 where pktail2ok=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.key1 = 10)  (...)
     -> Index range scan on t1 using pktail2ok over (pktail2ok = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`pktail2ok`) and multiple equal(10, `test`.`t1`.`key1`))
 # Note: The following is actually a deficiency, it uses sort_union currently.
 #       This comment refers to InnoDB and is probably not valid for other engines.
 explain select * from t1 where (pktail2ok=1 and pk1< 50000) or key1=10;
@@ -2177,21 +2387,29 @@ EXPLAIN
         -> Index range scan on t1 using pktail2ok over (pktail2ok = 1 AND pk1 < 50000)  (...)
         -> Index range scan on t1 using key1 over (key1 = 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (((`test`.`t1`.`pk1` < 50000) and (`test`.`t1`.`pktail2ok` = 1)) or (`test`.`t1`.`key1` = 10))
 explain select * from t1 where pktail3bad=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.key1 = 10)  (...)
     -> Index range scan on t1 using pktail3bad over (pktail3bad = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`pktail3bad`) and multiple equal(10, `test`.`t1`.`key1`))
 explain select * from t1 where pktail4bad=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.key1 = 10)  (...)
     -> Index range scan on t1 using pktail4bad over (pktail4bad = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`pktail4bad`) and multiple equal(10, `test`.`t1`.`key1`))
 explain select * from t1 where pktail5bad=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.key1 = 10)  (...)
     -> Index range scan on t1 using pktail5bad over (pktail5bad = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(1, `test`.`t1`.`pktail5bad`) and multiple equal(10, `test`.`t1`.`key1`))
 # Test for problem with innodb key values prefetch buffer:
 explain select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
 EXPLAIN
@@ -2200,6 +2418,8 @@ EXPLAIN
         -> Index range scan on t1 using key1 over (key1 = 10)  (...)
         -> Index range scan on t1 using key2 over (key2 = 10)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where (multiple equal(10, `test`.`t1`.`key1`) and multiple equal(10, `test`.`t1`.`key2`)) limit 10
 select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
 pk1	pk2	key1	key2
 104	49	10	10
@@ -2261,6 +2481,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((/* select#2 */ select count(0) from `test`.`t2` where ((`test`.`t2`.`f2` = `test`.`t1`.`f1`) and multiple equal('h', `test`.`t2`.`f3`))) = 0) and multiple equal(2, `test`.`t1`.`f1`))
 DROP TABLE t1,t2;
 #
 # Bug#19055268 ASSERT `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET,...) FAILED
@@ -2528,6 +2749,8 @@ EXPLAIN
     -> Index range scan on t1 using a over (a = 1)  (rows=1)
     -> Index range scan on t1 using b over (b = 1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`a` = 1) or (`test`.`t1`.`b` = 1))
 This should use ALL:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
@@ -2536,6 +2759,8 @@ EXPLAIN
 -> Filter: ((t1.a = 1) or (t1.b = 1))  (rows=2)
     -> Table scan on t1  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`a` = 1) or (`test`.`t1`.`b` = 1))
 This should use sort-union:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
@@ -2545,6 +2770,8 @@ EXPLAIN
     -> Index range scan on t1 using a over (a = 1)  (rows=1)
     -> Index range scan on t1 using b over (b = 1)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`a` = 1) or (`test`.`t1`.`b` = 1))
 This will use sort-union:
 set optimizer_switch=@default_optimizer_switch;
 explain select * from t1 where a<1 or b <1;
@@ -2553,6 +2780,8 @@ EXPLAIN
     -> Index range scan on t1 using a over (NULL < a < 1)  (rows=19)
     -> Index range scan on t1 using b over (NULL < b < 1)  (rows=19)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`a` < 1) or (`test`.`t1`.`b` < 1))
 This should use ALL:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_sort_union=off';
@@ -2561,6 +2790,8 @@ EXPLAIN
 -> Filter: ((t1.a < 1) or (t1.b < 1))  (rows=38)
     -> Table scan on t1  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`a` < 1) or (`test`.`t1`.`b` < 1))
 This should use ALL:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
@@ -2569,6 +2800,8 @@ EXPLAIN
 -> Filter: ((t1.a < 1) or (t1.b < 1))  (rows=38)
     -> Table scan on t1  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`a` < 1) or (`test`.`t1`.`b` < 1))
 This will use sort-union:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
@@ -2578,6 +2811,8 @@ EXPLAIN
     -> Index range scan on t1 using a over (NULL < a < 1)  (rows=19)
     -> Index range scan on t1 using b over (NULL < b < 1)  (rows=19)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`a` < 1) or (`test`.`t1`.`b` < 1))
 alter table t1 add d int, add key(d);
 update t1 set d=a;
 analyze table t1;
@@ -2592,6 +2827,8 @@ EXPLAIN
         -> Index range scan on t1 using a over (a = 3)  (rows=1)
         -> Index range scan on t1 using b over (b = 1) OR (b = 2)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (((`test`.`t1`.`a` = 3) or (`test`.`t1`.`b` in (1,2))) and ((`test`.`t1`.`c` = 3) or (`test`.`t1`.`d` = 4)))
 And if we disable sort_union, union:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_sort_union=off';
@@ -2602,6 +2839,8 @@ EXPLAIN
         -> Index range scan on t1 using c over (c = 3)  (rows=99)
         -> Index range scan on t1 using d over (d = 4)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (((`test`.`t1`.`a` = 3) or (`test`.`t1`.`b` in (1,2))) and ((`test`.`t1`.`c` = 3) or (`test`.`t1`.`d` = 4)))
 drop table t1;
 create table t1 (
 a int, b int, c int,
@@ -2622,6 +2861,8 @@ EXPLAIN
     -> Index range scan on t1 using a over (a = 10)  (rows=49)
     -> Index range scan on t1 using b over (b = 10)  (rows=49)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(10, `test`.`t1`.`a`) and multiple equal(10, `test`.`t1`.`b`))
 No intersect when index_merge is disabled:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
@@ -2630,6 +2871,8 @@ EXPLAIN
 -> Filter: (t1.b = 10)  (rows=0.48)
     -> Index lookup on t1 using a (a = 10)  (rows=50)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(10, `test`.`t1`.`a`) and multiple equal(10, `test`.`t1`.`b`))
 No intersect if it is disabled:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_intersection=off';
@@ -2638,6 +2881,8 @@ EXPLAIN
 -> Filter: (t1.b = 10)  (rows=0.48)
     -> Index lookup on t1 using a (a = 10)  (rows=50)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(10, `test`.`t1`.`a`) and multiple equal(10, `test`.`t1`.`b`))
 Do intersect when union was disabled
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
@@ -2647,6 +2892,8 @@ EXPLAIN
     -> Index range scan on t1 using a over (a = 10)  (rows=49)
     -> Index range scan on t1 using b over (b = 10)  (rows=49)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(10, `test`.`t1`.`a`) and multiple equal(10, `test`.`t1`.`b`))
 Do intersect when sort_union was disabled
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_sort_union=off';
@@ -2656,6 +2903,8 @@ EXPLAIN
     -> Index range scan on t1 using a over (a = 10)  (rows=49)
     -> Index range scan on t1 using b over (b = 10)  (rows=49)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (multiple equal(10, `test`.`t1`.`a`) and multiple equal(10, `test`.`t1`.`b`))
 This will use intersection inside a union:
 set optimizer_switch=@default_optimizer_switch;
 explain select * from t1 where a=10 and b=10 or c=10;
@@ -2667,6 +2916,8 @@ EXPLAIN
             -> Index range scan on t1 using b over (b = 10)  (rows=49)
         -> Index range scan on t1 using c over (c = 10)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (((`test`.`t1`.`a` = 10) and (`test`.`t1`.`b` = 10)) or (`test`.`t1`.`c` = 10))
 Should be only union left:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_intersection=off';
@@ -2679,6 +2930,8 @@ EXPLAIN
             -> Index range scan on t1 using b over (b = 10)  (rows=49)
         -> Index range scan on t1 using c over (c = 10)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (((`test`.`t1`.`a` = 10) and (`test`.`t1`.`b` = 10)) or (`test`.`t1`.`c` = 10))
 This will switch to sort-union (intersection will be gone, too,
 thats a known limitation:
 set optimizer_switch=@default_optimizer_switch;
@@ -2690,6 +2943,8 @@ EXPLAIN
         -> Index range scan on t1 using b over (b = 10)  (rows=49)
         -> Index range scan on t1 using c over (c = 10)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where (((`test`.`t1`.`a` = 10) and (`test`.`t1`.`b` = 10)) or (`test`.`t1`.`c` = 10))
 set optimizer_switch=@default_optimizer_switch;
 show variables like 'optimizer_switch';
 Variable_name	Value

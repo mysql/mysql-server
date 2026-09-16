@@ -1,0 +1,19 @@
+SELECT LENGTH(@@GLOBAL.mysqlx_tls_kex);
+LENGTH(@@GLOBAL.mysqlx_tls_kex)
+0
+SELECT @@mysqlx_tls_kex = @@GLOBAL.mysqlx_tls_kex;
+@@mysqlx_tls_kex = @@GLOBAL.mysqlx_tls_kex
+1
+SELECT @@SESSION.mysqlx_tls_kex;
+ERROR HY000: Variable 'mysqlx_tls_kex' is a GLOBAL variable
+SELECT @@LOCAL.mysqlx_tls_kex;
+ERROR HY000: Variable 'mysqlx_tls_kex' is a GLOBAL variable
+SET @@SESSION.mysqlx_tls_kex = 'secp256r1';
+ERROR HY000: Variable 'mysqlx_tls_kex' is a read only variable
+SET @@GLOBAL.mysqlx_tls_kex = 'X25519MLKEM768';
+ERROR HY000: Variable 'mysqlx_tls_kex' is a read only variable
+SELECT LENGTH(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='mysqlx_tls_kex';
+LENGTH(VARIABLE_VALUE)
+0

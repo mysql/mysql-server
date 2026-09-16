@@ -1,0 +1,19 @@
+SELECT LENGTH(@@GLOBAL.admin_tls_kex);
+
+SELECT @@admin_tls_kex = @@GLOBAL.admin_tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.admin_tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.admin_tls_kex;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.admin_tls_kex = 'secp256r1';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.admin_tls_kex = 'invalid';
+
+SELECT LENGTH(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_tls_kex';

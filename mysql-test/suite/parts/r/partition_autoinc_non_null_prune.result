@@ -1,0 +1,805 @@
+#
+# Bug#34972980: Apply partition pruning if all insert rows have non-null
+#               values on autoinc field
+#
+# When partition expression contains auto increment field and
+# its value is given explicitly by INSERT command, partition pruning
+# can be applied in this case.
+#
+CREATE TABLE sbtest1 (
+id int NOT NULL AUTO_INCREMENT,
+k int NOT NULL DEFAULT '0',
+c char(120) NOT NULL DEFAULT '',
+pad char(60) NOT NULL DEFAULT '',
+PRIMARY KEY (id),
+KEY k_1 (k)
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+(PARTITION p0 VALUES LESS THAN (1001) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN (2001) ENGINE = InnoDB,
+PARTITION p2 VALUES LESS THAN (3001) ENGINE = InnoDB,
+PARTITION p3 VALUES LESS THAN (4001) ENGINE = InnoDB,
+PARTITION p4 VALUES LESS THAN (5001) ENGINE = InnoDB);
+
+# INSERT VALUES (expr_1, ...), ...
+
+EXPLAIN INSERT INTO sbtest1 VALUES (5, 10, 'aaz', 'kox'), (100, 92, 'hope', 'carmen');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values (5,10,'aaz','kox'),(100,92,'hope','carmen')
+INSERT INTO sbtest1 VALUES (5, 10, 'aaz', 'kox'), (100, 92, 'hope', 'carmen');
+SELECT * FROM sbtest1;
+id	k	c	pad
+100	92	hope	carmen
+5	10	aaz	kox
+INSERT INTO sbtest1 VALUES (5, 10, 'aaz', 'kox');
+ERROR 23000: Duplicate entry '5' for key 'sbtest1.PRIMARY'
+
+# With NULL value
+
+EXPLAIN INSERT INTO sbtest1 VALUES (999, 520, 'green', 'couple'), (NULL, 87, 'red', 'glass'), (87, 91, 'cat', 'freeze');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values (999,520,'green','couple'),(NULL,87,'red','glass'),(87,91,'cat','freeze')
+INSERT INTO sbtest1 VALUES (999, 520, 'green', 'couple'), (NULL, 87, 'red', 'glass'), (87, 91, 'cat', 'freeze');
+SELECT * FROM sbtest1;
+id	k	c	pad
+100	92	hope	carmen
+1000	87	red	glass
+5	10	aaz	kox
+87	91	cat	freeze
+999	520	green	couple
+
+# With zero value
+
+EXPLAIN INSERT INTO sbtest1 VALUES (92, 100, 'white', 'earphone'), (0, 76, 'pitch', 'lee');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values (92,100,'white','earphone'),(0,76,'pitch','lee')
+INSERT INTO sbtest1 VALUES (92, 100, 'white', 'earphone'), (0, 76, 'pitch', 'lee');
+SELECT * FROM sbtest1;
+id	k	c	pad
+100	92	hope	carmen
+1000	87	red	glass
+1001	76	pitch	lee
+5	10	aaz	kox
+87	91	cat	freeze
+92	100	white	earphone
+999	520	green	couple
+
+# INSERT VALUES (), ...
+
+EXPLAIN INSERT INTO sbtest1 VALUES (), ();
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values (),()
+INSERT INTO sbtest1 VALUES (), ();
+SELECT * FROM sbtest1;
+id	k	c	pad
+100	92	hope	carmen
+1000	87	red	glass
+1001	76	pitch	lee
+1002	0		
+1003	0		
+5	10	aaz	kox
+87	91	cat	freeze
+92	100	white	earphone
+999	520	green	couple
+
+# INSERT (columns) VALUES ...
+
+EXPLAIN INSERT INTO sbtest1(c, k, pad) VALUES ('mm', 21, 'poy'), ('zero', 98, 'roy');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` (`test`.`sbtest1`.`c`,`test`.`sbtest1`.`k`,`test`.`sbtest1`.`pad`) values ('mm',21,'poy'),('zero',98,'roy')
+INSERT INTO sbtest1(c, k, pad) VALUES ('mm', 21, 'poy'), ('zero', 98, 'roy');
+SELECT * FROM sbtest1;
+id	k	c	pad
+100	92	hope	carmen
+1000	87	red	glass
+1001	76	pitch	lee
+1002	0		
+1003	0		
+1004	21	mm	poy
+1005	98	zero	roy
+5	10	aaz	kox
+87	91	cat	freeze
+92	100	white	earphone
+999	520	green	couple
+EXPLAIN INSERT INTO sbtest1(k, id, pad) VALUES (11, 94, 'wire'), (8, 1500, 'trigger');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` (`test`.`sbtest1`.`k`,`test`.`sbtest1`.`id`,`test`.`sbtest1`.`pad`) values (11,94,'wire'),(8,1500,'trigger')
+INSERT INTO sbtest1(k, id, pad) VALUES (11, 94, 'wire'), (8, 1500, 'trigger');
+SELECT * FROM sbtest1;
+id	k	c	pad
+100	92	hope	carmen
+1000	87	red	glass
+1001	76	pitch	lee
+1002	0		
+1003	0		
+1004	21	mm	poy
+1005	98	zero	roy
+1500	8		trigger
+5	10	aaz	kox
+87	91	cat	freeze
+92	100	white	earphone
+94	11		wire
+999	520	green	couple
+
+# With zero value
+
+EXPLAIN INSERT INTO sbtest1(k, id, pad) VALUES (2, 1008, 'screen'), (8, 0, 'window');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` (`test`.`sbtest1`.`k`,`test`.`sbtest1`.`id`,`test`.`sbtest1`.`pad`) values (2,1008,'screen'),(8,0,'window')
+INSERT INTO sbtest1(k, id, pad) VALUES (2, 1008, 'screen'), (8, 0, 'window');
+SELECT * FROM sbtest1;
+id	k	c	pad
+100	92	hope	carmen
+1000	87	red	glass
+1001	76	pitch	lee
+1002	0		
+1003	0		
+1004	21	mm	poy
+1005	98	zero	roy
+1008	2		screen
+1500	8		trigger
+1501	8		window
+5	10	aaz	kox
+87	91	cat	freeze
+92	100	white	earphone
+94	11		wire
+999	520	green	couple
+
+# With NULL value
+
+EXPLAIN INSERT INTO sbtest1(k, id, pad) VALUES (2, 3002, 'screen'), (8, NULL, 'window');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` (`test`.`sbtest1`.`k`,`test`.`sbtest1`.`id`,`test`.`sbtest1`.`pad`) values (2,3002,'screen'),(8,NULL,'window')
+INSERT INTO sbtest1(k, id, pad) VALUES (2, 3002, 'screen'), (8, NULL, 'window');
+SELECT * FROM sbtest1;
+id	k	c	pad
+100	92	hope	carmen
+1000	87	red	glass
+1001	76	pitch	lee
+1002	0		
+1003	0		
+1004	21	mm	poy
+1005	98	zero	roy
+1008	2		screen
+1500	8		trigger
+1501	8		window
+3002	2		screen
+3003	8		window
+5	10	aaz	kox
+87	91	cat	freeze
+92	100	white	earphone
+94	11		wire
+999	520	green	couple
+
+# Prepared statement: parameter values are constant for one execution.
+# Pruning is deferred from preparation to execution and applied there.
+
+PREPARE ps1 FROM
+'EXPLAIN INSERT INTO sbtest1 VALUES (?, 10, ''a'', ''b''), (?, 92, ''c'', ''d'')';
+PREPARE ps2 FROM
+'INSERT INTO sbtest1 VALUES (?, 10, ''a'', ''b''), (?, 92, ''c'', ''d'')';
+# Both parameters non-NULL, non-zero: pruned to p3.
+SET @id1 = 3501, @id2 = 3600;
+EXECUTE ps1 USING @id1, @id2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values (?,10,'a','b'),(?,92,'c','d')
+EXECUTE ps2 USING @id1, @id2;
+# Re-execute with values in different partitions: pruned to p0,p4.
+SET @id1 = 700, @id2 = 4500;
+EXECUTE ps1 USING @id1, @id2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values (?,10,'a','b'),(?,92,'c','d')
+EXECUTE ps2 USING @id1, @id2;
+# One parameter NULL: autoinc generates value, pruning disabled.
+SET @id1 = 4001, @id2 = NULL;
+EXECUTE ps1 USING @id1, @id2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values (?,10,'a','b'),(?,92,'c','d')
+# One parameter zero (default sql_mode): autoinc generates value,
+# pruning disabled.
+SET @id1 = 4002, @id2 = 0;
+EXECUTE ps1 USING @id1, @id2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values (?,10,'a','b'),(?,92,'c','d')
+DEALLOCATE PREPARE ps1;
+DEALLOCATE PREPARE ps2;
+SELECT * FROM sbtest1 WHERE id >= 700;
+id	k	c	pad
+1000	87	red	glass
+1001	76	pitch	lee
+1002	0		
+1003	0		
+1004	21	mm	poy
+1005	98	zero	roy
+1008	2		screen
+1500	8		trigger
+1501	8		window
+3002	2		screen
+3003	8		window
+3501	10	a	b
+3600	92	c	d
+4500	92	c	d
+700	10	a	b
+999	520	green	couple
+DROP TABLE sbtest1;
+
+# With sql_mode NO_AUTO_VALUE_ON_ZERO
+
+SET @sql_mode_saved=@@sql_mode;
+CREATE TABLE animals (
+id MEDIUMINT NOT NULL AUTO_INCREMENT,
+name CHAR(30) NOT NULL,
+KEY (id, name)
+)
+PARTITION BY HASH(id) PARTITIONS 5;
+EXPLAIN INSERT INTO animals VALUES (68, 'hope'), (0, 'chai');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	animals	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`animals` values (68,'hope'),(0,'chai')
+INSERT INTO animals VALUES (68, 'hope'), (0, 'chai');
+SELECT * FROM animals;
+id	name
+68	hope
+69	chai
+SET sql_mode='NO_AUTO_VALUE_ON_ZERO';
+EXPLAIN INSERT INTO animals VALUES (68, 'hope'), (0, 'chai');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	animals	p0,p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`animals` values (68,'hope'),(0,'chai')
+INSERT INTO animals VALUES (68, 'hope'), (0, 'chai');
+SELECT * FROM animals;
+id	name
+0	chai
+68	hope
+68	hope
+69	chai
+SET sql_mode=@sql_mode_saved;
+EXPLAIN INSERT INTO animals(id, name) VALUES (100, 'yellow'), (-0, 'pig'), (65, 'taitan');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	animals	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`animals` (`test`.`animals`.`id`,`test`.`animals`.`name`) values (100,'yellow'),(-(0),'pig'),(65,'taitan')
+INSERT INTO animals(id, name) VALUES (100, 'yellow'), (-0, 'pig'), (65, 'taitan');
+SELECT * FROM animals;
+id	name
+0	chai
+100	yellow
+101	pig
+65	taitan
+68	hope
+68	hope
+69	chai
+SET sql_mode='NO_AUTO_VALUE_ON_ZERO';
+EXPLAIN INSERT INTO animals(id, name) VALUES (100, 'yellow'), (-0, 'pig'), (65, 'taitan');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	animals	p0	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`animals` (`test`.`animals`.`id`,`test`.`animals`.`name`) values (100,'yellow'),(-(0),'pig'),(65,'taitan')
+INSERT INTO animals(id, name) VALUES (100, 'yellow'), (-0, 'pig'), (65, 'taitan');
+SELECT * FROM animals;
+id	name
+0	chai
+0	pig
+100	yellow
+100	yellow
+101	pig
+65	taitan
+65	taitan
+68	hope
+68	hope
+69	chai
+SET sql_mode=@sql_mode_saved;
+EXPLAIN INSERT INTO animals(id, name) VALUES (23, 'red'), (NULL, 'cup'), (155, 'face');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	animals	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`animals` (`test`.`animals`.`id`,`test`.`animals`.`name`) values (23,'red'),(NULL,'cup'),(155,'face')
+INSERT INTO animals(id, name) VALUES (23, 'red'), (NULL, 'cup'), (155, 'face');
+SELECT * FROM animals;
+id	name
+0	chai
+0	pig
+100	yellow
+100	yellow
+101	pig
+102	cup
+155	face
+23	red
+65	taitan
+65	taitan
+68	hope
+68	hope
+69	chai
+SET sql_mode='NO_AUTO_VALUE_ON_ZERO';
+EXPLAIN INSERT INTO animals(id, name) VALUES (23, 'red'), (NULL, 'cup'), (155, 'face');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	animals	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`animals` (`test`.`animals`.`id`,`test`.`animals`.`name`) values (23,'red'),(NULL,'cup'),(155,'face')
+INSERT INTO animals(id, name) VALUES (23, 'red'), (NULL, 'cup'), (155, 'face');
+SELECT * FROM animals;
+id	name
+0	chai
+0	pig
+100	yellow
+100	yellow
+101	pig
+102	cup
+155	face
+155	face
+156	cup
+23	red
+23	red
+65	taitan
+65	taitan
+68	hope
+68	hope
+69	chai
+SET sql_mode=@sql_mode_saved;
+EXPLAIN INSERT INTO animals(id, name) VALUES (92, 'clean'), (116, 'tissue');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	animals	p1,p2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`animals` (`test`.`animals`.`id`,`test`.`animals`.`name`) values (92,'clean'),(116,'tissue')
+INSERT INTO animals(id, name) VALUES (92, 'clean'), (116, 'tissue');
+SELECT * FROM animals;
+id	name
+0	chai
+0	pig
+100	yellow
+100	yellow
+101	pig
+102	cup
+116	tissue
+155	face
+155	face
+156	cup
+23	red
+23	red
+65	taitan
+65	taitan
+68	hope
+68	hope
+69	chai
+92	clean
+SET sql_mode='NO_AUTO_VALUE_ON_ZERO';
+EXPLAIN INSERT INTO animals(id, name) VALUES (92, 'clean'), (116, 'tissue');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	animals	p1,p2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`animals` (`test`.`animals`.`id`,`test`.`animals`.`name`) values (92,'clean'),(116,'tissue')
+INSERT INTO animals(id, name) VALUES (92, 'clean'), (116, 'tissue');
+SELECT * FROM animals;
+id	name
+0	chai
+0	pig
+100	yellow
+100	yellow
+101	pig
+102	cup
+116	tissue
+116	tissue
+155	face
+155	face
+156	cup
+23	red
+23	red
+65	taitan
+65	taitan
+68	hope
+68	hope
+69	chai
+92	clean
+92	clean
+DROP TABLE animals;
+SET sql_mode=@sql_mode_saved;
+
+# INSERT ... SELECT will not prune
+
+CREATE TABLE t1 (id INT, price FLOAT);
+INSERT INTO t1 VALUES (8, 2.3), (2, 1.2), (0, 392), (-1, 29), (100, 2), (NULL, 23);
+CREATE TABLE tp (
+id INT AUTO_INCREMENT,
+price FLOAT,
+PRIMARY KEY (id)
+) PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (150),
+PARTITION p2 VALUES LESS THAN (300)
+);
+EXPLAIN INSERT INTO tp SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tp	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`tp` /* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`price` AS `price` from `test`.`t1`
+INSERT INTO tp SELECT * FROM t1;
+SELECT * FROM tp;
+id	price
+-1	29
+100	2
+101	23
+2	1.2
+8	2.3
+9	392
+DROP TABLE t1, tp;
+
+# INSERT ... ON DUPLICATE KEY UPDATE
+
+CREATE TABLE tr (
+a INT AUTO_INCREMENT,
+b INT,
+c INT,
+PRIMARY KEY (a, b)
+) PARTITION BY RANGE COLUMNS (a, b) (
+PARTITION p0 VALUES LESS THAN (5, 10),
+PARTITION p1 VALUES LESS THAN (10, 20),
+PARTITION p2 VALUES LESS THAN (50, 40),
+PARTITION p3 VALUES LESS THAN (100, 100)
+);
+EXPLAIN INSERT INTO tr VALUES (2, 7, 19), (4, 2, 8), (6, 1, 21);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tr	p0,p1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tr` values (2,7,19),(4,2,8),(6,1,21)
+INSERT INTO tr VALUES (2, 7, 19), (4, 2, 8), (6, 1, 21);
+SELECT * FROM tr;
+a	b	c
+2	7	19
+4	2	8
+6	1	21
+EXPLAIN INSERT INTO tr VALUES (9, 2, 7), (-0, 9, 17);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tr	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tr` values (9,2,7),(-(0),9,17)
+INSERT INTO tr VALUES (9, 2, 7), (-0, 9, 17);
+SELECT * FROM tr;
+a	b	c
+10	9	17
+2	7	19
+4	2	8
+6	1	21
+9	2	7
+
+# Updated field isn't included in partition expression.
+
+EXPLAIN INSERT INTO tr VALUES (7, 12, 3), (7, 5, 21) ON DUPLICATE KEY UPDATE c=c+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tr	p1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tr` values (7,12,3),(7,5,21) on duplicate key update `test`.`tr`.`c` = (`test`.`tr`.`c` + 1)
+INSERT INTO tr VALUES (7, 12, 3), (7, 5, 21) ON DUPLICATE KEY UPDATE c=c+1;
+SELECT * FROM tr;
+a	b	c
+10	9	17
+2	7	19
+4	2	8
+6	1	21
+7	12	3
+7	5	21
+9	2	7
+EXPLAIN INSERT INTO tr VALUES (7, 12, 3), (2, 7, 21) ON DUPLICATE KEY UPDATE c=c+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tr	p0,p1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tr` values (7,12,3),(2,7,21) on duplicate key update `test`.`tr`.`c` = (`test`.`tr`.`c` + 1)
+INSERT INTO tr VALUES (7, 12, 3), (2, 7, 21) ON DUPLICATE KEY UPDATE c=c+1;
+SELECT * FROM tr;
+a	b	c
+10	9	17
+2	7	20
+4	2	8
+6	1	21
+7	12	4
+7	5	21
+9	2	7
+EXPLAIN INSERT INTO tr VALUES (7, 12, 3), (-0, 7, 21), (NULL, 21, 10) ON DUPLICATE KEY UPDATE c=c+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tr	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tr` values (7,12,3),(-(0),7,21),(NULL,21,10) on duplicate key update `test`.`tr`.`c` = (`test`.`tr`.`c` + 1)
+INSERT INTO tr VALUES (7, 12, 3), (-0, 7, 21), (NULL, 21, 10) ON DUPLICATE KEY UPDATE c=c+1;
+SELECT * FROM tr;
+a	b	c
+10	9	17
+11	7	21
+12	21	10
+2	7	20
+4	2	8
+6	1	21
+7	12	5
+7	5	21
+9	2	7
+
+# Updated field is included in partition expression. Will not prune.
+
+EXPLAIN INSERT INTO tr VALUES (7, 12, 3), (7, 5, 21) ON DUPLICATE KEY UPDATE b=b+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tr	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tr` values (7,12,3),(7,5,21) on duplicate key update `test`.`tr`.`b` = (`test`.`tr`.`b` + 1)
+INSERT INTO tr VALUES (7, 12, 3), (7, 5, 21) ON DUPLICATE KEY UPDATE b=b+1;
+SELECT * FROM tr;
+a	b	c
+10	9	17
+11	7	21
+12	21	10
+2	7	20
+4	2	8
+6	1	21
+7	13	5
+7	6	21
+9	2	7
+EXPLAIN INSERT INTO tr VALUES (7, 12, 3), (7, 5, 21) ON DUPLICATE KEY UPDATE a=a+c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tr	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tr` values (7,12,3),(7,5,21) on duplicate key update `test`.`tr`.`a` = (`test`.`tr`.`a` + `test`.`tr`.`c`)
+INSERT INTO tr VALUES (7, 12, 3), (7, 5, 21) ON DUPLICATE KEY UPDATE a=a+c;
+SELECT * FROM tr;
+a	b	c
+10	9	17
+11	7	21
+12	21	10
+2	7	20
+4	2	8
+6	1	21
+7	12	3
+7	13	5
+7	5	21
+7	6	21
+9	2	7
+DROP TABLE tr;
+
+# REPLACE command
+
+CREATE TABLE tr (
+a INT AUTO_INCREMENT,
+b INT,
+c INT,
+PRIMARY KEY (a, b)
+) PARTITION BY RANGE COLUMNS (a, b) (
+PARTITION p0 VALUES LESS THAN (5, 10),
+PARTITION p1 VALUES LESS THAN (10, 20),
+PARTITION p2 VALUES LESS THAN (50, 40),
+PARTITION p3 VALUES LESS THAN (100, 100)
+);
+EXPLAIN REPLACE INTO tr VALUES (7, 12, 3), (7, 5, 21);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	tr	p1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`tr` values (7,12,3),(7,5,21)
+REPLACE INTO tr VALUES (7, 12, 3), (7, 5, 21);
+SELECT * FROM tr;
+a	b	c
+7	12	3
+7	5	21
+EXPLAIN REPLACE INTO tr VALUES (7, 12, 10), (0, 5, 12);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	tr	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`tr` values (7,12,10),(0,5,12)
+REPLACE INTO tr VALUES (7, 12, 10), (0, 5, 12);
+SELECT * FROM tr;
+a	b	c
+7	12	10
+7	5	21
+8	5	12
+EXPLAIN REPLACE INTO tr SET c = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	tr	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`tr` (`test`.`tr`.`c`) values (5)
+REPLACE INTO tr SET c = 5;
+ERROR HY000: Field 'b' doesn't have a default value
+SELECT * FROM tr;
+a	b	c
+7	12	10
+7	5	21
+8	5	12
+EXPLAIN REPLACE INTO tr(b, c) VALUES (8, 29), (26, 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	tr	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`tr` (`test`.`tr`.`b`,`test`.`tr`.`c`) values (8,29),(26,1)
+REPLACE INTO tr(b, c) VALUES (8, 29), (26, 1);
+SELECT * FROM tr;
+a	b	c
+10	26	1
+7	12	10
+7	5	21
+8	5	12
+9	8	29
+EXPLAIN REPLACE INTO tr(b, a, c) VALUES (8, 21, 29), (26, 7, 1), (21, NULL, 76);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	tr	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`tr` (`test`.`tr`.`b`,`test`.`tr`.`a`,`test`.`tr`.`c`) values (8,21,29),(26,7,1),(21,NULL,76)
+REPLACE INTO tr(b, a, c) VALUES (8, 21, 29), (26, 7, 1), (21, NULL, 76);
+SELECT * FROM tr;
+a	b	c
+10	26	1
+21	8	29
+22	21	76
+7	12	10
+7	26	1
+7	5	21
+8	5	12
+9	8	29
+DROP TABLE tr;
+
+# Partitioned table with generated columns
+
+CREATE TABLE tp (
+c1 INT,
+c2 INT,
+c3 INT GENERATED ALWAYS AS (c1 + 1),
+c4 INT AS (c3 - c2) STORED,
+c5 INT NOT NULL AUTO_INCREMENT,
+UNIQUE KEY(c5, c2)
+)
+PARTITION BY RANGE (c5) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30)
+);
+EXPLAIN INSERT INTO tp (c1, c2, c5) VALUES (1, 2, 4), (6, 9, 3), (10, 1, 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tp	p0	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tp` (`test`.`tp`.`c1`,`test`.`tp`.`c2`,`test`.`tp`.`c5`) values (1,2,4),(6,9,3),(10,1,2)
+INSERT INTO tp (c1, c2, c5) VALUES (1, 2, 4), (6, 9, 3), (10, 1, 2);
+SELECT * FROM tp;
+c1	c2	c3	c4	c5
+1	2	2	0	4
+10	1	11	10	2
+6	9	7	-2	3
+EXPLAIN INSERT INTO tp (c1, c2, c5) VALUES (7, 1, 1), (8, 8, 0), (2, 10, 12);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tp	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tp` (`test`.`tp`.`c1`,`test`.`tp`.`c2`,`test`.`tp`.`c5`) values (7,1,1),(8,8,0),(2,10,12)
+INSERT INTO tp (c1, c2, c5) VALUES (7, 1, 1), (8, 8, 0), (2, 10, 12);
+SELECT * FROM tp;
+c1	c2	c3	c4	c5
+1	2	2	0	4
+10	1	11	10	2
+2	10	3	-7	12
+6	9	7	-2	3
+7	1	8	7	1
+8	8	9	1	5
+EXPLAIN INSERT INTO tp (c5, c1) VALUES (15, 1), (13, 8);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tp	p1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tp` (`test`.`tp`.`c5`,`test`.`tp`.`c1`) values (15,1),(13,8)
+INSERT INTO tp (c5, c1) VALUES (15, 1), (13, 8);
+SELECT * FROM tp;
+c1	c2	c3	c4	c5
+1	2	2	0	4
+1	NULL	2	NULL	15
+10	1	11	10	2
+2	10	3	-7	12
+6	9	7	-2	3
+7	1	8	7	1
+8	8	9	1	5
+8	NULL	9	NULL	13
+EXPLAIN INSERT INTO tp (c2, c5) VALUES (10, 9), (12, NULL), (13, 0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	tp	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`tp` (`test`.`tp`.`c2`,`test`.`tp`.`c5`) values (10,9),(12,NULL),(13,0)
+INSERT INTO tp (c2, c5) VALUES (10, 9), (12, NULL), (13, 0);
+SELECT * FROM tp;
+c1	c2	c3	c4	c5
+1	2	2	0	4
+1	NULL	2	NULL	15
+10	1	11	10	2
+2	10	3	-7	12
+6	9	7	-2	3
+7	1	8	7	1
+8	8	9	1	5
+8	NULL	9	NULL	13
+NULL	10	NULL	NULL	9
+NULL	12	NULL	NULL	16
+NULL	13	NULL	NULL	17
+DROP TABLE tp;
+CREATE TABLE sbtest1 (
+id bigint NOT NULL AUTO_INCREMENT,
+k int NOT NULL DEFAULT '0',
+c char(120) NOT NULL DEFAULT '',
+pad char(60) NOT NULL DEFAULT '',
+PRIMARY KEY (id),
+KEY k_1 (k)
+) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+(PARTITION p0 VALUES LESS THAN (1001) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN (2001) ENGINE = InnoDB,
+PARTITION p2 VALUES LESS THAN (3001) ENGINE = InnoDB,
+PARTITION p3 VALUES LESS THAN (4001) ENGINE = InnoDB,
+PARTITION p4 VALUES LESS THAN (5001) ENGINE = InnoDB,
+PARTITION p5 VALUES LESS THAN MAXVALUE);
+
+# Non-literal autoinc expressions:
+# RAND() is non-deterministic, so pruning is disabled.
+# LAST_INSERT_ID() and CURRENT_TIMESTAMP() are constant for one
+# execution, so pruning is applied at execution time.
+
+EXPLAIN INSERT INTO sbtest1 VALUES (100 * RAND(1), 10, 'aaz', 'kox');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0,p1,p2,p3,p4,p5	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values ((100 * rand(1)),10,'aaz','kox')
+INSERT INTO sbtest1 VALUES (100 * RAND(1), 10, 'aaz', 'kox');
+EXPLAIN INSERT INTO sbtest1 VALUES (LAST_INSERT_ID() + 1, 10, 'aaz', 'kox');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p0	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values ((last_insert_id() + 1),10,'aaz','kox')
+INSERT INTO sbtest1 VALUES (LAST_INSERT_ID() + 1, 10, 'aaz', 'kox');
+SELECT * FROM sbtest1;
+id	k	c	pad
+17	10	aaz	kox
+41	10	aaz	kox
+EXPLAIN INSERT INTO sbtest1 VALUES (current_timestamp(), 10, 'aaz', 'kox');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	sbtest1	p5	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`sbtest1` values (now(),10,'aaz','kox')
+INSERT INTO sbtest1 VALUES (current_timestamp(), 10, 'aaz', 'kox');
+SELECT COUNT(*) FROM sbtest1;
+COUNT(*)
+3
+DROP TABLE sbtest1;
+#
+# Bug#39596279 SEGV in Field::is_nullable() from
+#              partition_info::can_prune_insert() with DEFAULT
+#
+CREATE TABLE t1 (
+pk INT PRIMARY KEY AUTO_INCREMENT,
+c1 INT
+) PARTITION BY HASH(pk) PARTITIONS 2;
+INSERT INTO t1 VALUES (DEFAULT, 1);
+INSERT INTO t1 (pk, c1) VALUES (DEFAULT, 2);
+INSERT INTO t1 VALUES (10, 3), (DEFAULT, 4);
+EXPLAIN INSERT INTO t1 VALUES (DEFAULT, 5);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` values (default,5)
+INSERT INTO t1 VALUES (DEFAULT, 5);
+SELECT c1 FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+DROP TABLE t1;

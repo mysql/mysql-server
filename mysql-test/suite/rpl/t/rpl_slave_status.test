@@ -99,6 +99,9 @@ source include/rpl/start_replica.inc;
 DROP USER rpluser_plain@127.0.0.1;
 FLUSH PRIVILEGES;
 
+# sync before stopping the replica
+--source include/rpl/sync_to_replica.inc
+
 --echo [on slave]
 --connection slave
 source include/rpl/stop_replica.inc;

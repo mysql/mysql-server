@@ -1,0 +1,19 @@
+SELECT LENGTH(@@GLOBAL.group_replication_tls_kex);
+LENGTH(@@GLOBAL.group_replication_tls_kex)
+0
+SELECT @@group_replication_tls_kex = @@GLOBAL.group_replication_tls_kex;
+@@group_replication_tls_kex = @@GLOBAL.group_replication_tls_kex
+1
+SELECT @@SESSION.group_replication_tls_kex;
+ERROR HY000: Variable 'group_replication_tls_kex' is a GLOBAL variable
+SELECT @@LOCAL.group_replication_tls_kex;
+ERROR HY000: Variable 'group_replication_tls_kex' is a GLOBAL variable
+SET @@SESSION.group_replication_tls_kex = 'secp256r1';
+ERROR HY000: Variable 'group_replication_tls_kex' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@GLOBAL.group_replication_tls_kex = 'invalid';
+ERROR 42000: Variable 'group_replication_tls_kex' can't be set to the value of 'invalid'
+SELECT LENGTH(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='group_replication_tls_kex';
+LENGTH(VARIABLE_VALUE)
+0

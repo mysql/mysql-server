@@ -139,7 +139,7 @@ SHOW CREATE DATABASE db1;
 DROP DATABASE db1;
 --echo `````````````````````````````````````````````````````````
 --echo # See that we ignore the clause with invalid mysql version.
-CREATE DATABASE `db1` /*!99999 DEFAULT ENCRYPTION='Y' */;
+CREATE DATABASE `db1` /*!999999 DEFAULT ENCRYPTION='Y' */;
 SHOW CREATE DATABASE db1;
 DROP DATABASE db1;
 

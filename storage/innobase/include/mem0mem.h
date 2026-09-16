@@ -257,13 +257,6 @@ memory heap.
 static inline char *mem_heap_strdupl(mem_heap_t *heap, const char *str,
                                      ulint len);
 
-/** Concatenate two strings and return the result, using a memory heap.
- @return own: the result */
-char *mem_heap_strcat(
-    mem_heap_t *heap, /*!< in: memory heap where string is allocated */
-    const char *s1,   /*!< in: string 1 */
-    const char *s2);  /*!< in: string 2 */
-
 /** Duplicate a block of data, allocated from a memory heap.
  @return own: a copy of the data */
 void *mem_heap_dup(

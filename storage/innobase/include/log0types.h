@@ -336,8 +336,12 @@ class Log_file_handle {
   @param[in]   read_offset     offset in bytes from the beginning of the file
   @param[in]   read_size       number of bytes to read
   @param[out]  buf             allocated buffer to fill when reading
+  @param[in]   can_decrypt     whether decryption may be attempted for
+                               encrypted blocks; an encrypted block returns
+                               DB_IO_DECRYPT_FAIL when this is false
   @return DB_SUCCESS or error */
-  dberr_t read(os_offset_t read_offset, os_offset_t read_size, byte *buf);
+  dberr_t read(os_offset_t read_offset, os_offset_t read_size, byte *buf,
+               bool can_decrypt = true);
 
   /** Writes the provided buffer to the log file at the given offset.
   @param[in]   write_offset    offset in bytes from the beginning of the file
@@ -398,7 +402,7 @@ class Log_file_handle {
   @param[in] size                number of bytes to write or read
   @param[in] can_use_encryption  e.g. whether newly blocks should be encrypted
   @return IORequest instance */
-  IORequest prepare_io_request(int req_type, os_offset_t offset,
+  IORequest prepare_io_request(IORequest::Type req_type, os_offset_t offset,
                                os_offset_t size, bool can_use_encryption);
 
 #ifdef UNIV_DEBUG

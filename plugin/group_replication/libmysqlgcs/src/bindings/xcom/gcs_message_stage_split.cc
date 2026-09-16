@@ -23,7 +23,7 @@
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stage_split.h"
 
-#include <algorithm>  // std::min
+#include <algorithm>  // std::all_of
 #include <cassert>
 #include <cstring>  // std::memcpy
 #include <limits>
@@ -39,6 +39,159 @@ const unsigned short Gcs_split_header_v2::WIRE_HD_SENDER_ID_SIZE;
 const unsigned short Gcs_split_header_v2::WIRE_HD_MESSAGE_ID_SIZE;
 const unsigned short Gcs_split_header_v2::WIRE_HD_MESSAGE_PART_ID_SIZE;
 const unsigned short Gcs_split_header_v2::WIRE_HD_PAYLOAD_SIZE;
+
+namespace {
+
+Gcs_split_header_v2 const &get_split_stage_metadata(Gcs_packet const &packet) {
+  return static_cast<Gcs_split_header_v2 const &>(
+      *packet.get_stage_metadata().at(packet.get_next_stage_index()));
+}
+
+Gcs_dynamic_header const &get_split_dynamic_header(Gcs_packet const &packet) {
+  return packet.get_dynamic_headers().at(packet.get_next_stage_index());
+}
+
+bool has_valid_fragment_metadata(Gcs_packet const &packet) {
+  auto const &fragment_metadata = get_split_stage_metadata(packet);
+  auto const fragment_payload_length = packet.get_payload_length();
+  auto const whole_payload_length =
+      get_split_dynamic_header(packet).get_payload_length();
+
+  bool const has_fragment_count = fragment_metadata.get_num_messages() != 0;
+  bool const has_valid_fragment_number =
+      fragment_metadata.get_message_part_id() <
+      fragment_metadata.get_num_messages();
+  bool const has_matching_fragment_payload_length =
+      fragment_metadata.get_payload_length() == fragment_payload_length;
+  // Metadata checks.
+  if (!has_fragment_count || !has_valid_fragment_number ||
+      !has_matching_fragment_payload_length) {
+    return false;
+  }
+
+  bool const has_fragment_payload = fragment_payload_length != 0;
+  bool const fits_in_whole_payload =
+      whole_payload_length >= fragment_payload_length;
+  // Payload length checks.
+  if (!has_fragment_payload || !fits_in_whole_payload) return false;
+
+  // Copy range check.
+  bool const is_last_fragment = fragment_metadata.get_message_part_id() ==
+                                fragment_metadata.get_num_messages() - 1;
+  bool const has_valid_copy_range =
+      is_last_fragment || fragment_metadata.get_message_part_id() <=
+                              (whole_payload_length - fragment_payload_length) /
+                                  fragment_payload_length;
+  return has_valid_copy_range;
+}
+
+bool has_fragment_count_within_payload_bounds(Gcs_packet const &packet) {
+  auto const &fragment_metadata = get_split_stage_metadata(packet);
+  auto const whole_payload_length =
+      get_split_dynamic_header(packet).get_payload_length();
+  auto const fragment_payload_length = packet.get_payload_length();
+
+  if (fragment_payload_length == 0 ||
+      whole_payload_length < fragment_payload_length) {
+    return false;
+  }
+
+  auto const whole_fragments = whole_payload_length / fragment_payload_length;
+  auto const has_partial_fragment =
+      (whole_payload_length % fragment_payload_length != 0);
+  auto const max_num_messages = whole_fragments + has_partial_fragment;
+  return fragment_metadata.get_num_messages() <= max_num_messages;
+}
+
+bool is_valid_split_fragment(Gcs_packet const &packet) {
+  return has_valid_fragment_metadata(packet) &&
+         has_fragment_count_within_payload_bounds(packet);
+}
+
+bool is_valid_split_fragment_set(Gcs_packets_list const *stored_fragments,
+                                 Gcs_packet const &last_delivered_fragment) {
+  auto const &last_delivered_metadata =
+      get_split_stage_metadata(last_delivered_fragment);
+  auto const expected_num_messages = last_delivered_metadata.get_num_messages();
+  auto const whole_payload_length =
+      get_split_dynamic_header(last_delivered_fragment).get_payload_length();
+  auto const stored_fragments_count =
+      stored_fragments == nullptr ? 0 : stored_fragments->size();
+
+  assert(is_valid_split_fragment(last_delivered_fragment));
+  if (stored_fragments_count + 1 != expected_num_messages) {
+    return false;
+  }
+
+  std::vector<bool> seen(expected_num_messages, false);
+  unsigned long long sender_threshold = 0;
+  unsigned long long last_fragment_length = 0;
+  bool seen_last_fragment = false;
+
+  auto validate_fragment = [&](Gcs_packet const &fragment) {
+    assert(is_valid_split_fragment(fragment));
+
+    auto const &fragment_metadata = get_split_stage_metadata(fragment);
+    auto const fragment_nr = fragment_metadata.get_message_part_id();
+    bool const is_last_fragment = (fragment_nr == expected_num_messages - 1);
+
+    if (fragment_metadata.get_num_messages() != expected_num_messages ||
+        get_split_dynamic_header(fragment).get_payload_length() !=
+            whole_payload_length ||
+        fragment_nr >= expected_num_messages || seen[fragment_nr]) {
+      return false;
+    }
+    seen[fragment_nr] = true;
+
+    if (!is_last_fragment) {
+      auto const fragment_threshold = fragment_metadata.get_payload_length();
+      if (fragment_threshold == 0) return false;
+
+      if (sender_threshold == 0) {
+        sender_threshold = fragment_threshold;
+      } else if (fragment_threshold != sender_threshold) {
+        return false;
+      }
+    } else {
+      seen_last_fragment = true;
+      last_fragment_length = fragment.get_payload_length();
+    }
+
+    return true;
+  };
+
+  if (!validate_fragment(last_delivered_fragment)) return false;
+
+  if (stored_fragments != nullptr) {
+    for (auto const &fragment : *stored_fragments) {
+      if (!validate_fragment(fragment)) return false;
+    }
+  }
+
+  if (!std::all_of(seen.begin(), seen.end(),
+                   [](bool fragment_seen) { return fragment_seen; })) {
+    return false;
+  }
+
+  if (!seen_last_fragment) return false;
+
+  auto const non_last_fragments = expected_num_messages - 1;
+  if (non_last_fragments == 0) {
+    return last_fragment_length == whole_payload_length;
+  }
+
+  if (sender_threshold == 0 || last_fragment_length > sender_threshold ||
+      whole_payload_length < last_fragment_length ||
+      non_last_fragments >
+          (whole_payload_length - last_fragment_length) / sender_threshold) {
+    return false;
+  }
+
+  return non_last_fragments * sender_threshold ==
+         whole_payload_length - last_fragment_length;
+}
+
+}  // namespace
 
 unsigned long long Gcs_split_header_v2::encode(unsigned char *buffer) const {
   unsigned char *slider = buffer;
@@ -444,7 +597,12 @@ Gcs_message_stage_split_v2::revert_transformation(Gcs_packet &&packet) {
   // clang-format on
 
   // Discard the packet if it comes from someone who is not in the current view.
-  if (unknown_sender(header)) goto end;
+  if (unknown_sender(header)) return result;
+
+  if (!is_valid_split_fragment(packet)) {
+    MYSQL_GCS_LOG_ERROR("Rejecting malformed split fragment metadata")
+    return result;
+  }
 
   /*
    Process the packet.
@@ -452,8 +610,29 @@ Gcs_message_stage_split_v2::revert_transformation(Gcs_packet &&packet) {
    If it is the final fragment, we assemble the complete packet.
    If it is not, we add it to the table of fragments.
    */
-  if (is_final_fragment(header)) {
+  if (is_final_fragment(packet)) {
     Gcs_packets_list fragments;
+    Gcs_packets_list const *stored_fragments = nullptr;
+
+    if (header.get_num_messages() > 1) {
+      auto packets_per_source_it =
+          m_packets_per_source.find(header.get_sender_id());
+      assert(packets_per_source_it != m_packets_per_source.end());
+
+      auto const &packets_per_content = packets_per_source_it->second;
+      auto packets_per_content_it =
+          packets_per_content.find(header.get_message_id());
+      assert(packets_per_content_it != packets_per_content.end());
+
+      stored_fragments = &packets_per_content_it->second;
+    }
+
+    if (!is_valid_split_fragment_set(stored_fragments, packet)) {
+      MYSQL_GCS_LOG_ERROR("Rejecting malformed split fragment set")
+      if (header.get_num_messages() > 1) get_fragments(header);
+      return result;
+    }
+
     // If there are other fragments, get them.
     if (header.get_num_messages() > 1) fragments = get_fragments(header);
 
@@ -467,14 +646,30 @@ Gcs_message_stage_split_v2::revert_transformation(Gcs_packet &&packet) {
                               std::move(whole_packet));
     }
   } else {
+    auto const num_messages = header.get_num_messages();
+    if (num_messages == 1) {
+      MYSQL_GCS_LOG_ERROR("Rejecting malformed split fragment metadata")
+      return result;
+    }
+
+    auto packets_per_source_it =
+        m_packets_per_source.find(header.get_sender_id());
+    assert(packets_per_source_it != m_packets_per_source.end());
+    auto const &packets_per_content = packets_per_source_it->second;
+    auto packets_per_content_it =
+        packets_per_content.find(header.get_message_id());
+    if (packets_per_content_it != packets_per_content.end() &&
+        packets_per_content_it->second.size() >= num_messages) {
+      MYSQL_GCS_LOG_ERROR("Rejecting oversized split fragment set")
+      return result;
+    }
+
     bool const failure = insert_fragment(std::move(packet));
     if (!failure) {
       result = std::make_pair(Gcs_pipeline_incoming_result::OK_NO_PACKET,
                               Gcs_packet());
     }
   }
-
-end:
   return result;
 }
 
@@ -486,35 +681,24 @@ bool Gcs_message_stage_split_v2::unknown_sender(
 }
 
 bool Gcs_message_stage_split_v2::is_final_fragment(
-    Gcs_split_header_v2 const &fragment_header) const {
-  bool result = false;
-  Gcs_packets_list const *fragment_list = nullptr;
-  std::size_t nr_fragments_received = 0;
+    Gcs_packet const &packet) const {
+  auto const &fragment_metadata = get_split_stage_metadata(packet);
+  auto const num_messages = fragment_metadata.get_num_messages();
 
   auto packets_per_source_it =
-      m_packets_per_source.find(fragment_header.get_sender_id());
+      m_packets_per_source.find(fragment_metadata.get_sender_id());
   assert(packets_per_source_it != m_packets_per_source.end());
 
   Gcs_packets_per_content const &packets_per_content =
       packets_per_source_it->second;
   auto packets_per_content_it =
-      packets_per_content.find(fragment_header.get_message_id());
+      packets_per_content.find(fragment_metadata.get_message_id());
   bool const is_first = (packets_per_content_it == packets_per_content.end());
-  if (is_first) {
-    // If this is the first and only fragment, it is the last as well.
-    if (fragment_header.get_num_messages() == 1) {
-      result = true;
-    } else {
-      goto end;
-    }
-  } else {
-    fragment_list = &packets_per_content_it->second;
-    nr_fragments_received = fragment_list->size();
-    result = (nr_fragments_received == fragment_header.get_num_messages() - 1);
-  }
+  // If this is the first and only fragment, it is the last as well.
+  if (is_first) return num_messages == 1;
 
-end:
-  return result;
+  Gcs_packets_list const &fragment_list = packets_per_content_it->second;
+  return fragment_list.size() == num_messages - 1;
 }
 
 Gcs_packets_list Gcs_message_stage_split_v2::get_fragments(
@@ -539,25 +723,14 @@ std::pair<bool, Gcs_packet> Gcs_message_stage_split_v2::reassemble_fragments(
   assert(fragments.size() > 0);
   bool constexpr ERROR = true;
   bool constexpr OK = false;
-  auto result = std::make_pair(ERROR, Gcs_packet());
+  auto error{std::make_pair(ERROR, Gcs_packet())};
 
   auto &last_delivered_fragment = fragments.back();
-
-  /*
-   Create a packet big enough to hold the reassembled payload.
-
-   The size of the reassembled payload is stored in the dynamic header, i.e.
-   the payload size before the stage was applied.
-   */
-  unsigned long long const whole_payload_length =
-      last_delivered_fragment.get_current_dynamic_header().get_payload_length();
-  bool packet_ok;
-  Gcs_packet whole_packet;
-  /* We base the reassembled packet on the last delivered fragment because the
-     last delivered packet has the up to date synod. */
-  std::tie(packet_ok, whole_packet) = Gcs_packet::make_from_existing_packet(
-      last_delivered_fragment, whole_payload_length);
-  if (!packet_ok) goto end;
+  auto const &last_delivered_metadata =
+      get_split_stage_metadata(last_delivered_fragment);
+  auto const expected_num_messages = last_delivered_metadata.get_num_messages();
+  auto const whole_payload_length =
+      get_split_dynamic_header(last_delivered_fragment).get_payload_length();
 
   // clang-format off
   /*
@@ -595,33 +768,50 @@ std::pair<bool, Gcs_packet> Gcs_message_stage_split_v2::reassemble_fragments(
          \______________________  _________________________/
                                 \/
                         whole_payload_length
-   */
+  */
   // clang-format on
+
+  /*
+   Create a packet big enough to hold the reassembled payload.
+
+   The size of the reassembled payload is stored in the dynamic header, i.e.
+   the payload size before the stage was applied.
+  */
+  bool packet_ok;
+  Gcs_packet whole_packet;
+  /* We base the reassembled packet on the last delivered fragment because the
+     last delivered packet has the up to date synod. */
+  std::tie(packet_ok, whole_packet) = Gcs_packet::make_from_existing_packet(
+      last_delivered_fragment, whole_payload_length);
+  if (!packet_ok) return error;
+
   for (auto &fragment : fragments) {
-    auto *whole_payload_pointer = whole_packet.get_payload_pointer();
-    auto const &fragment_header =
-        static_cast<Gcs_split_header_v2 &>(fragment.get_current_stage_header());
+    auto const &fragment_metadata = get_split_stage_metadata(fragment);
+    auto const fragment_nr = fragment_metadata.get_message_part_id();
+    unsigned long long copy_offset = 0;
 
     // Slide whole_payload_pointer to the correct place.
-    auto const &fragment_nr = fragment_header.get_message_part_id();
-    bool const is_last_fragment =
-        (fragment_nr == fragment_header.get_num_messages() - 1);
+    bool const is_last_fragment = (fragment_nr == expected_num_messages - 1);
     if (!is_last_fragment) {
-      auto const &sender_threshold = fragment_header.get_payload_length();
-      whole_payload_pointer += fragment_nr * sender_threshold;
+      auto const sender_threshold = fragment_metadata.get_payload_length();
+      copy_offset = fragment_nr * sender_threshold;
     } else {
-      auto const &last_fragment_length = fragment.get_payload_length();
-      whole_payload_pointer += whole_payload_length - last_fragment_length;
+      auto const last_fragment_length = fragment.get_payload_length();
+      copy_offset = whole_payload_length - last_fragment_length;
+    }
+    if (copy_offset > whole_payload_length ||
+        fragment.get_payload_length() > whole_payload_length - copy_offset) {
+      MYSQL_GCS_LOG_ERROR("Rejecting split fragment copy outside payload")
+      return error;
     }
 
+    auto *whole_payload_pointer = whole_packet.get_payload_pointer();
+    whole_payload_pointer += copy_offset;
     std::memcpy(whole_payload_pointer, fragment.get_payload_pointer(),
                 fragment.get_payload_length());
   }
 
-  result = std::make_pair(OK, std::move(whole_packet));
-
-end:
-  return result;
+  return std::make_pair(OK, std::move(whole_packet));
 }
 
 Gcs_message_stage::stage_status Gcs_message_stage_split_v2::skip_revert(
@@ -636,6 +826,9 @@ bool Gcs_message_stage_split_v2::insert_fragment(Gcs_packet &&packet) {
   auto &header =
       static_cast<Gcs_split_header_v2 &>(packet.get_current_stage_header());
   Gcs_packets_list *fragment_list = nullptr;
+
+  assert(is_valid_split_fragment(packet));
+  assert(header.get_num_messages() > 1);
 
   /* Get the table with fragments from sender. */
   auto packets_per_source_it =
@@ -656,31 +849,22 @@ bool Gcs_message_stage_split_v2::insert_fragment(Gcs_packet &&packet) {
     // Create the fragment list.
     bool success = false;
     Gcs_packets_list new_fragment_list;
-    new_fragment_list.reserve(header.get_num_messages());
-    if (new_fragment_list.capacity() != header.get_num_messages()) {
-      /* purecov: begin inspected */
-      MYSQL_GCS_LOG_ERROR(
-          "Error allocating space to contain the set of slice packets")
-      goto end;
-      /* purecov: end */
-    }
 
     // Insert the fragment list into the table.
     std::tie(packets_per_content_it, success) = packets_per_content.insert(
         std::make_pair(header.get_message_id(), std::move(new_fragment_list)));
     if (!success) {
       MYSQL_GCS_LOG_ERROR("Error gathering packet to eventually reassemble it")
-      goto end;
+      return result;
     }
   }
   // Insert the fragment into the list.
   fragment_list = &packets_per_content_it->second;
+  assert(fragment_list->size() < header.get_num_messages());
   fragment_list->push_back(std::move(packet));
   assert(fragment_list->size() < header.get_num_messages());
 
   result = OK;
-
-end:
   return result;
 }
 

@@ -24,15 +24,11 @@ create table mysqltest_bar (m int);
 insert into mysqltest_bar values(15);
 create table t1 (k int);
 insert into t1 values(55);
-save_master_pos;
-connection slave;
-sync_with_master;
+--source include/rpl/sync_to_replica.inc
 select mysqltest_foo.n,mysqltest_bar.m,t1.k from mysqltest_foo,mysqltest_bar,t1;
 connection master;
 drop table mysqltest_foo,mysqltest_bar,t1;
-save_master_pos;
-connection slave;
-sync_with_master;
+--source include/rpl/sync_to_replica.inc
 drop table mysqltest_foo,mysqltest_bar,t1;
 
 # End of 4.1 tests

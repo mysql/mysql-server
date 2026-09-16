@@ -110,7 +110,7 @@ COMMIT;
 
 # Proof of correctess stable execution
 --connection master
---sync_slave_with_master
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables=master:t1,slave:t1
 --source include/diff_tables.inc
@@ -139,7 +139,8 @@ SET @@session.debug ='-d,feign_commit_parent';
 DROP TABLE t1;
 --remove_file $events_file
 
---sync_slave_with_master
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 #--connection slave
 --source include/rpl/stop_replica.inc

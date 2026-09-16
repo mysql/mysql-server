@@ -13,6 +13,7 @@ perl mysql-test-run.pl --timer  --force --skip-rpl --comment=ndb_valgrind --vard
 perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --timer  --force --skip-rpl --comment=ndb_tls_valgrind --vardir=var-ndb-tls_valgrind --suite=ndb_tls
 # Run rpl suites with explict --parallel
 perl mysql-test-run.pl --timer  --force --parallel=6 --comment=rpl-valgrind --vardir=var-rpl-valgrind --suite=rpl,rpl_gtid,rpl_nogtid
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=rpl_csa-valgrind --vardir=var-rpl_csa-valgrind --suite=rpl,rpl_gtid --defaults-extra-file=include/rpl_change_stream_applier.cnf
 perl mysql-test-run.pl --force --timer --testcase-timeout=60    --comment=funcs2  --vardir=var-funcs2 --suite=funcs_2
 perl mysql-test-run.pl --force --timer    --comment=stress --vardir=var-stress  --suite=stress
 perl mysql-test-run.pl --force --timer    --comment=jp --vardir=var-jp --suite=jp
@@ -24,3 +25,8 @@ perl mysql-test-run.pl --timer --force  --testcase-timeout=60   --comment=eits-t
 
 # Group Replication
 perl mysql-test-run.pl --timer  --force --parallel=6 --comment=group_replication-valgrind --vardir=var-group_replication-valgrind --suite=group_replication
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_csa-valgrind --vardir=var-group_replication_csa-valgrind --suite=group_replication --defaults-extra-file=include/rpl_change_stream_applier.cnf
+
+# Thread Pool Plugin
+perl mysql-test-run.pl --valgrind  --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+

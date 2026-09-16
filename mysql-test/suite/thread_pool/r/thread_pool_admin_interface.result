@@ -1,0 +1,195 @@
+#
+# WL#12138 -- Add Admin Port
+#
+# Create the user u1
+CREATE USER u1;
+# Grant the user u1 the privilege SERVICE_CONNECTION_ADMIN
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO u1;
+# Create the user u2
+CREATE USER u2;
+# Create the user u3
+CREATE USER u3;
+# Grant the user u3 the privilege SERVICE_CONNECTION_ADMIN
+GRANT SUPER ON *.* TO u3;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# Stop DB server which was created by MTR default
+# Test case 1
+# Check that specially treated value :: is not allowed as part of
+# option admin-address.
+Pattern "Invalid value for command line option admin-address: '::'" found
+# Test case 2
+# Check that specially treated value * is not allowed as part of
+# option admin-address.
+Pattern "Invalid value for command line option admin-address: '*'" found
+# Test case 3
+# Check that specially treated value 0.0.0.0 is not allowed as part of
+# option admin-address.
+Pattern "Invalid value for command line option admin-address: '0.0.0.0'" found
+# Test case 4
+# Check that non-existent host name specified as a value of the option admin-address results in error on server starting up.
+# option admin-address.
+Pattern "Can't start server: cannot resolve hostname" found
+# Starting up server with --admin-address=127.0.0.1 --max-connections=2
+# restart: --admin-address=127.0.0.1 --admin-port=ADMIN_PORT --max-connections=2
+# Test case 5
+# Check that ordinary connection using tcp protocol can be established
+connect ordinary_tcp_con,localhost,root,,,,,TCP;
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+disconnect ordinary_tcp_con;
+# Check error when starting a server having admin port which is busy
+Pattern "Can't start server: Bind on TCP/IP port: (Address .*in use|Only one usage of each socket address .* normally permitted)" found
+# Test case 6
+# Check that ordinary connection using default connection method can be established
+connect ordinary_con,localhost,root,,,,,;
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+disconnect ordinary_con;
+# Test case 7
+# Check that admin connection using tcp protocol can be established
+connect admin_tcp_con,127.0.0.1,root,,,$MASTER_ADMINPORT,,TCP;
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+# Check that a system message about the admin interface is written
+# to the error log
+Pattern "\[System\] \[MY\-[0-9]+\] \[Server\] Admin interface ready for connections, address: \'127.0.0.1\'  port: ADMIN_PORT" found
+disconnect admin_tcp_con;
+# Test case 8
+# Check that the user u1 can establish connection to admin interface since
+# this user has the privilege SERVICE_CONNECTION_ADMIN
+connect admin_tcp_con_u1,127.0.0.1,u1,,,$MASTER_ADMINPORT,,TCP;
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@%
+disconnect admin_tcp_con_u1;
+# Test case 9
+# Check that the user u2 can't establish connection to admin interface since
+# this user doesn't have the privilege SERVICE_CONNECTION_ADMIN
+connection default;
+connect(127.0.0.1,u2,,test,ADMIN_PORT,SOURCE_SOCKET);
+connect admin_tcp_con_u2,127.0.0.1,u2,,,$MASTER_ADMINPORT,,TCP;
+ERROR 42000: Access denied; you need (at least one of) the SERVICE_CONNECTION_ADMIN privilege(s) for this operation
+# Check that the user u3 can't establish connection to admin interface since
+# this user doesn't have the privilege SERVICE_CONNECTION_ADMIN
+connect(127.0.0.1,u3,,test,ADMIN_PORT,SOURCE_SOCKET);
+connect admin_tcp_con_u3,127.0.0.1,u3,,,$MASTER_ADMINPORT,,TCP;
+ERROR 42000: Access denied; you need (at least one of) the SERVICE_CONNECTION_ADMIN privilege(s) for this operation
+connection default;
+# Wait until the failed connections are gone.
+# Test case 10
+# Check that the parameter max_connections does affect to an ordinary
+# connection and doesn't affect to a connection made to admin interface
+connect ordinary_con_1,localhost,u1,,,,,;
+# Show how many active connections exist after the connection
+# ordinary_con_1 established
+SHOW STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	2
+# Since server was started with the option --max-connections=2 and
+# there are already two active connections (the first one is for
+# the default connection and the second one is for the connection
+# ordinary_con_1) an attempt to connect to the server results in
+# error ER_CON_COUNT_ERROR
+connect(localhost,u2,,test,SOURCE_PORT,SOURCE_SOCKET);
+connect ordinary_con_2,localhost,u2,,,,,;
+ERROR 08004: Too many connections
+# Check that attempt to establish the third connection to admin interface
+# doesn't result in error
+connect admin_con_3,localhost,u1,,,$MASTER_ADMINPORT,,TCP;
+# Check that total number of concurrent connection made to admin interface
+# is not limited by the value max-connections + 1
+connect admin_con_4,localhost,u1,,,$MASTER_ADMINPORT,,TCP;
+connection ordinary_con_1;
+disconnect ordinary_con_1;
+connection admin_con_3;
+disconnect admin_con_3;
+connection admin_con_4;
+disconnect admin_con_4;
+connection default;
+# Test case 11
+# Check that a dedicated thread for handling connection requests
+# on admin interface is not running in case a server started without
+# the option --create-admin-listener-thread=true
+SELECT name, type FROM performance_schema.threads WHERE name = 'thread/sql/admin_interface';
+name	type
+# Stop DB server
+# Starting up server with --admin-address=127.0.0.1,
+# handle connections on admin interface by a dedicated thread
+# restart: --admin-address=127.0.0.1 --admin-port=ADMIN_PORT --create-admin-listener-thread=true
+# Test case 12
+# Check that a dedicated thread for handling connection requests on
+# admin interface is running in case a server started with the option
+# --create-admin-listener-thread=true
+SELECT name, type FROM performance_schema.threads WHERE name = 'thread/sql/admin_interface';
+name	type
+thread/sql/admin_interface	BACKGROUND
+# Test case 13
+# Check that admin connection using tcp protocol can be established
+# when a server is started with option --create-admin-listener-thread=true
+connect admin_tcp_con,127.0.0.1,root,,,$MASTER_ADMINPORT,,TCP;
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+disconnect admin_tcp_con;
+# Test case 14
+# Check that admin interface is turned off
+# in case a server started with the --skip-networking option
+connection default;
+# Stop DB server
+# Starting up server with --admin-address=127.0.0.1 --skip-networking
+# restart: --admin-address=127.0.0.1 --admin-port=ADMIN_PORT --skip-networking
+connect(127.0.0.1,root,,test,ADMIN_PORT,SOURCE_SOCKET);
+connect admin_tcp_con,127.0.0.1,root,,,$MASTER_ADMINPORT,,TCP;
+# Test case 15
+# Check that admin interface is turned off in case a server started
+# with the --skip-grant-tables option. If the server is started with
+# the --skip-grant-tables option to disable authentication checks,
+# the server enables --skip-networking automatically to prevent remote
+# connections. Therefore, listening on admin interface must be disabled too.
+connection default;
+# Stop DB server
+# Starting up server with --admin-address=127.0.0.1 --skip-grant-tables
+# restart: --admin-address=127.0.0.1 --admin-port=ADMIN_PORT --skip-grant-tables
+connect(127.0.0.1,root,,test,ADMIN_PORT,SOURCE_SOCKET);
+connect admin_tcp_con,127.0.0.1,root,,,$MASTER_ADMINPORT,,TCP;
+connection default;
+# Stop DB server
+# Test case 16
+# Check that admin interface is not setup when the option
+# --admin-port is specified without --admin-address
+# restart: --admin-port=ADMIN_PORT
+connect ordinary_tcp_con,localhost,root,,,,,TCP;
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+SELECT @@admin_address, @@admin_port;
+@@admin_address	@@admin_port
+NULL	ADMIN_PORT
+disconnect ordinary_tcp_con;
+connect(127.0.0.1,root,,test,ADMIN_PORT,SOURCE_SOCKET);
+connect admin_tcp_con,127.0.0.1,root,,,$MASTER_ADMINPORT,,TCP;
+# Test case 17
+# Check that we can connect to the server if admin
+# interface is set up on loopback IPV6 address
+connection default;
+# restart: --skip-name-resolve --admin-address=::1 --admin-port=ADMIN_PORT
+connect admin_tcp_con_ipv6,::1,u1,,,$MASTER_ADMINPORT,,TCP;
+SELECT @@admin_address, @@admin_port;
+@@admin_address	@@admin_port
+::1	ADMIN_PORT
+disconnect admin_tcp_con_ipv6;
+connection default;
+# Stop DB server
+#
+# Starting mysqld in the regular mode...
+#
+connection default;
+# restart
+# Cleaning up
+DROP USER u1;
+DROP USER u2;
+DROP USER u3;

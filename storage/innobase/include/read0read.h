@@ -37,33 +37,67 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stddef.h>
 #include <algorithm>
 
-#include "read0types.h"
+#include "read0mvcc_interface.h"
+#include "read0types.h"  // ReadView
 #include "univ.i"
+#include "ut0cpu_cache.h"
 
 /** The MVCC read view manager */
-class MVCC {
+class MVCC : public MVCC_interface {
+  /* To protect cache line with vtable pointer from being dirtied via false
+  sharing with other fields of this structure, we add padding here. We don't
+  use alignas(ut::INNODB_CACHE_LINE_SIZE), as we don't know if the particular
+  allocator used by the caller respect such large alignment requirements.
+  This is not a premature optimization - false sharing caused 16% TPS drop in
+  performance on sysbench OLTP uniform 64 users in READ COMMITTED. */
+  char _padding[ut::INNODB_CACHE_LINE_SIZE];
+
  public:
-  /** Constructor
+  /** Constructor.
   @param size           Number of views to pre-allocate */
   explicit MVCC(ulint size);
 
   /** Destructor.
   Free all the views in the m_free list */
-  ~MVCC();
+  ~MVCC() override;
 
-  /** Allocate and create a view.
-  @param view   View owned by this class created for the caller. Must be
-  freed by calling view_close()
-  @param trx    Transaction instance of caller */
+  void initialize(trx_id_t max_committed_trx_id, trx_ids_t active_ids) override;
+  void view_open(Read_view_interface *&view, trx_t *trx) override;
+  void view_close(Read_view_interface *&view, bool own_mutex) override;
+  void clone_oldest_view(Read_view_interface *&view) override;
+  void view_free(Read_view_interface *&view) override;
+  [[nodiscard]] size_t get_open_views_count() const override;
+  void undo_purge_is_starting() override;
+  void undo_purge_has_shutdown() override;
+
+ private:
+  /** A helper for the interface method with the same name, which makes it
+  cleaner to assign to the referenced pointer while using the actual
+  implementation-specific type.
+
+  If trx is auto-commit non-locking transaction and view is not-null, it
+  attempts to reopen it. This fast path succeeds if the view is still the
+  freshest possible, in which case taking trx_sys mutex is avoided. Otherwise it
+  falls back to the slow path, which requires a trx_sys mutex to (re)initialize
+  the view.
+  @see view_open(Read_view_interface*&,trx_t*) */
   void view_open(ReadView *&view, trx_t *trx);
 
-  /**
-  Close a view created by the above function.
-  @param view           view allocated by trx_open.
-  @param own_mutex      true if caller owns trx_sys_t::mutex */
+  /** A helper for the interface method with the same name, which makes it
+  cleaner to assign to the referenced pointer while using the actual
+  implementation-specific type.
+
+  In case own_mutex is true, it will move the view to the free list and assign
+  nullptr to the argument. Otherwise it only closes the view, without freeing
+  it.
+  @see view_close(Read_view_interface*&,bool) */
   void view_close(ReadView *&view, bool own_mutex);
 
-  /** Clones the oldest view into the provided view, unless the function
+  /** A helper for the interface method with the same name, which makes it
+  cleaner to assign to the referenced pointer while using the actual
+  implementation-specific type.
+
+  Clones the oldest view into the provided view, unless the function
   determines that the provided view is already a good enough lower bound.
   The caller owns the view that is passed in, which is interpreted to be a
   previous lower bound known to the caller.
@@ -78,48 +112,33 @@ class MVCC {
   use purge_sys->view->changes_visible(ID,..).
   @param[in,out] view   Preallocated view, owned by the caller. Can be either
                         default constructed (m_low_limit_no is 0) or a fully
-                        initialized ReadView object. */
-  void clone_oldest_view(ReadView *view);
+                        initialized ReadView object.
+  @see clone_oldest_view(Read_view_interface*&) */
+  void clone_oldest_view(ReadView *&view);
 
-  /**
-  @return the number of active views */
-  ulint size() const;
-
-  /**
-  @return true if the view is active and valid */
-  static bool is_view_active(ReadView *view) {
-    ut_a(view != reinterpret_cast<ReadView *>(0x1));
-
-    return (view != nullptr && !(intptr_t(view) & 0x1));
+ public:
+  [[nodiscard]] bool is_view_open(
+      const Read_view_interface *view) const override {
+    return view != nullptr && !((ReadView *)view)->is_closed();
   }
 
-  /**
-  Set the view creator transaction id. Note: This should be set only
-  for views created by RW transactions.
-  @param view   Set the creator trx id for this view
-  @param id     Transaction id to set */
-  static void set_view_creator_trx_id(ReadView *view, trx_id_t id) {
+  void set_view_creator_trx_id(Read_view_interface *&view,
+                               trx_id_t id) override {
     ut_ad(id > 0);
 
-    view->creator_trx_id(id);
+    ((ReadView *)view)->creator_trx_id(id);
   }
 
  private:
-  /**
-  Validates a read view list. */
-  bool validate() const;
+  /** Asserts the read view list is sorted. */
+  void validate() const;
 
-  /**
-  Find a free view from the active list, if none found then allocate
-  a new view. This function will also attempt to move delete marked
-  views from the active list to the freed list.
+  /** Get a view from the free list, or allocate a new one if it's empty.
   @return a view to use */
   inline ReadView *get_view();
 
- private:
-  // Prevent copying
-  MVCC(const MVCC &);
-  MVCC &operator=(const MVCC &);
+  MVCC(const MVCC &) = delete;
+  MVCC &operator=(const MVCC &) = delete;
 
  private:
   typedef UT_LIST_BASE_NODE_T(ReadView, m_view_list) view_list_t;
@@ -127,8 +146,7 @@ class MVCC {
   /** Free views ready for reuse. */
   view_list_t m_free;
 
-  /** Active and closed views, the closed views will have the
-  creator trx id set to TRX_ID_MAX */
+  /** Active and closed views. */
   view_list_t m_views;
 };
 

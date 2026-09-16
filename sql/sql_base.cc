@@ -554,14 +554,6 @@ static TABLE_SHARE *process_found_table_share(THD *thd [[maybe_unused]],
   return share;
 }
 
-// MDL_release_locks_visitor subclass to release MDL for COLUMN_STATISTICS.
-class Release_histogram_locks : public MDL_release_locks_visitor {
- public:
-  bool release(MDL_ticket *ticket) override {
-    return ticket->get_key()->mdl_namespace() == MDL_key::COLUMN_STATISTICS;
-  }
-};
-
 /**
   Read any existing histogram statistics from the data dictionary and store a
   copy of them in the TABLE_SHARE.
@@ -643,8 +635,10 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
     return true; /* purecov: deadcode */
 
   auto mdl_guard = create_scope_guard([&]() {
-    Release_histogram_locks histogram_mdl_releaser;
-    thd->mdl_context.release_locks(&histogram_mdl_releaser);
+    for (MDL_request *r = mdl_requests.front(); r != nullptr;
+         r = r->next_in_list) {
+      thd->mdl_context.release_lock(r->ticket);
+    }
   });
 
   // Define this AFTER the scope guard releasing locks so that locks are held

@@ -1,0 +1,78 @@
+SET @save_lock_wait_timeout = @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout= 10;
+SET @@SESSION.thread_pool_high_priority_connection = 1;
+CREATE TABLE t1 (col1 BIGINT) ENGINE = MEMORY;
+LOCK TABLE t1 WRITE;
+SET @@SESSION.thread_pool_high_priority_connection = 1;
+CREATE TEMPORARY TABLE my_tp_thread_group_stats LIKE performance_schema.tp_thread_group_stats;
+ALTER TABLE my_tp_thread_group_stats ENGINE = MEMORY;
+ALTER TABLE my_tp_thread_group_stats ADD PRIMARY KEY pk (TP_GROUP_ID);
+CREATE TEMPORARY TABLE my_tp_thread_group_state LIKE performance_schema.tp_thread_group_state;
+ALTER TABLE my_tp_thread_group_state ENGINE = MEMORY;
+ALTER TABLE my_tp_thread_group_state ADD PRIMARY KEY pk (TP_GROUP_ID);
+CREATE TEMPORARY TABLE my_tp_thread_state        LIKE performance_schema.tp_thread_state;
+ALTER TABLE my_tp_thread_state       ENGINE = MEMORY;
+ALTER TABLE my_tp_thread_state ADD PRIMARY KEY pk (TP_GROUP_ID,TP_THREAD_NUMBER);
+CREATE PROCEDURE tp_table_watch ()
+BEGIN
+LOOP
+# We run here no plain SELECTs because this would cause that the
+# PROCEDURE would generate result sets.
+REPLACE INTO my_tp_thread_group_stats SELECT * FROM performance_schema.tp_thread_group_stats;
+REPLACE INTO my_tp_thread_group_state SELECT * FROM performance_schema.tp_thread_group_state;
+REPLACE INTO my_tp_thread_state       SELECT * FROM performance_schema.tp_thread_state;
+END LOOP;
+END|
+CALL tp_table_watch;
+SET DEBUG_SYNC= 'RESET';
+Bug#29969769 - KILL QUERY KILLS THE NEXT QUERY
+SET DEBUG_SYNC='before_command_dispatch SIGNAL kill_query WAIT_FOR continue';
+SELECT 1;;
+SET DEBUG_SYNC='now WAIT_FOR kill_query';
+KILL QUERY ID;
+SET DEBUG_SYNC='now SIGNAL continue';
+1
+1
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL sync_start WAIT_FOR continue';
+SELECT * FROM t1;
+ERROR 70100: Query execution was interrupted
+SELECT * FROM t1;
+SET @save_thread_pool_prio_kickup_timer = @@global.thread_pool_prio_kickup_timer;
+SET @@global.thread_pool_prio_kickup_timer = 3000;
+SET @@SESSION.thread_pool_high_priority_connection = 0;
+SET DEBUG_SYNC= 'RESET';
+Bug#29969769 - KILL QUERY KILLS THE NEXT QUERY
+SET DEBUG_SYNC='before_command_dispatch SIGNAL kill_query WAIT_FOR continue';
+SELECT 1;;
+SET DEBUG_SYNC='now WAIT_FOR kill_query';
+KILL QUERY ID;
+SET DEBUG_SYNC='now SIGNAL continue';
+1
+1
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL sync_start WAIT_FOR continue';
+SELECT * FROM t1;
+ERROR 70100: Query execution was interrupted
+SELECT * FROM t1;
+SET @@session.thread_pool_high_priority_connection = 1;
+SET DEBUG_SYNC= 'RESET';
+Bug#29969769 - KILL QUERY KILLS THE NEXT QUERY
+SET DEBUG_SYNC='before_command_dispatch SIGNAL kill_query WAIT_FOR continue';
+SELECT 1;;
+SET DEBUG_SYNC='now WAIT_FOR kill_query';
+KILL QUERY ID;
+SET DEBUG_SYNC='now SIGNAL continue';
+1
+1
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL sync_start WAIT_FOR continue';
+SELECT * FROM t1;
+ERROR 70100: Query execution was interrupted
+SELECT * FROM t1;
+KILL <observer_id>;
+UNLOCK TABLES;
+SET @@global.thread_pool_prio_kickup_timer = @save_thread_pool_prio_kickup_timer;
+DROP TABLE t1;
+DROP PROCEDURE tp_table_watch;
+SET @@global.lock_wait_timeout = @save_lock_wait_timeout;

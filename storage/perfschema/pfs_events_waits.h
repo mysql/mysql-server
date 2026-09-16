@@ -33,6 +33,7 @@
 #include <atomic>
 
 #include "my_inttypes.h"
+#include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_events.h"
 #include "storage/perfschema/pfs_global.h"
@@ -91,8 +92,8 @@ struct PFS_events_waits : public PFS_events {
   PFS_metadata_lock *m_weak_metadata_lock;
   /** For weak pointers, target object version. */
   uint32 m_weak_version;
-  /** Address in memory of the object instance waited on. */
-  const void *m_object_instance_addr;
+  /** Identity of the object instance waited on. */
+  pfs_identity m_object_instance_addr;
   /** Operation performed. */
   enum_operation_type m_operation;
   /**

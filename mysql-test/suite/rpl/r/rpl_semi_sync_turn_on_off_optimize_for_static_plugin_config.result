@@ -32,6 +32,7 @@ SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
 CALL mtr.add_suppression(".* Timeout waiting for reply of binlog .*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
 include/rpl/install_semisync_source.inc
 [connection server_3]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
@@ -39,6 +40,7 @@ SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
 include/rpl/install_semisync_replica.inc
 [connection server_4]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
@@ -46,6 +48,7 @@ SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
 include/rpl/install_semisync_replica.inc
 [connection server_5]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
@@ -53,6 +56,7 @@ SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
 include/rpl/install_semisync_replica.inc
 [connection server_6]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
@@ -60,6 +64,7 @@ SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
 include/rpl/install_semisync_replica.inc
 [connection server_7]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
@@ -67,6 +72,7 @@ SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
 include/rpl/install_semisync_replica.inc
 [connection server_8]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
@@ -74,6 +80,7 @@ SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
 include/rpl/install_semisync_replica.inc
 [connection server_9]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
@@ -81,6 +88,7 @@ SET GLOBAL replication_sender_observe_commit_only = 1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
 include/rpl/install_semisync_replica.inc
 [connection server_2]
 SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 7;

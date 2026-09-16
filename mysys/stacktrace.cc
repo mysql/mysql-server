@@ -37,6 +37,7 @@
 #include <cerrno>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string_view>
 #if defined(__linux__) || defined(__sun) || defined(__FreeBSD__)
@@ -281,7 +282,7 @@ static bool my_demangle_symbol(char *line) {
   if (demangled) my_safe_printf_stderr("%s(%s+%s\n", line, demangled, end);
 #endif
   bool ret = (demangled == nullptr);
-  free(demangled);
+  std::free(demangled);
   return (ret);
 }
 
@@ -313,7 +314,7 @@ void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
     char *demangled = my_demangle(procname_buffer, &status);
     my_safe_printf_stderr("[0x%lx] %s+0x%lx\n", ip,
                           demangled ? demangled : procname_buffer, offp);
-    if (demangled) free(demangled);
+    if (demangled) std::free(demangled);
   }
 #endif
   void *addrs[128];
@@ -324,7 +325,7 @@ void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
 #ifdef HAVE_ABI_CXA_DEMANGLE
   if ((strings = backtrace_symbols(addrs, n))) {
     my_demangle_symbols(strings, n);
-    free(strings);
+    std::free(strings);
   }
 #endif
   if (!strings) {

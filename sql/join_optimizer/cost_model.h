@@ -25,6 +25,7 @@
 #define SQL_JOIN_OPTIMIZER_COST_MODEL_H_
 
 #include <algorithm>  // std::clamp
+#include <cmath>      // std::log2, std::max
 #include <span>
 
 #include "my_base.h"
@@ -746,6 +747,27 @@ inline double EstimateRefAccessCost(const TABLE *table, unsigned key_idx,
 }
 
 /**
+   Estimates the one-time cost of building a B-tree index on a materialized
+   temporary table. Uses the same cost model as EstimateSortCost():
+   an O(N) per-row insertion component plus an O(N * log2(N)) comparison
+   component.
+
+   @param num_rows Number of rows in the materialized table.
+
+   @returns The estimated cost of building the index.
+*/
+inline double EstimateIndexBuildCost(double num_rows) {
+  if (num_rows <= 1.0) return 0.0;
+  // Per-row cost of inserting into the B-tree (memory allocation, copying
+  // row data into index nodes). Analogous to kSortOneRowCost in sort.
+  const double insertion_cost = kSortOneRowCost * num_rows;
+  // O(N log N) cost of key comparisons to maintain B-tree ordering.
+  const double comparison_cost =
+      kSortComparisonCost * num_rows * std::log2(num_rows);
+  return insertion_cost + comparison_cost;
+}
+
+/**
    Input to HashJoinCost, for calculating the cost of a hash join.
 */
 struct HashJoinMetrics final {
@@ -768,7 +790,8 @@ struct HashJoinMetrics final {
 */
 class HashJoinCost final {
  public:
-  HashJoinCost(THD *thd, const HashJoinMetrics &metrics);
+  HashJoinCost(THD *thd, const HashJoinMetrics &metrics,
+               bool allow_spill_to_disk = true);
 
   double spill_to_disk_probability() const {
     return m_spill_to_disk_probability;
@@ -778,13 +801,31 @@ class HashJoinCost final {
 
   double cost() const { return m_cost; }
 
+  /// The number of times the probe input must be scanned. Greater than 1
+  /// when the build input does not fit in the join buffer and we need
+  /// multiple passes (with hash table refills).
+  double probe_iterations() const { return m_probe_iterations; }
+
+  /// Estimated probability that the build input overflows one join
+  /// buffer. Unlike spill_to_disk_probability(), this is independent of
+  /// allow_spill_to_disk: a no-spill plan with overflow_probability()>0
+  /// will refill the hash table rather than write chunk files, but the
+  /// in-memory buffer is still not reusable across re-Init() in that case.
+  double overflow_probability() const { return m_overflow_probability; }
+
  private:
   /// The probability (range [0.0, 1.0]) of needing spill to disk.
   double m_spill_to_disk_probability;
+  /// The probability (range [0.0, 1.0]) that the build input overflows
+  /// one join buffer, regardless of whether spill-to-disk is allowed.
+  double m_overflow_probability{0.0};
   /// The cost of preparing to produce the first result row.
   double m_init_cost;
   /// The cost of the hash join.
   double m_cost;
+  /// The number of iterations over the probe input. Used by
+  /// ProposeHashJoin() to account for probe re-scanning cost.
+  double m_probe_iterations;
 };
 
 #endif  // SQL_JOIN_OPTIMIZER_COST_MODEL_H_

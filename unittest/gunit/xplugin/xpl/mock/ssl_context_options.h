@@ -58,6 +58,10 @@ class Ssl_context_options : public iface::Ssl_context_options {
   MOCK_METHOD(int64_t, ssl_session_cache_size, (), (override));
   MOCK_METHOD(int64_t, ssl_session_cache_timeouts, (), (override));
   MOCK_METHOD(int64_t, ssl_used_session_cache_entries, (), (override));
+
+  MOCK_METHOD(std::string, tls_kex, (), (override));
+  MOCK_METHOD(bool, tls_force_pqc, (), (override));
+  MOCK_METHOD(bool, tls_use_pqc_sign, (), (override));
 };
 
 }  // namespace mock

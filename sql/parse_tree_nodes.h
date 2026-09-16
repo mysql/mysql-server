@@ -5785,13 +5785,43 @@ class PT_explain : public Parse_tree_root {
   LEX_CSTRING m_schema_name_for_explain;
 };
 
+class PT_load_data_partition_spec {
+ public:
+  explicit PT_load_data_partition_spec(const LEX_STRING &name) : m_name(name) {}
+
+  PT_load_data_partition_spec(const LEX_STRING &name, ulong first_file,
+                              ulong last_file)
+      : m_name(name), m_files_range(std::make_pair(first_file, last_file)) {}
+
+  const LEX_STRING &name() const { return m_name; }
+  const std::optional<std::pair<ulong, ulong>> &files_range() const {
+    return m_files_range;
+  }
+
+ private:
+  LEX_STRING m_name;
+  std::optional<std::pair<ulong, ulong>> m_files_range;
+};
+
+class PT_load_data_partition_list {
+ public:
+  explicit PT_load_data_partition_list(Load_data_partition_list *partitions)
+      : m_partitions(partitions) {}
+
+  Load_data_partition_list *partitions() const { return m_partitions; }
+
+ private:
+  Load_data_partition_list *m_partitions;
+};
+
 class PT_load_table final : public Parse_tree_root {
  public:
   PT_load_table(const POS &pos, enum_filetype filetype, thr_lock_type lock_type,
                 bool is_local_file, enum_source_type source_type,
                 const LEX_STRING filename, ulong file_count, bool in_key_order,
                 On_duplicate on_duplicate, Table_ident *table,
-                List<String> *opt_partitions, const CHARSET_INFO *opt_charset,
+                PT_load_data_partition_list *opt_partitions,
+                const CHARSET_INFO *opt_charset,
                 LEX_CSTRING compression_algorithm,
                 String *opt_xml_rows_identified_by,
                 const Field_separators *opt_field_separators,
@@ -5801,14 +5831,16 @@ class PT_load_table final : public Parse_tree_root {
                 List<String> *opt_set_expr_strings, ulong parallel,
                 ulonglong memory_size, bool is_bulk_operation)
       : Parse_tree_root(pos),
-        m_cmd(filetype, is_local_file, source_type, filename, file_count,
-              in_key_order, on_duplicate, table, opt_partitions, opt_charset,
-              compression_algorithm, opt_xml_rows_identified_by,
-              opt_field_separators, opt_line_separators, opt_ignore_lines,
-              opt_fields_or_vars ? &opt_fields_or_vars->value : nullptr,
-              opt_set_fields ? &opt_set_fields->value : nullptr,
-              opt_set_exprs ? &opt_set_exprs->value : nullptr,
-              opt_set_expr_strings, parallel, memory_size, is_bulk_operation),
+        m_cmd(
+            filetype, is_local_file, source_type, filename, file_count,
+            in_key_order, on_duplicate, table,
+            opt_partitions == nullptr ? nullptr : opt_partitions->partitions(),
+            opt_charset, compression_algorithm, opt_xml_rows_identified_by,
+            opt_field_separators, opt_line_separators, opt_ignore_lines,
+            opt_fields_or_vars ? &opt_fields_or_vars->value : nullptr,
+            opt_set_fields ? &opt_set_fields->value : nullptr,
+            opt_set_exprs ? &opt_set_exprs->value : nullptr,
+            opt_set_expr_strings, parallel, memory_size, is_bulk_operation),
         m_lock_type(lock_type) {
     assert((opt_set_fields == nullptr) ^ (opt_set_exprs != nullptr));
     assert(opt_set_fields == nullptr ||

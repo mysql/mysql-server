@@ -107,6 +107,7 @@ call mtr.add_suppression("Member version is read compatible with the group.");
 SET session sql_log_bin=1;
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
@@ -172,6 +173,7 @@ SET session sql_log_bin=1;
 
 SET @@GLOBAL.DEBUG= @debug_save_s1;
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

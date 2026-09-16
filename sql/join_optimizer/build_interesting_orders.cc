@@ -499,6 +499,80 @@ static void CollectOrderingsFromSpatialIndex(
   // The use of index is currently not supported for this case.
 }
 
+/**
+  Register the orderings that a scan along a window of an index's key parts
+  delivers.
+
+  @param thd            Thread handle.
+  @param orderings      The orderings to register in.
+  @param table          The table the index belongs to.
+  @param key_idx        The index, as an offset into table->key_info.
+  @param first_key_part The first key part of the window.
+  @param num_key_parts  The number of key parts in the window; must be > 0.
+  @param num_user_defined_key_parts
+                        How many of the key parts in the window are
+                        user-defined, that is, not appended from the primary
+                        key; at most num_key_parts. May be zero, in which case
+                        no ordering without the extended key parts is
+                        registered.
+
+  @return The registered orderings. The reverse ones are left at zero if the
+    index cannot be scanned backwards.
+ */
+static IndexOrderingInfo BuildIndexOrderings(
+    THD *thd, LogicalOrderings *orderings, TABLE *table, int key_idx,
+    int first_key_part, int num_key_parts, int num_user_defined_key_parts) {
+  assert(first_key_part >= 0);
+  assert(num_key_parts > 0);
+  assert(num_user_defined_key_parts >= 0);
+  assert(num_user_defined_key_parts <= num_key_parts);
+  const KEY *key = &table->key_info[key_idx];
+  IndexOrderingInfo ordering;
+
+  // First add the forward order.
+  Ordering::Elements elements =
+      Ordering::Elements::Alloc(thd->mem_root, num_key_parts);
+  for (int i = 0; i < num_key_parts; ++i) {
+    const KEY_PART_INFO &key_part = key->key_part[first_key_part + i];
+    elements[i].item = orderings->GetHandle(key_part.field);
+    elements[i].direction = Overlaps(key_part.key_part_flag, HA_REVERSE_SORT)
+                                ? ORDER_DESC
+                                : ORDER_ASC;
+  }
+  ordering.forward_order = orderings->AddOrdering(
+      thd, Ordering(elements, Ordering::Kind::kOrder), /*interesting=*/false,
+      /*used_at_end=*/true, /*homogenize_tables=*/0);
+
+  // And now the reverse, if the index allows it.
+  if (!Overlaps(table->file->index_flags(
+                    key_idx, first_key_part + num_key_parts - 1, true),
+                HA_READ_PREV)) {
+    return ordering;
+  }
+  for (int i = 0; i < num_key_parts; ++i) {
+    elements[i].direction =
+        elements[i].direction == ORDER_ASC ? ORDER_DESC : ORDER_ASC;
+  }
+  ordering.reverse_order = orderings->AddOrdering(
+      thd, Ordering(elements, Ordering::Kind::kOrder), /*interesting=*/false,
+      /*used_at_end=*/true, /*homogenize_tables=*/0);
+
+  // Reverse index range scans need to know whether they should be using the
+  // extended key parts (key parts from the primary key that are appended to
+  // the keys in a secondary index). So we also keep the ordering for a
+  // reverse scan that only uses the user-defined key parts.
+  if (num_user_defined_key_parts == num_key_parts) {
+    ordering.reverse_order_without_extended_key_parts = ordering.reverse_order;
+  } else if (num_user_defined_key_parts > 0) {
+    ordering.reverse_order_without_extended_key_parts = orderings->AddOrdering(
+        thd,
+        Ordering(elements.prefix(num_user_defined_key_parts),
+                 Ordering::Kind::kOrder),
+        /*interesting=*/false, /*used_at_end=*/true, /*homogenize_tables=*/0);
+  }
+  return ordering;
+}
+
 void BuildInterestingOrders(
     THD *thd, JoinHypergraph *graph, Query_block *query_block,
     LogicalOrderings *orderings,
@@ -724,6 +798,48 @@ void BuildInterestingOrders(
     TABLE *table = index_info.table;
     KEY *key = &table->key_info[index_info.key_idx];
 
+    if (Overlaps(key->flags, HA_MULTI_VALUED_KEY)) {
+      // Register a conditional ordering for multi-valued indexes. The engine
+      // correctly clears HA_READ_ORDER for the whole MVI, which describes a
+      // full traversal; that flag is therefore not consulted here. The
+      // ordering built below only covers the key parts strictly after the
+      // array key part, and may only be applied to a range scan that has been
+      // proven to read a single value for the key parts up to and including
+      // the array key part.
+      int array_keypart = -1;
+      int usable_key_parts = 0;
+      for (unsigned keypart_idx = 0; keypart_idx < actual_key_parts(key);
+           ++keypart_idx, ++usable_key_parts) {
+        if (Overlaps(key->key_part[keypart_idx].key_part_flag,
+                     HA_PART_KEY_SEG)) {
+          break;
+        }
+        if (key->key_part[keypart_idx].field->is_array()) {
+          assert(array_keypart == -1);  // Exactly one array key part per MVI.
+          array_keypart = keypart_idx;
+        }
+      }
+      if (array_keypart == -1) {
+        // The array key part is not usable, e.g. because it comes after a
+        // partial key part.
+        continue;
+      }
+      const int first_suffix_keypart = array_keypart + 1;
+      const int suffix_key_parts = usable_key_parts - first_suffix_keypart;
+      if (suffix_key_parts <= 0) {
+        // Nothing usable after the array key part, so there is no ordering.
+        continue;
+      }
+      // The array key part is always user-defined, so this cannot be negative.
+      const int user_defined_suffix_key_parts =
+          std::min<int>(usable_key_parts, key->user_defined_key_parts) -
+          first_suffix_keypart;
+      index_info.mvi_range_ordering = BuildIndexOrderings(
+          thd, orderings, table, index_info.key_idx, first_suffix_keypart,
+          suffix_key_parts, user_defined_suffix_key_parts);
+      continue;  // Do not populate the ordinary order fields.
+    }
+
     // Find out how many usable keyparts there are. We have to stop
     // at the first that is partial (if any), or if the index is
     // nonorderable (e.g. a hash index), which we can seemingly only
@@ -743,56 +859,14 @@ void BuildInterestingOrders(
       continue;
     }
 
-    // First add the forward order.
-    Ordering::Elements elements =
-        Ordering::Elements::Alloc(thd->mem_root, sortable_key_parts);
-    for (int keypart_idx = 0; keypart_idx < sortable_key_parts; ++keypart_idx) {
-      const KEY_PART_INFO &key_part = key->key_part[keypart_idx];
-      elements[keypart_idx].item = orderings->GetHandle(key_part.field);
-      elements[keypart_idx].direction =
-          Overlaps(key_part.key_part_flag, HA_REVERSE_SORT) ? ORDER_DESC
-                                                            : ORDER_ASC;
-    }
-    index_info.forward_order = orderings->AddOrdering(
-        thd, Ordering(elements, Ordering::Kind::kOrder), /*interesting=*/false,
-        /*used_at_end=*/true, /*homogenize_tables=*/0);
-
-    // And now the reverse, if the index allows it.
-    if (Overlaps(table->file->index_flags(index_info.key_idx,
-                                          sortable_key_parts - 1, true),
-                 HA_READ_PREV)) {
-      for (int keypart_idx = 0; keypart_idx < sortable_key_parts;
-           ++keypart_idx) {
-        if (elements[keypart_idx].direction == ORDER_ASC) {
-          elements[keypart_idx].direction = ORDER_DESC;
-        } else {
-          elements[keypart_idx].direction = ORDER_ASC;
-        }
-      }
-      index_info.reverse_order = orderings->AddOrdering(
-          thd, Ordering(elements, Ordering::Kind::kOrder),
-          /*interesting=*/false,
-          /*used_at_end=*/true, /*homogenize_tables=*/0);
-
-      // Reverse index range scans need to know whether they should use the
-      // extended key parts (key parts from the primary key that are appended to
-      // the keys in a secondary index). So we also keep the ordering for a
-      // reverse scan that only uses the user-defined key parts.
-      if (const int user_defined_key_parts = key->user_defined_key_parts;
-          sortable_key_parts <= user_defined_key_parts) {
-        index_info.reverse_order_without_extended_key_parts =
-            index_info.reverse_order;
-      } else {
-        index_info.reverse_order_without_extended_key_parts =
-            orderings->AddOrdering(
-                thd,
-                Ordering(elements.prefix(user_defined_key_parts),
-                         Ordering::Kind::kOrder),
-                /*interesting=*/false,
-                /*used_at_end=*/true,
-                /*homogenize_tables=*/0);
-      }
-    }
+    const IndexOrderingInfo ordering = BuildIndexOrderings(
+        thd, orderings, table, index_info.key_idx, /*first_key_part=*/0,
+        sortable_key_parts,
+        std::min<int>(sortable_key_parts, key->user_defined_key_parts));
+    index_info.forward_order = ordering.forward_order;
+    index_info.reverse_order = ordering.reverse_order;
+    index_info.reverse_order_without_extended_key_parts =
+        ordering.reverse_order_without_extended_key_parts;
   }
 
   // Collect orderings from full-text indexes. Note that these are not

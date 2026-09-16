@@ -1,0 +1,19 @@
+SELECT @@GLOBAL.replication_force_pqc;
+@@GLOBAL.replication_force_pqc
+0
+SELECT @@replication_force_pqc = @@GLOBAL.replication_force_pqc;
+@@replication_force_pqc = @@GLOBAL.replication_force_pqc
+1
+SELECT @@SESSION.replication_force_pqc;
+ERROR HY000: Variable 'replication_force_pqc' is a GLOBAL variable
+SELECT @@LOCAL.replication_force_pqc;
+ERROR HY000: Variable 'replication_force_pqc' is a GLOBAL variable
+SET @@SESSION.replication_force_pqc = ON;
+ERROR HY000: Variable 'replication_force_pqc' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@GLOBAL.replication_force_pqc = 'invalid';
+ERROR 42000: Variable 'replication_force_pqc' can't be set to the value of 'invalid'
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='replication_force_pqc';
+VARIABLE_VALUE
+OFF

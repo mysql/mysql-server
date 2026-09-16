@@ -370,6 +370,8 @@ void page_cur_search_with_match(const buf_block_t *block,
 
   ut_d(page_check_dir(page));
 
+  [[maybe_unused]] Row_import_metadata_check_guard import_metadata_check_guard;
+
 #ifdef PAGE_CUR_ADAPT
   if (page_is_leaf(page) && (mode == PAGE_CUR_LE) &&
       !dict_index_is_spatial(index) &&
@@ -656,6 +658,8 @@ void page_cur_search_with_match_bytes(
 
   ut_d(page_check_dir(page));
 
+  [[maybe_unused]] Row_import_metadata_check_guard import_metadata_check_guard;
+
 #ifdef PAGE_CUR_ADAPT
   if (page_is_leaf(page) && (mode == PAGE_CUR_LE) &&
       (page_header_get_field(page, PAGE_N_DIRECTION) > 3) &&
@@ -891,6 +895,9 @@ static void page_cur_insert_rec_write_log(
 
     rec_offs_init(cur_offs_);
     rec_offs_init(ins_offs_);
+
+    [[maybe_unused]] Row_import_metadata_check_guard
+        import_metadata_check_guard;
 
     cur_offs = rec_get_offsets(cursor_rec, index, cur_offs_, ULINT_UNDEFINED,
                                UT_LOCATION_HERE, &heap);
@@ -1156,6 +1163,9 @@ const byte *page_cur_parse_insert_rec(
   if ((end_seg_len & 0x1UL) && mismatch_index == 0) {
     /* This is a record has nothing common to cursor record. */
   } else {
+    [[maybe_unused]] Row_import_metadata_check_guard
+        import_metadata_check_guard;
+
     offsets = rec_get_offsets(cursor_rec, index, offsets, ULINT_UNDEFINED,
                               UT_LOCATION_HERE, &heap);
 
@@ -1251,8 +1261,7 @@ rec_t *page_cur_insert_rec_low(
   ut_ad(dict_table_is_comp(index->table) == page_is_comp(page));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
-        recv_recovery_is_on() ||
-        (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)));
+        (mtr && mtr->is_inside_ibuf()));
 
   ut_ad(!page_rec_is_supremum(current_rec));
 
@@ -1623,8 +1632,7 @@ rec_t *page_cur_insert_rec_zip(
   ut_ad(page_is_comp(page));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
-        (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)) ||
-        recv_recovery_is_on());
+        (mtr && mtr->is_inside_ibuf()));
 
   ut_ad(!page_cur_is_after_last(cursor));
 #ifdef UNIV_ZIP_DEBUG
@@ -1686,7 +1694,7 @@ rec_t *page_cur_insert_rec_zip(
 
       /* The cursor should remain on the page infimum. */
       return (nullptr);
-    } else if (!page_zip->m_nonempty && !page_has_garbage(page)) {
+    } else if (!page_zip->has_modifications() && !page_has_garbage(page)) {
       /* The page has been freshly compressed, so
       reorganizing it will not help. */
     } else if (log_compressed && !reorg_before_insert) {
@@ -2133,6 +2141,8 @@ void page_copy_rec_list_end_to_created_page(
   slot_index = 0;
   n_recs = 0;
 
+  [[maybe_unused]] Row_import_metadata_check_guard import_metadata_check_guard;
+
   do {
     offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
                               UT_LOCATION_HERE, &heap);
@@ -2290,6 +2300,9 @@ const byte *page_cur_parse_delete_rec(
 #endif /* UNIV_HOTBACKUP */
     ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
 
+    [[maybe_unused]] Row_import_metadata_check_guard
+        import_metadata_check_guard;
+
     page_cur_delete_rec(&cursor, index,
                         rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
                                         UT_LOCATION_HERE, &heap),
@@ -2339,8 +2352,7 @@ void page_cur_delete_rec(
   ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
-        (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)) ||
-        recv_recovery_is_on());
+        (mtr && mtr->is_inside_ibuf()));
 
   /* The record must not be the supremum or infimum record. */
   ut_ad(page_rec_is_user_rec(current_rec));

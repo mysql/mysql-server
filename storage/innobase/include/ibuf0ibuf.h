@@ -315,12 +315,6 @@ ulint ibuf_count_get(const page_id_t &page_id);
 bool ibuf_is_empty(void);
 /** Prints info of ibuf. */
 void ibuf_print(FILE *file); /*!< in: file where to print */
-/********************************************************************
-Read the first two bytes from a record's fourth field (counter field in new
-records; something else in older records).
-@return "counter" field, or ULINT_UNDEFINED if for some reason it can't be read
-*/
-ulint ibuf_rec_get_counter(const rec_t *rec); /*!< in: ibuf record */
 
 /** Determine if there is any multi-value field data on the change buffer
 record

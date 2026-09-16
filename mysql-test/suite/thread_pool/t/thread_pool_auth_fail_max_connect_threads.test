@@ -1,0 +1,92 @@
+########################################################################
+# === Purpose ===
+# This test verifies that Thread Pool effectively handles repeated
+# authentication failures without exhausting connection handler threads.
+#
+# === Implementation ===
+# 1. Create a user for testing
+# 2. Verify that Thread Pool is started with two connection handler
+#    threads, one in each group
+# 3. Use debug points
+#    3.1. Simulate busy connection handler thread so that server tries
+#         to create new threads
+#    3.2. Simulate the case of having maximun connection handler threads
+#         defined by max_connect_threads_per_group. In such case, thread
+#         pool does not create new threads.
+# 4. Create few asynchronous client connections in parallel.
+# 5. Verify that Thread Pool is started with two connection handler
+#    threads, one in each group even after authentication failure.
+# 6. Restart the server to ensure that connection_count is accurate.
+# 7. Cleanup.
+# === References ===
+# Bug#38170188 mysqld server stuck at shutdown on waiting for threads to
+#              close
+########################################################################
+
+--source include/have_debug.inc
+
+# Create a user for testing
+CREATE USER tp_user1@localhost IDENTIFIED BY 'pass1';
+GRANT SELECT ON *.* TO tp_user1@localhost;
+
+# Assert that there are two connection handler threads, one in each
+# thread group
+--assert(`SELECT COUNT(*) = 2 FROM INFORMATION_SCHEMA.TP_THREAD_STATE WHERE TP_THREAD_TYPE = 'CONNECTION_HANDLER_WORKER_THREAD'`)
+--assert(`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.TP_THREAD_STATE WHERE TP_THREAD_TYPE = 'CONNECTION_HANDLER_WORKER_THREAD' AND TP_GROUP_ID=0`)
+--assert(`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.TP_THREAD_STATE WHERE TP_THREAD_TYPE = 'CONNECTION_HANDLER_WORKER_THREAD' AND TP_GROUP_ID=1`)
+
+# Enable the following debug points
+# 1. sleep_before_handling_connection to simulate busy connection
+# handler threads so that the server ends up creating new connection
+# handler threads to serve the connection requests.
+#
+# 2. simulate_max_connect_threads_per_group to simulate the behavior
+# the case of maximum connection handler threads per group.
+
+--let $debug_point= simulate_max_connect_threads_per_group
+--source include/add_debug_point.inc
+
+--let $debug_point= sleep_before_handling_connection
+--source include/add_debug_point.inc
+
+--disable_query_log
+--exec_in_background $MYSQL -utp_user1 -pwrongpass1 -e "select 1;"
+--exec_in_background $MYSQL -utp_user1 -pwrongpass1 -e "select 1;"
+--exec_in_background $MYSQL -utp_user1 -pwrongpass1 -e "select 1;"
+--exec_in_background $MYSQL -utp_user1 -pwrongpass1 -e "select 1;"
+--exec_in_background $MYSQL -utp_user1 -pwrongpass1 -e "select 1;"
+--exec_in_background $MYSQL -utp_user1 -pwrongpass1 -e "select 1;"
+--exec_in_background $MYSQL -utp_user1 -pwrongpass1 -e "select 1;"
+--exec_in_background $MYSQL -utp_user1 -pwrongpass1 -e "select 1;"
+--enable_query_log
+
+# The debug point sleep_before_handling_connection makes the connection
+# handler thread to wait for 5 seconds. So wait until the connection is
+# processed.
+--sleep 5
+
+# Assert that there are two connection handler threads, one in each
+# thread group.
+#
+# Without the fix
+# - there will be only one active connection_handler thread.
+# - On commenting the below asserts, the server shutdown will be stuck
+#   with the following message.
+#     [MY-014071] [Server] Waiting for 7 connections to be closed.
+--assert(`SELECT COUNT(*) = 2 FROM INFORMATION_SCHEMA.TP_THREAD_STATE WHERE TP_THREAD_TYPE = 'CONNECTION_HANDLER_WORKER_THREAD'`)
+--assert(`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.TP_THREAD_STATE WHERE TP_THREAD_TYPE = 'CONNECTION_HANDLER_WORKER_THREAD' AND TP_GROUP_ID=0`)
+--assert(`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.TP_THREAD_STATE WHERE TP_THREAD_TYPE = 'CONNECTION_HANDLER_WORKER_THREAD' AND TP_GROUP_ID=1`)
+
+# Remove the debug points
+--let $debug_point= simulate_max_connect_threads_per_group
+--source include/remove_debug_point.inc
+
+--let $debug_point= sleep_before_handling_connection
+--source include/remove_debug_point.inc
+
+# Restart the server to ensure that connection_count is accurate even
+# after repeated authentication failures.
+--source include/restart_mysqld.inc
+
+# Cleanup
+DROP USER tp_user1@localhost;

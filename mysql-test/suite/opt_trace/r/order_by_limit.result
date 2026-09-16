@@ -1,0 +1,207 @@
+#
+# Bug#37171976 optimizer trace missing in test_if_cheaper_ordering()
+#
+SET optimizer_trace_max_mem_size=1048576;
+SET end_markers_in_json=off;
+SET optimizer_trace="enabled=on,one_line=off";
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT NOT NULL,
+c INT NOT NULL,
+filler VARCHAR(100),
+KEY idx_a(a),
+KEY idx_b(b),
+KEY idx_c(c),
+KEY idx_bc(b, c)
+) ENGINE=InnoDB;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Query where ref access on idx_a does not provide the requested
+# ORDER BY, forcing test_if_cheaper_ordering() to evaluate idx_b/idx_bc.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a = 10 ORDER BY b LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s)  (rows=5)
+    -> Sort: t1.b, limit input to 5 row(s) per chunk  (rows=10)
+        -> Index lookup on t1 using idx_a (a = 10)  (rows=10)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where (`test`.`t1`.`a` = 10) order by `test`.`t1`.`b` limit 5
+SELECT * FROM t1 WHERE a = 10 ORDER BY b LIMIT 5;
+# Trace must be valid JSON.
+SELECT JSON_VALID(trace) AS trace_is_valid_json
+FROM information_schema.optimizer_trace;
+trace_is_valid_json
+1
+# The reconsidering_access_paths_for_index_ordering block must now
+# contain per-index cost details for every candidate ordering index.
+SELECT JSON_PRETTY(
+JSON_EXTRACT(CAST(trace AS JSON),
+'$.steps[*].join_optimization.steps[*]'
+           '.reconsidering_access_paths_for_index_ordering'))
+AS reconsidering_block
+FROM information_schema.optimizer_trace;
+reconsidering_block
+[
+  {
+    "steps": [
+      {
+        "test_if_cheaper_ordering": {
+          "fanout": "elided",
+          "indexes": [
+            {
+              "cause": "cost",
+              "index": "idx_b",
+              "best_so_far": false,
+              "is_covering": false,
+              "select_limit": "elided",
+              "index_scan_cost": "elided"
+            },
+            {
+              "cause": "cost",
+              "index": "idx_bc",
+              "best_so_far": false,
+              "is_covering": false,
+              "select_limit": "elided",
+              "index_scan_cost": "elided"
+            }
+          ],
+          "read_cost": "elided",
+          "selected_index": null,
+          "refkey_rows_estimate": "elided"
+        }
+      }
+    ],
+    "clause": "ORDER BY",
+    "index_order_summary": {
+      "index": "idx_a",
+      "table": "`t1`",
+      "plan_changed": false,
+      "order_direction": "undefined",
+      "index_provides_order": false
+    }
+  }
+]
+# Extract just the list of candidate index names considered for
+# ordering. Must be non-NULL and contain idx_b.
+SELECT JSON_EXTRACT(CAST(trace AS JSON),
+'$**.reconsidering_access_paths_for_index_ordering'
+         '**.index') AS candidate_indexes
+FROM information_schema.optimizer_trace;
+candidate_indexes
+["idx_b", "idx_bc", "idx_a"]
+# Sanity: no unknown_key_N self-repair keys should appear.
+SELECT trace REGEXP 'unknown_key_[0-9]' AS has_unknown_key
+FROM information_schema.optimizer_trace;
+has_unknown_key
+0
+# Coverage for the "covering_index_better" branch: idx_cov (covering
+# for SELECT b, c) is evaluated first and becomes best_so_far; idx_nc
+# (not covering) is then rejected with cause=covering_index_better.
+CREATE TABLE t2 (
+b INT NOT NULL,
+c INT NOT NULL,
+d INT NOT NULL,
+KEY idx_c(c, b),
+KEY idx_cov(b, c),
+KEY idx_nc(b)
+) ENGINE=InnoDB;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SELECT b, c FROM t2 ORDER BY b LIMIT 5;
+SELECT JSON_PRETTY(
+JSON_EXTRACT(CAST(trace AS JSON),
+'$**.test_if_cheaper_ordering')) AS cheaper_ordering
+FROM information_schema.optimizer_trace;
+cheaper_ordering
+[
+  {
+    "fanout": "elided",
+    "indexes": [
+      {
+        "rows": "elided",
+        "index": "idx_cov",
+        "best_so_far": true,
+        "is_covering": true,
+        "select_limit": "elided",
+        "index_scan_cost": "elided"
+      },
+      {
+        "cause": "covering_index_better",
+        "index": "idx_nc",
+        "best_so_far": false,
+        "is_covering": false,
+        "select_limit": "elided",
+        "index_scan_cost": "elided"
+      }
+    ],
+    "read_cost": "elided",
+    "selected_index": "idx_cov",
+    "refkey_rows_estimate": "elided"
+  }
+]
+# make_join_query_block() caller: LOW_LIMIT recheck. Range on idx_c
+# (~500 rows) does not provide ORDER BY b, and LIMIT 5 < row estimate,
+# so make_join_query_block() re-runs test_if_cheaper_ordering() under
+# the "rechecking_index_usage" trace object with recheck_reason=low_limit.
+# The redundant b > 0 predicate adds idx_b/idx_bc to tab->keys() so they
+# appear as candidate ordering indexes in the trace.
+SELECT * FROM t1 WHERE c BETWEEN 100 AND 600 AND b > 0 ORDER BY b LIMIT 5;
+SELECT JSON_VALID(trace) AS trace_is_valid_json,
+trace REGEXP 'unknown_key_[0-9]' AS has_unknown_key
+FROM information_schema.optimizer_trace;
+trace_is_valid_json	has_unknown_key
+1	0
+SELECT JSON_UNQUOTE(
+JSON_EXTRACT(CAST(trace AS JSON),
+'$**.rechecking_index_usage.recheck_reason'))
+AS recheck_reason
+FROM information_schema.optimizer_trace;
+recheck_reason
+["low_limit"]
+SELECT JSON_PRETTY(
+JSON_EXTRACT(CAST(trace AS JSON),
+'$**.rechecking_index_usage.steps[*]'
+           '.test_if_cheaper_ordering')) AS recheck_cheaper_ordering
+FROM information_schema.optimizer_trace;
+recheck_cheaper_ordering
+[
+  {
+    "fanout": "elided",
+    "indexes": [
+      {
+        "rows": "elided",
+        "index": "idx_b",
+        "best_so_far": true,
+        "is_covering": false,
+        "select_limit": "elided",
+        "index_scan_cost": "elided"
+      },
+      {
+        "rows": "elided",
+        "cause": "not_better_than_chosen",
+        "index": "idx_bc",
+        "best_so_far": false,
+        "is_covering": false,
+        "select_limit": "elided",
+        "index_scan_cost": "elided"
+      }
+    ],
+    "read_cost": "elided",
+    "selected_index": "idx_b",
+    "refkey_rows_estimate": "elided"
+  }
+]
+# Single-table UPDATE path (get_index_for_order() caller): trace must
+# remain well-formed with no unknown_key_N.
+UPDATE t1 SET filler = 'y' WHERE a = 10 ORDER BY b LIMIT 5;
+SELECT JSON_VALID(trace) AS trace_is_valid_json,
+trace REGEXP 'unknown_key_[0-9]' AS has_unknown_key
+FROM information_schema.optimizer_trace;
+trace_is_valid_json	has_unknown_key
+1	0
+DROP TABLE t1, t2;
+SET optimizer_trace=default;
+SET optimizer_trace_max_mem_size=default;
+SET end_markers_in_json=default;

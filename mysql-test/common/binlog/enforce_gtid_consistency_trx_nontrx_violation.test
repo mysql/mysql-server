@@ -75,6 +75,7 @@ CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
 # Mixing of non-composable engine
 --let $extra_warning_count= $mix_engine_warning_count
 --source common/binlog/enforce_gtid_consistency_statement.inc
+--let $extra_warning_count= 0
 
 --echo ---- InnoDB and temp MyISAM in one autocommit statement, binlog_format=stm ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW INSERT INTO tmp_myisam1 VALUES (1);
@@ -83,12 +84,15 @@ CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW INSERT INTO tmp_myisam1
 # Mixing of non-composable engine
 --let $extra_warning_count= $mix_engine_warning_count
 --source common/binlog/enforce_gtid_consistency_statement.inc
+--let $extra_warning_count= 0
 
 --echo ---- InnoDB and temp MyISAM in one statement inside trx, binlog_format=stm ----
+# Mixing of non-composable engine
+--let $extra_warning_count= $mix_engine_warning_count
 if (`SELECT @@GLOBAL.BINLOG_DIRECT_NON_TRANSACTIONAL_UPDATES`)
 {
   # Unsafe warning
-  --let $extra_warning_count= 1
+  --inc $extra_warning_count
 }
 --disable_warnings
 --let $pre_statement= BEGIN

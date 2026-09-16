@@ -55,6 +55,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 
 /* Include necessary InnoDB headers */
 #include "btr0sea.h"
+#include "ddl0bulk.h"
 #include "ddl0ddl.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -73,6 +74,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_sqlcommand.h"
 #include "mysql/plugin.h"
 #include "partition_info.h"
 #include "row0import.h"
@@ -901,10 +903,9 @@ int ha_innopart::open(const char *name, int mode [[maybe_unused]],
                     table->s->table_name.str);
       }
 
-      /* Allow an open because a proper DISCARD should have set
-      all the flags and index root page numbers to FIL_NULL that
-      should prevent any DML from running but it should allow DDL
-      operations. */
+      /* Allow opening a discarded table so DDL such as IMPORT can run. DML
+      checks the discarded state and does not access the unavailable
+      tablespace. */
       no_tablespace = false;
 
     } else if (ib_table->ibd_file_missing) {
@@ -2023,27 +2024,30 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
     update_thd(ha_thd());
 
     trx = m_prebuilt->trx;
-    trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+    trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
     if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED) {
       trx_assign_read_view(trx);
     }
   }
 
-  /* Parallel read is not currently supported for sampling. */
-  size_t max_threads = Parallel_reader::available_threads(1, false);
-
-  if (max_threads == 0) {
-    return HA_ERR_SAMPLING_INIT_FAILED;
-  }
+  /* Sampling uses one asynchronous worker to produce records for
+  sample_next(). A synchronous scan would block waiting for sample_next()
+  before sample_init() returns. Multiple workers cannot safely write to the
+  single caller-provided buffer. */
+  constexpr size_t max_threads = 1;
 
   Histogram_sampler *sampler = ut::new_withkey<Histogram_sampler>(
       UT_NEW_THIS_FILE_PSI_KEY, max_threads, sampling_seed, sampling_percentage,
       sampling_method);
 
   if (sampler == nullptr) {
-    Parallel_reader::release_threads(max_threads);
     return HA_ERR_OUT_OF_MEM;
+  }
+
+  if (sampler->max_threads() == 0) {
+    ut::delete_(sampler);
+    return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
   scan_ctx = sampler;
@@ -2414,7 +2418,8 @@ int ha_innopart::create(const char *name, TABLE *form,
   THD *thd = ha_thd();
   trx_t *trx;
 
-  if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
+  if (thd_sql_command(thd) == SQLCOM_TRUNCATE ||
+      thd_sql_command(thd) == SQLCOM_LOAD) {
     return (truncate_impl(name, form, table_def));
   }
 
@@ -3186,12 +3191,10 @@ int ha_innopart::records(ha_rows *num_rows) {
   auto trx = thd_to_trx(ha_thd());
   size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
-  n_threads = Parallel_reader::available_threads(n_threads, false);
-
   if (n_threads > 1 && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
       m_prebuilt->select_lock_type == LOCK_NONE &&
       trx->mysql_n_tables_locked == 0 && !m_prebuilt->ins_sel_stmt) {
-    trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+    trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
     trx_assign_read_view(trx);
 
     const auto first_used_partition = m_part_info->get_first_used_partition();
@@ -3205,10 +3208,6 @@ int ha_innopart::records(ha_rows *num_rows) {
       if (dict_table_is_discarded(m_prebuilt->table)) {
         ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                     m_prebuilt->table->name.m_name);
-
-        /* Restore the parallel read thread count if parallel read is not
-        executed */
-        Parallel_reader::release_threads(n_threads);
 
         *num_rows = HA_POS_ERROR;
         return (HA_ERR_NO_SUCH_TABLE);
@@ -3247,10 +3246,6 @@ int ha_innopart::records(ha_rows *num_rows) {
     /* The index scan is probably so expensive, so the overhead
     of the rest of the function is neglectable for each partition.
     So no current reason for optimizing this further. */
-
-    /* Restore the parallel read thread count if parallel read is not
-    executed */
-    Parallel_reader::release_threads(n_threads);
 
     for (uint i = m_part_info->get_first_used_partition(); i < m_tot_parts;
          i = m_part_info->get_next_used_partition(i)) {
@@ -4164,6 +4159,66 @@ int ha_innopart::cmp_ref(const uchar *ref1, const uchar *ref2) const {
   cmp = static_cast<int>(uint2korr(ref1)) - static_cast<int>(uint2korr(ref2));
 
   return (cmp);
+}
+
+int ha_innopart::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
+  int error = ha_innobase::bulk_load_end(thd, load_ctx, is_error);
+
+  if (error != 0 || is_error) {
+    return error;
+  }
+
+  update_thd(thd);
+  trx_t *trx = m_prebuilt->trx;
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
+  TrxInInnoDB trx_in_innodb(trx);
+
+  auto saved_table = m_prebuilt->table;
+
+  const uint part_id = m_part_info->get_first_used_partition();
+
+  if (part_id == MY_BIT_NONE) {
+    m_prebuilt->table = saved_table;
+    return error;
+  }
+
+  ut_ad(m_part_info->get_next_used_partition(part_id) == MY_BIT_NONE);
+
+  if (Partition_helper::check_misplaced_rows(part_id, false) != 0) {
+    m_prebuilt->table = m_part_share->get_table_part(part_id);
+    std::stringstream ss;
+    ss << "Found misplaced row(s) in partition '"
+       << m_part_share->get_partition_name(part_id) << "' after bulk load";
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_share->table_name.str,
+             ss.str().c_str());
+    error = HA_ERR_GENERIC;
+  }
+
+  m_prebuilt->table = saved_table;
+
+  return error;
+}
+
+int ha_innopart::bulk_load_preserve_auto_increment(
+    ulonglong auto_increment_value) {
+  const int error =
+      ha_innobase::bulk_load_preserve_auto_increment(auto_increment_value);
+  if (error != 0 || table->found_next_number_field == nullptr) {
+    return error;
+  }
+
+  dict_table_t *innodb_table = m_prebuilt->table;
+  dict_table_autoinc_lock(innodb_table);
+  const uint64_t next_auto_increment = dict_table_autoinc_read(innodb_table);
+  dict_table_autoinc_unlock(innodb_table);
+
+  lock_auto_increment();
+  m_part_share->next_auto_inc_val =
+      std::max<ulonglong>(m_part_share->next_auto_inc_val, next_auto_increment);
+  m_part_share->auto_inc_initialized = true;
+  unlock_auto_increment();
+
+  return 0;
 }
 
 void ha_innopart::clear_blob_heaps() {

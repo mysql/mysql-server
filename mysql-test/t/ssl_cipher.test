@@ -6,6 +6,7 @@
 --echo # BUG#11760210 - SSL_CIPHER_LIST NOT SET OR RETURNED FOR "SHOW STATUS LIKE 'SSL_CIPHER_LIST'"
 --echo #
 
+call mtr.add_suppression("TLS session on channel 'mysql_main' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

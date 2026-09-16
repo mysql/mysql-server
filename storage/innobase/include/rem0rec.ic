@@ -122,6 +122,18 @@ static inline void rec_set_bit_field_2(
                   (mach_read_from_2(rec - offs) & ~mask) | (val << shift));
 }
 
+/** Checks whether a compact-record next pointer encodes enough distance from
+the current record. Compact records store the displacement as a signed 16-bit
+value, represented here by its on-page unsigned encoding.
+@param[in] field_value encoded next-record displacement
+@return true if the displacement leaves room for the record header */
+[[nodiscard]] static constexpr bool rec_is_valid_next_displacement(
+    uint16_t field_value) {
+  return field_value < (1U << 15)
+             ? field_value > REC_N_NEW_EXTRA_BYTES
+             : field_value < static_cast<uint16_t>(-REC_N_NEW_EXTRA_BYTES);
+}
+
 static inline const rec_t *rec_get_next_ptr_const(const rec_t *rec,
                                                   ulint comp) {
   static_assert(REC_NEXT_MASK == 0xFFFFUL);
@@ -138,12 +150,12 @@ static inline const rec_t *rec_get_next_ptr_const(const rec_t *rec,
     `field_value` to be interpreted as negative 16bit integer. This check does
     nothing for 64KB pages. */
     ut_ad(static_cast<uint16_t>(field_value +
-                                ut_align_offset(rec, UNIV_PAGE_SIZE)));
+                                ut_align_offset(rec, UNIV_PAGE_SIZE)) <
+          UNIV_PAGE_SIZE);
 
     /* There must be at least REC_N_NEW_EXTRA_BYTES + 1
     between each record. */
-    ut_ad((field_value > REC_N_NEW_EXTRA_BYTES && field_value < 32768) ||
-          field_value < (uint16_t)-REC_N_NEW_EXTRA_BYTES);
+    ut_ad(rec_is_valid_next_displacement(field_value));
 
     return ((byte *)ut_align_down(rec, UNIV_PAGE_SIZE) +
             ut_align_offset(rec + field_value, UNIV_PAGE_SIZE));
@@ -170,7 +182,8 @@ static inline ulint rec_get_next_offs(const rec_t *rec, ulint comp) {
     `field_value` to be interpreted as negative 16bit integer. This check does
     nothing for 64KB pages. */
     ut_ad(static_cast<uint16_t>(field_value +
-                                ut_align_offset(rec, UNIV_PAGE_SIZE)));
+                                ut_align_offset(rec, UNIV_PAGE_SIZE)) <
+          UNIV_PAGE_SIZE);
 
     if (field_value == 0) {
       return (0);
@@ -178,8 +191,7 @@ static inline ulint rec_get_next_offs(const rec_t *rec, ulint comp) {
 
     /* There must be at least REC_N_NEW_EXTRA_BYTES + 1
     between each record. */
-    ut_ad((field_value > REC_N_NEW_EXTRA_BYTES && field_value < 32768) ||
-          field_value < (uint16_t)-REC_N_NEW_EXTRA_BYTES);
+    ut_ad(rec_is_valid_next_displacement(field_value));
 
     return (ut_align_offset(rec + field_value, UNIV_PAGE_SIZE));
   } else {
@@ -187,6 +199,44 @@ static inline ulint rec_get_next_offs(const rec_t *rec, ulint comp) {
 
     return (field_value);
   }
+}
+
+/* This is based on rec_get_next_offs(). Page-related checks were improved and
+moved into page_rec_try_get_next_offs(). These methods should be unified
+someday. */
+static inline ut::Expected<uint16_t, uint16_t> rec_try_get_next_offs(
+    const rec_t *rec, bool comp) {
+  static_assert(REC_NEXT_MASK == 0xFFFFUL, "REC_NEXT_MASK != 0xFFFFUL");
+  static_assert(REC_NEXT_SHIFT == 0, "REC_NEXT_SHIFT != 0");
+
+  const auto field_value = mach_read_from_2(rec - REC_NEXT);
+
+  if (comp) {
+    const uint16_t res = ut_align_offset(rec + field_value, UNIV_PAGE_SIZE);
+
+    if (field_value == 0) {
+      return ut::Unexpected{res};
+    }
+
+    /* There must be at least REC_N_NEW_EXTRA_BYTES + 1
+    between each record. */
+    if (rec_is_valid_next_displacement(field_value)) {
+      return res;
+    }
+    return ut::Unexpected{res};
+  }
+
+  if (field_value == 0) {
+    return ut::Unexpected{field_value};
+  }
+  /* There must be at least REC_N_OLD_EXTRA_BYTES + 1
+  between each record. */
+  if (abs(static_cast<int>(field_value) -
+          static_cast<int>(ut_align_offset(rec, UNIV_PAGE_SIZE))) <=
+      static_cast<int>(REC_N_OLD_EXTRA_BYTES)) {
+    return ut::Unexpected{field_value};
+  }
+  return field_value;
 }
 
 /** The following function is used to set the next record offset field

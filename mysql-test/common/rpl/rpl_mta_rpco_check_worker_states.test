@@ -12,6 +12,7 @@ CALL mtr.add_suppression("Replica SQL.*:.* Could not execute Write_rows event on
 CALL mtr.add_suppression("Replica SQL.*:.*Duplicate entry '3' for key.*");
 CALL mtr.add_suppression("Replica SQL.*:.*Replica worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
 CALL mtr.add_suppression("Replica SQL .*Deadlock found when trying to get lock; try restarting transaction.*");
+call mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error*");
 
 --echo # Check EEREE
 --let $exec_trx2 = 1

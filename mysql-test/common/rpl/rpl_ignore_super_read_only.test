@@ -128,9 +128,14 @@ RESET BINARY LOGS AND GTIDS;
 --source include/rpl/restart_server.inc
 --let $io_pos_after_restart = query_get_value("SHOW REPLICA STATUS", Read_Source_Log_Pos, 1)
 
-# Assert that IO thread Read_Source_Log_Pos before and after restart are same.
+# Assert that IO thread Read_Source_Log_Pos before and after restart are the same
+# only if channel runs with GTID_ONLY=0
+--let expected_receiver_pos=$io_pos_after_restart
+if($rpl_applier_version != '') {
+  --let expected_receiver_pos=$io_pos_before_restart
+}
 --let $assert_text= Read_Source_Log_Pos before and after restart are same.
---let $assert_cond= $io_pos_before_restart = $io_pos_after_restart
+--let $assert_cond= $io_pos_before_restart = $expected_receiver_pos
 --source include/assert.inc
 
 # Restart replica threads

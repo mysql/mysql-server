@@ -8,6 +8,7 @@ CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 CREATE UNDO TABLESPACE undo_002 ADD DATAFILE 'undo_002.ibu';
 CREATE UNDO TABLESPACE undo_001 ADD DATAFILE 'undo_001.ibu';
 CREATE UNDO TABLESPACE undo_000 ADD DATAFILE 'undo_000.ibu';
+SET GLOBAL innodb_log_checkpoint_now = ON;
 SET @start_global_value = @@GLOBAL.innodb_open_files;
 SELECT @start_global_value;
 @start_global_value

@@ -202,7 +202,7 @@ array and the PFS code initializes them via PSI_MEMORY_CALL(register_memory)().
 mem_key_other and mem_key_std are special in the following way.
 * If the caller has not provided a key and the file name of the caller is
   unknown, then mem_key_std will be used. This happens only when called from
-  within std::* containers.
+  within `std` containers.
 * If the caller has not provided a key and the file name of the caller is
   known, but is not amongst the predefined names (see ut_new_boot()) then
   mem_key_other will be used. Generally this should not happen and if it
@@ -218,6 +218,7 @@ extern PSI_memory_key mem_key_dict_stats_bg_recalc_pool_t;
 extern PSI_memory_key mem_key_dict_stats_index_map_t;
 extern PSI_memory_key mem_key_dict_stats_n_diff_on_level;
 extern PSI_memory_key mem_key_fil_space_t;
+extern PSI_memory_key mem_key_mtr_t;
 extern PSI_memory_key mem_key_lock_sys;
 extern PSI_memory_key mem_key_redo_log_archive_queue_element;
 extern PSI_memory_key mem_key_other;
@@ -230,12 +231,12 @@ extern PSI_memory_key mem_key_undo_spaces;
 extern PSI_memory_key mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
-/** Setup the internal objects needed for ut::*_withkey() to operate.
-This must be called before the first call to ut::*_withkey(). */
+/** Setup the internal objects needed for `ut::*_withkey()` to operate.
+This must be called before the first call to `ut::*_withkey()`. */
 void ut_new_boot();
 
-/** Setup the internal objects needed for ut::*_withkey() to operate.
-This must be called before the first call to ut::*_withkey(). This
+/** Setup the internal objects needed for `ut::*_withkey()` to operate.
+This must be called before the first call to `ut::*_withkey()`. This
 version of function might be called several times and it will
 simply skip all calls except the first one, during which the
 initialization will happen. */
@@ -247,262 +248,100 @@ void ut_new_boot_safe();
 static constexpr const char *auto_event_names[] = {
     /* Keep this list alphabetically sorted. */
     "api0api",
-    "api0misc",
+    "arch0recv",
     "btr0btr",
     "btr0cur",
     "btr0load",
+    "btr0mtib",
     "btr0pcur",
     "btr0sea",
-    "btr0types",
-    "buf",
-    "buf0buddy",
     "buf0buf",
-    "buf0checksum",
     "buf0dblwr",
     "buf0dump",
     "buf0flu",
     "buf0lru",
-    "buf0rea",
-    "buf0stats",
-    "buf0types",
-    "checksum",
-    "crc32",
-    "create",
-    "data0data",
-    "data0type",
-    "data0types",
-    "db0err",
-    "ddl0buffer",
     "ddl0builder",
-    "ddl0ctx",
-    "ddl0ddl",
-    "ddl0file-reader",
-    "ddl0loader",
-    "ddl0merge",
-    "ddl0rtree",
-    "ddl0par-scan",
-    "dict",
-    "dict0boot",
-    "dict0crea",
+    "ddl0fts",
+    "ddl0impl-cursor",
     "dict0dd",
     "dict0dict",
     "dict0load",
     "dict0mem",
-    "dict0priv",
     "dict0sdi",
     "dict0stats",
-    "dict0stats_bg",
-    "dict0types",
-    "dyn0buf",
-    "dyn0types",
     "eval0eval",
-    "eval0proc",
     "fil0fil",
-    "fil0types",
+    "fil0innodb_pages_persistence",
     "file",
     "fsp0file",
-    "fsp0fsp",
-    "fsp0space",
-    "fsp0sysspace",
-    "fsp0types",
     "fts0ast",
-    "fts0blex",
     "fts0config",
     "fts0fts",
     "fts0opt",
     "fts0pars",
-    "fts0plugin",
-    "fts0priv",
     "fts0que",
     "fts0sql",
-    "fts0tlex",
-    "fts0tokenize",
-    "fts0types",
-    "fts0vlc",
-    "fut0fut",
-    "fut0lst",
-    "gis0geo",
-    "gis0rtree",
     "gis0sea",
-    "gis0type",
-    "ha0ha",
-    "ha0storage",
     "ha_innodb",
     "ha_innopart",
-    "ha_prototypes",
     "handler0alter",
     "hash0hash",
     "i_s",
-    "ib0mutex",
     "ibuf0ibuf",
-    "ibuf0types",
+    "innorwlocktest",
     "lexyy",
-    "lob0lob",
-    "lock0iter",
+    "lob0undo",
     "lock0lock",
-    "lock0prdt",
-    "lock0priv",
-    "lock0types",
-    "lock0wait",
+    "log0ddl",
     "log0log",
     "log0recv",
-    "log0write",
-    "mach0data",
     "mem",
     "mem0mem",
     "memory",
-    "mtr0log",
-    "mtr0mtr",
-    "mtr0types",
-    "os0atomic",
+    "os0enc",
     "os0event",
     "os0file",
-    "os0numa",
-    "os0once",
-    "os0proc",
-    "os0thread",
-    "page",
     "page0cur",
-    "page0page",
-    "page0size",
-    "page0types",
-    "page0zip",
-    "pars0grm",
     "pars0lex",
-    "pars0opt",
-    "pars0pars",
-    "pars0sym",
-    "pars0types",
-    "que0que",
-    "que0types",
     "read0read",
-    "read0types",
-    "rec",
-    "rem0cmp",
     "rem0rec",
-    "rem0types",
-    "row0ext",
-    "row0ft",
     "row0import",
     "row0ins",
     "row0log",
     "row0mysql",
-    "row0purge",
-    "row0quiesce",
-    "row0row",
+    "row0pread",
     "row0sel",
-    "row0types",
-    "row0uins",
-    "row0umod",
-    "row0undo",
-    "row0upd",
-    "row0vers",
-    "sess0sess",
-    "srv0conc",
-    "srv0mon",
     "srv0srv",
     "srv0start",
     "srv0tmp",
     "sync0arr",
     "sync0debug",
-    "sync0policy",
-    "sync0sharded_rw",
     "sync0rw",
-    "sync0sync",
+    "sync0sharded_rw",
     "sync0types",
     "trx0i_s",
     "trx0purge",
-    "trx0rec",
     "trx0roll",
     "trx0rseg",
     "trx0sys",
     "trx0trx",
-    "trx0types",
     "trx0undo",
-    "trx0xa",
+    "trx0undo_trunc",
     "usr0sess",
-    "usr0types",
-    "ut",
-    "ut0byte",
-    "ut0counter",
-    "ut0crc32",
-    "ut0dbg",
     "ut0link_buf",
     "ut0list",
-    "ut0lock_free_hash",
-    "ut0lst",
     "ut0mem",
-    "ut0mutex",
+    "ut0mpmcbq",
     "ut0new",
     "ut0object_cache",
     "ut0pool",
     "ut0rbt",
-    "ut0rnd",
-    "ut0sort",
-    "ut0stage",
-    "ut0ut",
-    "ut0vec",
     "ut0wqueue",
-    "zipdecompress",
 };
 
 static constexpr size_t n_auto = UT_ARR_SIZE(auto_event_names);
 extern PSI_memory_key auto_event_keys[n_auto];
 extern PSI_memory_info pfs_info_auto[n_auto];
-
-/** gcc 5 fails to evaluate costexprs at compile time. */
-#if defined(__GNUG__) && (__GNUG__ == 5)
-
-/** Compute whether a string begins with a given prefix, compile-time.
-@param[in]      a       first string, taken to be zero-terminated
-@param[in]      b       second string (prefix to search for)
-@param[in]      b_len   length in bytes of second string
-@param[in]      index   character index to start comparing at
-@return whether b is a prefix of a */
-constexpr bool ut_string_begins_with(const char *a, const char *b, size_t b_len,
-                                     size_t index = 0) {
-  return (index == b_len || (a[index] == b[index] &&
-                             ut_string_begins_with(a, b, b_len, index + 1)));
-}
-
-/** Find the length of the filename without its file extension.
-@param[in]      file    filename, with extension but without directory
-@param[in]      index   character index to start scanning for extension
-                        separator at
-@return length, in bytes */
-constexpr size_t ut_len_without_extension(const char *file, size_t index = 0) {
-  return ((file[index] == '\0' || file[index] == '.')
-              ? index
-              : ut_len_without_extension(file, index + 1));
-}
-
-/** Retrieve a memory key (registered with PFS), given the file name of the
-caller.
-@param[in]      file    portion of the filename - basename, with extension
-@param[in]      len     length of the filename to check for
-@param[in]      index   index of first PSI key to check
-@return registered memory key or PSI_NOT_INSTRUMENTED if not found */
-constexpr PSI_memory_key ut_new_get_key_by_base_file(const char *file,
-                                                     size_t len,
-                                                     size_t index = 0) {
-  return ((index == n_auto)
-              ? PSI_NOT_INSTRUMENTED
-              : (ut_string_begins_with(auto_event_names[index], file, len)
-                     ? auto_event_keys[index]
-                     : ut_new_get_key_by_base_file(file, len, index + 1)));
-}
-
-/** Retrieve a memory key (registered with PFS), given the file name of
-the caller.
-@param[in]      file    portion of the filename - basename, with extension
-@return registered memory key or PSI_NOT_INSTRUMENTED if not found */
-constexpr PSI_memory_key ut_new_get_key_by_file(const char *file) {
-  return (ut_new_get_key_by_base_file(file, ut_len_without_extension(file)));
-}
-
-#define UT_NEW_THIS_FILE_PSI_KEY ut_new_get_key_by_file(MY_BASENAME)
-
-#else /* __GNUG__ == 5 */
 
 /** Compute whether a string begins with a given prefix, compile-time.
 @param[in]      a       first string, taken to be zero-terminated
@@ -541,6 +380,9 @@ constexpr int ut_new_get_key_by_base_file(const char *file, size_t len) {
       return static_cast<int>(i);
     }
   }
+  // do any non-constexpr thing here to fail the compilation and force
+  // the developer to update auto_event_names array
+  rand();
   return -1;
 }
 
@@ -567,8 +409,6 @@ struct force_constexpr {
   (UT_NEW_THIS_FILE_PSI_INDEX == -1                    \
        ? ut::make_psi_memory_key(PSI_NOT_INSTRUMENTED) \
        : ut::make_psi_memory_key(auto_event_keys[UT_NEW_THIS_FILE_PSI_INDEX]))
-
-#endif /* __GNUG__ == 5 */
 
 #else
 
@@ -2148,17 +1988,17 @@ struct allocator_base_pfs {
 };
 }  // namespace detail
 
-/** Allocator that allows std::* containers to manage their memory through
+/** Allocator that allows `std` containers to manage their memory through
     ut::malloc* and ut::free library functions.
 
     Main purpose of this custom allocator is to instrument all of the memory
-    allocations and deallocations that are being done by std::* containers under
+    allocations and deallocations that are being done by `std` containers under
     the hood, and have them recorded through the PFS (memory) engine.
 
-    Other than std::* containers, this allocator is of course also suitable for
+    Other than `std` containers, this allocator is of course also suitable for
     use in any other allocator-aware containers and/or code.
 
-    Given that ut::malloc* and ut::free library functions already handle all
+    Given that `ut::malloc*` and ut::free library functions already handle all
     the PFS and non-PFS implementation bits and pieces, this allocator is a mere
     wrapper around them.
 
@@ -2490,13 +2330,15 @@ make_unique_aligned(PSI_memory_key_t key, size_t alignment, Args &&...args) {
       ut::aligned_new_withkey<T>(key, alignment, std::forward<Args>(args)...));
 }
 
-/** Dynamically allocates storage for an array of requested size of objects of
-    type T at address aligned to the requested alignment. Constructs the object
-    of type T with provided Args. Wraps the pointer to an array of T instance
-    into the std::unique_ptr.
+/** Dynamically allocates storage for an array of type T having specified
+    number of elements. The storage will start at an address aligned to the
+    requested alignment and pointer to it will be wrapped in std::unique_ptr
+    returned.
 
-    This overload participates in overload resolution only if T
-    is an array type with unknown compile-time bound.
+    Elements of the array will be default-constructed.
+
+    This overload participates in overload resolution only if T is an array type
+    with unknown compile-time bound.
 
     NOTE: Given that this function will _NOT_ be instrumenting the allocation
     through PFS, observability for particular parts of the system which want to
@@ -2516,15 +2358,17 @@ make_unique_aligned(size_t alignment, size_t size) {
       ut::aligned_new_arr<std::remove_extent_t<T>>(alignment, ut::Count{size}));
 }
 
-/** Dynamically allocates storage for an array of requested size of objects of
-    type T at address aligned to the requested alignment. Constructs the object
-    of type T with provided Args. Wraps the pointer to an array of T instances
-    into the std::unique_ptr with custom deleter which knows how to handle
-    PFS-enabled dynamic memory allocations. Instruments the memory with given
-    PSI memory key in case PFS memory support is enabled.
+/** Dynamically allocates storage for an array of type T having specified
+    number of elements. The storage will start at an address aligned to the
+    requested alignment and pointer to it will be wrapped in std::unique_ptr
+    with custom deleter which knows how to handle PFS-enabled dynamic memory
+    allocations. Instruments the memory with given PSI memory key in case PFS
+    memory support is enabled.
 
-    This overload participates in overload resolution only if T
-    is an array type with unknown compile-time bound.
+    Elements of the array will be default-constructed.
+
+    This overload participates in overload resolution only if T is an array type
+    with unknown compile-time bound.
 
     @param[in] key PSI memory key to be used for PFS memory instrumentation.
     @param[in] alignment Alignment requirement for storage to be allocated.

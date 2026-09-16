@@ -28,6 +28,8 @@
 #
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
+# CSA does not support positions
+--source include/have_mta.inc
 
 --source include/rpl/init_source_replica.inc
 

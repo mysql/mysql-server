@@ -344,6 +344,14 @@ void dfield_print(std::ostream &o, const dfield_t *field, ulint n);
 @param[in]      tuple   data tuple */
 void dtuple_print(std::ostream &o, const dtuple_t *tuple);
 
+/** Print the contents of a tuple, followed by a newline.
+@param[out]     o       output stream
+@param[in]      tuple   data tuple */
+inline void dtuple_println(std::ostream &o, const dtuple_t *tuple) {
+  dtuple_print(o, tuple);
+  o << std::endl;
+}
+
 /** Print the contents of a tuple.
 @param[out]     o       output stream
 @param[in]      tuple   data tuple */
@@ -641,10 +649,6 @@ struct dfield_t {
 
   byte *blobref() const;
 
-  /** Obtain the LOB version number, if this is an externally
-  stored field. */
-  uint32_t lob_version() const;
-
   dfield_t()
       : data(nullptr), ext(0), spatial_status(0), len(0), type({0, 0, 0, 0}) {}
 
@@ -662,6 +666,12 @@ struct dfield_t {
   @param[in,out]        heap    memory heap to keep value when necessary */
   void adjust_v_data_mysql(const dict_v_col_t *vcol, bool comp,
                            const byte *field, ulint len, mem_heap_t *heap);
+
+  std::string to_string() const {
+    std::ostringstream sout;
+    print(sout);
+    return sout.str();
+  }
 };
 
 /** Compare a multi-value clustered index field with a secondary index
@@ -736,10 +746,6 @@ struct dtuple_t {
     dtuple_print(out, this);
     return out;
   }
-
-  /** Read the trx id from the tuple (DB_TRX_ID)
-  @return transaction id of the tuple. */
-  trx_id_t get_trx_id() const;
 
   /** Ignore at most n trailing default fields if this is a tuple
   from instant index

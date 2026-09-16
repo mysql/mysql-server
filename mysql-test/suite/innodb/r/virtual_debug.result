@@ -1,3 +1,6 @@
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
 CREATE TABLE `t` (
 `a` VARCHAR(100),
 `b` VARCHAR(100),
@@ -627,3 +630,5 @@ SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
 delete from t limit 1;
 DROP TABLE t;
 SET @@session.binlog_row_image = @old_binlog_row_image;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

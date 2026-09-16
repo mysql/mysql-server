@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 [connection slave]
 call mtr.add_suppression("Replica I/O .*: Source command COM_REGISTER_REPLICA failed: .*");
+call mtr.add_suppression("Query execution was interrupted");
 include/rpl/stop_replica.inc
 [connection master]
 CREATE TABLE t1 (c1 INT);

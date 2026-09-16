@@ -1,3 +1,4 @@
+-- source include/not_have_privilege_checks_user.inc
 -- source include/rpl/init_source_replica.inc
 
 --echo # WL#17024 Activate triggers on child table during FK cascade

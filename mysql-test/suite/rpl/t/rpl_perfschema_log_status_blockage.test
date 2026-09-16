@@ -248,13 +248,19 @@ if ($rpl_debug)
 --let $assert_cond= $ils_relay_log_file = "$relay_log_file"
 --source include/assert.inc
 
---let $wait_condition= SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_position")=$relay_log_pos FROM ils_copy
---source include/wait_condition_or_abort.inc
+# Check relay_log_position only for MTA, CSA does not support positions
+if($rpl_applier_version == '')
+{
+  --let $include_silent=1
+  --let $wait_condition= SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_position")=$relay_log_pos FROM ils_copy
+  --source include/wait_condition_or_abort.inc
 
---let $assert_text= Collected default replication channel relay log file position is correct
---let $ils_relay_log_pos= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_position") FROM ils_copy`
---let $assert_cond= $ils_relay_log_pos = $relay_log_pos
---source include/assert.inc
+  --let $assert_text= Collected default replication channel relay log file position is correct
+  --let $ils_relay_log_pos= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_log_position") FROM ils_copy`
+  --let $assert_cond= $ils_relay_log_pos = $relay_log_pos
+  --source include/assert.inc
+  --let $include_silent=0
+}
 
 --let $assert_text= Collected replication channel name for ch1 is correct
 --let $ils_ch1_channel_name= `SELECT JSON_EXTRACT(channels, "$.channels[1].channel_name") FROM ils_copy`

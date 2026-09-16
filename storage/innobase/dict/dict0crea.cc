@@ -43,8 +43,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"
 #include "fts0priv.h"
 #include "ha_prototypes.h"
-#include "log0write.h"
+#include "log0helpers.h"
 #include "mach0data.h"
+#include "my_sqlcommand.h"
+#include "mysql/plugin.h"
 
 #include "my_dbug.h"
 
@@ -53,6 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0que.h"
 #include "row0ins.h"
 #include "row0mysql.h"
+#include "scope_guard.h"
 #include "srv0start.h"
 #include "trx0roll.h"
 #include "usr0sess.h"
@@ -91,7 +94,7 @@ dberr_t dict_build_table_def(dict_table_t *table,
 @param[in,out]  trx             DD transaction
 @param[in,out]  tablespace      Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
-dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
+dberr_t dict_build_tablespace(trx_t *trx, ib::fsp::Tablespace<> *tablespace) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -108,21 +111,21 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
   }
   tablespace->set_space_id(space);
 
-  Datafile *datafile = tablespace->first_datafile();
+  ut_a(tablespace->get_nodes_count() == 1);
+  const auto node_path = tablespace->get_node_full_path(0);
 
   /* If file already exists we cannot write delete space to ddl log. */
-  os_file_type_t type;
-  bool exists;
-  if (os_file_status(datafile->filepath(), &exists, &type)) {
-    if (exists) {
+  const auto type = os_file_type(node_path.c_str());
+  if (os_file_status_is_conclusive(type)) {
+    if (os_file_exists(type)) {
       return DB_TABLESPACE_EXISTS;
     }
   } else {
     return DB_IO_ERROR;
   }
 
-  err = log_ddl->write_delete_space_log(trx, nullptr, space,
-                                        datafile->filepath(), false, true);
+  err = log_ddl->write_delete_space_log(trx, nullptr, space, node_path.c_str(),
+                                        false, true);
   if (err != DB_SUCCESS) {
     return err;
   }
@@ -142,7 +145,7 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
              ? (tablespace->get_autoextend_size() / srv_page_size)
              : FIL_IBD_FILE_INITIAL_SIZE;
 
-  err = fil_ibd_create(space, tablespace->name(), datafile->filepath(),
+  err = fil_ibd_create(space, tablespace->name(), node_path.c_str(),
                        tablespace->flags(), size);
 
   DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
@@ -164,9 +167,7 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
   bool ret = fsp_header_init(space, size, &mtr);
   mtr_commit(&mtr);
 
-  DBUG_EXECUTE_IF("fil_ibd_create_log",
-                  log_write_up_to(*log_sys, mtr.commit_lsn(), true);
-                  DBUG_SUICIDE(););
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH("fil_ibd_create_log");
 
   if (!ret) {
     return (DB_ERROR);
@@ -215,7 +216,13 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
       fsp_flags_set_encryption(fsp_flags);
     }
 
-    char *filepath;
+    char *filepath = nullptr;
+    auto filepath_guard = create_scope_guard([&]() {
+      if (filepath != nullptr) {
+        ut::free(filepath);
+      }
+    });
+
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {
       std::string path;
 
@@ -227,23 +234,25 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
       filepath = Fil_path::make_ibd_from_table_name(table->name.m_name);
     }
 
-    /* If file already exists we cannot write delete space to ddl log. */
-    os_file_type_t type;
-    bool exists;
-    if (os_file_status(filepath, &exists, &type)) {
-      if (exists) {
-        ut::free(filepath);
-        return DB_TABLESPACE_EXISTS;
-      }
+    const auto info =
+        tablespaces_nodes->get_node_info(space_id, 0, {.m_path = filepath}, 0);
+
+    if (info) {
+      return DB_TABLESPACE_EXISTS;
     } else {
-      ut::free(filepath);
-      return DB_IO_ERROR;
+      using Node_error = ib::fil::Tablespaces_nodes_interface::Node_error;
+      switch (info.error()) {
+        case Node_error::NOT_A_NODE:
+        case Node_error::IO_ERROR:
+          return DB_IO_ERROR;
+        case Node_error::NODE_DOES_NOT_EXIST:
+          break;
+      }
     }
 
     err = log_ddl->write_delete_space_log(trx, table, space_id, filepath, false,
                                           false);
     if (err != DB_SUCCESS) {
-      ut::free(filepath);
       return err;
     }
 
@@ -266,8 +275,6 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
     err = fil_ibd_create(space_id, tablespace_name.c_str(), filepath, fsp_flags,
                          size);
 
-    ut::free(filepath);
-
     DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
                       crash_injection_after_create_counter++);
 
@@ -288,10 +295,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
     }
 
     mtr_commit(&mtr);
-
-    DBUG_EXECUTE_IF("fil_ibd_create_log",
-                    log_write_up_to(*log_sys, mtr.commit_lsn(), true);
-                    DBUG_SUICIDE(););
+    DBUG_INJECT_CRASH_WITH_LOG_FLUSH("fil_ibd_create_log");
 
     if (!ret) {
       return (DB_ERROR);
@@ -425,15 +429,18 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
     there is no way to find the resources(two segments, etc.)
     allocated to this index. Since this is a rare case, living
     with it is acceptable */
-    /* FIXME: if it's part of CREATE TABLE, and file_per_table is
-    true, skip ddl log, because during rollback, the whole
-    tablespace would be dropped */
+    /* For bulk-load truncate on file-per-table tables, rollback/post-DDL
+    cleanup will eventually drop the whole replacement tablespace, so a
+    per-index FREE_TREE log is redundant. */
 
     /* During upgrade, etc., the log_ddl may haven't been
     initialized and we don't need to write DDL logs too.
     This can only happen for CREATE TABLE. */
     if (log_ddl != nullptr) {
-      err = log_ddl->write_free_tree_log(trx, index, false);
+      if (!(dict_table_is_file_per_table(index->table) &&
+            thd_sql_command(trx->mysql_thd) == SQLCOM_LOAD)) {
+        err = log_ddl->write_free_tree_log(trx, index, false);
+      }
     }
   }
 
@@ -459,69 +466,6 @@ void dict_drop_temporary_table_index(const dict_index_t *index,
   if (root_page_no != FIL_NULL && found) {
     btr_free(page_id_t(space, root_page_no), page_size);
   }
-}
-
-/** Check whether a column is in an index by the column name
-@param[in]      col_name        column name for the column to be checked
-@param[in]      index           the index to be searched
-@return true if this column is in the index, otherwise, false */
-static bool dict_index_has_col_by_name(const char *col_name,
-                                       const dict_index_t *index) {
-  for (ulint i = 0; i < index->n_fields; i++) {
-    dict_field_t *field = index->get_field(i);
-
-    if (strcmp(field->name, col_name) == 0) {
-      return (true);
-    }
-  }
-  return (false);
-}
-
-/** Check whether the foreign constraint could be on a column that is
-part of a virtual index (index contains virtual column) in the table
-@param[in]      fk_col_name     FK column name to be checked
-@param[in]      table           the table
-@return true if this column is indexed with other virtual columns */
-bool dict_foreign_has_col_in_v_index(const char *fk_col_name,
-                                     const dict_table_t *table) {
-  /* virtual column can't be Primary Key, so start with secondary index */
-  for (const dict_index_t *index = table->first_index()->next(); index;
-       index = index->next()) {
-    if (dict_index_has_virtual(index)) {
-      if (dict_index_has_col_by_name(fk_col_name, index)) {
-        return (true);
-      }
-    }
-  }
-
-  return (false);
-}
-
-/** Check whether the foreign constraint could be on a column that is
-a base column of some indexed virtual columns.
-@param[in]      col_name        column name for the column to be checked
-@param[in]      table           the table
-@return true if this column is a base column, otherwise, false */
-bool dict_foreign_has_col_as_base_col(const char *col_name,
-                                      const dict_table_t *table) {
-  /* Loop through each virtual column and check if its base column has
-  the same name as the column name being checked */
-  for (ulint i = 0; i < table->n_v_cols; i++) {
-    dict_v_col_t *v_col = dict_table_get_nth_v_col(table, i);
-
-    /* Only check if the virtual column is indexed */
-    if (!v_col->m_col.ord_part) {
-      continue;
-    }
-
-    for (ulint j = 0; j < v_col->num_base; j++) {
-      if (strcmp(col_name, table->get_col_name(v_col->base_col[j]->ind)) == 0) {
-        return (true);
-      }
-    }
-  }
-
-  return (false);
 }
 
 /** Check if a foreign constraint is on the given column name.
@@ -590,38 +534,6 @@ bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
     }
   }
 
-  return (false);
-}
-
-/** Check if a column is in foreign constraint with CASCADE properties or
-SET NULL
-@param[in]      table           table
-@param[in]      col_name        name for the column to be checked
-@return true if the column is in foreign constraint, otherwise, false */
-bool dict_foreigns_has_this_col(const dict_table_t *table,
-                                const char *col_name) {
-  dict_foreign_t *foreign;
-  const dict_foreign_set *local_fk_set = &table->foreign_set;
-
-  for (dict_foreign_set::const_iterator it = local_fk_set->begin();
-       it != local_fk_set->end(); ++it) {
-    foreign = *it;
-    ut_ad(foreign->id != nullptr);
-    ulint type = foreign->type;
-
-    type &=
-        ~(DICT_FOREIGN_ON_DELETE_NO_ACTION | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
-
-    if (type == 0) {
-      continue;
-    }
-
-    for (ulint i = 0; i < foreign->n_fields; i++) {
-      if (strcmp(foreign->foreign_col_names[i], col_name) == 0) {
-        return (true);
-      }
-    }
-  }
   return (false);
 }
 

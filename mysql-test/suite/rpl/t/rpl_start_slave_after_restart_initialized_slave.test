@@ -41,6 +41,7 @@
 CALL mtr.add_suppression("Error during --relay-log-recovery*");
 CALL mtr.add_suppression("Server was not able to find a rotate event*");
 CALL mtr.add_suppression("Recovery from source pos*");
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1");
 
 # 2. Verify that START REPLICA doesn't throw any error when
 #
@@ -77,11 +78,17 @@ while ($i < 2)
 
 # 3. Verify that a warning saying that "Server was not able to find a rotate
 #    event from a master server to initialize relay log recovery" is logged in
-#    the error log.
+#    the error log. Skipped for CSA.
+
+if($rpl_applier_version == '') {
+  --let $assert_count= 2
+}
+if($rpl_applier_version != '') {
+  --let $assert_count= 0
+}
 
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Each test will log two warnings, one fore each channel.
---let $assert_count= 2
 --let $assert_select=.* \[Warning\] .* Server was not able to find a rotate event
 --let $assert_text= Found the expected warning line in the error log.
 --source include/assert_grep.inc

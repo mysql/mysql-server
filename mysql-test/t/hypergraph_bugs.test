@@ -1438,6 +1438,20 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x > 0 GROUP BY x, y WITH ROLLUP;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#39501528: Crash evaluating a ROLLUP aggregate from a constant
+--echo #               HAVING subquery during filter initialization
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+
+SELECT HEX(-31378)
+GROUP BY ROLLUP((SELECT /*+ BKA() */ 1))
+HAVING (SELECT 338 FROM t1 WHERE AVG(26) LIMIT 1);
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#36099491: Assertion secondary_engine_cost_hook != nullptr
 --echo #               failed with hypergraph_optimizer
 --echo #
@@ -2496,7 +2510,7 @@ CREATE TABLE A(col_int INT);
 INSERT INTO A VALUES (1), (2), (3), (4), (5);
 
 --sorted_result
-SELECT  /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=on') */
+SELECT
 PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
 FROM A;
 
@@ -2712,5 +2726,988 @@ let $query = SELECT 1 FROM t1
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36448705 Wrong results for ref access with decimal-to-int truncation
+--echo #
+--echo # Decimal value gets truncated to integer 0 during index key construction,
+--echo # and the optimizer incorrectly removes the post-filter predicate.
+--echo #
+
+CREATE TABLE t0 (
+  c2 SMALLINT UNSIGNED NOT NULL,
+  UNIQUE KEY i0 (c2)
+);
+INSERT INTO t0 VALUES (0),(1);
+
+--echo # With UNIQUE KEY - should return empty set
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+
+--echo # Verify with explicit decimal comparison
+SELECT t0.c2 FROM t0 WHERE t0.c2 = 0.335691025520639;
+
+--echo # Verify correct result with table scan (no index hint)
+SELECT t0.c2 FROM t0 IGNORE INDEX (i0) WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+
+--echo # Non-unique key variant
+ALTER TABLE t0 DROP KEY i0, ADD KEY i0 (c2);
+
+SET SESSION optimizer_switch="hypergraph_optimizer=off";
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+
+SET SESSION optimizer_switch="hypergraph_optimizer=on";
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+
+DROP TABLE t0;
+
+--echo #
+--echo # Bug#36957877 Building rarely used index on derived table is inefficient
+--echo #
+
+# The optimizer should account for the cost of building an index on a
+# materialized derived table (CTE). Without the fix, the optimizer builds
+# auto_key indexes for each CTE reference and uses "Index lookup on cte1
+# using <auto_key>". With the fix, the index build cost (O(N log N)) is
+# included in the access path cost, so for ~100 rows with only 1-2 lookups
+# the optimizer correctly chooses "Table scan on cte1" + Filter instead.
+
+CREATE TABLE t0 (a INT PRIMARY KEY, b INT, c INT, d INT);
+
+INSERT INTO t0
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<999)
+SELECT n, n%100, n%100, n%100 FROM qn;
+
+ANALYZE TABLE t0;
+
+# Test 1: Few lookups — index build cost exceeds benefit.
+# CTE has ~100 rows, only 2 equality lookups (one per UNION branch).
+# Expected: Table scan + Filter on cte1 (no auto_key index).
+# Without fix: Index lookup on cte1 using <auto_key0>/<auto_key1>.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+  SELECT SUM(b) v1, c v2, d v3 FROM t0 GROUP BY c, d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+
+# Test 2: Expensive CTE — index build cost is negligible vs materialization.
+# Self-join produces ~100K intermediate rows; the CTE materialization cost
+# dwarfs the index build cost on ~32 result rows, so the optimizer correctly
+# keeps the auto_key index for the 2 lookups.
+# Expected: Index lookup on cte1 using <auto_key0>/<auto_key1>.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+  SELECT SUM(x1.b + x2.b) v1, x1.d v2
+  FROM t0 x1 JOIN t0 x2 ON x1.c = x2.c
+  GROUP BY x1.d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+
+DROP TABLE t0;
+
+--echo #
+--echo # Bug 36720017 - Hypergraph optimizer uses slow full deduplication
+--echo #                in DISTINCT + LIMIT queries
+--echo #
+
+CREATE TABLE t(x INT, y INT);
+
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6,6), (7,7);
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+
+ANALYZE TABLE t;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_BIG_RESULT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 3 OFFSET 2;
+
+DELETE FROM t WHERE x <> 1;
+ANALYZE TABLE t;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_CALC_FOUND_ROWS DISTINCT x
+FROM t AS t1
+LIMIT 5 OFFSET 15;
+SELECT FOUND_ROWS() AS total_distinct_x;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2
+WHERE t1.x = t2.x
+ORDER BY t1.y LIMIT 5 OFFSET 10;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT * FROM (
+  SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+  WHERE t1.x = t2.x LIMIT 5
+) s ORDER BY s.x;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#37152269 - REDUNDANT FILTER PATHS ON BETWEEN RANGE SCANS IN HYPERGRAPH
+--echo #
+
+CREATE TABLE t1 (
+    f1 int NOT NULL, f2 int NOT NULL,
+    f3 int DEFAULT NULL,
+    PRIMARY KEY (f1,f2), KEY f3 (f3));
+
+
+INSERT INTO t1 (f1, f2, f3) VALUES
+  (1, 1, 1), (1, 2, 3), (2, 2, 3),
+  (3, 2, 3), (4, 2, 3), (5, 2, 3), (6, 2, 3);
+ANALYZE TABLE t1;
+
+let $query = SELECT COUNT(*) FROM t1
+WHERE f3 = 3 AND f1 BETWEEN 2 AND 4;
+
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT = TREE $query;
+
+--sorted_result
+eval $query;
+
+SET @low = 2;
+SET @high = 4;
+
+PREPARE stmt FROM
+'EXPLAIN FORMAT = TREE SELECT COUNT(*) FROM t1
+ WHERE f3 = 3 AND f1 BETWEEN ? AND ?';
+
+--replace_regex $elide_costs
+EXECUTE stmt USING @low, @high;
+DEALLOCATE PREPARE stmt;
+
+PREPARE stmt FROM
+'SELECT COUNT(*) FROM t1
+ WHERE f3 = 3 AND f1 BETWEEN ? AND ?';
+
+--sorted_result
+EXECUTE stmt USING @low, @high;
+DEALLOCATE PREPARE stmt;
+
+INSERT INTO t1 VALUES (100, 1, NULL);
+ANALYZE TABLE t1;
+
+let $query = SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND 4;
+
+--replace_regex $elide_costs
+eval EXPLAIN  FORMAT = TREE $query;
+
+--sorted_result
+eval $query;
+
+let $query = SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND f2;
+
+--replace_regex $elide_costs
+eval EXPLAIN  FORMAT = TREE $query;
+
+--sorted_result
+eval $query;
+
+let $query = SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND (1+3);
+
+--replace_regex $elide_costs
+eval EXPLAIN  FORMAT = TREE $query;
+
+--sorted_result
+eval $query;
+
+let $query = SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 100 AND f2;
+
+--replace_regex $elide_costs
+eval EXPLAIN  FORMAT = TREE $query;
+
+--sorted_result
+eval $query;
+
+INSERT INTO t1 (f1, f2, f3)
+WITH RECURSIVE seq(n) AS (
+  SELECT 7 UNION ALL SELECT n + 1 FROM seq WHERE n < 1000)
+SELECT n, 1, NULL FROM seq WHERE n <> 100;
+ANALYZE TABLE t1;
+
+let $query = SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 2 AND 999;
+
+--replace_regex $elide_costs
+eval EXPLAIN  FORMAT = TREE $query;
+
+--sorted_result
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#34513189: Wrong cost for filter with independent subquery
+--echo #
+
+# When an NLJ has a join-edge filter containing an independent (cacheable)
+# scalar subquery, the subquery cost is a one-time init cost. Before this
+# fix, ProposeNestedLoopJoin() charged it once per outer row, inflating the
+# NLJ estimate enough that the optimizer wrongly preferred a hash join that
+# full-scans the 1000-row inner table.
+#
+# t30 (30 rows) JOIN t_large (1000 rows, PK on x) ON
+#   t_large.x = t30.a AND t30.b + t_large.y > (SELECT MAX(v) FROM t_sub)
+#
+# Before fix: NLJ ~1350 (subquery cost 42.6 charged 30x) > hash join ~517
+#   -> hash join chosen (full scan of t_large).
+# After fix:  NLJ ~115 (subquery cost charged once) < hash join ~517
+#   -> NLJ with PK lookup chosen.
+
+CREATE TABLE num10 (n INT PRIMARY KEY);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t30 (a INT PRIMARY KEY, b INT);
+INSERT INTO t30 SELECT x1.n + x2.n*10, x1.n FROM num10 x1, num10 x2 WHERE x2.n < 3;
+
+CREATE TABLE t_large (x INT PRIMARY KEY, y INT);
+INSERT INTO t_large SELECT x1.n + x2.n*10 + x3.n*100, x3.n
+  FROM num10 x1, num10 x2, num10 x3;
+
+CREATE TABLE t_sub (v INT);
+INSERT INTO t_sub SELECT x1.n + x2.n*10 FROM num10 x1, num10 x2;
+
+ANALYZE TABLE num10, t30, t_large, t_sub;
+
+--echo # Should use NLJ with PK lookup on t_large. Without the fix the
+--echo # inflated NLJ cost made the optimizer pick hash join instead.
+EXPLAIN FORMAT=TREE
+SELECT * FROM t30 JOIN t_large ON t_large.x = t30.a
+  AND t30.b + t_large.y > (SELECT MAX(v) FROM t_sub);
+
+# Coverage for the three other call sites that the same fix touches.
+
+CREATE TABLE t2r (a INT PRIMARY KEY, b INT);
+INSERT INTO t2r VALUES (0,0),(1,1);
+ANALYZE TABLE t2r;
+
+# ApplyDelayedPredicatesAfterJoin(): the WHERE predicate is a delayed
+# filter applied on top of the (t2r,num10) join. With the fix it adds
+# the subquery's one-time cost to init_once_cost, so the NLJ candidate
+# in the trace gains a "rescan_cost=" field. Without the fix the field
+# is absent (init_once_cost stays zero).
+SET SESSION optimizer_trace='enabled=on';
+--disable_result_log
+SELECT 1 FROM t2r LEFT JOIN num10 ON t2r.a = num10.n
+WHERE (t2r.b + IFNULL(num10.n,0) > (SELECT MAX(v) FROM t_sub)) IS NOT FALSE;
+--enable_result_log
+--echo # Expect 1: NLJ candidate carries the subquery init cost in
+--echo # init_once_cost (so rescan_cost is reported).
+SELECT REGEXP_SUBSTR(trace, 'NESTED_LOOP_JOIN[^}]*') REGEXP 'rescan_cost'
+  AS nlj_has_init_once_cost FROM information_schema.optimizer_trace;
+SET SESSION optimizer_trace='enabled=off';
+
+# ApplyPredicatesForBaseTable(): the WHERE predicate is a single-table
+# filter on the inner side of an NLJ. With the fix it adds the subquery's
+# one-time cost to the inner path's init_once_cost, so the enclosing NLJ
+# candidate in the trace gains a "rescan_cost=" field. Without the fix the
+# field is absent (the subquery cost is still part of inner->rescan_cost()).
+SET SESSION optimizer_trace='enabled=on';
+--disable_result_log
+SELECT 1 FROM t2r STRAIGHT_JOIN t_large ON t_large.x = t2r.a
+WHERE t_large.y < (SELECT MAX(v) FROM t_sub);
+--enable_result_log
+--echo # Expect 1: base-table filter carries the subquery init cost in
+--echo # init_once_cost (so the enclosing NLJ reports rescan_cost).
+SELECT trace REGEXP 'NESTED_LOOP_JOIN[^}]*rescan_cost'
+  AS nlj_base_table_filter_has_init_once_cost
+FROM information_schema.optimizer_trace;
+SET SESSION optimizer_trace='enabled=off';
+
+# ExpandSingleFilterAccessPath(): the displayed Filter node on the inner
+# side of an NLJ now includes the subquery init cost in its init_cost.
+# Only observable when the filter returns >1 row (hence the secondary
+# index, which makes the inner lookup return ~500 rows). The first
+# number in "cost=A..B" is bucketed: without the fix A≈0.5, with the
+# fix A≈43 (≈ subquery cost).
+ALTER TABLE t_large ADD INDEX iy(y);
+ANALYZE TABLE t_large;
+--replace_regex /(select #2[)][)]  [(]cost=)0[.][0-9.e+-]+ rows/\1LOW rows/ /(select #2[)][)]  [(]cost=)[1-9][0-9.e+-]* rows/\1HIGH rows/ /[(]cost=[0-9.e+-]+ rows/(rows/
+EXPLAIN FORMAT=TREE
+SELECT 1 FROM t2r JOIN t_large ON t_large.y = t2r.a
+  AND t2r.b + t_large.x > (SELECT MAX(v) FROM t_sub);
+
+DROP TABLE num10, t2r, t30, t_large, t_sub;
+
+--echo #
+--echo # Bug#37126568 Window function with subquery argument containing outer
+--echo # aggregate gives wrong result
+--echo #
+
+# When a window function has a subquery argument that contains an "outer"
+# aggregate, the subquery must be evaluated once per group row and buffered,
+# not re-evaluated during frame buffer processing with stale aggregate values.
+
+CREATE TABLE tt (c0 INT, c1 INT);
+INSERT INTO tt VALUES (1,2), (1,3), (1,4), (2,1), (3,5), (3,6);
+
+# MIN(c1) per group: c0=1->2, c0=2->1, c0=3->5; SUM=8 for all rows
+SELECT SUM((SELECT MIN(c1))) OVER () FROM tt GROUP BY c0;
+
+# The subquery may be nested inside the window function argument.
+SELECT SUM(1 + (SELECT MIN(c1))) OVER () FROM tt GROUP BY c0;
+
+# EXISTS subqueries can also be evaluated before windowing.
+SELECT SUM(EXISTS(SELECT * WHERE MIN(c1) > 1)) OVER () FROM tt GROUP BY c0;
+
+# EXISTS may be nested inside the window function argument expression too.
+SELECT SUM(1 + EXISTS(SELECT * WHERE MIN(c1) > 1)) OVER () FROM tt GROUP BY c0;
+
+# The buffered subquery value must not depend on the order in which multiple
+# window functions are materialized.
+SELECT SUM((SELECT MIN(c1))) OVER (),
+       SUM(c0) OVER (ORDER BY c0)
+FROM tt GROUP BY c0;
+
+SELECT SUM(c0) OVER (ORDER BY c0),
+       SUM((SELECT MIN(c1))) OVER ()
+FROM tt GROUP BY c0;
+
+# Original reproduction from the bug report
+CREATE TABLE t (c0 INT, KEY i1 (c0));
+INSERT INTO t VALUES (1), (1), (1), (2), (2), (3);
+
+SELECT SUM((SELECT c0
+            FROM t
+            WHERE MIN(tt.c1) > 1
+            GROUP BY c0
+            ORDER BY c0 LIMIT 1)) OVER() sum_wf
+FROM tt
+GROUP BY c0;
+
+DROP TABLE tt, t;
+
+--echo #
+--echo # Bug#33910388: Slow planning of NATURAL JOIN with many columns
+--echo #
+
+CREATE TABLE t_natural (
+  col1 INT, col2 INT, col3 INT, col4 INT, col5 INT,
+  col6 INT, col7 INT, col8 INT, col9 INT, col10 INT,
+  col11 INT, col12 INT, col13 INT, col14 INT, col15 INT,
+  col16 INT, col17 INT, col18 INT, col19 INT, col20 INT,
+  col21 INT, col22 INT, col23 INT, col24 INT, col25 INT,
+  col26 INT, col27 INT, col28 INT, col29 INT, col30 INT,
+  col31 INT, col32 INT, col33 INT, col34 INT, col35 INT,
+  col36 INT, col37 INT, col38 INT, col39 INT, col40 INT,
+  col41 INT, col42 INT, col43 INT, col44 INT, col45 INT,
+  col46 INT, col47 INT, col48 INT, col49 INT, col50 INT,
+  col51 INT, col52 INT, col53 INT, col54 INT, col55 INT,
+  col56 INT, col57 INT, col58 INT, col59 INT, col60 INT,
+  col61 INT, col62 INT, col63 INT, col64 INT, col65 INT,
+  col66 INT, col67 INT, col68 INT, col69 INT, col70 INT,
+  col71 INT, col72 INT, col73 INT, col74 INT, col75 INT,
+  col76 INT, col77 INT, col78 INT, col79 INT, col80 INT,
+  col81 INT, col82 INT, col83 INT, col84 INT, col85 INT,
+  col86 INT, col87 INT, col88 INT, col89 INT, col90 INT,
+  col91 INT, col92 INT, col93 INT, col94 INT, col95 INT,
+  col96 INT, col97 INT, col98 INT, col99 INT, col100 INT);
+
+--disable_result_log
+EXPLAIN FORMAT=TREE
+SELECT 1 FROM
+     t_natural t1
+     NATURAL JOIN t_natural t2
+     NATURAL JOIN t_natural t3
+     NATURAL JOIN t_natural t4
+     NATURAL JOIN t_natural t5
+     NATURAL JOIN t_natural t6
+     NATURAL JOIN t_natural t7
+     NATURAL JOIN t_natural t8
+     NATURAL JOIN t_natural t9
+     NATURAL JOIN t_natural t10;
+--enable_result_log
+
+DROP TABLE t_natural;
+
+--echo #
+--echo # Bug#36578540 Sorting on function with side effects results in
+--echo # more function calls
+--echo #
+
+CREATE TABLE t1 (x INT);
+CREATE TABLE t2 (x INT);
+INSERT INTO t2 VALUES (1), (2), (3);
+
+DELIMITER |;
+
+CREATE FUNCTION f1(p INT) RETURNS INT DETERMINISTIC MODIFIES SQL DATA
+BEGIN
+  INSERT INTO t1 VALUES (p);
+  RETURN p + 1;
+END|
+
+DELIMITER ;|
+
+SELECT f1(x) AS f FROM t2 ORDER BY f;
+
+# Verify: exactly 3 rows should have been inserted
+SELECT COUNT(*) AS should_be_3 FROM t1;
+SELECT * FROM t1 ORDER BY x;
+
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+
+# RAND() in ORDER BY
+CREATE TABLE t3 (x INT);
+INSERT INTO t3 VALUES (1), (2), (3), (4), (5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+
+DROP TABLE t3;
+
+# UPDATE/DELETE outermost ORDER BY (no streaming step)
+CREATE TABLE t4 (x INT, y INT);
+INSERT INTO t4 VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0);
+
+UPDATE t4 SET y = 1 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_5 FROM t4 WHERE y = 1;
+
+DELETE FROM t4 ORDER BY RAND() LIMIT 2;
+SELECT COUNT(*) AS should_be_3 FROM t4;
+
+DELETE FROM t4 WHERE x > 0 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_0 FROM t4;
+
+DROP TABLE t4;
+
+# Subquery inside DML (streaming step still required)
+CREATE TABLE t5 (a INT);
+INSERT INTO t5 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t6 (id INT PRIMARY KEY, y DOUBLE);
+INSERT INTO t6 VALUES (1, 0);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+DELETE FROM t6 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+UPDATE t6 SET y = 1 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+
+DROP TABLE t5, t6;
+
+--echo #
+--echo # Bug#39506035: hypergraph: PossiblyAddSargableCondition: Assertion
+--echo #               `CompatibleTypesForIndexLookup(eq_item, field,
+--echo #               other_side)' failed.
+--echo #
+
+CREATE TABLE t (
+  c3 MEDIUMTEXT CHARACTER SET gb18030 COLLATE gb18030_chinese_ci NOT NULL,
+  FULLTEXT KEY i1 (c3)
+);
+INSERT INTO t VALUES (''),('da');
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT 1 FROM t WHERE date_format(
+  current_timestamp,
+  0xf4dd0189991dfabb7d3bb5ca3f568f4fc148
+) = c3;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#35767452: Inefficient ordering of UNION ALL inputs
+--echo #
+
+CREATE TABLE t_union (
+  a INT,
+  b INT,
+  PRIMARY KEY(a)
+);
+
+INSERT INTO t_union
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<1000)
+SELECT n, n FROM qn;
+
+ANALYZE TABLE t_union;
+
+--echo # Show individual branch costs for reference:
+--echo # Branch A: avg(b) — blocking aggregate, high init_cost
+EXPLAIN FORMAT=TREE SELECT avg(b) FROM t_union;
+--echo # Branch B: table scan — streaming, near-zero init_cost
+EXPLAIN FORMAT=TREE SELECT b FROM t_union;
+
+--echo # UNION ALL with EXISTS: aggregate written first textually,
+--echo # but after the fix the scan (low init_cost) appears first
+--echo # in the Append, allowing EXISTS to short-circuit immediately.
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_union x0 WHERE EXISTS (
+  SELECT avg(b) FROM t_union x2
+  UNION ALL
+  SELECT b FROM t_union x1
+);
+
+--echo # Reversed textual order — same plan expected (scan first).
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_union x0 WHERE EXISTS (
+  SELECT b FROM t_union x1
+  UNION ALL
+  SELECT avg(b) FROM t_union x2
+);
+
+--echo # Both queries produce identical results.
+SELECT COUNT(*) FROM t_union x0 WHERE EXISTS (
+  SELECT avg(b) FROM t_union x2
+  UNION ALL
+  SELECT b FROM t_union x1
+);
+
+SELECT COUNT(*) FROM t_union x0 WHERE EXISTS (
+  SELECT b FROM t_union x1
+  UNION ALL
+  SELECT avg(b) FROM t_union x2
+);
+
+--echo # Selective-filter branch vs cheap branch: both have near-zero
+--echo # init_cost (streaming scan), but the filter must read many rows
+--echo # before producing one, so its first_row_cost is high. Sorting on
+--echo # first_row_cost rather than raw init_cost places the cheap branch
+--echo # first so EXISTS short-circuits without scanning t_union.
+CREATE TABLE t_small (b INT);
+INSERT INTO t_small VALUES (1),(2),(3);
+ANALYZE TABLE t_small;
+
+EXPLAIN FORMAT=TREE
+SELECT 1 WHERE EXISTS (
+  SELECT b FROM t_union WHERE b > 10000
+  UNION ALL
+  SELECT b FROM t_small
+);
+
+SELECT 1 WHERE EXISTS (
+  SELECT b FROM t_union WHERE b > 10000
+  UNION ALL
+  SELECT b FROM t_small
+);
+
+DROP TABLE t_small;
+DROP TABLE t_union;
+
+--echo #
+--echo # Bug 36784038 - Explain TREE format does not display
+--echo #.               transformed query like TRADITIONAL format
+--echo #
+
+CREATE TABLE t1 (f1 integer);
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM t1) AS dt WHERE f1 > 10;
+--enable_warnings
+SHOW WARNINGS;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#37543247 Missing optimization in hypergraph in case of
+--echo #              multi-valued index
+--echo #
+
+# Table t1: KEY(arr, id) with id also PRIMARY KEY.
+# Anti-correlated ids/array values so wrong sort elision is observable.
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (id),
+  KEY k_arr_id ((CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t1 VALUES
+  (1,'[20,30]'), (2,'[40]'),     (3,'[30]'),   (4,'[10,30]'),
+  (5,'[50]'),    (6,'[30,30]'),  (7,'[]'),     (8,'[10,20,30]'),
+  (9,'[10]'),    (10,'[30]');
+ANALYZE TABLE t1;
+
+# Case 1a: MEMBER OF pins array keypart -> ORDER BY id DESC uses
+# reverse MVI range, no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 1b: same, ORDER BY id ASC -> forward ordered MVI range, no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id ASC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 6: two disjoint trailing ranges sharing the same array prefix
+# value -> ordered MVI range, no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') AND (id < 3 OR id > 7)
+             ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 7a: JSON_OVERLAPS with a single value -> one array point range,
+# ordered MVI range, no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_OVERLAPS(j->'$[*]', '[30]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 7b: JSON_CONTAINS with a single value -> ordered MVI range,
+# no Sort.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_CONTAINS(j->'$[*]', '[30]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 8a: JSON_OVERLAPS with two distinct values -> ranges do not share
+# one array value, Sort must be retained.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_OVERLAPS(j->'$[*]', '[10,30]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 8b: JSON_CONTAINS with two distinct values -> Sort retained.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_CONTAINS(j->'$[*]', '[10,30]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 9: JSON_OVERLAPS multi-value materialized as the range plus a
+# residual MEMBER OF on the same column -> Sort retained; a MEMBER OF
+# in the WHERE clause must not by itself grant ordering.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE JSON_OVERLAPS(j->'$[*]', '[10,20]')
+               AND 30 MEMBER OF (j->'$[*]')
+             ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 12: row with duplicate array values [30,30] must be returned once.
+let $query = SELECT id FROM t1 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') AND id BETWEEN 5 AND 7
+             ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 11: full-index guard. Multi-element and empty-array rows exist;
+# a full MVI scan would duplicate id=8 and drop id=7. No range predicate
+# is available, so the plan must not use k_arr_id at all.
+let $query = SELECT /*+ NO_RANGE_OPTIMIZATION(t1) */ id
+             FROM t1 FORCE INDEX (k_arr_id) ORDER BY id;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t1;
+
+# Table t2: KEY(arr, id) with id NOT the primary key.
+CREATE TABLE t2 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  id INT NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (pk),
+  KEY k_arr_id ((CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t2 (id, j) VALUES
+  (1,'[20,30]'), (2,'[40]'),  (3,'[30]'), (4,'[10,30]'),
+  (5,'[50]'),    (6,'[30]'),  (8,'[10,20,30]');
+ANALYZE TABLE t2;
+
+# Case 2a: trailing non-PK keypart, ORDER BY id DESC -> reverse ordered
+# MVI range, no Sort.
+let $query = SELECT id FROM t2
+             WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 2b: same, ORDER BY id ASC.
+let $query = SELECT id FROM t2
+             WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id ASC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 13: implicit PK extension on the MVI. ORDER BY id, pk DESC
+# follows the reverse ordering only when the extended PK part is used.
+let $query = SELECT id, pk FROM t2 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id DESC, pk DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+let $query = SELECT id, pk FROM t2 FORCE INDEX (k_arr_id)
+             WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t2;
+
+# Table t3: composite KEY(a, arr, id) with a leading scalar keypart.
+CREATE TABLE t3 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  a  INT NOT NULL,
+  id INT NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (pk),
+  KEY k_a_arr_id (a, (CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t3 (a, id, j) VALUES
+  (1, 100, '[10,30]'), (1,   1, '[20,30]'), (1,  50, '[30]'),
+  (1,   4, '[10,30]'), (1, 200, '[30]'),
+  (2,   3, '[30]'),    (2,  90, '[10,30]'), (2,   2, '[30]');
+ANALYZE TABLE t3;
+
+# Case 3a: a = const AND MEMBER OF pins the whole prefix through the
+# array keypart -> ORDER BY id DESC uses reverse MVI range, no Sort.
+let $query = SELECT id FROM t3
+             WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') AND id < 150
+             ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 3b: same, ORDER BY id ASC.
+let $query = SELECT id FROM t3
+             WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') AND id < 150
+             ORDER BY id ASC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 4a: a > 0 leaves the array keypart unbound in the materialized
+# range. Physical order is (a, array_element, id); Sort must be retained.
+let $query = SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+             WHERE a > 0 AND 30 MEMBER OF (j->'$[*]') ORDER BY a, id;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 4b: same with LIMIT so a wrongly elided Sort would return the
+# wrong first rows.
+let $query = SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+             WHERE a > 0 AND 30 MEMBER OF (j->'$[*]') ORDER BY a, id LIMIT 3;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 5: a IN (1,2) AND MEMBER OF -> two point prefixes with different
+# leading values, ORDER BY id must retain Sort (conservative).
+let $query = SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+             WHERE a IN (1,2) AND 30 MEMBER OF (j->'$[*]') ORDER BY id;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# Case 10: MVI prefix REF. NO_RANGE_OPTIMIZATION forces ref on a = 1;
+# the array keypart is not bound by REF, so the lookup is forward and
+# unordered and a Sort is required. Must not choose reverse REF.
+let $query = SELECT /*+ NO_RANGE_OPTIMIZATION(t3) */ a, id
+             FROM t3 FORCE INDEX (k_a_arr_id)
+             WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t3;
+
+# Table t4: KEY(arr, id, c(10)) with a full key part and then a partial key
+# part after the array keypart. The ordering stops at the partial key part,
+# so ORDER BY id follows the index while ORDER BY c must keep its Sort.
+CREATE TABLE t4 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  id INT NOT NULL,
+  c  VARCHAR(50) NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (pk),
+  KEY k_arr_id_c ((CAST(j->'$[*]' AS SIGNED ARRAY)), id, c(10))
+);
+INSERT INTO t4 (id, c, j) VALUES
+  (3,'ccc','[30]'),   (1,'aaa','[30]'), (5,'bbb','[10,30]'),
+  (9,'eee','[40]'),   (2,'ddd','[30]');
+ANALYZE TABLE t4;
+
+# The full suffix key part id before the partial part stays ordered: no Sort.
+let $query = SELECT id FROM t4 FORCE INDEX (k_arr_id_c)
+             WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+# The partial key part c is excluded from the ordering: Sort must stay.
+let $query = SELECT c FROM t4 FORCE INDEX (k_arr_id_c)
+             WHERE 30 MEMBER OF (j->'$[*]') ORDER BY c DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t4;
+
+# Table t5: KEY(c(10), arr, id) with a partial key part before the array
+# keypart, so the array keypart itself is unusable and ORDER BY id must keep
+# its Sort even though c is bound to a single value.
+CREATE TABLE t5 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  c  VARCHAR(50) NOT NULL,
+  id INT NOT NULL,
+  j  JSON NOT NULL,
+  PRIMARY KEY (pk),
+  KEY k_c_arr_id (c(10), (CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t5 (c, id, j) VALUES
+  ('aaa', 3, '[30]'),   ('aaa', 1, '[30]'), ('aaa', 5, '[10,30]'),
+  ('aaa', 2, '[30]'),   ('bbb', 9, '[30]');
+ANALYZE TABLE t5;
+
+let $query = SELECT id FROM t5 FORCE INDEX (k_c_arr_id)
+             WHERE c = 'aaa' AND 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+eval $query;
+
+DROP TABLE t5;
+
+--echo #
+--echo # Bug#39822725: hypergraph_optimizer=on silently updates/deletes the
+--echo # wrong rows for single-table UPDATE/DELETE with ORDER BY when the WH
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60);
+INSERT INTO t2 VALUES (1), (3), (5), (7);
+ANALYZE TABLE t1, t2;
+
+let $update =
+     UPDATE t1 SET b = b + 1 WHERE a IN (SELECT a FROM t2) ORDER BY a LIMIT 2;
+let $delete = DELETE FROM t1 WHERE a IN (SELECT a FROM t2) ORDER BY a LIMIT 2;
+
+# To reproduce the bug, the target table of the UPDATE and DELETE
+# statements must be part of a hash join and have a sorting step after
+# the join. Verify the plan structure with EXPLAIN.
+--eval EXPLAIN FORMAT=JSON INTO @explain_update $update
+SELECT JSON_EXTRACT(@explain_update,
+                    '$.query_plan.inputs[0].access_type',
+                    '$.query_plan.inputs[0].inputs[0].join_algorithm') AS plan;
+--eval EXPLAIN FORMAT=JSON INTO @explain_delete $delete
+SELECT JSON_EXTRACT(@explain_delete,
+                    '$.query_plan.inputs[0].access_type',
+                    '$.query_plan.inputs[0].inputs[0].join_algorithm') AS plan;
+
+# Used to update row 6 instead of row 1 and 3.
+--eval $update
+SELECT * FROM t1 ORDER BY a;
+
+# Used to delete row 6 instead of row 1 and 3.
+--eval $delete
+SELECT * FROM t1 ORDER BY a;
+
+DROP TABLE t1, t2;
+
+# Another problem related to bug#39822725 manifested itself when
+# updating a view that had a WITH CHECK OPTION.
+
+CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, a INT);
+INSERT INTO t1 VALUES
+  (), (), (), (), (), (), (), (), (), (),
+  (), (), (), (), (), (), (), (), (), (),
+  (), (), (), (), (), (), (), (), (), ();
+
+CREATE TABLE t2(a INT, b INT DEFAULT (a));
+INSERT INTO t2(a) VALUES (1), (3), (5), (7), (9), (11), (13), (15);
+
+CREATE TABLE t3(a INT);
+INSERT INTO t3 VALUES (3), (7), (15), (20);
+
+CREATE VIEW v1 AS
+  SELECT t1.* FROM t1, t2, t3
+  WHERE t1.id = t2.a AND t2.b = t3.a
+  WITH CHECK OPTION;
+
+ANALYZE TABLE t1, t2, t3;
+
+# To reproduce the bug, the target table of the UPDATE statement must
+# not be under a hash join, but the other tables referenced by the
+# CHECK OPTION (t2 and t3) must be under a hash join.
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE UPDATE v1 SET a = 1;
+# The statement used to fail with "Can't find record".
+UPDATE v1 SET a = 1;
+SELECT ROW_COUNT();
+
+# Verify that rows were updated correctly.
+SELECT * FROM t1 WHERE a IS NOT NULL ORDER BY id;
+
+DROP VIEW v1;
+DROP TABLE t1, t2, t3;
+
+# A buffered update of a view with CHECK OPTION also stores the row IDs of
+# non-updated tables used by the check condition. This case worked before the
+# bug fix, but was identified during review as lacking test coverage. Verify
+# that those row IDs are preserved when the target table is not the outermost
+# table of the join.
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (b INT PRIMARY KEY, c INT DEFAULT 0);
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2
+WITH RECURSIVE seq(n) AS (
+  SELECT 1
+  UNION ALL
+  SELECT n + 1 FROM seq WHERE n < 1000
+)
+SELECT n, 0 FROM seq;
+
+ANALYZE TABLE t1, t2;
+
+CREATE VIEW v1 AS
+SELECT t2.b, t2.c
+FROM t1 JOIN t2 ON t1.a = t2.b
+WITH CHECK OPTION;
+
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE
+UPDATE v1 SET c = c + 1;
+
+UPDATE v1 SET c = c + 1;
+SELECT ROW_COUNT();
+SELECT * FROM t2 WHERE b <= 3 ORDER BY b;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
 
 --source include/disable_hypergraph.inc

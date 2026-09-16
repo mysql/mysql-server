@@ -5,6 +5,8 @@
 --source include/not_rpl_gtid_only.inc
 --source include/have_debug.inc
 --source include/rpl/init_source_replica.inc
+# CSA is compatible with GTID-based replication and AUTO POSITIONING
+--source include/have_mta.inc
 
 call mtr.add_suppression(".* You need to use --log-bin to make .* work.");
 CALL mtr.add_suppression("Failed to open log");

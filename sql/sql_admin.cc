@@ -2117,11 +2117,13 @@ class Alter_instance_reload_tls : public Alter_instance {
     switch (context_type_) {
       case Ssl_acceptor_context_type::context_server_main:
         TLS_channel::singleton_flush(mysql_main, mysql_main_channel,
-                                     &server_main_callback, &error, force_);
+                                     &server_main_callback, &error, force_,
+                                     true);
         break;
       case Ssl_acceptor_context_type::context_server_admin:
         TLS_channel::singleton_flush(mysql_admin, mysql_admin_channel,
-                                     &server_admin_callback, &error, force_);
+                                     &server_admin_callback, &error, force_,
+                                     true);
         break;
       case Ssl_acceptor_context_type::context_last:
         [[fallthrough]];

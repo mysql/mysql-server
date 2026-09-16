@@ -26,6 +26,7 @@
 #ifndef ROUTER_SRC_HTTP_INCLUDE_HTTP_BASE_CONNECTION_STATUS_CALLBACKS_H_
 #define ROUTER_SRC_HTTP_INCLUDE_HTTP_BASE_CONNECTION_STATUS_CALLBACKS_H_
 
+#include <string_view>
 #include <system_error>
 
 namespace http {
@@ -39,6 +40,8 @@ class ConnectionStatusCallbacks {
   virtual void on_connection_close(Connection *connection) = 0;
   virtual void on_connection_io_error(Connection *connection,
                                       const std::error_code &ec) = 0;
+  virtual void log_invalid_request_body_headers_rejection(
+      std::string_view /*reason*/) {}
 };
 
 }  // namespace base

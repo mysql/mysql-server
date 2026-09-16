@@ -26,6 +26,8 @@
 #ifndef PLUGIN_X_SRC_INTERFACE_SERVICE_SYS_VARIABLES_H_
 #define PLUGIN_X_SRC_INTERFACE_SERVICE_SYS_VARIABLES_H_
 
+#include <mysql/components/services/system_variable_source_type.h>
+
 namespace xpl {
 namespace iface {
 
@@ -35,6 +37,8 @@ class Service_sys_variables {
 
   virtual bool get_variable(const char *component_name, const char *name,
                             void **val, size_t *out_length_of_val) = 0;
+  virtual bool get_variable_source(const char *name,
+                                   enum enum_variable_source *source) = 0;
 
   virtual bool is_valid() const = 0;
 };

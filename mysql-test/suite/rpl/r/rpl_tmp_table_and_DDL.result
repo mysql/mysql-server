@@ -105,8 +105,10 @@ DROP FUNCTION f2;
 DROP PROCEDURE p2;
 DROP EVENT e2;
 DROP TABLE t1, t2;
+include/rpl/sync_to_replica.inc
 CREATE TEMPORARY TABLE temp_t1 (c1 INT) ENGINE=InnoDB;
 CREATE TABLE t1 LIKE temp_t1;
+include/rpl/sync_to_replica.inc
 include/assert.inc ["t1 on master and temp_t1 have the same storage engine"]
 include/assert.inc ["t1 on slave and temp_t1 have the same storage engine"]
 DROP TEMPORARY TABLE temp_t1;

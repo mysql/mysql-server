@@ -68,6 +68,7 @@ INSERT INTO t1 VALUES (2);
 --eval SET PERSIST  group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST  group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST  group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 --enable_query_log
 
@@ -98,6 +99,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR clone_paused';
 --echo ############################################################
 --echo # 5. Verify that GR cannot be started while clone is ongoing.
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_COMMAND_FAILURE
 START GROUP_REPLICATION;
 

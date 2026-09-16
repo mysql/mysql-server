@@ -56,6 +56,7 @@ connect(alpha_con, localhost, alpha, alpha);
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET GLOBAL group_replication_bootstrap_group= 1;
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 START GROUP_REPLICATION;
 
@@ -82,6 +83,7 @@ SELECT CURRENT_ROLE();
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 SET GLOBAL group_replication_bootstrap_group= 1;
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 START GROUP_REPLICATION;
 
@@ -94,6 +96,7 @@ GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'gr_user';
 
 --echo [connection alpha]
 connect(alpha_con, localhost, alpha, alpha,*NO-ONE*);
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 SET GLOBAL group_replication_bootstrap_group= 0;
 

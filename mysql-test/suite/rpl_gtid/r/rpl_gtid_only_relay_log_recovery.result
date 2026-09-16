@@ -44,7 +44,7 @@ include/assert_grep.inc [The relay log recovery message does not mention positio
 #
 # 3. Cleanup
 include/rpl/stop_replica.inc
-CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT=0;
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT=0, APPLIER_VERSION=1;
 include/rpl/start_replica.inc
 include/rpl/gtid_utils_end.inc
 include/suppress_messages.inc

@@ -599,3 +599,194 @@ SET optimizer_switch="use_invisible_indexes=default";
 EXPLAIN SELECT * FROM t1 FORCE INDEX (b) WHERE b = 3;
 ERROR 42000: Key 'b' doesn't exist in table 't1'
 DROP TABLE t1;
+#
+# Bug#37972859: DROP INDEX + ADD INDEX in a single ALTER TABLE silently
+# loses the INVISIBLE / VISIBLE change.
+#
+#
+# 1. Default algorithm: DROP + ADD INDEX with visibility flip
+#    must take effect (originally reported case).
+#
+CREATE TABLE t1 (
+user_id   INT PRIMARY KEY AUTO_INCREMENT,
+user_name VARCHAR(50),
+age       INT,
+city      VARCHAR(50),
+KEY idx_age (age)
+) ENGINE=InnoDB;
+ALTER TABLE t1 DROP INDEX idx_age, ADD INDEX idx_age (age) INVISIBLE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `user_id` int NOT NULL AUTO_INCREMENT,
+  `user_name` varchar(50) DEFAULT NULL,
+  `age` int DEFAULT NULL,
+  `city` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`user_id`),
+  KEY `idx_age` (`age`) /*!80000 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT INDEX_NAME, IS_VISIBLE
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND table_name = 't1' AND index_name = 'idx_age';
+INDEX_NAME	IS_VISIBLE
+idx_age	NO
+ALTER TABLE t1 DROP INDEX idx_age, ADD INDEX idx_age (age) VISIBLE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `user_id` int NOT NULL AUTO_INCREMENT,
+  `user_name` varchar(50) DEFAULT NULL,
+  `age` int DEFAULT NULL,
+  `city` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`user_id`),
+  KEY `idx_age` (`age`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT INDEX_NAME, IS_VISIBLE
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND table_name = 't1' AND index_name = 'idx_age';
+INDEX_NAME	IS_VISIBLE
+idx_age	YES
+DROP TABLE t1;
+#
+# 2. ALGORITHM=INPLACE must keep working: DROP+ADD with visibility
+#    flip succeeds in-place (no ER_ALTER_OPERATION_NOT_SUPPORTED).
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY k (a)
+) ENGINE=InnoDB;
+ALTER TABLE t1 DROP INDEX k, ADD INDEX k (a) INVISIBLE, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  KEY `k` (`a`) /*!80000 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP INDEX k, ADD INDEX k (a) VISIBLE, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  KEY `k` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# 3. ALGORITHM=COPY variant works and yields the right visibility.
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY k (a)
+) ENGINE=InnoDB;
+ALTER TABLE t1 DROP INDEX k, ADD INDEX k (a) INVISIBLE, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  KEY `k` (`a`) /*!80000 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# 4. Regression guard for the previously rejected patch scenario:
+#    ALTER INDEX ... VISIBLE, ALGORITHM=INPLACE must stay INPLACE.
+#
+CREATE TABLE t1 (a INT, b INT, KEY (a) INVISIBLE, KEY (b)) ENGINE=InnoDB;
+ALTER TABLE t1 ALTER INDEX a VISIBLE, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  KEY `a` (`a`) /*!80000 INVISIBLE */,
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# 5. Multi-column / prefix / composite key variant.
+#
+CREATE TABLE t1 (
+a VARCHAR(64),
+b INT,
+c INT,
+KEY idx_ab (a(10), b)
+) ENGINE=InnoDB;
+ALTER TABLE t1 DROP INDEX idx_ab, ADD INDEX idx_ab (a(10), b) INVISIBLE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(64) DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  KEY `idx_ab` (`a`(10),`b`) /*!80000 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME, SUB_PART, IS_VISIBLE
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND table_name = 't1'
+ ORDER BY SEQ_IN_INDEX;
+INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	SUB_PART	IS_VISIBLE
+idx_ab	1	a	10	NO
+idx_ab	2	b	NULL	NO
+DROP TABLE t1;
+#
+# 6. Combined with an unrelated DROP/ADD in the same statement:
+#    visibility flip on k1 coexists with a structural change on k2.
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+c INT,
+KEY k1 (a),
+KEY k2 (b)
+) ENGINE=InnoDB;
+ALTER TABLE t1
+DROP INDEX k1, ADD INDEX k1 (a) INVISIBLE,
+DROP INDEX k2, ADD INDEX k2 (b, c);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  KEY `k1` (`a`) /*!80000 INVISIBLE */,
+  KEY `k2` (`b`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT INDEX_NAME, COLUMN_NAME, IS_VISIBLE
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND table_name = 't1'
+ ORDER BY INDEX_NAME, SEQ_IN_INDEX;
+INDEX_NAME	COLUMN_NAME	IS_VISIBLE
+k1	a	NO
+k2	b	YES
+k2	c	YES
+DROP TABLE t1;
+#
+# 7. Unique key variant.
+#
+CREATE TABLE t1 (a INT, b INT, UNIQUE KEY uk (a)) ENGINE=InnoDB;
+ALTER TABLE t1 DROP INDEX uk, ADD UNIQUE KEY uk (a) INVISIBLE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  UNIQUE KEY `uk` (`a`) /*!80000 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT INDEX_NAME, NON_UNIQUE, IS_VISIBLE
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND table_name = 't1';
+INDEX_NAME	NON_UNIQUE	IS_VISIBLE
+uk	0	NO
+DROP TABLE t1;

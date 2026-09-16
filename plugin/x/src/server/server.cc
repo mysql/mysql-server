@@ -432,7 +432,7 @@ bool Server::reset() {
 
   m_state.wait_for(allowed_values);
 
-  m_ssl_context->reset();
+  if (!m_ssl_context->reset()) return false;
   m_id_generator.reset(new Document_id_generator());
   m_factory.reset(new xpl::Server_factory());
 

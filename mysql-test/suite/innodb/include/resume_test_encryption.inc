@@ -37,6 +37,15 @@ let $wait_condition = SELECT ENCRYPTION = 'Y'
 --source include/wait_condition.inc
 
 --echo # Search the pattern in error log
---source $MYSQLTEST_VARDIR/tmp/encryption_error_log.inc
+# On a running server, it is safer to query the PFS than grepping the file
+# because logs might not be flushed yet. Note the my_restart.err is already
+# empty before starting the server so it will not match old entries.
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+  WHERE DATA LIKE '%Resuming ENCRYPTION for tablespace encrypt_ts%';
+
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+  WHERE DATA LIKE '%Finished ENCRYPTION for tablespace encrypt_ts%';
+
+--remove_file $MYSQLTEST_VARDIR/log/my_restart.err
 
 SELECT * FROM t1 LIMIT 10;

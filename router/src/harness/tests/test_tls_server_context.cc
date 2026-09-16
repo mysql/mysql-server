@@ -36,6 +36,7 @@
 using ::testing::AnyOf;
 using ::testing::Contains;
 using ::testing::Not;
+using ::testing::StartsWith;
 
 class TlsServerContextTest : public ::testing::Test {
  public:
@@ -65,6 +66,11 @@ TEST_F(TlsServerContextTest, CiphersMandatory) {
                        Contains("ECDHE-RSA-AES128-GCM-SHA256")));
 }
 
+TEST_F(TlsServerContextTest, DefaultCiphersExcludeDhe) {
+  EXPECT_THAT(TlsServerContext::default_ciphers(),
+              Not(Contains(StartsWith("DHE-"))));
+}
+
 class CiphersAcceptable : public TlsServerContextTest,
                           public ::testing::WithParamInterface<std::string> {};
 
@@ -89,7 +95,6 @@ TEST_P(CiphersAcceptable, CiphersAcceptableParam) {
 }
 
 static const std::string acceptable_ciphers_test_data[] = {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 1)
     // TLSv1.3
     {"TLS_AES_128_GCM_SHA256"},
     {"TLS_AES_256_GCM_SHA384"},
@@ -97,16 +102,14 @@ static const std::string acceptable_ciphers_test_data[] = {
 #if 0  // embedded
     {"TLS_AES_128_CCM_SHA256"},
 #endif
-#endif
     // TLSv1.2
     {"ECDHE-RSA-AES256-GCM-SHA384"},
+    // DHE ciphers remain available when explicitly configured.
     {"DHE-RSA-AES128-GCM-SHA256"},
     {"DHE-RSA-AES256-GCM-SHA384"},
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
     {"ECDHE-ECDSA-CHACHA20-POLY1305"},
     {"ECDHE-RSA-CHACHA20-POLY1305"},
     {"DHE-RSA-CHACHA20-POLY1305"},
-#endif
 #if 0  // embedded
     {"ECDHE-ECDSA-AES256-CCM"},
     {"ECDHE-ECDSA-AES128-CCM"},
@@ -156,39 +159,12 @@ static const std::string deprecated_ciphers_test_data[] = {
     {"AES256-GCM-SHA384"},
     {"AES128-SHA256"},
     {"AES256-SHA256"},
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
     {"DHE-RSA-CAMELLIA128-SHA256"},
     {"DHE-RSA-CAMELLIA256-SHA256"},
     {"ECDHE-RSA-AES128-SHA"},
     {"ECDHE-ECDSA-AES128-SHA"},
     {"ECDHE-RSA-AES256-SHA"},
     {"ECDHE-ECDSA-AES256-SHA"},
-#endif
-#if OPENSSL_VERSION_NUMBER == ROUTER_OPENSSL_VERSION(1, 1, 0)
-    {"DHE-RSA-CAMELLIA128-SHA"},
-    {"ECDH-ECDSA-AES128-SHA256"},
-    {"ECDH-RSA-AES128-SHA256"},
-    {"ECDH-RSA-AES256-SHA384"},
-    {"ECDH-ECDSA-AES256-SHA384"},
-    {"ECDH-ECDSA-AES128-SHA"},
-    {"DHE-RSA-AES128-SHA"},
-    {"DHE-RSA-AES256-SHA"},
-    {"DHE-DSS-AES256-SHA"},
-    {"DHE-RSA-CAMELLIA256-SHA"},
-    {"ECDH-ECDSA-AES256-SHA"},
-    {"ECDH-RSA-AES128-SHA"},
-    {"ECDH-RSA-AES256-SHA"},
-    {"AES128-SHA"},
-    {"AES256-SHA"},
-    {"CAMELLIA256-SHA"},
-    {"CAMELLIA128-SHA"},
-#endif
-#if OPENSSL_VERSION_NUMBER <= ROUTER_OPENSSL_VERSION(1, 1, 0)
-    {"ECDH-ECDSA-AES128-GCM-SHA256"},
-    {"ECDH-ECDSA-AES256-GCM-SHA384"},
-    {"ECDH-RSA-AES128-GCM-SHA256"},
-    {"ECDH-RSA-AES256-GCM-SHA384"},
-#endif
 #if 0  // embedded
     {"TLS_AES_128_CCM_8_SHA256"},
     {"ECDHE-ECDSA-AES256-CCM8"},

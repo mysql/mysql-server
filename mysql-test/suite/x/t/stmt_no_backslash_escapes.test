@@ -1,0 +1,82 @@
+## Check SQL statement string arguments with NO_BACKSLASH_ESCAPES.
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (name VARCHAR(64), touched INT DEFAULT 0);
+INSERT INTO xtest.xtable
+  VALUES ('innocent', 0), ('target_stmt', 0), ('target_prepare', 0);
+
+--let $xtest_file= $MYSQL_TMP_DIR/stmt_no_backslash_escapes.xpl
+--write_file $xtest_file
+-->quiet
+-->stmtsql SET SQL_MODE='NO_BACKSLASH_ESCAPES'
+-->recvresult be-quiet
+-->noquiet
+
+-->echo Attempted predicate injection through SQL StmtExecute argument
+-->quiet
+Mysqlx.Sql.StmtExecute {
+  stmt: "UPDATE xtest.xtable SET touched = 1 WHERE name = ? OR name = 'target_stmt'"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string { value: "missing' OR TRUE -- " }
+    }
+  }
+  namespace: "sql"
+}
+-->recvresult be-quiet
+-->noquiet
+
+-->echo Attempted predicate injection through prepared SQL statement argument
+-->quiet
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "UPDATE xtest.xtable SET touched = 1 WHERE name = ? OR name = 'target_prepare'"
+      args {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string { value: "missing' OR TRUE -- " }
+        }
+      }
+      namespace: "sql"
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+}
+-->recvresult be-quiet
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 1
+}
+-->recvok
+-->noquiet
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+--let $assert_text= SQL statement paths must touch exactly two rows
+--let $assert_cond= (SELECT COUNT(*) FROM xtest.xtable WHERE touched = 1) = 2
+--source include/assert.inc
+
+--let $assert_text= SQL StmtExecute path must touch target_stmt row
+--let $assert_cond= (SELECT COUNT(*) FROM xtest.xtable WHERE touched = 1 AND name = "target_stmt") = 1
+--source include/assert.inc
+
+--let $assert_text= Prepared SQL statement path must touch target_prepare row
+--let $assert_cond= (SELECT COUNT(*) FROM xtest.xtable WHERE touched = 1 AND name = "target_prepare") = 1
+--source include/assert.inc
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

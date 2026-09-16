@@ -5,3 +5,21 @@
 # upgrading sys schema
 # restart:--upgrade=FORCE --debug=+d,try_event_in_fix_sys_schema
 # restart:
+#
+# Bug#39077967: Error in parsing Event while upgrading MySQL version if
+#               Event was created in ANSI sql_mode
+#
+# Copy and unzip the datadir containing an event
+# which uses ANSI SQL mode.
+# Start the server on the old datadir to trigger upgrade.
+# Without patch upgrade fails with syntax error for the event.
+# restart: --datadir=MYSQLD_DATADIR
+# Verify event exists after upgrade.
+SHOW CREATE EVENT test.event1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+event1	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `event1` ON SCHEDULE EVERY 2 HOUR STARTS '2026-03-26 03:34:52' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+    INSERT INTO "t1" ("fld2")
+    VALUES (CONCAT('Event triggered at ', NOW()));
+  END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+# Cleanup
+# restart:

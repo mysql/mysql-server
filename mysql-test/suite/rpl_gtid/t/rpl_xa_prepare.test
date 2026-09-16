@@ -28,6 +28,9 @@
 --source include/not_rpl_gtid_only.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+# This test is designed to work with MTA, CSA does not support position based
+# replication
+--source include/have_mta.inc
 
 # this test case requires that certain events appear in the
 # relay log, therefore they cannot be enclosed in a Transaction_payload

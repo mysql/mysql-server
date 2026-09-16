@@ -1,0 +1,86 @@
+#
+# 1. Set up the initial source-replica configuration.
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 2. Set `PRIVILEGE_CHECKS_USER` to a user without `CREATE` and `DROP`
+#    privileges and start replica.
+[connection slave]
+CALL mtr.add_suppression("Access denied for user.*to database.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
+CREATE USER 'u1'@'localhost';
+GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+RESET REPLICA ALL;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_MASTER_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', REQUIRE_ROW_FORMAT = 1, SOURCE_LOG_POS=MY_MASTER_LOG_POS;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+START REPLICA;
+#
+# 3. Execute CREATE and DROP operations (e.g., database and table) on
+#    db1 on the source.
+[connection master]
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (c1 INT);
+DROP TABLE t1;
+DROP DATABASE db1;
+#
+# 4. Wait for the replica to encounter an "access denied" error.
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=1044]
+include/rpl/stop_replica.inc
+#
+# 5. Grant database-specific `CREATE` and `DROP` privileges to the
+#    specified user, resume replication, and verify that it succeeds.
+GRANT CREATE, DROP ON db1.* TO 'u1'@'localhost';
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+#
+# 6. Execute CREATE and DROP operations (e.g., database and table) on
+#    db2 on the source.
+[connection master]
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t1 (c1 INT);
+DROP TABLE t1;
+DROP DATABASE db2;
+#
+# 7. Wait for the replica to encounter an "access denied" error.
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=1044]
+include/rpl/stop_replica.inc
+#
+# 8. Create a role with CREATE and DROP privileges on db2, grant it to
+#    the specified user, set it as the default role, start replication
+#    and verify the changes replicate successfully to the replica.
+CREATE ROLE role1;
+GRANT role1 TO 'u1'@'localhost';
+SET DEFAULT ROLE role1 TO 'u1'@'localhost';
+GRANT CREATE, DROP ON db2.* TO role1;
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+#
+# 9. On the source, perform a CREATE operation on a different database.
+[connection master]
+CREATE DATABASE db3;
+#
+# 10. Wait for the replica to encounter an "access denied" error.
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=1044]
+#
+# 11. Clean up
+[connection master]
+DROP DATABASE db3;
+[connection slave]
+DROP ROLE role1;
+DROP USER 'u1'@'localhost';
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';
+START REPLICA;
+include/rpl/deinit.inc

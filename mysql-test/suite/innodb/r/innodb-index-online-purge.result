@@ -1,3 +1,6 @@
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
 CREATE TABLE t (a INT PRIMARY KEY, c TEXT) ENGINE=InnoDB;
 CREATE TABLE u (a INT PRIMARY KEY, b INT, c INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t VALUES (1,'aa');
@@ -33,3 +36,5 @@ SET DEBUG_SYNC='now SIGNAL dml_done_u';
 SET DEBUG_SYNC='now SIGNAL dml_done_t';
 SET DEBUG_SYNC='RESET';
 DROP TABLE t,u;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

@@ -3119,7 +3119,6 @@ double Item_func_latlongfromgeohash::val_real() {
 
   String buf;
   String *input_value = args[0]->val_str_ascii(&buf);
-  assert(input_value != nullptr || args[0]->null_value);
 
   if ((null_value = (input_value == nullptr || args[0]->null_value)))
     return 0.0;
@@ -5230,10 +5229,7 @@ String *Item_func_st_buffer::val_str(String *str) {
     return error_str();
 
   for (String *p : p_strats) {
-    if (parse_strategy(p, strategies)) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      return error_str();
-    }
+    if (parse_strategy(p, strategies)) return error_str();
   }
 
   std::unique_ptr<gis::Geometry> result;
@@ -5250,6 +5246,7 @@ bool Item_func_st_buffer::parse_strategy(String *arg,
   // Input validation
   assert(arg);
   if (arg == nullptr || arg->length() < 12) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return true;
   }
 
@@ -5258,43 +5255,59 @@ bool Item_func_st_buffer::parse_strategy(String *arg,
   const uint strategy_number = uint4korr(p_arg);
   const double value = float8get(p_arg + 4);
 
+  // The strategy blob is normally produced by ST_Buffer_Strategy(), which
+  // validates the numeric argument, but ST_Buffer() also accepts a raw
+  // string here. Apply the same validation as Item_func_buffer_strategy
+  // so a hand-crafted blob cannot bypass it.
+  if (strategy_number == gis::kEndRound || strategy_number == gis::kJoinRound ||
+      strategy_number == gis::kJoinMiter ||
+      strategy_number == gis::kPointCircle) {
+    if (!std::isfinite(value) || value <= 0) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return true;
+    }
+    if (strategy_number != gis::kJoinMiter &&
+        value > static_cast<double>(
+                    current_thd->variables.max_points_in_geometry)) {
+      my_error(ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED, MYF(0),
+               "points_per_circle",
+               current_thd->variables.max_points_in_geometry, func_name());
+      return true;
+    }
+  }
+
   // Numbers stem from old buffer implementation. Still using the old
   // Item_func_buffer_strategy, thus need to convert into variables for
   // the new BufferStrategies struct.
+  bool failed;
   switch (strategy_number) {
-    // Raising error (return true) if a strategy type is provided more than
-    // once, or if value is outside size_t limits (for round/round/circle).
+    // Reject if a strategy type is provided more than once, or if value
+    // is outside size_t limits (for round/round/circle).
     case gis::kEndRound:
-      return strats.set_end_round(value);
+      failed = strats.set_end_round(value);
       break;
-
     case gis::kEndFlat:
-      return strats.set_end_flat();
+      failed = strats.set_end_flat();
       break;
-
     case gis::kJoinRound:
-      return strats.set_join_round(value);
+      failed = strats.set_join_round(value);
       break;
-
     case gis::kJoinMiter:
-      return strats.set_join_miter(value);
+      failed = strats.set_join_miter(value);
       break;
-
     case gis::kPointCircle:
-      return strats.set_point_circle(value);
+      failed = strats.set_point_circle(value);
       break;
-
     case gis::kPointSquare:
-      return strats.set_point_square();
+      failed = strats.set_point_square();
       break;
-
     default:
       // Value of strategy_number not recognized as a valid strategy.
-      return true;
+      failed = true;
       break;
   }
-
-  return false;
+  if (failed) my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+  return failed;
 }
 
 enum class ConvertUnitResult {

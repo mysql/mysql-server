@@ -4,6 +4,12 @@
 
 --source include/have_debug_sync.inc
 
+# DDL DEBUG_SYNC actions belong to the foreground THD. Multiple DDL workers
+# execute them with a worker THD and trip the debug-sync ownership assertion.
+# Therefore, run the DDL in single-thread mode.
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
+
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT) ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5);

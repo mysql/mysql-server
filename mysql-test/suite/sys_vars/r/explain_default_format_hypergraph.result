@@ -10,6 +10,8 @@ explain select 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 # Test that explain_format can be set to any of the scopes; i.e. session,
 # global and persist.
 set persist explain_format=tree;
@@ -48,10 +50,14 @@ explain select 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 explain format=tree select 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 explain format=json select 1;
 EXPLAIN
 {
@@ -71,6 +77,8 @@ explain select 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 explain format=json select 1;
 EXPLAIN
 {
@@ -90,6 +98,8 @@ explain format=tree select 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 explain select 1;
 EXPLAIN
 {
@@ -109,16 +119,22 @@ explain select 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 explain format=tree select 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 set global explain_format=json;
 set explain_format=traditional;
 explain select 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1`
 set explain_format=traditional;
 explain analyze select 1;
 EXPLAIN

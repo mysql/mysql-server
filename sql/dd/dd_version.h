@@ -24,7 +24,7 @@
 #ifndef DD__DD_VERSION_INCLUDED
 #define DD__DD_VERSION_INCLUDED
 
-#include "mysql_version.h"  // MYSQL_VERSION_ID
+#include "mysql_version.h"  // MYSQL_VERSION_ID, MYSQL_VERSION_MATURITY_IS_LTS
 
 /**
   @file sql/dd/dd_version.h
@@ -41,9 +41,10 @@
 
   The data dictionary version number is the MySQL server version number
   of the first MySQL server version that published a given database schema.
-  The format is Mmmdd with M=Major, m=minor, d=dot, so that MySQL 8.0.4 is
-  encoded as 80004. This is the same version numbering scheme as the
-  information schema and performance schema are using.
+  The format is the MYSQL_VERSION_ID numeric encoding:
+  MAJOR * 10000 + MINOR * 100 + PATCH. Thus, MySQL 8.0.4 is encoded as
+  80004, and MySQL 26.7.0 is encoded as 260700. This is the same version
+  numbering scheme as the information schema and performance schema are using.
 
   When a data dictionary version is made public, the next change to a
   dictionary table will be associated with the next available MySQL server
@@ -237,9 +238,9 @@ static_assert(DD_VERSION <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
 
 /**
-  If a new DD version is published in a MRU, that version may or may not
-  be possible to downgrade to previous MRUs within the same GA. From a
-  technical perspective, we may support downgrade for some types of
+  If a new DD version is published, that version may or may not be possible
+  to downgrade to previous releases within the same compatibility lineage. From
+  a technical perspective, we may support downgrade for some types of
   changes to the DD tables, such as:
 
   i)   Addition of new attributes to a predefined general purpose option-like
@@ -259,11 +260,11 @@ static_assert(DD_VERSION <= MYSQL_VERSION_ID,
     may be insufficient?
 
   If downgrade is supported, the constant DD_VERSION_MINOR_DOWNGRADE_THRESHOLD
-  should be set to the lowest DD_VERSION that we may downgrade to. If downgrade
-  is not supported at all, then DD_VERSION_MINOR_DOWNGRADE_THRESHOLD should be
-  set to DD_VERSION.
+  should be set to the lowest DD_VERSION in the same compatibility lineage that
+  we may downgrade to. If downgrade is not supported at all, then
+  DD_VERSION_MINOR_DOWNGRADE_THRESHOLD should be set to DD_VERSION.
 
-  It has been decided that the default policy for MySQL 8.0 is not to allow
+  It has been decided that the default policy is to not allow
   downgrade for any minor release. One of the major reasons for this is that
   this would lead to a huge amount of possible upgrade/downgrade paths with
   correspondingly complicated and effort demanding QA. Thus, we set this
@@ -275,24 +276,35 @@ static_assert(DD_VERSION_MINOR_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
 
 /**
-  A new release model supporting Long Term Stability (LTS) and innovation
-  releases is being introduced. The LTS releases will be kept as stable as
-  possible, patch updates will be provided mostly for critical issues.
-  Innovation releases will be released regularly with new features.
+  A release model supporting Long-Term Support (LTS) and Innovation releases is
+  being used. LTS releases will be kept as stable as possible, and patch updates
+  will be provided mostly for critical issues. Innovation releases will be
+  released regularly with new features.
 
-  When we start a new major version, e.g. 9.0.0, this is an innovation release.
-  Each consecutive release is a new innovation release where the minor version
-  number is incremented. The last minor version for a given major version is an
-  LTS release, this will normally have minor version 7, e.g. 9.7.0. The LTS
-  release will have regular CPU releases (critical patch update) where the major
-  and minor versions stay unchanged, and only the patch number is incremented
-  (e.g. 9.7.1, 9.7.2 etc.). In parallel with the CPU releases, a new major
-  version will also be released, starting with an incremented major version
-  number (e.g. 10.0.0). In some cases, the innovation releases may also have
-  CPU releases, e.g. 9.1.0, 9.1.1 etc.
+  MySQL 9.7.x is the final LTS release line using the legacy sequential
+  major release convention. There is no MySQL 10.x release line. After
+  9.7.x, MySQL uses calendar-based versioning where releases are identified
+  as YY.M.P, e.g. 26.7.0.
+
+  For calendar versions, the MYSQL_VERSION_MINOR component identifies the
+  release month, using values from 1 through 12. Innovation releases may have
+  patch releases within the same release month, e.g. 26.7.1. LTS and
+  INNOVATION are release maturity values declared by MYSQL_VERSION_MATURITY.
+  Release maturity is not inferred from the calendar version number.
+
+  MYSQL_PREVIOUS_LTS_VERSION is declarative release metadata. It stores the LTS
+  release base that anchors the current compatibility lineage, with patch
+  forced to 0. The first calendar releases use 9.7.0. If a calendar release is
+  designated LTS, it remains in the lineage identified by its own previous-LTS
+  value. The first Innovation release after that LTS starts a new compatibility
+  lineage by using the LTS release base as MYSQL_PREVIOUS_LTS_VERSION.
+
+  Runtime upgrade checks derive the effective compatibility lineage from
+  MYSQL_PREVIOUS_LTS_VERSION. A missing MYSQL_PREVIOUS_LTS_VERSION value is
+  treated as legacy version metadata during transition validation.
 
   With the release model supporting LTS releases, we will have to support
-  downgrade between patch releases. Normally, there will be no changes in
+  downgrade between LTS patch releases. Normally, there will be no changes in
   features in a patch release, and the disk image should have a similar format,
   both in terms of record layout, data dictionary structure, system table
   definitions, information schema, performance schema, etc. However, there might
@@ -307,15 +319,20 @@ static_assert(DD_VERSION_MINOR_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
   persistently by the actual server that we downgrade from. If the target server
   version is lower than the threshold, it will reject the downgrade attempt.
 
-  The threshold defaults to 0. This means that downgrade back to the first patch
-  for the given version is possible. E.g. if LTS version 9.7.2 has the threshold
-  defined to 0, downgrades to 9.7.1 and 9.7.0 is possible. Then, if LTS version
-  9.7.3 is released with the threshold set to 9.7.2, then only downgrade to
-  9.7.2 is possible. Downgrades to or from innovation releases are never
-  supported, regardless of the downgrade threshold.
+  For LTS releases, the threshold defaults to 0. This means that downgrade back
+  to the first patch for the same release base is possible. E.g. if LTS version
+  9.7.2 has the threshold defined to 0, downgrades to 9.7.1 and 9.7.0 are
+  possible. Similarly, if a calendar LTS patch release has the threshold defined
+  to 0, downgrades to earlier patch releases in the same visible YY.M release
+  base are possible. If a later patch release in that base raises the threshold,
+  then
+  only downgrades to that threshold or later patch releases in the same base are
+  possible.
+  Downgrades to or from Innovation releases are never supported, regardless of
+  the downgrade threshold.
 */
 
-/* Patch downgrade is rejected by default for innovation releases. */
+/* Patch downgrade is rejected by default for Innovation releases. */
 #if MYSQL_VERSION_MATURITY_IS_LTS == 1
 constexpr uint SERVER_DOWNGRADE_THRESHOLD = 0;
 #else
@@ -325,7 +342,7 @@ static_assert(SERVER_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
 
 /**
-  The new release model explained above will also open the possibility of
+  The release model explained above also opens the possibility of
   upgrading to a version that has been released in the past. I.e., we will
   upgrade from an actual version to a target version with a higher version
   number, but an earlier (older) GA release date.
@@ -340,11 +357,14 @@ static_assert(SERVER_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
   by the actual server that we upgrade from. If the target server version is
   lower than the threshold, it will reject the upgrade attempt.
 
-  The threshold defaults to 0. This means that for upgrades to any higher
-  version is possible (unless prohibited by other rules). E.g. if LTS version
-  9.7.2 has the threshold defined to 0, upgrades to 10.0.0, 10.1.0 etc. is
-  possible. Then, if LTS version 9.7.3 is released with the upgrade threshold
-  set to 10.2.0, then upograde from 9.7.3 is possible only to 10.2.0 or higher.
+  The threshold defaults to 0. This means that upgrades to any higher version
+  are possible unless prohibited by other rules, such as release maturity and
+  compatibility lineage rules. E.g. if LTS version 9.7.2 has the threshold
+  defined to 0, upgrades to calendar versions such as 26.7.0 and 26.10.0 are
+  possible when the normal upgrade rules allow them. Then, if LTS version 9.7.3
+  is released with the upgrade threshold set to 26.10.0, then upgrade from
+  9.7.3 is possible only to 26.10.0 or higher, again subject to the normal
+  upgrade rules.
 */
 constexpr uint SERVER_UPGRADE_THRESHOLD = 0;
 

@@ -748,7 +748,7 @@ bool Encryption::decode_encryption_info(space_id_t space_id,
         /* Note down this space and rotate key at the end of recovery */
         s_tablespaces_to_reencrypt.push_back(space_id);
       } else {
-        /* This tablespace might not be loaded yet. It's tablepace key will be
+        /* This tablespace might not be loaded yet. It's tablespace key will be
         reencrypted with new master key once it is loaded in fil_ibd_open() */
       }
     }
@@ -1123,6 +1123,11 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 }
 
 dberr_t Encryption::decrypt_log_block(byte *const buf) const noexcept {
+  /* An encrypted redo block requires encryption metadata. */
+  if (m_type == NONE) {
+    return DB_IO_DECRYPT_FAIL;
+  }
+
   /* This is the data we have to decrypt */
   byte *const data = buf + LOG_BLOCK_HDR_SIZE;
   /* This is data size to decrypt. */

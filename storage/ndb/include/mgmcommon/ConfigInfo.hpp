@@ -267,6 +267,8 @@ class ConfigInfo {
    */
   static const ConfigInfo &default_instance();
 
+  static void insertError(int err);
+
   /**
    *   Checks if the suggested value is valid for the suggested parameter
    *   (i.e. if it is >= than min and <= than max).

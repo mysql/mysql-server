@@ -160,6 +160,32 @@ bool itemize_safe(Parse_context *pc, Item **item) {
 
 }  // namespace
 
+bool Load_data_partition_list::push_back_name(THD *thd,
+                                              const LEX_STRING &name) {
+  auto *partition = new (thd->mem_root) Load_data_partition_spec(name);
+  auto *partition_name =
+      new (thd->mem_root) String(name.str, name.length, system_charset_info);
+
+  if (partition == nullptr || partition_name == nullptr) return true;
+
+  return m_partitions.push_back(partition) ||
+         m_partition_names.push_back(partition_name);
+}
+
+bool Load_data_partition_list::push_back_range(THD *thd, const LEX_STRING &name,
+                                               ulong first_file,
+                                               ulong last_file) {
+  auto *partition =
+      new (thd->mem_root) Load_data_partition_spec(name, first_file, last_file);
+  auto *partition_name =
+      new (thd->mem_root) String(name.str, name.length, system_charset_info);
+
+  if (partition == nullptr || partition_name == nullptr) return true;
+
+  return m_partitions.push_back(partition) ||
+         m_partition_names.push_back(partition_name);
+}
+
 Table_ddl_parse_context::Table_ddl_parse_context(THD *thd_arg,
                                                  Query_block *select_arg,
                                                  Alter_info *alter_info)
@@ -2413,13 +2439,21 @@ void PT_with_clause::print(const THD *thd, String *str,
   size_t len1 = str->length();
   str->append("with ");
   if (m_recursive) str->append("recursive ");
-  size_t len2 = str->length(), len3 = len2;
+  size_t len2 = str->length();
+  size_t len3 = len2;
   for (auto el : m_list->elements()) {
+    size_t len_before = str->length();
+    size_t len3_before = len3;
     if (str->length() != len3) {
       str->append(", ");
       len3 = str->length();
     }
     el->print(thd, str, query_type);
+    if (str->length() == len3) {
+      // CTE was skipped (unused/merged) - roll back the separator too
+      str->length(len_before);
+      len3 = len3_before;
+    }
   }
   if (str->length() == len2)
     str->length(len1);  // don't print an empty WITH clause
@@ -4280,6 +4314,19 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
     return nullptr;
   }
 
+  if (m_cmd.m_opt_partitions != nullptr &&
+      !m_cmd.m_opt_partitions->partitions().empty()) {
+    const bool has_files =
+        m_cmd.m_opt_partitions->partitions().front()->files_range().has_value();
+    for (const auto *partition : m_cmd.m_opt_partitions->partitions()) {
+      if (partition->files_range().has_value() != has_files) {
+        my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA PARTITION clause",
+                 "mixing partition specs with and without FILES");
+        return nullptr;
+      }
+    }
+  }
+
   lex->sql_command = SQLCOM_LOAD;
 
   switch (m_cmd.m_on_duplicate) {
@@ -4311,9 +4358,12 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
     }
   }
 
-  if (!select->add_table_to_list(thd, m_cmd.m_table, nullptr,
-                                 TL_OPTION_UPDATING, lock_type, mdl_type,
-                                 nullptr, m_cmd.m_opt_partitions))
+  if (!select->add_table_to_list(
+          thd, m_cmd.m_table, nullptr, TL_OPTION_UPDATING, lock_type, mdl_type,
+          nullptr,
+          m_cmd.m_opt_partitions == nullptr
+              ? nullptr
+              : m_cmd.m_opt_partitions->partition_names()))
     return nullptr;
 
   /* We can't give an error in the middle when using LOCAL files */

@@ -57,6 +57,7 @@ DROP USER rpluser_plain@127.0.0.1;
 FLUSH PRIVILEGES;
 Warnings:
 Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+include/rpl/sync_to_replica.inc
 [on slave]
 include/rpl/stop_replica.inc
 # Resetting replication user to root

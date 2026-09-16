@@ -63,6 +63,11 @@ perl mysql-test-run.pl --timer --force   --comment=eits-tests-innodb-engine --va
 
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --big-test --testcase-timeout=60 --suite-timeout=360
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_csa --vardir=var-group_replication_csa --suite=group_replication --big-test --testcase-timeout=60 --suite-timeout=360 --defaults-extra-file=include/rpl_change_stream_applier.cnf
+
+# Thread Pool Plugin
+perl mysql-test-run.pl --timer --big-test --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+
 ######END OF SECTION 2 (NON-DEFAULT SUITES)######################
 
 ######## SECTION 3: EXTENDED RUNS FOR REPLICATION AND BINLOG#######
@@ -79,6 +84,10 @@ perl mysql-test-run.pl --force --timer   --comment=binlog_without_gtid --vardir=
 # Additional rpl run with binlog Compression enabled.
 perl mysql-test-run.pl --timer --force --comment=rpl_compression --vardir=var-rpl-comp --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --mysqld=--binlog-format=ROW --no-skip --exclude-platform=windows
 perl mysql-test-run.pl --timer --force --parallel=8 --comment=rpl_compression --vardir=var-rpl-comp --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --mysqld=--binlog-format=ROW --no-skip --platform=windows
+
+# Additional rpl suites with APPLIER_VERSION=2 (Change Stream Applier)
+perl mysql-test-run.pl --force --timer --comment=rpl_csa --vardir=var-rpl_csa --suite=rpl,rpl_gtid --defaults-extra-file=include/rpl_change_stream_applier.cnf --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --force --timer --parallel=8 --comment=rpl_csa --vardir=var-rpl_csa --suite=rpl,rpl_gtid --defaults-extra-file=include/rpl_change_stream_applier.cnf --no-skip --platform=windows
 
 ################END OF SECTION3(EXTENDED RPL/BINLOG)  ####################
 

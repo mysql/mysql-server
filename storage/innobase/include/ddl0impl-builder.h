@@ -270,9 +270,8 @@ struct Builder {
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t create_merge_sort_tasks() noexcept;
 
-  /** Flush all dirty pages, apply the row log and write the redo log record.
-  @return DB_SUCCESS or error code. */
-  dberr_t finalize() noexcept;
+  /** Flush all dirty pages, apply the row log and write the redo log record. */
+  void finalize() noexcept;
 
   /** Convert the field data from compact to redundant format.
   @param[in]    clust_index           Clustered index being built
@@ -400,6 +399,7 @@ struct Builder {
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t check_duplicates(Thread_ctxs &dupcheck) noexcept;
 
+ public:
   /** Cleanup DDL after error in online build
   Note: To be called if DDL must cleanup due to error in online build. Pages
   which are buffer-fixed (in Page_load::release) until the next iteration, must
@@ -542,6 +542,11 @@ struct Merge_cursor : public Load_cursor {
 
   /** @return the number of active readers. */
   [[nodiscard]] size_t size() const noexcept { return m_pq.size(); }
+
+  /** @return the underlying index being merged, if available. */
+  [[nodiscard]] const dict_index_t *index() const noexcept {
+    return m_builder != nullptr ? m_builder->index() : nullptr;
+  }
 
   /** @return the number of rows read from the files. */
   [[nodiscard]] uint64_t get_n_rows() const noexcept;

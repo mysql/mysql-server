@@ -22,7 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_messages/group_service_message.h"
+
 #include <cstring>
+
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 
@@ -89,19 +92,57 @@ void Group_service_message::encode_payload(std::vector<uchar> *buffer) const {
 
   encode_payload_item_int8(buffer, PIT_SENT_TIMESTAMP,
                            Metrics_handler::get_current_time());
+
+  DBUG_EXECUTE_IF("gr_invalid_message_service_tag_length", {
+    const size_t tag_length_offset =
+        Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+        Plugin_gcs_message::WIRE_PAYLOAD_ITEM_TYPE_SIZE;
+    const ulonglong remaining_payload_length =
+        buffer->size() - (Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+                          Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE);
+    int8store(buffer->data() + tag_length_offset, remaining_payload_length + 1);
+  };);
 }
 
-void Group_service_message::decode_payload(const uchar *buffer, const uchar *) {
+void Group_service_message::decode_payload(const uchar *buffer,
+                                           const uchar *end) {
   DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
+  auto clear_payload = [this]() {
+    m_tag.clear();
+    m_data.clear();
+    m_data_pointer = nullptr;
+    m_data_pointer_length = 0;
+  };
 
-  decode_payload_item_string(&slider, &payload_item_type, &m_tag,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider, &payload_item_type, end, &m_tag,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_TAG) {
+    clear_payload();
+    set_error("gr::Group_service_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
+
+  if (slider > end ||
+      static_cast<size_t>(end - slider) < WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+    clear_payload();
+    set_error("gr::Group_service_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
 
   decode_payload_item_type_and_length(&slider, &payload_item_type,
                                       &payload_item_length);
+  if (payload_item_type != PIT_DATA || slider > end ||
+      static_cast<unsigned long long>(end - slider) < payload_item_length) {
+    clear_payload();
+    set_error("gr::Group_service_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   m_data.clear();
   m_data.insert(m_data.end(), slider, slider + payload_item_length);
   m_data_pointer = nullptr;

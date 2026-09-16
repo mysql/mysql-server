@@ -114,6 +114,7 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
   CacheStorageTest() : mysql(nullptr) {}
 
   static void SetUpTestCase() {
+    dd::cache::Shared_dictionary_cache::init();
     mdl_init();
     table_def_init();
   }

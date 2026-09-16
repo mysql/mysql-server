@@ -1,0 +1,96 @@
+# ==== PURPOSE ====
+#
+# This test validates that CSA applier can apply transactions with events larger
+# than APPLIER_EVENT_MEMORY_LIMIT (soft limit) after waiting for resources.
+#
+# ==== IMPLEMENTATION ====
+#
+#     Test steps:
+#
+#     1. Set up replication with APPLIER_VERSION=2, small APPLIER_EVENT_MEMORY_LIMIT
+#        and low replica_max_allowed_packet
+#     2. Start replica
+#     3. On source: Create table and execute one transaction with large event (> limit)
+#     4. Use debug point to pause before releasing memory and verify waiting state
+#     5. Signal continuation to allow application
+#     6. Sync and verify the large row is applied
+#     7. Cleanup
+#
+# ==== REFERENCES ====
+#
+# WL#10500 MTA: Optimized and generic change stream applier
+#
+
+# MTA does not support APPLIER_EVENT_MEMORY_LIMIT
+--source include/have_csa.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+--echo
+--echo # 1. Set up replication with CSA (APPLIER_VERSION=2) and small event memory limit
+--echo
+
+--let $rpl_skip_start_slave=1
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+SET @tmp_max= @@global.replica_max_allowed_packet;
+SET @@global.replica_max_allowed_packet=4096;
+
+CHANGE REPLICATION SOURCE TO
+  APPLIER_VERSION=2,
+  APPLIER_WORKER_COUNT=4,
+  APPLIER_EVENT_MEMORY_LIMIT=5000;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+
+--echo # Create table for large insert
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  data LONGBLOB
+);
+
+--source include/rpl/sync_to_replica.inc
+
+--let $debug_point=pause_csa_before_releasing_event_memory
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+
+--echo # Execute parallel transactions below the limit
+INSERT INTO t1 VALUES (1, REPEAT('A', 3000));
+
+--echo # Execute one transaction with a single large event (> limit)
+BEGIN;
+--eval INSERT INTO t1 VALUES (2, REPEAT('A', 10000));
+COMMIT;
+
+--echo # Wait for applier to hit memory limit and enter waiting state due to large event (wait untill previous transaction finishes applying)
+--source include/rpl/connection_replica.inc
+--let $wait_condition = SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for Replica Workers to free pending events"
+--source include/wait_condition.inc
+
+# Remove debug point
+--source include/remove_debug_point.inc
+
+SET DEBUG_SYNC='now SIGNAL signal_continue_csa_releasing_event_memory';
+
+--echo # Sync and verify large row applied
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+SELECT COUNT(*) = 2 FROM t1; # Verify both transactions committed
+SELECT LENGTH(data) > 5000 FROM t1;  # Verify large event applied
+
+--echo # Cleanup
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+SET @@global.replica_max_allowed_packet=@tmp_max;
+
+--source include/rpl/deinit.inc

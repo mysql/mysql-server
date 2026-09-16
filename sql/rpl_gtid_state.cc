@@ -85,6 +85,7 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid) {
   assert(!executed_gtids.contains_gtid(gtid));
   DBUG_PRINT("info", ("gtid=%d:%" PRId64, gtid.sidno, gtid.gno));
   assert(thd->owned_gtid.sidno == 0);
+  assert(!thd->gtid_table_persist_requested());
   if (owned_gtids.add_gtid_owner(gtid, thd->thread_id()) != RETURN_STATUS_OK)
     goto err;
   if (thd->get_gtid_next_list() != nullptr) {
@@ -157,6 +158,15 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd) {
 
 void Gtid_state::update_commit_group(THD *first_thd) {
   DBUG_TRACE;
+  mysql_mutex_assert_owner(mysql_bin_log.get_commit_lock());
+
+  for (THD *thd = first_thd; thd != nullptr; thd = thd->next_to_commit) {
+    thd->call_actions_before_gtid_state_update(thd->commit_error !=
+                                               THD::CE_COMMIT_ERROR);
+  }
+
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
+      "after_call_actions_before_gtid_state_update");
 
   bool gtid_threshold_breach = false;
   /*
@@ -206,6 +216,9 @@ void Gtid_state::update_commit_group(THD *first_thd) {
 void Gtid_state::update_on_commit(THD *thd) {
   DBUG_TRACE;
 
+  thd->call_actions_before_gtid_state_update(/*is_commit=*/true);
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
+      "after_call_actions_before_gtid_state_update");
   update_gtids_impl(thd, true);
   DEBUG_SYNC(thd, "end_of_gtid_state_update_on_commit");
 }
@@ -213,6 +226,9 @@ void Gtid_state::update_on_commit(THD *thd) {
 void Gtid_state::update_on_rollback(THD *thd) {
   DBUG_TRACE;
 
+  thd->call_actions_before_gtid_state_update(/*is_commit=*/false);
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
+      "after_call_actions_before_gtid_state_update");
   if (!update_gtids_impl_check_skip_gtid_rollback(thd))
     update_gtids_impl(thd, false);
 }
@@ -484,6 +500,20 @@ rpl_sidno Gtid_state::specify_transaction_sidno(
       thd->get_transaction()->get_rpl_transaction_ctx()->get_sidno();
   if (gtid_next.is_automatic() &&
       global_gtid_mode.get() >= Gtid_mode::ON_PERMISSIVE) {
+    /*
+      When defined, use the featured uuid as originating server
+      uuid on the automatic transaction identifier instead of the
+      server_uuid.
+    */
+    if (featured_uuid_sidno > 0) {
+      if (gtid_next.is_automatic_tagged()) {
+        sidno = global_tsid_map->add_tsid(Tsid(
+            get_featured_uuid_tsid().get_uuid(), gtid_next.generate_tag()));
+      } else {
+        sidno = featured_uuid_sidno;
+      }
+    }
+
     if (gtid_next.is_automatic_tagged() && sidno == 0) {
       sidno = global_tsid_map->add_tsid(
           Tsid(get_server_tsid().get_uuid(), gtid_next.generate_tag()));
@@ -664,11 +694,45 @@ int Gtid_state::init() {
   return 0;
 }
 
+std::optional<std::string> Gtid_state::set_featured_uuid(const char *uuid) {
+  DBUG_TRACE;
+  rpl_sidno sidno{0};
+
+  Checkable_rwlock::Guard g(*global_tsid_lock, Checkable_rwlock::WRITE_LOCK);
+
+  /*
+    Empty uuid value does clean featured_uuid_sidno.
+  */
+  if (strlen(uuid) > 0) {
+    rpl_sid sid{};
+    if (sid.parse(uuid, mysql::gtid::Uuid::TEXT_LENGTH) != 0) {
+      return "Invalid uuid.";
+    }
+
+    if (!strcmp(server_uuid, uuid)) {
+      return "Uuid equal to server_uuid.";
+    }
+
+    sidno = tsid_map->add_tsid(Tsid_map::Tsid(sid, Tsid_map::Tag()));
+    if (sidno <= 0) {
+      return "Unable to generate the sidno.";
+    }
+  }
+
+  featured_uuid_sidno = sidno;
+  next_free_gno_map.clear();
+  return std::nullopt;
+}
+
 int Gtid_state::save(THD *thd) {
   DBUG_TRACE;
   assert(gtid_table_persistor != nullptr);
   assert(thd->owned_gtid.sidno > 0);
   int error = 0;
+
+  if (thd->gtid_table_persist_requested()) {
+    return 0;
+  }
 
   int ret = gtid_table_persistor->save(thd, &thd->owned_gtid);
   if (1 == ret) {
@@ -677,10 +741,14 @@ int Gtid_state::save(THD *thd) {
       open it. Ignore the error.
     */
     thd->clear_error();
-    if (!thd->get_stmt_da()->is_set())
+    if (!thd->get_stmt_da()->is_set()) {
       thd->get_stmt_da()->set_ok_status(0, 0, nullptr);
-  } else if (-1 == ret)
+    }
+  } else if (-1 == ret) {
     error = -1;
+  } else {
+    thd->set_gtid_table_persist_requested();
+  }
 
   return error;
 }
@@ -852,7 +920,7 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit) {
     In Group Replication the GTID may additionally be owned by another
     thread, and we won't remove that ownership (it will be rolled back later)
   */
-  assert(owned_gtids.is_owned_by(thd->owned_gtid, thd->thread_id()));
+  assert(owned_gtids.has_owner(thd->owned_gtid, thd->thread_id()));
   owned_gtids.remove_gtid(thd->owned_gtid, thd->thread_id());
 
   if (is_commit) {
@@ -875,10 +943,14 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit) {
     CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_gtid_externalization");
     executed_gtids._add_gtid(thd->owned_gtid);
     thd->rpl_thd_ctx.session_gtids_ctx().notify_after_gtid_executed_update(thd);
-    if (thd->slave_thread && opt_bin_log && !opt_log_replica_updates) {
+
+    Transaction_ctx *trn_ctx = thd->get_transaction();
+    if ((thd->slave_thread && opt_bin_log && !opt_log_replica_updates) ||
+        trn_ctx->m_transaction_flushed == Transaction_flushed::NO) {
       lost_gtids._add_gtid(thd->owned_gtid);
       gtids_only_in_table._add_gtid(thd->owned_gtid);
     }
+    trn_ctx->cleanup_transaction();
   } else {
     auto iterator = next_free_gno_map.end();
     std::tie(iterator, std::ignore) =

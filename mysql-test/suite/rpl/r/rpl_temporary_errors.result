@@ -44,6 +44,8 @@ include/rpl/assert_replica_running.inc
 call mtr.add_suppression("Replica SQL.*Could not execute Update_rows event on table test.t1");
 call mtr.add_suppression("Replica SQL for channel '': worker thread retried transaction");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 set @save_innodb_lock_wait_timeout=@@global.innodb_lock_wait_timeout;
 set @save_replica_transaction_retries=@@global.replica_transaction_retries;
 set @@global.innodb_lock_wait_timeout=1;

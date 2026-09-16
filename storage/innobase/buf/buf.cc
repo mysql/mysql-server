@@ -41,10 +41,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "page0size.h"
 #include "univ.i"
 
-/** Checks if a page contains only zeroes.
-@param[in]      read_buf        database page
-@param[in]      page_size       page size
-@return true if page is filled with zeroes */
 bool buf_page_is_zeroes(const byte *read_buf, const page_size_t &page_size) {
   for (ulint i = 0; i < page_size.logical(); i++) {
     if (read_buf[i] != 0) {

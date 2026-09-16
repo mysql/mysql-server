@@ -1843,7 +1843,7 @@ class Item_func_length : public Item_int_func {
   const char *func_name() const override { return "length"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
-    max_length = 10;
+    max_length = MY_INT32_NUM_DECIMAL_DIGITS;
     return false;
   }
 };
@@ -1890,7 +1890,7 @@ class Item_func_char_length final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "char_length"; }
   bool resolve_type(THD *thd) override {
-    max_length = 10;
+    max_length = MY_INT32_NUM_DECIMAL_DIGITS;
     return Item_int_func::resolve_type(thd);
   }
 };
@@ -1969,7 +1969,7 @@ class Item_func_ascii final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "ascii"; }
   bool resolve_type(THD *thd) override {
-    max_length = 3;
+    max_length = 4;  // Precision 3 digits plus the sign
     return Item_int_func::resolve_type(thd);
   }
 };
@@ -3406,7 +3406,7 @@ class Item_func_set_user_var : public Item_var_func {
   bool send(Protocol *protocol, String *str_arg) override;
   void make_field(Send_field *tmp_field) override;
   bool check(bool use_result_field);
-  void save_item_result(Item *item);
+  bool save_item_result(Item *item);
   bool update();
   enum Item_result result_type() const override { return cached_result_type; }
   bool fix_fields(THD *thd, Item **ref) override;

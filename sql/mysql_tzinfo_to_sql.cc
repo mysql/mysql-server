@@ -43,6 +43,12 @@
 static const char *const MAGIC_STRING_FOR_INVALID_ZONEINFO_FILE =
     "Local time zone must be set--see zic manual page";
 
+enum class tz_load_result {
+  OK,
+  NOT_TIME_ZONE_FILE,
+  ERROR,
+};
+
 /*
   Load time zone description from zoneinfo (TZinfo) file.
 
@@ -52,10 +58,12 @@ static const char *const MAGIC_STRING_FOR_INVALID_ZONEINFO_FILE =
       sp   - TIME_ZONE_INFO structure to fill
 
   RETURN VALUES
-    0 - Ok
-    1 - Error
+    OK - Ok
+    NOT_TIME_ZONE_FILE - File doesn't have TZif format
+    ERROR - Broken TZif file or I/O error
 */
-static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
+static tz_load_result tz_load(const char *name, TIME_ZONE_INFO *sp,
+                              MEM_ROOT *storage) {
   uchar *p;
   size_t read_from_file;
   uint i;
@@ -63,7 +71,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
 
   if (!(file =
             mysql_file_fopen(0, name, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
-    return true;
+    return tz_load_result::ERROR;
   {
     union {
       struct tzhead tzhead;
@@ -78,9 +86,12 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
 
     read_from_file = mysql_file_fread(file, u.buf, sizeof(u.buf), MYF(MY_WME));
 
-    if (mysql_file_fclose(file, MYF(MY_WME)) != 0) return true;
+    if (mysql_file_fclose(file, MYF(MY_WME)) != 0) return tz_load_result::ERROR;
 
-    if (read_from_file < sizeof(struct tzhead)) return true;
+    if ((read_from_file < sizeof(TZ_MAGIC) - 1) ||
+        (memcmp(u.buf, TZ_MAGIC, sizeof(TZ_MAGIC) - 1) != 0))
+      return tz_load_result::NOT_TIME_ZONE_FILE;
+    if (read_from_file < sizeof(struct tzhead)) return tz_load_result::ERROR;
 
     ttisstdcnt = int4net(u.tzhead.tzh_ttisgmtcnt);
     ttisgmtcnt = int4net(u.tzhead.tzh_ttisstdcnt);
@@ -94,7 +105,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
         sp->charcnt > TZ_MAX_CHARS ||
         (ttisstdcnt != sp->typecnt && ttisstdcnt != 0) ||
         (ttisgmtcnt != sp->typecnt && ttisgmtcnt != 0))
-      return true;
+      return tz_load_result::ERROR;
     if ((uint)(read_from_file - (p - u.buf)) <
         sp->timecnt * 4 +           /* ats */
             sp->timecnt +           /* types */
@@ -103,7 +114,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
             sp->leapcnt * (4 + 4) + /* lsinfos */
             ttisstdcnt +            /* ttisstds */
             ttisgmtcnt)             /* ttisgmts */
-      return true;
+      return tz_load_result::ERROR;
 
     const size_t start_of_zone_abbrev = sizeof(struct tzhead) +
                                         sp->timecnt * 4 +      /* ats */
@@ -117,7 +128,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
                 MAGIC_STRING_FOR_INVALID_ZONEINFO_FILE,
                 std::min(sizeof(MAGIC_STRING_FOR_INVALID_ZONEINFO_FILE) - 1,
                          sp->charcnt)))
-      return true;
+      return tz_load_result::ERROR;
 
     const size_t abbrs_buf_len = sp->charcnt + 1;
 
@@ -126,7 +137,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
               ALIGN_SIZE(sp->timecnt) +
               ALIGN_SIZE(sp->typecnt * sizeof(TRAN_TYPE_INFO)) +
               ALIGN_SIZE(abbrs_buf_len) + sp->leapcnt * sizeof(LS_INFO))))
-      return true;
+      return tz_load_result::ERROR;
 
     sp->ats = (my_time_t *)tzinfo_buf;
     tzinfo_buf += ALIGN_SIZE(sp->timecnt * sizeof(my_time_t));
@@ -142,7 +153,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
 
     for (i = 0; i < sp->timecnt; i++) {
       sp->types[i] = *p++;
-      if (sp->types[i] >= sp->typecnt) return true;
+      if (sp->types[i] >= sp->typecnt) return tz_load_result::ERROR;
     }
     for (i = 0; i < sp->typecnt; i++) {
       TRAN_TYPE_INFO *ttisp;
@@ -151,9 +162,10 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
       ttisp->tt_gmtoff = int4net(p);
       p += 4;
       ttisp->tt_isdst = *p++;
-      if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1) return true;
+      if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1)
+        return tz_load_result::ERROR;
       ttisp->tt_abbrind = *p++;
-      if (ttisp->tt_abbrind > sp->charcnt) return true;
+      if (ttisp->tt_abbrind > sp->charcnt) return tz_load_result::ERROR;
     }
     for (i = 0; i < sp->charcnt; i++) sp->chars[i] = *p++;
     sp->chars[i] = '\0'; /* ensure '\0' at end */
@@ -172,7 +184,8 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
     */
   }
 
-  return prepare_tz_info(sp, storage);
+  return prepare_tz_info(sp, storage) ? tz_load_result::ERROR
+                                      : tz_load_result::OK;
 }
 
 /*
@@ -310,11 +323,13 @@ static bool scan_tz_dir(char *name_end) {
         }
       } else if (MY_S_ISREG(cur_dir->dir_entry[i].mystat->st_mode)) {
         ::new ((void *)&tz_storage) MEM_ROOT(PSI_NOT_INSTRUMENTED, 32768);
-        if (!tz_load(fullname, &tz_info, &tz_storage))
+        const tz_load_result load_result =
+            tz_load(fullname, &tz_info, &tz_storage);
+        if (load_result == tz_load_result::OK)
           print_tz_as_sql(root_name_end + 1, &tz_info);
-        else
+        else if (load_result == tz_load_result::ERROR)
           fprintf(stderr,
-                  "Warning: Unable to load '%s' as time zone. Skipping it.\n",
+                  "Warning: Failed to parse zoneinfo file '%s'. Skipping it.\n",
                   fullname);
         tz_storage.Clear();
       } else
@@ -363,14 +378,26 @@ int main(int argc, char **argv) {
     ::new ((void *)&tz_storage) MEM_ROOT(PSI_NOT_INSTRUMENTED, 32768);
 
     if (strcmp(argv[1], "--leap") == 0) {
-      if (tz_load(argv[2], &tz_info, &tz_storage)) {
-        fprintf(stderr, "Problems with zoneinfo file '%s'\n", argv[2]);
+      const tz_load_result load_result =
+          tz_load(argv[2], &tz_info, &tz_storage);
+      if (load_result == tz_load_result::NOT_TIME_ZONE_FILE) {
+        fprintf(stderr, "File '%s' is not a zoneinfo file\n", argv[2]);
+        return 1;
+      }
+      if (load_result == tz_load_result::ERROR) {
+        fprintf(stderr, "Failed to parse zoneinfo file '%s'\n", argv[2]);
         return 1;
       }
       print_tz_leaps_as_sql(&tz_info);
     } else {
-      if (tz_load(argv[1], &tz_info, &tz_storage)) {
-        fprintf(stderr, "Problems with zoneinfo file '%s'\n", argv[2]);
+      const tz_load_result load_result =
+          tz_load(argv[1], &tz_info, &tz_storage);
+      if (load_result == tz_load_result::NOT_TIME_ZONE_FILE) {
+        fprintf(stderr, "File '%s' is not a zoneinfo file\n", argv[1]);
+        return 1;
+      }
+      if (load_result == tz_load_result::ERROR) {
+        fprintf(stderr, "Failed to parse zoneinfo file '%s'\n", argv[1]);
         return 1;
       }
       printf("START TRANSACTION;\n");

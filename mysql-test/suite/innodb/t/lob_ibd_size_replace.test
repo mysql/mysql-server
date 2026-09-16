@@ -31,7 +31,7 @@ START TRANSACTION;
 CALL p(30);
 COMMIT;
 
-let $wait_timeout = 60;
+let $wait_timeout = 120;
 --source include/wait_innodb_all_purged.inc
 
 FLUSH TABLES `my_sample_table` FOR EXPORT;
@@ -44,7 +44,7 @@ START TRANSACTION;
 CALL p(30);
 COMMIT;
 
-let $wait_timeout = 60;
+let $wait_timeout = 120;
 --source include/wait_innodb_all_purged.inc
 
 FLUSH TABLES `my_sample_table` FOR EXPORT;

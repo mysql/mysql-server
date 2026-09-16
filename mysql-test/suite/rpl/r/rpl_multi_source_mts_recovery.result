@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/rpl/default_connections.inc
 [connection slave]
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
 include/rpl/stop_applier.inc
 SET @@global.max_relay_log_size=4096;
 SET @@global.innodb_lock_wait_timeout=1;

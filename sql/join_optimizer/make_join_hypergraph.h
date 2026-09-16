@@ -321,6 +321,7 @@ struct JoinHypergraph {
   hypergraph::NodeMap nodes_for_table_function = 0;
 
   int FindSargableJoinPredicate(const Item *predicate) const {
+    if (m_sargable_join_predicates.empty()) return -1;
     const auto iter = m_sargable_join_predicates.find(predicate);
     return iter == m_sargable_join_predicates.cend() ? -1 : iter->second;
   }

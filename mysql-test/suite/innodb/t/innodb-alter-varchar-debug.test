@@ -2,6 +2,13 @@
 --source include/have_debug_sync.inc
 --source include/not_valgrind.inc
 
+# DDL DEBUG_SYNC actions belong to the foreground THD. Multiple DDL workers
+# execute them with a worker THD and trip the debug-sync ownership assertion.
+# Therefore, run the DDL in single-thread mode.
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
+
 --source include/count_sessions.inc
 
 SET DEBUG_SYNC = 'RESET';
@@ -40,6 +47,7 @@ SET DEBUG_SYNC = 'innodb_commit_inplace_alter_table_enter SIGNAL s1 WAIT_FOR s2'
 connection default;
 # DML no go through in paralle as whole operation happen during
 # commit_inplace_alter_table, under an exclusive MDL
+SELECT @@lock_wait_timeout INTO @default_lock_wait_timeout;
 SET lock_wait_timeout = 1;
 SET DEBUG_SYNC='now WAIT_FOR s1';
 --error ER_LOCK_WAIT_TIMEOUT
@@ -68,6 +76,8 @@ UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',255);
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+# Restore the default value
+SET lock_wait_timeout = @default_lock_wait_timeout;
 DROP TABLE t1;
 
 
@@ -213,3 +223,6 @@ SET restrict_fk_on_non_standard_key=ON;
 SET DEBUG_SYNC = 'RESET';
 
 --source include/wait_until_count_sessions.inc
+connection default;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

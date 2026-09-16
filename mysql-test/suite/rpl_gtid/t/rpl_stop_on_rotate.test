@@ -27,6 +27,10 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
 --source include/rpl/init_source_replica.inc
+# This test is designed to work with MTA: CSA supports only gtid-based
+# replication, group positions are ignored.
+# Also, CSA does NOT apply ROTATE EVENT
+--source include/have_mta.inc
 
 --echo
 --echo ############################################################

@@ -101,6 +101,7 @@ INSERT INTO t1 (col1) VALUES (1);
 call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Write_rows event on table test.t1");
 call mtr.add_suppression("Replica SQL for channel '': .*Error 'Duplicate entry '2'");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 INSERT INTO t1 (col1) VALUES (1), (2);
 [connection slave]
 include/rpl/wait_for_applier_error.inc [errno=1062]

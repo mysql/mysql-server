@@ -1547,6 +1547,7 @@ class Item_func_timestamp_diff final : public Item_int_func {
   interval_type intervaltype() const { return int_type; }
   longlong val_int() override;
   bool resolve_type(THD *thd) override;
+  bool eq_specific(const Item *item) const override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
 };

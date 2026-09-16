@@ -1,0 +1,117 @@
+# Pool of threads assigns new connections round robin to the
+# thread groups.
+#
+# Author:
+# 2010-12-01 mleich develop tests for WL#5136 New Thread pool design
+#
+
+# Set $DEBUG to 1 when you want to debug the current test.
+# There will be a difference between current and expected results
+# because the actual content of interesting information_schema tables
+# gets printed at various places.
+let $DEBUG= 0;
+
+--source include/have_thread_pool.inc
+
+--echo # Reveal that Sorting of new connections into the thread groups is done round robin.
+--echo #    Any preceding disconnect of a session has to have no impact on this.
+if(!$DEBUG)
+{
+   --disable_query_log
+   --disable_result_log
+}
+
+CREATE TEMPORARY TABLE tp_thread_group_stats_old AS
+SELECT TP_GROUP_ID, CONNECTIONS_STARTED, CONNECTIONS_CLOSED
+FROM performance_schema.tp_thread_group_stats;
+
+--source ../inc/i_s_debug.inc
+--connect (con_extra, localhost, root,,)
+let $id_list= `SELECT CONNECTION_ID()`;
+--connection default
+--source ../inc/i_s_debug.inc
+
+SELECT new.TP_GROUP_ID INTO @group_id_old
+FROM performance_schema.tp_thread_group_stats new
+JOIN tp_thread_group_stats_old old USING (TP_GROUP_ID)
+WHERE new.CONNECTIONS_STARTED > old.CONNECTIONS_STARTED;
+
+--disconnect con_extra
+# Wait till the disconnect is finished
+--source ../inc/wait_until_disappeared.inc
+
+let $extra_conn= 13;
+let $run= $extra_conn;
+while($run)
+{
+   if(!$DEBUG)
+   {
+      --disable_query_log
+      --disable_result_log
+   }
+   DELETE FROM tp_thread_group_stats_old;
+   INSERT INTO tp_thread_group_stats_old (TP_GROUP_ID, CONNECTIONS_STARTED, CONNECTIONS_CLOSED)
+   SELECT TP_GROUP_ID, CONNECTIONS_STARTED, CONNECTIONS_CLOSED
+   FROM performance_schema.tp_thread_group_stats;
+
+   --source ../inc/i_s_debug.inc
+
+   let $connection= con_$run;
+   --connect ($connection, localhost, root,,)
+   let $id_list= `SELECT CONNECTION_ID()`;
+   --connection default
+   --source ../inc/i_s_debug.inc
+   SELECT new.TP_GROUP_ID INTO @group_id
+   FROM performance_schema.tp_thread_group_stats new
+   JOIN tp_thread_group_stats_old old USING (TP_GROUP_ID)
+   WHERE new.CONNECTIONS_STARTED > old.CONNECTIONS_STARTED;
+   if(`SELECT @group_id <> MOD(@group_id_old + 1, @@global.thread_pool_size)`)
+   {
+      --enable_query_log
+      --enable_result_log
+      --echo # Sorting of connections into the thread groups is NOT round robin.
+      SELECT @group_id_old AS "Thread group id of previous connect",
+             @group_id     AS "Thread group id of current connect",
+             MOD(@group_id_old + 1, @@global.thread_pool_size)
+               AS "Expected thread group id of current connect";
+      --echo # abort
+      exit;
+   }
+   SET @group_id_old = @group_id;
+
+   DELETE FROM tp_thread_group_stats_old;
+   INSERT INTO tp_thread_group_stats_old (TP_GROUP_ID, CONNECTIONS_STARTED, CONNECTIONS_CLOSED)
+   SELECT TP_GROUP_ID, CONNECTIONS_STARTED, CONNECTIONS_CLOSED
+   FROM performance_schema.tp_thread_group_stats;
+   --disconnect $connection
+   --source ../inc/wait_until_disappeared.inc
+   --connection default
+
+   # Check for plausibility
+   # If a new connection causes that CONNECTIONS_STARTED of TP_GROUP_ID = <n> gets incremented
+   # than disconnecting the same connection must cause that CONNECTIONS_CLOSED of the same
+   # TP_GROUP_ID <n> gets decremented.
+   if(!$DEBUG)
+   {
+      --disable_query_log
+      --disable_result_log
+   }
+   SELECT new.TP_GROUP_ID INTO @group_id_old
+   FROM performance_schema.tp_thread_group_stats new
+   JOIN tp_thread_group_stats_old old USING (TP_GROUP_ID)
+   WHERE new.CONNECTIONS_CLOSED > old.CONNECTIONS_CLOSED;
+   if(`SELECT @group_id <> @group_id_old`)
+   {
+      --enable_query_log
+      --enable_result_log
+      --echo # Unexepected result after disconnect.
+      SELECT @group_id     AS "Thread group id of just disconnected session",
+             @group_id_old AS "Expected thread group id of just disconnected session";
+      --echo # abort
+      exit;
+   }
+
+   dec $run;
+}
+--echo # Success
+

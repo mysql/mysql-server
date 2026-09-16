@@ -218,6 +218,9 @@ bool is_view_change_log_event_required();
 bool is_autorejoin_enabled();
 uint get_number_of_autorejoin_tries();
 ulonglong get_rejoin_timeout();
+bool get_group_replication_force_pqc_var();
+bool get_group_replication_use_pqc_sign_var();
+const char *get_group_replication_tls_kex_var();
 void declare_plugin_cloning(bool is_running);
 bool get_allow_single_leader();
 /**

@@ -1,0 +1,56 @@
+# Bug#39433811 Can't create some of tables with SPATIAL KEY because of ER_TOO_BIG_ROWSIZE
+--source include/have_innodb_16k.inc
+
+CREATE TABLE t1 (
+  a VARCHAR(255) NOT NULL,
+  b VARCHAR(255) NOT NULL,
+  c VARCHAR(255) NOT NULL,
+  d VARCHAR(175) NOT NULL,
+  g GEOMETRY NOT NULL SRID 4326,
+  PRIMARY KEY (a, b, c, d),
+  SPATIAL KEY idx_g (g)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=latin1;
+
+# This one is a simple case where the row is very short
+INSERT INTO t1 (a,b,c,d,g)
+  VALUES ('a', 'b', 'c', 'd', ST_GeomFromText('POINT(0 0)', 4326));
+
+# This one is a more difficult case where the row is very long,
+# in particular its Primary Key columns have longest possible values.
+INSERT INTO t1 (a,b,c,d,g) VALUES (
+  REPEAT('a',255),
+  REPEAT('b',255),
+  REPEAT('c',255),
+  REPEAT('d',175),
+  ST_GeomFromText('POINT(1 1)', 4326)
+);
+
+# Now lets see what happens if the R-tree has some internal nodes
+CREATE TABLE nums(id INT PRIMARY KEY);
+INSERT INTO nums VALUES (1);
+
+--let $i=0
+while($i<10){
+  INSERT INTO nums SELECT id + (SELECT MAX(id) FROM nums) FROM nums;
+  --inc $i
+}
+
+INSERT INTO t1 (a,b,c,d,g)
+  SELECT REPEAT(id,50), REPEAT('b',255), REPEAT('c',255), 'd2', ST_GeomFromText(
+    CONCAT('POINT(', MOD(id,90), ' -122.4194)'),
+    4326
+  ) FROM nums;
+
+DROP TABLE nums;
+
+--echo # Before DELETE:
+SELECT a,b,c,d,ST_AsText(g) FROM t1 WHERE g=ST_GeomFromText('POINT(40 -122.4194)', 4326);
+SELECT COUNT(*) FROM t1;
+
+# Now test navigation
+DELETE FROM t1 WHERE g=ST_GeomFromText('POINT(40 -122.4194)', 4326);
+--echo # After DELETE
+SELECT a,b,c,d,ST_AsText(g) FROM t1 WHERE g=ST_GeomFromText('POINT(40 -122.4194)', 4326);
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;

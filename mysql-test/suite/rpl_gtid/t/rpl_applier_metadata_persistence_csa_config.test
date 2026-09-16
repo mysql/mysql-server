@@ -1,0 +1,194 @@
+# ====Purpose====
+#
+# Test persistence of CSA (Change Stream Applier) configuration metadata.
+# Validates that CSA-specific settings like APPLIER_VERSION, APPLIER_WORKER_COUNT,
+# and APPLIER_EVENT_MEMORY_LIMIT are correctly persisted across replica restarts,
+# handled in error cases, and managed with RESET REPLICA commands.
+#
+# ====Requirements====
+#
+# R1. Default MTA (Multi-Threaded Applier) settings: APPLIER_VERSION=1,
+#     APPLIER_WORKER_COUNT=0, APPLIER_EVENT_MEMORY_LIMIT=default
+# R2. Reject CSA-only options (APPLIER_WORKER_COUNT, APPLIER_EVENT_MEMORY_LIMIT)
+#     when not in CSA mode - ER_CRST_APPLIER_WORKER_COUNT_ONLY_FOR_CSA,
+#     ER_CRST_APPLIER_EVENT_MEMORY_LIMIT_ONLY_FOR_CSA
+# R3. Range checks: APPLIER_WORKER_COUNT must be 1-1024,
+#     APPLIER_EVENT_MEMORY_LIMIT adjusted to replica_max_allowed_packet
+#     if too low
+# R4. Persistence: Settings persist after SET and survive RESET REPLICA
+#     (but not RESET REPLICA ALL)
+#
+# ====Implementation====
+#
+#  1. Setup replication with MTA defaults
+#  2. Assert initial MTA configuration in system and PFS tables
+#  3. Test error cases for CSA-only options when not enabled
+#  4. Set CSA configuration and verify persistence after restart
+#  5. Test RESET REPLICA clears nothing, RESET REPLICA ALL clears all
+#  6. Cleanup
+#
+# ====References====
+#
+# WL#10500 MTA: Optimized and generic change stream applier
+#
+
+# This test is binlog format agnostic
+--source include/have_binlog_format_row.inc
+# This test supports CSA, but we run it when default applier version is set
+# to MTA. In this test, we change applier versions
+--source include/have_mta.inc
+
+--let $rpl_skip_start_slave=1
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+--source include/rpl/start_replica.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE APPLIER_VERSION = 1`
+--let $assert_text = Expect that APPLIER_VERSION is set to MTA in the 'mysql.slave_relay_log_info' system table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE APPLIER_VERSION = 1`
+--let $assert_text = Expect that APPLIER_VERSION is set to MTA in the 'replication_applier_configuration' PFS table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE APPLIER_WORKER_COUNT = 0`
+--let $assert_text = Expect that APPLIER_WORKER_COUNT is set to 0 in the 'mysql.slave_relay_log_info' system table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE APPLIER_WORKER_COUNT = 4`
+--let $assert_text = Expect that APPLIER_WORKER_COUNT is set to default value in the 'replication_applier_configuration' PFS table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE APPLIER_EVENT_MEMORY_LIMIT = 1073741824`
+--let $assert_text = Expect that APPLIER_EVENT_MEMORY_LIMIT is set to default in the 'mysql.slave_relay_log_info' system table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE `APPLIER_EVENT_MEMORY_LIMIT` = 1073741824`
+--let $assert_text = Expect that APPLIER_EVENT_MEMORY_LIMIT is set to default value in the 'replication_applier_configuration' PFS table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--source include/rpl/stop_replica.inc
+
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+
+# Error cases
+
+--error ER_CRST_APPLIER_WORKER_COUNT_ONLY_FOR_CSA
+CHANGE REPLICATION SOURCE TO APPLIER_WORKER_COUNT = 8;
+
+--error ER_CRST_APPLIER_WORKER_COUNT_ONLY_FOR_CSA
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, APPLIER_WORKER_COUNT = 8;
+
+--error ER_CRST_APPLIER_EVENT_MEMORY_LIMIT_ONLY_FOR_CSA
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 1073741824;
+
+--error ER_CRST_APPLIER_EVENT_MEMORY_LIMIT_ONLY_FOR_CSA
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, APPLIER_EVENT_MEMORY_LIMIT = 1073741824;
+
+--error ER_CRST_APPLIER_WORKER_COUNT_OUT_OF_RANGE
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, APPLIER_WORKER_COUNT = 0;
+
+--error ER_CRST_APPLIER_WORKER_COUNT_OUT_OF_RANGE
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, APPLIER_WORKER_COUNT = 1025;
+
+# No error, limit will be adjusted
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, APPLIER_EVENT_MEMORY_LIMIT = 1;
+
+--let $current_packet_max = `SELECT @@GLOBAL.replica_max_allowed_packet`
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE `APPLIER_EVENT_MEMORY_LIMIT` = $current_packet_max`
+--let $assert_text = Expect that APPLIER_EVENT_MEMORY_LIMIT is set to replica_max_allowed_packet in the 'mysql.slave_relay_log_info' system table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+# Set + persistence testing
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, APPLIER_WORKER_COUNT = 8, APPLIER_EVENT_MEMORY_LIMIT = 1073741825;
+
+--source include/rpl/start_replica.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE APPLIER_VERSION = 2`
+--let $assert_text = Expect that APPLIER_VERSION is set to CSA in the 'mysql.slave_relay_log_info' system table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE APPLIER_VERSION = 2`
+--let $assert_text = Expect that APPLIER_VERSION is set to CSA in the 'replication_applier_configuration' PFS table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE APPLIER_WORKER_COUNT = 8`
+--let $assert_text = Expect that APPLIER_WORKER_COUNT is set to 8 in the 'mysql.slave_relay_log_info' system table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE APPLIER_WORKER_COUNT = 8`
+--let $assert_text = Expect that APPLIER_WORKER_COUNT is set to 8 in the 'replication_applier_configuration' PFS table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE `APPLIER_EVENT_MEMORY_LIMIT` = 1073741825`
+--let $assert_text = Expect that APPLIER_EVENT_MEMORY_LIMIT is set to 1073741825 in the 'mysql.slave_relay_log_info' system table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE `APPLIER_EVENT_MEMORY_LIMIT` = 1073741825`
+--let $assert_text = Expect that APPLIER_EVENT_MEMORY_LIMIT is set to 1073741825 in the 'replication_applier_configuration' PFS table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--source include/rpl/stop_replica.inc
+
+RESET REPLICA;
+
+--source include/rpl/start_replica.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE APPLIER_VERSION = 2`
+--let $assert_text = Expect that APPLIER_VERSION was not cleared out by RESET REPLICA command
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE APPLIER_WORKER_COUNT = 8`
+--let $assert_text = Expect that APPLIER_WORKER_COUNT was not cleared out by RESET REPLICA command
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE `APPLIER_EVENT_MEMORY_LIMIT` = 1073741825`
+--let $assert_text = Expect that APPLIER_EVENT_MEMORY_LIMIT was not cleared out by RESET REPLICA command
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--source include/rpl/stop_replica.inc
+
+RESET REPLICA ALL;
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE APPLIER_VERSION = 2`
+--let $assert_text = Expect that APPLIER_VERSION was cleared out by RESET REPLICA ALL command
+--let $assert_cond = $count = 0
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE APPLIER_WORKER_COUNT = 8`
+--let $assert_text = Expect that APPLIER_WORKER_COUNT was cleared out by RESET REPLICA ALL command
+--let $assert_cond = $count = 0
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE `APPLIER_EVENT_MEMORY_LIMIT` = 1073741825`
+--let $assert_text = Expect that APPLIER_EVENT_MEMORY_LIMIT was cleared out by RESET REPLICA ALL command
+--let $assert_cond = $count = 0
+--source include/assert.inc
+
+--disable_warnings
+--disable_query_log
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+--enable_query_log
+--enable_warnings
+
+--let $rpl_only_running_threads= 1
+--source include/rpl/deinit.inc

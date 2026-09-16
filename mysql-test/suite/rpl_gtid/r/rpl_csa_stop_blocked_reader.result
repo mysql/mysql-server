@@ -1,0 +1,33 @@
+
+#  1. Setup replication, prepare data
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(c1 INT PRIMARY KEY);
+include/rpl/sync_to_replica.inc
+
+#  2. Force the receiver to stop in the middle of a transaction
+
+# Adding debug point 'stop_io_after_reading_query_log_event' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 VALUES (1);
+[connection slave]
+
+#  3. Check replica state and observe that STOP REPLICA succeeds
+
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
+include/rpl/assert_replica_status.inc [Replica_SQL_Running]
+include/rpl/stop_replica.inc
+
+#  4. Clean up
+
+CALL mtr.add_suppression("Replica SQL for channel '':.*Query execution was interrupted");
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
+# Removing debug point 'stop_io_after_reading_query_log_event' from @@GLOBAL.debug
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/deinit.inc

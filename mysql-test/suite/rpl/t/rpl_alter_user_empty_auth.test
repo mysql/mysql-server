@@ -1,0 +1,70 @@
+#
+# Verify that ALTER USER with empty authentication data replicates without
+# changing the account state.
+#
+
+--source include/not_have_privilege_checks_user.inc
+--source include/rpl/init_source_replica.inc
+
+--connection master
+--echo #
+--echo # Bug#38478657: ALTER USER with empty authentication data should not
+--echo # expire passwords on replicas.
+--echo #
+CREATE USER 'rpl_empty_auth_by'@'%'
+  IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER 'rpl_empty_auth_with'@'%'
+  IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER 'rpl_empty_auth_as'@'%'
+  IDENTIFIED WITH 'caching_sha2_password' BY '';
+--source include/rpl/sync_to_replica.inc
+
+--connection master
+ALTER USER 'rpl_empty_auth_by'@'%'
+  IDENTIFIED WITH caching_sha2_password BY '';
+ALTER USER 'rpl_empty_auth_with'@'%'
+  IDENTIFIED WITH caching_sha2_password;
+ALTER USER 'rpl_empty_auth_as'@'%'
+  IDENTIFIED WITH caching_sha2_password AS '';
+--source include/rpl/sync_to_replica.inc
+
+--connection master
+SET @sql_log_bin_saved = @@sql_log_bin;
+SET sql_log_bin = 0;
+CREATE TABLE test.rpl_empty_auth_master
+SELECT user, host, plugin, authentication_string, password_expired
+FROM mysql.user
+WHERE user LIKE 'rpl_empty_auth_%'
+ORDER BY user;
+SET sql_log_bin = @sql_log_bin_saved;
+
+--connection slave
+SET @sql_log_bin_saved = @@sql_log_bin;
+SET sql_log_bin = 0;
+CREATE TABLE test.rpl_empty_auth_slave
+SELECT user, host, plugin, authentication_string, password_expired
+FROM mysql.user
+WHERE user LIKE 'rpl_empty_auth_%'
+ORDER BY user;
+SET sql_log_bin = @sql_log_bin_saved;
+
+--let $diff_tables=master:test.rpl_empty_auth_master, slave:test.rpl_empty_auth_slave
+--source include/diff_tables.inc
+
+--connection master
+DROP USER 'rpl_empty_auth_by'@'%', 'rpl_empty_auth_with'@'%',
+  'rpl_empty_auth_as'@'%';
+SET @sql_log_bin_saved = @@sql_log_bin;
+SET sql_log_bin = 0;
+DROP TABLE test.rpl_empty_auth_master;
+SET sql_log_bin = @sql_log_bin_saved;
+--source include/rpl/sync_to_replica.inc
+
+--connection slave
+SET @sql_log_bin_saved = @@sql_log_bin;
+SET sql_log_bin = 0;
+DROP TABLE test.rpl_empty_auth_slave;
+SET sql_log_bin = @sql_log_bin_saved;
+
+--connection master
+--source include/rpl/deinit.inc

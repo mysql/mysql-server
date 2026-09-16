@@ -30,6 +30,7 @@
 #include <memory>
 
 #include "plugin/x/src/helper/generate_hash.h"
+#include "plugin/x/src/helper/sql_literal_escaping.h"
 #include "plugin/x/src/index_array_field.h"
 #include "plugin/x/src/index_field.h"
 #include "plugin/x/src/query_string_builder.h"
@@ -217,6 +218,8 @@ ngs::Error_code Admin_command_index::create(Command_arguments *args) {
   if (error) return error;
 
   Query_string_builder qb;
+  qb.set_no_backslash_escapes(
+      is_no_backslash_escapes(&m_session->data_context()));
   qb.put("ALTER TABLE ")
       .quote_identifier(schema)
       .dot()
@@ -282,6 +285,9 @@ ngs::Error_code Admin_command_index::get_index_generated_column_names(
     const std::string &index_name,
     std::vector<std::string> *column_names) const {
   Query_string_builder qb;
+  const bool no_backslash_escapes =
+      is_no_backslash_escapes(&m_session->data_context());
+  qb.set_no_backslash_escapes(no_backslash_escapes);
   qb.put(
         "SELECT column_name, COUNT(index_name) AS count"
         " FROM information_schema.statistics WHERE table_name=")
@@ -299,7 +305,7 @@ ngs::Error_code Admin_command_index::get_index_generated_column_names(
       .quote_string(index_name)
       .put(" AND column_name RLIKE '");
 
-  if (m_session->data_context().is_sql_mode_set("NO_BACKSLASH_ESCAPES"))
+  if (no_backslash_escapes)
     qb.put(INDEX_NAME_REGEX_NO_BACKSLASH_ESCAPES);
   else
     qb.put(INDEX_NAME_REGEX);

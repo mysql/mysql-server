@@ -50,8 +50,14 @@ Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 3 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
-Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -84,8 +90,14 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 5 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
-Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 # RESTART 6 : WITHOUT KEYRING COMPONENT
 # Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
@@ -123,8 +135,14 @@ Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 9 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
-Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -157,8 +175,14 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 11 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
-Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 # RESTART 12 : WITHOUT KEYRING COMPONENT
 # Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
@@ -196,8 +220,14 @@ Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 15 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
-Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -230,8 +260,14 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 17 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
-Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 # RESTART 18 : WITHOUT KEYRING COMPONENT
 # Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
@@ -274,8 +310,14 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 21 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
-Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 # RESTART 22 : WITHOUT KEYRING COMPONENT
 # Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
@@ -313,8 +355,14 @@ Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 25 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
-Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -347,8 +395,14 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 27 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
-Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 # RESTART 28 : WITHOUT KEYRING COMPONENT
 # Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
@@ -386,8 +440,14 @@ Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 31 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
-Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -420,8 +480,14 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 33 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
-Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 # RESTART 34 : WITHOUT KEYRING COMPONENT
 # Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
@@ -459,8 +525,14 @@ Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
 # RESTART 37 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
-Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished ENCRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 SELECT * FROM t1 LIMIT 10;
 c1
 SOME VALUES
@@ -493,8 +565,14 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # RESTART 39 : Normal. In this restart resume operation should finish successfully
 # Wait for Encryption processing to finish in background thread
 # Search the pattern in error log
-Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
-Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Resuming DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
+SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
+WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
+Expect 1
+1
 # RESTART 40 : WITHOUT KEYRING COMPONENT
 # Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';

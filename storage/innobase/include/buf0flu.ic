@@ -37,15 +37,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 
 #ifndef UNIV_HOTBACKUP
-/** Inserts a modified block into the flush list. */
-void buf_flush_insert_into_flush_list(
-    buf_pool_t *buf_pool, /*!< buffer pool instance */
-    buf_block_t *block,   /*!< in/out: block which is modified */
-    lsn_t lsn);           /*!< in: oldest modification */
+/** Inserts a modified block into the flush list.
+@param[in]      buf_pool   buffer pool instance
+@param[in,out]  block      block which is modified */
+void buf_flush_insert_into_flush_list(buf_pool_t *buf_pool, buf_block_t *block);
+
+/** As part of `buf_flush_note_modification()` we are noting the oldest
+modification for the block. If it already has one, it will not be changed.
+@param[in]  buf_pool   buffer pool instance
+@param[in]  block      block which is modified
+@param[in]  start_lsn  start lsn of the mtr that modified this block, it
+                       will become the oldest modification if it is non-zero */
+void buf_flush_note_oldest_modification(buf_pool_t *buf_pool,
+                                        buf_block_t *block, lsn_t start_lsn);
 
 /** This function should be called at a mini-transaction commit, if a page was
- modified in it. Puts the block to the list of modified blocks, if it is not
- already in it. */
+modified in it. Puts the block to the list of modified blocks, if it is not
+already in it. */
 static inline void buf_flush_note_modification(
     buf_block_t *block,       /*!< in: block which is modified */
     lsn_t start_lsn,          /*!< in: start lsn of the mtr that
@@ -54,6 +62,8 @@ static inline void buf_flush_note_modification(
                               modified this block */
     Flush_observer *observer) /*!< in: flush observer */
 {
+  buf_pool_t *buf_pool = buf_pool_from_block(block);
+
 #ifdef UNIV_DEBUG
   {
     /* Allow write to proceed to shared temporary tablespace
@@ -63,13 +73,11 @@ static inline void buf_flush_note_modification(
     ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
     ut_ad(block->page.buf_fix_count > 0);
 
-    buf_pool_t *buf_pool = buf_pool_from_block(block);
-
     ut_ad(!buf_flush_list_mutex_own(buf_pool));
   }
 #endif /* UNIV_DEBUG */
 
-  mutex_enter(&block->mutex);
+  buf_page_mutex_enter(block);
 
   if (end_lsn != 0) {
     ut_ad(block->page.get_newest_lsn() <= end_lsn);
@@ -79,7 +87,7 @@ static inline void buf_flush_note_modification(
     possibly could re-modify some earlier dirtied page, in
     which case we don't want to change oldest/newest lsns.
     If that's not the case, we will set newest_modification
-    within buf_flush_insert_into_flush_list call. That's
+    within buf_flush_note_oldest_modification call. That's
     because we can't read the value now, because we don't
     hold the flush list mutex yet. */
   }
@@ -91,9 +99,7 @@ static inline void buf_flush_note_modification(
   }
 
   if (!block->page.is_dirty()) {
-    auto buf_pool = buf_pool_from_block(block);
-
-    buf_flush_insert_into_flush_list(buf_pool, block, start_lsn);
+    buf_flush_note_oldest_modification(buf_pool, block, start_lsn);
   } else if (start_lsn != 0) {
     ut_ad(block->page.get_oldest_lsn() <= start_lsn);
   }

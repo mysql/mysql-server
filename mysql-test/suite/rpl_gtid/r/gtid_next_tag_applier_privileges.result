@@ -30,6 +30,7 @@ INSERT INTO t1 VALUES(1);
 SET GTID_NEXT= "AUTOMATIC";
 [connection slave]
 include/rpl/wait_for_replica_status.inc [Last_SQL_Errno]
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
 
 # 3. Try again with more privileges, replication succeeds
 #    Privileges: SYSTEM_VARIABLES_ADMIN && TRANSACTION_GTID_TAG

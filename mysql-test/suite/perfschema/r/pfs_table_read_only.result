@@ -1,0 +1,80 @@
+#
+# Verify component-created PFS tables survive restart with DDSE read-only.
+#
+#
+# Install component that creates Performance Schema tables.
+#
+INSTALL COMPONENT 'file://component_pfs_example_component_population';;
+#
+# Verify component-created PFS tables exist in normal mode.
+#
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'performance_schema'
+  AND table_name IN
+('pfs_example_continent','pfs_example_country');
+TABLE_NAME
+pfs_example_continent
+pfs_example_country
+SELECT COUNT(*) AS rows_found
+FROM performance_schema.pfs_example_continent;
+rows_found
+2
+SELECT COUNT(*) AS rows_found
+FROM performance_schema.pfs_example_country;
+rows_found
+2
+#
+# Restart with InnoDB/DDSE read-only.
+# restart_innodb_read_only.inc adds the standard warning suppressions.
+#
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
+SELECT @@global.innodb_read_only;
+@@global.innodb_read_only
+1
+#
+# Verify component-created PFS table metadata was reused.
+#
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'performance_schema'
+  AND table_name IN
+('pfs_example_continent','pfs_example_country');
+TABLE_NAME
+pfs_example_continent
+pfs_example_country
+SELECT COUNT(*) AS rows_found
+FROM performance_schema.pfs_example_continent;
+rows_found
+2
+SELECT COUNT(*) AS rows_found
+FROM performance_schema.pfs_example_country;
+rows_found
+2
+#
+# Restart back in writable mode before cleanup.
+#
+# restart
+UNINSTALL COMPONENT 'file://component_pfs_example_component_population';;
+select * from performance_schema.pfs_example_continent;
+ERROR 42S02: Table 'performance_schema.pfs_example_continent' doesn't exist
+select * from performance_schema.pfs_example_country;
+ERROR 42S02: Table 'performance_schema.pfs_example_country' doesn't exist
+#
+# Make sure that tables are removed from performance_schema.
+#
+SHOW TABLES IN performance_schema
+WHERE Tables_in_performance_schema LIKE "%pfs_example%";
+Tables_in_performance_schema
+#
+# Clean up
+#
+pfs_example_component_population init:
+Passed add_tables()
+End of init
+
+pfs_example_component_population_deinit:
+Passed delete_tables()
+End of deinit
+

@@ -1,0 +1,10 @@
+# For details please look into plugin/thread_pool/tests/mtr/inc/func2.inc.
+#
+# Author:
+# 2010-12-17 mleich develop tests for WL#5136 New Thread pool design
+#
+
+--source include/have_thread_pool.inc
+
+--source ../inc/func2.inc
+

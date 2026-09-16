@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <time.h>
+#include <cstring>
 
 #include "my_compiler.h"
 #include "my_inttypes.h"
@@ -130,6 +131,13 @@ class Slave_reporting_capability {
       timestamp[15] = '\0';
     }
 
+    void copy_from(const Error &other) {
+      number = other.number;
+      memcpy(message, other.message, MAX_SLAVE_ERRMSG);
+      memcpy(timestamp, other.timestamp, 64);
+      skr = other.skr;
+    }
+
     /** Error code */
     uint32 number;
     /** Error message */
@@ -141,6 +149,10 @@ class Slave_reporting_capability {
   };
 
   Error const &last_error() const { return m_last_error; }
+  void copy_error_from(const Error &error, char message[MAX_SLAVE_ERRMSG]) {
+    m_last_error.copy_from(error);
+    memcpy(m_last_error.message, message, MAX_SLAVE_ERRMSG);
+  }
   bool is_error() const { return last_error().number != 0; }
 
   /*
@@ -156,6 +168,15 @@ class Slave_reporting_capability {
   virtual ~Slave_reporting_capability() = 0;
 
  protected:
+  /// Allows subclasses to adjust the report level while holding err_lock,
+  /// immediately before Last_Error is updated.
+  /// Implementations must not acquire err_lock.
+  /// @param level Report level requested by the caller.
+  /// @param err_code Error code requested by the caller.
+  /// @return Effective report level.
+  virtual loglevel get_effective_report_level(loglevel level,
+                                              int err_code) const;
+
   virtual void do_report(loglevel level, int err_code, const char *msg,
                          va_list v_args) const
       MY_ATTRIBUTE((format(printf, 4, 0)));
@@ -189,6 +210,11 @@ inline void Slave_reporting_capability::do_report(loglevel level, int err_code,
                                                   const char *msg,
                                                   va_list v_args) const {
   va_report(level, err_code, nullptr, msg, v_args);
+}
+
+inline loglevel Slave_reporting_capability::get_effective_report_level(
+    loglevel level, int) const {
+  return level;
 }
 
 #endif  // RPL_REPORTING_H

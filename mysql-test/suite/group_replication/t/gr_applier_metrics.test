@@ -17,6 +17,9 @@
 # 6. Cleanup
 #
 
+# TODO CSA enable after extending metrics are implemented
+--source include/have_mta.inc
+
 # Requires that the component has been compiled.
 --source include/have_component_replication_applier_metrics.inc
 

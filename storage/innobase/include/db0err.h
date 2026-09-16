@@ -104,7 +104,7 @@ enum dberr_t {
   /** when InnoDB runs out of the preconfigured undo slots, this can only
   happen when there are too many concurrent transactions */
   DB_TOO_MANY_CONCURRENT_TRXS,
-  /** when InnoDB sees any artefact or a feature that it can't recoginize
+  /** when InnoDB sees any artifact or a feature that it can't recognize
   or work with e.g., FT indexes created by a later version of the engine. */
   DB_UNSUPPORTED,
   /** a NOT NULL column was found to be NULL during table rebuild */
@@ -200,14 +200,18 @@ enum dberr_t {
   DB_PAGE_IS_STALE,
   /** Error reading the auto-increment value. */
   DB_AUTOINC_READ_ERROR,
-  /** Failed to read as read was beyond file size. */
-  DB_FILE_READ_BEYOND_SIZE,
+  /** Failed to access file as the access was beyond file size. */
+  DB_FILE_ACCESS_BEYOND_SIZE,
+  /** Execution interrupted by the server shutdown. */
+  DB_SHUTTING_DOWN,
   /** Data is not in sorted order. */
   DB_DATA_NOT_SORTED,
   /** The record size is too big for LOAD BULK DATA operation. */
   DB_BULK_TOO_BIG_RECORD,
   /** The data in CSV file for gcol is invalid */
   DB_BULK_GCOL_INVALID_DATA,
+  /* Undo file is under truncation */
+  DB_UNDO_FILE_UNDER_TRUNCATION,
 
   /* The following are partial failure codes */
 

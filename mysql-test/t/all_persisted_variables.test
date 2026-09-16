@@ -54,9 +54,12 @@ let $total_global_vars=`SELECT COUNT(*)
    FROM performance_schema.global_variables
    WHERE variable_name NOT LIKE 'ndb_%'
    AND variable_name NOT LIKE 'debug_%'
-   AND variable_name NOT LIKE '%telemetry%'`;
+   AND variable_name NOT LIKE '%telemetry%'
+   AND variable_name NOT LIKE '%pqc%'
+   AND variable_name NOT LIKE '%tls_kex%'`;
 
-let $total_persistent_vars=450;
+let $total_persistent_vars=452;
+
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
 --echo * variables are actually global variables and can be set using
@@ -137,6 +140,8 @@ WHERE variable_name NOT IN
 AND variable_name NOT LIKE 'ndb_%'
 AND variable_name NOT LIKE 'debug_%'
 AND variable_name NOT LIKE '%telemetry%'
+AND variable_name NOT LIKE '%pqc%'
+AND variable_name NOT LIKE '%tls_kex%'
 ORDER BY variable_name;
 
 --let $count_vars= `SELECT COUNT(*) FROM all_vars;`

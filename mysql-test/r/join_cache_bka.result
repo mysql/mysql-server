@@ -829,8 +829,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	country	NULL	ALL	PRIMARY	NULL	NULL	NULL	239	33.33	Using where
 1	SIMPLE	countrylanguage	NULL	ref	PRIMARY,Percentage	PRIMARY	12	world.country.Code	4	17.07	Using where
 1	SIMPLE	city	NULL	ref	Country	Country	12	world.country.Code	17	11.11	Using where; Using join buffer (Batched Key Access)
-Warnings:
-Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
 FROM city,country,countrylanguage
 WHERE city.country=country.Code AND
@@ -2687,6 +2685,8 @@ EXPLAIN
                 -> Filter: (t2.pk < t1.c1)  (cost=0.366 rows=1)
                     -> Index range scan on t2 (re-planned for each iteration)  (cost=0.366 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select `test`.`t1`.`c2_key` from `test`.`t2` join `test`.`t1` where (<if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c2_key`), true) and (`test`.`t2`.`pk` < `test`.`t1`.`c1`)))) xor true)
 explain SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
@@ -3196,5 +3196,7 @@ EXPLAIN
             -> Table scan on t1  (cost=0.35 rows=1)
     -> Multi-range index lookup on t4 using idx1 (b = '5')  (cost=0.35 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,'1' AS `pk`,'5' AS `a`,'5' AS `b`,'1' AS `pk`,'5' AS `a`,'5' AS `b`,`t4`.`pk` AS `pk`,`t4`.`a` AS `a`,`t4`.`b` AS `b` from `test`.`t1` join `test`.`t1` `t2` left join `test`.`t1` `t3` on(multiple equal(1, `test`.`t1`.`a`, '1')) left join `test`.`t1` `t4` on((`t4`.`b` = '5')) where (`test`.`t1`.`a` = 1)
 DROP TABLE t1;
 set optimizer_switch = default;

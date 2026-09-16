@@ -212,7 +212,7 @@ struct Page_alloc : public allocator_traits<false> {
            page_allocation_metadata::len;
   }
 
-  /** Returns the the type of the page.
+  /** Returns the type of the page.
 
       @param[in] data Pointer to storage allocated through Page_alloc::alloc()
       @return Page type.

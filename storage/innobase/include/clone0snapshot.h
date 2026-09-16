@@ -449,11 +449,12 @@ class Clone_Snapshot {
   @param[in]    file_meta       file metadata from donor
   @param[in]    data_dir        destination data directory
   @param[in]    desc_create     create if doesn't exist
+  @param[in]    ddl_create      descriptor can be appended by concurrent DDL
   @param[out]   desc_exists     descriptor already exists
   @param[out]   file_ctx        if there, set to current file context
   @return error code */
   int get_file_from_desc(const Clone_File_Meta *file_meta, const char *data_dir,
-                         bool desc_create, bool &desc_exists,
+                         bool desc_create, bool ddl_create, bool &desc_exists,
                          Clone_file_ctx *&file_ctx);
 
   /** Rename an existing file descriptor.
@@ -474,8 +475,10 @@ class Clone_Snapshot {
   /** Add file descriptor to file list
   @param[in,out]        file_ctx        current file context
   @param[in]            ddl_create      added by DDL concurrently
-  @return true, if it is the last file. */
-  bool add_file_from_desc(Clone_file_ctx *&file_ctx, bool ddl_create);
+  @param[out]           last_file       true if this is the last data file
+  @return error code */
+  int add_file_from_desc(Clone_file_ctx *&file_ctx, bool ddl_create,
+                         bool &last_file);
 
   /** Extract file information from node and add to snapshot
   @param[in]    node    file node
@@ -632,6 +635,18 @@ class Clone_Snapshot {
   @return file context */
   Clone_file_ctx *get_redo_file_ctx(uint32_t chunk_num, uint32_t hint_index);
 
+  /** Legacy low-level path construction helper.
+  This method preserves the historical path building behavior and performs
+  no containment validation on the computed result. New code should not call
+  it directly; use build_file_path() instead.
+  @param[in]    data_dir        destination data directory
+  @param[in]    file_desc       file metadata from donor
+  @param[out]   file_path       computed destination path
+  @return error code (0 on success) */
+  int build_file_path_unsafe(const char *data_dir,
+                             const Clone_File_Meta *file_desc,
+                             std::string &file_path);
+
   /** Get wait information string based on wait type.
   @param[in]    wait_type       wait type
   @return wait information string. */
@@ -762,11 +777,7 @@ class Clone_Snapshot {
   int init_file_copy(Snapshot_State new_state);
 
   /** Initialize disk byte estimate. */
-  void init_disk_estimate() {
-    /* Initial size is set to the redo file size on disk. */
-    IB_mutex_guard latch{&(log_sys->limits_mutex), UT_LOCATION_HERE};
-    m_data_bytes_disk = log_sys->m_capacity.current_physical_capacity();
-  }
+  void init_disk_estimate();
 
   /** Initialize snapshot state for page copy
   @param[in]    new_state       state to move for apply
@@ -937,6 +948,12 @@ class Clone_Snapshot {
                            uint32_t data_file_index,
                            const std::string &data_file,
                            Clone_file_ctx::Extension &extn);
+
+  /** Validate donor-provided file index for the current snapshot state.
+  @param[in]    file_index      donor-provided file index
+  @param[in]    ddl_create      true if DDL may append a new data file
+  @return error code */
+  int validate_file_index(uint32_t file_index, bool ddl_create) const;
 
   /** @return number of data files to transfer. */
   inline size_t num_data_files() const { return m_data_file_vector.size(); }

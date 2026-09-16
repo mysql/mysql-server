@@ -43,6 +43,9 @@ class Service_sys_variables : public iface::Service_sys_variables {
               (const char *component_name, const char *name, void **val,
                size_t *out_length_of_val),
               (override));
+  MOCK_METHOD(bool, get_variable_source,
+              (const char *name, enum enum_variable_source *source),
+              (override));
   MOCK_METHOD(bool, is_valid, (), (const, override));
 };
 

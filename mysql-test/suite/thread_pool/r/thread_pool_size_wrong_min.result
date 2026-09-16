@@ -1,0 +1,6 @@
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-size':.*value .* adjusted to 1 found]
+SET SESSION thread_pool_size = 0;
+ERROR HY000: Variable 'thread_pool_size' is a read only variable
+SET GLOBAL thread_pool_size = 0;
+ERROR HY000: Variable 'thread_pool_size' is a read only variable

@@ -1,4 +1,4 @@
-# Copyright (c) 2023, Oracle and/or its affiliates.
+# Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 
 INCLUDE(ExternalProject)
 
-SET(TIRPC_SOURCE_DIR "${CMAKE_SOURCE_DIR}/extra/tirpc/libtirpc-1.3.5")
+SET(TIRPC_SOURCE_DIR "${CMAKE_SOURCE_DIR}/extra/tirpc/libtirpc-1.3.7")
 
 # Set correct search path for executables, libraries, and data files.
 IF(ALTERNATIVE_GCC)

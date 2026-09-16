@@ -1,0 +1,95 @@
+#### plugin/thread_pool/tests/mtr/t/thread_pool_algorithm_basic.test ########
+#                                                                           #
+# Variable Name: thread_pool_algorithm                                      #
+# Scope:         Global                                                     #
+# Access Type:   Static                                                     #
+# Data Type:     Integer                                                    #
+#                                                                           #
+#                                                                           #
+# Creation Date: 2010-12-14                                                 #
+# Author :       Matthias Leich                                             #
+#                                                                           #
+# Description:   Test Cases of static System Variable thread_pool_algorithm #
+#                that checks the behavior of this variable in the following #
+#                following ways                                             #
+#                * Value Check                                              #
+#                * Scope Check                                              #
+#                                                                           #
+#############################################################################
+
+--source include/have_thread_pool.inc
+
+##################################################################
+# Build some prereqisites                                        #
+##################################################################
+SET @default_val =   1;
+let $default_val=`SELECT @default_val`;
+SET @some_val    =   0;
+SELECT @some_val <> @default_val AS "Expect 1";
+CREATE USER low_priv@localhost;
+GRANT USAGE ON test.* TO low_priv@localhost;
+--connect (low_priv,localhost,low_priv,,test)
+let $id_list= `SELECT CONNECTION_ID()`;
+--replace_result $default_val <default_val>
+eval SET @default_val = $default_val;
+--connection default
+
+--echo #---------------------BS_STVARS_101_01----------------------#
+####################################################################
+# Check default value                                              #
+####################################################################
+SELECT @@GLOBAL.thread_pool_algorithm = @default_val AS "Expect 1";
+# There is no SESSION variable
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.thread_pool_algorithm = @default_val AS "Expect 1";
+
+--connection low_priv
+SELECT @@GLOBAL.thread_pool_algorithm = @default_val AS "Expect 1";
+--connection default
+--disconnect low_priv
+DROP USER low_priv@localhost;
+
+
+--echo #---------------------BS_STVARS_101_02----------------------#
+####################################################################
+# Check if Value can be set                                        #
+####################################################################
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.thread_pool_algorithm = @some_val;
+SELECT @@GLOBAL.thread_pool_algorithm = @default_val AS "Expect 1";
+
+
+--echo #---------------------BS_STVARS_101_03----------------------#
+############################################################################
+# Check if the value in GLOBAL and SESSION Table matches value in variable #
+############################################################################
+--disable_warnings
+SELECT @@GLOBAL.thread_pool_algorithm = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'thread_pool_algorithm';
+SELECT @@GLOBAL.thread_pool_algorithm = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME = 'thread_pool_algorithm';
+--enable_warnings
+
+
+--echo #---------------------BS_STVARS_101_04----------------------#
+################################################################################
+# Check if accessing variable with and without GLOBAL point to same variable   #
+################################################################################
+SELECT @@thread_pool_algorithm = @@GLOBAL.thread_pool_algorithm AS "Expect 1";
+
+
+--echo #---------------------BS_STVARS_101_05----------------------#
+################################################################################
+# Check if thread_pool_algorithm can be accessed without @@ sign               #
+################################################################################
+--error ER_BAD_FIELD_ERROR
+SELECT thread_pool_algorithm = @@GLOBAL.thread_pool_algorithm;
+--echo # Expected error ER_BAD_FIELD_ERROR
+
+# Cleanup
+# The user low_priv was disconnected long time ago. Take care that he
+# has really disappeared from the processlist
+--source ../inc/wait_until_disappeared.inc
+

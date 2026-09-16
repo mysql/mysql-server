@@ -717,6 +717,8 @@ EXPLAIN
                 -> Sort: t1.f1  (...)
                     -> Table scan on t1  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`median` AS `median` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,my_median(`test`.`t1`.`f2`) AS `median` from `test`.`t1` group by `test`.`t1`.`f1` having (my_median(`test`.`t1`.`f2`) <> 1)) `dt`
 SELECT * FROM (SELECT f1, my_median(f2) as median
 FROM t1 GROUP BY f1) as dt
 WHERE median != 1;

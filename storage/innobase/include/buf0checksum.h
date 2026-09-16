@@ -184,7 +184,7 @@ class BlockReporter {
 
   /** Calculate the compressed page checksum. This variant
   should be used when only the page_size_t is unknown and
-  only physical page_size of compressed page is available.
+  only physical page size of compressed page is available.
   @param[in]    read_buf                buffer holding the page
   @param[in]    phys_page_size          physical page size
   @param[in]    algo                    checksum algorithm to use
@@ -238,9 +238,6 @@ class BlockReporter {
   void page_warn_strict_checksum(srv_checksum_algorithm_t curr_algo,
                                  srv_checksum_algorithm_t page_checksum,
                                  const page_id_t &page_id) const;
-
-  [[nodiscard]] space_id_t space_id() const noexcept;
-  [[nodiscard]] page_no_t page_no() const noexcept;
 
  protected:
   /** If true, do a LSN check during innodb recovery. */

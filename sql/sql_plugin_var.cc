@@ -80,7 +80,7 @@ bool plugin_var_memalloc_global_update(THD *thd, SYS_VAR *var, char **dest,
 
   if (old_value) my_free(old_value);
 
-  return false;
+  return thd->is_error();
 }
 
 /**
@@ -152,7 +152,7 @@ bool plugin_var_memalloc_session_update(THD *thd, SYS_VAR *var, char **dest,
         list_delete(vars->dynamic_variables_allocs, old_element);
     my_free(old_element);
   }
-  return false;
+  return var != nullptr && thd->is_error();
 }
 
 SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var) {

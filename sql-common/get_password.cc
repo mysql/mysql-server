@@ -73,10 +73,77 @@
 #define getpass(A) getpassphrase(A)
 #endif
 
+/**
+  @fn char *get_tty_password(const char *opt_message)
+
+  Read a password from the terminal without echoing the typed characters.
+
+  Displays @p opt_message (or the default prompt "Enter password: ") and
+  reads characters one by one until the user presses Enter, Ctrl-C, or
+  until the internal buffer is exhausted.  The returned string is
+  allocated with my_strdup() (MY_FAE flag); the caller must release it
+  with my_free().
+
+  @param opt_message  Prompt to display before reading. Pass NULL to use
+                      the default "Enter password: ".
+
+  @return  Heap-allocated, NUL-terminated password string.
+
+  @note  Bug#44929 / Bug#92403 / Bug#110570
+         The internal stack buffer was historically 80 bytes, which
+         silently truncated any password longer than 79 characters; the
+         NUL terminator consumed the 80th slot and all further input was
+         discarded without warning.  This caused authentication failures
+         for high-entropy passwords and made it impossible to use long
+         authentication credentials (such as OAuth/OIDC access tokens,
+         which routinely exceed 2000 bytes) through the interactive
+         prompt.
+
+         Two concrete scenarios exposed this defect:
+
+         (1) Long passwords.  Some deployments (notably managed cloud
+         MySQL services) permit account passwords of 128 characters or
+         more.  Users who chose a password of 80 characters or more
+         could create the account successfully, but every subsequent
+         attempt to authenticate with @c mysql @c -p would silently
+         strip the password to 79 characters before sending it to the
+         server, producing an "Access denied" error with no indication
+         that truncation had occurred.
+
+         (2) Token-based authentication.  Authentication plugins such
+         as @c mysql_clear_password are commonly used to forward
+         externally issued bearer tokens (for example OAuth 2.0 / OIDC
+         access tokens) as the password field.  Such tokens routinely
+         exceed 2000 characters (a typical JWT bearer token is
+         ~2400 characters).  Users who preferred the interactive
+         workflow --- running @c mysql @c -p and then pasting the token
+         at the "Enter password:" prompt --- were unable to authenticate
+         because the token was silently truncated to 79 characters.
+         The resulting "Access denied" error gave no hint that the
+         credential had been cut short, making the problem difficult to
+         diagnose.
+
+         In both cases the only viable workaround was to pass the
+         credential inline as @c -p<value> (no space), which bypasses
+         get_tty_password() entirely.  However that approach exposes the
+         password or token in the operating-system process list and the
+         shell command history, which is unacceptable in security-
+         conscious environments.
+
+         The buffer has been enlarged to 4096 bytes.  Passwords and
+         tokens up to 4095 characters can now be entered interactively.
+         The downstream path --- opt_password[], mysql->passwd, and
+         clear_password_auth_client() --- imposes no additional length
+         restriction, so the full credential is transmitted to the server.
+*/
 #if defined(_WIN32)
-/* were just going to fake it here and get input from the keyboard */
+/* Win32: read one character at a time via _getch() to suppress echo. */
 char *get_tty_password(const char *opt_message) {
-  char to[80];
+  /*
+   * Bug#44929 / Bug#92403 / Bug#110570: Enlarged from 80 to 4096 bytes.
+   * See the Doxygen note on get_tty_password() for full rationale.
+   */
+  char to[4096];
   char *pos = to, *end = to + sizeof(to) - 1;
 
   DBUG_TRACE;
@@ -117,7 +184,8 @@ static void get_password(char *to, uint length, int fd, bool echo) {
 
   for (;;) {
     char tmp;
-    if (my_read(fd, &tmp, 1, MYF(0)) != 1) break;
+    /* Cast: my_read() expects uchar*; tmp is a single byte buffer. */
+    if (my_read(fd, (uchar *)&tmp, 1, MYF(0)) != 1) break;
     if (tmp == '\b' || (int)tmp == 127) {
       if (pos != to) {
         if (echo) {
@@ -149,7 +217,11 @@ char *get_tty_password(const char *opt_message) {
 #else  /* ! HAVE_GETPASS */
   TERMIO org, tmp;
 #endif /* HAVE_GETPASS */
-  char buff[80];
+  /*
+   * Bug#44929 / Bug#92403 / Bug#110570: Enlarged from 80 to 4096 bytes.
+   * See the Doxygen note on get_tty_password() for full rationale.
+   */
+  char buff[4096];
 
   DBUG_TRACE;
 
@@ -198,8 +270,8 @@ char *get_tty_password(const char *opt_message) {
 #endif /* HAVE_GETPASS */
 
   /*
-    If the password is 79 bytes or longer, terminate the password by
-    setting the last but one character to the null character.
+    Ensure the buffer is always null-terminated.
+    Passwords or tokens longer than 4095 bytes will be silently truncated.
   */
   buff[sizeof(buff) - 1] = '\0';
   return my_strdup(PSI_NOT_INSTRUMENTED, buff, MYF(MY_FAE));

@@ -7,6 +7,7 @@
 
 call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([-0-9]*\\)'");
 call mtr.add_suppression("Plugin mysqlx reported: '[-0-9]*: Error during SSL handshake'");
+call mtr.add_suppression("TLS session on channel 'mysqlx' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
 
 --let $USER_AUTH_PLUGIN= 'caching_sha2_password'
 --source ../include/connection_tls_version.inc

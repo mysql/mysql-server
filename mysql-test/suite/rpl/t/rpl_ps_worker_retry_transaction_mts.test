@@ -15,4 +15,8 @@
 #
 # WL#9131 Add RETRIES field to replication_applier_status_by_worker P_S table
 
+# CSA does not support debug points used in this test
+--source include/have_mta.inc
+--source include/not_rpl_gtid_only.inc
+
 --source common/rpl/ps_table_worker_retry.inc

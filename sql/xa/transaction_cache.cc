@@ -72,9 +72,9 @@ static std::string to_string(XID const &xid) {
   return std::string(pointer_cast<const char *>(xid.key()), xid.key_length());
 }
 
-struct transaction_free_hash {
+struct Transaction_context_deleter {
   void operator()(Transaction_ctx *transaction) const {
-    // Only time it's allocated is during recovery process.
+    // Detached contexts are allocated by the cache during recovery.
     if (transaction->xid_state()->is_detached()) delete transaction;
   }
 };
@@ -107,8 +107,10 @@ bool xa::Transaction_cache::detach(Transaction_ctx *transaction) {
   auto &instance = xa::Transaction_cache::instance();
   MUTEX_LOCK(mutex_guard, &instance.m_LOCK_transaction_cache);
 
-  assert(instance.m_transaction_cache.count(to_string(xid)) != 0);
-  instance.m_transaction_cache.erase(to_string(xid));
+  const auto key = to_string(xid);
+  const auto it = instance.m_transaction_cache.find(key);
+  assert(it != instance.m_transaction_cache.end());
+  instance.m_transaction_cache.erase(it);
   res = xa::Transaction_cache::create_and_insert_new_transaction(
       &xid, was_logged, transaction);
 
@@ -118,11 +120,42 @@ bool xa::Transaction_cache::detach(Transaction_ctx *transaction) {
 void xa::Transaction_cache::remove(Transaction_ctx *transaction) {
   auto &instance = xa::Transaction_cache::instance();
   MUTEX_LOCK(mutex_guard, &instance.m_LOCK_transaction_cache);
-  const auto it = instance.m_transaction_cache.find(
-      to_string(*transaction->xid_state()->get_xid()));
+  const auto key = to_string(*transaction->xid_state()->get_xid());
+  const auto it = instance.m_transaction_cache.find(key);
   if (it != instance.m_transaction_cache.end() &&
-      it->second.get() == transaction)
+      it->second.transaction().get() == transaction) {
     instance.m_transaction_cache.erase(it);
+  }
+}
+
+void xa::Transaction_cache::mark_prepared_visible_for_xa_recover(
+    Transaction_ctx *transaction) {
+  auto &instance = xa::Transaction_cache::instance();
+  MUTEX_LOCK(mutex_guard, &instance.m_LOCK_transaction_cache);
+  const auto key = to_string(*transaction->xid_state()->get_xid());
+  const auto it = instance.m_transaction_cache.find(key);
+  // Missing entry is a no-op: there is no cached XID whose XA RECOVER
+  // visibility can be changed. The pointer check avoids changing visibility of
+  // a different transaction if the same XID value was reused.
+  if (it != instance.m_transaction_cache.end() &&
+      it->second.transaction().get() == transaction) {
+    it->second.mark_prepared_visible_for_xa_recover();
+  }
+}
+
+void xa::Transaction_cache::mark_finalized_for_recover(
+    Transaction_ctx *transaction) {
+  auto &instance = xa::Transaction_cache::instance();
+  MUTEX_LOCK(mutex_guard, &instance.m_LOCK_transaction_cache);
+  const auto key = to_string(*transaction->xid_state()->get_xid());
+  const auto it = instance.m_transaction_cache.find(key);
+  // Missing entry is a no-op: there is nothing left to hide from XA RECOVER.
+  // The pointer check avoids changing visibility of a different transaction if
+  // the same XID value was reused.
+  if (it != instance.m_transaction_cache.end() &&
+      it->second.transaction().get() == transaction) {
+    it->second.mark_finalized_for_recover();
+  }
 }
 
 bool xa::Transaction_cache::insert(XID *xid, Transaction_ctx *transaction) {
@@ -130,8 +163,14 @@ bool xa::Transaction_cache::insert(XID *xid, Transaction_ctx *transaction) {
   bool res{false};
   {
     MUTEX_LOCK(mutex_guard, &instance.m_LOCK_transaction_cache);
-    std::shared_ptr<Transaction_ctx> ptr{transaction, transaction_free_hash{}};
-    res = !instance.m_transaction_cache.emplace(to_string(*xid), std::move(ptr))
+    std::shared_ptr<Transaction_ctx> ptr{transaction,
+                                         Transaction_context_deleter{}};
+    const auto key = to_string(*xid);
+    // XA START reserves the XID immediately, but XA RECOVER must not list it
+    // until XA PREPARE reaches the recover-visible point.
+    res = !instance.m_transaction_cache
+               .emplace(key, Cache_entry{std::move(ptr),
+                                         Xa_recover_visibility::Hidden})
                .second;
   }
   if (res) {
@@ -163,16 +202,23 @@ std::shared_ptr<Transaction_ctx> xa::Transaction_cache::find(
   MUTEX_LOCK(mutex_guard, &instance.m_LOCK_transaction_cache);
   auto found = instance.m_transaction_cache.find(to_string(*xid));
   if (found == instance.m_transaction_cache.end()) return nullptr;
-  if (!found->second->xid_state()->get_xid()->eq(xid)) return nullptr;
-  if (filter != nullptr && !filter(found->second)) return nullptr;
-  return found->second;
+  const auto &transaction = found->second.transaction();
+  if (!transaction->xid_state()->get_xid()->eq(xid)) return nullptr;
+  if (filter != nullptr && !filter(transaction)) return nullptr;
+  return transaction;
 }
 
-xa::Transaction_cache::list xa::Transaction_cache::get_cached_transactions() {
+std::vector<XID> xa::Transaction_cache::get_xids_visible_to_xa_recover() {
   auto &instance = xa::Transaction_cache::instance();
-  list to_return;
+  std::vector<XID> to_return;
   MUTEX_LOCK(mutex_guard, &instance.m_LOCK_transaction_cache);
-  for (auto [_, trx] : instance.m_transaction_cache) to_return.push_back(trx);
+  to_return.reserve(instance.m_transaction_cache.size());
+  // Attached contexts may be reset after detach. Snapshot their XIDs while
+  // detach is serialized by the cache mutex.
+  for (const auto &entry : instance.m_transaction_cache) {
+    if (entry.second.is_visible_to_xa_recover())
+      to_return.push_back(*entry.second.transaction()->xid_state()->get_xid());
+  }
   return to_return;
 }
 
@@ -190,7 +236,8 @@ xa::Transaction_cache &xa::Transaction_cache::instance() {
 
 bool xa::Transaction_cache::create_and_insert_new_transaction(
     XID *xid, bool is_binlogged_arg, const Transaction_ctx *src) {
-  Transaction_ctx *transaction = new (std::nothrow) Transaction_ctx();
+  auto transaction =
+      std::unique_ptr<Transaction_ctx>{new (std::nothrow) Transaction_ctx()};
   XID_STATE *xs;
 
   if (!transaction) {
@@ -210,9 +257,14 @@ bool xa::Transaction_cache::create_and_insert_new_transaction(
   xs->start_detached_xa(xid, is_binlogged_arg);
 
   auto &instance = xa::Transaction_cache::instance();
+  const auto key = to_string(*xs->get_xid());
+  std::shared_ptr<Transaction_ctx> transaction_ptr{
+      transaction.get(), Transaction_context_deleter{}};
+  transaction.release();
+  // Recovered or detached XA transactions are already prepared from
+  // XA RECOVER's perspective, so insert them as visible.
   return !instance.m_transaction_cache
-              .emplace(to_string(*xs->get_xid()),
-                       std::shared_ptr<Transaction_ctx>{
-                           transaction, transaction_free_hash{}})
+              .emplace(key, Cache_entry{std::move(transaction_ptr),
+                                        Xa_recover_visibility::Visible})
               .second;
 }

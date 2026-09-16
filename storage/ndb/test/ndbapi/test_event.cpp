@@ -3303,6 +3303,203 @@ int checkCanStopAllButOneNodeInGroup(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+int disconnectFest(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb *ndb = GETNDB(step);
+  NdbRestarter restarter;
+  Uint32 loops = ctx->getNumLoops();
+  NdbEventOperation *pOp = nullptr;
+  int result = NDBT_OK;
+  int initialNumDataNodes = ndb->get_ndb_cluster_connection().get_no_ready();
+
+  g_err << "Initial num data nodes " << initialNumDataNodes << endl;
+
+  while (loops--) {
+    g_err << "Loop iterations remaining " << loops << endl;
+    g_err << "Wait for all data nodes " << endl;
+    Uint32 maxWaitSeconds = 120;
+    while (ndb->get_ndb_cluster_connection().get_no_ready() <
+           initialNumDataNodes) {
+      g_err << "Only " << ndb->get_ndb_cluster_connection().get_no_ready()
+            << " nodes so far..." << endl;
+      NdbSleep_MilliSleep(1000);
+      if (--maxWaitSeconds == 0) {
+        g_err << "Timeout" << endl;
+        return NDBT_FAILED;
+      }
+    }
+    const NdbDictionary::Table *pTab = ctx->getTab();
+    const bool usePollEvents2 = ((rand() % 2) == 0);
+    const char *method = (usePollEvents2 ? "PollEvents2" : "PollEvents");
+
+    pOp = createEventOperation(ndb, *pTab);
+    bool eventsAvailable = false;
+    bool connected = true;
+    uint retries = 100;
+
+    if (pOp == 0) {
+      g_err << "Failed to createEventOperation" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (ctx->getProperty("InjectApiDisconnectLag")) {
+      /**
+       * Stagger disconnect processing on data nodes, to test
+       * behaviour of API code
+       */
+      g_err << "Setting up random lag in data node side API disconnect handling"
+            << endl;
+      if (restarter.insertErrorInAllNodes(962) != 0) {
+        g_err << "Error insert failed" << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+    }
+
+    ndbout_c("Polling events using method %s", method);
+
+    /**
+     * Poll events (not consuming any) for up to 50s, waiting to be informed by
+     * event API that we have disconnected from the cluster
+     */
+    bool triggeredDisconnect = false;
+    Uint64 curr_gci = 0;
+    const NDB_TICKS startTime = NdbTick_getCurrentTicks();
+    while ((curr_gci != NDB_FAILURE_GCI) &&
+           (NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).seconds() <
+            50)) {
+      g_err << "Gci " << curr_gci << " num ready data nodes : "
+            << ndb->get_ndb_cluster_connection().get_no_ready() << endl;
+      if (usePollEvents2) {
+        eventsAvailable = (ndb->pollEvents2(1000, &curr_gci) > 0);
+      } else {
+        eventsAvailable = (ndb->pollEvents(1000, &curr_gci) > 0);
+      }
+
+      if (ndb->getNdbError().code != 0) {
+        g_err << method << " failed: \n";
+        g_err << ndb->getNdbError().code << " " << ndb->getNdbError().message
+              << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+
+      if (!triggeredDisconnect &&
+          NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).seconds() > 3) {
+        const Uint32 nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+
+        g_err << "Triggering API disconnect via node " << nodeId << endl;
+        /**
+         * Request SUMA on node to disconnect as if we had exceeded
+         * MaxBufferedEpochs */
+        /* This will result in us being disconnected from all data nodes */
+        if (restarter.insertErrorInNode(nodeId, 13037) != 0) {
+          g_err << "Error insert failed" << endl;
+          result = NDBT_FAILED;
+          break;
+        }
+        triggeredDisconnect = true;
+      }
+    }
+
+    if (curr_gci != NDB_FAILURE_GCI) {
+      g_err << method << " failed to detect cluster failure in time." << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (!eventsAvailable) {
+      g_err << method << " cluster failure detected, but no events available."
+            << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    /* Process + show the events we received */
+    NdbEventOperation *tmp;
+    int count = 0;
+    while ((tmp = ndb->nextEvent()) != nullptr) {
+      if (tmp != pOp) {
+        printf("Found stray NdbEventOperation\n");
+        result = NDBT_FAILED;
+        break;
+      }
+      g_err << "Event type : " << tmp->getEventType() << endl;
+      switch (tmp->getEventType()) {
+        case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+          g_err << "Found TE_CLUSTER_FAILURE" << endl;
+          connected = false;
+          break;
+        default:
+          g_err << "Found event type " << tmp->getEventType() << endl;
+          g_err << "Ndbd node id : " << tmp->getNdbdNodeId()
+                << " Req node id : " << tmp->getReqNodeId() << endl;
+          count++;
+          break;
+      }
+    }
+
+    if (result == NDBT_FAILED) {
+      break;
+    }
+
+    if (connected) {
+      g_err << "failed to detect cluster disconnect\n";
+      result = NDBT_FAILED;
+      break;
+    }
+
+    /* Clear error insertion */
+    restarter.insertErrorInAllNodes(0);
+
+    if (ndb->dropEventOperation(pOp) != 0) {
+      g_err << "dropping event operation failed\n";
+      pOp = NULL;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    pOp = NULL;
+
+    g_err << "Attempting reconnect" << endl;
+    // Reconnect by trying to start a transaction
+    while (!connected && retries--) {
+      HugoTransactions hugoTrans(*ctx->getTab());
+      if (hugoTrans.loadTable(ndb, 100) == 0) {
+        connected = true;
+        result = NDBT_OK;
+      } else {
+        NdbSleep_MilliSleep(300);
+        result = NDBT_FAILED;
+      }
+    }
+
+    if (!connected) {
+      g_err << "Failed to reconnect\n";
+      result = NDBT_FAILED;
+      break;
+    }
+
+    g_err << "Reconnected" << endl;
+  }
+
+  restarter.insertErrorInAllNodes(0);
+
+  if (pOp) {
+    if (ndb->dropEventOperation(pOp) != 0) {
+      g_err << "dropping event operation failed\n";
+      result = NDBT_FAILED;
+    }
+  }
+
+  // Stop the other thread
+  ctx->stopTest();
+
+  g_err << "disconnectFest result : " << result << endl;
+
+  return result;
+}
+
 int runBug33793(NDBT_Context *ctx, NDBT_Step *step) {
   int loops = ctx->getNumLoops();
   NdbRestarter restarter;
@@ -7303,6 +7500,15 @@ TESTCASE("StallingSubscriber",
          "NOTE! No errors are allowed!") {
   INITIALIZER(runCreateEvent);
   STEP(errorInjectStalling);
+}
+TESTCASE("DisconnectFest", "Lots of disconnects") {
+  INITIALIZER(runCreateEvent);
+  STEP(disconnectFest);
+}
+TESTCASE("DisconnectFestWithLag", "Lots of disconnects with disconnect lag") {
+  TC_PROPERTY("InjectApiDisconnectLag", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(disconnectFest);
 }
 TESTCASE("Bug33793", "") {
   INITIALIZER(checkCanStopAllButOneNodeInGroup);

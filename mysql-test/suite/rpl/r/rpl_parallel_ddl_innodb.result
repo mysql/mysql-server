@@ -7,6 +7,7 @@ include/rpl/stop_replica.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;
 include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:d32.t8, slave:d32.t8]
 include/diff_tables.inc [master:d32.t7, slave:d32.t7]
 include/diff_tables.inc [master:d32.t6, slave:d32.t6]
@@ -263,6 +264,7 @@ include/diff_tables.inc [master:d1.t4, slave:d1.t4]
 include/diff_tables.inc [master:d1.t3, slave:d1.t3]
 include/diff_tables.inc [master:d1.t2, slave:d1.t2]
 include/diff_tables.inc [master:d1.t1, slave:d1.t1]
+include/rpl/sync_to_replica.inc
 "database d32:"
 t1.ibd
 t2.ibd
@@ -521,5 +523,6 @@ t5.ibd
 t6.ibd
 t7.ibd
 t8.ibd
+include/rpl/sync_to_replica.inc
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 include/rpl/deinit.inc

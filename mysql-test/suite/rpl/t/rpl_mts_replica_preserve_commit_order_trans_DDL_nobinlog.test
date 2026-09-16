@@ -28,6 +28,14 @@
 #
 # 6. Cleanup.
 
+# This test is MTA specifc and causes a deadlock in CSA. It modifies
+# parallel indexes so that DDL runs in parallel with MDLs, but
+# it may happen that MDL will be scheduled before DDL and block it -
+# there are only 2 workers.
+# RPCO is enabled, therefore, applier won't be able to proceed.
+# In MTA we have a guarantee that DDL starts before MDL, therefore in this
+# case MTA will avoid the deadlock.
+--source include/have_mta.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 

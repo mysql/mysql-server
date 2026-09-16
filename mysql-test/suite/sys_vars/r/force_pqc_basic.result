@@ -1,0 +1,39 @@
+SELECT @@GLOBAL.force_pqc;
+@@GLOBAL.force_pqc
+0
+0 Expected
+SHOW GLOBAL VARIABLES LIKE 'force_pqc';
+Variable_name	Value
+force_pqc	OFF
+SELECT @@force_pqc = @@GLOBAL.force_pqc;
+@@force_pqc = @@GLOBAL.force_pqc
+1
+1 Expected
+SELECT @@SESSION.force_pqc;
+ERROR HY000: Variable 'force_pqc' is a GLOBAL variable
+SELECT @@LOCAL.force_pqc;
+ERROR HY000: Variable 'force_pqc' is a GLOBAL variable
+SET @@SESSION.force_pqc = ON;
+ERROR HY000: Variable 'force_pqc' is a GLOBAL variable and should be set with SET GLOBAL
+SET @tls_version_saved = @@GLOBAL.tls_version;
+SET @@GLOBAL.force_pqc = OFF;
+SET @@GLOBAL.tls_version = 'TLSv1.2';
+SET @@GLOBAL.force_pqc = ON;
+ERROR 42000: Variable 'force_pqc' can't be set to the value of 'ON'
+SELECT @@GLOBAL.force_pqc;
+@@GLOBAL.force_pqc
+0
+0 Expected
+SET @@GLOBAL.tls_version = @tls_version_saved;
+SET @@GLOBAL.force_pqc = OFF;
+SELECT @@GLOBAL.force_pqc;
+@@GLOBAL.force_pqc
+0
+0 Expected
+SET @@GLOBAL.force_pqc = DEFAULT;
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='force_pqc';
+VARIABLE_VALUE
+OFF
+OFF Expected

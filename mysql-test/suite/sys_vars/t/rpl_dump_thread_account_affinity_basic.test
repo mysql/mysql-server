@@ -1,0 +1,44 @@
+# ==== PURPOSE ====
+#
+# This test checks the interface and persistence behavior of the
+# rpl_dump_thread_account_affinity system variable.
+#
+# ==== IMPLEMENTATION ====
+#
+# The test reads and updates the variable through its supported global and
+# persisted interfaces and verifies that unsupported uses are rejected.
+#
+# Test steps:
+#
+# 1. Verify that the global default is OFF and no session variable exists.
+# 2. Set the global variable to ON and restore its default.
+# 3. Persist the variable and remove its persisted value.
+# 4. Verify that a value outside the Boolean range is rejected.
+#
+# Test pass conditions:
+#
+# - The variable defaults to OFF and is GLOBAL-only.
+# - Valid global and persisted assignments succeed.
+# - An invalid Boolean value is rejected.
+#
+# ==== REFERENCES ====
+#
+# BUG#39254877: Refine dump-thread matching on reconnect
+#
+
+set @save_rpl_dump_thread_account_affinity = @@global.rpl_dump_thread_account_affinity;
+
+select @@global.rpl_dump_thread_account_affinity as 'must be zero by default';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.rpl_dump_thread_account_affinity as 'no session var';
+
+set @@global.rpl_dump_thread_account_affinity = 1;
+set @@global.rpl_dump_thread_account_affinity = default;
+
+set persist rpl_dump_thread_account_affinity = 1;
+reset persist rpl_dump_thread_account_affinity;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.rpl_dump_thread_account_affinity = 2;
+
+set @@global.rpl_dump_thread_account_affinity = @save_rpl_dump_thread_account_affinity;

@@ -68,304 +68,204 @@ include/stop_group_replication.inc
 # 6. Attempt to rejoin server2 and server3 50 times.
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server2]
 START GROUP_REPLICATION;
-Got one of the listed errors
 [connection server3]
 START GROUP_REPLICATION;
-Got one of the listed errors
 
 ############################################################
 # 7. There must be 0 applier threads on server1 with the state
@@ -390,6 +290,10 @@ include/suppress_messages.inc
 # Connection 3 suppresses message <Unable to initialize the Group Replication applier module.>.
 # Connection 3 suppresses message <.*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*>.
 # Connection 3 suppresses message <.*Coordinator experienced an error or was killed while scheduling an event at.*>.
+# Connection 3 suppresses message <Replica SQL for channel 'group_replication_applier': Change Stream Applier channel stopped because of error*>.
+# Connection 3 suppresses message <Replica SQL for channel 'group_replication_applier': Error 'Table 't1' already exists' on query*>.
+# Connection 3 suppresses message <Unable to evaluate the group replication applier execution status. Group replication recovery will shutdown to avoid data corruption.>.
+# Connection 3 suppresses message <Fatal error during the incremental recovery process of Group Replication. The server will leave the group.>.
 [connection server2]
 DROP TABLE t1;
 include/suppress_messages.inc
@@ -406,6 +310,10 @@ include/suppress_messages.inc
 # Connection 2 suppresses message <Unable to initialize the Group Replication applier module.>.
 # Connection 2 suppresses message <.*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*>.
 # Connection 2 suppresses message <.*Coordinator experienced an error or was killed while scheduling an event at.*>.
+# Connection 2 suppresses message <Replica SQL for channel 'group_replication_applier': Change Stream Applier channel stopped because of error*>.
+# Connection 2 suppresses message <Replica SQL for channel 'group_replication_applier': Error 'Table 't1' already exists' on query*>.
+# Connection 2 suppresses message <Unable to evaluate the group replication applier execution status. Group replication recovery will shutdown to avoid data corruption.>.
+# Connection 2 suppresses message <Fatal error during the incremental recovery process of Group Replication. The server will leave the group.>.
 [connection server1]
 include/rpl/stop_replica.inc [FOR CHANNEL 'ch1']
 include/stop_group_replication.inc

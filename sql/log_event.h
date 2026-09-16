@@ -718,6 +718,12 @@ class Log_event {
   */
   ulonglong future_event_relay_log_pos;
 
+  /**
+    When requested (m_claim_at_destruction equal to true), will claim
+    memory ownership before Log_event destruction
+  */
+  bool m_claim_at_destruction{false};
+
 #ifdef MYSQL_SERVER
   THD *thd;
   /**
@@ -864,12 +870,25 @@ class Log_event {
   */
   virtual void claim_memory_ownership([[maybe_unused]] bool claim) {}
 
+  /**
+    When requested (claim equal to true), will claim
+    memory ownership before Log_event destruction
+
+   @param claim
+          True  - claim ownership before destruction
+          False - do nothing before destruction
+  */
+  void claim_at_destruction(bool claim) { m_claim_at_destruction = claim; }
+
   virtual ~Log_event() { free_temp_buf(); }
   void register_temp_buf(char *buf, bool free_in_destructor = true) {
     m_free_temp_buf_in_destructor = free_in_destructor;
     temp_buf = buf;
   }
   void free_temp_buf() {
+    if (m_claim_at_destruction) {
+      claim_memory_ownership(true);
+    }
     if (temp_buf) {
       if (m_free_temp_buf_in_destructor) my_free(temp_buf);
       temp_buf = nullptr;
@@ -1116,6 +1135,9 @@ class Log_event {
      @see do_apply_event
    */
   int apply_event(Relay_log_info *rli);
+
+  /// @brief Applier_context Current applier context, attached to the agent
+  int apply_csa_event(Relay_log_info *rli);
 
   /**
      Apply the GTID event in curr_group_data to the database.

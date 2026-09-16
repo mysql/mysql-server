@@ -103,15 +103,18 @@ bool FilterIterator::DoInit() {
   //   WHERE 0 = (SELECT COUNT(*) FROM t) AND x IS NULL
   // where only one AND-term is constant-false.
   m_no_rows = false;
-  WalkConjunction(m_condition, [&](Item *item) {
-    if (item->const_for_execution()) {
-      if (!item->val_int()) {
-        m_no_rows = true;
-        return true;  // Stop walking: found a false/NULL conjunct.
+  if (!m_condition->has_aggregation() && !m_condition->has_wf() &&
+      !m_condition->has_grouping_func()) {
+    WalkConjunction(m_condition, [&](Item *item) {
+      if (item->const_for_execution()) {
+        if (!item->val_int()) {
+          m_no_rows = true;
+          return true;  // Stop walking: found a false/NULL conjunct.
+        }
       }
-    }
-    return false;
-  });
+      return false;
+    });
+  }
   if (thd()->is_error()) return true;
   if (m_no_rows) return false;
   return m_source->Init();

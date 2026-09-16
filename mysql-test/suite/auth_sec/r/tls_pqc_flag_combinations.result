@@ -1,0 +1,91 @@
+#
+# client/server PQC flag combinations
+#
+SET @tls_kex_saved = @@GLOBAL.tls_kex;
+SET @force_pqc_saved = @@GLOBAL.force_pqc;
+SET @use_pqc_sign_saved = @@GLOBAL.use_pqc_sign;
+SET GLOBAL tls_kex = '';
+SET GLOBAL force_pqc = OFF;
+SET GLOBAL use_pqc_sign = OFF;
+Both client and server use default PQC flags
+negotiated_default_pqc_kex
+1
+has_sign_algorithm
+1
+Client force-pqc negotiates a PQC key exchange when server uses default flags
+negotiated_client_force_pqc_kex
+1
+Client force-pqc=0 permits TLSv1.2 when server uses default flags
+Variable_name	Value
+Ssl_version	TLSv1.2
+Client force-pqc rejects TLSv1.2-only client configuration
+Client force-pqc rejects configured classical tls_kex
+Client force-pqc accepts configured PQC tls_kex
+client_pqc_tls_kex_wins
+1
+Client use-pqc-sign is accepted for TLSv1.3
+has_sign_algorithm
+1
+Client use-pqc-sign=0 is accepted for TLSv1.3
+has_sign_algorithm
+1
+Client configured PQC tls_kex wins when server uses default flags
+client_pqc_tls_kex_wins
+1
+Client configured classical tls_kex wins when server force_pqc is disabled
+client_classical_tls_kex_wins
+1
+Server force_pqc negotiates a PQC key exchange with default client flags
+SET GLOBAL tls_kex = '';
+SET GLOBAL force_pqc = ON;
+SET GLOBAL use_pqc_sign = OFF;
+negotiated_server_force_pqc_kex
+1
+Server force_pqc rejects TLSv1.2 with default client flags
+Server use_pqc_sign is accepted with default client flags
+SET GLOBAL force_pqc = OFF;
+SET GLOBAL use_pqc_sign = ON;
+has_sign_algorithm
+1
+Server configured classical tls_kex wins with default client flags when force_pqc is disabled
+SET GLOBAL tls_kex = 'X25519';
+SELECT @@GLOBAL.tls_kex = 'X25519' AS tls_kex_configured,
+@@GLOBAL.use_pqc_sign AS use_pqc_sign_enabled;
+tls_kex_configured	use_pqc_sign_enabled
+1	1
+server_classical_tls_kex_wins
+1
+Server configured PQC tls_kex wins with default client flags
+SET GLOBAL tls_kex = 'secp384r1MLKEM1024';
+SET GLOBAL use_pqc_sign = OFF;
+server_pqc_tls_kex_wins
+1
+Both client and server force_pqc negotiate a PQC key exchange
+SET GLOBAL tls_kex = '';
+SET GLOBAL force_pqc = ON;
+negotiated_both_force_pqc_kex
+1
+Both client and server use PQC signature flags
+SET GLOBAL use_pqc_sign = ON;
+negotiated_both_pqc_flags_kex
+1
+has_sign_algorithm
+1
+Server constrained PQC tls_kex wins over client default force-pqc
+SET GLOBAL tls_kex = 'secp384r1MLKEM1024';
+SET GLOBAL use_pqc_sign = OFF;
+server_pqc_tls_kex_wins
+1
+Client constrained PQC tls_kex wins over server default force_pqc groups
+SET GLOBAL tls_kex = '';
+client_pqc_tls_kex_wins
+1
+Both sides advertise reversed PQC tls_kex orders
+SET GLOBAL tls_kex = 'secp384r1MLKEM1024:X25519MLKEM768';
+negotiated_shared_pqc_kex
+1
+Both sides fail when enforced PQC tls_kex lists have no overlap
+SET GLOBAL tls_kex = 'secp384r1MLKEM1024';
+SET GLOBAL tls_kex = @tls_kex_saved;
+SET GLOBAL force_pqc = @force_pqc_saved;
+SET GLOBAL use_pqc_sign = @use_pqc_sign_saved;

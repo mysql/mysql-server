@@ -1,0 +1,19 @@
+SELECT @@GLOBAL.admin_force_pqc;
+
+SELECT @@admin_force_pqc = @@GLOBAL.admin_force_pqc;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.admin_force_pqc;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.admin_force_pqc;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.admin_force_pqc = ON;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.admin_force_pqc = 'invalid';
+
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_force_pqc';

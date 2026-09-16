@@ -636,7 +636,7 @@ class Gcs_xcom_control : public Gcs_control_interface {
      Decides if this node shall be the one to kill failed nodes. The algorithm
      is: i am the highest node id alive.
 
-     @param alive_members Set of alive members.
+     @param[in] alive_members Set of alive members.
 
      @return true if i am the node responsible to call remove_node to expel
                   another member
@@ -683,12 +683,21 @@ class Gcs_xcom_control : public Gcs_control_interface {
   bool is_this_node_in(std::vector<Gcs_member_identifier *> *members);
 
   /**
-    Cycle through peers_list and try to open a connection to the peer, if it
-    isn't the node itself.
+    Iterate over @p peers_list and attempt to open a connection to the first
+    peer that is not classified as this node itself.
+
+    The peers are checked in order. Self endpoints are skipped. As soon as a
+    connection attempt is made to a non-self peer, the resulting
+    connection_descriptor is returned to the caller.
 
     @param[in] peers_list list of the peers
 
-    @return connection descriptor to a peer
+    @return A connection_descriptor for the first non-self peer that was
+            attempted, or nullptr if no peer was eligible for a connection
+            attempt.
+
+    @note Ownership of the returned connection_descriptor, if any, is
+          transferred to the caller.
   */
   connection_descriptor *get_connection_to_node(
       std::vector<Gcs_xcom_node_address *> *peers_list);
@@ -698,42 +707,55 @@ class Gcs_xcom_control : public Gcs_control_interface {
     m_initial_peers.
     Performs up to @c s_connection_attempts attempts.
 
-    @param my_addresses The addresses of this node, used to filter our own
-    address from the initial peers.
+    @param[in] self_addresses Cached textual self-addresses prepared once for
+                              the current join attempt.
+
     @returns true if the add_node request was successfully sent, false
     otherwise.
   */
-  bool send_add_node_request(std::map<std::string, int> const &my_addresses);
+  bool send_add_node_request(std::set<std::string> const &self_addresses);
 
   /**
     Attempts to send an add_node request to some initial peer from @c
     m_initial_peers.
 
-    @param my_addresses The addresses of this node, used to filter our own
-    address from the initial peers.
+    @param[in] self_addresses Cached textual self-addresses prepared once for
+                              the current join attempt.
+
     @returns true if the add_node request was successfully sent, false
     otherwise.
   */
   bool try_send_add_node_request_to_seeds(
-      std::map<std::string, int> const &my_addresses);
+      std::set<std::string> const &self_addresses);
 
   /**
-    Connects to the given peer's XCom.
+    Connect to the given peer's XCom unless the peer is classified as this
+    node itself.
 
-    @param peer Peer to connect to.
-    @param my_addresses The addresses of this node, used to filter our own
-    address from the initial peers.
-    @retval {true, connection_descriptor*} If we connected successfully.
-    @retval {false, _} If we could not connect.
+    Self endpoints are filtered before any outbound connection attempt is
+    made.
+
+    @param[in] self_addresses Cached textual self-addresses prepared once for
+                              the current join attempt.
+    @param[in] peer Peer to connect to.
+
+    @return A std::pair where the first element is true if a usable connection
+            was established and false otherwise. The second element is nullptr
+            when the peer was classified as this node and no connection attempt
+            was made. When a connection attempt was made, the second element is
+            the returned connection_descriptor, which may describe a failed or
+            unusable connection if the first element is false.
+
+    @note Ownership of the returned connection_descriptor, if any, is
+          transferred to the caller, including failure cases.
   */
   std::pair<bool, connection_descriptor *> connect_to_peer(
-      Gcs_xcom_node_address &peer,
-      std::map<std::string, int> const &my_addresses);
+      std::set<std::string> const &self_addresses, Gcs_xcom_node_address &peer);
 
   /**
    * Expel the given members from XCom.
    *
-   * @param incompatible_members the members to expel
+   * @param[in] incompatible_members the members to expel
    */
   void expel_incompatible_members(
       std::vector<Gcs_xcom_node_information> const &incompatible_members);

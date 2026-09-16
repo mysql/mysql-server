@@ -61,6 +61,13 @@ static inline trx_rsegf_t *trx_rsegf_get_new(space_id_t space,
                                              const page_size_t &page_size,
                                              mtr_t *mtr);
 
+/** Return a page number from a slot in the rseg_array page of an
+undo tablespace.
+@param[in]      space_id        undo tablespace ID
+@param[in]      rseg_id         rollback segment ID
+@return page_no Page number of the rollback segment header page */
+page_no_t trx_rseg_get_page_no(space_id_t space_id, ulint rseg_id);
+
 /** Gets the file page number of the nth undo log slot.
 @param[in]      rsegf   rollback segment header
 @param[in]      n       index of slot

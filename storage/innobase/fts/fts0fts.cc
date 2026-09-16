@@ -186,10 +186,8 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]  sync            sync state
 @param[in]      unlock_cache    whether unlock cache lock when write node
 @param[in]      wait            whether wait when a sync is in progress
-@param[in]      has_dict        whether has dict operation lock
 @return DB_SUCCESS if all OK */
-static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait,
-                        bool has_dict);
+static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait);
 
 /** Release all resources help by the words rb tree e.g., the node ilist. */
 static void fts_words_free(ib_rbt_t *words); /*!< in: rb tree of words */
@@ -579,6 +577,35 @@ fts_cache_t *fts_cache_create(
   cache->stopword_info.status = STOPWORD_NOT_INIT;
 
   return (cache);
+}
+
+void fts_cache_lock_for_read(fts_cache_t *cache, const ut::Location loc) {
+  /* cache->sync->data_missing means some data was already removed from the
+  cache, but not yet committed to the aux fts table - this flag is set by
+  fts_sync() for this short period when the cache was already reset, but the fts
+  sync transaction wasn't yet committed. The fts_sync() doesn't hold an x-latch
+  in this period, to let DMLs add new documents to the cache while it is busy
+  doing the transaction commit. Our goal is to ensure that any document added to
+  the cache before our call, is either still in the cache, or if it was removed
+  from cache by fts_sync(), then it is already in the fts aux table. Thus, when
+  seeing data_missing=true, we need to wait for the sync to finish the commit
+  which it announces through cache->sync->event. We only have to wait for at
+  most 2 such syncs to finish, because the third sync would contain only
+  documents added after our call has started. To see this observe that the 1st
+  sync adds all the documents which were in the cache before the 1st sync
+  cleared it. But it doesn't contain the documents added while it was busy with
+  the commit, and it is indeed possible some of them were added before our call.
+  The 2nd sync will remove all of such documents, though, so any documents
+  processed by the 3rd sync had to be added after our call has started. */
+  for (int completed_syncs_seen = 0;; ++completed_syncs_seen) {
+    rw_lock_s_lock(&cache->lock, loc);
+    if (completed_syncs_seen == 2 || !cache->sync->data_missing) {
+      return;
+    }
+    const auto reset_sig_count = os_event_reset(cache->sync->event);
+    rw_lock_s_unlock(&cache->lock);
+    os_event_wait_low(cache->sync->event, reset_sig_count);
+  }
 }
 
 /** Add a newly create index into FTS cache */
@@ -3603,7 +3630,7 @@ void fts_add_doc_from_tuple(fts_trx_table_t *ftt, doc_id_t doc_id,
       rw_lock_x_unlock(&table->fts->cache->lock);
 
       if (cache->total_size > fts_max_cache_size / 5 || fts_need_sync) {
-        fts_sync(cache->sync, true, false, false);
+        fts_sync(cache->sync, true, false);
       }
 
       mtr_start(&mtr);
@@ -3753,16 +3780,18 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
           // we size smaller than permissible min value for this sys var
           const auto old_fts_max_cache_size = fts_max_cache_size;
           fts_max_cache_size = 100;
-          fts_sync(cache->sync, true, true, false);
+          fts_sync(cache->sync, true, true);
           fts_max_cache_size = old_fts_max_cache_size;
         });
 
-        DBUG_EXECUTE_IF("fts_instrument_sync",
-                        fts_optimize_request_sync_table(table);
-                        os_event_wait(cache->sync->event););
+        DBUG_EXECUTE_IF("fts_instrument_sync", {
+          const auto reset_sig_count = os_event_reset(cache->sync->event);
+          fts_optimize_request_sync_table(table);
+          os_event_wait_low(cache->sync->event, reset_sig_count);
+        });
 
         DBUG_EXECUTE_IF("fts_instrument_sync_debug",
-                        fts_sync(cache->sync, true, true, false););
+                        fts_sync(cache->sync, true, true););
 
         DEBUG_SYNC_C("fts_instrument_sync_request");
         DBUG_EXECUTE_IF("fts_instrument_sync_request",
@@ -4334,6 +4363,7 @@ static void fts_sync_index_reset(fts_index_cache_t *index_cache) {
 
   /* We need to do this within the deleted lock since fts_delete() can
   attempt to add a deleted doc id to the cache deleted id array. */
+  sync->data_missing = true;
   fts_cache_clear(cache);
   DEBUG_SYNC_C("fts_deleted_doc_ids_clear");
   fts_cache_init(cache);
@@ -4415,10 +4445,8 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]  sync            sync state
 @param[in]      unlock_cache    whether unlock cache lock when write node
 @param[in]      wait            whether wait when a sync is in progress
-@param[in]      has_dict        whether has dict operation lock
 @return DB_SUCCESS if all OK */
-static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait,
-                        bool has_dict) {
+static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait) {
   ulint i;
   dberr_t error = DB_SUCCESS;
   fts_cache_t *cache = sync->table->fts->cache;
@@ -4429,10 +4457,11 @@ static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait,
   Note: we release cache lock in fts_sync_write_words() to
   avoid long wait for the lock by other threads. */
   while (sync->in_progress) {
+    const auto reset_sig_count = wait ? os_event_reset(cache->sync->event) : 0;
     rw_lock_x_unlock(&cache->lock);
 
     if (wait) {
-      os_event_wait(sync->event);
+      os_event_wait_low(sync->event, reset_sig_count);
     } else {
       return (DB_SUCCESS);
     }
@@ -4445,11 +4474,7 @@ static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait,
   DEBUG_SYNC_C("fts_sync_begin");
   fts_sync_begin(sync);
 
-  /* When sync in background, we hold dict operation lock
-  to prevent DDL like DROP INDEX, etc. */
-  if (has_dict) {
-    sync->trx->dict_operation_lock_mode = RW_S_LATCH;
-  }
+  ut_ad(sync->trx->dict_operation_lock_mode == 0);
 
 begin_sync:
   if (cache->total_size > fts_max_cache_size) {
@@ -4501,6 +4526,7 @@ end_sync:
   rw_lock_x_lock(&cache->lock, UT_LOCATION_HERE);
   sync->interrupted = false;
   sync->in_progress = false;
+  sync->data_missing = false;
   os_event_set(sync->event);
   rw_lock_x_unlock(&cache->lock);
 
@@ -4523,17 +4549,15 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]  table           fts table
 @param[in]      unlock_cache    whether unlock cache when write node
 @param[in]      wait            whether wait for existing sync to finish
-@param[in]      has_dict        whether has dict operation lock
 @return DB_SUCCESS on success, error code on failure. */
-dberr_t fts_sync_table(dict_table_t *table, bool unlock_cache, bool wait,
-                       bool has_dict) {
+dberr_t fts_sync_table(dict_table_t *table, bool unlock_cache, bool wait) {
   dberr_t err = DB_SUCCESS;
 
   ut_ad(table->fts);
 
   if (!dict_table_is_discarded(table) && table->fts->cache &&
       !table->is_corrupted()) {
-    err = fts_sync(table->fts->cache->sync, unlock_cache, wait, has_dict);
+    err = fts_sync(table->fts->cache->sync, unlock_cache, wait);
   }
 
   return (err);
@@ -5350,54 +5374,6 @@ void fts_cache_append_deleted_doc_ids(
   mutex_exit((ib_mutex_t *)&cache->deleted_lock);
 }
 
-bool fts_wait_for_background_thread_to_start(
-    dict_table_t *table, std::chrono::microseconds max_wait) {
-  ulint count = 0;
-  bool done = false;
-
-  ut_a(max_wait == std::chrono::seconds::zero() ||
-       max_wait >= FTS_MAX_BACKGROUND_THREAD_WAIT);
-
-  for (;;) {
-    fts_t *fts = table->fts;
-
-    mutex_enter(&fts->bg_threads_mutex);
-
-    if (fts->fts_status & BG_THREAD_READY) {
-      done = true;
-    }
-
-    mutex_exit(&fts->bg_threads_mutex);
-
-    if (!done) {
-      std::this_thread::sleep_for(FTS_MAX_BACKGROUND_THREAD_WAIT);
-
-      if (max_wait > std::chrono::seconds::zero()) {
-        max_wait -= FTS_MAX_BACKGROUND_THREAD_WAIT;
-
-        /* We ignore the residual value. */
-        if (max_wait < FTS_MAX_BACKGROUND_THREAD_WAIT) {
-          break;
-        }
-      }
-
-      ++count;
-    } else {
-      break;
-    }
-
-    if (count >= FTS_BACKGROUND_THREAD_WAIT_COUNT) {
-      ib::error(ER_IB_MSG_480) << "The background thread for the FTS"
-                                  " table "
-                               << table->name << " refuses to start";
-
-      count = 0;
-    }
-  }
-
-  return (done);
-}
-
 /** Add the FTS document id hidden column.
 @param[in,out] table Table with FTS index
 @param[in] heap Temporary memory heap, or NULL
@@ -5528,40 +5504,6 @@ void fts_free(dict_table_t *table) /*!< in/out: table with FTS indexes */
   table->fts = nullptr;
 }
 
-#if 0  // TODO: Enable this in WL#6608
-/*********************************************************************//**
-Signal FTS threads to initiate shutdown. */
-void
-fts_start_shutdown(
-        dict_table_t*   table,          /*!< in: table with FTS indexes */
-        fts_t*          fts)            /*!< in: fts instance that needs
-                                        to be informed about shutdown */
-{
-        mutex_enter(&fts->bg_threads_mutex);
-
-        fts->fts_status |= BG_THREAD_STOP;
-
-        mutex_exit(&fts->bg_threads_mutex);
-
-}
-
-/*********************************************************************//**
-Wait for FTS threads to shutdown. */
-void
-fts_shutdown(
-        dict_table_t*   table,          /*!< in: table with FTS indexes */
-        fts_t*          fts)            /*!< in: fts instance to shutdown */
-{
-        mutex_enter(&fts->bg_threads_mutex);
-
-        ut_a(fts->fts_status & BG_THREAD_STOP);
-
-        dict_table_wait_for_bg_threads_to_exit(table, std::chrono::milliseconds{20});
-
-        mutex_exit(&fts->bg_threads_mutex);
-}
-#endif
-
 /** Take a FTS savepoint. */
 static inline void fts_savepoint_copy(
     const fts_savepoint_t *src, /*!< in: source savepoint */
@@ -5673,12 +5615,15 @@ void fts_savepoint_laststmt_refresh(trx_t *trx) /*!< in: transaction */
   fts_savepoint_t *savepoint;
 
   fts_trx = trx->fts_trx;
+  ut_ad(ib_vector_size(fts_trx->last_stmt) == 1);
 
   savepoint = static_cast<fts_savepoint_t *>(ib_vector_pop(fts_trx->last_stmt));
   fts_savepoint_free(savepoint);
 
   ut_ad(ib_vector_is_empty(fts_trx->last_stmt));
   savepoint = fts_savepoint_create(fts_trx->last_stmt, nullptr, nullptr);
+  ut_ad(ib_vector_size(fts_trx->last_stmt) == 1);
+  ut_ad(rbt_empty(savepoint->tables));
 }
 
 /********************************************************************
@@ -5730,6 +5675,8 @@ static void fts_undo_last_stmt(
 /** Rollback to savepoint identified by name. */
 void fts_savepoint_rollback_last_stmt(trx_t *trx) /*!< in: transaction */
 {
+  ulint n_savepoints [[maybe_unused]];
+  ulint n_last_stmt [[maybe_unused]];
   ib_vector_t *savepoints;
   fts_savepoint_t *savepoint;
   fts_savepoint_t *last_stmt;
@@ -5741,6 +5688,10 @@ void fts_savepoint_rollback_last_stmt(trx_t *trx) /*!< in: transaction */
 
   fts_trx = trx->fts_trx;
   savepoints = fts_trx->savepoints;
+  n_savepoints = ib_vector_size(savepoints);
+  n_last_stmt = ib_vector_size(fts_trx->last_stmt);
+  ut_ad_lt(0, n_savepoints);
+  ut_ad_lt(0, n_last_stmt);
 
   savepoint = static_cast<fts_savepoint_t *>(ib_vector_last(savepoints));
   last_stmt =
@@ -5765,6 +5716,10 @@ void fts_savepoint_rollback_last_stmt(trx_t *trx) /*!< in: transaction */
       fts_undo_last_stmt(*s_ftt, *l_ftt);
     }
   }
+
+  /* This should not alter transaction-level FTS savepoint stacks. */
+  ut_ad(ib_vector_size(savepoints) == n_savepoints);
+  ut_ad(ib_vector_size(fts_trx->last_stmt) == n_last_stmt);
 }
 
 /** Rollback to savepoint identified by name. */
@@ -5778,7 +5733,7 @@ void fts_savepoint_rollback(trx_t *trx,       /*!< in: transaction */
 
   savepoints = trx->fts_trx->savepoints;
 
-  /* We pop all savepoints from the the top of the stack up to
+  /* We pop all savepoints from the top of the stack up to
   and including the instance that was found. */
   i = fts_savepoint_lookup(savepoints, name);
 

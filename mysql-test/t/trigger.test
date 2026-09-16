@@ -4118,3 +4118,62 @@ SELECT * FROM t1;
 UPDATE t1 SET c2=3 WHERE c1=1;
 DROP TABLE t1;
 SET sql_mode=default;
+
+--echo #
+--echo # Bug#35373634: JOIN a table with trigger report unexpected WARNINGS
+--echo #
+
+CREATE TABLE s1 (
+  id   bigint NOT NULL AUTO_INCREMENT,
+  s_id int    NOT NULL,
+  p_id bigint NOT NULL,
+  PRIMARY KEY (id)
+);
+CREATE TABLE t1 (i int);
+INSERT INTO s1 (p_id, s_id) VALUES (1, 1), (1, 1);
+INSERT INTO t1 VALUES (1);
+
+--echo # Any trigger on s1 (even one that never fires for UPDATE) is enough
+--echo # to engage the trigger nullability code path.
+DELIMITER |;
+CREATE TRIGGER trg_s1 BEFORE INSERT ON s1 FOR EACH ROW
+  IF 1 THEN SET @sum = @sum + 1; END IF;|
+DELIMITER ;|
+
+--echo #
+--echo # Part 1: non-strict mode -> spurious warnings
+--echo #
+SET sql_mode = '';
+
+--echo # Statement 1: legitimately stores NULL -> 2 expected warnings
+--enable_warnings
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, NULL, p_id) WHERE t.i = 1;
+SHOW WARNINGS;
+
+--echo # Statement 2: stores valid value 3 -> must produce NO warnings
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, 3, p_id) WHERE t.i = 1;
+SHOW WARNINGS;
+SELECT id, s_id, p_id FROM s1 ORDER BY id;
+
+--echo # Statement 3: stores valid value 4 -> must produce NO warnings
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, 4, p_id) WHERE t.i = 1;
+SHOW WARNINGS;
+SELECT id, s_id, p_id FROM s1 ORDER BY id;
+
+--echo #
+--echo # Part 2: strict mode -> spurious errors (all subsequent updates blocked)
+--echo #
+SET sql_mode = 'STRICT_TRANS_TABLES';
+
+--echo # Statement 4: stores NULL -> expected ERROR 1048
+--error ER_BAD_NULL_ERROR
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, NULL, p_id) WHERE t.i = 1;
+
+--echo # Statement 5: stores valid value 5 -> must succeed, p_id becomes 5
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, 5, p_id) WHERE t.i = 1;
+SHOW WARNINGS;
+SELECT id, s_id, p_id FROM s1 ORDER BY id;
+
+--echo # Cleanup
+DROP TABLE s1, t1;
+SET sql_mode = default;

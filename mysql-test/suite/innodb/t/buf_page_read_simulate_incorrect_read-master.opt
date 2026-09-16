@@ -1,0 +1,1 @@
+--debug="+d,buf_page_read_simulate_incorrect_read" --innodb_buffer_pool_size=64MB

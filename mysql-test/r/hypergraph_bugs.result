@@ -26,6 +26,8 @@ EXPLAIN
                 -> Filter: (t2.a = 5)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` = 5) and (`test`.`t2`.`a` = 5))) join `test`.`t3` where multiple equal(5, `test`.`t1`.`a`)
 SELECT
 IF(TRACE LIKE '%Left join [companion set %] (extra join condition = (t1.a = 5) AND (t2.a = 5))%',
 'OK', TRACE)
@@ -55,16 +57,17 @@ test.t2	analyze	status	OK
 test.t3	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 EXPLAIN
--> Left hash join (no condition), extra conditions: false  (rows=0.04)
+-> Nested loop left join  (rows=0.04)
     -> Inner hash join (no condition)  (rows=0.04)
         -> Filter: (t0.a0 = 1)  (rows=0.2)
             -> Table scan on t0  (rows=2)
         -> Hash
             -> Filter: (t1.a1 = 1)  (rows=0.2)
                 -> Table scan on t1  (rows=2)
-    -> Hash
-        -> Zero rows (Join condition rejects all rows)  (rows=0)
+    -> Zero rows (Join condition rejects all rows)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`a0` AS `a0`,`test`.`t1`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t3`.`a3` AS `a3` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(false) where multiple equal(1, `test`.`t0`.`a0`, `test`.`t1`.`a1`)
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 a0	a1	a2	a3
 1	1	NULL	NULL
@@ -85,6 +88,8 @@ EXPLAIN
         -> Sort: t1.f1  (rows=1)
             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` group by `test`.`t1`.`f1` having ((`test`.`t1`.`f1` = 10))
 DROP TABLE t1;
 #
 # Bug#34080394: Hypergraph Offload issue : Problem in
@@ -99,6 +104,8 @@ EXPLAIN
 -> Filter: (t1.f1 = 2001)  (rows=0.1)
     -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where multiple equal(2001, `test`.`t1`.`f1`)
 DROP TABLE t1;
 #
 # Bug#34504697: Hypergraph: Assertion
@@ -153,6 +160,8 @@ ON t.x = dt.m;
 EXPLAIN
 -> Zero rows (Impossible WHERE)  (cost=0..0 rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x`,`test`.`t`.`y` AS `y`,`dt`.`m` AS `m` from (/* select#2 */ select max(`test`.`t`.`y`) AS `m` from `test`.`t` where false group by `test`.`t`.`x`) `dt` left join `test`.`t` on((`test`.`t`.`x` = `dt`.`m`))
 SELECT * FROM
 t RIGHT JOIN
 (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
@@ -167,6 +176,8 @@ EXPLAIN
     -> Table scan on t  (rows=3)
     -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x`,`test`.`t`.`y` AS `y`,`dt`.`m` AS `m` from `test`.`t` left join (/* select#2 */ select max(`test`.`t`.`y`) AS `m` from `test`.`t` where false group by `test`.`t`.`x`) `dt` on((`test`.`t`.`x` = `dt`.`m`))
 SELECT * FROM
 t LEFT JOIN
 (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
@@ -186,6 +197,8 @@ EXPLAIN
     -> Table scan on t1  (rows=3)
     -> Zero rows (impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`x` AS `x`,`t1`.`y` AS `y`,`t2`.`x` AS `x`,`t2`.`y` AS `y`,`dt`.`m` AS `m` from `test`.`t` `t1` left join (`test`.`t` `t2` join (/* select#2 */ select max(`test`.`t`.`y`) AS `m` from `test`.`t` where false group by `test`.`t`.`x`) `dt`) on(((`t1`.`x` = `t2`.`y`) and (`t2`.`x` = `dt`.`m`)))
 SELECT * FROM
 t AS t1 LEFT JOIN
 (t AS t2
@@ -219,6 +232,8 @@ EXPLAIN
             -> Hash
                 -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join (`test`.`t1` `t2` semi join (`test`.`t1` `t3`)) on(((`t2`.`f1` = (`t3`.`f1` + 1)) and (`test`.`t1`.`f1` = `t2`.`f1`)))
 DROP TABLE t1;
 #
 # Bug#34699398: Row estimates for joins ignores histograms.
@@ -362,6 +377,8 @@ EXPLAIN
                             -> Table scan on t4  (rows=1)
             -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` semi join (`test`.`t1` `t2` join `test`.`t1` `t3` left join `test`.`t1` `t4` on(true)) where ((((`t3`.`f1` = `t2`.`f2`) and (`t2`.`f2` = `t4`.`f1`)) or (`t3`.`f2` >= `t3`.`f1`)) and (`t3`.`f1` = `t2`.`f2`)) group by `test`.`t1`.`f1`
 SELECT f1 FROM t1
 WHERE EXISTS (SELECT t2.f1
 FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f2))
@@ -399,6 +416,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on t3  (rows=10)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` semi join (`test`.`t1` join `test`.`t2` `t3`) join `test`.`t2` `t4` where (multiple equal(`test`.`t2`.`x`, `t4`.`x`, `test`.`t1`.`pk`) and (`test`.`t1`.`x` = `t3`.`x`))
 WITH subq AS (
 SELECT * FROM t2
 WHERE x IN (SELECT t1.pk FROM t1, t2 AS t3 WHERE t1.x = t3.x)
@@ -440,6 +459,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` semi join (`test`.`t1` `t2` join `test`.`t1` `t3` left join `test`.`t1` `t4` on(true)) join `test`.`t1` `t6` where (multiple equal(`t3`.`f1`, `t2`.`f2`, `t4`.`f2`) and (`test`.`t1`.`f1` = `test`.`t1`.`f1`) and (`t3`.`f1` = `t2`.`f2`))
 SELECT 1
 FROM (SELECT * FROM t1
 WHERE f1 IN (SELECT t1.f1 FROM (t1 AS t2 JOIN t1 AS t3 ON t3.f1 = t2.f2)
@@ -516,6 +536,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on x3  (rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_big_result (`x1`.`a` + 0) AS `k`,count(`x1`.`b`) AS `COUNT(x1.b)` from `test`.`t1` `x1` left join `test`.`t2` `x2` on((`x1`.`b` = `x2`.`a`)) left join `test`.`t1` `x3` on((`x2`.`b` = `x3`.`a`)) group by `k`
 DROP TABLE t1,t2,num;
 #
 # Bug#35000554: assertion error in EstimateAggregateNoRollupRows()
@@ -555,6 +577,8 @@ EXPLAIN
     -> Sort: t1.a, t1.b  (rows=101)
         -> Table scan on t1  (rows=101)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b`
 EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
 EXPLAIN
 -> Filter: (t1.b = t1.c)  (rows=1.01) (actual rows=1 loops=1)
@@ -873,16 +897,22 @@ EXPLAIN
         -> Filter: ((x2.c < 70) and (x2.b < '150'))  (rows=35)
             -> Index scan on x2 using PRIMARY  (rows=100)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `x1` semi join (`test`.`t1` `x2`) where ((`x2`.`b` < '150') and (`x2`.`c` < 70) and (`x1`.`c` = `x2`.`c`))
 EXPLAIN  FORMAT=TREE SELECT 1 FROM t1 WHERE b<"150" AND c<70;
 EXPLAIN
 -> Filter: ((t1.c < 70) and (t1.b < '150'))  (rows=35)
     -> Index scan on t1 using PRIMARY  (rows=100)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`b` < '150') and (`test`.`t1`.`c` < 70))
 EXPLAIN  FORMAT=TREE SELECT 1 FROM t1 WHERE b<"150" AND c<80;
 EXPLAIN
 -> Filter: ((t1.b < '150') and (t1.c < 80))  (rows=40)
     -> Index scan on t1 using PRIMARY  (rows=100)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`b` < '150') and (`test`.`t1`.`c` < 80))
 #
 # BUG 35507456
 # Assertion `[&]() { for (const Predicate *first = begin; first < end; first++)
@@ -893,6 +923,8 @@ EXPLAIN
 -> Filter: ((t1.c < 70) and (t1.b < '150') and (rand(0) > <cache>(-(1))))  (rows=35)
     -> Index scan on t1 using PRIMARY  (rows=100)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`b` < '150') and (rand(0) > <cache>(-(1))) and (`test`.`t1`.`c` < 70))
 CREATE FUNCTION foo(i INT)
 RETURNS INT
 LANGUAGE SQL
@@ -904,6 +936,8 @@ EXPLAIN
 -> Filter: ((t1.c = 5) and (foo(2) = 3))  (rows=1)
     -> Index scan on t1 using PRIMARY  (rows=100)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`foo`(2) = 3) and multiple equal(5, `test`.`t1`.`c`))
 DROP FUNCTION foo;
 DROP TABLE num, t1;
 #
@@ -928,6 +962,8 @@ EXPLAIN
         -> Hash
             -> Table scan on x2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where ((`func`(`x1`.`b`) = `x2`.`b`) and (`x1`.`a` = `x2`.`a`))
 DROP FUNCTION func;
 DROP TABLE t1;
 #
@@ -1102,6 +1138,8 @@ EXPLAIN
                         -> Index scan on x2 using PRIMARY  (rows=1)
     -> Covering index scan on x1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `x1` semi join (`test`.`t1` `x2` join `test`.`t1` `x3` join `test`.`t1` `x4`) where (multiple equal(`x2`.`b`, `x3`.`d`, `x4`.`b`) and (`x2`.`c` = `x3`.`e`) and (`x2`.`e` = `x4`.`e`))
 DROP TABLE t1;
 CREATE TABLE t1 (a int, b int);
 ANALYZE TABLE t1;
@@ -1119,6 +1157,8 @@ EXPLAIN
                 -> Hash
                     -> Table scan on x3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x3`.`a` AS `a`,`x3`.`b` AS `b` from `test`.`t1` `x1` left join (`test`.`t1` `x2` join `test`.`t1` `x3`) on((`x1`.`a` = `x3`.`a`)) where ((`x1`.`b` < `x2`.`b`) or (`x2`.`a` is null))
 DROP TABLE t1;
 #
 # Bug#35719688 Assertion`new_path->cost >= new_path->init_cost' in
@@ -1157,6 +1197,8 @@ EXPLAIN
                 -> Hash
                     -> Index scan on x2 using PRIMARY  (rows=50)
 
+Warnings:
+Note	1003	/* select#1 */ select `x0`.`a` AS `a`,`x0`.`b` AS `b`,`x0`.`c` AS `c` from `test`.`t1` `x0` where (((`x0`.`b` = 3) or (`x0`.`c` = 4)) and (`x0`.`a` <> (/* select#2 */ select max((`x1`.`a` + `x2`.`a`)) from `test`.`t2` `x1` join `test`.`t2` `x2` where (`x1`.`b` < `x2`.`b`))))
 DROP TABLE t1,t2;
 #
 # Bug#35789967 Assertion `val >= 0.0 || val == kUnknownCost' failed.
@@ -1184,6 +1226,8 @@ EXPLAIN
         -> Aggregate: max(x2.b)  (...)
             -> Index scan on x2 using PRIMARY  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`x1`@`select#1`) */ `x1`.`b` AS `b` from `test`.`t1` `x1` where ((`x1`.`c` < 1) and (`x1`.`c` = (/* select#2 */ select max(`x2`.`b`) from `test`.`t1` `x2`)))
 DROP TABLE t1;
 #
 # Bug#35790381 Assertion `false &&
@@ -1206,6 +1250,8 @@ EXPLAIN
             -> Table scan on x1  (rows=12)
         -> Covering index lookup on x2 using k1 (a = x1.b)  (rows=6)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,count(0) AS `COUNT(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` where multiple equal(`x1`.`b`, `x2`.`a`) group by `x1`.`a`
 DROP TABLE t1;
 #
 # Bug#35483044 Hypergraph: Invalid row estimate for filter on
@@ -1228,38 +1274,52 @@ EXPLAIN
 -> Filter: ((t1.b = 5) or (t1.c = NULL))  (rows=2)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = 5) or (`test`.`t1`.`c` = NULL))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c<=>NULL;
 EXPLAIN
 -> Deduplicate rows sorted by row ID  (rows=3)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
     -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = 5) or (`test`.`t1`.`c` <=> NULL))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c IS NULL;
 EXPLAIN
 -> Deduplicate rows sorted by row ID  (rows=3)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
     -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = 5) or (`test`.`t1`.`c` is null))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=NULL OR c=5;
 EXPLAIN
 -> Filter: ((t1.b = NULL) or (t1.c = 5))  (rows=2)
     -> Index range scan on t1 using k_c over (c = 5)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = NULL) or (`test`.`t1`.`c` = 5))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>NULL OR c=5;
 EXPLAIN
 -> Filter: ((t1.b <=> NULL) or (t1.c = 5))  (rows=2)
     -> Index range scan on t1 using k_c over (c = 5)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` <=> NULL) or (`test`.`t1`.`c` = 5))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.b <=> floor(rand(0)))  (rows=2)
     -> Index scan on t1 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` <=> floor(rand(0)))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<=>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.c <=> floor(rand(0)))  (rows=2)
     -> Index scan on t1 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`c` <=> floor(rand(0)))
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON b,c;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'b'.
@@ -1269,38 +1329,52 @@ EXPLAIN
 -> Filter: ((t1.b = 5) or (t1.c = NULL))  (rows=2)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = 5) or (`test`.`t1`.`c` = NULL))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c<=>NULL;
 EXPLAIN
 -> Deduplicate rows sorted by row ID  (rows=3)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
     -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = 5) or (`test`.`t1`.`c` <=> NULL))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c IS NULL;
 EXPLAIN
 -> Deduplicate rows sorted by row ID  (rows=3)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
     -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = 5) or (`test`.`t1`.`c` is null))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=NULL OR c=5;
 EXPLAIN
 -> Filter: ((t1.b = NULL) or (t1.c = 5))  (rows=2)
     -> Index range scan on t1 using k_c over (c = 5)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` = NULL) or (`test`.`t1`.`c` = 5))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>NULL OR c=5;
 EXPLAIN
 -> Filter: ((t1.b <=> NULL) or (t1.c = 5))  (rows=2)
     -> Index range scan on t1 using k_c over (c = 5)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`b` <=> NULL) or (`test`.`t1`.`c` = 5))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b<=>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.b <=> floor(rand(0)))  (rows=2)
     -> Index scan on t1 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` <=> floor(rand(0)))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<=>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.c <=> floor(rand(0)))  (rows=2)
     -> Index scan on t1 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`c` <=> floor(rand(0)))
 DROP TABLE t1;
 #
 # Bug#35898221 Hypergraph: too low row estmate for semijoin
@@ -1399,6 +1473,8 @@ EXPLAIN
             -> Index scan on t2 using PRIMARY  (rows=20)
     -> Single-row index lookup on t1 using PRIMARY (a = t2.l)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`l` < 0) and (`test`.`t1`.`a` = `test`.`t2`.`l`))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT 5 FROM t2);
 EXPLAIN
 -> Nested loop inner join (FirstMatch)  (rows=1)
@@ -1406,6 +1482,8 @@ EXPLAIN
         -> Covering index scan on t2 using PRIMARY  (rows=20)
     -> Single-row index lookup on t1 using PRIMARY (a = 5)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where multiple equal(5, `test`.`t1`.`a`)
 DROP TABLE t1,t2;
 #
 # Bug#35997316 Hypergraph: Incomplete and inconvenient optimizer trace
@@ -1428,6 +1506,8 @@ EXPLAIN
     -> Hash
         -> Index scan on x2 using PRIMARY  (rows=30)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b` from `test`.`t1` `x1` semi join (`test`.`t1` `x2`) where multiple equal(`x1`.`a`, `x2`.`b`)
 SELECT REGEXP_SUBSTR(
 trace, "distinct values for field 'b' from histogram[^,]*",1,1,'n')
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -1466,6 +1546,8 @@ EXPLAIN
     -> Hash
         -> Index scan on x4 using PRIMARY  (rows=101)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x3`.`a` AS `a`,`x3`.`b` AS `b`,`x4`.`a` AS `a`,`x4`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` join `test`.`t1` `x4`
 SELECT REGEXP_SUBSTR(trace, " - \\{HASH_JOIN[^\n]*keeping",1,1,'n')
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 REGEXP_SUBSTR(trace, " - \\{HASH_JOIN[^\n]*keeping",1,1,'n')
@@ -1475,6 +1557,8 @@ EXPLAIN
 -> Filter: (t1.b = 5)  (rows=0.0099)
     -> Single-row index lookup on t1 using PRIMARY (a = 5)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (multiple equal(5, `test`.`t1`.`a`) and multiple equal(5, `test`.`t1`.`b`))
 SELECT REGEXP_SUBSTR(trace, " - \\{EQ_REF[^\n]*keeping",1,1,'n')
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 REGEXP_SUBSTR(trace, " - \\{EQ_REF[^\n]*keeping",1,1,'n')
@@ -1621,6 +1705,8 @@ EXPLAIN
         -> Filter: ((x1.c < 5) or (x3.c = 7))  (rows=1)
             -> Single-row index lookup on x3 using PRIMARY (a = x2.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`c` AS `c`,`x1`.`d` AS `d`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`c` AS `c`,`x2`.`d` AS `d`,`x3`.`a` AS `a`,`x3`.`b` AS `b`,`x3`.`c` AS `c`,`x3`.`d` AS `d` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where (((`x1`.`c` < 5) or (`x3`.`c` = 7)) and (`x1`.`b` = `x2`.`a`) and (`x2`.`b` = `x3`.`a`)) limit 1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
 WHERE x1.b=x2.d AND x2.b=x3.d AND (x1.c < 5 OR x3.c=7) ORDER BY x3.d LIMIT 1;
 EXPLAIN
@@ -1634,6 +1720,8 @@ EXPLAIN
                         -> Index scan on x2 using PRIMARY  (rows=20)
             -> Index lookup on x3 using k1 (d = x2.b)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`c` AS `c`,`x1`.`d` AS `d`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`c` AS `c`,`x2`.`d` AS `d`,`x3`.`a` AS `a`,`x3`.`b` AS `b`,`x3`.`c` AS `c`,`x3`.`d` AS `d` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where (((`x1`.`c` < 5) or (`x3`.`c` = 7)) and (`x1`.`b` = `x2`.`d`) and (`x2`.`b` = `x3`.`d`)) order by `x3`.`d` limit 1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2
 ON x1.a <=> x2.a AND  x1.a <=> x2.a;
 EXPLAIN
@@ -1642,6 +1730,8 @@ EXPLAIN
     -> Hash
         -> Index scan on x2 using PRIMARY  (rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`c` AS `c`,`x1`.`d` AS `d`,`x2`.`a` AS `a`,`x2`.`b` AS `b`,`x2`.`c` AS `c`,`x2`.`d` AS `d` from `test`.`t1` `x1` left join `test`.`t1` `x2` on(((`x1`.`a` <=> `x2`.`a`) and (`x1`.`a` <=> `x2`.`a`)))
 DROP TABLE t1;
 #
 # Bug#35855573 Assertion `false && "Inconsistent row counts for
@@ -1661,6 +1751,8 @@ EXPLAIN
         -> Hash
             -> Index scan on t1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `t1`.`x` AS `x`,`t2`.`x` AS `x` from `test`.`t` `t1` join `test`.`t` `t2` where multiple equal(`t1`.`pk`, `t2`.`x`) order by `t2`.`x`
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
@@ -1672,6 +1764,8 @@ EXPLAIN
                 -> Hash
                     -> Index scan on t1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_small_result `t1`.`x` AS `x`,`t2`.`x` AS `x` from `test`.`t` `t1` join `test`.`t` `t2` where multiple equal(`t1`.`pk`, `t2`.`x`) order by `test`.`t2`.`x`
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
 EXPLAIN
@@ -1681,6 +1775,8 @@ EXPLAIN
         -> Hash
             -> Index scan on t1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `t1`.`x` AS `x`,`t1`.`pk` AS `pk` from `test`.`t` `t1` join `test`.`t` `t2` where multiple equal(`t1`.`pk`, `t2`.`x`) order by `t1`.`x`
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
 EXPLAIN
@@ -1692,6 +1788,8 @@ EXPLAIN
                 -> Hash
                     -> Index scan on t1 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_small_result `t1`.`x` AS `x`,`t1`.`pk` AS `pk` from `test`.`t` `t1` join `test`.`t` `t2` where multiple equal(`t1`.`pk`, `t2`.`x`) order by `test`.`t1`.`x`
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
@@ -1701,6 +1799,8 @@ EXPLAIN
         -> Hash
             -> Index scan on t2 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `t1`.`pk` AS `pk`,`t2`.`x` AS `x` from `test`.`t` `t1` join `test`.`t` `t2` where multiple equal(`t1`.`pk`, `t2`.`x`) order by `t2`.`x`
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
@@ -1712,6 +1812,8 @@ EXPLAIN
                 -> Hash
                     -> Index scan on t2 using PRIMARY  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_small_result `t1`.`pk` AS `pk`,`t2`.`x` AS `x` from `test`.`t` `t1` join `test`.`t` `t2` where multiple equal(`t1`.`pk`, `t2`.`x`) order by `test`.`t2`.`x`
 DROP TABLE t;
 #
 # Bug#35991881 Hypergraph: Wrong init_cost for nested loop join
@@ -1747,6 +1849,8 @@ EXPLAIN
                             -> Hash
                                 -> Index scan on x3 using PRIMARY  (rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x1`.`c` AS `c`,`d1`.`k` AS `k` from `test`.`t1` `x1` join (/* select#2 */ select max(`x2`.`c`) AS `k` from `test`.`t1` `x2` join `test`.`t1` `x3` where (`x2`.`c` < `x3`.`b`) group by `x3`.`c`) `d1` where multiple equal(`x1`.`b`, `d1`.`k`) order by `x1`.`a` limit 1
 DROP TABLE t1;
 #
 # Bug#36032958: Assertion `IsEmpty(child.delayed_predicates)' failed
@@ -1770,6 +1874,21 @@ EXPLAIN
         -> Filter: (t1.x > 0)  (rows=0.667)
             -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`x`,0) AS `x`,rollup_group_item(`test`.`t1`.`y`,1) AS `y` from `test`.`t1` where (`test`.`t1`.`x` > 0) group by `test`.`t1`.`x`,`test`.`t1`.`y` with rollup
+DROP TABLE t1;
+#
+# Bug#39501528: Crash evaluating a ROLLUP aggregate from a constant
+#               HAVING subquery during filter initialization
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT HEX(-31378)
+GROUP BY ROLLUP((SELECT /*+ BKA() */ 1))
+HAVING (SELECT 338 FROM t1 WHERE AVG(26) LIMIT 1);
+HEX(-31378)
+FFFFFFFFFFFF856E
+FFFFFFFFFFFF856E
 DROP TABLE t1;
 #
 # Bug#36099491: Assertion secondary_engine_cost_hook != nullptr
@@ -1843,6 +1962,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`id` = (`test`.`t1`.`x` + `test`.`t2`.`x`)) and (1 = (`test`.`t2`.`x` + 1)))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 LEFT JOIN LATERAL
 (SELECT t2.x+1 k FROM t2, t3 WHERE t3.id = t1.x+t2.x) d2 ON 1=k;
 EXPLAIN
@@ -1857,6 +1977,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,(`test`.`t2`.`x` + 1) AS `k` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t3`.`id` = (`test`.`t1`.`x` + `test`.`t2`.`x`)) and (1 = (`test`.`t2`.`x` + 1))))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE 1 IN
 (SELECT t2.x+1 FROM t2, t3 WHERE t3.id <=> t1.x+t2.x);
 EXPLAIN
@@ -1871,6 +1992,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`id` <=> (`test`.`t1`.`x` + `test`.`t2`.`x`)) and (1 = (`test`.`t2`.`x` + 1)))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 LEFT JOIN LATERAL
 (SELECT t2.x+1 k FROM t2, t3 WHERE t3.id <=> t1.x+t2.x) d2 ON 1=k;
 EXPLAIN
@@ -1885,6 +2007,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,(`test`.`t2`.`x` + 1) AS `k` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t3`.`id` <=> (`test`.`t1`.`x` + `test`.`t2`.`x`)) and (1 = (`test`.`t2`.`x` + 1))))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE 1 IN
 (SELECT t2.x+1 FROM t2, t4 WHERE t4.id = t1.x+t2.x or t4.id IS NULL);
 EXPLAIN
@@ -1899,6 +2022,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` semi join (`test`.`t2` join `test`.`t4`) where (((`test`.`t4`.`id` = (`test`.`t1`.`x` + `test`.`t2`.`x`)) or (`test`.`t4`.`id` is null)) and (1 = (`test`.`t2`.`x` + 1)))
 EXPLAIN FORMAT=TREE SELECT * FROM t1 LEFT JOIN LATERAL
 (SELECT t2.x+1 k FROM t2, t4 WHERE t4.id = t1.x+t2.x or t4.id IS NULL) d2
 ON 1=k;
@@ -1914,6 +2038,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,(`test`.`t2`.`x` + 1) AS `k` from `test`.`t1` left join (`test`.`t2` join `test`.`t4`) on(((1 = (`test`.`t2`.`x` + 1)) and ((`test`.`t4`.`id` = (`test`.`t1`.`x` + `test`.`t2`.`x`)) or (`test`.`t4`.`id` is null))))
 DROP TABLE t1,t2,t3,t4;
 #
 # Bug#36955411 Hypergraph optimizer does not use index lookups
@@ -1947,12 +2072,16 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.u IN  (1,2,3) AND t1.u IS NULL;
 EXPLAIN
 -> Zero rows (WHERE condition is always false)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`i3` AS `i3`,`test`.`t1`.`u` AS `u` from `test`.`t1` where ((`test`.`t1`.`u` in (1,2,3)) and (`test`.`t1`.`u` is null))
 # The following queries should map <=> and IS NULL to REF
 # on the k1 index.
 EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE i1 IS NULL;
 EXPLAIN
 -> Covering index lookup on t1 using k1 (i1 = NULL)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`i1` is null)
 SELECT pk FROM t1 WHERE i1 IS NULL;
 pk
 -1
@@ -1960,6 +2089,8 @@ EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE i1 <=> 1;
 EXPLAIN
 -> Covering index lookup on t1 using k1 (i1 = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`i1` <=> 1)
 SELECT pk FROM t1 WHERE i1 <=> 1;
 pk
 1
@@ -1967,6 +2098,8 @@ EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE i1 <=> NULL;
 EXPLAIN
 -> Covering index lookup on t1 using k1 (i1 = NULL)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`i1` <=> NULL)
 SELECT pk FROM t1 WHERE i1 <=> NULL;
 pk
 -1
@@ -1977,6 +2110,8 @@ EXPLAIN
         -> Table scan on t2  (...)
         -> Covering index lookup on t1 using k1 (i1 = t2.k)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`k` <=> `test`.`t1`.`i1`)
 SELECT COUNT(*) FROM t1, t2 WHERE t2.k <=> t1.i1;
 COUNT(*)
 2
@@ -1988,6 +2123,8 @@ EXPLAIN
         -> Filter: (t1.i1 <=> (t2.k + t2.l))  (...)
             -> Covering index lookup on t1 using k1 (i1 = (t2.k + t2.l))  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`i1` <=> (`test`.`t2`.`k` + `test`.`t2`.`l`))
 SELECT COUNT(*) FROM t1, t2 WHERE t1.i1 <=> t2.k+t2.l;
 COUNT(*)
 2
@@ -1999,6 +2136,8 @@ EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE i1 <=> NULL;
 EXPLAIN
 -> Covering index lookup on t1 using k1 (i1 = NULL)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`i1` <=> NULL)
 SELECT pk FROM t1 WHERE i1 <=> NULL;
 pk
 -1
@@ -2008,6 +2147,8 @@ EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE u IS NULL;
 EXPLAIN
 -> Covering index lookup on t1 using ku (u = NULL)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`u` is null)
 SELECT pk FROM t1 WHERE u IS NULL;
 pk
 -1
@@ -2015,6 +2156,8 @@ EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE u <=> 1;
 EXPLAIN
 -> Covering index lookup on t1 using ku (u = 1)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`u` <=> 1)
 SELECT pk FROM t1 WHERE u <=> 1;
 pk
 1
@@ -2022,6 +2165,8 @@ EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE u <=> NULL;
 EXPLAIN
 -> Covering index lookup on t1 using ku (u = NULL)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`u` <=> NULL)
 SELECT pk FROM t1 WHERE u <=> NULL;
 pk
 -1
@@ -2032,6 +2177,8 @@ EXPLAIN
         -> Table scan on t2  (...)
         -> Covering index lookup on t1 using ku (u = t2.k)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`k` <=> `test`.`t1`.`u`)
 SELECT COUNT(*) FROM t1, t2 WHERE t2.k <=> t1.u;
 COUNT(*)
 2
@@ -2043,6 +2190,8 @@ EXPLAIN
         -> Filter: (t1.u <=> (t2.k + t2.l))  (...)
             -> Covering index lookup on t1 using ku (u = (t2.k + t2.l))  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`u` <=> (`test`.`t2`.`k` + `test`.`t2`.`l`))
 SELECT COUNT(*) FROM t1, t2 WHERE t1.u <=> t2.k+t2.l;
 COUNT(*)
 2
@@ -2114,6 +2263,8 @@ EXPLAIN
                 -> Table scan on t1  (rows=6)
             -> Index lookup on t2 using int_col_key (int_col_key = t1.int_col1)  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t1`.`int_col2` AS `int_col2` from `test`.`t1` join `test`.`t2` where multiple equal(`test`.`t1`.`int_col1`, `test`.`t2`.`int_col_key`) order by any_value(`test`.`t2`.`longtext_col`)
 SELECT SQL_BIG_RESULT DISTINCT t1.int_col2
 FROM t1, t2 WHERE t1.int_col1 = t2.int_col_key
 ORDER BY ANY_VALUE(t2.longtext_col);
@@ -2149,6 +2300,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t2.b' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t2`.`b` AS `b` from `test`.`t` `t1` left join (`test`.`t` `t2` semi join (`test`.`t` `t3`)) on(((`t1`.`a` = `t2`.`b`) and ((`t1`.`a` = `t2`.`b`) or (`t3`.`c` = 0))))
 WITH s AS (
 SELECT b FROM t AS t2
 WHERE EXISTS (SELECT * FROM t AS t3 WHERE t2.b = t3.c OR t3.c = 0)
@@ -2263,6 +2415,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f2' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`table2`.`f1` AS `f1`,`table2`.`f2` AS `f2` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t2` `table2` where ((((`table2`.`f2` = 'x') and (`test`.`t1`.`f2` = 'x')) or (`test`.`t1`.`f1` > 1)) and (`test`.`t2`.`f2` >= `test`.`t1`.`f2`) and (`table2`.`f2` = `test`.`t1`.`f2`))
 SELECT *
 FROM ((SELECT * FROM t1
 WHERE EXISTS (SELECT 1 FROM t2 WHERE t2.f2 >= t1.f2)) AS table1
@@ -2372,6 +2525,8 @@ WHERE t3.a = t2.a OR t2.b > t2.b;
 EXPLAIN
 -> Zero rows (impossible WHERE)  (cost=0..0 rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on(false) where ((`t3`.`a` = `t2`.`a`) and ((`t2`.`b` = `t2`.`c`) and (`t1`.`c` = `t2`.`b`)))
 DROP TABLE t;
 #
 # Bug#37733272: Planning overhead for ordered range queries in hypergraph
@@ -2394,6 +2549,8 @@ EXPLAIN
 -> Sort: t.a  (rows=3)
     -> Index scan on t using PRIMARY  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` order by `test`.`t`.`a`
 SET optimizer_trace='enabled=off';
 SELECT REGEXP_SUBSTR(TRACE, '(?s)Functional dependencies.*?""') AS dependencies
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -2515,6 +2672,8 @@ EXPLAIN
         -> Covering index scan on t1 using a  (rows=3)
         -> Zero rows (impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t2`.`a` AS `a`,`t3`.`a` AS `a` from `test`.`t` `t1` left join (`test`.`t` `t2` join (/* select#2 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where false) `t3`) on((`t3`.`a` = `t2`.`a`)) where ((`t3`.`a` = 1) or (`t1`.`a` = 2))
 SELECT *
 FROM
 t AS t1 LEFT JOIN
@@ -2536,6 +2695,8 @@ WHERE t3.a = 1 OR t1.a = 2;
 EXPLAIN
 -> Zero rows (Impossible WHERE)  (cost=0..0 rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t2`.`a` AS `a`,`t3`.`a` AS `a` from `test`.`t` `t1` join `test`.`t` `t2` join (/* select#2 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t` where false) `t3` where ((((`t3`.`a` = 1) and (`t2`.`a` = 1)) or (`t1`.`a` = 2)) and (`t3`.`a` = `t2`.`a`))
 DROP TABLE t;
 #
 # Bug#38763106 - sort with limit in hypergraph gets wrong result
@@ -2551,6 +2712,8 @@ EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
     -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`char_0_col` AS `char_0_col` from `test`.`t1`
 EXPLAIN FORMAT=TREE
 SELECT char_0_col FROM t1
 ORDER BY char_0_col LIMIT 2;
@@ -2558,6 +2721,8 @@ EXPLAIN
 -> Limit: 2 row(s)  (rows=2)
     -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`char_0_col` AS `char_0_col` from `test`.`t1` limit 2
 # Test 1: Basic LIMIT 1 (original bug case)
 SELECT * FROM t1 ORDER BY char_0_col LIMIT 1;
 char_0_col
@@ -2694,6 +2859,8 @@ EXPLAIN
                     -> Hash
                         -> Table scan on x3  (cost=0.313..6.27 rows=20)
 
+Warnings:
+Note	1003	/* select#1 */ select sql_big_result (`x1`.`a` + 0) AS `k`,count(`x1`.`b`) AS `COUNT(x1.b)` from `test`.`t1` `x1` left join `test`.`t2` `x2` on((`x1`.`b` = `x2`.`a`)) left join `test`.`t1` `x3` on((`x2`.`b` = `x3`.`a`)) group by `k`
 SET optimizer_trace='enabled=off';
 Optimizer trace correctly contains WARNING about inconsistent row counts.
 Optimizer trace correctly omits "This is a bug" message.
@@ -2718,6 +2885,8 @@ EXPLAIN
     -> Covering index scan on t1 using PRIMARY  (rows=3)
     -> Zero rows (impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`f1` AS `f1` from `test`.`t` `t1` left join ((/* select#2 */ select distinct `t2`.`f1` AS `f1`,`t2`.`f2` AS `f2` from `test`.`t` `t2` where false) `dt1` join `test`.`t` `t3` straight_join `test`.`t` `t4`) on((`t4`.`f1` = `t3`.`f1`))
 SELECT t1.f1 FROM t AS t1 LEFT JOIN (
 (SELECT DISTINCT * FROM t AS t2 WHERE f2 <> f2) AS dt1,
 (SELECT t4.* FROM t AS t3 STRAIGHT_JOIN t AS t4 ON t4.f1 = t3.f1) AS dt2
@@ -2913,7 +3082,7 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE A(col_int INT);
 INSERT INTO A VALUES (1), (2), (3), (4), (5);
-SELECT  /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=on') */
+SELECT
 PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
 FROM A;
 PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
@@ -2943,6 +3112,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY id;
 EXPLAIN
 -> Index scan on t1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2`,`test`.`t1`.`data` AS `data` from `test`.`t1` order by `test`.`t1`.`id`
 set optimizer_trace="enabled=on";
 SELECT * FROM t1 ORDER BY id;
 WITH trace_vals AS (
@@ -2973,6 +3144,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1;
 EXPLAIN
 -> Index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`
 SELECT LOCATE('{TABLE_SCAN, cost=', trace) = 0 AS no_table_scan
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 no_table_scan
@@ -2988,6 +3161,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 = 3;
 EXPLAIN
 -> Index lookup on t1 using PRIMARY (f1 = 3)  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where multiple equal(3, `test`.`t1`.`f1`)
 SELECT LOCATE('{TABLE_SCAN, cost=', trace) = 0 AS no_table_scan
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 no_table_scan
@@ -3114,6 +3289,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t WHERE id = 1 ORDER BY a;
 EXPLAIN
 -> Single-row index lookup on t using PRIMARY (id = 1)  (cost=1.98..1.98 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a` from `test`.`t` where multiple equal(1, `test`.`t`.`id`)
 SELECT * FROM t WHERE id = 1 ORDER BY a;
 id	a
 1	10
@@ -3123,6 +3300,8 @@ EXPLAIN
 -> Sort: t.a  (cost=2.27..2.27 rows=3)
     -> Index scan on t using PRIMARY  (cost=0.359..1.08 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a` from `test`.`t` order by `test`.`t`.`a`
 DROP TABLE t;
 # Test 2: Multi-column PK, all constant => sort elided
 CREATE TABLE t2(id1 INT, id2 INT, a INT, PRIMARY KEY(id1, id2));
@@ -3134,6 +3313,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t2 WHERE id1 = 1 AND id2 = 2 ORDER BY a;
 EXPLAIN
 -> Single-row index lookup on t2 using PRIMARY (id1 = 1, id2 = 2)  (cost=1.91..1.91 rows=0.707)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,`test`.`t2`.`a` AS `a` from `test`.`t2` where (multiple equal(1, `test`.`t2`.`id1`) and multiple equal(2, `test`.`t2`.`id2`))
 SELECT * FROM t2 WHERE id1 = 1 AND id2 = 2 ORDER BY a;
 id1	id2	a
 1	2	200
@@ -3148,6 +3329,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE id = 1 ORDER BY a, b;
 EXPLAIN
 -> Single-row index lookup on t3 using PRIMARY (id = 1)  (cost=2.03..2.03 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`id` AS `id`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where multiple equal(1, `test`.`t3`.`id`)
 SELECT * FROM t3 WHERE id = 1 ORDER BY a, b;
 id	a	b
 1	10	100
@@ -3163,6 +3346,8 @@ EXPLAIN
 -> Sort: t4.a  (cost=2.98..2.98 rows=2)
     -> Index lookup on t4 using PRIMARY (id1 = 1)  (cost=1.11..2.22 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`id1` AS `id1`,`test`.`t4`.`id2` AS `id2`,`test`.`t4`.`a` AS `a` from `test`.`t4` where multiple equal(1, `test`.`t4`.`id1`) order by `test`.`t4`.`a`
 SELECT * FROM t4 WHERE id1 = 1 ORDER BY a;
 id1	id2	a
 1	1	100
@@ -3178,6 +3363,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t5 WHERE a = 10 ORDER BY b;
 EXPLAIN
 -> Single-row index lookup on t5 using uk_a (a = 10)  (cost=3.99..3.99 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`id` AS `id`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b` from `test`.`t5` where multiple equal(10, `test`.`t5`.`a`)
 SELECT * FROM t5 WHERE a = 10 ORDER BY b;
 id	a	b
 1	10	100
@@ -3205,6 +3392,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t2.f1' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where <nop>(<in_optimizer>(`test`.`t1`.`f2`,<exists>(/* select#2 */ select `t2`.`f1` from `test`.`t1` `t2` anti join (`test`.`t1` `t3`) on(true) where (`t2`.`f1` = `test`.`t1`.`f1`))))
 SELECT 1 FROM t1
 WHERE (t1.f2 < ANY (SELECT t2.f1 FROM t1 AS t2
 WHERE t2.f1 = t1.f1 AND
@@ -3212,3 +3400,1313 @@ NOT EXISTS (SELECT t2.f1
 FROM t1 AS t3 )));
 1
 DROP TABLE t1;
+#
+# Bug#36448705 Wrong results for ref access with decimal-to-int truncation
+#
+# Decimal value gets truncated to integer 0 during index key construction,
+# and the optimizer incorrectly removes the post-filter predicate.
+#
+CREATE TABLE t0 (
+c2 SMALLINT UNSIGNED NOT NULL,
+UNIQUE KEY i0 (c2)
+);
+INSERT INTO t0 VALUES (0),(1);
+# With UNIQUE KEY - should return empty set
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+c2
+# Verify with explicit decimal comparison
+SELECT t0.c2 FROM t0 WHERE t0.c2 = 0.335691025520639;
+c2
+# Verify correct result with table scan (no index hint)
+SELECT t0.c2 FROM t0 IGNORE INDEX (i0) WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+c2
+# Non-unique key variant
+ALTER TABLE t0 DROP KEY i0, ADD KEY i0 (c2);
+SET SESSION optimizer_switch="hypergraph_optimizer=off";
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+c2
+SET SESSION optimizer_switch="hypergraph_optimizer=on";
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+c2
+DROP TABLE t0;
+#
+# Bug#36957877 Building rarely used index on derived table is inefficient
+#
+CREATE TABLE t0 (a INT PRIMARY KEY, b INT, c INT, d INT);
+INSERT INTO t0
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<999)
+SELECT n, n%100, n%100, n%100 FROM qn;
+ANALYZE TABLE t0;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+SELECT SUM(b) v1, c v2, d v3 FROM t0 GROUP BY c, d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+EXPLAIN
+-> Table scan on <union temporary>  (rows=64)
+    -> Union materialize with deduplication  (rows=64)
+        -> Filter: (cte1.v2 = 5)  (rows=32)
+            -> Table scan on cte1  (rows=320)
+                -> Materialize CTE cte1 if needed  (rows=320)
+                    -> Group aggregate: sum(t0.b)  (rows=320)
+                        -> Sort: t0.c, t0.d  (rows=1000)
+                            -> Index scan on t0 using PRIMARY  (rows=1000)
+        -> Filter: (cte1.v1 = 4)  (rows=32)
+            -> Table scan on cte1  (rows=320)
+                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=320)
+
+Warnings:
+Note	1003	with `cte1` as (/* select#2 */ select sum(`test`.`t0`.`b`) AS `v1`,`test`.`t0`.`c` AS `v2`,`test`.`t0`.`d` AS `v3` from `test`.`t0` group by `test`.`t0`.`c`,`test`.`t0`.`d`) /* select#1 */ select `cte1`.`v1` AS `v1`,`cte1`.`v2` AS `v2`,`cte1`.`v3` AS `v3` from `cte1` where multiple equal(5, `cte1`.`v2`) union /* select#3 */ select `cte1`.`v1` AS `v1`,`cte1`.`v2` AS `v2`,`cte1`.`v3` AS `v3` from `cte1` where (`cte1`.`v1` = 4)
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+SELECT SUM(x1.b + x2.b) v1, x1.d v2
+FROM t0 x1 JOIN t0 x2 ON x1.c = x2.c
+GROUP BY x1.d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+EXPLAIN
+-> Table scan on <union temporary>  (rows=6.32)
+    -> Union materialize with deduplication  (rows=6.32)
+        -> Filter: (cte1.v2 = 5)  (rows=3.16)
+            -> Table scan on cte1  (rows=31.6)
+                -> Materialize CTE cte1 if needed  (rows=31.6)
+                    -> Table scan on <temporary>  (rows=31.6)
+                        -> Aggregate using temporary table  (rows=31.6)
+                            -> Inner hash join (x1.c = x2.c)  (rows=100000)
+                                -> Index scan on x1 using PRIMARY  (rows=1000)
+                                -> Hash
+                                    -> Index scan on x2 using PRIMARY  (rows=1000)
+        -> Filter: (cte1.v1 = 4)  (rows=3.16)
+            -> Table scan on cte1  (rows=31.6)
+                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=31.6)
+
+Warnings:
+Note	1003	with `cte1` as (/* select#2 */ select sum((`x1`.`b` + `x2`.`b`)) AS `v1`,`x1`.`d` AS `v2` from `test`.`t0` `x1` join `test`.`t0` `x2` where multiple equal(`x1`.`c`, `x2`.`c`) group by `x1`.`d`) /* select#1 */ select `cte1`.`v1` AS `v1`,`cte1`.`v2` AS `v2` from `cte1` where multiple equal(5, `cte1`.`v2`) union /* select#3 */ select `cte1`.`v1` AS `v1`,`cte1`.`v2` AS `v2` from `cte1` where (`cte1`.`v1` = 4)
+DROP TABLE t0;
+#
+# Bug 36720017 - Hypergraph optimizer uses slow full deduplication
+#                in DISTINCT + LIMIT queries
+#
+CREATE TABLE t(x INT, y INT);
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6,6), (7,7);
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1) (actual rows=1 loops=1)
+    -> Table scan on <temporary>  (rows=1) (actual rows=1 loops=1)
+        -> Temporary table with deduplication  (rows=1) (actual rows=1 loops=1)
+            -> Limit table size: 1 unique row(s)
+                -> Inner hash join (t1.x = t2.x)  (rows=314) (actual rows=1 loops=1)
+                    -> Table scan on t1  (rows=56) (actual rows=1 loops=1)
+                    -> Hash
+                        -> Table scan on t2  (rows=56) (actual rows=56 loops=1)
+
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_BIG_RESULT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1) (actual rows=1 loops=1)
+    -> Sort with duplicate removal: t1.x, limit input to 1 row(s) per chunk  (rows=1) (actual rows=1 loops=1)
+        -> Inner hash join (t1.x = t2.x)  (rows=314) (actual rows=448 loops=1)
+            -> Table scan on t1  (rows=56) (actual rows=56 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=56) (actual rows=56 loops=1)
+
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 3 OFFSET 2;
+EXPLAIN
+-> Limit/Offset: 3/2 row(s)  (rows=3) (actual rows=3 loops=1)
+    -> Table scan on <temporary>  (rows=5) (actual rows=5 loops=1)
+        -> Temporary table with deduplication  (rows=5) (actual rows=5 loops=1)
+            -> Limit table size: 5 unique row(s)
+                -> Inner hash join (t1.x = t2.x)  (rows=314) (actual rows=33 loops=1)
+                    -> Table scan on t1  (rows=56) (actual rows=5 loops=1)
+                    -> Hash
+                        -> Table scan on t2  (rows=56) (actual rows=56 loops=1)
+
+DELETE FROM t WHERE x <> 1;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_CALC_FOUND_ROWS DISTINCT x
+FROM t AS t1
+LIMIT 5 OFFSET 15;
+EXPLAIN
+-> Limit/Offset: 5/15 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (rows=0) (actual rows=0 loops=1)
+    -> Sort with duplicate removal: t1.x  (rows=2.83) (actual rows=1 loops=1)
+        -> Table scan on t1  (rows=8) (actual rows=8 loops=1)
+
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+SELECT FOUND_ROWS() AS total_distinct_x;
+total_distinct_x
+1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2
+WHERE t1.x = t2.x
+ORDER BY t1.y LIMIT 5 OFFSET 10;
+EXPLAIN
+-> Limit/Offset: 5/10 row(s)  (rows=0) (actual rows=0 loops=1)
+    -> Sort with duplicate removal: t1.y, t1.x  (rows=2.53) (actual rows=1 loops=1)
+        -> Inner hash join (t1.x = t2.x)  (rows=6.4) (actual rows=64 loops=1)
+            -> Table scan on t1  (rows=8) (actual rows=8 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=8) (actual rows=8 loops=1)
+
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT * FROM (
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 5
+) s ORDER BY s.x;
+EXPLAIN
+-> Sort: s.x  (rows=2.53) (actual rows=1 loops=1)
+    -> Table scan on s  (rows=2.53) (actual rows=1 loops=1)
+        -> Materialize  (rows=2.53) (actual rows=1 loops=1)
+            -> Limit: 5 row(s)  (rows=2.53) (actual rows=1 loops=1)
+                -> Sort with duplicate removal: t1.x, limit input to 5 row(s) per chunk  (rows=2.53) (actual rows=1 loops=1)
+                    -> Inner hash join (t1.x = t2.x)  (rows=6.4) (actual rows=64 loops=1)
+                        -> Table scan on t1  (rows=8) (actual rows=8 loops=1)
+                        -> Hash
+                            -> Table scan on t2  (rows=8) (actual rows=8 loops=1)
+
+DROP TABLE t;
+#
+# Bug#37152269 - REDUNDANT FILTER PATHS ON BETWEEN RANGE SCANS IN HYPERGRAPH
+#
+CREATE TABLE t1 (
+f1 int NOT NULL, f2 int NOT NULL,
+f3 int DEFAULT NULL,
+PRIMARY KEY (f1,f2), KEY f3 (f3));
+INSERT INTO t1 (f1, f2, f3) VALUES
+(1, 1, 1), (1, 2, 3), (2, 2, 3),
+(3, 2, 3), (4, 2, 3), (5, 2, 3), (6, 2, 3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f3 = 3 AND f1 BETWEEN 2 AND 4;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using f3 over (f3 = 3 AND 2 <= f1 <= 4)  (rows=3)
+
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f1` between 2 and 4) and multiple equal(3, `test`.`t1`.`f3`))
+SELECT COUNT(*) FROM t1
+WHERE f3 = 3 AND f1 BETWEEN 2 AND 4;
+COUNT(*)
+3
+SET @low = 2;
+SET @high = 4;
+PREPARE stmt FROM
+'EXPLAIN FORMAT = TREE SELECT COUNT(*) FROM t1
+ WHERE f3 = 3 AND f1 BETWEEN ? AND ?';
+EXECUTE stmt USING @low, @high;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using f3 over (f3 = 3 AND 2 <= f1 <= 4)  (rows=3)
+
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f1` between 2 and 4) and multiple equal(3, `test`.`t1`.`f3`))
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM
+'SELECT COUNT(*) FROM t1
+ WHERE f3 = 3 AND f1 BETWEEN ? AND ?';
+EXECUTE stmt USING @low, @high;
+COUNT(*)
+3
+DEALLOCATE PREPARE stmt;
+INSERT INTO t1 VALUES (100, 1, NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND 4;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using PRIMARY over (2 <= f1 <= 4)  (rows=3)
+
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f1` between 2 and 4)
+SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND 4;
+COUNT(*)
+3
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND f2;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t1.f1 between 2 and t1.f2)  (rows=0.889)
+        -> Covering index scan on t1 using PRIMARY  (rows=8)
+
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f1` between 2 and `test`.`t1`.`f2`)
+SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND f2;
+COUNT(*)
+1
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND (1+3);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using PRIMARY over (2 <= f1 <= 4)  (rows=3)
+
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f1` between 2 and (1 + 3))
+SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND (1+3);
+COUNT(*)
+3
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 100 AND f2;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t1.f1 not between 100 and t1.f2)  (rows=7.11)
+        -> Covering index scan on t1 using PRIMARY  (rows=8)
+
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f1` not between 100 and `test`.`t1`.`f2`)
+SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 100 AND f2;
+COUNT(*)
+8
+INSERT INTO t1 (f1, f2, f3)
+WITH RECURSIVE seq(n) AS (
+SELECT 7 UNION ALL SELECT n + 1 FROM seq WHERE n < 1000)
+SELECT n, 1, NULL FROM seq WHERE n <> 100;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 2 AND 999;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using PRIMARY over (f1 < 2) OR (999 < f1)  (rows=3)
+
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f1` not between 2 and 999)
+SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 2 AND 999;
+COUNT(*)
+3
+DROP TABLE t1;
+#
+# Bug#34513189: Wrong cost for filter with independent subquery
+#
+CREATE TABLE num10 (n INT PRIMARY KEY);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t30 (a INT PRIMARY KEY, b INT);
+INSERT INTO t30 SELECT x1.n + x2.n*10, x1.n FROM num10 x1, num10 x2 WHERE x2.n < 3;
+CREATE TABLE t_large (x INT PRIMARY KEY, y INT);
+INSERT INTO t_large SELECT x1.n + x2.n*10 + x3.n*100, x3.n
+FROM num10 x1, num10 x2, num10 x3;
+CREATE TABLE t_sub (v INT);
+INSERT INTO t_sub SELECT x1.n + x2.n*10 FROM num10 x1, num10 x2;
+ANALYZE TABLE num10, t30, t_large, t_sub;
+Table	Op	Msg_type	Msg_text
+test.num10	analyze	status	OK
+test.t30	analyze	status	OK
+test.t_large	analyze	status	OK
+test.t_sub	analyze	status	OK
+# Should use NLJ with PK lookup on t_large. Without the fix the
+# inflated NLJ cost made the optimizer pick hash join instead.
+EXPLAIN FORMAT=TREE
+SELECT * FROM t30 JOIN t_large ON t_large.x = t30.a
+AND t30.b + t_large.y > (SELECT MAX(v) FROM t_sub);
+EXPLAIN
+-> Nested loop inner join  (cost=45..115 rows=30)
+    -> Index scan on t30 using PRIMARY  (cost=0.359..10.8 rows=30)
+    -> Filter: ((t30.b + t_large.y) > (select #2))  (cost=44.6..44.6 rows=1)
+        -> Single-row index lookup on t_large using PRIMARY (x = t30.a)  (cost=1.98..1.98 rows=1)
+        -> Select #2 (subquery in condition; run only once)
+            -> Aggregate: max(t_sub.v)  (cost=42.6..42.6 rows=1)
+                -> Table scan on t_sub  (cost=0.295..29.5 rows=100)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t30`.`a` AS `a`,`test`.`t30`.`b` AS `b`,`test`.`t_large`.`x` AS `x`,`test`.`t_large`.`y` AS `y` from `test`.`t30` join `test`.`t_large` where (((`test`.`t30`.`b` + `test`.`t_large`.`y`) > (/* select#2 */ select max(`test`.`t_sub`.`v`) from `test`.`t_sub`)) and (`test`.`t_large`.`x` = `test`.`t30`.`a`))
+CREATE TABLE t2r (a INT PRIMARY KEY, b INT);
+INSERT INTO t2r VALUES (0,0),(1,1);
+ANALYZE TABLE t2r;
+Table	Op	Msg_type	Msg_text
+test.t2r	analyze	status	OK
+SET SESSION optimizer_trace='enabled=on';
+SELECT 1 FROM t2r LEFT JOIN num10 ON t2r.a = num10.n
+WHERE (t2r.b + IFNULL(num10.n,0) > (SELECT MAX(v) FROM t_sub)) IS NOT FALSE;
+# Expect 1: NLJ candidate carries the subquery init cost in
+# init_once_cost (so rescan_cost is reported).
+SELECT REGEXP_SUBSTR(trace, 'NESTED_LOOP_JOIN[^}]*') REGEXP 'rescan_cost'
+  AS nlj_has_init_once_cost FROM information_schema.optimizer_trace;
+nlj_has_init_once_cost
+1
+SET SESSION optimizer_trace='enabled=off';
+SET SESSION optimizer_trace='enabled=on';
+SELECT 1 FROM t2r STRAIGHT_JOIN t_large ON t_large.x = t2r.a
+WHERE t_large.y < (SELECT MAX(v) FROM t_sub);
+# Expect 1: base-table filter carries the subquery init cost in
+# init_once_cost (so the enclosing NLJ reports rescan_cost).
+SELECT trace REGEXP 'NESTED_LOOP_JOIN[^}]*rescan_cost'
+  AS nlj_base_table_filter_has_init_once_cost
+FROM information_schema.optimizer_trace;
+nlj_base_table_filter_has_init_once_cost
+1
+SET SESSION optimizer_trace='enabled=off';
+ALTER TABLE t_large ADD INDEX iy(y);
+ANALYZE TABLE t_large;
+Table	Op	Msg_type	Msg_text
+test.t_large	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT 1 FROM t2r JOIN t_large ON t_large.y = t2r.a
+AND t2r.b + t_large.x > (SELECT MAX(v) FROM t_sub);
+EXPLAIN
+-> Nested loop inner join  (rows=1000)
+    -> Index scan on t2r using PRIMARY  (rows=2)
+    -> Filter: ((t2r.b + t_large.x) > (select #2))  (cost=HIGH rows=500)
+        -> Covering index lookup on t_large using iy (y = t2r.a)  (rows=500)
+        -> Select #2 (subquery in condition; run only once)
+            -> Aggregate: max(t_sub.v)  (rows=1)
+                -> Table scan on t_sub  (rows=100)
+
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2r` join `test`.`t_large` where (((`test`.`t2r`.`b` + `test`.`t_large`.`x`) > (/* select#2 */ select max(`test`.`t_sub`.`v`) from `test`.`t_sub`)) and (`test`.`t_large`.`y` = `test`.`t2r`.`a`))
+DROP TABLE num10, t2r, t30, t_large, t_sub;
+#
+# Bug#37126568 Window function with subquery argument containing outer
+# aggregate gives wrong result
+#
+CREATE TABLE tt (c0 INT, c1 INT);
+INSERT INTO tt VALUES (1,2), (1,3), (1,4), (2,1), (3,5), (3,6);
+SELECT SUM((SELECT MIN(c1))) OVER () FROM tt GROUP BY c0;
+SUM((SELECT MIN(c1))) OVER ()
+8
+8
+8
+SELECT SUM(1 + (SELECT MIN(c1))) OVER () FROM tt GROUP BY c0;
+SUM(1 + (SELECT MIN(c1))) OVER ()
+11
+11
+11
+SELECT SUM(EXISTS(SELECT * WHERE MIN(c1) > 1)) OVER () FROM tt GROUP BY c0;
+SUM(EXISTS(SELECT * WHERE MIN(c1) > 1)) OVER ()
+2
+2
+2
+SELECT SUM(1 + EXISTS(SELECT * WHERE MIN(c1) > 1)) OVER () FROM tt GROUP BY c0;
+SUM(1 + EXISTS(SELECT * WHERE MIN(c1) > 1)) OVER ()
+5
+5
+5
+SELECT SUM((SELECT MIN(c1))) OVER (),
+SUM(c0) OVER (ORDER BY c0)
+FROM tt GROUP BY c0;
+SUM((SELECT MIN(c1))) OVER ()	SUM(c0) OVER (ORDER BY c0)
+8	1
+8	3
+8	6
+SELECT SUM(c0) OVER (ORDER BY c0),
+SUM((SELECT MIN(c1))) OVER ()
+FROM tt GROUP BY c0;
+SUM(c0) OVER (ORDER BY c0)	SUM((SELECT MIN(c1))) OVER ()
+1	8
+3	8
+6	8
+CREATE TABLE t (c0 INT, KEY i1 (c0));
+INSERT INTO t VALUES (1), (1), (1), (2), (2), (3);
+SELECT SUM((SELECT c0
+FROM t
+WHERE MIN(tt.c1) > 1
+GROUP BY c0
+ORDER BY c0 LIMIT 1)) OVER() sum_wf
+FROM tt
+GROUP BY c0;
+sum_wf
+2
+2
+2
+DROP TABLE tt, t;
+#
+# Bug#33910388: Slow planning of NATURAL JOIN with many columns
+#
+CREATE TABLE t_natural (
+col1 INT, col2 INT, col3 INT, col4 INT, col5 INT,
+col6 INT, col7 INT, col8 INT, col9 INT, col10 INT,
+col11 INT, col12 INT, col13 INT, col14 INT, col15 INT,
+col16 INT, col17 INT, col18 INT, col19 INT, col20 INT,
+col21 INT, col22 INT, col23 INT, col24 INT, col25 INT,
+col26 INT, col27 INT, col28 INT, col29 INT, col30 INT,
+col31 INT, col32 INT, col33 INT, col34 INT, col35 INT,
+col36 INT, col37 INT, col38 INT, col39 INT, col40 INT,
+col41 INT, col42 INT, col43 INT, col44 INT, col45 INT,
+col46 INT, col47 INT, col48 INT, col49 INT, col50 INT,
+col51 INT, col52 INT, col53 INT, col54 INT, col55 INT,
+col56 INT, col57 INT, col58 INT, col59 INT, col60 INT,
+col61 INT, col62 INT, col63 INT, col64 INT, col65 INT,
+col66 INT, col67 INT, col68 INT, col69 INT, col70 INT,
+col71 INT, col72 INT, col73 INT, col74 INT, col75 INT,
+col76 INT, col77 INT, col78 INT, col79 INT, col80 INT,
+col81 INT, col82 INT, col83 INT, col84 INT, col85 INT,
+col86 INT, col87 INT, col88 INT, col89 INT, col90 INT,
+col91 INT, col92 INT, col93 INT, col94 INT, col95 INT,
+col96 INT, col97 INT, col98 INT, col99 INT, col100 INT);
+EXPLAIN FORMAT=TREE
+SELECT 1 FROM
+t_natural t1
+NATURAL JOIN t_natural t2
+NATURAL JOIN t_natural t3
+NATURAL JOIN t_natural t4
+NATURAL JOIN t_natural t5
+NATURAL JOIN t_natural t6
+NATURAL JOIN t_natural t7
+NATURAL JOIN t_natural t8
+NATURAL JOIN t_natural t9
+NATURAL JOIN t_natural t10;
+DROP TABLE t_natural;
+#
+# Bug#36578540 Sorting on function with side effects results in
+# more function calls
+#
+CREATE TABLE t1 (x INT);
+CREATE TABLE t2 (x INT);
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE FUNCTION f1(p INT) RETURNS INT DETERMINISTIC MODIFIES SQL DATA
+BEGIN
+INSERT INTO t1 VALUES (p);
+RETURN p + 1;
+END|
+SELECT f1(x) AS f FROM t2 ORDER BY f;
+f
+2
+3
+4
+SELECT COUNT(*) AS should_be_3 FROM t1;
+should_be_3
+3
+SELECT * FROM t1 ORDER BY x;
+x
+1
+2
+3
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+CREATE TABLE t3 (x INT);
+INSERT INTO t3 VALUES (1), (2), (3), (4), (5);
+EXPLAIN FORMAT=TREE SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+EXPLAIN
+-> Sort: r  (rows=5)
+    -> Stream results  (rows=5)
+        -> Table scan on t3  (rows=5)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`x` AS `x`,rand(42) AS `r` from `test`.`t3` order by `r`
+SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+x	r
+2	0.15164413689788817
+4	0.3925059534539524
+5	0.6540667979550239
+1	0.6629110161800972
+3	0.7694876666827943
+DROP TABLE t3;
+CREATE TABLE t4 (x INT, y INT);
+INSERT INTO t4 VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0);
+UPDATE t4 SET y = 1 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_5 FROM t4 WHERE y = 1;
+should_be_5
+5
+DELETE FROM t4 ORDER BY RAND() LIMIT 2;
+SELECT COUNT(*) AS should_be_3 FROM t4;
+should_be_3
+3
+DELETE FROM t4 WHERE x > 0 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_0 FROM t4;
+should_be_0
+0
+DROP TABLE t4;
+CREATE TABLE t5 (a INT);
+INSERT INTO t5 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t6 (id INT PRIMARY KEY, y DOUBLE);
+INSERT INTO t6 VALUES (1, 0);
+EXPLAIN FORMAT=TREE
+DELETE FROM t6 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+EXPLAIN
+-> Delete from t6 (immediate)  (rows=1)
+    -> Filter: (t6.y > (select #2))  (rows=1)
+        -> Index scan on t6 using PRIMARY  (rows=1)
+        -> Select #2 (subquery in condition; uncacheable)
+            -> Sort: r, limit input to 1 row(s) per chunk  (rows=1)
+                -> Stream results  (rows=5)
+                    -> Table scan on t5  (rows=5)
+
+Warnings:
+Note	1003	delete from `test`.`t6` where (`test`.`t6`.`y` > (/* select#2 */ select rand() AS `r` from `test`.`t5` order by `r` limit 1))
+EXPLAIN FORMAT=TREE
+UPDATE t6 SET y = 1 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+EXPLAIN
+-> Update t6 (immediate)  (rows=1)
+    -> Filter: (t6.y > (select #2))  (rows=1)
+        -> Index scan on t6 using PRIMARY  (rows=1)
+        -> Select #2 (subquery in condition; uncacheable)
+            -> Sort: r, limit input to 1 row(s) per chunk  (rows=1)
+                -> Stream results  (rows=5)
+                    -> Table scan on t5  (rows=5)
+
+Warnings:
+Note	1003	update `test`.`t6` set `test`.`t6`.`y` = 1 where (`test`.`t6`.`y` > (/* select#2 */ select rand() AS `r` from `test`.`t5` order by `r` limit 1))
+DROP TABLE t5, t6;
+#
+# Bug#39506035: hypergraph: PossiblyAddSargableCondition: Assertion
+#               `CompatibleTypesForIndexLookup(eq_item, field,
+#               other_side)' failed.
+#
+CREATE TABLE t (
+c3 MEDIUMTEXT CHARACTER SET gb18030 COLLATE gb18030_chinese_ci NOT NULL,
+FULLTEXT KEY i1 (c3)
+);
+INSERT INTO t VALUES (''),('da');
+SELECT 1 FROM t WHERE date_format(
+current_timestamp,
+0xf4dd0189991dfabb7d3bb5ca3f568f4fc148
+) = c3;
+ERROR HY000: Cannot convert string '\xF4\xDD\x01\x89\x99\x1D...' from utf8mb4 to gb18030
+DROP TABLE t;
+#
+# Bug#35767452: Inefficient ordering of UNION ALL inputs
+#
+CREATE TABLE t_union (
+a INT,
+b INT,
+PRIMARY KEY(a)
+);
+INSERT INTO t_union
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<1000)
+SELECT n, n FROM qn;
+ANALYZE TABLE t_union;
+Table	Op	Msg_type	Msg_text
+test.t_union	analyze	status	OK
+# Show individual branch costs for reference:
+# Branch A: avg(b) — blocking aggregate, high init_cost
+EXPLAIN FORMAT=TREE SELECT avg(b) FROM t_union;
+EXPLAIN
+-> Aggregate: avg(t_union.b)  (cost=442..442 rows=1)
+    -> Index scan on t_union using PRIMARY  (cost=0.313..313 rows=1000)
+
+Warnings:
+Note	1003	/* select#1 */ select avg(`test`.`t_union`.`b`) AS `avg(b)` from `test`.`t_union`
+# Branch B: table scan — streaming, near-zero init_cost
+EXPLAIN FORMAT=TREE SELECT b FROM t_union;
+EXPLAIN
+-> Index scan on t_union using PRIMARY  (cost=0.313..313 rows=1000)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_union`.`b` AS `b` from `test`.`t_union`
+# UNION ALL with EXISTS: aggregate written first textually,
+# but after the fix the scan (low init_cost) appears first
+# in the Append, allowing EXISTS to short-circuit immediately.
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_union x0 WHERE EXISTS (
+SELECT avg(b) FROM t_union x2
+UNION ALL
+SELECT b FROM t_union x1
+);
+EXPLAIN
+-> Filter: exists(select #2)  (cost=0.417..417 rows=1000)
+    -> Index scan on x0 using PRIMARY  (cost=0.359..359 rows=1000)
+    -> Select #2 (subquery in condition; run only once)
+        -> Limit: 1 row(s)  (cost=442..442 rows=1)
+            -> Append  (cost=442..755 rows=1001)
+                -> Stream results  (cost=0.313..313 rows=1000)
+                    -> Index scan on x1 using PRIMARY  (cost=0.313..313 rows=1000)
+                -> Stream results  (cost=442..442 rows=1)
+                    -> Aggregate: avg(x2.b)  (cost=442..442 rows=1)
+                        -> Index scan on x2 using PRIMARY  (cost=0.313..313 rows=1000)
+
+Warnings:
+Note	1003	/* select#1 */ select `x0`.`a` AS `a`,`x0`.`b` AS `b` from `test`.`t_union` `x0` where exists(/* select#2 */ select avg(`x2`.`b`) from `test`.`t_union` `x2` union all /* select#3 */ select `x1`.`b` from `test`.`t_union` `x1`)
+# Reversed textual order — same plan expected (scan first).
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_union x0 WHERE EXISTS (
+SELECT b FROM t_union x1
+UNION ALL
+SELECT avg(b) FROM t_union x2
+);
+EXPLAIN
+-> Filter: exists(select #2)  (cost=0.417..417 rows=1000)
+    -> Index scan on x0 using PRIMARY  (cost=0.359..359 rows=1000)
+    -> Select #2 (subquery in condition; run only once)
+        -> Limit: 1 row(s)  (cost=442..442 rows=1)
+            -> Append  (cost=442..755 rows=1001)
+                -> Stream results  (cost=0.313..313 rows=1000)
+                    -> Index scan on x1 using PRIMARY  (cost=0.313..313 rows=1000)
+                -> Stream results  (cost=442..442 rows=1)
+                    -> Aggregate: avg(x2.b)  (cost=442..442 rows=1)
+                        -> Index scan on x2 using PRIMARY  (cost=0.313..313 rows=1000)
+
+Warnings:
+Note	1003	/* select#1 */ select `x0`.`a` AS `a`,`x0`.`b` AS `b` from `test`.`t_union` `x0` where exists(/* select#2 */ select `x1`.`b` from `test`.`t_union` `x1` union all /* select#3 */ select avg(`x2`.`b`) from `test`.`t_union` `x2`)
+# Both queries produce identical results.
+SELECT COUNT(*) FROM t_union x0 WHERE EXISTS (
+SELECT avg(b) FROM t_union x2
+UNION ALL
+SELECT b FROM t_union x1
+);
+COUNT(*)
+1000
+SELECT COUNT(*) FROM t_union x0 WHERE EXISTS (
+SELECT b FROM t_union x1
+UNION ALL
+SELECT avg(b) FROM t_union x2
+);
+COUNT(*)
+1000
+# Selective-filter branch vs cheap branch: both have near-zero
+# init_cost (streaming scan), but the filter must read many rows
+# before producing one, so its first_row_cost is high. Sorting on
+# first_row_cost rather than raw init_cost places the cheap branch
+# first so EXISTS short-circuits without scanning t_union.
+CREATE TABLE t_small (b INT);
+INSERT INTO t_small VALUES (1),(2),(3);
+ANALYZE TABLE t_small;
+Table	Op	Msg_type	Msg_text
+test.t_small	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT 1 WHERE EXISTS (
+SELECT b FROM t_union WHERE b > 10000
+UNION ALL
+SELECT b FROM t_small
+);
+EXPLAIN
+-> Filter: exists(select #2)  (cost=0..0 rows=1)
+    -> Rows fetched before execution  (cost=0..0 rows=1)
+    -> Select #2 (subquery in condition; run only once)
+        -> Limit: 1 row(s)  (cost=1.11..1.11 rows=1)
+            -> Append  (cost=1.11..372 rows=336)
+                -> Stream results  (cost=0.295..0.885 rows=3)
+                    -> Table scan on t_small  (cost=0.295..0.885 rows=3)
+                -> Stream results  (cost=1.11..371 rows=333)
+                    -> Filter: (t_union.b > 10000)  (cost=1.11..371 rows=333)
+                        -> Index scan on t_union using PRIMARY  (cost=0.313..313 rows=1000)
+
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from DUAL  where exists(/* select#2 */ select `test`.`t_union`.`b` from `test`.`t_union` where (`test`.`t_union`.`b` > 10000) union all /* select#3 */ select `test`.`t_small`.`b` from `test`.`t_small`)
+SELECT 1 WHERE EXISTS (
+SELECT b FROM t_union WHERE b > 10000
+UNION ALL
+SELECT b FROM t_small
+);
+1
+1
+DROP TABLE t_small;
+DROP TABLE t_union;
+#
+# Bug 36784038 - Explain TREE format does not display
+#.               transformed query like TRADITIONAL format
+#
+CREATE TABLE t1 (f1 integer);
+EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM t1) AS dt WHERE f1 > 10;
+EXPLAIN
+-> Filter: (t1.f1 > 10)  (rows=0.333)
+    -> Table scan on t1  (rows=1)
+
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > 10)
+DROP TABLE t1;
+#
+# Bug#37543247 Missing optimization in hypergraph in case of
+#              multi-valued index
+#
+CREATE TABLE t1 (
+id INT NOT NULL,
+j  JSON NOT NULL,
+PRIMARY KEY (id),
+KEY k_arr_id ((CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t1 VALUES
+(1,'[20,30]'), (2,'[40]'),     (3,'[30]'),   (4,'[10,30]'),
+(5,'[50]'),    (6,'[30,30]'),  (7,'[]'),     (8,'[10,20,30]'),
+(9,'[10]'),    (10,'[30]');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id DESC;
+EXPLAIN
+-> Filter: ((t1.id < 7) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=4)
+    -> Index range scan on t1 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')) AND id < 7) (reverse)  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and (`test`.`t1`.`id` < 7)) order by `test`.`t1`.`id` desc
+SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id DESC;
+id
+6
+4
+3
+1
+EXPLAIN FORMAT=TREE SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id ASC;
+EXPLAIN
+-> Filter: ((t1.id < 7) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=4)
+    -> Index range scan on t1 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')) AND id < 7)  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and (`test`.`t1`.`id` < 7)) order by `test`.`t1`.`id`
+SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id ASC;
+id
+1
+3
+4
+6
+EXPLAIN FORMAT=TREE SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') AND (id < 3 OR id > 7)
+ORDER BY id DESC;
+EXPLAIN
+-> Filter: (((t1.id < 3) or (t1.id > 7)) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=3)
+    -> Index range scan on t1 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')) AND id < 3) OR (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')) AND 7 < id) (reverse)  (rows=3)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and ((`test`.`t1`.`id` < 3) or (`test`.`t1`.`id` > 7))) order by `test`.`t1`.`id` desc
+SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') AND (id < 3 OR id > 7)
+ORDER BY id DESC;
+id
+10
+8
+1
+EXPLAIN FORMAT=TREE SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_OVERLAPS(j->'$[*]', '[30]') ORDER BY id DESC;
+EXPLAIN
+-> Filter: json_overlaps(cast(json_extract(j,_utf8mb4'$[*]') as signed array),json'[30]')  (rows=6)
+    -> Index range scan on t1 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) (reverse)  (rows=6)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) where json_overlaps(cast(json_extract(`j`,_utf8mb4'$[*]') as signed array),json'[30]') order by `test`.`t1`.`id` desc
+SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_OVERLAPS(j->'$[*]', '[30]') ORDER BY id DESC;
+id
+10
+8
+6
+4
+3
+1
+EXPLAIN FORMAT=TREE SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_CONTAINS(j->'$[*]', '[30]') ORDER BY id DESC;
+EXPLAIN
+-> Filter: json_contains(cast(json_extract(j,_utf8mb4'$[*]') as signed array),json'[30]')  (rows=6)
+    -> Index range scan on t1 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) (reverse)  (rows=6)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) where json_contains(cast(json_extract(`j`,_utf8mb4'$[*]') as signed array),json'[30]') order by `test`.`t1`.`id` desc
+SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_CONTAINS(j->'$[*]', '[30]') ORDER BY id DESC;
+id
+10
+8
+6
+4
+3
+1
+EXPLAIN FORMAT=TREE SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_OVERLAPS(j->'$[*]', '[10,30]') ORDER BY id DESC;
+EXPLAIN
+-> Sort: t1.id DESC  (rows=9)
+    -> Filter: json_overlaps(cast(json_extract(j,_utf8mb4'$[*]') as signed array),json'[10, 30]')  (rows=9)
+        -> Index range scan on t1 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) OR (10 MEMBER OF (json_extract(j,_utf8mb4'$[*]')))  (rows=9)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) where json_overlaps(cast(json_extract(`j`,_utf8mb4'$[*]') as signed array),json'[10, 30]') order by `test`.`t1`.`id` desc
+SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_OVERLAPS(j->'$[*]', '[10,30]') ORDER BY id DESC;
+id
+10
+9
+8
+6
+4
+3
+1
+EXPLAIN FORMAT=TREE SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_CONTAINS(j->'$[*]', '[10,30]') ORDER BY id DESC;
+EXPLAIN
+-> Sort: t1.id DESC  (rows=9)
+    -> Filter: json_contains(cast(json_extract(j,_utf8mb4'$[*]') as signed array),json'[10, 30]')  (rows=9)
+        -> Index range scan on t1 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) OR (10 MEMBER OF (json_extract(j,_utf8mb4'$[*]')))  (rows=9)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) where json_contains(cast(json_extract(`j`,_utf8mb4'$[*]') as signed array),json'[10, 30]') order by `test`.`t1`.`id` desc
+SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_CONTAINS(j->'$[*]', '[10,30]') ORDER BY id DESC;
+id
+8
+4
+EXPLAIN FORMAT=TREE SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_OVERLAPS(j->'$[*]', '[10,20]')
+AND 30 MEMBER OF (j->'$[*]')
+ORDER BY id DESC;
+EXPLAIN
+-> Sort: t1.id DESC  (rows=5)
+    -> Filter: (json_overlaps(cast(json_extract(j,_utf8mb4'$[*]') as signed array),json'[10, 20]') and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=5)
+        -> Index range scan on t1 using k_arr_id over (20 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) OR (10 MEMBER OF (json_extract(j,_utf8mb4'$[*]')))  (rows=5)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) where (json_overlaps(cast(json_extract(`j`,_utf8mb4'$[*]') as signed array),json'[10, 20]') and json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array))) order by `test`.`t1`.`id` desc
+SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE JSON_OVERLAPS(j->'$[*]', '[10,20]')
+AND 30 MEMBER OF (j->'$[*]')
+ORDER BY id DESC;
+id
+8
+4
+1
+EXPLAIN FORMAT=TREE SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') AND id BETWEEN 5 AND 7
+ORDER BY id DESC;
+EXPLAIN
+-> Filter: ((t1.id between 5 and 7) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=1)
+    -> Index range scan on t1 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')) AND 5 <= id <= 7) (reverse)  (rows=1)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and (`test`.`t1`.`id` between 5 and 7)) order by `test`.`t1`.`id` desc
+SELECT id FROM t1 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') AND id BETWEEN 5 AND 7
+ORDER BY id DESC;
+id
+6
+EXPLAIN FORMAT=TREE SELECT /*+ NO_RANGE_OPTIMIZATION(t1) */ id
+FROM t1 FORCE INDEX (k_arr_id) ORDER BY id;
+EXPLAIN
+-> Sort: t1.id  (rows=10)
+    -> Table scan on t1  (rows=10)
+
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t1`@`select#1`) */ `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`k_arr_id`) order by `test`.`t1`.`id`
+SELECT /*+ NO_RANGE_OPTIMIZATION(t1) */ id
+FROM t1 FORCE INDEX (k_arr_id) ORDER BY id;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+DROP TABLE t1;
+CREATE TABLE t2 (
+pk INT NOT NULL AUTO_INCREMENT,
+id INT NOT NULL,
+j  JSON NOT NULL,
+PRIMARY KEY (pk),
+KEY k_arr_id ((CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t2 (id, j) VALUES
+(1,'[20,30]'), (2,'[40]'),  (3,'[30]'), (4,'[10,30]'),
+(5,'[50]'),    (6,'[30]'),  (8,'[10,20,30]');
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT id FROM t2
+WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id DESC;
+EXPLAIN
+-> Filter: ((t2.id < 7) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=4)
+    -> Index range scan on t2 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')) AND id < 7) (reverse)  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and (`test`.`t2`.`id` < 7)) order by `test`.`t2`.`id` desc
+SELECT id FROM t2
+WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id DESC;
+id
+6
+4
+3
+1
+EXPLAIN FORMAT=TREE SELECT id FROM t2
+WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id ASC;
+EXPLAIN
+-> Filter: ((t2.id < 7) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=4)
+    -> Index range scan on t2 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')) AND id < 7)  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and (`test`.`t2`.`id` < 7)) order by `test`.`t2`.`id`
+SELECT id FROM t2
+WHERE 30 MEMBER OF (j->'$[*]') AND id < 7 ORDER BY id ASC;
+id
+1
+3
+4
+6
+EXPLAIN FORMAT=TREE SELECT id, pk FROM t2 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id DESC, pk DESC;
+EXPLAIN
+-> Filter: json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array))  (rows=5)
+    -> Index range scan on t2 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) (reverse)  (rows=5)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`pk` AS `pk` from `test`.`t2` FORCE INDEX (`k_arr_id`) where json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) order by `test`.`t2`.`id` desc,`test`.`t2`.`pk` desc
+SELECT id, pk FROM t2 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id DESC, pk DESC;
+id	pk
+8	7
+6	6
+4	4
+3	3
+1	1
+EXPLAIN FORMAT=TREE SELECT id, pk FROM t2 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+EXPLAIN
+-> Filter: json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array))  (rows=5)
+    -> Index range scan on t2 using k_arr_id over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) (reverse)  (rows=5)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`pk` AS `pk` from `test`.`t2` FORCE INDEX (`k_arr_id`) where json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) order by `test`.`t2`.`id` desc
+SELECT id, pk FROM t2 FORCE INDEX (k_arr_id)
+WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+id	pk
+8	7
+6	6
+4	4
+3	3
+1	1
+DROP TABLE t2;
+CREATE TABLE t3 (
+pk INT NOT NULL AUTO_INCREMENT,
+a  INT NOT NULL,
+id INT NOT NULL,
+j  JSON NOT NULL,
+PRIMARY KEY (pk),
+KEY k_a_arr_id (a, (CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t3 (a, id, j) VALUES
+(1, 100, '[10,30]'), (1,   1, '[20,30]'), (1,  50, '[30]'),
+(1,   4, '[10,30]'), (1, 200, '[30]'),
+(2,   3, '[30]'),    (2,  90, '[10,30]'), (2,   2, '[30]');
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT id FROM t3
+WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') AND id < 150
+ORDER BY id DESC;
+EXPLAIN
+-> Filter: ((t3.id < 150) and (t3.a = 1) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=4)
+    -> Index range scan on t3 using k_a_arr_id over (a = 1 AND 30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')) AND id < 150) (reverse)  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`id` AS `id` from `test`.`t3` where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and (`test`.`t3`.`id` < 150) and multiple equal(1, `test`.`t3`.`a`)) order by `test`.`t3`.`id` desc
+SELECT id FROM t3
+WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') AND id < 150
+ORDER BY id DESC;
+id
+100
+50
+4
+1
+EXPLAIN FORMAT=TREE SELECT id FROM t3
+WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') AND id < 150
+ORDER BY id ASC;
+EXPLAIN
+-> Filter: ((t3.id < 150) and (t3.a = 1) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=4)
+    -> Index range scan on t3 using k_a_arr_id over (a = 1 AND 30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')) AND id < 150)  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`id` AS `id` from `test`.`t3` where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and (`test`.`t3`.`id` < 150) and multiple equal(1, `test`.`t3`.`a`)) order by `test`.`t3`.`id`
+SELECT id FROM t3
+WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') AND id < 150
+ORDER BY id ASC;
+id
+1
+4
+50
+100
+EXPLAIN FORMAT=TREE SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+WHERE a > 0 AND 30 MEMBER OF (j->'$[*]') ORDER BY a, id;
+EXPLAIN
+-> Sort: t3.a, t3.id  (rows=8)
+    -> Filter: ((t3.a > 0) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=8)
+        -> Index range scan on t3 using k_a_arr_id over (0 < a)  (rows=12)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`id` AS `id` from `test`.`t3` FORCE INDEX (`k_a_arr_id`) where ((`test`.`t3`.`a` > 0) and json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array))) order by `test`.`t3`.`a`,`test`.`t3`.`id`
+SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+WHERE a > 0 AND 30 MEMBER OF (j->'$[*]') ORDER BY a, id;
+a	id
+1	1
+1	4
+1	50
+1	100
+1	200
+2	2
+2	3
+2	90
+EXPLAIN FORMAT=TREE SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+WHERE a > 0 AND 30 MEMBER OF (j->'$[*]') ORDER BY a, id LIMIT 3;
+EXPLAIN
+-> Sort: t3.a, t3.id, limit input to 3 row(s) per chunk  (rows=3)
+    -> Filter: ((t3.a > 0) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=8)
+        -> Index range scan on t3 using k_a_arr_id over (0 < a)  (rows=12)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`id` AS `id` from `test`.`t3` FORCE INDEX (`k_a_arr_id`) where ((`test`.`t3`.`a` > 0) and json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array))) order by `test`.`t3`.`a`,`test`.`t3`.`id` limit 3
+SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+WHERE a > 0 AND 30 MEMBER OF (j->'$[*]') ORDER BY a, id LIMIT 3;
+a	id
+1	1
+1	4
+1	50
+EXPLAIN FORMAT=TREE SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+WHERE a IN (1,2) AND 30 MEMBER OF (j->'$[*]') ORDER BY id;
+EXPLAIN
+-> Sort: t3.id  (rows=8)
+    -> Filter: ((t3.a in (1,2)) and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=8)
+        -> Index range scan on t3 using k_a_arr_id over (a = 1 AND 30 MEMBER OF (json_extract(j,_utf8mb4'$[*]'))) OR (a = 2 AND 30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')))  (rows=8)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`id` AS `id` from `test`.`t3` FORCE INDEX (`k_a_arr_id`) where ((`test`.`t3`.`a` in (1,2)) and json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array))) order by `test`.`t3`.`id`
+SELECT a, id FROM t3 FORCE INDEX (k_a_arr_id)
+WHERE a IN (1,2) AND 30 MEMBER OF (j->'$[*]') ORDER BY id;
+a	id
+1	1
+2	2
+2	3
+1	4
+1	50
+2	90
+1	100
+1	200
+EXPLAIN FORMAT=TREE SELECT /*+ NO_RANGE_OPTIMIZATION(t3) */ a, id
+FROM t3 FORCE INDEX (k_a_arr_id)
+WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+EXPLAIN
+-> Sort: t3.id DESC  (rows=4)
+    -> Filter: json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array))  (rows=4)
+        -> Index lookup on t3 using k_a_arr_id (a = 1)  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`id` AS `id` from `test`.`t3` FORCE INDEX (`k_a_arr_id`) where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and multiple equal(1, `test`.`t3`.`a`)) order by `test`.`t3`.`id` desc
+SELECT /*+ NO_RANGE_OPTIMIZATION(t3) */ a, id
+FROM t3 FORCE INDEX (k_a_arr_id)
+WHERE a = 1 AND 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+a	id
+1	200
+1	100
+1	50
+1	4
+1	1
+DROP TABLE t3;
+CREATE TABLE t4 (
+pk INT NOT NULL AUTO_INCREMENT,
+id INT NOT NULL,
+c  VARCHAR(50) NOT NULL,
+j  JSON NOT NULL,
+PRIMARY KEY (pk),
+KEY k_arr_id_c ((CAST(j->'$[*]' AS SIGNED ARRAY)), id, c(10))
+);
+INSERT INTO t4 (id, c, j) VALUES
+(3,'ccc','[30]'),   (1,'aaa','[30]'), (5,'bbb','[10,30]'),
+(9,'eee','[40]'),   (2,'ddd','[30]');
+ANALYZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT id FROM t4 FORCE INDEX (k_arr_id_c)
+WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id;
+EXPLAIN
+-> Filter: json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array))  (rows=4)
+    -> Index range scan on t4 using k_arr_id_c over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')))  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`id` AS `id` from `test`.`t4` FORCE INDEX (`k_arr_id_c`) where json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) order by `test`.`t4`.`id`
+SELECT id FROM t4 FORCE INDEX (k_arr_id_c)
+WHERE 30 MEMBER OF (j->'$[*]') ORDER BY id;
+id
+1
+2
+3
+5
+EXPLAIN FORMAT=TREE SELECT c FROM t4 FORCE INDEX (k_arr_id_c)
+WHERE 30 MEMBER OF (j->'$[*]') ORDER BY c DESC;
+EXPLAIN
+-> Sort: t4.c DESC  (rows=4)
+    -> Filter: json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array))  (rows=4)
+        -> Index range scan on t4 using k_arr_id_c over (30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')))  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`c` AS `c` from `test`.`t4` FORCE INDEX (`k_arr_id_c`) where json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) order by `test`.`t4`.`c` desc
+SELECT c FROM t4 FORCE INDEX (k_arr_id_c)
+WHERE 30 MEMBER OF (j->'$[*]') ORDER BY c DESC;
+c
+ddd
+ccc
+bbb
+aaa
+DROP TABLE t4;
+CREATE TABLE t5 (
+pk INT NOT NULL AUTO_INCREMENT,
+c  VARCHAR(50) NOT NULL,
+id INT NOT NULL,
+j  JSON NOT NULL,
+PRIMARY KEY (pk),
+KEY k_c_arr_id (c(10), (CAST(j->'$[*]' AS SIGNED ARRAY)), id)
+);
+INSERT INTO t5 (c, id, j) VALUES
+('aaa', 3, '[30]'),   ('aaa', 1, '[30]'), ('aaa', 5, '[10,30]'),
+('aaa', 2, '[30]'),   ('bbb', 9, '[30]');
+ANALYZE TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT id FROM t5 FORCE INDEX (k_c_arr_id)
+WHERE c = 'aaa' AND 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+EXPLAIN
+-> Sort: t5.id DESC  (rows=4)
+    -> Filter: ((t5.c = 'aaa') and json'30' member of (cast(json_extract(j,_utf8mb4'$[*]') as signed array)))  (rows=4)
+        -> Index range scan on t5 using k_c_arr_id over (c = 'aaa' AND 30 MEMBER OF (json_extract(j,_utf8mb4'$[*]')))  (rows=4)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`id` AS `id` from `test`.`t5` FORCE INDEX (`k_c_arr_id`) where (json'30' member of (cast(json_extract(`j`,_utf8mb4'$[*]') as signed array)) and multiple equal('aaa', `test`.`t5`.`c`)) order by `test`.`t5`.`id` desc
+SELECT id FROM t5 FORCE INDEX (k_c_arr_id)
+WHERE c = 'aaa' AND 30 MEMBER OF (j->'$[*]') ORDER BY id DESC;
+id
+5
+3
+2
+1
+DROP TABLE t5;
+#
+# Bug#39822725: hypergraph_optimizer=on silently updates/deletes the
+# wrong rows for single-table UPDATE/DELETE with ORDER BY when the WH
+#
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60);
+INSERT INTO t2 VALUES (1), (3), (5), (7);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=JSON INTO @explain_update UPDATE t1 SET b = b + 1 WHERE a IN (SELECT a FROM t2) ORDER BY a LIMIT 2;
+SELECT JSON_EXTRACT(@explain_update,
+'$.query_plan.inputs[0].access_type',
+'$.query_plan.inputs[0].inputs[0].join_algorithm') AS plan;
+plan
+["sort", "hash"]
+EXPLAIN FORMAT=JSON INTO @explain_delete DELETE FROM t1 WHERE a IN (SELECT a FROM t2) ORDER BY a LIMIT 2;
+SELECT JSON_EXTRACT(@explain_delete,
+'$.query_plan.inputs[0].access_type',
+'$.query_plan.inputs[0].inputs[0].join_algorithm') AS plan;
+plan
+["sort", "hash"]
+UPDATE t1 SET b = b + 1 WHERE a IN (SELECT a FROM t2) ORDER BY a LIMIT 2;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	11
+2	20
+3	31
+4	40
+5	50
+6	60
+DELETE FROM t1 WHERE a IN (SELECT a FROM t2) ORDER BY a LIMIT 2;
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	20
+4	40
+5	50
+6	60
+DROP TABLE t1, t2;
+CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, a INT);
+INSERT INTO t1 VALUES
+(), (), (), (), (), (), (), (), (), (),
+(), (), (), (), (), (), (), (), (), (),
+(), (), (), (), (), (), (), (), (), ();
+CREATE TABLE t2(a INT, b INT DEFAULT (a));
+INSERT INTO t2(a) VALUES (1), (3), (5), (7), (9), (11), (13), (15);
+CREATE TABLE t3(a INT);
+INSERT INTO t3 VALUES (3), (7), (15), (20);
+CREATE VIEW v1 AS
+SELECT t1.* FROM t1, t2, t3
+WHERE t1.id = t2.a AND t2.b = t3.a
+WITH CHECK OPTION;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=TREE UPDATE v1 SET a = 1;
+EXPLAIN
+-> Update t1 (buffered)
+    -> Nested loop inner join
+        -> Inner hash join (t2.b = t3.a)
+            -> Table scan on t2
+            -> Hash
+                -> Table scan on t3
+        -> Single-row index lookup on t1 using PRIMARY (id = t2.a)
+
+Warnings:
+Note	1003	update (`test`.`t1` join `test`.`t2` join `test`.`t3`) set `test`.`t1`.`a` = 1 where ((`test`.`t1`.`id` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = `test`.`t3`.`a`))
+UPDATE v1 SET a = 1;
+SELECT ROW_COUNT();
+ROW_COUNT()
+3
+SELECT * FROM t1 WHERE a IS NOT NULL ORDER BY id;
+id	a
+3	1
+7	1
+15	1
+DROP VIEW v1;
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (b INT PRIMARY KEY, c INT DEFAULT 0);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2
+WITH RECURSIVE seq(n) AS (
+SELECT 1
+UNION ALL
+SELECT n + 1 FROM seq WHERE n < 1000
+)
+SELECT n, 0 FROM seq;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+CREATE VIEW v1 AS
+SELECT t2.b, t2.c
+FROM t1 JOIN t2 ON t1.a = t2.b
+WITH CHECK OPTION;
+EXPLAIN FORMAT=TREE
+UPDATE v1 SET c = c + 1;
+EXPLAIN
+-> Update t2 (buffered)
+    -> Nested loop inner join
+        -> Covering index scan on t1 using PRIMARY
+        -> Single-row index lookup on t2 using PRIMARY (b = t1.a)
+
+Warnings:
+Note	1003	update (`test`.`t1` join `test`.`t2`) set `test`.`t2`.`c` = (`test`.`t2`.`c` + 1) where multiple equal(`test`.`t1`.`a`, `test`.`t2`.`b`)
+UPDATE v1 SET c = c + 1;
+SELECT ROW_COUNT();
+ROW_COUNT()
+2
+SELECT * FROM t2 WHERE b <= 3 ORDER BY b;
+b	c
+1	1
+2	1
+3	0
+DROP VIEW v1;
+DROP TABLE t1, t2;

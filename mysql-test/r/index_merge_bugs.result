@@ -43,6 +43,8 @@ EXPLAIN
         -> Index range scan on t1 using i1 over (NULL < f1 < 3)  (cost=0.46 rows=2)
         -> Index range scan on t1 using i2 over (1020 < f2)  (cost=0.36 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where ((`test`.`t1`.`f1` < 3) or (`test`.`t1`.`f2` > 1020))
 SELECT * FROM t1 WHERE f1 < 3 or f2 > 1020;
 f1	f2
 1	1

@@ -79,6 +79,7 @@ if (!$group_replication_found_primary_out_var)
 
 --source include/rpl/start_replica.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
@@ -91,6 +92,7 @@ START GROUP_REPLICATION;
 
 --source include/rpl/start_receiver.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
@@ -103,6 +105,7 @@ START GROUP_REPLICATION;
 
 --source include/rpl/start_applier.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

@@ -832,9 +832,7 @@ ProtocolSplicerParam protocol_splicer_param[] = {
     {"tls_1_1", TlsVersion::TLS_1_1},
 #endif
     {"tls_1_2", TlsVersion::TLS_1_2},
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 1)
     {"tls_1_3", TlsVersion::TLS_1_3},
-#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, ProtocolSplicerTest,

@@ -481,7 +481,19 @@ void row_upd_rec_in_place(
 
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_ad(!index->table->skip_alter_undo);
-  ut_d(update->validate_for_index(index));
+
+#ifdef UNIV_DEBUG
+  /* For compact-format rows, and for versioned ROW_FORMAT=REDUNDANT rows,
+  index metadata is still needed to interpret field layout correctly.
+  For ROW_FORMAT=REDUNDANT rows without versioning, the record itself
+  contains enough information to interpret the layout, so the in-place
+  update code below does not need `index` to be fully shaped like `update`.
+  In recovery this corresponds to the dummy-index case with n_def == 0, so
+  skip validate_for_index() only there. */
+  if (index->n_def || rec_offs_comp(offsets) || rec_old_is_versioned(rec)) {
+    ut_d(update->validate_for_index(index));
+  }
+#endif /* UNIV_DEBUG */
 
   if (rec_offs_comp(offsets)) {
     /* Keep the INSTANT/VERSION bit of prepared physical record */
@@ -2617,7 +2629,7 @@ static inline bool row_upd_clust_rec_by_insert_inherit(
         return (err);
       }
 
-      /* If the the new row inherits externally stored
+      /* If the new row inherits externally stored
       fields (off-page columns a.k.a. BLOBs) from the
       delete-marked old record, mark them disowned by the
       old record and owned by the new entry. */
@@ -2693,54 +2705,43 @@ uint64_t row_upd_get_new_autoinc_counter(const upd_t *update,
 }
 
 /** If the table has autoinc column and the counter is updated to
-some bigger value, we need to log the new autoinc counter. We will
-use the given mtr to do logging for performance reasons.
+some bigger value, we need to persist the new autoinc counter.
 @param[in]      node    Row update node
-@param[in,out]  mtr     Mini-transaction
-@return true if auto increment needs to be persisted to DD table buffer. */
-static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
+*/
+static void row_upd_check_autoinc_counter(const upd_node_t *node) {
   dict_table_t *table = node->table;
 
   if (!dict_table_has_autoinc_col(table) || table->is_temporary() ||
       node->row == nullptr) {
-    return false;
+    return;
   }
 
   /* If the node->row hasn't been prepared, there must
   no order field change and autoinc field should keep
   as is. Otherwise, we need to check if autoinc field
   would be changed to a bigger number. */
-  uint64_t new_counter;
-
-  new_counter =
+  const uint64_t new_counter =
       row_upd_get_new_autoinc_counter(node->update, table->autoinc_field_no);
 
   if (new_counter == 0) {
-    return false;
+    return;
   }
 
-  uint64_t old_counter;
-  const dict_index_t *index;
-
-  index = table->first_index();
+  const dict_index_t *index = table->first_index();
 
   /* The autoinc field order in row is not the
   same as in clustered index, we need to get
   the column number in the table instead. */
-  old_counter = row_get_autoinc_counter(
+  const uint64_t old_counter = row_get_autoinc_counter(
       node->row, index->get_col_no(table->autoinc_field_no));
-
-  bool persist_autoinc = false;
 
   /* We just check if the updated counter is bigger than
   the old one, which may result in more redo logs, since
   this is safer than checking with the counter in table
   object. */
   if (new_counter > old_counter) {
-    persist_autoinc = dict_table_autoinc_log(table, new_counter, mtr);
+    dict_table_autoinc_persist(table, new_counter);
   }
-
-  return persist_autoinc;
 }
 
 void upd_t::append(const upd_field_t &field) {
@@ -2789,15 +2790,14 @@ void upd_t::append(const upd_field_t &field) {
   btr_pcur_t *pcur;
   btr_cur_t *btr_cur;
   dberr_t err = DB_SUCCESS;
-  bool persist_autoinc = false;
   bool is_old_or_new_rec_extern = false;
   const dtuple_t *rebuilt_old_pk = nullptr;
-  trx_id_t trx_id = thr_get_trx(thr)->id;
   trx_t *trx = thr_get_trx(thr);
+  constexpr undo_no_t dummy_undo_no = 0;
 
   ut_ad(node);
   ut_ad(index->is_clustered());
-  ut_ad(!thr_get_trx(thr)->in_rollback);
+  ut_ad(!trx->in_rollback);
 
   pcur = node->pcur;
   btr_cur = pcur->get_btr_cur();
@@ -2821,7 +2821,7 @@ void upd_t::append(const upd_field_t &field) {
 
   /* Check and log if necessary at the beginning, to prevent any
   further potential deadlock */
-  persist_autoinc = row_upd_check_autoinc_counter(node, mtr);
+  row_upd_check_autoinc_counter(node);
 
   /* Try optimistic updating of the record, keeping changes within
   the page; we do not check locks because we assume the x-lock on the
@@ -2829,12 +2829,11 @@ void upd_t::append(const upd_field_t &field) {
 
   if (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE) {
     err = btr_cur_update_in_place(flags | BTR_NO_LOCKING_FLAG, btr_cur, offsets,
-                                  node->update, node->cmpl_info, thr,
-                                  thr_get_trx(thr)->id, mtr);
+                                  node->update, node->cmpl_info, thr, mtr);
   } else {
-    err = btr_cur_optimistic_update(
-        flags | BTR_NO_LOCKING_FLAG, btr_cur, &offsets, offsets_heap,
-        node->update, node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
+    err = btr_cur_optimistic_update(flags | BTR_NO_LOCKING_FLAG, btr_cur,
+                                    &offsets, offsets_heap, node->update,
+                                    node->cmpl_info, thr, mtr);
   }
 
   if (err == DB_SUCCESS) {
@@ -2882,8 +2881,8 @@ void upd_t::append(const upd_field_t &field) {
 
   err = btr_cur_pessimistic_update(
       flags | BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur, &offsets,
-      offsets_heap, heap, &big_rec, node->update, node->cmpl_info, thr, trx_id,
-      trx->undo_no, mtr);
+      offsets_heap, heap, &big_rec, node->update, node->cmpl_info, thr,
+      dummy_undo_no, mtr);
   if (big_rec) {
     ut_a(err == DB_SUCCESS);
 
@@ -2928,12 +2927,6 @@ func_exit:
 
   if (big_rec) {
     dtuple_big_rec_free(big_rec);
-  }
-
-  /* Persist auto increment value to DD buffer table if requested. Do it after
-  closing the mini transaction and releasing latches. */
-  if (persist_autoinc) {
-    dict_table_persist_to_dd_table_buffer(node->table);
   }
 
   return err;
@@ -3259,7 +3252,7 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
 
   trx = thr_get_trx(thr);
 
-  trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   node = static_cast<upd_node_t *>(thr->run_node);
 

@@ -30,9 +30,6 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-// OpenSSL version hex format:                  0xMNN00PPSL
-#define NET_TLS_USE_BACKWARD_COMPATIBLE_OPENSSL 0x10100000L
-
 namespace net {
 namespace tls {
 
@@ -100,20 +97,10 @@ class SslReadOperation : public Operation {
  public:
   static bool is_read_operation() { return true; }
 
-#if OPENSSL_VERSION_NUMBER >= NET_TLS_USE_BACKWARD_COMPATIBLE_OPENSSL
   static int read_ex(SSL *ssl, void *buf, size_t num,
                      size_t *out_number_of_bytes_io) {
     return SSL_read_ex(ssl, buf, num, out_number_of_bytes_io);
   }
-#else
-  static int read_ex(SSL *ssl, void *buf, size_t num,
-                     size_t *out_number_of_bytes_io) {
-    *out_number_of_bytes_io = 0;
-    auto result = SSL_read(ssl, buf, num);
-    if (result > 0) *out_number_of_bytes_io = result;
-    return result;
-  }
-#endif
 
   static Result op(BIO *bio, SSL *ssl, void *buffer, const size_t buffer_size,
                    size_t *out_number_of_bytes_io) {
@@ -131,20 +118,10 @@ class SslReadOperation : public Operation {
 
 class SslWriteOperation : public Operation {
  public:
-#if OPENSSL_VERSION_NUMBER >= NET_TLS_USE_BACKWARD_COMPATIBLE_OPENSSL
   static int write_ex(SSL *ssl, const void *buf, size_t num,
                       size_t *out_number_of_bytes_io) {
     return SSL_write_ex(ssl, buf, num, out_number_of_bytes_io);
   }
-#else
-  static int write_ex(SSL *ssl, const void *buf, size_t num,
-                      size_t *out_number_of_bytes_io) {
-    *out_number_of_bytes_io = 0;
-    auto result = SSL_write(ssl, buf, num);
-    if (result > 0) *out_number_of_bytes_io = result;
-    return result;
-  }
-#endif
 
   static bool is_read_operation() { return false; }
 

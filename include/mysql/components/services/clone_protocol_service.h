@@ -132,11 +132,13 @@ DECLARE_METHOD(int, mysql_clone_validate_configs,
   @param[in]  donor             donor's version string
   @param[in]  is_recipient_lts  true if recipient is LTS, false otherwise
   @param[in]  is_donor_lts      true if donor is LTS, false otherwise
+  @param[in]  recipient_prev_lts  previous LTS lineage of recipient
   @return 0 on success, error code otherwise
 */
 DECLARE_METHOD(int, mysql_clone_validate_version,
                (const std::string &recipient, const std::string &donor,
-                const bool is_recipient_lts, const bool is_donor_lts));
+                const bool is_recipient_lts, const bool is_donor_lts,
+                const std::string &recipient_prev_lts));
 
 /**
   Connect to a remote server and switch to clone protocol

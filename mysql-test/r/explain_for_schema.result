@@ -71,6 +71,8 @@ EXPLAIN FORMAT=TREE FOR SCHEMA test_explain_for_schema SELECT * FROM t1;
 EXPLAIN
 -> Table scan on t1  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test_explain_for_schema`.`t1`.`i1` AS `i1`,`test_explain_for_schema`.`t1`.`i2` AS `i2` from `test_explain_for_schema`.`t1`
 EXPLAIN FORMAT=JSON INTO @format_test FOR SCHEMA test_explain_for_schema SELECT * FROM t1;
 SELECT JSON_VALID(@format_test);
 JSON_VALID(@format_test)
@@ -131,6 +133,8 @@ EXPLAIN
         -> Filter: (t1.i2 = 2)  (...)
             -> Table scan on t1  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `test_explain_for_schema`.`t1`.`i1` AS `i1`,`test_explain_for_schema`.`t1`.`i2` AS `i2`,`test_explain_for_schema`.`t2`.`i3` AS `i3`,`test_explain_for_schema`.`t2`.`i4` AS `i4` from `test_explain_for_schema`.`t1` join `test_explain_for_schema`.`t2` where ((`test_explain_for_schema`.`t2`.`i3` = `test_explain_for_schema`.`t1`.`i1`) and (`test_explain_for_schema`.`t1`.`i2` = 2))
 DROP PROCEDURE p;
 # Check that correct schema is used to qualify functions in an SP
 CREATE FUNCTION test_explain_for_schema.f () RETURNS INT DETERMINISTIC LANGUAGE SQL BEGIN RETURN 2; END|
@@ -139,6 +143,8 @@ CALL p;
 EXPLAIN
 -> Rows fetched before execution  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select `f`() AS `f()`
 # Check that EXPLAIN FOR SCHEMA does not give access where access is not granted
 CREATE USER access_check;
 GRANT ALL ON test.* TO access_check;

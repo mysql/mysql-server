@@ -10,6 +10,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 SET GLOBAL innodb_lock_wait_timeout = 2;
 CALL mtr.add_suppression("Replica SQL for channel.*Consider raising the value of the replica_transaction_retries variable.*");
 CALL mtr.add_suppression("Replica SQL for channel.*The replica coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression("Query execution was interrupted");
 # 2. For each rows scan algorithm 
 #
 # 2.0 Configure source and replica

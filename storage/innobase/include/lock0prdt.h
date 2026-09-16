@@ -33,7 +33,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef lock0prdt_h
 #define lock0prdt_h
 
-#include "lock0lock.h"
+#include "buf0buf.h"               /* buf_block_t */
+#include "lock0types.h"            /* lock_prdt_t */
+#include "sql/gis/rtree_support.h" /* rtr_mbr_t */
 #include "univ.i"
 
 /* Predicate lock data */

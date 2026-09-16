@@ -49,6 +49,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
 #include "sql/changestreams/apply/replication_thread_status.h"
+#include "sql/changestreams/apply/service/csa_service.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/log_event.h"
@@ -71,6 +72,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/transaction.h"  // trans_begin
+#include "strmake.h"
 
 /**
   Auxiliary function to stop all the running channel threads according to the
@@ -105,6 +107,12 @@ static void set_mi_settings(Master_info *mi,
                             Channel_creation_info *channel_info) {
   mysql_mutex_lock(mi->rli->relay_log.get_log_lock());
   mysql_mutex_lock(&mi->data_lock);
+
+  mi->force_pqc = channel_info->force_pqc;
+  mi->use_pqc_sign = channel_info->use_pqc_sign;
+  mi->tls_kex[0] = 0;
+  if (channel_info->tls_kex != nullptr)
+    strmake(mi->tls_kex, channel_info->tls_kex, sizeof(mi->tls_kex) - 1);
 
   mi->rli->set_thd_tx_priority(channel_info->thd_tx_priority);
 
@@ -195,6 +203,9 @@ void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->zstd_compression_level = 0;
   channel_info->m_ignore_write_set_memory_limit = false;
   channel_info->m_allow_drop_write_set = false;
+  channel_info->force_pqc = false;
+  channel_info->use_pqc_sign = false;
+  channel_info->tls_kex = nullptr;
 }
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info) {
@@ -772,7 +783,7 @@ int channel_get_thread_id(const char *channel,
             thread_id_pointer++;
           }
 
-          // Workers thread id.
+          // MTA Workers thread id.
           if (mi->rli->workers_array_initialized) {
             for (size_t i = 0; i < num_workers; i++, thread_id_pointer++) {
               Slave_worker *worker = mi->rli->get_worker(i);
@@ -958,6 +969,8 @@ int channel_wait_until_transactions_applied(const char *channel,
 int channel_is_applier_waiting(const char *channel) {
   DBUG_TRACE;
   int result = RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
+  unsigned long *thread_ids = nullptr;
+  int number_appliers = 0;
 
   channel_map.rdlock();
 
@@ -968,9 +981,20 @@ int channel_is_applier_waiting(const char *channel) {
     return result;
   }
 
-  unsigned long *thread_ids = nullptr;
-  int number_appliers = channel_get_thread_id(channel, CHANNEL_APPLIER_THREAD,
-                                              &thread_ids, false);
+  if (mi->rli->is_csa_enabled()) {
+    auto csa_result = get_csa_service().has_applied_all_work(mi->get_channel());
+    if (!csa_result.has_value()) {
+      goto end;
+    }
+    if (csa_result.value() == false) {
+      result = false;
+      goto end;
+    }
+    // if true, check SQL thread stage
+  }
+
+  number_appliers = channel_get_thread_id(channel, CHANNEL_APPLIER_THREAD,
+                                          &thread_ids, false);
 
   if (number_appliers <= 0) {
     goto end;
@@ -1168,6 +1192,17 @@ int channel_get_gtid_set_to_apply(const char *channel,
   return error;
 }
 
+bool is_csa_event_applier(const char *channel, unsigned long thread_id) {
+  bool result = false;
+  channel_map.rdlock();
+  Master_info *mi = channel_map.get_mi(channel);
+  if (mi && mi->rli && mi->rli->is_csa_enabled()) {
+    result = get_csa_service().is_csa_event_applier(channel, thread_id);
+  }
+  channel_map.unlock();
+  return result;
+}
+
 bool channel_is_stopping(const char *channel,
                          enum_channel_thread_types thd_type) {
   bool is_stopping = false;
@@ -1206,7 +1241,8 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel) {
     channel_map.unlock();
     return false;
   }
-  bool ret = mi->transaction_parser.is_inside_transaction();
+  bool ret =
+      mi->transaction_parser.is_inside_transaction() || mi->is_queueing_trx();
   channel_map.unlock();
   return ret;
 }

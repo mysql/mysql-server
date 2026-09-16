@@ -26,6 +26,8 @@
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+# This test is MTA-specific
+--source include/have_mta.inc
 --source include/have_binlog_format_row.inc
 
 --echo

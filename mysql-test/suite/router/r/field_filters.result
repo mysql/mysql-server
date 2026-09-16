@@ -160,6 +160,12 @@ GET /svc/basic/t2/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
     }
 }
 OK
+GET /svc/basic/t2/1?raw=1&f=cyear
+Bad Request(400)
+OK
+GET /svc/basic/t2/1?raw=1&f=ctext&q=%7B%22%24asof%22:%223E11FA47-71CA-11E1-9E33-C80AA9429562:1-5%22%7D
+Bad Request(400)
+OK
 DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;

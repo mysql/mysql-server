@@ -32,7 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "clone0snapshot.h"
 #include "clone0clone.h"
-#include "log0log.h" /* log_get_lsn */
+#include "log0handler_interface.h" /* ib::redo::handler */
 #include "page0zip.h"
 #include "sql/handler.h"
 
@@ -536,8 +536,6 @@ uint32_t Clone_Snapshot::get_blocks_per_chunk() const {
       break;
 
     case CLONE_SNAPSHOT_FILE_COPY:
-      [[fallthrough]];
-
     case CLONE_SNAPSHOT_REDO_COPY:
       num_blocks = blocks_per_chunk();
       break;
@@ -811,10 +809,9 @@ void Clone_Snapshot::page_update_for_flush(const page_size_t &page_size,
     auto data_size = page_size.physical();
     page_zip_set_size(&page_zip, data_size);
     page_zip.data = page_data;
-    ut_d(page_zip.m_start = 0);
+    page_zip.m_start = 0;
     page_zip.m_end = 0;
     page_zip.n_blobs = 0;
-    page_zip.m_nonempty = false;
 
     buf_flush_init_for_writing(nullptr, page_data, &page_zip, page_lsn, false,
                                false);
@@ -892,8 +889,9 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
   }
 
   memcpy(page_data, src_data, data_size);
+  ut_a(ib::redo::handler->get_capabilities().supports_clone);
 
-  auto cur_lsn = log_get_lsn(*log_sys);
+  auto cur_lsn = ib::redo::handler->peek_first_unassigned_lsn();
   const auto frame_lsn =
       static_cast<lsn_t>(mach_read_from_8(page_data + FIL_PAGE_LSN));
 
@@ -951,7 +949,7 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
     auto compressed_data = page_data + data_size;
     memset(compressed_data, 0, data_size);
 
-    IORequest request(IORequest::WRITE);
+    IORequest request(IORequest::Type::WRITE);
     request.compression_algorithm(file_meta->m_compress_type);
     ulint compressed_len = 0;
 
@@ -966,11 +964,11 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
     }
   }
 
-  IORequest request(IORequest::WRITE);
+  IORequest request(IORequest::Type::WRITE);
   set_page_encryption(request, page_id, file_ctx);
 
   /* Encrypt page if TDE is enabled. */
-  if (err == 0 && request.is_encrypted()) {
+  if (err == 0 && request.is_encryption_requested()) {
     Encryption encryption(request.encryption_algorithm());
     ulint encrypt_len = data_len;
 
@@ -1247,7 +1245,6 @@ const char *Clone_Snapshot::wait_string(Wait_type wait_type) const {
   switch (wait_type) {
     /* DDL waiting for clone state transition */
     case Wait_type::STATE_TRANSIT_WAIT:
-      [[fallthrough]];
     case Wait_type::STATE_TRANSIT:
       wait_info = "Waiting for clone state transition";
       break;
@@ -1259,7 +1256,6 @@ const char *Clone_Snapshot::wait_string(Wait_type wait_type) const {
 
     /*DDL waiting for clone file operation. */
     case Wait_type::DATA_FILE_WAIT:
-      [[fallthrough]];
     case Wait_type::DATA_FILE_CLOSE:
       wait_info = "Waiting for clone to close files";
       break;

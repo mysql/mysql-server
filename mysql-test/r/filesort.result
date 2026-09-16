@@ -106,6 +106,8 @@ EXPLAIN
                 -> Sort: t1.id
                     -> Table scan on t1
 
+Warnings:
+Note	1003	/* select#1 */ select distinct sql_big_result json_arrayagg(`test`.`t1`.`char_field`) AS `JSON_ARRAYAGG(char_field)`,json_arrayagg(2) AS `JSON_ARRAYAGG(2)` from `test`.`t1` group by `test`.`t1`.`id` order by `test`.`t1`.`id`
 DROP TABLE t1;
 SET sql_mode=DEFAULT;
 #
@@ -138,6 +140,8 @@ EXPLAIN
                 -> Covering index scan on SUBQUERY1_t1 using PRIMARY
             -> Covering index scan on t1 using PRIMARY
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`f2` AS `f2`,`table2`.`pk` AS `pk`,`table2`.`f2` AS `f2` from `test`.`t1` left join (`test`.`t1` `table2` semi join (`test`.`t1` `SUBQUERY1_t1` join `test`.`t2` `SUBQUERY1_t2` straight_join `test`.`t1`)) on(((`SUBQUERY1_t2`.`pk` = 119))) where true order by `test`.`t1`.`f2`
 DROP TABLE t1, t2;
 #
 # Bug #32169770: HYPERGRAPH: ASSERTION `M_PART_INFO->IS_PARTITION_USED(M_LAST_PART)' FAILED.

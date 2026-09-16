@@ -1,0 +1,19 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
+CREATE TABLE pitr_ctas_source (id INT);
+INSERT INTO pitr_ctas_source VALUES (1), (2), (3);
+CREATE TABLE pitr_ctas_target AS SELECT * FROM pitr_ctas_source;
+INSERT INTO pitr_ctas_target VALUES (4), (5), (6);
+include/diff_tables.inc [master:pitr_ctas_source, slave:pitr_ctas_source]
+include/diff_tables.inc [master:pitr_ctas_target, slave:pitr_ctas_target]
+[connection slave]
+DROP TABLE pitr_ctas_source, pitr_ctas_target;
+RESET BINARY LOGS AND GTIDS;
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE pitr_ctas_source, pitr_ctas_target;
+include/rpl/deinit.inc

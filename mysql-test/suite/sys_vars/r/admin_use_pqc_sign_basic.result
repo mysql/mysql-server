@@ -1,0 +1,19 @@
+SELECT @@GLOBAL.admin_use_pqc_sign;
+@@GLOBAL.admin_use_pqc_sign
+0
+SELECT @@admin_use_pqc_sign = @@GLOBAL.admin_use_pqc_sign;
+@@admin_use_pqc_sign = @@GLOBAL.admin_use_pqc_sign
+1
+SELECT @@SESSION.admin_use_pqc_sign;
+ERROR HY000: Variable 'admin_use_pqc_sign' is a GLOBAL variable
+SELECT @@LOCAL.admin_use_pqc_sign;
+ERROR HY000: Variable 'admin_use_pqc_sign' is a GLOBAL variable
+SET @@SESSION.admin_use_pqc_sign = ON;
+ERROR HY000: Variable 'admin_use_pqc_sign' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@GLOBAL.admin_use_pqc_sign = 'invalid';
+ERROR 42000: Variable 'admin_use_pqc_sign' can't be set to the value of 'invalid'
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_use_pqc_sign';
+VARIABLE_VALUE
+OFF

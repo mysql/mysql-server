@@ -554,6 +554,7 @@ class TransporterRegistry {
   ndb_sockaddr get_connect_address(TrpId trpId) const;
   bool is_encrypted_link(TrpId trpId) const;
 
+  bool trpIdIsValid(TrpId id) const;
   Uint64 get_bytes_sent(TrpId trpId) const;
   Uint64 get_bytes_received(TrpId trpId) const;
 
@@ -710,7 +711,7 @@ class TransporterRegistry {
 
   Uint32 get_num_trps();
   TlsKeyManager *getTlsKeyManager() { return &m_tls_keys; }
-  bool hasTlsCert() const { return (bool)m_tls_keys.ctx(); }
+  bool canUseTls() const { return (bool)m_tls_keys.ctx(); }
 
  private:
   /**

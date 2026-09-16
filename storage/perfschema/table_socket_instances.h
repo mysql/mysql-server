@@ -60,7 +60,7 @@ struct row_socket_instances {
   /** Length in bytes of @c m_event_name. */
   uint m_event_name_length{0};
   /** Column OBJECT_INSTANCE_BEGIN */
-  const void *m_identity{nullptr};
+  pfs_identity m_identity{0};
   /** Column THREAD_ID */
   ulonglong m_thread_id{0};
   /** True if thread_is is set */

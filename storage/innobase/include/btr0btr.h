@@ -58,6 +58,9 @@ not acceptable for it to lead to mysterious memory corruption, but it
 is acceptable for the program to die with a clear assert failure. */
 constexpr uint32_t BTR_MAX_LEVELS = 100;
 
+/** PAGE_INDEX_ID value for freed index B-trees. */
+constexpr space_index_t BTR_FREED_INDEX_ID = 0;
+
 /** Latching modes for btr_cur_search_to_nth_level(). */
 enum btr_latch_mode : size_t {
   /** Search a record on a leaf page and S-latch it. */

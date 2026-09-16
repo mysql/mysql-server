@@ -1582,7 +1582,8 @@ SELECT SUM((SELECT c0
 FROM tt
 GROUP BY c0;
 
---skip_if_hypergraph  # Bug#37126568: enable for HG when fixed
+# Bug#37126568: hypergraph must use the grouped value of MIN(tt.c1) when
+# evaluating the subquery as a window function argument.
 SELECT SUM((SELECT c0
             FROM t
             WHERE MIN(tt.c1) > 1
@@ -1596,7 +1597,7 @@ SELECT c0 FROM t WHERE 2 > 1 GROUP BY c0 ORDER BY c0 LIMIT 1;
 SELECT c0 FROM t WHERE 1 > 1 GROUP BY c0 ORDER BY c0 LIMIT 1;
 SELECT c0 FROM t WHERE 5 > 1 GROUP BY c0 ORDER BY c0 LIMIT 1;
 
---skip_if_hypergraph  # Bug#37126568: enable for HG when fixed
+# Same case with the opposite ordering, which uses a different scalar value.
 SELECT SUM((SELECT c0
             FROM t
             WHERE MIN(tt.c1) > 1

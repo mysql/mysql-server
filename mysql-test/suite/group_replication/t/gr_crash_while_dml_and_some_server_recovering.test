@@ -174,5 +174,12 @@ UNLOCK TABLES;
 drop table t1;
 drop procedure dml_operations;
 
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+SET sql_log_bin=0;
+call mtr.add_suppression("Replica SQL for channel.*");
+SET sql_log_bin=1;
+
 --let $skip_restore_connection= 0
 --source include/group_replication_end.inc

@@ -434,34 +434,39 @@ void create(Pages *&pages) noexcept;
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t load(Pages *pages) noexcept;
 
-/** Load the doublewrite buffer pages.
-@param[in,out] pages           For storing the doublewrite pages read
-                               from the double write buffer
-@return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t reduced_load(Pages *pages) noexcept;
+/** Restore corrupted pages of the tablespace from the double write buffer.
+Iterates over the supplied double write buffer pages, but only ones that are not
+corrupted, searching for mentions of pages from the specified space, and for
+each such page checks if tablespace file contains a corrupted version of it and
+if so, restores it from the backup in image found in double write buffer page,
+unless this is impossible because the double write buffer page does not contain
+the body (in reduced, detect-only mode). In case of any errors (IO errors, out
+of bounds space access) we crash the server.
+@param[in,out] pages Pages from the doublewrite buffer
+@param[in] space Tablespace to restore pages in. */
+void recover(Pages &pages, fil_space_t &space) noexcept;
 
-/** Restore pages from the double write buffer to the tablespace.
-@param[in,out]  pages  Pages from the doublewrite buffer
-@param[in]   space  Tablespace pages to restore, if set to nullptr then try and
-                    restore all. */
-void recover(Pages *pages, fil_space_t *space) noexcept;
-
-/** Find a doublewrite copy of a page.
-@param[in]      pages           Pages read from the doublewrite buffer
-@param[in]      page_id         Page number to lookup
-@return page frame
-@retval NULL if no page was found */
-[[nodiscard]] const byte *find(const Pages *pages,
-                               const page_id_t &page_id) noexcept;
-
-/** Find the LSN of the given page id  in the dblwr.
-@param[in]     pages           Pages read from the doublewrite buffer
-@param[in]     page_id         Page number to lookup
-@return 0th element is true if page_id found in double write buffer.
-@return 1st element is valid only if 0th element is true.
-@return 1st element contains the LSN of the page in dblwr. */
-[[nodiscard]] std::tuple<bool, lsn_t> find_entry(
-    const Pages *pages, const page_id_t &page_id) noexcept;
+/** Checks if content of the first page provided from the specified space
+requires recovery from the Double-write Buffer. If the supplied @p page_content
+has a valid not corrupted page, no action is taken. If it is not, then we try to
+get a non-corrupted copy from the Double-write Buffer. If there are any entries
+in the Reduced Double-write pages list, we may crash.
+@param[in] pages        The Double-write pages read from the Double-write
+                        Buffer.
+@param[in] space_id     ID of the space to be checked.
+@param[in] page_size    Page size structure to use for the tablespace page
+                        manipulation.
+@param[in] file_path    Path of a file to be used for error reporting.
+@param[in] page_content Content of the first page of the specified tablespace
+                        read from the disk. The buffer must hold at least
+                        `page_size.physical()` bytes.
+@return pointer to @p page_content if the page does not require recovery,
+pointer to page contents from the Double-write Buffer or nullptr if
+page_content is corrupted, but there's no valid image of it in the
+Double-write Buffer to restore it from */
+[[nodiscard]] const byte *get_first_page_content_for_recovery(
+    const recv::Pages &pages, space_id_t space_id, page_size_t page_size,
+    const std::string &file_path, const byte *page_content);
 
 /** Check if some pages from the double write buffer could not be
 restored because of the missing tablespace IDs.
@@ -469,7 +474,7 @@ restored because of the missing tablespace IDs.
 void check_missing_tablespaces(const Pages *pages) noexcept;
 
 /** Free the recovery dblwr data structures
-@param[out]     pages           Free the instance */
+@param[out]     pages           Instance of the Pages to free. */
 void destroy(Pages *&pages) noexcept;
 
 /** Redo recovery configuration. */
@@ -488,36 +493,41 @@ class DBLWR {
   @return DB_SUCCESS or error code */
   [[nodiscard]] dberr_t load() noexcept { return (dblwr::recv::load(m_pages)); }
 
-  /** Load the doublewrite buffer pages. Doesn't create the doublewrite
-  @return DB_SUCCESS or error code */
-  [[nodiscard]] dberr_t reduced_load() noexcept {
-    return (dblwr::recv::reduced_load(m_pages));
+#ifndef UNIV_HOTBACKUP
+  /** Restore corrupted pages of the tablespace from the double write buffer.
+  Iterates over the previously loaded double write buffer pages, but only ones
+  that are not corrupted, searching for mentions of pages from the specified
+  space, and for each such page checks if tablespace file contains a corrupted
+  version of it and if so, restores it from the backup in image found in double
+  write buffer page, unless this is impossible because the double write buffer
+  page does not contain the body (in reduced, detect-only mode). In case of any
+  errors (IO errors, out of bounds space access) we crash the server.
+  @param[in] space Tablespace to restore pages in. */
+  void recover(fil_space_t &space) noexcept {
+    dblwr::recv::recover(*m_pages, space);
   }
 
-  /** Restore pages from the double write buffer to the tablespace.
-  @param[in]    space           Tablespace pages to restore,
-                                  if set to nullptr then try
-                                  and restore all. */
-  void recover(fil_space_t *space = nullptr) noexcept {
-    dblwr::recv::recover(m_pages, space);
-  }
-
-  /** Find a doublewrite copy of a page.
-  @param[in]    page_id         Page number to lookup
-  @return       page frame
-  @retval nullptr if no page was found */
-  [[nodiscard]] const byte *find(const page_id_t &page_id) noexcept {
-    return (dblwr::recv::find(m_pages, page_id));
-  }
-
-  /** Find the LSN of the given page id  in the dblwr.
-  @param[in]     page_id         Page number to lookup
-  @return 0th element is true if page_id found in double write buffer.
-  @return 1st element is valid only if 0th element is true.
-  @return 1st element contains the LSN of the page in dblwr. */
-  [[nodiscard]] std::tuple<bool, lsn_t> find_entry(
-      const page_id_t &page_id) noexcept {
-    return (dblwr::recv::find_entry(m_pages, page_id));
+  /** Checks if content of the first page provided from the specified space
+  requires recovery from the Double-write Buffer. If the supplied @p
+  page_content has a valid not corrupted page, no action is taken. If it is not,
+  then we try to get a non-corrupted copy from the Double-write Buffer. If there
+  are any entries in the Reduced Double-write pages list, we may crash.
+  @param[in] space_id     ID of the space to be checked.
+  @param[in] page_size    Page size structure to use for the tablespace page
+                          manipulation.
+  @param[in] file_path    Path of a file to be used for error reporting.
+  @param[in] page_content Content of the first page of the specified tablespace
+                          read from the disk. The buffer must hold at least
+                          `page_size.physical()` bytes.
+  @return pointer to @p page_content if the page does not require recovery, a
+  pointer to page contents from the Double-write Buffer or nullptr if
+  page_content is corrupted, but there's no valid image of it in the
+  Double-write Buffer to restore it from */
+  const byte *get_first_page_content_for_recovery(
+      space_id_t space_id, page_size_t page_size, const std::string &file_path,
+      const byte *page_content) noexcept {
+    return dblwr::recv::get_first_page_content_for_recovery(
+        *m_pages, space_id, page_size, file_path, page_content);
   }
 
   /** Check if some pages from the double write buffer
@@ -526,12 +536,11 @@ class DBLWR {
     dblwr::recv::check_missing_tablespaces(m_pages);
   }
 
-#ifndef UNIV_HOTBACKUP
   /** Note that recovery is complete. Adjust the file sizes if necessary. */
   void recovered() noexcept { dblwr::reset_files(); }
 #endif /* !UNIV_HOTBACKUP */
 
-  /** Disably copying. */
+  /** Disable copying. */
   DBLWR(const DBLWR &) = delete;
   DBLWR(DBLWR &&) = delete;
   DBLWR &operator=(DBLWR &&) = delete;

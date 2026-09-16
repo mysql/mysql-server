@@ -32,8 +32,10 @@
 
 #include <sys/types.h>
 
+#include <optional>
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "sql/changestreams/apply/service/session_legacy_stats.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_info.h" /*CHANNEL_NAME_LENGTH*/
 #include "sql/rpl_reporting.h"
@@ -148,7 +150,10 @@ class PFS_index_rpl_applier_status_by_worker : public PFS_engine_index {
   ~PFS_index_rpl_applier_status_by_worker() override = default;
 
   virtual bool match(Master_info *mi) = 0;
-  virtual bool match(Master_info *mi, Slave_worker *w) = 0;
+  virtual bool match(Master_info *mi, std::optional<ulonglong> internal_id) = 0;
+  virtual std::optional<ulonglong> extract_id(Slave_worker *worker) = 0;
+  virtual std::optional<ulonglong> extract_id(
+      const mysql::csa::Session_legacy_stats &stats) = 0;
 };
 
 class PFS_index_rpl_applier_status_by_worker_by_channel
@@ -162,7 +167,10 @@ class PFS_index_rpl_applier_status_by_worker_by_channel
   ~PFS_index_rpl_applier_status_by_worker_by_channel() override = default;
 
   bool match(Master_info *mi) override;
-  bool match(Master_info *mi, Slave_worker *w) override;
+  bool match(Master_info *mi, std::optional<ulonglong> internal_id) override;
+  std::optional<ulonglong> extract_id(Slave_worker *worker) override;
+  std::optional<ulonglong> extract_id(
+      const mysql::csa::Session_legacy_stats &stats) override;
 
  private:
   PFS_key_name m_key_1;
@@ -178,7 +186,10 @@ class PFS_index_rpl_applier_status_by_worker_by_thread
   ~PFS_index_rpl_applier_status_by_worker_by_thread() override = default;
 
   bool match(Master_info *mi) override;
-  bool match(Master_info *mi, Slave_worker *w) override;
+  bool match(Master_info *mi, std::optional<ulonglong> internal_id) override;
+  std::optional<ulonglong> extract_id(Slave_worker *worker) override;
+  std::optional<ulonglong> extract_id(
+      const mysql::csa::Session_legacy_stats &stats) override;
 
  private:
   PFS_key_thread_id m_key;
@@ -195,6 +206,11 @@ class table_replication_applier_status_by_worker : public PFS_engine_table {
     information in STS mode
   */
   int make_row(Master_info *);
+
+  /// @brief Constructs row from CSA data
+  /// @param stats Extracted statistics
+  int make_row(const mysql::csa::Session_legacy_stats &stats);
+
   void populate_trx_info(Trx_monitoring_info const &applying_trx,
                          Trx_monitoring_info const &last_applied_trx);
 

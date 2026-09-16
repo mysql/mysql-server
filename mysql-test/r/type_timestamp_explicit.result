@@ -698,6 +698,15 @@ ts1	ts2	f
 1996-04-20 20:22:36	2000-12-31 22:01:01	2000-12-31 22:01:01
 2024-04-01 13:18:49	1980-01-12 23:38:06	2024-04-01 13:18:49
 DROP TABLE t1;
+#
+# Bug#39280411: Assertion 'dt->time_type = MYSQL_TIMESTAMP_DATETIME ||
+#               dt->time_type = MYSQL_TIMESTAMP_DATETIME_TZ' failed
+#
+CREATE TABLE t (c3 TIMESTAMP(3));
+INSERT INTO t VALUES(NOW());
+UPDATE t SET c3 = JSON_REPLACE('{"abcca":"c"}' , '$', '2016-12-03');
+ERROR 22007: Incorrect datetime value: '2016-12-03' for column 'c3' at row 1
+DROP TABLE t;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # WL6292 - Test cases to test new behavior with

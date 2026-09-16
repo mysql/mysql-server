@@ -186,6 +186,7 @@ SELECT city.Name, country.Name FROM city,country
         country.Name LIKE 'L%' AND city.Population > 100000;
 
 --replace_result 185 # 188 #
+--disable_warnings
 EXPLAIN
 SELECT city.Name, country.Name, countrylanguage.Language
   FROM city,country,countrylanguage
@@ -193,6 +194,7 @@ SELECT city.Name, country.Name, countrylanguage.Language
         countrylanguage.country=country.Code AND
         city.Name LIKE 'L%' AND country.Population > 3000000 AND
         countrylanguage.Percentage > 50;
+--enable_warnings
 
 --sorted_result
 SELECT city.Name, country.Name, countrylanguage.Language

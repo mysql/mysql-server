@@ -44,7 +44,9 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include "m_string.h"
 #include "my_thread_local.h"
 
@@ -71,6 +73,7 @@ inline std::string trim_left(const std::string &s) {
 }
 
 struct Bulk_load_file_info {
+  Bulk_load_file_info() = default;
   Bulk_load_file_info(const Bulk_source &source,
                       const std::string &input_string, const size_t &n_files)
       : m_source(source),
@@ -82,6 +85,8 @@ struct Bulk_load_file_info {
   std::string m_appendtolastprefix;
   size_t m_start_index{1};
   bool m_is_dryrun{false};
+  std::string m_current_partition{};
+  std::unordered_map<std::string, std::vector<int>> m_partitions{};
 
   bool parse(std::string &error);
 
@@ -92,13 +97,12 @@ struct Bulk_load_file_info {
   bool is_count_specified() const { return m_n_files > 0; }
 
  private:
-  rapidjson::Document m_doc;
-  const Bulk_source m_source;
-  const std::string m_input_string;
+  Bulk_source m_source;
+  std::string m_input_string;
 
   /* This value can be 0, only if COUNT clause is not specified.  If COUNT
   clause is specified, this value will be greater than 0. */
-  const size_t m_n_files{0};
+  size_t m_n_files{0};
 };
 
 inline std::ostream &Bulk_load_file_info::print(std::ostream &out) const {
@@ -305,15 +309,16 @@ inline static bool parse_input_arg(std::string &error,
 }
 
 inline bool Bulk_load_file_info::parse(std::string &error) {
-  rapidjson::ParseResult ok = m_doc.Parse(m_input_string.c_str());
+  rapidjson::Document doc;
+  rapidjson::ParseResult ok = doc.Parse(m_input_string.c_str());
   std::string parse_error;
 
   if (!ok) {
     parse_error = rapidjson::GetParseError_En(ok.Code());
   }
 
-  if (!m_doc.HasParseError()) {
-    if (!parse_input_arg(error, *this, m_doc)) {
+  if (!doc.HasParseError()) {
+    if (!parse_input_arg(error, *this, doc)) {
       return false;
     }
   } else {
@@ -421,7 +426,7 @@ BEGIN_SERVICE_DEFINITION(bulk_load_driver)
 DECLARE_METHOD(Bulk_loader *, create_bulk_loader,
                (THD * thd, my_thread_id connection_id, const TABLE *sql_table,
                 const TABLE *duplicate_table, Bulk_source src,
-                const CHARSET_INFO *charset));
+                const CHARSET_INFO *charset, const Bulk_load_file_info &info));
 /**
   Set string attribute for loading data.
   @param[in,out]  loader  bulk loader

@@ -1,0 +1,78 @@
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+--source include/have_tlsv13.inc
+
+--let $openssl_binary_version=OpenSSL (3\.[5-9]|3\.[1-9][0-9]|[4-9][0-9]*)\.
+--source include/have_openssl_binary_version.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Plugin mysqlx reported: 'Failed at SSL configuration");
+--enable_query_log
+
+CREATE USER admin_pqc_user IDENTIFIED BY 'abcd';
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_pqc_user;
+
+--source include/save_error_log_position.inc
+--replace_result $MASTER_ADMINPORT MASTER_ADMINPORT $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--let $restart_parameters=restart: --admin-address=127.0.0.1 --admin-port=$MASTER_ADMINPORT --create-admin-listener-thread=1 --tls-version=TLSv1.3 --admin_force_pqc=ON --admin-ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --admin-tls-version=TLSv1.2
+--source include/restart_mysqld.inc
+
+--echo Admin listener disables admin_force_pqc when startup admin_tls_version is TLSv1.2-only
+SELECT @@GLOBAL.admin_force_pqc, @@GLOBAL.admin_tls_version;
+
+--let $error_pattern=admin_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but admin_tls_version=TLSv1.2 disables TLSv1.3; setting admin_force_pqc=OFF
+--source include/assert_error_log.inc
+
+--echo Admin listener accepts TLSv1.2 after startup adjustment
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT --user=admin_pqc_user -pabcd --ssl-mode=REQUIRED --tls-version=TLSv1.2 -e "SHOW STATUS LIKE 'Ssl_version'"
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
+--replace_result $MASTER_ADMINPORT MASTER_ADMINPORT $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--let $restart_parameters=restart: --admin-address=127.0.0.1 --admin-port=$MASTER_ADMINPORT --create-admin-listener-thread=1 --tls-version=TLSv1.3 --admin_force_pqc=ON --admin-ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --admin-tls-version=TLSv1.3
+--source include/restart_mysqld.inc
+
+--echo Admin listener reports admin_force_pqc enabled after restart
+SELECT @@GLOBAL.admin_force_pqc;
+
+--echo Admin listener negotiates a PQC key exchange on TLSv1.3
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT --user=admin_pqc_user -pabcd --ssl-mode=REQUIRED --tls-version=TLSv1.3 -e "SHOW STATUS LIKE 'Ssl_version'; SELECT VARIABLE_VALUE LIKE '%MLKEM%' AS uses_pqc FROM performance_schema.session_status WHERE VARIABLE_NAME='Tls_key_exchange_algorithm'"
+
+--echo Runtime validation rejects non-PQC admin_tls_kex when admin_force_pqc=ON
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL admin_tls_kex = 'X25519';
+
+--echo Runtime validation rejects invalid admin_use_pqc_sign
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL admin_use_pqc_sign = 'not_a_bool';
+
+--echo Admin listener uses configured PQC tls_kex with admin_use_pqc_sign enabled
+SET GLOBAL admin_tls_kex = 'X25519MLKEM768';
+SET GLOBAL admin_use_pqc_sign = ON;
+SELECT @@GLOBAL.admin_tls_kex = 'X25519MLKEM768' AS admin_tls_kex_configured,
+       @@GLOBAL.admin_use_pqc_sign AS admin_use_pqc_sign_enabled;
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT --user=admin_pqc_user -pabcd --ssl-mode=REQUIRED --tls-version=TLSv1.3 -e "SELECT VARIABLE_VALUE LIKE '%MLKEM%' AS uses_pqc FROM performance_schema.session_status WHERE VARIABLE_NAME='Tls_key_exchange_algorithm'"
+
+--echo Admin listener rejects TLSv1.2 when admin_force_pqc=ON
+--error 1
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT --user=admin_pqc_user -pabcd --ssl-mode=REQUIRED --tls-version=TLSv1.2 -e "SHOW STATUS LIKE 'Ssl_version'"
+
+SET @admin_tls_version_saved = @@GLOBAL.admin_tls_version;
+SET GLOBAL admin_tls_version = 'TLSv1.2';
+
+--echo Runtime validation rejects admin_force_pqc=ON when admin listener is TLSv1.2-only
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL admin_force_pqc = ON;
+SELECT @@GLOBAL.admin_force_pqc;
+--echo 1 Expected
+
+SET GLOBAL admin_tls_version = @admin_tls_version_saved;
+
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
+DROP USER admin_pqc_user;

@@ -42,6 +42,8 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Plugin group_replication reported: 'There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed: failed registering on source, reconnecting to try again.*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery'.*");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 [connection server_3]

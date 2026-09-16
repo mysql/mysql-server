@@ -26,7 +26,9 @@
 #ifndef ROUTER_SRC_HTTP_INCLUDE_MYSQLROUTER_COMPONENT_HTTP_SERVER_COMPONENT_H_
 #define ROUTER_SRC_HTTP_INCLUDE_MYSQLROUTER_COMPONENT_HTTP_SERVER_COMPONENT_H_
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "http/base/request_handler.h"
@@ -57,6 +59,18 @@ class HTTP_SERVER_LIB_EXPORT HttpServerComponent {
   virtual void remove_route(const void *handler) = 0;
 
   virtual bool is_ssl_configured() = 0;
+
+  // Runtime overrides are intentionally not constrained by mysqlrouter.conf
+  // option bounds. `std::nullopt` clears an override; otherwise the full
+  // uint64_t range is accepted and callers that expose user/config input must
+  // validate their own policy before calling these setters.
+  virtual void set_max_http_connections(std::optional<uint64_t> value) = 0;
+  virtual uint64_t get_effective_max_http_connections() = 0;
+  virtual void set_max_request_body_size(std::optional<uint64_t> value) = 0;
+  virtual uint64_t get_effective_max_request_body_size() = 0;
+  virtual void set_max_response_body_size(std::optional<uint64_t> value) = 0;
+  virtual uint64_t get_effective_max_response_body_size() = 0;
+  virtual void clear_overrides() = 0;
 };
 
 #endif  // ROUTER_SRC_HTTP_INCLUDE_MYSQLROUTER_COMPONENT_HTTP_SERVER_COMPONENT_H_

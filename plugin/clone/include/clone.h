@@ -103,6 +103,17 @@ extern char *clone_client_ssl_certficate_authority;
 /** Clone system variable: time delay after removing data */
 extern uint clone_delay_after_data_drop;
 
+#ifndef NDEBUG
+/** Debug-only test hook to corrupt a cloned file index descriptor. */
+extern bool clone_inject_invalid_file_index;
+
+/** Debug-only test hook to force a locator/task mismatch on the recipient.
+This is used by tests to verify that descriptor processing rejects an
+inconsistent task mapping with ER_CLONE_PROTOCOL instead of indexing into
+task vectors out of bounds. */
+extern bool clone_inject_missing_task_mapping;
+#endif
+
 /** Number of storage engines supporting clone. */
 const uint MAX_CLONE_STORAGE_ENGINE = 16;
 

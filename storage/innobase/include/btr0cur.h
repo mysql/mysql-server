@@ -316,7 +316,6 @@ positioned on the same record
 @param[in] cmpl_info Compiler info on secondary index updates
 @param[in] thr Query thread, or null if flags & (btr_no_locking_flag |
 btr_no_undo_log_flag | btr_create_flag | btr_keep_sys_flag)
-@param[in] trx_id Transaction id
 @param[in,out] mtr Mini-transaction; if this is a secondary index, the caller
 must mtr_commit(mtr) before latching any further pages
 @return locking or undo log related error code, or
@@ -327,7 +326,7 @@ on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
                                               ulint *offsets,
                                               const upd_t *update,
                                               ulint cmpl_info, que_thr_t *thr,
-                                              trx_id_t trx_id, mtr_t *mtr);
+                                              mtr_t *mtr);
 
 /** Writes a redo log record of updating a record in-place.
 @param[in] flags Undo logging and locking flags
@@ -358,7 +357,6 @@ ptr fields
 @param[in]     thr       query thread, or nullptr if flags &
 (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG |
 BTR_KEEP_SYS_FLAG)
-@param[in]     trx_id    transaction id
 @param[in,out] mtr       mini-transaction; if this is a secondary index, the
 caller must mtr_commit(mtr) before latching any further pages
 @return error code, including
@@ -367,12 +365,9 @@ caller must mtr_commit(mtr) before latching any further pages
 @retval DB_UNDERFLOW if the page would become too empty
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-[[nodiscard]] dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
-                                                ulint **offsets,
-                                                mem_heap_t **heap,
-                                                const upd_t *update,
-                                                ulint cmpl_info, que_thr_t *thr,
-                                                trx_id_t trx_id, mtr_t *mtr);
+[[nodiscard]] dberr_t btr_cur_optimistic_update(
+    ulint flags, btr_cur_t *cursor, ulint **offsets, mem_heap_t **heap,
+    const upd_t *update, ulint cmpl_info, que_thr_t *thr, mtr_t *mtr);
 
 /** Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -397,10 +392,11 @@ this.
 @param[in]     thr           Query thread, or NULL if flags &
                              (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG |
                               BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG)
-@param[in]     trx_id        Transaction id
-@param[in]     undo_no       Undo number of the transaction. This is needed
-                             for rollback to savepoint of partially updated
-LOB.
+@param[in]     undo_no       This is needed for rollback to savepoint of a
+                             partially updated LOB, and in such case indicates
+                             the Undo Log Record being rolled back. That is
+                             it only matters if this is clustered index with
+                             external fields and BTR_NO_UNDO_LOG_FLAG is set.
 @param[in,out] mtr           Mini-transaction; must be committed before
 latching any further pages
 @param[in]     pcur          The persistent cursor on the record to update.
@@ -408,8 +404,7 @@ latching any further pages
 [[nodiscard]] dberr_t btr_cur_pessimistic_update(
     ulint flags, btr_cur_t *cursor, ulint **offsets, mem_heap_t **offsets_heap,
     mem_heap_t *entry_heap, big_rec_t **big_rec, upd_t *update, ulint cmpl_info,
-    que_thr_t *thr, trx_id_t trx_id, undo_no_t undo_no, mtr_t *mtr,
-    btr_pcur_t *pcur = nullptr);
+    que_thr_t *thr, undo_no_t undo_no, mtr_t *mtr, btr_pcur_t *pcur = nullptr);
 
 /** Marks a clustered index record deleted. Writes an undo log record to
  undo log on this delete marking. Writes in the trx id field the id

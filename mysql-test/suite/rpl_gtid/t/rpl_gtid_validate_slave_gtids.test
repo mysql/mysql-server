@@ -103,7 +103,7 @@ CREATE TABLE t1(i INT);
 DROP TABLE t1;
 
 # Step-2) Let it reach Slave.
---sync_slave_with_master
+--source include/rpl/sync_to_replica.inc
 --source include/rpl/stop_replica.inc
 
 # Step-3) Fake raid failure( by manually deleting binary log file)

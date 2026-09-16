@@ -355,12 +355,11 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
   /**
    Insert a packet into the mapping that keeps track of fragments.
 
-   This method must only called when the packet received is part of a fragmented
-   message.
+   This method must only be called when the packet received is part of a
+   fragmented message.
 
-   @param packet fragment Fragment that will be collected to reconstruct the
-   original
-   @returns true if successful, false otherwise
+   @param packet Fragment that will be collected to reconstruct the original
+   @returns true if there is an error, false otherwise
    */
   bool insert_fragment(Gcs_packet &&packet);
 
@@ -392,11 +391,11 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
 
   bool unknown_sender(Gcs_split_header_v2 const &fragment_header) const;
 
-  bool is_final_fragment(Gcs_split_header_v2 const &fragment_header) const;
+  bool is_final_fragment(Gcs_packet const &packet) const;
 
   /**
    Fetch the fragments associated with the given metadata.
-   Removes the fragments from the table of ongoing tranmissions.
+   Removes the fragments from the table of ongoing transmissions.
 
    This method must only be called if there were previous calls to @c
    insert_fragment, i.e. if given metadata is about a fragmented message.
@@ -409,11 +408,11 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
   /**
    Reassembles the given fragment list into the original, whole packet.
 
-   This method must only be called with a non-empty packet list.
+   This method must only be called with a non-empty, validated packet list.
 
-   @param fragments The list of packet to reassemble
-   @retval {true, Gcs_packet} If reassembled successfully
-   @retval {false, _} If we could not allocate memory for the reassembled packet
+   @param fragments The list of packets to reassemble
+   @retval {false, Gcs_packet} If reassembled successfully
+   @retval {true, _} If reassembly failed
    */
   std::pair<bool, Gcs_packet> reassemble_fragments(
       Gcs_packets_list &fragments) const;

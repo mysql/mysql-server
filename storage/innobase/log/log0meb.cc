@@ -46,6 +46,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include "db0err.h"
 #include "dict0dd.h"
+#include "fil0pages_persistence_interface.h"
 #include "ha_innodb.h"
 #include "log0chkp.h"
 #include "log0encryption.h"
@@ -1333,13 +1334,14 @@ static bool redo_log_archive_start(THD *thd, const char *label,
   pfs_os_file_t file_handle =
       os_file_create_simple_no_error_handling_with_umask(
           redo_log_archive_file_key, file_pathname.c_str(), OS_FILE_CREATE,
-          OS_FILE_READ_WRITE, /*read_only*/ false, S_IRUSR | S_IRGRP, &success);
+          OS_FILE_READ_WRITE, S_IRUSR | S_IRGRP, &success);
 
 #else
   pfs_os_file_t file_handle = os_file_create_simple_no_error_handling(
       redo_log_archive_file_key, file_pathname.c_str(), OS_FILE_CREATE,
-      OS_FILE_READ_WRITE, /*read_only*/ false, &success);
+      OS_FILE_READ_WRITE, &success);
 #endif
+
   if (!success) {
     int os_errno = errno;
     char errbuf[MYSYS_STRERROR_SIZE];
@@ -1669,16 +1671,19 @@ static bool redo_log_archive_flush(THD *thd) {
   return false;
 }
 
+/* Protected by limits_mutex */
 static std::unique_ptr<Log_user_consumer> log_meb_consumer;
+/* Protected by limits_mutex */
 static innodb_session_t *log_meb_consumer_session;
 
 static bool redo_log_consumer_register(innodb_session_t *session) {
   log_t &log = *log_sys;
-
-  IB_mutex_guard checkpointer_latch{&(log.checkpointer_mutex),
+  ut_a(log_checkpointing != nullptr);
+  IB_mutex_guard checkpointer_latch{&(log_checkpointing->checkpoint_mutex),
                                     UT_LOCATION_HERE};
 
-  IB_mutex_guard files_latch{&(log.m_files_mutex), UT_LOCATION_HERE};
+  IB_mutex_guard limits_latch{&log_checkpointing->limits_mutex,
+                              UT_LOCATION_HERE};
 
   if (session == nullptr || log_meb_consumer_session != nullptr) {
     return true;
@@ -1688,7 +1693,7 @@ static bool redo_log_consumer_register(innodb_session_t *session) {
 
   log_meb_consumer = std::make_unique<Log_user_consumer>("MEB");
 
-  log_meb_consumer->set_consumed_lsn(log_get_checkpoint_lsn(log));
+  log_meb_consumer->set_consumed_lsn(pages_persistence->get_checkpoint_lsn());
 
   log_consumer_register(log, log_meb_consumer.get());
 
@@ -1700,7 +1705,8 @@ static bool redo_log_consumer_register(innodb_session_t *session) {
 static bool redo_log_consumer_unregister(innodb_session_t *session) {
   log_t &log = *log_sys;
 
-  IB_mutex_guard files_latch{&(log.m_files_mutex), UT_LOCATION_HERE};
+  IB_mutex_guard limits_latch{&log_checkpointing->limits_mutex,
+                              UT_LOCATION_HERE};
 
   if (session == nullptr || log_meb_consumer_session != session) {
     return true;
@@ -1717,7 +1723,8 @@ static bool redo_log_consumer_unregister(innodb_session_t *session) {
 }
 
 static bool redo_log_consumer_advance(innodb_session_t *session, lsn_t lsn) {
-  IB_mutex_guard files_latch{&(log_sys->m_files_mutex), UT_LOCATION_HERE};
+  IB_mutex_guard limits_latch{&log_checkpointing->limits_mutex,
+                              UT_LOCATION_HERE};
 
   if (session == nullptr || log_meb_consumer_session != session) {
     return true;
@@ -1778,9 +1785,12 @@ void redo_log_archive_session_end(innodb_session_t *session) {
       }
     }
   }
-
+  if (!ib::redo::handler->get_capabilities().supports_meb) {
+    return;
+  }
   {
-    IB_mutex_guard files_latch{&(log_sys->m_files_mutex), UT_LOCATION_HERE};
+    IB_mutex_guard limits_latch{&log_checkpointing->limits_mutex,
+                                UT_LOCATION_HERE};
 
     if (log_meb_consumer_session != session) {
       return;
@@ -1952,7 +1962,7 @@ static void redo_log_archive_consumer() {
                                &log_sys->writer_mutex);
 
     /* Prepare an I/O request with potential encryption. */
-    IORequest request(IORequest::LOG | IORequest::WRITE);
+    IORequest request(IORequest::Type::LOG | IORequest::Type::WRITE);
 
     if (srv_redo_log_encrypt) {
       IB_mutex_guard files_latch{&(log_sys->m_files_mutex), UT_LOCATION_HERE};
@@ -2284,7 +2294,7 @@ long long innodb_redo_log_sharp_checkpoint(
   }
   LogErr(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
          "innodb_redo_log_sharp_checkpoint() making checkpoint");
-  log_make_latest_checkpoint(*log_sys);
+  pages_persistence->request_sharp_checkpoint();
   return 0;
 }
 
@@ -2407,6 +2417,7 @@ void innodb_redo_log_consumer_advance_deinit(
   The UDF is of type Udf_func_longlong returning INT_RESULT
   and expects LSN argument which is the LSN up to which all
   redo log data has been consumed by the registered consumer.
+  The LSN argument must not be NULL.
 
   Before calling this function the consumer must be registered
   by the innodb_redo_log_consumer_register UDF.
@@ -2420,6 +2431,10 @@ long long innodb_redo_log_consumer_advance(
     [[maybe_unused]] unsigned char *null_value,
     [[maybe_unused]] unsigned char *error) {
   if (current_thd == nullptr) {
+    return 1;
+  }
+  if (args->args[0] == nullptr) {
+    my_error(ER_INVALID_USE_OF_NULL, MYF(0));
     return 1;
   }
   return static_cast<long long>(meb::redo_log_consumer_advance(

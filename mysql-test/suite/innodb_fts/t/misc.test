@@ -31,23 +31,36 @@ INSERT INTO t1 (a,b) VALUES
         ('MySQL Security','When configured properly, MySQL ...');
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+--sorted_result
 select id, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+--sorted_result
 select id from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 
 # query expansion
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 
 # Drop index 
@@ -57,23 +70,36 @@ ALTER TABLE t1 DROP INDEX idx;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+--sorted_result
 select id, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+--sorted_result
 select id from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 
 # query expansion
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 
 # insert for proximity search 
@@ -102,26 +128,31 @@ SELECT id FROM t1
         AGAINST ('"proximity search"@1' IN BOOLEAN MODE);
 
 # This give you all three documents
+--sorted_result
 SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
 
 # Similar boundary testing for the words
+--sorted_result
 SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"test proximity"@3' IN BOOLEAN MODE);
 
 # Test with more word The last document will return, please notice there
 # is no ordering requirement for proximity search.
+--sorted_result
 SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
 
 # The phrase search will not require exact word ordering
+--sorted_result
 SELECT id FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"more fts proximity"@02' IN BOOLEAN MODE);
@@ -158,23 +189,28 @@ INSERT INTO t1 (a,b) VALUES
 
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE id = (SELECT MAX(id) FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
 
 
 # Select word "tutorial" in the table - innodb crash
+--sorted_result
 SELECT id FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
 SELECT CONCAT(a,b) FROM t1 AS t2 WHERE 
 MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
@@ -182,27 +218,32 @@ MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
 
 
 # Select word "tutorial" in the table  - innodb crash
+--sorted_result
 SELECT id FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
 SELECT CONCAT(a,b) FROM t1 AS t2 
 WHERE MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
 AND t2.id != 3) ;
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE id IN (SELECT MIN(id) FROM t1 WHERE 
 MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
 
 # Select word except  "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE id NOT IN (SELECT MIN(id) FROM t1 
 WHERE MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) ;
 
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
 MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
 AND t1.id = t2.id) ;
 
 
 # Select not word like "tutorial" using subquery
+--sorted_result
 SELECT id FROM t1 WHERE NOT EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
 MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
 AND t1.id = t2.id) ;
@@ -224,14 +265,18 @@ INSERT INTO t1(a,b) VALUES('MySQL has now support', 'for full-text search'),
 ('Full-text search in MySQL', 'implements vector space model');
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE 
         MATCH(t2.a,t2.b) AGAINST("+support +collections" IN BOOLEAN MODE));
+--sorted_result
 SELECT id FROM t1 WHERE t1.id != (SELECT MIN(t2.id) FROM t1 AS t2 WHERE 
         MATCH(t2.a,t2.b) AGAINST("+search" IN BOOLEAN MODE));
 
+--sorted_result
 SELECT id FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE 
 MATCH (t2.a,t2.b) AGAINST ("+call* +coll*" IN BOOLEAN MODE));
 
+--sorted_result
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE 
 MATCH t2.a,t2.b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE) AND t2.id=t1.id);
 
@@ -263,22 +308,28 @@ INSERT INTO t1 (a,b) VALUES
          'search, with proximity innodb');
 
 
+--sorted_result
 SELECT id FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
 MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
+--sorted_result
 SELECT id FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
 MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 
+--sorted_result
 SELECT id FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE
 MATCH (t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 
+--sorted_result
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
 MATCH t2.a,t2.b AGAINST ('"proximity search"@2' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 
+--sorted_result
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
 MATCH t2.a,t2.b AGAINST ('"more test proximity"@3' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 
+--sorted_result
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
 MATCH t2.a,t2.b AGAINST ('"more test proximity"@2' IN BOOLEAN MODE)
 AND t2.id=t1.id);
@@ -290,18 +341,21 @@ AND t2.id=t1.id);
 CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
 MATCH a,b AGAINST ('support') ;
 SHOW CREATE TABLE t2;
+--sorted_result
 SELECT id FROM t2;
 DROP TABLE t2;
 
 CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
 MATCH a,b AGAINST("+support +collections" IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
+--sorted_result
 SELECT id FROM t2;
 DROP TABLE t2;
 
 CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
 MATCH a,b AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
+--sorted_result
 SELECT id FROM t2;
 DROP TABLE t2;
 
@@ -355,16 +409,20 @@ SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t1 WHERE a IS NULL;
 SELECT COUNT(*) FROM t1 WHERE b IS NOT NULL;
 
+--sorted_result
 SELECT id FROM t1
      WHERE MATCH (a,b)
      AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
+--sorted_result
 SELECT id FROM t1
      WHERE MATCH (a,b)
      AGAINST (NULL IN NATURAL LANGUAGE MODE);
+--sorted_result
 SELECT id FROM t1
      WHERE MATCH (a,b)
      AGAINST (NULL WITH QUERY EXPANSION);
+--sorted_result
 SELECT id FROM t1
      WHERE MATCH (a,b)
      AGAINST ('null' IN NATURAL LANGUAGE MODE);
@@ -376,19 +434,23 @@ AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
 --sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NOT NULL OR b IS NOT NULL);
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NULL AND b IS NOT NULL);
 
 # Select rows contain at least one of the two words
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
 AGAINST ('DBMS Security' IN BOOLEAN MODE);
 
 # Test query expansion
+--sorted_result
 SELECT COUNT(*) FROM t1
 WHERE MATCH (a,b)
 AGAINST ('database' WITH QUERY EXPANSION);
 
 # proximity
+--sorted_result
 SELECT id FROM t1
 WHERE MATCH (a,b)
 AGAINST ('"following database"@10' IN BOOLEAN MODE);
@@ -416,6 +478,7 @@ create fulltext index i on t50 (s1);
 # Assert : InnoDB: Failing assertion: rbt_validate(result_doc->tokens)
 insert into t50 values ('ABCDE'),('FGHIJ'),('KLMNO'),('VÐƷWİ');
 # it was giving empty result set instead of one record  
+--sorted_result
 select * from t50 where match(s1) against ('VÐƷWİ'); 
 drop table t50;
 
@@ -443,7 +506,9 @@ set @@autocommit=0;
 update t50 set s2 = lower(s2);
 update t50 set s2 = upper(s2); 
 commit;
+--sorted_result
 select * from t50 where match(s2) against ('VÐƷWİ FGHIJ KLMNO ABCDE' in boolean mode);
+--sorted_result
 select * from t50;
 drop table t50;
 set @@autocommit=1;
@@ -453,10 +518,12 @@ create table t50 (id int unsigned primary key auto_increment, s2
 varchar(60) character set utf8mb4) engine = innodb;
 create fulltext index i on t50 (s2);
 insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCD*');
+--sorted_result
 select * from t50 where match(s2) against ('abcd*' in natural language
 mode); 
 # INNODB_FTS: RESULT DIFF(Expected). InnoDB do not index "*", so
 # word "ABCD" indexed, instead of "ABCD*"
+--sorted_result
 select * from t50 where match(s2) against ('abcd*' in boolean mode); 
 drop table t50;
 
@@ -465,8 +532,10 @@ drop table t50;
 create table t50 (s1 int, s2 varchar(200), fulltext key(s2)) engine = innodb;
 set @@autocommit=0;
 insert into t50 values (1,'Sunshine'),(2,'Lollipops');
+--sorted_result
 select * from t50 where match(s2) against('Rainbows');
 rollback;
+--sorted_result
 select * from t50;
 drop table t50;
 set @@autocommit=1;
@@ -501,10 +570,12 @@ SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aac') DESC;
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aab') DESC; 
 
 --echo "----------Test7---------"
+--sorted_result
 select * from t1 where match(a,b) against ('aaa')
 union select * from t1 where match(a,b) against ('aab')
 union select * from t1 where match(a,b) against ('aac');
 
+--sorted_result
 select * from t1 where match(a,b) against ('aaa')
                 or    match(a,b) against ('aab')
                 or    match(a,b) against ('aac'); 
@@ -535,12 +606,18 @@ INSERT INTO t1 (a,b) VALUES
         ('MySQL vs. YourSQL use','In the following database comparison ...'),
         ('MySQL Security','When run configured properly, MySQL ...');
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('run');
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('use');
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('went');
 # rows should be matched as 'q' is single char its not indexed
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('run') AND NOT MATCH(a,b) AGAINST ('q');
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('use') AND NOT MATCH(a,b) AGAINST ('q');
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('went') AND NOT MATCH(a,b) AGAINST ('q');
 
 --echo "----------Test9---------"
@@ -576,6 +653,7 @@ CREATE TABLE t2 AS SELECT * FROM t1;
 ALTER TABLE t2 ENGINE = MYISAM;
 CREATE FULLTEXT INDEX i ON t2 (a,b);
 ALTER TABLE t2 ENGINE=InnoDB;
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('run');
 SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('abc*' IN BOOLEAN MODE);
 DROP TABLE t2,t1;
@@ -587,7 +665,9 @@ SET NAMES utf8mb4;
 CREATE TABLE t1 (s1 INT, s2 VARCHAR(200) CHARACTER SET UTF8MB4 COLLATE UTF8MB4_SPANISH_CI) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX i ON t1 (s2);
 INSERT INTO t1 VALUES (1,'aaCen'),(2,'aaCha'),(3,'aaCio'),(4,'aaçen'),(5,'aaçha'),(6,'aaçio');
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('aach*' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('aaC*' IN BOOLEAN MODE);
 DROP TABLE t1;
 
@@ -605,12 +685,14 @@ CREATE TABLE t1 (s1 VARCHAR (60) CHARACTER SET UTF8MB4 COLLATE UTF8MB4_UNICODE_5
 CREATE FULLTEXT INDEX i ON t1 (s1);
 INSERT INTO t1 VALUES
 ('a'),('b'),('c'),('d'),('ŁŁŁŁ'),('LLLL'),(NULL),('ŁŁŁŁ ŁŁŁŁ'),('LLLLLLLL');
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(s1) AGAINST ('LLLL' COLLATE UTF8MB4_UNICODE_520_CI);
 DROP TABLE if EXISTS t2;
 CREATE TABLE t2 (s1 VARCHAR(60) CHARACTER SET UTF8MB4 COLLATE UTF8MB4_POLISH_CI) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX i ON t2 ( s1);
 INSERT INTO t2 VALUES
 ('a'),('b'),('c'),('d'),('ŁŁŁŁ'),('LLLL'),(NULL),('ŁŁŁŁ ŁŁŁŁ'),('LLLLLLLL');
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(s1) AGAINST ('LLLL' COLLATE UTF8MB4_UNICODE_520_CI);
 --disable_warnings
 DROP TABLE t1,t2;
@@ -620,6 +702,7 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (s1 INT, s2 VARCHAR(50) CHARACTER SET UTF8MB4) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX i ON t1(s2);
 INSERT INTO t1 VALUES (2, 'ğė Daśi      p          ');
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('+p +"ğė Daśi*"' IN BOOLEAN MODE);
 DROP TABLE t1;
 
@@ -629,6 +712,7 @@ DROP TABLE t1;
 CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8MB4) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,'İóëɠ');
 CREATE FULLTEXT INDEX i ON t1 (char_column);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('"İóëɠ"' IN BOOLEAN MODE);
 DROP TABLE t1;
 
@@ -724,6 +808,7 @@ INSERT INTO articles (title,body) VALUES
 savepoint `a4`;
 
 # FTS do not parse those uncommitted rows, only one row should show up
+--sorted_result
 SELECT * FROM articles
         WHERE MATCH (title,body)
         AGAINST ('Database' IN NATURAL LANGUAGE MODE);
@@ -731,6 +816,7 @@ SELECT * FROM articles
 rollback to savepoint a3;
 
 # The last inserted row should not be there
+--sorted_result
 select title, body from articles;
 
 INSERT INTO articles (title,body) VALUES
@@ -738,18 +824,22 @@ INSERT INTO articles (title,body) VALUES
 
 savepoint `a5`;
 
+--sorted_result
 select title, body from articles;
 
 rollback to savepoint a2;
 
+--sorted_result
 select title, body from articles;
 
 commit;
 
+--sorted_result
 SELECT * FROM articles
         WHERE MATCH (title,body)
         AGAINST ('Database' IN NATURAL LANGUAGE MODE);
 
+--sorted_result
 SELECT * FROM articles
         WHERE MATCH (title,body)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
@@ -792,6 +882,7 @@ INSERT INTO articles (title,body) VALUES
 savepoint `a4`;
 
 # FTS do not parse those uncommitted rows, only one row should show up
+--sorted_result
 SELECT * FROM articles
         WHERE MATCH (title,body)
         AGAINST ('Database' IN NATURAL LANGUAGE MODE);
@@ -799,6 +890,7 @@ SELECT * FROM articles
 rollback to savepoint a3;
 
 # The last inserted row should not be there
+--sorted_result
 select title, body from articles;
 
 INSERT INTO articles (title,body) VALUES
@@ -806,18 +898,22 @@ INSERT INTO articles (title,body) VALUES
 
 savepoint `a5`;
 
+--sorted_result
 select title, body from articles;
 
 rollback to savepoint a2;
 
+--sorted_result
 select title, body from articles;
 
 rollback;
 
+--sorted_result
 SELECT * FROM articles
         WHERE MATCH (title,body)
         AGAINST ('Database' IN NATURAL LANGUAGE MODE);
 
+--sorted_result
 SELECT * FROM articles
         WHERE MATCH (title,body)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
@@ -848,8 +944,10 @@ INSERT INTO articles (title,body) VALUES
 ANALYZE TABLE articles;
 -- enable_result_log
 
+--sorted_result
 SELECT *,  MATCH(title, body) AGAINST ('-database +MySQL' IN BOOLEAN MODE) AS score from articles;
 
+--sorted_result
 SELECT *, MATCH(title, body) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score  FROM articles;
 
 # With subquery
@@ -878,10 +976,13 @@ title varchar(200),body text,fulltext(title,body)) engine=innodb;
 
 insert into t1 set body='test';
 
+--sorted_result
 select * from t1 where match(title,body) against('%test');
 
+--sorted_result
 select * from t1 where match(title,body) against('%');
 
+--sorted_result
 select * from t1 where match(title,body) against('%%%%');
 
 drop table t1;
@@ -916,18 +1017,28 @@ INSERT INTO t1 (a,b) VALUES
         ('MySQL Security','When configured properly, MySQL ...');
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+--sorted_result
 select id, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+--sorted_result
 select id from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 
 DROP DATABASE `benu database`;
@@ -972,14 +1083,20 @@ ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
 ALTER  TABLE t1 ADD UNIQUE INDEX (`id`);
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
 
 DROP TABLE t1;
@@ -1000,13 +1117,18 @@ INSERT INTO t1 VALUES
 ALTER  TABLE t1 ADD UNIQUE INDEX (`id`), ADD FULLTEXT INDEX idx (a,b);
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
 
 DROP TABLE t1;
@@ -1029,14 +1151,20 @@ ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
 ALTER  TABLE t1 ADD UNIQUE INDEX (`FTS_DOC_ID`);
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
+--sorted_result
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+--sorted_result
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+--sorted_result
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select FTS_DOC_ID, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
 
 DROP TABLE t1;
@@ -1057,14 +1185,20 @@ INSERT INTO t1 VALUES
 ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b), ADD UNIQUE INDEX FTS_DOC_ID_INDEX (FTS_DOC_ID);
 
 # Select word "tutorial" in the table
+--sorted_result
 SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
+--sorted_result
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+--sorted_result
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+--sorted_result
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+--sorted_result
 select FTS_DOC_ID, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
 
 DROP TABLE t1;
@@ -1113,6 +1247,7 @@ INSERT INTO t1 (a,b) VALUES
 
 SAVEPOINT BATCH1;
 
+--sorted_result
 SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
 
@@ -1139,16 +1274,22 @@ INSERT INTO `t` VALUES ('a');
 INSERT INTO `t` VALUES ('aaa');
 
 # 0x22 is the '"', 0xdd is not encoded in utf8mb3
+--sorted_result
 SELECT MATCH(`a`) AGAINST (0x22dd22) FROM `t`;
+--sorted_result
 SELECT MATCH(`a`) AGAINST (0x2222) FROM `t`;
+--sorted_result
 SELECT MATCH(`a`) AGAINST (0x22) FROM `t`;
 
 # this should show one match
+--sorted_result
 SELECT MATCH(`a`) AGAINST (0x2261616122) FROM `t`;
 
 # again 0xdd should be ignored
+--sorted_result
 SELECT MATCH(`a`) AGAINST (0x2261dd6122) FROM `t`;
 
+--sorted_result
 SELECT MATCH(`a`) AGAINST (0x2261dd612222226122) FROM `t`;
 
 DROP TABLE t;
@@ -1185,29 +1326,35 @@ middle'),
 ('This is a story which doesn''t have that text'),
 ('This is a story that has complicated the phrase structure');
 
+--sorted_result
 select * from t1
 where match(content) against('"complicated phrase structure"' in boolean
 mode);
 
 # Test single phrase search with "+" symbol, one row should be returned
+--sorted_result
 select * from t1
 where match(content) against('+"complicated phrase structure"' in boolean
 mode);
 
 # Test phrase search with stopwords in between, one row should be returned
+--sorted_result
 select * from t1
 where match(content) against('"complicated the phrase structure"' in boolean
 mode);
 
 # Test phrase search with multiple "+" symbols
+--sorted_result
 select * from t1 where match(content) against('+"this is a story which" +"complicated the phrase structure"' in boolean mode);
 
 # Test phrase search with leading word is a stopword, such stopword would be
 # ignored
+--sorted_result
 select * from t1 where match(content) against('"the complicated the phrase structure"' in boolean mode);
 
 # Test phrase search with non-matching stopword in between, no row should be
 # returned
+--sorted_result
 select * from t1 where match(content) against('"complicated a phrase structure"' in boolean mode);
 
 DROP TABLE t1;
@@ -1217,6 +1364,7 @@ c VARCHAR(32), FULLTEXT(c)) ENGINE = INNODB;
 
 INSERT INTO my (c) VALUES ('green-iguana');
 
+--sorted_result
 SELECT * FROM my WHERE MATCH(c) AGAINST ('green-iguana');
 
 DROP TABLE my;
@@ -1237,6 +1385,7 @@ INSERT INTO ift values (4, "-donot--skip-networking");
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('--skip-networking');
 --sorted_result
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('skip-networking');
+--sorted_result
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('----');
 --sorted_result
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('-donot--skip-networking');
@@ -1261,12 +1410,15 @@ INSERT INTO articles (title,body) VALUES
         ('MySQL vs. YourSQL','In the following database comparison ...'),
         ('( that''s me )','When configured properly, MySQL ...');
 
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('( yours''s* )' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('s*' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('stands\'] | * | show[@database' IN NATURAL LANGUAGE MODE);
 
@@ -1300,8 +1452,10 @@ INSERT INTO t1 (a) VALUES
 	('MySQL is good to know'),
 	('What is database');
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql"' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql")' IN BOOLEAN MODE);
 
 --sorted_result
@@ -1316,12 +1470,16 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('(good "know mysql")' IN BOOLEAN MODE)
 --sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+(good "know mysql")' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+("know mysql" "good database")' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know mysql" +"good database"' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@4' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"know database"@8' IN BOOLEAN MODE);
 
 # Drop table
@@ -1339,6 +1497,7 @@ INSERT INTO t1 (a) VALUES
         ('know mysql good database');
 
 # This phrase search fails in valgrind test before the fix.
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"good database"' IN BOOLEAN MODE);
 
 DROP TABLE t1;
@@ -1401,78 +1560,124 @@ INSERT INTO t1 VALUES
 	('innodb myisam engines', 'innodb myisam engines', 'innodb myisam engines', 'innodb myisam engines');
 
 # Test the ujis_japanese_ci
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', ' ', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '&', 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '&', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
 --sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 --sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
 --sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
 --sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
 --error ER_PARSE_ERROR
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
 
 
 # Test the utf8mb4_turkish_ci
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', ' ', '"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, '"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '&', 0x00, '"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, '&', '"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '%', '"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
 --sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+--sorted_result
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
 --error ER_PARSE_ERROR
 SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
 
 # Test the eucjpms_bin
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', ' ', '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '&', 0x00, '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, '&', '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '%', '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
 --sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
 --sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
 --sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
 --sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+--sorted_result
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
 --error ER_PARSE_ERROR
 SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
@@ -1480,14 +1685,23 @@ SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 
 ALTER TABLE t1 ENGINE = MyISAM;
 
 # Test the query against myisam to verify
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', ' ', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '&', 0x00, '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '&', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
 --sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
@@ -1507,8 +1721,11 @@ SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', '
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
 --sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+--sorted_result
 SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
 
 DROP TABLE t1;
@@ -1523,6 +1740,7 @@ CREATE TABLE t1 (
 INSERT INTO t1 (a) VALUES
         ('know database'),('good database'), ('gmail email'), ('ghome windows');
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('g *' IN NATURAL LANGUAGE MODE);
 
 --sorted_result

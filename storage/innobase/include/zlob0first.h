@@ -578,16 +578,6 @@ struct z_first_page_t {
     return (fut_get_ptr(space, page_size, addr, RW_S_LATCH, m_mtr));
   }
 
-  /** Load the entry available in the given file address.
-  @param[in]    addr    file address
-  @param[out]   entry   the entry to be loaded.*/
-  void load_entry_s(fil_addr_t &addr, z_index_entry_t &entry);
-
-  /** Load the entry available in the given file address.
-  @param[in]    addr    file address
-  @param[out]   entry   the entry to be loaded.*/
-  void load_entry_x(fil_addr_t &addr, z_index_entry_t &entry);
-
   /** Free all the pages of the zlob.
   @return the total number of pages freed. */
   size_t destroy();

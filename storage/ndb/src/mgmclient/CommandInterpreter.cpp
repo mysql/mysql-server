@@ -392,10 +392,8 @@ static const char *helpTextTlsInfo =
 "-\n"
 "TLS INFO  Print cluster TLS information\n\n"
 "TLS INFO           Report whether the current connection is using TLS,\n"
-"                   display a list of all TLS certificates currently\n"
-"                   known to the management node, and report the\n"
-"                   management node's counts of total connections,\n"
-"                   connections upgraded to TLS, and authorization failures"
+"                   display the server's list of current TLS connections,\n"
+"                   trust store, and TLS connection statistics"
 ".\n";
 static const char* helpTextShutdown =
 "---------------------------------------------------------------------------\n"
@@ -659,7 +657,7 @@ static const char* helpTextDebug =
 "SHOW PROPERTIES                       Print config properties object\n"
 "<id> LOGLEVEL {<category>=<level>}+   Set log level\n"
 #ifdef ERROR_INSERT
-"<id> ERROR <errorNo>                  Inject error into NDB node\n"
+"<id> ERROR <errorNo> [<extraNo>]      Inject error into NDB node\n"
 #endif
 "<id> LOG [BLOCK = {ALL|<block>+}]     Set logging on in & out signals\n"
 "<id> TESTON                           Start signal logging\n"
@@ -1973,6 +1971,32 @@ void CommandInterpreter::executeShowTlsInfo(const char *) {
   }
   ndb_mgm_cert_table_free(&info);
 
+  r = ndb_mgm_list_trusted_certs(m_mgmsrv, &info);
+  if (r < 0) {
+    ndbout_c(" failed. ");
+    return;
+  }
+  ndbout_c(" ");
+  ndbout_c("Server reports %d trusted CA certificate%s.\n", r,
+           r == 1 ? "" : "s");
+  c = info;
+  while (c) {
+    BaseString flags;
+    BaseString lastUse = CertSubject::timestamp(c->last_use, "%c");
+    if (c->flags & NDB_MGM_CA_IN_CERT_CHAIN) flags.append("IN_CERT_CHAIN ");
+    if (c->flags & NDB_MGM_CA_IN_TRUST_STORE) flags.append("IN_TRUST_STORE ");
+    if (c->flags & NDB_MGM_CA_IS_ROOT) flags.append("IS_ROOT ");
+    ndbout_c("  Certificate name:    %s", c->cert_name);
+    ndbout_c("  Certificate serial:  %s", c->cert_serial);
+    ndbout_c("  Certificate expires: %s", c->cert_expires);
+    ndbout_c("  Certificate flags:   %s", flags.c_str());
+    ndbout_c("  Auth use count:      %d", c->use_count);
+    ndbout_c("  Auth last use:       %s", lastUse.c_str());
+    ndbout_c(" ");
+    c = c->next;
+  }
+  ndb_mgm_cert_table_free(&info);
+
   ndb_mgm_tls_stats stats;
   r = ndb_mgm_get_tls_stats(m_mgmsrv, &stats);
   if (r < 0) {
@@ -2732,18 +2756,29 @@ int CommandInterpreter::executeError(int processId, const char *parameters,
   Vector<BaseString> args;
   split_args(parameters, args);
 
-  if (args.size() >= 2) {
+  if (args.size() >= 3) {
     ndbout << "ERROR: Too many arguments." << endl;
     return -1;
   }
 
   int errorNo;
   if (!convert(args[0].c_str(), errorNo)) {
-    ndbout << "ERROR: Expected an integer." << endl;
+    ndbout << "ERROR: Expected an integer for error value '" << args[0] << "'"
+           << endl;
     return -1;
   }
 
-  return ndb_mgm_insert_error(m_mgmsrv, processId, errorNo, nullptr);
+  if (args.size() == 1)
+    return ndb_mgm_insert_error(m_mgmsrv, processId, errorNo, nullptr);
+
+  int extraNo;
+  if (!convert(args[1].c_str(), extraNo)) {
+    ndbout << "ERROR: Expected an integer for extra value '" << args[1] << "'"
+           << endl;
+    return -1;
+  }
+
+  return ndb_mgm_insert_error2(m_mgmsrv, processId, errorNo, extraNo, nullptr);
 }
 
 //*****************************************************************************

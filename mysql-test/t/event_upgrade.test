@@ -14,3 +14,32 @@
 --let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 
+--echo #
+--echo # Bug#39077967: Error in parsing Event while upgrading MySQL version if
+--echo #               Event was created in ANSI sql_mode
+--echo #
+
+--echo # Copy and unzip the datadir containing an event
+--echo # which uses ANSI SQL mode.
+--copy_file $MYSQLTEST_VARDIR/std_data/ansi_event.zip $MYSQL_TMP_DIR/ansi_event.zip
+--file_exists $MYSQL_TMP_DIR/ansi_event.zip
+--exec unzip -qo $MYSQL_TMP_DIR/ansi_event.zip -d $MYSQL_TMP_DIR
+
+--let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/data
+--echo # Start the server on the old datadir to trigger upgrade.
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 10000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR
+--echo # Without patch upgrade fails with syntax error for the event.
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--source include/restart_mysqld.inc
+
+--echo # Verify event exists after upgrade.
+SHOW CREATE EVENT test.event1;
+
+--echo # Cleanup
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/ansi_event.zip
+--force-rmdir $MYSQLD_DATADIR
+

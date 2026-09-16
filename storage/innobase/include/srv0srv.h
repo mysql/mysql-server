@@ -50,7 +50,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define srv0srv_h
 
 #include "buf0checksum.h"
-#include "fil0fil.h"
+#include "log0types.h" /* lsn_t */
 #include "mysql/psi/mysql_stage.h"
 #include "univ.i"
 
@@ -325,9 +325,10 @@ extern bool srv_buffer_pool_load_at_startup;
 extern bool srv_disable_sort_file_cache;
 
 /** Enable or disable writing of NULLs while extending a tablespace.
-If this is false, then the server will just allocate the space without
-actually initializing it with NULLs. If the variable is true, the
-server will allocate and initialize the space by writing NULLs in it. */
+If this is false, then the server will just call fallocate if it is available,
+which will zero the region in the file. Otherwise, the space will be actually
+initialized with NULLs. It is meant for situations where fallocate has bugs,
+like https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2012-4508 */
 extern bool tbsp_extend_and_initialize;
 
 /* If the last data file is auto-extended, we add this many pages to it
@@ -420,6 +421,9 @@ extern char *srv_log_group_home_dir;
 
 /** Enable or Disable Encrypt of REDO tablespace. */
 extern bool srv_redo_log_encrypt;
+
+/** Whether the redo block at the recovered LSN was encrypted on disk. */
+extern bool srv_recovered_redo_block_was_encrypted;
 
 /* Maximum number of redo files of a cloned DB. */
 constexpr size_t SRV_N_LOG_FILES_CLONE_MAX = 1000;
@@ -721,6 +725,7 @@ extern bool srv_ibuf_disable_background_merge;
 extern bool srv_buf_pool_debug;
 extern bool srv_sync_debug;
 extern bool srv_purge_view_update_only_debug;
+extern ulong srv_saved_page_number_debug;
 
 /** Value of MySQL global used to disable master thread. */
 extern bool srv_master_thread_disabled_debug;
@@ -813,11 +818,11 @@ extern mysql_pfs_key_t bulk_alloc_thread_key;
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Performance schema stage event for monitoring ALTER TABLE progress
-everything after flush log_make_latest_checkpoint(). */
+everything after flush pages_persistence->request_sharp_checkpoint(). */
 extern PSI_stage_info srv_stage_alter_table_end;
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
-log_make_latest_checkpoint(). */
+pages_persistence->request_sharp_checkpoint(). */
 extern PSI_stage_info srv_stage_alter_table_flush;
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
@@ -1072,8 +1077,7 @@ void srv_purge_wakeup(void);
 @return true if any thread is active, false if no thread is active */
 bool srv_purge_threads_active();
 
-/** Create an undo tablespace with an explicit file name
-This is called during CREATE UNDO TABLESPACE.
+/** Create an undo tablespace
 @param[in]  space_name  tablespace name
 @param[in]  file_name   file name
 @param[in]  space_id    Tablespace ID
@@ -1081,17 +1085,23 @@ This is called during CREATE UNDO TABLESPACE.
 dberr_t srv_undo_tablespace_create(const char *space_name,
                                    const char *file_name, space_id_t space_id);
 
-/** Initialize undo::spaces,
+/** Initialize undo_truncate::spaces,
 called once during srv_start(). */
-void undo_spaces_init();
+void undo_truncate_spaces_init();
 
-/** Free the resources occupied by undo::spaces,
-called once during thread de-initialization. */
-void undo_spaces_deinit();
+/** Free the resources occupied by undo_truncate::spaces,
+called once during srv_shutdown(). */
+void undo_truncate_spaces_deinit();
 
 /** Set redo log variable for performance schema global status.
 @param[in]      enable  true => redo log enabled, false => redo log disabled */
 void set_srv_redo_log(bool enable);
+
+/** Wrapper for
+ib::redo::handler->reconfigure(max_threads, reserved_bytes_per_thread)
+which passes the appropriate arguments
+@return the value returned by @see ib::redo::Handler_interface::reconfigure */
+[[nodiscard]] bool srv_reconfigure_log_handler();
 
 #ifdef UNIV_DEBUG
 struct SYS_VAR;

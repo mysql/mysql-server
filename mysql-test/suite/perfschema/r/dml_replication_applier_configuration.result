@@ -12,6 +12,10 @@ SELECT * FROM performance_schema.replication_applier_configuration
 WHERE assign_gtids_to_anonymous_transactions_type="OFF";
 SELECT * FROM performance_schema.replication_applier_configuration
 WHERE assign_gtids_to_anonymous_transactions_value=NULL;
+SELECT * FROM performance_schema.replication_applier_configuration
+WHERE Applier_version=1;
+SELECT * FROM performance_schema.replication_applier_configuration
+WHERE Applier_worker_count=4;
 INSERT INTO performance_schema.replication_applier_configuration
 SET desired_delay=2;
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
@@ -59,6 +63,12 @@ WHERE assign_gtids_to_anonymous_transactions_type="OFF";
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
 DELETE FROM performance_schema.replication_applier_configuration
 WHERE assign_gtids_to_anonymous_transactions_value="OFF";
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
+DELETE FROM performance_schema.replication_applier_configuration
+WHERE Applier_version=1;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
+DELETE FROM performance_schema.replication_applier_configuration
+WHERE Applier_worker_count=4;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_applier_configuration'
 DELETE FROM performance_schema.replication_applier_configuration;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'replication_applier_configuration'

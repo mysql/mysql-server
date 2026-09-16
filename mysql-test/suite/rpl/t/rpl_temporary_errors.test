@@ -33,6 +33,8 @@ connection slave;
 call mtr.add_suppression("Replica SQL.*Could not execute Update_rows event on table test.t1");
 call mtr.add_suppression("Replica SQL for channel '': worker thread retried transaction");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 #
 # Bug#24764800 REPLICATION FAILING ON SLAVE WITH XAER_RMFAIL ERROR
 #

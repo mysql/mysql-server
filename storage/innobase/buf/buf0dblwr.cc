@@ -32,16 +32,20 @@ Atomic writes handling. */
 
 #include "buf0buf.h"
 #include "buf0checksum.h"
+#include "fil0pages_persistence_interface.h"
 #include "log0chkp.h"
 #include "os0enc.h"
 #include "os0thread-create.h"
 #include "page0zip.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "trx0purge.h"
+#include "ut0dbg.h"
 #include "ut0mpmcbq.h"
 #include "ut0mutex.h"
 #include "ut0test.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <regex>
@@ -138,6 +142,10 @@ static page_no_t LEGACY_PAGE2;
 
 inline bool is_odd(uint32_t val) { return val & 1; }
 
+#ifndef UNIV_HOTBACKUP
+static bool is_encrypted_page(const byte *page) noexcept;
+#endif
+
 struct File {
   /** Check if the file ID is an odd number.
   @return true if the file ID is odd. */
@@ -200,6 +208,20 @@ page_id_t Force_crash{UINT32_UNDEFINED, UINT32_UNDEFINED};
 
 namespace recv {
 
+#ifndef UNIV_HOTBACKUP
+/** Helper method to calculate name of file and page offset inside it for
+reporting errors during Double-write recovery. */
+static std::pair<std::string, page_no_t> get_node_and_page_no_for_error(
+    const fil_space_t &space, const page_id_t page_id) {
+  auto page_no = page_id.page_no();
+  const auto found_node = space.get_node_for_page_no(page_no);
+  return {(found_node == nullptr ? &space.files.back() : found_node)->name,
+          page_no + (found_node == nullptr
+                         ? space.files.back().get_cached_size_in_pages()
+                         : 0)};
+}
+#endif
+
 /** Page recovered from the doublewrite buffer */
 struct Page {
   /** Constructor
@@ -207,7 +229,7 @@ struct Page {
   @param[in]    page                Page read from the double write buffer
   @param[in]    n_bytes           Length of the page data. */
   Page(page_no_t page_no, const byte *page, uint32_t n_bytes)
-      : m_no(page_no), m_buffer(1), m_recovered() {
+      : m_no(page_no), m_buffer(1) {
     ut_a(n_bytes <= univ_page_size.physical());
 
     auto success = m_buffer.append(page, n_bytes);
@@ -220,8 +242,14 @@ struct Page {
   /** Double write buffer page contents */
   dblwr::Buffer m_buffer;
 
-  /** true if page was recovered. */
-  bool m_recovered{};
+  lsn_t get_lsn() const {
+    return mach_read_from_8(m_buffer.begin() + FIL_PAGE_LSN);
+  }
+
+  page_id_t get_page_id() const {
+    const auto ptr = m_buffer.begin();
+    return {page_get_space_id(ptr), page_get_page_no(ptr)};
+  }
 
   // Disable copying
   Page(const Page &) = delete;
@@ -272,7 +300,14 @@ class Pages {
 
   /** Add a page entry from reduced doublewrite buffer to vector
   @param[in]   pg_entry        Reduced doublewrite buffer entry */
-  void add_entry(Page_entry &pg_entry) { m_page_entries.push_back(pg_entry); }
+  void add_entry(Page_entry &pg_entry) {
+    m_page_entries.push_back(pg_entry);
+    m_is_sorted = false;
+  }
+
+  /** Indicates that all add() calls were done, and it is time to prepare this
+  data structure for subsequent recover() calls. */
+  void done_loading_prepare_for_recovery() noexcept;
 
   /** Find a doublewrite copy of a page.
   @param[in]    page_id                 Page number to lookup
@@ -280,75 +315,100 @@ class Pages {
   @retval nullptr if no page was found */
   const byte *find(const page_id_t &page_id) const noexcept;
 
-  /** @return true if page is recovered from the regular doublewrite buffer
-  @param[in]   page_id                 Page number to lookup */
-  bool is_recovered(const page_id_t &page_id) const noexcept;
+#ifndef UNIV_HOTBACKUP
+  /** Checks if content of the first page provided from the specified space
+  requires recovery from the Double-write Buffer. If the supplied @p
+  page_content has a valid not corrupted page, no action is taken. If it is not,
+  then we try to get a non-corrupted copy from the Double-write Buffer. If there
+  are any entries in the Reduced Double-write pages list, we may crash.
+  @param[in] space_id     ID of the space to be checked.
+  @param[in] page_size    Page size structure to use for the tablespace page
+                          manipulation.
+  @param[in] file_path    Path of a file to be used for error reporting.
+  @param[in] page_content Content of the first page of the specified tablespace
+                          read from the disk. The buffer must hold at least
+                          `page_size.physical()` bytes.
+  @return pointer to @p page_content if the page does not require recovery, a
+  pointer to page contents from the Double-write Buffer or nullptr if
+  page_content is corrupted, but there's no valid image of it in the
+  Double-write Buffer to restore it from. */
+  [[nodiscard]] const byte *get_first_page_content_for_recovery(
+      space_id_t space_id, page_size_t page_size, const std::string &file_path,
+      const byte *page_content) const;
 
-  /** Recover a page from the doublewrite buffer.
-  @param[in]   dblwr_page_no         Page number if the doublewrite buffer
+  /** Checks if Double-write recovery of the specified tablespace page is
+  needed. Checks if the provided image of the @p dblwr_page from the
+  Double-write buffer is usable (non-zero and not corrupted) and if so, checks
+  if the @p space 's page @p page_no is corrupted, in which case it uses the
+  provided @p dblwr_page image to restore it. In case of any errors (IO errors,
+  out of bounds space access) we crash the server as it means the tablespace is
+  corrupted beyond our ability to recover and we should not attempt any more
+  actions.
   @param[in]   space                 Tablespace the page belongs to
   @param[in]   page_no               Page number in the tablespace
-  @param[in]   page                  Data to write to <space, page_no>
-  @return true if page was restored to the tablespace */
-  bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
-                          page_no_t page_no, byte *page) noexcept;
+  @param[in]   dblwr_page            Data loaded from Double-write buffer to
+                                     write to <space, page_no> */
+  void dblwr_recover_page(const fil_space_t &space, page_no_t page_no,
+                          byte *dblwr_page) noexcept;
 
   /** Checks if page in tablespace is corrupted or an all-zero page
   @param[in]   space   Tablespace object
   @param[in]   page_id Page number to check for corruption
-  @return tuple<0> - true if corrupted
-          tuple<1> - true if the page is all zero page */
-  std::tuple<bool, bool> is_actual_page_corrupted(fil_space_t *space,
-                                                  page_id_t &page_id);
+  @return true if corrupted or page is all zero bytes. */
+  [[nodiscard]] bool is_actual_page_corrupted(const fil_space_t &space,
+                                              const page_id_t &page_id);
 
-  /** Check if page was logged in reduced doublewrite buffer mode, if so also
-  return the page LSN. Note if there are multiple entries of same page, we
-  return the max_LSN of all entries.
+  /** Check if page was logged in reduced doublewrite buffer mode, and if so
+  also return the maximum page LSN mentioned for all entries for this page ID.
   @param[in]   page_id                 Page number to lookup
-  @retval tuple<0> - true if the page is found in reduced doublewrite
-                     buffer, false if no page was found
-          tuple<1> - if tuple<0> is true (ie page
-                     found in reduced dblwr mode), then return the
-                     max page LSN */
-  std::tuple<bool, lsn_t> find_entry(const page_id_t &page_id) const noexcept {
-    bool found = false;
-    lsn_t max_lsn = 0;
-    // There can be multiple entries with different LSNs, we are interested in
-    // the entry with max_lsn
+  @retval Maximum LSN of the reduced entries for the specified page ID, if any
+  is found. */
+  [[nodiscard]] std::optional<lsn_t> get_max_lsn_of_reduced_page_entries(
+      const page_id_t &page_id) const noexcept {
+    ut_a(m_is_sorted);
     for (auto &pe : m_page_entries) {
       if (page_id.space() == pe.m_space_id &&
           page_id.page_no() == pe.m_page_no) {
-        if (pe.m_lsn > max_lsn) {
-          found = true;
-          max_lsn = pe.m_lsn;
-        }
+        return pe.m_lsn;
       }
     }
 
-    return (std::tuple<bool, lsn_t>(found, max_lsn));
+    return {};
   }
 
-  /** Recover double write buffer pages
-  @param[in]  space  Tablespace pages to recover, if set to nullptr then try
-                     and recovery all. */
-  void recover(fil_space_t *space) noexcept;
+  /** Restore corrupted pages of the tablespace from the double write buffer.
+  Iterates over the previously loaded double write buffer pages, but only ones
+  that are not corrupted, searching for mentions of pages from the specified
+  space, and for each such page checks if tablespace file contains a corrupted
+  version of it and if so, restores it from the backup in image found in double
+  write buffer page, unless this is impossible because the double write buffer
+  page does not contain the body (in reduced, detect-only mode). In case of any
+  errors (IO errors, out of bounds space access) we crash the server.
+  @param[in] space Tablespace to restore pages in. */
+  void recover(fil_space_t &space) noexcept;
 
   /** Check if some pages could be restored because of missing
   tablespace IDs */
   void check_missing_tablespaces() const noexcept;
+#endif /* !UNIV_HOTBACKUP */
 
   /** Object the vector of pages.
   @return the vector of pages. */
   [[nodiscard]] Buffers &get_pages() noexcept { return m_pages; }
 
  private:
-  /** Check if page is logged in reduced doublewrite buffer. We cannot recover
-  page because the entire page is not logged only an entry of
-  space_id, page_id, LSN is logged. So we abort the server. It is expected
-  that the user restores from backup
-  @param[in]   space           Tablespace pages to check in reduced
-  dblwr, if set to nullptr then try and recovery all. */
-  void reduced_recover(fil_space_t *space) noexcept;
+#ifndef UNIV_HOTBACKUP
+  /** Checks if there are any corrupted pages in the tablespace that can be
+  found in the reduced double write buffer. Scans the stored double write buffer
+  reduced entries for mentions of pages from the specified space, and for each
+  such page checks if tablespace file contains a corrupted version of it and if
+  so, we abort the Server. We cannot recover page because the entire page is not
+  logged only an entry of space_id, page_id, LSN is logged. It is expected that
+  the user restores from backup.
+  @param[in]   space           Tablespace to check in reduced pages. */
+  void detect_corruption_from_reduced_entries(
+      const fil_space_t &space) noexcept;
+#endif /* !UNIV_HOTBACKUP */
 
   /** Recovered doublewrite buffer page frames */
   Buffers m_pages;
@@ -356,7 +416,18 @@ class Pages {
   /** Page entries from reduced doublewrite buffer */
   Page_entries m_page_entries;
 
-  // Disable copying
+  /* Set of tablespace IDs for which the double-write pages from m_pages were
+  already recovered, to enable optimization to not scan the m_pages for any
+  single tablespace ID more than once. */
+  std::unordered_set<space_id_t> m_recovered_spaces;
+
+  /** Initially true. Transitions to false whenever add() or add_entry() is
+  called, and to true in done_loading_prepare_for_recovery(). Calling find(),
+  get_max_lsn_of_reduced_page_entries(), get_first_page_content_for_recovery(),
+  and recover() is only allowed when true. */
+  bool m_is_sorted{true};
+
+  /* Disable copying */
   Pages(const Pages &) = delete;
   Pages(Pages &&) = delete;
   Pages &operator=(Pages &&) = delete;
@@ -364,53 +435,43 @@ class Pages {
 };
 
 #ifndef UNIV_HOTBACKUP
-std::tuple<bool, bool> Pages::is_actual_page_corrupted(fil_space_t *space,
-                                                       page_id_t &page_id) {
-  auto result = std::make_tuple(false, false);
-
-  if (page_id.page_no() >= space->size) {
-    /* Do not report the warning if the tablespace is going to be truncated.
-     */
-    if (!undo::is_active(space->id)) {
-      ib::warn(ER_IB_MSG_DBLWR_1313)
-          << "Page# " << page_id.page_no()
-          << " stored in the doublewrite file is"
-             " not within data file space bounds "
-          << space->size << " bytes:  page : " << page_id;
-    }
-    return (result);
+bool Pages::is_actual_page_corrupted(const fil_space_t &space,
+                                     const page_id_t &page_id) {
+  if (space.m_size_in_pages <= page_id.page_no()) {
+    const auto node_and_page = get_node_and_page_no_for_error(space, page_id);
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_INNODB_DBLWR_OUT_OF_BOUNDS,
+              ulong{space.m_size_in_pages}, page_id.to_string().c_str(),
+              node_and_page.first.c_str(), ulong{node_and_page.second});
   }
 
   Buffer buffer{1};
-  const page_size_t page_size(space->flags);
+  const page_size_t page_size(space.flags);
+  ut_a(page_size.physical() <= univ_page_size.logical());
 
-  /* We want to ensure that for partial reads the
-  unread portion of the page is NUL. */
-  memset(buffer.begin(), 0x0, page_size.physical());
+  /* Read in the page from the data file to compare. A `Type::DBLWR` flag is
+  specified to not run the tablespace validation and to silence any corruption
+  errors, as they may be present, but useless to report. */
+  auto err =
+      fil_io(IORequest::Type::READ | IORequest::Type::DBLWR, true, page_id,
+             page_size, page_size.physical(), buffer.begin(), nullptr, false);
 
-  IORequest request;
-
-  request.dblwr();
-
-  /* Read in the page from the data file to compare. */
-  auto err = fil_io(request, true, page_id, page_size, 0, page_size.physical(),
-                    buffer.begin(), nullptr);
-
-  if (err != DB_SUCCESS) {
-    ib::warn(ER_IB_MSG_DBLWR_1314)
-        << "Double write fle recovery: " << page_id << " read failed with "
-        << "error: " << ut_strerr(err);
+  if (err != DB_SUCCESS && err != DB_IO_DECRYPT_FAIL &&
+      err != DB_IO_DECOMPRESS_FAIL) {
+    /* We must be able to read a page. We are running this for a known
+    tablespace, and the tablespaces couldn't have been shrunk, so any error
+    means there is a non-recoverable corruption. */
+    const auto node_and_page = get_node_and_page_no_for_error(space, page_id);
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1314,
+              page_id.to_string().c_str(), node_and_page.first.c_str(),
+              ulong{node_and_page.second}, ut_strerr(err));
   }
 
   /* Is the page read from the data file corrupt? */
   BlockReporter data_file_page(true, buffer.begin(), page_size,
-                               fsp_is_checksum_disabled(space->id));
+                               fsp_is_checksum_disabled(space.id));
 
-  bool is_all_zero = buf_page_is_zeroes(buffer.begin(), page_size);
-
-  std::get<0>(result) = data_file_page.is_corrupted();
-  std::get<1>(result) = is_all_zero;
-  return (result);
+  return data_file_page.is_corrupted() ||
+         buf_page_is_zeroes(buffer.begin(), page_size);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -567,8 +628,9 @@ class Double_write {
   }
 
   /** Process the requests in the flush queue, write the blocks to the
-  double write file, sync the file if required and then write to the
-  data files.
+  double write file, sync the file if required and then issue asynchronous
+  writes to the data files. The pages are not evicted from the Buffer Pool on
+  successful write.
   @param[in] flush_type         LRU or FLUSH request. */
   void write_pages(buf_flush_t flush_type) noexcept;
 
@@ -599,7 +661,7 @@ class Double_write {
                const file::Block *e_block) noexcept {
     ut_ad(buf_page_in_file(bpage));
 
-    void *frame{};
+    byte *frame{};
     uint32_t len{};
     byte *e_frame =
         (e_block == nullptr) ? nullptr : os_block_get_frame(e_block);
@@ -677,7 +739,8 @@ class Double_write {
   }
 
   /** Writes a single page to the doublewrite buffer on disk, syncs it,
-  then writes the page to the datafile.
+  then writes the page to the datafile. The page will be evicted from the Buffer
+  Pool.
   @param[in]    bpage             Data page to write to disk.
   @param[in]    e_block           Encrypted data block.
   @return DB_SUCCESS or error code */
@@ -715,16 +778,20 @@ class Double_write {
   [[nodiscard]] static bool create_v1(page_no_t &block1,
                                       page_no_t &block2) noexcept;
 
-  /** Writes a page that has already been written to the
-  doublewrite buffer to the data file. It is the job of the
-  caller to sync the datafile.
+  /** Writes a page that has already been written to the doublewrite buffer to
+  the data file. It is the job of the caller to sync the datafile. If the sync
+  is true, the page will be evicted from the LRU.
   @param[in]  in_bpage          Page to write.
   @param[in]  sync              true if it's a synchronous write.
   @param[in]  e_block           block containing encrypted data frame.
+  @param[in]  pre_io_complete_callback
+                                A callback to be called after the IO completes,
+                                but before the `buf_page_io_complete()` is
+                                called.
   @return DB_SUCCESS or error code */
   [[nodiscard]] static dberr_t write_to_datafile(
-      const buf_page_t *in_bpage, bool sync,
-      const file::Block *e_block) noexcept;
+      const buf_page_t *in_bpage, bool sync, const file::Block *e_block,
+      std::function<void(dberr_t err)> pre_io_complete_callback) noexcept;
 
   /** Force a flush of the page queue.
   @param[in] flush_type           FLUSH LIST or LRU LIST flush.
@@ -813,7 +880,7 @@ class Double_write {
   @param[in]    bpage                     Page to write
   @param[out]   ptr                         Start of buffer to write
   @param[out]   len                         Length of the data to write */
-  static void prepare(const buf_page_t *bpage, void **ptr,
+  static void prepare(const buf_page_t *bpage, byte **ptr,
                       uint32_t *len) noexcept;
 
   /** Free the data structures. */
@@ -880,7 +947,7 @@ class Double_write {
   /** Wait for IO batch to complete. */
   os_event_t m_event;
 
-  /** true if the the batch hasn't completed yet. */
+  /** true if the batch hasn't completed yet. */
   std::atomic_bool m_batch_running{false};
 
   /** The copy of the page frame, the page must be in in m_buf_pages. */
@@ -976,11 +1043,9 @@ class Segment {
   /** Write to the segment.
   @param[in] ptr                Start writing from here.
   @param[in] len                Number of bytes to write. */
-  void write(const void *ptr, uint32_t len) noexcept {
+  void write(const byte *ptr, uint32_t len) noexcept {
     ut_a(len <= m_end - m_start);
-    IORequest req(IORequest::WRITE | IORequest::DO_NOT_WAKE);
-
-    req.dblwr();
+    IORequest req(IORequest::Type::WRITE | IORequest::Type::DO_NOT_WAKE);
 
     auto err = os_file_write_retry(req, m_file.m_name.c_str(), m_file.m_pfs,
                                    ptr, m_start, len);
@@ -1302,7 +1367,7 @@ Double_write::~Double_write() noexcept {
   os_event_destroy(m_event);
 }
 
-void Double_write::prepare(const buf_page_t *bpage, void **ptr,
+void Double_write::prepare(const buf_page_t *bpage, byte **ptr,
                            uint32_t *len) noexcept {
   auto block = reinterpret_cast<const buf_block_t *>(bpage);
   auto state = buf_block_get_state(block);
@@ -1342,7 +1407,7 @@ void Double_write::prepare(const buf_page_t *bpage, void **ptr,
 void Double_write::single_write(Segment *segment, const buf_page_t *bpage,
                                 file::Block *e_block) noexcept {
   uint32_t len{};
-  void *frame{};
+  byte *frame{};
 
   if (e_block != nullptr) {
     frame = os_block_get_frame(e_block);
@@ -1600,13 +1665,14 @@ void Double_write::check_block(const buf_block_t *block) noexcept {
   croak(block);
 }
 
-dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage, bool sync,
-                                        const file::Block *e_block) noexcept {
+dberr_t Double_write::write_to_datafile(
+    const buf_page_t *in_bpage, bool sync, const file::Block *e_block,
+    std::function<void(dberr_t)> pre_io_complete_callback) noexcept {
   ut_ad(buf_page_in_file(in_bpage));
   ut_ad(in_bpage->current_thread_has_io_responsibility());
   ut_ad(in_bpage->is_io_fix_write());
   uint32_t len;
-  void *frame{};
+  byte *frame{};
 
   if (e_block == nullptr) {
     Double_write::prepare(in_bpage, &frame, &len);
@@ -1619,29 +1685,25 @@ dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage, bool sync,
   therefore geared towards a non-const parameter. */
   auto bpage = const_cast<buf_page_t *>(in_bpage);
 
-  uint32_t type = IORequest::WRITE;
-
+  auto type = IORequest::Type::WRITE;
   if (sync) {
-    type |= IORequest::DO_NOT_WAKE;
+    type |= IORequest::Type::DO_NOT_WAKE;
+  }
+  if (e_block != nullptr) {
+    type |= IORequest::Type::NO_WRITE_TRANSFORMATIONS;
+  }
+  if (len != bpage->size.physical()) {
+    type |= IORequest::Type::PUNCH_HOLE;
   }
 
-  IORequest io_request(type);
-  io_request.set_encrypted_block(e_block);
+  ut_ad(mach_read_from_4(frame + FIL_PAGE_OFFSET) == bpage->page_no());
+  ut_ad(mach_read_from_4(frame + FIL_PAGE_SPACE_ID) == bpage->space());
 
-#ifdef UNIV_DEBUG
-  {
-    byte *page = static_cast<byte *>(frame);
-    ut_ad(mach_read_from_4(page + FIL_PAGE_OFFSET) == bpage->page_no());
-    ut_ad(mach_read_from_4(page + FIL_PAGE_SPACE_ID) == bpage->space());
-  }
-#endif /* UNIV_DEBUG */
+  auto err = fil_io(type, sync, bpage->id, bpage->size, len, frame, bpage, sync,
+                    pre_io_complete_callback);
 
-  io_request.set_original_size(bpage->size.physical());
-  auto err =
-      fil_io(io_request, sync, bpage->id, bpage->size, 0, len, frame, bpage);
-
-  /* When a tablespace is deleted with BUF_REMOVE_NONE, fil_io() might
-  return DB_PAGE_IS_STALE or DB_TABLESPACE_DELETED. */
+  /* When a tablespace is deleted, fil_io() might return DB_PAGE_IS_STALE or
+  DB_TABLESPACE_DELETED. */
   ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED ||
        err == DB_PAGE_IS_STALE);
 
@@ -1650,11 +1712,11 @@ dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage, bool sync,
 
 dberr_t Double_write::sync_page_flush(buf_page_t *bpage,
                                       file::Block *e_block) noexcept {
+  const auto page_id = bpage->id;
 #ifdef UNIV_DEBUG
-  ut_d(auto page_id = bpage->id);
 
   if (dblwr::Force_crash == page_id) {
-    auto frame = reinterpret_cast<const buf_block_t *>(bpage)->frame;
+    const auto frame = reinterpret_cast<const buf_block_t *>(bpage)->frame;
     const auto p = reinterpret_cast<byte *>(frame);
 
     ut_ad(page_get_space_id(p) == dblwr::Force_crash.space());
@@ -1682,23 +1744,23 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage,
   }
 #endif /* UNIV_DEBUG */
 
-  auto err = write_to_datafile(bpage, true, e_block);
+  /* bpage will be freed if the following call is successful */
+  const auto err = write_to_datafile(
+      bpage, true, e_block, [page_id, e_block, segment](dberr_t err) {
+        if (e_block != nullptr) {
+          os_free_block(e_block);
+        }
+        if (err == DB_SUCCESS) {
+          fil_flush(page_id.space());
+        }
 
-  if (err == DB_SUCCESS) {
-    fil_flush(bpage->id.space());
-  } else {
-    /* This block is not freed if the write_to_datafile doesn't succeed. */
-    if (e_block != nullptr) {
-      os_free_block(e_block);
-    }
-  }
-
-  while (!s_single_segments->enqueue(segment)) {
-    UT_RELAX_CPU();
-  }
-
-  /* true means we want to evict this page from the LRU list as well. */
-  buf_page_io_complete(bpage, true);
+        while (!s_single_segments->enqueue(segment)) {
+          UT_RELAX_CPU();
+        }
+      });
+  /* TODO errors should not be ignored. They are handled in the above call, the
+  logic should be made more consistent. */
+  (void)err;
 
   return DB_SUCCESS;
 }
@@ -1729,11 +1791,16 @@ void Double_write::reset_file(dblwr::File &file, bool truncate) noexcept {
     }
 
   } else if (new_size > cur_size) {
+    /* DBLWR files are opened as OS_DATA_FILE or OS_DBLWR_FILE which might be
+    unbuffered, which requires proper offset and length alignment. */
     const auto start =
         ut_uint64_align_down(cur_size, univ_page_size.physical());
-    auto err =
-        os_file_write_zeros(pfs_file, file.m_name.c_str(),
-                            univ_page_size.physical(), start, new_size - start);
+
+    ut_ad(start % UNIV_SECTOR_SIZE == 0);
+    ut_ad((new_size - start) % UNIV_SECTOR_SIZE == 0);
+    auto err = os_file_fill_range_with_zeros(file.m_name.c_str(), pfs_file,
+                                             start, new_size - start, true,
+                                             tbsp_extend_and_initialize);
 
     if (err != DB_SUCCESS) {
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1321, file.m_name.c_str());
@@ -1753,9 +1820,14 @@ void Double_write::reduced_reset_file(dblwr::File &file,
   auto pfs_file = file.m_pfs;
 
   if (new_size > cur_size) {
+    /* DBLWR files are opened as OS_DATA_FILE or OS_DBLWR_FILE which might be
+    unbuffered, which requires proper offset and length alignment. */
     const auto start = ut_uint64_align_down(cur_size, phy_size);
-    auto err = os_file_write_zeros(pfs_file, file.m_name.c_str(), phy_size,
-                                   start, new_size - start);
+    ut_ad(start % UNIV_SECTOR_SIZE == 0);
+    ut_ad((new_size - start) % UNIV_SECTOR_SIZE == 0);
+    auto err = os_file_fill_range_with_zeros(file.m_name.c_str(), pfs_file,
+                                             start, new_size - start, true,
+                                             tbsp_extend_and_initialize);
 
     if (err != DB_SUCCESS) {
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1321, file.m_name.c_str());
@@ -1775,12 +1847,12 @@ dberr_t Double_write::init_file(dblwr::File &file, uint32_t n_pages,
   ut_ad(dblwr::File::s_n_pages > 0);
 
   if (size == 0) {
-    auto err = os_file_write_zeros(pfs_file, file.m_name.c_str(), phy_size, 0,
-                                   n_pages * phy_size);
-
-    if (err != DB_SUCCESS) {
-      return err;
-    }
+    /* DBLWR files are opened as OS_DATA_FILE or OS_DBLWR_FILE which might be
+    unbuffered, which requires proper offset and length alignment. */
+    ut_ad(phy_size % UNIV_SECTOR_SIZE == 0);
+    return os_file_fill_range_with_zeros(file.m_name.c_str(), pfs_file, 0,
+                                         n_pages * phy_size, true,
+                                         tbsp_extend_and_initialize);
   }
 
   return DB_SUCCESS;
@@ -1957,7 +2029,7 @@ bool Double_write::create_v1(page_no_t &page_no1,
   mtr.commit();
 
   /* Flush the modified pages to disk and make a checkpoint. */
-  log_make_latest_checkpoint();
+  pages_persistence->request_sharp_checkpoint();
 
   /* Remove doublewrite pages from the LRU list. */
   buf_pool_invalidate();
@@ -1978,6 +2050,34 @@ dberr_t Double_write::load(dblwr::File &file, recv::Pages *pages) noexcept {
   }
 
   if ((size % univ_page_size.physical())) {
+    /* An image of a page from double-write buffer is only needed if the real
+    page in tablespace file is corrupted. So, if some fragment of double-write
+    buffer is missing - which is obviously unexpected and result of some serious
+    I/O problem - we might still be able to start up the database as long as the
+    pages mentioned in the missing fragment of double-write are not corrupted in
+    their tablespace files. This is why we don't treat it as a fatal error if we
+    detect that double-write buffer is truncated, but we still emit a warning.
+    The detection logic is very simplistic: we check if the size is a multiple
+    of a page size. A more stringent test would require storing somewhere the
+    expected size of the double-write buffer, which we currently do not do, and
+    hence do not test for that. Note that if the missing fragment of the
+    double-write buffer did contain a crucial image of a page which is corrupted
+    in the tablespace file, then this problem might go undetected during
+    double-write recovery, because the way it works currently is that it only
+    checks for corruption the pages which are mentioned in the double-write
+    buffer - so if they aren't mentioned there then we will not check if they
+    are corrupted. However, writes through double-write buffer are always done
+    for pages which were dirty, and only after persisting the redo log changes
+    for them (because of the WAL rule) and before advancing the checkpoint, thus
+    we could expect all pages which could get corrupted are also mentioned in
+    the redo log, and so we shall be able detect the corruption of such page
+    when reading it from tablespace to apply the changes to it during redo log
+    recovery. However, there are certainly some exceptions to these, like
+    non-redo logged operations, for example during tablespace import. If any
+    such page is corrupted and a copy of its data is in the missing fragment of
+    the double-write, then the corruption will not be visible until the
+    tablespace page is accessed, long after the recovery finishes and the
+    Double-write buffer is overwritten. */
     ib::warn(ER_IB_MSG_DBLWR_LOAD_WRONG_SIZE, file.m_name.c_str(),
              ulonglong{size}, univ_page_size.physical());
   }
@@ -1985,9 +2085,8 @@ dberr_t Double_write::load(dblwr::File &file, recv::Pages *pages) noexcept {
   const uint32_t n_pages = size / univ_page_size.physical();
 
   Buffer buffer{n_pages};
-  IORequest read_request(IORequest::READ);
-
-  read_request.disable_compression();
+  IORequest read_request(IORequest::Type::READ |
+                         IORequest::Type::NO_COMPRESSION);
 
   auto err = os_file_read(read_request, file.m_name.c_str(), file.m_pfs,
                           buffer.begin(), 0, buffer.capacity());
@@ -2139,9 +2238,8 @@ dberr_t Double_write::load_reduced_batch(dblwr::File &file,
 
   const uint32_t n_pages = size / REDUCED_BATCH_PAGE_SIZE;
   Buffer buffer(n_pages, REDUCED_BATCH_PAGE_SIZE);
-  IORequest read_request(IORequest::READ);
-
-  read_request.disable_compression();
+  IORequest read_request(IORequest::Type::READ |
+                         IORequest::Type::NO_COMPRESSION);
 
   auto err = os_file_read(read_request, file.m_name.c_str(), file.m_pfs,
                           buffer.begin(), 0, buffer.capacity());
@@ -2152,7 +2250,11 @@ dberr_t Double_write::load_reduced_batch(dblwr::File &file,
     return err;
   }
 
-  auto page_entry_processor = [&](Page_entry &pe) { pages->add_entry(pe); };
+  auto page_entry_processor = [&](Page_entry &pe) {
+    ut_a(pe.m_lsn != LSN_MAX);
+    ut_a(pe.m_lsn != 0);
+    pages->add_entry(pe);
+  };
 
   Reduced_batch_deserializer rbd(&buffer, n_pages);
   err = rbd.deserialize(page_entry_processor);
@@ -2204,33 +2306,40 @@ void Double_write::write_data_pages(buf_flush_t flush_type,
     bpage->set_dblwr_batch_id(batch_id);
 
     ut_d(bpage->take_io_responsibility());
-    auto err =
-        write_to_datafile(bpage, false, std::get<1>(m_buf_pages.m_pages[i]));
+    const auto *e_block = std::get<1>(m_buf_pages.m_pages[i]);
 
-    if (err == DB_PAGE_IS_STALE || err == DB_TABLESPACE_DELETED) {
-      /* For async operation, if space is deleted, fil_io already
-      does buf_page_io_complete and returns DB_TABLESPACE_DELETED.
-      buf_page_free_stale_during_write() asserts if not IO fixed
-      and does similar things as buf_page_io_complete(). This is a
-      temp fix to address this situation. Ideally we should handle
-      these errors in single place possibly by one function. */
-      if (bpage->was_io_fixed()) {
-        write_complete(bpage, flush_type);
-        buf_page_free_stale_during_write(
-            bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
-      }
+    auto pre_io_complete = [bpage, e_block, flush_type](dberr_t err) {
+      if (err == DB_PAGE_IS_STALE || err == DB_TABLESPACE_DELETED) {
+        /* Even for async IO, if space is deleted, fil_io returns
+        DB_TABLESPACE_DELETED. buf_page_free_stale_during_write() asserts it is
+        IO fixed and does similar things as buf_page_io_complete() to mark this
+        write as complete. This is a temp fix to address this situation. Ideally
+        we should handle these errors in single place possibly by one function.
+        */
+        ut_ad(bpage->was_io_fixed());
+        if (bpage->was_io_fixed()) {
+          /* buf_page_io_complete() calls `buf_flush_write_complete` which calls
+          the `write_complete`. This is not done by
+          buf_page_free_stale_during_write(), because it's also used in case
+          where no write to double-write was even requested. */
+          write_complete(bpage, flush_type);
+        }
 
-      const file::Block *block = std::get<1>(m_buf_pages.m_pages[i]);
-      if (block != nullptr) {
-        os_free_block(const_cast<file::Block *>(block));
+      } else {
+        ut_a(err == DB_SUCCESS);
       }
-    } else {
-      ut_a(err == DB_SUCCESS);
-    }
+      if (e_block != nullptr) {
+        os_free_block(const_cast<file::Block *>(e_block));
+      }
+    };
+
+    auto err = write_to_datafile(bpage, false, e_block, pre_io_complete);
+
     /* We don't hold io_responsibility here no matter which path through ifs and
     elses we've got here, but we can't assert:
       ut_ad(!bpage->current_thread_has_io_responsibility());
     because bpage could be freed by the time we got here. */
+    (void)err;
 
 #ifdef UNIV_DEBUG
     if (dblwr::Force_crash == page_id) {
@@ -2440,11 +2549,11 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
     return nullptr;
   }
 
-  void *frame{};
+  byte *frame{};
   uint32_t len{};
 
-  fil_node_t *node = space->get_file_node(&page_no);
-  type.block_size(node->block_size);
+  const auto node = space->get_node_for_page_no(page_no);
+  type.block_size(node->get_block_size());
 
   Double_write::prepare(bpage, &frame, &len);
 
@@ -2454,15 +2563,15 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
 
   /* Transparent page compression (TPC) is disabled if punch hole is not
   supported. A similar check is done in Fil_shard::do_io(). */
-  const bool do_compression =
-      space->is_compressed() && !bpage->size.is_compressed() &&
-      IORequest::is_punch_hole_supported() && node->punch_hole;
+  const bool do_compression = space->is_compressed() && node->get_punch_hole();
 
   if (do_compression) {
     /* @note Compression needs to be done before encryption. */
 
     /* The page size must be a multiple of the OS punch hole size. */
     ut_ad(n % type.block_size() == 0);
+    ut_ad(!bpage->size.is_compressed());
+    ut_ad(IORequest::is_punch_hole_supported());
 
     type.compression_algorithm(space->compression_type);
     compressed_block = os_file_compress_page(type, frame, &n);
@@ -2505,29 +2614,24 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
     tablespaces are never recovered, therefore we don't care about
     torn writes. */
     bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
-    err = Double_write::write_to_datafile(bpage, sync, nullptr);
-    if (err == DB_PAGE_IS_STALE || err == DB_TABLESPACE_DELETED) {
-      if (bpage->was_io_fixed()) {
-        buf_page_free_stale_during_write(
-            bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
-      }
-      err = DB_SUCCESS;
-    } else if (sync) {
+    /* bpage will be freed if the following call is successful and sync==true,
+    so make sure flush_type indicates we wanted to free the page. */
+    if (sync) {
       ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_SINGLE_PAGE);
-
-      if (err == DB_SUCCESS) {
-        fil_flush(space_id);
-      }
-      /* true means we want to evict this page from the LRU list as well. */
-      buf_page_io_complete(bpage, true);
     }
-
+    err = Double_write::write_to_datafile(
+        bpage, sync, nullptr, [sync, space_id](dberr_t err) {
+          if (err != DB_PAGE_IS_STALE && err != DB_TABLESPACE_DELETED && sync) {
+            ut_a(err == DB_SUCCESS);
+            fil_flush(space_id);
+          }
+        });
   } else {
     ut_d(auto page_id = bpage->id);
 
     /* Encrypt the page here, so that the same encrypted contents are written
     to the dblwr file and the data file. */
-    IORequest type(IORequest::WRITE);
+    IORequest type(IORequest::Type::WRITE);
     file::Block *e_block = dblwr::get_encrypted_frame(bpage, type);
 
     if (!sync && flush_type != BUF_FLUSH_SINGLE_PAGE) {
@@ -2615,10 +2719,15 @@ void dblwr::write_complete(buf_page_t *bpage, buf_flush_t flush_type) noexcept {
   Double_write::write_complete(bpage, flush_type);
 }
 
-void dblwr::recv::recover(recv::Pages *pages, fil_space_t *space) noexcept {
-#ifndef UNIV_HOTBACKUP
-  pages->recover(space);
-#endif /* UNIV_HOTBACKUP */
+void dblwr::recv::recover(recv::Pages &pages, fil_space_t &space) noexcept {
+  pages.recover(space);
+}
+
+const byte *dblwr::recv::get_first_page_content_for_recovery(
+    const recv::Pages &pages, space_id_t space_id, page_size_t page_size,
+    const std::string &file_path, const byte *page_content) {
+  return pages.get_first_page_content_for_recovery(space_id, page_size,
+                                                   file_path, page_content);
 }
 
 /** Create the file and or open it if it exists.
@@ -2631,14 +2740,11 @@ void dblwr::recv::recover(recv::Pages *pages, fil_space_t *space) noexcept {
 static dberr_t dblwr_file_open(const std::string &dir_name, int id,
                                dblwr::File &file, ulint file_type,
                                ib_file_suffix extension = DWR) noexcept {
-  bool dir_exists;
-  bool file_exists;
-  os_file_type_t type;
   std::string dir(dir_name);
-
   Fil_path::normalize(dir);
 
-  os_file_status(dir.c_str(), &dir_exists, &type);
+  const auto type = os_file_type(dir.c_str());
+  const bool dir_exists = os_file_exists(type);
 
   switch (type) {
     case OS_FILE_TYPE_DIR:
@@ -2656,7 +2762,7 @@ static dberr_t dblwr_file_open(const std::string &dir_name, int id,
     case OS_FILE_PERMISSION_ERROR:
     case OS_FILE_TYPE_NAME_TOO_LONG:
 
-      ib::error(ER_IB_MSG_DBLWR_1290, dir_name.c_str());
+      ib::error(ER_IB_MSG_BAD_DBLWR_FILE_NAME, dir_name.c_str());
 
       return DB_WRONG_FILE_NAME;
   }
@@ -2671,16 +2777,17 @@ static dberr_t dblwr_file_open(const std::string &dir_name, int id,
 
   uint32_t mode;
   if (dir_exists) {
-    os_file_status(file.m_name.c_str(), &file_exists, &type);
+    switch (os_file_type(file.m_name.c_str())) {
+      case OS_FILE_TYPE_FILE:
+        mode = OS_FILE_OPEN_RETRY;
+        break;
+      case OS_FILE_TYPE_MISSING:
+        mode = OS_FILE_CREATE;
+        break;
+      default:
+        ib::error(ER_IB_MSG_BAD_DBLWR_FILE_NAME, file.m_name.c_str());
 
-    if (type == OS_FILE_TYPE_FILE) {
-      mode = OS_FILE_OPEN_RETRY;
-    } else if (type == OS_FILE_TYPE_MISSING) {
-      mode = OS_FILE_CREATE;
-    } else {
-      ib::error(ER_IB_MSG_BAD_DBLWR_FILE_NAME, file.m_name.c_str());
-
-      return DB_CANNOT_OPEN_FILE;
+        return DB_CANNOT_OPEN_FILE;
     }
   } else {
     auto err = os_file_create_subdirs_if_needed(file.m_name.c_str());
@@ -2932,28 +3039,27 @@ bool dblwr::v1::is_inside(page_no_t page_no) noexcept {
   return false;
 }
 
-/** Check if the dblwr page is corrupted.
-@param[in]  page  the dblwr page.
+/** Check if the dblwr page is corrupted. Decompresses and decrypts the page if
+it needed.
+@param[in,out] page  the dblwr page. It will be decompressed and decrypted in
+                     place, if needed.
 @param[in]  space  tablespace to which the page belongs.
 @param[in]  page_no  page_no within the actual tablespace.
-@param[out]  err     error code to check if decryption or decompression failed.
 @return true if dblwr page is corrupted, false otherwise. */
-static bool is_dblwr_page_corrupted(byte *page, fil_space_t *space,
-                                    page_no_t page_no, dberr_t *err) noexcept {
-  const page_size_t page_size(space->flags);
-  const bool is_checksum_disabled = fsp_is_checksum_disabled(space->id);
-  bool corrupted = false;
+[[nodiscard]] static bool is_dblwr_page_corrupted(byte *page,
+                                                  const fil_space_t &space,
+                                                  page_no_t page_no) noexcept {
+  const page_size_t page_size(space.flags);
+  ut_a(page_size.physical() <= univ_page_size.physical());
 
-  BlockReporter dblwr_page(true, page, page_size, is_checksum_disabled);
-
-  if (dblwr_page.is_encrypted()) {
+  if (dblwr::is_encrypted_page(page)) {
     Encryption en;
-    IORequest req_type;
+    IORequest req_type{IORequest::Type::UNSET};
     size_t z_page_size;
 
-    en.set(space->m_encryption_metadata);
-    fil_node_t *node = space->get_file_node(&page_no);
-    req_type.block_size(node->block_size);
+    en.set(space.m_encryption_metadata);
+    const auto node = space.get_node_for_page_no(page_no);
+    req_type.block_size(node->get_block_size());
 
     page_type_t page_type = fil_page_get_type(page);
     ut_ad(fil_is_page_type_valid(page_type));
@@ -2969,180 +3075,102 @@ static bool is_dblwr_page_corrupted(byte *page, fil_space_t *space,
       z_page_size = page_size.physical();
     }
 
-    *err = en.decrypt(req_type, page, z_page_size, nullptr, 0);
-    if (*err != DB_SUCCESS) {
+    if (const auto err = en.decrypt(req_type, page, z_page_size, nullptr, 0);
+        err != DB_SUCCESS) {
       /* Could not decrypt.  Consider it corrupted. */
-      corrupted = true;
-
-      if (*err == DB_IO_DECRYPT_FAIL) {
+      if (err == DB_IO_DECRYPT_FAIL) {
         std::ostringstream out;
-        out << "space_id=" << space->id << ", page_no=" << page_no
-            << ", page_size=" << z_page_size << ", space_name=" << space->name;
+        out << "space_id=" << space.id << ", page_no=" << page_no
+            << ", page_size=" << z_page_size << ", space_name=" << space.name;
         ib::warn(ER_IB_DBLWR_DECRYPT_FAILED, out.str().c_str());
 
         if (en.is_none()) {
           std::ostringstream out;
-          out << "space_id=" << space->id << ", space_name=" << space->name;
+          out << "space_id=" << space.id << ", space_name=" << space.name;
           ib::warn(ER_IB_DBLWR_KEY_MISSING, out.str().c_str());
         }
       }
-
-    } else {
-      /* Check if the page is compressed. */
-      page_type_t page_type = fil_page_get_type(page);
-      ut_ad(fil_is_page_type_valid(page_type));
-
-      if (page_type == FIL_PAGE_COMPRESSED) {
-        *err = os_file_decompress_page(true, page, nullptr, 0);
-
-        if (*err != DB_SUCCESS) {
-          /* Could not decompress.  Consider it corrupted. */
-          size_t orig_size = mach_read_from_2(page + FIL_PAGE_ORIGINAL_SIZE_V1);
-          ib::error(ER_IB_DBLWR_DECOMPRESS_FAILED, *err, orig_size);
-          corrupted = true;
-        }
-      }
+      return true;
     }
   }
+  /* Check if the page is compressed. */
+  page_type_t page_type = fil_page_get_type(page);
+  ut_ad(fil_is_page_type_valid(page_type));
 
-  if (!corrupted) {
-    BlockReporter check(true, page, page_size, is_checksum_disabled);
-    corrupted = check.is_corrupted();
+  if (page_type == FIL_PAGE_COMPRESSED) {
+    if (const auto err = os_file_decompress_page(true, page, nullptr, 0);
+        err != DB_SUCCESS) {
+      /* Could not decompress.  Consider it corrupted. */
+      size_t orig_size = mach_read_from_2(page + FIL_PAGE_ORIGINAL_SIZE_V1);
+      ib::error(ER_IB_DBLWR_DECOMPRESS_FAILED, err, orig_size);
+      return true;
+    }
   }
-
-  return (corrupted);
+  BlockReporter check(true, page, page_size,
+                      fsp_is_checksum_disabled(space.id));
+  return check.is_corrupted();
 }
 
-/** Recover a page from the doublewrite buffer.
-@param[in]      dblwr_page_no         Page number if the doublewrite buffer
-@param[in]      space                       Tablespace the page belongs to
-@param[in]      page_no                   Page number in the tablespace
-@param[in]      page                        Data to write to <space, page_no>
-@return true if page was restored to the tablespace */
-bool dblwr::recv::Pages::dblwr_recover_page(page_no_t dblwr_page_no,
-                                            fil_space_t *space,
-                                            page_no_t page_no,
-                                            byte *page) noexcept {
+void recv::Pages::dblwr_recover_page(const fil_space_t &space,
+                                     page_no_t page_no,
+                                     byte *dblwr_page) noexcept {
   /* For cloned database double write pages should be ignored. However,
   given the control flow, we read the pages in anyway but don't recover
   from the pages we read in. */
   ut_a(!recv_sys->is_cloned_db);
 
-  Buffer buffer{1};
+  const page_size_t page_size(space.flags);
+  const page_id_t page_id(space.id, page_no);
 
-  if (page_no >= space->size) {
-    /* Do not report the warning if the tablespace is going to be truncated. */
-    if (!undo::is_active(space->id)) {
-      ib::warn(ER_IB_MSG_DBLWR_1313)
-          << "Page# " << dblwr_page_no
-          << " stored in the doublewrite file is"
-             " not within data file space bounds "
-          << space->size << " bytes:  page : " << page_id_t(space->id, page_no);
-    }
+  ut_a(page_size.logical() <= univ_page_size.logical());
 
-    return false;
+  if (buf_page_is_zeroes(dblwr_page, page_size) ||
+      is_dblwr_page_corrupted(dblwr_page, space, page_no)) {
+    /* The page in the Double-write buffer is broken. We can't trust the page ID
+    read from it to confront the page on disk against it. */
+    return;
   }
 
-  const page_size_t page_size(space->flags);
-  const page_id_t page_id(space->id, page_no);
-
-  /* We want to ensure that for partial reads the
-  unread portion of the page is NUL. */
-  memset(buffer.begin(), 0x0, page_size.physical());
-
-  IORequest request;
-
-  request.dblwr();
-
-  /* Read in the page from the data file to compare. */
-  auto err = fil_io(request, true, page_id, page_size, 0, page_size.physical(),
-                    buffer.begin(), nullptr);
-
-  if (err != DB_SUCCESS) {
-    ib::warn(ER_IB_MSG_DBLWR_1314)
-        << "Double write file recovery: " << page_id << " read failed with "
-        << "error: " << ut_strerr(err);
+  if (!is_actual_page_corrupted(space, page_id)) {
+    /* Database page is fine. No need to restore from dblwr. */
+    return;
   }
 
-  /* Is the page read from the data file corrupt? */
-  BlockReporter data_file_page(true, buffer.begin(), page_size,
-                               fsp_is_checksum_disabled(space->id));
+  ib::info(ER_IB_MSG_DBLWR_1315)
+      << "Database page corruption of page " << page_id
+      << ". Trying to recover it from the doublewrite buffer.";
+  ut_ad(!Encryption::is_encrypted_page(dblwr_page));
 
-  if (data_file_page.is_corrupted()) {
-    ib::info(ER_IB_MSG_DBLWR_1315) << "Database page corruption or"
-                                   << " a failed file read of page " << page_id
-                                   << ". Trying to recover it from the"
-                                   << " doublewrite file.";
-
-    dberr_t dblwr_err;
-
-    const bool dblwr_corrupted =
-        is_dblwr_page_corrupted(page, space, page_no, &dblwr_err);
-
-    if (dblwr_corrupted) {
-      std::ostringstream out;
-
-      out << "Dumping the data file page (page_id=" << page_id << "):";
-      ib::error(ER_IB_MSG_DBLWR_1304, out.str().c_str());
-
-      buf_page_print(buffer.begin(), page_size, BUF_PAGE_PRINT_NO_CRASH);
-
-      out.str("");
-      out << "Dumping the DBLWR page (dblwr_page_no=" << dblwr_page_no << "):";
-      ib::error(ER_IB_MSG_DBLWR_1295, out.str().c_str());
-
-      buf_page_print(page, page_size, BUF_PAGE_PRINT_NO_CRASH);
-
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1306);
-    }
-
-  } else {
-    bool data_page_zeroes = buf_page_is_zeroes(buffer.begin(), page_size);
-    bool dblwr_zeroes = buf_page_is_zeroes(page, page_size);
-    dberr_t dblwr_err;
-    const bool dblwr_corrupted =
-        is_dblwr_page_corrupted(page, space, page_no, &dblwr_err);
-
-    if (data_page_zeroes && !dblwr_zeroes && !dblwr_corrupted) {
-      /* Database page contained only zeroes, while a valid copy is
-      available in dblwr buffer. */
-    } else {
-      /* Database page is fine.  No need to restore from dblwr. */
-      return false;
-    }
-  }
-
-  ut_ad(!Encryption::is_encrypted_page(page));
-
-  bool found = false;
-  lsn_t reduced_lsn = LSN_MAX;
-  std::tie(found, reduced_lsn) = find_entry(page_id);
-  lsn_t dblwr_lsn = mach_read_from_8(page + FIL_PAGE_LSN);
+  /* FIXME we should not be checking against reduced entries, as long as the
+  current page LSN is higher than the checkpoint LSN, we are fine to recover it.
+  Check similar usage in recv::Pages::get_first_page_content_for_recovery.
+  */
+  const auto reduced_lsn = get_max_lsn_of_reduced_page_entries(page_id);
+  lsn_t dblwr_lsn = mach_read_from_8(dblwr_page + FIL_PAGE_LSN);
 
   /* If we find a newer version of page that is in reduced dblwr, we
   shouldn't restore the old/stale page from regular dblwr. We should
   abort */
-  if (found && reduced_lsn != LSN_MAX && reduced_lsn > dblwr_lsn) {
-    ib::fatal(UT_LOCATION_HERE, ER_REDUCED_DBLWR_PAGE_FOUND,
-              space->files.front().name, page_id.space(), page_id.page_no());
+  if (reduced_lsn.has_value() && reduced_lsn > dblwr_lsn) {
+    const auto node_and_page = get_node_and_page_no_for_error(space, page_id);
+    ib::fatal(UT_LOCATION_HERE, ER_IB_REDUCED_DBLWR_PAGE_FOUND,
+              ulong{page_id.space()}, ulong{page_id.page_no()},
+              node_and_page.first.c_str(), ulong{node_and_page.second});
   }
 
-  /* Recovered data file pages are written out as uncompressed. */
-  IORequest write_request(IORequest::WRITE);
-  write_request.disable_compression();
+  /* Write the good page from the doublewrite buffer to the intended position.
+  Recovered data file pages are written out without any transformations, as raw
+  page from when it was added to the doublewrite buffer. A `Type::DBLWR`
+  flag is specified to not run the tablespace validation. */
+  const auto err = fil_io(IORequest::Type::WRITE | IORequest::Type::DBLWR |
+                              IORequest::Type::NO_COMPRESSION,
+                          true, page_id, page_size, page_size.physical(),
+                          const_cast<byte *>(dblwr_page), nullptr, false);
 
-  /* Write the good page from the doublewrite buffer to the
-  intended position. */
-
-  err = fil_io(write_request, true, page_id, page_size, 0, page_size.physical(),
-               const_cast<byte *>(page), nullptr);
-
-  ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
+  ut_a(err == DB_SUCCESS);
 
   ib::info(ER_IB_MSG_DBLWR_1308)
       << "Recovered page " << page_id << " from the doublewrite buffer.";
-
-  return true;
 }
 
 void dblwr::force_flush(buf_flush_t flush_type,
@@ -3157,154 +3185,149 @@ void dblwr::force_flush_all() noexcept {
   }
 }
 
-#endif /* !UNIV_HOTBACKUP */
-
-void recv::Pages::recover(fil_space_t *space) noexcept {
-#ifndef UNIV_HOTBACKUP
+void recv::Pages::recover(fil_space_t &space) noexcept {
+  ut_a(m_is_sorted);
   /* For cloned database double write pages should be ignored. However,
   given the control flow, we read the pages in anyway but don't recover
   from the pages we read in. */
-
   if (!dblwr::is_enabled() || recv_sys->is_cloned_db) {
     return;
   }
-
-  auto recover_all = (space == nullptr);
-
-  for (const auto &page : m_pages) {
-    if (page->m_recovered) {
-      continue;
-    }
-
-    auto ptr = page->m_buffer.begin();
-    auto page_no = page_get_page_no(ptr);
-    auto space_id = page_get_space_id(ptr);
-
-    if (recover_all) {
-      space = fil_space_get(space_id);
-
-      if (space == nullptr) {
-        /* Maybe we have dropped the tablespace
-        and this page once belonged to it: do nothing. */
-        continue;
-      }
-
-    } else if (space->id != space_id) {
-      continue;
-    }
-
-    fil_space_open_if_needed(space);
-
-    page->m_recovered =
-        dblwr_recover_page(page->m_no, space, page_no, page->m_buffer.begin());
+  /* Check if the space was already recovered, if not then mark it as already
+  recovered. */
+  if (!m_recovered_spaces.insert(space.id).second) {
+    return;
   }
 
-  reduced_recover(space);
+  for (const auto &page : m_pages) {
+    const auto page_id = page->get_page_id();
+
+    if (space.id != page_id.space()) {
+      continue;
+    }
+    /* The same page_id may appear multiple times in the double-write buffer,
+    but the images are sorted by lsn, and once the page is recovered and thus
+    no longer corrupted, all the older images will be ignored. */
+    dblwr_recover_page(space, page_id.page_no(), page->m_buffer.begin());
+
+    /* We can't have the FSP-related cache filled with data from possibly
+    corrupted space, before it is fully recovered by the double-write recovery.
+    This will be possible once we exit the current loop, which may recover more
+    pages from the processed tablespace in next iterations. */
+    ut_ad(!space.is_fsp_cache_valid());
+  }
+
+  /* The cache must not have been populated yet, this is the first moment it can
+  be filled with correct data. */
+  ut_a(!space.is_fsp_cache_valid());
+
+  detect_corruption_from_reduced_entries(space);
+
   fil_flush_file_spaces();
-#endif /* !UNIV_HOTBACKUP */
 }
 
-void recv::Pages::reduced_recover(fil_space_t *space) noexcept {
-#ifndef UNIV_HOTBACKUP
-  auto recover_all = (space == nullptr);
+const byte *recv::Pages::get_first_page_content_for_recovery(
+    space_id_t space_id, page_size_t page_size, const std::string &file_path,
+    const byte *page_content) const {
+  ut_a(m_is_sorted);
+  ut_a(!fsp_is_checksum_disabled(space_id));
 
+  /* For cloned database double write pages should be ignored. */
+  if (!dblwr::is_enabled() || recv_sys->is_cloned_db) {
+    return page_content;
+  }
+
+  BlockReporter data_file_page_reporter(true, page_content, page_size, false);
+
+  if (!data_file_page_reporter.is_corrupted() &&
+      !ut::is_zeros(page_content, page_size.physical())) {
+    /* Database page is fine. No need to restore from dblwr. */
+    return page_content;
+  }
+
+  /* Database page is corrupted, since this point we can return only a page from
+  the Double-write Buffer or crash. */
+
+  /* The page is too big to be present in the Double-write Buffer. Processing it
+  would cause buffer overruns.*/
+  if (UNIV_PAGE_SIZE < page_size.physical()) {
+    return nullptr;
+  }
+
+  const page_id_t page_id{space_id, 0};
+  auto dblwr_page = find(page_id);
+
+  if (dblwr_page != nullptr) {
+    BlockReporter dblwr_page_reporter(true, dblwr_page, page_size, false);
+
+    if (ut::is_zeros(dblwr_page, UNIV_PAGE_SIZE) ||
+        dblwr_page_reporter.is_corrupted()) {
+      /* The page in the Double-write buffer is broken. We can't use it.
+      TODO we should try to test all other entries in the Double-write Buffer,
+      but currently the `find()` returns only one. */
+      dblwr_page = nullptr;
+    }
+  }
+  /* We need to check for Reduced Pages in the Double-write buffer even if we
+  already know the database page is broken as we will output an appropriate
+  error message.
+  FIXME we should not be checking against reduced entries, as
+  long as the current page LSN is higher than the checkpoint LSN, we are fine to
+  recover it. Check similar usage in recv::Pages::dblwr_recover_page. */
+  const auto reduced_lsn = get_max_lsn_of_reduced_page_entries(page_id);
+  /* The dblwr page was already confirmed to be valid, the page LSN should have
+  a valid value. */
+  const auto dblwr_lsn =
+      (dblwr_page != nullptr) ? mach_read_from_8(dblwr_page + FIL_PAGE_LSN) : 0;
+  /* If we find a newer version of page that is in reduced dblwr, we
+  shouldn't restore the old/stale page from regular dblwr. We should
+  abort */
+  if (reduced_lsn.has_value() && reduced_lsn > dblwr_lsn) {
+    ib::fatal(UT_LOCATION_HERE, ER_IB_REDUCED_DBLWR_PAGE_FOUND,
+              ulong{page_id.space()}, ulong{page_id.page_no()},
+              file_path.c_str(), ulong{page_id.page_no()});
+  }
+
+  return dblwr_page;
+}
+
+void recv::Pages::detect_corruption_from_reduced_entries(
+    const fil_space_t &space) noexcept {
   for (const auto &entry : m_page_entries) {
     auto space_id = entry.m_space_id;
     page_id_t page_id(entry.m_space_id, entry.m_page_no);
 
-    if (recover_all) {
-      space = fil_space_get(space_id);
-
-      if (space == nullptr) {
-        /* Maybe we have dropped the tablespace
-        and this page once belonged to it: do nothing. */
-        continue;
-      }
-
-    } else if (space->id != space_id) {
+    if (space.id != space_id) {
       continue;
     }
 
-    fil_space_open_if_needed(space);
-
-    bool is_corrupted = false;
-    bool is_all_zero = false;
-    std::tie(is_corrupted, is_all_zero) =
-        is_actual_page_corrupted(space, page_id);
-
-    if (is_corrupted) {
-      if (find(page_id) == nullptr || !is_recovered(page_id)) {
-        ib::fatal(UT_LOCATION_HERE, ER_REDUCED_DBLWR_PAGE_FOUND,
-                  space->files.front().name, page_id.space(),
-                  page_id.page_no());
-      }
-    }
-
-    if (is_all_zero) {
-      // is there a dblwr reduced entry with non-zero LSN?
-      bool found = false;
-      lsn_t reduced_lsn = LSN_MAX;
-      std::tie(found, reduced_lsn) = find_entry(page_id);
-
-      if (!is_recovered(page_id) && found && reduced_lsn != LSN_MAX &&
-          reduced_lsn != 0) {
-        ib::fatal(UT_LOCATION_HERE, ER_REDUCED_DBLWR_PAGE_FOUND,
-                  space->files.front().name, page_id.space(),
-                  page_id.page_no());
-      }
+    if (is_actual_page_corrupted(space, page_id)) {
+      /* The page is corrupted, so it couldn't have been restored from a
+      non-reduced page, as it would be not corrupted anymore. We must report the
+      corruption and stop any processing. */
+      const auto node_and_page = get_node_and_page_no_for_error(space, page_id);
+      ib::fatal(UT_LOCATION_HERE, ER_IB_REDUCED_DBLWR_PAGE_FOUND,
+                ulong{page_id.space()}, ulong{page_id.page_no()},
+                node_and_page.first.c_str(), ulong{node_and_page.second});
     }
   }
-#endif /* !UNIV_HOTBACKUP */
 }
 
+#endif /* !UNIV_HOTBACKUP */
+
 const byte *recv::Pages::find(const page_id_t &page_id) const noexcept {
+  ut_a(m_is_sorted);
   if (!dblwr::is_enabled()) {
     return nullptr;
   }
-  using Matches = std::vector<const byte *, ut::allocator<const byte *>>;
-
-  Matches matches;
-  const byte *page = nullptr;
 
   for (const auto &page : m_pages) {
-    auto &buffer = page->m_buffer;
-
-    if (page_get_space_id(buffer.begin()) == page_id.space() &&
-        page_get_page_no(buffer.begin()) == page_id.page_no()) {
-      matches.push_back(buffer.begin());
+    if (page->get_page_id() == page_id) {
+      return page->m_buffer.begin();
     }
   }
 
-  if (matches.size() == 1) {
-    page = matches[0];
-
-  } else if (matches.size() > 1) {
-    lsn_t max_lsn = 0;
-
-    for (const auto &match : matches) {
-      lsn_t page_lsn = mach_read_from_8(match + FIL_PAGE_LSN);
-
-      if (page_lsn > max_lsn) {
-        max_lsn = page_lsn;
-        page = match;
-      }
-    }
-  }
-
-  return page;
-}
-
-bool recv::Pages::is_recovered(const page_id_t &page_id) const noexcept {
-  for (const auto &page : m_pages) {
-    auto &buffer = page->m_buffer;
-
-    if (page_get_space_id(buffer.begin()) == page_id.space() &&
-        page_get_page_no(buffer.begin()) == page_id.page_no() &&
-        page->m_recovered) {
-      return (true);
-    }
-  }
-  return (false);
+  return nullptr;
 }
 
 void recv::Pages::add(page_no_t page_no, const byte *page,
@@ -3317,8 +3340,20 @@ void recv::Pages::add(page_no_t page_no, const byte *page,
       ut::new_withkey<Page>(UT_NEW_THIS_FILE_PSI_KEY, page_no, page, n_bytes);
 
   m_pages.push_back(dblwr_page);
+  m_is_sorted = false;
 }
 
+void recv::Pages::done_loading_prepare_for_recovery() noexcept {
+  /* prioritise to images with highest lsn when recoverying a page */
+  std::sort(m_pages.begin(), m_pages.end(), [](const auto &i1, const auto &i2) {
+    return i1->get_lsn() > i2->get_lsn();
+  });
+  std::sort(m_page_entries.begin(), m_page_entries.end(),
+            [](const auto &e1, const auto &e2) { return e1.m_lsn > e2.m_lsn; });
+  m_is_sorted = true;
+}
+
+#ifndef UNIV_HOTBACKUP
 void recv::Pages::check_missing_tablespaces() const noexcept {
   /* For cloned database double write pages should be ignored. However,
   given the control flow, we read the pages in anyway but don't recover
@@ -3330,17 +3365,10 @@ void recv::Pages::check_missing_tablespaces() const noexcept {
   const auto end = recv_sys->deleted.end();
 
   for (const auto &page : m_pages) {
-    if (page->m_recovered) {
-      continue;
-    }
+    const auto space_id = page->get_page_id().space();
 
-    const auto &buffer = page->m_buffer;
-    auto space_id = page_get_space_id(buffer.begin());
-
-    /* Skip messages for undo tablespaces that are being truncated since
-    they can be deleted during undo truncation without an MLOG_FILE_DELETE.
-  */
-
+    /* Skip messages for undo tablespaces that are being truncated since they
+    can be deleted during undo truncation without an MLOG_FILE_DELETE. */
     if (!fsp_is_undo_tablespace(space_id)) {
       /* If the tablespace was in the missing IDs then we
       know that the problem is elsewhere. If a file deleted
@@ -3351,7 +3379,7 @@ void recv::Pages::check_missing_tablespaces() const noexcept {
 
       if (recv_sys->deleted.find(space_id) == end &&
           recv_sys->missing_ids.find(space_id) != recv_sys->missing_ids.end()) {
-        auto page_no = page_get_page_no(buffer.begin());
+        auto page_no = page->get_page_id().page_no();
 
         ib::warn(ER_IB_MSG_DBLWR_1296)
             << "Doublewrite page " << page->m_no << " for {space: " << space_id
@@ -3361,6 +3389,15 @@ void recv::Pages::check_missing_tablespaces() const noexcept {
     }
   }
 }
+#endif /* !UNIV_HOTBACKUP */
+
+namespace dblwr::recv {
+/** Load the doublewrite buffer pages.
+@param[in,out] pages           For storing the doublewrite pages read
+                               from the double write buffer
+@return DB_SUCCESS or error code */
+[[nodiscard]] dberr_t reduced_load(recv::Pages *pages) noexcept;
+}  // namespace dblwr::recv
 
 dberr_t dblwr::recv::load(recv::Pages *pages) noexcept {
 #ifndef UNIV_HOTBACKUP
@@ -3393,12 +3430,7 @@ dberr_t dblwr::recv::load(recv::Pages *pages) noexcept {
 
     auto file = path.substr(real_path_dir.length(), path.length());
 
-    /** 6 == strlen(".dblwr"). */
-    if (file.size() <= 6) {
-      return;
-    }
-
-    if (Fil_path::has_suffix(DWR, file.c_str())) {
+    if (Fil_path::has_suffix(DWR, file)) {
       dblwr_files.push_back(file);
     }
   });
@@ -3471,7 +3503,9 @@ dberr_t dblwr::recv::load(recv::Pages *pages) noexcept {
     }
   }
 #endif /* UNIV_HOTBACKUP */
-  return DB_SUCCESS;
+  const auto res = reduced_load(pages);
+  pages->done_loading_prepare_for_recovery();
+  return res;
 }
 
 dberr_t dblwr::recv::reduced_load(recv::Pages *pages) noexcept {
@@ -3505,11 +3539,7 @@ dberr_t dblwr::recv::reduced_load(recv::Pages *pages) noexcept {
 
     auto file = path.substr(real_path_dir.length(), path.length());
 
-    if (file.size() <= strlen(dot_ext[BWR])) {
-      return;
-    }
-
-    if (Fil_path::has_suffix(BWR, file.c_str())) {
+    if (Fil_path::has_suffix(BWR, file)) {
       dblwr_files.push_back(file);
     }
   });
@@ -3574,16 +3604,6 @@ dberr_t dblwr::recv::reduced_load(recv::Pages *pages) noexcept {
   return DB_SUCCESS;
 }
 
-const byte *dblwr::recv::find(const recv::Pages *pages,
-                              const page_id_t &page_id) noexcept {
-  return pages->find(page_id);
-}
-
-std::tuple<bool, lsn_t> dblwr::recv::find_entry(
-    const recv::Pages *pages, const page_id_t &page_id) noexcept {
-  return pages->find_entry(page_id);
-}
-
 void dblwr::recv::create(recv::Pages *&pages) noexcept {
   ut_a(pages == nullptr);
   pages = ut::new_withkey<recv::Pages>(UT_NEW_THIS_FILE_PSI_KEY);
@@ -3596,14 +3616,15 @@ void dblwr::recv::destroy(recv::Pages *&pages) noexcept {
   }
 }
 
+#ifndef UNIV_HOTBACKUP
 void dblwr::recv::check_missing_tablespaces(const recv::Pages *pages) noexcept {
   pages->check_missing_tablespaces();
 }
+#endif /* !UNIV_HOTBACKUP */
 
 namespace dblwr {
 
 #ifndef UNIV_HOTBACKUP
-#ifdef UNIV_DEBUG
 static bool is_encrypted_page(const byte *page) noexcept {
   ulint page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
 
@@ -3612,6 +3633,7 @@ static bool is_encrypted_page(const byte *page) noexcept {
          page_type == FIL_PAGE_ENCRYPTED_RTREE;
 }
 
+#ifdef UNIV_DEBUG
 bool has_encrypted_pages() noexcept {
   bool st = false;
   for (dblwr::File &file : Double_write::s_files) {
@@ -3628,10 +3650,10 @@ bool has_encrypted_pages() noexcept {
       auto &buffer = page->m_buffer;
       byte *frame = buffer.begin();
       page_type_t page_type = fil_page_get_type(frame);
+      const auto page_id = page->get_page_id();
 
       if (page_type != FIL_PAGE_TYPE_ALLOCATED) {
-        TLOG("space_id=" << page_get_space_id(frame)
-                         << ", page_no=" << page_get_page_no(frame)
+        TLOG("space_id=" << page_id.space() << ", page_no=" << page_id.page_no()
                          << ", page_type=" << fil_get_page_type_str(page_type));
       }
 

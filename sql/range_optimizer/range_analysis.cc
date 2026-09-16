@@ -78,6 +78,17 @@
 static MEM_ROOT null_root;
 static SEL_TREE null_sel_tree(SEL_TREE::IMPOSSIBLE, &null_root, 0);
 
+static bool is_between_bound_evaluable_now(const THD *thd, Item *bound) {
+  if (bound->const_item()) return true;
+  if (!thd->lex->is_query_tables_locked() || !bound->const_for_execution()) {
+    return false;
+  }
+
+  Query_block *query_block = thd->lex->current_query_block();
+  return query_block != nullptr &&
+         evaluate_during_optimization(bound, query_block);
+}
+
 static uchar is_null_string[2] = {1, 0};
 
 static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
@@ -850,6 +861,19 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
 
   if (param->has_errors()) return nullptr;
 
+  if (cond->type() == Item::FUNC_ITEM &&
+      down_cast<Item_func *>(cond)->functype() == Item_func::TRIG_COND_FUNC) {
+    auto *trig_cond = down_cast<Item_func_trig_cond *>(cond);
+    /*
+      Unwrap only the not-null-complement trigger used for outer joins.
+      Other trigger types depend on conditional execution state and must
+      not be treated as ordinary predicates during range analysis.
+    */
+    if (trig_cond->get_trig_type() != Item_func_trig_cond::IS_NOT_NULL_COMPL)
+      return nullptr;
+    cond = trig_cond->arguments()[0];
+  }
+
   if (cond->type() == Item::COND_ITEM) {
     Item_func::Functype functype = down_cast<Item_cond *>(cond)->functype();
 
@@ -925,7 +949,16 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
         Concerning the code below see the NOTES section in
         the comments for the function get_full_func_mm_tree()
       */
-      SEL_TREE *tree = nullptr;
+      bool all_bounds_evaluable = true;
+      for (uint i = 1; i < cond_func->arg_count; i++) {
+        Item *const arg = cond_func->arguments()[i];
+        if (!is_between_bound_evaluable_now(thd, arg)) {
+          all_bounds_evaluable = false;
+          break;
+        }
+      }
+
+      SEL_TREE *bound_tree = nullptr;
       for (uint i = 1; i < cond_func->arg_count; i++) {
         Item *const arg = cond_func->arguments()[i];
 
@@ -937,17 +970,32 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
               remove_jump_scans, field_item, cond_func,
               reinterpret_cast<Item *>(i), inv);
           if (inv) {
-            tree = !tree ? tmp : tree_or(param, remove_jump_scans, tree, tmp);
-            if (tree == nullptr) break;
+            if (bound_tree == nullptr)
+              bound_tree = tmp;
+            else
+              bound_tree = tree_or(param, remove_jump_scans, bound_tree, tmp);
+            if (bound_tree == nullptr) break;
           } else
-            tree = tree_and(param, tree, tmp);
+            bound_tree = tree_and(param, bound_tree, tmp);
         } else if (inv) {
-          tree = nullptr;
+          bound_tree = nullptr;
           break;
         }
       }
+      if (!all_bounds_evaluable || bound_tree != nullptr) {
+        /*
+          When all BETWEEN bounds can be evaluated now, a missing bound-side
+          tree means there is no additional range predicate to combine with
+          ftree; the range built from the predicand already represents the
+          BETWEEN predicate.
 
-      ftree = tree_and(param, ftree, tree);
+          When a bound cannot be evaluated now, a missing bound-side tree may
+          mean that part of the predicate could not be represented as a range.
+          Combine through tree_and() so the tree is marked inexact and the
+          original predicate is rechecked as a filter.
+        */
+        ftree = tree_and(param, ftree, bound_tree);
+      }
       break;
     }  // end case Item_func::BETWEEN
 

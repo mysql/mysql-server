@@ -51,7 +51,7 @@ external tools. */
  @return true on success, false on failure */
 bool page_zip_decompress_low(
     page_zip_des_t *page_zip, /*!< in: data, ssize;
-                             out: m_start, m_end, m_nonempty, n_blobs */
+                              out: m_start, m_end, n_blobs */
     page_t *page,             /*!< out: uncompressed page, may be trashed */
     bool all);                /*!< in: true=decompress the whole page;
                                false=verify but do not copy some

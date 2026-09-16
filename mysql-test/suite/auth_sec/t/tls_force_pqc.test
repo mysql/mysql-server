@@ -1,0 +1,179 @@
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+--source include/have_tlsv13.inc
+
+--let $openssl_binary_version=OpenSSL (3\.[5-9]|3\.[1-9][0-9]|[4-9][0-9]*)\.
+--source include/have_openssl_binary_version.inc
+
+--echo #
+--echo # force_pqc startup
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Plugin mysqlx reported: 'Failed at SSL configuration");
+--enable_query_log
+
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --force_pqc=ON --tls-version=TLSv1.2
+--source include/restart_mysqld.inc
+
+--echo Server disables force_pqc when startup tls_version is TLSv1.2-only
+SELECT @@GLOBAL.force_pqc, @@GLOBAL.tls_version;
+
+--let $error_pattern=force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but tls_version=TLSv1.2 disables TLSv1.3; setting force_pqc=OFF
+--source include/assert_error_log.inc
+
+--echo TLSv1.2 client is accepted after startup adjustment
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 -e "SHOW STATUS LIKE 'Ssl_version'"
+
+--disable_query_log
+call mtr.add_suppression("Failed to set up SSL because of");
+--enable_query_log
+
+--let $restart_parameters=restart: --force_pqc=ON
+--source include/restart_mysqld.inc
+
+--echo Server reports force_pqc enabled after restart
+SELECT @@GLOBAL.force_pqc;
+
+--echo TLSv1.3 client negotiates a PQC key exchange
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 -e "SHOW STATUS LIKE 'Ssl_version'; SELECT VARIABLE_VALUE LIKE '%MLKEM%' AS uses_pqc FROM performance_schema.session_status WHERE VARIABLE_NAME='Tls_key_exchange_algorithm'"
+
+--let $out_file= $MYSQL_TMP_DIR/force_pqc.out
+--let $startup_session_file= $MYSQL_TMP_DIR/force_pqc_startup_session.pem
+
+--echo TLSv1.3 session created under PQC resumes successfully
+--exec $MYSQL --commands --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --ssl-mode=REQUIRED -e "ssl_session_data_print $startup_session_file"
+--exec $MYSQL --commands --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --ssl-mode=REQUIRED --ssl-session-data=$startup_session_file -e "status" > $out_file 2>&1
+--let $assert_file= $out_file
+--let $assert_text=TLSv1.3 PQC session is reused when force_pqc is enabled at startup
+--let $assert_select=^SSL session reused:[\t\ ]*true
+--let $assert_count=1
+--source include/assert_grep.inc
+remove_file $out_file;
+remove_file $startup_session_file;
+
+--echo TLSv1.2 client is rejected when force_pqc=ON
+--error 1
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 -e "SHOW STATUS LIKE 'Ssl_version'"
+
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
+--let $error_pattern=TLS channel 'mysql_main' is not configured to require post-quantum key exchange algorithms; future TLS sessions may use a non-post-quantum key exchange algorithm because force_pqc is disabled
+--let $messages= $error_pattern
+--let $suppress_mode= IGNORE_GLOBAL_SUPPRESSIONS
+--let $suppress_silent= 1
+--source include/suppress_messages.inc
+--let $messages=
+--let $suppress_mode=
+--let $suppress_silent=
+--source include/assert_error_log.inc
+--disable_query_log
+--eval DELETE FROM mtr.test_ignored_global_suppressions WHERE pattern = "$error_pattern"
+--enable_query_log
+
+--echo TLSv1.2 client is accepted when force_pqc=OFF
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 -e "SHOW STATUS LIKE 'Ssl_version'"
+
+SET @tls_kex_saved = @@GLOBAL.tls_kex;
+SET @use_pqc_sign_saved = @@GLOBAL.use_pqc_sign;
+
+--echo Runtime validation rejects invalid main tls_kex
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL tls_kex = 'not_a_group';
+
+--echo Runtime validation rejects invalid main use_pqc_sign
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL use_pqc_sign = 'not_a_bool';
+
+--let $client_non_pqc_session_file= $MYSQL_TMP_DIR/client_force_pqc_non_pqc_session.pem
+
+--echo Client force-pqc rejects resumed non-PQC session data
+SET GLOBAL tls_kex = 'X25519';
+--exec $MYSQL --commands --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --tls-kex=X25519 -e "ssl_session_data_print $client_non_pqc_session_file"
+--exec $MYSQL --commands --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --tls-kex=X25519 --ssl-session-data=$client_non_pqc_session_file -e "status" > $out_file 2>&1
+--let $assert_file= $out_file
+--let $assert_text=non-PQC session data can resume without client force-pqc
+--let $assert_select=^SSL session reused:[\t\ ]*true
+--let $assert_count=1
+--source include/assert_grep.inc
+--error 1
+--exec $MYSQL --force-pqc --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --ssl-session-data=$client_non_pqc_session_file -e "SELECT 'unexpected' AS force_pqc_reused_non_pqc"
+SET GLOBAL tls_kex = @tls_kex_saved;
+remove_file $out_file;
+remove_file $client_non_pqc_session_file;
+
+--let $session_file= $MYSQL_TMP_DIR/force_pqc_session.pem
+--let $runtime_pqc_session_file= $MYSQL_TMP_DIR/force_pqc_runtime_pqc_session.pem
+
+--echo Runtime enable clears the TLS session cache
+--exec $MYSQL --commands --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --ssl-mode=REQUIRED -e "ssl_session_data_print $session_file"
+SET GLOBAL force_pqc = ON;
+
+--echo Runtime validation rejects non-PQC main tls_kex when force_pqc=ON
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL tls_kex = 'X25519';
+
+--echo Server reports force_pqc enabled after runtime update
+SELECT @@GLOBAL.force_pqc;
+
+--echo TLSv1.3 session ticket captured before enable is rejected after runtime update
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --ssl-mode=REQUIRED --ssl-session-data=$session_file -e "SELECT 'reused' AS session_state"
+
+--echo TLSv1.3 session created after runtime enable resumes successfully
+--exec $MYSQL --commands --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --ssl-mode=REQUIRED -e "ssl_session_data_print $runtime_pqc_session_file"
+--exec $MYSQL --commands --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 --ssl-mode=REQUIRED --ssl-session-data=$runtime_pqc_session_file -e "status" > $out_file 2>&1
+--let $assert_file= $out_file
+--let $assert_text=TLSv1.3 PQC session is reused after runtime force_pqc enable
+--let $assert_select=^SSL session reused:[\t\ ]*true
+--let $assert_count=1
+--source include/assert_grep.inc
+remove_file $out_file;
+
+--echo TLSv1.3 client negotiates a PQC key exchange after runtime update
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 -e "SHOW STATUS LIKE 'Ssl_version'; SELECT VARIABLE_VALUE LIKE '%MLKEM%' AS uses_pqc FROM performance_schema.session_status WHERE VARIABLE_NAME='Tls_key_exchange_algorithm'"
+
+--echo TLSv1.2 client is rejected after runtime update
+--error 1
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 -e "SHOW STATUS LIKE 'Ssl_version'"
+
+SET @tls_version_saved = @@GLOBAL.tls_version;
+--source include/save_error_log_position.inc
+SET GLOBAL tls_version = 'TLSv1.2';
+
+--echo ALTER INSTANCE RELOAD TLS fails for force_pqc with TLSv1.2-only
+--error ER_DA_SSL_LIBRARY_ERROR
+ALTER INSTANCE RELOAD TLS;
+
+--echo TLSv1.3 client still negotiates a PQC key exchange after failed reload
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 -e "SHOW STATUS LIKE 'Ssl_version'; SELECT VARIABLE_VALUE LIKE '%MLKEM%' AS uses_pqc FROM performance_schema.session_status WHERE VARIABLE_NAME='Tls_key_exchange_algorithm'"
+
+--echo TLSv1.2 client is still rejected after failed reload
+--error 1
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 -e "SHOW STATUS LIKE 'Ssl_version'"
+
+SET GLOBAL tls_version = @tls_version_saved;
+ALTER INSTANCE RELOAD TLS;
+
+SET GLOBAL force_pqc = OFF;
+--source include/save_error_log_position.inc
+ALTER INSTANCE RELOAD TLS;
+--let $error_pattern=TLS channel 'mysql_main' is not configured to require post-quantum key exchange algorithms; future TLS sessions may use a non-post-quantum key exchange algorithm because force_pqc is disabled
+--let $messages= $error_pattern
+--let $suppress_mode= IGNORE_GLOBAL_SUPPRESSIONS
+--let $suppress_silent= 1
+--source include/suppress_messages.inc
+--let $messages=
+--let $suppress_mode=
+--let $suppress_silent=
+--source include/assert_error_log.inc
+--disable_query_log
+--eval DELETE FROM mtr.test_ignored_global_suppressions WHERE pattern = "$error_pattern"
+--enable_query_log
+
+remove_file $session_file;
+remove_file $runtime_pqc_session_file;

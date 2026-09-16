@@ -1,0 +1,39 @@
+--source include/force_restart.inc
+--source ../inc/thread_pool_err.inc
+
+# This test passes wrong values to all thread pool options via config file
+
+--let $error_pattern= $tp_algo_max_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_lrtl_max_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_maqt_max_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_mtl_max_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_mut_max_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_pkt_max_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_qtpg_min_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_size_min_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_sl_max_warn
+--source ../inc/wrong_value.inc
+
+--let $error_pattern= $tp_trx_delay_min_warn
+--source ../inc/wrong_value.inc
+
+# Add suppression for the message that says
+# thread_pool_query_threads_per_group(1) is not recommended when used with
+# HIGH_CONCURRENCY_ALGORITHM
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

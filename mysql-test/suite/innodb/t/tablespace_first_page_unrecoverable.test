@@ -129,13 +129,13 @@ let $error_log = $MYSQLTEST_VARDIR/tmp/my_restart.err;
 
 let SEARCH_FILE = $error_log;
 
-let $error_name = ER_IB_MSG_399;
+let $error_name = ER_IB_MSG_DATAFILE_VALIDATION_ERROR;
 --source include/get_error_id.inc
 let SEARCH_PATTERN = $error_id;
 --source include/search_pattern.inc
 
 
-let $error_name = ER_IB_MSG_412;
+let $error_name = ER_IB_MSG_CORRUPTED_PAGE_NOT_RECOVERABLE;
 --source include/get_error_id.inc
 let SEARCH_PATTERN = $error_id;
 --source include/search_pattern.inc

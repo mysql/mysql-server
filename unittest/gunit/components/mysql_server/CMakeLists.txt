@@ -84,8 +84,14 @@ IF(WIN32)
   GET_FILENAME_COMPONENT(OPENSSL_NAME "${HAVE_OPENSSL_DLL}" NAME)
 
   IF(NOT WIN32_CLANG)
+    ADD_DEPENDENCIES(minimal_chassis_test_driver-t
+      abseil_dll_runtime_copy
+      libprotobuf-lite_runtime_copy)
     COPY_DLL_FOR_UNITTEST("$<TARGET_FILE_NAME:abseil_dll>")
     COPY_DLL_FOR_UNITTEST("$<TARGET_FILE_NAME:libprotobuf-lite>")
+  ENDIF()
+  IF(TARGET copy_openssl_dlls)
+    ADD_DEPENDENCIES(minimal_chassis_test_driver-t copy_openssl_dlls)
   ENDIF()
   COPY_DLL_FOR_UNITTEST("${CRYPTO_NAME}")
   COPY_DLL_FOR_UNITTEST("${OPENSSL_NAME}")

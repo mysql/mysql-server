@@ -1,0 +1,21 @@
+# Test to check that the thread pool cannot be loaded or unloaded
+# dynamically.
+#
+
+--echo
+--disable_query_log
+let $PLUGIN_EXT = .so;
+if (`SELECT CONVERT(@@version_compile_os USING latin1) IN 
+    ("Win32","Win64","Windows") AS "TRUE"`)
+{
+ let $PLUGIN_EXT = .dll;
+}
+--enable_query_log
+--echo Dynamic loading of thread_pool plugin should fail
+--replace_result $PLUGIN_EXT .<plugin_extension>
+--error ER_PLUGIN_NO_INSTALL
+eval INSTALL PLUGIN thread_pool SONAME 'thread_pool$PLUGIN_EXT';
+SELECT PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME = 'THREAD_POOL';
+

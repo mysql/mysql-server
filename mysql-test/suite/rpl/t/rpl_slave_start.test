@@ -12,6 +12,7 @@ connection slave;
 CALL mtr.add_suppression("Replica: Table 't1' already exists Error_code: MY-001050");
 CALL mtr.add_suppression("Replica SQL for channel '': .*Error .Table .t1. already exists. on query.* Error_code: MY-001050");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error*");
 
 --echo # The statement makes SQL thread to fail.
 CREATE TABLE t1(c1 INT);

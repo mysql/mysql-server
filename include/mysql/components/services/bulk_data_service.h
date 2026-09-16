@@ -93,6 +93,9 @@ struct Column_text {
   /** Column data length. */
   size_t m_data_len{};
 
+  /** Prefix length. */
+  size_t m_prefix_len{};
+
   /** Check if it is DB_ROW_ID column based on the value it contains.
   @return true if it is DB_ROW_ID column, false otherwise */
   bool is_row_id() const { return m_row_id != UINT64_MAX; }
@@ -117,12 +120,11 @@ struct Column_text {
   }
 
   /** Check if the column data is stored externally.  If the data is stored
-  externally, then the data length (m_data_len) would be equal to the
-  BLOB_REF_SIZE and the column data (m_data_ptr) will contain the lob
-  reference.
+  externally, then the column data contains the prefix and the blob reference
+  of the externally stored data.
   @return true if data is stored externally, false otherwise. */
   bool is_ext() const {
-    assert(!m_is_ext || m_data_len == BLOB_REF_SIZE);
+    assert(!m_is_ext || m_data_len == BLOB_REF_SIZE + m_prefix_len);
     return m_is_ext;
   }
 
@@ -137,7 +139,7 @@ struct Column_text {
 
   /** Mark that the column data has been stored externally. */
   void set_ext() {
-    assert(m_data_len == BLOB_REF_SIZE);
+    assert(m_data_len == BLOB_REF_SIZE + m_prefix_len);
     m_is_ext = true;
   }
 
@@ -212,12 +214,30 @@ struct Column_mysql {
   /** Column data length. */
   uint16_t m_data_len{};
 
+  bool m_is_prefix{false};
+
   /** If column is NULL. */
   bool m_is_null{false};
 
+  /** If true, the column data is stored externally in InnoDB. It also means
+  that the data contains blob reference of length BTR_EXTERN_FIELD_REF_SIZE
+  bytes at the end. */
+  bool m_is_ext{false};
+
+  /** Get the column data.
+  @return nullptr if column is null, otherwise pointer to the data. */
   char *get_data() const { return m_is_null ? nullptr : m_data_ptr; }
 
+  /** Set the column data to the given pointer location.
+  @param[in] ptr pointer pointing to column data. */
   void set_data(char *ptr) { m_data_ptr = ptr; }
+
+  /** Mark this column as externally stored. */
+  void set_ext() { m_is_ext = true; }
+
+  /** Check if the column is externally stored.
+  @return true if externally stored, false otherwise. */
+  bool is_ext() const { return m_is_ext; }
 
   /** Save the beginning of the row pointer in this object.  This should be
   called only when the column is null.
@@ -243,7 +263,9 @@ struct Column_mysql {
   void init() {
     m_type = 0;
     m_data_len = 0;
+    m_is_prefix = false;
     m_is_null = false;
+    m_is_ext = false;
     m_data_ptr = nullptr;
     m_int_data = 0;
   }
@@ -427,6 +449,10 @@ class Row_bunch {
    * 4096 columns). Rounded up to 600M. */
   const static size_t S_MAX_TOTAL_COLS = 600 * 1024 * 1024;
 
+  /** Get the total number of columns available in this row bunch.
+  @return total number of columns. */
+  size_t get_total_cols() const { return m_num_rows * m_num_columns; }
+
  private:
   /** All the columns. */
   std::vector<Column_type> m_columns;
@@ -499,8 +525,11 @@ struct Column_meta {
   /** If the key is descending. */
   bool m_is_desc_key{false};
 
-  /** If the key is prefix of the column. */
+  /** If the prefix of this column is part of key */
   bool m_is_prefix_key{false};
+
+  /** Prefix length */
+  size_t m_prefix_len{0};
 
   /** If it is fixed length type. */
   bool m_is_fixed_len{false};
@@ -556,7 +585,38 @@ struct Column_meta {
   /** Get the data type of the column as a string.
   @return data type of the column as a string. */
   std::string get_type_string() const;
+
+  /** The number of bytes used to store length information.  This depends on
+  the data type.
+  @return number of bytes used to store length of column data. */
+  size_t get_length_size() const;
 };
+
+inline size_t Column_meta::get_length_size() const {
+  size_t length_size = m_is_single_byte_len ? 1 : 2;
+  switch (m_type) {
+    case MYSQL_TYPE_TINY_BLOB:
+      length_size = 1;
+      break;
+    case MYSQL_TYPE_BLOB:
+      length_size = 0;
+      break;
+    case MYSQL_TYPE_MEDIUM_BLOB:
+      length_size = 3;
+      break;
+    case MYSQL_TYPE_GEOMETRY:
+      [[fallthrough]];
+    case MYSQL_TYPE_JSON:
+      [[fallthrough]];
+    case MYSQL_TYPE_VECTOR:
+    case MYSQL_TYPE_LONG_BLOB:
+      length_size = 4;
+      break;
+    default:
+      break;
+  }
+  return length_size;
+}
 
 inline std::string Column_meta::get_type_string() const {
   switch (m_type) {
@@ -663,7 +723,7 @@ inline std::string Column_meta::to_string() const {
       << ", m_null_bit=" << m_null_bit << ", m_compare=" << get_compare_string()
       << ", m_is_desc_key=" << m_is_desc_key << ", m_is_key=" << m_is_key
       << ", m_max_len=" << m_max_len << ", m_is_prefix_key=" << m_is_prefix_key
-      << "]";
+      << ", m_prefix_len=" << m_prefix_len << "]";
   return out.str();
 }
 
@@ -779,6 +839,9 @@ struct Row_meta {
 
   /** true if DB_ROW_ID is the pk, false otherwise. */
   bool dbrowid_is_pk{false};
+
+  /** Key number of the index being built. */
+  size_t m_keynr;
 };
 
 inline std::ostream &operator<<(std::ostream &os,
@@ -802,7 +865,10 @@ inline std::string Row_meta::to_string() const {
   out << "[Row_meta: m_name=" << m_name << ", m_num_columns=" << m_num_columns
       << ", m_keys=" << m_keys << ", m_non_keys=" << m_non_keys
       << ", m_key_length=" << m_key_length << ", m_key_type=" << m_key_type
-      << ", m_approx_row_len=" << m_approx_row_len;
+      << ", m_approx_row_len=" << m_approx_row_len
+      << ", m_bitmap_length=" << m_bitmap_length
+      << ", m_header_length=" << m_header_length
+      << ", m_first_key_len=" << m_first_key_len << ", m_keynr=" << m_keynr;
   for (auto &col_meta : m_columns) {
     out << col_meta.to_string() << ", ";
   }

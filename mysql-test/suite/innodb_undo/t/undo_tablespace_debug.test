@@ -20,6 +20,7 @@ call mtr.add_suppression("\\[Warning\\] .* Failed to truncate undo tablespace");
 call mtr.add_suppression("\\[Warning\\] .* Purge reached the head of the history list");
 call mtr.add_suppression("\\[ERROR\\] .* Error 65 opening newly created undo tablespace");
 call mtr.add_suppression("\\[ERROR\\] .* Cannot create truncate log for undo tablespace");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot create file .*undo_006.ibu");
 --enable_query_log
 
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
@@ -67,6 +68,17 @@ SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
        WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
 --echo # Make sure file is not left behind in datadir
 --list_files $MYSQLD_DATADIR/ undo_006.ibu
+
+--echo #
+--echo # Check if creating a tablespace still works after recent failure
+--echo #
+CREATE UNDO TABLESPACE undo_007 ADD DATAFILE 'undo_007.ibu';
+--echo # Wait for page cleaners to write back all dirty pages
+SET GLOBAL innodb_log_checkpoint_now = ON;
+ALTER UNDO TABLESPACE undo_007 SET INACTIVE;
+let $inactive_undo_space = undo_007;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_007;
 
 --echo #
 --echo # Inject a failure to get the MDL during undo truncate.

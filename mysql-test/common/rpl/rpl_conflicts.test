@@ -96,6 +96,7 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.replica_exec_mode = 'STR
 
   call mtr.add_suppression("Replica SQL.*Duplicate entry .1. for key .t1.PRIMARY.* Error_code: MY-001062");
   call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+  call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 
   SELECT * FROM t1;
 
@@ -106,7 +107,8 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.replica_exec_mode = 'STR
 }
 
 --echo ---- Sync slave and verify that there is no error ----
-sync_with_master;
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --source include/rpl/assert_replica_no_error.inc
 SELECT * FROM t1;
 
@@ -158,7 +160,8 @@ if (`SELECT @@global.binlog_format = 'ROW' AND @@global.replica_exec_mode = 'STR
 --echo ---- Sync slave and verify that there is no error ----
 # The slave should sync ok, and SHOW REPLICA STATUS should give no
 # error.
-sync_with_master;
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 --source include/rpl/assert_replica_no_error.inc
 SELECT * FROM t1;
 

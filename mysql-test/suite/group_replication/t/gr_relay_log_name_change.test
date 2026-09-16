@@ -59,5 +59,13 @@
 --let $rpl_connection_name= server_1
 --source include/rpl/connect.inc
 
+call mtr.add_suppression("Failed to open the relay log*");
+call mtr.add_suppression("Could not find target log file mentioned in applier metadata in the index file");
+call mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel");
+call mtr.add_suppression("The group replication applier thread has received KILL request.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("Skipping leave operation: member already left the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected");
+
 --let $skip_recovery_configuration= 1
 --source include/gr_clear_configuration.inc

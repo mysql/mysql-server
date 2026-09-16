@@ -30,6 +30,8 @@
 # WL#7491: GTID-based replication applier recovery and positioning
 #
 
+# CSA works only with GTID-based positioning (no SOURCE_POS_WAIT)
+--source include/have_mta.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
 --source include/rpl/init_source_replica.inc

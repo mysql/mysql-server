@@ -90,6 +90,10 @@ class Rpl_applier_reader {
   /** Stores the error message which is used internally */
   const char *m_errmsg = nullptr;
 
+  /// Here we keep the list of logs to be purged (in case later logs are
+  /// applied before), protected with m_rli->data_lock
+  std::unordered_set<std::string> m_logs_to_purge;
+
   bool m_reading_active_log = true;
   /**
      Stores active log's end position. Thus avoids to call

@@ -89,6 +89,7 @@ SET PERSIST group_replication_recovery_retry_count= 1;
 
 SET GLOBAL group_replication_clone_threshold= 1;
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 --source include/wait_until_disconnected.inc

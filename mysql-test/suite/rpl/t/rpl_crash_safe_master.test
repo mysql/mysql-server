@@ -201,4 +201,6 @@ SELECT COUNT(*) FROM t1;
 
 DROP TABLE t1;
 connection slave;
-CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
+
+--let $rpl_reset_slave_all= 1
+--source include/rpl/reset_replica.inc

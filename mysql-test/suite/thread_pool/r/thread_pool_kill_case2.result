@@ -1,0 +1,8 @@
+SET @kill_target_id = <target_id_A_2_to_be_killed>;
+SET SESSION debug="+d,info,enter,error,exit,query,thd_pool_post_kill_notification_hang";
+SET SESSION DEBUG="+d,info,enter,error,exit,query,wait_begin_waiter_thread";
+SELECT SLEEP(1);
+SELECT SLEEP(1);
+SELECT SLEEP(1);
+SELECT SLEEP(1);
+KILL @kill_target_id;

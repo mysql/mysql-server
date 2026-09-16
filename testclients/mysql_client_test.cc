@@ -32,6 +32,7 @@
 */
 
 #include <fcntl.h>
+#include <openssl/opensslv.h>
 #include <sys/types.h>
 #include <cerrno>
 #include <condition_variable>
@@ -18799,7 +18800,9 @@ static void test_wl6791() {
                                    MYSQL_OPT_RECONNECT,
                                    MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                                    MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
-                                   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA},
+                                   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
+                                   MYSQL_OPT_FORCE_PQC,
+                                   MYSQL_OPT_USE_PQC_SIGN},
                     const_char_opts[] =
   {
     MYSQL_READ_DEFAULT_FILE,
@@ -18819,6 +18822,7 @@ static void test_wl6791() {
     MYSQL_OPT_SSL_CAPATH,
     MYSQL_OPT_SSL_CIPHER,
     MYSQL_OPT_TLS_CIPHERSUITES,
+    MYSQL_OPT_TLS_KEX,
     MYSQL_OPT_TLS_SNI_SERVERNAME,
     MYSQL_OPT_SSL_CRL,
     MYSQL_OPT_SSL_CRLPATH,
@@ -22677,6 +22681,105 @@ static void test_wl13075() {
   }
   mysql_close(&lmysql);
 
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  /* MYSQL_OPT_FORCE_PQC must reject client-supplied non-PQC session data. */
+  rc = mysql_query(mysql, "SET @mct_tls_kex_saved=@@GLOBAL.tls_kex");
+  myquery(rc);
+  rc = mysql_query(mysql, "SET GLOBAL tls_kex='X25519'");
+  myquery(rc);
+  rc = mysql_query(mysql, "ALTER INSTANCE RELOAD TLS");
+  myquery(rc);
+
+  const char tls13[] = "TLSv1.3";
+  const char classical_kex[] = "X25519";
+  void *non_pqc_session_data = nullptr;
+
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_VERSION, tls13);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_KEX, classical_kex);
+    myquery(rc);
+  }
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  {
+    unsigned int non_pqc_session_len = 0;
+    non_pqc_session_data =
+        mysql_get_ssl_session_data(&lmysql, 0, &non_pqc_session_len);
+    DIE_UNLESS(non_pqc_session_data != nullptr);
+    DIE_UNLESS(non_pqc_session_len > 0);
+  }
+  mysql_close(&lmysql);
+
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, non_pqc_session_data);
+  myquery(rc);
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_VERSION, tls13);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_KEX, classical_kex);
+    myquery(rc);
+  }
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  DIE_UNLESS(mysql_get_ssl_session_reused(&lmysql));
+  mysql_close(&lmysql);
+
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, non_pqc_session_data);
+  myquery(rc);
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    bool force_pqc = true;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_VERSION, tls13);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_FORCE_PQC, &force_pqc);
+    myquery(rc);
+  }
+  if (mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                         opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                         0)) {
+    mysql_close(&lmysql);
+    DIE("MYSQL_OPT_FORCE_PQC accepted non-PQC session data");
+  }
+  mysql_close(&lmysql);
+
+  rc = mysql_free_ssl_session_data(mysql, non_pqc_session_data);
+  myquery(rc);
+  rc = mysql_query(mysql, "SET GLOBAL tls_kex=@mct_tls_kex_saved");
+  myquery(rc);
+  rc = mysql_query(mysql, "ALTER INSTANCE RELOAD TLS");
+  myquery(rc);
+#endif
+
   /* FR 2.1: failing to reuse a connection still works */
   /* invalidate the session data at the server side */
   rc = mysql_query(mysql, "ALTER INSTANCE RELOAD TLS");
@@ -23103,6 +23206,40 @@ static void test_server_telemetry_traces_prepared() {
 
   mysql_stmt_close(stmt);
   printf("Test 7 successfully completed\n");
+}
+
+static void test_bug39603354() {
+  myheader("test_bug39603354");
+
+  // Server id followed by a truncated multi-byte length-encoded string header.
+  uchar packet[5]{};
+  constexpr uchar prefixes[]{252, 253, 254};
+  for (const uchar prefix : prefixes) {
+    packet[4] = prefix;
+    const int rc =
+        simple_command(mysql, COM_REGISTER_SLAVE, packet, sizeof(packet), 0);
+    DIE_UNLESS(rc != 0);
+    DIE_UNLESS(mysql_errno(mysql) == ER_MALFORMED_PACKET);
+  }
+
+  // The declared host length must not be truncated to its low 32 bits.
+  uchar oversized_length_packet[26]{};
+  uchar *pos = oversized_length_packet;
+  int4store(pos, 1);
+  pos += 4;
+  *pos++ = 254;
+  int8store(pos, (UINT64_C(1) << 32) + 1);
+  pos += 8;
+  *pos++ = 'h';  // Host after truncating the declared length to 1.
+  *pos++ = 0;    // Empty user.
+  *pos++ = 0;    // Empty password.
+  pos += 10;     // Port, recovery rank, and source id.
+  DIE_UNLESS(pos == oversized_length_packet + sizeof(oversized_length_packet));
+
+  const int rc =
+      simple_command(mysql, COM_REGISTER_SLAVE, oversized_length_packet,
+                     sizeof(oversized_length_packet), 0);
+  DIE_UNLESS(rc != 0);
 }
 
 static void test_wl13128() {
@@ -24454,6 +24591,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13075", test_wl13075},
     {"test_bug33535746", test_bug33535746},
     {"test_server_telemetry_traces", test_server_telemetry_traces},
+    {"test_bug39603354", test_bug39603354},
     {"test_wl13128", test_wl13128},
     {"test_bug25584097", test_bug25584097},
     {"test_34556764", test_34556764},

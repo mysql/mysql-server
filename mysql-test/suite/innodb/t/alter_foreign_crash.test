@@ -5,7 +5,9 @@
 --echo # COMMIT_INPLACE_ALTER_TABLE
 --echo #
 
+--disable_query_log
 call mtr.add_suppression("Failed to load table");
+--enable_query_log
 
 create database bug;
 use bug;

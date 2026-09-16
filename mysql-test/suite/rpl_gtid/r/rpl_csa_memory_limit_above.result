@@ -1,0 +1,52 @@
+
+# 1. Set up replication with CSA (APPLIER_VERSION=2) and small event memory limit
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+SET @tmp_max= @@global.replica_max_allowed_packet;
+SET @@global.replica_max_allowed_packet=4096;
+CHANGE REPLICATION SOURCE TO
+APPLIER_VERSION=2,
+APPLIER_WORKER_COUNT=4,
+APPLIER_EVENT_MEMORY_LIMIT=5000;
+include/rpl/start_replica.inc
+[connection master]
+# Create table for large insert
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+data LONGBLOB
+);
+include/rpl/sync_to_replica.inc
+# Adding debug point 'pause_csa_before_releasing_event_memory' to @@GLOBAL.debug
+[connection master]
+# Execute parallel transactions below the limit
+INSERT INTO t1 VALUES (1, REPEAT('A', 3000));
+# Execute one transaction with a single large event (> limit)
+BEGIN;
+INSERT INTO t1 VALUES (2, REPEAT('A', 10000));;
+COMMIT;
+# Wait for applier to hit memory limit and enter waiting state due to large event (wait untill previous transaction finishes applying)
+[connection slave]
+# Removing debug point 'pause_csa_before_releasing_event_memory' from @@GLOBAL.debug
+SET DEBUG_SYNC='now SIGNAL signal_continue_csa_releasing_event_memory';
+# Sync and verify large row applied
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+SELECT COUNT(*) = 2 FROM t1;
+COUNT(*) = 2
+1
+SELECT LENGTH(data) > 5000 FROM t1;
+LENGTH(data) > 5000
+0
+1
+# Cleanup
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+SET @@global.replica_max_allowed_packet=@tmp_max;
+include/rpl/deinit.inc

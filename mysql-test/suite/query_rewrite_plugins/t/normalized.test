@@ -24,6 +24,46 @@ DELETE FROM query_rewrite.rewrite_rules;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#37100271: mysql_parser_parse() gets different digest for query
+--echo #               with trailing semicolon
+--echo #
+
+# Patterns that differ only in trailing ';'/whitespace must all load and
+# collapse to one digest. 'SELECT ?;;' is the discriminating case.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT ?',     'SELECT "rewritten"' ),
+       ( 'SELECT ?;',    'SELECT "rewritten"' ),
+       ( 'SELECT ?  ; ', 'SELECT "rewritten"' ),
+       ( 'SELECT ?;;',   'SELECT "rewritten"' );
+CALL query_rewrite.flush_rewrite_rules();
+
+SELECT pattern, normalized_pattern, message
+FROM query_rewrite.rewrite_rules ORDER BY id;
+SELECT COUNT(DISTINCT pattern_digest) AS distinct_digests
+FROM query_rewrite.rewrite_rules;
+SELECT COUNT(DISTINCT normalized_pattern) AS distinct_normalized
+FROM query_rewrite.rewrite_rules;
+
+DELETE FROM query_rewrite.rewrite_rules;
+
+# Rule with trailing ';' must match a user query whose ';' was stripped.
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT ?;', 'SELECT "rewritten"' );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT 1;
+
+DELETE FROM query_rewrite.rewrite_rules;
+
+# Replacement with leading whitespace and a parameter marker: offsets
+# must remain caller-relative (regression guard for left-trim).
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT ?, 0', '  SELECT ?, "padded"' );
+CALL query_rewrite.flush_rewrite_rules();
+SELECT 42, 0;
+
+DELETE FROM query_rewrite.rewrite_rules;
+
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
 
 

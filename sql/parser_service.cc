@@ -247,11 +247,21 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
 
   lex_start(thd);
 
-  if (alloc_query(thd, query.str, query.length))
-    return 1;  // Fatal error flag set
+  /*
+    Strip trailing ';'/whitespace so the lexer sees the same input as
+    dispatch_command(). Unlike alloc_query(), keep leading bytes so that
+    Item_param::pos_in_query stays relative to the caller's buffer
+    (see Replacement::load() in plugin/rewriter/rule.cc). The lexer
+    requires a null terminator at [len], so make a copy.
+  */
+  const size_t len =
+      trim_trailing_semicolons(thd->charset(), query.str, query.length);
+  char *q = thd->strmake(query.str, len);
+  if (q == nullptr) return 1;
+  thd->set_query(q, len);
 
   Parser_state parser_state;
-  if (parser_state.init(thd, query.str, query.length)) return 1;
+  if (parser_state.init(thd, q, len)) return 1;
 
   parser_state.m_input.m_has_digest = true;
   parser_state.m_input.m_compute_digest = true;

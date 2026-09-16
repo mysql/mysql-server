@@ -1,0 +1,47 @@
+# This mtr test checks how InnoDB handles corrupted redo log files,
+# if these files were created using the current redo log format.
+#                                   ---------------------------
+
+--source include/have_debug.inc
+
+let MYSQLD_ERROR_LOG = $MYSQLTEST_VARDIR/tmp/my_restart.err;
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+
+let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
+
+--echo # Ensure there is a lot of free space in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+
+--echo # Disable checkpointing.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+--echo # Create at least few redo records...
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+INSERT INTO t(a) VALUES(42);
+
+--echo # Kill MySQL...
+--source include/kill_mysqld.inc
+
+--echo #
+--echo # Induce invalid block during finding MTR boundary to start scan with
+--echo #
+
+--echo # Start MySQL...
+--error 1,2,42
+--exec $MYSQLD_CMD --log-error=$MYSQLD_ERROR_LOG --debug=d,invalid_block_for_mtr_boundary
+
+--echo # Expect found
+--let SEARCH_PATTERN = Could not find the start point for REDO parsing. REDO log may be corrupted. Recovery can't continue.
+--source include/search_pattern.inc
+
+--remove_file $SEARCH_FILE
+
+--echo #
+--echo # CLEANUP
+--echo #
+
+--echo # Start MySQL...
+let $restart_parameters = restart:;
+--source include/start_mysqld_no_echo.inc
+DROP TABLE t;

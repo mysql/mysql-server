@@ -60,6 +60,7 @@ SET PERSIST_ONLY group_replication_view_change_uuid = "";
 --source include/assert_grep.inc
 
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
@@ -103,6 +104,7 @@ SET GLOBAL group_replication_view_change_uuid = "";
 --let $assert_text= group_replication_group_name shall be different from group_replication_view_change_uuid
 --source include/assert_grep.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
@@ -150,6 +152,7 @@ START GROUP_REPLICATION;
 --source include/assert_grep.inc
 
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

@@ -21,6 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <my_sys.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
@@ -30,6 +31,8 @@
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_registration.h>
 #include <mysql/plugin.h>
+#include <mysqld_errmsg.h>
+#include <mysqld_error.h>
 #include "include/mysql.h"
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context) = nullptr;
@@ -61,6 +64,7 @@ static char *test_command_service_udf(UDF_INIT *, UDF_ARGS *args, char *result,
   unsigned int num_column = 0;
   std::string result_set;
   MYSQL_H mysql_h = nullptr;
+  bool raised_sql_error = false;
 
   *error = 1;
   if (args->arg_count == 0) {
@@ -167,8 +171,18 @@ static char *test_command_service_udf(UDF_INIT *, UDF_ARGS *args, char *result,
 
   if (mysql_service_mysql_command_query->query(mysql_h, query.data(),
                                                query.length())) {
-    mysql_service_mysql_command_factory->close(mysql_h);
-    goto session_err;
+    /*
+      The command-service failure diagnostic is stored on MYSQL_H. Re-raise it
+      through the UDF statement so this plugin test keeps the SQL-visible
+      ER_COMMAND_SERVICE_BACKEND_FAILED behavior
+    */
+    char *command_error = result;
+    mysql_service_mysql_command_error_info->sql_error(mysql_h, &command_error);
+    my_printf_error(ER_COMMAND_SERVICE_BACKEND_FAILED,
+                    ER_COMMAND_SERVICE_BACKEND_FAILED_MSG, MYF(0),
+                    command_error != nullptr ? command_error : "");
+    raised_sql_error = true;
+    goto err;
   }
 
   mysql_service_mysql_command_query_result->store_result(mysql_h, &mysql_res);
@@ -205,7 +219,7 @@ static char *test_command_service_udf(UDF_INIT *, UDF_ARGS *args, char *result,
     result[*length] = '\0';
   }
 err:
-  *error = 0;
+  if (!raised_sql_error) *error = 0;
   mysql_service_mysql_command_query_result->free_result(mysql_res);
   mysql_service_mysql_command_factory->close(mysql_h);
 session_err:

@@ -86,8 +86,8 @@ if ($binlog_format!= 'ROW'){
 }
 
 # As $n_executing_workers transaction are blocked the remaining i.e. (5 - $n_executing_workers) should be in waiting state
-
---let $wait_condition= SELECT count(*) = 5 - $n_executing_workers FROM performance_schema.threads WHERE PROCESSLIST_STATE="Waiting for preceding transaction to commit"
+# When using CSA, we need to check all transactions, not worker thread states
+--let $wait_condition= SELECT count(*) >= 5 - $n_executing_workers FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
 --source include/wait_condition_or_abort.inc
 
 --echo # Commit transaction to make 3rd worker thread rollback
@@ -109,10 +109,24 @@ ROLLBACK;
 --let $slave_param_value= No
 --source include/rpl/wait_for_replica_status.inc
 
-# 3 rows are committed on slave
---let $assert_text= Verify table t1 has 3 values
---let $assert_cond= "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "3"
---source include/assert.inc
+--disable_query_log
+# In case of CSA, applied transaction is put back to the commit
+# order waiting queue. After a worker errores out, the scheduler starts to
+# shuts down. During objects destruction, job will wait for a possible rollback.
+# We do not know how many transaction will commit.
+if ( $rpl_applier_version == '' ) {
+  # 3 rows are committed on slave
+  --let $assert_text= Verify the number of rows in t1
+  --let $assert_cond= "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "3"
+  --source include/assert.inc
+}
+if ( $rpl_applier_version != '' ) {
+  # 1 row is committed (3)
+  --let $assert_text= Verify the number of rows in t1
+  --let $assert_cond= "[SELECT count(*) COUNT FROM t1, COUNT, 1]" >= "1"
+  --source include/assert.inc
+}
+--enable_query_log
 
 --echo # Delete conflicting transactions on slave
 --source include/rpl/connection_replica.inc

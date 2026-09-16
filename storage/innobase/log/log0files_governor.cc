@@ -64,8 +64,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* std::for_each */
 #include <algorithm>
 
-/* log_buffer_flush_to_disk */
-#include "log0buf.h"
+/* pages_persistence */
+#include "fil0pages_persistence_interface.h"
 
 /* log_files_write_first_data_block_low, log_files_write_checkpoint_low */
 #include "log0chkp.h"
@@ -93,8 +93,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* LOG_N_FILES, ... */
 #include "log0types.h"
 
-/* log_writer_mutex_own */
+/* log_writer_mutex_own, log_write_up_to */
 #include "log0write.h"
+
+/* mlog_open(), mlog_close() */
+#include "mtr0log.h"
+
+/* mtr_t */
+#include "mtr0mtr.h"
 
 /* os_offset_t */
 #include "os0file.h"
@@ -112,10 +118,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* create_internal_thd, destroy_internal_thd */
 #include "sql/sql_thd_internal_api.h"
 
+/* srv_shutdown_state */
+#include "srv0shutdown.h"
+
 /* srv_read_only_mode */
 #include "srv0srv.h"
 
-/* RECOVERY_CRASH, ... */
+/* srv_recovery_crash, ... */
 #include "srv0start.h"
 
 /* ut_uint64_align_down */
@@ -294,7 +303,7 @@ static void log_files_update_current_file_low(log_t &log);
 /** Finds the oldest LSN required by some of currently registered log consumers.
 This is based on log_consumer_get_oldest().
 
-Requirement: log.m_files_mutex acquired before calling this function
+Requirement: log.m_limits_mutex acquired before calling this function
 (unless srv_is_being_started).
 
 @param[in]  log   redo log
@@ -342,11 +351,11 @@ Note that this two values could be based on different redo log consumers,
 because different redo log consumers might be related to different margins
 preserved between size and capacity.
 
-Requirement: log.m_files_mutex acquired before calling this function
-(unless srv_is_being_started).
+Requirement: log.m_files_mutex and limits_mutex acquired before calling this
+function (unless srv_is_being_started).
 
 @param[in]  log   redo log
-@return pair of logical redo log size and suggesed logical soft capacity */
+@return pair of logical redo log size and suggested logical soft capacity */
 static std::pair<lsn_t, lsn_t> log_files_logical_size_and_checkpoint_age(
     const log_t &log);
 
@@ -387,7 +396,7 @@ static void log_files_update_capacity_limits(log_t &log);
 /** Generates at least a given bytes of intake to the redo log.
 
 Requirement: none of log.m_files_mutex, log.writer_mutex, log.flusher_mutex,
-log.checkpointer_mutex is acquired when the function is called.
+log_checkpointing->checkpoint_mutex is acquired when the function is called.
 
 Requirement: the log_files_governor thread still hasn't promised not to
 generate dummy redo records (!log.m_no_more_dummy_records_promised).
@@ -597,7 +606,8 @@ static dberr_t log_files_prepare_unused_file(log_t &log, Log_file_id file_id,
                                              os_offset_t &file_size);
 
 static lsn_t log_files_oldest_needed_lsn(const log_t &log) {
-  log_files_access_allowed_validate(log);
+  IB_mutex_guard limits_lock{&log_checkpointing->limits_mutex,
+                             UT_LOCATION_HERE};
   lsn_t oldest_need_lsn;
   log_consumer_get_oldest(log, oldest_need_lsn);
   return oldest_need_lsn;
@@ -611,18 +621,21 @@ static lsn_t log_files_newest_needed_lsn(const log_t &log) {
 static std::pair<lsn_t, lsn_t> log_files_logical_size_and_checkpoint_age(
     const log_t &log) {
   log_files_access_allowed_validate(log);
+  ut_ad(log_limits_mutex_own());
 
-  const lsn_t oldest_lsn = log_files_oldest_needed_lsn(log);
+  lsn_t oldest_lsn;
+  log_consumer_get_oldest(log, oldest_lsn);
 
-  const lsn_t checkpoint_lsn = log.last_checkpoint_lsn.load();
+  const lsn_t checkpoint_lsn = pages_persistence->get_checkpoint_lsn();
 
   const lsn_t newest_lsn = log_files_newest_needed_lsn(log);
 
   const lsn_t size = ut_uint64_align_up(newest_lsn, OS_FILE_LOG_BLOCK_SIZE) -
                      ut_uint64_align_down(oldest_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
-  /* Note that log_files_next_checkpoint() updates log.last_checkpoint_lsn
-  under m_files_mutex which we hold here, so it couldn't increase meanwhile. */
+  /* Note that log_files_next_checkpoint() updates
+  log_checkpointing->m_checkpoint_lsn under m_files_mutex which we hold here,
+  so it couldn't increase meanwhile. */
   ut_a(checkpoint_lsn <= newest_lsn);
 
   const lsn_t checkpoint_age = newest_lsn - checkpoint_lsn;
@@ -1062,7 +1075,7 @@ dberr_t log_files_produce_file(log_t &log) {
 
   log_sync_point("log_before_file_produced");
 
-  ut_a(start_lsn >= log.last_checkpoint_lsn.load());
+  ut_a(pages_persistence->get_checkpoint_lsn() <= start_lsn);
 
   {
     const dberr_t err =
@@ -1108,16 +1121,16 @@ dberr_t log_files_produce_file(log_t &log) {
 
 static void log_files_update_capacity_limits(log_t &log) {
   log_files_access_allowed_validate(log);
-
-  IB_mutex_guard limits_lock{&log.limits_mutex, UT_LOCATION_HERE};
+  ut_a(log_checkpointing != nullptr);
+  IB_mutex_guard limits_lock{&log_checkpointing->limits_mutex,
+                             UT_LOCATION_HERE};
 
   lsn_t logical_size, checkpoint_age;
   std::tie(logical_size, checkpoint_age) =
       log_files_logical_size_and_checkpoint_age(log);
 
   log.m_capacity.update(log.m_files, logical_size, checkpoint_age);
-
-  log_update_limits_low(log);
+  log_checkpointing->update_limits();
   log_update_exported_variables(log);
 }
 
@@ -1125,7 +1138,7 @@ static bool log_files_consuming_oldest_file_takes_too_long(const log_t &log) {
   log_files_access_allowed_validate(log);
   ut_a(!log.m_files.empty());
 
-  if (!(log_checkpointer_is_active() && log.m_allow_checkpoints.load())) {
+  if (!log_checkpointer_is_active()) {
     return false;
   }
 
@@ -1155,7 +1168,7 @@ static bool log_files_filling_oldest_file_takes_too_long(const log_t &log) {
   log_files_access_allowed_validate(log);
   ut_a(!log.m_files.empty());
 
-  if (!(log_checkpointer_is_active() && log.m_allow_checkpoints.load())) {
+  if (!log_checkpointer_is_active()) {
     return false;
   }
 
@@ -1248,7 +1261,7 @@ static Log_files_governor_iteration_result log_files_governor_iteration_low(
   if (log.m_requested_files_consumption && log_files_next_file_size(log) != 0) {
     /* The log_writer thread called log_files_wait_for_next_file_available(),
     which checked that log_files_next_file_size() returned zero and set
-    m_requested_files_consumption to true under the the log.m_files_mutex.
+    m_requested_files_consumption to true under the log.m_files_mutex.
     This would force rushing the consumption of the oldest redo log file.
     However, log_files_next_file_size() is no longer zero so there is no
     reason to force the consumption any longer. */
@@ -1268,6 +1281,9 @@ static Log_files_governor_iteration_result log_files_governor_iteration_low(
       - requesting extra intake generated with usage of dummy redo records. */
 
     if (log_files_consuming_oldest_file_takes_too_long(log)) {
+      IB_mutex_guard limits_latch{&log_checkpointing->limits_mutex,
+                                  UT_LOCATION_HERE};
+
       lsn_t oldest_needed_lsn;
       /* Note, that there is a possible race because the consumer
       has possibly already consumed what we wanted to request.
@@ -1282,7 +1298,6 @@ static Log_files_governor_iteration_result log_files_governor_iteration_low(
         const auto next_file_lsn =
             log.m_files.begin()->m_end_lsn + LOG_BLOCK_HDR_SIZE;
         if (next_file_lsn <= log_get_lsn(log)) {
-          IB_mutex_guard limits_lock{&log.limits_mutex, UT_LOCATION_HERE};
           consumer->consumption_requested(next_file_lsn);
         }
       }
@@ -1353,7 +1368,8 @@ static void log_files_governor_iteration(log_t &log) {
     log.m_no_more_dummy_records_promised.store(true);
 
   } else if (result == Iteration_result::COMPLETED_BUT_NEED_MORE_INTAKE &&
-             !log_free_check_is_required(log)) {
+             ib::redo::handler->has_space() &&
+             srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE) {
     ut_ad(!log.m_no_more_dummy_records_promised.load());
     log_files_generate_dummy_records(log, LOG_FILES_DUMMY_INTAKE_SIZE);
   }
@@ -1469,7 +1485,7 @@ static dberr_t log_files_prepare_unused_file(log_t &log, Log_file_id file_id,
     return err;
   }
 
-  RECOVERY_CRASH(9);
+  srv_recovery_crash(9);
 
   /* Write the first checkpoint twice to overwrite both checkpoint headers. */
   err = log_files_write_checkpoint_low(
@@ -1519,7 +1535,7 @@ static dberr_t log_files_create_file(log_t &log, Log_file_id file_id,
     return err;
   }
 
-  RECOVERY_CRASH(10);
+  srv_recovery_crash(10);
 
   err = log_mark_file_as_in_use(log.m_files_ctx, file_id);
 
@@ -1543,7 +1559,7 @@ static dberr_t log_files_create_file(log_t &log, Log_file_id file_id,
                   log.m_encryption_metadata);
   log.m_unused_files_count--;
 
-  RECOVERY_CRASH(11);
+  srv_recovery_crash(11);
   return DB_SUCCESS;
 }
 
@@ -1553,7 +1569,7 @@ dberr_t log_files_create(log_t &log, lsn_t flushed_lsn) {
   dberr_t err;
   ut_a(log_is_data_lsn(flushed_lsn));
   log_files_create_allowed_validate();
-  RECOVERY_CRASH(8);
+  srv_recovery_crash(8);
 
   /* Do not allow to create new log files if redo log directory isn't empty. */
   ut::vector<Log_file_id> listed_files;
@@ -1581,15 +1597,15 @@ dberr_t log_files_create(log_t &log, lsn_t flushed_lsn) {
   ut_a(flushed_lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);
   const lsn_t file_start_lsn = flushed_lsn - LOG_BLOCK_HDR_SIZE;
 
-  ut_a(log.last_checkpoint_lsn.load() == 0);
+  ut_a(log_checkpointing != nullptr);
+  ut_a(log_checkpointing->get_checkpoint() == 0);
 
   err = log_files_create_file(log, LOG_FIRST_FILE_ID, file_start_lsn,
                               flushed_lsn, true);
   if (err != DB_SUCCESS) {
     return err;
   }
-
-  log.last_checkpoint_lsn.store(flushed_lsn);
+  log_checkpointing->set_checkpoint(flushed_lsn);
 
   /* If the redo log is set to be encrypted,
   initialize encryption information. */
@@ -1598,18 +1614,21 @@ dberr_t log_files_create(log_t &log, lsn_t flushed_lsn) {
       ib::error(ER_IB_MSG_1065);
       return DB_ERROR;
     }
-    if (log_encryption_generate_metadata(log) != DB_SUCCESS) {
-      return DB_ERROR;
+
+    ut_a(ib::redo::handler->get_capabilities().supports_encryption);
+    err = log_encryption_generate_metadata();
+    if (err != DB_SUCCESS) {
+      return err;
     }
   }
 
-  RECOVERY_CRASH(12);
+  srv_recovery_crash(12);
 
   log_persist_initialized(log);
 
   ib::info(ER_IB_MSG_LOG_FILES_INITIALIZED, ulonglong{flushed_lsn});
 
-  RECOVERY_CRASH(13);
+  srv_recovery_crash(13);
 
   return DB_SUCCESS;
 }
@@ -1637,7 +1656,7 @@ void log_files_remove(log_t &log) {
   file should be recoverable. The buffer
   pool was clean, and we can simply create
   all log files from the scratch. */
-  RECOVERY_CRASH(7);
+  srv_recovery_crash(7);
 #endif /* UNIV_DEBUG */
 
   auto remove_files_ret = log_remove_files(log.m_files_ctx);
@@ -1660,6 +1679,7 @@ void log_files_remove(log_t &log) {
 }
 
 dberr_t log_files_start(log_t &log) {
+  ut_a(log_checkpointing != nullptr);
   ut_a(!log_writer_is_active());
   ut_a(!log_checkpointer_is_active());
   ut_a(!log_files_governor_is_active());
@@ -1669,6 +1689,8 @@ dberr_t log_files_start(log_t &log) {
                      [](const Log_file &file) { ut_a(!file.m_consumed); });
 
   if (srv_read_only_mode) {
+    IB_mutex_guard limits_latch{&log_checkpointing->limits_mutex,
+                                UT_LOCATION_HERE};
     log_update_exported_variables(log);
     /* We are not allowed to consume in read-only mode. */
     return DB_SUCCESS;
@@ -1894,11 +1916,11 @@ static void log_files_update_current_file_low(log_t &log) {
 }
 
 static void log_files_generate_dummy_records(log_t &log, lsn_t min_bytes) {
+  ut_a(log_checkpointing != nullptr);
   ut_ad(log_writer_is_active());
   ut_ad(!log_writer_mutex_own(log));
   ut_ad(log_checkpointer_is_active());
-  ut_ad(log.m_allow_checkpoints.load());
-  ut_ad(!log_checkpointer_mutex_own(log));
+  ut_ad(!log_checkpointer_mutex_own());
   ut_ad(log_flusher_is_active());
   ut_ad(!log_flusher_mutex_own(log));
   ut_ad(!log_files_mutex_own(log));
@@ -1917,7 +1939,7 @@ static void log_files_generate_dummy_records(log_t &log, lsn_t min_bytes) {
   }
   mtr_commit(&mtr);
   ut_ad(start_lsn + bytes_stored <= log_get_lsn(log));
-  log_buffer_flush_to_disk(log, false);
+  log_write_up_to(log, mtr.commit_lsn(), false);
 }
 
 static bool log_files_is_truncate_allowed(const log_t &log) {
@@ -2010,12 +2032,15 @@ Requirement: srv_is_being_started is true.
 @param[in]      current_checkpoint_age  current checkpoint age */
 static void log_files_initialize(log_t &log, lsn_t current_logical_size,
                                  lsn_t current_checkpoint_age) {
+  ut_a(log_checkpointing != nullptr);
   ut_a(srv_is_being_started);
   ut_a(log.m_files_ctx.m_files_ruleset == Log_files_ruleset::CURRENT);
   log.m_capacity.initialize(log.m_files, current_logical_size,
                             current_checkpoint_age);
-  log_update_limits_low(log);
+  log_limits_mutex_enter();
+  log_checkpointing->update_limits();
   log_update_exported_variables(log);
+  log_limits_mutex_exit();
 }
 
 void log_files_initialize_on_empty_redo(log_t &log) {
@@ -2023,9 +2048,11 @@ void log_files_initialize_on_empty_redo(log_t &log) {
 }
 
 void log_files_initialize_on_existing_redo(log_t &log) {
+  log_limits_mutex_enter();
   lsn_t logical_size, checkpoint_age;
   std::tie(logical_size, checkpoint_age) =
       log_files_logical_size_and_checkpoint_age(log);
+  log_limits_mutex_exit();
 
   log_files_initialize(log, logical_size, checkpoint_age);
 }
@@ -2043,12 +2070,6 @@ static void log_files_wait_until_next_governor_iteration(log_t &log) {
 
 void log_files_resize_requested(log_t &log) {
   log_files_wait_until_next_governor_iteration(log);
-}
-
-void log_files_thread_concurrency_updated(log_t &log) {
-  if (log_files_governor_is_active()) {
-    log_files_wait_until_next_governor_iteration(log);
-  }
 }
 
 /** @} */

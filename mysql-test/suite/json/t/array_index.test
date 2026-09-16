@@ -2103,7 +2103,6 @@ FLUSH STATUS;
 
 SELECT * FROM t1 WHERE 30 MEMBER OF (ids->'$[*]') AND id < 7 ORDER BY id DESC;
 
---skip_if_hypergraph # Bug#37543247 Missing optimization in hypergraph in case of multi-valued index
 SHOW STATUS LIKE 'Handler_read%';
 
 SELECT /*+ INDEX(t1 mx_ids_id) */ * FROM t1 WHERE 50 MEMBER OF (ids->'$[*]') AND id > 5 ORDER BY id DESC;

@@ -1,0 +1,62 @@
+include/rpl/init.inc [topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server_1]
+CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+[connection server_2]
+CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+# Configure thread cache for the concurrent workload.
+[connection server_1]
+SET GLOBAL thread_cache_size=32;
+[connection server_2]
+SET GLOBAL thread_cache_size=32;
+# Create generic write targets and a statement-format checksum table.
+[connection server_1]
+CREATE TABLE source_writes (
+id INT AUTO_INCREMENT PRIMARY KEY,
+pad VARCHAR(64)
+) ENGINE=InnoDB;
+CREATE TABLE replica_writes (
+id INT AUTO_INCREMENT PRIMARY KEY,
+pad VARCHAR(64)
+) ENGINE=InnoDB;
+CREATE DATABASE checksum_test;
+CREATE TABLE checksum_test.table_checksums (
+table_name VARCHAR(64) NOT NULL,
+chunk INT NOT NULL,
+row_count INT,
+row_crc VARCHAR(40),
+updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP,
+PRIMARY KEY (table_name, chunk)
+) ENGINE=InnoDB;
+include/rpl/sync.inc
+# Run bounded local writes and GTID/checksum readers.
+# Wait for mysqlslap client sessions to finish.
+[connection server_1]
+[connection server_2]
+[connection server_1]
+[connection server_2]
+include/rpl/sync.inc
+[connection server_1]
+[connection server_2]
+# Stop replication before local cleanup.
+include/rpl/stop_all_replicas.inc
+# Clean local test objects without replicating cleanup DDL.
+[connection server_1]
+include/rpl/disable_binlog.inc
+DROP TABLE source_writes;
+DROP TABLE replica_writes;
+DROP DATABASE checksum_test;
+include/rpl/restore_binlog.inc
+[connection server_2]
+include/rpl/disable_binlog.inc
+DROP TABLE source_writes;
+DROP TABLE replica_writes;
+DROP DATABASE checksum_test;
+include/rpl/restore_binlog.inc
+include/rpl/deinit.inc

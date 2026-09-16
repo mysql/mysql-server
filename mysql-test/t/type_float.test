@@ -515,3 +515,78 @@ END||
 delimiter ;||
 DROP PROCEDURE p1;
 
+--echo #
+--echo # Bug#35100734: Unexpected query result fetched from an indexed column
+--echo #
+
+# ---- Original reporter case: DOUBLE UNSIGNED, DESC index ----
+# (Reported as DOUBLE ZEROFILL; ZEROFILL only matters because it implies
+#  UNSIGNED, so it is replaced here to avoid testing the deprecated attribute.)
+CREATE TABLE t0(c0 DOUBLE UNSIGNED);
+CREATE INDEX i0 ON t0(c0 DESC);
+INSERT INTO t0(c0) VALUES(0);
+
+--echo # Expect: empty result
+SELECT c0 FROM t0 WHERE (IFNULL(-1123870957, '')) IN (t0.c0);
+--echo # Expect: empty result
+SELECT c0 FROM t0 WHERE t0.c0 = IFNULL(-1123870957, '');
+
+# Control: without index, full scan evaluates predicate correctly (empty)
+ALTER TABLE t0 DROP INDEX i0;
+--echo # No-index control (expect empty)
+SELECT c0 FROM t0 WHERE (IFNULL(-1123870957, '')) IN (t0.c0);
+
+DROP TABLE t0;
+
+# ---- Simplified: DOUBLE UNSIGNED, ASC index, plain string literal ----
+CREATE TABLE t1(c0 DOUBLE UNSIGNED, KEY i0(c0));
+INSERT INTO t1 VALUES (0), (1), (2);
+
+--echo # Expect: empty (negative string vs unsigned)
+SELECT c0 FROM t1 WHERE c0 = '-1';
+--echo # Expect: empty
+SELECT c0 FROM t1 WHERE c0 = IFNULL(-1, '');
+--echo # Expect: empty
+SELECT c0 FROM t1 WHERE c0 <=> '-5.5';
+--echo # Expect: empty (IN list with negative string)
+SELECT c0 FROM t1 WHERE c0 IN ('-1', '-2');
+
+# EXPLAIN should show Impossible WHERE / no matching row, NOT a [0,0] range
+--replace_regex /\(cost=[0-9. ]*rows=[0-9]+\)/(cost=*** rows=***)/
+EXPLAIN FORMAT=TREE SELECT c0 FROM t1 WHERE c0 = '-1';
+
+# Positive controls (must NOT regress)
+--echo # Expect: 1 row (c0=0)
+SELECT c0 FROM t1 WHERE c0 = '0';
+--echo # Expect: 1 row (c0=1)
+SELECT c0 FROM t1 WHERE c0 = IFNULL(1, '');
+--echo # Expect: 1 row (c0=2)
+SELECT c0 FROM t1 WHERE c0 = 2.0;
+
+# Range comparisons with negative string (must NOT regress)
+--echo # Expect: 3 rows (all >= -1)
+SELECT c0 FROM t1 WHERE c0 > '-1' ORDER BY c0;
+--echo # Expect: empty (none < -1)
+SELECT c0 FROM t1 WHERE c0 < '-1';
+
+DROP TABLE t1;
+
+# ---- FLOAT UNSIGNED variant (same defect in Field_float::store) ----
+CREATE TABLE t2(c0 FLOAT UNSIGNED, KEY i0(c0));
+INSERT INTO t2 VALUES (0), (1);
+
+--echo # Expect: empty
+SELECT c0 FROM t2 WHERE c0 = '-1';
+--echo # Expect: empty
+SELECT c0 FROM t2 WHERE c0 = IFNULL(-1, '');
+
+DROP TABLE t2;
+
+# ---- DECIMAL UNSIGNED control (Field_new_decimal already propagates status) ----
+CREATE TABLE t3(c0 DECIMAL(10,2) UNSIGNED, KEY i0(c0));
+INSERT INTO t3 VALUES (0), (1);
+
+--echo # Expect: empty (decimal control)
+SELECT c0 FROM t3 WHERE c0 = '-1';
+
+DROP TABLE t3;

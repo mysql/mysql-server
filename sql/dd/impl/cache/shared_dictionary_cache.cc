@@ -31,6 +31,11 @@
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"  // THD::is_error()
 
+namespace {
+/** Pointer to singleton object. */
+dd::cache::Shared_dictionary_cache *s_cache_instance = nullptr;
+}  // namespace
+
 namespace dd {
 namespace cache {
 
@@ -38,11 +43,14 @@ template <typename T>
 class Cache_element;
 
 Shared_dictionary_cache *Shared_dictionary_cache::instance() {
-  static Shared_dictionary_cache s_cache;
-  return &s_cache;
+  assert(s_cache_instance != nullptr);
+  return s_cache_instance;
 }
 
 void Shared_dictionary_cache::init() {
+  assert(s_cache_instance == nullptr);
+  s_cache_instance = new Shared_dictionary_cache{};
+
   instance()->m_map<Collation>()->set_capacity(collation_capacity);
   instance()->m_map<Charset>()->set_capacity(charset_capacity);
 
@@ -62,6 +70,10 @@ void Shared_dictionary_cache::init() {
 }
 
 void Shared_dictionary_cache::shutdown() {
+  // Allow shutdown to be called as cleanup even if cache
+  // has not yet been created.
+  if (s_cache_instance == nullptr) return;
+
   instance()->m_map<Abstract_table>()->shutdown();
   instance()->m_map<Collation>()->shutdown();
   instance()->m_map<Column_statistics>()->shutdown();
@@ -72,6 +84,8 @@ void Shared_dictionary_cache::shutdown() {
   instance()->m_map<Spatial_reference_system>()->shutdown();
   instance()->m_map<Tablespace>()->shutdown();
   instance()->m_map<Resource_group>()->shutdown();
+  delete s_cache_instance;
+  s_cache_instance = nullptr;
 }
 
 // Don't call this function anywhere except upgrade scenario.

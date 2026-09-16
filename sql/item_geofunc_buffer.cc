@@ -133,6 +133,7 @@ bool Item_func_buffer_strategy::resolve_type(THD *thd) {
 String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   String str;
   String *strat_name = args[0]->val_str_ascii(&str);
+  if (strat_name == nullptr && current_thd->is_error()) return nullptr;
   if ((null_value = args[0]->null_value)) {
     assert(is_nullable());
     return nullptr;

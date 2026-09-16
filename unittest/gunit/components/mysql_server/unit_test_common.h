@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef UNIT_TEST_COMMON_H
 #define UNIT_TEST_COMMON_H
 
+#include <cstdlib>
 #include <memory>
 #include <string>
 
@@ -39,7 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define FN_DEV_CHAR '\0' /* For easier code */
 
 struct Free_deleter {
-  void operator()(void *ptr) const { free(ptr); }
+  void operator()(void *ptr) const { std::free(ptr); }
 };
 
 /** std::unique_ptr, but with free as deleter. */

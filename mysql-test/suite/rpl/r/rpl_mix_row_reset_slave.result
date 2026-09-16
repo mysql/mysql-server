@@ -3,6 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+include/rpl/sync_to_replica.inc
 Source_User = 'root'
 Source_Host = '127.0.0.1'
 include/rpl/stop_replica.inc
@@ -20,20 +21,26 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
 Source_User = 'root'
 Source_Host = '127.0.0.1'
 include/rpl/stop_replica.inc
 RESET REPLICA;
 include/rpl/start_replica.inc
 create temporary table t1 (a int);
+include/rpl/sync_to_replica.inc
 include/rpl/stop_replica.inc
 RESET REPLICA;
 reset binary logs and gtids;
 include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
 show status like 'replica_open_temp_tables';
 Variable_name	Value
 Replica_open_temp_tables	0
 drop temporary table if exists t1;
+include/rpl/sync_to_replica.inc
 include/rpl/stop_replica.inc
 RESET REPLICA;
 include/rpl/assert_replica_no_error.inc

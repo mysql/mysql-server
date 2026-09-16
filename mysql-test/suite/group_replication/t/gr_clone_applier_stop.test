@@ -29,6 +29,7 @@
 --source include/have_debug_sync.inc
 --source include/have_mysqld_monitoring_process.inc
 --source include/have_clone_plugin.inc
+--source include/have_mta.inc
 --source include/force_restart.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -68,6 +69,7 @@ INSERT INTO t1 values (2);
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
@@ -131,6 +133,7 @@ SET DEBUG_SYNC= 'RESET';
 
 SET @@GLOBAL.DEBUG='+d,gr_clone_wait';
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
@@ -211,6 +214,7 @@ SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 SET @@GLOBAL.DEBUG='+d,gr_run_clone_query_fail_once';
 SET GLOBAL group_replication_clone_threshold= 1;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 SET DEBUG_SYNC = 'now WAIT_FOR signal.run_clone_query_waiting';
@@ -271,6 +275,7 @@ set session sql_log_bin=1;
 --source include/connection.inc
 set session sql_log_bin=0;
 call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Relay log read failure: *.*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Change Stream Applier channel stopped because of error*");
 call mtr.add_suppression("The applier thread execution was aborted. *.*");
 call mtr.add_suppression("Error running query, replica SQL thread aborted. *");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");

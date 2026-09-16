@@ -124,7 +124,7 @@ The following handles for opened files have been identified during runtime:
           after log_files_prepare_unused_file() closed its handle.
 During startup - in main thread (recv functions):
     - log_files_find_and_analyze() uses handle on stack,
-    - recv_log_recover_pre_8_0_30() uses handle on stack,
+    - log_recover_pre_8_0_30() uses handle on stack,
     - recv_find_max_checkpoint() uses handle on stack,
     - recv_read_log_seg() uses handle on stack,
     - recv_recovery_from_checkpoint_start() uses handle on stack but

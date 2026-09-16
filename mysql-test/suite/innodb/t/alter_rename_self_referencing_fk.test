@@ -1,0 +1,16 @@
+--echo #
+--echo # Rename a column used by a self-referencing foreign key.
+--echo #
+
+CREATE TABLE t1 (
+  c4 INT NOT NULL,
+  UNIQUE KEY c1 (c4),
+  UNIQUE KEY c4 (c4),
+  CONSTRAINT t1_ibfk_1 FOREIGN KEY (c4) REFERENCES t1 (c4)
+) ENGINE=InnoDB;
+
+ALTER TABLE t1 RENAME COLUMN c4 TO c7;
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

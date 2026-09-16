@@ -96,6 +96,7 @@ DROP TEMPORARY TABLE t1;
 include/rpl/sync_to_replica.inc
 CREATE TEMPORARY TABLE temp_t2 (c1 INT) ENGINE=MyISAM;
 CREATE TABLE t2 LIKE temp_t2;
+include/rpl/sync_to_replica.inc
 include/assert.inc ["t2 on master and temp_t2 have the same storage engine"]
 include/assert.inc ["t2 on slave and temp_t2 have the same storage engine"]
 DROP TEMPORARY TABLE temp_t2;

@@ -27,6 +27,7 @@
 --source include/rpl/connection_replica.inc
 
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
 
 # save previous settings to restore them at the end
 --let $save_innodb_lock_wait_timeout= `SELECT @@GLOBAL.innodb_lock_wait_timeout`

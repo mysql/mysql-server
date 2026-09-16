@@ -90,10 +90,14 @@ class TLS_channel {
     @param [out]    error     SSL Error information
     @param [in]     force     Activate the SSL settings even if this will lead
                               to disabling SSL
+    @param [in]     warn_without_force_pqc
+                              Report when the TLS context does not require
+                              post-quantum key exchange groups
   */
   static void singleton_flush(Ssl_acceptor_context_container *container,
                               std::string channel, Ssl_init_callback *callbacks,
-                              enum enum_ssl_init_error *error, bool force);
+                              enum enum_ssl_init_error *error, bool force,
+                              bool warn_without_force_pqc);
 };
 
 using Ssl_acceptor_context_data_lock = MyRcuLock<Ssl_acceptor_context_data>;

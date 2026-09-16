@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb_tls/include/check_openssl.inc
 
 # Check there is no --ndb-tls-search-path option for ndb_sign_keys, will happen
 # when running for example ./mtr --defaults-extra-file=suite/ndb/secure.cnf
@@ -178,21 +177,66 @@ ORDER BY node_id;
 # Replace the key and the certificate both
 --exec $NDB_SIGN_KEYS --create-key -n 3
 
-# Rotate the CA
---exec $NDB_SIGN_KEYS --rotate-CA
+# Show the trust store
+--echo ** Trust Step 1 **
+--source suite/ndb_tls/sign_keys.pattern
+--exec $NDB_SIGN_KEYS --trust=show
+
+# Create another CA
+--exec $NDB_SIGN_KEYS --create-CA --CA-ordinal="Extra" --CA-cert=extra-cert --CA-key=extra-key
+
+# Now the CA files exist
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/extra-cert
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/extra-key
+
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-trusted-certs
+
+# Add this CA to the trust store
+--echo ** Trust Step 2 **
+--source suite/ndb_tls/sign_keys.pattern
+--exec $NDB_SIGN_KEYS --trust=add $MYSQLTEST_VARDIR/mysql_cluster.1/extra-cert
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-trusted-certs
+
+# Try to add the same CA again.  Fail due to duplicate.
+--echo ** Trust Step 3 **
+--source suite/ndb_tls/sign_keys.pattern
+--error 52
+--exec $NDB_SIGN_KEYS --trust=add $MYSQLTEST_VARDIR/mysql_cluster.1/extra-cert
+
+# Show the trust store
+--source suite/ndb_tls/sign_keys.pattern
+--exec $NDB_SIGN_KEYS --trust=show
+
+# Try to remove a certificate that is not in the list
+--error 51
+--exec $NDB_SIGN_KEYS --trust=remove 2
+
+# Remove the CA from the trust store
+--echo ** Trust Step 4 **
+--source suite/ndb_tls/sign_keys.pattern
+--exec $NDB_SIGN_KEYS --trust=remove 1
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-trusted-certs
+
+# Test invalid combinations of options
+--error 101
+--exec $NDB_SIGN_KEYS --check --trust=add
+--error 101
+--exec $NDB_SIGN_KEYS --create-CA --promote
+--error 101
+--exec $NDB_SIGN_KEYS --stdio --create-ca
 
 # On Windows, private key files must be made writable to be removed.
 --chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key
---chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key.retired
 --chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-private-key
 --chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-private-key
 --chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-private-key
+--chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/extra-key
 
 # Delete everything so the test can be repeated
 --remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key
 --remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-cert
---remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key.retired
---remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-cert.retired
 --remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-private-key
 --remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-cert
 --remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-retired-cert
@@ -201,3 +245,5 @@ ORDER BY node_id;
 --remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-retired-cert
 --remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-private-key
 --remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-cert
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/extra-cert
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/extra-key

@@ -29,6 +29,8 @@
 
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
+# Debug point removed from CSA
+--source include/have_mta.inc
 --let $option_name = replica_transaction_retries
 --let $option_operator = >
 --let $option_value = 2

@@ -752,6 +752,9 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
   */
   const size_t record_size = record_prefix_size(table);
 
+  // A record larger than the maximum buffer cannot fit in a record buffer.
+  if (record_size > MAX_RECORD_BUFFER_SIZE) return false;
+
   if (record_size > 0) {
     const ha_rows min_rows =
         std::ceil(double{MIN_RECORD_BUFFER_SIZE} / record_size);
@@ -2216,11 +2219,36 @@ static AccessPath *CreateHashJoinAccessPath(
     for (auto cond_it = hash_join_extra_conditions.begin();
          cond_it != hash_join_extra_conditions.end();) {
       Item *cond = *cond_it;
-      if ((cond->used_tables() & (left_table_map | RAND_TABLE_BIT)) == 0) {
+      table_map cond_used_tables = cond->used_tables();
+      // substitute_for_best_equal_field() may have rewritten field references
+      // in non-equi predicates to point at probe-side tables (it picks the
+      // table that comes first in nested-loop order, which for an outer join
+      // is the outer/probe side). Undo that here by remapping such fields back
+      // to a build-side member of the same multiple equality, exactly as is
+      // already done for EQ_FUNC join keys above. The multiple equality used
+      // is the ON-scoped one recorded by replace_equal_field(), so the rewrite
+      // is valid for every row on which this ON predicate is evaluated.
+      // Only attempt this when the condition currently references probe-side
+      // tables exclusively: a condition that already references the build side
+      // may contain an equality whose own multiple equality would otherwise be
+      // used to remap one of its arguments onto the other, yielding "x = x".
+      if ((cond_used_tables & left_table_map) != 0 &&
+          (cond_used_tables & (right_table_map | RAND_TABLE_BIT)) == 0) {
+        bool found = false;
+        find_and_adjust_equal_fields(cond, right_table_map, /*replace=*/true,
+                                     &found);
+        // find_and_adjust_equal_fields() mutates argument pointers in place
+        // but does not refresh the used_tables cache; do that now and re-test
+        // below. The 'found' out-parameter only reflects the last field
+        // visited, so it is not a reliable indicator on its own.
+        cond->update_used_tables();
+        cond_used_tables = cond->used_tables();
+      }
+      if ((cond_used_tables & (left_table_map | RAND_TABLE_BIT)) == 0) {
         build_conditions.push_back(cond);
         cond_it = hash_join_extra_conditions.erase(cond_it);
       } else {
-        *conditions_depend_on_outer_tables |= cond->used_tables();
+        *conditions_depend_on_outer_tables |= cond_used_tables;
         ++cond_it;
       }
     }
@@ -3610,7 +3638,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
   }
 
   // 3. Put the rowids
-  for (uint i = 0; tab != tab_end; tab++, i++) {
+  for (; tab != tab_end; tab++) {
     handler *h = tab->qep_tab->table()->file;
     if (tab->qep_tab->table()->is_nullable() &&
         tab->qep_tab->table()->has_null_row()) {

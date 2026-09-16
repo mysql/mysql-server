@@ -45,6 +45,7 @@ SET(test_files
   test_auth_digest.cc
   test_classic_quit_sender.cc
   test_classic_reset_connection_sender.cc
+  test_processor_diagnostics.cc
   test_sql_splitting_allowed.cc
   test_start_transaction_parser.cc
   )

@@ -75,12 +75,19 @@
 --let $datadir_1= `SELECT @@GLOBAL.datadir`
 
 --let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
---error 1
---file_exists $relay_log_file
-
 --let $relay_log_index= `SELECT CONCAT('$datadir_1', 'mgr-group_replication_applier.index')`
---error 1
---file_exists $relay_log_index
+
+# We disable the following checks for CSA, because additional call to CRST
+# in gr_configuration.inc *creates* the files
+if($rpl_applier_version=='') {
+  --disable_query_log
+  --error 1
+  --file_exists $relay_log_file
+
+  --error 1
+  --file_exists $relay_log_index
+  --enable_query_log
+}
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -117,6 +124,8 @@ INSERT INTO t1 VALUES (3);
 
 # Group applier files should now be there with the channel
 
+--let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000002')`
+
 --file_exists $relay_log_file
 --file_exists $relay_log_index
 
@@ -140,7 +149,7 @@ INSERT INTO t1 VALUES (3);
 
 --let $datadir_2= `SELECT @@GLOBAL.datadir`
 
---let $relay_log_file=`SELECT CONCAT('$datadir_2','mgr-group_replication_applier.000001')`
+--let $relay_log_file=`SELECT CONCAT('$datadir_2','mgr-group_replication_applier.000002')`
 --file_exists $relay_log_file
 
 --let $relay_log_index= `SELECT CONCAT('$datadir_2', 'mgr-group_replication_applier.index')`
@@ -167,7 +176,7 @@ INSERT INTO t1 VALUES (3);
 --error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 RESET REPLICA ALL;
 
---let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
+--let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000002')`
 --file_exists $relay_log_file
 
 --let $relay_log_index= `SELECT CONCAT('$datadir_1', 'mgr-group_replication_applier.index')`
@@ -205,7 +214,7 @@ RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 
 RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 
---let $relay_log_file_mgr=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
+--let $relay_log_file_mgr=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000002')`
 --error 1
 --file_exists $relay_log_file_mgr
 

@@ -18,6 +18,8 @@ perl;
  my $search_pattern_1= "0\\.9.*";
  my $search_pattern_2= "1\\.0\\.0.*";
  my $search_pattern_3= "1\\.0\\.1.*";
+ my $search_pattern_4= "1\\.0\\.2.*";
+ my $search_pattern_5= "1\\.1\\.0.*";
  my $content= "";
  my $dir= $ENV{'MYSQLTEST_VARDIR'};
  open(CONFIG_INC, ">$dir/log/openssl_binary_config.inc");
@@ -26,7 +28,8 @@ perl;
  close(FILE);
 
  if ( ($content =~ m{$search_pattern_1}) || ($content =~ m{$search_pattern_2}) ||
-      ($content =~ m{$search_pattern_3}) ) {
+      ($content =~ m{$search_pattern_3}) || ($content =~ m{$search_pattern_4}) ||
+      ($content =~ m{$search_pattern_5}) ) {
     print CONFIG_INC "let \$STATUS_VAR = 1;\n";
  }
  else {
@@ -43,7 +46,7 @@ if ($STATUS_VAR)
  --remove_file $OPENSSL_VERSION_INFO
  --error 0,1
  --remove_file $OPENSSL_CONFIG_INC
- --skip Test requires openssl version to be 1.0.2+
+ --skip Test requires openssl version to be 1.1.1+
 }
 
 --error 0,1

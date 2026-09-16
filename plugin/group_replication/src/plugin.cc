@@ -22,15 +22,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cassert>
+#include <memory>
 #include <sstream>
 
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_timestamp.h>
 #include <mysql/service_rpl_transaction_write_set.h>
+#include "include/dh_ecdh_config.h"
 #include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "mysqld_error.h"
 #include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/consistency_manager.h"
 #include "plugin/group_replication/include/gcs_mysql_network_provider.h"
@@ -60,6 +63,7 @@
 #include "plugin/group_replication/include/udf/udf_registration.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
 #include "string_with_len.h"
+#include "violite.h"
 
 #ifndef NDEBUG
 #include "plugin/group_replication/include/services/notification/impl/gms_listener_test.h"
@@ -226,6 +230,15 @@ void set_auto_increment_handler_values();
 
 static void check_deprecated_variables() {
   MYSQL_THD thd = lv.plugin_is_auto_starting_on_install ? nullptr : current_thd;
+  if (static_cast<enum_transport_protocol>(ov.communication_stack_var) !=
+      MYSQL_PROTOCOL) {
+    push_deprecated_warn_no_replacement(
+        thd, "group_replication_communication_stack");
+  }
+  if (ov.ip_allowlist_var != nullptr &&
+      strcmp(ov.ip_allowlist_var, "AUTOMATIC")) {
+    push_deprecated_warn_no_replacement(thd, "group_replication_ip_allowlist");
+  }
   if (ov.view_change_uuid_var != nullptr &&
       strcmp(ov.view_change_uuid_var, "AUTOMATIC")) {
     push_deprecated_warn_no_replacement(thd,
@@ -373,6 +386,12 @@ uint get_number_of_autorejoin_tries() { return ov.autorejoin_tries_var; }
 
 ulonglong get_rejoin_timeout() { return lv.rejoin_timeout; }
 
+bool get_group_replication_force_pqc_var() { return ov.force_pqc_var; }
+
+bool get_group_replication_use_pqc_sign_var() { return ov.use_pqc_sign_var; }
+
+const char *get_group_replication_tls_kex_var() { return ov.tls_kex_var; }
+
 bool get_allow_single_leader() {
   if (lv.allow_single_leader_latch.first)
     return lv.allow_single_leader_latch.second;
@@ -393,24 +412,24 @@ bool get_component_primary_election_enabled() {
  * @param fd      File descriptor of the connections
  * @param ssl_ctx SSL data of the connection
  *
- * @return int Returns 1 in case of any error. 0 otherwise.
+ * @return the result of handing the connection to Group Replication
  */
 
-int handle_group_replication_incoming_connection(THD *thd, int fd,
-                                                 SSL *ssl_ctx) {
-  auto *new_connection = new Network_connection(fd, ssl_ctx);
+Gr_incoming_connection_status handle_group_replication_incoming_connection(
+    THD *thd, int fd, SSL *ssl_ctx) {
+  auto new_connection = std::make_unique<Network_connection>(fd, ssl_ctx);
   new_connection->has_error = false;
-  int error_return = 1;
 
-  if (auto mysql_provider = gcs_module->get_mysql_network_provider();
-      mysql_provider) {
-    mysql_provider->set_new_connection(thd, new_connection);
-    error_return = 0;
-  } else {
-    delete new_connection;
-  }
+  auto *mysql_provider = gcs_module->get_mysql_network_provider();
+  if (mysql_provider == nullptr) return Gr_incoming_connection_status::ERROR;
 
-  return error_return;
+  const auto result =
+      mysql_provider->set_new_connection(thd, new_connection.get());
+
+  if (result == Gr_incoming_connection_status::ACCEPTED)
+    new_connection.release();
+
+  return result;
 }
 
 /**
@@ -2061,6 +2080,8 @@ bool server_services_references_initialize() {
   return error;
 }
 
+static void adjust_startup_group_replication_force_pqc_for_tls_version();
+
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   // Initialize plugin local variables.
   lv.init();
@@ -2128,6 +2149,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   advertised_recovery_endpoints = new Advertised_recovery_endpoints();
 
   lv.plugin_info_ptr = plugin_info;
+
+  adjust_startup_group_replication_force_pqc_for_tls_version();
 
   mysql_mutex_init(key_GR_LOCK_plugin_modules_termination,
                    &lv.plugin_modules_termination_mutex, MY_MUTEX_INIT_FAST);
@@ -3589,6 +3612,8 @@ static int check_ip_allowlist_preconditions(MYSQL_THD thd, SYS_VAR *var,
   const char *str;
   int length = sizeof(buff);
 
+  push_deprecated_warn_no_replacement(thd, "group_replication_ip_allowlist");
+
   Checkable_rwlock::Guard g(*lv.plugin_running_lock,
                             Checkable_rwlock::TRY_READ_LOCK);
   if (!plugin_running_lock_is_rdlocked(g)) return 1;
@@ -3882,6 +3907,15 @@ static bool get_bool_value_using_type_lib(struct st_mysql_value *value,
     value_to_check = find_type(text_value, &ov.plugin_bool_typelib_t, flags);
 
     if (0 == value_to_check) {
+      // Persisted dynamic plugin booleans are replayed as "0"/"1" strings.
+      if (text_buffer_size == 1 && text_value[0] == '0') {
+        resulting_value = false;
+        return true;
+      }
+      if (text_buffer_size == 1 && text_value[0] == '1') {
+        resulting_value = true;
+        return true;
+      }
       return false;
     }
 
@@ -3910,6 +3944,113 @@ static int check_sysvar_bool(MYSQL_THD, SYS_VAR *, void *save,
 
   *(bool *)save = in_val;
 
+  return 0;
+}
+
+static bool tls_force_pqc_supported_for_version(const char *tls_version
+                                                [[maybe_unused]]) {
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
+  return false;
+#else
+  return !(process_tls_version(tls_version) & SSL_OP_NO_TLSv1_3);
+#endif
+}
+
+static int validate_group_replication_force_pqc_tls_version(
+    const char *tls_version) {
+  if (tls_force_pqc_supported_for_version(tls_version)) return 0;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "group_replication_force_pqc", "ON");
+  return 1;
+}
+
+static void adjust_startup_group_replication_force_pqc_for_tls_version() {
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (!ov.force_pqc_var ||
+      tls_force_pqc_supported_for_version(ov.recovery_tls_version_var))
+    return;
+
+  const std::string error =
+      "group_replication_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or "
+      "newer, but group_replication_recovery_tls_version=" +
+      std::string(ov.recovery_tls_version_var ? ov.recovery_tls_version_var
+                                              : "") +
+      " disables TLSv1.3; setting group_replication_force_pqc=OFF";
+  LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, error.c_str());
+  ov.force_pqc_var = false;
+#endif
+}
+
+static int validate_group_replication_force_pqc_tls_kex(const char *tls_kex) {
+  std::string filtered_tls_kex;
+  if (!sanitize_tls_kex_list(tls_kex, true, &filtered_tls_kex)) return 0;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "group_replication_force_pqc", "ON");
+  return 1;
+}
+
+static int validate_group_replication_use_pqc_sign(bool use_pqc_sign) {
+  if (!use_pqc_sign || tls_pqc_sign_supported()) return 0;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "group_replication_use_pqc_sign",
+           "ON");
+  return 1;
+}
+
+static int validate_group_replication_tls_kex(const char *tls_kex,
+                                              bool force_pqc) {
+  std::string filtered_tls_kex;
+  if (!sanitize_tls_kex_list(tls_kex, force_pqc, &filtered_tls_kex)) return 0;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "group_replication_tls_kex",
+           tls_kex ? tls_kex : "");
+  return 1;
+}
+
+static int check_group_replication_force_pqc(MYSQL_THD thd, SYS_VAR *var,
+                                             void *save,
+                                             st_mysql_value *value) {
+  if (check_sysvar_bool(thd, var, save, value)) return 1;
+
+  if (!*static_cast<bool *>(save)) return 0;
+
+  return validate_group_replication_force_pqc_tls_version(
+             ov.recovery_tls_version_var) ||
+         validate_group_replication_force_pqc_tls_kex(ov.tls_kex_var);
+}
+
+static int check_group_replication_use_pqc_sign(MYSQL_THD thd, SYS_VAR *var,
+                                                void *save,
+                                                st_mysql_value *value) {
+  if (check_sysvar_bool(thd, var, save, value)) return 1;
+
+  return validate_group_replication_use_pqc_sign(*static_cast<bool *>(save));
+}
+
+static int check_group_replication_tls_kex(MYSQL_THD thd, SYS_VAR *, void *save,
+                                           st_mysql_value *value) {
+  DBUG_TRACE;
+
+  Checkable_rwlock::Guard g(*lv.plugin_running_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (!plugin_running_lock_is_rdlocked(g)) return 1;
+
+  *static_cast<const char **>(save) = nullptr;
+
+  char buffer[STRING_BUFFER_USUAL_SIZE];
+  int length = sizeof(buffer);
+  const char *tls_kex = value->val_str(value, buffer, &length);
+  if (tls_kex == nullptr) {
+    tls_kex = "";
+    length = 0;
+  }
+
+  tls_kex = thd->strmake(tls_kex, length);
+  if (tls_kex == nullptr) return 1;
+
+  if (validate_group_replication_tls_kex(tls_kex, ov.force_pqc_var)) return 1;
+
+  *static_cast<const char **>(save) = tls_kex;
   return 0;
 }
 
@@ -4667,6 +4808,38 @@ static MYSQL_SYSVAR_STR(
     update_recovery_ssl_option, /* update func*/
     nullptr);                   /* default*/
 
+static MYSQL_SYSVAR_BOOL(
+    force_pqc,        /* name */
+    ov.force_pqc_var, /* var */
+    PLUGIN_VAR_OPCMDARG,
+    "If set to TRUE, require Group Replication recovery and MySQL "
+    "communication stack TLS connections to use a PQC compatible key exchange "
+    "group.",
+    check_group_replication_force_pqc, /* check func */
+    nullptr,                           /* update func */
+    false);                            /* default */
+
+static MYSQL_SYSVAR_BOOL(
+    use_pqc_sign,        /* name */
+    ov.use_pqc_sign_var, /* var */
+    PLUGIN_VAR_OPCMDARG,
+    "If set to FALSE, advertise only classical TLS handshake signature "
+    "algorithms on Group Replication recovery and MySQL communication stack "
+    "TLS connections.",
+    check_group_replication_use_pqc_sign, /* check func */
+    nullptr,                              /* update func */
+    false);                               /* default */
+
+static MYSQL_SYSVAR_STR(
+    tls_kex,        /* name */
+    ov.tls_kex_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
+    "TLS key exchange groups to use for Group Replication recovery and MySQL "
+    "communication stack TLS connections",
+    check_group_replication_tls_kex, /* check func */
+    nullptr,                         /* update func */
+    "");                             /* default */
+
 // Public key path information
 
 static MYSQL_SYSVAR_STR(
@@ -5290,16 +5463,24 @@ static MYSQL_SYSVAR_STR(
     nullptr,                /* update func*/
     "AUTOMATIC");           /* default*/
 
+static void update_communication_stack(MYSQL_THD thd, SYS_VAR *, void *var_ptr,
+                                       const void *save_ptr) {
+  *static_cast<ulong *>(var_ptr) = *static_cast<const long *>(save_ptr);
+
+  push_deprecated_warn_no_replacement(thd,
+                                      "group_replication_communication_stack");
+}
+
 static MYSQL_SYSVAR_ENUM(
     communication_stack,                                   /* name */
     ov.communication_stack_var,                            /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
     "Selects the group replication protocol stack to "
-    "use : Legacy XCom or MySQL.This option only takes effect after a group "
-    "replication restart. Default: XCom",
+    "use : Legacy XCom or MySQL. This option only takes effect after a group "
+    "replication restart. Default: MySQL",
     nullptr,                                 /* check func. */
-    nullptr,                                 /* update func. */
-    XCOM_PROTOCOL,                           /* default */
+    update_communication_stack,              /* update func. */
+    MYSQL_PROTOCOL,                          /* default */
     &ov.communication_stack_values_typelib_t /* type lib */
 );
 
@@ -5416,6 +5597,9 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(clone_threshold),
     MYSQL_SYSVAR(recovery_tls_version),
     MYSQL_SYSVAR(recovery_tls_ciphersuites),
+    MYSQL_SYSVAR(force_pqc),
+    MYSQL_SYSVAR(use_pqc_sign),
+    MYSQL_SYSVAR(tls_kex),
     MYSQL_SYSVAR(advertise_recovery_endpoints),
     MYSQL_SYSVAR(tls_source),
     MYSQL_SYSVAR(view_change_uuid),

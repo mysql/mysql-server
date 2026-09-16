@@ -1,0 +1,13 @@
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (name VARCHAR(64), touched INT DEFAULT 0);
+INSERT INTO xtest.xtable VALUES ('innocent', 0), ('target', 0);
+SET @old_global_sql_mode = @@GLOBAL.sql_mode;
+SET @@GLOBAL.sql_mode = 'NO_BACKSLASH_ESCAPES';
+Attempted predicate injection through CRUD string argument
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+include/assert.inc [CRUD update must touch exactly one row]
+include/assert.inc [CRUD update must touch target row]
+SET @@GLOBAL.sql_mode = @old_global_sql_mode;

@@ -32,6 +32,7 @@ let $slave_sql_errno=1051; # ER_BAD_TABLE_ERROR
 call mtr.add_suppression("Replica SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: MY-001051");
 call mtr.add_suppression("Unknown table .test.t1. Error_code: MY-001051");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 
 -- source include/rpl/wait_for_applier_error.inc
 

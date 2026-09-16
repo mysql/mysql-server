@@ -112,7 +112,6 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule) {
   so we have to call the debug sync functions ourselves.
 */
 static void do_debug_sync(MYSQL_THD thd) {
-  assert(opt_debug_sync_timeout > 0);
   const char act[] = "now signal parked wait_for go";
   assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 }

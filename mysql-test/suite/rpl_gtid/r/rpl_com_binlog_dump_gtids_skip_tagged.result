@@ -3,11 +3,14 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection slave]
+SET @saved_relay_log_purge = @@global.relay_log_purge;
+SET @@global.relay_log_purge = OFF;
+START REPLICA;
 
 # T1.1. On the replica server: Commit transaction with a specified,
 #       tagged GTID (GTID_1)
 
-[connection slave]
 SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
 CREATE TABLE t1 (a INT);
 SET GTID_NEXT='AUTOMATIC';
@@ -37,6 +40,7 @@ include/assert_grep.inc [Observe that transaction with uuid_1 and a tag_1 was re
 
 # Clean-up after T1
 
+SET @@global.relay_log_purge = @saved_relay_log_purge;
 # Removing debug point 'com_binlog_dump_gtids_force_skipping_tagged_gtids' from @@GLOBAL.debug
 DROP TABLE t1;
 include/rpl/deinit.inc

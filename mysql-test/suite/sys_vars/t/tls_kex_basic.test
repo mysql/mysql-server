@@ -1,0 +1,44 @@
+SELECT LENGTH(@@GLOBAL.tls_kex);
+
+SELECT @@tls_kex = @@GLOBAL.tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.tls_kex;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.tls_kex = 'secp256r1';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_kex = 'invalid';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_kex = 'secp256r1:invalid';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_kex = 'X 2 5 5 1 9';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_kex = 'secp256r1::secp384r1';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_kex = 'secp256r1:';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_kex = ':secp256r1';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.tls_kex = ' secp256r1';
+
+SET @tls_kex_saved = @@GLOBAL.tls_kex;
+--echo Duplicate TLS key exchange groups are accepted
+SET @@GLOBAL.tls_kex = 'X25519:secp384r1:secp256r1:secp521r1:secp256r1:secp256r1:secp256r1';
+ALTER INSTANCE RELOAD TLS;
+SET @@GLOBAL.tls_kex = @tls_kex_saved;
+ALTER INSTANCE RELOAD TLS;
+
+SELECT LENGTH(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='tls_kex';

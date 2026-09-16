@@ -1,0 +1,45 @@
+SET @initial_innodb_autoinc_preallocate = @@global.innodb_autoinc_preallocate;
+
+SET @@global.innodb_autoinc_preallocate = 10;
+
+
+SET @types = 'TINYINT|SMALLINT|MEDIUMINT|INT|BIGINT|';
+SET @types = CONCAT(
+  @types,
+  REPLACE(@types,'|',' UNSIGNED|')
+);
+SET @types = CONCAT(
+  @types,
+  REPLACE(@types,'|',' NOT NULL|')
+);
+
+
+let $types_cnt = `
+  SELECT LENGTH(@types) - LENGTH(REPLACE(@types, '|',''))
+`;
+
+--let $t=1
+while($t <= $types_cnt)
+{
+  let type = `
+      SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@types,'|',$t),'|',-1)
+    `;
+  --eval CREATE TABLE t$t (id INT, val $type AUTO_INCREMENT, KEY on_val(val))
+  --eval INSERT INTO t$t (id) VALUES (0)
+  --eval SELECT val FROM t$t
+  --eval SHOW CREATE TABLE t$t
+
+  --inc $t
+}
+
+--source include/kill_and_restart_mysqld.inc
+
+--let $t=1
+while($t <= $types_cnt)
+{
+  --eval SHOW CREATE TABLE t$t
+  --eval INSERT INTO t$t (id) VALUES (0)
+  --eval SELECT val FROM t$t
+  --eval DROP TABLE t$t
+  --inc $t
+}

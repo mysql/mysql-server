@@ -48,5 +48,5 @@ WHERE TABLESPACE_NAME='innodb_system';
 FILE_NAME
 ./ibdata1
 ./ibdata2
-Pattern "\[ERROR\] .* File .*foo: 'open' returned OS error 71. Cannot continue operation" found
+Pattern "\[ERROR\] .* The node 'foo' with expected path of '.*foo' of tablespace innodb_system is missing, but it should exist as it is a part of the tablespace." found
 # restart:

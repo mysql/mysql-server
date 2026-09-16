@@ -16,8 +16,7 @@
 #    SOURCE_AUTO_POSITION=1.
 # 5) Verify that appropriate messages are logged into master's and slave's
 #    error log.
-# 6) Verify that replication succeeds if it tries to connect using CHANGE
-#    REPLICATION SOURCE TO SOURCE_LOG_POS.
+# 6) Verify that replication succeeds if it skips missing transactions
 # 7) Cleanup.
 #
 # ==== References ====
@@ -27,7 +26,6 @@
 
 # This test is binlog format agnostic
 --source include/have_binlog_format_row.inc
---source include/not_rpl_gtid_only.inc
 --source include/have_debug.inc
 --let $rpl_gtid_utils= 1
 
@@ -36,7 +34,7 @@
 --echo #
 --source include/rpl/init_source_replica.inc
 
---let $master_uuid= `SELECT @@SERVER_UUID`
+--let $source_uuid= `SELECT @@SERVER_UUID`
 
 --echo #
 --echo # 2) Create a table on master, sync it, stop the slave threads and dump
@@ -60,17 +58,14 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 --echo #
 INSERT INTO t1 VALUES (1);
 
---let $master_file_old= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $source_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH LOGS;
 
---let $master_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 INSERT INTO t1 VALUES (2);
---save_master_pos
 
 # Remove the binary log manually
---let $MASTER_DATADIR= `select @@datadir`
---remove_file $MASTER_DATADIR/$master_file_old
+--let $SOURCE_DATADIR= `select @@datadir`
+--remove_file $SOURCE_DATADIR/$source_file
 
 --echo #
 --echo # 4) Verify that the slave fails if it tries to connect using CHANGE
@@ -105,14 +100,17 @@ START REPLICA;
 --source include/assert_grep.inc
 
 --echo #
---echo # 6) Verify that replication succeeds if it tries to connect using CHANGE
---echo #    REPLICATION SOURCE TO SOURCE_LOG_POS.
+--echo # 6) Verify that replication succeeds if it skips missing transactions
 --echo #
---replace_result $master_file MASTER_FILE $master_pos MASTER_POS
---eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$master_file', SOURCE_LOG_POS = $master_pos, SOURCE_AUTO_POSITION = 0
+
+--replace_result $source_uuid UUID
+--eval SET GTID_NEXT="$source_uuid:2"
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
 
 --source include/rpl/start_replica.inc
---sync_with_master
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $assert_text= t1 should contain only one row with the value 2
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "1" AND "[SELECT * FROM t1]" = "2"

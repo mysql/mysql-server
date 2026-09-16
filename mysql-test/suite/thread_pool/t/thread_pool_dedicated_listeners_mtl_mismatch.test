@@ -1,0 +1,20 @@
+# If thread_pool_dedicated_listeners is set AND
+# thread_pool_max_transactions_limit is 0, the server should come
+# up without pool of threads plugin loaded, and there should be a warning
+# message in the error log.
+
+--source include/force_restart.inc
+--source ../inc/thread_pool_err.inc
+
+--let $error_pattern= The thread_pool_dedicated_listeners option can only be set to ON if thread_pool_max_transaction_limit > 0
+--source ../inc/wrong_value.inc
+
+--echo # Restart mysqld server with valid options.
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD --thread_pool_dedicated_listeners=ON --thread_pool_max_transactions_limit=16
+--source include/restart_mysqld.inc
+
+# Ensure that plugin is loaded
+--assert(`SELECT @@global.thread_pool_size <> 0`)
+--assert(`SELECT @@global.thread_pool_max_transactions_limit = 16`)
+--assert(`SELECT @@global.thread_pool_dedicated_listeners = 1`)

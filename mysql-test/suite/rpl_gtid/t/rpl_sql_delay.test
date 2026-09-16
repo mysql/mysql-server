@@ -15,6 +15,9 @@
 #
 # WL#7318 Delayed Replication: GTID based and relative to immediate master commit
 
+# CSA does not suport delayed applier
+--source include/have_mta.inc
+
 --let $rpl_skip_start_slave= 1
 --source include/rpl/init_source_replica.inc
 

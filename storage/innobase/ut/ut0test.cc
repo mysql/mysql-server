@@ -92,7 +92,7 @@ void scan_page_type(space_id_t space_id,
   ut_ad(found);
   fil_space_t *space = fil_space_acquire(space_id);
 
-  for (page_no_t page_no = 0; page_no < space->size; ++page_no) {
+  for (page_no_t page_no = 0; page_no < space->m_size_in_pages; ++page_no) {
     const page_id_t page_id(space_id, page_no);
     mtr_start(&mtr);
     buf_block_t *block =
@@ -297,23 +297,20 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   const space_id_t space_id = std::stoul(space_id_str);
   space_id_t page_no = std::stoul(page_no_str);
 
-  /* Calculate the offset here. */
-  bool found;
-  page_size_t page_size = fil_space_get_page_size(space_id, &found);
-  ut_ad(found);
-
   const page_id_t page_id(space_id, page_no);
-
-  /* The buffer into which file page header is read. */
-  alignas(OS_FILE_LOG_BLOCK_SIZE) std::array<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
 
   fil_space_t *space = fil_space_get(space_id);
   ut_ad(space != nullptr);
 
-  const fil_node_t *node = space->get_file_node(&page_no);
-  ut_ad(node->is_open);
+  /* Calculate page size */
+  const auto page_size_in_bytes = page_size_t(space->flags).physical();
 
-  const os_offset_t offset = page_no * page_size.physical();
+  /* The buffer into which file page header is read. */
+  auto buf =
+      ut::make_unique_aligned<byte[]>(page_size_in_bytes, page_size_in_bytes);
+
+  const auto node = space->get_node_for_page_no(page_no);
+  ut_ad(node->is_open());
 
   /* When the space file is currently open we are not able to write to it
   directly on Windows. We must use the currently opened handle. Moreover,
@@ -322,11 +319,12 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   the i/o buffer be aligned to OS block size and also its size divisible by OS
   block size. */
 
-  IORequest read_io_type(IORequest::READ);
-  const dberr_t err = os_file_read(read_io_type, node->name, node->handle,
-                                   buf.data(), offset, OS_FILE_LOG_BLOCK_SIZE);
+  IORequest read_io_type(IORequest::Type::READ);
+  const dberr_t err =
+      node->post_io_sync(read_io_type, buf.get(), page_size_in_bytes, page_no);
+
   if (err != DB_SUCCESS) {
-    page_type_t page_type = fil_page_get_type(buf.data());
+    page_type_t page_type = fil_page_get_type(buf.get());
     TLOG("Could not read page_id=" << page_id << ", page_type=" << page_type
                                    << ", err=" << err);
     /* Since we do not pass encryption information in IORequest, if page is
@@ -337,13 +335,13 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
       /* We expect this only for encrypted pages.  For this function, this error
       is OK because we will only read one header field and the header is not
       encrypted. */
-      ut_ad(Encryption::is_encrypted_page(buf.data()));
+      ut_ad(Encryption::is_encrypted_page(buf.get()));
     } else {
       return RET_FAIL;
     }
   }
 
-  const byte *page = buf.data();
+  const byte *page = buf.get();
   const page_type_t type = fil_page_get_type(page);
   const char *page_type = fil_get_page_type_str(type);
 
@@ -447,40 +445,37 @@ Ret_t Tester::corrupt_ondisk_root_page(
 Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
                                 const size_t prefix_length) {
   TLOG("Tester::clear_page_prefix()");
-  ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> mem;
-  /* We read before write, as writes have to have length divisible by
-  OS_FILE_LOG_BLOCK_SIZE thus we need to learn the content of non-zeroed suffix.
-  Also, it's easier to spot errors during read than write, and this requires
-  reading at least the FIL_PAGE_DATA first bytes */
-  const auto buf_size =
-      ut_uint64_align_up(prefix_length, OS_FILE_LOG_BLOCK_SIZE);
+
+  ut::aligned_array_pointer<byte, UNIV_PAGE_SIZE_MAX> mem;
+  /* For direct IO, we need the buffer to be aligned to UNIV_SECTOR_SIZE, but IO
+  read methods require page-size alignment. We read before write, as writes have
+  to have length divisible by UNIV_SECTOR_SIZE thus we need to learn the content
+  of non-zeroed suffix. Also, it's easier to spot errors during read than write,
+  and this requires reading at least the FIL_PAGE_DATA first bytes. */
+  const auto buf_size = ut_uint64_align_up(prefix_length, UNIV_PAGE_SIZE_DEF);
 
   mem.alloc(ut::Count(buf_size));
   const page_id_t page_id{space_id, page_no};
   fil_space_t *space = fil_space_get(space_id);
+  ut_ad(space != nullptr);
 
   // Note: this call adjusts page_no, so it becomes relative to the node
-  fil_node_t *node = space->get_file_node(&page_no);
-  ut_ad(node->is_open);
+  const auto node = space->get_node_for_page_no(page_no);
+  ut_ad(node->is_open());
 
-  const page_size_t page_size(space->flags);
-  const size_t page_size_bytes = page_size.physical();
-  ut_a(buf_size <= page_size_bytes);
-
-  // Note: we use updated page_no here, as os_aio needs offset relative to node
-  const os_offset_t offset = page_no * page_size_bytes;
+  const size_t page_size_in_bytes = page_size_t(space->flags).physical();
+  ut_a(buf_size <= page_size_in_bytes);
 
   /* When the space file is currently open we are not able to write to it
-  directly on Windows. We must use the currently opened handle. Moreover,
-  on Windows a file opened for the AIO access must be accessed only by AIO
-  methods. The AIO requires the operations to be aligned and with size
-  divisible by OS block size, so we first read block of the first page, to
+  directly on Windows. We must use the currently opened handle, and it may have
+  been opened without buffering, so the operations need to be aligned and with
+  size divisible by OS block size, so we first read block of the first page, to
   corrupt it and write back. */
 
   byte *buf = mem;
-  IORequest read_io_type(IORequest::READ);
-  dberr_t err = os_file_read(read_io_type, node->name, node->handle, buf,
-                             offset, buf_size);
+  IORequest read_io_type(IORequest::Type::READ);
+  dberr_t err = node->post_io_sync(read_io_type, buf, buf_size, page_no);
+
   if (err != DB_SUCCESS) {
     page_type_t page_type = fil_page_get_type(buf);
     TLOG("Could not read page_id=" << page_id << ", page type=" << page_type
@@ -498,9 +493,9 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
   ut_ad(prefix_length <= buf_size);
   memset(buf, 0x00, prefix_length);
 
-  IORequest write_io_type(IORequest::WRITE);
-  err = os_file_write(write_io_type, node->name, node->handle, buf, offset,
-                      buf_size);
+  IORequest write_io_type(IORequest::Type::WRITE);
+  err = node->post_io_sync(write_io_type, buf, buf_size, page_no);
+
   if (err == DB_SUCCESS) {
     TLOG("Successfully zeroed prefix of page_id=" << page_id << ", prefix="
                                                   << prefix_length);
@@ -557,7 +552,7 @@ DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {
     return RET_FAIL;
   }
 
-  if (page_no > space->size) {
+  if (space->m_size_in_pages <= page_no) {
     fil_space_release(space);
     return RET_FAIL;
   }

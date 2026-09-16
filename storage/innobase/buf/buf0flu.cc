@@ -51,11 +51,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0lru.h"
 #include "buf0rea.h"
 #include "fil0fil.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
-#include "log0buf.h"
 #include "log0chkp.h"
-#include "log0write.h"
+#include "log0handler_interface.h"
+#include "log0helpers.h"
 #include "my_compiler.h"
 #include "os0file.h"
 #include "os0thread-create.h"
@@ -63,6 +64,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "trx0purge.h"
 #include "trx0sys.h"
 #include "ut0byte.h"
 #include "ut0math.h"
@@ -85,6 +87,11 @@ static uint buf_flush_lsn_scan_factor = 3;
 /** Target oldest LSN for the requested flush_sync */
 static lsn_t buf_flush_sync_lsn = 0;
 
+/** lsn that indicates there is need to do sync flush operation,
+0 if there is no need to trigger the sync flush by page cleaners.
+Usually this is determined by the log checkpointer periodically */
+std::atomic<lsn_t> requested_sync_flush_lsn{0};
+
 #ifdef UNIV_DEBUG
 /** Get the lsn up to which data pages are to be synchronously flushed.
 @return target lsn for the requested flush_sync */
@@ -101,6 +108,12 @@ os_event_t buf_flush_event;
 
 /** Event to wait for one flushing step */
 os_event_t buf_flush_tick_event;
+
+/** We release latches (including buf_pool->LRU_list_mutex) after scanning this
+many pages of the flush_list when flushing the space or pages watched by a
+FlushObserver. This is to ensure that other threads are not blocked for extended
+period of time when using very large buffer pools. */
+constexpr auto BUF_FLUSH_LIST_SCAN_LIMIT = 1024;
 
 /** State for page cleaner array slot */
 enum page_cleaner_state_t {
@@ -275,13 +288,11 @@ static bool buf_flush_validate_skip(
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 bool buf_are_flush_lists_empty_validate(void) {
-  /* No mutex is acquired. It is used by single-thread
-  in assertions during startup. */
+  /* No mutex is acquired. Result might be stale if there are concurrent threads
+  modifying the flush_list. */
 
   for (size_t i = 0; i < srv_buf_pool_instances; i++) {
-    auto buf_pool = buf_pool_from_array(i);
-
-    if (UT_LIST_GET_FIRST(buf_pool->flush_list) != nullptr) {
+    if (0 < buf_pool_from_array(i)->flush_list.get_length()) {
       return false;
     }
   }
@@ -371,27 +382,54 @@ static inline lsn_t buf_flush_borrow_lsn(const buf_pool_t *buf_pool) {
   return page->get_oldest_lsn();
 }
 
-/** Inserts a modified block into the flush list. */
-void buf_flush_insert_into_flush_list(
-    buf_pool_t *buf_pool, /*!< buffer pool instance */
-    buf_block_t *block,   /*!< in/out: block which is modified */
-    lsn_t lsn)            /*!< in: oldest modification */
-{
+void buf_flush_insert_into_flush_list(buf_pool_t *buf_pool,
+                                      buf_block_t *block) {
   ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
-  ut_ad(log_sys != nullptr);
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+  ut_ad(UT_LIST_GET_FIRST(buf_pool->flush_list) == nullptr ||
+        buf_flush_list_order_validate(
+            UT_LIST_GET_FIRST(buf_pool->flush_list)->get_oldest_lsn(),
+            block->page.get_oldest_lsn()));
+  ut_ad(!block->page.in_flush_list);
+  UT_LIST_ADD_FIRST(buf_pool->flush_list, &block->page);
+  ut_d(block->page.in_flush_list = true);
+
+  incr_flush_list_size_in_bytes(block, buf_pool);
+
+#ifdef UNIV_DEBUG_VALGRIND
+  void *p =
+      block->page.size.is_compressed() ? block->page.zip.data : block->frame;
+  UNIV_MEM_ASSERT_RW(p, block->page.size.physical());
+#endif /* UNIV_DEBUG_VALGRIND */
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+  ut_a(buf_flush_validate_skip(buf_pool));
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+}
+
+void buf_flush_note_oldest_modification(buf_pool_t *buf_pool,
+                                        buf_block_t *block, lsn_t start_lsn) {
+  ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
+  ut_ad(ib::redo::handler != nullptr);
 
   buf_flush_list_mutex_enter(buf_pool);
 
   ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
   ut_ad(!block->page.in_flush_list);
 
-  ut_d(block->page.in_flush_list = true);
-
-  if (lsn == 0) {
+  if (start_lsn == 0) {
     /* This is no-redo dirtied page. Borrow the lsn. */
-    lsn = buf_flush_borrow_lsn(buf_pool);
+    start_lsn = buf_flush_borrow_lsn(buf_pool);
 
-    ut_ad(log_is_data_lsn(lsn));
+    /* In the past the Undo Tablespaces were initialized without redo logging,
+    but in the current implementation we should redo log all non-temporary Undo
+    Tablespaces page modifications, unless the redologging is explicitly turned
+    off - or more specifically is not on, it can be both in DISABLED or
+    ENABLED_RESTRICTED transient state. */
+    ut_ad(!mtr_t::s_logging.is_enabled() ||
+          !undo_truncate::is_reserved(block->page.id.space()));
+
+    ut_ad(log_is_data_lsn(start_lsn));
 
     /* This page could already be no-redo dirtied before,
     and flushed since then. Also the page from which we
@@ -418,38 +456,19 @@ void buf_flush_insert_into_flush_list(
     we read it). */
 
     block->page.set_newest_lsn(
-        std::max(lsn, log_sys->flushed_to_disk_lsn.load()));
+        srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+            ? std::max(start_lsn,
+                       ib::redo::handler->peek_first_nonpersisted_lsn())
+            : start_lsn);
   }
 
-  ut_ad(log_is_data_lsn(lsn));
+  ut_ad(log_is_data_lsn(start_lsn));
   ut_ad(!block->page.is_dirty());
-  ut_ad(block->page.get_newest_lsn() >= lsn);
+  ut_ad(block->page.get_newest_lsn() >= start_lsn);
 
-  ut_ad(UT_LIST_GET_FIRST(buf_pool->flush_list) == nullptr ||
-        buf_flush_list_order_validate(
-            UT_LIST_GET_FIRST(buf_pool->flush_list)->get_oldest_lsn(), lsn));
+  block->page.set_oldest_lsn(start_lsn);
 
-  block->page.set_oldest_lsn(lsn);
-
-  UT_LIST_ADD_FIRST(buf_pool->flush_list, &block->page);
-
-  incr_flush_list_size_in_bytes(block, buf_pool);
-
-#ifdef UNIV_DEBUG_VALGRIND
-  void *p;
-
-  if (block->page.size.is_compressed()) {
-    p = block->page.zip.data;
-  } else {
-    p = block->frame;
-  }
-
-  UNIV_MEM_ASSERT_RW(p, block->page.size.physical());
-#endif /* UNIV_DEBUG_VALGRIND */
-
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-  ut_a(buf_flush_validate_skip(buf_pool));
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+  pages_persistence->page_became_dirty(block);
 
   buf_flush_list_mutex_exit(buf_pool);
 }
@@ -955,17 +974,22 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
   if (!srv_read_only_mode) {
     const lsn_t flush_to_lsn = bpage->get_newest_lsn();
 
-    /* Do the check before calling log_write_up_to() because in most
+    /* Do the check before calling persist_smaller_than() because in most
     cases it would allow to avoid call, and because of that we don't
     want those calls because they would have bad impact on the counter
-    of calls, which is monitored to save CPU on spinning in log threads. */
+    of calls, which is monitored to save CPU on spinning in log threads.
 
-    if (log_sys->flushed_to_disk_lsn.load() < flush_to_lsn) {
-      Wait_stats wait_stats;
-
-      wait_stats = log_write_up_to(*log_sys, flush_to_lsn, true);
-
-      MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+    The peek_first_nonpersisted_lsn() and persist_smaller_than() shouldn't be
+    called before start_writing(). See comment in log_write_up_to() for more
+    explanation why we can skip the call when recv_recovery_is_on() == true. */
+    if (!recv_recovery_is_on() &&
+        ib::redo::handler->peek_first_nonpersisted_lsn() < flush_to_lsn) {
+      ib::redo::must_succeed(
+          ib::redo::handler->persist_smaller_than(
+              flush_to_lsn,
+              ib::redo::Handler_interface::Durability::FULLY_PERSISTED,
+              ib::redo::Handler_interface::Origin::PAGE_FLUSHING),
+          UT_LOCATION_HERE);
     }
   }
 
@@ -2025,6 +2049,13 @@ ulint sum_pages = 0;
 @param[in]      n_pages_last    number of pages flushed in last iteration
 @return true if current iteration should be skipped. */
 bool initialize(ulint n_pages_last) {
+  /* If an implementation doesn't add dirty pages to the flush_list to write
+  them to the disk but it evicts the pages from LRU then it may not initialize
+  the buf_flush_list_added link buffer. In other words, this implementation
+  does not need the adaptive flush as well so do not initialize it. */
+  if (!buf_flush_list_added) {
+    return false;
+  }
   lsn_t curr_lsn = buf_flush_list_added->smallest_not_added_lsn();
   const auto curr_time = std::chrono::steady_clock::now();
 
@@ -2203,14 +2234,11 @@ ulint get_pct_for_dirty() {
  @return percent of io_capacity to flush to manage redo space */
 ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 {
-  ut_a(log_sys != nullptr);
-  log_t &log = *log_sys;
-
   lsn_t limit_for_free_check;
   lsn_t limit_for_dirty_page_age;
 
-  log_files_capacity_get_limits(log, limit_for_free_check,
-                                limit_for_dirty_page_age);
+  ut_a(log_checkpointing != nullptr);
+  log_checkpointing->get_limits(limit_for_free_check, limit_for_dirty_page_age);
 
   double lsn_age_factor;
   lsn_t af_lwm = (srv_adaptive_flushing_lwm * limit_for_free_check) / 100;
@@ -2246,7 +2274,7 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 @return number of pages requested to flush */
 ulint set_flush_target_by_lsn(bool sync_flush, lsn_t sync_flush_limit_lsn) {
   lsn_t oldest_lsn = buf_pool_get_oldest_modification_approx();
-  ut_ad(oldest_lsn <= log_get_lsn(*log_sys));
+  ut_ad(oldest_lsn <= ib::redo::handler->peek_first_unassigned_lsn());
 
   lsn_t age = cur_iter_lsn > oldest_lsn ? cur_iter_lsn - oldest_lsn : 0;
 
@@ -2870,8 +2898,6 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *, SYS_VAR *, void *,
 }
 #endif /* UNIV_DEBUG */
 
-/** Thread tasked with flushing dirty pages from the buffer pools.
-As of now we'll have only one coordinator. */
 static void buf_flush_page_coordinator_thread() {
   auto loop_start_time = std::chrono::steady_clock::now();
   ulint n_flushed = 0;
@@ -3032,7 +3058,7 @@ static void buf_flush_page_coordinator_thread() {
     lsn_t lsn_limit;
     if (srv_flush_sync && !srv_read_only_mode) {
       /* lsn_limit!=0 means there are requests. needs to check the lsn. */
-      lsn_limit = log_sync_flush_lsn(*log_sys);
+      lsn_limit = requested_sync_flush_lsn.load();
       if (lsn_limit != 0) {
         /* Avoid aggressive sync flush beyond limit when redo is disabled. */
         if (mtr_t::s_logging.is_enabled()) {
@@ -3052,10 +3078,10 @@ static void buf_flush_page_coordinator_thread() {
         ret_sleep == OS_SYNC_TIME_EXCEEDED) {
       /* For smooth page flushing along with WAL,
       flushes log as much as possible. */
-      log_sys->recent_written.advance_tail();
-      auto wait_stats = log_write_up_to(
-          *log_sys, log_buffer_ready_for_write_lsn(*log_sys), true);
-      MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+      ib::redo::must_succeed(
+          ib::redo::handler->persist_available(
+              ib::redo::Handler_interface::Origin::PAGE_FLUSHING),
+          UT_LOCATION_HERE);
     }
 
     if (is_sync_flush || is_server_active) {
@@ -3275,10 +3301,12 @@ static void buf_flush_page_coordinator_thread() {
 
   /* Mark that it is safe to recover as we have already flushed all dirty
   pages in buffer pools. */
-  if (mtr_t::s_logging.is_disabled() && !srv_read_only_mode) {
-    log_persist_crash_safe(*log_sys);
+  if (ib::redo::handler->get_capabilities().supports_disabling) {
+    if (mtr_t::s_logging.is_disabled() && !srv_read_only_mode) {
+      log_persist_crash_safe(*log_sys);
+    }
+    log_crash_safe_validate(*log_sys);
   }
-  log_crash_safe_validate(*log_sys);
 
   /* We have lived our life. Time to die. */
 
@@ -3424,67 +3452,577 @@ bool buf_flush_validate(buf_pool_t *buf_pool) {
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-/** Check if there are any dirty pages that belong to a space id in the flush
- list in a particular buffer pool.
- @return number of dirty pages present in a single buffer pool */
-ulint buf_pool_get_dirty_pages_count(
-    buf_pool_t *buf_pool,     /*!< in: buffer pool */
-    space_id_t id,            /*!< in: space id to check */
-    Flush_observer *observer) /*!< in: flush observer to check */
-
-{
-  ulint count = 0;
+/** Counts how many dirty pages that belong to a specified flush observer are in
+ a specified BufferPool instance.
+ @param[in] buf_pool BufferPool instance to check dirty pages in.
+ @param[in] observer The observer instance to count dirty pages for.
+ @param[in] abort_when_interrupted When true, the counting will be aborted when
+                                   the observer's transaction gets interrupted.
+ @return number of dirty pages present in a single BufferPool instance, or
+ garbage if @p abort_when_interrupted was specified and the observer's
+ transaction was interrupted. */
+[[nodiscard]] static size_t buf_flush_get_dirty_pages_count(
+    buf_pool_t *buf_pool, Flush_observer *observer,
+    bool abort_when_interrupted) {
+  size_t count = 0;
+  size_t processed = 0;
 
   buf_flush_list_mutex_enter(buf_pool);
 
   for (auto bpage : buf_pool->flush_list) {
+    if (abort_when_interrupted && processed % (1ul << 9) == 0 &&
+        observer->check_interrupted()) {
+      break;
+    }
     ut_ad(buf_page_in_file(bpage) ||
           buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
     ut_ad(bpage->in_flush_list);
     ut_ad(bpage->is_dirty());
 
-    if ((observer != nullptr && observer == bpage->get_flush_observer()) ||
-        (observer == nullptr && id == bpage->id.space())) {
+    if (observer == bpage->get_flush_observer()) {
       ++count;
     }
+    processed++;
   }
 
   buf_flush_list_mutex_exit(buf_pool);
 
-  return (count);
+  return count;
 }
 
-/** Check if there are any dirty pages that belong to a space id in the flush
- list.
- @return number of dirty pages present in all the buffer pools */
-static ulint buf_flush_get_dirty_pages_count(
-    space_id_t id,            /*!< in: space id to check */
-    Flush_observer *observer) /*!< in: flush observer to check */
-{
-  ulint count = 0;
+/** Counts how many dirty pages that belong to a specified flush observer are in
+ BufferPool.
+ @param[in] observer The observer instance to count dirty pages for.
+ @param[in] abort_when_interrupted When true, the counting will be aborted when
+                                   the observer's transaction gets interrupted.
+ @return number of dirty pages present in all the BufferPools, or garbage if @p
+ abort_when_interrupted was specified and the observer's transaction was
+ interrupted. the observer's transaction was interrupted. */
+[[nodiscard]] static size_t buf_flush_get_dirty_pages_count(
+    Flush_observer *observer, bool abort_when_interrupted) {
+  size_t count = 0;
 
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-    buf_pool_t *buf_pool;
-
-    buf_pool = buf_pool_from_array(i);
-
-    count += buf_pool_get_dirty_pages_count(buf_pool, id, observer);
+    count += buf_flush_get_dirty_pages_count(buf_pool_from_array(i), observer,
+                                             abort_when_interrupted);
   }
 
-  return (count);
+  return count;
 }
 
-Flush_observer::Flush_observer(space_id_t space_id, trx_t *trx,
-                               Alter_stage *stage) noexcept
-    : m_space_id(space_id),
-      m_trx(trx),
+#ifdef UNIV_DEBUG
+size_t buf_flush_get_dirty_pages_count_for_space(space_id_t space_id) {
+  size_t count = 0;
+
+  for (auto i = 0u; i < srv_buf_pool_instances; ++i) {
+    const auto buf_pool = buf_pool_from_array(i);
+
+    buf_flush_list_mutex_enter(buf_pool);
+
+    for (auto bpage : buf_pool->flush_list) {
+      ut_ad(buf_page_in_file(bpage) ||
+            buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
+      ut_ad(bpage->in_flush_list);
+      ut_ad(bpage->is_dirty());
+
+      if (space_id == bpage->id.space()) {
+        ++count;
+      }
+    }
+
+    buf_flush_list_mutex_exit(buf_pool);
+  }
+
+  return count;
+}
+#endif /* UNIV_DEBUG */
+
+/** Check if a dirty page should be flushed or removed based on space ID and
+flush observer.
+@param[in]  page        dirty page in flush list
+@param[in]  observer    Flush observer
+@param[in]  space       Space ID
+@return true, if page should considered for flush or removal. */
+[[nodiscard]] static inline bool buf_flush_check_page_flush_condition(
+    buf_page_t *page, const Flush_observer *observer, space_id_t space) {
+  ut_a_ne(space != SPACE_UNKNOWN, observer != nullptr);
+  /* If no flush observer then compare space ID. */
+  if (observer == nullptr) {
+    return (space == page->id.space());
+  }
+  /* Otherwise, match the flush observer pointer. */
+  return (observer == page->get_flush_observer());
+}
+
+/** Try to pin the block in buffer pool. Once pinned, the block cannot be moved
+within flush list or removed. The dirty page can be flushed when we release the
+flush list mutex. We return without pinning in that case.
+@param[in,out]  buf_pool  buffer pool instance
+@param[in,out]  bpage     page to remove
+@return true if page could be pinned successfully. */
+static bool buf_flush_page_try_pin(buf_pool_t *buf_pool, buf_page_t *bpage) {
+  /* Allow pin/unpin with NULL. */
+  if (bpage == nullptr) {
+    return true;
+  }
+
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+  ut_ad(bpage->in_flush_list);
+
+  /* To take care of the ABA problem that the block get flushed and
+  re-inserted into flush list, we can check the oldest LSN. It is
+  safe to access oldest LSN with flush list mutex protection as it
+  is set and reset while adding and removing from flush list. */
+  auto saved_oldest_lsn = bpage->get_oldest_lsn();
+
+  buf_flush_list_mutex_exit(buf_pool);
+
+  /* The LRU list mutex ensures that the page descriptor cannot be freed
+  for both compressed and uncompressed page. */
+  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+  mutex_enter(block_mutex);
+
+  bool pinned = false;
+
+  /* Recheck the I/O fix and the flush list presence now that we
+  hold the right mutex */
+  if (buf_page_get_io_fix(bpage) == BUF_IO_NONE && bpage->is_dirty() &&
+      saved_oldest_lsn == bpage->get_oldest_lsn()) {
+    /* "Fix" the block so that the position cannot be
+    changed after we release the buffer pool and
+    block mutexes. */
+    buf_page_set_sticky(bpage);
+    pinned = true;
+    ut_ad(bpage->in_flush_list);
+  }
+
+  mutex_exit(block_mutex);
+  buf_flush_list_mutex_enter(buf_pool);
+
+  return pinned;
+}
+
+/** Unpin the block in buffer pool. Ensure that the dirty page cannot be
+flushed even though we need to release the flush list mutex momentarily.
+@param[in,out]  buf_pool  buffer pool instance
+@param[in,out]  bpage     page to remove */
+static void buf_flush_page_unpin(buf_pool_t *buf_pool, buf_page_t *bpage) {
+  /* Allow pin/unpin with NULL. */
+  if (bpage == nullptr) {
+    return;
+  }
+
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+
+  buf_flush_list_mutex_exit(buf_pool);
+
+  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+  mutex_enter(block_mutex);
+
+  /* "Unfix" the block now that we have both the LRU list and block mutexes. */
+  buf_page_unset_sticky(bpage);
+
+  buf_flush_list_mutex_enter(buf_pool);
+
+  /* Release block mutex only after re-acquiring the flush list mutex to
+  avoid any window where the page could have been flushed concurrently. The
+  block mutex must be acquired before flushing a page. */
+  mutex_exit(block_mutex);
+}
+
+/** If we have hogged the resources for too long then release the LRU list and
+flush list mutexes and do a thread yield. Set the current page to "sticky" so
+that it is not relocated during the yield. If I/O is started before sticky BIT
+could be set, we skip yielding. The caller should restart the scan.
+@param[in,out]  buf_pool        buffer pool instance
+@param[in,out]  bpage           page to remove
+@param[in]      processed       number of pages processed
+@param[out]     restart         if caller needs to restart scan
+@return true if yielded. */
+[[nodiscard]] static bool buf_flush_scan_try_yield(buf_pool_t *buf_pool,
+                                                   buf_page_t *bpage,
+                                                   size_t processed,
+                                                   bool &restart) {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+
+  restart = false;
+
+  /* Every BUF_FLUSH_LIST_SCAN_LIMIT iterations in the loop we release
+  buf_pool->LRU_list_mutex to let other threads do their job but only if the
+  block is not IO fixed. This ensures that the block stays in its position in
+  the flush_list. We read io_fix without block_mutex, because we will recheck
+  with block_mutex. */
+  if (bpage != nullptr && processed >= BUF_FLUSH_LIST_SCAN_LIMIT &&
+      bpage->was_io_fix_none()) {
+    if (!buf_flush_page_try_pin(buf_pool, bpage)) {
+      restart = true;
+      return false;
+    }
+
+    ut_ad(bpage->in_flush_list);
+    ut_d(auto oldest_lsn = bpage->get_oldest_lsn());
+
+    /* Now it is safe to release the LRU list mutex. */
+    buf_flush_list_mutex_exit(buf_pool);
+    mutex_exit(&buf_pool->LRU_list_mutex);
+
+    /* Try and force a context switch. */
+    std::this_thread::yield();
+
+    mutex_enter(&buf_pool->LRU_list_mutex);
+    buf_flush_list_mutex_enter(buf_pool);
+
+    buf_flush_page_unpin(buf_pool, bpage);
+
+    /* Should not have been removed from the flush list during the yield. */
+    ut_ad(bpage->in_flush_list);
+
+    /* The oldest LSN change would mean the page is removed and inserted back.
+    This ABA issue is handled during pinning and should not be the case. */
+    ut_ad(oldest_lsn == bpage->get_oldest_lsn());
+
+    return true;
+  }
+  return false;
+}
+
+/** Flushes a single page inside a buffer pool instance.
+@param[in,out]  buf_pool  buffer pool instance
+@param[in,out]  bpage     page to flush
+@return true if page was flushed. */
+[[nodiscard]] static bool buf_flush_page_during_flush_list_scan(
+    buf_pool_t *buf_pool, buf_page_t *bpage) {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+
+  if (bpage->was_io_fixed()) {
+    return false;
+  }
+
+  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+
+  /* We don't have to worry about bpage becoming a dangling pointer by a
+  compressed page flush list relocation because we hold LRU mutex. */
+  buf_flush_list_mutex_exit(buf_pool);
+
+  mutex_enter(block_mutex);
+  bool flushed = false;
+
+  if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
+    /* We trigger single page flush and async IO. However, if double write is
+    used, dblwr::write() forces all single page flush to sync IO.
+    1. It makes the function behaviour change from sync to async for temp
+       tablespaces and if redo is disabled. The caller must not assume
+       the page is flushed when we return flushed = T.
+    2. For bulk flush async trigger could be better for performance and seems
+       to be the case in 5.7. Need to validate if 8.0 forcing sync flush
+       is intentional - No functional impact. */
+    flushed = buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
+  }
+
+  if (flushed) {
+    /* During flush, we have already released the LRU list and block mutexes.
+    Wake up possible simulated aio thread to actually post the writes to the
+    operating system */
+    os_aio_simulated_wake_handler_threads();
+    mutex_enter(&buf_pool->LRU_list_mutex);
+  } else {
+    mutex_exit(block_mutex);
+  }
+
+  buf_flush_list_mutex_enter(buf_pool);
+
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  return flushed;
+}
+
+/** Flushes all dirty pages inside a specified buffer pool instance belonging to
+a given tablespace or belonging to the specified flush observer. This will
+handle all pages that were dirty before this call - in case there are more pages
+made dirty during the call, they may get not flushed. Exactly one of @p id and
+@p observer can be specified valid. If a transaction is specified, its flush
+observer must be the same as specified in the @p observer and it will be used to
+check if the transaction was interrupted, and in such case all not yet processed
+dirty pages will be left in the flush list.
+@param[in]  buf_pool    BufferPool instance
+@param[in]  id          Tablespace ID to flush pages from or SPACE_UNKNOWN iff
+                        the @p observer is not nullptr.
+@param[in]  observer    Pointer to a FlushObserver to identify specific pages
+                        or nullptr.
+@param[in]  trx         Pointer to a transaction to check if the operation was
+                        interrupted or nullptr if such checks should not be
+                        performed.
+@retval DB_SUCCESS if all pages were flushed
+@retval DB_FAIL if not all pages were flushed
+@retval DB_INTERRUPTED if the transaction was interrupted */
+[[nodiscard]] static dberr_t buf_flush_pages_from_flush_list(
+    buf_pool_t *buf_pool, space_id_t id, Flush_observer *observer,
+    const trx_t *trx) {
+  ut_a_ne(id != SPACE_UNKNOWN, observer != nullptr);
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  buf_flush_list_mutex_enter(buf_pool);
+
+  buf_page_t *prev = nullptr;
+  size_t processed = 0;
+
+  dberr_t error = DB_SUCCESS;
+
+  for (buf_page_t *bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+       bpage != nullptr; bpage = prev) {
+    ut_a(buf_page_in_file(bpage));
+
+    /* Save the previous page before flushing the current one. */
+    prev = UT_LIST_GET_PREV(list, bpage);
+
+    if (buf_flush_check_page_flush_condition(bpage, observer, id)) {
+      /* Try to PIN the previous page before flushing. This would let us
+      continue the current iteration after flush. */
+      bool pinned = buf_flush_page_try_pin(buf_pool, prev);
+
+      /* Try to flush the current page even if pin failed. */
+      (void)buf_flush_page_during_flush_list_scan(buf_pool, bpage);
+
+      /* Currently we come back and re-check once flush is triggered. If the
+      flush is unsuccessful we need to rescan too. So, we set the error for
+      rescan unconditionally here. The iteration can continue if PIN was
+      successful. */
+      error = DB_FAIL;
+
+      if (!pinned) {
+        /* We should not trust prev pointer as PIN was unsuccessful. */
+        break;
+      }
+
+      buf_flush_page_unpin(buf_pool, prev);
+    }
+
+    ++processed;
+
+    /* Yield if we have hogged the CPU and mutexes for too long. */
+    bool restart = false;
+    if (buf_flush_scan_try_yield(buf_pool, prev, processed, restart)) {
+      ut_ad(!restart);
+      /* Reset the batch size counter if we had to yield. */
+      processed = 0;
+    }
+
+    if (restart) {
+      /* The previous page is already flushed or being flushed. We need at least
+      another iteration. Current iteration can continue. */
+      error = DB_FAIL;
+    }
+
+    /* The check for trx is interrupted is expensive, we want to check every
+    N iterations. */
+    if (processed == 0 && trx && trx_is_interrupted(trx)) {
+      if (observer != nullptr) {
+        observer->interrupted();
+      }
+      error = DB_INTERRUPTED;
+      break;
+    }
+  }
+
+  buf_flush_list_mutex_exit(buf_pool);
+  return error;
+}
+
+/** Attempts to remove a single page from flush list. It is fine to
+skip flush if the page flush is already in progress. The page is kept dirty.
+@param[in,out]  buf_pool  buffer pool instance
+@param[in,out]  bpage     page to remove
+@return true if page could be removed successfully. */
+[[nodiscard]] static bool buf_flush_remove_page_from_flush_list(
+    buf_pool_t *buf_pool, buf_page_t *bpage) {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+
+  /* It is safe to check bpage->space and bpage->io_fix while holding
+  buf_pool->LRU_list_mutex only. We will repeat the check of io_fix
+  under block_mutex later, this is just an optimization to avoid the
+  mutex acquisition if its likely io_fix is not NONE. */
+  if (bpage->was_io_fixed()) {
+    /* We cannot remove this page during this scan. */
+    return false;
+  }
+  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+
+  /* We don't have to worry about bpage becoming a dangling pointer by a
+  compressed page flush list relocation because we hold LRU mutex. */
+  buf_flush_list_mutex_exit(buf_pool);
+  mutex_enter(block_mutex);
+
+  bool removed = false;
+  /* Recheck the page I/O fix and the flush list presence now that we hold
+  the right mutex. */
+  if (buf_page_get_io_fix(bpage) == BUF_IO_NONE && bpage->is_dirty()) {
+    buf_flush_remove(bpage);
+    removed = true;
+  }
+
+  mutex_exit(block_mutex);
+  buf_flush_list_mutex_enter(buf_pool);
+
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  return removed;
+}
+
+/** Remove all dirty pages inside a specified buffer pool instance belonging to
+a given tablespace or belonging to the specified flush observer from the flush
+list, keeping the pages dirty. This will handle all pages that were dirty before
+this call - in case there are more pages made dirty during the call, they may
+get not removed. Exactly one of @p id and @p observer can be specified valid.
+@param[in]  buf_pool    BufferPool instance
+@param[in]  id          Tablespace ID to flush pages from or SPACE_UNKNOWN iff
+                        the @p observer is not nullptr.
+@param[in]  observer    Pointer to a FlushObserver to identify specific pages
+                        or nullptr.
+@retval DB_SUCCESS if all removed
+@retval DB_FAIL if not all removed and caller should call function again. */
+[[nodiscard]] static dberr_t buf_flush_remove_pages_from_flush_list(
+    buf_pool_t *buf_pool, space_id_t id, Flush_observer *observer) {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  buf_flush_list_mutex_enter(buf_pool);
+
+  buf_page_t *prev = nullptr;
+  size_t processed = 0;
+  dberr_t error = DB_SUCCESS;
+
+  for (buf_page_t *bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+       bpage != nullptr; bpage = prev) {
+    ut_a(buf_page_in_file(bpage));
+
+    /* Save the previous page before freeing the current one. */
+    prev = UT_LIST_GET_PREV(list, bpage);
+
+    if (buf_flush_check_page_flush_condition(bpage, observer, id)) {
+      /* Try to PIN the previous page before removing. This would let us
+      continue the current iteration after removal. */
+      bool pinned = buf_flush_page_try_pin(buf_pool, prev);
+
+      /* Try to remove the current page even if pin failed. */
+      bool removed = buf_flush_remove_page_from_flush_list(buf_pool, bpage);
+
+      if (!pinned) {
+        /* We should not trust prev pointer as PIN was unsuccessful. */
+        error = DB_FAIL;
+        break;
+      }
+
+      if (!removed) {
+        /* Currently we come back and re-check. The iteration can continue.
+        In future, it is also possible to wait for the concurrent IO to complete
+        to avoid re-scanning. */
+        error = DB_FAIL;
+      }
+
+      buf_flush_page_unpin(buf_pool, prev);
+    }
+
+    ++processed;
+
+    /* Yield if we have hogged the CPU and mutexes for too long. */
+    bool restart = false;
+    if (buf_flush_scan_try_yield(buf_pool, prev, processed, restart)) {
+      ut_ad(!restart);
+      /* Reset the batch size counter if we had to yield. */
+      processed = 0;
+    }
+
+    if (restart) {
+      /* The previous page is already flushed or being flushed. We need at least
+      another iteration. Current iteration can continue. */
+      error = DB_FAIL;
+    }
+  }
+
+  buf_flush_list_mutex_exit(buf_pool);
+  return error;
+}
+
+/** Flushes all dirty pages inside a specified buffer pool instance belonging to
+a given tablespace or belonging to the specified flush observer. This will
+handle all pages that were dirty before this call - in case there are more pages
+made dirty during the call, they may get not flushed. Exactly one of @p id and
+@p observer can be specified valid. If a transaction is specified, its flush
+observer must be the same as specified in the @p observer and it will be used to
+check if the transaction was interrupted, and in such case:
+- if @p observer is not nullptr, the dirty pages are removed from the flush
+list. The pages still remain dirty and a part of LRU and are evicted from the
+list as they age towards the tail of the LRU.
+- otherwise all not yet processed dirty pages will be left in the flush list.
+@param[in]  buf_pool    BufferPool instance
+@param[in]  id          Tablespace ID to flush pages from or SPACE_UNKNOWN iff
+                        the @p observer is not nullptr.
+@param[in]  observer    Pointer to a FlushObserver to identify specific pages
+                        or nullptr.
+@param[in]  trx         Pointer to a transaction to check if the operation was
+                        interrupted or nullptr if such checks should not be
+                        performed. */
+static void buf_flush_pages(buf_pool_t *buf_pool, space_id_t id,
+                            Flush_observer *observer, const trx_t *trx) {
+  dberr_t err;
+  bool flush = true;
+
+  ut_a_ne(id != SPACE_UNKNOWN, observer != nullptr);
+
+  do {
+    /* The LRU mutex is needed in case a page is about to be flushed, as we are
+    releasing the flush_list mutex and need the block to flush to be pinned. */
+    mutex_enter(&buf_pool->LRU_list_mutex);
+
+    if (flush) {
+      err = buf_flush_pages_from_flush_list(buf_pool, id, observer, trx);
+
+    } else {
+      err = buf_flush_remove_pages_from_flush_list(buf_pool, id, observer);
+    }
+
+    mutex_exit(&buf_pool->LRU_list_mutex);
+
+    ut_ad(buf_flush_validate(buf_pool));
+
+    if (err == DB_FAIL) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+
+    if (err == DB_INTERRUPTED && observer != nullptr) {
+      ut_a(flush);
+
+      flush = false;
+      err = DB_FAIL;
+    }
+
+    /* DB_FAIL is a soft error, it means that the task wasn't
+    completed, needs to be retried. */
+
+    ut_ad(buf_flush_validate(buf_pool));
+
+  } while (err == DB_FAIL);
+}
+
+void buf_flush_pages(space_id_t id, Flush_observer *observer,
+                     const trx_t *trx) {
+  ut_a_ne(id != SPACE_UNKNOWN, observer != nullptr);
+  for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+    buf_flush_pages(buf_pool_from_array(i), id, observer, trx);
+  }
+}
+
+Flush_observer::Flush_observer(const trx_t &trx, Alter_stage *stage) noexcept
+    : m_trx(trx),
       m_stage(stage),
       m_flushed(srv_buf_pool_instances),
       m_removed(srv_buf_pool_instances) {
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
   ib::info(ER_IB_MSG_130) << "Flush_observer : ID= " << (void *)this
-                          << ", space_id=" << space_id << ", trx_id="
-                          << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
+                          << ", trx_id=" << trx.id;
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     m_flushed[i] = 0;
@@ -3495,23 +4033,20 @@ Flush_observer::Flush_observer(space_id_t space_id, trx_t *trx,
 
 Flush_observer::~Flush_observer() noexcept {
   ut_a(m_n_ref_count.fetch_add(0, std::memory_order_relaxed) == 0);
-  ut_ad(buf_flush_get_dirty_pages_count(m_space_id, this) == 0);
+  ut_ad_eq(buf_flush_get_dirty_pages_count(this, false), 0);
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
   ib::info(ER_IB_MSG_131) << "~Flush_observer : ID= " << (void *)this
-                          << ", space_id=" << m_space_id << ", trx_id="
-                          << (m_trx == nullptr ? TRX_ID_MAX : m_trx->id);
+                          << ", trx_id=" << m_trx.id;
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
 bool Flush_observer::check_interrupted() {
-  if (m_trx != nullptr && trx_is_interrupted(m_trx)) {
+  if (!m_interrupted && trx_is_interrupted(&m_trx)) {
     interrupted();
-
-    return true;
   }
 
-  return false;
+  return m_interrupted;
 }
 
 void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *) {
@@ -3531,22 +4066,21 @@ void Flush_observer::notify_remove(buf_pool_t *buf_pool, buf_page_t *) {
 }
 
 void Flush_observer::flush() {
-  buf_remove_t buf_remove;
   ut_ad(validate());
 
-  if (m_interrupted) {
-    buf_remove = BUF_REMOVE_FLUSH_NO_WRITE;
-  } else {
-    buf_remove = BUF_REMOVE_FLUSH_WRITE;
-
-    if (m_stage != nullptr) {
-      auto pages_to_flush = buf_flush_get_dirty_pages_count(m_space_id, this);
+  /* The transaction may be killed during the dirty page count, and the count
+  will be not consistent, we need to check if it was interrupted after the count
+  and use it only if not interrupted. */
+  if (m_stage != nullptr) {
+    const auto pages_to_flush = buf_flush_get_dirty_pages_count(this, true);
+    if (!this->check_interrupted()) {
       m_stage->begin_phase_flush(pages_to_flush);
     }
   }
 
-  /* Flush or remove dirty pages. */
-  buf_LRU_flush_or_remove_pages(m_space_id, buf_remove, m_trx);
+  /* Flush dirty pages watched by this observer or just remove the observer if
+  the transaction was interrupted. */
+  pages_persistence->persist_tablespaces(this);
 
   /* Wait for all dirty pages were flushed. */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -3563,6 +4097,13 @@ void Flush_observer::flush() {
 #endif /* UNIV_DEBUG */
     }
   }
+  /* Here we could check if there are no dirty pages assigned to this observer,
+  but it fails in scenarios of multiple threads running during a DDL that are
+  part of a single transaction and thus are using a single instance of the
+  `Flush_observer`. One of the threads may issue `flush`, while others are still
+  adding dirty pages. The transaction object can have a single Flush_observer
+  instance assigned at the moment, so it is not enough to create new instances
+  for each of the DDL worker threads. */
 }
 
 #ifdef UNIV_DEBUG
@@ -3603,10 +4144,6 @@ void Buf_flush_list_added_lsns::assume_added_up_to(lsn_t start_lsn) {
   }
 }
 
-void Buf_flush_list_added_lsns::validate_not_added(lsn_t begin, lsn_t end) {
-  m_buf_added_lsns.validate_no_links(begin, end);
-}
-
 void Buf_flush_list_added_lsns::report_added(lsn_t oldest_modification,
                                              lsn_t newest_modification) {
   m_buf_added_lsns.add_link_advance_tail(oldest_modification,
@@ -3639,6 +4176,7 @@ void Buf_flush_list_added_lsns::wait_to_add(lsn_t oldest_modification) {
     MONITOR_INC_VALUE(MONITOR_LOG_ON_RECENT_CLOSED_WAIT_LOOPS, wait_loops);
   }
 }
+
 #else
 
 bool buf_flush_page_cleaner_is_active() { return (false); }

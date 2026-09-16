@@ -42,7 +42,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0thread-create.h"
 #include "pars0pars.h"
 #include "que0que.h"
-#include "read0read.h"
 #include "row0mysql.h"
 #include "row0undo.h"
 #include "sql_thd_internal_api.h"
@@ -147,7 +146,7 @@ dberr_t trx_rollback_to_savepoint(
 {
   ut_ad(!trx_mutex_own(trx));
 
-  trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   trx_rollback_to_savepoint_low(trx, savept);
 
@@ -500,7 +499,7 @@ dberr_t trx_savepoint_for_mysql(
 {
   trx_named_savept_t *savep;
 
-  trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
   savep = trx_savepoint_find(trx, savepoint_name);
 
@@ -1002,6 +1001,14 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
 
   trx->undo_no = undo_no;
   trx->undo_rseg_space = undo->rseg->space_id;
+  /* When doing a partial rollback, some of the pages might get freed, and if
+  the transaction then does some more modifications and needs a new page we
+  have to make sure not to link to one of those freed pages. We simply reset
+  the info completely, which is suboptimal, but correct: if 0 ends up written
+  to FIL_PAGE_PREV it will cause a fallback to follow the usual links. If it
+  is updated by the time it is written to FIL_PAGE_PREV, then it will have the
+  correct value. */
+  trx->undo_page_with_last_new_table_mod = {};
 
   undo_rec_copy =
       trx_undo_rec_copy(undo_page, static_cast<uint32_t>(undo_offset), heap);

@@ -6,6 +6,7 @@
 #
 
 --source include/have_debug.inc
+--source include/have_innodb_min_16k.inc
 
 # Table with a big primary key. This allows to fill undo log faster.
 create table t2 (id int auto_increment, txt1 char(150), txt2 char(150), txt3 char(150), txt4 char(150), primary key(id, txt1, txt2, txt3, txt4));

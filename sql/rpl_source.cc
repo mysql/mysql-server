@@ -84,6 +84,42 @@ bool opt_sporadic_binlog_dump_fail = false;
 malloc_unordered_map<uint32, unique_ptr_my_free<REPLICA_INFO>> slave_list{
     key_memory_REPLICA_INFO};
 
+#ifndef NDEBUG
+static std::unique_ptr<uchar[]> build_debug_com_binlog_dump_gtid_encoding(
+    size_t *buffer_size, uint32 *declared_data_size) {
+  constexpr uint32 kDeclaredDataSize = 32;
+  constexpr uint64 kEncodedIntervalCount = UINT64_C(1) << 60;
+  constexpr size_t kMaterializedIntervals = 4 * 1000 * 1000;
+  constexpr size_t kBytesPerInterval = 2 * sizeof(uint64);
+
+  *declared_data_size = kDeclaredDataSize;
+  *buffer_size = kDeclaredDataSize + kMaterializedIntervals * kBytesPerInterval;
+
+  auto buffer = std::make_unique<uchar[]>(*buffer_size);
+  uchar *ptr = buffer.get();
+
+  int8store(ptr, 1ULL);
+  ptr += 8;
+
+  memset(ptr, 0x11, 16);
+  ptr += 16;
+
+  int8store(ptr, kEncodedIntervalCount);
+  ptr += 8;
+
+  for (size_t i = 0; i < kMaterializedIntervals; i++) {
+    const ulonglong start = static_cast<ulonglong>(2 * i + 1);
+    const ulonglong end = start + 1;
+    int8store(ptr, start);
+    ptr += 8;
+    int8store(ptr, end);
+    ptr += 8;
+  }
+
+  return buffer;
+}
+#endif
+
 resource_blocker::Resource &get_dump_thread_resource() {
   static resource_blocker::Resource dump_thread_resource;
   return dump_thread_resource;
@@ -91,24 +127,30 @@ resource_blocker::Resource &get_dump_thread_resource() {
 
 extern TYPELIB binlog_checksum_typelib;
 
-#define get_object(p, obj, msg)                  \
-  {                                              \
-    uint len;                                    \
-    if (p >= p_end) {                            \
-      my_error(ER_MALFORMED_PACKET, MYF(0));     \
-      return 1;                                  \
-    }                                            \
-    len = net_field_length_ll(&p);               \
-    if (p + len > p_end || len >= sizeof(obj)) { \
-      errmsg = msg;                              \
-      goto err;                                  \
-    }                                            \
-    strmake(obj, (char *)p, len);                \
-    p += len;                                    \
+#define get_object(p, obj, msg)                                         \
+  {                                                                     \
+    if (p >= p_end) {                                                   \
+      my_error(ER_MALFORMED_PACKET, MYF(0));                            \
+      return 1;                                                         \
+    }                                                                   \
+    /* net_field_length_ll() assumes a complete length field. */        \
+    const size_t length_size = net_field_length_size(p);                \
+    if (length_size > static_cast<size_t>(p_end - p)) {                 \
+      my_error(ER_MALFORMED_PACKET, MYF(0));                            \
+      return 1;                                                         \
+    }                                                                   \
+    const uint64_t len = net_field_length_ll(&p);                       \
+    if (len > static_cast<uint64_t>(p_end - p) || len >= sizeof(obj)) { \
+      errmsg = msg;                                                     \
+      goto err;                                                         \
+    }                                                                   \
+    const size_t object_length = static_cast<size_t>(len);              \
+    strmake(obj, (char *)p, object_length);                             \
+    p += object_length;                                                 \
   }
 
 // returns true if user successfully acquired a resource and false otherwise.
-// In case of failure to use a resource, it concatenates all blocking reeasons
+// In case of failure to use a resource, it concatenates all blocking reasons
 // and reports all as my_message.
 static bool check_and_report_dump_thread_blocked(
     resource_blocker::User &rpl_user) {
@@ -130,6 +172,83 @@ static bool check_and_report_dump_thread_blocked(
   return false;
 }
 
+/// Check whether two dump-thread connections belong to the same authenticated
+/// replication account.
+///
+/// @param lhs First connection to compare.
+/// @param rhs Second connection to compare.
+///
+/// @retval true The authenticated account matches on both connections.
+/// @retval false The authenticated account differs or is unavailable.
+static bool same_authenticated_source_account(const THD *lhs, const THD *rhs) {
+  const Security_context *lhs_sctx = lhs->security_context();
+  const Security_context *rhs_sctx = rhs->security_context();
+  const auto lhs_user = lhs_sctx->priv_user();
+  const auto rhs_user = rhs_sctx->priv_user();
+  const auto lhs_host = lhs_sctx->priv_host();
+  const auto rhs_host = rhs_sctx->priv_host();
+
+  if (lhs_user.str == nullptr || rhs_user.str == nullptr ||
+      lhs_host.str == nullptr || rhs_host.str == nullptr) {
+    return false;
+  }
+
+  return strcmp(lhs_user.str, rhs_user.str) == 0 &&
+         my_strcasecmp(system_charset_info, lhs_host.str, rhs_host.str) == 0;
+}
+
+/// Report that a dump thread with the requested replica identity belongs to a
+/// different authenticated account.
+///
+/// @param replica_uuid Null-terminated replica UUID. This is empty when the
+/// client did not provide a UUID.
+/// @param replica_server_id Replica server ID used as the identity fallback
+/// when @p replica_uuid is empty.
+static void report_conflicting_dump_thread_owner(const char *replica_uuid,
+                                                 uint32 replica_server_id) {
+  my_error(ER_REPLICA_IDENTITY_CONFLICT, MYF(0), replica_uuid,
+           replica_server_id);
+}
+
+/// Reject a dump-thread identity owned by a different authenticated account.
+///
+/// @param thd New connection requesting the replica identity.
+/// @param existing_dump_thread Existing dump thread with the same identity.
+/// @param replica_uuid Null-terminated replica UUID, or an empty string when
+/// unavailable.
+///
+/// @retval true The existing dump thread belongs to a different account and
+/// an error was reported.
+/// @retval false Account affinity is disabled or the authenticated accounts
+/// match.
+static bool reject_conflicting_dump_thread_owner(
+    THD *thd, const THD *existing_dump_thread, const char *replica_uuid) {
+  if (!opt_rpl_dump_thread_account_affinity ||
+      same_authenticated_source_account(thd, existing_dump_thread)) {
+    return false;
+  }
+
+  report_conflicting_dump_thread_owner(replica_uuid, thd->server_id);
+  return true;
+}
+
+class Find_zombie_dump_thread;
+
+/// Find an existing dump thread with the same replica identity as the current
+/// connection.
+///
+/// A replica provides its UUID through the `replica_uuid` or legacy
+/// `slave_uuid` session user variable. An empty UUID occurs for direct dump
+/// clients that do not initialize either variable; those clients are matched
+/// by server ID.
+///
+/// @param replica_uuid Replica UUID, or an empty string when unavailable.
+///
+/// @retval THD_ptr holding the matching dump thread and its LOCK_thd_data.
+/// @retval THD_ptr{nullptr} if no dump thread has the same identity.
+static THD_ptr find_dump_thread_with_same_replica_identity(
+    const String &replica_uuid);
+
 /**
   Register slave in 'slave_list' hash table.
 
@@ -149,6 +268,11 @@ int register_replica(THD *thd, uchar *packet, size_t packet_length) {
 
   if (check_access(thd, REPL_SLAVE_ACL, any_db, nullptr, nullptr, false, false))
     return 1;
+
+  if (!mysql_bin_log.binlog_register_observer()) {
+    my_error(ER_DA_CANNOT_REPLICATE_WITHOUT_BINLOG, MYF(0));
+    return 1;
+  }
 
   thd->rpl_thd_ctx.dump_thread_user =
       resource_blocker::User(get_dump_thread_resource());
@@ -192,6 +316,17 @@ int register_replica(THD *thd, uchar *packet, size_t packet_length) {
         !si->replica_uuid.parse(replica_uuid.c_ptr(), replica_uuid.length());
   }
 
+  if (opt_rpl_dump_thread_account_affinity &&
+      (replica_uuid.length() != 0 || thd->server_id != 0)) {
+    THD_ptr existing_dump_thread =
+        find_dump_thread_with_same_replica_identity(replica_uuid);
+    if (existing_dump_thread &&
+        reject_conflicting_dump_thread_owner(thd, existing_dump_thread.get(),
+                                             replica_uuid.c_ptr())) {
+      return 1;
+    }
+  }
+
   mysql_mutex_lock(&LOCK_replica_list);
   unregister_replica(thd, false, false /*need_lock_slave_list=false*/);
   res = !slave_list.emplace(si->server_id, std::move(si)).second;
@@ -199,6 +334,7 @@ int register_replica(THD *thd, uchar *packet, size_t packet_length) {
   return res;
 
 err:
+  mysql_bin_log.binlog_unregister_observer();
   my_message(ER_UNKNOWN_ERROR, errmsg, MYF(0)); /* purecov: inspected */
   return 1;
 }
@@ -212,8 +348,10 @@ void unregister_replica(THD *thd, bool only_mine, bool need_lock_slave_list) {
 
     auto it = slave_list.find(thd->server_id);
     if (it != slave_list.end() &&
-        (!only_mine || it->second->thd_id == thd->thread_id()))
+        (!only_mine || it->second->thd_id == thd->thread_id())) {
+      mysql_bin_log.binlog_unregister_observer();
       slave_list.erase(it);
+    }
 
     if (need_lock_slave_list) mysql_mutex_unlock(&LOCK_replica_list);
   }
@@ -954,7 +1092,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length) {
   DBUG_PRINT("info",
              ("pos=%lu flags=%d server_id=%d", pos, flags, thd->server_id));
 
-  kill_zombie_dump_threads(thd);
+  if (kill_zombie_dump_threads(thd)) return true;
 
   query_logger.general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
                                  packet + 10, (long)pos);
@@ -982,11 +1120,15 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
   char name[FN_REFLEN + 1];
   uint32 name_size = 0;
   char *gtid_string = nullptr;
+  unique_ptr_my_free<char> gtid_string_guard;
   const uchar *packet_position = (uchar *)packet;
   size_t packet_bytes_todo = packet_length;
   Tsid_map tsid_map(
       nullptr /*no tsid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&tsid_map);
+#ifndef NDEBUG
+  std::unique_ptr<uchar[]> debug_gtid_encoding;
+#endif
 
   assert(!thd->status_var_aggregated);
   thd->status_var.com_other++;
@@ -1015,20 +1157,29 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
                       thd->server_id));
   READ_INT(data_size, 4);
   CHECK_PACKET_SIZE(data_size);
+  DBUG_EXECUTE_IF("simulate_large_com_binlog_dump_gtid_encoding", {
+    size_t debug_buffer_size = 0;
+    uint32 debug_declared_data_size = 0;
+    debug_gtid_encoding = build_debug_com_binlog_dump_gtid_encoding(
+        &debug_buffer_size, &debug_declared_data_size);
+    packet_position = debug_gtid_encoding.get();
+    data_size = debug_declared_data_size;
+  });
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
       RETURN_STATUS_OK)
     return true;
   slave_gtid_executed.to_string(&gtid_string);
+  gtid_string_guard.reset(gtid_string);
   DBUG_PRINT("info", ("Replica %d requested to read %s at position %" PRIu64
                       " gtid set "
                       "'%s'.",
                       thd->server_id, name, pos, gtid_string));
 
-  kill_zombie_dump_threads(thd);
+  if (kill_zombie_dump_threads(thd)) return true;
   query_logger.general_log_print(thd, thd->get_command(),
                                  "Log: '%s' Pos: %" PRIu64 " GTIDs: '%s'", name,
                                  pos, gtid_string);
-  my_free(gtid_string);
+  gtid_string_guard.reset();
   mysql_binlog_send(thd, name, (my_off_t)pos, &slave_gtid_executed, flags);
 
   unregister_replica(thd, true, true /*need_lock_slave_list=true*/);
@@ -1093,7 +1244,8 @@ String *get_replica_uuid(THD *thd, String *value) {
 */
 class Find_zombie_dump_thread : public Find_THD_Impl {
  public:
-  Find_zombie_dump_thread(String value) : m_replica_uuid(value) {}
+  explicit Find_zombie_dump_thread(String value) : m_replica_uuid(value) {}
+
   bool operator()(THD *thd) override {
     THD *cur_thd = current_thd;
     if (thd != cur_thd && (thd->get_command() == COM_BINLOG_DUMP ||
@@ -1122,6 +1274,12 @@ class Find_zombie_dump_thread : public Find_THD_Impl {
   String m_replica_uuid;
 };
 
+static THD_ptr find_dump_thread_with_same_replica_identity(
+    const String &replica_uuid) {
+  Find_zombie_dump_thread find_zombie_dump_thread(replica_uuid);
+  return Global_THD_manager::get_instance()->find_thd(&find_zombie_dump_thread);
+}
+
 /*
 
   Kill all Binlog_dump threads which previously talked to the same slave
@@ -1139,18 +1297,22 @@ class Find_zombie_dump_thread : public Find_THD_Impl {
   SYNOPSIS
     kill_zombie_dump_threads()
     @param thd newly connected dump thread object
+    @retval false success, or no matching dump thread found
+    @retval true the reconnect conflicts with a different authenticated account
 
 */
 
-void kill_zombie_dump_threads(THD *thd) {
+bool kill_zombie_dump_threads(THD *thd) {
   String replica_uuid;
   get_replica_uuid(thd, &replica_uuid);
-  if (replica_uuid.length() == 0 && thd->server_id == 0) return;
+  if (replica_uuid.length() == 0 && thd->server_id == 0) return false;
 
-  Find_zombie_dump_thread find_zombie_dump_thread(replica_uuid);
-  THD_ptr tmp_ptr =
-      Global_THD_manager::get_instance()->find_thd(&find_zombie_dump_thread);
+  THD_ptr tmp_ptr = find_dump_thread_with_same_replica_identity(replica_uuid);
   if (tmp_ptr) {
+    if (reject_conflicting_dump_thread_owner(thd, tmp_ptr.get(),
+                                             replica_uuid.c_ptr()))
+      return true;
+
     /*
       Here we do not call kill_one_thread() as
       it will be slow because it will iterate through the list
@@ -1170,6 +1332,7 @@ void kill_zombie_dump_threads(THD *thd) {
     tmp_ptr->duplicate_slave_id = true;
     tmp_ptr->awake(THD::KILL_QUERY);
   }
+  return false;
 }
 
 /**
@@ -1289,7 +1452,7 @@ bool show_binary_log_status(THD *thd) {
   }
   protocol->start_row();
 
-  if (mysql_bin_log.is_open()) {
+  if (mysql_bin_log.is_open() && mysql_bin_log.is_persistence_enabled()) {
     Log_info li;
     mysql_bin_log.get_current_log(&li);
     size_t dir_len = dirname_length(li.log_file_name);

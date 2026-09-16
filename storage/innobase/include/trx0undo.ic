@@ -46,7 +46,8 @@ inline roll_ptr_t trx_undo_build_roll_ptr(bool is_insert, space_id_t space_id,
                                           page_no_t page_no, ulint offset) {
   ut_ad(offset < 65536);
 
-  ulint id = (fsp_is_undo_tablespace(space_id) ? undo::id2num(space_id) : 0);
+  ulint id =
+      (fsp_is_undo_tablespace(space_id) ? undo_truncate::id2num(space_id) : 0);
 
   roll_ptr_t roll_ptr = (roll_ptr_t)is_insert << 55 | (roll_ptr_t)id << 48 |
                         (roll_ptr_t)page_no << 16 | offset;

@@ -7377,6 +7377,8 @@ EXPLAIN
                 -> Filter: ('s' = b.c)  (rows=1)
                     -> Table scan on b  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (ORDER BY 's' )  AS `ROW_NUMBER() OVER (ORDER BY a.c)` from `test`.`a` left join `test`.`b` on(('s' = `test`.`b`.`c`)) where ((`test`.`b`.`pk` is null))
 SELECT ROW_NUMBER() OVER (ORDER BY a.c)
 FROM  a LEFT JOIN b
 ON a.c = b.c

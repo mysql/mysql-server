@@ -229,7 +229,7 @@ ER_DB_DROP_EXISTS
         kor "데이타베이스 '%-.192s'를 제거하지 못했습니다. 데이타베이스가 존재하지 않음 "
         nor "Kan ikke fjerne (drop) '%-.192s'; databasen eksisterer ikke"
         norwegian-ny "Kan ikkje fjerne (drop) '%-.192s'; databasen eksisterer ikkje"
-        pol "Nie można usun?ć bazy danych '%-.192s'; baza danych nie istnieje"
+        pol "Nie można usunąć bazy danych '%-.192s'; baza danych nie istnieje"
         por "Não pode eliminar o banco de dados '%-.192s'; este banco de dados não existe"
         rum "Nu pot sa drop baza de date '%-.192s'; baza da date este inexistenta"
         rus "Невозможно удалить базу данных '%-.192s'. Такой базы данных нет"
@@ -253,7 +253,7 @@ OBSOLETE_ER_DB_DROP_DELETE
         kor "데이타베이스 제거 에러('%-.192s'를 삭제할 수 없읍니다, 에러번호: %d - %s)"
         nor "Feil ved fjerning (drop) av databasen (kan ikke slette '%-.192s', feil %d - %s)"
         norwegian-ny "Feil ved fjerning (drop) av databasen (kan ikkje slette '%-.192s', feil %d - %s)"
-        pol "Bł?d podczas usuwania bazy danych (nie można usun?ć '%-.192s', bł?d %d - %s)"
+        pol "Błąd podczas usuwania bazy danych (nie można usunąć '%-.192s', błąd %d - %s)"
         por "Erro ao eliminar banco de dados (não pode eliminar '%-.192s' - erro no. %d - %s)"
         rum "Eroare dropuind baza de date (nu pot sa sterg '%-.192s', Eroare: %d - %s)"
         rus "Ошибка при удалении базы данных (невозможно удалить '%-.192s', ошибка: %d - %s)"
@@ -277,7 +277,7 @@ ER_DB_DROP_RMDIR
         kor "데이타베이스 제거 에러(rmdir '%-.192s'를 할 수 없읍니다, 에러번호: %d - %s)"
         nor "Feil ved sletting av database (kan ikke slette katalogen '%-.192s', feil %d - %s)"
         norwegian-ny "Feil ved sletting av database (kan ikkje slette katalogen '%-.192s', feil %d - %s)"
-        pol "Bł?d podczas usuwania bazy danych (nie można wykonać rmdir '%-.192s', bł?d %d - %s)"
+        pol "Błąd podczas usuwania bazy danych (nie można wykonać rmdir '%-.192s', błąd %d - %s)"
         por "Erro ao eliminar banco de dados (não pode remover diretório '%-.192s' - erro no. %d - %s)"
         rum "Eroare dropuind baza de date (nu pot sa rmdir '%-.192s', Eroare: %d - %s)"
         rus "Невозможно удалить базу данных (невозможно удалить каталог '%-.192s', ошибка: %d - %s)"
@@ -301,7 +301,7 @@ OBSOLETE_ER_CANT_DELETE_FILE
         kor "'%-.192s' 삭제 중 에러 (에러번호: %d - %s)"
         nor "Feil ved sletting av '%-.192s' (Feilkode: %d - %s)"
         norwegian-ny "Feil ved sletting av '%-.192s' (Feilkode: %d - %s)"
-        pol "Bł?d podczas usuwania '%-.192s' (Kod błędu: %d - %s)"
+        pol "Błąd podczas usuwania '%-.192s' (Kod błędu: %d - %s)"
         por "Erro na remoção de '%-.192s' (erro no. %d - %s)"
         rum "Eroare incercind sa delete '%-.192s' (Eroare: %d - %s)"
         rus "Ошибка при удалении '%-.192s' (ошибка: %d - %s)"
@@ -445,7 +445,7 @@ ER_FILE_NOT_FOUND
         kor "화일을 찾지 못했습니다.: '%-.200s' (에러번호: %d - %s)"
         nor "Kan ikke finne fila: '%-.200s' (Feilkode: %d - %s)"
         norwegian-ny "Kan ikkje finne fila: '%-.200s' (Feilkode: %d - %s)"
-        pol "Nie można znaleĽć pliku: '%-.200s' (Kod błędu: %d - %s)"
+        pol "Nie można znaleźć pliku: '%-.200s' (Kod błędu: %d - %s)"
         por "Não pode encontrar o arquivo '%-.200s' (erro no. %d - %s)"
         rum "Nu pot sa gasesc fisierul: '%-.200s' (Eroare: %d - %s)"
         rus "Невозможно найти файл: '%-.200s' (ошибка: %d - %s)"
@@ -589,7 +589,7 @@ OBSOLETE_ER_ERROR_ON_CLOSE
         kor "'%-.192s'닫는 중 에러 (에러번호: %d - %s)"
         nor "Feil ved lukking av '%-.192s' (Feilkode: %d - %s)"
         norwegian-ny "Feil ved lukking av '%-.192s' (Feilkode: %d - %s)"
-        pol "Bł?d podczas zamykania '%-.192s' (Kod błędu: %d - %s)"
+        pol "Błąd podczas zamykania '%-.192s' (Kod błędu: %d - %s)"
         por "Erro ao fechar '%-.192s' (erro no. %d - %s)"
         rum "Eroare inchizind '%-.192s' (errno: %d - %s)"
         rus "Ошибка при закрытии '%-.192s' (ошибка: %d - %s)"
@@ -613,7 +613,7 @@ ER_ERROR_ON_READ
         kor "'%-.200s'화일 읽기 에러 (에러번호: %d - %s)"
         nor "Feil ved lesing av '%-.200s' (Feilkode: %d - %s)"
         norwegian-ny "Feil ved lesing av '%-.200s' (Feilkode: %d - %s)"
-        pol "Bł?d podczas odczytu pliku '%-.200s' (Kod błędu: %d - %s)"
+        pol "Błąd podczas odczytu pliku '%-.200s' (Kod błędu: %d - %s)"
         por "Erro ao ler arquivo '%-.200s' (erro no. %d - %s)"
         rum "Eroare citind fisierul '%-.200s' (errno: %d - %s)"
         rus "Ошибка чтения файла '%-.200s' (ошибка: %d - %s)"
@@ -637,7 +637,7 @@ ER_ERROR_ON_RENAME
         kor "'%-.210s'를 '%-.210s'로 이름 변경중 에러 (에러번호: %d - %s)"
         nor "Feil ved omdøping av '%-.210s' til '%-.210s' (Feilkode: %d - %s)"
         norwegian-ny "Feil ved omdøyping av '%-.210s' til '%-.210s' (Feilkode: %d - %s)"
-        pol "Bł?d podczas zmieniania nazwy '%-.210s' na '%-.210s' (Kod błędu: %d - %s)"
+        pol "Błąd podczas zmieniania nazwy '%-.210s' na '%-.210s' (Kod błędu: %d - %s)"
         por "Erro ao renomear '%-.210s' para '%-.210s' (erro no. %d - %s)"
         rum "Eroare incercind sa renumesc '%-.210s' in '%-.210s' (errno: %d - %s)"
         rus "Ошибка при переименовании '%-.210s' в '%-.210s' (ошибка: %d - %s)"
@@ -661,7 +661,7 @@ ER_ERROR_ON_WRITE
         kor "'%-.200s'화일 기록 중 에러 (에러번호: %d - %s)"
         nor "Feil ved skriving av fila '%-.200s' (Feilkode: %d - %s)"
         norwegian-ny "Feil ved skriving av fila '%-.200s' (Feilkode: %d - %s)"
-        pol "Bł?d podczas zapisywania pliku '%-.200s' (Kod błędu: %d - %s)"
+        pol "Błąd podczas zapisywania pliku '%-.200s' (Kod błędu: %d - %s)"
         por "Erro ao gravar arquivo '%-.200s' (erro no. %d - %s)"
         rum "Eroare scriind fisierul '%-.200s' (errno: %d - %s)"
         rus "Ошибка записи в файл '%-.200s' (ошибка: %d - %s)"
@@ -757,7 +757,7 @@ ER_GET_ERRNO
         kor "테이블 handler에서 %d - '%-.192s' 에러가 발생 하였습니다."
         nor "Mottok feil %d - '%-.192s' fra tabell håndterer"
         norwegian-ny "Mottok feil %d - '%-.192s' fra tabell handterar"
-        pol "Otrzymano bł?d %d - '%-.192s' z obsługi tabeli"
+        pol "Otrzymano błąd %d - '%-.192s' z manipulatora tabeli"
         por "Obteve erro %d - '%-.192s' no manipulador de tabelas"
         rum "Eroarea %d - '%-.192s' obtinuta din handlerul tabelei"
         rus "Получена ошибка %d - '%-.192s' от обработчика таблиц"
@@ -781,14 +781,14 @@ ER_ILLEGAL_HA
         kor "'%-.192s'의 테이블 handler는 이러한 옵션을 제공하지 않읍니다."
         nor "Tabell håndtereren for '%-.192s' har ikke denne muligheten"
         norwegian-ny "Tabell håndteraren for '%-.192s' har ikkje denne moglegheita"
-        pol "Obsługa tabeli '%-.192s' nie posiada tej opcji"
+        pol "Manipulator tabeli '%-.192s' nie posiada tej opcji"
         por "Manipulador de tabela para '%-.192s' não tem esta opção"
         rum "Handlerul tabelei pentru '%-.192s' nu are aceasta optiune"
         rus "Обработчик таблицы '%-.192s' не поддерживает эту возможность"
         serbian "Handler tabela za '%-.192s' nema ovu opciju"
         slo "Obsluha tabuľky '%-.192s' nemá tento parameter"
         spa "El manejador de la tabla de '%-.192s' no tiene esta opcion"
-	swe "Tabellhanteraren for tabell '%-.192s' stödjer ej detta"
+        swe "Tabellhanteraren for tabell '%-.192s' stödjer ej detta"
         ukr "Дескриптор таблиці '%-.192s' не має цієї властивості"
 ER_KEY_NOT_FOUND
         cze "Nemohu najít záznam v '%-.192s'"
@@ -805,14 +805,14 @@ ER_KEY_NOT_FOUND
         kor "'%-.192s'에서 레코드를 찾을 수 없읍니다."
         nor "Kan ikke finne posten i '%-.192s'"
         norwegian-ny "Kan ikkje finne posten i '%-.192s'"
-        pol "Nie można znaleĽć rekordu w '%-.192s'"
+        pol "Nie można znaleźć rekordu w '%-.192s'"
         por "Não pode encontrar registro em '%-.192s'"
         rum "Nu pot sa gasesc recordul in '%-.192s'"
         rus "Невозможно найти запись в '%-.192s'"
         serbian "Ne mogu da pronađem slog u '%-.192s'"
         slo "Nemôžem nájsť záznam v '%-.192s'"
         spa "No puedo encontrar el registro en '%-.192s'"
-	swe "Hittar inte posten '%-.192s'"
+        swe "Hittar inte posten '%-.192s'"
         ukr "Не можу записати у '%-.192s'"
 ER_NOT_FORM_FILE
         cze "Nesprávná informace v souboru '%-.200s'"
@@ -829,7 +829,7 @@ ER_NOT_FORM_FILE
         kor "화일의 부정확한 정보: '%-.200s'"
         nor "Feil informasjon i filen: '%-.200s'"
         norwegian-ny "Feil informasjon i fila: '%-.200s'"
-        pol "Niewła?ciwa informacja w pliku: '%-.200s'"
+        pol "Niewłaściwa informacja w pliku: '%-.200s'"
         por "Informação incorreta no arquivo '%-.200s'"
         rum "Informatie incorecta in fisierul: '%-.200s'"
         rus "Некорректная информация в файле '%-.200s'"
@@ -853,7 +853,7 @@ ER_NOT_KEYFILE
         kor "'%-.200s' 테이블의 부정확한 키 존재. 수정하시오!"
         nor "Tabellen '%-.200s' har feil i nøkkelfilen; forsøk å reparer den"
         norwegian-ny "Tabellen '%-.200s' har feil i nykkelfila; prøv å reparere den"
-        pol "Niewła?ciwy plik kluczy dla tabeli: '%-.200s'; spróbuj go naprawić"
+        pol "Niewłaściwy plik kluczy dla tabeli: '%-.200s'; spróbuj go naprawić"
         por "Arquivo de índice incorreto para tabela '%-.200s'; tente repará-lo"
         rum "Cheia fisierului incorecta pentru tabela: '%-.200s'; incearca s-o repari"
         rus "Некорректный индексный файл для таблицы: '%-.200s'. Попробуйте восстановить его"
@@ -949,7 +949,7 @@ ER_OUT_OF_SORTMEMORY HY001 S1001
         kor "Out of sort memory. daemon sort buffer의 크기를 증가시키세요"
         nor "Ikke mer sorteringsminne. Vurder å øke sorteringsminnet (sort buffer size) for tjenesten"
         norwegian-ny "Ikkje meir sorteringsminne. Vurder å auke sorteringsminnet (sorteringsbuffer storleik) for tenesten"
-        pol "Zbyt mało pamięci dla sortowania. Zwiększ wielko?ć bufora demona dla sortowania"
+        pol "Zbyt mało pamięci dla sortowania. Zwiększ wielkość bufora demona dla sortowania"
         por "Não há memória suficiente para ordenação. Considere aumentar o tamanho do retentor (buffer) de ordenação."
         rum "Out of memory pentru sortare. Largeste marimea buffer-ului pentru sortare in daemon (sort buffer size)"
         rus "Недостаточно памяти для сортировки. Увеличьте размер буфера сортировки на сервере"
@@ -997,7 +997,7 @@ ER_CON_COUNT_ERROR 08004
         kor "너무 많은 연결... max_connection을 증가 시키시오..."
         nor "For mange tilkoblinger (connections)"
         norwegian-ny "For mange tilkoplingar (connections)"
-        pol "Zbyt wiele poł?czeń"
+        pol "Zbyt wiele połączeń"
         por "Excesso de conexões"
         rum "Prea multe conectiuni"
         rus "Слишком много соединений"
@@ -1021,7 +1021,7 @@ ER_OUT_OF_RESOURCES
 # This message failed to convert from euc-kr, skipped
         nor "Tomt for tråd plass/minne"
         norwegian-ny "Tomt for tråd plass/minne"
-        pol "Zbyt mało miejsca/pamięci dla w?tku"
+        pol "Zbyt mało miejsca/pamięci dla wątku"
         por "Sem memória. Verifique se o mysqld ou algum outro processo está usando toda memória disponível. Se não, você pode ter que usar 'ulimit' para permitir ao mysqld usar mais memória ou você pode adicionar mais área de 'swap'"
         rum "Out of memory;  Verifica daca mysqld sau vreun alt proces foloseste toate memoria disponbila. Altfel, trebuie sa folosesi 'ulimit' ca sa permiti lui memoria disponbila. Altfel, trebuie sa folosesi 'ulimit' ca sa permiti lui mysqld sa foloseasca mai multa memorie ori adauga mai mult spatiu pentru swap (swap space)"
         rus "Недостаточно памяти; удостоверьтесь, что mysqld или какой-либо другой процесс не занимает всю доступную память. Если нет, то вы можете использовать ulimit, чтобы выделить для mysqld больше памяти, или увеличить объем файла подкачки"
@@ -1404,7 +1404,7 @@ ER_WRONG_SUM_SELECT 42000 S1009
         kor "Statement 가 sum기능을 동작중이고 칼럼도 동일한 statement입니다."
         nor "Uttrykket har summer (sum) funksjoner og kolonner i samme uttrykk"
         norwegian-ny "Uttrykket har summer (sum) funksjoner og kolonner i same uttrykk"
-        pol "Zapytanie ma funkcje sumuj?ce i kolumny w tym samym zapytaniu"
+        pol "Zapytanie ma funkcje sumujące i kolumny w tym samym zapytaniu"
         por "Cláusula contém funções de soma e colunas juntas"
         rum "Comanda are functii suma si coloane in aceeasi comanda"
         rus "Выражение содержит групповые функции и столбцы, но не включает GROUP BY. А как вы умудрились получить это сообщение об ошибке?"
@@ -1427,7 +1427,7 @@ ER_WRONG_VALUE_COUNT 21S01
         kor "칼럼의 카운트가 값의 카운트와 일치하지 않습니다."
         nor "Felt telling stemmer verdi telling"
         norwegian-ny "Kolonne telling stemmer verdi telling"
-        pol "Liczba kolumn nie odpowiada liczbie warto?ci"
+        pol "Liczba kolumn nie odpowiada liczbie wartości"
         por "Contagem de colunas não confere com a contagem de valores"
         rum "Numarul de coloane nu este acelasi cu numarul valoarei"
         rus "Количество столбцов не совпадает с количеством значений"
@@ -1511,29 +1511,29 @@ ER_DUP_KEYNAME 42000 S1009
 # When using this error code, please use ER(ER_DUP_ENTRY_WITH_KEY_NAME)
 # for the message string.  See, for example, code in handler.cc.
 ER_DUP_ENTRY 23000 S1009
-	cze "Zdvojený klíč '%-.192s' (číslo klíče %d)"
-	dan "Ens værdier '%-.192s' for indeks %d"
-	nla "Dubbele ingang '%-.192s' voor zoeksleutel %d"
-	eng "Duplicate entry '%-.192s' for key %d"
-	est "Kattuv väärtus '%-.192s' võtmele %d"
-	fre "Duplicata du champ '%-.192s' pour la clef %d"
-	ger "Doppelter Eintrag '%-.192s' für Schlüssel %d"
-	greek "Διπλή εγγραφή '%-.192s' για το κλειδί %d"
-	hun "Duplikalt bejegyzes '%-.192s' a %d kulcs szerint."
-	ita "Valore duplicato '%-.192s' per la chiave %d"
-	jpn "'%-.192s' は索引 %d で重複しています。"
-	kor "중복된 입력 값 '%-.192s': key %d"
-	nor "Like verdier '%-.192s' for nøkkel %d"
-	norwegian-ny "Like verdiar '%-.192s' for nykkel %d"
-	pol "Powtórzone wystąpienie '%-.192s' dla klucza %d"
-	por "Entrada '%-.192s' duplicada para a chave %d"
-	rum "Cimpul '%-.192s' e duplicat pentru cheia %d"
-	rus "Дублирующаяся запись '%-.192s' по ключу %d"
-	serbian "Dupliran unos '%-.192s' za ključ '%d'"
-	slo "Opakovaný kľúč '%-.192s' (číslo kľúča %d)"
-	spa "Entrada duplicada '%-.192s' para la clave %d"
-	swe "Dublett '%-.192s' för nyckel %d"
-	ukr "Дублюючий запис '%-.192s' для ключа %d"
+        cze "Zdvojený klíč '%-.192s' (číslo klíče %d)"
+        dan "Ens værdier '%-.192s' for indeks %d"
+        nla "Dubbele ingang '%-.192s' voor zoeksleutel %d"
+        eng "Duplicate entry '%-.192s' for key %d"
+        est "Kattuv väärtus '%-.192s' võtmele %d"
+        fre "Duplicata du champ '%-.192s' pour la clef %d"
+        ger "Doppelter Eintrag '%-.192s' für Schlüssel %d"
+        greek "Διπλή εγγραφή '%-.192s' για το κλειδί %d"
+        hun "Duplikalt bejegyzes '%-.192s' a %d kulcs szerint."
+        ita "Valore duplicato '%-.192s' per la chiave %d"
+        jpn "'%-.192s' は索引 %d で重複しています。"
+        kor "중복된 입력 값 '%-.192s': key %d"
+        nor "Like verdier '%-.192s' for nøkkel %d"
+        norwegian-ny "Like verdiar '%-.192s' for nykkel %d"
+        pol "Powtórzone wystąpienie '%-.192s' dla klucza %d"
+        por "Entrada '%-.192s' duplicada para a chave %d"
+        rum "Cimpul '%-.192s' e duplicat pentru cheia %d"
+        rus "Дублирующаяся запись '%-.192s' по ключу %d"
+        serbian "Dupliran unos '%-.192s' za ključ '%d'"
+        slo "Opakovaný kľúč '%-.192s' (číslo kľúča %d)"
+        spa "Entrada duplicada '%-.192s' para la clave %d"
+        swe "Dublett '%-.192s' för nyckel %d"
+        ukr "Дублюючий запис '%-.192s' для ключа %d"
 ER_WRONG_FIELD_SPEC 42000 S1009
         cze "Chybná specifikace sloupce '%-.192s'"
         dan "Forkert kolonnespecifikaton for felt '%-.192s'"
@@ -1621,7 +1621,7 @@ ER_NONUNIQ_TABLE 42000 S1009
         kor "Unique 하지 않은 테이블/alias: '%-.192s'"
         nor "Ikke unikt tabell/alias: '%-.192s'"
         norwegian-ny "Ikkje unikt tabell/alias: '%-.192s'"
-        pol "Tabela/alias nie s? unikalne: '%-.192s'"
+        pol "Tabela/alias nie są unikalne: '%-.192s'"
         por "Tabela/alias '%-.192s' não única"
         rum "Tabela/alias: '%-.192s' nu este unic"
         rus "Повторяющаяся таблица/псевдоним '%-.192s'"
@@ -1645,7 +1645,7 @@ ER_INVALID_DEFAULT 42000 S1009
         kor "'%-.192s'의 유효하지 못한 디폴트 값을 사용하셨습니다."
         nor "Ugyldig standardverdi for '%-.192s'"
         norwegian-ny "Ugyldig standardverdi for '%-.192s'"
-        pol "Niewła?ciwa warto?ć domy?lna dla '%-.192s'"
+        pol "Niewłaściwa wartość domyślna dla '%-.192s'"
         por "Valor padrão (default) inválido para '%-.192s'"
         rum "Valoarea de default este invalida pentru '%-.192s'"
         rus "Некорректное значение по умолчанию для '%-.192s'"
@@ -1693,7 +1693,7 @@ ER_TOO_MANY_KEYS 42000 S1009
         kor "너무 많은 키가 정의되어 있읍니다.. 최대 %d의 키가 가능함"
         nor "For mange nøkler spesifisert. Maks %d nøkler tillatt"
         norwegian-ny "For mange nykler spesifisert. Maks %d nyklar tillatt"
-        pol "Okre?lono zbyt wiele kluczy. Dostępnych jest maksymalnie %d kluczy"
+        pol "Określono zbyt wiele kluczy. Dostępnych jest maksymalnie %d kluczy"
         por "Especificadas chaves demais. O máximo permitido são %d chaves"
         rum "Prea multe chei. Numarul de chei maxim este %d"
         rus "Указано слишком много ключей. Разрешается указывать не более %d ключей"
@@ -1717,7 +1717,7 @@ ER_TOO_MANY_KEY_PARTS 42000 S1009
         kor "너무 많은 키 부분(parts)들이 정의되어 있읍니다.. 최대 %d 부분이 가능함"
         nor "For mange nøkkeldeler spesifisert. Maks %d deler tillatt"
         norwegian-ny "For mange nykkeldelar spesifisert. Maks %d delar tillatt"
-        pol "Okre?lono zbyt wiele czę?ci klucza. Dostępnych jest maksymalnie %d czę?ci"
+        pol "Określono zbyt wiele części klucza. Dostępnych jest maksymalnie %d części"
         por "Especificadas partes de chave demais. O máximo permitido são %d partes"
         rum "Prea multe chei. Numarul de chei maxim este %d"
         rus "Указано слишком много частей составного ключа. Разрешается указывать не более %d частей"
@@ -1741,7 +1741,7 @@ ER_TOO_LONG_KEY 42000 S1009
         kor "정의된 키가 너무 깁니다. 최대 키의 길이는 %d입니다."
         nor "Spesifisert nøkkel var for lang. Maks nøkkellengde er is %d"
         norwegian-ny "Spesifisert nykkel var for lang. Maks nykkellengde er %d"
-        pol "Zdefinowany klucz jest zbyt długi. Maksymaln? długo?ci? klucza jest %d"
+        pol "Zdefinowany klucz jest zbyt długi. Maksymalną długością klucza jest %d"
         por "Chave especificada longa demais. O comprimento de chave máximo permitido é %d"
         rum "Cheia specificata este prea lunga. Marimea maxima a unei chei este de %d"
         rus "Указан слишком длинный ключ. Максимальная длина ключа составляет %d байт"
@@ -1813,7 +1813,7 @@ ER_TOO_BIG_FIELDLENGTH 42000 S1009
         kor "칼럼 '%-.192s'의 칼럼 길이가 너무 깁니다 (최대 = %lu). 대신에 BLOB를 사용하세요."
         nor "For stor nøkkellengde for kolonne '%-.192s' (maks = %lu). Bruk BLOB istedenfor"
         norwegian-ny "For stor nykkellengde for felt '%-.192s' (maks = %lu). Bruk BLOB istadenfor"
-        pol "Zbyt duża długo?ć kolumny '%-.192s' (maks. = %lu). W zamian użyj typu BLOB"
+        pol "Zbyt duża długość kolumny '%-.192s' (maks. = %lu). W zamian użyj typu BLOB"
         por "Comprimento da coluna '%-.192s' grande demais (max = %lu); use BLOB em seu lugar"
         rum "Lungimea coloanei '%-.192s' este prea lunga (maximum = %lu). Foloseste BLOB mai bine"
         rus "Слишком большая длина столбца '%-.192s' (максимум = %lu). Используйте тип BLOB или TEXT вместо текущего"
@@ -1861,7 +1861,7 @@ ER_READY
         kor "%s: 연결 준비중입니다\nVersion: '%s'  socket: '%s'  port: %d"
         nor "%s: klar for tilkoblinger\nVersion: '%s'  socket: '%s'  port: %d"
         norwegian-ny "%s: klar for tilkoblingar\nVersion: '%s'  socket: '%s'  port: %d"
-        pol "%s: gotowe do poł?czenia\nVersion: '%s'  socket: '%s'  port: %d"
+        pol "%s: gotowe do połączenia\nVersion: '%s'  socket: '%s'  port: %d"
         por "%s: Pronto para conexões\nVersion: '%s'  socket: '%s'  port: %d"
         rum "%s: sint gata pentru conectii\nVersion: '%s'  socket: '%s'  port: %d"
         rus "%s: Готов принимать соединения.\nВерсия: '%s'  сокет: '%s'  порт: %d"
@@ -1957,7 +1957,7 @@ ER_FORCING_CLOSE 08S01
         kor "%s: thread %ld의 강제 종료 user: '%-.48s'\n"
         nor "%s: Påtvinget avslutning av tråd %ld  bruker: '%-.48s'\n"
         norwegian-ny "%s: Påtvinga avslutning av tråd %ld  brukar: '%-.48s'\n"
-        pol "%s: Wymuszenie zamknięcia w?tku %ld  użytkownik: '%-.48s'\n"
+        pol "%s: Wymuszenie zamknięcia wątku %ld  użytkownik: '%-.48s'\n"
         por "%s: Forçando finalização da 'thread' %ld - usuário '%-.48s'\n"
         rum "%s: Terminare fortata a thread-ului %ld  utilizatorului: '%-.48s'\n"
         rus "%s: Принудительно закрываем поток %ld  пользователя: '%-.48s'\n"
@@ -2029,7 +2029,7 @@ ER_WRONG_FIELD_TERMINATORS 42000 S1009
         kor "필드 구분자 인수들이 완전하지 않습니다. 메뉴얼을 찾아 보세요."
         nor "Felt skiller argumentene er ikke som forventet, se dokumentasjonen"
         norwegian-ny "Felt skiljer argumenta er ikkje som venta, sjå dokumentasjonen"
-        pol "Nie oczekiwano separatora. SprawdĽ podręcznik"
+        pol "Nie oczekiwano separatora. Sprawdź podręcznik"
         por "Argumento separador de campos não é o esperado. Cheque o manual"
         rum "Argumentul pentru separatorul de cimpuri este diferit de ce ma asteptam. Verifica manualul"
         rus "Аргумент разделителя полей - не тот, который ожидался. Обращайтесь к документации"
@@ -2053,7 +2053,7 @@ ER_BLOBS_AND_NO_TERMINATED 42000 S1009
         kor "BLOB로는 고정길이의 lowlength를 사용할 수 없습니다. 'fields terminated by'를 사용하세요."
         nor "En kan ikke bruke faste feltlengder med BLOB. Vennlisgt bruk 'fields terminated by'."
         norwegian-ny "Ein kan ikkje bruke faste feltlengder med BLOB. Vennlisgt bruk 'fields terminated by'."
-        pol "Nie można użyć stałej długo?ci wiersza z polami typu BLOB. Użyj 'fields terminated by'."
+        pol "Nie można użyć stałej długości wiersza z polami typu BLOB. Użyj 'fields terminated by'."
         por "Você não pode usar comprimento de linha fixo com BLOBs. Por favor, use campos com comprimento limitado."
         rum "Nu poti folosi lungime de cimp fix pentru BLOB-uri. Foloseste 'fields terminated by'."
         rus "Фиксированный размер записи с полями типа BLOB использовать нельзя, применяйте 'fields terminated by'"
@@ -2173,7 +2173,7 @@ ER_WRONG_SUB_KEY
         kor "부정확한 서버 파트 키. 사용된 키 파트가 스트링이 아니거나 키 파트의 길이가 너무 깁니다."
         nor "Feil delnøkkel. Den brukte delnøkkelen er ikke en streng eller den oppgitte lengde er lengre enn nøkkel lengden"
         norwegian-ny "Feil delnykkel. Den brukte delnykkelen er ikkje ein streng eller den oppgitte lengda er lengre enn nykkellengden"
-        pol "Błędna podczę?ć klucza. Użyta czę?ć klucza nie jest łańcuchem lub użyta długo?ć  jest większa niż czę?ć klucza"
+        pol "Błędna podczęść klucza. Użyta część klucza nie jest łańcuchem lub użyta długość  jest większa niż część klucza"
         por "Sub parte da chave incorreta. A parte da chave usada não é uma 'string' ou o comprimento usado é maior que parte da chave ou o manipulador de tabelas não suporta sub chaves únicas"
         rum "Componentul cheii este incorrect. Componentul folosit al cheii nu este un sir sau lungimea folosita este mai lunga decit lungimea cheii"
         rus "Некорректная часть ключа. Используемая часть ключа не является строкой, указанная длина больше, чем длина части ключа, или обработчик таблицы не поддерживает уникальные части ключа"
@@ -2197,7 +2197,7 @@ ER_CANT_REMOVE_ALL_FIELDS 42000
         kor "ALTER TABLE 명령으로는 모든 칼럼을 지울 수 없습니다. DROP TABLE 명령을 이용하세요."
         nor "En kan ikke slette alle felt med ALTER TABLE. Bruk DROP TABLE isteden."
         norwegian-ny "Ein kan ikkje slette alle felt med ALTER TABLE. Bruk DROP TABLE istadenfor."
-        pol "Nie można usun?ć wszystkich pól wykorzystuj?c ALTER TABLE. W zamian użyj DROP TABLE"
+        pol "Nie można usunąć wszystkich pól wykorzystując ALTER TABLE. W zamian użyj DROP TABLE"
         por "Você não pode deletar todas as colunas com ALTER TABLE; use DROP TABLE em seu lugar"
         rum "Nu poti sterge toate coloanele cu ALTER TABLE. Foloseste DROP TABLE in schimb"
         rus "Нельзя удалить все столбцы с помощью ALTER TABLE. Используйте  DROP TABLE"
@@ -2221,7 +2221,7 @@ ER_CANT_DROP_FIELD_OR_KEY 42000
         kor "'%-.192s'를 DROP할 수 없습니다. 칼럼이나 키가 존재하는지 채크하세요."
         nor "Kan ikke DROP '%-.192s'. Undersøk om felt/nøkkel eksisterer."
         norwegian-ny "Kan ikkje DROP '%-.192s'. Undersøk om felt/nøkkel eksisterar."
-        pol "Nie można wykonać operacji DROP '%-.192s'. SprawdĽ, czy to pole/klucz istnieje"
+        pol "Nie można wykonać operacji DROP '%-.192s'. Sprawdź, czy to pole/klucz istnieje"
         por "Não se pode fazer DROP '%-.192s'. Confira se esta coluna/chave existe"
         rum "Nu pot sa DROP '%-.192s'. Verifica daca coloana/cheia exista"
         rus "Невозможно удалить (DROP) '%-.192s'. Убедитесь что столбец/ключ действительно существует"
@@ -2276,7 +2276,7 @@ ER_NO_SUCH_THREAD
         kor "알수 없는 쓰레드 id: %lu"
         nor "Ukjent tråd id: %lu"
         norwegian-ny "Ukjent tråd id: %lu"
-        pol "Nieznany identyfikator w?tku: %lu"
+        pol "Nieznany identyfikator wątku: %lu"
         por "'Id' de 'thread' %lu desconhecido"
         rum "Id-ul: %lu thread-ului este necunoscut"
         rus "Неизвестный номер потока: %lu"
@@ -2300,7 +2300,7 @@ ER_KILL_DENIED_ERROR
         kor "쓰레드(Thread) %lu의 소유자가 아닙니다."
         nor "Du er ikke eier av tråden %lu"
         norwegian-ny "Du er ikkje eigar av tråd %lu"
-        pol "Nie jeste? wła?cicielem w?tku %lu"
+        pol "Nie jesteś właścicielem wątku %lu"
         por "Você não é proprietário da 'thread' %lu"
         rum "Nu sinteti proprietarul threadului %lu"
         rus "Вы не являетесь владельцем потока %lu"
@@ -2444,7 +2444,7 @@ ER_BLOB_CANT_HAVE_DEFAULT 42000
         kor "BLOB 칼럼 '%-.192s' 는 디폴트 값을 가질 수 없습니다."
         nor "Blob feltet '%-.192s' kan ikke ha en standard verdi"
         norwegian-ny "Blob feltet '%-.192s' kan ikkje ha ein standard verdi"
-        pol "Pole typu blob '%-.192s' nie może mieć domy?lnej warto?ci"
+        pol "Pole typu blob '%-.192s' nie może mieć domyślnej wartości"
         por "Coluna BLOB '%-.192s' não pode ter um valor padrão (default)"
         rum "Coloana BLOB '%-.192s' nu poate avea o valoare default"
         rus "Невозможно указывать значение по умолчанию для столбца BLOB '%-.192s'"
@@ -2516,7 +2516,7 @@ ER_TOO_BIG_SELECT 42000
         kor "SELECT 명령에서 너무 많은 레코드를 찾기 때문에 많은 시간이 소요됩니다. 따라서 WHERE 문을 점검하거나, 만약 SELECT가 ok되면  SET SQL_BIG_SELECTS=1 옵션을 사용하세요."
         nor "SELECT ville undersøke for mange poster og ville sannsynligvis ta veldig lang tid. Undersøk WHERE klausulen og bruk SET SQL_BIG_SELECTS=1 om SELECTen er korrekt"
         norwegian-ny "SELECT ville undersøkje for mange postar og ville sannsynligvis ta veldig lang tid. Undersøk WHERE klausulen og bruk SET SQL_BIG_SELECTS=1 om SELECTen er korrekt"
-        pol "Operacja SELECT będzie dotyczyła zbyt wielu rekordów i prawdopodobnie zajmie bardzo dużo czasu. SprawdĽ warunek WHERE i użyj SQL_OPTION BIG_SELECTS=1 je?li operacja SELECT jest poprawna"
+        pol "Operacja SELECT będzie dotyczyła zbyt wielu rekordów i prawdopodobnie zajmie bardzo dużo czasu. Sprawdź warunek WHERE i użyj SQL_OPTION BIG_SELECTS=1 jeśli operacja SELECT jest poprawna"
         por "O SELECT examinaria registros demais e provavelmente levaria muito tempo. Cheque sua cláusula WHERE e use SET SQL_BIG_SELECTS=1, se o SELECT estiver correto"
         rum "SELECT-ul ar examina prea multe cimpuri si probabil ar lua prea mult timp; verifica clauza WHERE si foloseste SET SQL_BIG_SELECTS=1 daca SELECT-ul e okay"
         rus "Для такой выборки SELECT должен будет просмотреть слишком много записей и, видимо, это займет очень много времени. Проверьте ваше указание WHERE, и, если в нем все в порядке, укажите SET SQL_BIG_SELECTS=1"
@@ -5606,7 +5606,7 @@ ER_M_BIGGER_THAN_D 42000 S1009
         ger "Für FLOAT(M,D), DOUBLE(M,D) oder DECIMAL(M,D) muss M >= D sein (Feld '%-.192s')"
 ER_WRONG_LOCK_OF_SYSTEM_TABLE
         eng "You can't combine write-locking of system tables with other tables or lock types"
-	ger "Sie können Schreibsperren auf der Systemtabelle nicht mit anderen Tabellen kombinieren"
+        ger "Sie können Schreibsperren auf der Systemtabelle nicht mit anderen Tabellen kombinieren"
 ER_CONNECT_TO_FOREIGN_DATA_SOURCE
         eng "Unable to connect to foreign data source: %.64s"
         ger "Kann nicht mit Fremddatenquelle verbinden: %.64s"
@@ -5756,7 +5756,7 @@ ER_FOREIGN_SERVER_EXISTS
   ger "Der entfernte Server %s, den Sie versuchen zu erzeugen, existiert schon."
 ER_FOREIGN_SERVER_DOESNT_EXIST
         eng "The foreign server name you are trying to reference does not exist. Data source error:  %-.64s"
-	ger "Die externe Verbindung, auf die Sie zugreifen wollen, existiert nicht. Datenquellenfehlermeldung:  %-.64s"
+        ger "Die externe Verbindung, auf die Sie zugreifen wollen, existiert nicht. Datenquellenfehlermeldung:  %-.64s"
 ER_ILLEGAL_HA_CREATE_OPTION
         eng "Table storage engine '%-.64s' does not support the create option '%.64s'"
         ger "Speicher-Engine '%-.64s' der Tabelle unterstützt die Option '%.64s' nicht"
@@ -6921,7 +6921,7 @@ ER_FK_INCORRECT_OPTION
         eng "Failed to add the foreign key constraint on table '%s'. Incorrect options in FOREIGN KEY constraint '%s'"
 
 ER_FK_DUP_NAME
-	eng "Duplicate foreign key constraint name '%s'"
+        eng "Duplicate foreign key constraint name '%s'"
 
 ER_PASSWORD_FORMAT
   eng "The password hash doesn't have the expected format."
@@ -10436,6 +10436,9 @@ OBSOLETE_ER_EXTERNAL_UNSUPPORTED_INDEX_ALGORITHM
 ER_TP_CANNOT_DISABLE_MTL_WITH_DL
   eng "The variable thread_pool_max_transactions_limit cannot be set to 0 when thread_pool_dedicated_listernes is ON."
 
+ER_GRP_RPL_CONNECTION_HANDOFF_BUSY
+  eng "Group Replication connection handoff is busy; retry the connection."
+
 #
 # End of 8.1+ (server-to-client) error messages.
 #
@@ -10991,8 +10994,81 @@ ER_CANT_UPDATE_USED_TABLE_IN_FK_CASCADE
 ER_WARN_SET_OPERATIONS_BUFFER
   eng "System variable \"set_operations_buffer_size\" set too low for hashed set operation. Consult optimizer trace for recommendations."
 
+ER_JDV_UNEXPECTED_INVALID_VALUE
+  eng "Json Duality View contains invalid values. Please file a bug."
+
 #
-#  End of 9.x error messages (server-to-client).
+#  End of 9.7 error messages (server-to-client).
+#
+
+#
+# MySQL moves from semantic-style versioning to calendar-based versioning
+# starting with the 26.7 release base. Upgrade/downgrade compatibility is
+# tracked through compatibility lineage. The first calendar release base, 26.7,
+# belongs to the 9.7 CalVer compatibility lineage. If 28.4 becomes LTS, the
+# 9.7 lineage continues through 28.4. The first Innovation release after that,
+# 28.7, starts the 28.4 compatibility lineage.
+#
+
+################################################################################
+# Error numbers starting at 6900: server-to-client messages
+# for "9.7 cal-ver compatibility lineage (starts from 26.7)"
+################################################################################
+
+# Do NOT add messages intended for the error log here;
+# they belong in a separate file, messages_to_error_log.txt.
+#
+# Do NOT add messages to clients for server versions < 10 here;
+# they have their own sections above.
+#
+# See the FAQ at the end of the file for more information.
+
+start-error-number 6900
+
+ER_CRST_UNKNOWN_APPLIER_VERSION
+  eng "Invalid applier version specified in CHANGE REPLICATION SOURCE TO command. Refer to documentation for supported versions."
+
+ER_CRST_APPLIER_WORKER_COUNT_OUT_OF_RANGE
+  eng "Applier thread count out of bounds. Please specify a value between 1 and 1024."
+
+ER_CRST_APPLIER_WORKER_COUNT_ONLY_FOR_CSA
+  eng "Applier worker count can only be configured when using CSA applier version."
+
+ER_CSA_UNSUPPORTED_UNTIL_COND
+  eng "Change Stream Applier accepts the following UNTIL conditions: SQL_BEFORE_GTIDS and SQL_AFTER_GTIDS"
+
+ER_CRST_APPLIER_EVENT_MEMORY_LIMIT_ONLY_FOR_CSA
+  eng "Applier event memory limit can only be configured when using CSA applier version."
+
+ER_WARN_CRST_APPLIER_EVENT_MEMORY_LIMIT_OUT_OF_RANGE
+  eng "Applier event memory limit out of bounds. Actual limit has been set to the max_allowed_packet."
+
+ER_CSA_CRST_DELAYED_APPLIER_NOT_SUPPORTED
+  eng "The Change Stream Applier does not currently support the SOURCE_DELAY option of the CHANGE REPLICATION SOURCE TO command. Please unset SOURCE_DELAY when using CSA."
+
+ER_CSA_CRST_REQUIREMENT_ROW_FORMAT
+  eng "The Change Stream Applier currently supports row-based replication. Please set REQUIRE_ROW_FORMAT to 1 when using CSA."
+
+ER_CSA_CRST_REQUIREMENT_GTID_ONLY
+  eng "The Change Stream Applier currently supports row-based replication with GTIDs. Please set GTID_ONLY to 1 when using CSA."
+
+ER_DA_CANNOT_REPLICATE_WITHOUT_BINLOG
+  eng "Cannot replicate from source as it does not have logical log enabled. Check source configuration to enable it."
+
+ER_REPLICA_IDENTITY_CONFLICT
+  eng "A dump thread for replica UUID '%s' or server ID %u already exists under a different authenticated account."
+
+ER_BULK_READER_PATH_IS_DIRECTORY
+  eng "Bulk Reader: Path is a directory, expected a file: %s"
+
+ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY
+  eng "Column tags are supported only for column projections at JSON path '%s'."
+
+ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK
+  eng "The UPDATE column tag is not supported for a primary key projection at JSON path '%s'."
+
+#
+#  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #
 
 ################################################################################

@@ -1,0 +1,64 @@
+#
+# Bug#38657550 Use-after-free of TABLE::read_set in DynamicRangeIterator
+#
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+col1 INT,
+col2 INT,
+col3 INT,
+KEY index_col2(col2),
+KEY index_col3(col3),
+KEY index_c123(col1, col2, col3)
+);
+CREATE PROCEDURE insert_data_t1()
+BEGIN
+DECLARE num INT;
+SET num = 1;
+WHILE num <= 3955 DO
+INSERT INTO t1 VALUES (num, num / 150, 0, num);
+SET num = num + 1;
+END WHILE;
+END//
+CALL insert_data_t1();
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN
+SELECT
+CASE 1
+WHEN EXISTS (
+SELECT 1
+FROM t1
+WHERE t1.col1 = 1
+AND t1.col2 = d.col2 - 10
+AND t1.col3 <= 100
+) THEN 2
+END
+FROM t1 d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	d	NULL	index	NULL	index_col2	5	NULL	3955	100.00	Using index
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	index_col2,index_col3,index_c123	NULL	NULL	NULL	3955	0.25	Range checked for each record (index map: 0xE)
+Warnings:
+Note	1276	Field or reference 'test.d.col2' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (case 1 when exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`col1` = 1) and (`test`.`t1`.`col2` = (`test`.`d`.`col2` - 10)) and (`test`.`t1`.`col3` <= 100))) then 2 end) AS `CASE 1
+WHEN EXISTS (
+SELECT 1
+FROM t1
+WHERE t1.col1 = 1
+AND t1.col2 = d.col2 - 10
+AND t1.col3 <= 100
+) THEN 2
+END` from `test`.`t1` `d`
+SELECT
+CASE 1
+WHEN EXISTS (
+SELECT 1
+FROM t1
+WHERE t1.col1 = 1
+AND t1.col2 = d.col2 - 10
+AND t1.col3 <= 100
+) THEN 2
+END
+FROM t1 d;
+DROP TABLE t1;
+DROP PROCEDURE insert_data_t1;

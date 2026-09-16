@@ -1,0 +1,85 @@
+# ==== PURPOSE ====
+#
+# This test checks that async replica threads remain visible in
+# performance_schema.processlist after the replica server restarts.
+#
+# ==== IMPLEMENTATION ====
+#
+# To reproduce and verify the issue, this test compares replica thread
+# PROCESSLIST_ID values from performance_schema.threads with the rows visible
+# in INFORMATION_SCHEMA.PROCESSLIST and performance_schema.processlist before
+# and after restarting the replica server.
+#
+# Test steps:
+#
+# 1. Configure a two-server async replication topology.
+# 2. Verify that the replica I/O and SQL threads are visible in both
+#    processlist tables.
+# 3. Restart the replica server with replica auto-start enabled and wait for
+#    replication threads to start during server startup.
+# 4. Verify that the restarted replica I/O and SQL threads are still visible in
+#    performance_schema.processlist.
+#
+# Test pass conditions:
+#
+# - performance_schema.threads exposes PROCESSLIST_ID values for both async
+#   replica threads after restart.
+# - INFORMATION_SCHEMA.PROCESSLIST and performance_schema.processlist contain
+#   rows for those replica thread PROCESSLIST_ID values after restart.
+#
+# ==== REFERENCES ====
+#
+# BUG#36042255: p_s.processlist table does not contain async replica threads
+# after restart
+#
+
+--source include/no_protocol.inc
+# This test is binlog format agnostic
+--source include/have_binlog_format_row.inc
+
+--echo # Configure two servers to be source and replica.
+--source include/rpl/init_source_replica.inc
+
+--echo # Verify replica processlist rows before restart.
+--source include/rpl/sync_to_replica.inc
+
+--let $replica_threads= `SELECT COUNT(*) FROM performance_schema.threads WHERE NAME IN ('thread/sql/replica_io', 'thread/sql/replica_sql') AND PROCESSLIST_ID IS NOT NULL`
+--let $assert_text= Before restart, P_S threads should expose both replica PROCESSLIST_ID values.
+--let $assert_cond= $replica_threads = 2
+--source include/assert.inc
+
+--let $is_processlist_rows= `SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID IN (SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME IN ('thread/sql/replica_io', 'thread/sql/replica_sql'))`
+--let $assert_text= Before restart, I_S processlist should contain both replica threads.
+--let $assert_cond= $is_processlist_rows = 2
+--source include/assert.inc
+
+--let $ps_processlist_rows= `SELECT COUNT(*) FROM performance_schema.processlist WHERE ID IN (SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME IN ('thread/sql/replica_io', 'thread/sql/replica_sql'))`
+--let $assert_text= Before restart, P_S processlist should contain both replica threads.
+--let $assert_cond= $ps_processlist_rows = 2
+--source include/assert.inc
+
+--echo # Restart the replica server.
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --skip-replica-start=0
+--source include/rpl/restart_server.inc
+--let $rpl_server_parameters=
+--source include/rpl/connection_replica.inc
+--source include/rpl/wait_for_replica_to_start.inc
+
+--echo # Verify replica processlist rows after restart.
+--let $replica_threads= `SELECT COUNT(*) FROM performance_schema.threads WHERE NAME IN ('thread/sql/replica_io', 'thread/sql/replica_sql') AND PROCESSLIST_ID IS NOT NULL`
+--let $assert_text= After restart, P_S threads should expose both replica PROCESSLIST_ID values.
+--let $assert_cond= $replica_threads = 2
+--source include/assert.inc
+
+--let $is_processlist_rows= `SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID IN (SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME IN ('thread/sql/replica_io', 'thread/sql/replica_sql'))`
+--let $assert_text= After restart, I_S processlist should contain both replica threads.
+--let $assert_cond= $is_processlist_rows = 2
+--source include/assert.inc
+
+--let $ps_processlist_rows= `SELECT COUNT(*) FROM performance_schema.processlist WHERE ID IN (SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME IN ('thread/sql/replica_io', 'thread/sql/replica_sql'))`
+--let $assert_text= After restart, P_S processlist should contain both replica threads.
+--let $assert_cond= $ps_processlist_rows = 2
+--source include/assert.inc
+
+--source include/rpl/deinit.inc

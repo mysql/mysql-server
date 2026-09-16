@@ -140,6 +140,8 @@ Replica SQL for channel 'group_replication_applier': Worker . failed executing t
 Run function 'before_commit' in plugin 'group_replication' failed
 .* The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state. *
 Error on transaction .* while waiting for being prepared on all group members *
+Commit could not be completed
+Change Stream Applier channel stopped because of error
 ;
 --source include/suppress_messages.inc
 

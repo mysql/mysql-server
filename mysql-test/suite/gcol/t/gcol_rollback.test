@@ -28,6 +28,13 @@ INSERT INTO t (a) VALUES (10);
 SELECT * FROM t;
 DROP TABLE t;
 
+# DDL DEBUG_SYNC actions belong to the foreground THD. Multiple DDL workers
+# execute them with a worker THD and trip the debug-sync ownership assertion.
+# Therefore, run the DDL in single-thread mode.
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
+
 CREATE TABLE t (
   a INTEGER,
   b BLOB GENERATED ALWAYS AS (a) VIRTUAL,
@@ -104,3 +111,6 @@ DROP TABLE t;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+connection default;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

@@ -1,0 +1,20 @@
+# Verify that thread pool PFS plugin tables work correctly also when the
+# execution plan forces the PFS engine to copy and restore the position struct
+# of the plugin table.
+#
+# This will not happen for a normal select from these tables so we can run this
+# test in debug mode where we can force this behavior with a debug flag.
+#
+
+--source include/have_thread_pool.inc
+--source include/have_debug.inc
+
+SET GLOBAL DEBUG="+d,filesort_force_sort_row_ids";
+--echo # Disabling query log since the output is not stable, and not relevant
+--echo # get coverage of the get_position/set_position member functions.
+--disable_result_log
+SELECT * FROM performance_schema.tp_thread_group_state ORDER BY TP_GROUP_ID DESC;
+SELECT * FROM performance_schema.tp_thread_group_stats ORDER BY TP_GROUP_ID DESC;
+SELECT * FROM performance_schema.tp_thread_state ORDER BY TP_GROUP_ID DESC;
+--enable_result_log
+SET GLOBAL DEBUG="-d,filesort_force_sort_row_ids";

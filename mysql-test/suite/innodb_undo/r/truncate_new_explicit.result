@@ -1,0 +1,43 @@
+#
+# wl#16989 Innodb: Make UNDO log truncation crash safe
+#
+# Create 2 explicit undo tablespaces.
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE name LIKE '%undo_%';
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	active	0
+undo_004	Undo	active	0
+# Crash just after writing truncation flags to tablespace header
+set global debug='+d,ib_undo_trunc_after_writing_unusable_flag';
+# Write file to make mysql-test-run.pl expect crash
+# Make the 1st explicit undo tablespace inactive so it gets truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# Restart mysqld after the crash and reconnect.
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE name LIKE '%undo_%';
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+undo_004	Undo	active	0
+#
+# Cleanup
+#
+ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=default;
+DROP UNDO TABLESPACE undo_003;
+DROP UNDO TABLESPACE undo_004;
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE name LIKE '%undo_%';
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0

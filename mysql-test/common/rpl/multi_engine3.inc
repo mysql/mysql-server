@@ -6,6 +6,8 @@
 connection master;
 --echo "--- Insert into t1 --" as "";
 
+--let $include_silent=1
+
 --disable_query_log
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ',
                       'Must make it bug free for the customer',
@@ -27,7 +29,7 @@ INSERT INTO t1 VALUES(412,1,'Testing MySQL databases is a cool ',
 --echo --- Select from t1 on master --- 
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 --echo --- Select from t1 on slave ---
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 
@@ -42,7 +44,7 @@ SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 # Must give injector thread a little time to get update
 # into the binlog other wise we will miss the update.
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 --echo --- Check Update on slave ---
 SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 
@@ -53,9 +55,11 @@ DELETE FROM t1 WHERE id = 42;
 --echo --- Show current count on master for t1 ---
 SELECT COUNT(*) FROM t1;
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 --echo --- Show current count on slave for t1 --- 
 SELECT COUNT(*) FROM t1;
 
 connection master;
 DELETE FROM t1;
+
+--let $include_silent=0

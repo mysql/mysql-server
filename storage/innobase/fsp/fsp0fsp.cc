@@ -51,11 +51,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <debug_sync.h>
 #include "btr0btr.h"
 #include "btr0sea.h"
+#include "buf0stats.h"
 #include "dict0boot.h"
 #include "dict0dd.h"
+#include "fil0pages_persistence_interface.h"
 #include "fut0fut.h"
 #include "ibuf0ibuf.h"
-#include "log0buf.h"
+#include "log0helpers.h"
 #include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "clone0api.h"
@@ -259,14 +261,6 @@ bool fsp_is_dd_tablespace(space_id_t space_id) {
   return (space_id == dict_sys_t::s_dict_space_id);
 }
 
-/** Check whether a space id is an undo tablespace ID
-Undo tablespaces have space_id's starting 1 less than the redo logs.
-They are numbered down from this.  Since rseg_id=0 always refers to the
-system tablespace, undo_space_num values start at 1.  The current limit
-is 127. The translation from an undo_space_num is:
-   undo space_id = log_first_space_id - undo_space_num
-@param[in]      space_id        space id to check
-@return true if it is undo tablespace else false. */
 bool fsp_is_undo_tablespace(space_id_t space_id) {
   /* Starting with v8, undo space_ids have a unique range. */
   if (space_id >= dict_sys_t::s_min_undo_space_id &&
@@ -277,11 +271,13 @@ bool fsp_is_undo_tablespace(space_id_t space_id) {
   return (false);
 }
 
-/** Check if tablespace is global temporary.
-@param[in]      space_id        tablespace ID
-@return true if tablespace is global temporary. */
 bool fsp_is_global_temporary(space_id_t space_id) {
   return (space_id == srv_tmp_space.space_id());
+}
+
+bool fsp_allows_multiple_nodes(space_id_t space_id) {
+  return fsp_is_system_tablespace(space_id) ||
+         fsp_is_global_temporary(space_id);
 }
 
 /** Check if the tablespace is session temporary.
@@ -419,16 +415,6 @@ void xdes_mark_all_used(xdes_t *descr, mtr_t *mtr) {
   ut_ad(xdes_is_full(descr, mtr));
 }
 
-void xdes_mark_pages_free(xdes_t *descr, mtr_t *mtr, const page_no_t from) {
-  ut_ad(descr && mtr);
-  ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
-  const page_no_t from_page = from % FSP_EXTENT_SIZE;
-
-  for (size_t i = from_page; i < FSP_EXTENT_SIZE; ++i) {
-    xdes_set_bit(descr, XDES_FREE_BIT, i, true, mtr);
-  }
-}
-
 static inline page_no_t xdes_get_n_used(const xdes_t *descr, mtr_t *mtr) {
   page_no_t count = 0;
 
@@ -548,14 +534,13 @@ static inline void xdes_init(xdes_t *descr, /*!< in: descriptor */
 @param[in]      space           Tablespace identifier
 @param[in]      offset          Page offset
 @param[in,out]  mtr             Mini-transaction
-@param[in]      init_space      Whether the tablespace is being initialized
 @param[out]     desc_block      Descriptor block, or NULL if it is
 the same as the tablespace header
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds free limit */
 [[nodiscard]] static inline xdes_t *xdes_get_descriptor_with_space_hdr(
     fsp_header_t *sp_header, space_id_t space, page_no_t offset, mtr_t *mtr,
-    bool init_space = false, buf_block_t **desc_block = nullptr) {
+    buf_block_t **desc_block = nullptr) {
   ulint limit;
   ulint size;
   page_no_t descr_page_no;
@@ -572,12 +557,8 @@ exist in the space or if the offset exceeds free limit */
   limit = mach_read_from_4(sp_header + FSP_FREE_LIMIT);
   size = mach_read_from_4(sp_header + FSP_SIZE);
   flags = mach_read_from_4(sp_header + FSP_SPACE_FLAGS);
-  ut_ad(limit == fspace->free_limit ||
-        (fspace->free_limit == 0 &&
-         (init_space || fspace->purpose == FIL_TYPE_TEMPORARY ||
-          (srv_startup_is_before_trx_rollback_phase &&
-           fsp_is_undo_tablespace(fspace->id)))));
-  ut_ad(size == fspace->size_in_header);
+  ut_ad(limit == fspace->get_cached_fsp_free_limit());
+  ut_ad(size == fspace->get_cached_fsp_size_in_header());
 #ifdef UNIV_DEBUG
   /* Exclude Encryption flag as it might have been changed In Memory flags but
   not on disk. */
@@ -688,6 +669,20 @@ void fsp_init_file_page_low(buf_block_t *block) {
   page_t *page = buf_block_get_frame(block);
   page_zip_des_t *page_zip = buf_block_get_page_zip(block);
 
+#ifndef UNIV_HOTBACKUP
+  if (buf_page_get_state(&block->page) == BUF_BLOCK_FILE_PAGE &&
+      fil_page_get_type(page) != FIL_PAGE_TYPE_ALLOCATED) {
+    if (page_get_page_id(page) == block->page.id) {
+      /* The frame still names this buffer page, so its old contents may have
+      been counted by buf_stat_per_index. We are about to overwrite fields that
+      define the accounting predicate; disown the old page before
+      reinitializing it. BUF_BLOCK_MEMORY frames are deliberately excluded
+      because they are scratch memory, not live file pages in the page hash. */
+      buf_stat_per_index->dec_if_tracked_page(page);
+    }
+  }
+#endif /* !UNIV_HOTBACKUP */
+
   if (!fsp_is_system_temporary(block->page.id.space())) {
     memset(page, 0, UNIV_PAGE_SIZE);
   }
@@ -738,7 +733,7 @@ static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
       ut_a(fsp_is_system_temporary(id) || !mtr_t::s_logging.is_enabled() ||
            fil_space_get_flags(id) == UINT32_UNDEFINED ||
            type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_IMPORT ||
-           fil_space_is_redo_skipped(id) || !undo::is_active(id, false));
+           fil_space_is_redo_skipped(id));
     }
 #endif /* UNIV_DEBUG */
       return;
@@ -782,7 +777,8 @@ const byte *fsp_parse_init_file_page(const byte *ptr,
 
 /** Initializes the fsp system. */
 void fsp_init() {
-  /* FSP_EXTENT_SIZE must be a multiple of page & zip size */
+  /* FSP_EXTENT_SIZE must be a divisor of page & zip size. We use this property
+  in the extend descriptor. */
   ut_a(UNIV_PAGE_SIZE > 0);
   ut_a(0 == (UNIV_PAGE_SIZE % FSP_EXTENT_SIZE));
 
@@ -823,6 +819,17 @@ ulint fsp_header_get_encryption_offset(const page_size_t &page_size) {
 }
 
 #ifndef UNIV_HOTBACKUP
+
+void fsp_header_store_flags(space_id_t space_id, uint32_t space_flags,
+                            mtr_t *mtr) {
+  buf_block_t *block = buf_page_get_gen(
+      page_id_t(space_id, 0), page_size_t{space_flags}, RW_X_LATCH, nullptr,
+      Page_fetch::NORMAL, UT_LOCATION_HERE, mtr);
+  ut_a(block != nullptr);
+  mlog_write_ulint(block->frame + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS,
+                   space_flags, MLOG_4BYTES, mtr);
+}
+
 /** Write the (un)encryption progress info into the space header.
 @param[in]      space_id                Tablespace id
 @param[in]      space_flags             Tablespace flags
@@ -1016,9 +1023,6 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr) {
   auto block = buf_page_create(page_id, page_size, RW_SX_LATCH, mtr);
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
-  space->size_in_header = size;
-  space->free_len = 0;
-  space->free_limit = 0;
   space->autoextend_size_in_bytes = 0;
 
   /* The prior contents of the file page should be ignored */
@@ -1057,11 +1061,18 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr) {
 
   mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
 
+  /* We just filled in the space header content - it is valid. */
+  space->declare_first_page_valid();
+
+  /* Must be called before `fsp_fill_free_list(), which requires the cache to be
+  already initialized, and modifies the FSP_FREE_LIMIT field in page. */
+  space->fill_fsp_cache(page);
+
   fsp_fill_free_list(
       !fsp_is_system_tablespace(space_id) && !fsp_is_global_temporary(space_id),
       space, header, mtr);
 
-  /* For encryption tablespace, we need to save the encryption
+  /* For encrypted tablespace, we need to save the encryption
   info to the page 0. */
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     auto offset = fsp_header_get_encryption_offset(page_size);
@@ -1148,7 +1159,7 @@ page_size_t fsp_header_get_page_size(const page_t *page) {
 @param[in]      page            first page of a tablespace
 @return true if success */
 bool fsp_header_get_encryption_key(uint32_t fsp_flags, Encryption_key &e_key,
-                                   page_t *page) {
+                                   const page_t *page) {
   ulint offset;
   const page_size_t page_size(fsp_flags);
 
@@ -1163,10 +1174,6 @@ bool fsp_header_get_encryption_key(uint32_t fsp_flags, Encryption_key &e_key,
 
 #ifndef UNIV_HOTBACKUP
 
-/** Increases the space size field of a space.
-@param[in] space_id Space id
-@param[in] size_inc Size increment in pages
-@param[in,out] mtr Mini-transaction */
 void fsp_header_inc_size(space_id_t space_id, page_no_t size_inc, mtr_t *mtr) {
   fil_space_t *space = fil_space_get(space_id);
 
@@ -1181,12 +1188,12 @@ void fsp_header_inc_size(space_id_t space_id, page_no_t size_inc, mtr_t *mtr) {
   page_no_t size;
 
   size = mach_read_from_4(header + FSP_SIZE);
-  ut_ad(size == space->size_in_header);
+  ut_a(size == space->get_cached_fsp_size_in_header());
 
   size += size_inc;
 
   fsp_header_size_update(header, size, mtr);
-  space->size_in_header = size;
+  space->set_cached_fsp_size_in_header(size);
 }
 
 /** Gets the size of the system tablespace from the tablespace header.  If
@@ -1211,12 +1218,142 @@ page_no_t fsp_header_get_tablespace_size(void) {
 
   size = mach_read_from_4(header + FSP_SIZE);
 
-  ut_ad(space->size_in_header == size);
+  ut_ad(space->get_cached_fsp_size_in_header() == size);
 
   mtr_commit(&mtr);
 
   return (size);
 }
+#endif
+
+dberr_t fsp_header_validate(const byte *page, space_id_t expected_space_id,
+                            uint32_t &space_flags, const std::string &path,
+                            bool for_import, Encryption_key &encryption_key) {
+  space_flags = fsp_header_get_flags(page);
+  const auto space_id_on_disk = fsp_header_get_space_id(page);
+
+  const auto report_corruption_error = [&path, expected_space_id,
+                                        space_flags](const char *error_text) {
+    ib::error(ER_IB_MSG_DATAFILE_VALIDATION_ERROR, error_text, path.c_str(),
+              (ulong)expected_space_id, (ulong)space_flags,
+              TROUBLESHOOT_DATADICT_URL);
+    return DB_CORRUPTION;
+  };
+
+  /* Two fields read so far have zeros, this looks suspicious. Check if the
+  whole page is blank. */
+  if (space_id_on_disk == 0 && space_flags == 0) {
+    const byte *b = page;
+    ulint nonzero_bytes = UNIV_PAGE_SIZE;
+
+    while (*b == '\0' && --nonzero_bytes != 0) {
+      b++;
+    }
+
+    if (nonzero_bytes == 0) {
+      return report_corruption_error("Header page consists of zero bytes");
+    }
+  }
+
+  const page_size_t page_size(space_flags);
+
+  if (univ_page_size.logical() != page_size.logical()) {
+    /* Page size must be univ_page_size. */
+
+    ib::error(ER_IB_MSG_397)
+        << "Data file '" << path << "' uses page size " << page_size.logical()
+        << ", but the innodb_page_size"
+           " start-up parameter is "
+        << univ_page_size.logical();
+    return DB_ERROR;
+  } else if (!fsp_flags_is_valid(space_flags) ||
+             FSP_FLAGS_GET_TEMPORARY(space_flags)) {
+    /* Tablespace flags must be valid. */
+    return report_corruption_error("Tablespace flags are invalid");
+  } else if (page_get_page_no(page) != 0) {
+    /* First page must be number 0 */
+    return report_corruption_error("Header page contains inconsistent data");
+  } else if (space_id_on_disk == SPACE_UNKNOWN) {
+    /* The space_id can be most anything, except -1. */
+    return report_corruption_error("A bad Space ID was found");
+  } else if (expected_space_id != space_id_on_disk) {
+    /* Tablespace ID mismatch. The file could be in use by another tablespace.
+     */
+#ifndef UNIV_HOTBACKUP
+    ut_d(ib::info(ER_IB_MSG_398)
+         << "Tablespace file '" << path << "' ID mismatch"
+         << ", expected " << expected_space_id << " but found "
+         << space_id_on_disk);
+#else  /* !UNIV_HOTBACKUP */
+    ib::trace_2() << "Tablespace file '" << path << "' ID mismatch"
+                  << ", expected " << expected_space_id << " but found "
+                  << space_id_on_disk;
+#endif /* !UNIV_HOTBACKUP */
+
+    return DB_WRONG_FILE_NAME;
+  } else {
+    BlockReporter reporter(false, page, page_size,
+                           fsp_is_checksum_disabled(expected_space_id));
+
+    if (reporter.is_corrupted()) {
+      /* Look for checksum and other corruptions. */
+      return report_corruption_error("Checksum mismatch");
+    }
+
+    /** TODO: Enable following after WL#11063: Update
+    server version information in InnoDB tablespaces:
+
+    else if (!for_import
+               && (fsp_header_get_server_version(page)
+                   != DD_SPACE_CURRENT_SRV_VERSION)) {
+            return report_corruption_error("Wrong server version");
+    } else if (!for_import
+               && (fsp_header_get_space_version(page)
+                   != DD_SPACE_CURRENT_SPACE_VERSION)) {
+            return report_corruption_error("Wrong tablespace version");
+    } */
+  }
+
+  /* For encrypted tablespace, check the encryption info in the
+  first page can be decrypt by master key, otherwise, this table
+  can't be open. And for importing, we skip checking it. */
+  if (FSP_FLAGS_GET_ENCRYPTION(space_flags) && !for_import) {
+#ifdef UNIV_ENCRYPT_DEBUG
+    fprintf(stderr, "Got from file %u:", m_space_id);
+#endif
+    if (!fsp_header_get_encryption_key(space_flags, encryption_key, page)) {
+      ib::error(ER_IB_MSG_401) << "Encryption information in datafile: " << path
+                               << " can't be decrypted, please confirm that"
+                                  " keyring is loaded.";
+      return (DB_INVALID_ENCRYPTION_META);
+    } else {
+#ifdef UNIV_DEBUG
+      ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << path
+                              << " successfully, encryption"
+                              << " of this tablespace is enabled.";
+#endif
+    }
+  }
+
+  std::string prev_name, prev_filepath;
+  if (fil_space_read_name_and_filepath(expected_space_id, prev_name,
+                                       prev_filepath)) {
+    if (path != prev_filepath) {
+      /* Make sure the space_id has not already been opened. */
+      ib::error(ER_IB_MSG_403) << "Attempted to open a previously opened"
+                                  " tablespace. Previous tablespace "
+                               << prev_name << " at filepath: " << prev_filepath
+                               << " uses space ID: " << expected_space_id
+                               << ". Cannot open filepath: " << path
+                               << " which uses the same space ID.";
+      return DB_TABLESPACE_EXISTS;
+    }
+  }
+
+  return DB_SUCCESS;
+}
+
+#ifndef UNIV_HOTBACKUP
 
 /** Try to extend a single-table tablespace so that a page would fit in the
 data file.
@@ -1234,16 +1371,16 @@ data file.
   ut_d(fsp_space_modify_check(space->id, mtr));
 
   page_no_t size = mach_read_from_4(header + FSP_SIZE);
-  ut_ad(size == space->size_in_header);
+  ut_ad(size == space->get_cached_fsp_size_in_header());
 
   ut_a(page_no >= size);
 
   bool success = fil_space_extend(space, page_no + 1);
 
   /* The size may be less than we wanted if we ran out of disk space. */
-  fsp_header_size_update(header, space->size, mtr);
+  fsp_header_size_update(header, space->m_size_in_pages, mtr);
 
-  space->size_in_header = space->size;
+  space->set_cached_fsp_size_in_header(space->m_size_in_pages);
 
   return success;
 }
@@ -1286,6 +1423,9 @@ static UNIV_COLD bool fsp_try_extend_data_file(fil_space_t *space,
   DBUG_TRACE;
 
   ut_d(fsp_space_modify_check(space->id, mtr));
+  ut_ad(mtr_memo_contains(mtr, &space->latch, MTR_MEMO_X_LOCK));
+  ut_ad(mtr->memo_contains_page_flagged(
+      header, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
 
   if (space->id == TRX_SYS_SPACE &&
       !srv_sys_space.can_auto_extend_last_file()) {
@@ -1315,16 +1455,12 @@ static UNIV_COLD bool fsp_try_extend_data_file(fil_space_t *space,
   }
 
   size = mach_read_from_4(header + FSP_SIZE);
-  ut_ad(size == space->size_in_header);
+  ut_ad(size == space->get_cached_fsp_size_in_header());
 
   const page_size_t page_size(mach_read_from_4(header + FSP_SPACE_FLAGS));
-
-  if (space->id == TRX_SYS_SPACE) {
-    size_increase = srv_sys_space.get_increment();
-
-  } else if (fsp_is_global_temporary(space->id)) {
-    size_increase = srv_tmp_space.get_increment();
-
+  if (space->id == TRX_SYS_SPACE || fsp_is_global_temporary(space->id)) {
+    size_increase = std::min(ib::fsp::SysTablespace::get_autoextend_increment(),
+                             space->get_max_size_in_pages() - size);
   } else {
     /* Check if the tablespace supports autoextend_size */
     page_no_t autoextend_size_pages =
@@ -1377,10 +1513,11 @@ static UNIV_COLD bool fsp_try_extend_data_file(fil_space_t *space,
   /* We ignore any fragments of a full megabyte when storing the size
   to the space header */
 
-  space->size_in_header =
-      ut_calc_align_down(space->size, (1024 * 1024) / page_size.physical());
+  const auto new_size = ut_calc_align_down(
+      space->m_size_in_pages, (1024 * 1024) / page_size.physical());
 
-  fsp_header_size_update(header, space->size_in_header, mtr);
+  fsp_header_size_update(header, new_size, mtr);
+  space->set_cached_fsp_size_in_header(new_size);
 
   return true;
 }
@@ -1471,8 +1608,8 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
   limit = mach_read_from_4(header + FSP_FREE_LIMIT);
   flags = mach_read_from_4(header + FSP_SPACE_FLAGS);
 
-  ut_ad(size == space->size_in_header);
-  ut_ad(limit == space->free_limit);
+  ut_ad(size == space->get_cached_fsp_size_in_header());
+  ut_ad(limit == space->get_cached_fsp_free_limit());
 
   /* Exclude Encryption flag as it might have been changed In Memory flags but
   not on disk. */
@@ -1488,7 +1625,7 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
         (fsp_is_global_temporary(space->id) &&
          srv_tmp_space.can_auto_extend_last_file())) {
       fsp_try_extend_data_file(space, header, mtr);
-      size = space->size_in_header;
+      size = space->get_cached_fsp_size_in_header();
     }
   }
 
@@ -1498,7 +1635,7 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
          ((i + FSP_EXTENT_SIZE <= size) && (count < FSP_FREE_ADD))) {
     bool init_xdes = (ut_2pow_remainder(i, page_size.physical()) == 0);
 
-    space->free_limit = i + FSP_EXTENT_SIZE;
+    space->set_cached_fsp_free_limit(i + FSP_EXTENT_SIZE);
     mlog_write_ulint(header + FSP_FREE_LIMIT, i + FSP_EXTENT_SIZE, MLOG_4BYTES,
                      mtr);
 
@@ -1555,7 +1692,7 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
 
     buf_block_t *desc_block = nullptr;
     descr = xdes_get_descriptor_with_space_hdr(header, space->id, i, mtr,
-                                               init_space, &desc_block);
+                                               &desc_block);
     if (desc_block != nullptr) {
       buf_block_reset_page_type_on_mismatch(*desc_block, FIL_PAGE_TYPE_XDES,
                                             *mtr);
@@ -1572,7 +1709,7 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
     i += FSP_EXTENT_SIZE;
   }
   ut_a(count < std::numeric_limits<uint32_t>::max());
-  space->free_len += (uint32_t)count;
+  space->inc_cached_fsp_free_len((uint32_t)count);
 }
 
 /** Allocates a new free extent.
@@ -1592,7 +1729,7 @@ static xdes_t *fsp_alloc_free_extent(space_id_t space_id,
 
   header = fsp_get_space_header(space_id, page_size, mtr);
 
-  descr = xdes_get_descriptor_with_space_hdr(header, space_id, hint, mtr, false,
+  descr = xdes_get_descriptor_with_space_hdr(header, space_id, hint, mtr,
                                              &desc_block);
 
   fil_space_t *space = fil_space_get(space_id);
@@ -1623,7 +1760,7 @@ static xdes_t *fsp_alloc_free_extent(space_id_t space_id,
   }
 
   flst_remove(header + FSP_FREE, descr + XDES_FLST_NODE, mtr);
-  space->free_len--;
+  space->dec_cached_fsp_free_len();
 
   return (descr);
 }
@@ -1753,8 +1890,7 @@ static buf_block_t *fsp_page_create(const page_id_t &page_id,
   page_no = xdes_get_offset(descr) + free;
 
   space_size = mach_read_from_4(header + FSP_SIZE);
-  ut_ad(space_size == fil_space_get(space)->size_in_header ||
-        (space == TRX_SYS_SPACE && srv_startup_is_before_trx_rollback_phase));
+  ut_ad(space_size == fil_space_get(space)->get_cached_fsp_size_in_header());
 
   if (space_size <= page_no) {
     /* It must be that we are extending a single-table tablespace
@@ -1763,13 +1899,8 @@ static buf_block_t *fsp_page_create(const page_id_t &page_id,
     ut_a(!fsp_is_system_tablespace(space));
     ut_a(!fsp_is_global_temporary(space));
     if (page_no >= FSP_EXTENT_SIZE) {
-      ib::error(ER_IB_MSG_417) << "Trying to extend a single-table"
-                                  " tablespace "
-                               << space
-                               << " , by single"
-                                  " page(s) though the space size "
-                               << space_size << ". Page no " << page_no << ".";
-      return FIL_NULL;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_SHOULD_EXTEND_BY_EXTENTS, ulong{space},
+                ulong{page_no}, ulong{space_size});
     }
 
     fil_space_t *fspace = fil_space_get(space);
@@ -1927,7 +2058,7 @@ static void fsp_free_extent(const page_id_t &page_id,
 
       space = fil_space_get(page_id.space());
 
-      ++space->free_len;
+      space->inc_cached_fsp_free_len(1);
 
       break;
 
@@ -2913,18 +3044,15 @@ page_no_t fseg_alloc_page_no(fil_space_t *space, const page_size_t &page_size,
     return FIL_NULL;
   }
 
-  if (space->size <= ret_page && !fsp_is_system_or_temp_tablespace(space_id)) {
+  if (space->m_size_in_pages <= ret_page &&
+      !fsp_is_system_or_temp_tablespace(space_id)) {
     /* It must be that we are extending a single-table
     tablespace whose size is still < 64 pages */
 
     if (ret_page >= FSP_EXTENT_SIZE) {
-      ib::error(ER_IB_MSG_420)
-          << "Error (2): trying to extend"
-             " a single-table tablespace "
-          << space_id << " by single page(s) though the"
-          << " space size " << space->size << ". Page no " << ret_page << ".";
-      ut_ad(!has_done_reservation);
-      return FIL_NULL;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_SHOULD_EXTEND_BY_EXTENTS,
+                ulong{space_id}, ulong{ret_page},
+                ulong{space->m_size_in_pages});
     }
 
     if (!fsp_try_extend_data_file_with_pages(space, ret_page, space_header,
@@ -3146,7 +3274,7 @@ bool fsp_reserve_free_extents(ulint *n_reserved, space_id_t space_id,
   ut_ad(block != nullptr);
 try_again:
   size = mach_read_from_4(space_header + FSP_SIZE);
-  ut_ad(size == space->size_in_header);
+  ut_ad(size == space->get_cached_fsp_size_in_header());
 
   if (space->get_auto_extend_size() > 0) {
     page_no_t autoextend_size_pages =
@@ -3186,10 +3314,10 @@ try_again:
   }
 
   n_free_list_ext = flst_get_len(space_header + FSP_FREE);
-  ut_ad(space->free_len == n_free_list_ext);
+  ut_ad(space->get_cached_fsp_free_len() == n_free_list_ext);
 
   free_limit = mtr_read_ulint(space_header + FSP_FREE_LIMIT, MLOG_4BYTES, mtr);
-  ut_ad(space->free_limit == free_limit);
+  ut_ad(space->get_cached_fsp_free_limit() == free_limit);
 
   /* Below we play safe when counting free extents above the free limit:
   some of them will contain extent descriptor pages, and therefore
@@ -3252,30 +3380,6 @@ try_to_extend:
   return false;
 }
 
-bool fsp_extend_by_default_size(space_id_t space_id, bool make_old,
-                                size_t &space_size) {
-  fil_space_t *space = fil_space_get(space_id);
-
-  mtr_t mtr;
-  mtr.start();
-
-  mtr_x_lock_space(space, &mtr);
-  const page_size_t page_size(space->flags);
-
-  buf_block_t *block = nullptr;
-  auto space_header =
-      fsp_get_space_header_block(space_id, page_size, &mtr, &block);
-  bool ret = fsp_try_extend_data_file(space, space_header, &mtr);
-
-  if (ret && make_old) {
-    buf_page_t *page = &block->page;
-    buf_page_make_old(page);
-  }
-  space_size = space->size_in_header * page_size.physical();
-  mtr.commit();
-  return ret;
-}
-
 /** Calculate how many KiB of new data we will be able to insert to the
 tablespace without running out of space.
 @param[in]      space_id        tablespace ID
@@ -3287,6 +3391,11 @@ uintmax_t fsp_get_available_space_in_free_extents(space_id_t space_id) {
   if (space == nullptr) {
     return (UINTMAX_MAX);
   }
+
+  /* The space must be opened for the fsp cache to be filled. If it is not
+  filled, to gather the required statistics, we would have to open and read
+  the space header either way. */
+  space->ensure_fsp_cache_valid();
 
   auto n_free_extents = fsp_get_available_space_in_free_extents(space);
 
@@ -3303,7 +3412,7 @@ been acquired by the caller who holds it for the calculation,
 uintmax_t fsp_get_available_space_in_free_extents(const fil_space_t *space) {
   ut_ad(space->n_pending_ops > 0);
 
-  ulint size_in_header = space->size_in_header;
+  const auto size_in_header = space->get_cached_fsp_size_in_header();
   if (size_in_header < FSP_EXTENT_SIZE) {
     return (0); /* TODO: count free frag pages and
                 return a value based on that */
@@ -3312,8 +3421,9 @@ uintmax_t fsp_get_available_space_in_free_extents(const fil_space_t *space) {
   /* Below we play safe when counting free extents above the free limit:
   some of them will contain extent descriptor pages, and therefore
   will not be free extents */
-  ut_ad(size_in_header >= space->free_limit);
-  ulint n_free_up = (size_in_header - space->free_limit) / FSP_EXTENT_SIZE;
+  ut_ad(size_in_header >= space->get_cached_fsp_free_limit());
+  auto n_free_up =
+      (size_in_header - space->get_cached_fsp_free_limit()) / FSP_EXTENT_SIZE;
 
   page_size_t page_size(space->flags);
   if (n_free_up > 0) {
@@ -3325,8 +3435,8 @@ uintmax_t fsp_get_available_space_in_free_extents(const fil_space_t *space) {
   and 1 extent + 0.5 % to cleaning operations; NOTE: this source
   code is duplicated in the function above! */
 
-  ulint reserve = 2 + ((size_in_header / FSP_EXTENT_SIZE) * 2) / 200;
-  ulint n_free = space->free_len + n_free_up;
+  const auto reserve = 2 + ((size_in_header / FSP_EXTENT_SIZE) * 2) / 200;
+  const auto n_free = space->get_cached_fsp_free_len() + n_free_up;
 
   if (reserve > n_free) {
     return (0);
@@ -4023,9 +4133,9 @@ std::ostream &xdes_page_print(std::ostream &out, const page_t *xdes,
     out << header << "\n";
   }
 
-  ulint N = UNIV_PAGE_SIZE / FSP_EXTENT_SIZE;
+  const size_t N = UNIV_PAGE_SIZE / FSP_EXTENT_SIZE;
 
-  for (ulint i = 0; i < N; ++i) {
+  for (size_t i = 0; i < N; ++i) {
     const byte *desc = xdes + XDES_ARR_OFFSET + (i * XDES_SIZE);
     xdes_mem_t x(desc);
 
@@ -4199,8 +4309,7 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
 #endif /* UNIV_DEBUG */
 
     DBUG_EXECUTE_IF("flush_each_dirtied_page",
-                    buf_LRU_flush_or_remove_pages(
-                        space_id, BUF_REMOVE_FLUSH_WRITE, nullptr, false););
+                    pages_persistence->persist_tablespace(space_id, nullptr););
   }
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -4321,8 +4430,7 @@ static dberr_t encrypt_begin_persist(fil_space_t *space) {
   [5] Although REDO for P is to be discarded, but to confirm that page LSN is
       to be checked, thus  P is read from disk. ERROR. We should replace this
   expensive call to flush all by an interface that would flush only page-0. */
-  buf_LRU_flush_or_remove_pages(space->id, BUF_REMOVE_FLUSH_WRITE, nullptr,
-                                false);
+  pages_persistence->persist_tablespace(space->id, nullptr);
   return DB_SUCCESS;
 }
 
@@ -4351,12 +4459,10 @@ static void process_all_pages(THD *thd, fil_space_t *space,
                               page_no_t from_page) {
   DBUG_TRACE;
   /* Mark all pages in tablespace dirty */
-  mark_all_page_dirty_in_tablespace(thd, space->id, space->flags, space->size,
-                                    from_page);
+  mark_all_page_dirty_in_tablespace(thd, space->id, space->flags,
+                                    space->m_size_in_pages, from_page);
 
-  /* As DMLs are allowed in parallel, pass false for 'strict' */
-  buf_LRU_flush_or_remove_pages(space->id, BUF_REMOVE_FLUSH_WRITE, nullptr,
-                                false);
+  pages_persistence->persist_tablespace(space->id, nullptr);
 }
 
 /** Finish space encrypt operation.
@@ -4364,9 +4470,8 @@ static void process_all_pages(THD *thd, fil_space_t *space,
 static void encrypt_end(fil_space_t *space) {
   DBUG_TRACE;
   /* Crash before resetting progress on page 0 */
-  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_resetting_progress",
-                  log_buffer_flush_to_disk();
-                  DBUG_SUICIDE(););
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH(
+      "alter_encrypt_tablespace_crash_before_resetting_progress");
 
   /* Erase Operation type and encryption progress from page 0 */
   mtr_t mtr;
@@ -4414,7 +4519,7 @@ static Encryption::Resume_point encrypt_resume_point(fil_space_t *space,
 
   ut_ad(space->encryption_op_in_progress == Encryption::Progress::ENCRYPTION);
 
-  if (from_page == space->size) {
+  if (from_page == space->m_size_in_pages) {
     return Encryption::Resume_point::END;
   }
 
@@ -4526,9 +4631,8 @@ static dberr_t decrypt_end(fil_space_t *space) {
   DBUG_TRACE;
   ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
-  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_updating_flags",
-                  log_buffer_flush_to_disk();
-                  DBUG_SUICIDE(););
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH(
+      "alter_encrypt_tablespace_crash_before_updating_flags");
 
   dberr_t err = DB_SUCCESS;
   {
@@ -4565,9 +4669,8 @@ static dberr_t decrypt_end(fil_space_t *space) {
   }
 
   /* Crash before resetting progress on page 0 */
-  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_resetting_progress",
-                  log_buffer_flush_to_disk();
-                  DBUG_SUICIDE(););
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH(
+      "alter_encrypt_tablespace_crash_before_resetting_progress");
 
   fsp_header_write_encryption_progress(space->id, space->flags, 0, 0, true,
                                        &mtr);
@@ -4608,7 +4711,7 @@ static Encryption::Resume_point decrypt_resume_point(fil_space_t *space,
 
   ut_ad(space->encryption_op_in_progress == Encryption::Progress::DECRYPTION);
 
-  if (from_page == space->size) {
+  if (from_page == space->m_size_in_pages) {
     return Encryption::Resume_point::END;
   }
 
@@ -4713,47 +4816,37 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
                                   static_cast<uint32>(space->flags));
 
   /* Crash before flushing page 0 on disk */
-  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_flushing_page_0",
-                  log_buffer_flush_to_disk();
-                  DBUG_SUICIDE(););
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH(
+      "alter_encrypt_tablespace_crash_before_flushing_page_0");
 
   /* Flush page 0 here because MEB backup needs to read the key from page 0
   before redo log is applied. This is not needed for innodb recovery and
   ideally we would like to get rid of all such special purpose code. We should
   replace this expensive call to flush all by an interface that would flush only
   page-0.*/
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
-                                false);
+  pages_persistence->persist_tablespace(space_id, nullptr);
 
   /* Crash after flushing page 0 on disk */
-  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_after_flushing_page_0",
-                  log_buffer_flush_to_disk();
-                  DBUG_SUICIDE(););
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH(
+      "alter_encrypt_tablespace_crash_after_flushing_page_0");
   return err;
 }
 
 #ifdef UNIV_DEBUG
 /** Validate tablespace encryption settings. */
 static void validate_tablespace_encryption(fil_space_t *space) {
-  byte buf[Encryption::KEY_LEN];
-  memset(buf, 0, Encryption::KEY_LEN);
+  const auto space_has_encryption_flag =
+      FSP_FLAGS_GET_ENCRYPTION(space->flags) != 0;
+  const auto space_has_encryption_key =
+      !Encryption_metadata{}.match(space->m_encryption_metadata);
+  const auto space_has_nonzero_keylen =
+      space->m_encryption_metadata.m_key_len != 0;
 
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    ut_ad(memcmp(space->m_encryption_metadata.m_key, buf,
-                 Encryption::KEY_LEN) != 0);
-    ut_ad(memcmp(space->m_encryption_metadata.m_iv, buf, Encryption::KEY_LEN) !=
-          0);
-    ut_ad(space->m_encryption_metadata.m_key_len != 0);
-    ut_ad(space->m_encryption_metadata.m_type == Encryption::AES);
-  } else {
-    ut_ad(memcmp(space->m_encryption_metadata.m_key, buf,
-                 Encryption::KEY_LEN) == 0);
-    ut_ad(memcmp(space->m_encryption_metadata.m_iv, buf, Encryption::KEY_LEN) ==
-          0);
-    ut_ad(space->m_encryption_metadata.m_key_len == 0);
-    ut_ad(space->m_encryption_metadata.m_type == Encryption::NONE);
-    ut_ad(!space->can_encrypt());
-  }
+  ut_ad(space_has_encryption_flag == space_has_encryption_key);
+  ut_ad(space_has_encryption_flag == space_has_nonzero_keylen);
+  ut_ad(space->m_encryption_metadata.m_type ==
+        (space_has_encryption_flag ? Encryption::AES : Encryption::NONE));
+  ut_ad(space_has_encryption_flag == space->can_encrypt());
   ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
 }
 #endif
@@ -4843,7 +4936,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
     if (it->get_encryption_type() == Encryption::Progress::ENCRYPTION &&
         !space->can_encrypt()) {
       if (load_encryption_from_header(space)) {
-        ib::error() << "Encryption information can't be read for tablesapce "
+        ib::error() << "Encryption information can't be read for tablespace "
                     << space->name
                     << ". Skipping resume encryption operation for it.";
         continue;

@@ -5,6 +5,8 @@
 # SQL_BEFORE_GTIDS
 # Currently SQL_AFTER_GTIDS is not supportted.
 ################################################################################
+# This test is for MTA
+--source include/have_mta.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --source include/rpl/set_privilege_checks_user_as_system_user.inc

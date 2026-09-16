@@ -28,9 +28,11 @@ call mtr.add_suppression("ibd can't be decrypted, please confirm the keyring is 
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Failed to decrypt encryption information, found unexpected version of it!");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption information in datafile: .* can't be decrypted, please confirm that keyring is loaded.");
+# Innodb may pick the stale encrypted page from double-write buffer during
+# recovery that may lead to the following false warnings sometimes.
 call mtr.add_suppression("\\[Warning\\] \\[MY-013675\\] \\[InnoDB\\] Encryption key missing: space_id=");
 call mtr.add_suppression("\\[Warning\\] \\[MY-013674\\] \\[InnoDB\\] Decrypting a page in doublewrite file failed: space_id=");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption information in datafile: .* can't be decrypted, please confirm that keyring is loaded.");
 --enable_query_log
 
 --echo #########################################################################

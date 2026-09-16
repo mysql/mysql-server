@@ -14,6 +14,8 @@ CALL mtr.add_suppression("A replica with the same server_uuid/server_id as this 
 CALL mtr.add_suppression("Error during --relay-log-recovery.*");
 CALL mtr.add_suppression("Server was not able to find a rotate event from source server.*");
 CALL mtr.add_suppression("Recovery from source pos.* and file");
+# Suppression for CSA overriding GTID_ONLY to 1
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1");
 
 --source include/rpl/stop_replica.inc
 

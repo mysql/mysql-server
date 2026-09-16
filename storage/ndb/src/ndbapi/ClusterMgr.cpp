@@ -89,7 +89,8 @@ ClusterMgr::ClusterMgr(TransporterFacade &_facade)
       theClusterMgrThread(nullptr),
       m_process_info(nullptr),
       m_cluster_state(CS_waiting_for_clean_cache),
-      m_hbCheckInterval(0) {
+      m_hbCheckInterval(0),
+      m_hbCheckIntervalDbApi(0) {
   DBUG_ENTER("ClusterMgr::ClusterMgr");
   clusterMgrThreadMutex = NdbMutex_Create();
   waitForHBCond = NdbCondition_Create();
@@ -190,6 +191,9 @@ void ClusterMgr::configure(Uint32 nodeId, const ndb_mgm_configuration *config) {
   unsigned hbCheckInterval = 0;
   iter.get(CFG_MGMD_MGMD_HEARTBEAT_INTERVAL, &hbCheckInterval);
   m_hbCheckInterval = static_cast<Uint32>(hbCheckInterval);
+  unsigned hbCheckIntervalDbApi = RNIL;
+  iter.get(CFG_DB_API_HEARTBEAT_INTERVAL, &hbCheckIntervalDbApi);
+  m_hbCheckIntervalDbApi = static_cast<Uint32>(hbCheckIntervalDbApi);
 
   // Configure max backoff time for connection attempts to first
   // data node.
@@ -388,6 +392,18 @@ void ClusterMgr::threadMain() {
       if (!theNode.defined) continue;
 
       if (!theNode.is_connected()) {
+        /**
+         * Only allow data node connection setup to be attempted
+         * if we have received NF_COMPLETEREP for previous connection
+         * incarnation so that cluster disconnect can be reliably
+         * detected
+         */
+        if (theNode.m_info.getType() == NodeInfo::DB &&
+            !theNode.nfCompleteRep) {
+          /* Data node failure notification not received yet */
+          continue;
+        }
+
         theFacade.startConnecting(nodeId);
         continue;
       }
@@ -424,15 +440,34 @@ void ClusterMgr::threadMain() {
 
       if (cm_node.hbCheckInterval == 0 ||
           NdbTick_Compare(now, cm_node.nextHbSend) >= 0) {
-        if (theNode.m_info.m_type != NodeInfo::DB)
+        /*
+          Send the API heartbeat interval override only to unconfirmed data
+          nodes. Ideally this happens only on the first API_REGREQ. Once the
+          data node is confirmed, and for API/MGM receivers, use the shorter
+          signal length since the extra word is not needed.
+        */
+        if (theNode.m_info.m_type != NodeInfo::DB) {
           signal.theReceiversBlockNumber = API_CLUSTERMGR;
-        else
+          signal.theLength = ApiRegReq::SignalLengthWithoutHeartbeatInterval;
+        } else {
           signal.theReceiversBlockNumber = QMGR;
+          signal.theLength =
+              cm_node.is_confirmed()
+                  ? ApiRegReq::SignalLengthWithoutHeartbeatInterval
+                  : ApiRegReq::SignalLength;
+        }
 
 #ifdef DEBUG_REG
         g_eventLogger->info("ClusterMgr: Sending API_REGREQ to node %d",
                             (int)nodeId);
 #endif
+
+        if (theNode.m_info.m_type == NodeInfo::DB && !cm_node.is_confirmed()) {
+          req->apiHeartbeatInterval = m_hbCheckIntervalDbApi;
+        } else {
+          req->apiHeartbeatInterval = RNIL;
+        }
+
         if (nodeId == getOwnNodeId()) {
           /* Set flag to ensure we only send once to ourself */
           m_sent_API_REGREQ_to_myself = true;
@@ -767,7 +802,7 @@ void ClusterMgr::execAPI_REGREQ(const Uint32 *theData) {
   conf->mysql_version = NDB_MYSQL_VERSION_D;
 
   /*
-    This is the interval (in centiseonds) at which we want the other node
+    This is the interval (in centiseconds) at which we want the other node
     to send API_REGREQ messages.
   */
   conf->apiHeartbeatInterval = m_hbCheckInterval / 10;
@@ -1076,6 +1111,8 @@ void ClusterMgr::execNF_COMPLETEREP(const NdbApiSignal *signal,
   assert(nodeId > 0 && nodeId < MAX_NODES);
 
   trp_node &node = theNodes[nodeId];
+  /* Must have received a NODE_FAILREP prior to this */
+  assert(node.m_node_fail_rep);
   if (!node.nfCompleteRep) {
     node.nfCompleteRep = true;
     theFacade.for_each(this, signal, ptr);
@@ -1289,7 +1326,12 @@ void ClusterMgr::execNODE_FAILREP(const NdbApiSignal *sig,
     set_node_dead(theNode);
 
     if (!node_failrep) {
+      /**
+       * First handling of node failure for this node
+       * Clear nfCompleteRep flag
+       */
       theNode.m_node_fail_rep = true;
+      theNode.nfCompleteRep = false;
       NodeBitmask::set(theAllNodes, i);
       copy->noOfNodes++;
     }
@@ -1337,7 +1379,6 @@ void ClusterMgr::set_node_dead(trp_node &theNode) {
   theNode.m_state.m_connected_nodes.clear();
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   theNode.m_info.m_connectCount++;
-  theNode.nfCompleteRep = false;
 }
 
 bool ClusterMgr::is_cluster_completely_unavailable() {

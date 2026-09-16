@@ -79,6 +79,9 @@ class User_verification_test : public Test {
     EXPECT_CALL(mock_session, data_context())
         .WillRepeatedly(ReturnRef(mock_sql_session));
     EXPECT_CALL(mock_session, client()).WillRepeatedly(ReturnRef(mock_client));
+    EXPECT_CALL(mock_sql_session,
+                is_sql_mode_set(StrEq("NO_BACKSLASH_ESCAPES")))
+        .WillRepeatedly(Return(false));
   }
 };
 

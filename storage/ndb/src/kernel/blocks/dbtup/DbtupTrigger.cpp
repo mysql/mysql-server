@@ -45,6 +45,10 @@
 
 #define JAM_FILE_ID 423
 
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+// #define DEBUG_TUP_ACTIVE_OP_LIST 1
+#endif
+
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* ----------------------- TRIGGER HANDLING ----------------------- */
@@ -2112,6 +2116,9 @@ void Dbtup::removeTuxEntries(Signal *signal, Tablerec *regTabPtr) {
   TuxMaintReq *const req = (TuxMaintReq *)signal->getDataPtrSend();
   const TupTriggerData_list &triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
+#ifdef DEBUG_TUP_ACTIVE_OP_LIST
+  Uint32 trigger_count = 0;
+#endif
   triggerList.first(triggerPtr);
   while (triggerPtr.i != RNIL) {
     jamDebug();
@@ -2127,8 +2134,20 @@ void Dbtup::removeTuxEntries(Signal *signal, Tablerec *regTabPtr) {
           req->errorCode, req->tableId, req->indexId, req->fragId);
       ndbrequire(req->errorCode == 0);
     }
+#ifdef DEBUG_TUP_ACTIVE_OP_LIST
+    trigger_count++;
+#endif
     triggerList.next(triggerPtr);
   }
+#ifdef DEBUG_TUP_ACTIVE_OP_LIST
+  if ((req->tupVersion & 1023) == 0) {
+    g_eventLogger->info(
+        "DBTUP: TUX remove trigger loop sample inst=%u table=%u frag=%u "
+        "row=(%u,%u) tupVersion=%u triggers=%u",
+        instance(), req->tableId, req->fragId, req->pageId, req->pageIndex,
+        req->tupVersion, trigger_count);
+  }
+#endif
 }
 
 void Dbtup::ndbmtd_buffer_suma_trigger(Signal *signal, Uint32 len,

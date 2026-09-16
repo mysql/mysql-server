@@ -111,6 +111,7 @@ class LogEventStatusSizeTest : public ::testing::Test {
     qe.need_sql_require_primary_key = 1;
     qe.needs_default_table_encryption = 1;
     qe.default_collation_for_utf8mb4_number = 1;
+    qe.need_enable_cascade_triggers = 1;
 
     for (size_t did = 0; did < MAX_DBS_IN_EVENT_MTS; ++did) {
       std::string db = fill_str(NAME_LEN, 'a' + did);

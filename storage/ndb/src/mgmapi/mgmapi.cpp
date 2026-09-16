@@ -72,10 +72,7 @@
         ParserRow<ParserDummy>::IgnoreMinMax, 0, 0, nullptr, nullptr, nullptr \
   }
 
-class ParserDummy : private SocketServer::Session {
- public:
-  ParserDummy(const NdbSocket &sock) : SocketServer::Session(sock) {}
-};
+class ParserDummy : private SocketServer::Session {};
 
 typedef Parser<ParserDummy> Parser_t;
 
@@ -402,7 +399,7 @@ static const Properties *handle_authorization_failure(NdbMgmHandle handle,
       MGM_ARG("Error", String, Mandatory, "Error message"), MGM_END()};
 
   Parser_t::Context ctx;
-  ParserDummy session(handle->socket);
+  ParserDummy session;
   Parser_t parser(details, in);
   const Properties *reply = parser.parse(ctx, session);
 
@@ -530,7 +527,7 @@ static const Properties *ndb_mgm_call(
   CHECK_TIMEDOUT_RET(handle, in, out, nullptr, cmd);
 
   Parser_t::Context ctx;
-  ParserDummy session(handle->socket);
+  ParserDummy session;
   Parser_t parser(command_reply, in);
 
   const Properties *p = parser.parse(ctx, session);
@@ -3685,26 +3682,17 @@ static ndb_mgm_cert_table *new_cert_table() {
   table->cert_name = nullptr;
   table->cert_expires = nullptr;
   table->next = nullptr;
+  table->last_use = 0;
+  table->use_count = 0;
+  table->flags = 0;
   return table;
 }
 
-int ndb_mgm_list_certs(NdbMgmHandle handle, ndb_mgm_cert_table **data) {
-  DBUG_ENTER("ndb_mgm_list_certs");
-  CHECK_HANDLE(handle, -1);
-  CHECK_CONNECTED(handle, -1);
-
-  SocketOutputStream out(handle->socket, handle->timeout);
-  SocketInputStream in(handle->socket, handle->timeout);
-
-  out.println("list certs");
-  out.println("%s", "");
-
+static int read_cert_table(SocketInputStream &in, ndb_mgm_cert_table **data,
+                           const char *preamble) {
   /* See listCerts() and show_cert() in mgmsrv/Services.cpp for reply format */
   int ok = false;
   char buf[1024];
-
-  in.gets(buf, sizeof(buf));
-  if (strcmp("list certs reply\n", buf) != 0) DBUG_RETURN(-1);
 
   int ncerts = 0;
   struct ndb_mgm_cert_table *current = *data = nullptr;
@@ -3716,7 +3704,7 @@ int ndb_mgm_list_certs(NdbMgmHandle handle, ndb_mgm_cert_table **data) {
     Vector<BaseString> parts;
     BaseString line(buf);
     if (line.split(parts, ":", 2) != 2) break;
-    if (parts[0] == "session") {
+    if (parts[0] == preamble) {
       ncerts++;
       current = new_cert_table();
       current->next = *data;
@@ -3732,13 +3720,60 @@ int ndb_mgm_list_certs(NdbMgmHandle handle, ndb_mgm_cert_table **data) {
         current->cert_name = value;
       else if (parts[0] == "expires")
         current->cert_expires = value;
-      else
+      else if (parts[0] == "use_count") {
+        current->use_count = atoi(value);
+        free(value);
+      } else if (parts[0] == "last_use") {
+        current->last_use = atoi(value);
+        free(value);
+      } else if (parts[0] == "flags") {
+        current->flags = atoi(value);
+        free(value);
+      } else
         free(value);  // unexpected input
     }
   }
+  return ok ? ncerts : -1;
+}
 
-  if (ok) DBUG_RETURN(ncerts);
-  DBUG_RETURN(-1);
+int ndb_mgm_list_certs(NdbMgmHandle handle, ndb_mgm_cert_table **data) {
+  DBUG_ENTER("ndb_mgm_list_certs");
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -1);
+
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
+  char buf[1024];
+
+  out.println("list certs");
+  out.println("%s", "");
+
+  in.gets(buf, sizeof(buf));
+  if (strcmp("list certs reply\n", buf) != 0) DBUG_RETURN(-1);
+
+  *data = nullptr;
+  int ncerts = read_cert_table(in, data, "session");
+  DBUG_RETURN(ncerts);
+}
+
+int ndb_mgm_list_trusted_certs(NdbMgmHandle handle, ndb_mgm_cert_table **data) {
+  DBUG_ENTER("ndb_mgm_list_trusted_certs");
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -1);
+
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
+  char buf[1024];
+
+  out.println("get tls trust");
+  out.println("%s", "");
+
+  in.gets(buf, sizeof(buf));
+  if (strcmp("get tls trust reply\n", buf) != 0) DBUG_RETURN(-1);
+
+  *data = nullptr;
+  int ncerts = read_cert_table(in, data, "certificate");
+  DBUG_RETURN(ncerts);
 }
 
 void ndb_mgm_cert_table_free(ndb_mgm_cert_table **list) {

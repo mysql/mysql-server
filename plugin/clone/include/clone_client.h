@@ -304,7 +304,14 @@ struct Client_Share {
         m_data_dir(dir),
         m_ssl_mode(mode),
         m_max_concurrency(clone_max_concurrency),
-        m_protocol_version(CLONE_PROTOCOL_VERSION) {
+        m_protocol_version(CLONE_PROTOCOL_VERSION)
+#ifndef NDEBUG
+        ,
+        m_inject_invalid_file_index(false),
+        m_inject_missing_task_mapping(false) {
+#else
+  {
+#endif
     m_storage_vec.reserve(MAX_CLONE_STORAGE_ENGINE);
     m_threads.resize(m_max_concurrency);
     assert(m_max_concurrency > 0);
@@ -334,6 +341,16 @@ struct Client_Share {
 
   /** Negotiated protocol version */
   uint32_t m_protocol_version;
+
+#ifndef NDEBUG
+  /** Debug test hook to corrupt a file metadata descriptor index. */
+  bool m_inject_invalid_file_index;
+
+  /** Debug test hook to force a recipient locator/task mismatch after
+  locator setup so descriptor handling can be validated against a short
+  task vector. */
+  bool m_inject_missing_task_mapping;
+#endif
 
   /** Clone storage vector */
   Storage_Vector m_storage_vec;

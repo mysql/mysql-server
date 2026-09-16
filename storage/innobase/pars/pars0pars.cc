@@ -1948,27 +1948,6 @@ void pars_info_add_ull_literal(pars_info_t *info, /*!< in: info struct */
   pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
 }
 
-/** If the literal value already exists then it rebinds otherwise it
- creates a new entry.
-@param[in] info Info struct
-@param[in] name Name
-@param[in] val Value */
-void pars_info_bind_ull_literal(pars_info_t *info, const char *name,
-                                const uint64_t *val) {
-  pars_bound_lit_t *pbl;
-
-  pbl = pars_info_lookup_bound_lit(info, name);
-
-  if (!pbl) {
-    pars_info_add_literal(info, name, val, sizeof(*val), DATA_FIXBINARY, 0);
-  } else {
-    pbl->address = val;
-    pbl->length = sizeof(*val);
-
-    sym_tab_rebind_lit(pbl->node, val, sizeof(*val));
-  }
-}
-
 /** Add user function.
 @param[in] info Info struct
 @param[in] name Function name

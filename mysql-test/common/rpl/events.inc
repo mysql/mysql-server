@@ -46,7 +46,7 @@ let $events_done=`SELECT count(*)  FROM t1 id`;
 eval SELECT $events_done > 0 as ONE;
 --enable_query_log
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --echo "Checking event data on the replica"
 --disable_query_log
@@ -93,7 +93,7 @@ CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTER
 --echo "Checking event status on the master"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE  event_name = 'er';
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --echo "Checking event status on the replica"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
@@ -106,7 +106,7 @@ ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND STARTS CURRENT_TIMESTAMP + INTERV
 --echo "Checking event status on the master"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --echo "Checking event status on the replica"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
@@ -120,7 +120,7 @@ SELECT  event_name, status, originator FROM information_schema.events;
 
 --disable_info
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --echo "Checking event status on the replica"
 SELECT event_name, status, originator FROM information_schema.events;
@@ -154,6 +154,6 @@ DROP EVENT test.replica_terminate;
 --echo "Cleanup"
 connection master;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 connection master;
 

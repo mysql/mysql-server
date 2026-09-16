@@ -32,6 +32,17 @@
 --let $binlog_fullpath= `SELECT @@datadir`
 --let $binlog_fullpath= $binlog_fullpath/$binlog_file
 --let $binlog_position= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+
+# If `SHOW BINARY LOG STATUS` returns empty result, reset this include
+# output variables.
+if ($binlog_file == "No such row")
+{
+  --let $binlog_file=
+  --let $binlog_fullpath=
+  --let $binlog_fullpath=
+  --let $binlog_position= 0
+}
+
 if ($rpl_debug)
 {
   --echo saved binlog_file='$binlog_file' binlog_position='$binlog_position' binlog_fullpath='$binlog_fullpath'

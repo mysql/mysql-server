@@ -102,6 +102,7 @@ static MgmtSrvr *mgm;
 static MgmtSrvr::MgmtOpts opts;
 static const char *opt_logname = "MgmtSrvr";
 static const char *opt_nowait_nodes = 0;
+static int opt_no_nodeid_checks = 0;
 
 static struct my_option my_long_options[] = {
     NdbStdOpt::usage,
@@ -125,12 +126,16 @@ static struct my_option my_long_options[] = {
     {"interactive", NDB_OPT_NOSHORT,
      "Run interactive. Not supported but provided for testing purposes",
      &opts.interactive, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"no-nodeid-checks", NDB_OPT_NOSHORT, "Do not provide any node id checks",
-     &opts.no_nodeid_checks, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+    {"no-nodeid-checks", NDB_OPT_NOSHORT,
+     "(deprecated; use --skip-nodeid-address-check)", &opt_no_nodeid_checks,
+     nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"nodaemon", NDB_OPT_NOSHORT,
      "Don't run as daemon, but don't read from stdin", &opts.non_interactive,
      nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"nodeid-address-check", NDB_OPT_NOSHORT,
+     "Check network address against configuration when allocating node id",
+     &opts.nodeid_check_addr, nullptr, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
+     0},
     {"mycnf", NDB_OPT_NOSHORT, "Read cluster config from my.cnf", &opts.mycnf,
      nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"bind-address", NDB_OPT_NOSHORT, "Local bind address", &opts.bind_address,
@@ -324,6 +329,14 @@ static int mgmd_main(int argc, char **argv) {
 #endif
 
   if ((ho_error = ndb_opts.handle_options())) mgmd_exit(ho_error);
+
+  if (opt_no_nodeid_checks) {
+    fprintf(stderr,
+            "Warning: Option --no-nodeid-checks is deprecated.\n"
+            "         Disabling nodeid address check.\n"
+            "         Prefer --skip-nodeid-address-check.\n");
+    opts.nodeid_check_addr = 0;
+  }
 
   switch (opt_ndb_log_timestamps) {
     case 0: /* legacy */

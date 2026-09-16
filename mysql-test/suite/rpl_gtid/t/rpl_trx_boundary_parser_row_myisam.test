@@ -16,6 +16,9 @@
 #               MISS COMPLETE TRX
 #
 
+# Cannot disable auto positioning for CSA. See rpl_trx_boundary_parser_row_myisam_csa
+--source include/have_mta.inc
+
 --source include/not_group_replication_plugin.inc
 # This test should run only on debug build
 --source include/have_debug.inc

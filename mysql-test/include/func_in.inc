@@ -61,6 +61,7 @@ c char(1) character set latin1 collate latin1_danish_ci
 );
 insert into t1 values ('A','B','C');
 insert into t1 values ('a','c','c');
+ANALYZE TABLE t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 select * from t1 where a in (b);
 --error ER_CANT_AGGREGATE_3COLLATIONS
@@ -159,6 +160,7 @@ create table t2 (a int, filler char(200), key(a));
 
 insert into t2 select C.a*2,   'no'  from t1 A, t1 B, t1 C;
 insert into t2 select C.a*2+1, 'yes' from t1 C;
+ANALYZE TABLE t2;
 
 explain 
 select * from t2 where a NOT IN (0, 2,4,6,8,10,12,14,16,18);
@@ -179,6 +181,7 @@ insert into t2 select '2006-04-25 10:00:00' + interval C.a minute,
 
 insert into t2 select '2006-04-25 10:00:00' + interval C.a*2+1 minute,
                'yes' from t1 C;
+ANALYZE TABLE t2;
 
 explain 
 select * from t2 where a NOT IN (
@@ -200,6 +203,7 @@ insert into t2 select 'bazbazbaz', 'no' from t1 A, t1 B;
 
 insert into t2 values ('fon', '1'), ('fop','1'), ('barbaq','1'), 
   ('barbas','1'), ('bazbazbay', '1'),('zz','1');
+ANALYZE TABLE t2;
 
 # Ignore possible changes in key_len for different character sets
 --replace_column 8 13
@@ -218,6 +222,7 @@ insert into t2 select 64224.56344, 'no' from t1 A, t1 B;
 
 insert into t2 values (0, '1'), (22334.123,'1'), (33333,'1'), 
   (55555,'1'), (77777, '1');
+ANALYZE TABLE t2;
 
 explain
 select * from t2 where a not in (345.67890, 43245.34, 64224.56344);
@@ -280,6 +285,7 @@ INSERT INTO t3 VALUES (1),(2),(3),(4);
 CREATE TABLE t4 (a int PRIMARY KEY,b int);
 INSERT INTO t4 VALUES (1,1),(2,2),(1000,1000),(1001,1001),(1002,1002),
        (1003,1003),(1004,1004);
+ANALYZE TABLE t1,t2,t3,t4;
 
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t3 
   JOIN t1 ON t3.a=t1.a 
@@ -400,6 +406,7 @@ ANALYZE TABLE t1;
 select f1 from t1 where f1 in ('a',1);
 select f1, case f1 when 'a' then '+' when 1 then '-' end from t1;
 create index t1f1_idx on t1(f1);
+ANALYZE TABLE t1;
 --sorted_result
 select f1 from t1 where f1 in ('a',1);
 # Ignore possible changes in key_len for different character sets
@@ -415,6 +422,7 @@ select f1 from t1 where f1 in (2,1);
 explain select f1 from t1 where f1 in (2,1);
 create table t2(f2 int, index t2f2(f2));
 insert into t2 values(0),(1),(2);
+ANALYZE TABLE t2;
 --skip_if_hypergraph  # Different warnings.
 select f2 from t2 where f2 in ('a',2);
 explain select f2 from t2 where f2 in ('a',2);
@@ -499,6 +507,7 @@ CREATE TABLE t1 (
 INSERT IGNORE INTO t1 (c_int) VALUES (1), (2), (3), (4), (5);
 INSERT IGNORE INTO t1 (c_int) SELECT 0 FROM t1;
 INSERT IGNORE INTO t1 (c_int) SELECT 0 FROM t1;
+ANALYZE TABLE t1;
 
 --enable_warnings
 

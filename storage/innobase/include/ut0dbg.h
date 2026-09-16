@@ -35,9 +35,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ut0dbg_h
 
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 /* Do not include univ.i because univ.i includes this. */
 
+#include <cstdint>
 #include <cstdio>
 #include <functional>
 #include <sstream>
@@ -45,6 +46,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Set a callback function to be called before exiting.
 @param[in]      callback        user callback function */
 void ut_set_assert_callback(std::function<void()> &callback);
+
+/** Terminates execution of the current process. */
+[[noreturn]] void ut_fatal_error();
 
 /** Report a failed assertion.
 @param[in] expr The failed assertion
@@ -133,24 +137,15 @@ passed to std::ostringstream::operator<<, so it must be implemented for them. */
 #endif
 
 /** Debug crash point */
+
 #ifdef UNIV_DEBUG
-#define DBUG_INJECT_CRASH(prefix, count)            \
-  do {                                              \
-    char buf[64];                                   \
-    snprintf(buf, sizeof buf, prefix "_%u", count); \
-    DBUG_EXECUTE_IF(buf, DBUG_SUICIDE(););          \
-  } while (0)
-
-#define DBUG_INJECT_CRASH_WITH_LOG_FLUSH(prefix, count)                \
-  do {                                                                 \
-    char buf[64];                                                      \
-    snprintf(buf, sizeof buf, prefix "_%u", count);                    \
-    DBUG_EXECUTE_IF(buf, log_buffer_flush_to_disk(); DBUG_SUICIDE();); \
-  } while (0)
-
+inline void DBUG_INJECT_CRASH(const char *prefix, unsigned count) {
+  char buf[64];
+  snprintf(buf, sizeof buf, "%s_%u", prefix, count);
+  DBUG_EXECUTE_IF(buf, DBUG_SUICIDE(););
+}
 #else
 #define DBUG_INJECT_CRASH(prefix, count)
-#define DBUG_INJECT_CRASH_WITH_LOG_FLUSH(prefix, count)
 #endif
 
 /** Silence warnings about an unused variable by doing a null assignment.

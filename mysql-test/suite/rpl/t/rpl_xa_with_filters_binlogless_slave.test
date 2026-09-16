@@ -38,6 +38,7 @@ CREATE TABLE t1 (a INT);
 CALL mtr.add_suppression(".*You need to use --log-bin to make --binlog-format work.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression(".*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replica.*");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
 CHANGE REPLICATION FILTER Replicate_Ignore_Table=(test.t1);
 --source include/rpl/start_applier.inc
 

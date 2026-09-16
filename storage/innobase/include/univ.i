@@ -214,9 +214,6 @@ srv_start() has executed using the call command. */
                                    assertions. */
 #define UNIV_LRU_DEBUG             /* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG            /* debug HASH_ macros */
-#define UNIV_LOG_LSN_DEBUG         /* write LSN to the redo log;               \
-this will break redo log file compatibility, but it may be useful when \
-debugging redo log application problems. */
 #define UNIV_IBUF_DEBUG            /* debug the insert buffer */
 #define UNIV_IBUF_COUNT_DEBUG      /* debug the insert buffer;               \
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES, \
@@ -447,6 +444,12 @@ constexpr ib_id_t IB_ID_MAX = std::numeric_limits<uint64_t>::max();
 typedef uint32_t page_no_t;
 /** Tablespace identifier */
 typedef uint32_t space_id_t;
+
+/** Maximum Page Number, one less than FIL_NULL */
+constexpr page_no_t PAGE_NO_MAX = std::numeric_limits<page_no_t>::max() - 1;
+
+/** Unknown space id */
+constexpr space_id_t SPACE_UNKNOWN = std::numeric_limits<space_id_t>::max();
 
 #define SPACE_ID_PF UINT32PF
 #define SPACE_ID_PFS UINT32PFS

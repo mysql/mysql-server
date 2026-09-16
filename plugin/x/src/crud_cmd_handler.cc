@@ -31,6 +31,7 @@
 #include "plugin/x/src/expr_generator.h"
 #include "plugin/x/src/find_statement_builder.h"
 #include "plugin/x/src/get_detailed_validation_error.h"
+#include "plugin/x/src/helper/sql_literal_escaping.h"
 #include "plugin/x/src/insert_statement_builder.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/document_id_generator.h"
@@ -53,6 +54,8 @@ ngs::Error_code Crud_command_handler::execute(
     Status_variable variable, bool (iface::Protocol_encoder::*send_ok)()) {
   m_session->update_status(variable);
   m_qb.clear();
+  m_qb.set_no_backslash_escapes(
+      is_no_backslash_escapes(&m_session->data_context()));
   try {
     builder.build(msg);
   } catch (const Expression_generator::Error &exc) {

@@ -100,6 +100,20 @@ SET @auth_content_file_id=@content_file_id;
 --source ../include/mrs/mrs_client.inc
 
 --echo
+--echo # Template literal syntax
+exec $MRS_CLIENT_ARGS
+  --path /svc1/basic_schema/returnValue
+  -t PUT
+  --encoded-payload %7B%22value%22:%20%22PROOF_%24%7B7%2A7%2A7%7D_INJECTION%22%7D;
+
+--echo
+--echo # Nested string with JSON escape
+exec $MRS_CLIENT_ARGS
+  --path /svc1/basic_schema/returnValue
+  -t PUT
+  --encoded-payload %7B%22value%22:%5B%22line1%5Cnline2%22%5D%7D;
+
+--echo
 --echo # Booleans
 --let $mrs_client_arg_path='/svc1/basic_schema/returnValue'
 --let $mrs_client_arg_request_type=PUT

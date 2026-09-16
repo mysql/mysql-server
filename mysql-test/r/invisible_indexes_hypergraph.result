@@ -48,27 +48,37 @@ EXPLAIN SELECT a FROM t1 WHERE a > 3;
 EXPLAIN
 -> Covering index range scan on t1 using a over (3 < a)  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 3)
 ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 EXPLAIN SELECT a FROM t1 WHERE a > 3;
 EXPLAIN
 -> Filter: (t1.a > 3)  (rows=26.7)
     -> Table scan on t1  (rows=80)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 3)
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
 EXPLAIN SELECT a FROM t1 WHERE a > 3;
 EXPLAIN
 -> Covering index range scan on t1 using a over (3 < a)  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 3)
 EXPLAIN SELECT a FROM t2 WHERE a > 3;
 EXPLAIN
 -> Filter: (t2.a > 3)  (rows=26.7)
     -> Table scan on t2  (rows=80)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` > 3)
 ALTER TABLE t2 ALTER INDEX a VISIBLE;
 EXPLAIN SELECT a FROM t2 WHERE a > 3;
 EXPLAIN
 -> Covering index range scan on t2 using a over (3 < a)  (rows=32)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` > 3)
 DROP TABLE t1, t2;
 # Test that renaming an index does not change visibility and vice versa.
 CREATE TABLE t1 (
@@ -257,6 +267,8 @@ SELECT * FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using a  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 SELECT * FROM t1;
 a
 DROP TABLE t1;
@@ -301,6 +313,8 @@ EXPLAIN SELECT a FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 DROP TABLE t1;
 #
 # Invisible spatial indexes.
@@ -323,6 +337,8 @@ EXPLAIN
 -> Filter: st_within(t1.g,<cache>(st_geomfromtext('Polygon((140 140,160 140,160 160,140 140))')))  (rows=19)
     -> Index range scan on t1 using g over (g unprintable_geometry_value)  (rows=19)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`fid` AS `fid`,`test`.`t1`.`g` AS `g` from `test`.`t1` where st_within(`test`.`t1`.`g`,<cache>(st_geomfromtext('Polygon((140 140,160 140,160 160,140 140))')))
 ALTER TABLE t1 ALTER INDEX g INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -336,6 +352,8 @@ EXPLAIN
 -> Filter: st_within(t1.g,<cache>(st_geomfromtext('Polygon((140 140,160 140,160 160,140 140))')))  (rows=1)
     -> Index scan on t1 using PRIMARY  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`fid` AS `fid`,`test`.`t1`.`g` AS `g` from `test`.`t1` where st_within(`test`.`t1`.`g`,<cache>(st_geomfromtext('Polygon((140 140,160 140,160 160,140 140))')))
 DROP TABLE t1;
 #
 # Test of invisible fulltext indexes.
@@ -358,10 +376,14 @@ EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("sixty");
 EXPLAIN
 -> Full-text index search on t1 using a (a = 'sixty')  (rows=10.7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('sixty'))
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("sixty" IN BOOLEAN MODE);
 EXPLAIN
 -> Full-text index search on t1 using a (a = 'sixty')  (rows=10.7)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('sixty' in boolean mode))
 ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -391,6 +413,8 @@ EXPLAIN SELECT a FROM t1 WHERE a > 4;
 EXPLAIN
 -> Covering index range scan on t1 using a over (4 < a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 4)
 ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -400,6 +424,8 @@ EXPLAIN
 -> Filter: (t1.a > 4)  (rows=8)
     -> Table scan on t1  (rows=24)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 4)
 DROP TABLE t1;
 #
 # Bug#24660093: REMOVING AN INVISIBLE INDEX BREAKS EXPLAIN
@@ -472,29 +498,41 @@ EXPLAIN FORMAT=tree SELECT a FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN FORMAT=tree SELECT b FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using b  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a < '04';
 EXPLAIN
 -> Filter: (t1.a < '04')  (rows=4.67)
     -> Table scan on t1  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` < '04')
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
 EXPLAIN FORMAT=tree SELECT a FROM t1;
 EXPLAIN
 -> Covering index scan on t1 using a  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a < '04';
 EXPLAIN
 -> Index range scan on t1 using a over (a < '04')  (rows=8)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` < '04')
 ALTER TABLE t1 ALTER INDEX b INVISIBLE;
 EXPLAIN FORMAT=tree SELECT b FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`
 DROP TABLE t1;
 CREATE TABLE t1 ( a INT GENERATED ALWAYS AS (1), KEY (a) INVISIBLE );
 SHOW INDEXES FROM t1;
@@ -507,6 +545,8 @@ EXPLAIN FORMAT=tree SELECT a FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 DROP TABLE t1;
 #
 # Test that referential constraints implemented by the indexes are still
@@ -537,6 +577,8 @@ EXPLAIN
 -> Filter: (t1.a < 7)  (rows=26.7)
     -> Table scan on t1  (rows=80)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 7)
 SELECT @@optimizer_switch;
 @@optimizer_switch
 index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=on,derived_condition_pushdown=on,hash_set_operations=on
@@ -545,11 +587,15 @@ EXPLAIN
 -> Filter: (t1.a < 7)  (rows=26.7)
     -> Table scan on t1  (rows=80)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 7)
 SET @@optimizer_switch='use_invisible_indexes=on';
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a < 7;
 EXPLAIN
 -> Covering index range scan on t1 using a over (NULL < a < 7)  (rows=48)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 7)
 SELECT @@optimizer_switch;
 @@optimizer_switch
 index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=on,derived_condition_pushdown=on,hash_set_operations=on
@@ -558,6 +604,8 @@ EXPLAIN
 -> Filter: (t1.a < 7)  (rows=26.7)
     -> Table scan on t1  (rows=80)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 7)
 SELECT @@optimizer_switch;
 @@optimizer_switch
 index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=on,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=on,derived_condition_pushdown=on,hash_set_operations=on
@@ -567,11 +615,15 @@ EXPLAIN
 -> Filter: (t1.a < 7)  (rows=26.7)
     -> Table scan on t1  (rows=80)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 7)
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a < 7;
 EXPLAIN
 -> Filter: (t1.a < 7)  (rows=26.7)
     -> Table scan on t1  (rows=80)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 7)
 DROP TABLE t1;
 #
 # Bug#31550839 OPTIMIZER SWITCH USE_INVISIBLE_INDEXES=ON DOES NOT ALLOW FORCE INDEX
@@ -590,6 +642,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 FORCE INDEX (b) WHERE b = 3;
 EXPLAIN
 -> Covering index lookup on t1 using b (b = 3)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (`b`) where multiple equal(3, `test`.`t1`.`b`)
 SET optimizer_switch="use_invisible_indexes=default";
 EXPLAIN FORMAT=tree SELECT * FROM t1 FORCE INDEX (b) WHERE b = 3;
 ERROR 42000: Key 'b' doesn't exist in table 't1'

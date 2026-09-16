@@ -56,13 +56,14 @@
 # "with fun": contains SQL functions. should be inspected, and pass.
 # "broken":   contains now-broken SQL functions. should be inspected and fail.
 #
-# Then, move data/ to data_80017_36890891/, and finally zip the entire
-# directory (zip -r data_80017_36890891.zip data_80017_36890891).
-
---copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80017_36890891.zip $MYSQL_TMP_DIR/data_80017_36890891.zip
---file_exists $MYSQL_TMP_DIR/data_80017_36890891.zip
---exec unzip -qo $MYSQL_TMP_DIR/data_80017_36890891.zip -d $MYSQL_TMP_DIR
---let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/data_80017_36890891
+# Then, move data/ to data_36890891/, and finally zip the entire
+# directory (zip -r data_36890891.zip data_36890891).
+--let $DBD = data_36890891
+--let $DBZ = $DBD.zip
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$DBZ $MYSQL_TMP_DIR/$DBZ
+--file_exists $MYSQL_TMP_DIR/$DBZ
+--exec unzip -qo $MYSQL_TMP_DIR/$DBZ -d $MYSQL_TMP_DIR
+--let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/$DBD
 
 --echo ########################################################################
 --echo # Restart the server to trigger upgrade.
@@ -91,8 +92,8 @@ SELECT "errlog>>" AS indent, prio, data
 --echo ########################################################################
 --let $shutdown_server_timeout= 300
 --source include/shutdown_mysqld.inc
---remove_file $MYSQL_TMP_DIR/data_80017_36890891.zip
---force-rmdir $MYSQL_TMP_DIR/data_80017_36890891
+--remove_file $MYSQLD_DATADIR_UPGRADE.zip
+--force-rmdir $MYSQLD_DATADIR_UPGRADE
 --remove_file $MYSQLD_LOG
 --let $restart_parameters= restart:
 --source include/start_mysqld.inc

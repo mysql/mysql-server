@@ -70,6 +70,7 @@ void Dbtup::initData() {
   cCopyOverwriteLen = 0;
 
   c_debug_count = 0;
+  m_max_row_versions_per_transaction = 1000;
 
   // Records with constant sizes
   init_list_sizes();
@@ -647,6 +648,18 @@ void Dbtup::execREAD_CONFIG_REQ(Signal *signal) {
 
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_BUILD_INDEX,
                             &m_max_parallel_index_build);
+  Uint32 max_row_versions_per_transaction = m_max_row_versions_per_transaction;
+  if (!ndb_mgm_get_int_parameter(p, CFG_DB_MAX_ROW_VERSIONS_PER_TRANSACTION,
+                                 &max_row_versions_per_transaction)) {
+    /*
+     * The configured value must stay below DBTUX's tuple-version wrap limit.
+     * Dbtux::TreeEnt::cmp() uses the high bit of the 15-bit tuple version
+     * to order versions across wrap.
+     */
+    ndbrequire(max_row_versions_per_transaction <= (ZTUP_VERSION_MASK >> 1));
+    m_max_row_versions_per_transaction =
+        Uint16(max_row_versions_per_transaction);
+  }
 
   if (isNdbMtLqh() && globalData.ndbMtLqhWorkers > 1) {
     /**

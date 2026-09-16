@@ -200,6 +200,9 @@ def	mysql	slave_relay_log_info	Require_row_format	12	NULL	NO	tinyint	NULL	NULL	3
 def	mysql	slave_relay_log_info	Require_table_primary_key_check	13	STREAM	NO	enum	8	24	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	enum('STREAM','ON','OFF','GENERATE')			select,insert,update,references	Indicates what is the channel policy regarding tables without primary keys on create and alter table queries		NULL
 def	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_type	14	OFF	NO	enum	5	15	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	enum('OFF','LOCAL','UUID')			select,insert,update,references	Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value		NULL
 def	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_value	15	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	text			select,insert,update,references	Indicates the UUID used while generating GTIDs for anonymous transactions		NULL
+def	mysql	slave_relay_log_info	Applier_version	16	1	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	Version of the applier used (either 1 or 2)		NULL
+def	mysql	slave_relay_log_info	Applier_worker_count	17	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	Number of worker threads utilized by the applier		NULL
+def	mysql	slave_relay_log_info	Applier_event_memory_limit	18	1073741824	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references	The maximum amount of memory applier channel may use to cache binlog events		NULL
 def	mysql	slave_worker_info	Id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned	PRI		select,insert,update,references			NULL
 def	mysql	slave_worker_info	Relay_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	text			select,insert,update,references			NULL
 def	mysql	slave_worker_info	Relay_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
@@ -565,6 +568,9 @@ NULL	mysql	slave_relay_log_info	Require_row_format	tinyint	NULL	NULL	NULL	NULL	t
 3.0000	mysql	slave_relay_log_info	Require_table_primary_key_check	enum	8	24	utf8mb3	utf8mb3_general_ci	enum('STREAM','ON','OFF','GENERATE')
 3.0000	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_type	enum	5	15	utf8mb3	utf8mb3_general_ci	enum('OFF','LOCAL','UUID')
 1.0000	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_value	text	65535	65535	utf8mb3	utf8mb3_bin	text
+NULL	mysql	slave_relay_log_info	Applier_version	int	NULL	NULL	NULL	NULL	int unsigned
+NULL	mysql	slave_relay_log_info	Applier_worker_count	int	NULL	NULL	NULL	NULL	int unsigned
+NULL	mysql	slave_relay_log_info	Applier_event_memory_limit	int	NULL	NULL	NULL	NULL	int unsigned
 NULL	mysql	slave_worker_info	Id	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	mysql	slave_worker_info	Relay_log_name	text	65535	65535	utf8mb3	utf8mb3_bin	text
 NULL	mysql	slave_worker_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint unsigned

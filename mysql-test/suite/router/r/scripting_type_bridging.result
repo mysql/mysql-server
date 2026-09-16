@@ -26,6 +26,24 @@ PUT /svc1/basic_schema/returnValue (payload-size:35)
 }
 OK
 
+# Template literal syntax
+PUT /svc1/basic_schema/returnValue (payload-size:37)
+{
+    "status": "ok",
+    "result": "PROOF_${7*7*7}_INJECTION"
+}
+OK
+
+# Nested string with JSON escape
+PUT /svc1/basic_schema/returnValue (payload-size:26)
+{
+    "status": "ok",
+    "result": [
+        "line1\nline2"
+    ]
+}
+OK
+
 # Booleans
 PUT /svc1/basic_schema/returnValue (payload-size:15)
 {

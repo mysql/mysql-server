@@ -26,6 +26,41 @@
 #include "sql/binlog_istream.h"
 #include "sql/log_event.h"
 
+/// @brief Represents basic event metadata: type and length
+class Event_metadata {
+ public:
+  using Type = mysql::binlog::event::Log_event_type;
+  Event_metadata() = default;
+  /// @brief Construct
+  Event_metadata(const Type &type, std::size_t len, bool ignorable)
+      : m_type(type),
+        m_event_length(len),
+        m_ignorable(ignorable),
+        m_valid(true) {}
+  /// @brief Event length accessor
+  /// @return Event length
+  std::size_t get_length() const { return m_event_length; }
+  /// @brief Event type accessor
+  /// @return Event type
+  Type get_type() const { return m_type; }
+  /// @brief Returns information on whether this event is ignorable
+  /// @return True if event may be ignored
+  bool is_ignorable() const { return m_ignorable; }
+  /// @brief We allow to construct empty objects, this function returns true
+  /// in case object was initialized with data
+  /// @return True in case object was initialized with data, false otherwise
+  bool is_valid() const { return m_valid; }
+
+ private:
+  /// Log event type
+  Type m_type;
+  /// Log event length
+  std::size_t m_event_length;
+  /// Flag: is ignorable event
+  bool m_ignorable{false};
+  bool m_valid{false};
+};
+
 /**
    Deserialize a binlog event from event_data. event_data is serialized
    event object. It is a chunk of data in buffer.
@@ -50,6 +85,31 @@ class Default_binlog_event_allocator {
   unsigned char *allocate(size_t);
   void deallocate(unsigned char *ptr);
 };
+
+/// @brief Helper structure used by the reader to aggregate payload and
+/// information needed to decode an event
+struct Event_payload {
+  /// @brief Construct from payload data and metadata
+  /// @param data Allocated dynamic array containing payload raw bytes
+  /// @param length Length of the event
+  /// @param verify_checksum Parameter used by the reader to identify if
+  /// checksum of the event should be checked after event decoding
+  Event_payload(uint8_t *data, std::size_t length, bool verify_checksum)
+      : m_data(data), m_length(length), m_verify_checksum(verify_checksum) {}
+
+  /// @brief Default constructor
+  Event_payload() = default;
+
+  /// Allocated dynamic array containing payload raw bytes. This is
+  /// owning pointer of the data
+  uint8_t *m_data;
+  /// length Length of the event
+  std::size_t m_length;
+  /// Parameter used by the reader to identify if
+  /// checksum of the event should be checked after event decoding
+  bool m_verify_checksum{false};
+};
+
 /**
    Binlog_event_data_istream fetches byte data from Basic_istream and
    divides them into event_data chunk according to the format. Event_data is a
@@ -85,7 +145,36 @@ class Binlog_event_data_istream {
       mysql::binlog::event::enum_binlog_checksum_alg checksum_alg) {
     DBUG_TRACE;
     if (read_event_header() || check_event_header()) return true;
+    return read_payload_data(data, length, allocator, verify_checksum,
+                             checksum_alg);
+  }
 
+  /// @brief Reads event header metadata
+  /// @return Optional event metadata
+  std::optional<Event_metadata> read_event_metadata() {
+    if (read_event_header() || check_event_header()) {
+      m_event_length = 0;
+      return {};
+    }
+
+    uint16_t flags{0};
+    memcpy(&flags, m_header + FLAGS_OFFSET, sizeof(flags));
+    bool flag_ignorable = le16toh(flags) & LOG_EVENT_IGNORABLE_F;
+    Event_metadata::Type type =
+        static_cast<Event_metadata::Type>(m_header[EVENT_TYPE_OFFSET]);
+    return Event_metadata(type, m_event_length, flag_ignorable);
+  }
+
+  /// @brief Reads event payload (read event metadata has to be called
+  /// before to read header) and fills data with event header (read before)
+  /// and event payload (read here)
+  /// @copydoc read_event_data
+  template <class ALLOCATOR>
+  bool read_payload_data(
+      unsigned char **data, unsigned int *length, ALLOCATOR *allocator,
+      bool verify_checksum,
+      mysql::binlog::event::enum_binlog_checksum_alg checksum_alg) {
+    assert(m_event_length);
     unsigned char *event_data = allocator->allocate(m_event_length);
     if (event_data == nullptr)
       return m_error->set_type(Binlog_read_error::MEM_ALLOCATE);
@@ -221,6 +310,45 @@ class Binlog_event_object_istream {
     return event;
   }
 
+  template <class ALLOCATOR>
+  Log_event *read_event_payload(
+      const mysql::binlog::event::Format_description_event &fde,
+      bool verify_checksum, ALLOCATOR *allocator) {
+    DBUG_TRACE;
+    unsigned char *data = nullptr;
+    unsigned int length = 0;
+
+    if (m_data_istream->read_payload_data(&data, &length, allocator, false,
+                                          fde.footer()->checksum_alg))
+      return nullptr;
+
+    Log_event *event = nullptr;
+    if (m_error->set_type(binlog_event_deserialize(data, length, &fde,
+                                                   verify_checksum, &event))) {
+      allocator->deallocate(data);
+      return nullptr;
+    }
+
+    event->register_temp_buf(reinterpret_cast<char *>(data),
+                             ALLOCATOR::DELEGATE_MEMORY_TO_EVENT_OBJECT);
+    return event;
+  }
+
+  template <class ALLOCATOR>
+  std::optional<Event_payload> read_payload(
+      const mysql::binlog::event::Format_description_event &fde,
+      bool verify_checksum, ALLOCATOR *allocator) {
+    DBUG_TRACE;
+    unsigned char *data = nullptr;
+    unsigned int length = 0;
+
+    if (m_data_istream->read_payload_data(&data, &length, allocator, false,
+                                          fde.footer()->checksum_alg))
+      return {};
+
+    return Event_payload(data, length, verify_checksum);
+  }
+
  private:
   /**
      It is convenient for caller to share a Binlog_read_error object between
@@ -242,6 +370,21 @@ class IBasic_binlog_file_reader {
   IBasic_binlog_file_reader &operator=(IBasic_binlog_file_reader &&) = delete;
   virtual ~IBasic_binlog_file_reader() = default;
 
+  /// Open a binlog file and set read position to offset. It will read and store
+  /// Format_description_event automatically if offset is bigger than current
+  /// position and fde is nullptr. Otherwise fde is use instead of finding fde
+  /// from the file if fde is not null.
+  /// @param[in] file_name  name of the binlog file which will be opened.
+  /// @param[in] offset  The position where it starts to read.
+  /// @param[out] fdle   For returning an Format_description_log_event object.
+  /// @retval false Success
+  /// @retval true Error
+  virtual bool open(const char *file_name, my_off_t offset = 0,
+                    Format_description_log_event **fdle = nullptr) = 0;
+
+  /// @brief Closes the reader
+  virtual void close() = 0;
+
   /// Return true if there was a previous error.
   virtual bool has_fatal_error() const = 0;
 
@@ -256,6 +399,12 @@ class IBasic_binlog_file_reader {
   /// Return the current position in bytes, relative to the beginning
   /// of the file.
   virtual my_off_t position() const = 0;
+
+  /// Seek to a given position
+  /// @param pos Position to seek to
+  /// @retval false Success
+  /// @retval true Seek not possible
+  virtual bool seek(my_off_t pos) = 0;
 
   /// Read the next event from the stream.
   ///
@@ -274,6 +423,31 @@ class IBasic_binlog_file_reader {
   /// the returned reference after this reader has been deleted.
   virtual const mysql::binlog::event::Format_description_event &
   format_description_event() const = 0;
+
+  /// @brief Reads event header metadata without updating position to the
+  /// next header (see skip_event_payload)
+  /// @return Optional event metadata
+  virtual std::optional<Event_metadata> read_event_metadata() = 0;
+
+  /// @brief Reads event payload after header metadata has been read.
+  /// Fills event data and decodes the event
+  /// @param metadata Metadata previously read (read_event_metadata)
+  /// @return Log event read and decoded from the stream
+  virtual Log_event *read_event_payload(const Event_metadata &metadata) = 0;
+
+  /// @brief Reads raw payload after header metadata has been read.
+  /// Fills event data, skips decoding part
+  /// @param metadata Metadata previously read (read_event_metadata)
+  /// @return Log event read and decoded from the stream
+  virtual std::optional<Event_payload> read_payload(
+      const Event_metadata &metadata) = 0;
+
+  /// @brief Skips event payload data. Used to move reader position to the
+  /// next header
+  /// @param metadata Metadata previously read (read_event_metadata)
+  /// @retval false Success
+  /// @retval true Error
+  virtual bool skip_event_payload(const Event_metadata &metadata) = 0;
 };
 
 /**
@@ -327,7 +501,7 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
      @retval true Error
   */
   bool open(const char *file_name, my_off_t offset = 0,
-            Format_description_log_event **fdle = nullptr) {
+            Format_description_log_event **fdle = nullptr) override {
     DBUG_TRACE;
     if (m_ifile.open(file_name)) return true;
 
@@ -348,7 +522,7 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
   /**
      Close the binlog file.
   */
-  void close() {
+  void close() override {
     m_ifile.close();
     m_fde = mysql::binlog::event::Format_description_event(BINLOG_VERSION,
                                                            server_version);
@@ -356,7 +530,7 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
 
   bool is_open() const { return m_ifile.is_open(); }
   my_off_t position() const override { return m_ifile.position(); }
-  bool seek(my_off_t pos) { return m_ifile.seek(pos); }
+  bool seek(my_off_t pos) override { return m_ifile.seek(pos); }
 
   /**
      Wrapper of EVENT_DATA_ISTREAM::read_event_data.
@@ -367,6 +541,43 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
                                           m_verify_checksum,
                                           m_fde.footer()->checksum_alg);
   }
+
+  bool read_payload_data(unsigned char **data, unsigned int *length) {
+    return m_data_istream.read_payload_data(data, length, &m_allocator,
+                                            m_verify_checksum,
+                                            m_fde.footer()->checksum_alg);
+  }
+
+  /// @brief Reads event header metadata without updating position to the
+  /// next header (see skip_event_payload)
+  /// @return Optional event metadata
+  std::optional<Event_metadata> read_event_metadata() override {
+    m_event_start_pos = position();
+    return m_data_istream.read_event_metadata();
+  }
+
+  Log_event *read_event_payload(const Event_metadata &) override {
+    // m_event_start_pos is updated in the read_event_metadata
+    Log_event *ev = m_object_istream.read_event_payload(
+        m_fde, m_verify_checksum, &m_allocator);
+    if (ev != nullptr &&
+        ev->get_type_code() == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT)
+      m_fde =
+          dynamic_cast<mysql::binlog::event::Format_description_event &>(*ev);
+    return ev;
+  }
+
+  std::optional<Event_payload> read_payload(const Event_metadata &) override {
+    // m_event_start_pos is updated in the read_event_metadata
+    return m_object_istream.read_payload(m_fde, m_verify_checksum,
+                                         &m_allocator);
+  }
+
+  bool skip_event_payload(const Event_metadata &metadata) override {
+    return seek(position() + metadata.get_length() -
+                LOG_EVENT_MINIMAL_HEADER_LEN);
+  }
+
   /**
      wrapper of EVENT_OBJECT_ISTREAM::read_event_object.
   */

@@ -61,6 +61,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.resume_group_replication_wait_on_before_gcs_j
 
 --let $rpl_connection_name= server_1
 --source include/connection.inc
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --reap
 
 --let $group_replication_member_state= ONLINE

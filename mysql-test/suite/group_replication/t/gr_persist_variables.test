@@ -49,6 +49,7 @@ INSERT INTO grvars (varname, varvalue)
 while ( $varid <= $countvars )
 {
   --let $varnames= `SELECT varname FROM grvars WHERE id=$varid`
+  --disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
   --eval SET PERSIST $varnames = @@GLOBAL.$varnames
   --inc $varid
 }

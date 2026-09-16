@@ -95,13 +95,11 @@ void Dup::report() noexcept {
   }
 }
 
-dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept {
+dberr_t pread(os_fd_t fd, byte *ptr, size_t len, os_offset_t offset) noexcept {
   IF_ENABLED("ddl_read_failure", return DB_IO_ERROR;)
 
-  IORequest request;
-
   /* Merge sort pages are never compressed. */
-  request.disable_compression();
+  IORequest request{IORequest::Type::READ | IORequest::Type::NO_COMPRESSION};
 
   auto err = os_file_read_no_error_handling_int_fd(request, "(ddl)", fd, ptr,
                                                    offset, len, nullptr);
@@ -114,12 +112,10 @@ dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept {
   return err;
 }
 
-dberr_t pwrite(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept {
+dberr_t pwrite(os_fd_t fd, byte *ptr, size_t len, os_offset_t offset) noexcept {
   IF_ENABLED("ddl_write_failure", return DB_IO_ERROR;)
 
-  IORequest request(IORequest::WRITE);
-
-  request.disable_compression();
+  IORequest request(IORequest::Type::WRITE | IORequest::Type::NO_COMPRESSION);
 
   auto err = os_file_write_int_fd(request, "(ddl)", fd, ptr, offset, len);
 
@@ -138,16 +134,20 @@ Unique_os_file_descriptor file_create_low(const char *path) noexcept {
   }
 #ifdef UNIV_PFS_IO
   /* This temp file open does not go through normal file APIs, add
- instrumentation to register with performance schema */
-  Datafile df;
-
-  df.make_filepath(path, "Innodb Merge Temp File", NO_EXT);
+  instrumentation to register with performance schema. The PSI calls will use
+  this name, so it can't be freed before
+  `end_file_open_wait_and_bind_to_descriptor`. In case path is nullptr (which
+  most probably can't happen), we must pass some non-null pointer to
+  `std::string` construction, and as this name is
+  "fake" already, it's OK to use empty string instead of crashing. */
+  char *tmp_file_path =
+      Fil_path::make(path ? path : "", "Innodb Merge Temp File", NO_EXT);
 
   PSI_file_locker *locker{};
   PSI_file_locker_state state;
 
   locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-      &state, innodb_temp_file_key.m_value, PSI_FILE_OPEN, df.filepath(),
+      &state, innodb_temp_file_key.m_value, PSI_FILE_OPEN, tmp_file_path,
       &locker);
 
   if (locker != nullptr) {
@@ -162,6 +162,7 @@ Unique_os_file_descriptor file_create_low(const char *path) noexcept {
   if (locker != nullptr) {
     PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(locker, fd);
   }
+  ut::free(tmp_file_path);
 #endif /* UNIV_PFS_IO */
 
   if (fd < 0) {
@@ -339,7 +340,7 @@ static void index_build_failed(dict_index_t *index) noexcept {
 }
 
 /** We will have to drop the secondary indexes later, when the table is
-in use, unless the the DDL has already been externalized. Mark the indexes
+in use, unless the DDL has already been externalized. Mark the indexes
 as incomplete and corrupted, so that other threads will stop using them.
 Let dict_table_close() or crash recovery or the next invocation of
 prepare_inplace_alter_table() take care of dropping the indexes.
@@ -499,15 +500,15 @@ void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept {
   }
 }
 
-dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
-                   size_t type) noexcept {
+dberr_t Row::build(ddl::Context &ctx, mem_heap_t *heap) noexcept {
+  const dict_index_t *index = ctx.index();
   ut_ad(rec_offs_any_null_extern(index, m_rec, m_offsets) == nullptr);
 
   /* Build a row based on the clustered index. */
 
-  m_ptr = row_build_w_add_vcol(type, index, m_rec, m_offsets, ctx.m_new_table,
-                               m_add_cols, ctx.m_add_v, ctx.m_col_map, &m_ext,
-                               heap);
+  m_ptr = row_build_w_add_vcol(ROW_COPY_POINTERS, index, m_rec, m_offsets,
+                               ctx.m_new_table, m_add_cols, ctx.m_add_v,
+                               ctx.m_col_map, &m_ext, heap);
 
   if (!ctx.check_null_constraints(m_ptr)) {
     ctx.m_trx->error_key_num = SERVER_CLUSTER_INDEX_ID;
@@ -529,6 +530,12 @@ dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
   }
 
   return DB_SUCCESS;
+}
+
+void Row::deep_copy(mem_heap_t *heap) noexcept {
+  for (size_t i = 0; i < m_ptr->n_fields; ++i) {
+    dfield_dup(&m_ptr->fields[i], heap);
+  }
 }
 
 dberr_t Cursor::finish(dberr_t err) noexcept {

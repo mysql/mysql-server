@@ -120,6 +120,7 @@ SET GLOBAL group_replication_bootstrap_group= 1.2;
 --echo #     communication engine parameter, start must fail.
 --let $rpl_connection_name= server1
 --source include/connection.inc
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
 START GROUP_REPLICATION;
 
@@ -135,6 +136,7 @@ START GROUP_REPLICATION;
 SET GLOBAL group_replication_bootstrap_group= 1;
 SET GLOBAL group_replication_local_address= "";
 SET GLOBAL group_replication_group_seeds= "";
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
 START GROUP_REPLICATION;
 
@@ -150,6 +152,7 @@ START GROUP_REPLICATION;
 SET GLOBAL group_replication_bootstrap_group= 0;
 SET GLOBAL group_replication_local_address= "ola";
 SET GLOBAL group_replication_group_seeds= "";
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
 START GROUP_REPLICATION;
 
@@ -165,6 +168,7 @@ START GROUP_REPLICATION;
 SET GLOBAL group_replication_bootstrap_group= 0;
 SET GLOBAL group_replication_local_address= @local_address;
 SET GLOBAL group_replication_group_seeds= "";
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR
 START GROUP_REPLICATION;
 
@@ -181,6 +185,7 @@ START GROUP_REPLICATION;
 SET GLOBAL group_replication_bootstrap_group= 1;
 SET GLOBAL group_replication_local_address= "";
 SET GLOBAL group_replication_group_seeds= @group_seeds;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
 START GROUP_REPLICATION;
 
@@ -215,6 +220,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 
 SET GLOBAL group_replication_bootstrap_group= 0;
 SET GLOBAL group_replication_local_address= @local_address;
 SET GLOBAL group_replication_group_seeds= "ola";
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
 START GROUP_REPLICATION;
 
@@ -233,6 +239,7 @@ SET GLOBAL group_replication_local_address= @local_address;
 --disable_query_log
 --eval SET GLOBAL group_replication_group_seeds= "$invalid"
 --enable_query_log
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
 START GROUP_REPLICATION;
 
@@ -249,6 +256,7 @@ START GROUP_REPLICATION;
 SET GLOBAL group_replication_bootstrap_group= 0;
 SET GLOBAL group_replication_local_address= NULL;
 SET GLOBAL group_replication_group_seeds= NULL;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
 START GROUP_REPLICATION;
 

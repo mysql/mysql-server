@@ -1,0 +1,15 @@
+--source include/have_debug.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+
+--source ../include/stop_dirty_page_flushing_and_background_redo_producers.inc
+
+INSERT INTO t1 VALUES (1);
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+

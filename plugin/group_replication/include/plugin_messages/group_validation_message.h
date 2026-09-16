@@ -101,9 +101,10 @@ class Group_validation_message : public Plugin_gcs_message {
     Message decoding method
 
     @param[in] buffer the received data
+    @param[in] end    pointer to the end of the received data
   */
   void decode_payload(const unsigned char *buffer,
-                      const unsigned char *) override;
+                      const unsigned char *end) override;
 
  private:
   /**The message type*/

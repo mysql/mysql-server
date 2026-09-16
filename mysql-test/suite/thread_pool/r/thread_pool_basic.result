@@ -1,0 +1,7 @@
+SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME = 'THREAD_POOL';
+PLUGIN_NAME	PLUGIN_TYPE	PLUGIN_STATUS
+thread_pool	DAEMON	ACTIVE
+UNINSTALL PLUGIN thread_pool;
+ERROR HY000: Plugin 'thread_pool' is marked as not dynamically uninstallable. You have to stop the server to uninstall it.

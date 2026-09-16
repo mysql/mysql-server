@@ -165,26 +165,28 @@ static const rapidjson::Value *resolve_local_json_pointer_ref(
 }
 
 /**
-  Check whether any path from a schema node exceeds the expansion depth limit.
+  Check whether any path from a schema node is unsafe for rapidjson schema
+  compilation.
 
-  The expansion depth is the number of edges along a path in the schema's
-  expansion graph:
+  The expansion graph consists of:
   - JSON-tree edges (object members / array elements), and
   - local `$ref` edges (local JSON Pointer references).
 
-  `visiting` is used to break `$ref` cycles (cycles are treated as
-  non-contributing; rapidjson will report cyclic references separately).
+  A path is unsafe if it exceeds the maximum expansion depth, or if it contains
+  a cycle through local `$ref` edges. Cyclic local references are rejected
+  before constructing rapidjson::SchemaDocument because rapidjson can recurse
+  while compiling such schemas.
 
   @param schema_document Parsed JSON schema document (used for resolving
   `$ref`).
   @param node The node to start the search from.
   @param depth_so_far Current depth from the schema root.
   @param limit Maximum allowed expansion depth.
-  @param[in,out] visiting Visitation set for cycle detection.
-  @retval true The limit is exceeded along some path.
-  @retval false No path exceeds the limit.
+  @param[in,out] visiting Nodes currently on the expansion path.
+  @retval true The limit is exceeded along some path, or a cycle was detected.
+  @retval false No unsafe path was found.
 */
-static bool json_schema_exceeds_expansion_depth(
+static bool json_schema_has_unsafe_expansion(
     const rapidjson::Document &schema_document, const rapidjson::Value *node,
     uint32_t depth_so_far, uint32_t limit,
     std::unordered_set<const rapidjson::Value *> *visiting) {
@@ -196,9 +198,7 @@ static bool json_schema_exceeds_expansion_depth(
   }
 
   if (visiting->find(node) != visiting->end()) {
-    // Cycle detected. rapidjson will report cyclic references separately; treat
-    // this edge as non-contributing here to avoid infinite recursion.
-    return false;
+    return true;
   }
 
   visiting->insert(node);
@@ -211,8 +211,8 @@ static bool json_schema_exceeds_expansion_depth(
       const rapidjson::Value *target =
           resolve_local_json_pointer_ref(schema_document, ref_itr->value);
       if (target != nullptr &&
-          json_schema_exceeds_expansion_depth(
-              schema_document, target, depth_so_far + 1, limit, visiting)) {
+          json_schema_has_unsafe_expansion(schema_document, target,
+                                           depth_so_far + 1, limit, visiting)) {
         visiting->erase(node);
         return true;
       }
@@ -224,8 +224,8 @@ static bool json_schema_exceeds_expansion_depth(
     for (auto it = node->MemberBegin(); it != node->MemberEnd(); ++it) {
       const rapidjson::Value *child = &it->value;
       if (!child->IsObject() && !child->IsArray()) continue;
-      if (json_schema_exceeds_expansion_depth(
-              schema_document, child, depth_so_far + 1, limit, visiting)) {
+      if (json_schema_has_unsafe_expansion(schema_document, child,
+                                           depth_so_far + 1, limit, visiting)) {
         visiting->erase(node);
         return true;
       }
@@ -234,8 +234,8 @@ static bool json_schema_exceeds_expansion_depth(
     for (auto it = node->Begin(); it != node->End(); ++it) {
       const rapidjson::Value *child = it;
       if (!child->IsObject() && !child->IsArray()) continue;
-      if (json_schema_exceeds_expansion_depth(
-              schema_document, child, depth_so_far + 1, limit, visiting)) {
+      if (json_schema_has_unsafe_expansion(schema_document, child,
+                                           depth_so_far + 1, limit, visiting)) {
         visiting->erase(node);
         return true;
       }
@@ -247,8 +247,7 @@ static bool json_schema_exceeds_expansion_depth(
 }
 
 /**
-  Validate that a JSON Schema does not require excessive recursion depth during
-  rapidjson schema compilation.
+  Validate that a JSON Schema can be safely compiled by rapidjson.
 
   rapidjson schema compilation expands local `$ref` by recursively compiling the
   referenced subschemas. The recursion depth is therefore related to the number
@@ -256,20 +255,21 @@ static bool json_schema_exceeds_expansion_depth(
   large even if no referred object has a `$ref` at its own top level, as long as
   each referred object contains a nested object with a `$ref`.
 
-  This function only checks whether any expansion path exceeds the limit. Each
-  step into a nested object/array and each local `$ref` expansion counts as 1.
+  This function checks whether any expansion path exceeds the limit or contains
+  a local `$ref` cycle. Each step into a nested object/array and each local
+  `$ref` expansion counts as 1.
 
   It does this by walking JSON-tree edges (object members / array elements) and
   local `$ref` edges (JSON pointer references starting with `#`), with early
   exit as soon as the limit is exceeded.
 
-  If the limit is exceeded (`JSON_SCHEMA_MAX_EXPANSION_DEPTH`),
-  `depth_handler()` is called and the schema is rejected.
+  If the limit is exceeded (`JSON_SCHEMA_MAX_EXPANSION_DEPTH`) or a cycle is
+  detected, `depth_handler()` is called and the schema is rejected.
 
   @param schema_document Parsed JSON schema document.
   @param depth_handler Error handler invoked when the limit is exceeded.
-  @retval true The schema exceeded the limit and an error was reported.
-  @retval false No expansion path exceeds the limit.
+  @retval true The schema is unsafe and an error was reported.
+  @retval false No unsafe expansion path was found.
 */
 static bool check_json_schema_expansion_depth(
     const rapidjson::Document &schema_document,
@@ -277,7 +277,7 @@ static bool check_json_schema_expansion_depth(
   std::unordered_set<const rapidjson::Value *> visiting;
   visiting.reserve(JSON_SCHEMA_MAX_EXPANSION_DEPTH);
 
-  if (json_schema_exceeds_expansion_depth(
+  if (json_schema_has_unsafe_expansion(
           schema_document, &schema_document, /*depth_so_far=*/0,
           JSON_SCHEMA_MAX_EXPANSION_DEPTH, &visiting)) {
     depth_handler();

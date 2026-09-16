@@ -42,10 +42,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/udf_metadata.h"
 #include "mysql/components/services/udf_registration.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
-#include <openssl/ec.h>
-#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/provider.h>
 // IWYU pragma: no_include <openssl/types.h>

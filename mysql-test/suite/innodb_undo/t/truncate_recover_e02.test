@@ -1,6 +1,6 @@
 --echo #
 --echo # WL#6965: Truncate UNDO logs during recovery.
---echo # Crash after checkpoint, before ddl log, with encryption on.
+--echo # Crash before writing the undo unusable flag, with encryption on.
 --echo #
 --source include/have_component_keyring_file.inc
 --source suite/component_keyring_file/inc/setup_component.inc
@@ -8,8 +8,7 @@ let $restart_parameters = restart: $PLUGIN_DIR_OPT --innodb_undo_log_encrypt=1;
 --source include/restart_mysqld_no_echo.inc
 
 let CRASH_ON_SHUTDOWN = 1;
-let CRASH_POINT = ib_undo_trunc_before_ddl_log_start;
-let SHOULD_TRUNCATE_AT_RECOVERY=0;
+let CRASH_POINT = ib_undo_trunc_before_writing_unusable_flag;
 let USE_EXPLICIT = 0;
 
 --source suite/innodb_undo/include/truncate_at_shutdown.inc

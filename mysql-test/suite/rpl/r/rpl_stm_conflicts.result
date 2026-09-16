@@ -25,6 +25,7 @@ Last_SQL_Errno
 1062
 call mtr.add_suppression("Replica SQL.*Duplicate entry .1. for key .t1.PRIMARY.* Error_code: MY-001062");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 SELECT * FROM t1;
 a
 1
@@ -33,6 +34,8 @@ DELETE FROM t1 WHERE a = 1;
 START REPLICA SQL_THREAD;
 include/rpl/wait_for_applier_to_start.inc
 ---- Sync slave and verify that there is no error ----
+[connection master]
+include/rpl/sync_to_replica.inc
 include/rpl/assert_replica_no_error.inc
 SELECT * FROM t1;
 a
@@ -52,6 +55,8 @@ SELECT * FROM t1;
 a
 [on slave]
 ---- Sync slave and verify that there is no error ----
+[connection master]
+include/rpl/sync_to_replica.inc
 include/rpl/assert_replica_no_error.inc
 SELECT * FROM t1;
 a

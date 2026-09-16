@@ -2180,6 +2180,89 @@ int runBackupFragmentConsistency(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+int runPkUpdateUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  int multiop = ctx->getProperty("MULTI_OP", 1);
+  Ndb *pNdb = GETNDB(step);
+
+  HugoOperations hugoOps(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    int batch = (rand() % records) + 1;
+    int row = rand() % records;
+
+    if (batch > 25) batch = 25;
+
+    if (row + batch > records) batch = records - row;
+
+    if (hugoOps.startTransaction(pNdb) != 0) goto err;
+
+    if (hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0) goto err;
+
+    for (int j = 1; j < multiop; j++) {
+      if (hugoOps.execute_NoCommit(pNdb) != 0) goto err;
+
+      if (hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0) goto err;
+    }
+
+    if (hugoOps.execute_Commit(pNdb) != 0) goto err;
+
+    hugoOps.closeTransaction(pNdb);
+
+    continue;
+
+  err:
+    NdbConnection *pCon = hugoOps.getTransaction();
+    if (pCon == 0) continue;
+    NdbError error = pCon->getNdbError();
+    hugoOps.closeTransaction(pNdb);
+    if (error.status == NdbError::TemporaryError) {
+      NdbSleep_MilliSleep(50);
+      continue;
+    }
+    return NDBT_FAILED;
+  }
+  return result;
+}
+
+int runBackupsExpectFail(NDBT_Context *ctx, NDBT_Step *step) {
+  Uint32 numBackups = ctx->getProperty("BackupCount", Uint32(10));
+  Uint32 errorInsert = ctx->getProperty("BackupErrorInsert", Uint32(0));
+  NdbBackup backup;
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
+
+  while (ctx->isTestStopped() == false && numBackups-- != 0) {
+    if (errorInsert != 0) {
+      g_err << "Inserting error " << errorInsert << " in all nodes" << endl;
+      restarter.insertErrorInAllNodes(errorInsert);
+    }
+    unsigned backup_id;
+    unsigned logtype = numBackups % 2;
+    g_err << "Triggering backup with logtype "
+          << (logtype == 0 ? "SNAPSHOTEND" : "SNAPSHOTSTART") << endl;
+
+    const int backup_res = backup.start(backup_id, 2, /* WAIT_COMPLETED */
+                                        0,            /* Any backup_id */
+                                        logtype);
+    if (backup_res != -1) {
+      g_err << "Expected backup failure, but backup succeeded" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    g_err << "Backup id " << backup_id << endl;
+  }
+
+  restarter.insertErrorInAllNodes(0);
+
+  ctx->stopTest();
+
+  return result;
+}
+
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne",
          "Test that backup and restore works on one table \n"
@@ -2482,6 +2565,18 @@ TESTCASE("BackupFragmentConsistency",
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   STEP(runBackupFragmentConsistency);
+  FINALIZER(runClearTable);
+}
+
+TESTCASE("BackupLogBufferFullAbort",
+         "Test handling of backup log buffer full") {
+  TC_PROPERTY("BackupCount", Uint32(10));
+  TC_PROPERTY("BackupErrorInsert", Uint32(10061));
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runBackupsExpectFail);
+  FINALIZER(runBackupOne);
   FINALIZER(runClearTable);
 }
 

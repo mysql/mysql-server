@@ -61,12 +61,14 @@ constexpr uint32_t IBUF_BITMAP = PAGE_DATA;
 #include "buf0rea.h"
 #include "dict0boot.h"
 #include "fil0fil.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0fsp.h"
 #include "fsp0sysspace.h"
 #include "fut0lst.h"
 #include "lock0lock.h"
-#include "log0buf.h"
 #include "log0chkp.h"
+#include "log0handler_interface.h"
+#include "log0helpers.h"
 #include "log0recv.h"
 #include "que0que.h"
 #include "rem0cmp.h"
@@ -1188,29 +1190,6 @@ static ibuf_op_t ibuf_rec_get_op_type_func(IF_DEBUG(mtr_t *mtr, )
 inline ibuf_op_t ibuf_rec_get_op_type(mtr_t *mtr [[maybe_unused]],
                                       const rec_t *rec) {
   return ibuf_rec_get_op_type_func(IF_DEBUG(mtr, ) rec);
-}
-
-/** Read the first two bytes from a record's fourth field (counter field in
- new records; something else in older records).
- @return "counter" field, or ULINT_UNDEFINED if for some reason it
- can't be read */
-ulint ibuf_rec_get_counter(const rec_t *rec) /*!< in: ibuf record */
-{
-  const byte *ptr;
-  ulint len;
-
-  if (rec_get_n_fields_old_raw(rec) <= IBUF_REC_FIELD_METADATA) {
-    return (ULINT_UNDEFINED);
-  }
-
-  /* nullptr for index as it can't be clustered index */
-  ptr = rec_get_nth_field_old(nullptr, rec, IBUF_REC_FIELD_METADATA, &len);
-
-  if (len >= 2) {
-    return (mach_read_from_2(ptr));
-  } else {
-    return (ULINT_UNDEFINED);
-  }
 }
 
 bool ibuf_rec_has_multi_value(const rec_t *rec) {
@@ -3604,8 +3583,9 @@ static void ibuf_insert_to_index_page(
       btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec, index, update, 0, 0,
                                   mtr);
 
+      // TODO: The mtr has not been committed yet, so its redo is not durable.
       DBUG_EXECUTE_IF("crash_after_log_ibuf_upd_inplace",
-                      log_buffer_flush_to_disk();
+                      ib::redo::must_persist_all(UT_LOCATION_HERE);
                       ib::info(ER_IB_MSG_615) << "Wrote log record for ibuf"
                                                  " update in place operation";
                       DBUG_SUICIDE(););
@@ -3863,7 +3843,7 @@ static bool ibuf_restore_pos(space_id_t space_id, page_no_t page_no,
     btr_cur_set_deleted_flag_for_ibuf(pcur->get_rec(), nullptr, true, mtr);
 
     ibuf_mtr_commit(mtr);
-    log_buffer_flush_to_disk();
+    ib::redo::must_persist_all(UT_LOCATION_HERE);
     DBUG_SUICIDE();
   }
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -4435,10 +4415,6 @@ dberr_t ibuf_check_bitmap_on_import(
   }
 
   size = fil_space_get_size(space_id);
-
-  if (size == 0) {
-    return (DB_TABLE_NOT_FOUND);
-  }
 
   mutex_enter(&ibuf_mutex);
 

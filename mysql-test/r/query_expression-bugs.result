@@ -502,6 +502,8 @@ EXPLAIN
                     -> Temporary table  (rows=14)
                         -> Table scan on t  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived`.`a1` AS `a1`,`derived`.`a2` AS `a2` from (/* select#2 */ select `test`.`t`.`a1` AS `a1`,`test`.`t`.`a2` AS `a2` from `test`.`t` order by (`a2` / `a1`) desc limit 7) `derived`
 CREATE VIEW v AS SELECT * FROM ( (SELECT a1,a2 FROM t ORDER BY a1,a2 ASC)
 ORDER BY a2/a1 DESC LIMIT 7 ) AS derived;
 SELECT * FROM v;
@@ -523,6 +525,8 @@ EXPLAIN
                     -> Temporary table  (rows=14)
                         -> Table scan on t  (rows=14)
 
+Warnings:
+Note	1003	/* select#1 */ select `derived`.`a1` AS `a1`,`derived`.`a2` AS `a2` from (/* select#3 */ select `test`.`t`.`a1` AS `a1`,`test`.`t`.`a2` AS `a2` from `test`.`t` order by (`a2` / `a1`) desc limit 7) `derived`
 DROP VIEW v;
 DROP TABLE t;
 #

@@ -551,10 +551,12 @@ size_t bits_to_string_hex_size(int nbits);
 std::string string_to_hex(std::string_view s, bool prefix = true);
 
 /**
- * Escape `quote` and `\` chars.
+ * Escape `quote`, `\`, line terminators, and control chars. When using
+ * JavaScript template literal quotes (`), also escape `${` so the result
+ * remains a literal string.
  *
  * @param s String to escape.
- * @param quote `'` `"`
+ * @param quote `'`, `"`, or backtick (`)
  * @return Quote escaped string.
  */
 std::string quote_string(const std::string &s, char quote);

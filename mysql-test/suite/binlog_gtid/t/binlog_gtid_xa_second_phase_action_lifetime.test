@@ -1,0 +1,103 @@
+#
+# ==== PURPOSE ====
+#
+# This test checks that an XA second-phase before-GTID action does not survive
+# its statement when no GTID state update is performed.
+#
+# ==== IMPLEMENTATION ====
+#
+# Disable session binlogging so prepared XA COMMIT and ROLLBACK statements
+# finish through the TC log without updating GTID state. Then execute another
+# statement and prepare a new XA transaction on the same session.
+#
+# Test steps:
+#
+# 1. Commit and roll back attached prepared XA transactions without binlogging.
+# 2. Prepare another XA transaction with binlogging enabled after each one.
+# 3. Repeat no-binlog COMMIT and ROLLBACK with detached XA transactions.
+# 4. Execute a binlogged statement after each detached second-phase statement.
+#
+# Test pass conditions:
+#
+# - Each following XA transaction remains visible to XA RECOVER.
+# - No before-GTID action survives into the following statement.
+#
+# ==== REFERENCES ====
+#
+# BUG#36505659: XA RECOVER may list XID after GTID for XA COMMIT or
+# XA ROLLBACK is visible.
+#
+
+--source include/have_binlog_format_row.inc
+
+CREATE TABLE t1 (a INT);
+
+--echo #
+--echo # Attached XA COMMIT without a GTID update
+--echo #
+SET SESSION xa_detach_on_prepare=OFF;
+SET SESSION sql_log_bin=0;
+XA START 'old_commit';
+INSERT INTO t1 VALUES (1);
+XA END 'old_commit';
+XA PREPARE 'old_commit';
+XA COMMIT 'old_commit';
+
+# A stale action would run during the following XA PREPARE and hide its XID.
+SET SESSION sql_log_bin=1;
+XA START 'after_commit';
+INSERT INTO t1 VALUES (2);
+XA END 'after_commit';
+XA PREPARE 'after_commit';
+--let $pending_xid = query_get_value(XA RECOVER, data, 1)
+--let $assert_text = XA COMMIT action did not affect the next XA transaction
+--let $assert_cond = "$pending_xid" = "after_commit"
+--source include/assert.inc
+XA ROLLBACK 'after_commit';
+
+--echo #
+--echo # Attached XA ROLLBACK without a GTID update
+--echo #
+SET SESSION sql_log_bin=0;
+XA START 'old_rollback';
+INSERT INTO t1 VALUES (3);
+XA END 'old_rollback';
+XA PREPARE 'old_rollback';
+XA ROLLBACK 'old_rollback';
+
+# A stale action would run during the following XA PREPARE and hide its XID.
+SET SESSION sql_log_bin=1;
+XA START 'after_rollback';
+INSERT INTO t1 VALUES (4);
+XA END 'after_rollback';
+XA PREPARE 'after_rollback';
+--let $pending_xid = query_get_value(XA RECOVER, data, 1)
+--let $assert_text = XA ROLLBACK action did not affect the next XA transaction
+--let $assert_cond = "$pending_xid" = "after_rollback"
+--source include/assert.inc
+XA ROLLBACK 'after_rollback';
+
+--echo #
+--echo # Detached XA COMMIT and ROLLBACK without a GTID update
+--echo #
+SET SESSION xa_detach_on_prepare=ON;
+SET SESSION sql_log_bin=0;
+XA START 'detached_commit';
+INSERT INTO t1 VALUES (5);
+XA END 'detached_commit';
+XA PREPARE 'detached_commit';
+XA COMMIT 'detached_commit';
+SET SESSION sql_log_bin=1;
+INSERT INTO t1 VALUES (6);
+
+SET SESSION sql_log_bin=0;
+XA START 'detached_rollback';
+INSERT INTO t1 VALUES (7);
+XA END 'detached_rollback';
+XA PREPARE 'detached_rollback';
+XA ROLLBACK 'detached_rollback';
+SET SESSION sql_log_bin=1;
+INSERT INTO t1 VALUES (8);
+
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;

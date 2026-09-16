@@ -27,6 +27,14 @@
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='dummyhost', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch2'
 --enable_warnings
 
+# The test deliberately blocks the applier worker on an InnoDB row lock.  Keep
+# the lock wait timeout comfortably above slow PB2 runtime so the blocked worker
+# does not fail before the test releases it.
+--disable_query_log
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout = 300;
+--enable_query_log
+
 # Start both threads of only one of the channels
 --let $rpl_channel_name= 'ch1'
 --source include/rpl/start_replica.inc
@@ -88,6 +96,10 @@ ROLLBACK;
 --reap
 --let $rpl_channel_name= 'ch1'
 --source include/rpl/wait_for_applier_to_stop.inc
+
+--disable_query_log
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+--enable_query_log
 
 # Cleanup
 --let $rpl_channel_name=

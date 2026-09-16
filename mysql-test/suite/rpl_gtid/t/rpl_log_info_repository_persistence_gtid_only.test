@@ -61,12 +61,12 @@ CALL mtr.add_suppression("Error writing source configuration.");
   }
 
   --let $count = `SELECT COUNT(*) FROM performance_schema.replication_connection_configuration WHERE Gtid_only = '$gtid_only_expected_value'`
-  --let $assert_text = GTID_ONLY for default channel "" in performance_schema.replication_connection_configuration is $gtid_only_expected_value
+  --let $assert_text = GTID_ONLY for default channel "" in performance_schema.replication_connection_configuration has default value
   --let $assert_cond = $count = 1
   --source include/assert.inc
 
   --let $expected_value = `SELECT GTID_ONLY FROM mysql.slave_master_info`
-  --let $assert_text = In the file the field is set to $gtid_only_expected_value
+  --let $assert_text = In the file the field is set to expected value
   --let $assert_cond = "$gtid_only_expected_value" = "$expected_value"
   --source include/assert.inc
 
@@ -83,7 +83,12 @@ END_OF_PROCEDURE
 --echo #      Check the performance_schema table and connection metadata
 --echo #      repository are correct
 
---let $gtid_only_expected_value = 0
+--let $gtid_only_default = 0
+if($rpl_applier_version !='') {
+  --let $gtid_only_default = 1
+}
+
+--let $gtid_only_expected_value = $gtid_only_default
 --source $MYSQL_TMP_DIR/check_gtid_only_value.inc
 
 --echo
@@ -98,8 +103,12 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, G
 --let $gtid_only_expected_value = 1
 --source $MYSQL_TMP_DIR/check_gtid_only_value.inc
 
-# Disable GTID_ONLY as all the repo conversions below assume GTID_ONLY being off
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 0;
+if($gtid_only_default == 0) {
+  # Disable GTID_ONLY for MTA as all the repo conversions below assume GTID_ONLY being off
+  --disable_query_log
+  CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 0;
+  --enable_query_log
+}
 
 --echo
 --echo # 1.3 Upgrade the server while using Table repositories

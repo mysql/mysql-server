@@ -30,6 +30,7 @@ DROP TABLE IF EXISTS t1;
 # --source include/rpl/connection_replica.inc
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Query caused different errors on source and replica");
+call mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
 
 SET @@global.debug="+d,simulate_error_in_ddl";
 
@@ -41,10 +42,19 @@ CREATE TABLE t1 (a int);
 --let $slave_sql_errno= convert_error(ER_INCONSISTENT_ERROR)
 --source include/rpl/wait_for_applier_error.inc
 
-# Slave should not be able to start the SQL thread
-START REPLICA SQL_THREAD;
+# Offending transaction is committed regardless the error.
+# When CSA is enabled, applied GTID will be skipped and replica will be able
+# to start without an error. In MTA, transaction will be skipped after an error
+# is logged.
+if($rpl_applier_version == '') {
+  # Slave should not be able to start the SQL thread
+  --disable_query_log
+  START REPLICA SQL_THREAD;
+  --enable_query_log
+}
 --let $slave_sql_errno= convert_error(ER_INCONSISTENT_ERROR)
 --source include/rpl/wait_for_applier_error.inc
+
 
 # Removing the debug instrumentation should make slave to proceed
 SET @@global.debug="-d,simulate_error_in_ddl";

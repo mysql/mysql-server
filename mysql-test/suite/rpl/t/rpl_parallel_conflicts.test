@@ -14,6 +14,8 @@
 
 --source include/have_binlog_format_row.inc
 --source include/rpl/init_source_replica.inc
+# This test is MTA-specific
+--source include/have_mta.inc
 
 #
 # Test 1: force a dependency between DML transactions and check that
@@ -138,16 +140,16 @@ DROP DATABASE db3;
 #         it is scheduled
 #
 
+--disable_query_log
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 if ($is_preserve_commit_order)
 {
-  --disable_result_log
-  --source include/rpl/connection_replica.inc
-  --source include/rpl/stop_replica.inc
   --let $save_replica_preserve_commit_order = `SELECT @@global.replica_preserve_commit_order`
   SET GLOBAL replica_preserve_commit_order = FALSE;
-  --source include/rpl/start_replica.inc
-  --enable_result_log
 }
+--source include/rpl/start_replica.inc
+--enable_query_log
 
 --source include/rpl/connection_source.inc
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
@@ -182,10 +184,13 @@ DROP TABLE IF EXISTS `exists_only_on_replica`;
 --let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.threads WHERE processlist_state="Applying batch of row changes (update)" AND PROCESSLIST_DB="test"
 --source include/wait_condition.inc
 
-# now we assert that the coordinator is waiting for workers to
-# commit their DMLs
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state="Waiting for dependent transaction to commit" AND NAME="thread/sql/replica_sql"
---source include/wait_condition.inc
+if($rpl_applier_version == '')
+{
+  # now we assert that the coordinator is waiting for workers to
+  # commit their DMLs
+  --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state="Waiting for dependent transaction to commit" AND NAME="thread/sql/replica_sql"
+  --source include/wait_condition.inc
+}
 
 # unlock the records on the table t1
 --source include/rpl/connection_replica1.inc
@@ -216,15 +221,15 @@ ROLLBACK;
 DROP TABLE t1;
 --source include/rpl/sync_to_replica.inc
 
+--disable_query_log
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
 if ($is_preserve_commit_order)
 {
-  --disable_result_log
-  --source include/rpl/connection_replica.inc
-  --source include/rpl/stop_replica.inc
   --eval SET GLOBAL replica_preserve_commit_order = $save_replica_preserve_commit_order
-  --source include/rpl/start_replica.inc
-  --enable_result_log
 }
+--source include/rpl/start_replica.inc
+--enable_query_log
 
 --source include/rpl/connection_source.inc
 --source include/rpl/reset.inc

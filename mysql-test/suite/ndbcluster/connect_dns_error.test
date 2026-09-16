@@ -1,0 +1,8 @@
+--source include/have_ndb.inc
+--source suite/ndb/t/have_ndb_error_insert.inc
+
+# bug#37355499 Ndb_cluster_connection treats NDB_MGM_ALLOCID_CONFIG_RETRY
+#              as a permanent error
+
+SELECT 1;
+

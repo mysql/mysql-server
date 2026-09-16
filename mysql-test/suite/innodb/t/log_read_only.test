@@ -93,7 +93,6 @@ let $restart_parameters = restart;
 
 # It might be useful to comment out code below, when debugging test failures
 --remove_file $MYSQLD_LOG_1
---remove_file $MYSQLD_LOG_2
 --remove_file $MYSQLD_LOG_3
 --remove_file $MYSQLD_LOG_4
 

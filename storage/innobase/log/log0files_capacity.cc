@@ -65,21 +65,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
             |  (it's "reserved" - you may write to it, if you did reservation)
             |  |
             |  +- `concurrency_margin`
-            |  |  (space jointly reserved by threads in log_free_check_wait)
-            |  |  |
-            |  |  +- `margin_per_thread * max_total_threads`
-            |  |  |
-            |  |  +- `LOG_FILES_DUMMY_INTAKE_SIZE`
-            |  |  |  (dummy intake which might be required during redo resize)
-            |  |  |
-            |  |  +- `LOG_EXTRA_CONC_MARGIN_PCT / 100.0 * soft_logical_capacity`
-            |  |     (just in case)
-            |  |
-            |  +- `dict_persist_margin`
-            |     (reserved for future dd metadata changes writes on checkpoint)
+            |     (space jointly reserved by threads in wait_for_space)
+            |     |
+            |     +- `margin_per_thread * max_threads`
+            |     |
+            |     +- `LOG_FILES_DUMMY_INTAKE_SIZE`
+            |     |  (dummy intake which might be required during redo resize)
+            |     |
+            |     +- `LOG_EXTRA_CONC_MARGIN_PCT / 100.0 * soft_logical_capacity`
+            |        (just in case)
             |
             +- `log_free_check_capacity`
-               (if redo is this long threads should wait in log_free_check_wait)
+               (if redo is this long threads should wait in wait_for_space)
 
  *******************************************************/
 
@@ -88,9 +85,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* arch_log_sys */
 #include "arch0arch.h"
-
-/* log_free_check_margin, log_free_check_capacity */
-#include "log0chkp.h"
 
 /* Log_files_capacity */
 #include "log0files_capacity.h"
@@ -118,27 +112,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* ut_uint64_align_down */
 #include "ut0byte.h"
-
-#ifndef UNIV_HOTBACKUP
-
-void log_files_capacity_get_limits(const log_t &log,
-                                   lsn_t &limit_for_free_check,
-                                   lsn_t &limit_for_dirty_page_age) {
-  IB_mutex_guard limits_latch{&(log.limits_mutex), UT_LOCATION_HERE};
-
-  const lsn_t adaptive_flush_min_age = log.m_capacity.adaptive_flush_min_age();
-  ut_a(adaptive_flush_min_age != 0);
-
-  const lsn_t margin = log_free_check_margin(log);
-  ut_a(margin < adaptive_flush_min_age);
-
-  limit_for_free_check = log_free_check_capacity(log, margin);
-
-  limit_for_dirty_page_age = ut_uint64_align_down(
-      adaptive_flush_min_age - margin, OS_FILE_LOG_BLOCK_SIZE);
-}
-
-#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************/ /**
 
@@ -481,21 +454,6 @@ void Log_files_capacity::update_exposed(lsn_t hard_logical_capacity) {
   m_exposed.m_hard_logical_capacity.store(hard_logical_capacity);
 
   m_exposed.m_soft_logical_capacity.store(soft_logical_capacity);
-
-  /* Set limits used in flushing and checkpointing mechanism. */
-
-  m_exposed.m_adaptive_flush_max_age.store(
-      sync_flush_logical_capacity_for_soft(soft_logical_capacity));
-
-  m_exposed.m_adaptive_flush_min_age.store(ut_uint64_align_down(
-      soft_logical_capacity -
-          soft_logical_capacity / LOG_FORCING_ADAPTIVE_FLUSH_RATIO_MIN,
-      OS_FILE_LOG_BLOCK_SIZE));
-
-  m_exposed.m_agressive_checkpoint_min_age.store(ut_uint64_align_down(
-      soft_logical_capacity -
-          soft_logical_capacity / LOG_AGGRESSIVE_CHECKPOINT_RATIO_MIN,
-      OS_FILE_LOG_BLOCK_SIZE));
 }
 
 lsn_t Log_files_capacity::hard_logical_capacity() const {
@@ -504,18 +462,6 @@ lsn_t Log_files_capacity::hard_logical_capacity() const {
 
 lsn_t Log_files_capacity::soft_logical_capacity() const {
   return m_exposed.m_soft_logical_capacity.load();
-}
-
-lsn_t Log_files_capacity::adaptive_flush_min_age() const {
-  return m_exposed.m_adaptive_flush_min_age.load();
-}
-
-lsn_t Log_files_capacity::adaptive_flush_max_age() const {
-  return m_exposed.m_adaptive_flush_max_age.load();
-}
-
-lsn_t Log_files_capacity::aggressive_checkpoint_min_age() const {
-  return m_exposed.m_agressive_checkpoint_min_age.load();
 }
 
 bool Log_files_capacity::is_resizing_down() const {

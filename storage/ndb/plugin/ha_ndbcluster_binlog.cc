@@ -7489,10 +7489,13 @@ restart_cluster_failure:
   }
 
   // Create Thd_ndb after server started
-  if (!(thd_ndb = Thd_ndb::seize(thd, psi_name()))) {
+  // Must use the main cluster connection
+  thd_ndb = Thd_ndb::seize(thd, psi_name(), g_ndb_cluster_connection);
+  if (!thd_ndb) {
     log_error("Failed to seize Thd_ndb object");
     goto err;
   }
+
   thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP);
   thd_set_thd_ndb(thd, thd_ndb);
 

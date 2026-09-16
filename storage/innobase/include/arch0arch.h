@@ -35,7 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <mysql/components/services/page_track_service.h>
 #include <list>
-#include "buf0buf.h" /* buf_page_t */
+#include "buf0buf.h"      /* buf_page_t */
+#include "log0consumer.h" /* Log_consumer */
 #include "ut0mem.h"
 #include "ut0mutex.h"
 
@@ -1304,9 +1305,9 @@ using Arch_Grp_List_Iter = Arch_Grp_List::iterator;
 
 class Arch_log_consumer : public Log_consumer {
  public:
-  const std::string &get_name() const override;
+  [[nodiscard]] const std::string &get_name() const override;
 
-  lsn_t get_consumed_lsn() const override;
+  [[nodiscard]] lsn_t get_consumed_lsn() const override;
 
   void consumption_requested(lsn_t request_lsn) override;
 
@@ -1340,13 +1341,7 @@ class Arch_Log_Sys {
   In #ARCH_STATE_PREPARE_IDLE state, all clients have already detached
   but archiver background task is yet to finish.
   @return true, if archiving is active */
-  bool is_active() const {
-    return (m_state == ARCH_STATE_ACTIVE || m_state == ARCH_STATE_PREPARE_IDLE);
-  }
-
-  /** Check if archiver system is in initial state
-  @return true, if redo log archiver state is #ARCH_STATE_INIT */
-  bool is_init() const { return (m_state == ARCH_STATE_INIT); }
+  [[nodiscard]] bool is_active() const;
 
   /** Get LSN up to which redo is archived
   @return last archived redo LSN */
@@ -1362,7 +1357,7 @@ class Arch_Log_Sys {
 
   /** Get recommended archived redo file size
   @return size of file in bytes */
-  os_offset_t get_recommended_file_size() const;
+  [[nodiscard]] os_offset_t get_recommended_file_size() const;
 
   /** Get current redo log archive group
   @return current archive group */
@@ -1464,13 +1459,13 @@ class Arch_Log_Sys {
   dberr_t copy_log(Arch_File_Ctx *file_ctx, lsn_t start_lsn, uint length);
 
   /** Update m_state to the given state. Then check if Arch_Log_Sys is active
-  and accordingly register or unregister the @see m_log_consumer. It is caller
-  that should acquire log_sys's: m_files_mutex and writer_mutex prior before
-  calling this method.
+  and accordingly register or unregister the @see m_log_consumer.
+  This method expects the caller to have already acquired #m_mutex and
+  #log_t::writer_mutex. It also acquires #Log_checkpointing::limits_mutex.
   @param[in]  state   state to assign to m_state */
   void update_state_low(Arch_State state);
 
-  /** Acquires log_sys's m_files_mutex, writer_mutex and calls
+  /** Acquires log_sys's writer_mutex and calls
   @see update_state_low(state).
   @param[in]  state   state to assign to m_state */
   void update_state(Arch_State state);
@@ -1480,9 +1475,10 @@ class Arch_Log_Sys {
   ib_mutex_t m_mutex;
 
   /** Archiver system state.
-  #m_state is protected by #m_mutex and #log_t::writer_mutex. For changing
-  the state both needs to be acquired. For reading, hold any of the two
-  mutexes. Same is true for #m_archived_lsn. */
+  #m_state is protected by #m_mutex, #Log_checkpointing::limits_mutex and
+  #log_t::writer_mutex. To change the state, all three mutexes need to be
+  acquired. To read the state, holding any one of the three mutexes is
+  sufficient. */
   Arch_State m_state;
 
   /** System has archived log up to this LSN */

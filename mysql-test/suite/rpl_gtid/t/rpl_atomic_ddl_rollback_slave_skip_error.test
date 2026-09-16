@@ -48,10 +48,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 
 START REPLICA;
 
-# wait until slave reads and applies all events from relay log
---let $slave_param= Replica_SQL_Running_State
---let $slave_param_value= Replica has read all relay log; waiting for more updates
---source include/rpl/wait_for_replica_status.inc
+SELECT WAIT_FOR_EXECUTED_GTID_SET('a0205340-db2c-11e7-babd-340286faf52d:1:3');
 
 # The failed transactions were rollbacked in the slave when the error was
 # ignored, so we can safely drop t1 and v1 now

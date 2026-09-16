@@ -818,11 +818,11 @@ THD::THD(bool enable_plugins)
 #endif
   mysql_audit_init_thd(this);
   net.vio = nullptr;
+  net.reading_or_writing = 0;
   system_thread = NON_SYSTEM_THREAD;
   peer_port = 0;  // For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled = true;
   m_resource_group_ctx.m_cur_resource_group = nullptr;
-  m_resource_group_ctx.m_switch_resource_group_str[0] = '\0';
   m_resource_group_ctx.m_warn = 0;
   m_safe_to_display.store(false);
 

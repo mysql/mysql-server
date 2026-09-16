@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <array>
 #include <climits>
+#include <cstdlib>
 #include <system_error>
 
 #include "mysql/harness/stdx/expected.h"
@@ -117,7 +118,7 @@ path temp_directory_path(std::error_code &ec) {
   return {std::string(d.begin(), std::next(d.begin(), sz))};
 #else
   for (auto const *envvar : {"TMPDIR", "TMP", "TEMP", "TEMPDIR"}) {
-    auto *path = getenv(envvar);
+    auto *path = std::getenv(envvar);
     if (path) return {path};
   }
 

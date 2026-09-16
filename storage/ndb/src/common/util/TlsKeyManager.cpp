@@ -32,14 +32,15 @@
 #include "openssl/x509v3.h"
 
 #include "debugger/EventLogger.hpp"
-#include "portlib/ndb_openssl_version.h"
 #include "util/NodeCertificate.hpp"
 #include "util/TlsKeyManager.hpp"
 #include "util/cstrbuf.h"
 #include "util/ndb_openssl3_compat.h"
 #include "util/require.h"
 
-TlsKeyManager::TlsKeyManager() { NdbMutex_Init(&m_cert_table_mutex); }
+TlsKeyManager::TlsKeyManager() : m_trusted(sk_X509_new_null()) {
+  NdbMutex_Init(&m_cert_table_mutex);
+}
 
 void TlsKeyManager::free_path_strings() {
   delete m_search_path;
@@ -50,7 +51,14 @@ void TlsKeyManager::free_path_strings() {
 
 TlsKeyManager::~TlsKeyManager() {
   if (m_ctx) SSL_CTX_free(m_ctx);
+  if (m_trusted) sk_X509_free(m_trusted);
   free_path_strings();
+  while (m_trusted_certs) {
+    X509 *cert = m_CA_table[--m_trusted_certs].cert;
+    assert(X509_get_ex_data(cert, 0) == &m_CA_table[m_trusted_certs]);
+    X509_set_ex_data(cert, 0, nullptr);
+    X509_free(cert);
+  }
   NdbMutex_Deinit(&m_cert_table_mutex);
 }
 
@@ -66,18 +74,6 @@ void TlsKeyManager::log_error() const {
     g_eventLogger->error("TLS key error: %s (with path: %s).\n",
                          TlsKeyError::message(m_error), m_path_string);
 }
-
-#if OPENSSL_VERSION_NUMBER < NDB_TLS_MINIMUM_OPENSSL
-
-void TlsKeyManager::init(int, const NodeCertificate *) {}
-
-void TlsKeyManager::init(const char *, int, int) {}
-
-void TlsKeyManager::init(const char *, int, Node::Type) {}
-
-void TlsKeyManager::init(int, struct stack_st_X509 *, struct evp_pkey_st *) {}
-
-#else
 
 /* This is the list of allowed ciphers.
  * It includes all TLS 1.3 cipher suites, plus one TLS 1.2 cipher suite,
@@ -125,7 +121,7 @@ void TlsKeyManager::init(const char *tls_search_path, int node_id,
 
   initialize_context();
 
-  if (m_ctx && (node_type != Node::Type::Client))
+  if (ctx() && (node_type != Node::Type::Client))
     g_eventLogger->info("NDB TLS 1.3 available using certificate file '%s'",
                         m_cert_file.c_str());
 }
@@ -158,6 +154,7 @@ class SSL_CTX_owner {
 };
 
 void TlsKeyManager::initialize_context() {
+  int r;
   SSL_CTX_owner g;
   SSL_CTX *&ctx = g.ctx;
 
@@ -178,30 +175,63 @@ void TlsKeyManager::initialize_context() {
   X509_STORE *store = X509_STORE_new();
   if (!store) return log_openssl_errors(-6);
 
-  /* For X509_STORE_set_depth() see X509_VERIFY_PARAM_SET_FLAGS(3)
+  /* For X509_STORE_set_depth() see X509_VERIFY_PARAM_set_flags(3)
      "With a depth limit of 1 there can be one intermediate CA certificate
      between the trust-anchor and the end-entity certificate."
   */
-  X509_STORE_set_depth(store, 1);
+  r = X509_STORE_set_depth(store, 1);
+  if (r != 1) {
+    X509_STORE_free(store);
+    return log_openssl_errors(-12);
+  }
 
-  const STACK_OF(X509) *CAs = m_node_cert.all_certs();
-  if (!CAs) {
+  const STACK_OF(X509) *chained = m_node_cert.all_certs();
+  if (!chained) {
     X509_STORE_free(store);
     return log_error(TlsKeyError::active_cert_invalid);
   }
 
-  int ncerts = sk_X509_num(CAs);
-  if (ncerts < 2) {
-    X509_STORE_free(store);
-    g_eventLogger->error("NDB TLS: No CA chain in active certificate: %s",
-                         m_cert_file.c_str());
-    return;
+  /* Tentatively set canUseTls; add_trusted_cert() might clear it. */
+  canUseTls = true;
+
+  /* Add other trusted CAs to the verify store */
+  r = TrustStore::load(m_trusted, m_search_path);
+  if (r > 0) {
+    for (int i = 0; i < r; i++)
+      add_trusted_cert(store, sk_X509_value(m_trusted, i), CA_IN_TRUST_STORE);
+  } else if (r < 0) {
+    g_eventLogger->error("TrustStore::load() returns %d", r);
+    canUseTls = false;
   }
 
-  for (int i = 1; i < ncerts; i++) {
-    X509 *CA_cert = sk_X509_value(CAs, i);
-    X509_STORE_add_cert(store, CA_cert);
+  sk_X509_pop_free(m_trusted, X509_free);
+  m_trusted = nullptr;
+
+  /* Add CAs that are chained in the node certificate to the verify store */
+  for (int i = 1; i < sk_X509_num(chained); i++)
+    add_trusted_cert(store, sk_X509_value(chained, i), CA_IN_CERT_CHAIN);
+
+  /* Check that m_trusted_certs > 0. Otherwise there is no trust anchor. */
+  if (!m_trusted_certs) {
+    g_eventLogger->error("TLS unavailable. No trusted CA.");
+    X509_STORE_free(store);
+    return log_openssl_errors(-13);
   }
+
+  /* Verify the node certificate */
+  {
+    X509_STORE_CTX *store_ctx = X509_STORE_CTX_new();
+    X509_STORE_CTX_init(store_ctx, store, m_node_cert.cert(), nullptr);
+    r = X509_verify_cert(store_ctx);
+    X509_STORE_CTX_free(store_ctx);
+  }
+  if (r != 1) {
+    g_eventLogger->error("Cannot verify entity certificate.");
+    X509_STORE_free(store);
+    return log_openssl_errors(-14);
+  }
+
+  /* Put the verify store into the context */
   SSL_CTX_set1_cert_store(ctx, store);
   X509_STORE_free(store);
 
@@ -239,8 +269,6 @@ void TlsKeyManager::initialize_context() {
   cert_table_set(m_node_id, m_node_cert.cert());
 }
 
-#endif
-
 int TlsKeyManager::on_verify(int result, X509_STORE_CTX *store) {
   /* If result is 0, verification has failed, and this callback is
      our opportunity to write a log message.
@@ -260,6 +288,27 @@ int TlsKeyManager::on_verify(int result, X509_STORE_CTX *store) {
     g_eventLogger->error("TLS AUTH: Rejected at eval depth %d, error %d: %s.",
                          X509_STORE_CTX_get_error_depth(store), err,
                          X509_verify_cert_error_string(err));
+  }
+
+  /* On success, increment the use count for the CA that was used */
+  int depth = X509_STORE_CTX_get_error_depth(store);
+  if (result == 1 && depth == 0) {
+    Trusted_CA *trusted = nullptr;
+    X509 *ca = nullptr;
+    STACK_OF(X509) *chain = X509_STORE_CTX_get0_chain(store);
+    if (chain) {
+      for (int i = 1; i < sk_X509_num(chain); i++) {
+        ca = sk_X509_value(chain, i);
+        trusted = static_cast<Trusted_CA *>(X509_get_ex_data(ca, 0));
+        if (trusted) break;
+      }
+    }
+
+    if (trusted) {
+      assert(X509_cmp(ca, trusted->cert) == 0);
+      trusted->use_count.fetch_add(1);
+      trusted->last_use.store(time(nullptr));
+    }
   }
 
   return result;
@@ -484,6 +533,18 @@ bool TlsKeyManager::iterate_cert_table(int &node, cert_table_entry *client) {
   return false;
 }
 
+cert_table_entry &TlsKeyManager::CA_Table::operator*() {
+  const Trusted_CA &entry = tlsKeyManager.m_CA_table[idx];
+  buffer.expires = entry.record.expires;
+  buffer.last_use = entry.last_use.load();
+  buffer.name = &entry.record.name[0];
+  buffer.serial = &entry.record.serial[0];
+  buffer.cert = entry.cert;
+  buffer.use_count = entry.use_count.load();
+  buffer.flags = entry.flags;
+  return buffer;
+}
+
 bool TlsKeyManager::open_active_cert() {
   if (ActivePrivateKey::find(m_search_path, m_node_id, m_type, m_key_file)) {
     EVP_PKEY *key = PrivateKey::open(m_key_file, nullptr);
@@ -519,16 +580,101 @@ bool TlsKeyManager::check_replace_date(float pct) {
   return ((replace_time > 0) && (current_time < replace_time));
 }
 
+/* add_trusted_cert() used by TestTlsKeyManager and Test::Client
+   Creates a duplicate of cert.
+*/
+void TlsKeyManager::add_trusted_cert(X509 *cert) {
+  sk_X509_push(m_trusted, X509_dup(cert));
+}
+
+/* add_trusted_cert():
+   side-effect: on certain errors will set canUseTls to false.
+*/
+void TlsKeyManager::add_trusted_cert(X509_STORE *store, X509 *cert,
+                                     unsigned short flags) {
+  /* Check whether this cert is a CA. X509_check_ca() returns 1
+     for a proper X509v3 CA certificate with CA:TRUE */
+  if (X509_check_ca(cert) != 1) {
+    g_eventLogger->error("add_trusted_cert(): certificate is not a CA.");
+    canUseTls = false;  // TLS-fatal
+    return;
+  }
+
+  /* Check for root CA */
+  if (X509_self_signed(cert, 0) == 1) flags |= CA_IS_ROOT;
+
+  /* Check for a duplicate CA already in the table. Certs from the on-disk
+     trust store are TRUSTED CERTIFICATE records and contain "purpose"
+     information that is not in plain certificates, so they should be added
+     first. Otherwise this duplicate checking might discard the extra data.
+   */
+  for (size_t i = 0; i < m_trusted_certs; i++) {
+    if (X509_cmp(cert, m_CA_table[i].cert) == 0) {
+      if (m_CA_table[i].flags != flags)
+        /* This CA is in a chain file and also in a trust file */
+        m_CA_table[i].flags |= flags;
+      return;
+    }
+  }
+
+  /* Check whether internal table is full */
+  if (CA_TABLE_SIZE == m_trusted_certs) {
+    g_eventLogger->error("add_trusted_cert(): trusted CA table is full");
+    canUseTls = false;  // TLS-fatal
+    return;
+  }
+
+  /* Add cert to store. */
+  if (X509_STORE_add_cert(store, cert) == 0) {
+    g_eventLogger->error("add_trusted_cert(): openssl error");
+    log_openssl_errors(-10);
+    canUseTls = false;  // TLS-fatal
+    return;
+  }
+
+  /* If cert is from the on-disk trust store and is not a root cert, then
+     set a flag allowing intermediate certificates to be treated as trust
+     anchors. See X509_VERIFY_PARAM_set_flags().
+  */
+  if (flags == CA_IN_TRUST_STORE) {
+    if (X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN) != 1) {
+      log_openssl_errors(-11);
+      return;
+    }
+  }
+
+  /* Set up pointers */
+  assert(X509_get_ex_data(cert, 0) == nullptr);
+  X509_up_ref(cert);  //                Table holds a reference
+  Trusted_CA *entry = m_CA_table + m_trusted_certs;
+  X509_set_ex_data(cert, 0, entry);  // Cert points to entry
+  entry->cert = cert;                // Entry points to cert
+
+  /* Populate table */
+  describe_cert(entry->record, cert);
+  entry->flags = flags;
+
+  m_trusted_certs++;
+}
+
 #ifdef TEST_TLSKEYMANAGER
 /* This test is intended only to check for memory leaks.
    usage: TlsKeyManager-t search-path
 */
 
 /* */
+extern class EventLogger *create_event_logger();
+
 int main(int argc, const char *argv[]) {
+  g_eventLogger = create_event_logger();
   TlsKeyManager t;
   t.init_mgm_client(argc > 1 ? argv[1] : nullptr, Node::Type::ANY);
   puts(t.ctx() ? "Loaded a certificate." : "Did not load a certificate.");
+
+  TlsKeyManager::CA_Table caTable(t);
+  for (cert_table_entry &cert : caTable)
+    printf("%s %s %d %d\n", cert.name, cert.serial, cert.use_count, cert.flags);
+
   return 0;
 }
 

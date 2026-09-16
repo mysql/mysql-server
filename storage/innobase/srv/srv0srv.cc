@@ -61,6 +61,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0boot.h"
 #include "dict0load.h"
 #include "dict0stats_bg.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #endif /* !UNIV_HOTBACKUP */
@@ -70,13 +71,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0buf.h"
 #include "log0chkp.h"
 #include "log0encryption.h"
+#include "log0handler_interface.h"
 #include "log0recv.h"
 #include "log0write.h"
 #include "mem0mem.h"
+#include "os0enc.h"
 #include "os0proc.h"
 #include "os0thread-create.h"
 #include "pars0pars.h"
 #include "que0que.h"
+#include "read0mvcc_interface.h"
+#include "read0read_view_interface.h"
 #include "row0mysql.h"
 #include "sql/sql_class.h"
 #include "sql_thd_internal_api.h"
@@ -88,6 +93,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/components/library_mysys/my_system.h" /* my_num_vcpus */
 
 #endif /* !UNIV_HOTBACKUP */
+#include "srv0conc.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
@@ -163,7 +169,7 @@ const char *deprecated_undo_logs =
 
 /** Rate at which UNDO records should be purged. */
 ulong srv_purge_rseg_truncate_frequency =
-    static_cast<ulong>(undo::TRUNCATE_FREQUENCY);
+    static_cast<ulong>(undo_truncate::TRUNCATE_FREQUENCY);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Enable or Disable Truncate of UNDO tablespace.
@@ -214,8 +220,6 @@ bool srv_numa_interleave = false;
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong srv_debug_compress;
-/** Set when InnoDB has invoked exit(). */
-bool innodb_calling_exit;
 /** Used by SET GLOBAL innodb_master_thread_disabled_debug = X. */
 bool srv_master_thread_disabled_debug;
 #ifndef UNIV_HOTBACKUP
@@ -229,6 +233,9 @@ char *srv_log_group_home_dir = nullptr;
 
 /** Enable or disable Encrypt of REDO tablespace. */
 bool srv_redo_log_encrypt = false;
+
+/** Whether the redo block at the recovered LSN was encrypted on disk. */
+bool srv_recovered_redo_block_was_encrypted = false;
 
 ulonglong srv_redo_log_capacity, srv_redo_log_capacity_used;
 
@@ -790,12 +797,12 @@ static const ulint SRV_MASTER_SLOT = 0;
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Performance schema stage event for monitoring ALTER TABLE progress
-everything after flush log_make_latest_checkpoint(). */
+everything after flush pages_persistence->request_sharp_checkpoint(). */
 PSI_stage_info srv_stage_alter_table_end = {
     0, "alter table (end)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
-log_make_latest_checkpoint(). */
+pages_persistence->request_sharp_checkpoint(). */
 PSI_stage_info srv_stage_alter_table_flush = {
     0, "alter table (flush)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 
@@ -1256,6 +1263,7 @@ void srv_free(void) {
 /** Initializes the synchronization primitives, memory system, and the thread
  local storage. */
 static void srv_general_init() {
+  os_event_global_init();
   sync_check_init(srv_max_n_threads);
   /* Reset the system variables in the recovery module. */
   recv_sys_var_init();
@@ -1263,7 +1271,7 @@ static void srv_general_init() {
   trx_pool_init();
   que_init();
   row_mysql_init();
-  undo_spaces_init();
+  undo_truncate_spaces_init();
 }
 
 /** Boots the InnoDB server. */
@@ -1289,7 +1297,9 @@ static void srv_refresh_innodb_monitor_stats(void) {
   btr_cur_n_sea_old = btr_cur_n_sea;
   btr_cur_n_non_sea_old = btr_cur_n_non_sea;
 
-  log_refresh_stats(*log_sys);
+  if (log_sys != nullptr) {
+    log_refresh_stats(*log_sys);
+  }
 
   buf_refresh_io_stats_all();
 
@@ -1474,8 +1484,8 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
           srv_conc_get_active_threads(), srv_conc_get_waiting_threads());
 
   /* This is a dirty read, without holding trx_sys->mutex. */
-  fprintf(file, ULINTPF " read views open inside InnoDB\n",
-          trx_sys->mvcc->size());
+  fprintf(file, "%zu read views open inside InnoDB\n",
+          trx_sys->mvcc->get_open_views_count());
 
   n_reserved = fil_space_get_n_reserved_extents(0);
   if (n_reserved > 0) {
@@ -1704,21 +1714,21 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_undo_tablespaces_implicit = FSP_IMPLICIT_UNDO_TABLESPACES;
 
-  undo::spaces->s_lock();
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
 
-  export_vars.innodb_undo_tablespaces_total = undo::spaces->size();
+  export_vars.innodb_undo_tablespaces_total = undo_truncate::spaces->size();
 
   export_vars.innodb_undo_tablespaces_explicit =
       export_vars.innodb_undo_tablespaces_total - FSP_IMPLICIT_UNDO_TABLESPACES;
 
   export_vars.innodb_undo_tablespaces_active = 0;
 
-  for (auto undo_space : undo::spaces->m_spaces) {
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
     if (undo_space->is_active()) {
       export_vars.innodb_undo_tablespaces_active++;
     }
   }
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
 #ifdef UNIV_DEBUG
   rw_lock_s_lock(&purge_sys->latch, UT_LOCATION_HERE);
@@ -1727,9 +1737,10 @@ void srv_export_innodb_status(void) {
   /* Purge always deals with transaction end points represented by
   transaction number. We are allowed to purge transactions with number
   below the low limit. */
-  ReadView oldest_view;
-  trx_sys->mvcc->clone_oldest_view(&oldest_view);
-  trx_id_t low_limit_no = oldest_view.low_limit_no();
+  Read_view_interface *oldest_view{};
+  trx_sys->mvcc->clone_oldest_view(oldest_view);
+  const trx_id_t low_limit_no = oldest_view->get_lowest_needed_trx_no();
+  trx_sys->mvcc->view_free(oldest_view);
 
   rw_lock_s_unlock(&purge_sys->latch);
 
@@ -1833,13 +1844,13 @@ void srv_error_monitor_thread() {
 
   ut_ad(!srv_read_only_mode);
 
-  old_lsn = log_get_lsn(*log_sys);
+  old_lsn = ib::redo::handler->peek_first_unassigned_lsn();
 
 loop:
   /* Try to track a strange bug reported by Harald Fuchs and others,
   where the lsn seems to decrease at times */
 
-  new_lsn = log_get_lsn(*log_sys);
+  new_lsn = ib::redo::handler->peek_first_unassigned_lsn();
 
   if (new_lsn < old_lsn) {
     ib::error(ER_IB_MSG_1046, ulonglong{old_lsn}, ulonglong{new_lsn});
@@ -2456,32 +2467,60 @@ static bool srv_master_do_shutdown_tasks(
   return (n_bytes_merged != 0);
 }
 
-/* Enable REDO tablespace encryption */
-bool srv_enable_redo_encryption() {
-  log_t &log = *log_sys;
+/** Ensure that the first master key exists before taking an outer
+master_key_id_mutex guard.
+@return true iff success. */
+static bool srv_ensure_master_key_exists() {
+  if (Encryption::get_master_key_id() != Encryption::DEFAULT_MASTER_KEY_ID) {
+    return true;
+  }
 
-  /* While enabling encryption, make sure not to overwrite the existing
-  redo log encryption key (if it has already been generated).
+  byte *master_key = nullptr;
+  uint32_t master_key_id = Encryption::DEFAULT_MASTER_KEY_ID;
 
-  Note that we can safely check log.m_encryption_metadata without acquiring
-  any of mutexes which are enlisted as required to protect updates of this
-  field. That's because srv_enable_redo_encryption() is called either in
-  startup phase, or during update of innodb_redo_log_encrypt. Server ensures
-  that sysvars are not being updated concurrently and that they are not being
-  updated during startup phase. */
-  if (log_can_encrypt(log)) {
+  Encryption::get_master_key(&master_key_id, &master_key);
+
+  if (master_key == nullptr) {
     return false;
   }
 
+  my_free(master_key);
+  return true;
+}
+
+/* Enable REDO tablespace encryption */
+bool srv_enable_redo_encryption() {
+  ut_ad(ib::redo::handler->get_capabilities().supports_encryption);
+
+  log_t &log = *log_sys;
+
+  /* Fast path. This is rechecked under master_key_id_mutex before generating
+  redo log encryption metadata. */
+  if (log_can_encrypt(log)) {
+    return false;
+  }
+  DEBUG_SYNC_C("srv_enable_redo_encryption_after_log_can_encrypt");
   Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
                         dict_sys_t::s_log_space_id, false);
   if (notifier.failed()) {
     return true;
   }
 
-  /* Start to encrypt the redo log block from now on. */
-  if (log_encryption_generate_metadata(log) != DB_SUCCESS) {
+  if (!srv_ensure_master_key_exists()) {
     ib::error(ER_IB_MSG_LOG_FILES_ENCRYPTION_INIT_FAILED);
+    return true;
+  }
+
+  /* Runtime callers can run concurrently during sysvar validation. Serialize
+  redo metadata generation with concurrent validations and key rotation. */
+  extern ib_mutex_t master_key_id_mutex;
+  IB_mutex_guard redo_encrypt_guard(&master_key_id_mutex, UT_LOCATION_HERE);
+
+  if (log_can_encrypt(log)) {
+    return false;
+  }
+
+  if (log_encryption_generate_metadata() != DB_SUCCESS) {
     return true;
   }
 
@@ -2536,13 +2575,13 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
 
 /* Enable UNDO tablespace encryption */
 bool srv_enable_undo_encryption() {
-  /* Make sure undo::ddl_mutex is owned. */
-  ut_ad(mutex_own(&undo::ddl_mutex));
+  /* Make sure undo_truncate::ddl_mutex is owned. */
+  ut_ad(mutex_own(&undo_truncate::ddl_mutex));
   bool ret_val = false;
 
   /* Traverse over all UNDO tablespaces and mark them encrypted. */
-  undo::spaces->s_lock();
-  for (auto undo_space : undo::spaces->m_spaces) {
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
     /* Skip system tablespace. */
     if (undo_space->id() == TRX_SYS_SPACE) {
       continue;
@@ -2587,7 +2626,7 @@ bool srv_enable_undo_encryption() {
     ib::info(ER_IB_MSG_1055, undo_space->space_name());
   }
 
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
   return ret_val;
 }
 
@@ -2907,10 +2946,11 @@ static ulint srv_do_purge(ulint *n_total_purged) {
 
     need_explicit_truncate = (n_pages_purged == 0);
     if (need_explicit_truncate) {
-      undo::spaces->s_lock();
+      undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
       need_explicit_truncate =
-          (undo::spaces->find_first_inactive_explicit(nullptr) != nullptr);
-      undo::spaces->s_unlock();
+          (undo_truncate::spaces->find_first_inactive_explicit(nullptr) !=
+           nullptr);
+      undo_truncate::spaces->s_unlock();
     }
   } while (purge_sys->state == PURGE_STATE_RUN &&
            (n_pages_purged > 0 || need_explicit_truncate) &&
@@ -2945,7 +2985,7 @@ static void srv_purge_coordinator_suspend(
 
     rw_lock_x_unlock(&purge_sys->latch);
 
-    /* We don't wait right away on the the non-timed wait because
+    /* We don't wait right away on the non-timed wait because
     we want to signal the thread that wants to suspend purge. */
 
     if (stop) {
@@ -3225,3 +3265,34 @@ void set_srv_redo_log(bool enable) {
   srv_redo_log = enable;
   mutex_exit(&srv_innodb_monitor_mutex);
 }
+#ifndef UNIV_HOTBACKUP
+bool srv_reconfigure_log_handler() {
+  /* The max_threads should be the number of these threads which use mtrs:
+    - user transaction threads - which we upper bound by srv_thread_concurrency
+    - background threads - which we upper bound by
+      LOG_BACKGROUND_THREADS_USING_RW_MTRS.
+
+  Both of these estimates are wrong:
+  The srv_thread_concurrency = 0 by default which means unlimited thread
+  concurrency, not 0 user threads.
+  The number of Undo Log Purge threads is configurable, and IO-completers can
+  apply Changes Buffered in IBUF, and there might be more than
+  LOG_BACKGROUND_THREADS_USING_RW_MTRS of them.
+
+  The value of reserved_bytes_per_thread should be the limit on how much
+  data a thread can produce via mtr's, between calls to wait_for_space().
+  Alas, we do not enforce this limit via asserts, nor in tests, only by code
+  review, so occasionally we violate this requirement too.
+
+  This violation of contract on our side, makes wait_for_space() and has_space()
+  insufficient to guarantee deadlock-freedom and wait-free write_mtr(..). But
+  changing these would not be backward compatible (some configs which used to be
+  deemed safe would no longer be, and server would refuse to start).
+  Using this mechanism, even with too small values, is better than nothing, and
+  ib::redo::Handler compensates by adding some extra margins, too.
+  */
+  return ib::redo::handler->reconfigure(
+      srv_thread_concurrency + LOG_BACKGROUND_THREADS_USING_RW_MTRS,
+      LOG_CHECKPOINT_FREE_PER_THREAD * UNIV_PAGE_SIZE);
+}
+#endif /* !UNIV_HOTBACKUP */

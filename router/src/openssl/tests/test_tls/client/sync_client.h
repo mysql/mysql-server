@@ -85,7 +85,7 @@ class SyncClient {
             action_current_.get_bytes_to_transfer() + destination_data_.size();
         destination_data_.resize(size_new);
         do_receive();
-      } else {
+      } else if (action_current_.is_write_operation()) {
         do_send();
       }
     }

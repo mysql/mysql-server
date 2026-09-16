@@ -1,0 +1,130 @@
+SET @org_thread_pool_max_transactions_limit = @@global.thread_pool_max_transactions_limit;
+SET @org_thread_pool_query_threads_per_group = @@global.thread_pool_query_threads_per_group;
+#
+# Basic testing
+#
+SHOW VARIABLES LIKE 'thread_pool_query_threads_per_group';
+Variable_name	Value
+thread_pool_query_threads_per_group	4
+SET GLOBAL thread_pool_query_threads_per_group=0;
+ERROR 42000: Variable 'thread_pool_query_threads_per_group' can't be set to the value of '0'
+SET GLOBAL thread_pool_query_threads_per_group=4097;
+ERROR 42000: Variable 'thread_pool_query_threads_per_group' can't be set to the value of '4097'
+SET GLOBAL thread_pool_query_threads_per_group=DEFAULT;
+SHOW VARIABLES LIKE 'thread_pool_query_threads_per_group';
+Variable_name	Value
+thread_pool_query_threads_per_group	2
+SET GLOBAL thread_pool_query_threads_per_group=4;
+SHOW VARIABLES LIKE 'thread_pool_query_threads_per_group';
+Variable_name	Value
+thread_pool_query_threads_per_group	4
+# Query threads per thread group should *not* be more than trxn thread
+# limit per group.
+SET GLOBAL thread_pool_max_transactions_limit=2;
+ERROR HY000: Query threads count(4) exceeds transaction threads limit(2) per group. Please use query threads count per group smaller or equal to max transaction threads limit per group
+SET GLOBAL thread_pool_max_transactions_limit=10;
+SHOW VARIABLES LIKE 'thread_pool_max_transactions_limit';
+Variable_name	Value
+thread_pool_max_transactions_limit	10
+# Query threads per thread group should *not* be more than trxn thread
+# limit per group.
+SET GLOBAL thread_pool_query_threads_per_group=12;
+ERROR HY000: Query threads count(12) exceeds transaction threads limit(10) per group. Please use query threads count per group smaller or equal to max transaction threads limit per group
+#
+# Verify that with high concurrency algorithm consumer thread
+# is awakened to wait for new queries.
+#
+connect  con1, localhost,root,,test,,;
+connect  con2, localhost,root,,test,,;
+connection default;
+CREATE TABLE t1 (f1 INT);
+LOCK TABLE t1 WRITE;
+connection con1;
+INSERT INTO t1 VALUES(1);;
+connection con2;
+# There are two possibilites here:
+# Normally the waiting thread will only process
+# con1 and block waiting for the lock. con2 is then processed by a new
+# thread taking over as waiting thread.
+# But occasionally, con2 may be processed together with con1, and then
+# the HC algo will likely wake another query worker to handle one of
+# the connections (the order in which the connectons are queued is
+# unspecified).
+# The thread processing con1, whichever it is, will eventually be marked as
+# stalled, so we should end up with STALLED_TRHEAD_COUNT = 1.
+SELECT STALLED_THREAD_COUNT FROM performance_schema.tp_thread_group_state WHERE TP_GROUP_ID = 0;
+STALLED_THREAD_COUNT
+1
+connection default;
+UNLOCK TABLES;
+connection con1;
+DROP TABLE t1;
+disconnect con1;
+disconnect con2;
+#
+# Verify privileges needed to modify thread_pool_query_threads_per_group
+# variable.
+#
+connection default;
+CREATE USER u1;
+connect  con1, localhost, u1, '';
+SET @@global.thread_pool_query_threads_per_group=32;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+connection default;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+GRANT CONNECTION_ADMIN ON *.* TO u1;
+connection con1;
+SET @@global.thread_pool_query_threads_per_group=4;
+SELECT @@global.thread_pool_query_threads_per_group;
+@@global.thread_pool_query_threads_per_group
+4
+SHOW VARIABLES LIKE 'thread_pool_query_threads_per_group';
+Variable_name	Value
+thread_pool_query_threads_per_group	4
+connection default;
+disconnect con1;
+DROP USER u1;
+#
+# Verify that updating system variable thread_pool_query_threads_per_group
+# adjusts worker threads.
+#
+# Verify that query worker threads adjustment when thread_pool_query_threads_per_group
+# is decremented.
+# Run query in all worker threads.
+connect  con1, localhost,root,,test,,;
+connect  con2, localhost,root,,test,,;
+connect  con3, localhost,root,,test,,;
+connection default;
+CREATE TABLE t1 (f1 INT);
+LOCK TABLE t1 WRITE;
+connection con1;
+INSERT INTO t1 VALUES(1);;
+connection con2;
+INSERT INTO t1 VALUES(1);;
+connection con3;
+INSERT INTO t1 VALUES(1);;
+connection default;
+SET @@global.thread_pool_query_threads_per_group=1;
+UNLOCK TABLES;
+connection con1;
+connection con2;
+connection con3;
+connection default;
+# Query worker threads should be reduced and unused threads are
+# moved to reserve threads pool.
+# Verify that query worker threads adjustment when thread_pool_query_threads_per_group
+# is incremented.
+# Reserve threads are used in this case.
+SET @@global.thread_pool_query_threads_per_group=4;
+# New thread are not created in this case.
+# Reserve threads are used. No new query thread is created.
+# New threads are created in this case.
+SET @@global.thread_pool_query_threads_per_group=10;
+# Consumer threads count should be increased after thread_pool_query_threads_per_group update.
+connection default;
+DROP TABLE t1;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+SET @@global.thread_pool_query_threads_per_group = @org_thread_pool_query_threads_per_group;
+SET @@global.thread_pool_max_transactions_limit = @org_thread_pool_max_transactions_limit;

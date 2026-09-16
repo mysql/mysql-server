@@ -85,6 +85,7 @@ call dml_operations(1,100);
 set sql_log_bin=0;
 --disable_query_log
 call mtr.add_suppression(".*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Change Stream Applier channel stopped because of error*");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Database page corruption or a failed file read of page");
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column.*");
 call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Fatal error: Invalid (empty) username .*Connection attempt terminated. Error_code: MY-013117");
@@ -161,6 +162,7 @@ LOCK TABLES t1 READ;
 
 --let $rpl_connection_name= server_3
 --source include/connection.inc
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 start group_replication;
 
 --let $group_replication_member_state= RECOVERING

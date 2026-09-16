@@ -85,7 +85,10 @@ unsigned long long Failed_attempts_list_imp::get_failed_attempts_count(
   return pos->second.val;
 }
 
-void Failed_attempts_list_imp::reset() { failed_attempts_map.clear(); }
+void Failed_attempts_list_imp::reset() {
+  const std::unique_lock<std::shared_mutex> lock(mutex_);
+  failed_attempts_map.clear();
+}
 
 typedef Connection_control_pfs_table_data::const_iterator
     Connection_control_pfs_table_pos;

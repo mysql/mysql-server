@@ -22,6 +22,9 @@ select @@global.max_relay_log_size;
 @@global.max_relay_log_size
 4096
 START REPLICA;
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 include/rpl/assert_replica_running.inc
 #
 # Test 2
@@ -32,6 +35,9 @@ set global max_relay_log_size=(5*4096);
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	20480
 START REPLICA;
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 include/rpl/assert_replica_running.inc
 #
 # Test 3: max_relay_log_size = 0
@@ -42,6 +48,9 @@ set global max_relay_log_size=0;
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	0
 START REPLICA;
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 include/rpl/assert_replica_running.inc
 #
 # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
@@ -54,9 +63,12 @@ flush logs;
 #
 RESET REPLICA;
 START REPLICA;
+[connection master]
+include/rpl/sync_to_replica.inc
 flush logs;
 create table t1 (a int);
 include/rpl/sync_to_replica.inc
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 include/rpl/assert_replica_running.inc
 #
 # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
@@ -64,6 +76,7 @@ include/rpl/assert_replica_running.inc
 flush logs;
 drop table t1;
 include/rpl/sync_to_replica.inc
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 include/rpl/assert_replica_running.inc
 flush logs;
 show binary log status;

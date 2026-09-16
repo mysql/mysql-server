@@ -1362,9 +1362,11 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
         DBUG_RETURN(1);  // Recoverable error
       }
 
-      if (alloc_error == NDB_MGM_ALLOCID_ERROR) {
-        // A nodeid for this node was found in config, but it was not
-        // free right now. Retry later and it might be free.
+      if (alloc_error == NDB_MGM_ALLOCID_ERROR ||
+          alloc_error == NDB_MGM_ALLOCID_CONFIG_RETRY) {
+        // A nodeid for this node was found in config, but either
+        // it is not free right now, or its configured name cannot
+        // be resolved in the DNS. The client can retry.
         m_latest_error = alloc_error;
         m_latest_error_msg.assfmt("%s", m_config_retriever->getErrorString());
         DBUG_RETURN(1);  // Recoverable error

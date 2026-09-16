@@ -80,7 +80,7 @@ ib_vector_t *ib_vector_create(
 
 /********************************************************************
 Destroy the vector. Make sure the vector owns the allocator, e.g.,
-the heap in the the heap allocator. */
+the heap in the heap allocator. */
 static inline void ib_vector_free(ib_vector_t *vec); /* in/out: vector */
 
 /********************************************************************

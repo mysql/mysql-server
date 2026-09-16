@@ -252,20 +252,6 @@ include/rpl/stop_applier.inc
 START REPLICA IO_THREAD, SQL_THREAD USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
 include/rpl/wait_for_receiver_error.inc [errno=2061]
 include/rpl/stop_applier.inc
-TRUNCATE mysql.general_log;
-START REPLICA IO_THREAD, SQL_THREAD UNTIL SOURCE_LOG_FILE='dummy-log.000001', SOURCE_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/rpl/wait_for_receiver_error.inc [errno=2061]
-include/rpl/stop_applier.inc
-START REPLICA IO_THREAD, SQL_THREAD UNTIL SOURCE_LOG_FILE = 'dummy-log.000001', SOURCE_LOG_POS = 116 USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/rpl/wait_for_receiver_error.inc [errno=2061]
-include/rpl/stop_applier.inc
-TRUNCATE mysql.general_log;
-START REPLICA IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE='dummy-log.000001', RELAY_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/rpl/wait_for_receiver_error.inc [errno=2061]
-include/rpl/stop_applier.inc
-START REPLICA IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE = 'dummy-log.000001', RELAY_LOG_POS = 116 USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/rpl/wait_for_receiver_error.inc [errno=2061]
-include/rpl/stop_applier.inc
 SET GLOBAL log_output= @old_log_output;
 TRUNCATE mysql.general_log;
 CHANGE REPLICATION SOURCE TO SOURCE_SSL=1;

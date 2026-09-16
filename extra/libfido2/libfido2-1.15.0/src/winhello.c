@@ -89,7 +89,8 @@ webauthn_load(void)
 		fido_log_debug("%s: already loaded", __func__);
 		return -1;
 	}
-	if ((webauthn_handle = LoadLibrary(TEXT("webauthn.dll"))) == NULL) {
+	if ((webauthn_handle = LoadLibraryEx(TEXT("webauthn.dll"), NULL,
+	    LOAD_LIBRARY_SEARCH_SYSTEM32)) == NULL) {
 		fido_log_debug("%s: LoadLibrary", __func__);
 		return -1;
 	}

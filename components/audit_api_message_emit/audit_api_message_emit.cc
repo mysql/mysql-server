@@ -388,7 +388,10 @@ class String_error_handler : public IError_handler {
   */
   String_error_handler(char *buffer, size_t size,
                        unsigned long *out_size = nullptr)
-      : m_buffer(buffer), m_size(size), m_out_size(out_size) {}
+      : m_buffer(buffer), m_size(size), m_out_size(out_size) {
+    assert(m_buffer);
+    assert(m_size > 0);
+  }
 
   /**
     Copy message into the buffer.
@@ -399,9 +402,9 @@ class String_error_handler : public IError_handler {
       MY_ATTRIBUTE((format(printf, 2, 3))) {
     va_list va;
     va_start(va, message);
-    const int copied = vsnprintf(m_buffer, m_size - 1, message, va);
+    const int copied = std::clamp(vsnprintf(m_buffer, m_size, message, va), 0,
+                                  static_cast<int>(m_size) - 1);
     va_end(va);
-    m_buffer[copied] = '\0';
 
     if (m_out_size != nullptr) *m_out_size = static_cast<unsigned long>(copied);
   }
@@ -501,9 +504,15 @@ static char *emit(UDF_INIT *initid [[maybe_unused]], UDF_ARGS *args,
       val.value_type = MYSQL_AUDIT_MESSAGE_VALUE_TYPE_STR;
       val.value.str.str = arguments[1];
       val.value.str.length = arg_lengths[1];
-    } else if (arg_res == 1) {
+    } else if (arg_res == 1 && arguments[1] != nullptr) {
       val.value_type = MYSQL_AUDIT_MESSAGE_VALUE_TYPE_NUM;
       val.value.num = *reinterpret_cast<long long *>(arguments[1]);
+    } else {
+      assert(arg_res == 1);
+      /* A numeric NULL value is written as a NULL string. */
+      val.value_type = MYSQL_AUDIT_MESSAGE_VALUE_TYPE_STR;
+      val.value.str.str = nullptr;
+      val.value.str.length = 0;
     }
 
     key_values[key] = val;

@@ -28,6 +28,7 @@
 #include <limits>
 #include <string>
 
+#include "plugin/x/src/helper/sql_literal_escaping.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/prepared_statement_builder.h"
 #include "plugin/x/src/session.h"
@@ -178,6 +179,8 @@ ngs::Error_code Prepare_command_handler::execute_deallocate(
 ngs::Error_code Prepare_command_handler::build_query(
     const Prepare::OneOfMessage &msg, Placeholder_list *ids,
     uint32_t *args_offset) {
+  m_qb.set_no_backslash_escapes(
+      is_no_backslash_escapes(&m_session->data_context()));
   Prepared_statement_builder builder(&m_qb, ids);
   switch (msg.type()) {
     case Prepare::OneOfMessage::FIND:

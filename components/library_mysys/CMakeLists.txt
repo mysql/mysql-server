@@ -33,21 +33,29 @@ IF(UNIX)
     my_system_api/my_system_api_cgroup.cc)
 ENDIF()
 
+LIST(APPEND MY_SYSTEM_SOURCES
+  system_info.cc)
+
 IF(LINUX)
   LIST(APPEND MY_SYSTEM_SOURCES
-    my_system_api/my_system_api_linux.cc)
+    my_system_api/my_system_api_linux.cc
+    my_system_api/system_info_linux_procfs.cc
+    my_system_api/system_info_linux.cc)
 ELSEIF(APPLE)
   LIST(APPEND MY_SYSTEM_SOURCES
-    my_system_api/my_system_api_apple.cc)
+    my_system_api/my_system_api_macos.cc
+    my_system_api/system_info_macos.cc)
 ELSEIF(FREEBSD)
   LIST(APPEND MY_SYSTEM_SOURCES
-    my_system_api/my_system_api_freebsd.cc)
-ELSEIF(SOLARIS)
-  LIST(APPEND MY_SYSTEM_SOURCES
-    my_system_api/my_system_api_solaris.cc)
+    my_system_api/my_system_api_freebsd.cc
+    my_system_api/system_info_unsupported.cc)
 ELSEIF(WIN32)
   LIST(APPEND MY_SYSTEM_SOURCES
-    my_system_api/my_system_api_win.cc)
+    my_system_api/my_system_api_win.cc
+    my_system_api/system_info_unsupported.cc)
+ELSE()
+  LIST(APPEND MY_SYSTEM_SOURCES
+    my_system_api/system_info_unsupported.cc)
 ENDIF()
 
 ADD_LIBRARY(library_mysys STATIC

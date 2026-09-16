@@ -46,9 +46,9 @@ class os0file_t : public ::testing::Test {
     os_file_delete_func(TEST_FILE_NAME);
   }
 
-  dberr_t write_test_data(const void *data, size_t len,
+  dberr_t write_test_data(const byte *data, size_t len,
                           std::chrono::nanoseconds &duration) {
-    IORequest request(IORequest::WRITE);
+    IORequest request(IORequest::Type::WRITE);
 
     const auto *name = TEST_FILE_NAME;
     auto begin = std::chrono::high_resolution_clock::now();
@@ -60,9 +60,9 @@ class os0file_t : public ::testing::Test {
     return db_err;
   }
 
-  dberr_t read_test_data(void *data, size_t len,
+  dberr_t read_test_data(byte *data, size_t len,
                          std::chrono::nanoseconds &duration) {
-    IORequest read_request(IORequest::READ);
+    IORequest read_request(IORequest::Type::READ);
     read_request.disable_compression();
     read_request.clear_encrypted();
 
@@ -85,7 +85,7 @@ class os0file_t : public ::testing::Test {
     return success;
   }
 
-  void write_read_flush(const void *data, void *buffer, const size_t len,
+  void write_read_flush(const byte *data, byte *buffer, const size_t len,
                         std::chrono::nanoseconds &write_duration_total,
                         std::chrono::nanoseconds &read_duration_total,
                         std::chrono::nanoseconds &flush_duration_total) {
@@ -107,7 +107,7 @@ class os0file_t : public ::testing::Test {
     flush_duration_total += flush_duration;
   }
 
-  void write_read_flush_loop(const void *data, void *buffer, const size_t len,
+  void write_read_flush_loop(const byte *data, byte *buffer, const size_t len,
                              const int loops) {
     using namespace std::chrono;
     nanoseconds flushes(0);
@@ -131,17 +131,17 @@ class os0file_t : public ::testing::Test {
 
 TEST_F(os0file_t, hundred_10_byte_writes_reads_flushes_with_fsync) {
   srv_use_fdatasync = false;
-  static constexpr char TEST_DATA[] = "testdata42";
+  static constexpr byte TEST_DATA[] = "testdata42";
   static constexpr size_t LEN = sizeof(TEST_DATA);
-  char buffer[LEN];
+  byte buffer[LEN];
   write_read_flush_loop(TEST_DATA, buffer, LEN, 100);
 }
 
 TEST_F(os0file_t, hundred_10_byte_writes_reads_flushes_with_fdatasync) {
   srv_use_fdatasync = true;
-  static constexpr char TEST_DATA[] = "testdata42";
+  static constexpr byte TEST_DATA[] = "testdata42";
   static constexpr size_t LEN = sizeof(TEST_DATA);
-  char buffer[LEN];
+  byte buffer[LEN];
   write_read_flush_loop(TEST_DATA, buffer, LEN, 100);
 }
 
@@ -153,35 +153,35 @@ merge_innodb_tests-t suite, but we can manually run them by providing the:
 TEST_F(os0file_t,
        DISABLED_ten_thousand_1_byte_writes_reads_flushes_with_fsync) {
   srv_use_fdatasync = false;
-  static constexpr char TEST_DATA[] = "!";
+  static constexpr byte TEST_DATA[] = "!";
   static constexpr size_t LEN = sizeof(TEST_DATA);
-  char buffer[LEN];
+  byte buffer[LEN];
   write_read_flush_loop(TEST_DATA, buffer, LEN, 10000);
 }
 
 TEST_F(os0file_t,
        DISABLED_ten_thousand_1_byte_writes_reads_flushes_with_fdatasync) {
   srv_use_fdatasync = true;
-  static constexpr char TEST_DATA[] = "testdata42";
+  static constexpr byte TEST_DATA[] = "testdata42";
   static constexpr size_t LEN = sizeof(TEST_DATA);
-  char buffer[LEN];
+  byte buffer[LEN];
   write_read_flush_loop(TEST_DATA, buffer, LEN, 10000);
 }
 
 TEST_F(os0file_t, DISABLED_thousand_10_byte_writes_reads_flushes_with_fsync) {
   srv_use_fdatasync = false;
-  static constexpr char TEST_DATA[] = "testdata42";
+  static constexpr byte TEST_DATA[] = "testdata42";
   static constexpr size_t LEN = sizeof(TEST_DATA);
-  char buffer[LEN];
+  byte buffer[LEN];
   write_read_flush_loop(TEST_DATA, buffer, LEN, 1000);
 }
 
 TEST_F(os0file_t,
        DISABLED_thousand_10_byte_writes_reads_flushes_with_fdatasync) {
   srv_use_fdatasync = true;
-  static constexpr char TEST_DATA[] = "testdata42";
+  static constexpr byte TEST_DATA[] = "testdata42";
   static constexpr size_t LEN = sizeof(TEST_DATA);
-  char buffer[LEN];
+  byte buffer[LEN];
   write_read_flush_loop(TEST_DATA, buffer, LEN, 1000);
 }
 
@@ -189,8 +189,8 @@ TEST_F(os0file_t, DISABLED_thousand_1000_byte_writes_reads_flushes_with_fsync) {
   srv_use_fdatasync = false;
 
   constexpr int LEN = 1000;
-  char data[LEN];
-  char buffer[LEN];
+  byte data[LEN];
+  byte buffer[LEN];
   for (int i = 0; i < LEN; ++i) {
     data[i] = 'a' + i % ('z' - 'a' + 1);
   }
@@ -203,8 +203,8 @@ TEST_F(os0file_t,
   srv_use_fdatasync = true;
 
   constexpr int LEN = 1000;
-  char data[LEN];
-  char buffer[LEN];
+  byte data[LEN];
+  byte buffer[LEN];
   for (int i = 0; i < LEN; ++i) {
     data[i] = 'a' + i % ('z' - 'a' + 1);
   }
@@ -216,8 +216,8 @@ TEST_F(os0file_t, DISABLED_thousand_1M_byte_writes_reads_flushes_with_fsync) {
   srv_use_fdatasync = false;
 
   constexpr int LEN = 1000000;
-  char data[LEN];
-  char buffer[LEN];
+  byte data[LEN];
+  byte buffer[LEN];
   for (int i = 0; i < LEN; ++i) {
     data[i] = 'a' + i % ('z' - 'a' + 1);
   }
@@ -230,8 +230,8 @@ TEST_F(os0file_t,
   srv_use_fdatasync = true;
 
   constexpr int LEN = 1000000;
-  char data[LEN];
-  char buffer[LEN];
+  byte data[LEN];
+  byte buffer[LEN];
   for (int i = 0; i < LEN; ++i) {
     data[i] = 'a' + i % ('z' - 'a' + 1);
   }

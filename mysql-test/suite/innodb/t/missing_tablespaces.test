@@ -22,7 +22,7 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* A tablespace file '.*' cannot be opened. InnoDB error code: 65 \\(Cannot open a file\\)");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Could not find a valid tablespace file for");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table `\.\.*`\.`\.\.*` because the \.ibd file is missing");

@@ -245,7 +245,6 @@ source include/wait_until_undo_space_is_empty.inc;
 --source include/shutdown_mysqld.inc
 let $restart_parameters = restart: --innodb_rollback_segments=4 --innodb_validate_tablespace_paths=0;
 --source include/start_mysqld.inc
-
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 SHOW GLOBAL STATUS LIKE '%undo%';
 SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -425,6 +424,19 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLESPACE ts1;
+
+# before we drop the explicit tablespaces, let us refresh the implicit ones,
+# so that they have the right number of rollback segments:
+
+--let n=1
+ while($n<=2){
+   --eval ALTER UNDO TABLESPACE innodb_undo_00$n SET INACTIVE
+   --let $inactive_undo_space = innodb_undo_00$n
+   source include/wait_until_undo_space_is_empty.inc;
+   --eval ALTER UNDO TABLESPACE innodb_undo_00$n SET ACTIVE
+   --inc $n
+ }
+
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
@@ -447,13 +459,7 @@ SHOW VARIABLES LIKE 'innodb_rollback_segments';
 RESET PERSIST innodb_rollback_segments;
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 
-SET GLOBAL innodb_rollback_segments=default;
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-
-SET GLOBAL innodb_fast_shutdown=0;
---source include/shutdown_mysqld.inc
---remove_files_wildcard $MYSQLD_DATADIR undo_0*
---source include/start_mysqld.inc
+SET GLOBAL innodb_rollback_segments=1;
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 
 --disable_query_log

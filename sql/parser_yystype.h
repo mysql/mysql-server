@@ -104,6 +104,8 @@ class PT_key_part_specification;
 class PT_library_list;
 class PT_library_with_alias;
 class PT_limit_clause;
+class PT_load_data_partition_list;
+class PT_load_data_partition_spec;
 class PT_locking_clause;
 class PT_locking_clause_list;
 class PT_option_value_list_head;
@@ -688,6 +690,8 @@ union MY_SQL_PARSER_STYPE {
   PT_adm_partition *adm_partition;
   PT_preload_keys *preload_keys;
   Mem_root_array<PT_preload_keys *> *preload_list;
+  PT_load_data_partition_spec *load_data_partition_spec;
+  PT_load_data_partition_list *load_data_partition_list;
   PT_alter_tablespace_option_base *ts_option;
   Mem_root_array<PT_alter_tablespace_option_base *> *ts_options;
   struct {

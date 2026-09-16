@@ -9,7 +9,7 @@
 # RESET REPLICA.
 
 -- source include/rpl/init_source_replica.inc
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 --disable_query_log
 call mtr.add_suppression('Replica I/O: Get source BINLOG_CHECKSUM failed with error');
 --enable_query_log
@@ -27,7 +27,8 @@ source include/rpl/deprecated/show_replica_status.inc;
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 source include/rpl/start_replica.inc;
-sync_with_master;
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 source include/rpl/deprecated/show_replica_status.inc;
 
 # test of crash with temp tables & RESET REPLICA
@@ -37,16 +38,17 @@ RESET REPLICA;
 source include/rpl/start_replica.inc;
 connection master;
 create temporary table t1 (a int);
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 source include/rpl/stop_replica.inc;
 RESET REPLICA;
 reset binary logs and gtids; # clear GTIDs metadata so that create temporary table is replayed
 source include/rpl/start_replica.inc;
-sync_with_master;
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 show status like 'replica_open_temp_tables';
 connection master;
 drop temporary table if exists t1;
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 #
 #Bug#34654  	RESET SLAVE does not clear LAST_IO_Err* 

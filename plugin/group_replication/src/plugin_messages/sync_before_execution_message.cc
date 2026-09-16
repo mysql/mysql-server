@@ -50,13 +50,19 @@ void Sync_before_execution_message::encode_payload(
 }
 
 void Sync_before_execution_message::decode_payload(const unsigned char *buffer,
-                                                   const unsigned char *) {
+                                                   const unsigned char *end) {
   DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
 
   uint32 thread_id_aux = 0;
-  decode_payload_item_int4(&slider, &payload_item_type, &thread_id_aux);
+  if (decode_payload_item_int4(&slider, &payload_item_type, end,
+                               &thread_id_aux) ||
+      payload_item_type != PIT_MY_THREAD_ID) {
+    set_error("gr::Sync_before_execution_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   m_thread_id = static_cast<my_thread_id>(thread_id_aux);
 }
 

@@ -1,0 +1,79 @@
+# ====Purpose====
+#
+# Check CSA stops immediately after STOP REPLICA is called. Here, we test
+# behavior of the STOP REPLICA when applier reader is blocked.
+#
+# ====Requirements====
+#
+# R1. When STOP REPLICA is called, CSA should stop immediately
+#
+# ====Implementation====
+#
+#  1. Setup replication
+#  2. On replica: take read lock on tables
+#  3. On source: run some queries
+#  4. On replica: run STOP REPLICA and observe that applier stops
+#  5. Cleanup
+
+# This test is CSA specific
+--source include/have_csa.inc
+# This test is binlog format agnostic
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo
+--echo #  1. Setup replication, prepare data
+--echo
+--let $rpl_applier_version=2:2
+--let $rpl_applier_worker_count=2:8
+--source include/rpl/init_source_replica.inc
+
+CREATE TABLE t1(c1 INT PRIMARY KEY);
+
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo #  2. Force the receiver to stop in the middle of a transaction
+--echo
+
+# Set up debug sync on the replica to stop receiver thread after reading query
+# log event
+--let $debug_point = stop_io_after_reading_query_log_event
+--source include/add_debug_point.inc
+
+# Start a new transaction on the master
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (1);
+
+--source include/rpl/connection_replica.inc
+
+--echo
+--echo #  3. Check replica state and observe that STOP REPLICA succeeds
+--echo
+
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= No
+--source include/rpl/wait_for_replica_status.inc
+
+# Assert that the applier thread is still running
+--let $slave_param= Replica_SQL_Running
+--let $slave_param_value= Yes
+--source include/rpl/assert_replica_status.inc
+
+# now stop replica and observe that applier is able to stop
+--source include/rpl/stop_replica.inc
+
+--echo
+--echo #  4. Clean up
+--echo
+
+CALL mtr.add_suppression("Replica SQL for channel '':.*Query execution was interrupted");
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
+
+--let $debug_point = stop_io_after_reading_query_log_event
+--source include/remove_debug_point.inc
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/deinit.inc

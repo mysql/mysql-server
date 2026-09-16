@@ -24,6 +24,12 @@ SELECT * FROM performance_schema.replication_applier_configuration
 
 SELECT * FROM performance_schema.replication_applier_configuration
   WHERE assign_gtids_to_anonymous_transactions_value=NULL;
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE Applier_version=1;
+
+SELECT * FROM performance_schema.replication_applier_configuration
+  WHERE Applier_worker_count=4;
 --enable_result_log
 
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -89,6 +95,14 @@ DELETE FROM performance_schema.replication_applier_configuration
 --error ER_TABLEACCESS_DENIED_ERROR
 DELETE FROM performance_schema.replication_applier_configuration
   WHERE assign_gtids_to_anonymous_transactions_value="OFF";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE Applier_version=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.replication_applier_configuration
+  WHERE Applier_worker_count=4;
 
 --error ER_TABLEACCESS_DENIED_ERROR
 DELETE FROM performance_schema.replication_applier_configuration;

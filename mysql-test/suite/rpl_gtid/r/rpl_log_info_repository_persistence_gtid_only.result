@@ -12,17 +12,16 @@ CALL mtr.add_suppression("Error writing source configuration.");
 # 1.1. Check that by default GTID_ONLY is 0
 #      Check the performance_schema table and connection metadata
 #      repository are correct
-include/assert.inc [GTID_ONLY for default channel "" in performance_schema.replication_connection_configuration is 0]
-include/assert.inc [In the file the field is set to 0]
+include/assert.inc [GTID_ONLY for default channel "" in performance_schema.replication_connection_configuration has default value]
+include/assert.inc [In the file the field is set to expected value]
 
 # 1.2. Set GTID_ONLY to 1
 #      Check the performance_schema table and connection metadata
 #      repository are correct
 include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 1;
-include/assert.inc [GTID_ONLY for default channel "" in performance_schema.replication_connection_configuration is 1]
-include/assert.inc [In the file the field is set to 1]
-CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 0;
+include/assert.inc [GTID_ONLY for default channel "" in performance_schema.replication_connection_configuration has default value]
+include/assert.inc [In the file the field is set to expected value]
 
 # 1.3 Upgrade the server while using Table repositories
 #     Have 2 channels:

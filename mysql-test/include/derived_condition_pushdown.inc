@@ -1617,3 +1617,44 @@ DEALLOCATE PREPARE ps_select_latin1_off;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#38888307: UNION ALL + AND + WHERE IS UNKNOWN
+--echo #               query results are incorrect
+--echo #
+
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER, f3 INTEGER);
+INSERT INTO t1 VALUES (1, NULL, NULL), (2, 0, 0), (3, 1, 1);
+
+SELECT *
+FROM (SELECT (f1 AND f2) AS col0 FROM t1
+      UNION ALL
+      SELECT (f1 AND f2) AS col0 FROM t1
+) AS dt
+WHERE (dt.col0) IS NULL;
+
+SELECT *
+FROM (SELECT (f1 AND f2) AS col0 FROM t1
+      UNION
+      SELECT (f1 AND f2) AS col0 FROM t1
+) AS dt
+WHERE (dt.col0) IS NULL;
+
+SELECT *
+FROM (SELECT (f1 AND f2) AS col0 FROM t1
+      INTERSECT
+      SELECT (f1 AND f2) AS col0 FROM t1
+) AS dt
+WHERE (dt.col0) IS NULL;
+
+CREATE TABLE t2(f1 INTEGER, f2 INTEGER, f3 INTEGER);
+INSERT INTO t2 VALUES (2, 0, 0), (3, 1, 1);
+
+SELECT *
+FROM (SELECT (f1 AND f2) AS col0 FROM t1
+      EXCEPT
+      SELECT (f1 AND f2) AS col0 FROM t2
+) AS dt
+WHERE (dt.col0) IS NULL;
+
+DROP TABLE t1, t2;

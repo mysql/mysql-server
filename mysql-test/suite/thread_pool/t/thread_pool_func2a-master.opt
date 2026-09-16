@@ -1,0 +1,4 @@
+--thread-pool-size=2
+--thread-pool-algorithm=0
+--thread_pool_stall_limit=100
+--thread_pool_prio_kickup_timer=300

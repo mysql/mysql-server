@@ -53,10 +53,23 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 --let $assert_cond= "$processing_gtid" = ""
 --source include/assert.inc
 
---let $applying_gtid= query_get_value(SELECT APPLYING_TRANSACTION FROM performance_schema.replication_applier_status_by_worker, APPLYING_TRANSACTION, 1)
---let $assert_text= applying_gtid was cleared after the gtid skipped transactions
---let $assert_cond= "$applying_gtid" = ""
---source include/assert.inc
+if ($RPL_CHANGE_STREAM_APPLIER == 2)
+{
+  # In CSA, the worker-facing row is reconstructed from session ownership.
+  # The skipped transaction may remain visible in APPLYING_TRANSACTION until
+  # that worker is reused, so only reject unrelated GTIDs here.
+  --let $unexpected_applying_gtid_count= query_get_value(SELECT COUNT(*) AS cnt FROM performance_schema.replication_applier_status_by_worker WHERE APPLYING_TRANSACTION != '' AND APPLYING_TRANSACTION != '$current_gtid', cnt, 1)
+  --let $assert_text= applying_gtid was cleared after the gtid skipped transactions
+  --let $assert_cond= "$unexpected_applying_gtid_count" = "0"
+  --source include/assert.inc
+}
+if ($RPL_CHANGE_STREAM_APPLIER != 2)
+{
+  --let $applying_gtid= query_get_value(SELECT APPLYING_TRANSACTION FROM performance_schema.replication_applier_status_by_worker, APPLYING_TRANSACTION, 1)
+  --let $assert_text= applying_gtid was cleared after the gtid skipped transactions
+  --let $assert_cond= "$applying_gtid" = ""
+  --source include/assert.inc
+}
 
 --let $last_queued_gtid= query_get_value(SELECT LAST_QUEUED_TRANSACTION FROM performance_schema.replication_connection_status, LAST_QUEUED_TRANSACTION, 1)
 --let $assert_text= Assert that the last_queued_gtid is the same as the skipped transaction

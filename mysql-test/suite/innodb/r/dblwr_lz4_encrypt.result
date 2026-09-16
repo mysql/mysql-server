@@ -47,12 +47,13 @@ SET @cmd = CONCAT('make_page_dirty ', @space_id, ' 0');
 SET SESSION innodb_interpreter = @cmd;
 SET SESSION innodb_interpreter = 'corrupt_ondisk_page0 test/t1';
 SET SESSION innodb_interpreter = 'destroy';
+SET GLOBAL innodb_log_flush_now = ON;
 # Kill and restart: PLUGIN_DIR_OPT
 SET SESSION innodb_interpreter = 'init';
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
 SET SESSION innodb_interpreter = 'destroy';
 Pattern "Double write file has encrypted pages" found
-Pattern "\[Note\] .* Restoring page \[page id: space=\d+, page number=0\] of datafile .* from the doublewrite buffer. Writing .*" found
+Pattern "\[Note\] .* Recovered page \[page id: space=\d+, page number=0\] from the doublewrite buffer.*" found
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK

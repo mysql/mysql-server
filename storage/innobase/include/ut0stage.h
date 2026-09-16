@@ -453,6 +453,7 @@ inline void Alter_stage::change_phase(const PSI_stage_info *new_stage) {
   } else if (new_stage == &srv_stage_alter_table_flush) {
     m_cur_phase = FLUSH;
   } else if (new_stage == &srv_stage_alter_table_log_index) {
+    ut_a_ne(m_cur_phase, LOG_INDEX);
     m_cur_phase = LOG_INDEX;
   } else if (new_stage == &srv_stage_alter_table_log_table) {
     m_cur_phase = LOG_TABLE;

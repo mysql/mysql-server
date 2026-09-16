@@ -36,8 +36,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <algorithm>
 #include "dict0mem.h"
-
+#include "read0read_view_interface.h"
 #include "trx0types.h"
+#include "ut0cpu_cache.h"
 
 // Friend declaration
 class MVCC;
@@ -45,7 +46,7 @@ class MVCC;
 /** Read view lists the trx ids of those transactions for which a consistent
 read should not see the modifications to the database. */
 
-class ReadView {
+class ReadView : public Read_view_interface {
   /** This is similar to a std::vector but it is not a drop
   in replacement. It is specific to ReadView. */
   class ids_t {
@@ -82,10 +83,10 @@ class ReadView {
     ulint capacity() const { return (m_reserved); }
 
     /**
-    Copy and overwrite the current array contents
+    Copy and overwrite this array contents
 
-    @param start                Source array
-    @param end          Pointer to end of array */
+    @param start            Source array
+    @param end              Pointer to end of array */
     void assign(const value_type *start, const value_type *end);
 
     /**
@@ -150,81 +151,58 @@ class ReadView {
 
  public:
   ReadView();
-  ~ReadView();
-  /** Check whether transaction id is valid.
-  @param[in]    id              transaction id to check
-  @param[in]    name            table name */
-  static void check_trx_id_sanity(trx_id_t id, const table_name_t &name);
+  ~ReadView() override;
 
   /** Check whether the changes by id are visible.
   @param[in]    id      transaction id to check against the view
-  @param[in]    name    table name
   @return whether the view sees the modifications of id. */
-  [[nodiscard]] bool changes_visible(trx_id_t id,
-                                     const table_name_t &name) const {
+  [[nodiscard]] bool changes_visible(trx_id_t id) const override {
     ut_ad(id > 0);
 
     if (id < m_up_limit_id || id == m_creator_trx_id) {
-      return (true);
+      return true;
     }
-
-    check_trx_id_sanity(id, name);
-
     if (id >= m_low_limit_id) {
-      return (false);
-
-    } else if (m_ids.empty()) {
-      return (true);
+      return false;
+    }
+    if (m_ids.empty()) {
+      return true;
     }
 
     const ids_t::value_type *p = m_ids.data();
 
-    return (!std::binary_search(p, p + m_ids.size(), id));
+    return !std::binary_search(p, p + m_ids.size(), id);
   }
 
-  /**
-  @param id             transaction to check
-  @return true if view sees transaction id */
-  bool sees(trx_id_t id) const { return (id < m_up_limit_id); }
-
-  /**
-  Mark the view as closed */
-  void close() {
-    ut_ad(m_creator_trx_id != TRX_ID_MAX);
-    m_creator_trx_id = TRX_ID_MAX;
+  [[nodiscard]] bool sees_all_trxs_with_id_smaller_or_equal_to(
+      trx_id_t id) const override {
+    return id < m_up_limit_id;
   }
 
   /**
   @return true if the view is closed */
-  bool is_closed() const { return m_closed.load(); }
+  [[nodiscard]] bool is_closed() const { return m_closed.load(); }
 
-  /**
-  Write the limits to the file.
-  @param file           file to write to */
-  void print_limits(FILE *file) const {
+  void print(FILE *file) const override {
     fprintf(file,
             "Trx read view will not see trx with"
             " id >= " TRX_ID_FMT ", sees < " TRX_ID_FMT "\n",
             m_low_limit_id, m_up_limit_id);
   }
 
-  /**
-  @return the low limit no */
-  trx_id_t low_limit_no() const { return (m_low_limit_no); }
-
-  /**
-  @return the low limit id */
-  trx_id_t low_limit_id() const { return (m_low_limit_id); }
+  [[nodiscard]] trx_id_t get_lowest_needed_trx_no() const override {
+    return m_low_limit_no;
+  }
 
   /**
   @return true if there are no transaction ids in the snapshot */
-  bool empty() const { return (m_ids.empty()); }
+  [[nodiscard]] bool empty() const { return (m_ids.empty()); }
 
 #ifdef UNIV_DEBUG
   /**
   @param rhs            view to compare with
-  @return truen if this view is less than or equal rhs */
-  bool le(const ReadView *rhs) const {
+  @return true if this view is less than or equal rhs */
+  [[nodiscard]] bool le(const ReadView *rhs) const {
     return (m_low_limit_no <= rhs->m_low_limit_no);
   }
 #endif /* UNIV_DEBUG */
@@ -273,8 +251,14 @@ class ReadView {
   low water mark". */
   trx_id_t m_up_limit_id;
 
-  /** trx id of creating transaction, set to TRX_ID_MAX for free
-  views. */
+  /** If the view is open, then this is a trx->id of the transaction which has
+  created this view, used to let this view see the changes of this transaction.
+  Note that a transaction might have no trx->id assigned in which case this
+  will be 0. A transaction may also get trx->id assigned after it has already
+  created a read view, in which case it should call set_view_creator_trx_id to
+  update this field.
+  It is 0 for read views cloned by clone_oldest_view.
+  Otherwise its value doesn't matter. */
   trx_id_t m_creator_trx_id;
 
   /** Set of RW transactions that was active when this snapshot
@@ -286,14 +270,14 @@ class ReadView {
   they can be removed in purge if not needed by other views */
   trx_id_t m_low_limit_no;
 
-  /** AC-NL-RO transaction view that has been "closed". */
-  std::atomic_bool m_closed;
+  /** False iff this view is in use by a transaction at the moment (is open).*/
+  std::atomic_bool m_closed{true};
 
   typedef UT_LIST_NODE_T(ReadView) node_t;
 
   /** List of read views in trx_sys */
-  byte pad1[64 - sizeof(node_t)];
-  node_t m_view_list;
+  byte pad1[ut::INNODB_CACHE_LINE_SIZE];
+  node_t m_view_list{};
 };
 
 #endif

@@ -26,7 +26,9 @@
 #ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_HTTP_SERVER_COMPONENT_H_
 #define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_HTTP_SERVER_COMPONENT_H_
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "mysqlrouter/component/http_server_component.h"
 
@@ -44,6 +46,16 @@ class MockHttpServerComponent : public HttpServerComponent {
               (override));
   MOCK_METHOD(void, remove_route, (const void *handler), (override));
   MOCK_METHOD(bool, is_ssl_configured, (), (override));
+  MOCK_METHOD(void, set_max_http_connections, (std::optional<uint64_t> value),
+              (override));
+  MOCK_METHOD(uint64_t, get_effective_max_http_connections, (), (override));
+  MOCK_METHOD(void, set_max_request_body_size, (std::optional<uint64_t> value),
+              (override));
+  MOCK_METHOD(uint64_t, get_effective_max_request_body_size, (), (override));
+  MOCK_METHOD(void, set_max_response_body_size, (std::optional<uint64_t> value),
+              (override));
+  MOCK_METHOD(uint64_t, get_effective_max_response_body_size, (), (override));
+  MOCK_METHOD(void, clear_overrides, (), (override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_HTTP_SERVER_COMPONENT_H_

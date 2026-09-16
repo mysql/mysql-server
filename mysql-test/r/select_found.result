@@ -88,6 +88,7 @@ EXPLAIN
 
 Warnings:
 Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+Note	1003	/* select#1 */ select sql_calc_found_rows `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` limit 100,10
 select SQL_CALC_FOUND_ROWS * from t1 limit 10 offset 100;
 a	b
 Warnings:

@@ -25,10 +25,12 @@
 
 #include <cstddef>
 
+#include <mysql/components/services/log_builtins.h>
 #include "mutex_lock.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "mysqld_error.h"
 
 #include "plugin/group_replication/include/plugin_constants.h"
 #include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
@@ -419,52 +421,113 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
   unsigned long long payload_item_length = 0;
   MUTEX_LOCK(lock, &update_lock);
 
-  decode_payload_item_string(&slider, &payload_item_type, &hostname,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider, &payload_item_type, end, &hostname,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_HOSTNAME) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
 
   uint16 port_aux = 0;
-  decode_payload_item_int2(&slider, &payload_item_type, &port_aux);
+  if (decode_payload_item_int2(&slider, &payload_item_type, end, &port_aux) ||
+      payload_item_type != PIT_PORT) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   port = (uint)port_aux;
 
-  decode_payload_item_string(&slider, &payload_item_type, &uuid,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider, &payload_item_type, end, &uuid,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_UUID) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
 
   std::string gcs_member_id_aux;
-  decode_payload_item_string(&slider, &payload_item_type, &gcs_member_id_aux,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider, &payload_item_type, end,
+                                 &gcs_member_id_aux, &payload_item_length) ||
+      payload_item_type != PIT_GCS_ID) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   delete gcs_member_id;
   gcs_member_id = new Gcs_member_identifier(gcs_member_id_aux);
 
   unsigned char status_aux = 0;
-  decode_payload_item_char(&slider, &payload_item_type, &status_aux);
+  if (decode_payload_item_char(&slider, &payload_item_type, end, &status_aux) ||
+      payload_item_type != PIT_STATUS) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   status = (Group_member_status)status_aux;
 
   uint32 member_version_aux = 0;
-  decode_payload_item_int4(&slider, &payload_item_type, &member_version_aux);
+  if (decode_payload_item_int4(&slider, &payload_item_type, end,
+                               &member_version_aux) ||
+      payload_item_type != PIT_VERSION) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   delete member_version;
   member_version = new Member_version(member_version_aux);
 
   uint16 write_set_extraction_algorithm_aux = 0;
-  decode_payload_item_int2(&slider, &payload_item_type,
-                           &write_set_extraction_algorithm_aux);
+  if (decode_payload_item_int2(&slider, &payload_item_type, end,
+                               &write_set_extraction_algorithm_aux) ||
+      payload_item_type != PIT_WRITE_SET_EXTRACTION_ALGORITHM) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   write_set_extraction_algorithm = (uint)write_set_extraction_algorithm_aux;
 
-  decode_payload_item_string(&slider, &payload_item_type, &executed_gtid_set,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider, &payload_item_type, end,
+                                 &executed_gtid_set, &payload_item_length) ||
+      payload_item_type != PIT_EXECUTED_GTID) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
 
-  decode_payload_item_string(&slider, &payload_item_type, &retrieved_gtid_set,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider, &payload_item_type, end,
+                                 &retrieved_gtid_set, &payload_item_length) ||
+      payload_item_type != PIT_RETRIEVED_GTID) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
 
-  decode_payload_item_int8(&slider, &payload_item_type,
-                           &gtid_assignment_block_size);
+  if (decode_payload_item_int8(&slider, &payload_item_type, end,
+                               &gtid_assignment_block_size) ||
+      payload_item_type != PIT_GTID_ASSIGNMENT_BLOCK_SIZE) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
 
   unsigned char role_aux = 0;
-  decode_payload_item_char(&slider, &payload_item_type, &role_aux);
+  if (decode_payload_item_char(&slider, &payload_item_type, end, &role_aux) ||
+      payload_item_type != PIT_MEMBER_ROLE) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   role = (Group_member_role)role_aux;
 
   uint32 configuration_flags_aux = 0;
-  decode_payload_item_int4(&slider, &payload_item_type,
-                           &configuration_flags_aux);
+  if (decode_payload_item_int4(&slider, &payload_item_type, end,
+                               &configuration_flags_aux) ||
+      payload_item_type != PIT_CONFIGURATION_FLAGS) {
+    set_error("gr::Group_member_info", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   configuration_flags = configuration_flags_aux;
 
   /*
@@ -476,42 +539,62 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
     // Read payload item header to find payload item length.
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
+    if (slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length) {
+      set_error("gr::Group_member_info", __FILE__, __LINE__,
+                "Malformed payload length");
+      return;
+    }
 
     switch (payload_item_type) {
       case PIT_CONFLICT_DETECTION_ENABLE:
-        if (slider + payload_item_length <= end) {
-          unsigned char const conflict_detection_enable_aux = *slider;
-          conflict_detection_enable = conflict_detection_enable_aux == '1';
+        if (payload_item_length != 1) {
+          set_error("gr::Group_member_info", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        conflict_detection_enable = (*slider == '1');
+        slider += payload_item_length;
         break;
 
       case PIT_MEMBER_WEIGHT:
-        if (slider + payload_item_length <= end) {
-          uint16 const member_weight_aux = uint2korr(slider);
-          member_weight = (uint)member_weight_aux;
+        if (payload_item_length != 2) {
+          set_error("gr::Group_member_info", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        member_weight = static_cast<uint>(uint2korr(slider));
+        slider += payload_item_length;
         break;
 
       case PIT_LOWER_CASE_TABLE_NAME:
-        if (slider + payload_item_length <= end) {
-          uint16 const lower_case_table_names_aux = uint2korr(slider);
-          lower_case_table_names =
-              static_cast<uint>(lower_case_table_names_aux);
+        if (payload_item_length != 2) {
+          set_error("gr::Group_member_info", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        lower_case_table_names = static_cast<uint>(uint2korr(slider));
+        slider += payload_item_length;
         break;
 
       case PIT_GROUP_ACTION_RUNNING:
-        if (slider + payload_item_length <= end) {
-          unsigned char const is_action_running_aux = *slider;
-          group_action_running = is_action_running_aux == '1';
+        if (payload_item_length != 1) {
+          set_error("gr::Group_member_info", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        group_action_running = (*slider == '1');
+        slider += payload_item_length;
         break;
 
       case PIT_PRIMARY_ELECTION_RUNNING:
-        if (slider + payload_item_length <= end) {
-          unsigned char const is_election_running_aux = *slider;
-          primary_election_running = is_election_running_aux == '1';
+        if (payload_item_length != 1) {
+          set_error("gr::Group_member_info", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        primary_election_running = (*slider == '1');
+        slider += payload_item_length;
         break;
 
       /*
@@ -521,68 +604,74 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
         tables by default.
       */
       case PIT_DEFAULT_TABLE_ENCRYPTION:
-        if (slider + payload_item_length <= end) {
-          unsigned char const default_table_encryption_aux = *slider;
-          default_table_encryption = default_table_encryption_aux == '1';
+        if (payload_item_length != 1) {
+          set_error("gr::Group_member_info", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        default_table_encryption = (*slider == '1');
+        slider += payload_item_length;
         break;
       case PIT_PURGED_GTID:
-        if (slider + payload_item_length <= end) {
-          purged_gtid_set.assign(reinterpret_cast<const char *>(slider),
-                                 static_cast<size_t>(payload_item_length));
-        }
+        purged_gtid_set.assign(reinterpret_cast<const char *>(slider),
+                               static_cast<size_t>(payload_item_length));
+        slider += payload_item_length;
         break;
       case PIT_RECOVERY_ENDPOINTS:
-        if (slider + payload_item_length <= end) {
-          recovery_endpoints.assign(reinterpret_cast<const char *>(slider),
-                                    static_cast<size_t>(payload_item_length));
-        }
+        recovery_endpoints.assign(reinterpret_cast<const char *>(slider),
+                                  static_cast<size_t>(payload_item_length));
+        slider += payload_item_length;
         break;
       case PIT_VIEW_CHANGE_UUID:
-        if (slider + payload_item_length <= end) {
-          m_view_change_uuid.assign(reinterpret_cast<const char *>(slider),
-                                    static_cast<size_t>(payload_item_length));
-        }
+        m_view_change_uuid.assign(reinterpret_cast<const char *>(slider),
+                                  static_cast<size_t>(payload_item_length));
+        slider += payload_item_length;
         break;
 
       case PIT_ALLOW_SINGLE_LEADER:
-        if (slider + payload_item_length <= end) {
-          unsigned char const allow_single_leader_aux = *slider;
-          m_allow_single_leader = allow_single_leader_aux == '1';
+        if (payload_item_length != 1) {
+          set_error("gr::Group_member_info", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        m_allow_single_leader = (*slider == '1');
+        slider += payload_item_length;
         break;
       case PIT_GROUP_ACTION_RUNNING_NAME:
-        if (slider + payload_item_length <= end) {
-          m_group_action_running_name.assign(
-              reinterpret_cast<const char *>(slider),
-              static_cast<size_t>(payload_item_length));
-        }
+        m_group_action_running_name.assign(
+            reinterpret_cast<const char *>(slider),
+            static_cast<size_t>(payload_item_length));
+        slider += payload_item_length;
         break;
       case PIT_GROUP_ACTION_RUNNING_DESCRIPTION:
-        if (slider + payload_item_length <= end) {
-          m_group_action_running_description.assign(
-              reinterpret_cast<const char *>(slider),
-              static_cast<size_t>(payload_item_length));
-        }
+        m_group_action_running_description.assign(
+            reinterpret_cast<const char *>(slider),
+            static_cast<size_t>(payload_item_length));
+        slider += payload_item_length;
         break;
       case PIT_PREEMPTIVE_GARBAGE_COLLECTION:
-        if (slider + payload_item_length <= end) {
-          unsigned char const preemptive_garbage_collection_aux = *slider;
-          m_preemptive_garbage_collection =
-              preemptive_garbage_collection_aux == '1';
+        if (payload_item_length != 1) {
+          set_error("gr::Group_member_info", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        m_preemptive_garbage_collection = (*slider == '1');
+        slider += payload_item_length;
         break;
       case PIT_COMPONENT_PRIMARY_ELECTION_ENABLED:
-        if (slider + payload_item_length <= end) {
-          unsigned char component_primary_election_enabled_aux = *slider;
-          m_component_primary_election_enabled =
-              (component_primary_election_enabled_aux == '1') ? true : false;
+        if (payload_item_length != 1) {
+          set_error("gr::Group_member_info", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        m_component_primary_election_enabled = (*slider == '1');
+        slider += payload_item_length;
+        break;
+
+      default:
+        slider += payload_item_length;
         break;
     }
-
-    // Seek to next payload item.
-    slider += payload_item_length;
   }
 }
 
@@ -1392,14 +1481,15 @@ void Group_member_info_manager::encode(vector<uchar> *to_encode) {
 
 Group_member_info_list *Group_member_info_manager::decode(
     const uchar *to_decode, size_t length) {
-  Group_member_info_list *decoded_members = nullptr;
-
-  auto *group_info_message = new Group_member_info_manager_message();
-  group_info_message->decode(to_decode, length);
-  decoded_members = group_info_message->get_all_members();
-  delete group_info_message;
-
-  return decoded_members;
+  Group_member_info_manager_message group_info_message;
+  group_info_message.decode(to_decode, length);
+  if (group_info_message.has_error()) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_DECODING_FAILED,
+                 "Group_member_info_manager_message",
+                 group_info_message.get_error()->get_message());
+    return nullptr;
+  }
+  return group_info_message.get_all_members();
 }
 
 bool Group_member_info_manager::get_primary_member_uuid(
@@ -1621,19 +1711,40 @@ void Group_member_info_manager_message::encode_payload(
 }
 
 void Group_member_info_manager_message::decode_payload(
-    const unsigned char *buffer, const unsigned char *) {
+    const unsigned char *buffer, const unsigned char *end) {
   DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
 
   uint16 number_of_members = 0;
-  decode_payload_item_int2(&slider, &payload_item_type, &number_of_members);
+  if (decode_payload_item_int2(&slider, &payload_item_type, end,
+                               &number_of_members) ||
+      payload_item_type != PIT_MEMBERS_NUMBER) {
+    set_error("gr::Group_member_info_manager_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    clear_members();
+    return;
+  }
 
   clear_members();
   for (uint16 i = 0; i < number_of_members; i++) {
+    if (slider > end || static_cast<size_t>(end - slider) <
+                            Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+      set_error("gr::Group_member_info_manager_message", __FILE__, __LINE__,
+                "Malformed payload length");
+      clear_members();
+      return;
+    }
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
+    if (payload_item_type != PIT_MEMBER_DATA || slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length) {
+      set_error("gr::Group_member_info_manager_message", __FILE__, __LINE__,
+                "Malformed payload item");
+      clear_members();
+      return;
+    }
     auto *member = new Group_member_info(slider,
                                          payload_item_length
 #ifdef DISABLE_PSI_MUTEX
@@ -1642,6 +1753,13 @@ void Group_member_info_manager_message::decode_payload(
                                          PSI_NOT_INSTRUMENTED
 #endif
     );
+    if (member->has_error()) {
+      set_error("gr::Group_member_info_manager_message", __FILE__, __LINE__,
+                member->get_error()->get_message());
+      delete member;
+      clear_members();
+      return;
+    }
     members->push_back(member);
     slider += payload_item_length;
   }
@@ -1669,14 +1787,29 @@ bool Group_member_info_manager_message::get_pit_data(
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
 
+  if (length < Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE) {
+    return true;
+  }
   decode_header(&slider);
 
   uint16 number_of_members = 0;
-  decode_payload_item_int2(&slider, &payload_item_type, &number_of_members);
+  if (decode_payload_item_int2(&slider, &payload_item_type, end,
+                               &number_of_members) ||
+      payload_item_type != PIT_MEMBERS_NUMBER) {
+    return true;
+  }
 
   for (uint16 i = 0; i < number_of_members; i++) {
+    if (slider > end || static_cast<size_t>(end - slider) <
+                            Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+      return true;
+    }
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
+    if (payload_item_type != PIT_MEMBER_DATA || slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length) {
+      return true;
+    }
     slider += payload_item_length;
   }
 
@@ -1684,16 +1817,17 @@ bool Group_member_info_manager_message::get_pit_data(
     // Read payload item header to find payload item length.
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
-
-    if (pit == payload_item_type) {
-      if (slider + payload_item_length <= end) {
-        *pit_data = slider;
-        *pit_length = payload_item_length;
-        return false;
-      }
+    if (slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length) {
+      return true;
     }
 
-    // Seek to next payload item.
+    if (pit == payload_item_type) {
+      *pit_data = slider;
+      *pit_length = payload_item_length;
+      return false;
+    }
+
     slider += payload_item_length;
   }
 

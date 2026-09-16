@@ -135,33 +135,10 @@ static inline void mlog_catenate_ull_compressed(mtr_t *mtr, uint64_t val);
 @retval false if not opened. One case is when redo is disabled for mtr. */
 [[nodiscard]] static inline bool mlog_open(mtr_t *mtr, ulint size,
                                            byte *&buffer);
-
-/** Opens a buffer to mlog. It must be closed with mlog_close.
-This is used for writing log for metadata changes
-@param[in,out]  mtr     mtr
-@param[in]      size    buffer size in bytes; MUST be smaller than
-                        DYN_ARRAY_DATA_SIZE!
-@param[out]     buffer  mlog buffer pointer if opened successfully
-@retval true if opened successfully.
-@retval false if not opened. One case is when redo is disabled for mtr. */
-[[nodiscard]] static inline bool mlog_open_metadata(mtr_t *mtr, ulint size,
-                                                    byte *&buffer);
-
 /** Closes a buffer opened to mlog.
 @param[in]      mtr     mtr
 @param[in]      ptr     buffer space from ptr up was not used */
 static inline void mlog_close(mtr_t *mtr, byte *ptr);
-
-/** Writes a log record about a dictionary operation, which would cost
-at most 23 bytes.
-@param[in]      type            Redo log record type
-@param[in]      id              Table id
-@param[in]      version         Table dynamic metadata version
-@param[in,out]  log_ptr         Current end of mini-transaction log
-@param[in,out]  mtr             Mini-transaction
-@return end of mini-transaction log */
-static inline byte *mlog_write_initial_dict_log_record(
-    mlog_id_t type, table_id_t id, uint64_t version, byte *log_ptr, mtr_t *mtr);
 
 /** Writes a log record about an operation.
 @param[in]      type            Redo log record type

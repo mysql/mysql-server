@@ -27,8 +27,6 @@ Warning	1681	'group_replication_view_change_uuid' is deprecated and will be remo
 #    group_replication_view_change_uuid is not the default one.
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 # 4. Start Group Replication on server start.

@@ -12,6 +12,8 @@
 # 5. Verify that the slave does not hang on sync with the master.
 #
 
+# CSA supports only GTID-based positioning
+--source include/have_mta.inc
 --source include/have_binlog_format_row.inc
 
 --echo #

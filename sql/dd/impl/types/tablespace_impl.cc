@@ -253,7 +253,7 @@ bool Tablespace::update_name_key(Name_key *key, const String_type &name) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-// Check whether a tablespce is empty.
+// Check whether a tablespace is empty.
 bool Tablespace_impl::is_empty(THD *thd, bool *empty) const {
   // Create the key based on the tablespace id.
   std::unique_ptr<Object_key> object_key(

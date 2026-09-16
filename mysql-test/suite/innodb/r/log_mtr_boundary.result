@@ -1,0 +1,115 @@
+#########
+# SETUP #
+#########
+CALL mtr.add_suppression("Assertion failure: log0handler.cc");
+CALL mtr.add_suppression("Attempting backtrace");
+CREATE FUNCTION last_innodb_error_log_data_after(
+start_logged TIMESTAMP(6),
+data_pattern VARCHAR(512)
+)
+RETURNS VARCHAR(10000)
+READS SQL DATA
+BEGIN
+RETURN (
+SELECT DATA
+FROM performance_schema.error_log
+WHERE LOGGED > start_logged
+AND SUBSYSTEM = 'InnoDB'
+      AND DATA LIKE data_pattern
+ORDER BY LOGGED DESC
+LIMIT 1
+);
+END $$
+CREATE PROCEDURE crash_at_redo_block_boundary()
+BEGIN
+SET SESSION DEBUG="+d,mtr_filling_redo_block_write";
+simple_loop: LOOP
+INSERT INTO t1 SELECT * FROM t1;
+END LOOP simple_loop;
+END $$
+# -----------------------------------------------------------------------
+# Scenario : An MTR is filling REDO block upto last data byte and during
+#            recovery, next block header is invalid
+# -----------------------------------------------------------------------
+CREATE TABLE t1 (c1 CHAR(10)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ("a");
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+CALL crash_at_redo_block_boundary();
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the server to recover the generated redo log
+# restart: --debug=d,mtr_filling_redo_block_recovery
+SET @scenario1_corrupted_next_block_data =
+last_innodb_error_log_data_after(
+@scenario_start_logged,
+'%Mimicking corrupted next block header behavior. scanned_lsn : %');
+SET @scenario1_corrupted_next_block_lsn =
+CAST(REGEXP_SUBSTR(@scenario1_corrupted_next_block_data, '[0-9]+$') AS UNSIGNED);
+SET @scenario1_scanned_upto_data =
+last_innodb_error_log_data_after(
+@scenario_start_logged,
+'%Doing recovery: scanned up to log sequence number %');
+SET @scenario1_scanned_upto_lsn =
+CAST(REGEXP_SUBSTR(@scenario1_scanned_upto_data, '[0-9]+$') AS UNSIGNED);
+SET @scenario1_recovered_till_data =
+last_innodb_error_log_data_after(
+@scenario_start_logged,
+'%Last MTR couldn''t be parsed successfully. Recovered till : %');
+SET @scenario1_recovered_till_lsn =
+CAST(REGEXP_SUBSTR(@scenario1_recovered_till_data, '[0-9]+$') AS UNSIGNED);
+include/assert.inc [Recovery detected the invalid next redo block header]
+include/assert.inc [Invalid next block header LSN is at a redo block boundary]
+include/assert.inc [Recovery scanned up to the last data byte before the trailer]
+include/assert.inc [Recovery scanned LSN has the expected block offset]
+include/assert.inc [Recovery reported the unparsable mini-transaction]
+include/assert.inc [Recovery stopped before the unparsable mini-transaction]
+include/assert.inc [Recovery stopped within the same redo block]
+DROP TABLE t1;
+# -----------------------------------------------------------------------
+# Scenario : When the last BLOCK in a READ batch is read successfully.
+#            This same block will be read again in next READ but will
+#            add only last byte in parsing buffer.
+# -----------------------------------------------------------------------
+CREATE TABLE t1 (c1 CHAR(10)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ("a");
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+CALL crash_at_redo_block_boundary();
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the server to recover the generated redo log
+# restart: --debug=d,read_only_one_block
+SET @scenario2_read_one_block_data =
+last_innodb_error_log_data_after(
+@scenario_start_logged,
+'%Handler::read : Read one block%');
+SET @scenario2_adjusted_data =
+last_innodb_error_log_data_after(
+@scenario_start_logged,
+'%Adjusting parsed length from : % to : %');
+SET @scenario2_adjusted_from =
+CAST(REGEXP_SUBSTR(@scenario2_adjusted_data, '[0-9]+', 1, 1) AS UNSIGNED);
+SET @scenario2_adjusted_to =
+CAST(REGEXP_SUBSTR(@scenario2_adjusted_data, '[0-9]+', 1, 2) AS UNSIGNED);
+SET @scenario2_scanned_upto_data =
+last_innodb_error_log_data_after(
+@scenario_start_logged,
+'%Doing recovery: scanned up to log sequence number %');
+SET @scenario2_scanned_upto_lsn =
+CAST(REGEXP_SUBSTR(@scenario2_scanned_upto_data, '[0-9]+$') AS UNSIGNED);
+include/assert.inc [Recovery exercised the one-block read debug path]
+include/assert.inc [Recovery found the adjusted parsing buffer source length]
+include/assert.inc [Recovery found the adjusted parsing buffer target length]
+include/assert.inc [Recovery adjusted the parsing buffer by one byte]
+include/assert.inc [Recovery scanned up to the next redo block header]
+include/assert.inc [Recovery scanned LSN has the redo block header offset]
+###########
+# CLEANUP #
+###########
+DROP PROCEDURE crash_at_redo_block_boundary;
+DROP FUNCTION last_innodb_error_log_data_after;
+DROP TABLE t1;
+# restart:

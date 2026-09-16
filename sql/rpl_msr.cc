@@ -38,6 +38,19 @@ const char *Multisource_info::default_channel = "";
 const char *Multisource_info::group_replication_channel_names[] = {
     "group_replication_applier", "group_replication_recovery"};
 
+bool Multisource_info::prepare_csa_service_metadata(Relay_log_info *rli) {
+  m_channel_map_lock->assert_some_wrlock();
+  std::size_t channel_unique_id = 0;
+  if (m_restored_channels_ids.size() > 0) {
+    channel_unique_id = m_restored_channels_ids.back();
+    m_restored_channels_ids.pop_back();
+  } else {
+    channel_unique_id = m_channel_counter++;
+  }
+  rli->set_channel_instance_id(channel_unique_id);
+  return false;
+}
+
 bool Multisource_info::add_mi(const char *channel_name, Master_info *mi) {
   DBUG_TRACE;
 
@@ -79,7 +92,7 @@ bool Multisource_info::add_mi(const char *channel_name, Master_info *mi) {
   res = add_mi_to_rpl_pfs_mi(mi);
 #endif
   current_mi_count++;
-
+  prepare_csa_service_metadata(mi->rli);
   return res;
 }
 
@@ -171,8 +184,11 @@ bool Multisource_info::delete_mi(const char *channel_name) {
   if (mi) {
     mi->channel_assert_some_wrlock();
     mi->wait_until_no_reference(current_thd);
-
     if (mi->rli) {
+      if (!strcmp(mi->get_channel(), channel_map.get_default_channel())) {
+        auto restored_id = mi->rli->get_channel_instance_id();
+        m_restored_channels_ids.push_back(restored_id);
+      }
       delete mi->rli;
     }
     delete mi;

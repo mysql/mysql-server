@@ -3387,7 +3387,8 @@ class thread_info_compare {
 
 static const char *thread_state_info(THD *invoking_thd, THD *inspected_thd) {
   DBUG_TRACE;
-  if (inspected_thd->get_protocol_rw_status()) {
+  if (inspected_thd->get_protocol_rw_status() &&
+      inspected_thd->system_thread != SYSTEM_THREAD_SLAVE_WORKER) {
     if (inspected_thd->get_protocol_rw_status() == 2)
       return "Sending to client";
     if (inspected_thd->get_command() == COM_SLEEP) return "";
@@ -4362,8 +4363,7 @@ void calc_sum_of_all_status(System_status_var *to) {
 extern ST_SCHEMA_TABLE schema_tables[];
 
 /*
-  Store record to I_S table, convert HEAP table
-  to MyISAM if necessary
+  Store record to I_S table, convert HEAP table to InnoDB if necessary
 
   SYNOPSIS
     schema_table_store_record()

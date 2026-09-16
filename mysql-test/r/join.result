@@ -1802,6 +1802,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.j' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`i` AS `a`,(/* select#2 */ select `t2`.`i` from `test`.`t` `t2` where (`t1`.`j` = `t2`.`j`) order by `t2`.`j` desc,`t2`.`i` desc limit 1) AS `b` from `test`.`t` `t1`
 FLUSH STATUS;
 SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
 SHOW STATUS LIKE 'Handler_read_key';
@@ -1832,6 +1833,9 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,(/* select#2 */ select count(0) from `test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`a` > (`t2`.`a` - `t1`.`a`))) where true) AS `(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a)` from `test`.`t` `t1`
 select t1.*, (select count(*)
 from t t2
 left join t t3 on t3.a>t2.a-t1.a)
@@ -1859,6 +1863,9 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,(/* select#2 */ select count(0) from `test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`a` > (`t2`.`a` - `t1`.`a`))) where true) AS `(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a)` from `test`.`t` `t1` group by `t1`.`a`
 select t1.a, (select count(*)
 from t t2
 left join t t3 on t3.a>t2.a-t1.a)
@@ -1885,6 +1892,9 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'v1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,(/* select#2 */ select count(0) from `test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`a` > (`t2`.`a` - `test`.`t`.`a`))) where true) AS `(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-v1.a)` from `test`.`t`
 select v1.*, (select count(*)
 from t t2
 left join t t3 on t3.a>t2.a-v1.a)
@@ -1913,6 +1923,10 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,(/* select#2 */ select `dt`.`count(*)` from (/* select#3 */ select count(0) AS `count(*)` from `test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`a` > (`t2`.`a` - `t1`.`a`))) where true) `dt`) AS `(select * from
+(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt)` from `test`.`t` `t1`
 select t1.*, (select * from
 (select count(*)
 from t t2
@@ -1950,6 +1964,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`dt`.`c` AS `c` from `test`.`t` `t1` join lateral (/* select#2 */ select count(0) AS `c` from `test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`a` > (`t2`.`a` - `t1`.`a`))) where true) `dt`
 select t1.*, dt.c
 from t t1,
 lateral
@@ -1979,6 +1994,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`dt`.`c` AS `c` from `test`.`t` `t1` join lateral (/* select#2 */ select count(0) AS `c` from `test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`a` > (`t2`.`a` - `t1`.`a`))) where true) `dt`
 select t1.*, dt.c
 from t t1 cross join
 lateral
@@ -2009,6 +2025,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`dt`.`c` AS `c` from `test`.`t` `t1` join lateral (/* select#2 */ select count(0) AS `c` from `test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`a` > (`t2`.`a` - `t1`.`a`))) where true) `dt` where true
 select t1.*, dt.c
 from t t1 join
 lateral
@@ -2055,6 +2072,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `t1`.`a` AS `a` from `test`.`t` `t1` semi join (`test`.`t` `t2` join `test`.`t` `t3`) where ((`t3`.`a` = `t1`.`a`) and (`t1`.`a` > `t1`.`a`))
 select * from t t1
 where t1.a in (select dt.a
 from t t2

@@ -1,0 +1,35 @@
+#
+# Test mysqldump --extended-insert-multiline option
+#
+
+--echo # Setup
+let $dump_singleline=$MYSQLTEST_VARDIR/tmp/mysqldump_singleline.sql;
+let $dump_multiline=$MYSQLTEST_VARDIR/tmp/mysqldump_multiline.sql;
+let $compact= --compact --skip-dump-date --skip-generated-invisible-primary-key --set-gtid-purged=OFF --no-create-info;
+
+CREATE DATABASE mdump;
+USE mdump;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+
+--echo
+--echo # Executing mysqldump normally (multiline off) generates:
+--exec $MYSQL_DUMP --extended-insert $compact mdump > $dump_singleline
+--cat_file $dump_singleline
+
+--echo
+--echo # Executing mysqldump with multiline on generates:
+--exec $MYSQL_DUMP --extended-insert --extended-insert-multiline $compact mdump > $dump_multiline
+--cat_file $dump_multiline
+
+--echo
+--echo # Verify mysql client can import multi-line insert
+--echo Importing dump file, record count should now be 8
+--exec $MYSQL mdump < $dump_multiline
+SELECT count(*) FROM t1;
+
+--echo
+--echo # Cleanup
+DROP DATABASE mdump;
+--remove_file $dump_singleline
+--remove_file $dump_multiline

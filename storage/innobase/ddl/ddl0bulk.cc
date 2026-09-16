@@ -50,6 +50,7 @@ BULK Data Load. Currently treated like DDL */
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/sql_table.h"
+#include "sync0debug.h"
 #include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0undo.h"
@@ -133,16 +134,14 @@ static void fill_index_entry(dtuple_t *entry, const dtuple_t *tuple,
 
 /** Sets up a dfield_t structure for a generated field based on src_dfield and
 user data in sql_col
-@param[in]  prebuilt      prebuilt structures from innodb table handler
 @param[in]  field         field metadata
 @param[in]  sql_col       sql column with user data
 @param[in]  src_dfield    dfield_t containing the computed gcol value
 @param[out] dst_dfield    target dfield_t
 @return innodb error code.
 */
-static dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
-                            const Column_mysql &sql_col, dfield_t *src_dfield,
-                            dfield_t *dst_dfield);
+static dberr_t setup_dfield(Field *field, const Column_mysql &sql_col,
+                            dfield_t *src_dfield, dfield_t *dst_dfield);
 
 /** Store integer column in Innodb format.
 @param[in]      col       sql column data
@@ -231,6 +230,12 @@ dberr_t Loader::begin(const row_prebuilt_t *prebuilt, size_t data_size,
   m_table = table;
   m_index = prebuilt->index;
 
+#ifdef UNIV_DEBUG
+  DBUG_EXECUTE_IF("bulk_load_find_reused_freed_page",
+                  Sync_point::add(prebuilt->trx->mysql_thd,
+                                  "bulk_load_find_reused_freed_page"););
+#endif /* UNIV_DEBUG */
+
   m_ctxs.resize(m_num_threads);
 
   m_queue_size = 2;
@@ -293,6 +298,62 @@ bool Loader::set_source_table_data(
     const std::vector<Bulk_load::Source_table_data> &source_table_data) {
   m_original_table_name = source_table_data.at(0).table;
   assert(source_table_data.size() == m_num_threads);
+
+  auto n_required_bound_cols =
+      prebuilt->index->is_clustered()
+          ? dict_index_get_n_ordering_defined_by_user(prebuilt->index)
+          : dict_index_get_n_unique_in_tree(prebuilt->index);
+  if (n_required_bound_cols == 0) {
+    /* A generated clustered index is searched using DB_ROW_ID. */
+    n_required_bound_cols = 1;
+  }
+
+  auto validate_bounds = [&](const std::optional<Rows_mysql> &lower_bound,
+                             const std::optional<Rows_mysql> &upper_bound) {
+    /* A bound can contain the full source row, while the search tuple only
+    contains the fields required for the index comparison. */
+    if (lower_bound.has_value() &&
+        lower_bound->get_num_cols() < n_required_bound_cols) {
+      ib::error() << "ddl_bulk source-table lower bound has too few columns: "
+                     "index="
+                  << prebuilt->index->name()
+                  << ", bound_columns=" << lower_bound->get_num_cols()
+                  << ", required_columns=" << n_required_bound_cols;
+      ut_ad(lower_bound->get_num_cols() >= n_required_bound_cols);
+      return false;
+    }
+
+    if (upper_bound.has_value() &&
+        upper_bound->get_num_cols() < n_required_bound_cols) {
+      ib::error() << "ddl_bulk source-table upper bound has too few columns: "
+                     "index="
+                  << prebuilt->index->name()
+                  << ", bound_columns=" << upper_bound->get_num_cols()
+                  << ", required_columns=" << n_required_bound_cols;
+      ut_ad(upper_bound->get_num_cols() >= n_required_bound_cols);
+      return false;
+    }
+
+    if (lower_bound.has_value() && upper_bound.has_value() &&
+        lower_bound->get_num_cols() != upper_bound->get_num_cols()) {
+      ib::error() << "ddl_bulk source-table bounds have different column "
+                     "counts: index="
+                  << prebuilt->index->name()
+                  << ", lower_bound_columns=" << lower_bound->get_num_cols()
+                  << ", upper_bound_columns=" << upper_bound->get_num_cols();
+      ut_ad(lower_bound->get_num_cols() == upper_bound->get_num_cols());
+      return false;
+    }
+
+    return true;
+  };
+
+  for (const auto &data : source_table_data) {
+    if (!validate_bounds(data.range.first, data.range.second)) {
+      return false;
+    }
+  }
+
   for (size_t index = 0; index < m_num_threads; ++index) {
     auto success = m_ctxs[index].set_source_table_data(
         prebuilt, source_table_data.at(index));
@@ -384,8 +445,39 @@ void Loader::Thread_data::read_input_entry(const Rows_mysql &rows,
   if (m_err != DB_SUCCESS) {
     return;
   }
+#ifdef UNIV_DEBUG
+  for (size_t i = 0; i < dtuple_get_n_fields(m_input_row); ++i) {
+    auto *field = dtuple_get_nth_field(m_input_row, i);
+    auto *type = dfield_get_type(field);
+    if (type->mtype == DATA_SYS) {
+      continue;
+    }
+    if (dfield_is_null(field) && (type->prtype & DATA_NOT_NULL)) {
+      std::ostringstream out;
+      out << "ddl_bulk invalid input row row=" << row_index
+          << " index=" << prebuilt->index->name() << " tuple=";
+      dtuple_print(out, m_input_row);
+      ib::info() << out.str();
+      ut_ad(false);
+    }
+  }
+#endif
   fill_index_entry(m_input_entry, m_input_row, prebuilt, m_trx_data,
                    m_rollptr_data, m_rowid_data);
+#ifdef UNIV_DEBUG
+  for (size_t i = 0; i < dtuple_get_n_fields(m_input_entry); ++i) {
+    auto *field = dtuple_get_nth_field(m_input_entry, i);
+    if (dfield_is_null(field) &&
+        (dfield_get_type(field)->prtype & DATA_NOT_NULL)) {
+      std::ostringstream out;
+      out << "ddl_bulk invalid input entry row=" << row_index
+          << " index=" << prebuilt->index->name() << " tuple=";
+      dtuple_print(out, m_input_entry);
+      ib::info() << out.str();
+      ut_ad(false);
+    }
+  }
+#endif
   m_more_available_in_input = true;
 }
 
@@ -692,6 +784,10 @@ void Loader::Thread_data::free() {
 }
 
 dberr_t Loader::end(bool is_error) {
+#ifdef UNIV_DEBUG
+  Sync_point::erase(m_trx->mysql_thd, "bulk_load_find_reused_freed_page");
+#endif /* UNIV_DEBUG */
+
   dberr_t db_err = DB_SUCCESS;
 
   uint64_t max_rowid{0};
@@ -780,25 +876,73 @@ void fill_index_entry(dtuple_t *entry, const dtuple_t *tuple,
                       unsigned char *rollptr_data, unsigned char *row_id_data,
                       bool fill_sys_cols) {
   dict_index_t *index = prebuilt->index;
-
   /* This function is a miniature of row_ins_index_entry_set_vals(). */
   auto n_fields = dtuple_get_n_fields(entry);
   for (size_t nth_field = 0; nth_field < n_fields; nth_field++) {
     auto field = dtuple_get_nth_field(entry, nth_field);
-
+    dict_field_t &fld = index->fields[nth_field];
     auto column_number =
         index->is_clustered() ? index->get_col_no(nth_field) : nth_field;
 
+    const dict_col_t *col = index->get_col(nth_field);
+
     auto row_field = dtuple_get_nth_field(tuple, column_number);
+#ifdef UNIV_DEBUG
+    auto *row_type = dfield_get_type(row_field);
+    auto *entry_type = dfield_get_type(field);
+
+    if (row_type->mtype == DATA_SYS && entry_type->mtype != DATA_SYS) {
+      std::ostringstream out;
+      out << "ddl_bulk suspicious DATA_SYS source while filling index entry"
+          << " index=" << index->name() << " nth_field=" << nth_field
+          << " source_column_number=" << column_number << " tuple=";
+      dtuple_print(out, tuple);
+      ib::info() << out.str();
+      ut_ad(false);
+    }
+#endif
+
     auto data = dfield_get_data(row_field);
     auto data_len = dfield_get_len(row_field);
 
+    if (dfield_is_null(row_field)) {
+      dfield_set_null(field);
+      continue;
+    }
+
+    if (fld.prefix_len > 0) {
+      /* dict_field_t::prefix_len is stored as character prefix length
+      multiplied by mbmaxlen. Even when the byte length is smaller than
+      prefix_len, the value can still exceed the allowed number of characters
+      for multibyte collations, so always normalize via
+      dtype_get_at_most_n_mbchars(). */
+      data_len = dtype_get_at_most_n_mbchars(
+          col->prtype, col->mbminmaxlen, fld.prefix_len, data_len,
+          static_cast<const char *>(dfield_get_data(row_field)));
+    }
+
     dfield_set_data(field, data, data_len);
-    /* TODO:
-     1. Handle external field
-     2. Handle prefix index. */
+
     if (row_field->is_ext()) {
-      if (!index->is_clustered()) {
+      if (fld.prefix_len == 0) {
+        if (index->is_clustered()) {
+          dfield_set_ext(field);
+        }
+      }
+
+      if (col->ord_part && fld.prefix_len == 0) {
+        const auto row_field_len = dfield_get_len(row_field);
+        byte *tmp = static_cast<byte *>(data) + row_field_len -
+                    BTR_EXTERN_FIELD_REF_SIZE;
+        lob::ref_t ref(tmp);
+        ut_ad(ref.space_id() == index->space);
+        dfield_set_data(field, tmp, BTR_EXTERN_FIELD_REF_SIZE);
+        if (index->is_clustered()) {
+          dfield_set_ext(field);
+        }
+      }
+
+      if (dfield_is_ext(field) && !index->is_clustered()) {
         /* sec indexes cannot contain external fields. */
         char query[1024];
         memset(query, '\0', sizeof query);
@@ -811,7 +955,6 @@ void fill_index_entry(dtuple_t *entry, const dtuple_t *tuple,
 
         ut_a(index->is_clustered());
       }
-      dfield_set_ext(field);
     }
   }
   if (index->is_clustered() && fill_sys_cols) {
@@ -819,10 +962,8 @@ void fill_index_entry(dtuple_t *entry, const dtuple_t *tuple,
   }
 }
 
-dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
-                     const Column_mysql &sql_col, dfield_t *src_dfield,
-                     dfield_t *dst_dfield) {
-  const space_id_t space_id = prebuilt->space_id();
+dberr_t setup_dfield(Field *field, const Column_mysql &sql_col,
+                     dfield_t *src_dfield, dfield_t *dst_dfield) {
   auto dtype = dfield_get_type(src_dfield);
   auto data_ptr = (byte *)sql_col.get_data();
   size_t data_len = sql_col.m_data_len;
@@ -846,8 +987,6 @@ dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
     }
     dfield_set_data(dst_dfield, data_ptr, data_len);
   } else if (dtype->mtype == DATA_BLOB || dtype->mtype == DATA_GEOMETRY) {
-    auto field_str = (const Field_str *)field;
-    const CHARSET_INFO *field_charset = field_str->charset();
     size_t length_size{0};
     switch (sql_col.m_type) {
       case MYSQL_TYPE_TINY_BLOB:
@@ -874,41 +1013,16 @@ dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
     }
     byte *field_data = data_ptr + length_size;
     dfield_set_data(dst_dfield, field_data, data_len);
-    if (data_len == lob::ref_t::SIZE) {
-      lob::ref_t ref(field_data);
-      if (ref.space_id() == space_id) {
-        dfield_set_ext(dst_dfield);
-      } else {
-        /* Not an externally stored field.  So, validate the string. */
-        size_t valid_length{0};
-        bool length_error;
 
-        char *tmp = reinterpret_cast<char *>(field_data);
-
-        const bool failure = validate_string(field_charset, tmp, data_len,
-                                             &valid_length, &length_error);
-        if (failure) {
-          my_error(ER_INVALID_CHARACTER_STRING, MYF(0), field_charset->csname,
-                   field_data);
-          return DB_ERROR;
-        }
-      }
-    }
-  } else if ((dtype->mtype == DATA_VARMYSQL || dtype->mtype == DATA_BINARY) &&
-             data_len == lob::ref_t::SIZE) {
-    byte *field_data = data_ptr;
-    dfield_set_data(dst_dfield, field_data, data_len);
-    lob::ref_t ref(field_data);
-    if (ref.space_id() == space_id) {
-      dfield_set_ext(dst_dfield);
-    } else {
-      /* Not an externally stored field. */
-    }
   } else if (dtype->mtype == DATA_SYS) {
     ut_ad(0);
   } else {
     assert(data_len <= dtype->len);
     dfield_set_data(dst_dfield, data_ptr, data_len);
+  }
+
+  if (sql_col.is_ext()) {
+    dfield_set_ext(dst_dfield);
   }
 
   return DB_SUCCESS;
@@ -923,7 +1037,6 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
                                 mem_heap_t *gcol_heap, bool &gcol_blobs_flushed,
                                 bool validate_gcols) {
   ut_ad(prebuilt->mysql_template);
-  const space_id_t space_id = prebuilt->space_id();
   TABLE *mysql_table = prebuilt->m_mysql_table;
   THD *thd = prebuilt->m_thd;
   auto share = mysql_table->s;
@@ -989,8 +1102,37 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
     }
 
     auto &sql_col = rows.read_column(row_offset, column_number);
-
     if (sql_col.m_is_null) {
+#ifdef UNIV_DEBUG
+      if (dfield_get_type(dfield)->prtype & DATA_NOT_NULL) {
+        std::ostringstream out;
+        out << "ddl_bulk NULL source while filling tuple"
+            << " row_index=" << row_index << " row_offset=" << row_offset
+            << " index=" << prebuilt->index->name()
+            << " is_clustered=" << prebuilt->index->is_clustered()
+            << " loop_index=" << index
+            << " tuple_field_pos=" << (tuple_index - 1)
+            << " source_column_number=" << column_number
+            << " source_mysql_type=" << sql_col.m_type;
+
+        if (tuple_index > 0 &&
+            tuple_index - 1 < dict_index_get_n_fields(prebuilt->index)) {
+          auto *index_field = prebuilt->index->get_field(tuple_index - 1);
+          out << " index_field_name=" << index_field->name
+              << " index_field_prefix_len=" << index_field->prefix_len;
+        }
+
+        if (field != nullptr) {
+          out << " mysql_field_name="
+              << (field != nullptr ? field->field_name : "<null>");
+        }
+
+        out << " tuple_before=";
+        dtuple_print(out, tuple);
+        ib::info() << out.str();
+        ut_ad(false);
+      }
+#endif
       dfield_set_null(dfield);
       continue;
     }
@@ -1012,8 +1154,6 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
       }
       dfield_set_data(dfield, data_ptr, data_len);
     } else if (dtype->mtype == DATA_BLOB || dtype->mtype == DATA_GEOMETRY) {
-      auto field_str = (const Field_str *)field;
-      const CHARSET_INFO *field_charset = field_str->charset();
       size_t length_size{0};
       switch (sql_col.m_type) {
         case MYSQL_TYPE_TINY_BLOB:
@@ -1038,38 +1178,16 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
           assert(0);
           break;
       }
+
       byte *field_data = data_ptr + length_size;
       dfield_set_data(dfield, field_data, data_len);
-      if (data_len == lob::ref_t::SIZE) {
-        lob::ref_t ref(field_data);
-        if (ref.space_id() == space_id) {
-          dfield_set_ext(dfield);
-        } else {
-          /* Not an externally stored field.  So, validate the string. */
-          size_t valid_length{0};
-          bool length_error;
-
-          char *tmp = reinterpret_cast<char *>(field_data);
-
-          const bool failure = validate_string(field_charset, tmp, data_len,
-                                               &valid_length, &length_error);
-          if (failure) {
-            my_error(ER_INVALID_CHARACTER_STRING, MYF(0), field_charset->csname,
-                     field_data);
-            return DB_ERROR;
-          }
-        }
+#ifdef UNIV_DEBUG
+      if (sql_col.is_ext()) {
+        byte *tmp = field_data + data_len - BTR_EXTERN_FIELD_REF_SIZE;
+        lob::ref_t ref(tmp);
+        ut_ad(ref.space_id() == prebuilt->space_id());
       }
-    } else if ((dtype->mtype == DATA_VARMYSQL || dtype->mtype == DATA_BINARY) &&
-               data_len == lob::ref_t::SIZE) {
-      byte *field_data = data_ptr;
-      dfield_set_data(dfield, field_data, data_len);
-      lob::ref_t ref(field_data);
-      if (ref.space_id() == space_id) {
-        dfield_set_ext(dfield);
-      } else {
-        /* Not an externally stored field. */
-      }
+#endif /* UNIV_DEBUG */
     } else if (dtype->mtype == DATA_SYS) {
       ut_ad(!prebuilt->index->is_clustered());
       mach_write_to_6(row_id_data, sql_col.m_int_data);
@@ -1077,6 +1195,10 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
     } else {
       assert(data_len <= dtype->len);
       dfield_set_data(dfield, data_ptr, data_len);
+    }
+
+    if (sql_col.is_ext()) {
+      dfield_set_ext(dfield);
     }
   }
 
@@ -1100,7 +1222,7 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
 
         auto &sql_col = rows.read_column(row_offset, column_number);
         dfield_t fld2;
-        auto err = setup_dfield(prebuilt, field, sql_col, fld1, &fld2);
+        auto err = setup_dfield(field, sql_col, fld1, &fld2);
 
         if (err != DB_SUCCESS) {
           return err;
@@ -1145,7 +1267,7 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
 
         auto &sql_col = rows.read_column(row_offset, column_number);
         dfield_t fld2;
-        auto err = setup_dfield(prebuilt, field, sql_col, fld1, &fld2);
+        auto err = setup_dfield(field, sql_col, fld1, &fld2);
 
         if (err != DB_SUCCESS) {
           return err;
@@ -1199,6 +1321,9 @@ dberr_t fill_tuple(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
                    size_t queue_size, mem_heap_t *gcol_heap,
                    bool &gcol_blobs_flushed) {
   const auto n_cols = rows.get_num_cols();
+  ut_ad(prebuilt->index->is_clustered() ||
+        (n_cols == dict_index_get_n_fields(prebuilt->index)));
+
   return fill_tuple_up_to_n_cols(tuple, prebuilt, rows, row_index, n_cols,
                                  last_rowid, row_id_data, subtrees, queue_size,
                                  true, gcol_heap, gcol_blobs_flushed, true);
@@ -1281,6 +1406,7 @@ bool Loader::Table_reader::init(const std::string &schema,
                                 const std::optional<Rows_mysql> &lower_bound,
                                 const std::optional<Rows_mysql> &upper_bound) {
   assert(!m_initialized);
+
   m_initialized = true;
   m_table_name = table;
   m_prebuilt = prebuilt;
@@ -1314,6 +1440,21 @@ bool Loader::Table_reader::init(const std::string &schema,
   char path[FN_REFLEN + 1];
   build_table_filename(path, sizeof(path) - 1, schema.c_str(), table.c_str(),
                        nullptr, 0);
+
+  if (dict_table_is_partition(prebuilt->table)) {
+    const char *full_name = prebuilt->table->name.m_name;
+    const char *slash = strchr(full_name, '/');
+    const char *table_name = (slash == nullptr) ? full_name : slash + 1;
+    const char *partition_suffix = strstr(table_name, "#p#");
+
+    if (partition_suffix != nullptr) {
+      size_t path_len = strlen(path);
+      size_t suffix_len = strlen(partition_suffix);
+      ut_ad(path_len + suffix_len < sizeof(path));
+      memcpy(path + path_len, partition_suffix, suffix_len + 1);
+    }
+  }
+
   ib_cursor_open_table(path, m_trx, &m_table_cursor);
 
   if (m_table_cursor == nullptr) {
@@ -1335,39 +1476,45 @@ bool Loader::Table_reader::init(const std::string &schema,
   uint64_t last_row_id;
   std::list<Btree_multi::Btree_load *> list_subtrees;
   if (m_lower_bound.has_value()) {
-    ib_tpl_t tuple;
+    /* The lower-bound tuple is needed only to position the cursor. */
+    ib_tpl_t lower_bound_tuple;
     if (!m_prebuilt->index->is_clustered()) {
-      tuple = ib_sec_search_tuple_create(m_read_cursor);
+      lower_bound_tuple = ib_sec_search_tuple_create(m_read_cursor);
     } else {
-      tuple = ib_clust_search_tuple_create(m_read_cursor);
+      lower_bound_tuple = ib_clust_search_tuple_create(m_read_cursor);
     }
-    if (tuple == nullptr) {
+    if (lower_bound_tuple == nullptr) {
       return false;
     }
+    ut_ad(m_lower_bound->get_num_cols() >=
+          dtuple_get_n_fields(ib_tuple_to_dtuple(lower_bound_tuple)));
 
     allocate_buffers(m_lower_bound.value(), lower_bound.value(),
-                     ib_tuple_to_dtuple(tuple), m_lower_bound_data);
+                     ib_tuple_to_dtuple(lower_bound_tuple), m_lower_bound_data);
 
     unsigned char tuple_row_id_data[DATA_ROW_ID_LEN];
     if (prebuilt->index->is_clustered() &&
         prebuilt->clust_index_was_generated) {
-      auto *row_id_field = dtuple_get_nth_field(ib_tuple_to_dtuple(tuple), 0);
+      auto *row_id_field =
+          dtuple_get_nth_field(ib_tuple_to_dtuple(lower_bound_tuple), 0);
       mach_write_to_6(tuple_row_id_data,
                       m_lower_bound->get_column(0, 0).m_int_data);
       dfield_set_data(row_id_field, tuple_row_id_data, DATA_ROW_ID_LEN);
     } else {
-      fill_tuple_up_to_n_cols(ib_tuple_to_dtuple(tuple), prebuilt,
-                              m_lower_bound.value(), 0,
-                              dtuple_get_n_fields(ib_tuple_to_dtuple(tuple)),
-                              last_row_id, tuple_row_id_data, list_subtrees, 0,
-                              false, nullptr, gcols_flushed, false);
+      fill_tuple_up_to_n_cols(
+          ib_tuple_to_dtuple(lower_bound_tuple), prebuilt,
+          m_lower_bound.value(), 0,
+          dtuple_get_n_fields(ib_tuple_to_dtuple(lower_bound_tuple)),
+          last_row_id, tuple_row_id_data, list_subtrees, 0, false, nullptr,
+          gcols_flushed, false);
     }
 
-    ib_cursor_moveto(m_read_cursor, tuple, IB_CUR_GE, 0);
-    ib_tuple_delete(tuple);
+    ib_cursor_moveto(m_read_cursor, lower_bound_tuple, IB_CUR_GE, 0);
+    ib_tuple_delete(lower_bound_tuple);
   }
 
   if (m_upper_bound.has_value()) {
+    /* The upper-bound tuple is retained for every read from the cursor. */
     if (prebuilt->index->is_clustered()) {
       m_cmp_tuple = ib_clust_search_tuple_create(m_read_cursor);
     } else {
@@ -1376,8 +1523,15 @@ bool Loader::Table_reader::init(const std::string &schema,
     if (m_cmp_tuple == nullptr) {
       return false;
     }
+    ut_ad(m_upper_bound->get_num_cols() >=
+          dtuple_get_n_fields(ib_tuple_to_dtuple(m_cmp_tuple)));
     allocate_buffers(m_upper_bound.value(), upper_bound.value(),
                      ib_tuple_to_dtuple(m_cmp_tuple), m_upper_bound_data);
+    /* Keep the upper-bound comparison consistent with ib_cursor_moveto(),
+    which uses every field in the search tuple. */
+    const auto n_bound_fields =
+        dtuple_get_n_fields(ib_tuple_to_dtuple(m_cmp_tuple));
+    dtuple_set_n_fields_cmp(ib_tuple_to_dtuple(m_cmp_tuple), n_bound_fields);
     if (prebuilt->index->is_clustered() &&
         prebuilt->clust_index_was_generated) {
       auto *row_id_field =
@@ -1388,10 +1542,8 @@ bool Loader::Table_reader::init(const std::string &schema,
     } else {
       fill_tuple_up_to_n_cols(
           ib_tuple_to_dtuple(m_cmp_tuple), prebuilt, m_upper_bound.value(), 0,
-          std::min(dtuple_get_n_fields(ib_tuple_to_dtuple(m_cmp_tuple)),
-                   m_upper_bound->get_num_cols()),
-          last_row_id, m_cmp_tuple_row_id_data, list_subtrees, 0, false,
-          nullptr, gcols_flushed, false);
+          n_bound_fields, last_row_id, m_cmp_tuple_row_id_data, list_subtrees,
+          0, false, nullptr, gcols_flushed, false);
     }
   }
 

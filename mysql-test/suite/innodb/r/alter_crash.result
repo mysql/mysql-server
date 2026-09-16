@@ -126,3 +126,24 @@ SELECT * FROM t1;
 a	b	c
 1	NULL	2
 DROP TABLE t1;
+#
+# Bug#38706605 Assertion failure: fil0fil.cc:1351:cache_entry
+#              != m_flags_cache->end()
+CREATE TABLE t1 (a INT) ENGINE = INNODB;
+INSERT INTO t1 VALUES (1);
+SET DEBUG = '+d,crash_after_alter_renames_are_complete';
+OPTIMIZE TABLE t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect.
+# restart
+SET DEBUG = '+d,crash_after_alter_renames_are_complete';
+OPTIMIZE TABLE t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect.
+# restart: --debug=+d,replay_rename_for_ddl_do_not_cache_space
+# Files in datadir after recovery.
+t1.ibd
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;

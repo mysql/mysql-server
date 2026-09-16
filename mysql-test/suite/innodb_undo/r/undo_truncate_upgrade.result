@@ -1,0 +1,83 @@
+# Scenario 1
+# shutdown the server
+include/stop_mysqld.inc [server 1]
+# create the truncate log file on an explicit space num
+# Start the server
+# restart
+# Check if the truncate log is present. (It should be absent)
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+# Scenario 2
+SET  GLOBAL DEBUG ="+d,create_crash_after_undo_tablespace_create";
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+ERROR HY000: Lost connection to MySQL server during query
+# create the truncate log file on an explicit space num
+# list 
+undo_3_trunc.log
+undo_001
+undo_002
+undo_003.ibu
+# Restart server normally
+# restart:
+undo_001
+undo_002
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+undo_001
+undo_002
+undo_003.ibu
+DROP UNDO TABLESPACE undo_003;
+# Scenario 3
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+# Crash just after writing truncation flags to tablespace header
+set global debug='+d,ib_undo_trunc_after_writing_unusable_flag';
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# create the truncate log file on an explicit space num
+# Before restart
+undo_3_trunc.log
+undo_001
+undo_002
+undo_003.ibu
+# Restart server normally
+# restart:
+undo_001
+undo_002
+undo_003.ibu
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;
+# Scenario 4
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+# Crash after delete of old undo file
+set global debug='+d,ib_undo_trunc_after_delete_undo_tablespace';
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# create the truncate log file on an explicit space num
+# Before restart
+undo_3_trunc.log
+undo_001
+undo_002
+# Restart server normally
+# restart:
+undo_001
+undo_002
+undo_003.ibu
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;

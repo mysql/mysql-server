@@ -8,6 +8,8 @@
 --source include/have_binlog_format_row.inc
 --source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/not_rpl_gtid_only.inc
+# CSA does not support synchronizing on positions
+--source include/have_mta.inc
 --source include/rpl/init_source_replica.inc
 
 call mtr.add_suppression('Attempting backtrace');

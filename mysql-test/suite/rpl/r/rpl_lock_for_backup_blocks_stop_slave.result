@@ -8,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection slave]
 CALL mtr.add_suppression("Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.");
+CALL mtr.add_suppression("Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP");
 LOCK INSTANCE FOR BACKUP;
 STOP REPLICA;
 ERROR HY000: Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.
@@ -18,6 +19,7 @@ UNLOCK INSTANCE;
 #
 [connection slave]
 CALL mtr.add_suppression("Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.");
+CALL mtr.add_suppression("Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP");
 LOCK INSTANCE FOR BACKUP;
 STOP REPLICA SQL_THREAD;
 ERROR HY000: Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.

@@ -101,6 +101,21 @@ bool mysql_test_parse_for_slave(THD *thd);
 bool is_update_query(enum enum_sql_command command);
 bool is_explainable_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
+
+/**
+  Return the length of a query string with trailing ';' and whitespace
+  removed. Used by alloc_query() and by callers that need to lex the same
+  trimmed-end view of a query that dispatch_command() sees, while keeping
+  their own buffer pointer (and thus byte offsets) intact.
+*/
+inline size_t trim_trailing_semicolons(const CHARSET_INFO *cs, const char *str,
+                                       size_t length) {
+  while (length > 0 &&
+         (str[length - 1] == ';' || my_isspace(cs, str[length - 1])))
+    length--;
+  return length;
+}
+
 bool alloc_query(THD *thd, const char *packet, size_t packet_length);
 void dispatch_sql_command(THD *thd, Parser_state *parser_state,
                           bool is_retry = false);

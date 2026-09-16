@@ -26,9 +26,10 @@
 #ifndef _CONFIGFACTORY_HPP
 #define _CONFIGFACTORY_HPP
 
-#include <NdbEnv.h>
-#include <kernel/NodeBitmask.hpp>
-#include <util/Properties.hpp>
+#include "NdbEnv.h"
+#include "kernel/NodeBitmask.hpp"
+#include "portlib/NdbDir.hpp"
+#include "util/Properties.hpp"
 #include "util/require.h"
 
 struct ConfigFactory {
@@ -116,7 +117,7 @@ struct ConfigFactory {
     return true;
   }
 
-  static bool write_config_ini(Properties &config, const char *path) {
+  static bool write_config_ini(const Properties &config, const char *path) {
     FILE *config_file = fopen(path, "w");
     if (config_file == NULL) return false;
 

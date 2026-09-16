@@ -287,6 +287,15 @@ bool Commit_stage_manager::enroll_for(StageID stage, THD *thd,
       while (thd->tx_commit_pending)
         mysql_cond_wait(&m_stage_cond_leader,
                         &m_queue_lock[BINLOG_FLUSH_STAGE]);
+      // COMMIT_ORDER_FLUSH_STAGE used tx_commit_pending only as a private
+      // wakeup flag for this special leader handoff. The transaction is not
+      // done yet; this THD is now the binlog leader and still has to process
+      // the group commit. Restore the pending state before the next
+      // change_stage() call, otherwise the THD may be treated as a follower
+      // that was already signaled and leave ordered_commit() through
+      // finish_commit() while it is still part of the commit queue.
+      assert(!thd->tx_commit_pending);
+      thd->tx_commit_pending = true;
     }
   }
 
@@ -389,6 +398,10 @@ bool Commit_stage_manager::enroll_for(StageID stage, THD *thd,
       mysql_mutex_unlock(enter_mutex);
 
       THD *binlog_leader = m_queue[BINLOG_FLUSH_STAGE].get_leader();
+      // Wake the binlog leader and transfer leadership from the commit-order
+      // leader. This is not the transaction completion signal for the binlog
+      // leader; it restores tx_commit_pending to true after waking up. The
+      // normal signal_done() path clears it after group commit processing.
       binlog_leader->tx_commit_pending = false;
 
       mysql_cond_signal(&m_stage_cond_leader);
@@ -476,7 +489,10 @@ THD *Commit_stage_manager::fetch_queue_skip_acquire_lock(StageID stage) {
 void Commit_stage_manager::process_final_stage_for_ordered_commit_group(
     THD *first) {
   if (first != nullptr) {
-    gtid_state->update_commit_group(first);
+    {
+      MUTEX_LOCK(commit_lock_guard, mysql_bin_log.get_commit_lock());
+      gtid_state->update_commit_group(first);
+    }
     signal_done(first, Commit_stage_manager::COMMIT_ORDER_FLUSH_STAGE);
   }
 }

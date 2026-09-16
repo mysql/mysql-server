@@ -33,6 +33,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "arch0page.h"
 #include "arch0recv.h"
 #include "clone0clone.h"
+#include "dict0dict.h" /* dict_persist_to_dd_table_buffer */
+#include "fil0pages_persistence_interface.h"
 #include "log0buf.h"
 #include "log0chkp.h"
 #include "srv0start.h"
@@ -215,25 +217,19 @@ int Arch_Group::mark_active() {
     return (ER_OUTOFMEMORY);
   }
 
-  os_file_create_t option;
-  os_file_type_t type;
+  const auto type = os_file_type(m_active_file_name);
 
-  bool success;
-  bool exists;
-
-  success = os_file_status(m_active_file_name, &exists, &type);
-
-  if (!success) {
-    return (ER_CANT_OPEN_FILE);
+  if (!os_file_status_is_conclusive(type)) {
+    return ER_CANT_OPEN_FILE;
   }
 
-  ut_ad(!exists);
-  option = OS_FILE_CREATE_PATH;
-
+  ut_ad(!os_file_exists(type));
   ut_ad(m_active_file.m_file == OS_FILE_CLOSED);
 
-  m_active_file = os_file_create(innodb_arch_file_key, m_active_file_name,
-                                 option, OS_CLONE_LOG_FILE, false, &success);
+  bool success;
+  m_active_file =
+      os_file_create(innodb_arch_file_key, m_active_file_name,
+                     OS_FILE_CREATE_PATH, OS_CLONE_LOG_FILE, false, &success);
 
   int err = (success ? 0 : ER_CANT_OPEN_FILE);
 
@@ -244,59 +240,48 @@ int Arch_Group::mark_durable() {
   dberr_t db_err = build_durable_file_name();
 
   if (db_err != DB_SUCCESS) {
-    return (ER_OUTOFMEMORY);
+    return ER_OUTOFMEMORY;
   }
 
-  os_file_create_t option;
-  os_file_type_t type;
+  const auto type = os_file_type(m_durable_file_name);
 
-  bool success;
-  bool exists;
-
-  success = os_file_status(m_durable_file_name, &exists, &type);
-
-  if (exists) {
-    return (0);
+  if (os_file_exists(type)) {
+    return 0;
   }
 
-  if (!success) {
-    return (ER_CANT_OPEN_FILE);
+  if (!os_file_status_is_conclusive(type)) {
+    return ER_CANT_OPEN_FILE;
   }
-
-  option = OS_FILE_CREATE_PATH;
 
   ut_ad(m_durable_file.m_file == OS_FILE_CLOSED);
 
-  m_durable_file = os_file_create(innodb_arch_file_key, m_durable_file_name,
-                                  option, OS_CLONE_LOG_FILE, false, &success);
+  bool success;
+  m_durable_file =
+      os_file_create(innodb_arch_file_key, m_durable_file_name,
+                     OS_FILE_CREATE_PATH, OS_CLONE_LOG_FILE, false, &success);
 
   int err = (success ? 0 : ER_CANT_OPEN_FILE);
 
-  return (err);
+  return err;
 }
 
 int Arch_Group::mark_inactive() {
-  os_file_type_t type;
-
-  bool success;
-  bool exists;
-
   dberr_t db_err;
 
   db_err = build_active_file_name();
 
   if (db_err != DB_SUCCESS) {
-    return (ER_OUTOFMEMORY);
+    return ER_OUTOFMEMORY;
   }
 
-  success = os_file_status(m_active_file_name, &exists, &type);
+  const auto type = os_file_type(m_active_file_name);
 
-  if (!success) {
-    return (ER_CANT_OPEN_FILE);
+  if (!os_file_status_is_conclusive(type)) {
+    return ER_CANT_OPEN_FILE;
   }
 
-  if (!exists) {
-    return (0);
+  if (!os_file_exists(type)) {
+    return 0;
   }
 
   if (m_active_file.m_file != OS_FILE_CLOSED) {
@@ -304,11 +289,11 @@ int Arch_Group::mark_inactive() {
     m_active_file.m_file = OS_FILE_CLOSED;
   }
 
-  success = os_file_delete(innodb_arch_file_key, m_active_file_name);
+  const bool success = os_file_delete(innodb_arch_file_key, m_active_file_name);
 
-  int err = (success ? 0 : ER_CANT_OPEN_FILE);
+  const int err = (success ? 0 : ER_CANT_OPEN_FILE);
 
-  return (err);
+  return err;
 }
 
 dberr_t Arch_Group::write_file_header(byte *from_buffer, uint length) {
@@ -460,9 +445,7 @@ dberr_t Arch_File_Ctx::write(Arch_File_Ctx *from_file, byte *from_buffer,
 
     err = os_file_copy(from_file->m_file, offset, m_file, offset, size);
   } else {
-    IORequest request(IORequest::WRITE);
-    request.disable_compression();
-    request.clear_encrypted();
+    IORequest request(IORequest::Type::WRITE | IORequest::Type::NO_COMPRESSION);
 
     err = os_file_write(request, "Page Track File", m_file, from_buffer, offset,
                         size);
@@ -583,9 +566,7 @@ bool Arch_File_Ctx::validate_stop_point_in_file(Arch_Group *group,
   }
 
   /* Read from file to the user buffer. */
-  IORequest request(IORequest::READ);
-  request.disable_compression();
-  request.clear_encrypted();
+  IORequest request(IORequest::Type::READ | IORequest::Type::NO_COMPRESSION);
 
   uint64_t offset;
 
@@ -621,9 +602,7 @@ bool Arch_File_Ctx::validate_reset_block_in_file(pfs_os_file_t file,
                                                  uint file_index,
                                                  uint &reset_count) {
   /* Read from file to the user buffer. */
-  IORequest request(IORequest::READ);
-  request.disable_compression();
-  request.clear_encrypted();
+  IORequest request(IORequest::Type::READ | IORequest::Type::NO_COMPRESSION);
 
   byte buf[ARCH_PAGE_BLK_SIZE];
 
@@ -951,7 +930,7 @@ int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
 
     ib::info(ER_IB_MSG_20) << "Clone Start PAGE ARCH : start LSN : "
                            << m_start_lsn << ", checkpoint LSN : "
-                           << log_get_checkpoint_lsn(*log_sys);
+                           << pages_persistence->get_checkpoint_lsn();
   }
 
   return (err);
@@ -999,9 +978,10 @@ int Page_Arch_Client_Ctx::stop(lsn_t *stop_id) {
   }
 
   arch_client_mutex_exit();
-
+  ut_a(ib::redo::handler->get_capabilities().supports_clone);
   ib::info(ER_IB_MSG_21) << "Clone Stop  PAGE ARCH : end   LSN : " << m_stop_lsn
-                         << ", log sys LSN : " << log_get_lsn(*log_sys);
+                         << ", log sys LSN : "
+                         << ib::redo::handler->peek_first_unassigned_lsn();
 
   return (err);
 }
@@ -1600,7 +1580,7 @@ void Arch_Page_Sys::post_recovery_init() {
   }
 
   arch_oper_mutex_enter();
-  m_latest_stop_lsn = log_get_checkpoint_lsn(*log_sys);
+  m_latest_stop_lsn = pages_persistence->get_checkpoint_lsn();
   auto cur_block = m_data.get_block(&m_write_pos, ARCH_DATA_BLOCK);
   update_stop_info(cur_block);
   arch_oper_mutex_exit();
@@ -2366,8 +2346,6 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
 
     case ARCH_STATE_INIT:
     case ARCH_STATE_IDLE:
-      [[fallthrough]];
-
     case ARCH_STATE_ACTIVE:
 
       if (m_current_group != nullptr) {
@@ -2389,8 +2367,10 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
         if (!recovery) {
           MONITOR_INC(MONITOR_PAGE_TRACK_RESETS);
         }
-
-        log_sys_lsn = (recovery ? m_last_lsn : log_get_lsn(*log_sys));
+        ut_a(ib::redo::handler->get_capabilities().supports_clone);
+        log_sys_lsn =
+            (recovery ? m_last_lsn
+                      : ib::redo::handler->peek_first_unassigned_lsn());
 
         /* Enable/Reset buffer pool page tracking. */
         set_tracking_buf_pool(log_sys_lsn);
@@ -2570,7 +2550,8 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
     }
 
     /* Request checkpoint */
-    log_request_checkpoint(*log_sys, true);
+    ut_a(log_checkpointing != nullptr);
+    log_checkpointing->request_fuzzy_checkpoint(true);
   }
 
   return (0);
@@ -2934,10 +2915,7 @@ int Arch_Group::read_from_file(Arch_Page_Pos *read_pos, uint read_len,
   }
 
   /* Read from file to the user buffer. */
-  IORequest request(IORequest::READ);
-
-  request.disable_compression();
-  request.clear_encrypted();
+  IORequest request(IORequest::Type::READ | IORequest::Type::NO_COMPRESSION);
 
   auto db_err =
       os_file_read(request, file_name, file, read_buff, offset, read_len);
@@ -2996,7 +2974,7 @@ bool Arch_Page_Sys::save_reset_point(bool is_durable) {
     cur_block->begin_write(m_last_pos);
   }
 
-  m_latest_stop_lsn = log_get_checkpoint_lsn(*log_sys);
+  m_latest_stop_lsn = pages_persistence->get_checkpoint_lsn();
   update_stop_info(cur_block);
 
   /* 2. Add the reset lsn to the current write_pos block header and request the
@@ -3103,7 +3081,7 @@ uint Arch_Page_Sys::purge(lsn_t *purge_lsn) {
   uint err = 0;
 
   if (*purge_lsn == 0) {
-    *purge_lsn = log_get_checkpoint_lsn(*log_sys);
+    *purge_lsn = pages_persistence->get_checkpoint_lsn();
   }
 
   DBUG_PRINT("page_archiver", ("Purging of files - %" PRIu64 "", *purge_lsn));

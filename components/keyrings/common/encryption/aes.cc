@@ -141,22 +141,13 @@ aes_return_status aes_encrypt(const unsigned char *source,
                               bool padding, size_t *encrypted_length) {
   if (encrypted_length == nullptr) return AES_OUTPUT_SIZE_NULL;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   if (ctx == nullptr) return AES_CTX_ALLOCATION_ERROR;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   auto cleanup_guard = create_scope_guard([&] {
     /* need to explicitly clean up the error if we want to ignore it */
     ERR_clear_error();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    EVP_CIPHER_CTX_cleanup(ctx);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     EVP_CIPHER_CTX_free(ctx);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   });
 
   const EVP_CIPHER *cipher = aes_evp_type(mode);
@@ -192,22 +183,13 @@ aes_return_status aes_decrypt(const unsigned char *source,
                               size_t *decrypted_length) {
   if (decrypted_length == nullptr) return AES_OUTPUT_SIZE_NULL;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   if (ctx == nullptr) return AES_CTX_ALLOCATION_ERROR;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   auto cleanup_guard = create_scope_guard([&] {
     /* need to explicitly clean up the error if we want to ignore it */
     ERR_clear_error();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    EVP_CIPHER_CTX_cleanup(ctx);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     EVP_CIPHER_CTX_free(ctx);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   });
 
   const EVP_CIPHER *cipher = aes_evp_type(mode);

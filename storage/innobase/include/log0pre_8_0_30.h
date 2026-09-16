@@ -48,69 +48,6 @@ constexpr const char *const FILE_BASE_NAME = "ib_logfile";
 /** Maximum redo log file id in the old format (before 8.0.30). */
 constexpr Log_file_id FILE_MAX_ID = 99;
 
-/* Offsets inside the checkpoint pages pre 8.0.30 redo format. */
-
-/** Checkpoint number. It was incremented by one for each next checkpoint.
-During recovery, all headers were scanned, and one with the maximum checkpoint
-number was used for the recovery (checkpoint_lsn from that header was used). */
-constexpr os_offset_t FIELD_CHECKPOINT_NO = 0;
-
-/** Checkpoint lsn. Recovery starts from this lsn and searches for the first
-log record group that starts since then. In InnoDB < 8.0.5, it was the exact
-value at which the first log record group started. Since 8.0.5, the order in
-flush lists became relaxed and because of that checkpoint lsn values were not
-precise anymore. */
-constexpr os_offset_t FIELD_CHECKPOINT_LSN = 8;
-
-/** Offset within the log files, which corresponds to checkpoint lsn.
-Used for calibration of lsn and offset calculations. */
-constexpr os_offset_t FIELD_CHECKPOINT_OFFSET = 16;
-
-/** Size of the log buffer, when the checkpoint write was started.
-It seems it was write-only field in InnoDB. Not used by recovery.
-
-@note
-Note that when the log buffer is being resized, all the log background threads
-were stopped, so there was no concurrent checkpoint write (the log_checkpointer
-thread was stopped). */
-constexpr uint32_t FIELD_CHECKPOINT_LOG_BUF_SIZE = 24;
-
-/** Meta data stored in one of two checkpoint headers. */
-struct Checkpoint_header {
-  /** Checkpoint number stored in older formats of the redo log. */
-  uint64_t m_checkpoint_no;
-
-  /** Checkpoint LSN (oldest_lsn_lwm from the moment of checkpoint). */
-  lsn_t m_checkpoint_lsn;
-
-  /** Offset from the beginning of the redo file, which contains the
-  checkpoint LSN, to the checkpoint LSN. */
-  os_offset_t m_checkpoint_offset;
-
-  /** Size of the log buffer from the moment of checkpoint. */
-  uint64_t m_log_buf_size;
-};
-
-/** Provides a file offset for the given lsn. For this function to work,
-some existing file lsn and corresponding offset to that file lsn have to
-be provided.
-@param[in]  n_files           number of log files
-@param[in]  file_size         size of each log file (in bytes)
-@param[in]  some_file_lsn     some file_lsn for which offset is known
-@param[in]  some_file_offset  file offset corresponding to the given
-                              some_file_lsn
-@param[in]  requested_lsn     the given lsn for which offset is computed
-@return file offset corresponding to the given requested_lsn */
-os_offset_t compute_real_offset_for_lsn(size_t n_files, os_offset_t file_size,
-                                        lsn_t some_file_lsn,
-                                        os_offset_t some_file_offset,
-                                        lsn_t requested_lsn);
-
-/** Deserializes the log checkpoint header stored in the given buffer.
-@param[in]   buf       the buffer to deserialize
-@param[out]  header    the deserialized header */
-bool checkpoint_header_deserialize(const byte *buf, Checkpoint_header &header);
-
 /** Provides name of the log file with the given file id, e.g. 'ib_logfile0'.
 @param[in]  file_id   id of the log file
 @return file name */

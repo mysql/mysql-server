@@ -1,3 +1,5 @@
+call mtr.add_suppression("TLS session on channel 'mysql_main' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
+call mtr.add_suppression("TLS session on channel 'mysql_admin' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
 include/suppress_messages.inc
 # Connection 1 suppresses message <A partial dump from a server that has GTIDs>.
 # Connection 1 suppresses message <A dump from a server that has GTIDs enabled>.

@@ -32,6 +32,7 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/m_ctype.h"
+#include "scope_guard.h"
 #include "sql/handler.h"
 #include "sql/psi_memory_key.h"
 #include "sql/range_optimizer/internal.h"
@@ -156,6 +157,10 @@ bool IndexSkipScanIterator::DoInit() {
   MY_BITMAP *const save_read_set = table()->read_set;
 
   table()->column_bitmaps_set_no_signal(&column_bitmap, table()->write_set);
+  Scope_guard guard{[this, save_read_set]() {
+    table()->column_bitmaps_set_no_signal(save_read_set, table()->write_set);
+  }};
+
   if ((result = table()->file->ha_index_init(index, true))) {
     table()->file->print_error(result, MYF(0));
     return true;
@@ -172,7 +177,6 @@ bool IndexSkipScanIterator::DoInit() {
     assert(offset <= eq_prefix_len);
   }
 
-  table()->column_bitmaps_set_no_signal(save_read_set, table()->write_set);
   return false;
 }
 
@@ -269,6 +273,9 @@ int IndexSkipScanIterator::DoRead() {
 
   MY_BITMAP *const save_read_set = table()->read_set;
   table()->column_bitmaps_set_no_signal(&column_bitmap, table()->write_set);
+  Scope_guard guard{[this, save_read_set]() {
+    table()->column_bitmaps_set_no_signal(save_read_set, table()->write_set);
+  }};
   do {
     if (!is_prefix_valid) {
       if (!seen_first_key) {
@@ -387,8 +394,6 @@ int IndexSkipScanIterator::DoRead() {
     }
   } while (!thd()->killed &&
            (result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE));
-
-  table()->column_bitmaps_set_no_signal(save_read_set, table()->write_set);
 
   if (result == 0) {
     return 0;

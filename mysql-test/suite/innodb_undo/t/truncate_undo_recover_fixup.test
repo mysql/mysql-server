@@ -1,0 +1,57 @@
+--echo #
+--echo # wl#16989 Innodb: Make UNDO log truncation crash safe
+--echo #
+
+# This test uses debug settings like innodb_purge_stop_now.
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+ --source include/not_crashrep.inc
+
+# The test must start with only 2 undo tablespaces
+--source include/have_innodb_default_undo_tablespaces.inc
+
+# Set the crash point where server crash during UNDO truncate
+let $crash_point = ib_undo_trunc_after_writing_unusable_flag;
+
+--echo # Scenario 1 : During recovery, crash before updating the space_id in DD
+# Set the crash point where server crash during recovery
+let $recovery_crash_point_1 = fixup_crash_before_updating_space_id_in_dd;
+--source suite/innodb_undo/include/undo_crash_during_recovery.inc
+
+--echo # Scenario 2 : During recovery, crash after updating the space_id in DD
+# Set the crash point where server crash during recovery
+let $recovery_crash_point_1 = fixup_crash_after_updating_space_id_in_dd;
+--source suite/innodb_undo/include/undo_crash_during_recovery.inc
+
+--echo # Scenario 3 : During recovery, crash after creating UNDO tablespace in
+--echo # srv_undo_tablespace_fixup
+# Set the crash point where server crash during recovery
+let $recovery_crash_point_1 = fixup_crash_after_creating_undo;
+--source suite/innodb_undo/include/undo_crash_during_recovery.inc
+
+--echo # Scenario 4 : During recovery, crash before updating state in DD
+# Set the crash point where server crash during recovery
+let $recovery_crash_point_1 = fixup_crash_before_updating_state_in_dd;
+--source suite/innodb_undo/include/undo_crash_during_recovery.inc
+
+--echo # Scenario 5 : During recovery, crash after updating state in DD
+# Set the crash point where server crash during recovery
+let $recovery_crash_point_1 = fixup_crash_after_updating_state_in_dd;
+--source suite/innodb_undo/include/undo_crash_during_recovery.inc
+
+--echo # Scenario 6 : During recovery, crash after creating an empty
+--echo # undo file.
+# Set the crash point where server crash during recovery
+let $recovery_crash_point_1 = fixup_crash_after_creating_empty_file;
+--source suite/innodb_undo/include/undo_crash_during_recovery.inc
+
+--echo # Scenario 7 : During recovery, crash after initiliazing
+--echo # undo file with zeros.
+# Set the crash point where server crash during recovery
+let $recovery_crash_point_1 = fixup_crash_after_init_with_zeros;
+--source suite/innodb_undo/include/undo_crash_during_recovery.inc
+

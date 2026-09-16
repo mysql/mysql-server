@@ -1,0 +1,11 @@
+SET GLOBAL DEBUG = "+d, test_throttle_thread_create";
+SELECT SLEEP(10);
+SLEEP(10)
+0
+SELECT SLEEP(10);
+SLEEP(10)
+0
+SELECT SLEEP(10);
+SLEEP(10)
+0
+SET GLOBAL DEBUG= "-d, test_throttle_thread_create";

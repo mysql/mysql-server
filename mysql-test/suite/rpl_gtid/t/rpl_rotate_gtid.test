@@ -21,6 +21,8 @@ source include/have_debug.inc;
 source include/have_debug_sync.inc;
 --source include/not_rpl_gtid_only.inc
 --source include/rpl/init_source_replica.inc
+# CSA supports GTID-based replication
+--source include/have_mta.inc
 
 
 --echo # Preparing the relaylog

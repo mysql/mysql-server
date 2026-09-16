@@ -114,7 +114,6 @@ if ($mts_spco_gd_worker_3_only_runs_after_deadlock == '')
 {
   --let $mts_spco_gd_worker_3_only_runs_after_deadlock = 0
 }
-
 --source include/rpl/connection_replica.inc
 --let $mts_spco_gd_is_replica_sql_running = query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
 if ($mts_spco_gd_is_replica_sql_running == 'Yes')
@@ -189,9 +188,13 @@ if ($mts_spco_gd_trx_assigned_worker_3 != '')
 --source include/rpl/start_applier.inc
 --let $client = `SELECT CONNECTION_ID()`
 
+# Wait for the CSA threads to initialize
+--let $wait_condition= SELECT COUNT(*) FROM performance_schema.replication_applier_status_by_worker WHERE channel_name='' AND service_state="ON" > 0
+--source include/wait_condition_or_abort.inc
+
 --let $worker_count = `SELECT COUNT(*) FROM performance_schema.replication_applier_status_by_worker WHERE channel_name='' AND service_state="ON"`
 --let $assert_text = MTS worker thread count is correct
---let $assert_cond = "3" = "$worker_count"
+--let $assert_cond = 3 = "$worker_count"
 --source include/assert.inc
 --let $assert_text = Replica preserve commit order is 1
 --let $assert_cond = "[SELECT @@GLOBAL.replica_preserve_commit_order]" = "1"
@@ -254,8 +257,13 @@ if ($mts_spco_gd_state_blocking_client != '')
   {
     --let $_mts_spco_gd_state_blocking_client =
   }
-  --let $wait_condition = SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "$_mts_spco_gd_state_blocking_client" AND ID = $client
-  --source include/wait_condition.inc
+  # In CSA, workers are not scheduled for commit before a blocked worker
+  # commits, they are waiting in the scheduler queue with "Waiting for commit"
+  # state
+  if($rpl_applier_version == '') {
+    --let $wait_condition = SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "$_mts_spco_gd_state_blocking_client" AND ID = $client
+    --source include/wait_condition.inc
+  }
 }
 
 #   7. On the replica, using client connection A, rollback the pending

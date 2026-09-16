@@ -27,6 +27,7 @@
 #define PLUGIN_X_SRC_SSL_CONTEXT_OPTIONS_H_
 
 #include <string>
+#include <utility>
 
 #include "violite.h"
 
@@ -36,8 +37,14 @@ namespace xpl {
 
 class Ssl_context_options : public iface::Ssl_context_options {
  public:
-  explicit Ssl_context_options(st_VioSSLFd *vio_ssl = nullptr)
-      : m_vio_ssl(vio_ssl) {}
+  explicit Ssl_context_options(st_VioSSLFd *vio_ssl = nullptr,
+                               std::string tls_kex = "",
+                               bool tls_force_pqc = false,
+                               bool tls_use_pqc_sign = false)
+      : m_vio_ssl(vio_ssl),
+        m_tls_kex(std::move(tls_kex)),
+        m_tls_force_pqc(tls_force_pqc),
+        m_tls_use_pqc_sign(tls_use_pqc_sign) {}
 
   int64_t ssl_ctx_verify_depth() override;
   int64_t ssl_ctx_verify_mode() override;
@@ -58,8 +65,15 @@ class Ssl_context_options : public iface::Ssl_context_options {
   int64_t ssl_session_cache_timeouts() override;
   int64_t ssl_used_session_cache_entries() override;
 
+  std::string tls_kex() override;
+  bool tls_force_pqc() override;
+  bool tls_use_pqc_sign() override;
+
  private:
   st_VioSSLFd *m_vio_ssl;
+  std::string m_tls_kex;
+  bool m_tls_force_pqc;
+  bool m_tls_use_pqc_sign;
 };
 
 }  // namespace xpl

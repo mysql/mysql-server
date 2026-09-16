@@ -420,7 +420,7 @@ static bool sock_descriptor_to_sockaddr(int fd, struct sockaddr_storage *sa) {
 /**
   This function is a frontend function to inet_ntop.
   */
-static bool sock_descriptor_to_string(int fd, std::string &out) {
+bool sock_descriptor_to_string(int fd, std::string &out) {
   struct sockaddr_storage sa;
   char saddr[INET6_ADDRSTRLEN];
 

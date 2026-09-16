@@ -1,0 +1,8 @@
+replace_regex
+  /Serial: .*/Serial: -MASKED_SERIAL-/
+  /Expires: .*/Expires: -MASKED_DATE-/
+  /ndb-tls-search-path='\S*'/ndb-tls-search-path='-MASKED_DIR-',/
+  /Destination directory: .*/Destination directory: -MASKED_DIR-/
+  /in directory '\S*'/in directory '-MASKED_DIR-'/
+  /\S* \[1 certificate\]/-MASKED_DIR- [1 certificate]/
+;

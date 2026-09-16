@@ -1,0 +1,46 @@
+# Many updates on the same existing row with ordered indexes can make
+# commit or rollback cleanup spend too long in DBTUP/DBTUX.
+# This test verifies that MaxRowVersionsPerTransaction rejects repeated
+# same-row updates before the active-operation list grows too large
+# while read operations above the limit and interleaved delete/insert
+# operations at the limit still succeed.
+CREATE TABLE T1 (
+pk INT PRIMARY KEY,
+i1 INT,
+i2 INT,
+i3 INT,
+i4 INT,
+KEY i1_idx(i1),
+KEY i2_idx(i2),
+KEY i3_idx(i3),
+KEY i4_idx(i4)
+) ENGINE=NDBCLUSTER;
+INSERT INTO T1 VALUES (1, 1, 1, 1, 1);
+# Updating the same row up to MaxRowVersionsPerTransaction succeeds.
+BEGIN;
+ROLLBACK;
+SELECT pk, i1, i2, i3, i4 FROM T1;
+pk	i1	i2	i3	i4
+1	1	1	1	1
+# Interleaved DELETE and INSERT operations up to the limit succeed.
+BEGIN;
+ROLLBACK;
+SELECT pk, i1, i2, i3, i4 FROM T1;
+pk	i1	i2	i3	i4
+1	1	1	1	1
+# More than MaxRowVersionsPerTransaction read operations succeed.
+BEGIN;
+# Updating the same row up to MaxRowVersionsPerTransaction succeeds
+# even after many read operations in the transaction.
+# The next same-row update exceeds MaxRowVersionsPerTransaction.
+UPDATE T1
+SET i1 = i1 + 1,
+i2 = i2 + 1,
+i3 = i3 + 1,
+i4 = i4 + 1
+WHERE pk = 1;
+ERROR HY000: Got error 927 'Too many row versions in one transaction (increase MaxRowVersionsPerTransaction)' from NDBCLUSTER
+SELECT pk, i1, i2, i3, i4 FROM T1;
+pk	i1	i2	i3	i4
+1	1	1	1	1
+DROP TABLE T1;

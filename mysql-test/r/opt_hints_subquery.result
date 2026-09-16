@@ -19,6 +19,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Single-row covering index lookup on t1 using PRIMARY (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 Check that we can disable SEMIJOIN transformation
 EXPLAIN
 SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ NO_SEMIJOIN() */ a FROM t1);
@@ -29,6 +31,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Single-row covering index lookup on t1 using PRIMARY (a = <cache>(t2.a))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Same with hint in outer query
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq) */ * FROM t2
@@ -40,6 +44,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Single-row covering index lookup on t1 using PRIMARY (a = <cache>(t2.a))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Query with two sub-queries
 EXPLAIN
 SELECT * FROM t3
@@ -53,6 +59,8 @@ EXPLAIN
         -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
     -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t1` `ty` join `test`.`t3` where ((`ty`.`a` = `test`.`t3`.`b`) and (`tx`.`a` = `test`.`t3`.`a`))
 No SEMIJOIN transformation for first subquery
 EXPLAIN
 SELECT * FROM t3
@@ -67,6 +75,8 @@ EXPLAIN
                 -> Single-row covering index lookup on tx using PRIMARY (a = <cache>(t3.a))  (rows=1)
     -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `ty` join `test`.`t3` where ((`ty`.`a` = `test`.`t3`.`b`) and <in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY))))
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1) */ * FROM t3
 WHERE t3.a IN (SELECT /*+ QB_NAME(`subq1`) */ a FROM t1 tx)
@@ -80,6 +90,8 @@ EXPLAIN
                 -> Single-row covering index lookup on tx using PRIMARY (a = <cache>(t3.a))  (rows=1)
     -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `ty` join `test`.`t3` where ((`ty`.`a` = `test`.`t3`.`b`) and <in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY))))
 No SEMIJOIN transformation for latter subquery
 EXPLAIN
 SELECT * FROM t3
@@ -94,6 +106,8 @@ EXPLAIN
                 -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(t3.b))  (rows=1)
     -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#3`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t3` where ((`tx`.`a` = `test`.`t3`.`a`) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`b`) in t1 on PRIMARY))))
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@`subq2`) */ * FROM t3
 WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
@@ -107,6 +121,8 @@ EXPLAIN
                 -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(t3.b))  (rows=1)
     -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t3` where ((`tx`.`a` = `test`.`t3`.`a`) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`b`) in t1 on PRIMARY))))
 No SEMIJOIN transformation for any subquery
 EXPLAIN
 SELECT * FROM t3
@@ -122,6 +138,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(t3.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2`) NO_SEMIJOIN(@`select#3`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY))) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`b`) in t1 on PRIMARY))))
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1) NO_SEMIJOIN(@subq2) */ * FROM t3
 WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
@@ -136,6 +154,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(t3.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) NO_SEMIJOIN(@`subq2`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY))) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`b`) in t1 on PRIMARY))))
 Query with nested sub-queries
 EXPLAIN
 SELECT * FROM t3
@@ -149,6 +169,8 @@ EXPLAIN
             -> Single-row index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
     -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t1` `ty` join `test`.`t3` where ((`tx`.`a` = `test`.`t3`.`a`) and (`ty`.`a` = `tx`.`b`))
 No SEMIJOIN transformation for outer subquery
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1) */ * FROM t3
@@ -164,6 +186,8 @@ EXPLAIN
                     -> Single-row index lookup on tx using PRIMARY (a = <cache>(t3.a))  (rows=1)
                 -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ `tx`.`a` from `test`.`t1` `ty` join `test`.`t1` `tx` where ((`ty`.`a` = `tx`.`b`) and (<cache>(`test`.`t3`.`a`) = `tx`.`a`))))
 No SEMIJOIN transformation for inner-most subquery
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq2) */ * FROM t3
@@ -178,6 +202,8 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(tx.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t3` where ((`tx`.`a` = `test`.`t3`.`a`) and <in_optimizer>(`tx`.`b`,<exists>(<primary_index_lookup>(<cache>(`tx`.`b`) in t1 on PRIMARY))))
 No SEMIJOIN transformation at all
 EXPLAIN
 SELECT /*+  NO_SEMIJOIN(@subq1) NO_SEMIJOIN(@subq2) */ * FROM t3
@@ -194,6 +220,8 @@ EXPLAIN
                     -> Limit: 1 row(s)  (rows=1)
                         -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(tx.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) NO_SEMIJOIN(@`subq1`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY where <in_optimizer>(`tx`.`b`,<exists>(<primary_index_lookup>(<cache>(`tx`.`b`) in t1 on PRIMARY))))))
 This query does not support SEMIJOIN.  SEMIJOIN hint is ignored
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
@@ -209,6 +237,8 @@ EXPLAIN
                         -> Group aggregate: min(t1.a)  (rows=2)
                             -> Covering index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`min(a)`)))))
 This query will get LooseScan by default
 EXPLAIN
 SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -218,6 +248,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Let's turn off LooseScan, FirstMatch is then SELECTed
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
@@ -227,6 +259,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` LOOSESCAN) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t3`.`a` = `test`.`t2`.`a`)
 Let's also turn off FirstMatch, MatLookup is then used
 Hypergraph will choose FirstMatch as MatLookup is not supported
 EXPLAIN
@@ -239,6 +273,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=3)
             -> Covering index scan on t3 using a  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
 Let's also turn off Materialization, DuplicateWeedout should then be used
 Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
@@ -251,6 +287,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 If we turn off all strategies, DuplicateWeedout should still be used
 Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
@@ -264,6 +302,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Turn off non-used strategies, nothing should change.  Still Loosescan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ *
@@ -275,6 +315,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Test same query with SEMIJOIN hint
 Forcing LooseScan, should not change anything
 EXPLAIN
@@ -286,6 +328,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Force FirstMatch
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
@@ -295,6 +339,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t3`.`a` = `test`.`t2`.`a`)
 Force Materialization
 Hypergraph will choose FirstMatch as Materialization is not supported
 EXPLAIN
@@ -307,6 +353,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=3)
             -> Covering index scan on t3 using a  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
 Force DuplicateWeedout
 Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
@@ -318,6 +366,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 If LooseScan is among candidates, it will be used
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t2
@@ -328,6 +378,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -337,6 +389,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, MATERIALIZATION,
 DUPSWEEDOUT) */ * FROM t2
@@ -347,6 +401,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Drop LooseScan from list of strategies, FirstMatch will be used
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
@@ -356,6 +412,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t3`.`a` = `test`.`t2`.`a`)
 Drop FirstMatch, MatLookup is next
 Hypergraph will choose FirstMatch as MatLookup is not supported
 EXPLAIN
@@ -368,6 +426,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=3)
             -> Covering index scan on t3 using a  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
 For this query LooseScan and Materialization is not applicable
 Hypergraph will choose LooseScan as it's done differently.
 EXPLAIN
@@ -382,6 +442,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t3`.`b` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))
 Turn off all applicable strategies. DuplicateWeedout should be used
 Hypergraph will continue to choose LooseScan
 EXPLAIN
@@ -398,6 +459,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`<subquery2>`.`b` = `test`.`t1`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`b`))
 Similar with SEMIJOIN hint
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
@@ -413,6 +475,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN, MATERIALIZATION) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`<subquery2>`.`b` = `test`.`t1`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`b`))
 Test multiple subqueries.
 Default for this query is Loosecan for first and FirstMatch for latter
 EXPLAIN
@@ -428,6 +491,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 Forcing the default strategy should not change anything
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
@@ -442,6 +507,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN) SEMIJOIN(@`subq2` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 Forcing a strategy for one, may change the other due to cost changes
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
@@ -456,6 +523,8 @@ EXPLAIN
                 -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Forcing same strategy for both
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
@@ -469,6 +538,8 @@ EXPLAIN
         -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) SEMIJOIN(@`subq2` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Loosescan for both is not possible,  ends up with DuplicateWeedout
 Hypergraph would pick LooseScan as its done differently.
 EXPLAIN
@@ -484,6 +555,8 @@ EXPLAIN
                 -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN) SEMIJOIN(@`subq2` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 Swap strategies compared to default
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
@@ -498,6 +571,8 @@ EXPLAIN
                 -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) SEMIJOIN(@`subq2` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Different subsets of strategies for different subqueries
 Hypergraph would pick FirstMatch for the subq2
 EXPLAIN
@@ -516,6 +591,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=4)
             -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) SEMIJOIN(@`subq2` MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 Vice versa
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT)
@@ -532,6 +609,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = `<subquery2>`.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION, DUPSWEEDOUT) SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `<subquery2>`.`a`))
 Another combination
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, FIRSTMATCH)
@@ -547,6 +626,8 @@ EXPLAIN
                 -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION) SEMIJOIN(@`subq2` LOOSESCAN, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Turn off default
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN)
@@ -562,6 +643,8 @@ EXPLAIN
                 -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` LOOSESCAN) NO_SEMIJOIN(@`subq2` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Also turn off 2nd choice. Gives DuplicateWeedout over both
 Hypergraph will choose FirstMatch as DuplicateWeedout is not supported.
 EXPLAIN
@@ -578,6 +661,8 @@ EXPLAIN
                 -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) NO_SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 Also turn off DuplicateWeedout.  Materialization is only one left.
 Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
@@ -597,6 +682,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=4)
             -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) NO_SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `<subquery2>`.`a`))
 Force materialization with SEMIJOIN hints instead
 Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
@@ -616,6 +703,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=4)
             -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) SEMIJOIN(@`subq2` MATERIALIZATION) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `<subquery2>`.`a`))
 This query gives DuplicateWeedout over both since combining
 DuplicateWeedout with another strategy does not seem possible.
 Hypergraph will choose FirstMatch as Materialization is not supported.
@@ -633,6 +722,8 @@ EXPLAIN
                 -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) SEMIJOIN(@`subq2` DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 More alternatives for 2nd subquery gives Materialization for first
 Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
@@ -650,6 +741,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = `<subquery2>`.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `<subquery2>`.`a`))
 A query with nested subqueries which by default will use FirstMatch
 Hypergraph will choose LooseScan
 EXPLAIN
@@ -664,6 +757,8 @@ EXPLAIN
             -> Index lookup on t3 using a (a = t1.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Let's turn off FirstMatch, Materialization is then selected
 Hypergraph will choose LooseScan
 EXPLAIN
@@ -680,6 +775,8 @@ EXPLAIN
                 -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
     -> Single-row index lookup on t1 using PRIMARY (a = `<subquery2>`.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`a` = `<subquery2>`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Let's also turn off Materialization,  DuplicateWeedout is then used
 Hypergraph will choose LooseScan
 EXPLAIN
@@ -695,6 +792,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Also turn off DuplicateWeedout. LooseScan not usable; so still DuplicateWeedout
 Hypergraph will choose LooseScan
 EXPLAIN
@@ -711,6 +810,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 If we turn off all strategies, DuplicateWeedout should still be used
 Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
@@ -728,6 +829,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Test same query with SEMIJOIN hint
 Force FirstMatch, should not change anything
 EXPLAIN
@@ -742,6 +845,8 @@ EXPLAIN
             -> Index lookup on t3 using a (a = t1.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Force LooseScan, will use DuplicateWeedout
 Hypergraph will choose LooseScan
 EXPLAIN
@@ -757,6 +862,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Force Materialization
 Hypergraph will choose FirstMatch as Materialization is not supported
 EXPLAIN
@@ -773,6 +880,8 @@ EXPLAIN
                 -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
     -> Single-row index lookup on t1 using PRIMARY (a = `<subquery2>`.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`a` = `<subquery2>`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Force DuplicateWeedout
 Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
@@ -788,6 +897,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 If FirstMatch is among candidates, it will be used
 Default for Hyeprgraph here is LooseScan
 EXPLAIN
@@ -802,6 +913,8 @@ EXPLAIN
             -> Index lookup on t3 using a (a = t1.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -814,6 +927,8 @@ EXPLAIN
             -> Index lookup on t3 using a (a = t1.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, LOOSESCAN,
 DUPSWEEDOUT) */ * FROM t1
@@ -827,6 +942,8 @@ EXPLAIN
             -> Index lookup on t3 using a (a = t1.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Drop FirstMatch. Materialization will be used
 Hypergraph will use LooseScan
 EXPLAIN
@@ -843,6 +960,8 @@ EXPLAIN
                 -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
     -> Single-row index lookup on t1 using PRIMARY (a = `<subquery2>`.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`a` = `<subquery2>`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Drop Materialization, DuplicateWeedout next
 Hypergraph will use LooseScan
 EXPLAIN
@@ -858,6 +977,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Strategy hints on inner-most query is ignored since sj-nests are merged
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
@@ -871,6 +992,8 @@ EXPLAIN
             -> Index lookup on t3 using a (a = t1.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Ditto
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
@@ -884,6 +1007,8 @@ EXPLAIN
             -> Index lookup on t3 using a (a = t1.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` MATERIALIZATION) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`b`))
 Turn off semijoin for outer subquery. FirstMatch is used for inner
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1) */ * FROM t1
@@ -899,6 +1024,8 @@ EXPLAIN
                     -> Index lookup on t3 using a (a = <cache>(t1.a))  (rows=1)
                 -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t3`.`b`) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`))))
 Do not use FirstMatch for inner
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1) NO_SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
@@ -919,6 +1046,8 @@ EXPLAIN
                                 -> Materialize with deduplication  (rows=4)
                                     -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`<subquery3>`.`a` = `test`.`t3`.`b`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 Do not use FirstMatch nor Materialization for inner
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1)
@@ -939,6 +1068,8 @@ EXPLAIN
                             -> Limit: 1 row(s)  (rows=1)
                                 -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH, MATERIALIZATION) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t2`.`a` = `test`.`t3`.`b`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 LooseScan is last resort
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1)
@@ -960,6 +1091,8 @@ EXPLAIN
                                 -> Remove duplicates from input sorted on a  (rows=4)
                                     -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 Allow all stragies except default
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1)
@@ -982,6 +1115,8 @@ EXPLAIN
                                 -> Materialize with deduplication  (rows=4)
                                     -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`<subquery3>`.`a` = `test`.`t3`.`b`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 Force a particular strategy
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
@@ -1001,6 +1136,8 @@ EXPLAIN
                                 -> Remove duplicates from input sorted on a  (rows=4)
                                     -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 Turn off semijoin for inner-most subquery.  FirstMatch is used for outer
 Hypergraph would prefer LooseScan
 EXPLAIN
@@ -1016,6 +1153,8 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Covering index lookup on t2 using a (a = <cache>(t3.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t3`.`a` = `test`.`t1`.`a`) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`b`) in t2 on a))))
 Do not use FirstMatch for outer
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) NO_SEMIJOIN(@subq2) */ * FROM t1
@@ -1032,6 +1171,8 @@ EXPLAIN
                     -> Limit: 1 row(s)  (rows=1)
                         -> Covering index lookup on t2 using a (a = <cache>(t3.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) NO_SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`<subquery2>`.`a` = `test`.`t1`.`a`) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`b`) in t2 on a))))
 Do not use FirstMatch nor Materialization for outer
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION)
@@ -1048,6 +1189,8 @@ EXPLAIN
                     -> Covering index lookup on t2 using a (a = <cache>(t3.b))  (rows=1)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) NO_SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`b`) in t2 on a))))
 LooseScan can not be used since index scan would not be "covering"
 Hypergraph can do LooseScan here
 EXPLAIN
@@ -1065,6 +1208,8 @@ EXPLAIN
                     -> Covering index lookup on t2 using a (a = <cache>(t3.b))  (rows=1)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) NO_SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`b`) in t2 on a))))
 Allow all stragies except default
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT, LOOSESCAN)
@@ -1082,6 +1227,8 @@ EXPLAIN
                     -> Limit: 1 row(s)  (rows=1)
                         -> Covering index lookup on t2 using a (a = <cache>(t3.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) SEMIJOIN(@`subq1` LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`<subquery2>`.`a` = `test`.`t1`.`a`) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`b`) in t2 on a))))
 Force a particular strategy
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) NO_SEMIJOIN(@subq2) */ * FROM t1
@@ -1097,6 +1244,8 @@ EXPLAIN
                     -> Covering index lookup on t2 using a (a = <cache>(t3.b))  (rows=1)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) SEMIJOIN(@`subq1` DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t1`.`a` = `test`.`t3`.`a`) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`b`) in t2 on a))))
 Turn off semijoin for both subqueries
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1) NO_SEMIJOIN(@subq2) */ * FROM t1
@@ -1113,6 +1262,8 @@ EXPLAIN
                     -> Limit: 1 row(s)  (rows=1)
                         -> Covering index lookup on t2 using a (a = <cache>(t3.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2`) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t3 on a where <in_optimizer>(`test`.`t3`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`b`) in t2 on a))))))
 Test hints with prepared statements
 PREPARE stmt1 FROM "EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
@@ -1129,6 +1280,8 @@ EXPLAIN
                 -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) NO_SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 EXECUTE stmt1;
 EXPLAIN
 -> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
@@ -1139,6 +1292,8 @@ EXPLAIN
                 -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) NO_SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 DEALLOCATE PREPARE stmt1;
 Another Prepared Statement test
 PREPARE stmt1 FROM "EXPLAIN
@@ -1160,6 +1315,8 @@ EXPLAIN
                                 -> Remove duplicates from input sorted on a  (rows=4)
                                     -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 EXECUTE stmt1;
 EXPLAIN
 -> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
@@ -1175,6 +1332,8 @@ EXPLAIN
                                 -> Remove duplicates from input sorted on a  (rows=4)
                                     -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2` LOOSESCAN) NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` semi join (`test`.`t2`) where (`test`.`t3`.`b` = `test`.`t2`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 DEALLOCATE PREPARE stmt1;
 SET optimizer_switch = default;
 Tests with non-default optimizer_switch settings
@@ -1189,6 +1348,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Single-row covering index lookup on t1 using PRIMARY (a = <cache>(t2.a))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 This should not change anything
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq) */ * FROM t2
@@ -1200,6 +1361,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Single-row covering index lookup on t1 using PRIMARY (a = <cache>(t2.a))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Force semijoin
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
@@ -1209,6 +1372,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Single-row covering index lookup on t1 using PRIMARY (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 Setting strategy should still force semijoin
 Strategy is ignored since table pull-out is done
 EXPLAIN
@@ -1219,6 +1384,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Single-row covering index lookup on t1 using PRIMARY (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq` FIRSTMATCH) */ `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 Query with two sub-queries
 EXPLAIN
 SELECT * FROM t3
@@ -1234,6 +1401,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(t3.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY))) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`b`) in t1 on PRIMARY))))
 SEMIJOIN transformation for first subquery
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1) */ * FROM t3
@@ -1248,6 +1417,8 @@ EXPLAIN
                 -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(t3.b))  (rows=1)
     -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t3` where ((`tx`.`a` = `test`.`t3`.`a`) and <in_optimizer>(`test`.`t3`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`b`) in t1 on PRIMARY))))
 SEMIJOIN transformation for latter subquery
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq2) */ * FROM t3
@@ -1262,6 +1433,8 @@ EXPLAIN
                 -> Single-row covering index lookup on tx using PRIMARY (a = <cache>(t3.a))  (rows=1)
     -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `ty` join `test`.`t3` where ((`ty`.`a` = `test`.`t3`.`b`) and <in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY))))
 SEMIJOIN transformation for both subqueries
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1) SEMIJOIN(@subq2) */ * FROM t3
@@ -1275,6 +1448,8 @@ EXPLAIN
         -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
     -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1`) SEMIJOIN(@`subq2`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t1` `ty` join `test`.`t3` where ((`ty`.`a` = `test`.`t3`.`b`) and (`tx`.`a` = `test`.`t3`.`a`))
 Query with nested sub-queries
 EXPLAIN
 SELECT * FROM t3
@@ -1291,6 +1466,8 @@ EXPLAIN
                     -> Limit: 1 row(s)  (rows=1)
                         -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(tx.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY where <in_optimizer>(`tx`.`b`,<exists>(<primary_index_lookup>(<cache>(`tx`.`b`) in t1 on PRIMARY))))))
 SEMIJOIN transformation for outer subquery
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1) */ * FROM t3
@@ -1305,6 +1482,8 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(tx.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t3` where ((`tx`.`a` = `test`.`t3`.`a`) and <in_optimizer>(`tx`.`b`,<exists>(<primary_index_lookup>(<cache>(`tx`.`b`) in t1 on PRIMARY))))
 SEMIJOIN transformation for inner-most subquery
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq2) */ * FROM t3
@@ -1320,6 +1499,8 @@ EXPLAIN
                     -> Single-row index lookup on tx using PRIMARY (a = <cache>(t3.a))  (rows=1)
                 -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ `tx`.`a` from `test`.`t1` `ty` join `test`.`t1` `tx` where ((`ty`.`a` = `tx`.`b`) and (<cache>(`test`.`t3`.`a`) = `tx`.`a`))))
 SEMIJOIN transformation for both
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1) SEMIJOIN(@subq2) */ * FROM t3
@@ -1333,6 +1514,8 @@ EXPLAIN
             -> Single-row index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
     -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq2`) SEMIJOIN(@`subq1`) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t1` `ty` join `test`.`t3` where ((`tx`.`a` = `test`.`t3`.`a`) and (`ty`.`a` = `tx`.`b`))
 Test strategies when some are disabled by optimizer_switch
 SET optimizer_switch='semijoin=on';
 SET optimizer_switch='loosescan=off';
@@ -1344,6 +1527,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t3`.`a` = `test`.`t2`.`a`)
 Let's turn off LooseScan also by hint, FirstMatch should still be SELECTed
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
@@ -1353,6 +1538,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` LOOSESCAN) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t3`.`a` = `test`.`t2`.`a`)
 Let's also turn off FirstMatch, MatLookup should then be used
 Hypergraph will use FirstMatch as MatLookup is not supported
 EXPLAIN
@@ -1365,6 +1552,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=3)
             -> Covering index scan on t3 using a  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
 Let's also turn off Materialization, DuplicateWeedout should then be used
 Hypergraph will use FirstMatch as DupliecateWeedout MatLookup is not supported
 EXPLAIN
@@ -1377,6 +1566,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Let's force LooseScan back on
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
@@ -1387,6 +1578,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Forcing another strategy
 Hypergraph will use the default - FirstMatch
 EXPLAIN
@@ -1399,6 +1592,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=3)
             -> Covering index scan on t3 using a  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
 If LooseScan is among candidates, it is used even if originally disabled
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t2
@@ -1409,6 +1604,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -1418,6 +1615,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, MATERIALIZATION,
 DUPSWEEDOUT) */ * FROM t2
@@ -1428,6 +1627,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Disable another strategy
 SET optimizer_switch='firstmatch=off';
 Turn on FirstMatch, but not LooseScan on with hint
@@ -1439,6 +1640,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t3`.`a` = `test`.`t2`.`a`)
 Drop all remaining strategies with hint, should use DuplicateWeedout
 Hypergraph will use FirstMatch
 EXPLAIN
@@ -1450,6 +1653,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 For this query LooseScan and Materialization is not applicable
 Should use DuplicateWeedout since FirstMatch is disabled
 Hypergraph will use FirstMatch as DuplicateWeedout is not supported
@@ -1466,6 +1671,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t1`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`a`))
 Turn off all applicable strategies. DuplicateWeedout should still be used
 Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
@@ -1482,6 +1688,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`<subquery2>`.`b` = `test`.`t1`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`b`))
 Reverse which strategies are allowed with hint
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH) */ * FROM t1
@@ -1495,6 +1702,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t3`.`b` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))
 Default for this query is Loosecan for first and FirstMatch for latter
 Since both strategies are disabled, will now use DuplicateWeedout
 Hypergraph will use FirstMatch as DuplicateWeedout is not supported
@@ -1511,6 +1719,8 @@ EXPLAIN
                 -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 Allowing LooseScan and FirstMatch and optimizer_switch is ignored
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH)
@@ -1526,6 +1736,8 @@ EXPLAIN
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 Forcing a disabled strategy for one
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
@@ -1540,6 +1752,8 @@ EXPLAIN
                 -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Forcing same strategy for both
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
@@ -1553,6 +1767,8 @@ EXPLAIN
         -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) SEMIJOIN(@`subq2` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Swap strategies compared to default
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
@@ -1567,6 +1783,8 @@ EXPLAIN
                 -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH) SEMIJOIN(@`subq2` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Different subsets of strategies for different subqueries
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
@@ -1584,6 +1802,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=4)
             -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) SEMIJOIN(@`subq2` MATERIALIZATION, DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 Turn off DuplicateWeedout for both.  Materialization is left
 Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
@@ -1603,6 +1823,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=4)
             -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` DUPSWEEDOUT) NO_SEMIJOIN(@`subq2` DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `<subquery2>`.`a`))
 Forcing materialization should have same effect
 Hypergraph will use FirstMatch as Materialization is not supported
 EXPLAIN
@@ -1622,6 +1844,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=4)
             -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` MATERIALIZATION) SEMIJOIN(@`subq2` MATERIALIZATION) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `<subquery2>`.`a`))
 Turn off DuplicateWeedout for first.  Materialization is used for both
 Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
@@ -1640,6 +1864,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=4)
             -> Covering index scan on t2 using a  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `<subquery2>`.`a`))
 Turn off DuplicateWeedout for second.  Same effect.
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq2 DUPSWEEDOUT) */ * FROM t1
@@ -1657,6 +1883,8 @@ EXPLAIN
         -> Materialize with deduplication  (rows=3)
             -> Covering index scan on t3 using a  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq2` DUPSWEEDOUT) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `<subquery3>`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`a`))
 Enable all strategies except DuplicateWeedout
 SET optimizer_switch='firstmatch=on,loosescan=on,materialization=on,duplicateweedout=off';
 If we turn off all other strategies, DuplicateWeedout will be used
@@ -1671,6 +1899,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 LooseScan and Materialization is not applicable, FirstMatch is used
 Hypergraph can do LooseScan here. So it will pick it.
 EXPLAIN
@@ -1685,6 +1915,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t3`.`b` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))
 Turn off all applicable strategies. DuplicateWeedout should be used
 Hypergraph can do LooseScan here. So it will pick it.
 EXPLAIN
@@ -1701,6 +1932,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`<subquery2>`.`b` = `test`.`t1`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`b`))
 Similar with SEMIJOIN hint
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
@@ -1716,6 +1948,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN, MATERIALIZATION) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`<subquery2>`.`b` = `test`.`t1`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`b`))
 Disable all strategies
 SET optimizer_switch='firstmatch=off,loosescan=off,materialization=off,duplicateweedout=off';
 DuplicateWeedout is then used
@@ -1728,6 +1961,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Turning off extra strategies should not change anything
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ *
@@ -1739,6 +1974,8 @@ EXPLAIN
         -> Covering index scan on t3 using a  (rows=3)
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` LOOSESCAN, DUPSWEEDOUT) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
 Turning on some strategies should give one of those
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ *
@@ -1749,6 +1986,8 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=4)
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t3`.`a` = `test`.`t2`.`a`)
 For this query that cannot use LooseScan or Materialization,
 turning those on will still give DupliateWeedout
 Hypergraph will pick LooseScan.
@@ -1766,6 +2005,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN, MATERIALIZATION) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`<subquery2>`.`b` = `test`.`t1`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`b`))
 Turning on FirstMatch should give FirstMatch
 Hypergraph will continue to pick LooseScan.
 EXPLAIN
@@ -1780,6 +2020,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t3`.`b` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))
 SET optimizer_switch = default;
 Test that setting optimizer_switch after prepare will change strategy
 PREPARE stmt1 FROM "EXPLAIN
@@ -1797,6 +2038,8 @@ EXPLAIN
                 -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
         -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) NO_SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 SET optimizer_switch = 'duplicateweedout=off';
 Will now use materialization
 No effect for Hypergraph
@@ -1813,6 +2056,8 @@ EXPLAIN
         -> Materialize with deduplication  (...)
             -> Covering index scan on t2 using a  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) NO_SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `<subquery2>`.`a`))
 SET optimizer_switch = 'duplicateweedout=on';
 Turn DuplicateWeedout back on
 EXECUTE stmt1;
@@ -1825,6 +2070,8 @@ EXPLAIN
                 -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (...)
         -> Covering index lookup on t2 using a (a = t1.b)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN) NO_SEMIJOIN(@`subq2` FIRSTMATCH, LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 DEALLOCATE PREPARE stmt1;
 SET optimizer_switch = default;
 Specifying two SEMIJOIN/NO_SEMIJOIN for same query block gives warning
@@ -1841,6 +2088,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SEMIJOIN( ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Try opposite order
 EXPLAIN
 SELECT * FROM t2
@@ -1852,6 +2100,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint NO_SEMIJOIN( ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2`) */ `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 Specify at different levels, hint inside block has effect
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq) */ * FROM t2
@@ -1863,6 +2112,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint NO_SEMIJOIN(@`subq` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 Specify at different levels, opposite order
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
@@ -1876,6 +2126,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Duplicate hints also gives warning, but hint has effect
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
@@ -1887,6 +2138,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) NO_SEMIJOIN() */ a FROM t1);
@@ -1899,6 +2151,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint NO_SEMIJOIN(@`subq` ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Multiple subqueries with conflicting hints
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
@@ -1921,6 +2174,7 @@ EXPLAIN
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
 Warning	3126	Hint SEMIJOIN(@`subq2`  FIRSTMATCH) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) SEMIJOIN(@`subq2` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))))
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) NO_SEMIJOIN(LOOSESCAN) */ a FROM t3)
@@ -1937,6 +2191,7 @@ EXPLAIN
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
 Warning	3126	Hint SEMIJOIN(@`subq2`  FIRSTMATCH) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` LOOSESCAN) SEMIJOIN(@`subq2` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Conflicting hints in same hint comment
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
@@ -1953,6 +2208,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq1`  FIRSTMATCH) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) NO_SEMIJOIN(@subq1 LOOSESCAN) */ *
 FROM t1
@@ -1969,6 +2225,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint NO_SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq1` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) NO_SEMIJOIN(@subq1 FIRSTMATCH) */ *
 FROM t1
@@ -1985,6 +2242,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint NO_SEMIJOIN(@`subq1`  FIRSTMATCH) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` LOOSESCAN) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))
 Non-supported strategies should give warnings
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 INTOEXISTS) NO_SEMIJOIN(@subq2 INTOEXISTS) */ *
@@ -2004,6 +2262,7 @@ Warnings:
 Warning	1064	Optimizer hint syntax error near 'INTOEXISTS) NO_SEMIJOIN(@subq2 INTOEXISTS) */ *
 FROM t1
 WHERE t1.a IN (SELECT /*' at line 2
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t3`.`a`))
 SUBQUERY tests
 SUBQUERY should disable SEMIJOIN and use specified subquery strategy
 EXPLAIN
@@ -2015,6 +2274,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Single-row covering index lookup on t1 using PRIMARY (a = <cache>(t2.a))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`select#2` INTOEXISTS) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1);
@@ -2028,6 +2289,8 @@ EXPLAIN
                     -> Materialize with deduplication  (rows=4)
                         -> Covering index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 Query with two subqueries
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 INTOEXISTS) SUBQUERY(@subq2 MATERIALIZATION) */ *
@@ -2047,6 +2310,8 @@ EXPLAIN
                     -> Materialize with deduplication  (rows=4)
                         -> Covering index scan on ty using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq1` INTOEXISTS) SUBQUERY(@`subq2` MATERIALIZATION) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY))) and <in_optimizer>(`test`.`t3`.`b`,`test`.`t3`.`b` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `ty`.`a` from `test`.`t1` `ty` where true ), <primary_index_lookup>(`test`.`t3`.`b` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`b` = `<materialized_subquery>`.`a`))))))
 Query with nested sub-queries
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 INTOEXISTS) SUBQUERY(@subq2 MATERIALIZATION) */ *
@@ -2067,6 +2332,8 @@ EXPLAIN
                                 -> Materialize with deduplication  (rows=4)
                                     -> Covering index scan on ty using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq2` MATERIALIZATION) SUBQUERY(@`subq1` INTOEXISTS) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on PRIMARY where <in_optimizer>(`tx`.`b`,`tx`.`b` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `ty`.`a` from `test`.`t1` `ty` where true ), <primary_index_lookup>(`tx`.`b` in <temporary table> on <auto_distinct_key> where ((`tx`.`b` = `<materialized_subquery>`.`a`))))))))
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 MATERIALIZATION) SUBQUERY(@subq2 INTOEXISTS) */ *
 FROM t3
@@ -2086,6 +2353,8 @@ EXPLAIN
                                 -> Limit: 1 row(s)  (rows=1)
                                     -> Single-row covering index lookup on ty using PRIMARY (a = <cache>(tx.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq2` INTOEXISTS) SUBQUERY(@`subq1` MATERIALIZATION) */ `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `tx`.`a` from `test`.`t1` `tx` where <in_optimizer>(`tx`.`b`,<exists>(<primary_index_lookup>(<cache>(`tx`.`b`) in t1 on PRIMARY))) ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`a` = `<materialized_subquery>`.`a`)))))
 This query does not support SEMIJOIN.  Materialization is default
 EXPLAIN
 SELECT * FROM t2
@@ -2101,6 +2370,8 @@ EXPLAIN
                         -> Group aggregate: min(t1.a)  (rows=2)
                             -> Covering index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`min(a)`)))))
 Use In-to-exists instead
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ * FROM t2
@@ -2114,6 +2385,8 @@ EXPLAIN
                 -> Group aggregate: min(t1.a)  (rows=2)
                     -> Covering index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` INTOEXISTS) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(min(`test`.`t1`.`a`)))))
 For this query In-to-exists is default
 EXPLAIN
 SELECT a, a IN (SELECT a FROM t1) FROM t2;
@@ -2123,6 +2396,8 @@ EXPLAIN
     -> Limit: 1 row(s)  (rows=1)
         -> Single-row covering index lookup on t1 using PRIMARY (a = <cache>(t2.a))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY))) AS `a IN (SELECT a FROM t1)` from `test`.`t2`
 Force Subquery Materialization
 Hypergraph does not support materializing subqueries in projection
 EXPLAIN
@@ -2136,6 +2411,8 @@ EXPLAIN
                 -> Materialize with deduplication  (rows=4)
                     -> Covering index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`select#2` MATERIALIZATION) */ `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`))))) AS `a IN (SELECT /*+ SUBQUERY(MATERIALIZATION) */ a FROM t1)` from `test`.`t2`
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ a,
 a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1) FROM t2;
@@ -2148,6 +2425,8 @@ EXPLAIN
                 -> Materialize with deduplication  (rows=4)
                     -> Covering index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`))))) AS `a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1)` from `test`.`t2`
 This query does not support Subquery Materialization due to type mismatch
 EXPLAIN
 SELECT * FROM t2
@@ -2161,6 +2440,8 @@ EXPLAIN
                 -> Group aggregate: sum(t1.b)  (rows=2)
                     -> Index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ concat(sum(`test`.`t1`.`b`),'') from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(concat(sum(`test`.`t1`.`b`),'')))))
 Trying to force Subquery Materialization will not change anything
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
@@ -2174,6 +2455,8 @@ EXPLAIN
                 -> Group aggregate: sum(t1.b)  (rows=2)
                     -> Index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ concat(sum(`test`.`t1`.`b`),'') from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(concat(sum(`test`.`t1`.`b`),'')))))
 Test hints with prepared statements
 PREPARE stmt1 FROM "EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 MATERIALIZATION)
@@ -2194,6 +2477,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Covering index lookup on t2 using a (a = <cache>(t1.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq1` MATERIALIZATION) SUBQUERY(@`subq2` INTOEXISTS) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))) and <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t2 on a))))
 EXECUTE stmt1;
 EXPLAIN
 -> Filter: (<in_optimizer>(t1.a,t1.a in (select #2)) and <in_optimizer>(t1.b,<exists>(select #3)))  (rows=4)
@@ -2208,6 +2493,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Covering index lookup on t2 using a (a = <cache>(t1.b))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq1` MATERIALIZATION) SUBQUERY(@`subq2` INTOEXISTS) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t3`.`a` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))) and <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t2 on a))))
 DEALLOCATE PREPARE stmt1;
 Test optimizer_switch settings with SUBQUERY hint
 SET optimizer_switch='materialization=off';
@@ -2224,6 +2511,8 @@ EXPLAIN
                 -> Group aggregate: min(t1.a)  (rows=2)
                     -> Covering index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(min(`test`.`t1`.`a`)))))
 Force it to use Materialization
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
@@ -2239,6 +2528,8 @@ EXPLAIN
                         -> Group aggregate: min(t1.a)  (rows=2)
                             -> Covering index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`min(a)`)))))
 SET optimizer_switch='materialization=on,subquery_materialization_cost_based=off';
 This query will now use materialization
 EXPLAIN
@@ -2252,6 +2543,8 @@ EXPLAIN
                 -> Materialize with deduplication  (rows=4)
                     -> Covering index scan on t1 using PRIMARY  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`))))) AS `a IN (SELECT a FROM t1)` from `test`.`t2`
 Force In-to-exists
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ a,
@@ -2262,6 +2555,8 @@ EXPLAIN
     -> Limit: 1 row(s)  (rows=1)
         -> Single-row covering index lookup on t1 using PRIMARY (a = <cache>(t2.a))  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` INTOEXISTS) */ `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY))) AS `a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1)` from `test`.`t2`
 Specifying both strategies should give a warning
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 MATERIALIZATION, INTOEXISTS)
@@ -2282,6 +2577,7 @@ Warning	1064	Optimizer hint syntax error near ', INTOEXISTS)
 SUBQUERY(@subq2 MATERIALIZATION, INTOEXISTS) */ *
 FROM t3
 WHERE t3' at line 2
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t1` `ty` join `test`.`t3` where ((`ty`.`a` = `test`.`t3`.`b`) and (`tx`.`a` = `test`.`t3`.`a`))
 Non-supported strategies should give warnings
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 FIRSTMATCH) SUBQUERY(@subq2 LOOSESCAN) */ *
@@ -2300,6 +2596,7 @@ Warnings:
 Warning	1064	Optimizer hint syntax error near 'FIRSTMATCH) SUBQUERY(@subq2 LOOSESCAN) */ *
 FROM t3
 WHERE t3.a IN (SELECT /*+ QB' at line 2
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` `tx` join `test`.`t1` `ty` join `test`.`t3` where ((`ty`.`a` = `test`.`t3`.`b`) and (`tx`.`a` = `test`.`t3`.`a`))
 SET optimizer_switch= default;
 Specifying two SUBQUERY for same query block gives warning
 First has effect, second is ignored
@@ -2319,6 +2616,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SUBQUERY(  INTOEXISTS) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`select#2` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 Try opposite order
 EXPLAIN
 SELECT * FROM t2
@@ -2333,6 +2631,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SUBQUERY(  MATERIALIZATION) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`select#2` INTOEXISTS) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Specify at different levels, hint inside block has effect
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
@@ -2346,6 +2645,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SUBQUERY(@`subq`  MATERIALIZATION) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` INTOEXISTS) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Specify at different levels, opposite order
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ * FROM t2
@@ -2362,6 +2662,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SUBQUERY(@`subq`  INTOEXISTS) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` MATERIALIZATION) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq`) */ `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 Specifying combinations of SUBQUERY and SEMIJOIN/NO_SEMIJOIN
 for same query block gives warning
 First has effect, second is ignored
@@ -2377,6 +2678,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SEMIJOIN( ) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`select#2` INTOEXISTS) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Try opposite order
 EXPLAIN
 SELECT * FROM t2
@@ -2390,6 +2692,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SUBQUERY(  MATERIALIZATION) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 Specify at different levels, hint inside block has effect
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
@@ -2401,6 +2704,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SUBQUERY(@`subq`  MATERIALIZATION) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) NO_SEMIJOIN() */ a FROM t1);
@@ -2413,6 +2717,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SUBQUERY(@`subq`  INTOEXISTS) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq`) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SUBQUERY(@subq INTOEXISTS) */ a FROM t1);
@@ -2425,6 +2730,7 @@ EXPLAIN
 
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq`  FIRSTMATCH) is ignored as conflicting/duplicated
+Note	1003	/* select#1 */ select /*+ SUBQUERY(@`subq` INTOEXISTS) */ `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 drop table t1, t2, t3;
 #
 # Bug#37008930: Assertion `strategy ==
@@ -2452,6 +2758,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t2.f2' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`f1`,<exists>(/* select#2 */ select min(`t2`.`f2`) from `test`.`t1` `t2` where (not exists(/* select#3 */ select row_number() OVER ()  from `test`.`t1` `t3` where (1 = `t2`.`f2`))) having (<cache>(`test`.`t1`.`f1`) = <ref_null_helper>(min(`t2`.`f2`)))))
 SELECT 1 FROM t1
 WHERE f1 IN (SELECT MIN(f2) FROM (t1 AS t2)
 WHERE NOT EXISTS (SELECT ROW_NUMBER() OVER () FROM t1 AS t3

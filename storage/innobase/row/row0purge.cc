@@ -199,7 +199,6 @@ static bool row_purge_reposition_pcur(
         const char act[] =
             "now SIGNAL pessimistic_row_purge_clust_pause WAIT_FOR "
             "pessimistic_row_purge_clust_continue";
-        assert(opt_debug_sync_timeout > 0);
         assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       }
     });
@@ -279,6 +278,8 @@ bool row_purge_poss_sec(purge_node_t *node,    /*!< in/out: row purge node */
 {
   bool can_delete;
   mtr_t mtr;
+
+  ut_a(purge_sys->is_this_a_purge_thread);
 
   ut_ad(!index->is_clustered());
   mtr_start(&mtr);
@@ -448,7 +449,7 @@ if possible.
       goto func_exit_no_pcur;
     }
 
-    /* The index->online_status may change if the the
+    /* The index->online_status may change if the
     index is or was being created online, but not
     committed yet. It is protected by index->lock. */
     mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
@@ -1294,23 +1295,7 @@ bool purge_node_t::validate_pcur() {
 
   return (true);
 }
-#endif /* UNIV_DEBUG */
 
-bool purge_node_t::is_table_id_exists(table_id_t table_id) const {
-  if (recs == nullptr) {
-    return (false);
-  }
-
-  for (auto iter = recs->begin(); iter != recs->end(); ++iter) {
-    table_id_t table_id2 = trx_undo_rec_get_table_id(iter->undo_rec);
-    if (table_id == table_id2) {
-      return (true);
-    }
-  }
-  return (false);
-}
-
-#ifdef UNIV_DEBUG
 /** Check if there are more than one undo record with same (trx_id, undo_no)
 combination.
 @return true when no duplicates are found, false otherwise. */

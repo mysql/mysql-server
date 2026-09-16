@@ -403,7 +403,7 @@ page_size_t fsp_header_get_page_size(const page_t *page);
 @param[in]      page            first page of a tablespace
 @return true if success */
 bool fsp_header_get_encryption_key(uint32_t fsp_flags, Encryption_key &e_key,
-                                   page_t *page);
+                                   const page_t *page);
 
 /** Get encryption operation type in progress from the first
 page of a tablespace.
@@ -413,6 +413,27 @@ page of a tablespace.
 */
 Encryption::Progress fsp_header_encryption_op_type_in_progress(
     const page_t *page, page_size_t page_size);
+
+/** Validate the first page of a tablespace, checking if it contains a valid FSP
+space header.
+@param[in]      page            first page of a tablespace
+@param[in]      expected_space_id Expected space ID
+@param[out]     space_flags     FSP tablespace flags stored in the header.
+@param[in]      path            Path to the tablespace file.
+@param[in]      for_import      True if the file is validated for the Import
+                                Tablespace.
+@param[out]     encryption_key  Encryption metadata extracted from the
+                                header.
+@retval DB_SUCCESS on success
+@retval DB_WRONG_FILE_NAME tablespace in file header doesn't match
+        expected value.
+@retval DB_CORRUPTION if the FSP headers are not correct.
+@retval DB_INVALID_ENCRYPTION_META if the encryption meta data
+        is not readable
+@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
+dberr_t fsp_header_validate(const byte *page, space_id_t expected_space_id,
+                            uint32_t &space_flags, const std::string &path,
+                            bool for_import, Encryption_key &encryption_key);
 
 /** Check if the tablespace size information is valid.
 @param[in]      space_id        the tablespace identifier
@@ -433,6 +454,13 @@ void fsp_header_init_fields(
 @param[in]      page_size       page size.
 @return offset on success, otherwise 0. */
 ulint fsp_header_get_encryption_offset(const page_size_t &page_size);
+
+/** Write the flag info into the space header.
+@param[in]      space_id                Tablespace id
+@param[in]      space_flags             Tablespace flags
+@param[in]      mtr                     Mini-transaction */
+void fsp_header_store_flags(space_id_t space_id, uint32_t space_flags,
+                            mtr_t *mtr);
 
 /** Write the encryption info into the space header.
 @param[in]      space_id                Tablespace id
@@ -481,8 +509,8 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr);
 void fsp_header_inc_size(space_id_t space_id, page_no_t size_inc, mtr_t *mtr);
 
 /** Creates a new segment.
- @return the block where the segment header is placed, x-latched, NULL
- if could not create segment because of lack of space */
+@return the block where the segment header is placed, x-latched, NULL
+if could not create segment because of lack of space */
 buf_block_t *fseg_create(
     space_id_t space,  /*!< in: space id */
     page_no_t page,    /*!< in: page where the segment header is
@@ -770,12 +798,6 @@ static inline ulint xdes_calc_descriptor_index(const page_size_t &page_size,
 @param[in]  descr   extent descriptor
 @param[in]  mtr  mini transaction context. */
 void xdes_mark_all_used(xdes_t *descr, mtr_t *mtr);
-
-/** Mark all the pages of the extent from given page_no as free.
-@param[in]  descr   extent descriptor
-@param[in]  mtr  mini transaction context.
-@param[in]  from  all pages from this page_no is marked as free. */
-void xdes_mark_pages_free(xdes_t *descr, mtr_t *mtr, const page_no_t from);
 
 /** Gets a descriptor bit of a page.
 @param[in]      descr   descriptor
@@ -1076,13 +1098,5 @@ page_no_t fseg_alloc_page_no(fil_space_t *space, const page_size_t &page_size,
                              fseg_inode_t *seg_inode, page_no_t hint,
                              byte direction,
                              mtr_t *mtr IF_DEBUG(, bool has_done_reservation));
-
-/** Extend space by default extension size.
-@param[in] space_id space ID
-@param[in] make_old add the header to LRU tail to flush at the earliest.
-@param[out] space_size size after extending the space
-@return true iff successful. */
-bool fsp_extend_by_default_size(space_id_t space_id, bool make_old,
-                                size_t &space_size);
 
 #endif

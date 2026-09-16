@@ -1,0 +1,11 @@
+################################################################################
+#
+# Verify that an encrypted partial redo block remains encrypted while a
+# post-recovery change-buffer merge generates redo in plaintext mode.
+#
+################################################################################
+
+--let $REDO_RECOVERY_ENCRYPTION = 0
+--let REDO_MARKERS_NOT_VISIBLE_IN_PLAINTEXT = b
+--let REDO_MARKERS_VISIBLE_IN_PLAINTEXT = c,x
+--source ../include/redo_log_encryption_recovery.inc

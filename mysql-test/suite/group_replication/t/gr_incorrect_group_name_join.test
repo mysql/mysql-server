@@ -35,6 +35,7 @@ call mtr.add_suppression("Error connecting to all peers. Member join failed. Loc
 SET SESSION sql_log_bin= 1;
 
 SET GLOBAL group_replication_group_name= "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

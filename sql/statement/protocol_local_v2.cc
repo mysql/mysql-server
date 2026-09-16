@@ -23,9 +23,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cstddef>
 
+#include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql-common/my_decimal.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/statement/statement.h"
 
 Result_set::Result_set() {} /* purecov: inspected */
@@ -258,11 +264,11 @@ bool Protocol_local_v2::send_error(uint, const char *, const char *) {
 int Protocol_local_v2::read_packet() { return 0; /* purecov: inspected */ }
 
 ulong Protocol_local_v2::get_client_capabilities() {
-  return CLIENT_MULTI_RESULTS;
+  return CLIENT_MULTI_RESULTS | CLIENT_PS_MULTI_RESULTS;
 }
 
 bool Protocol_local_v2::has_client_capability(unsigned long capability) {
-  return CLIENT_MULTI_RESULTS & capability;
+  return get_client_capabilities() & capability;
 }
 
 bool Protocol_local_v2::connection_alive() const {
@@ -518,6 +524,73 @@ bool Protocol_local_v2::send_field_metadata(Send_field *field,
 
   ++m_current_metadata_column;
   return false;
+}
+
+bool Protocol_local_v2::send_parameters(List<Item_param> *parameters,
+                                        bool is_sql_prepare) {
+  // SQL EXECUTE ... USING has the user-variable names needed for assignment.
+  // Statement service prepared statements have positional bindings instead.
+  if (is_sql_prepare && m_thd->lex->prepared_stmt_params.elements > 0) {
+    List_iterator_fast<Item_param> parameter_iterator(*parameters);
+    List_iterator_fast<LEX_STRING> user_var_name_iterator(
+        m_thd->lex->prepared_stmt_params);
+
+    Item_param *parameter;
+    LEX_STRING *user_var_name;
+    while ((parameter = parameter_iterator++) &&
+           (user_var_name = user_var_name_iterator++)) {
+      if (!parameter->get_out_param_info()) continue;
+
+      Item_func_set_user_var *set_user_var =
+          new Item_func_set_user_var(*user_var_name, parameter);
+      if (set_user_var->fix_fields(m_thd, nullptr)) return true;
+      if (set_user_var->check(false)) return true;
+      if (set_user_var->update()) return true;
+    }
+
+    return false;
+  }
+
+  if (!has_client_capability(CLIENT_PS_MULTI_RESULTS)) return false;
+
+  List_iterator_fast<Item_param> parameter_iterator(*parameters);
+  mem_root_deque<Item *> out_parameters(m_thd->mem_root);
+  Item_param *parameter;
+  while ((parameter = parameter_iterator++)) {
+    if (parameter->get_out_param_info()) out_parameters.push_back(parameter);
+  }
+
+  if (out_parameters.empty()) return false;
+
+  DBUG_EXECUTE_IF("fail_protocol_local_v2_send_parameters", {
+    // CALL has already set an OK status. Replace it with the injected error.
+    m_thd->get_stmt_da()->reset_diagnostics_area();
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    return true;
+  });
+
+  {
+    const uint server_status_mask =
+        SERVER_PS_OUT_PARAMS | SERVER_MORE_RESULTS_EXISTS;
+    const uint saved_server_status = m_thd->server_status & server_status_mask;
+    auto restore_server_status =
+        create_scope_guard([this, saved_server_status] {
+          m_thd->server_status =
+              (m_thd->server_status &
+               ~(SERVER_PS_OUT_PARAMS | SERVER_MORE_RESULTS_EXISTS)) |
+              saved_server_status;
+        });
+    m_thd->server_status |= server_status_mask;
+
+    if (m_thd->send_result_metadata(
+            out_parameters, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+      return true;
+
+    start_row();
+    if (m_thd->send_result_set_row(out_parameters) || end_row()) return true;
+  }
+
+  return send_eof(m_thd->server_status, 0);
 }
 
 void Protocol_local_v2::clear_resultset_mem_root() {

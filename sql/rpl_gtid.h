@@ -28,6 +28,7 @@
 #include <cinttypes>
 #include <list>
 #include <mutex>  // std::adopt_lock_t
+#include <optional>
 #include <vector>
 
 #include "map_helpers.h"
@@ -2241,6 +2242,16 @@ class Gtid_set {
   };
 
  public:
+  /// Bit layout of the encoded n_sids + format header used by Gtid_set.
+  static constexpr uint64_t k_gtid_format_byte_mask = 0xffULL;
+  static constexpr uint64_t k_gtid_format_high_shift = 56;
+  static constexpr uint64_t k_gtid_format_low_shift = 8;
+  static constexpr uint64_t k_gtid_format_high_mask =
+      k_gtid_format_byte_mask << k_gtid_format_high_shift;
+  static constexpr uint64_t k_gtid_format_low_mask = k_gtid_format_byte_mask;
+  static constexpr uint64_t k_tagged_n_sids_mask =
+      ~(k_gtid_format_high_mask | k_gtid_format_low_mask);
+
   /// @brief Encodes this Gtid_set as a binary string.
   /// @param buf Buffer to write into
   /// @param skip_tagged_gtids When true, tagged GTIDS will be filtered out
@@ -2744,6 +2755,14 @@ class Owned_gtids {
     If thd_id!=0, returns true when gtid is owned by that thread.
   */
   bool is_owned_by(const Gtid &gtid, const my_thread_id thd_id) const;
+
+  /**
+    Returns true iff the given GTID is owned by exactly the given thread ID.
+
+    Unlike is_owned_by(), this does not treat thd_id==0 as a special
+    "unowned" query.
+  */
+  bool has_owner(const Gtid &gtid, const my_thread_id thd_id) const;
 
  private:
   /// Represents one owned GTID.
@@ -3400,6 +3419,17 @@ class Gtid_state {
     return global_tsid_map->sidno_to_tsid(server_sidno);
   }
 
+  /// Return the featured uuid TSID
+  const Tsid &get_featured_uuid_tsid() const {
+    return global_tsid_map->sidno_to_tsid(featured_uuid_sidno);
+  }
+  /// Set the featured uuid, adding it to the global sid map and
+  /// generating a sidno to it.
+  ///
+  /// @param uuid The uuid value.
+  /// @return No value on success, error message otherwise.
+  [[nodiscard]] std::optional<std::string> set_featured_uuid(const char *uuid);
+
   /// @brief Increments atomic_automatic_tagged_gtid_session_count
   void increase_gtid_automatic_tagged_count() {
     ++atomic_automatic_tagged_gtid_session_count;
@@ -3600,6 +3630,10 @@ class Gtid_state {
   Owned_gtids owned_gtids;
   /// The SIDNO for this server.
   rpl_sidno server_sidno;
+  /// When featured_uuid_sidno is defined, greater than 0, the
+  /// featured uuid is used as the originating server uuid on the
+  /// automatic transaction identifier instead of the server_uuid.
+  rpl_sidno featured_uuid_sidno{0};
 
   /// The number of anonymous transactions owned by any client.
   std::atomic<int32> atomic_anonymous_gtid_count{0};

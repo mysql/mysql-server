@@ -176,6 +176,11 @@ AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
   path->delete_rows().child = child;
   path->delete_rows().tables_to_delete_from = delete_tables;
   path->delete_rows().immediate_tables = immediate_tables;
+  // The old optimizer always uses nested loop joins for DELETE, so default to
+  // calling handler::position() for all tables. The hypergraph optimizer
+  // overwrites this map during finalization, and excludes the tables which have
+  // row IDs stored in the hash join buffer.
+  path->delete_rows().tables_to_get_rowid_for = ~table_map{0};
   return path;
 }
 
@@ -188,6 +193,11 @@ AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
   path->update_rows().child = child;
   path->update_rows().tables_to_update = update_tables;
   path->update_rows().immediate_tables = immediate_tables;
+  // The old optimizer always uses nested loop joins for UPDATE, so default to
+  // calling handler::position() for all tables. The hypergraph optimizer
+  // overwrites this map during finalization, and excludes the tables which have
+  // row IDs stored in the hash join buffer.
+  path->update_rows().tables_to_get_rowid_for = ~table_map{0};
   return path;
 }
 
@@ -1499,7 +1509,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         iterator = NewIterator<DeleteRowsIterator>(
             thd, mem_root, std::move(job.children[0]), join,
-            param.tables_to_delete_from, param.immediate_tables);
+            param.tables_to_delete_from, param.immediate_tables,
+            param.tables_to_get_rowid_for);
         break;
       }
       case AccessPath::UPDATE_ROWS: {
@@ -1729,6 +1740,7 @@ void ExpandSingleFilterAccessPath(THD *thd, const JoinHypergraph &graph,
     // calculation we are doing in CostingReceiver::ProposeNestedLoopJoin();
     // we don't have space in the AccessPath to store it there.
     double filter_cost = right_path->cost();
+    double filter_init_cost = 0.0;
     double filter_rows = right_path->num_output_rows();
     SecondaryEngineNrowsParameters secondary_engine_nrows_params{
         thd, right_path, &graph};
@@ -1740,9 +1752,10 @@ void ExpandSingleFilterAccessPath(THD *thd, const JoinHypergraph &graph,
          BitsSetIn(path->nested_loop_join().equijoin_predicates)) {
       Item *condition = expr->equijoin_conditions[filter_idx];
       items.push_back(condition);
-      filter_cost +=
-          EstimateFilterCost(thd, filter_rows, condition, join->query_block)
-              .cost_if_not_materialized;
+      const FilterCost fc =
+          EstimateFilterCost(thd, filter_rows, condition, join->query_block);
+      filter_cost += fc.cost_if_not_materialized;
+      filter_init_cost += fc.init_cost_if_not_materialized;
       if (!filter_rows_from_secondary) {
         filter_rows *=
             EstimateSelectivity(thd, condition, *expr->companion_set);
@@ -1750,9 +1763,10 @@ void ExpandSingleFilterAccessPath(THD *thd, const JoinHypergraph &graph,
     }
     for (Item *condition : expr->join_conditions) {
       items.push_back(condition);
-      filter_cost +=
-          EstimateFilterCost(thd, filter_rows, condition, join->query_block)
-              .cost_if_not_materialized;
+      const FilterCost fc =
+          EstimateFilterCost(thd, filter_rows, condition, join->query_block);
+      filter_cost += fc.cost_if_not_materialized;
+      filter_init_cost += fc.init_cost_if_not_materialized;
       if (!filter_rows_from_secondary) {
         filter_rows *=
             EstimateSelectivity(thd, condition, *expr->companion_set);
@@ -1772,6 +1786,9 @@ void ExpandSingleFilterAccessPath(THD *thd, const JoinHypergraph &graph,
     CopyBasicProperties(*right_path, filter_path);
     filter_path->filter().condition = CreateConjunction(&items);
     filter_path->set_cost(filter_cost);
+    filter_path->set_init_cost(right_path->init_cost() + filter_init_cost);
+    filter_path->set_init_once_cost(right_path->init_once_cost() +
+                                    filter_init_cost);
     filter_path->set_num_output_rows(filter_rows);
     path->nested_loop_join().inner = filter_path;
 

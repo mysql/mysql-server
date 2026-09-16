@@ -1,0 +1,32 @@
+--source include/have_thread_pool.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo #
+--echo # BUG 14081240 - THREAD POOL BASED CONNECTIONS CAUSE  
+--echo #                CAUSE ABORTED_CLIENTS TO BE INCREMENTED. 
+--echo #
+--echo #
+
+# Make three connections, disconnect two connections gracefully. Abort one
+# connection via KILL. Ensure Aborted_clients is 1.
+--enable_connect_log
+connect(con1, localhost, root,,);
+connect(con2, localhost, root,,);
+connect(con3, localhost, root,,);
+let $ID= `SELECT CONNECTION_ID()`;
+connection default;
+disconnect con1;
+disconnect con2;
+--echo # Abort con3 via KILL.
+--replace_result $ID ID
+eval SET @connection_id= $ID;
+KILL @connection_id;
+--echo # Wait for connection to be killed before getting Aborted_clients.
+let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.processlist
+WHERE id = @connection_id; 
+--source include/wait_condition.inc
+--echo # Aborted_clients value must be 1.
+SHOW GLOBAL STATUS LIKE "Aborted_clients";
+--disable_connect_log
+--source include/wait_until_count_sessions.inc

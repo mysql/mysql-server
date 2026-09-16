@@ -14,6 +14,8 @@
 
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
+# CSA does not currently support delayed applier
+--source include/have_mta.inc
 --source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (c1 int);

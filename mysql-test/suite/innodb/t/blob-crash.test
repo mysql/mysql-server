@@ -119,15 +119,14 @@ SET GLOBAL innodb_log_checkpoint_now=ON;
 
 --source include/kill_mysqld.inc
 
---echo # Starting server with --innodb-force-recovery-crash=99
+--echo # Starting server with "ib_blob_update_rollback" dbug execution point
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
-let args = --loose-console --core-file > $SEARCH_FILE 2>&1;
-let crash = $args --innodb-force-recovery-crash;
+let args = --loose-console --debug="d,ib_blob_update_rollback" > $SEARCH_FILE 2>&1;
 
---error 3
---exec $MYSQLD_CMD $crash=99
+--error 2,137
+--exec $MYSQLD_CMD $args 
 
-let SEARCH_PATTERN = innodb_force_recovery_crash=99;
+let SEARCH_PATTERN = ib_blob_update_rollback crash triggered;
 --source include/search_pattern.inc
 
 --source include/start_mysqld.inc

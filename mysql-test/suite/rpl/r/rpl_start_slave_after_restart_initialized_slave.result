@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CALL mtr.add_suppression("Error during --relay-log-recovery*");
 CALL mtr.add_suppression("Server was not able to find a rotate event*");
 CALL mtr.add_suppression("Recovery from source pos*");
+CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1");
 include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start=1]
 [connection server_2]
 include/rpl/start_replica.inc

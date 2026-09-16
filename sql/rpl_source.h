@@ -65,7 +65,7 @@ bool show_replicas(THD *thd);
 String *get_replica_uuid(THD *thd, String *value);
 bool show_binary_log_status(THD *thd);
 bool show_binlogs(THD *thd);
-void kill_zombie_dump_threads(THD *thd);
+bool kill_zombie_dump_threads(THD *thd);
 
 /**
   Process a COM_BINLOG_DUMP_GTID packet.

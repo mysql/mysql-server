@@ -5165,6 +5165,7 @@ ALTER TABLE referencing ADD COLUMN f3 INT
       ON DELETE SET NULL;
 SHOW CREATE TABLE referencing;
 SELECT * FROM information_schema.referential_constraints ORDER BY constraint_name;
+--sorted_result
 SELECT * FROM information_schema.table_constraints where CONSTRAINT_SCHEMA='test';
 DROP TABLE referencing;
 
@@ -5395,7 +5396,9 @@ CREATE TABLE referenced (f1 INT PRIMARY KEY, f2 INT UNIQUE KEY, f3 INT);
 CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT,
                           FOREIGN KEY(f2) REFERENCES referenced);
 SHOW CREATE TABLE referencing;
+--sorted_result
 SELECT * FROM information_schema.referential_constraints;
+--sorted_result
 SELECT * FROM information_schema.table_constraints where CONSTRAINT_SCHEMA='test';
 DROP TABLE referencing;
 DROP TABLE referenced;

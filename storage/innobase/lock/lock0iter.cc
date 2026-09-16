@@ -244,7 +244,7 @@ void find_on_table(const table_id_t table_id,
        when the n_ref_count drops to zero, which could interfere with
        create_table_info_t::create_table_update_dict() which is calling
        dict_stats_update() without properly bumping the n_ref_count.
-       In worst case, our thread could deinitialize the stats just before
+       In the worst case, our thread could deinitialize the stats just before
        dict_stats_save() is called from dict_stats_update() to persist them.
      - The dict_table_close() calls table->lock() which would violate latching
        order if done while holding lock sys shard mutex.

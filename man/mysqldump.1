@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/24/2026
+.\"      Date: 06/24/2026
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 9.7
+.\"    Source: MySQL 26.7
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "03/24/2026" "MySQL 9\&.7" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "06/24/2026" "MySQL 26\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1750,7 +1750,7 @@ statements are written unless one of those options is specified\&.
 \fBNote\fR
 .ps -1
 .br
-In MySQL 9\&.7, the
+In MySQL 26\&.7, the
 mysql
 schema is considered a system schema that cannot be dropped by end users\&. If
 \fB\-\-add\-drop\-database\fR
@@ -3993,7 +3993,7 @@ description for information about an incompatibility of that option with
 \fB\-\-all\-databases\fR\&.
 .sp .5v
 .RE
-Prior to MySQL 9\&.7, the
+Prior to MySQL 26\&.7, the
 \fB\-\-routines\fR
 and
 \fB\-\-events\fR
@@ -4007,7 +4007,7 @@ system database, and therefore also the
 mysql\&.proc
 and
 mysql\&.event
-tables containing stored routine and event definitions\&. As of MySQL 9\&.7, the
+tables containing stored routine and event definitions\&. As of MySQL 26\&.7, the
 mysql\&.event
 and
 mysql\&.proc
@@ -4506,8 +4506,7 @@ Multiple triggers are permitted\&.
 \fBmysqldump\fR
 dumps triggers in activation order so that when the dump file is reloaded, triggers are created in the same activation order\&. However, if a
 \fBmysqldump\fR
-dump file contains multiple triggers for a table that have the same trigger event and action time, an error occurs for attempts to load the dump file into an older server that does not support multiple triggers\&. (For a workaround, see
-\m[blue]\fBDowngrade Notes\fR\m[]\&\s-2\u[4]\d\s+2; you can convert triggers to be compatible with older servers\&.)
+dump file contains multiple triggers for a table that have the same trigger event and action time, an error occurs for attempts to load the dump file into an older server that does not support multiple triggers\&.
 .RE
 .sp
 .RS 4
@@ -5751,22 +5750,17 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 MySQL Shell dump utilities
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/9.7/en/mysql-shell-utilities-dump-instance-schema.html
+\%https://dev.mysql.com/doc/mysql-shell/26.7/en/mysql-shell-utilities-dump-instance-schema.html
 .RE
 .IP " 2." 4
 MySQL Shell load dump utilities
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/9.7/en/mysql-shell-utilities-load-dump.html
+\%https://dev.mysql.com/doc/mysql-shell/26.7/en/mysql-shell-utilities-load-dump.html
 .RE
 .IP " 3." 4
 here
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/9.7/en/mysql-shell-install.html
-.RE
-.IP " 4." 4
-Downgrade Notes
-.RS 4
-\%https://dev.mysql.com/doc/refman/5.7/en/downgrading-to-previous-series.html
+\%https://dev.mysql.com/doc/mysql-shell/26.7/en/mysql-shell-install.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

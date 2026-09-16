@@ -36,16 +36,10 @@
 
 #include <dh_ecdh_config.h>
 
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
-#define TLS_CLIENT_METHOD() TLS_client_method()
-#else
-#define TLS_CLIENT_METHOD() SSLv23_client_method()
-#endif
-
 TlsClientContext::TlsClientContext(TlsVerify mode, bool session_cache_mode,
                                    size_t session_cache_size,
                                    std::chrono::seconds session_cache_timeout)
-    : TlsContext(TLS_CLIENT_METHOD()),
+    : TlsContext(TLS_client_method()),
       session_cache_mode_(session_cache_mode),
       session_cache_size_(session_cache_size),
       session_cache_timeout_(session_cache_timeout) {
@@ -104,15 +98,10 @@ stdx::expected<void, std::error_code> TlsClientContext::verify(
 
 stdx::expected<void, std::error_code> TlsClientContext::cipher_suites(
     const std::string &ciphers) {
-// TLSv1.3 ciphers are controlled via SSL_CTX_set_ciphersuites()
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 1)
+  // TLSv1.3 ciphers are controlled via SSL_CTX_set_ciphersuites()
   if (1 != SSL_CTX_set_ciphersuites(ssl_ctx_.get(), ciphers.c_str())) {
     return stdx::unexpected(make_tls_error());
   }
-#else
-  (void)ciphers;
-  return stdx::unexpected(make_error_code(std::errc::function_not_supported));
-#endif
 
   return {};
 }
@@ -129,8 +118,6 @@ stdx::expected<void, std::error_code> TlsClientContext::cipher_list(
 
 stdx::expected<void, std::error_code> TlsClientContext::verify_hostname(
     const std::string &server_host) {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
-  // get0_param() is added in openssl 1.0.2
   auto *ssl_ctx = ssl_ctx_.get();
 
   X509_VERIFY_PARAM *param = SSL_CTX_get0_param(ssl_ctx);
@@ -144,10 +131,6 @@ stdx::expected<void, std::error_code> TlsClientContext::verify_hostname(
       return stdx::unexpected(make_error_code(std::errc::invalid_argument));
     }
   }
-#else
-  (void)server_host;
-  return stdx::unexpected(make_error_code(std::errc::function_not_supported));
-#endif
   return {};
 }
 
@@ -155,20 +138,11 @@ namespace {
 
 const unsigned char *SSL_SESSION_get_id_wrapper(const SSL_SESSION *s,
                                                 unsigned int *len) {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
   return SSL_SESSION_get_id(s, len);
-#else
-  if (len) *len = (unsigned int)s->session_id_length;
-  return s->session_id;
-#endif
 }
 
 int SSL_SESSION_is_resumable_wrapper(const SSL_SESSION *s) {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 1)
   return SSL_SESSION_is_resumable(s);
-#else
-  return !s->not_resumable;
-#endif
 }
 
 }  // namespace

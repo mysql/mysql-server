@@ -1,0 +1,40 @@
+include/save_error_log_position.inc
+# restart: --group-replication-force-pqc=ON --group-replication-recovery-tls-version=TLSv1.2
+Startup disables group_replication_force_pqc when recovery TLS version excludes TLSv1.3
+SELECT @@GLOBAL.group_replication_force_pqc,
+@@GLOBAL.group_replication_recovery_tls_version;
+@@GLOBAL.group_replication_force_pqc	@@GLOBAL.group_replication_recovery_tls_version
+0	TLSv1.2
+include/assert_error_log.inc [server: 1, pattern: Plugin group_replication reported: 'group_replication_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but group_replication_recovery_tls_version=TLSv1.2 disables TLSv1.3; setting group_replication_force_pqc=OFF']
+SET @@GLOBAL.group_replication_recovery_tls_version = DEFAULT;
+SELECT @@GLOBAL.group_replication_force_pqc;
+@@GLOBAL.group_replication_force_pqc
+0
+SELECT @@group_replication_force_pqc = @@GLOBAL.group_replication_force_pqc;
+@@group_replication_force_pqc = @@GLOBAL.group_replication_force_pqc
+1
+SELECT @@SESSION.group_replication_force_pqc;
+ERROR HY000: Variable 'group_replication_force_pqc' is a GLOBAL variable
+SELECT @@LOCAL.group_replication_force_pqc;
+ERROR HY000: Variable 'group_replication_force_pqc' is a GLOBAL variable
+SET @@SESSION.group_replication_force_pqc = ON;
+ERROR HY000: Variable 'group_replication_force_pqc' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@GLOBAL.group_replication_force_pqc = 'invalid';
+ERROR 42000: Variable 'group_replication_force_pqc' can't be set to the value of 'invalid'
+SET @group_replication_recovery_tls_version_saved =
+@@GLOBAL.group_replication_recovery_tls_version;
+SET @@GLOBAL.group_replication_force_pqc = OFF;
+SET @@GLOBAL.group_replication_recovery_tls_version = 'TLSv1.2';
+SET @@GLOBAL.group_replication_force_pqc = ON;
+ERROR 42000: Variable 'group_replication_force_pqc' can't be set to the value of 'ON'
+SELECT @@GLOBAL.group_replication_force_pqc;
+@@GLOBAL.group_replication_force_pqc
+0
+0 Expected
+SET @@GLOBAL.group_replication_recovery_tls_version =
+@group_replication_recovery_tls_version_saved;
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='group_replication_force_pqc';
+VARIABLE_VALUE
+OFF

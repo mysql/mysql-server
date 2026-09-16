@@ -226,3 +226,11 @@ component_group_replication_resource_manager plugin_output_directory no GROUP_RE
 
 # Group Replication primary election prefer most updated
 component_group_replication_elect_prefers_most_updated plugin_output_directory no GROUP_REPLICATION_PRIMARY_ELECT_PREFER_MOST_UPDATED component_group_replication_group_replication_elect_prefers_most_updated
+
+# Thread Pool Plugin
+thread_pool                      plugin_output_directory  no ONLY_THREADPOOL_PLUGIN   thread_pool
+thread_pool                      plugin_output_directory  no THREADPOOL_PLUGIN        thread_pool,TP_THREAD_STATE,TP_THREAD_GROUP_STATE,TP_THREAD_GROUP_STATS
+thread_pool                      plugin_output_directory  no TP_THREAD_GROUP_STATE_PLUGIN TP_THREAD_GROUP_STATE
+thread_pool                      plugin_output_directory  no TP_THREAD_STATE_PLUGIN       TP_THREAD_STATE
+thread_pool                      plugin_output_directory  no TP_THREAD_TWO_PLUGIN         TP_THREAD_GROUP_STATS,TP_THREAD_STATE
+

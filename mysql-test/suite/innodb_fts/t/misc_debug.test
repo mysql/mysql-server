@@ -51,6 +51,7 @@ INSERT INTO articles VALUES
 CREATE FULLTEXT INDEX idx ON articles (title,body);
 
 # Should return 3 rows
+--sorted_result
 SELECT * FROM articles
         WHERE MATCH (title,body)
         AGAINST ('Database' IN NATURAL LANGUAGE MODE);
@@ -77,6 +78,7 @@ INSERT INTO articles VALUES
         (16, 'MySQL Tutorial','DBMS stands for DataBase ...');
 
 # Should return 6 rows
+--sorted_result
 SELECT * FROM articles
         WHERE MATCH (title,body)
         AGAINST ('Database' IN NATURAL LANGUAGE MODE);
@@ -115,6 +117,7 @@ INSERT INTO articles VALUES
 # of above records
 INSERT INTO articles VALUES         (8, 12, 'MySQL Tutorial','DBMS stands for DataBase ...');
 
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title, body)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 

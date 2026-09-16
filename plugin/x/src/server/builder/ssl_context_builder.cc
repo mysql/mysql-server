@@ -25,6 +25,8 @@
 
 #include "plugin/x/src/server/builder/ssl_context_builder.h"
 
+#include <algorithm>
+#include <cctype>
 #include <memory>
 #include <string>
 #include <utility>
@@ -37,6 +39,17 @@
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
+
+namespace {
+
+bool value_is_on(std::string value) {
+  std::transform(
+      value.begin(), value.end(), value.begin(),
+      [](unsigned char ch) { return static_cast<char>(std::toupper(ch)); });
+  return value == "ON" || value == "1" || value == "TRUE";
+}
+
+}  // namespace
 
 Ssl_context_builder::Ssl_config_local
 Ssl_context_builder::get_mysqld_ssl_config() const {
@@ -54,6 +67,12 @@ Ssl_context_builder::get_mysqld_ssl_config() const {
   result.m_ssl_crl = Plugin_system_variables::get_system_variable("ssl_crl");
   result.m_ssl_crlpath =
       Plugin_system_variables::get_system_variable("ssl_crlpath");
+  result.m_pqc.m_tls_kex =
+      Plugin_system_variables::get_system_variable("tls_kex");
+  result.m_pqc.m_tls_force_pqc =
+      value_is_on(Plugin_system_variables::get_system_variable("force_pqc"));
+  result.m_pqc.m_tls_use_pqc_sign =
+      value_is_on(Plugin_system_variables::get_system_variable("use_pqc_sign"));
   result.m_have_ssl = mysqld::have_ssl();
 
   return result;
@@ -77,6 +96,24 @@ xpl::Ssl_config Ssl_context_builder::choose_ssl_config(
   return xpl::Ssl_config();
 }
 
+Ssl_context_builder::Pqc_config Ssl_context_builder::choose_pqc_config(
+    const Ssl_config_local &mysqld_ssl) const {
+  Pqc_config result = mysqld_ssl.m_pqc;
+
+  if (Plugin_system_variables::is_system_variable_configured("mysqlx_tls_kex"))
+    result.m_tls_kex = std::string(Plugin_system_variables::m_tls_kex
+                                       ? Plugin_system_variables::m_tls_kex
+                                       : "");
+  if (Plugin_system_variables::is_system_variable_configured(
+          "mysqlx_force_pqc"))
+    result.m_tls_force_pqc = Plugin_system_variables::m_tls_force_pqc;
+  if (Plugin_system_variables::is_system_variable_configured(
+          "mysqlx_use_pqc_sign"))
+    result.m_tls_use_pqc_sign = Plugin_system_variables::m_tls_use_pqc_sign;
+
+  return result;
+}
+
 void Ssl_context_builder::setup_ssl_context(
     iface::Ssl_context *ssl_context) const {
   auto ssl_config_from_mysqld_local = get_mysqld_ssl_config();
@@ -98,14 +135,19 @@ void Ssl_context_builder::setup_ssl_context(
   auto choosen_ssl_config =
       choose_ssl_config(ssl_config_from_mysqld_local.m_have_ssl,
                         ssl_config_from_mysqld, ssl_config_from_plugin);
+  auto chosen_pqc_config = choose_pqc_config(ssl_config_from_mysqld_local);
   const char *crl = choosen_ssl_config.m_ssl_crl;
   const char *crlpath = choosen_ssl_config.m_ssl_crlpath;
 
-  const bool ssl_setup_result = ssl_context->setup(
+  const iface::Ssl_context_config ssl_context_config(
       ssl_config_from_mysqld_local.m_ssl_tls_version.c_str(),
       choosen_ssl_config.m_ssl_key, choosen_ssl_config.m_ssl_ca,
       choosen_ssl_config.m_ssl_capath, choosen_ssl_config.m_ssl_cert,
-      choosen_ssl_config.m_ssl_cipher, crl, crlpath);
+      choosen_ssl_config.m_ssl_cipher, crl, crlpath,
+      chosen_pqc_config.m_tls_kex.c_str(), chosen_pqc_config.m_tls_force_pqc,
+      chosen_pqc_config.m_tls_use_pqc_sign);
+
+  const bool ssl_setup_result = ssl_context->setup(ssl_context_config);
 
   if (ssl_setup_result) {
     log_info(ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION, "OpenSSL");

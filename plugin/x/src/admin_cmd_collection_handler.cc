@@ -34,6 +34,7 @@
 #include "plugin/x/src/helper/generate_hash.h"
 #include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/helper/sql_commands.h"
+#include "plugin/x/src/helper/sql_literal_escaping.h"
 #include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/meta_schema_validator.h"
 #include "plugin/x/src/mysql_function_names.h"
@@ -423,6 +424,10 @@ ngs::Error_code Admin_command_collection_handler::Collection_option_handler::
                           const std::string &collection) {
   Sql_data_result sql_result(&m_session->data_context());
   Query_string_builder schema_qb, level_qb;
+  const bool no_backslash_escapes =
+      is_no_backslash_escapes(&m_session->data_context());
+  schema_qb.set_no_backslash_escapes(no_backslash_escapes);
+  level_qb.set_no_backslash_escapes(no_backslash_escapes);
   schema_qb
       .put(
           "SELECT GENERATION_EXPRESSION FROM information_schema.COLUMNS "
@@ -497,9 +502,12 @@ void Admin_command_collection_handler::Collection_option_handler::
 bool Admin_command_collection_handler::is_collection(const std::string &schema,
                                                      const std::string &name) {
   Query_string_builder qb;
+  const bool no_backslash_escapes =
+      is_no_backslash_escapes(&m_session->data_context());
+  qb.set_no_backslash_escapes(no_backslash_escapes);
   qb.put("SELECT COUNT(*) AS cnt,").put(k_count_doc).put(" AS doc,");
 
-  if (m_session->data_context().is_sql_mode_set("NO_BACKSLASH_ESCAPES"))
+  if (no_backslash_escapes)
     qb.put(k_count_id_no_backslash_escapes)
         .put(" AS id,")
         .put(k_count_gen_no_backslash_escapes);

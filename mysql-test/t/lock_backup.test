@@ -5,6 +5,8 @@
 # This test doesn't support GTID
 --source include/rpl/set_gtid_mode_off.inc
 
+--disable_warnings
+
 CREATE TABLE t1 (a INT);
 
 --enable_connect_log
@@ -203,6 +205,7 @@ DROP DATABASE db1;
 
 --connection default
 --disable_connect_log
+--enable_warnings
 
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc

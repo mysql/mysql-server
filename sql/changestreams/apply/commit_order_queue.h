@@ -322,6 +322,8 @@ class Commit_order_queue {
     @return The textual representation of this object's underlying commit queue.
    */
   std::string to_string();
+
+  std::size_t size() const;
   /**
     Friend operator for writing to an `std::ostream` object.
 

@@ -14,6 +14,7 @@
 
 --let $_is_windows= `SELECT convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 1`
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 if ($_is_windows)
 {
   --error 0, ER_GROUP_REPLICATION_CONFIGURATION

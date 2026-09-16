@@ -73,7 +73,7 @@ void get_json_duality_views(Document *doc, jdv::Content_tree_node *root) {
   } allow;
 
   visit_tree(root, [&allow](const jdv::Content_tree_node *node) -> bool {
-    // Allow actions based on table tags.
+    // Table tags contribute to the view-level DML permissions exposed by I_S.
     allow.ins |= (node->table_tags() & jdv::DVT_INSERT) != 0;
     allow.upd |= (node->table_tags() & jdv::DVT_UPDATE) != 0;
     allow.del |= (node->table_tags() & jdv::DVT_DELETE) != 0;
@@ -164,6 +164,7 @@ void get_json_duality_view_tables(Document *doc, jdv::Content_tree_node *root) {
     Value allow_insert(node->allows_insert());
     Value allow_update(node->allows_update());
     Value allow_delete(node->allows_delete());
+    Value allow_check(node->allows_check());
     Value read_only(node->read_only());
 
     Value table;
@@ -184,6 +185,7 @@ void get_json_duality_view_tables(Document *doc, jdv::Content_tree_node *root) {
     table.AddMember("allow_insert", allow_insert, doc->GetAllocator());
     table.AddMember("allow_update", allow_update, doc->GetAllocator());
     table.AddMember("allow_delete", allow_delete, doc->GetAllocator());
+    table.AddMember("allow_check", allow_check, doc->GetAllocator());
     table.AddMember("read_only", read_only, doc->GetAllocator());
 
     (*doc)["entries"].GetArray().PushBack(table, doc->GetAllocator());
@@ -230,6 +232,7 @@ void get_json_duality_view_columns(Document *doc,
       Value allow_insert(col.allows_insert());
       Value allow_update(col.allows_update());
       Value allow_delete(col.allows_delete());
+      Value allow_check(col.allows_check());
       Value read_only(col.read_only());
 
       real_column.AddMember("referenced_column_name", column_name,
@@ -239,6 +242,7 @@ void get_json_duality_view_columns(Document *doc,
       real_column.AddMember("allow_insert", allow_insert, doc->GetAllocator());
       real_column.AddMember("allow_update", allow_update, doc->GetAllocator());
       real_column.AddMember("allow_delete", allow_delete, doc->GetAllocator());
+      real_column.AddMember("allow_check", allow_check, doc->GetAllocator());
       real_column.AddMember("read_only", read_only, doc->GetAllocator());
 
       (*doc)["entries"].GetArray().PushBack(real_column, doc->GetAllocator());

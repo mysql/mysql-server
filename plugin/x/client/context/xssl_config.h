@@ -58,7 +58,10 @@ class Ssl_config {
              const std::string &ssl_cipher, const std::string &ssl_crl,
              const std::string &ssl_crl_path,
              const std::string &ssl_tls_version, const Mode mode,
-             const Mode_ssl_fips ssl_fips_mode)
+             const Mode_ssl_fips ssl_fips_mode,
+             const std::string &ssl_tls_kex = "",
+             const bool ssl_tls_force_pqc = false,
+             const bool ssl_tls_use_pqc_sign = true)
       : m_key(ssl_key),
         m_ca(ssl_ca),
         m_ca_path(ssl_ca_path),
@@ -67,8 +70,11 @@ class Ssl_config {
         m_crl(ssl_crl),
         m_crl_path(ssl_crl_path),
         m_tls_version(ssl_tls_version),
+        m_tls_kex(ssl_tls_kex),
         m_mode(mode),
-        m_ssl_fips_mode(ssl_fips_mode) {}
+        m_ssl_fips_mode(ssl_fips_mode),
+        m_tls_force_pqc(ssl_tls_force_pqc),
+        m_tls_use_pqc_sign(ssl_tls_use_pqc_sign) {}
 
   bool is_configured() const { return Mode::Ssl_disabled != m_mode; }
 
@@ -102,9 +108,12 @@ class Ssl_config {
   std::string m_crl;
   std::string m_crl_path;
   std::string m_tls_version;
+  std::string m_tls_kex;
 
   Mode m_mode{Mode::Ssl_preferred};
   Mode_ssl_fips m_ssl_fips_mode{Mode_ssl_fips::Ssl_fips_mode_off};
+  bool m_tls_force_pqc{false};
+  bool m_tls_use_pqc_sign{true};
 };
 
 }  // namespace xcl

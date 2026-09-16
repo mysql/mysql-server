@@ -1,0 +1,13 @@
+set @save_rpl_dump_thread_account_affinity = @@global.rpl_dump_thread_account_affinity;
+select @@global.rpl_dump_thread_account_affinity as 'must be zero by default';
+must be zero by default
+0
+select @@session.rpl_dump_thread_account_affinity as 'no session var';
+ERROR HY000: Variable 'rpl_dump_thread_account_affinity' is a GLOBAL variable
+set @@global.rpl_dump_thread_account_affinity = 1;
+set @@global.rpl_dump_thread_account_affinity = default;
+set persist rpl_dump_thread_account_affinity = 1;
+reset persist rpl_dump_thread_account_affinity;
+set @@global.rpl_dump_thread_account_affinity = 2;
+ERROR 42000: Variable 'rpl_dump_thread_account_affinity' can't be set to the value of '2'
+set @@global.rpl_dump_thread_account_affinity = @save_rpl_dump_thread_account_affinity;

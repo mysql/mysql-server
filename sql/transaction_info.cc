@@ -49,8 +49,15 @@ Transaction_ctx::Transaction_ctx()
       sequence_number(0),
       m_rpl_transaction_ctx(),
       m_transaction_write_set_ctx(),
-      trans_begin_hook_invoked(false) {
+      trans_begin_hook_invoked(false),
+      m_transaction_prepared(Transaction_prepared::NO_2PC),
+      m_transaction_flushed(Transaction_flushed::UNSET) {
   memset(&m_scope_info, 0, sizeof(m_scope_info));
+}
+
+void Transaction_ctx::cleanup_transaction() {
+  m_transaction_prepared = Transaction_prepared::NO_2PC;
+  m_transaction_flushed = Transaction_flushed::UNSET;
 }
 
 void Transaction_ctx::push_unsafe_rollback_warnings(THD *thd) {

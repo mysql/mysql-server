@@ -1,6 +1,13 @@
 --source include/have_debug.inc
 --source include/big_test.inc
 
+# DDL DEBUG_SYNC actions belong to the foreground THD. Multiple DDL workers
+# execute them with a worker THD and trip the debug-sync ownership assertion.
+# Therefore, run the DDL in single-thread mode.
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
+
 --echo # Check if a DDL operation can be interrupted.
 
 DELIMITER |;
@@ -69,3 +76,6 @@ SET DEBUG_SYNC="RESET";
 DROP PROCEDURE insert_rows;
 DROP TABLE t;
 disconnect con1;
+connection default;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

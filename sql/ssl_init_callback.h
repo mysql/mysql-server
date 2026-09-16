@@ -75,10 +75,13 @@ class Ssl_init_callback {
                                OptionalString *ciphersuites,
                                OptionalString *key, OptionalString *crl,
                                OptionalString *crl_path,
-                               bool *session_cache_mode,
+                               OptionalString *tls_kex, bool *force_pqc,
+                               bool *use_pqc_sign, bool *session_cache_mode,
                                long *session_cache_timeout) = 0;
 
   virtual bool provision_certs() = 0;
+
+  virtual void adjust_startup_options() {}
 
   virtual bool warn_self_signed_ca() = 0;
 
@@ -95,10 +98,14 @@ class Ssl_init_callback_server_main final : public Ssl_init_callback {
                        OptionalString *version, OptionalString *cert,
                        OptionalString *cipher, OptionalString *ciphersuites,
                        OptionalString *key, OptionalString *crl,
-                       OptionalString *crl_path, bool *session_cache_mode,
+                       OptionalString *crl_path, OptionalString *tls_kex,
+                       bool *force_pqc, bool *use_pqc_sign,
+                       bool *session_cache_mode,
                        long *session_cache_timeout) override;
 
   bool provision_certs() override;
+
+  void adjust_startup_options() override;
 
   bool warn_self_signed_ca() override;
 
@@ -118,7 +125,9 @@ class Ssl_init_callback_server_admin final : public Ssl_init_callback {
                        OptionalString *version, OptionalString *cert,
                        OptionalString *cipher, OptionalString *ciphersuites,
                        OptionalString *key, OptionalString *crl,
-                       OptionalString *crl_path, bool *session_cache_mode,
+                       OptionalString *crl_path, OptionalString *tls_kex,
+                       bool *force_pqc, bool *use_pqc_sign,
+                       bool *session_cache_mode,
                        long *session_cache_timeout) override;
 
   bool provision_certs() override {
@@ -128,6 +137,8 @@ class Ssl_init_callback_server_admin final : public Ssl_init_callback {
     */
     return false;
   }
+
+  void adjust_startup_options() override;
 
   bool warn_self_signed_ca() override;
 

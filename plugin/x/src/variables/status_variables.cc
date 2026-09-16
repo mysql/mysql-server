@@ -448,6 +448,12 @@ struct SHOW_VAR Plugin_status_variables::m_plugin_status_variables[] = {
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
         "ssl_server_not_before", std::string,
         iface::Ssl_context_options::ssl_server_not_before),
+    GLOBAL_SSL_STATUS_VARIABLE_ENTRY("tls_kex", std::string,
+                                     iface::Ssl_context_options::tls_kex),
+    GLOBAL_SSL_STATUS_VARIABLE_ENTRY("force_pqc", bool,
+                                     iface::Ssl_context_options::tls_force_pqc),
+    GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
+        "use_pqc_sign", bool, iface::Ssl_context_options::tls_use_pqc_sign),
 
     GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY("socket", std::string, get_socket_file),
     GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY("port", std::string, get_tcp_port),

@@ -1,6 +1,7 @@
 #
 # BUG#11760210 - SSL_CIPHER_LIST NOT SET OR RETURNED FOR "SHOW STATUS LIKE 'SSL_CIPHER_LIST'"
 #
+call mtr.add_suppression("TLS session on channel 'mysql_main' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
 # must return ECDHE-RSA-AES128-GCM-SHA256
 Variable_name	Value
 Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256

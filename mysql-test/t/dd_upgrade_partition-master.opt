@@ -1,2 +1,0 @@
---loose-mysqlx=off
---initialize --innodb_page_size=16k

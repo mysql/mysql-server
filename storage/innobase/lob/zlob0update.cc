@@ -40,18 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-/** Replace a large object (LOB) with the given new data.
-@param[in]      ctx             replace operation context.
-@param[in]      trx             the transaction that is doing the read.
-@param[in]      index           the clust index that contains the LOB.
-@param[in]      ref             the LOB reference identifying the LOB.
-@param[in]      first_page      the first page of the LOB.
-@param[in]      offset          replace the LOB from the given offset.
-@param[in]      len             the length of LOB data that needs to be
-                                replaced.
-@param[in]      buf             the buffer (owned by caller) with new data
-                                (len bytes).
-@return DB_SUCCESS on success, error code on failure. */
 static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                          ref_t ref, z_first_page_t &first_page, ulint offset,
                          ulint len, byte *buf);
@@ -70,14 +58,6 @@ static void z_print_partial_update_hit(const upd_field_t *uf,
 }
 #endif /* UNIV_DEBUG */
 
-/** Update a portion of the given LOB.
-@param[in]      ctx             update operation context information.
-@param[in]      trx             the transaction that is doing the modification.
-@param[in]      index           the clustered index containing the LOB.
-@param[in]      upd             update vector
-@param[in]      field_no        the LOB field number
-@param[in]      blobref         LOB reference stored in clust record.
-@return DB_SUCCESS on success, error code on failure. */
 dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                  const upd_t *upd, ulint field_no, ref_t blobref) {
   DBUG_TRACE;
@@ -165,7 +145,8 @@ fil_addr_t z_find_offset(dict_index_t *index, fil_addr_t node_loc,
 
 /** Replace a large object (LOB) with the given new data.
 @param[in]      ctx             replace operation context.
-@param[in]      trx             the transaction that is doing the read.
+@param[in]      trx             non-null transaction performing the
+                                modification.
 @param[in]      index           the clust index that contains the LOB.
 @param[in]      ref             the LOB reference identifying the LOB.
 @param[in]      first_page      the first page of the LOB.
@@ -180,8 +161,9 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                          ulint len, byte *buf) {
   DBUG_TRACE;
   dberr_t ret(DB_SUCCESS);
-  trx_id_t trxid = (trx == nullptr) ? 0 : trx->id;
-  const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
+  ut_ad(trx != nullptr);
+  const trx_id_t trxid = trx->id;
+  const undo_no_t undo_no = trx->undo_no - 1;
   const uint32_t lob_version = first_page.get_lob_version();
 
   ut_ad(offset < ref.length());

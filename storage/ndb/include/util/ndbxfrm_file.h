@@ -281,7 +281,7 @@ class ndbxfrm_file {
       int key_cipher,      // 0 - none, ndb_ndbxfrm1::cipher_*
       int key_count,       // -1 let ndbxfrm_file decide
       size_t key_data_unit_size, size_t file_block_size, Uint64 data_size,
-      bool is_data_size_estimated);
+      bool is_data_size_estimated, bool partial_last_block);
   /*
    * Use abort when you for example has not fulfilled the initialization of the
    * file content and intend to remove the file after close.
@@ -356,6 +356,9 @@ class ndbxfrm_file {
   bool m_compressed;
   bool m_is_estimated_data_size;
   bool m_have_data_crc32;
+  bool m_encrypt_pkcs7_padding;
+  bool m_padding_removed;
+  bool m_padding_added;
   ndb_openssl_evp openssl_evp;
   enum { FF_UNKNOWN, FF_RAW, FF_AZ31, FF_NDBXFRM1 } m_file_format;
   alignas(ndb_openssl_evp::MEMORY_ALIGN) byte
@@ -407,7 +410,7 @@ class ndbxfrm_file {
       ndbxfrm_output_iterator *out, size_t data_page_size, const byte *pwd_key,
       size_t pwd_key_len, int kdf_iter_count,
       int key_cipher,  // 0 - none, 1 - cbc, 2 - xts (always no padding)
-      int key_count, size_t key_data_unit_size);
+      int key_count, size_t key_data_unit_size, bool partial_last_block);
   int write_trailer(ndbxfrm_output_iterator *out,
                     ndbxfrm_output_iterator *extra);
 };

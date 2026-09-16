@@ -723,11 +723,7 @@ void thd_report_lock_wait(THD *self, THD *wait_for,
   Interface for cleaning the openssl per thread error queue.
 */
 
-void remove_ssl_err_thread_state() {
-#if !defined(HAVE_OPENSSL11)
-  ERR_remove_thread_state(nullptr);
-#endif
-}
+void remove_ssl_err_thread_state() {}
 
 bool thd_check_connection_admin_privilege(MYSQL_THD thd) {
   Security_context *sctx = thd->security_context();

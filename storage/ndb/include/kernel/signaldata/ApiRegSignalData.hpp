@@ -42,12 +42,14 @@ class ApiRegReq {
   friend class Qmgr;
 
  public:
-  static constexpr Uint32 SignalLength = 3;
+  static constexpr Uint32 SignalLengthWithoutHeartbeatInterval = 3;
+  static constexpr Uint32 SignalLength = 4;
 
  private:
   Uint32 ref;
   Uint32 version;  // Version of API node
   Uint32 mysql_version;
+  Uint32 apiHeartbeatInterval;
 };
 
 /**

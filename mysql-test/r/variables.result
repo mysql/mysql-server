@@ -2089,4 +2089,62 @@ SET GLOBAL innodb_strict_mode = 'true';
 ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'true'
 SET GLOBAL innodb_strict_mode = 'false';
 ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'false'
+#
+# Bug#36596561 Optimizer switch accepts invalid flag values
+#
+SET optimizer_switch = 'index_merge=on';
+SET @before = @@optimizer_switch;
+SET optimizer_switch = 'index_merge=of';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=of'
+SELECT @@optimizer_switch = @before;
+@@optimizer_switch = @before
+1
+SET optimizer_switch = 'mrr=off,index_merge=of';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=of'
+SELECT @@optimizer_switch = @before;
+@@optimizer_switch = @before
+1
+SET optimizer_switch = 'index_merge=off';
+SET @before = @@optimizer_switch;
+SET optimizer_switch = 'index_merge=o';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=o'
+SELECT @@optimizer_switch = @before;
+@@optimizer_switch = @before
+1
+SET optimizer_switch = 'index_merge=oof';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=oof'
+SELECT @@optimizer_switch = @before;
+@@optimizer_switch = @before
+1
+SET optimizer_switch = 'index_merge=def';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=def'
+SELECT @@optimizer_switch = @before;
+@@optimizer_switch = @before
+1
+SET optimizer_trace = 'enabled=on';
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+@@optimizer_trace LIKE 'enabled=on,%'
+1
+SET optimizer_trace = 'enabled=of';
+ERROR 42000: Variable 'optimizer_trace' can't be set to the value of 'enabled=of'
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+@@optimizer_trace LIKE 'enabled=on,%'
+1
+SET optimizer_trace = 'enabled=o';
+ERROR 42000: Variable 'optimizer_trace' can't be set to the value of 'enabled=o'
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+@@optimizer_trace LIKE 'enabled=on,%'
+1
+SET optimizer_trace = 'enabled=oof';
+ERROR 42000: Variable 'optimizer_trace' can't be set to the value of 'enabled=oof'
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+@@optimizer_trace LIKE 'enabled=on,%'
+1
+SET optimizer_trace = 'enabled=def';
+ERROR 42000: Variable 'optimizer_trace' can't be set to the value of 'enabled=def'
+SELECT @@optimizer_trace LIKE 'enabled=on,%';
+@@optimizer_trace LIKE 'enabled=on,%'
+1
+SET optimizer_trace = DEFAULT;
+SET optimizer_switch = DEFAULT;
 include/rpl/set_gtid_mode_on.inc

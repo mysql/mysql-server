@@ -76,14 +76,17 @@ ORDER BY a LIMIT 8 OFFSET 1;
 SELECT * FROM t2
 LIMIT 8;
 
+--skip_if_hypergraph  # Append child order differs between optimizers; LIMIT without ORDER BY is nondeterministic.
 (SELECT * FROM t1 LIMIT 5 OFFSET 4) UNION ALL
 SELECT * FROM t2
 LIMIT 8 OFFSET 1;
 
+--skip_if_hypergraph  # Append child order differs between optimizers; LIMIT without ORDER BY is nondeterministic.
 (SELECT * FROM t1 ORDER BY a DESC LIMIT 5) UNION ALL
 SELECT * FROM t2
 LIMIT 8;
 
+--skip_if_hypergraph  # Append child order differs between optimizers; LIMIT without ORDER BY is nondeterministic.
 (SELECT * FROM t1 ORDER BY a DESC LIMIT 5 OFFSET 4) UNION ALL
 SELECT * FROM t2
 LIMIT 8 OFFSET 1;
@@ -140,14 +143,17 @@ ORDER BY a LIMIT 7 OFFSET 1;
 (SELECT * FROM t2 LIMIT 4)
 LIMIT 7;
 
+--skip_if_hypergraph  # Append child order differs between optimizers; LIMIT without ORDER BY is nondeterministic.
 (SELECT * FROM t1 LIMIT 5 OFFSET 4) UNION ALL
 (SELECT * FROM t2 LIMIT 4 OFFSET 2)
 LIMIT 7 OFFSET 1;
 
+--skip_if_hypergraph  # Append child order differs between optimizers; LIMIT without ORDER BY is nondeterministic.
 (SELECT * FROM t1 ORDER BY a DESC LIMIT 5) UNION ALL
 (SELECT * FROM t2 ORDER BY a DESC LIMIT 4)
 LIMIT 7;
 
+--skip_if_hypergraph  # Append child order differs between optimizers; LIMIT without ORDER BY is nondeterministic.
 (SELECT * FROM t1 ORDER BY a DESC LIMIT 5 OFFSET 4) UNION ALL
 (SELECT * FROM t2 ORDER BY a DESC LIMIT 4 OFFSET 2)
 LIMIT 7 OFFSET 1;

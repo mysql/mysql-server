@@ -206,6 +206,14 @@ drop table t1,t2,t3,t4,t5,t6,t10;
 ## Nodegroup with "new" nodes still exists after dropping it as shown:
 --source ndb_mgm_show_table.inc
 
+# Verify nodegroup messages in a data node log file
+--let $assert_text= Checking for node group in ndbd log file
+--let $assert_select= Now in node group
+--let $assert_only_after= Now in node group 1 due to CREATE NODEGROUP.
+--let $assert_match= Now in node group 65536 due to DROP NODEGROUP.
+--let $assert_file= $MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.4/ndbd.log
+--source include/assert_grep.inc
+
 # Cleanup
 ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat';
 DROP TABLESPACE ts_1;

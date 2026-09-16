@@ -459,7 +459,7 @@ if ($MTR_RECORD == 1) {
 --disable_query_log
 call mtr.add_suppression("Operating system error number 2 in a file operation.");
 call mtr.add_suppression("The error means the system cannot find the path specified.");
-call mtr.add_suppression("Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* A tablespace file '.*' cannot be opened. InnoDB error code: 65 \\(Cannot open a file\\)");
 call mtr.add_suppression("Cannot calculate statistics for table .* because the \.ibd file is missing");
 call mtr.add_suppression("Tablespace .*, name 'ts1', file 'ts1.ibd' is missing!");
 call mtr.add_suppression("Cannot find tablespace for 'ts1' in the tablespace memory cache");

@@ -238,6 +238,7 @@ include/rpl/stop_replica.inc
 CALL p('MYSQLTEST_VARDIR/tmp/bug_39701.data');
 include/rpl/start_replica.inc
 include/rpl/sync_to_replica.inc
+CALL mtr.add_suppression("Query execution was interrupted");
 include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE t1;
 DROP PROCEDURE p;

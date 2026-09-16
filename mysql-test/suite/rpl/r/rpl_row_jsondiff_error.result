@@ -22,6 +22,7 @@ call mtr.add_suppression("Replica: Got error 1610 - ");
 call mtr.add_suppression("Replica: Got error 3648 - ");
 call mtr.add_suppression("Replica: Got error 3649 - ");
 call mtr.add_suppression("Replica: Got error 5 - ");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 ######## Test ########
 [connection slave]
 include/rpl/stop_replica.inc

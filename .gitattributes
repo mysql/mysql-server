@@ -37,3 +37,4 @@
 /strings/uca_data.h !filter
 /internal/meb/meb/mysqloption_list.cpp !filter
 
+*.pdf binary

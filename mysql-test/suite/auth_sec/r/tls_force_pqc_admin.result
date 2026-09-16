@@ -1,0 +1,50 @@
+CREATE USER admin_pqc_user IDENTIFIED BY 'abcd';
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_pqc_user;
+include/save_error_log_position.inc
+# restart: --admin-address=127.0.0.1 --admin-port=MASTER_ADMINPORT --create-admin-listener-thread=1 --tls-version=TLSv1.3 --admin_force_pqc=ON --admin-ssl-ca=MYSQL_TEST_DIR/std_data/cacert.pem --admin-ssl-cert=MYSQL_TEST_DIR/std_data/server-cert.pem --admin-ssl-key=MYSQL_TEST_DIR/std_data/server-key.pem --admin-tls-version=TLSv1.2
+Admin listener disables admin_force_pqc when startup admin_tls_version is TLSv1.2-only
+SELECT @@GLOBAL.admin_force_pqc, @@GLOBAL.admin_tls_version;
+@@GLOBAL.admin_force_pqc	@@GLOBAL.admin_tls_version
+0	TLSv1.2
+include/assert_error_log.inc [server: 1, pattern: admin_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but admin_tls_version=TLSv1.2 disables TLSv1.3; setting admin_force_pqc=OFF]
+Admin listener accepts TLSv1.2 after startup adjustment
+Variable_name	Value
+Ssl_version	TLSv1.2
+# restart: --admin-address=127.0.0.1 --admin-port=MASTER_ADMINPORT --create-admin-listener-thread=1 --tls-version=TLSv1.3 --admin_force_pqc=ON --admin-ssl-ca=MYSQL_TEST_DIR/std_data/cacert.pem --admin-ssl-cert=MYSQL_TEST_DIR/std_data/server-cert.pem --admin-ssl-key=MYSQL_TEST_DIR/std_data/server-key.pem --admin-tls-version=TLSv1.3
+Admin listener reports admin_force_pqc enabled after restart
+SELECT @@GLOBAL.admin_force_pqc;
+@@GLOBAL.admin_force_pqc
+1
+Admin listener negotiates a PQC key exchange on TLSv1.3
+Variable_name	Value
+Ssl_version	TLSv1.3
+uses_pqc
+1
+Runtime validation rejects non-PQC admin_tls_kex when admin_force_pqc=ON
+SET GLOBAL admin_tls_kex = 'X25519';
+ERROR 42000: Variable 'admin_tls_kex' can't be set to the value of 'X25519'
+Runtime validation rejects invalid admin_use_pqc_sign
+SET GLOBAL admin_use_pqc_sign = 'not_a_bool';
+ERROR 42000: Variable 'admin_use_pqc_sign' can't be set to the value of 'not_a_bool'
+Admin listener uses configured PQC tls_kex with admin_use_pqc_sign enabled
+SET GLOBAL admin_tls_kex = 'X25519MLKEM768';
+SET GLOBAL admin_use_pqc_sign = ON;
+SELECT @@GLOBAL.admin_tls_kex = 'X25519MLKEM768' AS admin_tls_kex_configured,
+@@GLOBAL.admin_use_pqc_sign AS admin_use_pqc_sign_enabled;
+admin_tls_kex_configured	admin_use_pqc_sign_enabled
+1	1
+uses_pqc
+1
+Admin listener rejects TLSv1.2 when admin_force_pqc=ON
+SET @admin_tls_version_saved = @@GLOBAL.admin_tls_version;
+SET GLOBAL admin_tls_version = 'TLSv1.2';
+Runtime validation rejects admin_force_pqc=ON when admin listener is TLSv1.2-only
+SET GLOBAL admin_force_pqc = ON;
+ERROR 42000: Variable 'admin_force_pqc' can't be set to the value of 'ON'
+SELECT @@GLOBAL.admin_force_pqc;
+@@GLOBAL.admin_force_pqc
+1
+1 Expected
+SET GLOBAL admin_tls_version = @admin_tls_version_saved;
+# restart:
+DROP USER admin_pqc_user;

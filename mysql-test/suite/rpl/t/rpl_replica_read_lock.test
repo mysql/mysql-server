@@ -50,6 +50,7 @@ SET GLOBAL innodb_lock_wait_timeout = 2;
 --enable_warnings
 CALL mtr.add_suppression("Replica SQL for channel.*Consider raising the value of the replica_transaction_retries variable.*");
 CALL mtr.add_suppression("Replica SQL for channel.*The replica coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression("Query execution was interrupted");
 
 --echo # 2. For each rows scan algorithm 
 #0. INDEX_SCAN

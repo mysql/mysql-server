@@ -1,0 +1,2 @@
+# We need more Double-write Buffer pages so the [6, 0] page is not overwritten by the tablespace recovery after restart.
+--innodb-doublewrite-pages=128

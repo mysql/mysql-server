@@ -19,6 +19,8 @@
 # 5. Clean up.
 ################################################################################
 --source include/have_debug.inc
+# CSA does not support legacy VCLE
+--source include/have_mta.inc
 --let $group_replication_group_name= 297aeabb-1ef1-11e6-97b4-00212844d44e
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

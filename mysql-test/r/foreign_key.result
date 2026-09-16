@@ -5611,9 +5611,9 @@ def	test	referencing_ibfk_1	def	test	PRIMARY	FULL	SET NULL	NO ACTION	referencing
 def	test	referencing_ibfk_2	def	test	PRIMARY	PARTIAL	RESTRICT	SET NULL	referencing	referencing
 SELECT * FROM information_schema.table_constraints where CONSTRAINT_SCHEMA='test';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
-def	test	f2	test	referenced	UNIQUE	YES
 def	test	PRIMARY	test	referenced	PRIMARY KEY	YES
 def	test	PRIMARY	test	referencing	PRIMARY KEY	YES
+def	test	f2	test	referenced	UNIQUE	YES
 def	test	referencing_ibfk_1	test	referencing	FOREIGN KEY	YES
 def	test	referencing_ibfk_2	test	referencing	FOREIGN KEY	YES
 DROP TABLE referencing;
@@ -5895,9 +5895,9 @@ CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	U
 def	test	referencing_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	referencing	referenced
 SELECT * FROM information_schema.table_constraints where CONSTRAINT_SCHEMA='test';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
-def	test	f2	test	referenced	UNIQUE	YES
 def	test	PRIMARY	test	referenced	PRIMARY KEY	YES
 def	test	PRIMARY	test	referencing	PRIMARY KEY	YES
+def	test	f2	test	referenced	UNIQUE	YES
 def	test	referencing_ibfk_1	test	referencing	FOREIGN KEY	YES
 DROP TABLE referencing;
 DROP TABLE referenced;

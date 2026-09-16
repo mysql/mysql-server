@@ -1,0 +1,210 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: MTR
+on:
+  pull_request:
+    branches: [trunk]
+    paths-ignore: ["Docs/**", "**/*.md"]
+
+permissions: {}
+
+concurrency:
+  group: mtr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Run MTR's normal default test selection on every PR, split by suite so each
+# shard stays below MTR's suite timeout and the runner's job time limit.
+jobs:
+  mtr:
+    name: MTR (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    # A full default MTR selection needs substantially more time than the
+    # retired smoke check. 360 minutes is GitHub-hosted runners' job maximum.
+    timeout-minutes: 360
+    needs: []
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: replication
+            suites: binlog,binlog_gtid,binlog_nogtid,clone,federated,group_replication,rpl,rpl_gtid,rpl_nogtid
+            run_unit_tests: false
+          - shard: storage
+            suites: encryption,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,parts
+            run_unit_tests: false
+          - shard: core
+            suites: auth_sec,collations,component_connection_control,component_keyring_file,connection_control,funcs_2,gcol,gis,information_schema,interactive_utilities,jdv,json,main,opt_trace,query_rewrite_plugins,x
+            run_unit_tests: false
+          - shard: services
+            suites: perfschema,router,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,sysschema,test_service_sql_api,test_services
+            run_unit_tests: true
+    permissions:
+      contents: read
+    env:
+      # Match the GCC PR build and trusted cache warmer exactly. ccache
+      # includes the compiler name in its cache key, so allowing CMake to
+      # discover cc/c++ here would prevent reuse of gcc/g++ entries.
+      CC: gcc
+      CXX: g++
+    steps:
+      - name: Check out PR merge commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+          path: source
+      - name: Check out trusted CI scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+          path: trusted
+      - name: Verify PR merge commit
+        working-directory: source
+        env:
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_MERGE: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_MERGE"
+          test "$(git rev-parse HEAD^1)" = "$EXPECTED_BASE"
+          test "$(git rev-parse HEAD^2)" = "$EXPECTED_HEAD"
+          test "$(git -C ../trusted rev-parse HEAD)" = "$EXPECTED_BASE"
+      - name: Install toolchain
+        working-directory: source
+        run: ../trusted/scripts/ci/bootstrap.sh
+      # Fork revisions can poison PR-scoped caches. Restore only for trusted,
+      # same-repository branches, and never save data from this PR workflow.
+      - name: Restore Boost cache
+        if: ${{ github.event.pull_request.head.repo.id == github.event.repository.id }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/mysql-boost
+          key: boost-${{ hashFiles('source/cmake/boost.cmake') }}
+      - name: Restore ccache
+        if: ${{ github.event.pull_request.head.repo.id == github.event.repository.id }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ccache
+          key: ccache-gcc-${{ github.event.pull_request.head.sha }}
+          restore-keys: ccache-gcc-
+      - name: Show runner resources
+        working-directory: source
+        run: |
+          echo "CPU cores: $(nproc)"
+          free -h
+          df -h .
+      - name: Build
+        working-directory: source
+        run: ../trusted/scripts/ci/build.sh debug
+      - name: Show ccache stats
+        if: always()
+        working-directory: source
+        run: ccache --show-stats
+      - name: Run MTR
+        working-directory: source
+        env:
+          MTR_SUITES: ${{ matrix.suites }}
+        run: |
+          args=(
+            --parallel=auto
+            --force
+            --report-unstable-tests
+            --retry=3
+            --retry-failure=2
+            --max-test-fail=50
+            "--suite=${MTR_SUITES}"
+          )
+          ../trusted/scripts/ci/mtr.sh "${args[@]}"
+      - name: Run unit tests
+        if: ${{ matrix.run_unit_tests }}
+        working-directory: source
+        run: |
+          ctest_args=(
+            --test-dir build
+            --parallel "$(nproc)"
+            --test-timeout 120
+            --output-on-failure
+            # Bug#39882117: Temporarily quarantine this persistent trunk
+            # failure. Keep the retry path below for transient failures in all
+            # other CTest cases.
+            --exclude-regex '^routertest_integration_routing_splitting$'
+          )
+
+          set +e
+          ctest "${ctest_args[@]}" \
+            --output-log build/mysql-test/var/ctest.log
+          ctest_result=$?
+          set -e
+
+          if (( ctest_result == 0 )); then
+            exit 0
+          fi
+
+          failed_tests=build/Testing/Temporary/LastTestsFailed.log
+          if [[ ! -s "$failed_tests" ]]; then
+            echo "CTest failed without a failed-test list; not retrying." >&2
+            exit "$ctest_result"
+          fi
+
+          initial_failures=build/mysql-test/var/ctest-initial-failures.log
+          cp "$failed_tests" "$initial_failures"
+          initial_names=build/mysql-test/var/ctest-initial-failure-names.log
+          sed 's/^[^:]*://' "$initial_failures" | sort -u > "$initial_names"
+          echo "::warning::Retrying only the CTest failures from the initial run"
+          set +e
+          ctest "${ctest_args[@]}" \
+            --rerun-failed \
+            --repeat until-pass:2 \
+            --output-log build/mysql-test/var/ctest-rerun.log
+          rerun_result=$?
+          set -e
+
+          persistent_names=build/mysql-test/var/ctest-persistent-failures.log
+          recovered_names=build/mysql-test/var/ctest-recovered-failures.log
+          : > "$persistent_names"
+          if (( rerun_result != 0 )) && [[ -s "$failed_tests" ]]; then
+            sed 's/^[^:]*://' "$failed_tests" | sort -u > "$persistent_names"
+          fi
+          comm -23 "$initial_names" "$persistent_names" > "$recovered_names"
+
+          {
+            echo "### CTest retry summary (${{ matrix.shard }})"
+            echo
+            echo "Initial failures:"
+            sed 's/^/- /' "$initial_names"
+            echo
+            echo "Recovered on retry:"
+            if [[ -s "$recovered_names" ]]; then
+              sed 's/^/- /' "$recovered_names"
+            else
+              echo "- None"
+            fi
+            echo
+            echo "Persistent failures:"
+            if [[ -s "$persistent_names" ]]; then
+              sed 's/^/- /' "$persistent_names"
+            elif (( rerun_result == 0 )); then
+              echo "- None"
+            else
+              echo "- CTest did not produce a persistent-failure list."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit "$rerun_result"
+      - name: Publish test report
+        if: ${{ always() }}
+        # The privileged reporter never downloads or executes this untrusted artifact.
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mtr-logs-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            source/build/mysql-test/var/log/
+            source/build/mysql-test/var/ctest*.log
+            source/build/mysql-test/var/**/log/**
+            source/build/mysql-test/var/**/core*
+            source/build/mysql-test/var/**/mysqld*.err
+            source/build/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 14

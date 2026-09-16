@@ -1,0 +1,16 @@
+--echo #
+--echo # WL#6965: Truncate UNDO logs during recovery.
+--echo # Crash after deleting the old undo tablespace during truncate 
+--echo # operation, with encryption on
+--echo #
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT --innodb_undo_log_encrypt=1;
+--source include/restart_mysqld_no_echo.inc
+
+let CRASH_ON_SHUTDOWN = 1;
+let CRASH_POINT = ib_undo_trunc_after_delete_undo_tablespace;
+let USE_EXPLICIT = 0;
+
+--source suite/innodb_undo/include/truncate_at_shutdown.inc
+--source suite/component_keyring_file/inc/teardown_component.inc

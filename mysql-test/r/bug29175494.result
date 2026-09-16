@@ -50,6 +50,8 @@ EXPLAIN
                                     -> Index lookup on alias1 using k2 (col_varchar_key = <cache>(t1.col_varchar_key) or NULL)  (cost=0.7 rows=2)
                                     -> Table scan on alias1  (cost=0.25 rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_varchar_key`,`test`.`t1`.`col_varchar_key`),<exists>(/* select#2 */ select `alias1`.`col_varchar_key`,`alias1`.`col_varchar_key` from `test`.`t1` `alias1` join `test`.`t1` `alias2` join `test`.`t2` semi join (`test`.`a`) where ((`test`.`a`.`f1` = `test`.`t2`.`col_varchar_key`) and (`alias2`.`col_varchar_key` = `test`.`t2`.`col_varchar_key`) and (`alias2`.`col_int_key` = `test`.`t2`.`col_int_key`) and (`alias1`.`col_varchar` >= 'Z') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`col_varchar_key`) = `alias1`.`col_varchar_key`) or (`alias1`.`col_varchar_key` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`col_varchar_key`) = `alias1`.`col_varchar_key`) or (`alias1`.`col_varchar_key` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_key`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_key`), true))) is false)
 SELECT col_varchar_key FROM t1
 WHERE ( col_varchar_key, col_varchar_key ) NOT IN (
 SELECT alias1.col_varchar_key, alias1.col_varchar_key

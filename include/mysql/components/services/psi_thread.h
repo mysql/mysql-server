@@ -27,12 +27,12 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_thread_service.h>
 
-#define REQUIRES_PSI_THREAD_SERVICE REQUIRES_SERVICE(psi_thread_v6)
+#define REQUIRES_PSI_THREAD_SERVICE REQUIRES_SERVICE(psi_thread_v7)
 #define REQUIRES_PSI_THREAD_SERVICE_PLACEHOLDER \
-  REQUIRES_SERVICE_PLACEHOLDER(psi_thread_v6)
+  REQUIRES_SERVICE_PLACEHOLDER(psi_thread_v7)
 
 extern REQUIRES_PSI_THREAD_SERVICE_PLACEHOLDER;
 
-#define PSI_THREAD_CALL(M) mysql_service_psi_thread_v6->M
+#define PSI_THREAD_CALL(M) mysql_service_psi_thread_v7->M
 
 #endif /* COMPONENTS_SERVICES_PSI_THREAD_H */

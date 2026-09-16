@@ -4,7 +4,7 @@
 # Write tmp/log_file/my.cnf
 # Start mysqld without the possibility to create undo tablespaces
 # because a directory exists named 'undo_002'.
-Pattern "\[ERROR\] .*MY-\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
+Pattern "\[ERROR\] .*MY-\d+.* The node 'ibdata1' with expected path of '.*ibdata1' of tablespace innodb_system is missing, but it should exist as it is a part of the tablespace." found
 auto.cnf
 undo_002
 # Start mysqld to create tablespaces according to my.cnf
@@ -13,19 +13,18 @@ undo_002
 Pattern "\[ERROR\] .* Failed to list redo log files in the redo log directory .path.to.non-existent" found
 Pattern "\[ERROR\] .* Aborting" found
 # 2. Start mysqld without ibdata1
-Pattern "\[ERROR\] .* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
+Pattern "\[ERROR\] .* The node 'ibdata1' with expected path of '.*ibdata1' of tablespace innodb_system is missing, but it should exist as it is a part of the tablespace." found
 # 3. Start mysqld without ibdata2
 Pattern "\[ERROR\] .* Tablespace size stored in header is \d+ pages, but" found
 Pattern "\[ERROR\] .* Aborting" found
 # 4. Start mysqld without ibdata1 & ibdata2
-Pattern "\[ERROR\] .* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
+Pattern "\[ERROR\] .* The node 'ibdata1' with expected path of '.*ibdata1' of tablespace innodb_system is missing, but it should exist as it is a part of the tablespace." found
 # 5. Start mysqld without ibdata*, #ib_redo* and undo_00*
-Pattern "\[ERROR\] .* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
+Pattern "\[ERROR\] .* The node 'ibdata1' with expected path of '.*ibdata1' of tablespace innodb_system is missing, but it should exist as it is a part of the tablespace." found
 # 6. Start mysqld without undo_002
 Pattern "\[Note\] .* Creating UNDO Tablespace .*undo_002" found
 # 7. Start mysqld without undo_001, undo_002
-Pattern "\[Note\] .* Creating UNDO Tablespace .*undo_001" found
-Pattern "\[Note\] .* Creating UNDO Tablespace .*undo_002" found
+Pattern "\[ERROR\] .* No undo tablespaces found. Cannot continue operation" found
 # 8. Start mysqld without #ib_redo*
 Pattern "\[Note\] .* Apply batch completed" found
 # 9. Add new datafile at the end

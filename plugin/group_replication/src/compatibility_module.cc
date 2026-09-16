@@ -149,7 +149,7 @@ bool Compatibility_module::do_all_versions_belong_to_the_same_lts(
 }
 
 bool Compatibility_module::is_lts_version(const Member_version &version) {
-  return version.get_major_version() >= 9 && version.get_minor_version() == 7;
+  return version.get_major_version() == 9 && version.get_minor_version() == 7;
 }
 
 /* Compatibility_module is independent, we cannot use local_member_info or

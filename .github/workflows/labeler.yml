@@ -1,0 +1,51 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Auto Label
+
+on:
+  pull_request_target:
+    branches: [trunk]
+
+permissions: { contents: read, pull-requests: write, issues: write }
+
+jobs:
+  label:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Ensure labels have colors
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const labels = [
+              { name: 'InnoDB', color: '1D76DB', description: 'Changes touching InnoDB storage engine code' },
+              { name: 'Optimizer', color: '5319E7', description: 'Changes touching optimizer code' },
+              { name: 'Replication', color: '0052CC', description: 'Changes touching replication or binlog code' },
+              { name: 'Client', color: '0E8A16', description: 'Changes touching client or libmysql code' },
+              { name: 'Pluggable', color: 'FBCA04', description: 'Changes touching plugins or components' },
+              { name: 'Build', color: 'D93F0B', description: 'Changes touching build or GitHub automation' },
+              { name: 'Tests', color: 'BFDADC', description: 'Changes touching test code or test data' },
+              { name: 'Docs', color: '0075CA', description: 'Changes touching documentation' },
+            ];
+
+            const existingLabels = await github.paginate(
+              github.rest.issues.listLabelsForRepo,
+              { ...context.repo, per_page: 100 },
+            );
+            for (const label of labels) {
+              const existing = existingLabels.find(
+                (candidate) => candidate.name.toLowerCase() === label.name.toLowerCase(),
+              );
+              if (existing) {
+                await github.rest.issues.updateLabel({
+                  ...context.repo,
+                  name: existing.name,
+                  new_name: label.name,
+                  color: label.color,
+                  description: label.description,
+                });
+              } else {
+                await github.rest.issues.createLabel({ ...context.repo, ...label });
+              }
+            }
+
+      - uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        with: { sync-labels: true }

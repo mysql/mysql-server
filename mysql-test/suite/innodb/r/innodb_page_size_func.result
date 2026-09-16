@@ -1,14 +1,14 @@
-# 0. Check and generate prerequites
+# 0. Check and generate prerequisites
 # 1. Try to restart the server with some other legal innodb page size value.
 #    It must fail because we had a different value before.
 # 1.1 The value assigned is a number.
 Pattern "innodb-page-size has been changed from the default value DEFAULT_PAGE_SIZE to OTHER_PAGE_SIZE" found
-Pattern "Data file '.*ibdata1' uses page size START_PAGE_SIZE, but the innodb_page_size start-up parameter is OTHER_PAGE_SIZE" found
-Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting" found
+Pattern "Tablespace file \..*ibdata1 has page size \[page size: physical=START_PAGE_SIZE, logical=START_PAGE_SIZE, compressed=0\] \(flags=[0-9a-fx]*\) but the data dictionary expects page size \[page size: physical=OTHER_PAGE_SIZE, logical=OTHER_PAGE_SIZE, compressed=0\] \(flags=[0-9a-fx]*\)!" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Assertion failure: fil0fil.cc" found
 # 1.2 The value assigned is a number followed by 'k'.
 Pattern "innodb-page-size has been changed from the default value DEFAULT_PAGE_SIZE to OTHER_PAGE_SIZE" found
-Pattern "Data file '.*ibdata1' uses page size START_PAGE_SIZE, but the innodb_page_size start-up parameter is OTHER_PAGE_SIZE" found
-Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting" found
+Pattern "Tablespace file \..*ibdata1 has page size \[page size: physical=START_PAGE_SIZE, logical=START_PAGE_SIZE, compressed=0\] \(flags=[0-9a-fx]*\) but the data dictionary expects page size \[page size: physical=OTHER_PAGE_SIZE, logical=OTHER_PAGE_SIZE, compressed=0\] \(flags=[0-9a-fx]*\)!" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Assertion failure: fil0fil.cc" found
 # 2. Try to restart the server with some innodb page size.which is either
 #    bigger than the maximum or smaller than the minimum supported one.
 #    It must fail because we had a different value before.

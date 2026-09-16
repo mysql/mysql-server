@@ -43,6 +43,7 @@
 
   --source include/rpl/connection_replica.inc
   CALL mtr.add_suppression("Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.");
+  CALL mtr.add_suppression("Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP");
 
   # 1) Execute `LOCK INSTANCE FOR BACKUP`.
   LOCK INSTANCE FOR BACKUP;

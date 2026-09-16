@@ -101,6 +101,13 @@ class Transaction_boundary_parser {
             current_parser_state != EVENT_PARSER_NONE);
   }
 
+  /// @brief Returns an information on whether previously feed event was
+  /// ignored
+  /// True in case previous event was ignored, false otherwise.
+  bool was_event_ignored() const {
+    return (m_current_boundary_state == EVENT_BOUNDARY_TYPE_IGNORE);
+  }
+
   /**
      State if the transaction boundary parser is not inside a transaction.
      This "not inside a transaction" means that the parser was fed with an

@@ -33,17 +33,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "log0consumer.h" /* Log_consumer */
 #include "arch0arch.h"
 #include "arch0log.h"
+#include "fil0pages_persistence_interface.h" /* pages_persistence */
 #include "log0chkp.h"
-#include "log0files_governor.h" /* log_files_mutex_own() */
-#include "log0log.h"            /* log_get_lsn */
-#include "srv0shutdown.h"       /* srv_shutdown_state, ... */
-#include "srv0start.h"          /* srv_is_being_started */
+#include "log0files_governor.h"    /* log_files_mutex_own() */
+#include "log0handler_interface.h" /* ib::redo::handler */
+#include "log0log.h"               /* log_get_lsn */
+#include "srv0shutdown.h"          /* srv_shutdown_state, ... */
+#include "srv0start.h"             /* srv_is_being_started */
 
 Log_user_consumer::Log_user_consumer(const std::string &name) : m_name{name} {}
 
 const std::string &Log_user_consumer::get_name() const { return m_name; }
 
 void Log_user_consumer::set_consumed_lsn(lsn_t consumed_lsn) {
+  ut_ad(log_limits_mutex_own());
   if (consumed_lsn % OS_FILE_LOG_BLOCK_SIZE == 0) {
     consumed_lsn += LOG_BLOCK_HDR_SIZE;
   }
@@ -51,7 +54,10 @@ void Log_user_consumer::set_consumed_lsn(lsn_t consumed_lsn) {
   m_consumed_lsn = consumed_lsn;
 }
 
-lsn_t Log_user_consumer::get_consumed_lsn() const { return m_consumed_lsn; }
+lsn_t Log_user_consumer::get_consumed_lsn() const {
+  ut_ad(log_limits_mutex_own());
+  return m_consumed_lsn;
+}
 
 void Log_user_consumer::consumption_requested(lsn_t /*request_lsn*/) {}
 
@@ -63,25 +69,24 @@ const std::string &Log_checkpoint_consumer::get_name() const {
 }
 
 lsn_t Log_checkpoint_consumer::get_consumed_lsn() const {
-  return log_get_checkpoint_lsn(m_log);
+  return pages_persistence->get_checkpoint_lsn();
 }
 
 void Log_checkpoint_consumer::consumption_requested(lsn_t request_lsn) {
-  log_t &log = *log_sys;
   ut_a(log_is_data_lsn(request_lsn));
-  const lsn_t current_lsn = log_get_lsn(log);
+  const lsn_t current_lsn = ib::redo::handler->peek_first_unassigned_lsn();
   ut_a_le(request_lsn, current_lsn);
-  log_request_checkpoint_low(log, request_lsn);
+  log_checkpointing->request_checkpoint(request_lsn);
 }
 
 void log_consumer_register(log_t &log, Log_consumer *log_consumer) {
-  ut_ad(log_files_mutex_own(log) || srv_is_being_started);
+  ut_ad(log_limits_mutex_own() || srv_is_being_started);
 
   log.m_consumers.insert(log_consumer);
 }
 
 void log_consumer_unregister(log_t &log, Log_consumer *log_consumer) {
-  ut_ad(log_files_mutex_own(log) || srv_is_being_started ||
+  ut_ad(log_limits_mutex_own() || srv_is_being_started ||
         srv_shutdown_state.load() != SRV_SHUTDOWN_NONE);
 
   log.m_consumers.erase(log_consumer);
@@ -89,7 +94,7 @@ void log_consumer_unregister(log_t &log, Log_consumer *log_consumer) {
 
 Log_consumer *log_consumer_get_oldest(const log_t &log,
                                       lsn_t &oldest_needed_lsn) {
-  ut_ad(log_files_mutex_own(log) || srv_is_being_started ||
+  ut_ad(log_limits_mutex_own() || srv_is_being_started ||
         srv_shutdown_state.load() != SRV_SHUTDOWN_NONE);
 
   Log_consumer *oldest_consumer{nullptr};
@@ -104,7 +109,7 @@ Log_consumer *log_consumer_get_oldest(const log_t &log,
     }
   }
 
-  const lsn_t current_lsn = log_get_lsn(log);
+  const lsn_t current_lsn = ib::redo::handler->peek_first_unassigned_lsn();
   ut_a(oldest_needed_lsn <= current_lsn);
 
   return oldest_consumer;

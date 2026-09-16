@@ -16,6 +16,8 @@ EXPLAIN
             -> Table scan on t1  (cost=0.75 rows=5)
             -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` union /* select#2 */ select 7 AS `7` order by `i`
 EXPLAIN FORMAT=TREE SELECT * FROM (SELECT i FROM t1 UNION SELECT 7) d1
 ORDER BY i;
 EXPLAIN
@@ -25,6 +27,8 @@ EXPLAIN
             -> Table scan on t1  (cost=0.75 rows=5)
             -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `d1`.`i` AS `i` from (/* select#2 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` union /* select#3 */ select 7 AS `7`) `d1` order by `d1`.`i`
 # These two queries get the same plan and should therefore have the
 # same row and cost estimates.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY i;
@@ -35,6 +39,8 @@ EXPLAIN
             -> Table scan on t1  (cost=0.75 rows=5)
             -> Table scan on t1  (cost=0.75 rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1` order by `i`
 EXPLAIN FORMAT=TREE SELECT * FROM (SELECT * FROM t1 UNION SELECT * FROM t1)
 d1 ORDER BY i;
 EXPLAIN
@@ -44,6 +50,8 @@ EXPLAIN
             -> Table scan on t1  (cost=0.75 rows=5)
             -> Table scan on t1  (cost=0.75 rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `d1`.`i` AS `i`,`d1`.`j` AS `j` from (/* select#2 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1` union /* select#3 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1`) `d1` order by `d1`.`i`
 #
 # Bug#33834146: 'EXPLAIN ANALYZE' cost + elapsed time not cumulative
 # when using materialization
@@ -61,4 +69,6 @@ EXPLAIN
                             -> Sort: t1.j, limit input to 5 row(s) per chunk  (cost=0.75 rows=5)
                                 -> Table scan on t1  (cost=0.75 rows=5)
 
+Warnings:
+Note	1003	insert into `test`.`t1` /* select#1 */ select sql_buffer_result max(`test`.`t1`.`i`) AS `MAX(i)`,3 AS `3` from (/* select#2 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1` order by `test`.`t1`.`j` limit 5) `d1`
 DROP TABLE t1;

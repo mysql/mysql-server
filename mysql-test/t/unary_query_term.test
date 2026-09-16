@@ -218,6 +218,7 @@ let $query =
     (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 10)
     UNION ALL
     (SELECT * FROM r UNION DISTINCT SELECT * FROM s) LIMIT 7;
+--skip_if_hypergraph  # Append child order differs between optimizers; LIMIT without ORDER BY is nondeterministic.
 eval $query;
 --replace_regex $elide_costs
 --skip_if_hypergraph
@@ -228,8 +229,10 @@ eval EXPLAIN FORMAT = tree $query;
 --echo #
 let $query =
     (((SELECT * from r UNION SELECT * FROM s UNION ALL SELECT * from t) LIMIT 3) LIMIT 5);
+--skip_if_hypergraph  # UNION ALL input ordering differs.
 eval $query;
 --replace_regex $elide_costs
+--skip_if_hypergraph  # UNION ALL input ordering differs.
 eval EXPLAIN FORMAT = tree $query;
 
 

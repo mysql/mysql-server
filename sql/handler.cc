@@ -1984,6 +1984,13 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
 
     if (is_ha_commit_low_invoking_commit_order(thd, all) ||
         Commit_order_manager::get_rollback_status(thd)) {
+      DBUG_EXECUTE_IF("ha_commit_low_invoking_commit_order_point", {
+        const char act[] =
+            "now signal signal.commit_low_reached wait_for "
+            "signal.commit_low_unblocked";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+
       if (Commit_order_manager::wait(thd)) {
         error = 1;
         /*
@@ -6425,26 +6432,19 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
            is actually 0, so the row estimate may be too high in this
            case. Also note: ranges of the form "x IS NULL" may have more
            than 1 matching row so records_in_range() is called for these.
-        2) SKIP_RECORDS_IN_RANGE will be set when skip_records_in_range or
-           use_index_statistics are true.
-           Ranges of the form "x IS NULL" will not use index statistics
-           because the number of rows with this value are likely to be
-           very different than the values in the index statistics.
-
-      Note: With SKIP_RECORDS_IN_RANGE, use Index statistics if:
-            a) Index statistics is available.
-            b) The range is an equality range but the index is either not
-               unique or all of the keyparts are not used.
+        2) SKIP_RECORDS_IN_RANGE is set.
+           A user request to skip records_in_range() for this range,
+           either by using FORCE INDEX or by setting use_index_statistics,
+           was accepted.
     */
     int keyparts_used = 0;
     if ((range.range_flag & UNIQUE_RANGE) &&  // 1)
         !(range.range_flag & NULL_RANGE))
       rows = 1; /* there can be at most one row */
-    else if (range.range_flag & SKIP_RECORDS_IN_RANGE &&  // 2)
-             !(range.range_flag & NULL_RANGE)) {
-      if ((range.range_flag & EQ_RANGE) &&
-          (keyparts_used = std::popcount(range.start_key.keypart_map)) &&
-          table->key_info[keyno].has_records_per_key(keyparts_used - 1)) {
+    else if (range.range_flag & SKIP_RECORDS_IN_RANGE) {  // 2)
+      if (can_use_index_statistics(table, keyno, range.range_flag,
+                                   range.start_key.keypart_map,
+                                   &keyparts_used)) {
         rows = static_cast<ha_rows>(
             table->key_info[keyno].records_per_key(keyparts_used - 1));
       } else {
@@ -7748,14 +7748,23 @@ static inline void move_key_field_offsets(const key_range *range,
   @retval  1 if the key is outside the range
 */
 int handler::compare_key_in_buffer(const uchar *buf) const {
-  assert(end_range != nullptr &&
-         (m_record_buffer == nullptr || !m_record_buffer->is_out_of_range()));
+  assert(end_range != nullptr);
+  assert(m_record_buffer == nullptr || !m_record_buffer->is_out_of_range());
 
   /*
     End range on descending scans is only checked with ICP for now, and then we
     check it with compare_key_icp() instead of this function.
   */
   assert(range_scan_direction == RANGE_SCAN_ASC);
+
+  if ((table->key_info[active_index].flags & HA_MULTI_VALUED_KEY) &&
+      table->key_read) {
+    // For multi-valued indexes, key_cmp() needs the virtual column backing the
+    // index. It is not available in the record buffer during index-only scans,
+    // so let the SQL layer do the end-range filtering. Returning -1 makes the
+    // ascending scan treat the key as being within the range.
+    return -1;
+  }
 
   // Make the fields in the key point into the buffer instead of record[0].
   const ptrdiff_t diff = buf - table->record[0];
@@ -9117,6 +9126,16 @@ bool ha_check_reserved_db_name(const char *name) {
 */
 bool is_index_access_error(int error) {
   return (error != HA_ERR_END_OF_FILE && error != HA_ERR_KEY_NOT_FOUND);
+}
+
+bool can_use_index_statistics(const TABLE *table, uint keyno, uint range_flag,
+                              key_part_map keypart_map, int *keyparts_used) {
+  *keyparts_used = std::popcount(keypart_map);
+  return (range_flag & EQ_RANGE) &&     // 1) Equality range
+         !(range_flag & NULL_RANGE) &&  // 2) No NULL parts
+         *keyparts_used > 0 &&          // 3a) At least one keypart
+         table->key_info[keyno].has_records_per_key(
+             *keyparts_used - 1);  // 3b) Statistics available
 }
 
 Xa_state_list::Xa_state_list(Xa_state_list::list &populated_by_tc)

@@ -20,22 +20,184 @@ undo_003	Undo	active
 undo_004	Undo	active
 # Switch to connection  #1
 XA START 'x1';
-INSERT INTO t1(b, c) VALUES (1,"one");
+INSERT INTO t1(b, c) VALUES (1,CONCAT("val",1));
 SELECT * FROM t1;
 a	b	c
 1	0	zero
-2	1	one
+2	1	val1
 XA END 'x1';
 XA PREPARE 'x1';
 # Switch to connection  #2
 XA START 'x2';
-INSERT INTO t1(b, c) VALUES (2,"two");
+INSERT INTO t1(b, c) VALUES (2,CONCAT("val",2));
 SELECT * FROM t1;
 a	b	c
 1	0	zero
-3	2	two
+3	2	val2
 XA END 'x2';
 XA PREPARE 'x2';
+# Switch to connection  #3
+XA START 'x3';
+INSERT INTO t1(b, c) VALUES (3,CONCAT("val",3));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+4	3	val3
+XA END 'x3';
+XA PREPARE 'x3';
+# Switch to connection  #4
+XA START 'x4';
+INSERT INTO t1(b, c) VALUES (4,CONCAT("val",4));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+5	4	val4
+XA END 'x4';
+XA PREPARE 'x4';
+# Switch to connection  #5
+XA START 'x5';
+INSERT INTO t1(b, c) VALUES (5,CONCAT("val",5));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+6	5	val5
+XA END 'x5';
+XA PREPARE 'x5';
+# Switch to connection  #6
+XA START 'x6';
+INSERT INTO t1(b, c) VALUES (6,CONCAT("val",6));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+7	6	val6
+XA END 'x6';
+XA PREPARE 'x6';
+# Switch to connection  #7
+XA START 'x7';
+INSERT INTO t1(b, c) VALUES (7,CONCAT("val",7));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+8	7	val7
+XA END 'x7';
+XA PREPARE 'x7';
+# Switch to connection  #8
+XA START 'x8';
+INSERT INTO t1(b, c) VALUES (8,CONCAT("val",8));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+9	8	val8
+XA END 'x8';
+XA PREPARE 'x8';
+# Switch to connection  #9
+XA START 'x9';
+INSERT INTO t1(b, c) VALUES (9,CONCAT("val",9));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+10	9	val9
+XA END 'x9';
+XA PREPARE 'x9';
+# Switch to connection  #10
+XA START 'x10';
+INSERT INTO t1(b, c) VALUES (10,CONCAT("val",10));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+11	10	val10
+XA END 'x10';
+XA PREPARE 'x10';
+# Switch to connection  #11
+XA START 'x11';
+INSERT INTO t1(b, c) VALUES (11,CONCAT("val",11));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+12	11	val11
+XA END 'x11';
+XA PREPARE 'x11';
+# Switch to connection  #12
+XA START 'x12';
+INSERT INTO t1(b, c) VALUES (12,CONCAT("val",12));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+13	12	val12
+XA END 'x12';
+XA PREPARE 'x12';
+# Switch to connection  #13
+XA START 'x13';
+INSERT INTO t1(b, c) VALUES (13,CONCAT("val",13));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+14	13	val13
+XA END 'x13';
+XA PREPARE 'x13';
+# Switch to connection  #14
+XA START 'x14';
+INSERT INTO t1(b, c) VALUES (14,CONCAT("val",14));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+15	14	val14
+XA END 'x14';
+XA PREPARE 'x14';
+# Switch to connection  #15
+XA START 'x15';
+INSERT INTO t1(b, c) VALUES (15,CONCAT("val",15));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+16	15	val15
+XA END 'x15';
+XA PREPARE 'x15';
+# Switch to connection  #16
+XA START 'x16';
+INSERT INTO t1(b, c) VALUES (16,CONCAT("val",16));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+17	16	val16
+XA END 'x16';
+XA PREPARE 'x16';
+# Switch to connection  #17
+XA START 'x17';
+INSERT INTO t1(b, c) VALUES (17,CONCAT("val",17));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+18	17	val17
+XA END 'x17';
+XA PREPARE 'x17';
+# Switch to connection  #18
+XA START 'x18';
+INSERT INTO t1(b, c) VALUES (18,CONCAT("val",18));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+19	18	val18
+XA END 'x18';
+XA PREPARE 'x18';
+# Switch to connection  #19
+XA START 'x19';
+INSERT INTO t1(b, c) VALUES (19,CONCAT("val",19));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+20	19	val19
+XA END 'x19';
+XA PREPARE 'x19';
+# Switch to connection  #20
+XA START 'x20';
+INSERT INTO t1(b, c) VALUES (20,CONCAT("val",20));
+SELECT * FROM t1;
+a	b	c
+1	0	zero
+21	20	val20
+XA END 'x20';
+XA PREPARE 'x20';
 # Switch to connection  Default
 SELECT * FROM t1;
 a	b	c
@@ -50,15 +212,60 @@ innodb_undo_001	Undo	active
 innodb_undo_002	Undo	active
 undo_003	Undo	inactive
 undo_004	Undo	inactive
-# Switch to connection #1
+# Switch to connection  #1
 XA COMMIT 'x1';
-# Switch to connection #2
-XA ROLLBACK 'x2';
+# Switch to connection  #2
+XA COMMIT 'x2';
+# Switch to connection  #3
+XA COMMIT 'x3';
+# Switch to connection  #4
+XA COMMIT 'x4';
+# Switch to connection  #5
+XA COMMIT 'x5';
+# Switch to connection  #6
+XA COMMIT 'x6';
+# Switch to connection  #7
+XA COMMIT 'x7';
+# Switch to connection  #8
+XA COMMIT 'x8';
+# Switch to connection  #9
+XA COMMIT 'x9';
+# Switch to connection  #10
+XA COMMIT 'x10';
+# Switch to connection  #11
+XA ROLLBACK 'x11';
+# Switch to connection  #12
+XA ROLLBACK 'x12';
+# Switch to connection  #13
+XA ROLLBACK 'x13';
+# Switch to connection  #14
+XA ROLLBACK 'x14';
+# Switch to connection  #15
+XA ROLLBACK 'x15';
+# Switch to connection  #16
+XA ROLLBACK 'x16';
+# Switch to connection  #17
+XA ROLLBACK 'x17';
+# Switch to connection  #18
+XA ROLLBACK 'x18';
+# Switch to connection  #19
+XA ROLLBACK 'x19';
+# Switch to connection  #20
+XA ROLLBACK 'x20';
 # Switch to connection Default
 SELECT * FROM t1;
 a	b	c
 1	0	zero
-2	1	one
+2	1	val1
+3	2	val2
+4	3	val3
+5	4	val4
+6	5	val5
+7	6	val6
+8	7	val7
+9	8	val8
+10	9	val9
+11	10	val10
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE
 innodb_undo_001	Undo	active
@@ -82,24 +289,186 @@ innodb_undo_001	Undo	empty
 innodb_undo_002	Undo	empty
 undo_003	Undo	active
 undo_004	Undo	active
-# Switch to connection #1
+# Switch to connection  #1
 XA START 'x1';
-INSERT INTO t1(b, c) VALUES (1,"one");
+INSERT INTO t1(b, c) VALUES (1,CONCAT("val",1));
 SELECT * FROM t1;
 a	b	c
-4	0	zero
-5	1	one
+22	0	zero
+23	1	val1
 XA END 'x1';
 XA PREPARE 'x1';
-# Switch to connection #2
+# Switch to connection  #2
 XA START 'x2';
-INSERT INTO t1(b, c) VALUES (2,"two");
+INSERT INTO t1(b, c) VALUES (2,CONCAT("val",2));
 SELECT * FROM t1;
 a	b	c
-4	0	zero
-6	2	two
+22	0	zero
+24	2	val2
 XA END 'x2';
 XA PREPARE 'x2';
+# Switch to connection  #3
+XA START 'x3';
+INSERT INTO t1(b, c) VALUES (3,CONCAT("val",3));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+25	3	val3
+XA END 'x3';
+XA PREPARE 'x3';
+# Switch to connection  #4
+XA START 'x4';
+INSERT INTO t1(b, c) VALUES (4,CONCAT("val",4));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+26	4	val4
+XA END 'x4';
+XA PREPARE 'x4';
+# Switch to connection  #5
+XA START 'x5';
+INSERT INTO t1(b, c) VALUES (5,CONCAT("val",5));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+27	5	val5
+XA END 'x5';
+XA PREPARE 'x5';
+# Switch to connection  #6
+XA START 'x6';
+INSERT INTO t1(b, c) VALUES (6,CONCAT("val",6));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+28	6	val6
+XA END 'x6';
+XA PREPARE 'x6';
+# Switch to connection  #7
+XA START 'x7';
+INSERT INTO t1(b, c) VALUES (7,CONCAT("val",7));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+29	7	val7
+XA END 'x7';
+XA PREPARE 'x7';
+# Switch to connection  #8
+XA START 'x8';
+INSERT INTO t1(b, c) VALUES (8,CONCAT("val",8));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+30	8	val8
+XA END 'x8';
+XA PREPARE 'x8';
+# Switch to connection  #9
+XA START 'x9';
+INSERT INTO t1(b, c) VALUES (9,CONCAT("val",9));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+31	9	val9
+XA END 'x9';
+XA PREPARE 'x9';
+# Switch to connection  #10
+XA START 'x10';
+INSERT INTO t1(b, c) VALUES (10,CONCAT("val",10));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+32	10	val10
+XA END 'x10';
+XA PREPARE 'x10';
+# Switch to connection  #11
+XA START 'x11';
+INSERT INTO t1(b, c) VALUES (11,CONCAT("val",11));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+33	11	val11
+XA END 'x11';
+XA PREPARE 'x11';
+# Switch to connection  #12
+XA START 'x12';
+INSERT INTO t1(b, c) VALUES (12,CONCAT("val",12));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+34	12	val12
+XA END 'x12';
+XA PREPARE 'x12';
+# Switch to connection  #13
+XA START 'x13';
+INSERT INTO t1(b, c) VALUES (13,CONCAT("val",13));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+35	13	val13
+XA END 'x13';
+XA PREPARE 'x13';
+# Switch to connection  #14
+XA START 'x14';
+INSERT INTO t1(b, c) VALUES (14,CONCAT("val",14));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+36	14	val14
+XA END 'x14';
+XA PREPARE 'x14';
+# Switch to connection  #15
+XA START 'x15';
+INSERT INTO t1(b, c) VALUES (15,CONCAT("val",15));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+37	15	val15
+XA END 'x15';
+XA PREPARE 'x15';
+# Switch to connection  #16
+XA START 'x16';
+INSERT INTO t1(b, c) VALUES (16,CONCAT("val",16));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+38	16	val16
+XA END 'x16';
+XA PREPARE 'x16';
+# Switch to connection  #17
+XA START 'x17';
+INSERT INTO t1(b, c) VALUES (17,CONCAT("val",17));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+39	17	val17
+XA END 'x17';
+XA PREPARE 'x17';
+# Switch to connection  #18
+XA START 'x18';
+INSERT INTO t1(b, c) VALUES (18,CONCAT("val",18));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+40	18	val18
+XA END 'x18';
+XA PREPARE 'x18';
+# Switch to connection  #19
+XA START 'x19';
+INSERT INTO t1(b, c) VALUES (19,CONCAT("val",19));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+41	19	val19
+XA END 'x19';
+XA PREPARE 'x19';
+# Switch to connection  #20
+XA START 'x20';
+INSERT INTO t1(b, c) VALUES (20,CONCAT("val",20));
+SELECT * FROM t1;
+a	b	c
+22	0	zero
+42	20	val20
+XA END 'x20';
+XA PREPARE 'x20';
 # Switch to connection Default
 # Try to truncate the two explicit undo tablespaces. They will be stuck inactive.
 ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
@@ -108,7 +477,7 @@ ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 SELECT * FROM t1;
 a	b	c
-4	0	zero
+22	0	zero
 SELECT SLEEP(1);
 SLEEP(1)
 0
@@ -127,11 +496,38 @@ innodb_undo_002	Undo	active
 undo_003	Undo	inactive
 undo_004	Undo	inactive
 XA COMMIT 'x1';
-XA ROLLBACK 'x2';
+XA COMMIT 'x2';
+XA COMMIT 'x3';
+XA COMMIT 'x4';
+XA COMMIT 'x5';
+XA COMMIT 'x6';
+XA COMMIT 'x7';
+XA COMMIT 'x8';
+XA COMMIT 'x9';
+XA COMMIT 'x10';
+XA ROLLBACK 'x11';
+XA ROLLBACK 'x12';
+XA ROLLBACK 'x13';
+XA ROLLBACK 'x14';
+XA ROLLBACK 'x15';
+XA ROLLBACK 'x16';
+XA ROLLBACK 'x17';
+XA ROLLBACK 'x18';
+XA ROLLBACK 'x19';
+XA ROLLBACK 'x20';
 SELECT * FROM t1;
 a	b	c
-4	0	zero
-5	1	one
+22	0	zero
+23	1	val1
+24	2	val2
+25	3	val3
+26	4	val4
+27	5	val5
+28	6	val6
+29	7	val7
+30	8	val8
+31	9	val9
+32	10	val10
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE
 innodb_undo_001	Undo	active
@@ -155,24 +551,186 @@ innodb_undo_001	Undo	empty
 innodb_undo_002	Undo	empty
 undo_003	Undo	active
 undo_004	Undo	active
-# Switch to connection #3
-XA START 'x3';
-INSERT INTO t1(b, c) VALUES (1,"one");
+# Switch to connection  #1
+XA START 'x1';
+INSERT INTO t1(b, c) VALUES (1,CONCAT("val",1));
 SELECT * FROM t1;
 a	b	c
-7	0	zero
-8	1	one
+43	0	zero
+44	1	val1
+XA END 'x1';
+XA PREPARE 'x1';
+# Switch to connection  #2
+XA START 'x2';
+INSERT INTO t1(b, c) VALUES (2,CONCAT("val",2));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+45	2	val2
+XA END 'x2';
+XA PREPARE 'x2';
+# Switch to connection  #3
+XA START 'x3';
+INSERT INTO t1(b, c) VALUES (3,CONCAT("val",3));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+46	3	val3
 XA END 'x3';
 XA PREPARE 'x3';
-# Switch to connection #4
+# Switch to connection  #4
 XA START 'x4';
-INSERT INTO t1(b, c) VALUES (2,"two");
+INSERT INTO t1(b, c) VALUES (4,CONCAT("val",4));
 SELECT * FROM t1;
 a	b	c
-7	0	zero
-9	2	two
+43	0	zero
+47	4	val4
 XA END 'x4';
 XA PREPARE 'x4';
+# Switch to connection  #5
+XA START 'x5';
+INSERT INTO t1(b, c) VALUES (5,CONCAT("val",5));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+48	5	val5
+XA END 'x5';
+XA PREPARE 'x5';
+# Switch to connection  #6
+XA START 'x6';
+INSERT INTO t1(b, c) VALUES (6,CONCAT("val",6));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+49	6	val6
+XA END 'x6';
+XA PREPARE 'x6';
+# Switch to connection  #7
+XA START 'x7';
+INSERT INTO t1(b, c) VALUES (7,CONCAT("val",7));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+50	7	val7
+XA END 'x7';
+XA PREPARE 'x7';
+# Switch to connection  #8
+XA START 'x8';
+INSERT INTO t1(b, c) VALUES (8,CONCAT("val",8));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+51	8	val8
+XA END 'x8';
+XA PREPARE 'x8';
+# Switch to connection  #9
+XA START 'x9';
+INSERT INTO t1(b, c) VALUES (9,CONCAT("val",9));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+52	9	val9
+XA END 'x9';
+XA PREPARE 'x9';
+# Switch to connection  #10
+XA START 'x10';
+INSERT INTO t1(b, c) VALUES (10,CONCAT("val",10));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+53	10	val10
+XA END 'x10';
+XA PREPARE 'x10';
+# Switch to connection  #11
+XA START 'x11';
+INSERT INTO t1(b, c) VALUES (11,CONCAT("val",11));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+54	11	val11
+XA END 'x11';
+XA PREPARE 'x11';
+# Switch to connection  #12
+XA START 'x12';
+INSERT INTO t1(b, c) VALUES (12,CONCAT("val",12));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+55	12	val12
+XA END 'x12';
+XA PREPARE 'x12';
+# Switch to connection  #13
+XA START 'x13';
+INSERT INTO t1(b, c) VALUES (13,CONCAT("val",13));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+56	13	val13
+XA END 'x13';
+XA PREPARE 'x13';
+# Switch to connection  #14
+XA START 'x14';
+INSERT INTO t1(b, c) VALUES (14,CONCAT("val",14));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+57	14	val14
+XA END 'x14';
+XA PREPARE 'x14';
+# Switch to connection  #15
+XA START 'x15';
+INSERT INTO t1(b, c) VALUES (15,CONCAT("val",15));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+58	15	val15
+XA END 'x15';
+XA PREPARE 'x15';
+# Switch to connection  #16
+XA START 'x16';
+INSERT INTO t1(b, c) VALUES (16,CONCAT("val",16));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+59	16	val16
+XA END 'x16';
+XA PREPARE 'x16';
+# Switch to connection  #17
+XA START 'x17';
+INSERT INTO t1(b, c) VALUES (17,CONCAT("val",17));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+60	17	val17
+XA END 'x17';
+XA PREPARE 'x17';
+# Switch to connection  #18
+XA START 'x18';
+INSERT INTO t1(b, c) VALUES (18,CONCAT("val",18));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+61	18	val18
+XA END 'x18';
+XA PREPARE 'x18';
+# Switch to connection  #19
+XA START 'x19';
+INSERT INTO t1(b, c) VALUES (19,CONCAT("val",19));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+62	19	val19
+XA END 'x19';
+XA PREPARE 'x19';
+# Switch to connection  #20
+XA START 'x20';
+INSERT INTO t1(b, c) VALUES (20,CONCAT("val",20));
+SELECT * FROM t1;
+a	b	c
+43	0	zero
+63	20	val20
+XA END 'x20';
+XA PREPARE 'x20';
 # Switch to connection Default
 # Try to truncate the two explicit undo tablespaces. They will be stuck inactive.
 ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
@@ -181,7 +739,7 @@ ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 SELECT * FROM t1;
 a	b	c
-7	0	zero
+43	0	zero
 SELECT SLEEP(1);
 SLEEP(1)
 0
@@ -199,12 +757,39 @@ innodb_undo_001	Undo	active
 innodb_undo_002	Undo	active
 undo_003	Undo	inactive
 undo_004	Undo	inactive
+XA COMMIT 'x1';
+XA COMMIT 'x2';
 XA COMMIT 'x3';
-XA ROLLBACK 'x4';
+XA COMMIT 'x4';
+XA COMMIT 'x5';
+XA COMMIT 'x6';
+XA COMMIT 'x7';
+XA COMMIT 'x8';
+XA COMMIT 'x9';
+XA COMMIT 'x10';
+XA ROLLBACK 'x11';
+XA ROLLBACK 'x12';
+XA ROLLBACK 'x13';
+XA ROLLBACK 'x14';
+XA ROLLBACK 'x15';
+XA ROLLBACK 'x16';
+XA ROLLBACK 'x17';
+XA ROLLBACK 'x18';
+XA ROLLBACK 'x19';
+XA ROLLBACK 'x20';
 SELECT * FROM t1;
 a	b	c
-7	0	zero
-8	1	one
+43	0	zero
+44	1	val1
+45	2	val2
+46	3	val3
+47	4	val4
+48	5	val5
+49	6	val6
+50	7	val7
+51	8	val8
+52	9	val9
+53	10	val10
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE
 innodb_undo_001	Undo	active

@@ -188,23 +188,6 @@ buf_block_t *index_entry_t::load_x(const fil_addr_t &addr) {
   return (m_block);
 }
 
-/** Load the index entry available in the given file address.
-Take s-latch on the index page.
-@param[in]      addr    the file location of index entry.
-@return the buffer block. */
-buf_block_t *index_entry_t::load_s(const fil_addr_t &addr) {
-  ut_ad(m_mtr != nullptr);
-  ut_ad(m_index != nullptr);
-
-  m_block = nullptr;
-  const space_id_t space_id = dict_index_get_space(m_index);
-  const page_size_t page_size = dict_table_page_size(m_index->table);
-
-  m_node = fut_get_ptr(space_id, page_size, addr, RW_S_LATCH, m_mtr, &m_block);
-
-  return (m_block);
-}
-
 void index_entry_mem_t::reset() {
   m_self = fil_addr_null;
   m_prev = fil_addr_null;

@@ -581,7 +581,9 @@ class SEL_ARG {
   inline void merge_flags(SEL_ARG *arg) { maybe_flag |= arg->maybe_flag; }
   inline void maybe_smaller() { maybe_flag = true; }
   /* Return true iff it's a single-point null interval */
-  inline bool is_null_interval() { return maybe_null() && max_value[0] == 1; }
+  inline bool is_null_interval() {
+    return !min_flag && !max_flag && maybe_null() && max_value[0] == 1;
+  }
   inline int cmp_min_to_min(const SEL_ARG *arg) const {
     return sel_cmp(field, min_value, arg->min_value, min_flag, arg->min_flag);
   }

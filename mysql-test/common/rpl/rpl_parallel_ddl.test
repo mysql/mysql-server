@@ -158,7 +158,7 @@ connection slave;
 source include/rpl/start_replica.inc;
 
 connection master;
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 #
 # Consistency check
@@ -239,7 +239,7 @@ eval rename table $tables_2_rename d$n.t$m to d$n1.t$m;
 # Hunting after bug#13033076.
 # Let's see if rename leaves any garbage after its run
 #
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 while ($n)
 {
@@ -324,7 +324,7 @@ while ($n)
   --disconnect con4
 
 connection master;
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 --disable_warnings
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings

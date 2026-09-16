@@ -83,7 +83,6 @@
 namespace dd {
 class Table;
 }  // namespace dd
-
 // In sql_class.cc:
 int thd_binlog_format(const MYSQL_THD thd);
 
@@ -1097,10 +1096,14 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair) {
   int result = 0;
   THD *thd = get_thd();
   const bool ignore = thd->lex->is_ignore();
+  const bool is_load_context = (thd_sql_command(thd) == SQLCOM_LOAD);
   uint32 correct_part_id;
   longlong func_value;
   ha_rows num_misplaced_rows = 0;
   ha_rows num_deleted_rows = 0;
+  char row_details_buf[MI_MAX_MSG_BUF];
+  String row_details(row_details_buf, sizeof(row_details_buf),
+                     system_charset_info);
 
   DBUG_TRACE;
 
@@ -1127,21 +1130,46 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair) {
       if (num_misplaced_rows > 0) {
         if (repair) {
           if (num_deleted_rows > 0) {
-            print_admin_msg(thd, MI_MAX_MSG_BUF, "warning", m_table->s->db.str,
-                            m_table->alias, opt_op_name[REPAIR_PARTS],
-                            "Moved %lld misplaced rows, deleted %lld rows",
-                            num_misplaced_rows - num_deleted_rows,
-                            num_deleted_rows);
+            if (is_load_context) {
+              LogErr(ERROR_LEVEL, ER_PARTITION_HANDLER_ADMIN_MSG,
+                     "LOAD DATA validation: moved misplaced rows "
+                     "(some duplicates deleted)");
+            } else {
+              print_admin_msg(
+                  thd, MI_MAX_MSG_BUF, "warning", m_table->s->db.str,
+                  m_table->alias, opt_op_name[REPAIR_PARTS],
+                  "Moved %lld misplaced rows, deleted %lld rows",
+                  num_misplaced_rows - num_deleted_rows, num_deleted_rows);
+            }
           } else {
-            print_admin_msg(thd, MI_MAX_MSG_BUF, "warning", m_table->s->db.str,
-                            m_table->alias, opt_op_name[REPAIR_PARTS],
-                            "Moved %lld misplaced rows", num_misplaced_rows);
+            if (is_load_context) {
+              LogErr(ERROR_LEVEL, ER_PARTITION_HANDLER_ADMIN_MSG,
+                     "LOAD DATA validation: moved misplaced rows");
+            } else {
+              print_admin_msg(thd, MI_MAX_MSG_BUF, "warning",
+                              m_table->s->db.str, m_table->alias,
+                              opt_op_name[REPAIR_PARTS],
+                              "Moved %lld misplaced rows", num_misplaced_rows);
+            }
           }
         } else {
-          print_admin_msg(thd, MI_MAX_MSG_BUF, "error", m_table->s->db.str,
-                          m_table->alias, opt_op_name[CHECK_PARTS],
-                          "Found %lld misplaced rows in partition %u",
-                          num_misplaced_rows, read_part_id);
+          if (is_load_context) {
+            char msg_buf[MI_MAX_MSG_BUF];
+            String msg(msg_buf, sizeof(msg_buf), system_charset_info);
+            msg.length(0);
+            msg.append(
+                "LOAD DATA validation: found misplaced rows in partition ");
+            msg.append_ulonglong(read_part_id);
+            msg.append(" count=");
+            msg.append_ulonglong(num_misplaced_rows);
+            LogErr(ERROR_LEVEL, ER_PARTITION_HANDLER_ADMIN_MSG,
+                   msg.c_ptr_safe());
+          } else {
+            print_admin_msg(thd, MI_MAX_MSG_BUF, "error", m_table->s->db.str,
+                            m_table->alias, opt_op_name[CHECK_PARTS],
+                            "Found %lld misplaced rows in partition %u",
+                            num_misplaced_rows, read_part_id);
+          }
         }
       }
       /* End-of-file reached, all rows are now OK, reset result and break. */
@@ -1164,11 +1192,26 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair) {
         String str(buf, sizeof(buf), system_charset_info);
         str.length(0);
         append_row_to_str(str, m_err_rec, m_table);
-        print_admin_msg(thd, MI_MAX_MSG_BUF, "error", m_table->s->db.str,
-                        m_table->alias, opt_op_name[CHECK_PARTS],
-                        "Found a misplaced row"
-                        " in part %d should be in part %d:\n%s",
-                        read_part_id, correct_part_id, str.c_ptr_safe());
+        if (is_load_context) {
+          char msg_buf[MI_MAX_MSG_BUF];
+          String msg(msg_buf, sizeof(msg_buf), system_charset_info);
+          row_details.length(0);
+          append_row_to_str(row_details, m_table->record[0], m_table);
+          msg.length(0);
+          msg.append("LOAD DATA validation: misplaced row detected read_part=");
+          msg.append_ulonglong(read_part_id);
+          msg.append(" correct_part=");
+          msg.append_ulonglong(correct_part_id);
+          msg.append(" row=");
+          msg.append(row_details.c_ptr_safe());
+          LogErr(ERROR_LEVEL, ER_PARTITION_HANDLER_ADMIN_MSG, msg.c_ptr_safe());
+        } else {
+          print_admin_msg(thd, MI_MAX_MSG_BUF, "error", m_table->s->db.str,
+                          m_table->alias, opt_op_name[CHECK_PARTS],
+                          "Found a misplaced row"
+                          " in part %d should be in part %d:\n%s",
+                          read_part_id, correct_part_id, str.c_ptr_safe());
+        }
         /* Break on first misplaced row, unless ignore is given! */
         if (!ignore) break;
       } else {
@@ -1210,11 +1253,27 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair) {
                    m_table->s->table_name.str, read_part_id, correct_part_id,
                    str.c_ptr_safe());
           }
-          print_admin_msg(thd, MI_MAX_MSG_BUF, "error", m_table->s->db.str,
-                          m_table->alias, opt_op_name[REPAIR_PARTS],
-                          "Failed to move/insert a row"
-                          " from part %d into part %d:\n%s",
-                          read_part_id, correct_part_id, str.c_ptr_safe());
+          if (is_load_context) {
+            char msg_buf[MI_MAX_MSG_BUF];
+            String msg(msg_buf, sizeof(msg_buf), system_charset_info);
+            msg.length(0);
+            msg.append(
+                "LOAD DATA validation: failed to move/insert misplaced "
+                "row from part ");
+            msg.append_ulonglong(read_part_id);
+            msg.append(" to part ");
+            msg.append_ulonglong(correct_part_id);
+            msg.append(" details: ");
+            msg.append(str.c_ptr_safe());
+            LogErr(ERROR_LEVEL, ER_PARTITION_HANDLER_ADMIN_MSG,
+                   msg.c_ptr_safe());
+          } else {
+            print_admin_msg(thd, MI_MAX_MSG_BUF, "error", m_table->s->db.str,
+                            m_table->alias, opt_op_name[REPAIR_PARTS],
+                            "Failed to move/insert a row"
+                            " from part %d into part %d:\n%s",
+                            read_part_id, correct_part_id, str.c_ptr_safe());
+          }
           if (!ignore || result != HA_ERR_FOUND_DUPP_KEY) break;
         }
 
@@ -1775,7 +1834,6 @@ void Partition_helper::destroy_record_priority_queue() {
 int Partition_helper::ph_index_init_setup(uint inx, bool sorted) {
   DBUG_TRACE;
 
-  assert(inx != MAX_KEY);
   DBUG_PRINT("info", ("inx %u sorted %u", inx, sorted));
 
   set_partition_read_set();
@@ -1783,9 +1841,16 @@ int Partition_helper::ph_index_init_setup(uint inx, bool sorted) {
   m_part_spec.start_part = NO_CURRENT_PART_ID;
   m_start_key.length = 0;
   m_ordered = sorted;
+  m_curr_key_info[0] = nullptr;
+  m_curr_key_info[1] = nullptr;
+  if (inx == MAX_KEY) {
+    assert(m_pkey_is_clustered);
+    assert(m_table->s->primary_key == MAX_KEY);
+    m_ref_usage = REF_USED_FOR_SORT;
+    return 0;
+  }
   m_ref_usage = REF_NOT_USED;
   m_curr_key_info[0] = m_table->key_info + inx;
-  m_curr_key_info[1] = nullptr;
   /*
     There are two cases where it is not enough to only sort on the key:
     1) For clustered indexes, the optimizer assumes that all keys
@@ -1849,7 +1914,7 @@ int Partition_helper::common_index_read(uchar *buf, bool have_start_key) {
   DBUG_PRINT("info", ("m_ordered %u m_ordered_scan_ong %u", m_ordered,
                       m_ordered_scan_ongoing));
 
-  if (have_start_key) {
+  if (have_start_key && m_handler->active_index != MAX_KEY) {
     m_start_key.length = calculate_key_len(m_table, m_handler->active_index,
                                            m_start_key.keypart_map);
     DBUG_PRINT("info",
@@ -2170,6 +2235,8 @@ int Partition_helper::ph_read_range_first(const key_range *start_key,
   set_eq_range(eq_range_arg);
   m_handler->set_end_range(end_key, handler::RANGE_SCAN_ASC);
 
+  assert(m_curr_key_info[0] != nullptr);
+
   set_range_key_part(m_curr_key_info[0]->key_part);
   if (have_start_key)
     m_start_key = *start_key;
@@ -2223,7 +2290,7 @@ int Partition_helper::ph_read_range_next() {
 int Partition_helper::partition_scan_set_up(uchar *buf, bool idx_read_flag) {
   DBUG_TRACE;
 
-  if (idx_read_flag)
+  if (idx_read_flag && m_handler->active_index != MAX_KEY)
     get_partition_set(m_table, buf, m_handler->active_index, &m_start_key,
                       &m_part_spec);
   else {

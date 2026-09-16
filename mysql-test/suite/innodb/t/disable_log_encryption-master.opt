@@ -1,1 +1,2 @@
 --innodb_redo_log_encrypt=OFF
+--innodb-redo-log-capacity=64M

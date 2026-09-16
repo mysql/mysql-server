@@ -28,7 +28,7 @@ select @@global.innodb_adaptive_hash_index;
 set global innodb_adaptive_hash_index = ON;
 select @@global.innodb_adaptive_hash_index;
 @@global.innodb_adaptive_hash_index
-0
+1
 set global innodb_adaptive_hash_index = OFF;
 select @@global.innodb_adaptive_hash_index;
 @@global.innodb_adaptive_hash_index

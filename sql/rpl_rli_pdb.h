@@ -47,6 +47,7 @@
 #include "sql/changestreams/apply/metrics/applier_metrics.h"
 #include "sql/changestreams/apply/metrics/dummy_worker_metrics.h"
 #include "sql/changestreams/apply/metrics/mta_worker_metrics.h"
+#include "sql/changestreams/apply/parallel_worker_context.h"
 #include "sql/log_event.h"  // Format_description_log_event
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
@@ -465,7 +466,8 @@ class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item> {
   ulonglong waited_overfill;
 };
 
-class Slave_worker : public Relay_log_info {
+class Slave_worker : public Relay_log_info,
+                     public cs::apply::Parallel_worker_context {
  public:
   Slave_worker(Relay_log_info *rli,
 #ifdef HAVE_PSI_INTERFACE
@@ -541,7 +543,7 @@ class Slave_worker : public Relay_log_info {
 
   /// @brief gets a reference to the worker statistics.
   /// @return a reference to the worker statistics.
-  cs::apply::instruments::Worker_metrics &get_worker_metrics();
+  cs::apply::instruments::Worker_metrics &get_worker_metrics() override;
 
   /// @brief Copies data and sets the metric collection flag
   /// @param other the instance to be copied
@@ -623,6 +625,30 @@ class Slave_worker : public Relay_log_info {
     STOP_ACCEPTED =
         4  // is set by worker upon completing job when STOP REPLICA is issued
   };
+
+  using Parallel_worker_context = Relay_log_info::Parallel_worker_context;
+  using Trx_id = Parallel_worker_context::Trx_id;
+  using Worker_id = Parallel_worker_context::Worker_id;
+
+  /// @brief Fulfils Parallel_worker_context interface requirements
+  /// @return Pointer to THD containing transaction context
+  THD *get_transaction_ctx() override;
+
+  /// Accesses mdl context from info THD
+  MDL_context *get_mdl_context() override;
+
+  /// Accesses worker id
+  Worker_id get_worker_id() const override;
+
+  /// Checks if this worker and worker supplied in arg apply transactions
+  /// coming from the same channel
+  /// @return True if this worker and arg worker execute transactions coming
+  /// from the same channel
+  bool is_same_channel(const Parallel_worker_context *arg) const override;
+
+  /// @brief Obtain transaction id (sequence number)
+  /// @return Transaction sequence number
+  Trx_id get_trx_id() override;
 
   /*
     This function is used to make a copy of the worker object before we
@@ -867,6 +893,12 @@ class Slave_worker : public Relay_log_info {
   */
   std::tuple<bool, bool, uint> check_and_report_end_of_retries(THD *thd);
 
+  /// @brief Variation of the check_and_report_end_of_retries; has the same
+  /// side effects but different return value
+  /// @param thd Pointer to current THD representing transaction
+  /// @return true if the transaction should be retried; false otherwise
+  bool can_be_retried(THD *thd) override;
+
   /**
     It is called after an error happens. It checks if that is an temporary
     error and if the transaction should be retried. Then it will retry the
@@ -914,14 +946,14 @@ class Slave_worker : public Relay_log_info {
      earlier transaction is waiting for a row-level lock held by this
      transaction.
   */
-  bool found_commit_order_deadlock();
+  bool found_commit_order_deadlock() const override;
 
   /**
      Called when replica-preserve-commit-order is enabled, by the worker
      processing an earlier transaction that waits on a row-level lock
      held by this worker's transaction.
   */
-  void report_commit_order_deadlock();
+  void report_commit_order_deadlock(bool) override;
 
   /**
     @return either the master server version as extracted from the last
@@ -969,7 +1001,7 @@ class Slave_worker : public Relay_log_info {
   /**
     Set the flag the signals a deadlock to false
   */
-  void reset_commit_order_deadlock();
+  void reset_commit_order_deadlock() override;
 
   /**
      Returns an array with the expected column numbers of the primary key

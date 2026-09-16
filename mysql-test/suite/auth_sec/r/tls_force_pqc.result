@@ -1,0 +1,80 @@
+#
+# force_pqc startup
+#
+include/save_error_log_position.inc
+# restart: --force_pqc=ON --tls-version=TLSv1.2
+Server disables force_pqc when startup tls_version is TLSv1.2-only
+SELECT @@GLOBAL.force_pqc, @@GLOBAL.tls_version;
+@@GLOBAL.force_pqc	@@GLOBAL.tls_version
+0	TLSv1.2
+include/assert_error_log.inc [server: 1, pattern: force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but tls_version=TLSv1.2 disables TLSv1.3; setting force_pqc=OFF]
+TLSv1.2 client is accepted after startup adjustment
+Variable_name	Value
+Ssl_version	TLSv1.2
+# restart: --force_pqc=ON
+Server reports force_pqc enabled after restart
+SELECT @@GLOBAL.force_pqc;
+@@GLOBAL.force_pqc
+1
+TLSv1.3 client negotiates a PQC key exchange
+Variable_name	Value
+Ssl_version	TLSv1.3
+uses_pqc
+1
+TLSv1.3 session created under PQC resumes successfully
+include/assert_grep.inc [TLSv1.3 PQC session is reused when force_pqc is enabled at startup]
+TLSv1.2 client is rejected when force_pqc=ON
+include/save_error_log_position.inc
+# restart:
+include/assert_error_log.inc [server: 1, pattern: TLS channel 'mysql_main' is not configured to require post-quantum key exchange algorithms; future TLS sessions may use a non-post-quantum key exchange algorithm because force_pqc is disabled]
+TLSv1.2 client is accepted when force_pqc=OFF
+Variable_name	Value
+Ssl_version	TLSv1.2
+SET @tls_kex_saved = @@GLOBAL.tls_kex;
+SET @use_pqc_sign_saved = @@GLOBAL.use_pqc_sign;
+Runtime validation rejects invalid main tls_kex
+SET GLOBAL tls_kex = 'not_a_group';
+ERROR 42000: Variable 'tls_kex' can't be set to the value of 'not_a_group'
+Runtime validation rejects invalid main use_pqc_sign
+SET GLOBAL use_pqc_sign = 'not_a_bool';
+ERROR 42000: Variable 'use_pqc_sign' can't be set to the value of 'not_a_bool'
+Client force-pqc rejects resumed non-PQC session data
+SET GLOBAL tls_kex = 'X25519';
+include/assert_grep.inc [non-PQC session data can resume without client force-pqc]
+SET GLOBAL tls_kex = @tls_kex_saved;
+Runtime enable clears the TLS session cache
+SET GLOBAL force_pqc = ON;
+Runtime validation rejects non-PQC main tls_kex when force_pqc=ON
+SET GLOBAL tls_kex = 'X25519';
+ERROR 42000: Variable 'tls_kex' can't be set to the value of 'X25519'
+Server reports force_pqc enabled after runtime update
+SELECT @@GLOBAL.force_pqc;
+@@GLOBAL.force_pqc
+1
+TLSv1.3 session ticket captured before enable is rejected after runtime update
+TLSv1.3 session created after runtime enable resumes successfully
+include/assert_grep.inc [TLSv1.3 PQC session is reused after runtime force_pqc enable]
+TLSv1.3 client negotiates a PQC key exchange after runtime update
+Variable_name	Value
+Ssl_version	TLSv1.3
+uses_pqc
+1
+TLSv1.2 client is rejected after runtime update
+SET @tls_version_saved = @@GLOBAL.tls_version;
+include/save_error_log_position.inc
+SET GLOBAL tls_version = 'TLSv1.2';
+ALTER INSTANCE RELOAD TLS fails for force_pqc with TLSv1.2-only
+ALTER INSTANCE RELOAD TLS;
+ERROR HY000: Failed to set up SSL because of the following SSL library error: force_pqc requires TLSv1.3 with OpenSSL 3.5.0 or newer
+TLSv1.3 client still negotiates a PQC key exchange after failed reload
+Variable_name	Value
+Ssl_version	TLSv1.3
+uses_pqc
+1
+TLSv1.2 client is still rejected after failed reload
+SET GLOBAL tls_version = @tls_version_saved;
+ALTER INSTANCE RELOAD TLS;
+SET GLOBAL force_pqc = OFF;
+include/save_error_log_position.inc
+ALTER INSTANCE RELOAD TLS;
+include/assert_error_log.inc [server: 1, pattern: TLS channel 'mysql_main' is not configured to require post-quantum key exchange algorithms; future TLS sessions may use a non-post-quantum key exchange algorithm because force_pqc is disabled]

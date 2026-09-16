@@ -22,6 +22,9 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Require_table_primary_key_check` enum('STREAM','ON','OFF','GENERATE') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables without primary keys on create and alter table queries',
   `Assign_gtids_to_anonymous_transactions_type` enum('OFF','LOCAL','UUID') NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
   `Assign_gtids_to_anonymous_transactions_value` text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
+  `Applier_version` int unsigned NOT NULL DEFAULT '1' COMMENT 'Version of the applier used (either 1 or 2)',
+  `Applier_worker_count` int unsigned NOT NULL DEFAULT '0' COMMENT 'Number of worker threads utilized by the applier',
+  `Applier_event_memory_limit` int unsigned NOT NULL DEFAULT '1073741824' COMMENT 'The maximum amount of memory applier channel may use to cache binlog events',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
@@ -43,6 +46,9 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Require_table_primary_key_check` enum('STREAM','ON','OFF','GENERATE') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables without primary keys on create and alter table queries',
   `Assign_gtids_to_anonymous_transactions_type` enum('OFF','LOCAL','UUID') NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
   `Assign_gtids_to_anonymous_transactions_value` text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
+  `Applier_version` int unsigned NOT NULL DEFAULT '1' COMMENT 'Version of the applier used (either 1 or 2)',
+  `Applier_worker_count` int unsigned NOT NULL DEFAULT '0' COMMENT 'Number of worker threads utilized by the applier',
+  `Applier_event_memory_limit` int unsigned NOT NULL DEFAULT '1073741824' COMMENT 'The maximum amount of memory applier channel may use to cache binlog events',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SET @@global.sync_source_info= 1;
@@ -85,11 +91,11 @@ include/rpl/wait_for_applier_error.inc [errno=13121]
 Last_SQL_Error = 'Relay log read failure: Could not parse relay log event entry. The possible reasons are: the source's binary log is corrupted (you can check this by running 'mysqlbinlog' on the binary log), the replica's relay log is corrupted (you can check this by running 'mysqlbinlog' on the relay log), a network problem, the server was unable to fetch a keyring key required to open an encrypted relay log file, or a bug in the source's or replica's MySQL code. If you want to check the source's binary log or replica's relay log, you will be able to know their names by issuing 'SHOW REPLICA STATUS' on this replica.'
 include/rpl/stop_receiver.inc
 START REPLICA SQL_THREAD;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 18, found 17. The table is probably corrupted
 RESET REPLICA ALL;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 18, found 17. The table is probably corrupted
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'SOURCE_HOST', SOURCE_USER= 'SOURCE_USER', SOURCE_PORT= SOURCE_PORT, SOURCE_LOG_FILE= 'SOURCE_LOG_FILE', SOURCE_LOG_POS= SOURCE_LOG_POS;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 18, found 17. The table is probably corrupted
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 RESET REPLICA ALL;
@@ -205,6 +211,9 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Require_table_primary_key_check` enum('STREAM','ON','OFF','GENERATE') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables without primary keys on create and alter table queries',
   `Assign_gtids_to_anonymous_transactions_type` enum('OFF','LOCAL','UUID') NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
   `Assign_gtids_to_anonymous_transactions_value` text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
+  `Applier_version` int unsigned NOT NULL DEFAULT '1' COMMENT 'Version of the applier used (either 1 or 2)',
+  `Applier_worker_count` int unsigned NOT NULL DEFAULT '0' COMMENT 'Number of worker threads utilized by the applier',
+  `Applier_event_memory_limit` int unsigned NOT NULL DEFAULT '1073741824' COMMENT 'The maximum amount of memory applier channel may use to cache binlog events',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 # Search for occurrences of slave_master_info in the output from mysqldump

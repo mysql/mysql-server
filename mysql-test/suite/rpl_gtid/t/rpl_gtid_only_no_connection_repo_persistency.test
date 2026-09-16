@@ -41,6 +41,8 @@
 # WL#7491: GTID-based replication applier recovery and positioning
 #
 
+# CSA supports only GTID-based positioning
+--source include/have_mta.inc
 --source include/have_binlog_format_row.inc
 --source include/skip_config_rpl_gtid_only.inc
 

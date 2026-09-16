@@ -1,0 +1,51 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/rpl/start_replica.inc
+include/assert.inc [Expect that APPLIER_VERSION is set to MTA in the 'mysql.slave_relay_log_info' system table]
+include/assert.inc [Expect that APPLIER_VERSION is set to MTA in the 'replication_applier_configuration' PFS table]
+include/assert.inc [Expect that APPLIER_WORKER_COUNT is set to 0 in the 'mysql.slave_relay_log_info' system table]
+include/assert.inc [Expect that APPLIER_WORKER_COUNT is set to default value in the 'replication_applier_configuration' PFS table]
+include/assert.inc [Expect that APPLIER_EVENT_MEMORY_LIMIT is set to default in the 'mysql.slave_relay_log_info' system table]
+include/assert.inc [Expect that APPLIER_EVENT_MEMORY_LIMIT is set to default value in the 'replication_applier_configuration' PFS table]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+CHANGE REPLICATION SOURCE TO APPLIER_WORKER_COUNT = 8;
+ERROR HY000: Applier worker count can only be configured when using CSA applier version.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, APPLIER_WORKER_COUNT = 8;
+ERROR HY000: Applier worker count can only be configured when using CSA applier version.
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 1073741824;
+ERROR HY000: Applier event memory limit can only be configured when using CSA applier version.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, APPLIER_EVENT_MEMORY_LIMIT = 1073741824;
+ERROR HY000: Applier event memory limit can only be configured when using CSA applier version.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, APPLIER_WORKER_COUNT = 0;
+ERROR HY000: Applier thread count out of bounds. Please specify a value between 1 and 1024.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, APPLIER_WORKER_COUNT = 1025;
+ERROR HY000: Applier thread count out of bounds. Please specify a value between 1 and 1024.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, APPLIER_EVENT_MEMORY_LIMIT = 1;
+Warnings:
+Warning	6905	Applier event memory limit out of bounds. Actual limit has been set to the max_allowed_packet.
+include/assert.inc [Expect that APPLIER_EVENT_MEMORY_LIMIT is set to replica_max_allowed_packet in the 'mysql.slave_relay_log_info' system table]
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, APPLIER_WORKER_COUNT = 8, APPLIER_EVENT_MEMORY_LIMIT = 1073741825;
+include/rpl/start_replica.inc
+include/assert.inc [Expect that APPLIER_VERSION is set to CSA in the 'mysql.slave_relay_log_info' system table]
+include/assert.inc [Expect that APPLIER_VERSION is set to CSA in the 'replication_applier_configuration' PFS table]
+include/assert.inc [Expect that APPLIER_WORKER_COUNT is set to 8 in the 'mysql.slave_relay_log_info' system table]
+include/assert.inc [Expect that APPLIER_WORKER_COUNT is set to 8 in the 'replication_applier_configuration' PFS table]
+include/assert.inc [Expect that APPLIER_EVENT_MEMORY_LIMIT is set to 1073741825 in the 'mysql.slave_relay_log_info' system table]
+include/assert.inc [Expect that APPLIER_EVENT_MEMORY_LIMIT is set to 1073741825 in the 'replication_applier_configuration' PFS table]
+include/rpl/stop_replica.inc
+RESET REPLICA;
+include/rpl/start_replica.inc
+include/assert.inc [Expect that APPLIER_VERSION was not cleared out by RESET REPLICA command]
+include/assert.inc [Expect that APPLIER_WORKER_COUNT was not cleared out by RESET REPLICA command]
+include/assert.inc [Expect that APPLIER_EVENT_MEMORY_LIMIT was not cleared out by RESET REPLICA command]
+include/rpl/stop_replica.inc
+RESET REPLICA ALL;
+include/assert.inc [Expect that APPLIER_VERSION was cleared out by RESET REPLICA ALL command]
+include/assert.inc [Expect that APPLIER_WORKER_COUNT was cleared out by RESET REPLICA ALL command]
+include/assert.inc [Expect that APPLIER_EVENT_MEMORY_LIMIT was cleared out by RESET REPLICA ALL command]
+include/rpl/deinit.inc

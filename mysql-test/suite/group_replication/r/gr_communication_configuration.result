@@ -38,8 +38,12 @@ SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
 SET PERSIST group_replication_ip_allowlist= "GROUP_LOCAL_IP_ALLOWLIST";
+Warnings:
+Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.
 [connection server1]
 SET PERSIST group_replication_ip_allowlist= "GROUP_LOCAL_IP_ALLOWLIST";
+Warnings:
+Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.
 [connection server2]
 #######################################################
 #  1. Try setting bootstrap_group variable with invalid

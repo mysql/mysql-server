@@ -15,8 +15,6 @@ Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 # 3. To change view_change_uuid group replication shall be
@@ -48,8 +46,6 @@ SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaa
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 # 6. Confirm both server have same GTID.EXECUTED from all

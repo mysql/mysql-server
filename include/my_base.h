@@ -1171,20 +1171,21 @@ enum key_range_flags {
   /* X > key, i.e. not including the right endpoint */
   NEAR_MAX = 1 << 3,
   /*
-    This flag means that index is a unique index, and the interval is
-    equivalent to "AND(keypart_i = const_i)", where all of const_i are
-    not NULLs.
+    This flag means that all user-defined keyparts of a unique index
+    have equality predicates. If NULL_RANGE is not set, the range
+    matches at most one row.
   */
   UNIQUE_RANGE = 1 << 4,
   /*
-    This flag means that the interval is equivalent to
-    "AND(keypart_i = const_i)", where not all key parts may be used
-    but all of const_i are not NULLs.
+    This flag means that the interval is an equality range, where each
+    used keypart has either "= constant" or "IS NULL". Not all keyparts
+    of the index need be used.
   */
   EQ_RANGE = 1 << 5,
   /*
-    This flag has the same meaning as UNIQUE_RANGE, except that for at
-    least one keypart the condition is "keypart IS NULL".
+    This flag means that at least one used keypart has a
+    "keypart IS NULL" condition. It may occur together with EQ_RANGE
+    and UNIQUE_RANGE.
   */
   NULL_RANGE = 1 << 6,
   /**

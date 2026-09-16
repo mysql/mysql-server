@@ -1,0 +1,43 @@
+SET @default_val =   1;
+SET @some_val    =   0;
+SELECT @some_val <> @default_val AS "Expect 1";
+Expect 1
+1
+CREATE USER low_priv@localhost;
+GRANT USAGE ON test.* TO low_priv@localhost;
+SET @default_val = <default_val>;
+#---------------------BS_STVARS_101_01----------------------#
+SELECT @@GLOBAL.thread_pool_algorithm = @default_val AS "Expect 1";
+Expect 1
+1
+SELECT @@SESSION.thread_pool_algorithm = @default_val AS "Expect 1";
+ERROR HY000: Variable 'thread_pool_algorithm' is a GLOBAL variable
+SELECT @@GLOBAL.thread_pool_algorithm = @default_val AS "Expect 1";
+Expect 1
+1
+DROP USER low_priv@localhost;
+#---------------------BS_STVARS_101_02----------------------#
+SET @@GLOBAL.thread_pool_algorithm = @some_val;
+ERROR HY000: Variable 'thread_pool_algorithm' is a read only variable
+SELECT @@GLOBAL.thread_pool_algorithm = @default_val AS "Expect 1";
+Expect 1
+1
+#---------------------BS_STVARS_101_03----------------------#
+SELECT @@GLOBAL.thread_pool_algorithm = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'thread_pool_algorithm';
+Expect 1
+1
+SELECT @@GLOBAL.thread_pool_algorithm = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME = 'thread_pool_algorithm';
+Expect 1
+1
+#---------------------BS_STVARS_101_04----------------------#
+SELECT @@thread_pool_algorithm = @@GLOBAL.thread_pool_algorithm AS "Expect 1";
+Expect 1
+1
+#---------------------BS_STVARS_101_05----------------------#
+SELECT thread_pool_algorithm = @@GLOBAL.thread_pool_algorithm;
+ERROR 42S22: Unknown column 'thread_pool_algorithm' in 'field list'
+# Expected error ER_BAD_FIELD_ERROR

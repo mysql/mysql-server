@@ -77,6 +77,7 @@ SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
 --let $rpl_connection_name= server2
 --source include/connection.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --reap
 
 --let $rpl_connection_name= server_2_1
@@ -116,6 +117,7 @@ SET GLOBAL group_replication_recovery_retry_count= 2;
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 --let $group_replication_member_state = ERROR
@@ -145,6 +147,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 --source include/connection.inc
 
 --disable_result_log
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error 0, ER_GROUP_REPLICATION_CONFIGURATION, ER_GROUP_REPLICATION_COMMAND_FAILURE
 START GROUP_REPLICATION USER='root' , PASSWORD='';
 --enable_result_log

@@ -43,16 +43,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 const byte *rec_get_nth_field_old(const dict_index_t *index, const rec_t *rec,
                                   ulint n, ulint *len);
 
-/** Gets the physical size of an old-style field.
-Also an SQL null may have a field of size > 0, if the data type is of a fixed
-size.
-@param[in]      index   record descriptor
-@param[in]      rec     record
-@param[in]      n       index of the field
-@return field size in bytes */
-[[nodiscard]] ulint rec_get_nth_field_size(const dict_index_t *index,
-                                           const rec_t *rec, ulint n);
-
 /** The following function is used to get an offset to the nth data field in a
 record.
 @param[in]      index   record descriptor

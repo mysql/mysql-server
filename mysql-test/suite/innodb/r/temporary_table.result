@@ -880,7 +880,7 @@ keyc int, c1 char(100), c2 char(100)
 ) engine = innodb;
 drop table t1;
 "try starting server with no file specified for temp-tablespace"
-Pattern "init function returned error" found
+Pattern "must contain at least one data file definition" found
 # restart
 show tables;
 Tables_in_test

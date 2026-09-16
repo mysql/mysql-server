@@ -757,7 +757,7 @@ class RecLock {
   Enqueue a lock wait for a transaction. If it is a high priority transaction
   (cannot rollback) then try to jump ahead in the record lock wait queue. Also
   check if async rollback was request for our trx.
-  @param[in, out] wait_for      The lock that the the joining transaction is
+  @param[in, out] wait_for      The lock that the joining transaction is
                                 waiting for
   @param[in] prdt               Predicate [optional]
   @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_SUCCESS_LOCKED_REC

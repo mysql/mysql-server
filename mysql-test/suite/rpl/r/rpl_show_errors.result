@@ -10,6 +10,7 @@ DROP TABLE t1;
 call mtr.add_suppression("Replica SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: MY-001051");
 call mtr.add_suppression("Unknown table .test.t1. Error_code: MY-001051");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 include/rpl/wait_for_applier_error.inc [errno=1051]
 include/assert.inc [Last_SQL_Error_Timestamp is not null and matches the expected format]
 include/rpl/stop_replica.inc

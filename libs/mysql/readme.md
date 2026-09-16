@@ -39,6 +39,7 @@ For now, we build only the static libraries.
 Libraries defined on this level:
 - \subpage PageLibsMysqlAllocators
 - \subpage PageLibsMysqlBinlog
+- \subpage PageLibsMysqlConcurrency
 - \subpage PageLibsMysqlContainers
 - \subpage PageLibsMysqlDebugging
 - \subpage PageLibsMysqlGtid
@@ -46,6 +47,7 @@ Libraries defined on this level:
 - \subpage PageLibsMysqlMath
 - \subpage PageLibsMysqlMeta
 - \subpage PageLibsMysqlRanges
+- \subpage PageLibsMysqlScheduler
 - \subpage PageLibsMysqlSerialization
 - \subpage PageLibsMysqlSets
 - \subpage PageLibsMysqlStrconv
@@ -59,6 +61,8 @@ Libraries defined on this level:
 \defgroup GroupLibsMysqlAllocators Allocators
 \ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlBinlogEvent Binlog Event
+\ingroup GroupLibsMysql
+\defgroup GroupLibsMysqlConcurrency Concurrency
 \ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlContainers Containers
 \ingroup GroupLibsMysql
@@ -74,6 +78,7 @@ Libraries defined on this level:
 \ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlMeta Meta
 \defgroup GroupLibsMysqlRanges Ranges
+\defgroup GroupLibsMysqlScheduler Scheduler
 \ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlSerialization Serialization
 \ingroup GroupLibsMysql

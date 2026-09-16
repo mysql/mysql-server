@@ -38,6 +38,7 @@ SET SESSION sql_log_bin= 1;
 
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_set_number_of_members_on_view_changed_to_10';
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_MAX_GROUP_SIZE
 START GROUP_REPLICATION;
 

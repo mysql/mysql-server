@@ -180,18 +180,6 @@ overwrites.
 @param[in]       write_lsn  value <= log.write_lsn.load() */
 void log_update_buf_limit(log_t &log, lsn_t write_lsn);
 
-/** Write to the log file up to the last log entry.
-@param[in,out]	log	redo log
-@param[in]	sync	whether we want the written log
-also to be flushed to disk. */
-void log_buffer_flush_to_disk(log_t &log, bool sync = true);
-
-/** Requests flush of the log buffer.
-@param[in]	sync	true: wait until the flush is done */
-inline void log_buffer_flush_to_disk(bool sync = true) {
-  log_buffer_flush_to_disk(*log_sys, sync);
-}
-
 /** Writes the log buffer to the log file. It is intended to be called from
 background master thread periodically. If the log writer threads are active,
 this function writes nothing. */

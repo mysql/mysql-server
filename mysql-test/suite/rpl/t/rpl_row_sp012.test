@@ -53,9 +53,8 @@ let $message=<********  Slave user1 p3 & p2 calls *******>;
 connect (suser1,127.0.0.1,user1,,test,$SLAVE_MYPORT,);
 
 connection master;
-save_master_pos;
+--source include/rpl/sync_to_replica.inc
 connection suser1;
-sync_with_master;
 
 SELECT CURRENT_USER();
 SELECT USER();

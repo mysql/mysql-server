@@ -236,6 +236,15 @@ struct Network_connection {
   bool has_error;
 };
 
+/** Result of publishing a connection to the XCom handoff slot. */
+enum class Network_connection_handoff_status {
+  /** The connection was published and ownership was transferred. */
+  ACCEPTED,
+
+  /** The slot was occupied and ownership remains with the caller. */
+  BUSY,
+};
+
 /**
  * @brief Class that provides Network Namespace services
  */
@@ -287,8 +296,10 @@ class Network_namespace_manager {
  * - open_connection();
  * - close_connection();
  *
- * If provides a lock free implementation of (set)\(get)_connection() for
- * multithreaded usage.
+ * It provides a lock-free, single-slot handoff between a network provider and
+ * the XCom incoming connection task. Only one unconsumed connection can be
+ * pending per provider. Connections already consumed by XCom are no longer
+ * represented by this slot and may remain active concurrently.
  *
  *
  */
@@ -298,7 +309,7 @@ class Network_provider {
     m_shared_connection.store(nullptr);
   }
   Network_provider(Network_provider &&param)
-      : m_shared_connection(param.m_shared_connection.load()) {}
+      : m_shared_connection(param.m_shared_connection.exchange(nullptr)) {}
 
   Network_provider &operator=(Network_provider &param) = delete;
   Network_provider(Network_provider &param) = delete;
@@ -369,13 +380,7 @@ class Network_provider {
   virtual void cleanup_secure_connections_context() = 0;
 
   virtual std::function<void()> get_secure_connections_context_cleaner() {
-    std::function<void()> retval = []() {
-#ifndef XCOM_WITHOUT_OPENSSL
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-      ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
-    };
+    std::function<void()> retval = []() {};
 
     return retval;
   }
@@ -413,35 +418,38 @@ class Network_provider {
   virtual int close_connection(const Network_connection &connection) = 0;
 
   /**
-   * @brief Lock-free Set connection
+   * @brief Publish a connection for XCom
    *
-   * Sets a new connection received by this provider. It will be consumed
-   * internally by get_new_connection().
+   * Publishes a new connection received by this provider through a single
+   * pending handoff slot. The XCom incoming connection task consumes it later
+   * through get_new_connection(). This slot does not queue multiple pending
+   * connections.
    *
    * @param connection a newly created connection.
+   *
+   * @retval Network_connection_handoff_status::ACCEPTED the connection was
+   * accepted.
+   * @retval Network_connection_handoff_status::BUSY the handoff slot was
+   * occupied and ownership remains with the caller.
    */
-  void set_new_connection(Network_connection *connection) {
-    Network_connection *null_desired_value;
-    do {
-      null_desired_value = nullptr;
-    } while (!m_shared_connection.compare_exchange_weak(null_desired_value,
-                                                        connection));
+  Network_connection_handoff_status set_new_connection(
+      Network_connection *connection) {
+    Network_connection *expected = nullptr;
+    return m_shared_connection.compare_exchange_strong(expected, connection)
+               ? Network_connection_handoff_status::ACCEPTED
+               : Network_connection_handoff_status::BUSY;
   }
 
   /**
-   * @brief Get the new connection object
+   * @brief Consume the pending connection
    *
-   * @return Network_connection* a new connection coming from this network
-   *                                 provider
+   * Atomically removes the connection from the handoff slot and transfers
+   * ownership to the caller.
+   *
+   * @return the pending connection, or nullptr when the slot is empty
    */
   Network_connection *get_new_connection() {
-    Network_connection *new_connection = nullptr;
-
-    new_connection = m_shared_connection.load();
-
-    if (new_connection != nullptr) m_shared_connection.store(nullptr);
-
-    return new_connection;
+    return m_shared_connection.exchange(nullptr);
   }
 
   void reset_new_connection() {
@@ -457,6 +465,7 @@ class Network_provider {
   static constexpr int default_connection_timeout() { return 3000; }
 
  private:
+  /** Single pending connection handoff slot. */
   std::atomic<Network_connection *> m_shared_connection;
 };
 

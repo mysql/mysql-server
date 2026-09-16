@@ -121,7 +121,7 @@ let $slave_io_errno= 13122,13115; # ER_REPLICA_RELAY_LOG_WRITE_FAILURE, ER_NETWO
 --source include/add_debug_point.inc
 
 START REPLICA SQL_THREAD;
-let $slave_sql_errno= 13117; # ER_REPLICA_FATAL_ERROR
+--let $slave_sql_errno= 13117,13121 # ER_REPLICA_FATAL_ERROR (MTA), ER_REPLICA_RELAY_LOG_READ_FAILURE (CSA)
 --source include/rpl/wait_for_applier_error.inc
 
 # Start normal replication and compare same table on master

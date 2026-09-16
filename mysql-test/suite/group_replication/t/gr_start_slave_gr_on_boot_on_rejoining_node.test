@@ -85,14 +85,14 @@ INSERT INTO test.t2 VALUES (1);
 --let $rpl_connection_name= server1
 --source include/connection.inc
 
---let $assert_text= Verify two tables (t1 & t2) are present in test database
---let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
+# Verify two tables (t1 & t2) are present and synced in test database
+--let $assert_text= Verify test.t1 is synced
+--let $assert_cond= "[SELECT count(*) COUNT FROM test.t1, COUNT, 1]" = "1"
 --source include/assert.inc
 
 --let $assert_text= Verify test.t2 is synced
 --let $assert_cond= "[SELECT count(*) COUNT FROM test.t2, COUNT, 1]" = "1"
 --source include/assert.inc
-
 
 --echo
 --echo # 5. Restart server1 with group replication start on boot

@@ -17,6 +17,7 @@ name	ret	dl	type
 myfunc_double	1	UDF_LIB	function
 myfunc_int	2	UDF_LIB	function
 affected rows: 2
+include/rpl/sync_to_replica.inc
 "Running on the slave"
 SELECT * FROM mysql.func ORDER BY name;
 name	ret	dl	type
@@ -41,6 +42,7 @@ sum	price
 100	48.6
 200	49
 affected rows: 4
+include/rpl/sync_to_replica.inc
 "Running on the slave"
 SELECT * FROM t1 ORDER BY sum;
 sum	price
@@ -65,6 +67,7 @@ affected rows: 0
 SELECT * FROM mysql.func ORDER BY name;
 name	ret	dl	type
 affected rows: 0
+include/rpl/sync_to_replica.inc
 "Running on the slave"
 SELECT * FROM mysql.func ORDER BY name;
 name	ret	dl	type
@@ -85,6 +88,7 @@ ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 test	myfuncsql_double	FUNCTION	RETURN d * 2.00
 test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
+include/rpl/sync_to_replica.inc
 "Running on the slave"
 SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES
@@ -111,6 +115,7 @@ sum	price
 100	100
 200	50
 affected rows: 4
+include/rpl/sync_to_replica.inc
 "Running on the slave"
 SELECT * FROM t1 ORDER BY sum;
 sum	price
@@ -131,6 +136,7 @@ ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 test	myfuncsql_double	FUNCTION	RETURN d * 2.00
 test	myfuncsql_int	FUNCTION	RETURN i
 affected rows: 2
+include/rpl/sync_to_replica.inc
 "Running on the slave"
 SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES
@@ -157,6 +163,7 @@ FROM INFORMATION_SCHEMA.ROUTINES
 WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	ROUTINE_DEFINITION
 affected rows: 0
+include/rpl/sync_to_replica.inc
 "Running on the slave"
 SELECT routine_schema, routine_name, routine_type, routine_definition
 FROM INFORMATION_SCHEMA.ROUTINES

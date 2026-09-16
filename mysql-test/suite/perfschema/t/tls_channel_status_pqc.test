@@ -1,0 +1,5 @@
+SELECT CHANNEL, PROPERTY, IF(VALUE = '', '<empty>', VALUE) AS VALUE
+FROM performance_schema.tls_channel_status
+WHERE CHANNEL IN ('mysql_admin', 'mysql_main')
+  AND PROPERTY IN ('Force_pqc', 'Use_pqc_sign', 'Tls_kex')
+ORDER BY CHANNEL, FIELD(PROPERTY, 'Force_pqc', 'Use_pqc_sign', 'Tls_kex');

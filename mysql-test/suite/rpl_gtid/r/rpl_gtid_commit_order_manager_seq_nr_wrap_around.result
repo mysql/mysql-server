@@ -51,31 +51,31 @@ Unblocking transaction 1
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave]
-include/wait_condition.inc [ Wait for 'Waiting for an event from Coordinator' ]
+include/wait_condition.inc [ Wait for expected number of idle workers ]
 include/wait_condition.inc [ Workers waiting: 4 ]
 Unblocking transaction 2
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave]
-include/wait_condition.inc [ Wait for 'Waiting for an event from Coordinator' ]
+include/wait_condition.inc [ Wait for expected number of idle workers ]
 include/wait_condition.inc [ Workers waiting: 3 ]
 Unblocking transaction 5
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave]
-include/wait_condition.inc [ Wait for 'Waiting for preceding transaction to commit' ]
+include/wait_condition.inc [ Wait for expected number of idle workers ]
 include/wait_condition.inc [ Workers waiting: 2 ]
 Unblocking transaction 3
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave]
-include/wait_condition.inc [ Wait for 'Waiting for an event from Coordinator' ]
+include/wait_condition.inc [ Wait for expected number of idle workers ]
 include/wait_condition.inc [ Workers waiting: 1 ]
 Unblocking transaction 4
 ROLLBACK;
 SET GTID_NEXT = AUTOMATIC;
 [connection slave]
-include/wait_condition.inc [ Wait for 'Waiting for an event from Coordinator' ]
+include/wait_condition.inc [ Wait for expected number of idle workers ]
 [connection master]
 include/rpl/sync_to_replica.inc
 [connection slave]

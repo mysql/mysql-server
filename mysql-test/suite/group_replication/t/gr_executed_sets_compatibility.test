@@ -83,6 +83,7 @@ SET GTID_NEXT= "AUTOMATIC";
 --source include/assert.inc
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
@@ -126,6 +127,7 @@ RESET BINARY LOGS AND GTIDS;
 --source include/assert.inc
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

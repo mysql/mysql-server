@@ -1,0 +1,14 @@
+--echo # Bug#34723788: Using the repro case from Bug#34723119
+--echo # There should not be any hangs after ALTER statements.
+
+CREATE TABLE t1(a INT NOT NULL PRIMARY KEY, b INT, c CHAR(10) NOT NULL, d VARCHAR(20));
+INSERT INTO t1 VALUES (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
+
+# FIXME.bug#34723119: Uncomment the changes to DEBUG var and matching line in
+# thread_pool.cc to repro the issue.
+#SET GLOBAL DEBUG='+d,make_sure_wait_begin_invoked_by_worker';
+ALTER TABLE t1 ADD UNIQUE INDEX (c), ADD INDEX (d);
+SHOW CREATE TABLE t1;
+#SET GLOBAL DEBUG='-d,make_sure_wait_begin_invoked_by_worker';
+
+DROP TABLE t1;

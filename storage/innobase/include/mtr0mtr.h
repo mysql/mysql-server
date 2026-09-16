@@ -52,9 +52,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Start a synchronous mini-transaction */
 #define mtr_start_sync(m) (m)->start(true)
 
-/** Start an asynchronous read-only mini-transaction */
-#define mtr_start_ro(m) (m)->start(true, true)
-
 /** Commit a mini-transaction. */
 #define mtr_commit(m) (m)->commit()
 
@@ -149,7 +146,7 @@ savepoint. */
   (m)->x_latch_at_savepoint((s), (b))
 
 /** Forward declaration of a tablespace object */
-struct fil_space_t;
+class fil_space_t;
 
 /** Mini-transaction memo stack slot. */
 struct mtr_memo_slot_t {
@@ -702,11 +699,10 @@ Adjusts size of the payload in the record, in order to fill the current
 block up to its boundary. If nothing else is happening in parallel,
 we could expect to see afterwards:
 (cur_lsn + space_left) % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE,
-where cur_lsn = log_get_lsn(log).
-@param[in,out]  log         redo log
+where cur_lsn = ib::redo::handler->peek_first_unassigned_lsn().
 @param[in]      space_left  extra bytes left to the boundary of block,
                             must be not greater than 496 */
-void mtr_commit_mlog_test_filling_block(log_t &log, size_t space_left = 0);
+void mtr_commit_mlog_test_filling_block(size_t space_left = 0);
 
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */

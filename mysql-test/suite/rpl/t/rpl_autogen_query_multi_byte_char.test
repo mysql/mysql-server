@@ -81,7 +81,9 @@ while ($iter <= 2)
      # --eval SET @s:=CONCAT("DROP DATABASE `",REPEAT(CHAR(226,130,172),64),"`")
      # PREPARE STMT FROM @s; EXECUTE stmt;
   #}
-  --sync_slave_with_master
+  --let $include_silent=1
+  --source include/rpl/sync_to_replica.inc
+  --let $include_silent=0
   --inc $iter
 }
 

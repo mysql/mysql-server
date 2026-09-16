@@ -48,10 +48,10 @@ SET GLOBAL innodb_fast_shutdown = 0;
 --echo # Take backup of original datadir
 --mkdir $BACKUP
 --mkdir $ORIG
---force-cpdir $MYSQLD_DATADIR $BACKUP
 --force-cpdir $MYSQLD_DATADIR $ORIG
 --remove_files_wildcard $ORIG/data/ *.bdblwr
 --remove_files_wildcard $ORIG/data/ *.dblwr
+--force-cpdir $ORIG/data $BACKUP
 
 --replace_result $BACKUP BACKUP " --innodb-flush-method=O_DIRECT" ""
 --source include/start_mysqld.inc
@@ -91,11 +91,20 @@ SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
 --let ALL_ZEROES=1
 --source corrupt_page.inc
 
---error 1,2,-2147483645
---exec $MYSQLD_CMD $ARGS
+# We are using the mysqltest_safe_process as we need to start the Server
+# synchronously with expectation it will crash. We don't want any message boxes
+# on Windows, so we need the `mysqltest_safe_process --nocore` to be used.
+# Normally we would use `start_mysqld.inc` infrastructure for that as it will
+# use the `mysqltest_safe_process --nocore` seeing the `--skip-core-file`
+# argument in the `.opt` file. However, it will start the server asynchronously,
+# and we would have to synchronize with it stopping, for which I couldn't find a
+# way. And even if there is one, this solution will be shorter, without any
+# disadvantages.
+--error 1,2,17,-2147483645
+--exec $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD $ARGS
 
 --let ABORT_ON=NOT_FOUND
---let SEARCH_PATTERN=Database page corruption of tablespace .*test.*t1.ibd space_id: \d+ page_num: \d+. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode
+--let SEARCH_PATTERN=Database page corruption of tablespace space_id: \d+ page_no: \d+, in file '.*test.*t1.ibd' at page \d+. Cannot recover it from the Double-write buffer because the server was running with --innodb_doublewrite=DETECT_ONLY before the crash.
 --let SEARCH_FILE= $ERROR_LOG
 --source include/search_pattern_multiline.inc
 --remove_file $ERROR_LOG
@@ -139,11 +148,11 @@ SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
 --let ALL_ZEROES=0
 --source corrupt_page.inc
 
---error 1,2,-2147483645
---exec $MYSQLD_CMD $ARGS
+--error 1,2,17,-2147483645
+--exec $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD $ARGS
 
 --let ABORT_ON=NOT_FOUND
---let SEARCH_PATTERN=Database page corruption of tablespace .*test.*t1.ibd space_id: \d+ page_num: \d+. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode
+--let SEARCH_PATTERN=Database page corruption of tablespace space_id: \d+ page_no: \d+, in file '.*test.*t1.ibd' at page \d+. Cannot recover it from the Double-write buffer because the server was running with --innodb_doublewrite=DETECT_ONLY before the crash.
 --let SEARCH_FILE= $ERROR_LOG
 --source include/search_pattern_multiline.inc
 --remove_file $ERROR_LOG
@@ -187,11 +196,11 @@ SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
 --let ALL_ZEROES=1
 --source corrupt_page.inc
 
---error 1,2,-2147483645
---exec $MYSQLD_CMD $ARGS
+--error 1,2,17,-2147483645
+--exec $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD $ARGS
 
 --let ABORT_ON=NOT_FOUND
---let SEARCH_PATTERN=Database page corruption of tablespace .*test.*t1.ibd space_id: \d+ page_num: \d+. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode
+--let SEARCH_PATTERN=Database page corruption of tablespace space_id: \d+ page_no: \d+, in file '.*test.*t1.ibd' at page \d+. Cannot recover it from the Double-write buffer because the server was running with --innodb_doublewrite=DETECT_ONLY before the crash.
 --let SEARCH_FILE= $ERROR_LOG
 --source include/search_pattern_multiline.inc
 --remove_file $ERROR_LOG
@@ -235,11 +244,11 @@ SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
 --let ALL_ZEROES=0
 --source corrupt_page.inc
 
---error 1,2,-2147483645
---exec $MYSQLD_CMD $ARGS
+--error 1,2,17,-2147483645
+--exec $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD $ARGS
 
 --let ABORT_ON=NOT_FOUND
---let SEARCH_PATTERN=Database page corruption of tablespace .*test.*t1.ibd space_id: \d+ page_num: \d+. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode
+--let SEARCH_PATTERN=Database page corruption of tablespace space_id: \d+ page_no: \d+, in file '.*test.*t1.ibd' at page \d+. Cannot recover it from the Double-write buffer because the server was running with --innodb_doublewrite=DETECT_ONLY before the crash.
 --let SEARCH_FILE= $ERROR_LOG
 --source include/search_pattern_multiline.inc
 --remove_file $ERROR_LOG
@@ -279,11 +288,11 @@ SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
 --let ALL_ZEROES=1
 --source corrupt_page.inc
 
---error 1,2,-2147483645
---exec $MYSQLD_CMD $ARGS
+--error 1,2,17,-2147483645
+--exec $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD $ARGS
 
 --let ABORT_ON=NOT_FOUND
---let SEARCH_PATTERN=Database page corruption of tablespace .*ibdata1 space_id: \d+ page_num: \d+. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode
+--let SEARCH_PATTERN=Database page corruption of tablespace space_id: \d+ page_no: \d+, in file '.*ibdata1' at page \d+. Cannot recover it from the Double-write buffer because the server was running with --innodb_doublewrite=DETECT_ONLY before the crash.
 --let SEARCH_FILE= $ERROR_LOG
 --source include/search_pattern_multiline.inc
 --remove_file $ERROR_LOG
@@ -321,11 +330,11 @@ SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
 --let PAGE_NUM="0"
 --source corrupt_page.inc
 
---error 1,2,-2147483645
---exec $MYSQLD_CMD $ARGS
+--error 1,2,17,-2147483645
+--exec $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD $ARGS
 
 --let ABORT_ON=NOT_FOUND
---let SEARCH_PATTERN=Database page corruption of tablespace .*ibdata1 space_id: \d+ page_num: \d+. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode
+--let SEARCH_PATTERN=Database page corruption of tablespace space_id: \d+ page_no: \d+, in file '.*ibdata1' at page \d+. Cannot recover it from the Double-write buffer because the server was running with --innodb_doublewrite=DETECT_ONLY before the crash.
 --let SEARCH_FILE= $ERROR_LOG
 --source include/search_pattern_multiline.inc
 --remove_file $ERROR_LOG
@@ -366,11 +375,11 @@ SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
 --let ALL_ZEROES=1
 --source corrupt_page.inc
 
---error 1,2,-2147483645
---exec $MYSQLD_CMD $ARGS
+--error 1,2,17,-2147483645
+--exec $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD $ARGS
 
 --let ABORT_ON=NOT_FOUND
---let SEARCH_PATTERN=Database page corruption of tablespace .*ibdata1 space_id: \d+ page_num: \d+. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode
+--let SEARCH_PATTERN=Database page corruption of tablespace space_id: \d+ page_no: \d+, in file '.*ibdata1' at page \d+. Cannot recover it from the Double-write buffer because the server was running with --innodb_doublewrite=DETECT_ONLY before the crash.
 --let SEARCH_FILE= $ERROR_LOG
 --source include/search_pattern_multiline.inc
 --remove_file $ERROR_LOG
@@ -409,11 +418,11 @@ SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
 --let PAGE_NUM=1
 --source corrupt_page.inc
 
---error 1,2,-2147483645
---exec $MYSQLD_CMD $ARGS
+--error 1,2,17,-2147483645
+--exec $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD $ARGS
 
 --let ABORT_ON=NOT_FOUND
---let SEARCH_PATTERN=Database page corruption of tablespace .*ibdata1 space_id: \d+ page_num: \d+. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode
+--let SEARCH_PATTERN=Database page corruption of tablespace space_id: \d+ page_no: \d+, in file '.*ibdata1' at page \d+. Cannot recover it from the Double-write buffer because the server was running with --innodb_doublewrite=DETECT_ONLY before the crash.
 --let SEARCH_FILE= $ERROR_LOG
 --source include/search_pattern_multiline.inc
 --remove_file $ERROR_LOG

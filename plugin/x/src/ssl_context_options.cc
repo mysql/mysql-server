@@ -88,4 +88,10 @@ int64_t Ssl_context_options::ssl_session_cache_timeouts() { return 0; }
 
 int64_t Ssl_context_options::ssl_used_session_cache_entries() { return 0; }
 
+std::string Ssl_context_options::tls_kex() { return m_tls_kex; }
+
+bool Ssl_context_options::tls_force_pqc() { return m_tls_force_pqc; }
+
+bool Ssl_context_options::tls_use_pqc_sign() { return m_tls_use_pqc_sign; }
+
 }  // namespace xpl

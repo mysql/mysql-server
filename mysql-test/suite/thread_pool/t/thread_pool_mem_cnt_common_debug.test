@@ -1,0 +1,4 @@
+--source include/have_thread_pool.inc
+--source include/have_debug.inc
+
+--source include/mem_cnt_common_debug.inc

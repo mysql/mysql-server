@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection slave]
 include/suppress_messages.inc
-# Connection 2 suppresses message <Replica SQL for channel .*: Worker 1 failed executing transaction.*>.
+# Connection 2 suppresses message <Replica SQL for channel .*>.
 #
 # R1.1. CREATE TABLE fails because table exists on replica
 #
@@ -207,8 +207,7 @@ INSERT INTO t VALUES (2);
 XA END 'a';
 XA PREPARE 'a';
 include/rpl/sync_to_replica.inc
-[connection slave]
-include/wait_for_xa_prepared_count.inc
+include/assert.inc [1 XA transaction(s) in PREPARED state]
 XA ROLLBACK 'a';
 include/rpl/save_binlog_file_position.inc
 [connection master]
@@ -224,7 +223,7 @@ INSERT INTO t VALUES (3);
 XA END 'a';
 XA PREPARE 'a';
 include/rpl/sync_to_replica.inc
-include/wait_for_xa_prepared_count.inc
+include/assert.inc [1 XA transaction(s) in PREPARED state]
 XA ROLLBACK 'a';
 include/rpl/save_binlog_file_position.inc
 [connection master]

@@ -311,6 +311,8 @@ DROP TABLE t7;
 CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression(".*Unable to create or change a table without a primary key*");
+CALL mtr.add_suppression(".*Error 'Query execution was interrupted' on query.*");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
 
 --let $rpl_channel_name= 'channel_1'
 --source include/rpl/stop_replica.inc

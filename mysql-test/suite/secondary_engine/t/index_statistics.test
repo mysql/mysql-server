@@ -22,6 +22,7 @@ INSERT INTO t1 VALUES
 ALTER TABLE t1 SECONDARY_LOAD;
 ANALYZE TABLE t1;
 
+--disable_warnings
 --echo # Uses the primary index to determine 10% filtering effect (one row).
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 1;
@@ -56,6 +57,7 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 IGNORE INDEX (x) WHERE x = 1;
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 100;
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 100;
+--enable_warnings
 
 --echo # Matches two rows in the primary index (20%).
 --replace_regex $elide_costs

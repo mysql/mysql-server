@@ -202,12 +202,8 @@ struct page_zip_des_t {
   /** Compressed page data */
   page_zip_t *data;
 
-#ifdef UNIV_DEBUG
   /** Start offset of modification log */
   uint16_t m_start;
-  /** Allocated externally, not from the buffer pool */
-  bool m_external;
-#endif /* UNIV_DEBUG */
 
   /** End offset of modification log */
   uint16_t m_end;
@@ -216,12 +212,12 @@ struct page_zip_des_t {
   on a 16 KiB page */
   uint16_t n_blobs;
 
-  /** true if the modification log is not empty.  */
-  bool m_nonempty;
-
   /** 0 or compressed page shift size; the size in bytes is:
   (UNIV_ZIP_SIZE_MIN * >> 1) << ssize. */
   uint8_t ssize;
+
+  /** true if the modification log is not empty.  */
+  [[nodiscard]] bool has_modifications() const { return m_start < m_end; }
 };
 
 /** Compression statistics for a given page size */

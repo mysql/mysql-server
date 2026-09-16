@@ -43,6 +43,7 @@ while ($loop < 4)
   --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
   --eval SET PERSIST group_replication_local_address= @@GLOBAL.group_replication_local_address
   --eval SET PERSIST group_replication_group_seeds= @@GLOBAL.group_replication_group_seeds
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
   --eval SET PERSIST group_replication_communication_stack= @@GLOBAL.group_replication_communication_stack
   --enable_query_log
   --inc $loop

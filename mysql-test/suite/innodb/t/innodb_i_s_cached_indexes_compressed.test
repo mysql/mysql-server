@@ -1,0 +1,84 @@
+#
+# Check that INFORMATION_SCHEMA.INNODB_CACHED_INDEXES accounts compressed
+# index pages as logical buffer-pool pages, not as separate compressed and
+# uncompressed images.
+#
+
+--source include/have_innodb_16k.inc
+
+CREATE TABLE zcached (
+  id INT NOT NULL,
+  k INT NOT NULL,
+  c CHAR(120) NOT NULL,
+  pad CHAR(60) NOT NULL,
+  PRIMARY KEY (id),
+  KEY k_1(k)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8 STATS_PERSISTENT=0;
+
+--let $cached_index_pages_table= test/zcached
+--let $cached_index_pages_index= k_1
+--source suite/innodb/include/create_cached_index_page_functions.inc
+
+INSERT INTO zcached VALUES (1, 1, REPEAT('c', 120), REPEAT('p', 60));
+
+--let $row_count = 1
+while ($row_count < 64)
+{
+  --eval INSERT INTO zcached SELECT id + $row_count, k + $row_count, c, pad FROM zcached
+  --let $row_count = `SELECT $row_count * 2`
+}
+
+# The small k_1 secondary index fits in one root-leaf page. It should be
+# counted once even though compressed tables can have both compressed and
+# uncompressed in-memory images for the same logical page.
+--let $cached_index_pages_checkpoint= small compressed index
+--let $expected_non_leaf_pages= 0
+--source suite/innodb/include/check_cached_index_pages.inc
+
+--eval SELECT get_n_cached_pages('$cached_index_pages_table', '$cached_index_pages_index') AS cached_pages, count_index_pages_in_lru('$cached_index_pages_table', '$cached_index_pages_index') AS buffer_pages;
+
+--source suite/innodb/include/evict_everything_from_buffer_pool.inc
+
+--let $cached_index_pages_checkpoint= evict small compressed index
+--let $expected_non_leaf_pages= 0
+--source suite/innodb/include/check_cached_index_pages.inc
+
+--eval SELECT get_n_cached_pages('$cached_index_pages_table', '$cached_index_pages_index') AS cached_pages, count_index_pages_in_lru('$cached_index_pages_table', '$cached_index_pages_index') AS buffer_pages;
+
+SELECT COUNT(*) FROM zcached FORCE INDEX(k_1) WHERE k BETWEEN 1 AND 64;
+
+--let $cached_index_pages_checkpoint= reload small compressed index
+--let $expected_non_leaf_pages= 0
+--source suite/innodb/include/check_cached_index_pages.inc
+
+--eval SELECT get_n_cached_pages('$cached_index_pages_table', '$cached_index_pages_index') AS cached_pages, count_index_pages_in_lru('$cached_index_pages_table', '$cached_index_pages_index') AS buffer_pages;
+
+--let $row_count = 64
+while ($row_count < 65536)
+{
+  --eval INSERT INTO zcached SELECT id + $row_count, k + $row_count, c, pad FROM zcached
+  --let $row_count = `SELECT $row_count * 2`
+}
+
+SELECT COUNT(*) FROM zcached FORCE INDEX(k_1) WHERE k BETWEEN 1 AND 65536;
+
+# The larger index is intended to create memory pressure that can evict some
+# uncompressed images while leaving their compressed images in the LRU list.
+# Whether that actually happens is timing-sensitive, so this test only checks
+# that the logical page count agrees with the LRU walk when the root is the
+# only expected non-leaf page.
+--let $cached_index_pages_checkpoint= large compressed index
+--let $expected_non_leaf_pages= 1
+--source suite/innodb/include/check_cached_index_pages.inc
+
+--source suite/innodb/include/evict_everything_from_buffer_pool.inc
+
+--let $cached_index_pages_checkpoint= evict large compressed index
+--let $expected_non_leaf_pages= 0
+--source suite/innodb/include/check_cached_index_pages.inc
+
+--eval SELECT get_n_cached_pages('$cached_index_pages_table', '$cached_index_pages_index') AS cached_pages, count_index_pages_in_lru('$cached_index_pages_table', '$cached_index_pages_index') AS buffer_pages;
+
+DROP FUNCTION get_n_cached_pages;
+DROP FUNCTION count_index_pages_in_lru;
+DROP TABLE zcached;

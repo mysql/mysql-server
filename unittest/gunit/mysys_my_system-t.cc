@@ -28,6 +28,23 @@
 #include <sstream>
 
 #include "components/library_mysys/my_system_api/my_system_api.h"
+#include "mysql/components/library_mysys/my_system.h"
+
+TEST(MysysMySystem, InitMyPhysicalMemory) {
+  ASSERT_TRUE(init_container_aware(false));
+  EXPECT_TRUE(init_my_physical_memory("1073741824"));
+  deinit_container_aware();
+
+#ifndef NDEBUG
+  EXPECT_DEATH_IF_SUPPORTED(init_my_physical_memory(""), "");
+  EXPECT_DEATH_IF_SUPPORTED(init_my_physical_memory("-1"), "");
+  EXPECT_DEATH_IF_SUPPORTED(init_my_physical_memory("invalid"), "");
+#else
+  EXPECT_FALSE(init_my_physical_memory(""));
+  EXPECT_FALSE(init_my_physical_memory("-1"));
+  EXPECT_FALSE(init_my_physical_memory("invalid"));
+#endif
+}
 
 #ifndef WIN32
 namespace {

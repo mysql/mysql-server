@@ -1,0 +1,58 @@
+--source include/have_tlsv13.inc
+
+--let $openssl_binary_version=OpenSSL (3\.[5-9]|3\.[1-9][0-9]|[4-9][0-9]*)\.
+--source include/have_openssl_binary_version.inc
+
+if (!$GROUP_REPLICATION)
+{
+  --skip Need Group Replication plugin
+}
+
+if (!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='group_replication'`)
+{
+  --skip Need Group Replication plugin
+}
+
+--source include/save_error_log_position.inc
+--let $restart_parameters=restart: --group-replication-force-pqc=ON --group-replication-recovery-tls-version=TLSv1.2
+--source include/restart_mysqld.inc
+
+--echo Startup disables group_replication_force_pqc when recovery TLS version excludes TLSv1.3
+SELECT @@GLOBAL.group_replication_force_pqc,
+       @@GLOBAL.group_replication_recovery_tls_version;
+
+--let $error_pattern=Plugin group_replication reported: 'group_replication_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but group_replication_recovery_tls_version=TLSv1.2 disables TLSv1.3; setting group_replication_force_pqc=OFF'
+--source include/assert_error_log.inc
+
+SET @@GLOBAL.group_replication_recovery_tls_version = DEFAULT;
+
+SELECT @@GLOBAL.group_replication_force_pqc;
+
+SELECT @@group_replication_force_pqc = @@GLOBAL.group_replication_force_pqc;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.group_replication_force_pqc;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.group_replication_force_pqc;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_force_pqc = ON;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_force_pqc = 'invalid';
+
+SET @group_replication_recovery_tls_version_saved =
+  @@GLOBAL.group_replication_recovery_tls_version;
+SET @@GLOBAL.group_replication_force_pqc = OFF;
+SET @@GLOBAL.group_replication_recovery_tls_version = 'TLSv1.2';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_force_pqc = ON;
+SELECT @@GLOBAL.group_replication_force_pqc;
+--echo 0 Expected
+SET @@GLOBAL.group_replication_recovery_tls_version =
+  @group_replication_recovery_tls_version_saved;
+
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='group_replication_force_pqc';

@@ -808,3 +808,31 @@ id	x
 4	2
 5	3
 DROP TABLE t;
+#
+# Bug#38901085: create_tmp_field assert fail
+#
+CREATE TABLE t1 (
+a INT,
+b VARCHAR(100),
+KEY k1 (a)
+);
+INSERT INTO t1 VALUES (1, 'x'), (2, 'y'), (101, 'z');
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a > 0;
+INSERT INTO v1 (a, b)
+SELECT a, b FROM v1 WHERE a > 100 LIMIT 10
+ON DUPLICATE KEY UPDATE b = VALUES(b);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+INSERT INTO v1 (a, b)
+SELECT a, b FROM v1 AS z WHERE a > 100 LIMIT 10
+ON DUPLICATE KEY UPDATE b = z.b;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	x
+2	y
+101	z
+101	z
+101	z
+101	z
+DROP VIEW v1;
+DROP TABLE t1;

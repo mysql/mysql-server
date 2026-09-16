@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 [connection slave]
 call mtr.add_suppression("Detected misconfiguration: replication channel '' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1.*");
+call mtr.add_suppression("Replication channel '' is configured with GTID_ONLY=1, which is invalid when GTID_MODE <> ON");
 #
 # 1. Enable AUTO_POSITION.
 #

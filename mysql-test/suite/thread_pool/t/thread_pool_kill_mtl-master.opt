@@ -1,0 +1,2 @@
+--thread_pool_size=1
+--thread_pool_max_transactions_limit=1

@@ -39,6 +39,7 @@ root@localhost	user1@localhost
 
 <********  Slave user1 p3 & p2 calls *******>
 ---------------------------------------------
+include/rpl/sync_to_replica.inc
 SELECT CURRENT_USER();
 CURRENT_USER()
 user1@localhost

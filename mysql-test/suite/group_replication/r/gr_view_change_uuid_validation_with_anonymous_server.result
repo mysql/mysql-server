@@ -12,15 +12,11 @@ SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaa
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_and_bootstrap_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server2]
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 #  2. Disable GTIDs on server 3
@@ -81,8 +77,6 @@ SET GLOBAL group_replication_view_change_uuid= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/rpl/start_replica.inc
 
 ###################################################################

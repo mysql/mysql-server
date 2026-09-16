@@ -60,6 +60,7 @@ bool TLS_channel::singleton_init(Ssl_acceptor_context_container **out,
     from singleton_init().
   */
   if (callbacks->provision_certs()) return true;
+  callbacks->adjust_startup_options();
 
   enum enum_ssl_init_error error = SSL_INITERR_NOERROR;
   auto *news = new Ssl_acceptor_context_data(channel, callbacks, true, &error);
@@ -84,8 +85,10 @@ bool TLS_channel::singleton_init(Ssl_acceptor_context_container **out,
     return true;
   }
 
-  if (!db_init && news->have_ssl())
+  if (!db_init && news->have_ssl()) {
     LogErr(SYSTEM_LEVEL, ER_TLS_CONFIGURED_FOR_CHANNEL, channel.c_str());
+    news->report_tls_channel_without_force_pqc();
+  }
 
   *out = new_container;
   return false;
@@ -99,7 +102,8 @@ void TLS_channel::singleton_deinit(Ssl_acceptor_context_container *container) {
 void TLS_channel::singleton_flush(Ssl_acceptor_context_container *container,
                                   std::string channel,
                                   Ssl_init_callback *callbacks,
-                                  enum enum_ssl_init_error *error, bool force) {
+                                  enum enum_ssl_init_error *error, bool force,
+                                  bool warn_without_force_pqc) {
   if (container == nullptr) return;
   auto *news = new Ssl_acceptor_context_data(std::move(channel), callbacks,
                                              false, error);
@@ -107,6 +111,8 @@ void TLS_channel::singleton_flush(Ssl_acceptor_context_container *container,
     delete news;
     return;
   }
+  if (warn_without_force_pqc && news->have_ssl())
+    news->report_tls_channel_without_force_pqc();
   (void)container->switch_data(news);
 }
 

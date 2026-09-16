@@ -42,6 +42,7 @@ while ($_rpl_server <= $_rpl_server_max)
     SET GLOBAL group_replication_force_members= "";
     SET GLOBAL group_replication_bootstrap_group= OFF;
     SET GLOBAL read_only= FALSE;
+    --disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
     SET GLOBAL group_replication_ip_allowlist= "AUTOMATIC";
 
     # Result-log is enabled.

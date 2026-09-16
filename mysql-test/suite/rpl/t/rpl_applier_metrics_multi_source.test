@@ -21,6 +21,9 @@
 # WL#15620:  MTA: extended apply statistics
 #
 
+# CSA currently does not support extended apply statistics
+--source include/have_mta.inc
+
 # Requires that the component has been compiled.
 --source include/have_component_replication_applier_metrics.inc
 

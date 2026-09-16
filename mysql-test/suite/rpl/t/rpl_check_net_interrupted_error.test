@@ -28,6 +28,7 @@
 
 --source include/rpl/connection_replica.inc
 call mtr.add_suppression("Replica I/O .*: Source command COM_REGISTER_REPLICA failed: .*");
+call mtr.add_suppression("Query execution was interrupted");
 --source include/rpl/stop_replica.inc
 
 --source include/rpl/connection_source.inc

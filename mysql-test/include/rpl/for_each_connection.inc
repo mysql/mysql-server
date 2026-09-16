@@ -37,14 +37,23 @@
 --let $include_filename= rpl/for_each_connection.inc [$rpl_source_file]
 --source include/begin_include_file.inc
 
+--let $_rfec_offset= 2
 --let $rpl_connection_number= 1
 while ($rpl_connection_number <= $rpl_connection_count)
 {
   # 'mX sY mZ sW ...'
-  #        ^ _rfec_offset points here in the second iteration
-  --let $_rfec_offset= 1 + ($rpl_connection_number - 1) * 2 * (2 + $rpl_server_count_length)
-  --let $rpl_master= `SELECT SUBSTRING('$rpl_connection_list', $_rfec_offset + 1, $rpl_server_count_length)`
-  --let $rpl_slave= `SELECT SUBSTRING('$rpl_connection_list', $_rfec_offset + 1 + $rpl_server_count_length + 2, $rpl_server_count_length)`
+  #         ^ _rfec_offset points here in the second iteration
+  # Example with servers with ids >= 10
+  # Spaces = $rpl_server_count_length
+  # mX  sY  mY  sX  mZZ  sW  mW  sZZ ...
+  #  2   6
+  #          10  14
+  #                  18   23
+  #                           27  31
+  --let $rpl_master= `SELECT RTRIM(SUBSTRING('$rpl_connection_list', $_rfec_offset, $rpl_server_count_length))`
+  --let $_rfec_offset= `SELECT $_rfec_offset + LENGTH('$rpl_master') + $rpl_server_count_length + 1`
+  --let $rpl_slave= `SELECT RTRIM(SUBSTRING('$rpl_connection_list', $_rfec_offset, $rpl_server_count_length))`
+  --let $_rfec_offset= `SELECT $_rfec_offset + LENGTH('$rpl_slave') + $rpl_server_count_length + 1`
 
   --let $rpl_channel_name=
   if ($rpl_multi_source)

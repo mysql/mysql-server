@@ -105,7 +105,7 @@ class logger {
   int m_trace_level{};
 #endif /* UNIV_HOTBACKUP */
 
- protected:
+ public:
 #ifndef UNIV_NO_ERR_MSGS
   /** Format an error message.
   @param[in]    err     Error code from errmsg-*.txt.
@@ -114,7 +114,6 @@ class logger {
   static std::string msg(int err, Args &&...args) {
     const char *fmt = srv_get_server_errmsgs(err);
 
-    int ret;
     char buf[LOG_BUFF_MAX];
 #ifdef UNIV_DEBUG
     if (get_first_format(fmt) != nullptr) {
@@ -124,15 +123,10 @@ class logger {
       }
     }
 #endif
-    ret = snprintf(buf, sizeof(buf), fmt, std::forward<Args>(args)...);
+    const auto ret =
+        snprintf(buf, sizeof(buf), fmt, std::forward<Args>(args)...);
 
-    std::string str;
-
-    if (ret > 0 && (size_t)ret < sizeof(buf)) {
-      str.append(buf);
-    }
-
-    return (str);
+    return (ret > 0 && (size_t)ret < sizeof(buf)) ? buf : "";
   }
 
  protected:

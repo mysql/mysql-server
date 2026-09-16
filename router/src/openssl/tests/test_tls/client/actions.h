@@ -26,37 +26,57 @@
 #ifndef ROUTER_SRC_OPENSSL_TESTS_TEST_TLS_CLIENT_ACTIONS_H_
 #define ROUTER_SRC_OPENSSL_TESTS_TEST_TLS_CLIENT_ACTIONS_H_
 
+#include <cassert>
+#include <cstdint>
 #include <vector>
+
+enum class Opt : std::uint32_t {
+  none = 0,
+  read = 1u << 0,
+  write = 1u << 1,
+  force_disconnect = 1u << 2,
+  expect_disconnect = 1u << 3,
+  reconfigure = 1u << 4,
+};
+
+constexpr Opt operator|(Opt a, Opt b) {
+  return static_cast<Opt>(static_cast<std::uint32_t>(a) |
+                          static_cast<std::uint32_t>(b));
+}
+constexpr Opt operator&(Opt a, Opt b) {
+  return static_cast<Opt>(static_cast<std::uint32_t>(a) &
+                          static_cast<std::uint32_t>(b));
+}
+constexpr Opt operator~(Opt a) {
+  return static_cast<Opt>(~static_cast<std::uint32_t>(a));
+}
+constexpr Opt &operator|=(Opt &a, Opt b) { return a = (a | b); }
+constexpr Opt &operator&=(Opt &a, Opt b) { return a = (a & b); }
 
 class Action {
  public:
-  Action(const bool is_read = true, const size_t transfer = 0,
-         const bool expect_disconnect = false,
-         const bool force_disconnect = false)
-      : is_read_op_{is_read},
-        transfer_bytes_{transfer},
-        expect_disconnect_{expect_disconnect},
-        force_disconnect_{force_disconnect} {}
+  Action() = default;
 
-  Action(const Action &action) {
-    is_read_op_ = action.is_read_op_;
-    transfer_bytes_ = action.transfer_bytes_;
-    expect_disconnect_ = action.expect_disconnect_;
-    force_disconnect_ = action.force_disconnect_;
+  Action(Opt set, const size_t transfer = 0)
+      : set_{set}, transfer_bytes_{transfer} {
+    assert(!(has(set_, Opt::read) && has(set_, Opt::write)) &&
+           "Use either read or write");
   }
 
+  Action(const Action &action) { *this = action; }
+
   Action &operator=(const Action &action) {
-    is_read_op_ = action.is_read_op_;
+    set_ = action.set_;
     transfer_bytes_ = action.transfer_bytes_;
-    expect_disconnect_ = action.expect_disconnect_;
-    force_disconnect_ = action.force_disconnect_;
 
     return *this;
   }
 
-  bool is_read_operation() const { return is_read_op_; }
-  bool expect_disconnect() const { return expect_disconnect_; }
-  bool must_disconnect() const { return force_disconnect_; }
+  bool is_read_operation() const { return has(set_, Opt::read); }
+  bool is_write_operation() const { return has(set_, Opt::write); }
+  bool expect_disconnect() const { return has(set_, Opt::expect_disconnect); }
+  bool must_disconnect() const { return has(set_, Opt::force_disconnect); }
+  bool reconfigure() const { return has(set_, Opt::reconfigure); }
 
   size_t get_bytes_to_transfer() const { return transfer_bytes_; }
   void set_bytes_to_transfer(const size_t transfer_bytes) {
@@ -66,30 +86,35 @@ class Action {
   void transfered(const size_t bytes) { transfer_bytes_ -= bytes; }
 
  private:
-  bool is_read_op_;
-  size_t transfer_bytes_;
-  bool expect_disconnect_;
-  bool force_disconnect_;
+  static bool has(Opt set, Opt flag) { return (set & flag) != Opt::none; }
+
+  Opt set_{Opt::none};
+  size_t transfer_bytes_{0};
 };
 
 class ActionRead : public Action {
  public:
-  ActionRead(const size_t transfer = 0) : Action(true, transfer) {}
+  ActionRead(const size_t transfer = 0) : Action(Opt::read, transfer) {}
 };
 
 class ActionWrite : public Action {
  public:
-  ActionWrite(const size_t transfer = 0) : Action(false, transfer) {}
+  ActionWrite(const size_t transfer = 0) : Action(Opt::write, transfer) {}
 };
 
 class ActionExpectDisconnect : public Action {
  public:
-  ActionExpectDisconnect() : Action(true, 1, true) {}
+  ActionExpectDisconnect() : Action(Opt::read | Opt::expect_disconnect, 1) {}
 };
 
 class ActionDisconnect : public Action {
  public:
-  ActionDisconnect() : Action(false, 0, false, true) {}
+  ActionDisconnect() : Action(Opt::force_disconnect, 0) {}
+};
+
+class ActionReconfigure : public Action {
+ public:
+  ActionReconfigure() : Action(Opt::reconfigure, 0) {}
 };
 
 inline size_t action_count_send(const std::vector<Action> &actions) {

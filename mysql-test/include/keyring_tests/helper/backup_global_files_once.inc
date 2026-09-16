@@ -47,6 +47,9 @@ if (! $GLOBAL_BACKUP_SUFFIX) {
 # backup global config
 --let $CONFIG_FILE_PATH = $COMPONENT_DIR/$COMPONENT_NAME.cnf
 --let $BACKUP_CONFIG_FILE_PATH = $COMPONENT_DIR/$COMPONENT_NAME.cnf.$GLOBAL_BACKUP_SUFFIX
+# Clean up any leftover backup from a failed run.
+--error 0,1
+--remove_file $BACKUP_CONFIG_FILE_PATH
 --copy_file $CONFIG_FILE_PATH $BACKUP_CONFIG_FILE_PATH
 
 # backup global manifest
@@ -55,4 +58,7 @@ if (! $GLOBAL_BACKUP_SUFFIX) {
 --let $MYSQLD_NO_EXT = `SELECT LEFT("$MYSQLD", $MYSQLD_FULL_LEN - $MYSQLD_EXT_LEN)`
 --let $MANIFEST_FILE_PATH = $MYSQLD_NO_EXT.my
 --let $BACKUP_MANIFEST_FILE_PATH = $MANIFEST_FILE_PATH.$GLOBAL_BACKUP_SUFFIX
+# Clean up any leftover backup from a failed run.
+--error 0,1
+--remove_file $BACKUP_MANIFEST_FILE_PATH
 --copy_file $MANIFEST_FILE_PATH $BACKUP_MANIFEST_FILE_PATH

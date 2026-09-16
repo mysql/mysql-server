@@ -442,3 +442,21 @@ SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
 SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
   WHERE information_schema.schemata.schema_name = 'unknowdb';
 --enable_result_log
+
+
+--echo #
+--echo # Bug#37077567: Inconsistent auto_increment values
+--echo #
+
+CREATE TABLE t1(id BIGINT unsigned AUTO_INCREMENT PRIMARY KEY, a INT NULL);
+INSERT INTO t1 VALUES();
+
+ALTER TABLE t1 AUTO_INCREMENT=18446744073709551610;
+ANALYZE TABLE t1;
+
+SELECT TABLE_NAME, AUTO_INCREMENT,
+AUTO_INCREMENT=18446744073709551610 AS EXPECTED
+FROM information_schema.tables
+WHERE table_schema='test' AND table_name='t1';
+
+DROP TABLE t1;

@@ -48,6 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
+#include "fil0tablespace_scan.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
 #include "fts0priv.h"
@@ -70,7 +71,7 @@ bool srv_load_corrupted = false;
 
 /** Using the table->heap, copy the null-terminated filepath into
 table->data_dir_path. The data directory path is derived from the
-filepath by stripping the the table->name.m_name component suffix.
+filepath by stripping the table->name.m_name component suffix.
 If the filepath is not of the correct form (".../db/table.ibd"),
 then table->data_dir_path will remain nullptr.
 @param[in,out]  table           table instance

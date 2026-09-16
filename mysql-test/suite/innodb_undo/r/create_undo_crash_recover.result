@@ -1,0 +1,119 @@
+#
+# wl#16989 Innodb: Make UNDO log truncation crash safe
+#
+# Scenario 1 :- crash after writing ddl log
+Setting server to crash at "create_undo_crash_after_ddl_log" during UNDO truncate
+SET GLOBAL DEBUG = "+d,create_undo_crash_after_ddl_log";
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+ERROR HY000: Lost connection to MySQL server during query
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_001
+undo_002
+#
+# Cleanup
+#
+DROP UNDO TABLESPACE undo_003;
+ERROR HY000: Tablespace undo_003 doesn't exist.
+# Scenario 2 :- crash before undo create
+Setting server to crash at "create_crash_before_undo_tablespace_create" during UNDO truncate
+SET GLOBAL DEBUG = "+d,create_crash_before_undo_tablespace_create";
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+ERROR HY000: Lost connection to MySQL server during query
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_001
+undo_002
+#
+# Cleanup
+#
+DROP UNDO TABLESPACE undo_003;
+ERROR HY000: Tablespace undo_003 doesn't exist.
+# Scenario 3 : crash_after_undo_create
+Setting server to crash at "create_crash_after_undo_tablespace_create" during UNDO truncate
+SET GLOBAL DEBUG = "+d,create_crash_after_undo_tablespace_create";
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+ERROR HY000: Lost connection to MySQL server during query
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_001
+undo_002
+#
+# Cleanup
+#
+DROP UNDO TABLESPACE undo_003;
+ERROR HY000: Tablespace undo_003 doesn't exist.
+# Scenario 4 : crash before commiting the create undo statement
+Setting server to crash at "create_undo_crash_before_statement_commit" during UNDO truncate
+SET GLOBAL DEBUG = "+d,create_undo_crash_before_statement_commit";
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+ERROR HY000: Lost connection to MySQL server during query
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_001
+undo_002
+#
+# Cleanup
+#
+DROP UNDO TABLESPACE undo_003;
+ERROR HY000: Tablespace undo_003 doesn't exist.
+# Scenario 5: crash after writing DDL log during drop tablespace
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+SET GLOBAL DEBUG = "+d,drop_undo_crash_after_log_ddl";
+DROP UNDO TABLESPACE undo_003;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;
+#Sceanrio 6: Crash in post DDL operation code.
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+SET GLOBAL DEBUG = "+d,ddl_log_replay_delete_space_crash_after_file_delete";
+DROP UNDO TABLESPACE undo_003;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0

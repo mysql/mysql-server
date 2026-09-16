@@ -24,6 +24,8 @@
 */
 
 #include <cstring>
+#include <memory>
+#include <string>
 #include <unordered_set>
 
 #include <openssl/err.h>
@@ -41,6 +43,8 @@
 
 #include "mgmapi.h"
 #include "mgmcommon/Config.hpp"
+
+#include "debugger/EventLogger.hpp"
 
 #include "portlib/NdbDir.hpp"
 #include "portlib/NdbProcess.hpp"
@@ -67,7 +71,7 @@ const char *opt_ca_cert = ClusterCertAuthority::CertFile;
 const char *opt_ca_host = nullptr;
 const char *opt_ca_search_path = nullptr;
 const char *opt_ca_tool = nullptr;
-const char *opt_ca_ordinal = nullptr;
+const char *opt_ca_ordinal = "First";
 const char *opt_ndb_config_file = nullptr;
 const char *opt_bound_host = nullptr;
 const char *opt_dest_dir = nullptr;
@@ -80,7 +84,6 @@ unsigned int opt_node_id = 0;
 bool opt_create_ca = 0;
 bool opt_create_key = 0;
 bool opt_sign = 1;
-bool opt_rotate_ca = 0;
 bool opt_noconfig = 0;
 bool opt_periodic = 0;
 bool opt_pending = 0;
@@ -90,6 +93,7 @@ bool opt_stdio = 0;
 int opt_replace_by = -10;
 int opt_duration = 0;
 int opt_ca_days = CertLifetime::CaDefaultDays;
+unsigned long opt_trust = 0;
 unsigned long long opt_bind_host = 0;
 unsigned long long opt_node_types = 0;
 
@@ -118,14 +122,17 @@ const char *remote_ca_path = nullptr;
 
 static const char *node_types[4] = {"mgmd", "db", "api", nullptr};
 static struct TYPELIB node_types_lib = {3, "", node_types, nullptr};
+static const char *trust_verbs[5] = {"(No default value)", "add", "remove",
+                                     "show", nullptr};
+static struct TYPELIB trust_verbs_lib = {4, "", trust_verbs, nullptr};
 
-/* short option letters used: C K P V X c d f n l t ? */
+/* short option letters used: C K P T V X c f l n t ? */
 
 static struct my_option sign_keys_options[] = {
     NdbStdOpt::usage,
     NdbStdOpt::help,
-    NdbStdOpt::version,
-    NdbStdOpt::ndb_connectstring,
+    NdbStdOpt::version,            // short form 'V'
+    NdbStdOpt::ndb_connectstring,  // short form 'c'
     NdbStdOpt::connect_retries,
     NdbStdOpt::connect_retry_delay,
     NdbStdOpt::tls_search_path,
@@ -150,13 +157,10 @@ static struct my_option sign_keys_options[] = {
      nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"create-CA", NDB_OPT_NOSHORT, "Create Cluster CA", &opt_create_ca, nullptr,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"rotate-CA", NDB_OPT_NOSHORT, "Rotate Cluster CA", &opt_rotate_ca, nullptr,
-     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"CA-ordinal", NDB_OPT_NOSHORT,
-     "Ordinal CA name; "
-     "defaults to \"First\" for --create-CA and \"Second\" for --rotate-CA",
-     &opt_ca_ordinal, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
-     0, nullptr},
+    {"CA-ordinal", NDB_OPT_NOSHORT, "Ordinal CA name", &opt_ca_ordinal, nullptr,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"trust", 'T', "Manage trust store", &opt_trust, nullptr, &trust_verbs_lib,
+     GET_ENUM, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"CA-days", NDB_OPT_NOSHORT, "Set CA validity time in days", &opt_ca_days,
      nullptr, nullptr, GET_INT, REQUIRED_ARG, opt_ca_days, -1, 0, nullptr, 0,
      nullptr},
@@ -226,8 +230,40 @@ static struct my_option sign_keys_options[] = {
     NdbStdOpt::end_of_options,
 };
 
+enum class OperationMode {
+  undefined,
+  SignKeys,               /* Default mode. The CA can be local or remote. */
+  CreateCa,               /* Create a local CA only */
+  PromotePendingToActive, /* --promote */
+  CheckExpirationDates,   /* --check */
+  MaintainTrustStore      /* --trust=... */
+};
+
+class Arguments {
+  int argc;
+  char **argv;
+
+ public:
+  Arguments(int c, char **v) : argc(c), argv(v) {}
+  bool supplied(int i) const { return (i < argc); }
+  char *value(int i) const { return argv[i]; }
+  int int_value(int i) const { return atoi(value(i)); }
+  bool is_file(int i) const { return (access(value(i), F_OK) == 0); }
+};
+
 inline bool message(const char *m) {
   fputs(m, stderr);
+  return false;
+}
+
+bool option_conflict(const char *opt1, const char *opt2) {
+  fprintf(stderr, "Error: --%s is incompatible with --%s\n", opt1, opt2);
+  return false;
+}
+
+bool option_invalid(const char *opt) {
+  fprintf(stderr, "Error: option --%s is valid only in key-signing mode.\n",
+          opt);
   return false;
 }
 
@@ -241,18 +277,11 @@ bool parse_schedule() {
 bool check_options() {
   if (!parse_schedule()) return message("Error: Invalid schedule string.\n");
 
-  if (opt_create_ca && opt_ca_host)
-    return message("Error: Cannot create remote CA.\n");
-
-  if (opt_create_ca && opt_rotate_ca)
-    return message(
-        "Error: Incompatible options: --rotate-CA and --create-CA\n");
-
   if (opt_rs_openssl && !opt_ca_host)
     return message("Error: --remote-openssl requires --remote-CA-host\n");
 
   if (opt_rs_openssl && opt_ca_tool)
-    return message("Error: --remote-openssl is incompatible with --CA-tool\n");
+    return option_conflict("remote-openssl", "CA-tool");
 
   if (opt_node_id && opt_noconfig)
     return message(
@@ -260,7 +289,26 @@ bool check_options() {
         "       use -t to specify a node type.\n");
 
   /* Begin determining mode of operation: */
-  if (opt_create_ca || opt_periodic || opt_promote) opt_sign = false;
+  OperationMode operationMode = OperationMode::undefined;
+
+  if (opt_trust)
+    operationMode = OperationMode::MaintainTrustStore;
+  else if (opt_promote)
+    operationMode = OperationMode::PromotePendingToActive;
+  else if (opt_create_ca)
+    operationMode = OperationMode::CreateCa;
+  else if (opt_periodic)
+    operationMode = OperationMode::CheckExpirationDates;
+  else
+    operationMode = OperationMode::SignKeys;
+
+  if (operationMode != OperationMode::SignKeys) {
+    if (opt_ca_host) return option_invalid("remote-CA-host");
+    if (opt_ca_tool) return option_invalid("CA-tool");
+    if (opt_rs_openssl) return option_invalid("remote-openssl");
+    if (opt_stdio) return option_invalid("stdio");
+    opt_sign = false;
+  }
 
   /* Set appropriate remote signing method for given options */
   if (opt_ca_tool)
@@ -269,16 +317,6 @@ bool check_options() {
     signing_method = SIGN_SSH_OPENSSL;
   else if (opt_ca_host)
     signing_method = SIGN_SSH_SIGN_KEYS;
-
-  /* Set CA ordinal */
-  if (opt_ca_ordinal == nullptr)
-    opt_ca_ordinal = opt_rotate_ca ? "Second" : "First";
-
-  /* In STDIO mode, prohibit non-signing options, and skip display of mode */
-  if (opt_stdio) {
-    if (!opt_sign) return message("Error: --stdio mode is only for signing\n");
-    return true;
-  }
 
   /* Check opt_remote_path */
   if (opt_remote_path) {
@@ -289,26 +327,58 @@ bool check_options() {
       return message("Error: invalid remote signing utility\n");
   }
 
-  /* Print operation mode */
+  /* --stdio requires SignKeys mode; skip display of mode */
+  if (opt_stdio) {
+    if (!opt_sign) return message("Error: --stdio mode is only for signing\n");
+    return true;
+  }
+
+  /* In trust mode, allow only a single node type */
+  if (operationMode == OperationMode::MaintainTrustStore) {
+    if (opt_node_types == 7)
+      opt_node_types = 4;  // default to API
+    else if (opt_node_types == 3 || opt_node_types > 4)
+      return message("Only a single node type is allowed with --trust\n");
+  }
+
+  /* Run final check of mismatched options, and print operation mode */
   const char *mode = nullptr;
-  if (opt_create_ca)
-    mode = "create CA";
-  else if (opt_rotate_ca)
-    mode = "rotate CA";
-  else if (opt_promote)
-    mode = "promote files";
-  else if (opt_periodic)
-    mode = "check expiration dates";
-  else if (!opt_sign)
-    mode = opt_create_key ? "create key and signing request"
-                          : "create signing request for existing key";
-  else if (opt_pending)
-    mode = opt_create_key ? "create pending keys and certificates"
-                          : "create pending certificates";
-  else if (opt_create_key)
-    mode = "create active keys and certificates";
-  else
-    mode = "create active certificates";
+  switch (operationMode) {
+    case OperationMode::SignKeys:
+      if (opt_pending)
+        mode = opt_create_key ? "create pending keys and certificates"
+                              : "create pending certificates";
+      else
+        mode = opt_create_key ? "create active keys and certificates"
+                              : "create active certificates";
+      break;
+
+    case OperationMode::MaintainTrustStore:
+      if (opt_promote) return option_conflict("trust", "promote");
+      if (opt_create_ca) return option_conflict("trust", "create-CA");
+      if (opt_periodic) return option_conflict("trust", "check");
+      mode = "maintain trust store (verbs: show, add, remove)";
+      break;
+
+    case OperationMode::PromotePendingToActive:
+      if (opt_create_ca) return option_conflict("promote", "create-CA");
+      if (opt_periodic) return option_conflict("promote", "check");
+      mode = "promote files";
+      break;
+
+    case OperationMode::CreateCa:
+      if (opt_periodic) return option_conflict("create-CA", "check");
+      mode = "create CA";
+      break;
+
+    case OperationMode::CheckExpirationDates:
+      mode = "check expiration dates";
+      break;
+
+    default:
+      assert(false);
+      return message("Unexpected operation mode");
+  }
 
   fprintf(stderr, "Mode of operation: %s.\n", mode);
   return true;
@@ -537,7 +607,7 @@ class ClusterCredentialFiles {
   static int read_CA_key(const TlsSearchPath *, EVP_PKEY *&key,
                          PkiFile::PathName &path,
                          char *pass = opt_cluster_key_pass);
-  static int read_CA_certs(const TlsSearchPath *, stack_st_X509 **,
+  static int read_CA_certs(const TlsSearchPath *, stack_st_X509 *,
                            PkiFile::PathName &);
   static int create(const char *key_dir, const char *cert_dir);
 };
@@ -563,12 +633,17 @@ int ClusterCredentialFiles::read_CA_key(const TlsSearchPath *searchPath,
 }
 
 int ClusterCredentialFiles::read_CA_certs(const TlsSearchPath *searchPath,
-                                          stack_st_X509 **certs,
+                                          stack_st_X509 *certs,
                                           PkiFile::PathName &path) {
-  require(*certs == nullptr);
+  require(certs != nullptr);
   if (searchPath->find(opt_ca_cert, path)) {
-    *certs = Certificate::open(path);
-    return *certs ? 0 : TlsKeyError::cannot_read_ca_cert;
+    FILE *fp = fopen(path.c_str(), "r");
+    if (fp) {
+      bool r = Certificate::read(certs, fp);
+      fclose(fp);
+      if (r) return 0;
+    }
+    return TlsKeyError::cannot_read_ca_cert;
   }
   return TlsKeyError::ca_cert_not_found;
 }
@@ -629,57 +704,321 @@ int create_CA(TlsSearchPath *CA_path) {
   return ClusterCredentialFiles::create(key_dir, cert_dir);
 }
 
-int rotate_CA(EVP_PKEY *ca_key, const PkiFile::PathName &ca_key_path,
-              stack_st_X509 *ca_certs, const PkiFile::PathName &ca_cert_path) {
-  require(opt_cluster_key_pass);
+int find_cert_in_stack(const X509 *cert, STACK_OF(X509) * stack) {
+  if (stack)
+    for (int i = 0; i < sk_X509_num(stack); i++)
+      if (X509_cmp(cert, sk_X509_value(stack, i)) == 0) return i;
+  return -1;
+}
 
-  /* Retire the old CA */
-  BaseString retiredKeyFile(ca_key_path.c_str());
-  retiredKeyFile.append(".retired");
-  BaseString retiredCertFile(ca_cert_path.c_str());
-  retiredCertFile.append(".retired");
+void trust_show_cert(X509 *cert, bool skipDetails = false) {
+  char buffer[128];
+  CertLifetime lifetime(cert);
 
-  bool r = File_class::rename(ca_key_path.c_str(), retiredKeyFile.c_str());
-  fprintf(stderr, "Renaming the older CA private key to %s: %s\n",
-          retiredKeyFile.c_str(), r ? "OK" : "FAILED");
-  if (!r) return TlsKeyError::cannot_store_ca_key;
+  Certificate::get_common_name(cert, buffer, sizeof(buffer));
+  printf("     Name: %s\n", buffer);
+  if (skipDetails) return;
+  SerialNumber::print(buffer, sizeof(buffer), X509_get0_serialNumber(cert));
+  printf("     Serial: %s\n", buffer);
+  lifetime.print_expire_time(buffer, sizeof(buffer));
+  printf("     Expires: %s\n", buffer);
+}
 
-  r = File_class::rename(ca_cert_path.c_str(), retiredCertFile.c_str());
-  fprintf(stderr, "Renaming the older CA certificate to %s: %s\n",
-          retiredCertFile.c_str(), r ? "OK" : "FAILED");
-  if (!r) return TlsKeyError::cannot_store_ca_cert;
+const char *trust_show_flags(cstrbuf<64> &buffer, unsigned short flags) {
+  if (flags & TlsKeyManager::CA_IN_TRUST_STORE)
+    buffer.append("from_trust_file ");
+  if (flags & TlsKeyManager::CA_IN_CERT_CHAIN)
+    buffer.append("from_cert_chain ");
+  if (flags & TlsKeyManager::CA_IS_ROOT) buffer.append("self-signed ");
+  return buffer.c_str();
+}
 
-  /* Create the new CA */
-  EVP_PKEY *new_key = EVP_RSA_gen(2048);
-  if (!new_key) return TlsKeyError::openssl_error;
+void trust_show_stack(STACK_OF(X509) * certs,
+                      STACK_OF(X509) *trusted = nullptr) {
+  for (int i = 0; i < sk_X509_num(certs); i++) {
+    X509 *cert = sk_X509_value(certs, i);
+    bool found = (find_cert_in_stack(cert, trusted) >= 0);
+    printf("   %d %s\n", i + 1, found ? " ** IN TRUST STORE **" : "");
+    trust_show_cert(cert, found);
+  }
+}
 
-  CertLifetime days(opt_ca_days);
-  X509 *new_cert =
-      ClusterCertAuthority::create(new_key, days, opt_ca_ordinal, false);
-  if (!new_cert) return TlsKeyError::failed_to_init_ca;
+inline FILE *trust_file_open(const char *dir, const char *mode) {
+  FILE *fp = TrustStore::open(dir, mode);
+  if (fp == nullptr) perror("TrustStore::open()");
+  return fp;
+}
 
-  /* Now the old CA signs the new CA certificate */
-  if (!ClusterCertAuthority::sign(sk_X509_value(ca_certs, 0), ca_key, new_cert))
-    return TlsKeyError::signing_error;
+/* Initialize a TlsKeyManager for a single node (by default an API/client node)
+   and display its actual trust store. */
+void trust_show_context(TlsSearchPath *search_path) {
+  TlsKeyManager keyManager;
+  TlsKeyManager::CA_Table list(keyManager);
+  cstrbuf<64> flags;
+  char *path_string = search_path->expanded_path_string();
 
-  /* Store the new key */
-  fprintf(stderr, "Storing the new CA key\n");
-  if (!PrivateKey::store(new_key, ca_key_path, opt_cluster_key_pass, true)) {
-    perror("Error storing CA key");
-    return TlsKeyError::cannot_store_ca_key;
+  Node::Type type = Node::Type::Client;
+  const char *ntype = "api";
+  if (opt_node_types < 3) {
+    type = Node::Mask(opt_node_types);
+    ntype = node_types[opt_node_types - 1];
+  }
+  printf("\n");
+  printf("Current NDB trust store (node type: %4s)\n", ntype);
+  printf("-----------------------------------------\n");
+  printf("ndb-tls-search-path='%s'\n", path_string);
+  {
+    PkiFile::PathName pk;
+    if (!ActivePrivateKey::find(search_path, 0, type, pk))
+      printf("Private key file not found.\n");
   }
 
-  /* Place the new certificate at the start of the stack */
-  sk_X509_unshift(ca_certs, new_cert);
+  /* Error or info messages from TlsKeyManager will appear here. */
+  keyManager.init_mgm_client(opt_tls_search_path, type);
+  printf("TLS is %s.\n", keyManager.ctx() ? "available" : "*NOT* available");
 
-  /* Store the new certificate stack */
-  fprintf(stderr, "Storing the new CA certificate\n");
-  if (!Certificate::store(ca_certs, ca_cert_path)) {
-    perror("Error storing CA cert");
-    return TlsKeyError::cannot_store_ca_cert;
+  for (cert_table_entry &cert : list) {
+    flags.clear();
+    puts("  Trusted CA");
+    trust_show_cert(cert.cert);
+    printf("     Flags: %s\n", trust_show_flags(flags, cert.flags));
+    printf("     \n");
   }
+  free(path_string);
+}
+
+inline int trust_try_read(const char *dir) {
+  STACK_OF(X509) *stack = sk_X509_new_null();
+  FILE *fp = trust_file_open(dir, "r");
+  int n = fp ? TrustStore::read_all(stack, fp) : 0;
+  sk_X509_pop_free(stack, X509_free);
+  TrustStore::close(fp);
+  return n;
+}
+
+/* Display full path names to all trusted cert files in path */
+bool trust_show_files(TlsSearchPath *search_path) {
+  PkiFile::PathName file_path;
+
+  printf("\n");
+  printf("Trusted Certificate files\n");
+  printf("-------------------------\n");
+  int d = TrustStore::find(search_path, file_path, 0);
+  if (d < 0) {
+    printf("  No files found.\n");
+    return false;
+  }
+  while (d >= 0) {
+    int n = trust_try_read(search_path->dir(d));
+    if (n < 1)
+      printf("  %s [%s]\n", file_path.c_str(), n ? "ERROR" : "EMPTY");
+    else
+      printf("  %s [%d certificate%s]\n", file_path.c_str(), n, plural(n));
+    d = TrustStore::find(search_path, file_path, d + 1);
+  }
+  return true;
+}
+
+void trust_show_trusted_certs(STACK_OF(X509) * stack, TlsSearchPath *path) {
+  printf("\n");
+  printf("Contents of Trusted Certificate Files\n");
+  printf("-------------------------------------\n");
+  if (TrustStore::load(stack, path) < 1)
+    printf("  ERROR\n");
+  else
+    trust_show_stack(stack);
+}
+
+void trust_show_ca_certs(STACK_OF(X509) * ca_certs, STACK_OF(X509) * trusted) {
+  printf("\n");
+  printf("Available CA certificates\n");
+  printf("-------------------------\n");
+  printf("CA-search-path='%s', CA-cert='%s'\n",
+         opt_ca_search_path ? opt_ca_search_path : "", opt_ca_cert);
+  if (sk_X509_num(ca_certs) < 1)
+    printf("  No certificates.\n");
+  else
+    trust_show_stack(ca_certs, trusted);
+  printf("\n");
+}
+
+int trust_show(const char *write_dir, TlsSearchPath *search_path,
+               STACK_OF(X509) * ca_certs, const Arguments &) {
+  STACK_OF(X509) *trusted = sk_X509_new_null();
+  g_eventLogger->createConsoleHandler();
+
+  trust_show_context(search_path);
+  if (trust_show_files(search_path))
+    trust_show_trusted_certs(trusted, search_path);
+  trust_show_ca_certs(ca_certs, trusted);
+
+  sk_X509_pop_free(trusted, X509_free);
+
+  /* If write_dir is "", replace it with "." */
+  assert(write_dir);
+  if (!strlen(write_dir)) write_dir = ".";
+  printf("Destination directory: '%s'\n\n", write_dir);
 
   return 0;
+}
+
+bool trust_match_serial(X509 *cert, const char *s) {
+  char buffer[128];
+  SerialNumber::print(buffer, sizeof(buffer), X509_get0_serialNumber(cert));
+  return (strncmp(s, buffer, sizeof(buffer)) == 0);
+}
+
+int trust_select_cert_index(STACK_OF(X509) * stack, const Arguments &args) {
+  /* When only one CA is in stack it can be implicitly selected with no arg */
+  if (!args.supplied(0)) return (sk_X509_num(stack) == 1) ? 0 : -1;
+
+  int d = args.int_value(0);
+  if (d > 0 && d <= sk_X509_num(stack))
+    return d - 1; /* If argument is an integer from 1 to size, use it */
+
+  for (int i = 0; i < sk_X509_num(stack); i++)
+    if (trust_match_serial(sk_X509_value(stack, i), args.value(0)))
+      return i; /* Argument matches the serial number of an item in stack */
+  return -1;
+}
+
+inline X509 *trust_select_cert(STACK_OF(X509) * stack, const Arguments &args) {
+  int i = trust_select_cert_index(stack, args);
+  return (i >= 0) ? sk_X509_value(stack, i) : nullptr;
+}
+
+int trust_add_cert(const TlsSearchPath *search_path, const char *dir,
+                   STACK_OF(X509) * ca_certs, const Arguments &args) {
+  /* arg0 could be an index into CA certs, a serial number, ... */
+  X509 *cert = trust_select_cert(ca_certs, args);
+  /* or a file name. */
+  if (cert == nullptr && args.is_file(0))
+    cert = Certificate::open_one(args.value(0));
+  if (cert == nullptr) return TlsKeyError::trust_store_bad_indicator;
+
+  /* Check for duplicate of an existing trusted cert */
+  {
+    STACK_OF(X509) *trusted = sk_X509_new_null();
+    int dup = -1;
+    if (TrustStore::load(trusted, search_path) > 0)
+      dup = find_cert_in_stack(cert, trusted);
+    sk_X509_pop_free(trusted, X509_free);
+    if (dup >= 0) return TlsKeyError::trust_store_duplicate;
+  }
+
+  /* Append certificate to trust store */
+  FILE *fp = trust_file_open(dir, "a");
+  if (fp == nullptr) return TlsKeyError::trust_store_cannot_write;
+  int rs = TrustStore::write(fp, cert);
+  TrustStore::close(fp);
+  if (rs == 0) {
+    perror("TrustStore::write()");
+    return TlsKeyError::trust_store_fs_error;
+  }
+
+  printf("Certificate:\n");
+  trust_show_cert(cert);
+  printf("Added to NDB-trusted-certs in directory '%s'.\n\n", dir);
+  return 0;
+}
+
+/* Remove one certificate. An argument is required.
+   The argument can be an integer or a serial number.
+*/
+int trust_remove_cert(const TlsSearchPath *path, const Arguments &args) {
+  if (!args.supplied(0)) return TlsKeyError::trust_store_bad_indicator;
+
+  STACK_OF(X509) *trusted = sk_X509_new_null();  // the trust store
+  const X509 *cert = nullptr;  // the certificate to be removed
+  {
+    int idx = -1;
+    int r = TrustStore::load(trusted, path);
+    if (r > 0) idx = trust_select_cert_index(trusted, args);
+    if (idx < 0) {
+      sk_X509_free(trusted);
+      return (r < 1) ? TlsKeyError::trust_store_fs_error
+                     : TlsKeyError::trust_store_bad_indicator;
+    }
+    cert = sk_X509_value(trusted, idx);
+  }
+
+  /* We know which certificate to delete, but we don't yet know
+     where to find it. */
+  int c = -1;
+  const char *dir = nullptr;
+  STACK_OF(X509) *contents = nullptr;
+
+  for (size_t i = 0; i < path->size(); i++) {
+    dir = path->dir(i);
+    contents = sk_X509_new_null();
+    FILE *fp = TrustStore::open(dir, "r");
+    if (fp == nullptr) continue;
+    if (TrustStore::read_all(contents, fp) > 0)
+      c = find_cert_in_stack(cert, contents);
+    TrustStore::close(fp);
+    if (c >= 0) break;
+    sk_X509_pop_free(contents, X509_free);
+  }
+  sk_X509_pop_free(trusted, X509_free);
+  cert = nullptr;
+
+  assert(c >= 0);
+  if (c < 0) {
+    // cert was found using load() but not using read_all()
+    sk_X509_pop_free(contents, X509_free);
+    return TlsKeyError::trust_store_fs_error;
+  }
+
+  /* Remove cert from stack */
+  sk_X509_delete(contents, c);
+
+  /* If this was the only cert, delete the file */
+  if (sk_X509_num(contents) == 0) {
+    sk_X509_free(contents);
+    if (TrustStore::remove(dir)) {
+      printf("Removed NDB-trusted-certs file in directory '%s'.\n\n", dir);
+      return 0;
+    }
+    perror("TrustStore::remove()");
+    return TlsKeyError::trust_store_fs_error;
+  }
+
+  /* Rewrite the file */
+  int rs = 0;
+  FILE *fp = TrustStore::open(dir, "w");
+  if (fp == nullptr)
+    perror("TrustStore::open()");
+  else {
+    rs = TrustStore::write_all(fp, contents);
+    if (rs == 0) perror("TrustStore::write()");
+  }
+  TrustStore::close(fp);
+
+  sk_X509_pop_free(contents, X509_free);
+  if (rs == 0) return TlsKeyError::trust_store_cannot_write;
+
+  printf("Removed certificate from NDB-trusted-certs in directory '%s'.\n\n",
+         dir);
+  return 0;
+}
+
+int manage_trust(const char *write_dir, STACK_OF(X509) * ca_certs,
+                 const Arguments &args) {
+  TlsSearchPath spath1(opt_tls_search_path);
+  std::unique_ptr<TlsSearchPath> search_path(spath1.dedup());
+
+  switch (opt_trust) {
+    case 1: /* add */
+      return trust_add_cert(search_path.get(), write_dir, ca_certs, args);
+
+    case 2: /* remove */
+      return trust_remove_cert(search_path.get(), args);
+
+    case 3: /* show */
+      return trust_show(write_dir, search_path.get(), ca_certs, args);
+  }
+  assert(false);
+  return 106;
 }
 
 void print_creating_object(const char *type, const char *dir) {
@@ -917,7 +1256,7 @@ int main(int argc, char **argv) {
   TlsKeyManager keyManager;
   SSL_CTX *ctx = nullptr;
   EVP_PKEY *ca_key = nullptr;
-  stack_st_X509 *ca_certs = nullptr;
+  stack_st_X509 *ca_certs = sk_X509_new_null();
   int rs = 0;
 
   g_local_hostnames.emplace("localhost");
@@ -944,7 +1283,7 @@ int main(int argc, char **argv) {
     write_dir = search_path->first_writable();
   }
 
-  if (!(write_dir || opt_key_dest_dir || opt_create_ca || opt_rotate_ca)) {
+  if (!(write_dir || opt_key_dest_dir || opt_create_ca)) {
     return fatal(TlsKeyError::no_writable_dir);
   }
 
@@ -954,13 +1293,13 @@ int main(int argc, char **argv) {
       + The final CA search path is passed to the remote key signing server
         as --ndb-tls-search-path, where it might be overriden by a
         --CA-search-path specified in my.cnf there
-      + When creating a CA or rotating CAs, if a destination directory is
-        specified in --to-dir, it takes precedence over --ndb-tls-search-path
+      + When creating a CA, if a destination directory is specified in --to-dir,
+        it takes precedence over --ndb-tls-search-path
   */
   TlsSearchPath *CA_path = nullptr;
   if (opt_ca_search_path)
     CA_path = new TlsSearchPath(opt_ca_search_path);
-  else if ((opt_create_ca || opt_rotate_ca) && opt_dest_dir)
+  else if (opt_create_ca && opt_dest_dir)
     CA_path = new TlsSearchPath(opt_dest_dir);
   else
     CA_path = new TlsSearchPath(opt_tls_search_path);
@@ -970,24 +1309,19 @@ int main(int argc, char **argv) {
   if (opt_create_ca) return fatal(create_CA(CA_path));
 
   /* (2) Obtain CA credentials */
-  if (opt_rs_openssl)
-    ca_certs =
-        sk_X509_new_null();  // CA cert will be fetched from remote server
-  else if (opt_sign) {
-    if (!opt_stdio) {
+  if (!opt_rs_openssl) {
+    if (opt_sign && !opt_stdio) {
       ClusterCredentialFiles::get_passphrase();
       rs = ClusterCredentialFiles::read_CA_key(CA_path, ca_key, ca_key_file);
       if (rs) return fatal(rs);
     }
-    rs =
-        ClusterCredentialFiles::read_CA_certs(CA_path, &ca_certs, ca_cert_file);
-    if (rs) return fatal(rs);
-    if (opt_periodic && do_periodic_check(ca_certs, ca_cert_file)) return 1;
+    rs = ClusterCredentialFiles::read_CA_certs(CA_path, ca_certs, ca_cert_file);
+    if (rs && opt_sign) return fatal(rs);
   }
 
-  /* (3) rotate-CA mode: Rotate CA and exit */
-  if (opt_rotate_ca)
-    return fatal(rotate_CA(ca_key, ca_key_file, ca_certs, ca_cert_file));
+  /* (3) Trust store mode: manage trust store and exit */
+  if (opt_trust)
+    return fatal(manage_trust(write_dir, ca_certs, Arguments(argc, argv)));
 
   /* (4) stdio mode: create a single certificate, then exit */
   if (opt_stdio) {

@@ -151,6 +151,10 @@ let $field= State;
 let $condition= = 'Replica has read all relay log; waiting for more updates';
 -- source include/wait_show_condition.inc
 
+# In MTA, Seconds_Behind_Source is updated by the checkpoint routine after
+# workers have applied their queued events.
+--source include/rpl/wait_for_mta_checkpoint.inc
+
 -- let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
 let $assert_text= Seconds_Behind_Source must be 0;
 let $assert_cond= $sbm = 0;

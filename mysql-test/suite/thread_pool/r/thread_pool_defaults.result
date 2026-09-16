@@ -1,0 +1,16 @@
+#
+# Restart mysqld server with --thread-pool-size=1
+#
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension> --thread-pool-size=1
+#
+# Restart mysqld server with --thread-pool-size=8
+#
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension> --thread-pool-size=8
+#
+# Restart mysqld server with --thread-pool-size=32
+#
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension> --thread-pool-size=32
+#
+# Restart mysqld server with --thread-pool-size=128
+#
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension> --thread-pool-size=128

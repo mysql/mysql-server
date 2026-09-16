@@ -1,0 +1,169 @@
+# ====Purpose====
+#
+# Check that relay logs are correctly purged by CSA.
+#
+# ====Requirements====
+#
+# R1. CSA shall purge the inactive relay log file after transactions from the
+# file and transactions preeceeding the file are correctly applied.
+#
+# R2. CSA shall not purge the inactive relay log file in case any preeceeding
+# transaction failed.
+#
+# R3. CSA shall not purge the inactive relay log file in case the preeceeding
+# transactions are still ongoing.
+#
+# R4. CSA shall purge relay log file without checking the relay log positions.
+#
+# ====Implementation====
+#
+#  1. Setup replication
+#  2. Run queries including rotations of the relay log
+#  3. Check that all relay log files except the last one are deleted
+#  4. Run more queries including RL rotations, with one offending transaction in
+#     inner relay log file.
+#  5. Check that RL file containing offending transaction and files
+#     following this transaction are kept, even if following relay log
+#     files are correctly applied
+#  6. Cleanup
+
+--source include/have_csa.inc
+# This test is binlog format agnostic
+--source include/have_binlog_format_row.inc
+
+# We need to test if relay log files are correctly purged even if
+# transaction following the failed transaction are committed. To do that, we
+# need RPCO disabled (see opt file)
+
+--echo
+--echo #  1. Setup replication
+--echo
+--let $rpl_applier_version=2:2
+--let $rpl_applier_worker_count=2:8
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo #  2. Run queries including rotations of the relay log
+--echo
+
+--source include/rpl/connection_source.inc
+
+CREATE TABLE t1(c1 INT PRIMARY KEY); # 1
+CREATE TABLE t2(c1 INT PRIMARY KEY); # 2
+INSERT INTO t1 VALUES (1);           # 3
+INSERT INTO t2 VALUES (1);           # 4
+
+--source include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 VALUES (2);           # 5
+INSERT INTO t2 VALUES (2);           # 6
+
+--source include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 VALUES (3);           # 7
+INSERT INTO t2 VALUES (3);           # 8
+
+--source include/rpl/sync_to_replica.inc
+
+--let $MYSQLD_REPLICA_DATADIR= `select @@datadir`
+
+--echo
+--echo #  3. Check that all relay log files except the last one are deleted
+--echo
+
+# The last one is active - still exists
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000004
+
+--source include/rpl/stop_replica.inc
+--error 1
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000001
+--error 1
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000002
+--error 1
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000003
+# After the stop file still exists - we cannot purge last file
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000004
+--source include/rpl/start_replica.inc
+
+--echo
+--echo #  4. Run more queries including rotations, with one offending transaction in
+--echo #     inner relay log file.
+--echo
+
+INSERT INTO t2 VALUES (50);
+FLUSH TABLE t2 WITH READ LOCK;
+
+--source include/rpl/connection_source.inc
+
+--let $source_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+INSERT INTO t1 VALUES (4);  # 9
+INSERT INTO t1 VALUES (5);  # 10
+
+--source include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+--source include/rpl/connection_source.inc
+
+# This query will fail with ER_TABLE_EXISTS_ERROR
+INSERT INTO t2 VALUES (50); # 11
+
+--source include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 VALUES (6);  # 12
+
+--source include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+--source include/rpl/connection_source.inc
+
+INSERT INTO t1 VALUES (7);  # 13
+
+--source include/rpl/connection_replica.inc
+
+# Make sure that transaction from files after offending
+# transaction are applied
+--replace_result $source_uuid SOURCE_UUID
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET("$source_uuid:12-13", 60)
+
+
+# let the transaction fail
+UNLOCK TABLES;
+
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+--source include/rpl/wait_for_applier_to_stop.inc
+
+--echo
+--echo #  5. Check that file containing offending transaction and files
+--echo #     following this transaction are kept, even if following relay log
+--echo #     files are correctly applied
+--echo
+
+--error 1
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000004
+--error 1
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000005
+
+# This one has failure and is active - file exists
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000006
+# The rest of the files shall be kept as well, despite trx might be committed
+# in case RPCO is set to OFF
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000007
+--file_exists $MYSQLD_REPLICA_DATADIR/slave-relay-bin.000008
+
+--echo
+--echo #  6. Cleanup
+--echo
+DELETE FROM t2 WHERE c1=50;
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+DROP TABLE t2;
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("Replica SQL for channel '': Could not execute Write_rows event on");
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

@@ -1,0 +1,14 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, val INT);
+[connection slave]
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
+SELECT @@GLOBAL.gtid_executed REGEXP '^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:1(-[0-9]+)?)?$' INTO @regex_match;
+include/assert.inc [Verify no gaps in GTID executed: should be a single contiguous range uuid:1-K]
+include/rpl/start_replica.inc
+call mtr.add_suppression("Query execution was interrupted.");
+include/rpl/deinit.inc

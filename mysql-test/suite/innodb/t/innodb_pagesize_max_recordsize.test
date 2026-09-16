@@ -190,10 +190,15 @@ DROP TABLE tab5;
 --source include/shutdown_mysqld.inc
 
 # Check Server startup failure when page sizes are mismatch
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+
+# We are using the mysqltest_safe_process as the server is expected to crash
+# and we don't want any message boxes on Windows. Normally we would use
+# start_mysqld.inc infrastructure that, but it does not support replacing
+# cmdline, it can only merge the default one with supplied arguments.
+let NEW_CMD = $MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD --no-defaults --innodb_dedicated_server=OFF --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Check Server startup failure when page size 64K
---error 1,42
+--error 1,2,-2147483645
 --exec $NEW_CMD
 
 # Search for particular warning during server startup

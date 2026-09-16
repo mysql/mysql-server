@@ -53,7 +53,7 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 # Restart after crash without Keyring plugin loaded
 # Taking backup of local manifest file for MySQL server instance
-Pattern "CORRUPT LOG RECORD FOUND" found
+Pattern "\[ERROR\].*Encryption can\'t find master key, please check the keyring is loaded" found
 # Server shouldn't have restarted, so query should fail.
 SELECT * from test.t1 limit 10;
 Got one of the listed errors

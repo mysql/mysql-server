@@ -1,0 +1,24 @@
+# Setup
+CREATE DATABASE mdump;
+USE mdump;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+
+# Executing mysqldump normally (multiline off) generates:
+INSERT INTO `t1` VALUES (1),(2),(3),(4);
+
+# Executing mysqldump with multiline on generates:
+INSERT INTO `t1` VALUES 
+(1),
+(2),
+(3),
+(4);
+
+# Verify mysql client can import multi-line insert
+Importing dump file, record count should now be 8
+SELECT count(*) FROM t1;
+count(*)
+8
+
+# Cleanup
+DROP DATABASE mdump;

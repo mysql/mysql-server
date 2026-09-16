@@ -25,6 +25,8 @@ EXPLAIN
 -> Limit/Offset: 5/1 row(s)  (cost=1.15 rows=5)
     -> Table scan on t1  (cost=1.15 rows=9)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` limit 1,5
 (SELECT * FROM t1 LIMIT 7) ORDER BY a DESC LIMIT 4;
 a
 17
@@ -626,6 +628,8 @@ EXPLAIN
                 -> Table scan on t1  (cost=0.45 rows=2)
             -> Table scan on t2  (cost=0.35 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select json_objectagg(NULL,'') AS `JSON_OBJECTAGG(NULL, '')` from `test`.`t1` join `test`.`t1` `t2` group by `test`.`t1`.`pk` limit 5,2
 SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
 ERROR 22032: JSON documents may not contain NULL member names.
 FLUSH TABLES;
@@ -703,6 +707,8 @@ EXPLAIN
         -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=0.504 rows=0)
             -> Index range scan on b (re-planned for each iteration)  (cost=0.504 rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`a`.`pk` AS `pk` from `test`.`a` join `test`.`b` where ((`test`.`b`.`pk` <= `test`.`a`.`col_int`) and (`test`.`a`.`col_varchar_255` = `test`.`b`.`col_varchar_10`)) order by `test`.`a`.`pk` limit 10
 INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
 INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
 INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
@@ -727,6 +733,8 @@ EXPLAIN
         -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=8.55 rows=0)
             -> Index range scan on b (re-planned for each iteration)  (cost=8.55 rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`a`.`pk` AS `pk` from `test`.`a` join `test`.`b` where ((`test`.`b`.`pk` <= `test`.`a`.`col_int`) and (`test`.`a`.`col_varchar_255` = `test`.`b`.`col_varchar_10`)) order by `test`.`a`.`pk` limit 10
 DROP TABLE a;
 DROP TABLE b;
 # Bug#31667061: Inconsistent behavior of @@SQL_SELECT_LIMIT

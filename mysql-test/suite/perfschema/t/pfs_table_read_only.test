@@ -1,0 +1,84 @@
+--echo #
+--echo # Verify component-created PFS tables survive restart with DDSE read-only.
+--echo #
+
+--source include/not_valgrind.inc
+
+--echo #
+--echo # Install component that creates Performance Schema tables.
+--echo #
+
+--eval INSTALL COMPONENT 'file://component_pfs_example_component_population';
+
+--echo #
+--echo # Verify component-created PFS tables exist in normal mode.
+--echo #
+
+--sorted_result
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'performance_schema'
+  AND table_name IN
+    ('pfs_example_continent','pfs_example_country');
+
+SELECT COUNT(*) AS rows_found
+FROM performance_schema.pfs_example_continent;
+
+SELECT COUNT(*) AS rows_found
+FROM performance_schema.pfs_example_country;
+
+--echo #
+--echo # Restart with InnoDB/DDSE read-only.
+--echo # restart_innodb_read_only.inc adds the standard warning suppressions.
+--echo #
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to compress the gtid_executed table.");
+--enable_query_log
+
+--source include/restart_innodb_read_only.inc
+
+SELECT @@global.innodb_read_only;
+
+--echo #
+--echo # Verify component-created PFS table metadata was reused.
+--echo #
+
+--sorted_result
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'performance_schema'
+  AND table_name IN
+    ('pfs_example_continent','pfs_example_country');
+
+SELECT COUNT(*) AS rows_found
+FROM performance_schema.pfs_example_continent;
+
+SELECT COUNT(*) AS rows_found
+FROM performance_schema.pfs_example_country;
+
+--echo #
+--echo # Restart back in writable mode before cleanup.
+--echo #
+
+--source include/restart_mysqld.inc
+
+--eval UNINSTALL COMPONENT 'file://component_pfs_example_component_population';
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_continent;
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_country;
+
+--echo #
+--echo # Make sure that tables are removed from performance_schema.
+--echo #
+SHOW TABLES IN performance_schema
+     WHERE Tables_in_performance_schema LIKE "%pfs_example%";
+
+--echo #
+--echo # Clean up
+--echo #
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/pfs_example_component_population.log;
+remove_file $MYSQLD_DATADIR/pfs_example_component_population.log;

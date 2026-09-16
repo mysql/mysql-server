@@ -53,7 +53,6 @@ struct Range {
 class Resource_group;
 struct Resource_group_ctx {
   Resource_group *m_cur_resource_group;
-  char m_switch_resource_group_str[NAME_CHAR_LEN + 1];
   int m_warn;
 };
 }  // namespace resourcegroups

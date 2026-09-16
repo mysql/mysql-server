@@ -26,16 +26,22 @@
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --connection slave
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+# Bug#39580589 tracks the MyISAM/GTID visibility behavior observed here:
+# with concurrent_insert enabled, a MyISAM SELECT may observe the previous
+# table state after WAIT_FOR_EXECUTED_GTID_SET() returns. Revisit this
+# test's dependency on @@global.concurrent_insert after Bug#39580589
+# is evaluated.
+SET @old_slave_concurrent_insert= @@global.concurrent_insert;
+SET @@global.concurrent_insert= 0;
 --enable_query_log
 
 
 # If concurrent inserts are on, it is not guaranteed that the rows
 # inserted by INSERT are immediately accessible by SELECT in another
 # thread. This would cause problems near the line 'connection master1'
-# below. So we turn off concurrent inserts.
-connection master;
-SET @old_concurrent_insert= @@global.concurrent_insert;
-SET @@global.concurrent_insert= 0;
+# below. mysql-test/suite/rpl/t/rpl_insert_id.test turns off concurrent
+# inserts on the source before sourcing this file, and the replica setting
+# is handled here after replication has been initialized.
 
 connection master;
 eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
@@ -554,7 +560,10 @@ select * from t2 order by id;
 connection master;
 drop table t1, t2;
 drop procedure foo;
-SET @@global.concurrent_insert= @old_concurrent_insert;
 set @@session.sql_auto_is_null=default;
+--connection slave
+--disable_query_log
+SET @@global.concurrent_insert= @old_slave_concurrent_insert;
+--enable_query_log
 
 --source include/rpl/deinit.inc

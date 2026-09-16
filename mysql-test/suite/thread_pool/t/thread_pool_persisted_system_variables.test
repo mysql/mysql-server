@@ -1,0 +1,175 @@
+########################################################################
+# === Purpose ===
+# This test verifies that server handles all dependencies correctly
+# during restarts with interdependent persisted variables.
+#
+# === Implementation ===
+# 1. Start the server with thread_pool_size=2 and verify that the server
+#    starts successfully with the thread pool plugin loaded.
+# 2. Test 1:
+#    - Set thread_pool_dedicated_listeners=ON
+#      and thread_pool_max_transactions_limit=0 using SET PERSIST_ONLY.
+#    - Restart the server and verify that starts the thread
+#      pool plugin with thread_pool_dedicated_listeners=OFF.
+# 3. Test 2:
+#    - Set thread_pool_dedicated_listeners=ON
+#      and thread_pool_max_transactions_limit=8 using SET PERSIST_ONLY.
+#    - Restart the server and verify that the thread pool plugin is
+#      loaded.
+# 4. Test 3:
+#    - Set thread_pool_max_transactions_limit=4
+#      and thread_pool_query_threads_per_group=8 using SET PERSIST_ONLY.
+#    - Restart the server and verify that it starts with the correct
+#      settings.
+#    - Check for warnings about incompatibility and automatic settings.
+# 5. Test 4:
+#    - Verify that thread_pool_max_transactions_limit and
+#      thread_pool_query_threads_per_group are persisted in the static
+#      section of mysqld-auto.cnf.
+#    - Create a table to store the contents of mysqld-auto.cnf.
+#    - Insert the contents of mysqld-auto.cnf into the table.
+#    - Verify that the expected keys are present in the JSON data.
+#    - Cleanup
+#
+# === References ===
+# WL#16621: Change Thread Pool Plugin configuration defaults.
+########################################################################
+
+# Assert that the server is started with the correct thread_pool settings
+--assert (`SELECT @@global.thread_pool_size = 2`)
+--assert (`SELECT @@global.thread_pool_max_transactions_limit = 64`)
+--assert (`SELECT @@global.thread_pool_query_threads_per_group = 2`)
+
+--echo #################################################################
+--echo # Test 1:
+--echo # Verify that thread pool successfully loads with
+--echo # thread_pool_dedicated_listeners=ON and
+--echo # thread_pool_max_transactions_limit=0, when the variables are
+--echo # set through SET PERSIST.
+--echo #################################################################
+
+SET PERSIST_ONLY thread_pool_dedicated_listeners=ON;
+SET PERSIST_ONLY thread_pool_max_transactions_limit=0;
+
+--echo # Restart mysqld server with default options.
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+
+--echo # Verify that the server restarted successfully, but with the
+--echo # adjusted value of thread_pool_dedicated_listeners=OFF.
+
+--source ../inc/thread_pool_err.inc
+--let $error_pattern= the server is automatically disabling thread_pool_dedicated_listeners
+
+--source ../inc/wrong_value.inc
+
+RESET PERSIST thread_pool_dedicated_listeners;
+
+--echo # Restart mysqld server with default options.
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+
+--echo #################################################################
+--echo # Test 2:
+--echo # Verify that thread pool loads successfully with
+--echo # thread_pool_dedicated_listeners=ON and
+--echo # thread_pool_max_transactions_limit=8.
+--echo #################################################################
+SET PERSIST_ONLY thread_pool_dedicated_listeners=ON;
+SET PERSIST_ONLY thread_pool_max_transactions_limit=8;
+
+--echo # Restart mysqld server with default options.
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+
+# Ensure that plugin is loaded
+--assert(`SELECT @@global.thread_pool_size = 2`)
+--assert(`SELECT @@global.thread_pool_max_transactions_limit = 8`)
+--assert(`SELECT @@global.thread_pool_dedicated_listeners = 1`)
+--assert (`SELECT @@global.thread_pool_query_threads_per_group = 2`)
+
+--echo #################################################################
+--echo # Test 3:
+--echo # Verify that thread pool starts with
+--echo # thread_pool_max_transactions_limit=4 and
+--echo # thread_pool_query_threads_per_group=8.
+--echo # Check for warnings about incompatibility and automatic settings.
+--echo #################################################################
+
+SET PERSIST_ONLY thread_pool_max_transactions_limit=4;
+SET PERSIST_ONLY thread_pool_query_threads_per_group=8;
+
+--echo # Restart mysqld server with default options.
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+
+# Assert that the server is started with the correct thread_pool settings
+--assert (`SELECT @@global.thread_pool_size = 2`)
+--assert (`SELECT @@global.thread_pool_max_transactions_limit = 4`)
+--assert (`SELECT @@global.thread_pool_query_threads_per_group = 2`)
+
+# Assert that the warning has been written to the error log
+--let $warning_text= thread_pool_query_threads_per_group.8. exceeds transaction threads limit per group .2.
+--let $assert_text= Found an appropriate warning about incompatibility
+--let $assert_select= $warning_text
+--let $assert_count= 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+--let $assert_text= Found an appropriate warning about automatic setting of thread_pool_query_threads_per_group
+--let $assert_select= the server is automatically setting thread_pool_query_threads_per_group to 2
+--let $assert_count= 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+# Add suppression for the warning that is expected to be generated
+--eval CALL mtr.add_suppression("$warning_text");
+
+--echo #################################################################
+--echo # Test 4:
+--echo # Verify that thread_pool_max_transactions_limit and
+--echo # thread_pool_query_threads_per_group are persisted in the
+--echo # static section of mysqld-auto.cnf.
+--echo #################################################################
+
+SET PERSIST_ONLY thread_pool_size=2;
+SET PERSIST_ONLY thread_pool_query_threads_per_group=2;
+SET PERSIST_ONLY thread_pool_max_transactions_limit=4;
+SET PERSIST_ONLY thread_pool_dedicated_listeners=OFF;
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+# Create a table to store the contents of JSON file
+CREATE TABLE my_table (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  data JSON
+);
+
+# Insert the contents of mysqld-auto.cnf into the table
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--eval INSERT INTO my_table (data) VALUES (CAST(LOAD_FILE('$MYSQLD_DATADIR/mysqld-auto.cnf') AS CHAR CHARACTER SET utf8mb4));
+
+# Verify that the following variables is present in the static section
+# of the mysqld-auto.cnf
+# 1. thread_pool_size
+# 2. thread_pool_query_threads_per_group
+# 3. thread_pool_max_transactions_limit
+# 4. thread_pool_dedicated_listeners
+
+SELECT JSON_UNQUOTE(jt.key_name) AS key_name FROM my_table,
+JSON_TABLE(
+  JSON_KEYS(data, '$.mysql_static_variables'),
+  '$[*]' COLUMNS (key_name VARCHAR(100) PATH '$')
+) AS jt;
+
+# Assert that the variables are present as keys in the JSON data
+--assert (`SELECT JSON_CONTAINS_PATH(data, 'one', '$.mysql_static_variables.thread_pool_size') FROM my_table`)
+--assert (`SELECT JSON_CONTAINS_PATH(data, 'one', '$.mysql_static_variables.thread_pool_query_threads_per_group') FROM my_table`)
+--assert (`SELECT JSON_CONTAINS_PATH(data, 'one', '$.mysql_static_variables.thread_pool_max_transactions_limit') FROM my_table`)
+--assert (`SELECT JSON_CONTAINS_PATH(data, 'one', '$.mysql_static_variables.thread_pool_dedicated_listeners') FROM my_table`)
+
+DROP TABLE my_table;

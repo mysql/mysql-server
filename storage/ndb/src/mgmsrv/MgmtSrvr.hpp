@@ -104,7 +104,7 @@ class MgmtSrvr : private ConfigSubscriber, public trp_client {
     const char *cluster_config_suffix;
     int config_cache;
     const char *bind_address;
-    int no_nodeid_checks;
+    int nodeid_check_addr;
     int print_full_config;
     const char *configdir;
     int verbose;
@@ -409,8 +409,8 @@ class MgmtSrvr : private ConfigSubscriber, public trp_client {
   bool m_require_tls{false};  // ... and as MGM server.
   bool m_require_cert{false};
 
-  struct ssl_ctx_st *ssl_ctx() {
-    return theFacade->get_registry()->getTlsKeyManager()->ctx();
+  TlsKeyManager *tlsKeyManager() const {
+    return theFacade->get_registry()->getTlsKeyManager();
   }
 
   bool m_need_restart;

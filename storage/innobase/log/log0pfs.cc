@@ -312,7 +312,9 @@ static void release_service(SERVICE_TYPE(registry) * reg_srv, T **service) {
 void pfs_sdi_enable();
 void pfs_sdi_disable();
 
-static bool log_pfs_should_create_tables() { return !srv_read_only_mode; }
+[[nodiscard]] static bool log_pfs_should_create_tables() {
+  return log_sys != nullptr && !srv_read_only_mode;
+}
 
 bool log_pfs_create_tables() {
   if (!log_pfs_should_create_tables()) {

@@ -1,0 +1,59 @@
+# Bug#38921524: Granting a privilege fails with ERROR 3901
+
+--source include/count_sessions.inc
+
+--disable_query_log
+let $saved_partial_revokes = `SELECT @@global.partial_revokes`;
+SET GLOBAL partial_revokes = ON;
+--enable_query_log
+
+CREATE ROLE administrator;
+GRANT SELECT, CREATE TEMPORARY TABLES, CREATE USER ON *.*
+  TO administrator WITH GRANT OPTION;
+GRANT CREATE TEMPORARY TABLES ON sys.* TO administrator WITH GRANT OPTION;
+REVOKE CREATE TEMPORARY TABLES ON mysql.* FROM administrator;
+
+# Current account has an IP host, while the target account has a wildcard host.
+CREATE USER test_user@'127.0.0.1', test_user@'%';
+GRANT administrator TO test_user@'127.0.0.1' WITH ADMIN OPTION;
+
+--connect(test_user_con, 127.0.0.1, test_user)
+SET ROLE administrator;
+GRANT CREATE TEMPORARY TABLES ON sys.* TO test_user@'127.0.0.1';
+GRANT CREATE TEMPORARY TABLES ON *.* TO test_user@'%';
+REVOKE CREATE TEMPORARY TABLES ON sys.* FROM test_user@'%';
+
+# The active role and test_user@127.0.0.1 have CREATE TEMPORARY TABLES on
+# sys.*, but test_user@% does not. The lookup must use the grantee host rather
+# than the current security context or the grantor connection's IP.
+GRANT SELECT ON *.* TO test_user@'%';
+SHOW GRANTS FOR test_user@'%';
+
+--connection default
+--disconnect test_user_con
+DROP USER test_user@'127.0.0.1', test_user@'%';
+
+# Current account has a wildcard host, while the target account has an IP host.
+CREATE USER test_user@'%', test_user@'192.0.2.1';
+GRANT administrator TO test_user@'%' WITH ADMIN OPTION;
+
+--connect(test_user_con, 127.0.0.1, test_user)
+SET ROLE administrator;
+GRANT CREATE TEMPORARY TABLES ON *.* TO test_user@'192.0.2.1';
+REVOKE CREATE TEMPORARY TABLES ON sys.* FROM test_user@'192.0.2.1';
+
+# Do not mistake the wildcard current account or its active role for the
+# IP-host grantee when hostname resolution is enabled or disabled.
+GRANT SELECT ON *.* TO test_user@'192.0.2.1';
+SHOW GRANTS FOR test_user@'192.0.2.1';
+
+--connection default
+--disconnect test_user_con
+DROP USER test_user@'%', test_user@'192.0.2.1';
+DROP ROLE administrator;
+
+--disable_query_log
+eval SET GLOBAL partial_revokes = $saved_partial_revokes;
+--enable_query_log
+
+--source include/wait_until_count_sessions.inc

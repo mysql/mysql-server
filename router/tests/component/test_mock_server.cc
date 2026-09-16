@@ -893,10 +893,7 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
          FAIL() << "expected to fail";
        } catch (const mysqlrouter::MySQLSession::Error &e) {
          // connection aborted
-         //
-         // openssl 1.1.1: 2013
-         // openssl 1.0.2: 2026
-         ASSERT_THAT(e.code(), ::testing::AnyOf(2013, 2026));
+         ASSERT_EQ(2013, e.code());
        }
      }},
     {"client_cert_revoked_other_cert",

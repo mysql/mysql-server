@@ -3,6 +3,8 @@
 # UNDO tablespaces are such not easily closeable files, so we limit runs to ones
 # that use the default amount of such.
 --source include/have_innodb_default_undo_tablespaces.inc
+# `innodb_log_checkpoint_now` is a debug only System Variable.
+--source include/have_debug.inc
 
 --enable_query_log
 
@@ -15,6 +17,9 @@ while ($i >= 0)
   --dec $i
 }
 
+# Flush all dirty pages so all undo files are actually opened and counted
+# against non-LRU files.
+SET GLOBAL innodb_log_checkpoint_now = ON;
 
 SET @start_global_value = @@GLOBAL.innodb_open_files;
 SELECT @start_global_value;

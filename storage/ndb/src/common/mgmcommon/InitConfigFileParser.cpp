@@ -48,6 +48,8 @@ InitConfigFileParser::InitConfigFileParser() {
   m_info = &ConfigInfo::default_instance();
 }
 
+void InitConfigFileParser::insertError(int e) { m_info->insertError(e); }
+
 //****************************************************************************
 //  Read Config File
 //****************************************************************************

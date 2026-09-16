@@ -26,7 +26,7 @@ while ($1)
 }
 enable_query_log;
 drop table t1;
-save_master_pos;
+
 connection slave;
 RESET REPLICA;
 
@@ -39,7 +39,15 @@ set global max_binlog_size=8192;
 set global max_relay_log_size=8192-1; # mapped to 4096
 select @@global.max_relay_log_size;
 START REPLICA;
-sync_with_master;
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+# Wait, IO may be in "Connecting" state
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= Yes
+--source include/rpl/wait_for_replica_status.inc
+
 --source include/rpl/assert_replica_running.inc
 
 --echo #
@@ -51,7 +59,14 @@ RESET REPLICA;
 set global max_relay_log_size=(5*4096);
 query_vertical select @@global.max_relay_log_size;
 START REPLICA;
-sync_with_master;
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+# Wait, IO may be in "Connecting" state
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= Yes
+--source include/rpl/wait_for_replica_status.inc
+
 --source include/rpl/assert_replica_running.inc
 
 --echo #
@@ -63,7 +78,14 @@ RESET REPLICA;
 set global max_relay_log_size=0;
 query_vertical select @@global.max_relay_log_size;
 START REPLICA;
-sync_with_master;
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+# Wait, IO may be in "Connecting" state
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= Yes
+--source include/rpl/wait_for_replica_status.inc
+
 --source include/rpl/assert_replica_running.inc
 
 --echo #
@@ -82,7 +104,8 @@ flush logs;
 
 RESET REPLICA;
 START REPLICA;
-sync_with_master;
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 # test of relay log rotation when the slave is started
 flush logs;
 # We have now easy way to be sure that the SQL thread has now deleted the
@@ -90,6 +113,12 @@ flush logs;
 connection master;
 create table t1 (a int);
 --source include/rpl/sync_to_replica.inc
+
+# Wait, IO may be in "Connecting" state
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= Yes
+--source include/rpl/wait_for_replica_status.inc
+
 --source include/rpl/assert_replica_running.inc
 
 --echo #
@@ -100,6 +129,12 @@ flush logs;
 connection master;
 drop table t1;
 --source include/rpl/sync_to_replica.inc
+
+# Wait, IO may be in "Connecting" state
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= Yes
+--source include/rpl/wait_for_replica_status.inc
+
 --source include/rpl/assert_replica_running.inc
 
 connection master;

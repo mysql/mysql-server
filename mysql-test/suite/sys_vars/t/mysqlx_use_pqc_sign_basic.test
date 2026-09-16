@@ -1,0 +1,19 @@
+SELECT @@GLOBAL.mysqlx_use_pqc_sign;
+
+SELECT @@mysqlx_use_pqc_sign = @@GLOBAL.mysqlx_use_pqc_sign;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.mysqlx_use_pqc_sign;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.mysqlx_use_pqc_sign;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@SESSION.mysqlx_use_pqc_sign = ON;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.mysqlx_use_pqc_sign = ON;
+
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='mysqlx_use_pqc_sign';

@@ -28,17 +28,19 @@ EXPLAIN
             -> Index scan on y2 using PRIMARY  (rows=101)
             -> Select #2 (subquery in condition; dependent)
                 -> Aggregate: avg(cte1.v1)  (rows=1)
-                    -> Index lookup on cte1 using <auto_key0> (v2 = y2.d)  (rows=1)
-                        -> Materialize CTE cte1  (rows=17)
-                            -> Table scan on <temporary>  (rows=17)
-                                -> Aggregate using temporary table  (rows=17)
-                                    -> Inner hash join (x1.c = x2.c)  (rows=785)
-                                        -> Index scan on x2 using PRIMARY  (rows=101)
-                                        -> Hash
-                                            -> Index scan on x1 using PRIMARY  (rows=101)
+                    -> Filter: (y2.d = cte1.v2)  (rows=1)
+                        -> Table scan on cte1  (rows=17)
+                            -> Materialize CTE cte1  (rows=17)
+                                -> Table scan on <temporary>  (rows=17)
+                                    -> Aggregate using temporary table  (rows=17)
+                                        -> Inner hash join (x1.c = x2.c)  (rows=785)
+                                            -> Index scan on x2 using PRIMARY  (rows=101)
+                                            -> Hash
+                                                -> Index scan on x1 using PRIMARY  (rows=101)
 
 Warnings:
 Note	1276	Field or reference 'test.y2.d' of SELECT #2 was resolved in SELECT #1
+Note	1003	with `cte1` as (/* select#3 */ select sum((`x1`.`b` + `x2`.`b`)) AS `v1`,`x1`.`d` AS `v2` from `test`.`t1` `x1` join `test`.`t1` `x2` where multiple equal(`x1`.`c`, `x2`.`c`) group by `x1`.`d`) /* select#1 */ select 1 AS `1` from `test`.`t1` `y1` join `test`.`t1` `y2` where ((`y2`.`c` > (/* select#2 */ select avg(`cte1`.`v1`) from `cte1` where (`y2`.`d` = `cte1`.`v2`))) and (`y1`.`b` = `y2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -62,8 +64,8 @@ EXPLAIN
             -> Index scan on y2 using PRIMARY  (rows=101)
             -> Select #2 (subquery in condition; dependent)
                 -> Aggregate: avg(d1.v1)  (rows=1)
-                    -> Filter: (d1.v1 > (select #4))  (rows=1)
-                        -> Index lookup on d1 using <auto_key1> (v2 = y2.d)  (rows=1)
+                    -> Filter: ((y2.d = d1.v2) and (d1.v1 > (select #4)))  (rows=1)
+                        -> Table scan on d1  (rows=17)
                             -> Materialize CTE cte1 if needed  (rows=17)
                                 -> Table scan on <temporary>  (rows=17)
                                     -> Aggregate using temporary table  (rows=17)
@@ -74,12 +76,13 @@ EXPLAIN
                         -> Select #4 (subquery in condition; dependent)
                             -> Aggregate: avg(d2.v2)  (rows=1)
                                 -> Filter: (d1.v3 = d2.v1)  (rows=1.7)
-                                    -> Index lookup on d2 using <auto_key0> (v1 = d1.v3)  (rows=1.7)
+                                    -> Table scan on d2  (rows=17)
                                         -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=17)
 
 Warnings:
 Note	1276	Field or reference 'test.y2.d' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'd1.v3' of SELECT #4 was resolved in SELECT #2
+Note	1003	with `cte1` as (/* select#3 */ select sum((`x1`.`b` + `x2`.`b`)) AS `v1`,`x1`.`d` AS `v2`,max((`x1`.`b` + `x2`.`b`)) AS `v3` from `test`.`t1` `x1` join `test`.`t1` `x2` where multiple equal(`x1`.`c`, `x2`.`c`) group by `x1`.`d`) /* select#1 */ select 1 AS `1` from `test`.`t1` `y1` join `test`.`t1` `y2` where ((`y2`.`c` > (/* select#2 */ select avg(`d1`.`v1`) from `cte1` `d1` where ((`y2`.`d` = `d1`.`v2`) and (`d1`.`v1` > (/* select#4 */ select avg(`d2`.`v2`) from `cte1` `d2` where (`d1`.`v3` = `d2`.`v1`)))))) and (`y1`.`b` = `y2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -90,8 +93,7 @@ line
 "Keys for CTE 'cte1' considered during planning':",
 " - <auto_key0> : {'v1'}"
 "Keys for CTE 'cte1' considered during planning':",
-" - <auto_key0> : {'v1'}",
-" - <auto_key1> : {'v2'}"
+" - <auto_key0> : {'v2'}"
 EXPLAIN FORMAT=TREE WITH cte1 AS
 (SELECT SUM(x1.b + x2.b) v1, x1.d v2, MAX(x1.b + x2.b) v3 FROM t1 x1, t1 x2
 WHERE x1.c=x2.c GROUP BY x1.d)
@@ -99,17 +101,21 @@ SELECT 1 FROM cte1 d1 where v1=2 UNION SELECT 1 FROM cte1 d2 where v2=3;
 EXPLAIN
 -> Table scan on <union temporary>  (rows=3.4)
     -> Union materialize with deduplication  (rows=3.4)
-        -> Index lookup on d1 using <auto_key0> (v1 = 2)  (rows=1.7)
-            -> Materialize CTE cte1 if needed  (rows=17)
-                -> Table scan on <temporary>  (rows=17)
-                    -> Aggregate using temporary table  (rows=17)
-                        -> Inner hash join (x1.c = x2.c)  (rows=785)
-                            -> Index scan on x2 using PRIMARY  (rows=101)
-                            -> Hash
-                                -> Index scan on x1 using PRIMARY  (rows=101)
-        -> Index lookup on d2 using <auto_key1> (v2 = 3)  (rows=1.7)
-            -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=17)
+        -> Filter: (d1.v1 = 2)  (rows=1.7)
+            -> Table scan on d1  (rows=17)
+                -> Materialize CTE cte1 if needed  (rows=17)
+                    -> Table scan on <temporary>  (rows=17)
+                        -> Aggregate using temporary table  (rows=17)
+                            -> Inner hash join (x1.c = x2.c)  (rows=785)
+                                -> Index scan on x2 using PRIMARY  (rows=101)
+                                -> Hash
+                                    -> Index scan on x1 using PRIMARY  (rows=101)
+        -> Filter: (d2.v2 = 3)  (rows=1.7)
+            -> Table scan on d2  (rows=17)
+                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=17)
 
+Warnings:
+Note	1003	with `cte1` as (/* select#2 */ select sum((`x1`.`b` + `x2`.`b`)) AS `v1`,`x1`.`d` AS `v2`,max((`x1`.`b` + `x2`.`b`)) AS `v3` from `test`.`t1` `x1` join `test`.`t1` `x2` where multiple equal(`x1`.`c`, `x2`.`c`) group by `x1`.`d`) /* select#1 */ select 1 AS `1` from `cte1` `d1` where (`d1`.`v1` = 2) union /* select#3 */ select 1 AS `1` from `cte1` `d2` where multiple equal(3, `d2`.`v2`)
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -120,8 +126,7 @@ line
 "Keys for CTE 'cte1' considered during planning':",
 " - <auto_key0> : {'v1'}"
 "Keys for CTE 'cte1' considered during planning':",
-" - <auto_key0> : {'v1'}",
-" - <auto_key1> : {'v2'}"
+" - <auto_key0> : {'v2'}"
 DROP TABLE t1;
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (0,0), (1,2), (2,2);
@@ -136,19 +141,22 @@ CREATE VIEW v1 AS SELECT MAX(a) m, b FROM t1 GROUP BY b;
 EXPLAIN FORMAT=tree WITH cte1 AS (SELECT MAX(a) m, b FROM t1 GROUP BY b)
 SELECT * FROM cte1 x1 NATURAL JOIN cte1 x2 NATURAL JOIN cte1 x3;
 EXPLAIN
--> Nested loop inner join  (rows=520e-6)
-    -> Inner hash join (x2.m = x3.m), (x2.b = x3.b)  (rows=0.03)
-        -> Table scan on x2  (rows=1.73)
-            -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
-        -> Hash
-            -> Table scan on x3  (rows=1.73)
-                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
-    -> Covering index lookup on x1 using <auto_key0> (m = x2.m, b = x2.b)  (rows=0.0173)
+-> Inner hash join (x1.m = x2.m), (x1.b = x2.b)  (rows=520e-6)
+    -> Table scan on x1  (rows=1.73)
         -> Materialize CTE cte1 if needed  (rows=1.73)
             -> Group aggregate: max(t1.a)  (rows=1.73)
                 -> Sort: t1.b  (rows=3)
                     -> Table scan on t1  (rows=3)
+    -> Hash
+        -> Inner hash join (x2.m = x3.m), (x2.b = x3.b)  (rows=0.03)
+            -> Table scan on x2  (rows=1.73)
+                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
+            -> Hash
+                -> Table scan on x3  (rows=1.73)
+                    -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
 
+Warnings:
+Note	1003	with `cte1` as (/* select#2 */ select max(`test`.`t1`.`a`) AS `m`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`b`) /* select#1 */ select `x1`.`m` AS `m`,`x1`.`b` AS `b` from `cte1` `x1` join `cte1` `x2` join `cte1` `x3` where (multiple equal(`x1`.`m`, `x3`.`m`, `x2`.`m`) and multiple equal(`x1`.`b`, `x3`.`b`, `x2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -160,25 +168,28 @@ line
 " - <auto_key0> : {'m', 'b'}"
 EXPLAIN FORMAT=tree SELECT * FROM v1 x1 NATURAL JOIN v1 x2 NATURAL JOIN v1 x3;
 EXPLAIN
--> Nested loop inner join  (rows=520e-6)
-    -> Inner hash join (x2.m = x3.m), (x2.b = x3.b)  (rows=0.03)
-        -> Table scan on x2  (rows=1.73)
-            -> Materialize  (rows=1.73)
-                -> Group aggregate: max(t1.a)  (rows=1.73)
-                    -> Sort: t1.b  (rows=3)
-                        -> Table scan on t1  (rows=3)
-        -> Hash
-            -> Table scan on x3  (rows=1.73)
-                -> Materialize  (rows=1.73)
-                    -> Group aggregate: max(t1.a)  (rows=1.73)
-                        -> Sort: t1.b  (rows=3)
-                            -> Table scan on t1  (rows=3)
-    -> Covering index lookup on x1 using <auto_key0> (m = x2.m, b = x2.b)  (rows=0.0173)
+-> Inner hash join (x1.m = x2.m), (x1.b = x2.b)  (rows=520e-6)
+    -> Table scan on x1  (rows=1.73)
         -> Materialize  (rows=1.73)
             -> Group aggregate: max(t1.a)  (rows=1.73)
                 -> Sort: t1.b  (rows=3)
                     -> Table scan on t1  (rows=3)
+    -> Hash
+        -> Inner hash join (x2.m = x3.m), (x2.b = x3.b)  (rows=0.03)
+            -> Table scan on x2  (rows=1.73)
+                -> Materialize  (rows=1.73)
+                    -> Group aggregate: max(t1.a)  (rows=1.73)
+                        -> Sort: t1.b  (rows=3)
+                            -> Table scan on t1  (rows=3)
+            -> Hash
+                -> Table scan on x3  (rows=1.73)
+                    -> Materialize  (rows=1.73)
+                        -> Group aggregate: max(t1.a)  (rows=1.73)
+                            -> Sort: t1.b  (rows=3)
+                                -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`x1`.`m` AS `m`,`test`.`x1`.`b` AS `b` from `test`.`v1` `x1` join `test`.`v1` `x2` join `test`.`v1` `x3` where (multiple equal(`test`.`x1`.`m`, `test`.`x3`.`m`, `test`.`x2`.`m`) and multiple equal(`test`.`x1`.`b`, `test`.`x3`.`b`, `test`.`x2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -204,6 +215,8 @@ EXPLAIN
         -> Table scan on u2  (rows=6)
             -> Materialize union CTE u if needed (query plan printed elsewhere)  (rows=6)
 
+Warnings:
+Note	1003	with `u` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` union all /* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select `u1`.`a` AS `a`,`u1`.`b` AS `b` from `u` `u1` join `u` `u2` where ((`u1`.`a` = `u2`.`a`) and (`u1`.`b` = `u2`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,
@@ -214,19 +227,22 @@ line
 EXPLAIN FORMAT=tree WITH cte1 AS (SELECT MAX(a) m, b FROM t1 GROUP BY b)
 SELECT * FROM cte1 x1, cte1 x2, cte1 x3 WHERE x1.m=x2.m AND x2.b=x3.b;
 EXPLAIN
--> Nested loop inner join  (rows=0.052)
-    -> Inner hash join (x1.m = x2.m)  (rows=0.3)
-        -> Table scan on x1  (rows=1.73)
-            -> Materialize CTE cte1 if needed  (rows=1.73)
-                -> Group aggregate: max(t1.a)  (rows=1.73)
-                    -> Sort: t1.b  (rows=3)
-                        -> Table scan on t1  (rows=3)
-        -> Hash
-            -> Table scan on x2  (rows=1.73)
-                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
-    -> Index lookup on x3 using <auto_key2> (b = x2.b)  (rows=0.173)
+-> Inner hash join (x2.b = x3.b)  (rows=0.052)
+    -> Table scan on x3  (rows=1.73)
         -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
+    -> Hash
+        -> Inner hash join (x1.m = x2.m)  (rows=0.3)
+            -> Table scan on x1  (rows=1.73)
+                -> Materialize CTE cte1 if needed  (rows=1.73)
+                    -> Group aggregate: max(t1.a)  (rows=1.73)
+                        -> Sort: t1.b  (rows=3)
+                            -> Table scan on t1  (rows=3)
+            -> Hash
+                -> Table scan on x2  (rows=1.73)
+                    -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
 
+Warnings:
+Note	1003	with `cte1` as (/* select#2 */ select max(`test`.`t1`.`a`) AS `m`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`b`) /* select#1 */ select `x1`.`m` AS `m`,`x1`.`b` AS `b`,`x2`.`m` AS `m`,`x2`.`b` AS `b`,`x3`.`m` AS `m`,`x3`.`b` AS `b` from `cte1` `x1` join `cte1` `x2` join `cte1` `x3` where ((`x1`.`m` = `x2`.`m`) and (`x2`.`b` = `x3`.`b`))
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
 SELECT n,REGEXP_SUBSTR(trace,

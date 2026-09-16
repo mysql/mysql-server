@@ -35,4 +35,6 @@ EXPLAIN
 -> Sort: t1.pk
     -> Table scan on t1
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j` from `test`.`t1` order by `test`.`t1`.`pk`
 DROP TABLE t1;

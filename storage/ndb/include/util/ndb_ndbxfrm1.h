@@ -216,6 +216,13 @@ class ndb_ndbxfrm1::header {
     static constexpr Uint64 flag_compress_method_mask = 0x00000F00;
     // RFC1951 DEFLATE Compressed Data Format Specification version 1.3
     static constexpr Uint64 flag_compress_method_deflate = 0x00000100;
+    /*
+     * flag_compress_padding_xxx have been used to ensure data is 16 byte
+     * aligned after compression when encryption (XTS) is also used. This was a
+     * bad design and padding should in future always be a property of the
+     * encryption step. Although the compression padding will still be used for
+     * a while to allow downgrade of data nodes keeping existing NDBFS files.
+     */
     static constexpr Uint64 flag_compress_padding_mask = 0xF0000000;
     static constexpr Uint64 flag_compress_padding_none = 0x00000000;
     static constexpr Uint64 flag_compress_padding_pkcs = 0x10000000;
@@ -232,7 +239,19 @@ class ndb_ndbxfrm1::header {
     static constexpr Uint64 flag_encrypt_krm_aeskw_256 = 0x00020000;
     static constexpr Uint64 flag_encrypt_padding_mask = 0x00F00000;
     static constexpr Uint64 flag_encrypt_padding_none = 0x00000000;
-    // PKCS#7 also RFC5652 Cryptographic Message Syntax (CMS)
+    /*
+     * flag_encrypt_padding_pkcs - add upp to 16 bytes padding to align data to
+     * cipher block size. If data is already known to always align to 16 bytes
+     * padding is not needed. Also note that this flag only add padding after
+     * all data going into the file. If data is encrypted in individual blocks
+     * like when used with XTS, only the last block will be padded, all earlier
+     * blocks must be filled up. If last block is filled up with no room for
+     * padding, an extra empty block will be added there the padding will be.
+     * XTS is size preserving and do not need padding, but it requires at least
+     * 16 bytes to encrypt if that is not known to be true padding can be used
+     * to ensure that there are at least 16 bytes to encrypt.
+     * PKCS#7 also RFC5652 Cryptographic Message Syntax (CMS)
+     */
     static constexpr Uint64 flag_encrypt_padding_pkcs = 0x00100000;
     static constexpr Uint64 flag_encrypt_key_selection_mode_mask = 0x0F000000;
     /*

@@ -298,9 +298,15 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
 
 DEFINE_METHOD(int, mysql_clone_validate_version,
               (const std::string &recipient, const std::string &donor,
-               const bool is_recipient_lts, const bool is_donor_lts)) {
+               const bool is_recipient_lts, const bool is_donor_lts,
+               const std::string &recipient_prev_lts)) {
+  std::optional<std::string> prev_lts;
+  if (!recipient_prev_lts.empty()) {
+    prev_lts = recipient_prev_lts;
+  }
+
   if (!are_versions_clone_compatible(recipient, donor, is_recipient_lts,
-                                     is_donor_lts)) {
+                                     is_donor_lts, prev_lts)) {
     my_error(ER_CLONE_DONOR_VERSION, MYF(0), donor.c_str(), recipient.c_str());
     return ER_CLONE_DONOR_VERSION;
   }
@@ -346,9 +352,9 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
 
     OptionalString capath, cipher, ciphersuites, crl, crlpath, version;
 
-    server_main_callback.read_parameters(nullptr, &capath, &version, nullptr,
-                                         &cipher, &ciphersuites, nullptr, &crl,
-                                         &crlpath, nullptr, nullptr);
+    server_main_callback.read_parameters(
+        nullptr, &capath, &version, nullptr, &cipher, &ciphersuites, nullptr,
+        &crl, &crlpath, nullptr, nullptr, nullptr, nullptr, nullptr);
 
     mysql_options(mysql, MYSQL_OPT_SSL_KEY, ssl_ctx->m_ssl_key);
     mysql_options(mysql, MYSQL_OPT_SSL_CERT, ssl_ctx->m_ssl_cert);

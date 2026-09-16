@@ -66,7 +66,6 @@
 #include <signaldata/TamperOrd.hpp>
 #include <signaldata/TestOrd.hpp>
 #include "NdbTCP.h"
-#include "portlib/ndb_openssl_version.h"
 #include "portlib/ndb_sockaddr.h"
 
 #include <NdbConfig.h>
@@ -96,9 +95,6 @@ int g_errorInsert = 0;
       return result;                             \
     }                                            \
   }
-
-static constexpr bool openssl_version_ok =
-    (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
 void *MgmtSrvr::logLevelThread_C(void *m) {
   MgmtSrvr *mgm = (MgmtSrvr *)m;
@@ -430,11 +426,6 @@ bool MgmtSrvr::get_connection_config(const Config *config) {
     iter.get(CFG_MGM_REQUIRE_TLS, &requireTls);
     iter.get(CFG_NODE_REQUIRE_CERT, &requireCert);
 
-    if ((requireTls || requireCert) && !openssl_version_ok) {
-      g_eventLogger->error(
-          "Unsupported OpenSSL 1.0.x. This server does not support TLS.");
-      DBUG_RETURN(false);
-    }
     m_require_tls = requireTls;
     m_require_cert = requireCert;
   }
@@ -538,10 +529,7 @@ bool MgmtSrvr::start() {
     TlsKeyManager stubKeyManager;
     stubKeyManager.init(m_tls_search_path, 0, NODE_TYPE_MGM);
     if (!stubKeyManager.ctx()) {
-      g_eventLogger->error(
-          openssl_version_ok
-              ? "This node does not have a valid TLS certificate."
-              : "This version of OpenSSL is not supported.");
+      g_eventLogger->error("This node does not have a valid TLS certificate.");
       DBUG_RETURN(false);
     }
   }
@@ -1135,7 +1123,7 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId, bool abort, bool stop, bool restart,
   NdbMgmHandle h = ndb_mgm_create_handle();
   if (h && connect_string.length() > 0) {
     ndb_mgm_set_connectstring(h, connect_string.c_str());
-    ndb_mgm_set_ssl_ctx(h, ssl_ctx());
+    ndb_mgm_set_ssl_ctx(h, tlsKeyManager()->ctx());
     if (ndb_mgm_connect_tls(h, 1, 0, 0, m_client_tls_req)) {
       DBUG_PRINT("info", ("failed ndb_mgm_connect"));
       ndb_mgm_destroy_handle(&h);
@@ -3787,16 +3775,35 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
                                   const ndb_sockaddr *client_addr,
                                   int &error_code, BaseString &error_string,
                                   Uint32 timeout_s) {
-  if (m_opts.no_nodeid_checks) {
-    if (nodeid == 0) {
-      error_string.appfmt(
-          "no-nodeid-checks set in management server. "
-          "node id must be set explicitly in connectstring");
-      error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-      return false;
-    }
+  /* Skip all checks; just approve the requested node id. This error insert
+     replaces the original behavior of the --no-nodeid-checks option.
+  */
+  if (ERROR_INSERTED(901)) {
+    require(nodeid > 0);
     return true;
   }
+
+  /* Error insert codes starting at 17000 -> temporary DNS error */
+  if (ERROR_INSERTED(17000 + nodeid)) {
+    error_code = NDB_MGM_ALLOCID_CONFIG_RETRY;
+    error_string.appfmt("Error %d inserted", g_errorInsert);
+    g_errorInsert = 0;  // clear error insert; succeed on retry
+    return false;
+  }
+
+  /* Check the node id request. There are several stages of checks:
+      1) Fundamental checks: is the cluster configuration available, does the
+         requested id exist in it, does its configured type match the requested
+         type?
+      2) The address check: using the client's socket address, the configured
+         hostnames, and the DNS, match the request to a configured hostname.
+         This can be skipped using --skip-nodeid-address-checks.
+      3) The distributed availability check: every running mgm and db node must
+         confirm that the id is available (not currently connected, and not in
+         failure handling).
+  */
+
+  /* 1) Fundamental checks */
   /* Don't allow allocation of this ndb_mgmd's nodeid */
   assert(_ownNodeId);
   if (nodeid == _ownNodeId) {
@@ -3832,8 +3839,7 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
       if (NdbTick_Elapsed(start, now).milliSec() > timeout_ms) {
         error_code = NDB_MGM_ALLOCID_ERROR;
         error_string.append(
-            "Unable to allocate nodeid as configuration"
-            " not yet confirmed");
+            "Unable to allocate nodeid as configuration not yet confirmed");
         return false;
       }
 
@@ -3866,8 +3872,20 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
 
   /* Choose subset of candidates matching client address */
   Vector<PossibleNode> nodes;
-  match_client_addr_to_config_nodes(nodeid, type, client_addr, config_nodes,
-                                    nodes);
+
+  /* 2) The address check */
+  if (m_opts.nodeid_check_addr) {
+    match_client_addr_to_config_nodes(nodeid, type, client_addr, config_nodes,
+                                      nodes);
+  } else if (nodeid) {
+    nodes.push_back({nodeid, "", false});
+  } else {
+    error_string.appfmt(
+        "nodeid-address-check disabled in management server. "
+        "node id must be set explicitly in connectstring");
+    error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+    return false;
+  }
 
   if (nodes.size() == 0) {
     /**
@@ -3954,6 +3972,7 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
     }
   }
 
+  /* 3) The distributed availability check */
   const int try_alloc_rc = try_alloc_from_list(nodeid, type, timeout_ms, nodes,
                                                error_code, error_string);
   if (try_alloc_rc == 0) {
@@ -4450,7 +4469,7 @@ bool MgmtSrvr::connect_to_self() {
              m_port);
   ndb_mgm_set_connectstring(mgm_handle, buf.c_str());
 
-  ndb_mgm_set_ssl_ctx(mgm_handle, ssl_ctx());
+  ndb_mgm_set_ssl_ctx(mgm_handle, tlsKeyManager()->ctx());
   if (ndb_mgm_connect_tls(mgm_handle, 0, 0, 0, m_client_tls_req) < 0) {
     g_eventLogger->warning("%d %s", ndb_mgm_get_latest_error(mgm_handle),
                            ndb_mgm_get_latest_error_desc(mgm_handle));
@@ -4665,7 +4684,7 @@ void MgmtSrvr::show_variables(NdbOut &out) {
   out << "config_filename: " << str_null(m_opts.config_filename) << endl;
   out << "mycnf: " << yes_no(m_opts.mycnf) << endl;
   out << "bind_address: " << str_null(m_opts.bind_address) << endl;
-  out << "no_nodeid_checks: " << yes_no(m_opts.no_nodeid_checks) << endl;
+  out << "check_address: " << yes_no(m_opts.nodeid_check_addr) << endl;
   out << "print_full_config: " << yes_no(m_opts.print_full_config) << endl;
   out << "configdir: " << str_null(m_opts.configdir) << endl;
   out << "config_cache: " << yes_no(m_opts.config_cache) << endl;

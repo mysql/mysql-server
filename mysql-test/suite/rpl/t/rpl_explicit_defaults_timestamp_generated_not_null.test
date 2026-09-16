@@ -1,0 +1,73 @@
+#
+# ==== PURPOSE ====
+#
+# This test checks that row-based replication does not fail when
+# explicit_defaults_for_timestamp is OFF and a generated TIMESTAMP NOT NULL
+# column is derived from a NULL source value.
+#
+# ==== IMPLEMENTATION ====
+#
+# To reproduce and verify the issue, this test inserts a NULL value that is
+# accepted on source with INSERT IGNORE, validates the same row is applied
+# on replica without replication stop, and replays the source binlog through
+# mysqlbinlog to verify the BINLOG applier path too.
+#
+# Test steps:
+#
+# 1. Configure source/replica and set explicit_defaults_for_timestamp=OFF.
+# 2. Create a table with a stored generated TIMESTAMP NOT NULL column.
+# 3. Execute INSERT IGNORE with NULL input for the base datetime column.
+# 4. Verify source and replica both contain the row after replication.
+# 5. Stop replica apply on the second server and replay the source binlog
+#    through mysqlbinlog into the same server.
+# 6. Verify mysqlbinlog replay stores the same row successfully.
+#
+# Test pass conditions:
+#
+# - Source row is inserted with expected coerced generated timestamp value.
+# - Replica applies row event and returns the same row without SQL thread
+#   failure.
+# - mysqlbinlog replay restores the same row without ER_BAD_NULL_ERROR.
+#
+# ==== REFERENCES ====
+#
+# BUG#120128: When explicit_defaults_for_timestamp is off, inserting a null
+# value causes replication exceptions.
+#
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--echo
+--source include/rpl/connection_source.inc
+SET @@SESSION.explicit_defaults_for_timestamp = OFF;
+CREATE TABLE `t` (
+ `id_col` int NOT NULL AUTO_INCREMENT,
+ `datetime_col` datetime(6) DEFAULT NULL,
+ `timestamp_col2` timestamp(6) GENERATED ALWAYS AS (`datetime_col`) STORED NOT NULL, PRIMARY KEY (`id_col`)
+);
+
+insert ignore into t(datetime_col) values(NULL);
+--let $source_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+
+--echo
+--query_vertical SELECT * FROM t
+
+--source include/rpl/sync_to_replica.inc
+--echo
+--query_vertical SELECT * FROM t
+
+--source include/rpl/stop_replica.inc
+DROP TABLE t;
+RESET BINARY LOGS AND GTIDS;
+
+--let $replica_connection_args= --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
+--exec $MYSQL_BINLOG $server_1_datadir/$source_binlog_file | $MYSQL $replica_connection_args test
+
+--echo
+--query_vertical SELECT * FROM t
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+DROP TABLE t;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

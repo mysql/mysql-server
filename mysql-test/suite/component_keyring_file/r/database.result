@@ -446,7 +446,7 @@ db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4
 DROP DATABASE db1;
 `````````````````````````````````````````````````````````
 # See that we ignore the clause with invalid mysql version.
-CREATE DATABASE `db1` /*!99999 DEFAULT ENCRYPTION='Y' */;
+CREATE DATABASE `db1` /*!999999 DEFAULT ENCRYPTION='Y' */;
 SHOW CREATE DATABASE db1;
 Database	Create Database
 db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */

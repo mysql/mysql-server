@@ -26,7 +26,6 @@
 --
 
 set @have_innodb= (select count(engine) from information_schema.engines where engine='INNODB' and support != 'NO');
-set @is_mysql_encrypted = (select ENCRYPTION from information_schema.INNODB_TABLESPACES where NAME='mysql');
 
 -- Tables below are NOT treated as DD tables by MySQL server yet.
 
@@ -382,6 +381,9 @@ SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Require_table_primary_key_check ENUM('STREAM','ON','OFF','GENERATE') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables without primary keys on create and alter table queries',
   Assign_gtids_to_anonymous_transactions_type ENUM('OFF', 'LOCAL', 'UUID')  NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
   Assign_gtids_to_anonymous_transactions_value TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin  COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
+  Applier_version INTEGER UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Version of the applier used (either 1 or 2)',
+  Applier_worker_count INTEGER UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Number of worker threads utilized by the applier',
+  Applier_event_memory_limit INTEGER UNSIGNED NOT NULL DEFAULT 1073741824 COMMENT 'The maximum amount of memory applier channel may use to cache binlog events',
   PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 COMMENT 'Relay Log Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));

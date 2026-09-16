@@ -84,15 +84,6 @@
    from Richard Stevens "Unix Network Programming," 2nd ed., chapter 23.
 */
 
-/* EL6 and EL7 have OpenSSL 1.0.2 (FIPS); this test will not compile */
-#if OPENSSL_VERSION_NUMBER < 0x10003000L
-int main() {
-  printf("%s\n", OPENSSL_VERSION_TEXT);
-  ok(1, "OpenSSL too old. Not testing.");
-  return 0;
-}
-#else
-
 #define POLL_TIMEOUT -3
 
 static constexpr const int NetTimeoutMsec = 500;
@@ -167,10 +158,7 @@ static struct my_option options[] = {
 class EchoSession : public SocketServer::Session {
  public:
   EchoSession(NdbSocket &&s, bool sink, SSL_CTX *ctx)
-      : SocketServer::Session(m_secure_socket),
-        m_sink(sink),
-        m_ssl_ctx(ctx),
-        m_secure_socket(std::move(s)) {}
+      : m_sink(sink), m_ssl_ctx(ctx), m_secure_socket(std::move(s)) {}
   void runSession() override;
 
  private:
@@ -221,9 +209,12 @@ TlsService::TlsService(bool sink) : m_sink(sink) {
   X509_set_pubkey(tls_cert, tls_key);
 
   /* Set the names */
-  X509_NAME *name = X509_get_subject_name(tls_cert);
+  X509_NAME *name = X509_NAME_new();
+  assert(name);
   X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
                              (const unsigned char *)common_name, -1, -1, 0);
+  X509_set_subject_name(tls_cert, name);
+  X509_NAME_free(name);
   X509_set_issuer_name(tls_cert, X509_get_subject_name(tls_cert));
 
   /* Set the expiration date */
@@ -1073,5 +1064,3 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
-#endif /* OPENSSL_VERSION_NUMBER < x */

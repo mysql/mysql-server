@@ -1,3 +1,4 @@
+create table t1 (id int not null, val int not null default '0', primary key (id)) ENGINE=InnoDB;
 set global innodb_adaptive_hash_index=ON;
 select @@innodb_buffer_pool_size;
 @@innodb_buffer_pool_size
@@ -8,7 +9,6 @@ Warning	1292	Truncated incorrect innodb_buffer_pool_size value: '10485760'
 select @@innodb_buffer_pool_size;
 @@innodb_buffer_pool_size
 16777216
-create table t1 (id int not null, val int not null default '0', primary key (id)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
 create or replace view view0 as select 1 union all select 1;
 set @`v_id` := 0;
 set @`v_val` := 0;

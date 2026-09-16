@@ -1,0 +1,4 @@
+--source include/have_thread_pool.inc
+
+--source include/admin_interface_ipv4_mapped.inc
+

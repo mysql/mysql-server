@@ -72,6 +72,14 @@ class Ssl_str_store : public Value_validator<Context, String_validator> {
   }
 };
 
+template <bool(Ssl_config::*member)>  // NOLINT
+class Ssl_bool_store : public Value_validator<Context, Bool_validator> {
+ public:
+  void visit_bool(const bool value) override {
+    get_ctxt()->m_ssl_config.*member = value;
+  }
+};
+
 }  // namespace xcl
 
 #endif  // PLUGIN_X_CLIENT_VALIDATOR_OPTION_SSL_VALIDATOR_H_

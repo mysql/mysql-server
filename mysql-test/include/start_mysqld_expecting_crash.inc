@@ -27,7 +27,7 @@
 # b) --source include/kill_mysqld.inc
 # c) --source include/expect_crash.inc
 #    and executing something which causes a crash
-# 2. optionally set the $restart_parameters
+# 2. optionally set the $restart_parameters (note the lack of "restart:" and "restart_abort:"!)
 # --let $restart_parameters=options-causing-crash=ON
 # 3. include the script:
 # --source include/start_mysqld_expecting_crash.inc

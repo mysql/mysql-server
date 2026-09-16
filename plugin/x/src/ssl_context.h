@@ -38,25 +38,22 @@ namespace xpl {
 class Ssl_context : public iface::Ssl_context {
  public:
   Ssl_context();
-  bool setup(const char *tls_version, const char *ssl_key, const char *ssl_ca,
-             const char *ssl_capath, const char *ssl_cert,
-             const char *ssl_cipher, const char *ssl_crl,
-             const char *ssl_crlpath) override;
+  bool setup(const iface::Ssl_context_config &config) override;
   ~Ssl_context() override;
 
   bool activate_tls(iface::Vio *conn, const int32_t handshake_timeout) override;
 
   iface::Ssl_context_options &options() override { return *m_options; }
   bool has_ssl() override { return nullptr != m_ssl_acceptor; }
-  void reset() override;
+  bool reset() override;
 
  private:
-  struct Config;
-  bool setup(const Config &config);
+  bool setup(const iface::Ssl_context_config &config,
+             bool warn_without_force_pqc);
 
   st_VioSSLFd *m_ssl_acceptor;
   std::unique_ptr<iface::Ssl_context_options> m_options;
-  std::unique_ptr<Config> m_config;
+  std::unique_ptr<iface::Ssl_context_config> m_config;
 };
 
 }  // namespace xpl

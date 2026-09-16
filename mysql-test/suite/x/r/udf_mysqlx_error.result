@@ -5,13 +5,20 @@ ERROR HY000: Mysqlx internal error
 CALL MYSQLX_ERROR(5018);
 ERROR 42000: PROCEDURE test.MYSQLX_ERROR does not exist
 DO MYSQLX_ERROR(5018, 5017);
-ERROR HY000: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument
+ERROR HY000: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument
 DO MYSQLX_ERROR('abc');
-ERROR HY000: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument
+ERROR HY000: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument
 DO MYSQLX_ERROR(NULL);
-ERROR HY000: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument
+ERROR HY000: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument
+SELECT MYSQLX_ERROR(CAST(NULL AS SIGNED));
+ERROR HY000: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument
+CREATE TEMPORARY TABLE mysqlx_error_argument (error_code INT NOT NULL);
+INSERT INTO mysqlx_error_argument VALUES (5018);
+SELECT MYSQLX_ERROR(error_code) FROM mysqlx_error_argument;
+ERROR HY000: Mysqlx internal error
+DROP TEMPORARY TABLE mysqlx_error_argument;
 DO MYSQLX_ERROR(123.45);
-ERROR HY000: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument
+ERROR HY000: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument
 CREATE PROCEDURE my_procedure(IN nr_error INT)
 BEGIN
 SELECT 1;
@@ -35,13 +42,15 @@ RUN USE test;
 RUN CALL MYSQLX_ERROR(5018);
 Got expected error: PROCEDURE test.MYSQLX_ERROR does not exist (code 1305)
 RUN DO MYSQLX_ERROR(5018, 5017);
-Got expected error: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument (code 1123)
 RUN DO MYSQLX_ERROR('abc');
-Got expected error: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument (code 1123)
 RUN DO MYSQLX_ERROR(NULL);
-Got expected error: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument (code 1123)
+RUN SELECT MYSQLX_ERROR(CAST(NULL AS SIGNED));
+Got expected error: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument (code 1123)
 RUN DO MYSQLX_ERROR(123.45);
-Got expected error: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_error'; Function expects only one numeric argument (code 1123)
 RUN CREATE PROCEDURE my_procedure(IN nr_error INT)
 BEGIN
   SELECT 1;

@@ -100,6 +100,7 @@ SET SESSION sql_log_bin=1;
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 --eval SET PERSIST group_replication_ssl_mode= "$_group_replication_ssl_mode"
 
@@ -133,6 +134,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 --let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
 SET GLOBAL group_replication_clone_threshold= 1;
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 --source include/wait_until_disconnected.inc
@@ -181,6 +183,10 @@ set session sql_log_bin=0;
 call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("The group replication applier thread has received KILL request");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group");
+call mtr.add_suppression("Skipping leave operation: member already left the group");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected");
 set session sql_log_bin=1;
 
 --source include/clean_monitoring_process.inc

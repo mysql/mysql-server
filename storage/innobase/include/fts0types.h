@@ -136,6 +136,10 @@ struct fts_sync_t {
   std::chrono::steady_clock::time_point start_time;
   /*!< SYNC start time */
   bool in_progress;  /*!< flag whether sync is in progress.*/
+  bool data_missing; /*!< flag set to true when cache is cleared, but
+                     data was not yet committed to aux table, and hence
+                     can't be found in neither place.
+                     Protected by cache->lock */
   bool unlock_cache; /*!< flag whether unlock cache when
                      write fts node */
   os_event_t event;  /*!< sync finish event */

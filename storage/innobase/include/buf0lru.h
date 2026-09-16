@@ -59,17 +59,6 @@ These are low-level functions
 constexpr uint32_t BUF_LRU_OLD_MIN_LEN = 8 * 1024 / 16;
 #endif /* !UNIV_HOTBACKUP */
 
-/** Flushes all dirty pages or removes all pages belonging to a given
-tablespace. A PROBLEM: if readahead is being started, what guarantees
-that it will not try to read in pages after this operation has completed?
-@param[in]  id          tablespace ID
-@param[in]  buf_remove  remove or flush strategy
-@param[in]  trx         to check if the operation must be interrupted
-@param[in]  strict      true, if no page from tablespace can be in
-                        buffer pool just after flush */
-void buf_LRU_flush_or_remove_pages(space_id_t id, buf_remove_t buf_remove,
-                                   const trx_t *trx, bool strict = true);
-
 #ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Insert a compressed block into buf_pool->zip_clean in the LRU order.
@@ -198,7 +187,7 @@ void buf_LRU_validate(void);
 @param[in]      buf_pool        buffer pool instance */
 void buf_LRU_validate_instance(buf_pool_t *buf_pool);
 
-using Space_References = std::map<struct fil_space_t *, size_t>;
+using Space_References = std::map<class fil_space_t *, size_t>;
 
 /** Counts number of pages that are still in the LRU  for each space instance
 encountered.

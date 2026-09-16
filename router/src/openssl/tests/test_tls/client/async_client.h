@@ -33,7 +33,13 @@
 #include "test_tls/client/actions.h"
 #include "tls/tls_stream.h"
 
-template <typename StreamTest>
+class ReconfigureNone {
+ public:
+  template <typename T>
+  void operator()(T &&) const {}
+};
+
+template <typename StreamTest, typename Reconfigure = ReconfigureNone>
 class AsyncClient {
  public:
   template <typename Container>
@@ -73,9 +79,13 @@ class AsyncClient {
     return destination_data_;
   }
 
+  void stop() { can_dispatch_.store(false); }
+
  private:
   void execute() {
-    bool repeat = false;
+    bool repeat = true;
+
+    if (!can_dispatch_) return;
 
     RangeOfActions range(actions_.begin() + actions_offset_, actions_.end());
     for (auto &action : range) {
@@ -87,12 +97,17 @@ class AsyncClient {
         break;
       }
 
+      if (action_current_.reconfigure()) {
+        Reconfigure reconfigure_stream;
+        reconfigure_stream(tls_stream_);
+      }
+
       if (action_current_.is_read_operation()) {
         const auto size_new =
             action_current_.get_bytes_to_transfer() + destination_data_.size();
         destination_data_.resize(size_new);
         repeat = do_receive({}, 0);
-      } else {
+      } else if (action_current_.is_write_operation()) {
         repeat = do_send({}, 0);
       }
 
@@ -108,6 +123,8 @@ class AsyncClient {
   }
 
   bool do_receive(std::error_code ec, size_t count) {
+    if (!can_dispatch_.load()) return false;
+
     action_current_.transfered(count);
 
     if (ec) {
@@ -147,6 +164,8 @@ class AsyncClient {
   }
 
   bool do_send(std::error_code ec, size_t count) {
+    if (!can_dispatch_.load()) return false;
+
     action_current_.transfered(count);
     source_offset_ += count;
 
@@ -180,6 +199,7 @@ class AsyncClient {
   const VectorOfActions actions_;
   size_t actions_offset_{0};
   Action action_current_;
+  std::atomic<bool> can_dispatch_{true};
 };
 
 #endif  // ROUTER_SRC_OPENSSL_TESTS_TEST_TLS_CLIENT_ASYNC_CLIENT_H_

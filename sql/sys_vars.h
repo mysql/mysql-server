@@ -95,6 +95,12 @@ class Sys_var_set;
 class Sys_var_tz;
 struct CMD_LINE;
 struct System_variables;
+class Master_info;
+
+void adjust_startup_replication_force_pqc_for_tls_versions();
+bool replication_channel_force_pqc(const Master_info *mi);
+bool replication_channel_use_pqc_sign(const Master_info *mi);
+std::string replication_channel_tls_kex(const Master_info *mi);
 template <typename Struct_type, typename Name_getter>
 class Sys_var_struct;
 template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED>

@@ -29,6 +29,8 @@ Clone Plugin: Interface with SE handlerton
 
 #include "plugin/clone/include/clone_hton.h"
 
+#include "mysqld_error.h"
+
 /* Namespace for all clone data types */
 namespace myclone {
 /** Structure to pass clone information to each storage plugin */
@@ -81,11 +83,11 @@ static bool run_hton_clone_begin(THD *thd, plugin_ref plugin, void *arg) {
     clone_arg->m_task_vec->push_back(task_id);
 
     if (clone_arg->m_err != 0) {
-      return (true);
+      return true;
     }
   }
 
-  return (false);
+  return false;
 }
 
 int hton_clone_begin(THD *thd, Storage_Vector &clone_loc_vec,
@@ -107,7 +109,7 @@ int hton_clone_begin(THD *thd, Storage_Vector &clone_loc_vec,
     plugin_foreach(thd, run_hton_clone_begin, MYSQL_STORAGE_ENGINE_PLUGIN,
                    &clone_args);
 
-    return (clone_args.m_err);
+    return clone_args.m_err;
   }
 
   for (auto &loc_iter : clone_loc_vec) {
@@ -133,13 +135,13 @@ int hton_clone_begin(THD *thd, Storage_Vector &clone_loc_vec,
         clone_type, clone_mode);
 
     if (err != 0) {
-      return (err);
+      return err;
     }
 
     task_vec.push_back(task_id);
   }
 
-  return (0);
+  return 0;
 }
 
 int hton_clone_copy(THD *thd, Storage_Vector &clone_loc_vec,
@@ -147,7 +149,9 @@ int hton_clone_copy(THD *thd, Storage_Vector &clone_loc_vec,
   uint index = 0;
 
   for (auto &loc_iter : clone_loc_vec) {
-    assert(index < task_vec.size());
+    if (index >= task_vec.size()) {
+      return ER_CLONE_PROTOCOL;
+    }
     clone_cbk->set_loc_index(index);
 
     auto err = loc_iter.m_hton->clone_interface.clone_copy(
@@ -155,12 +159,12 @@ int hton_clone_copy(THD *thd, Storage_Vector &clone_loc_vec,
         task_vec[index], clone_cbk);
 
     if (err != 0) {
-      return (err);
+      return err;
     }
     index++;
   }
 
-  return (0);
+  return 0;
 }
 
 int hton_clone_end(THD *thd, Storage_Vector &clone_loc_vec,
@@ -168,18 +172,20 @@ int hton_clone_end(THD *thd, Storage_Vector &clone_loc_vec,
   uint index = 0;
 
   for (auto &loc_iter : clone_loc_vec) {
-    assert(index < task_vec.size());
+    if (index >= task_vec.size()) {
+      return ER_CLONE_PROTOCOL;
+    }
     auto err = loc_iter.m_hton->clone_interface.clone_end(
         loc_iter.m_hton, thd, loc_iter.m_loc, loc_iter.m_loc_len,
         task_vec[index], in_err);
 
     if (err != 0) {
-      return (err);
+      return err;
     }
     ++index;
   }
 
-  return (0);
+  return 0;
 }
 
 /** Begin clone apply for current storage engine plugin
@@ -205,11 +211,11 @@ static bool run_hton_clone_apply_begin(THD *thd, plugin_ref plugin, void *arg) {
     clone_arg->m_loc_vec->push_back(loc);
 
     if (clone_arg->m_err != 0) {
-      return (true);
+      return true;
     }
   }
 
-  return (false);
+  return false;
 }
 
 int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
@@ -234,7 +240,7 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
     plugin_foreach(thd, run_hton_clone_apply_begin, MYSQL_STORAGE_ENGINE_PLUGIN,
                    &clone_args);
 
-    return (clone_args.m_err);
+    return clone_args.m_err;
   }
 
   uint32_t loop_index [[maybe_unused]] = 0;
@@ -262,7 +268,7 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
         clone_mode, clone_data_dir);
 
     if (err != 0) {
-      return (err);
+      return err;
     }
 
     if (add_task) {
@@ -273,7 +279,7 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
     ++loop_index;
   }
 
-  return (0);
+  return 0;
 }
 
 int hton_clone_apply_error(THD *thd, Storage_Vector &clone_loc_vec,
@@ -282,18 +288,20 @@ int hton_clone_apply_error(THD *thd, Storage_Vector &clone_loc_vec,
 
   uint index = 0;
   for (auto &loc_iter : clone_loc_vec) {
-    assert(index < task_vec.size());
+    if (index >= task_vec.size()) {
+      return ER_CLONE_PROTOCOL;
+    }
     auto err = loc_iter.m_hton->clone_interface.clone_apply(
         loc_iter.m_hton, thd, loc_iter.m_loc, loc_iter.m_loc_len,
         task_vec[index], in_err, nullptr);
 
     if (err != 0) {
-      return (err);
+      return err;
     }
     ++index;
   }
 
-  return (0);
+  return 0;
 }
 
 int hton_clone_apply_end(THD *thd, Storage_Vector &clone_loc_vec,
@@ -304,7 +312,9 @@ int hton_clone_apply_end(THD *thd, Storage_Vector &clone_loc_vec,
     after initialization */
     uint32_t task_id = 0;
     if (!task_vec.empty()) {
-      assert(index < task_vec.size());
+      if (index >= task_vec.size()) {
+        return ER_CLONE_PROTOCOL;
+      }
       task_id = task_vec[index];
     }
     auto err = loc_iter.m_hton->clone_interface.clone_apply_end(
@@ -312,10 +322,10 @@ int hton_clone_apply_end(THD *thd, Storage_Vector &clone_loc_vec,
         in_err);
 
     if (err != 0) {
-      return (err);
+      return err;
     }
     ++index;
   }
 
-  return (0);
+  return 0;
 }

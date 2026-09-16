@@ -43,14 +43,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "clone0clone.h"
 #include "current_thd.h"
 #include "dict0dd.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "log0chkp.h"
+#include "log0handler_interface.h"
+#include "log0helpers.h"
 #include "log0write.h"
 #include "os0proc.h"
 #include "que0que.h"
-#include "read0read.h"
+#include "read0mvcc_interface.h"
+#include "read0read_view_interface.h"
 #include "row0mysql.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
@@ -86,8 +90,8 @@ typedef std::map<trx_t *, table_id_set, std::less<trx_t *>,
 static trx_table_map resurrected_trx_tables;
 
 /* std::vector to store the trx id & table id of tables that needs to be
- * rollbacked. We take SHARED MDL on these tables inside
- * trx_recovery_rollback_thread before letting server accept connections */
+rollbacked. We take SHARED MDL on these tables inside
+trx_recovery_rollback_thread before letting server accept connections */
 std::vector<std::pair<trx_id_t, table_id_t>> to_rollback_trx_tables;
 
 /** Dummy session used currently in MySQL interface */
@@ -130,6 +134,7 @@ static void trx_flush_logs(trx_t *trx, lsn_t lsn);
 @param[in,out]  trx             transaction struct
 @param[in]      observer        flush observer */
 void trx_set_flush_observer(trx_t *trx, Flush_observer *observer) {
+  ut_a_eq(trx->flush_observer, nullptr);
   trx->flush_observer = observer;
 }
 
@@ -188,6 +193,8 @@ static void trx_init(trx_t *trx) {
 
   trx->undo_no = 0;
 
+  trx->undo_page_with_last_new_table_mod = {};
+
   trx->rsegs.m_redo.rseg = nullptr;
 
   trx->rsegs.m_noredo.rseg = nullptr;
@@ -218,9 +225,17 @@ static void trx_init(trx_t *trx) {
   trx->lock.que_state = TRX_QUE_RUNNING;
 
   trx->last_sql_stat_start.least_undo_no = 0;
-
-  ut_ad(!MVCC::is_view_active(trx->read_view));
-
+#ifdef UNIV_DEBUG
+  /* The trx's read_view can't be open. However, trx_pool_init() happens before
+  trx_sys is initialized, so we can't use trx_sys->mvcc->is_view_open to assert
+  that important assumption. Thankfully, in this specific scenario we can assert
+  an even stronger condition: that the read_view pointer is nullptr. */
+  if (trx_sys != nullptr && trx_sys->mvcc != nullptr) {
+    ut_a(!trx_sys->mvcc->is_view_open(trx->read_view));
+  } else {
+    ut_a(trx->read_view == nullptr);
+  }
+#endif /* UNIV_DEBUG */
   trx->lock.rec_cached = 0;
 
   trx->lock.table_cached = 0;
@@ -443,6 +458,26 @@ void trx_pool_close() {
   trx_pools = nullptr;
 }
 
+/** Check if transaction is free so that it can be re-initialized.
+@param t transaction handle */
+static inline void assert_trx_is_free(const trx_t *t) {
+  ut_ad(trx_state_eq(t, TRX_STATE_NOT_STARTED) ||
+        trx_state_eq(t, TRX_STATE_FORCED_ROLLBACK));
+  ut_ad(!trx_is_rseg_updated(t));
+  ut_ad(!trx_sys->mvcc->is_view_open(t->read_view));
+  ut_ad((t)->lock.wait_thr == nullptr);
+  ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);
+  ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);
+}
+
+/** Check if transaction is in-active so that it can be freed and put back to
+transaction pool.
+@param t transaction handle */
+static inline void assert_trx_is_inactive(const trx_t *t) {
+  assert_trx_is_free(t);
+  ut_ad(t->dict_operation_lock_mode == 0);
+}
+
 /** @return a trx_t instance from trx_pools. */
 static trx_t *trx_create_low() {
   trx_t *trx = trx_pools->get();
@@ -505,6 +540,11 @@ static void trx_free(trx_t *&trx) {
   }
 
   trx->mod_tables.clear();
+
+  /* All callers should ensure trx->read_view is closed, which we've already
+  checked in assert_trx_is_free(trx). But, some callers, such as
+  trx_free_for_background(), do not ensure it was freed. */
+  trx_sys->mvcc->view_free(trx->read_view);
 
   ut_ad(trx->read_view == nullptr);
   ut_ad(trx->is_dd_trx == false);
@@ -594,6 +634,9 @@ void trx_free_resurrected(trx_t *trx) {
 @param[in,out]  trx     transaction object to free */
 void trx_free_for_background(trx_t *trx) {
   trx_validate_state_before_free(trx);
+
+  ut_a(!trx_sys->mvcc->is_view_open(trx->read_view));
+  trx_sys->mvcc->view_free(trx->read_view);
 
   trx_free(trx);
 }
@@ -1105,15 +1148,15 @@ void trx_lists_init_at_db_start(void) {
   /* Look through the rollback segments in each RSEG_ARRAY for
   transaction undo logs. */
   ut::vector<trx_t *> trxs;
-  undo::spaces->s_lock();
-  for (auto undo_space : undo::spaces->m_spaces) {
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
     undo_space->rsegs()->s_lock();
     for (auto rseg : *undo_space->rsegs()) {
       trx_resurrect(rseg, trxs);
     }
     undo_space->rsegs()->s_unlock();
   }
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
   for (auto &shard : trx_sys->shards) {
     shard.active_rw_trxs.latch_and_execute(
@@ -1153,14 +1196,14 @@ thread from truncating the undo tablespace that contains this rseg
 until the transaction is done with it.
 @return assigned rollback segment instance */
 static trx_rseg_t *get_next_redo_rseg() {
-  undo::Tablespace *undo_space;
+  undo_truncate::Tablespace *undo_space;
 
   /* The number of undo tablespaces cannot be changed while
   we have this s_lock. */
-  undo::spaces->s_lock();
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
 
   /* Use all known undo tablespaces.  Some may be inactive. */
-  ulint target_undo_tablespaces = undo::spaces->size();
+  ulint target_undo_tablespaces = undo_truncate::spaces->size();
 
   ut_ad(target_undo_tablespaces > 0);
 
@@ -1188,7 +1231,7 @@ static trx_rseg_t *get_next_redo_rseg() {
 
     current++;
 
-    undo_space = undo::spaces->at(spaces_slot);
+    undo_space = undo_truncate::spaces->at(spaces_slot);
 
     /* Avoid any rseg that resides in a tablespace that has been made
     inactive either explicitly or by being marked for truncate. We do
@@ -1207,7 +1250,7 @@ static trx_rseg_t *get_next_redo_rseg() {
     rseg = undo_space->get_active(rseg_slot);
   }
 
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
   ut_ad(rseg->trx_ref_count > 0);
 
@@ -1724,13 +1767,14 @@ static void trx_finalize_for_fts(
 static void trx_flush_log_if_needed_low(lsn_t lsn) /*!< in: lsn up to which logs
                                                    are to be flushed. */
 {
+  using Durability = ib::redo::Handler_interface::Durability;
+  using Origin = ib::redo::Handler_interface::Origin;
+
 #ifdef _WIN32
   bool flush = true;
 #else
   bool flush = srv_unix_file_flush_method != SRV_UNIX_NOSYNC;
 #endif /* _WIN32 */
-
-  Wait_stats wait_stats;
 
   switch (srv_flush_log_at_trx_commit) {
     case 2:
@@ -1738,10 +1782,12 @@ static void trx_flush_log_if_needed_low(lsn_t lsn) /*!< in: lsn up to which logs
       flush = false;
       [[fallthrough]];
     case 1:
-      /* Write the log and optionally flush it to disk */
-      wait_stats = log_write_up_to(*log_sys, lsn, flush);
-
-      MONITOR_INC_WAIT_STATS(MONITOR_TRX_ON_LOG_, wait_stats);
+      ib::redo::must_succeed(
+          ib::redo::handler->persist_smaller_than(
+              lsn,
+              flush ? Durability::FULLY_PERSISTED : Durability::OUTLIVE_PROCESS,
+              Origin::TRX_COMMIT),
+          UT_LOCATION_HERE);
 
       return;
     case 0:
@@ -1756,13 +1802,18 @@ static void trx_flush_log_if_needed(lsn_t lsn, /*!< in: lsn up to which logs are
                                                to be flushed. */
                                     trx_t *trx) /*!< in/out: transaction */
 {
+  using Durability = ib::redo::Handler_interface::Durability;
+  using Origin = ib::redo::Handler_interface::Origin;
+
   trx->op_info = "flushing log";
 
   DEBUG_SYNC_C("trx_flush_log_if_needed");
 
   if (trx->ddl_operation || trx->ddl_must_flush) {
-    auto wait_stats = log_write_up_to(*log_sys, lsn, true);
-    MONITOR_INC_WAIT_STATS(MONITOR_TRX_ON_LOG_, wait_stats);
+    ib::redo::must_succeed(
+        ib::redo::handler->persist_smaller_than(
+            lsn, Durability::FULLY_PERSISTED, Origin::TRX_COMMIT),
+        UT_LOCATION_HERE);
   } else {
     trx_flush_log_if_needed_low(lsn);
   }
@@ -1998,6 +2049,7 @@ written */
 
     } else {
       ut_ad(trx->id > 0);
+      ut_a(trx->read_view == nullptr);
       MONITOR_INC(MONITOR_TRX_RW_COMMIT);
     }
   }
@@ -2163,6 +2215,8 @@ void trx_commit_low(trx_t *trx, mtr_t *mtr) {
 
   bool serialised;
 
+  //  TBD: why do resurrected PREPARED transactions have trx->no set to trx->id?
+  ut_a(trx->no == TRX_ID_MAX || trx->no == trx->id);
   if (mtr != nullptr) {
     mtr->set_sync();
 
@@ -2191,7 +2245,7 @@ void trx_commit_low(trx_t *trx, mtr_t *mtr) {
 
     DBUG_EXECUTE_IF("trx_commit_to_the_end_of_log_block", {
       const size_t space_left = mtr->get_expected_log_size();
-      mtr_commit_mlog_test_filling_block(*log_sys, space_left);
+      mtr_commit_mlog_test_filling_block(space_left);
     });
 
     mtr_commit(mtr);
@@ -2200,7 +2254,7 @@ void trx_commit_low(trx_t *trx, mtr_t *mtr) {
 
     DBUG_EXECUTE_IF(
         "ib_crash_during_trx_commit_in_mem", if (trx_is_rseg_updated(trx)) {
-          log_make_latest_checkpoint();
+          pages_persistence->request_sharp_checkpoint();
           DBUG_SUICIDE();
         });
     /*--------------*/
@@ -2263,6 +2317,15 @@ void trx_cleanup_at_db_startup(trx_t *trx) /*!< in: transaction */
     trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
   }
 
+  ut_ad(trx->rsegs.m_redo.insert_undo == nullptr);
+  ut_ad(trx->rsegs.m_redo.update_undo == nullptr);
+
+  if (trx->rsegs.m_redo.rseg != nullptr) {
+    ut_a(trx->rsegs.m_redo.rseg->trx_ref_count > 0);
+    trx->rsegs.m_redo.rseg->trx_ref_count--;
+    trx->rsegs.m_redo.rseg = nullptr;
+  }
+
   memset(&trx->rsegs, 0x0, sizeof(trx->rsegs));
   trx->undo_no = 0;
   trx->undo_rseg_space = 0;
@@ -2284,24 +2347,23 @@ void trx_cleanup_at_db_startup(trx_t *trx) /*!< in: transaction */
   trx->state.store(TRX_STATE_NOT_STARTED, std::memory_order_relaxed);
 }
 
-/** Assigns a read view for a consistent read query. All the consistent reads
- within the same transaction will get the same read view, which is created
- when this function is first called for a new started transaction.
- @return consistent read view */
-ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
-{
+void trx_assign_read_view(trx_t *trx) {
   ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
   ut_ad(trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
 
   if (srv_read_only_mode) {
     ut_ad(trx->read_view == nullptr);
-    return (nullptr);
-
-  } else if (!MVCC::is_view_active(trx->read_view)) {
-    trx_sys->mvcc->view_open(trx->read_view, trx);
+    return;
   }
 
-  return (trx->read_view);
+  if (!trx_sys->mvcc->is_view_open(trx->read_view)) {
+    trx_sys->mvcc->view_open(trx->read_view, trx);
+  }
+}
+
+const Read_view_interface *trx_get_read_view(const trx_t *trx) {
+  return (!trx_sys->mvcc->is_view_open(trx->read_view) ? nullptr
+                                                       : trx->read_view);
 }
 
 /** Prepares a transaction for commit/rollback. */
@@ -3088,7 +3150,7 @@ static void trx_set_prepared_in_tc(trx_t *trx) {
 Does the transaction prepare for MySQL.
 @param[in, out] trx             Transaction instance to prepare */
 dberr_t trx_prepare_for_mysql(trx_t *trx) {
-  trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
   TrxInInnoDB trx_in_innodb(trx, true);
 
@@ -3301,38 +3363,6 @@ trx_t *trx_get_trx_by_xid(const XID *xid) {
 }
 
 /** Starts the transaction if it is not yet started.
-@param[in,out] trx Transaction
-@param[in] read_write True if read write transaction */
-void trx_start_if_not_started_xa_low(trx_t *trx, bool read_write) {
-  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
-  switch (trx->state.load(std::memory_order_relaxed)) {
-    case TRX_STATE_NOT_STARTED:
-    case TRX_STATE_FORCED_ROLLBACK:
-      trx_start_low(trx, read_write);
-      return;
-
-    case TRX_STATE_ACTIVE:
-      if (trx->id == 0 && read_write) {
-        /* If the transaction is tagged as read-only then
-        it can only write to temp tables and for such
-        transactions we don't want to move them to the
-        trx_sys_t::rw_trx_list. */
-        if (!trx->read_only) {
-          trx_set_rw_mode(trx);
-        } else if (!srv_read_only_mode) {
-          trx_assign_rseg_temp(trx);
-        }
-      }
-      return;
-    case TRX_STATE_PREPARED:
-    case TRX_STATE_COMMITTED_IN_MEMORY:
-      break;
-  }
-
-  ut_error;
-}
-
-/** Starts the transaction if it is not yet started.
 @param[in] trx Transaction
 @param[in] read_write True if read write transaction */
 void trx_start_if_not_started_low(trx_t *trx, bool read_write) {
@@ -3424,8 +3454,8 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
   trx_sys->rw_trx_ids.push_back(trx->id);
 
   /* So that we can see our own changes. */
-  if (MVCC::is_view_active(trx->read_view)) {
-    MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
+  if (trx_sys->mvcc->is_view_open(trx->read_view)) {
+    trx_sys->mvcc->set_view_creator_trx_id(trx->read_view, trx->id);
   }
   trx_add_to_rw_trx_list(trx);
 

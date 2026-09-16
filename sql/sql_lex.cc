@@ -482,6 +482,7 @@ void LEX::reset() {
   mark_broken(false);
   reset_exec_started();
   max_execution_time = 0;
+  switch_resource_group = nullptr;
   reparse_common_table_expr_at = 0;
   reparse_derived_table_condition = false;
   opt_hints_global = nullptr;
@@ -5123,6 +5124,9 @@ void LEX_SOURCE_INFO::initialize() {
   assign_gtids_to_anonymous_transactions_type =
       LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED;
   assign_gtids_to_anonymous_transactions_manual_uuid = nullptr;
+  applier_version = Applier_version::unspecified;
+  applier_worker_count = applier_worker_count_unspecified;
+  applier_event_memory_limit = applier_event_memory_limit_unspecified;
 }
 
 void LEX_SOURCE_INFO::set_unspecified() {

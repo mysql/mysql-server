@@ -349,7 +349,7 @@ void rtr_page_copy_rec_list_start_no_locks(
     mem_heap_t *heap, rtr_rec_move_t *rec_move, ulint max_move,
     ulint *num_moved, mtr_t *mtr);
 
-/** Merge 2 mbrs and update the the mbr that cursor is on.
+/** Merge 2 mbrs and update the mbr that cursor is on.
 @param[in,out] cursor Cursor
 @param[in] cursor2 The other cursor
 @param[in] offsets Rec offsets

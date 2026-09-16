@@ -57,6 +57,7 @@ START REPLICA;
 call mtr.add_suppression("Replica.* @@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON.");
 call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
 --let $slave_sql_errno= convert_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON)
 --source include/rpl/wait_for_applier_error.inc
 

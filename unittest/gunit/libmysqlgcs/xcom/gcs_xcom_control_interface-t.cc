@@ -33,7 +33,9 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 #include "template_utils.h"
 
@@ -43,6 +45,14 @@ using ::testing::NiceMock;
 
 namespace gcs_xcom_control_unittest {
 typedef enum { JJ = 0, LL = 1, JL = 2, LJ = 3 } InvocationOrder;
+
+namespace {
+xcom_port g_unit_test_local_port = 0;
+
+int match_unit_test_local_port(xcom_port port) {
+  return port == g_unit_test_local_port;
+}
+}  // namespace
 
 class InvocationHelper {
  public:
@@ -631,6 +641,15 @@ class XComControlTest : public GcsBaseTest {
         &gcs_engine, mock_se, mock_vce, true, mock_socket_util,
         std::move(mock_net_ops_for_interface), mock_stats_mgr);
     extern_xcom_control_if = xcom_control_if;
+
+    init_cfg_app_xcom();
+    g_unit_test_local_port = xcom_node_address->get_member_port();
+    set_port_matcher(match_unit_test_local_port);
+
+    auto [identity_error, xcom_identity] =
+        xcom_control_if->get_node_information().make_xcom_identity(proxy);
+    ASSERT_FALSE(identity_error);
+    cfg_app_xcom_set_identity(xcom_identity);
   }
 
   void TearDown() override {
@@ -651,6 +670,10 @@ class XComControlTest : public GcsBaseTest {
     m_wait_called_cond.destroy();
 
     delete mock_stats_mgr;
+
+    set_port_matcher(nullptr);
+    g_unit_test_local_port = 0;
+    deinit_cfg_app_xcom();
   }
 
   Gcs_xcom_node_address *xcom_node_address;
@@ -926,6 +949,102 @@ TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
   result = xcom_control_if->leave();
   ASSERT_EQ(GCS_OK, result);
   ASSERT_FALSE(xcom_control_if->is_xcom_running());
+}
+
+TEST_F(XComControlTest, JoinTestSkipsOwnSeedExpressedAsEquivalentHostname) {
+  auto create_failed_con_lambda = [](const std::string &a, xcom_port b) {
+    (void)a;
+    (void)b;
+
+    auto *failed_con =
+        (connection_descriptor *)malloc(sizeof(connection_descriptor));
+    failed_con->fd = -1;
+
+    return failed_con;
+  };
+
+  auto create_good_con_lambda = [](const std::string &a, xcom_port b) {
+    (void)a;
+    (void)b;
+
+    auto *good_con =
+        (connection_descriptor *)malloc(sizeof(connection_descriptor));
+    good_con->fd = 0;
+
+    return good_con;
+  };
+
+  std::vector<Gcs_xcom_node_address *> hostname_peers;
+  hostname_peers.push_back(new Gcs_xcom_node_address("localhost:12345"));
+  hostname_peers.push_back(new Gcs_xcom_node_address("127.0.0.1:12346"));
+  hostname_peers.push_back(new Gcs_xcom_node_address("127.0.0.1:12347"));
+  xcom_control_if->set_peer_nodes(hostname_peers);
+
+  EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);
+  EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
+  EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(0);
+  EXPECT_CALL(proxy, xcom_wait_ready()).Times(1);
+  EXPECT_CALL(proxy, xcom_init(_)).Times(1);
+  EXPECT_CALL(proxy, xcom_exit()).Times(0);
+  EXPECT_CALL(proxy, xcom_client_open_connection(Eq("localhost"), Eq(12345)))
+      .Times(0);
+  EXPECT_CALL(proxy, xcom_client_open_connection(Eq("127.0.0.1"), Eq(12346)))
+      .Times(3)
+      .WillRepeatedly(create_failed_con_lambda);
+  EXPECT_CALL(proxy, xcom_client_open_connection(Eq("127.0.0.1"), Eq(12347)))
+      .Times(3)
+      .WillOnce(create_failed_con_lambda)
+      .WillRepeatedly(create_good_con_lambda);
+  EXPECT_CALL(*mock_socket_util, disable_nagle_in_socket(_))
+      .Times(2)
+      .WillOnce(Return(-1))
+      .WillOnce(Return(0));
+  EXPECT_CALL(proxy, xcom_client_add_node(_, _, _))
+      .Times(1)
+      .WillOnce(Return(1));
+  EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(1);
+  EXPECT_CALL(proxy, xcom_client_close_connection(_))
+      .Times(2)
+      .WillRepeatedly(Return(0));
+
+  xcom_control_if->set_boot_node(false);
+  enum_gcs_error result = xcom_control_if->join(create_fake_view());
+  ASSERT_EQ(GCS_OK, result);
+  ASSERT_TRUE(xcom_control_if->is_xcom_running());
+
+  result = xcom_control_if->leave();
+  ASSERT_EQ(GCS_OK, result);
+  ASSERT_FALSE(xcom_control_if->is_xcom_running());
+
+  for (auto *peer : hostname_peers) delete peer;
+}
+
+TEST_F(XComControlTest, MyNodeMatchUsesConfiguredIdentityAddressAndPort) {
+  ASSERT_NE(nullptr, cfg_app_xcom_get_identity());
+  ASSERT_STREQ("127.0.0.1:12345", cfg_app_xcom_get_identity()->address);
+
+  char self_address[] = "127.0.0.1";
+  char same_port_different_address[] = "127.0.0.2";
+
+  EXPECT_EQ(1, xcom_mynode_match(self_address, 12345));
+  EXPECT_EQ(0, xcom_mynode_match(self_address, 12346));
+  EXPECT_EQ(0, xcom_mynode_match(same_port_different_address, 12345));
+}
+
+TEST_F(XComControlTest, FindNodeIndexUsesConfiguredIdentityAddressAndPort) {
+  ASSERT_NE(nullptr, cfg_app_xcom_get_identity());
+  ASSERT_STREQ("127.0.0.1:12345", cfg_app_xcom_get_identity()->address);
+
+  char const *node_addresses[] = {"127.0.0.2:12345", "127.0.0.1:12345",
+                                  "127.0.0.1:12346"};
+  node_list nodes{};
+  nodes.node_list_len = 3;
+  nodes.node_list_val = ::new_node_address(nodes.node_list_len, node_addresses);
+
+  ASSERT_NE(nullptr, nodes.node_list_val);
+  EXPECT_EQ(static_cast<node_no>(1), xcom_find_node_index(&nodes));
+
+  ::delete_node_address(nodes.node_list_len, nodes.node_list_val);
 }
 
 TEST_F(XComControlTest, JoinTestAllPeersUnavailable) {

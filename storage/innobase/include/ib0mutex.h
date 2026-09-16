@@ -73,7 +73,7 @@ struct OSTrackMutex {
   /** Destroy the mutex */
   void destroy() UNIV_NOTHROW {
     ut_ad(!m_locked);
-    ut_ad(innodb_calling_exit || !m_freed);
+    ut_ad(!m_freed);
 
     m_mutex.destroy();
 
@@ -86,7 +86,7 @@ struct OSTrackMutex {
   void exit() UNIV_NOTHROW {
     ut_ad(m_locked);
     ut_d(m_locked = false);
-    ut_ad(innodb_calling_exit || !m_freed);
+    ut_ad(!m_freed);
 
     m_mutex.exit();
   }
@@ -100,7 +100,7 @@ struct OSTrackMutex {
              uint32_t max_delay [[maybe_unused]],
              const char *filename [[maybe_unused]],
              uint32_t line [[maybe_unused]]) UNIV_NOTHROW {
-    ut_ad(innodb_calling_exit || !m_freed);
+    ut_ad(!m_freed);
 
     m_mutex.enter();
 
@@ -113,7 +113,7 @@ struct OSTrackMutex {
 
   /** @return true if locking succeeded */
   bool try_lock() UNIV_NOTHROW {
-    ut_ad(innodb_calling_exit || !m_freed);
+    ut_ad(!m_freed);
 
     bool locked = m_mutex.try_lock();
 

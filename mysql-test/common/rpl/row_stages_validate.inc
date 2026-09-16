@@ -33,8 +33,13 @@ if (`SELECT '$state_thd_name' <> ''`)
   --let $_stage_thd_name="$state_thd_name"
 }
 
+# Fix it someday for CSA, CSA somehow overwrites command type
+if($rpl_applier_version == '') {
+  --let $check_command = AND PROCESSLIST_COMMAND = "$state_command"
+}
+
 --let $assert_text= PERFORMANCE_SCHEMA.threads reports: state=$state_stage, db=$state_db, info $_state_info_condition, $state_command
---let $assert_cond= COUNT(*)=1 FROM performance_schema.threads WHERE NAME=$_stage_thd_name AND PROCESSLIST_DB="$state_db" AND PROCESSLIST_STATE="$state_stage" AND PROCESSLIST_INFO $_state_info_condition AND PROCESSLIST_COMMAND = "$state_command"
+--let $assert_cond= COUNT(*)=1 FROM performance_schema.threads WHERE NAME=$_stage_thd_name AND PROCESSLIST_DB="$state_db" AND PROCESSLIST_STATE="$state_stage" AND PROCESSLIST_INFO $_state_info_condition $check_command
 --source include/assert.inc
 
 # validate information_schema (state is set to debug sync point)

@@ -40,10 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 static inline bool mlog_open(mtr_t *mtr, ulint size, byte *&buffer) {
   mtr->set_modified();
-  return (mlog_open_metadata(mtr, size, buffer));
-}
-
-static inline bool mlog_open_metadata(mtr_t *mtr, ulint size, byte *&buffer) {
   if (mtr_get_log_mode(mtr) == MTR_LOG_NONE ||
       mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
     buffer = nullptr;
@@ -139,24 +135,6 @@ static inline void mlog_catenate_ull_compressed(
   log_ptr += mach_u64_write_compressed(log_ptr, val);
 
   mlog_close(mtr, log_ptr);
-}
-
-static inline byte *mlog_write_initial_dict_log_record(mlog_id_t type,
-                                                       table_id_t id,
-                                                       uint64_t version,
-                                                       byte *log_ptr,
-                                                       mtr_t *mtr) {
-  ut_ad(type <= MLOG_BIGGEST_TYPE);
-  ut_ad(type == MLOG_TABLE_DYNAMIC_META);
-
-  mach_write_to_1(log_ptr, type);
-  log_ptr++;
-
-  log_ptr += mach_u64_write_much_compressed(log_ptr, id);
-  log_ptr += mach_u64_write_much_compressed(log_ptr, version);
-
-  mtr->added_rec();
-  return (log_ptr);
 }
 
 /** Writes a log record about an operation.

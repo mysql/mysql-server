@@ -53,6 +53,7 @@
 #include <limits>
 
 #include "include/compression.h"
+#include "include/dh_ecdh_config.h"
 
 #include "mysql/components/library_mysys/my_system.h"  // my_physical_memory
 #include "mysql/components/services/log_builtins.h"
@@ -75,7 +76,8 @@
 
 #include "ft_global.h"
 #include "m_string.h"
-#include "my_aes.h"  // my_aes_opmode_names
+#include "mutex_lock.h"  // MUTEX_LOCK
+#include "my_aes.h"      // my_aes_opmode_names
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -145,6 +147,7 @@
 #include "string_with_len.h"
 #include "template_utils.h"  // pointer_cast
 #include "thr_lock.h"
+#include "violite.h"
 #ifdef _WIN32
 #include "sql/named_pipe.h"
 #endif
@@ -2402,6 +2405,14 @@ static Sys_var_ulong Sys_rpl_stop_replica_timeout(
 
 static Sys_var_deprecated_alias Sys_rpl_stop_slave_timeout(
     "rpl_stop_slave_timeout", Sys_rpl_stop_replica_timeout);
+
+static Sys_var_bool Sys_rpl_dump_thread_account_affinity(
+    "rpl_dump_thread_account_affinity",
+    "Require a reconnect matching an existing dump thread's replica "
+    "identity to use the same authenticated account. Disabled by default "
+    "to preserve legacy dump-thread replacement behavior.",
+    GLOBAL_VAR(opt_rpl_dump_thread_account_affinity), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static Sys_var_enum Sys_binlog_error_action(
     "binlog_error_action",
@@ -7466,6 +7477,176 @@ static bool handle_plugin_lock_type_change(sys_var *, THD *, enum_var_type) {
   delegates_update_lock_type();
   delegates_release_locks();
   return false;
+}
+
+static bool opt_replication_force_pqc = false;
+static bool opt_replication_use_pqc_sign = false;
+static char *opt_replication_tls_kex = nullptr;
+
+static bool replication_tls_force_pqc_supported_for_version(
+    const char *tls_version [[maybe_unused]]) {
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
+  return false;
+#else
+  return !(process_tls_version(tls_version) & SSL_OP_NO_TLSv1_3);
+#endif
+}
+
+static bool validate_replication_force_pqc_tls_version(
+    sys_var *self, const char *tls_version) {
+  if (replication_tls_force_pqc_supported_for_version(tls_version))
+    return false;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), self->name.str, "ON");
+  return true;
+}
+
+static bool validate_replication_force_pqc_channel_tls_versions(sys_var *self) {
+  channel_map.rdlock();
+
+  for (auto it = channel_map.begin(); it != channel_map.end(); ++it) {
+    Master_info *mi = it->second;
+    if (!Master_info::is_configured(mi)) continue;
+
+    mysql_mutex_lock(&mi->data_lock);
+    const bool channel_uses_ssl = mi->ssl;
+    const bool invalid_tls_version =
+        channel_uses_ssl && !replication_tls_force_pqc_supported_for_version(
+                                mi->tls_version[0] ? mi->tls_version : nullptr);
+    mysql_mutex_unlock(&mi->data_lock);
+
+    if (invalid_tls_version) {
+      channel_map.unlock();
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), self->name.str, "ON");
+      return true;
+    }
+  }
+
+  channel_map.unlock();
+  return false;
+}
+
+void adjust_startup_replication_force_pqc_for_tls_versions() {
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (!opt_replication_force_pqc) return;
+
+  channel_map.assert_some_lock();
+
+  for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+       ++it) {
+    Master_info *mi = it->second;
+    if (!Master_info::is_configured(mi)) continue;
+
+    mysql_mutex_lock(&mi->data_lock);
+    const bool channel_uses_ssl = mi->ssl;
+    const char *tls_version = mi->tls_version[0] ? mi->tls_version : nullptr;
+    const bool invalid_tls_version =
+        channel_uses_ssl &&
+        !replication_tls_force_pqc_supported_for_version(tls_version);
+    const std::string channel = mi->get_channel();
+    const std::string effective_tls_version =
+        tls_version ? tls_version : "TLSv1.2,TLSv1.3";
+    mysql_mutex_unlock(&mi->data_lock);
+
+    if (invalid_tls_version) {
+      const std::string error =
+          "replication_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or "
+          "newer, but SOURCE_TLS_VERSION=" +
+          effective_tls_version + " for channel '" + channel +
+          "' disables TLSv1.3; setting replication_force_pqc=OFF";
+      LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, error.c_str());
+      opt_replication_force_pqc = false;
+      return;
+    }
+  }
+#endif
+}
+
+static bool validate_replication_force_pqc_tls_kex(sys_var *self,
+                                                   const char *tls_kex) {
+  std::string filtered_tls_kex;
+  if (!sanitize_tls_kex_list(tls_kex, true, &filtered_tls_kex)) return false;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), self->name.str, "ON");
+  return true;
+}
+
+static bool validate_replication_use_pqc_sign(sys_var *self,
+                                              bool use_pqc_sign) {
+  if (!use_pqc_sign || tls_pqc_sign_supported()) return false;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), self->name.str, "ON");
+  return true;
+}
+
+static bool check_replication_force_pqc(sys_var *self, THD *, set_var *var) {
+  if (!var->save_result.ulonglong_value) return false;
+
+  return validate_replication_force_pqc_tls_version(self, nullptr) ||
+         validate_replication_force_pqc_channel_tls_versions(self) ||
+         validate_replication_force_pqc_tls_kex(self, opt_replication_tls_kex);
+}
+
+static bool check_replication_use_pqc_sign(sys_var *self, THD *, set_var *var) {
+  return validate_replication_use_pqc_sign(self,
+                                           var->save_result.ulonglong_value);
+}
+
+static bool check_replication_tls_kex(sys_var *var, THD *, set_var *value) {
+  std::string filtered_tls_kex;
+  const char *tls_kex = value->save_result.string_value.str;
+  if (!sanitize_tls_kex_list(tls_kex, opt_replication_force_pqc,
+                             &filtered_tls_kex))
+    return false;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->name.str,
+           tls_kex ? tls_kex : "");
+  return true;
+}
+
+static Sys_var_bool Sys_replication_force_pqc(
+    "replication_force_pqc",
+    "If set to TRUE, require asynchronous replication TLS connections to "
+    "use a PQC compatible key exchange group.",
+    GLOBAL_VAR(opt_replication_force_pqc), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_replication_force_pqc),
+    ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_replication_use_pqc_sign(
+    "replication_use_pqc_sign",
+    "If set to FALSE, advertise only classical TLS handshake signature "
+    "algorithms on asynchronous replication TLS connections.",
+    GLOBAL_VAR(opt_replication_use_pqc_sign), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_replication_use_pqc_sign),
+    ON_UPDATE(nullptr));
+
+static Sys_var_charptr Sys_replication_tls_kex(
+    "replication_tls_kex",
+    "TLS key exchange groups to use for asynchronous "
+    "replication TLS connections",
+    GLOBAL_VAR(opt_replication_tls_kex), CMD_LINE(REQUIRED_ARG),
+    IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_replication_tls_kex), ON_UPDATE(nullptr));
+
+bool replication_channel_force_pqc(const Master_info *mi) {
+  return channel_map.is_group_replication_recovery_channel_name(
+             mi->get_channel())
+             ? mi->force_pqc
+             : opt_replication_force_pqc;
+}
+
+bool replication_channel_use_pqc_sign(const Master_info *mi) {
+  return channel_map.is_group_replication_recovery_channel_name(
+             mi->get_channel())
+             ? mi->use_pqc_sign
+             : opt_replication_use_pqc_sign;
+}
+
+std::string replication_channel_tls_kex(const Master_info *mi) {
+  if (channel_map.is_group_replication_recovery_channel_name(mi->get_channel()))
+    return mi->tls_kex;
+
+  return opt_replication_tls_kex;
 }
 
 static Sys_var_bool Sys_replication_optimize_for_static_plugin_config(

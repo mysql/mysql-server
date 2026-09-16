@@ -886,6 +886,24 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
   curr_group_seen_gtid = false;
 }
 
+THD *Slave_worker::get_transaction_ctx() { return info_thd; }
+
+MDL_context *Slave_worker::get_mdl_context() {
+  return &(info_thd->mdl_context);
+}
+
+Slave_worker::Worker_id Slave_worker::get_worker_id() const { return id; }
+
+Slave_worker::Trx_id Slave_worker::get_trx_id() { return sequence_number(); }
+
+bool Slave_worker::is_same_channel(const Parallel_worker_context *arg) const {
+  const Slave_worker *other = dynamic_cast<const Slave_worker *>(arg);
+  if (other != nullptr) {
+    return c_rli == other->c_rli;
+  }
+  return false;
+}
+
 Slave_committed_queue::Slave_committed_queue(size_t max, uint n)
     : circular_buffer_queue<Slave_job_group>(max),
       inited(false),
@@ -1090,6 +1108,13 @@ size_t Slave_committed_queue::find_lwm(Slave_job_group **arg_g,
 void Slave_committed_queue::free_dynamic_items() {
   for (size_t i = entry; i < avail; i++) {
     Slave_job_group *ptr_g = &m_Q[i % capacity];
+    if (ptr_g->new_fd_event) {
+      assert(ptr_g->new_fd_event->atomic_usage_counter > 0);
+      if (--ptr_g->new_fd_event->atomic_usage_counter == 0) {
+        delete ptr_g->new_fd_event;
+      }
+      ptr_g->new_fd_event = nullptr;
+    }
     if (ptr_g->group_relay_log_name) {
       my_free(ptr_g->group_relay_log_name);
     }
@@ -1330,11 +1355,11 @@ void Slave_worker::reset_commit_order_deadlock() {
   m_commit_order_deadlock.store(false);
 }
 
-bool Slave_worker::found_commit_order_deadlock() {
+bool Slave_worker::found_commit_order_deadlock() const {
   return m_commit_order_deadlock.load();
 }
 
-void Slave_worker::report_commit_order_deadlock() {
+void Slave_worker::report_commit_order_deadlock(bool) {
   DBUG_TRACE;
   assert(get_commit_order_manager() != nullptr);
   m_commit_order_deadlock.store(true);
@@ -1349,6 +1374,10 @@ void Slave_worker::prepare_for_retry(Log_event &event) {
     event.worker = this;
     this->rows_query_ev = nullptr;
   }
+}
+
+bool Slave_worker::can_be_retried(THD *thd) {
+  return !(std::get<0>(check_and_report_end_of_retries(thd)));
 }
 
 std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
@@ -1468,7 +1497,6 @@ bool Slave_worker::retry_transaction(my_off_t start_relay_pos,
             char const act[] =
                 "now SIGNAL signal.rpl_ps_tables_worker_retry_pause "
                 "WAIT_FOR signal.rpl_ps_tables_worker_retry_continue";
-            assert(opt_debug_sync_timeout > 0);
             // we can't add the usual assert here because thd->is_error()
             // is true (and that's OK)
             debug_sync_set_action(thd, STRING_WITH_LEN(act));
@@ -1552,7 +1580,11 @@ bool Slave_worker::read_and_apply_events(my_off_t start_relay_pos,
         // additional context needed, before re-executing (just like in
         // the main loop before exec_relay_log_event)
         if (rli->current_mts_submode->set_multi_threaded_applier_context(*rli,
-                                                                         *ev)) {
+                                                                         *ev) ||
+            DBUG_EVALUATE_IF("error_on_set_mta_context_trx_retry", true,
+                             false)) {
+          delete ev;
+          ev = nullptr;
           return true;
         }
 
@@ -2140,7 +2172,6 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
       const char act[] =
           "now SIGNAL signal.rpl_ps_tables_apply_before "
           "WAIT_FOR signal.rpl_ps_tables_apply_finish";
-      assert(opt_debug_sync_timeout > 0);
       assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
     if (ev->get_type_code() == mysql::binlog::event::QUERY_EVENT &&
@@ -2158,7 +2189,6 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
       const char act[] =
           "now SIGNAL signal.rpl_ps_tables_apply_after_finish "
           "WAIT_FOR signal.rpl_ps_tables_apply_continue";
-      assert(opt_debug_sync_timeout > 0);
       assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
   }

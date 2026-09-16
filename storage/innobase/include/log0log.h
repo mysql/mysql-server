@@ -59,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0files_finder.h"
 #include "log0files_governor.h"
 #include "log0files_io.h"
+#include "log0handler_interface.h"
 #include "log0sys.h"
 #include "log0types.h"
 
@@ -125,10 +126,8 @@ bytes inside log block (not to some bytes in header/footer). It is used
 by assertions.
 @return true if lsn points to data bytes within log block */
 inline bool log_is_data_lsn(lsn_t lsn) {
-  const uint32_t offset = lsn % OS_FILE_LOG_BLOCK_SIZE;
-
-  return lsn >= LOG_START_LSN && offset >= LOG_BLOCK_HDR_SIZE &&
-         offset < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE;
+  return lsn >= LOG_START_LSN &&
+         ib::redo::handler->compute_end_lsn(lsn, 0) == lsn;
 }
 
 /** @} */
@@ -197,13 +196,10 @@ void log_update_exported_variables(const log_t &log);
 
 /** @{ */
 
-/** Initializes log_sys and finds existing redo log files, or creates a new
-set of redo log files.
-
-New redo log files are created in following cases:
-  - there are no existing redo log files in the log directory,
-  - existing set of redo log files is not marked as fully initialized
-    (flag LOG_HEADER_FLAG_NOT_INITIALIZED exists in the newest file).
+/** Initializes log_sys and finds existing redo log files.
+It may also remove existing files if they are not marked as fully initialized
+(flag LOG_HEADER_FLAG_NOT_INITIALIZED exists in the newest file) - in such case
+this function will return the same DB_CANNOT_OPEN_FILE as if it found no files.
 
 After this call, the log_sys global variable is allocated and initialized.
 InnoDB might start recovery then.
@@ -211,9 +207,7 @@ InnoDB might start recovery then.
 @remarks
 The redo log files are not resized in this function, because before resizing
 log files, InnoDB must run recovery and ensure log files are logically empty.
-The redo resize is currently the only scenario in which the initialized log_sys
-might become closed by log_sys_close() and then re-initialized by another call
-to log_sys_init().
+
 
 @note Note that the redo log system is NOT ready for user writes after this
 call is finished. The proper order of calls looks like this:
@@ -228,18 +222,8 @@ with remaining logic of the srv_start())
 @param[in]    expect_no_files   true means we should return DB_ERROR if log
                                 files are present in the directory before
                                 proceeding any further
-@param[in]    flushed_lsn       lsn at which new redo log files might be
-                                started if they had to be created during
-                                this call; this should be lsn stored in
-                                the system tablespace header at offset
-                                FIL_PAGE_FILE_FLUSH_LSN if the data
-                                directory has been initialized;
-@param[out]   new_files_lsn     updated to the lsn of the first checkpoint
-                                created in the new log files if new log files
-                                are created; else: 0
 @return DB_SUCCESS or error */
-dberr_t log_sys_init(bool expect_no_files, lsn_t flushed_lsn,
-                     lsn_t &new_files_lsn);
+[[nodiscard]] dberr_t log_sys_init(bool expect_no_files);
 
 /** Starts the initialized redo log system using a provided
 checkpoint_lsn and current lsn. Block for current_lsn must
@@ -247,12 +231,9 @@ be properly initialized in the log buffer prior to calling
 this function. Therefore a proper value of first_rec_group
 must be set for that block before log_start is called.
 @param[in,out]  log                redo log
-@param[in]      checkpoint_lsn     checkpoint lsn
 @param[in]      start_lsn          current lsn to start at
-@param[in]      allow_checkpoints  true iff allows writing newer checkpoints
 @return DB_SUCCESS or error */
-dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
-                  bool allow_checkpoints = true);
+[[nodiscard]] dberr_t log_start(log_t &log, lsn_t start_lsn);
 
 /** Close the log system and free all the related memory. */
 void log_sys_close();
@@ -273,9 +254,8 @@ void log_write_ahead_resize(log_t &log, size_t new_size);
 /** @{ */
 
 /** Validates that all the log background threads are active.
-Used only to assert, that the state is correct.
-@param[in]      log     redo log */
-void log_background_threads_active_validate(const log_t &log);
+Used only to assert, that the state is correct. */
+void log_background_threads_active_validate();
 
 /** Validates that all the log background threads are inactive.
 Used only to assert, that the state is correct. */
@@ -299,23 +279,9 @@ Does not wait until they are stopped.
 @param[in,out]  log     redo log */
 void log_stop_background_threads_nowait(log_t &log);
 
-/** Function similar to @see log_stop_background_threads() except that it
-stops all the log threads in such a way, that the redo log will be logically
-empty after the threads are stopped.
-@note It is caller responsibility to ensure that all threads other than the
-log_files_governor cannot produce new redo log records when this function
-is being called. */
-void log_make_empty_and_stop_background_threads(log_t &log);
-
 /** Wakes up all log threads which are alive.
 @param[in,out]  log     redo log */
 void log_wake_threads(log_t &log);
-
-#define log_limits_mutex_enter(log) mutex_enter(&((log).limits_mutex))
-
-#define log_limits_mutex_exit(log) mutex_exit(&((log).limits_mutex))
-
-#define log_limits_mutex_own(log) mutex_own(&(log).limits_mutex)
 
 /** @} */
 

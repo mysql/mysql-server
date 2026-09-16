@@ -1,0 +1,47 @@
+################################################################################
+# This test verifies that group_replication_communication_stack accepts numeric
+# enum values.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Set group_replication_communication_stack to 1 and assert it is MySQL.
+# 2. Set group_replication_communication_stack to 0 and assert it is XCom.
+# 3. Set group_replication_communication_stack to NULL, it must fail.
+# 4. Set group_replication_communication_stack to invalid value, it must fail.
+# 5. Cleanup.
+################################################################################
+
+--source include/have_group_replication_plugin_base.inc
+
+SET @group_replication_communication_stack_saved= @@GLOBAL.group_replication_communication_stack;
+
+SET @@GLOBAL.group_replication_communication_stack= 1;
+--let $assert_text= Numeric value 1 sets group_replication_communication_stack to MySQL
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_stack]" = "MySQL"
+--source include/assert.inc
+
+SET @@GLOBAL.group_replication_communication_stack= 0;
+--let $assert_text= Numeric value 0 sets group_replication_communication_stack to XCom
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_stack]" = "XCom"
+--source include/assert.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_communication_stack= NULL;
+--let $assert_text= group_replication_communication_stack value must remain XCom
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_stack]" = "XCom"
+--source include/assert.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_communication_stack= "OLA";
+--let $assert_text= group_replication_communication_stack value must remain XCom
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_stack]" = "XCom"
+--source include/assert.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_communication_stack= 10;
+--let $assert_text= group_replication_communication_stack value must remain XCom
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_stack]" = "XCom"
+--source include/assert.inc
+
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
+SET @@GLOBAL.group_replication_communication_stack= @group_replication_communication_stack_saved;

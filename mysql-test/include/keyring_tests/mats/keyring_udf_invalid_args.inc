@@ -41,6 +41,8 @@ SELECT keyring_key_remove('key3');
 # NULL type name
 --error ER_CANT_INITIALIZE_UDF
 SELECT keyring_key_generate('key', NULL, 16);
+# typed NULL type name
+SELECT keyring_key_generate('key', CAST(NULL AS CHAR), 16);
 # empty type name
 --error ER_CANT_INITIALIZE_UDF
 SELECT keyring_key_generate('key', '', 16);
@@ -57,6 +59,9 @@ SELECT keyring_key_remove('key4');
 # NULL length
 --error ER_CANT_INITIALIZE_UDF
 SELECT keyring_key_generate('key', 'SECRET', NULL);
+--error ER_CANT_INITIALIZE_UDF
+SELECT keyring_key_generate('key', 'SECRET', CAST(NULL AS CHAR));
+SELECT keyring_key_generate('key', 'SECRET', CAST(NULL AS SIGNED));
 # negative length
 --error ER_CANT_INITIALIZE_UDF
 SELECT keyring_key_generate('key', 'SECRET', -1);

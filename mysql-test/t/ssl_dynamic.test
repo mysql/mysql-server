@@ -16,6 +16,7 @@ call mtr.add_suppression("Failed to set up TLS. Check logs for details");
 call mtr.add_suppression("Internal TLS error error.*");
 call mtr.add_suppression("Value for option 'ssl_cipher' contains cipher 'gizmo' that is blocked");
 call mtr.add_suppression("Value for option 'tls_ciphersuites' contains cipher 'gizmo' that is blocked");
+call mtr.add_suppression("TLS session on channel 'mysql_main' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
 --enable_query_log
 
 --echo # Check if ssl is on

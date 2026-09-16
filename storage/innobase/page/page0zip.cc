@@ -135,7 +135,7 @@ bool page_zip_is_too_big(const dict_index_t *index, const dtuple_t *entry) {
   modification log. */
   ulint free_space_zip =
       page_zip_empty_size(index->n_fields, page_size.physical());
-  ulint n_uniq = dict_index_get_n_unique_in_tree(index);
+  const auto n_uniq = dict_index_get_n_unique_in_tree_nonleaf(index);
 
   ut_ad(dict_table_is_comp(index->table));
   ut_ad(page_size.is_compressed());
@@ -919,8 +919,7 @@ func_exit:
  @return true on success, false on failure; page_zip will be left
  intact on failure. */
 bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
-                                                  n_blobs, m_start, m_end,
-                                                  m_nonempty */
+                                                  n_blobs, m_start, m_end */
                        const page_t *page,       /*!< in: uncompressed page */
                        dict_index_t *index,      /*!< in: index tree */
                        ulint level,              /*!< in: compression level */
@@ -1200,11 +1199,8 @@ bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   included in avail_out. */
   memset(c_stream.next_out, 0, c_stream.avail_out + 1 /* end marker */);
 
-#ifdef UNIV_DEBUG
-  page_zip->m_start =
-#endif /* UNIV_DEBUG */
-      page_zip->m_end = PAGE_DATA + c_stream.total_out;
-  page_zip->m_nonempty = false;
+  page_zip->m_start = PAGE_DATA + c_stream.total_out;
+  page_zip->m_end = page_zip->m_start;
   page_zip->n_blobs = n_blobs;
   /* Copy those header fields that will not be written
   in buf_flush_init_for_writing() */
@@ -1269,7 +1265,7 @@ bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
  @return true on success, false on failure */
 bool page_zip_decompress(
     page_zip_des_t *page_zip, /*!< in: data, ssize;
-                             out: m_start, m_end, m_nonempty, n_blobs */
+                              out: m_start, m_end, n_blobs */
     page_t *page,             /*!< out: uncompressed page, may be trashed */
     bool all)                 /*!< in: true=decompress the whole page;
                                false=verify but do not copy some
@@ -1398,23 +1394,27 @@ bool page_zip_validate_low(
                    temp_page_zip.n_blobs));
     valid = false;
   }
-#ifdef UNIV_DEBUG
   if (page_zip->m_start != temp_page_zip.m_start) {
     page_zip_fail(("page_zip_validate: m_start: %u!=%u\n", page_zip->m_start,
                    temp_page_zip.m_start));
     valid = false;
   }
-#endif /* UNIV_DEBUG */
   if (page_zip->m_end != temp_page_zip.m_end) {
     page_zip_fail(("page_zip_validate: m_end: %u!=%u\n", page_zip->m_end,
                    temp_page_zip.m_end));
     valid = false;
   }
-  if (page_zip->m_nonempty != temp_page_zip.m_nonempty) {
-    page_zip_fail(("page_zip_validate(): m_nonempty: %u!=%u\n",
-                   page_zip->m_nonempty, temp_page_zip.m_nonempty));
-    valid = false;
+
+  {
+    auto page_zip_has_change_logs = page_zip->has_modifications();
+    auto page_has_change_logs = temp_page_zip.has_modifications();
+    if (page_zip_has_change_logs != page_has_change_logs) {
+      page_zip_fail(("page_zip_validate(): modifications: %u!=%u\n",
+                     page_zip_has_change_logs, page_has_change_logs));
+      valid = false;
+    }
   }
+
   if (memcmp(page + PAGE_HEADER, temp_page + PAGE_HEADER,
              UNIV_PAGE_SIZE - PAGE_HEADER - FIL_PAGE_DATA_END)) {
     /* In crash recovery, the "minimum record" flag may be
@@ -1822,7 +1822,6 @@ void page_zip_write_rec(
   ut_a(!*data);
   ut_ad((ulint)(data - page_zip->data) < page_zip_get_size(page_zip));
   page_zip->m_end = data - page_zip->data;
-  page_zip->m_nonempty = true;
 
 #ifdef UNIV_ZIP_DEBUG
   ut_a(page_zip_validate(page_zip, page_align(rec), index));
@@ -2554,7 +2553,7 @@ bool page_zip_reorganize(
     buf_block_t *block,  /*!< in/out: page with compressed page;
                          on the compressed page, in: size;
                          out: data, n_blobs,
-                         m_start, m_end, m_nonempty */
+                         m_start, m_end */
     dict_index_t *index, /*!< in: index of the B-tree node */
     mtr_t *mtr)          /*!< in: mini-transaction */
 {
@@ -2639,7 +2638,7 @@ bool page_zip_reorganize(
 void page_zip_copy_recs(
     page_zip_des_t *page_zip,      /*!< out: copy of src_zip
                                    (n_blobs, m_start, m_end,
-                                   m_nonempty, data[0..size-1]) */
+                                    data[0..size-1]) */
     page_t *page,                  /*!< out: copy of src */
     const page_zip_des_t *src_zip, /*!< in: compressed page */
     const page_t *src,             /*!< in: page */

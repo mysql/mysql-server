@@ -25,9 +25,14 @@
 #include <sys/stat.h>
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <memory>
+#include <string>
+#include <unordered_set>
 
+#include <openssl/asn1.h>
+#include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -40,6 +45,7 @@
 #include "ndb_limits.h"
 
 #include "debugger/EventLogger.hpp"
+#include "portlib/NdbDir.hpp"
 #include "portlib/ndb_localtime.h"
 #include "util/File.hpp"  // S_IRUSR
 #include "util/ndb_openssl3_compat.h"
@@ -103,7 +109,8 @@ bool PkiFile::remove(const char *name) {
 
   if (::remove(name) == 0) return true;  // success
 
-  /* Unusual error: access() has succeeded but remove() has failed .*/
+  /* Unusual error: access() has succeeded but remove() has failed.
+     This could be due to open file handles on the file being removed. */
   g_eventLogger->error("NDB TLS Error %d removing file %s", errno, name);
 
   if (mustSetWriteAccess) _chmod(name, _S_IREAD);
@@ -115,6 +122,16 @@ bool PkiFile::remove(const char *name) {
 bool PkiFile::remove(const char *name) { return (::remove(name) == 0); }
 
 #endif
+
+bool PkiFile::exists(const PkiFile::PathName &buffer) {
+  if (buffer.is_truncated()) return false;
+  return exists(buffer.c_str());
+}
+
+bool PkiFile::exists(const char *path) {
+  struct stat s;
+  return (stat(path, &s) == 0);
+}
 
 int PkiFile::assign(PathName &path, const char *dir, const char *file) {
   path.clear();
@@ -176,6 +193,28 @@ TlsSearchPath::TlsSearchPath(const char *path_str) {
   }
 }
 
+bool TlsSearchPath::realpath(unsigned int i, char *buffer, size_t len) const {
+  static constexpr const char *dot = ".";
+  const char *dir = m_path[i].c_str();
+  return (dir[0] == '\0') ? File_class::realpath(dot, buffer, len)
+                          : File_class::realpath(dir, buffer, len);
+}
+
+TlsSearchPath *TlsSearchPath::dedup() const {
+  char fullpath[PATH_MAX];
+  std::unordered_set<std::string> dirs;
+  TlsSearchPath *p = new TlsSearchPath();
+
+  for (size_t i = 0; i < m_path.size(); i++) {
+    if (realpath(i, fullpath, sizeof(fullpath)) && !dirs.count(fullpath)) {
+      dirs.insert(fullpath);
+      p->m_path.push_back(fullpath);
+    }
+  }
+
+  return p;
+}
+
 void TlsSearchPath::push_cwd() {
   for (size_t i = 0; i < m_path.size(); i++)
     if (m_path[i].length() == 0) return;
@@ -183,32 +222,19 @@ void TlsSearchPath::push_cwd() {
 }
 
 bool TlsSearchPath::find(const char *name, PkiFile::PathName &buffer) const {
-  struct stat s;
-
   for (size_t i = 0; i < m_path.size(); i++) {
-    buffer.clear();
-    buffer.append(m_path[i].c_str());
-    if (m_path[i].length()) buffer.append(DIR_SEPARATOR);
-    buffer.append(name);
-    if (!buffer.is_truncated())
-      if (stat(buffer.c_str(), &s) == 0) return true;
+    PkiFile::assign(buffer, dir(i), name);
+    if (PkiFile::exists(buffer)) return true;
   }
   return false;
 }
 
-int TlsSearchPath::find(const char *name) const {
-  cstrbuf<PATH_MAX> file_buf;
-  struct stat s;
+int TlsSearchPath::find(const char *name, int start_pos) const {
+  PkiFile::PathName file_buf;
 
-  for (size_t i = 0; i < m_path.size(); i++) {
-    file_buf.append(m_path[i].c_str());
-    if (m_path[i].length()) file_buf.append(DIR_SEPARATOR);
-    file_buf.append(name);
-
-    if (!file_buf.is_truncated())
-      if (stat(file_buf.c_str(), &s) == 0) return i;
-
-    file_buf.clear();
+  for (size_t i = start_pos; i < m_path.size(); i++) {
+    PkiFile::assign(file_buf, dir(i), name);
+    if (PkiFile::exists(file_buf)) return i;
   }
   return -1;
 }
@@ -477,7 +503,17 @@ int SigningRequest::finalise(EVP_PKEY *key) {
   /* Set the subject common name */
   char cn[CN_max_length];
   print_name(cn, CN_max_length);
-  set_common_name(X509_REQ_get_subject_name(m_req), cn);
+  X509_NAME *name = X509_NAME_new();
+  if (name == nullptr) return -5;
+  if (set_common_name(name, cn) != 1) {
+    X509_NAME_free(name);
+    return -6;
+  }
+  if (X509_REQ_set_subject_name(m_req, name) != 1) {
+    X509_NAME_free(name);
+    return -7;
+  }
+  X509_NAME_free(name);
 
   /* Set the subject alt names extension */
   if (bound_hostnames()) {
@@ -561,8 +597,12 @@ X509 *SigningRequest::create_unsigned_certificate() const {
   if (!cert) return nullptr;
 
   /* Copy name from csr to cert */
-  X509_NAME *name = X509_REQ_get_subject_name(m_req);
-  if (X509_set_subject_name(cert, name) != 1) return nullptr;
+  const X509_NAME *req_name = X509_REQ_get_subject_name(m_req);
+  X509_NAME *name = req_name ? ndb_x509_name_dup(req_name) : nullptr;
+  if (name == nullptr) return nullptr;
+  const int set_ok = X509_set_subject_name(cert, name);
+  X509_NAME_free(name);
+  if (set_ok != 1) return nullptr;
 
   /* Set serial number in x509 */
   ASN1_STRING *serial = SerialNumber::random();
@@ -581,7 +621,7 @@ X509 *SigningRequest::create_unsigned_certificate() const {
 
 bool SigningRequest::parse_name() {
   if (m_req == nullptr) return false;
-  X509_NAME *name = X509_REQ_get_subject_name(m_req);
+  const X509_NAME *name = X509_REQ_get_subject_name(m_req);
   return CertSubject::parse_name(name);
 }
 
@@ -603,9 +643,18 @@ ASN1_STRING *SerialNumber::random(size_t length) {
 }
 
 int SerialNumber::print(char *buf, int len, const ASN1_STRING *serial) {
+  if (buf == nullptr || len <= 0 || serial == nullptr) return 0;
+
+  const int serial_len = ASN1_STRING_length(serial);
+  const unsigned char *serial_data = ASN1_STRING_get0_data(serial);
+  if (serial_len <= 0 || serial_data == nullptr) {
+    buf[0] = '\0';
+    return 0;
+  }
+
   int offset = 0;
-  for (int i = 0; i < serial->length && offset < (len - 4); i++)
-    offset += sprintf(buf + offset, "%02X:", serial->data[i]);
+  for (int i = 0; i < serial_len && offset < (len - 4); i++)
+    offset += sprintf(buf + offset, "%02X:", serial_data[i]);
   if (offset) buf[offset - 1] = '\0';
   return offset;
 }
@@ -615,8 +664,14 @@ void SerialNumber::free(ASN1_STRING *serial) { ASN1_STRING_free(serial); }
 SerialNumber::HexString::HexString(const ASN1_STRING *serial) {
   buf.append("0x");
   int truncated [[maybe_unused]] = 0;
-  for (int i = 0; i < serial->length; i++)
-    truncated = buf.appendf("%02x", serial->data[i]);
+
+  if (serial == nullptr) return;
+  const int serial_len = ASN1_STRING_length(serial);
+  const unsigned char *serial_data = ASN1_STRING_get0_data(serial);
+  if (serial_len <= 0 || serial_data == nullptr) return;
+
+  for (int i = 0; i < serial_len; i++)
+    truncated = buf.appendf("%02x", serial_data[i]);
   assert(!truncated);
 }
 
@@ -641,13 +696,48 @@ void Certificate::set_expire_time(X509 *cert, int days) {
 }
 
 int Certificate::set_common_name(X509 *cert, const char *CN) {
-  X509_NAME *name = X509_get_subject_name(cert);
-  return CertSubject::set_common_name(name, CN);
+  if (cert == nullptr || CN == nullptr) return 0;
+
+  const X509_NAME *current = X509_get_subject_name(cert);
+  X509_NAME *name = current ? ndb_x509_name_dup(current) : X509_NAME_new();
+  if (name == nullptr) return 0;
+
+  int ok = X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+                                      (const unsigned char *)CN, -1, -1, 0);
+  if (ok == 1) ok = X509_set_subject_name(cert, name);
+  X509_NAME_free(name);
+  return ok;
 }
 
 size_t Certificate::get_common_name(X509 *cert, char *buf, size_t len) {
-  return X509_NAME_get_text_by_NID(X509_get_subject_name(cert), NID_commonName,
-                                   buf, len);
+  if (cert == nullptr || buf == nullptr || len == 0) return 0;
+  buf[0] = '\0';
+
+  const X509_NAME *name = X509_get_subject_name(cert);
+  if (name == nullptr) return 0;
+
+  int idx = X509_NAME_get_index_by_NID(const_cast<X509_NAME *>(name),
+                                       NID_commonName, -1);
+  if (idx < 0) return 0;
+
+  const X509_NAME_ENTRY *entry =
+      X509_NAME_get_entry(const_cast<X509_NAME *>(name), idx);
+  if (entry == nullptr) return 0;
+
+  const ASN1_STRING *str = X509_NAME_ENTRY_get_data(entry);
+  if (str == nullptr) return 0;
+
+  unsigned char *utf8 = nullptr;
+  const int utf8_len = ASN1_STRING_to_UTF8(&utf8, str);
+  if (utf8_len <= 0 || utf8 == nullptr) return 0;
+
+  const size_t copy_len = (static_cast<size_t>(utf8_len) < (len - 1))
+                              ? static_cast<size_t>(utf8_len)
+                              : (len - 1);
+  memcpy(buf, utf8, copy_len);
+  buf[copy_len] = '\0';
+  OPENSSL_free(utf8);
+  return copy_len;
 }
 
 int Certificate::get_signature_prefix(X509 *cert) {
@@ -655,8 +745,15 @@ int Certificate::get_signature_prefix(X509 *cert) {
   const ASN1_BIT_STRING *sig = nullptr;
   const X509_ALGOR *algorithm;
   X509_get0_signature(&sig, &algorithm, cert);
-  if (sig && sig->data)
-    prefix = (sig->data[0] << 16) | (sig->data[1] << 8) | sig->data[2];
+  if (sig == nullptr) return 0;
+
+  const int sig_len =
+      ASN1_STRING_length(reinterpret_cast<const ASN1_STRING *>(sig));
+  const unsigned char *sig_data =
+      ASN1_STRING_get0_data(reinterpret_cast<const ASN1_STRING *>(sig));
+  if (sig_len < 3 || sig_data == nullptr) return 0;
+
+  prefix = (sig_data[0] << 16) | (sig_data[1] << 8) | sig_data[2];
   return prefix;
 }
 
@@ -723,17 +820,22 @@ STACK_OF(X509) * Certificate::open(const char *path) {
   return certs;
 }
 
-bool Certificate::read(STACK_OF(X509) * certs, FILE *fp) {
-  X509 *cert;
-  while ((cert = PEM_read_X509(fp, nullptr, nullptr, nullptr)) != nullptr)
-    sk_X509_push(certs, cert);
-  // Expect PEM_R_NO_START_LINE error
+inline bool expected_PEM_R_NO_START_LINE() {
   int err = ERR_peek_last_error();
   if (ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
     while (ERR_get_error() != 0) /* clear ssl errors */
       ;
     return true;
   }
+  return false;
+}
+
+bool Certificate::read(STACK_OF(X509) * certs, FILE *fp) {
+  X509 *cert;
+  while ((cert = PEM_read_X509(fp, nullptr, nullptr, nullptr)) != nullptr)
+    sk_X509_push(certs, cert);
+  if (expected_PEM_R_NO_START_LINE()) return true;
+
   handle_pem_error("PEM_read_X509");
   return false;
 }
@@ -768,8 +870,8 @@ static bool initClusterCertAuthority(X509 *cert, const char *ordinal) {
   if (r1 == 0) return false;
 
   /* Set subject name */
-  X509_NAME *name = X509_get_subject_name(cert);
-  r1 = X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, subject, -1, -1, 0);
+  r1 = Certificate::set_common_name(cert,
+                                    reinterpret_cast<const char *>(subject));
   if (r1 == 0) return false;
 
   /* Add extension */
@@ -805,8 +907,104 @@ X509 *ClusterCertAuthority::create(EVP_PKEY *key, const CertLifetime &lifetime,
 }
 
 int ClusterCertAuthority::sign(X509 *issuer, EVP_PKEY *key, X509 *cert) {
-  if (X509_set_issuer_name(cert, X509_get_subject_name(issuer)) == 0) return 0;
+  const X509_NAME *issuer_name = X509_get_subject_name(issuer);
+  if (issuer_name == nullptr) return 0;
+  if (X509_set_issuer_name(cert, const_cast<X509_NAME *>(issuer_name)) == 0)
+    return 0;
   return X509_sign(cert, key, my_EVP_sha256());
+}
+
+/*
+ *    TrustStore class
+ */
+FILE *TrustStore::open(const char *dir, const char *mode) {
+  PkiFile::PathName pathname;
+  PkiFile::assign(pathname, dir, TrustStore::Filename);
+  return fopen(pathname.c_str(), mode);
+}
+
+int TrustStore::find(const TlsSearchPath *path, PkiFile::PathName &buffer,
+                     int start_pos) {
+  if (path == nullptr) return -1;
+  int pos = path->find(Filename, start_pos);
+  if (pos >= 0) PkiFile::assign(buffer, path->dir(pos), Filename);
+  return pos;
+}
+
+int TrustStore::write(FILE *fp, X509 *cert) {
+  int n = PEM_write_X509_AUX(fp, cert);
+  if (n == 0) handle_pem_error("TrustStore::write()");
+  return n;
+}
+
+int TrustStore::write_all(FILE *fp, STACK_OF(X509) * all) {
+  for (int i = 0; i < sk_X509_num(all); i++) {
+    int r = write(fp, sk_X509_value(all, i));
+    if (r == 0) return 0;
+  }
+  return 1;
+}
+
+/* returns cert or null; produces log message on error */
+X509 *TrustStore::read(FILE *fp) {
+  X509 *cert = PEM_read_X509_AUX(fp, nullptr, nullptr, nullptr);
+  if (cert == nullptr) handle_pem_error("TrustStore::read()");
+  return cert;
+}
+
+inline bool peek_eof(FILE *fp) {
+  int c = getc(fp);
+  ungetc(c, fp);
+  return (c == EOF);
+}
+
+/* returns 1 on success, 0 on eof, or -1 on openssl read error */
+int TrustStore::read(STACK_OF(X509) * certs, FILE *fp) {
+  if (feof(fp) || peek_eof(fp)) return 0;
+
+  X509 *cert = PEM_read_X509_AUX(fp, nullptr, nullptr, nullptr);
+  if (cert == nullptr) {
+    if (expected_PEM_R_NO_START_LINE()) return 0;
+    handle_pem_error("TrustStore::read()");
+    return -1;
+  }
+
+  sk_X509_push(certs, cert);
+  return 1;
+}
+
+/* read_all() returns number read, or -1 on openssl read error */
+int TrustStore::read_all(STACK_OF(X509) * certs, FILE *fp) {
+  int r = 0;
+  while (1) {
+    int n = read(certs, fp);
+    if (n == -1) return -1;
+    if (n == 0) break;
+    assert(n == 1);
+    r += 1;
+  }
+
+  /* If the trust file is empty, call read() to create an error message */
+  if (r == 0) read(fp);
+
+  return r;
+}
+
+int TrustStore::load(STACK_OF(X509) * stack, const TlsSearchPath *searchPath) {
+  assert(stack != nullptr);
+  if (stack == nullptr) return -1;
+  if (searchPath == nullptr) return sk_X509_num(stack);
+
+  int p = searchPath->find(Filename, 0);
+  while (p >= 0) {
+    FILE *file = open(searchPath->dir(p), "r");
+    if (file == nullptr) return -2;
+    const int n = read_all(stack, file);
+    close(file);
+    if (n < 1) return -3;
+    p = searchPath->find(Filename, p + 1);
+  }
+  return sk_X509_num(stack);
 }
 
 /*
@@ -898,17 +1096,26 @@ bool CertSubject::bind_hostname(const char *hostname) {
 
 int CertSubject::bound_hostname(int n, char *buffer, int size) const {
   int nwritten = 0;
+  if (buffer == nullptr || size <= 0) return 0;
+
   if (m_bound_hostnames) {
     int name_type;
     if (n < sk_GENERAL_NAME_num(m_bound_hostnames)) {
       GENERAL_NAME *name = sk_GENERAL_NAME_value(m_bound_hostnames, n);
-      auto *str =
-          static_cast<ASN1_STRING *>(GENERAL_NAME_get0_value(name, &name_type));
-      if (name_type == GEN_DNS) {
-        if (str->length < size) size = str->length;
-        memcpy(buffer, str->data, size);
-        buffer[size] = '\0';
-        nwritten = size;
+      const auto *str = static_cast<const ASN1_STRING *>(
+          GENERAL_NAME_get0_value(name, &name_type));
+      if (name_type == GEN_DNS && str != nullptr) {
+        const int str_len = ASN1_STRING_length(str);
+        const unsigned char *str_data = ASN1_STRING_get0_data(str);
+        if (str_len > 0 && str_data != nullptr) {
+          const int max_copy = size - 1;
+          const int copy_len = (str_len < max_copy) ? str_len : max_copy;
+          memcpy(buffer, str_data, copy_len);
+          buffer[copy_len] = '\0';
+          nwritten = copy_len;
+        } else {
+          buffer[0] = '\0';
+        }
       }
     }
   }
@@ -924,11 +1131,13 @@ bool CertSubject::bound_localhost() const {
   if (sk_GENERAL_NAME_num(m_bound_hostnames) == 1) {
     int name_type;
     GENERAL_NAME *name = sk_GENERAL_NAME_value(m_bound_hostnames, 0);
-    auto *str =
-        static_cast<ASN1_STRING *>(GENERAL_NAME_get0_value(name, &name_type));
-    if (name_type == GEN_DNS) {
-      if ((str->length == 9) &&
-          (strncmp("localhost", (const char *)str->data, 9) == 0))
+    const auto *str = static_cast<const ASN1_STRING *>(
+        GENERAL_NAME_get0_value(name, &name_type));
+    if (name_type == GEN_DNS && str != nullptr) {
+      const int str_len = ASN1_STRING_length(str);
+      const unsigned char *str_data = ASN1_STRING_get0_data(str);
+      if (str_len == 9 && str_data != nullptr &&
+          memcmp(str_data, "localhost", 9) == 0)
         return true;
     }
   }
@@ -960,12 +1169,7 @@ int CertSubject::pathname(PkiFile::Type type, const char *dir,
                           PkiFile::PathName &buffer) const {
   PkiFile::FileName name;
   filename(type, name);
-
-  buffer.clear();
-  if (dir) buffer.append(dir);
-  if (buffer.length()) buffer.append(DIR_SEPARATOR);
-  buffer.append(name.c_str());
-  return buffer.is_truncated();
+  return PkiFile::assign(buffer, dir, name.c_str());
 }
 
 /* Write current month and year into buffer
@@ -976,10 +1180,17 @@ size_t CertSubject::timestamp(char *buf, size_t len) const {
   return timestamp(raw_time, buf, len);
 }
 
-size_t CertSubject::timestamp(time_t raw_time, char *out, size_t len) const {
+size_t CertSubject::timestamp(time_t raw_time, char *out, size_t len,
+                              const char *fmt) {
   struct tm partials;
   gmtime_r(&raw_time, &partials);
-  return strftime(out, len, "%b %Y", &partials);
+  return strftime(out, len, fmt, &partials);
+}
+
+BaseString CertSubject::timestamp(time_t raw_time, const char *fmt) {
+  char buffer[128];
+  timestamp(raw_time, buffer, sizeof(buffer), fmt);
+  return BaseString(buffer);
 }
 
 size_t CertSubject::print_name(char *buffer, size_t sz) const {
@@ -1002,27 +1213,31 @@ size_t CertSubject::print_name(char *buffer, size_t sz) const {
   return len;
 }
 
-bool CertSubject::parse_name(X509_NAME *name) {
-  int idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+bool CertSubject::parse_name(const X509_NAME *name) {
+  int idx = X509_NAME_get_index_by_NID(const_cast<X509_NAME *>(name),
+                                       NID_commonName, -1);
   if (idx < 0) return false;
-  X509_NAME_ENTRY *cn = X509_NAME_get_entry(name, idx);
+  const X509_NAME_ENTRY *cn =
+      X509_NAME_get_entry(const_cast<X509_NAME *>(name), idx);
   if (cn == nullptr) return false;
-  ASN1_STRING *str = X509_NAME_ENTRY_get_data(cn);
+  const ASN1_STRING *str = X509_NAME_ENTRY_get_data(cn);
   return parse_name(str);
 }
 
 bool CertSubject::parse_name(const ASN1_STRING *str) {
   if (str == nullptr) return false;
-  if (str->length == 0) return false;
+
+  const int str_len = ASN1_STRING_length(str);
+  const unsigned char *str_data = ASN1_STRING_get0_data(str);
+  if (str_len <= 0 || str_data == nullptr) return false;
 
   int p = 0;  // cursor into name
-  auto atEnd = [&]() { return (str->length == p); };
-  auto data = [&]() { return (char *)(str->data) + p; };
+  auto atEnd = [&]() { return (str_len == p); };
+  auto data = [&]() { return reinterpret_cast<const char *>(str_data) + p; };
   auto find = [&](const char *a, size_t l) {
-    if (str->length <= p) return false;
-    int r = strncmp(data(), a, l);
-    if (r == 0) {
-      p += l;
+    if ((str_len - p) < static_cast<int>(l)) return false;
+    if (memcmp(data(), a, l) == 0) {
+      p += static_cast<int>(l);
       return true;
     }
     return false;
@@ -1101,6 +1316,11 @@ time_t CertLifetime::expire_time(struct tm **tptr) const {
   return timegm(&m_notAfter);
 }
 
+size_t CertLifetime::print_expire_time(char *buffer, size_t size,
+                                       const char *format) {
+  return strftime(buffer, size, format, &m_notAfter);
+}
+
 time_t CertLifetime::replace_time(int replace_days) const {
   time_t rtime;
 
@@ -1158,9 +1378,17 @@ void NodeCertificate::init_from_x509(X509 *cert) {
 }
 
 void NodeCertificate::init_from_credentials(STACK_OF(X509) * certs,
-                                            EVP_PKEY *key, bool up_ref_count) {
-  if (up_ref_count) {
-    m_all_certs = X509_chain_up_ref(certs);
+                                            EVP_PKEY *key, bool test_harness) {
+  if (test_harness) {
+    m_all_certs = sk_X509_new_null();
+    X509 *entity = sk_X509_value(certs, 0);
+    X509_up_ref(entity);  // acquire a reference on the entity cert
+    sk_X509_push(m_all_certs, entity);
+
+    /* duplicate the CA certs */
+    for (int i = 1; i < sk_X509_num(certs); i++)
+      sk_X509_push(m_all_certs, X509_dup(sk_X509_value(certs, i)));
+
     if (key) set_key(key);
   } else {
     m_all_certs = certs;
@@ -1233,7 +1461,7 @@ int NodeCertificate::self_sign() {
   return finalise(m_x509, m_key);
 }
 
-int NodeCertificate::finalise(X509 *CA_cert, EVP_PKEY *CA_key) {
+int NodeCertificate::finalise(X509 *CA_cert, EVP_PKEY *CA_key, bool do_chain) {
   assert(!m_final);
   if (CA_cert == nullptr) return -10;
   if (!m_cluster_id) m_cluster_id = Certificate::get_signature_prefix(CA_cert);
@@ -1261,7 +1489,11 @@ int NodeCertificate::finalise(X509 *CA_cert, EVP_PKEY *CA_key) {
   if (r1 == 0) return -50;
 
   /* Set issuer name */
-  r1 = X509_set_issuer_name(m_x509, X509_get_subject_name(CA_cert));
+  {
+    const X509_NAME *issuer_name = X509_get_subject_name(CA_cert);
+    if (issuer_name == nullptr) return -60;
+    r1 = X509_set_issuer_name(m_x509, const_cast<X509_NAME *>(issuer_name));
+  }
   if (r1 == 0) return -60;
 
   /* Set lifetime */
@@ -1279,7 +1511,7 @@ int NodeCertificate::finalise(X509 *CA_cert, EVP_PKEY *CA_key) {
     sk_X509_push(m_all_certs, m_x509);
     X509_up_ref(m_x509);
   }
-  if (m_signed && !m_self_signed) {
+  if (do_chain && m_signed && !m_self_signed) {
     sk_X509_push(m_all_certs, CA_cert);
     X509_up_ref(CA_cert);
   }
@@ -1360,12 +1592,12 @@ BaseString NodeCertificate::serial_number() const {
 
 bool NodeCertificate::parse_name() {
   if (m_x509 == nullptr) return false;
-  X509_NAME *name = X509_get_subject_name(m_x509);
-  int idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+  const X509_NAME *name = X509_get_subject_name(m_x509);
+  int idx = ndb_x509_name_get_index_by_nid(name, NID_commonName, -1);
   if (idx < 0) return false;
-  X509_NAME_ENTRY *cn = X509_NAME_get_entry(name, idx);
+  const X509_NAME_ENTRY *cn = ndb_x509_name_get_entry(name, idx);
   if (cn == nullptr) return false;
-  ASN1_STRING *str = X509_NAME_ENTRY_get_data(cn);
+  const ASN1_STRING *str = X509_NAME_ENTRY_get_data(cn);
   return CertSubject::parse_name(str);
 }
 
@@ -1386,9 +1618,6 @@ static constexpr bool isWin32 = 1;
 #else
 static constexpr bool isWin32 = false;
 #endif
-
-static constexpr bool openssl_version_ok =
-    (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
 /*
   Test name parsing
@@ -1500,6 +1729,53 @@ static int file_subtest_csr(bool output) {
   delete csr;
   PrivateKey::free(key);
 
+  return 0;
+}
+
+static int create_trust_store() {
+  EVP_PKEY *key = EVP_RSA_gen(2048);
+  CertLifetime days(10);
+  X509 *cert = ClusterCertAuthority::create(key, days, "Test");
+  FILE *fp = TrustStore::open(".", "w");
+  int r = TrustStore::write(fp, cert);
+  TrustStore::close(fp);
+  Certificate::free(cert);
+  PrivateKey::free(key);
+  return (r == 1) ? 0 : -1;
+}
+
+static int trust_store_test() {
+  int r1;
+  FILE *pem;
+  STACK_OF(X509) *certs = sk_X509_new_null();
+
+  /* Write a CA to the trust store */
+  r1 = create_trust_store();
+  require(r1 == 0);
+
+  /* Read the trust store */
+  pem = TrustStore::open(".", "r");
+  r1 = TrustStore::read_all(certs, pem);
+  require(r1 == 1);
+  TrustStore::close(pem);
+  X509_free(sk_X509_pop(certs));
+
+  /* Append some extra text to the end of the CA then read it again */
+  pem = TrustStore::open(".", "a");
+  fputs("    ", pem);
+  TrustStore::close(pem);
+
+  pem = TrustStore::open(".", "r");
+  r1 = TrustStore::read_all(certs, pem);
+  require(r1 == 1);
+  TrustStore::close(pem);
+
+  /* Remove the trust store */
+  require(TrustStore::remove("."));
+  pem = TrustStore::open(".", "r");
+  require(pem == nullptr);
+
+  sk_X509_pop_free(certs, X509_free);
   return 0;
 }
 
@@ -1672,9 +1948,9 @@ inline bool test_expansion(const char *path, const char *expansion) {
 }
 
 static int search_path_test() {
-  static char tmpdir_string[] = "TMPDIR=/tmp/foo";
+  static char tmpdir_string[] = "MYTMPDIR=/tmp/foo";
   putenv(tmpdir_string);
-  BaseString pathStr("$TMPDIR");
+  BaseString pathStr("$MYTMPDIR");
   pathStr.append(TlsSearchPath::Separator);
   pathStr.append(MYSQL_DATADIR);
   pathStr.append(TlsSearchPath::Separator);
@@ -1748,6 +2024,65 @@ static int search_path_test() {
     if (!test_expansion("a:my$ARMAGOGLYPOD", "a:my")) return 24;
   }
 
+  /* Test that dedup() removes duplicates and maintains order */
+  {
+    NdbDir::Temp tmp;
+    const std::string base(tmp.path());
+    std::string dir1 = base + DIR_SEPARATOR + "a";
+    std::string dir2 = base + DIR_SEPARATOR + "b";
+    std::string dir3 = base + DIR_SEPARATOR + "a" + DIR_SEPARATOR + "d";
+    std::string dir4 = base + DIR_SEPARATOR + "b" + DIR_SEPARATOR + "c";
+
+    require(NdbDir::create(dir1.c_str(), NdbDir::u_rwx(), 1));
+    require(NdbDir::create(dir2.c_str(), NdbDir::u_rwx(), 1));
+    require(NdbDir::create(dir3.c_str(), NdbDir::u_rwx(), 1));
+    require(NdbDir::create(dir4.c_str(), NdbDir::u_rwx(), 1));
+
+    /* clang-format off */
+    const std::string path1 = dir1 + TlsSearchPath::Separator +
+                              dir2 + TlsSearchPath::Separator +
+                              dir3 + TlsSearchPath::Separator +
+                              dir4 + TlsSearchPath::Separator + dir1;
+    /* clang-format on */
+
+    TlsSearchPath sp1(path1.c_str());
+    TlsSearchPath *sp2 = sp1.dedup();
+
+    require(sp1.size() - sp2->size() == 1);  // one duplicate was removed
+
+    std::string d0(sp2->dir(0));
+    std::string d1(sp2->dir(1));
+    std::string d2(sp2->dir(2));
+
+    require(d0.ends_with('a'));  // order was maintained
+    require(d1.ends_with('b'));
+    require(d2.ends_with('d'));
+
+    NdbDir::remove_recursive(dir1.c_str());
+    NdbDir::remove_recursive(dir2.c_str());
+    delete sp2;
+  }
+
+  /* TrustStore::load(), TrustStore::open()
+     (Negative test: no trust store on disk)
+  */
+  {
+    FILE *fp = nullptr;
+    STACK_OF(X509) *trusted = sk_X509_new_null();
+    int r1 = TrustStore::load(trusted, &searchPath);
+    if (r1 != 0) return 25;  // should find 0 trusted CAs
+    if (sk_X509_num(trusted) != 0) return 26;
+    if (searchPath.size() != 4) return 27;
+    for (size_t i = 0; i < 4; i++) {
+      fp = TrustStore::open(searchPath.dir(i), "r");
+      if (fp) return 26;  // fp should be null
+    }
+    TrustStore::close(fp);  // okay to free null fp
+    sk_X509_free(trusted);
+    bool r = TrustStore::remove(searchPath.dir(0));
+    if (r) return 28;  // should be false because file did not exist
+  }
+
   return 0;
 }
 
@@ -1758,6 +2093,9 @@ static int fail(const char *test_name, int code) {
 }
 
 int main(int argc, char *argv[]) {
+  ndb_init();
+  g_eventLogger->createConsoleHandler();
+
   int r1;
 
   /* Remove any leftover files that may be here */
@@ -1774,10 +2112,14 @@ int main(int argc, char *argv[]) {
     PkiFile::remove(file);
   if (ActiveCertificate::find(&tlsPath, 1, Node::Type::DB, file))
     PkiFile::remove(file);
+  if (tlsPath.find(TrustStore::Filename, 0) != -1) TrustStore::remove(".");
 
   // Create a private key and signing request for further testing, then exit:
   if (argc == 2 && (strcmp(argv[1], "--csr") == 0))
     return file_subtest_csr(true);
+
+  if (argc == 2 && (strcmp(argv[1], "--trust") == 0))
+    return create_trust_store();
 
   r1 = search_path_test();
   if (r1 != 0) return fail("search path", r1);
@@ -1785,16 +2127,17 @@ int main(int argc, char *argv[]) {
   r1 = parser_test();
   if (r1 != 0) return fail("parser", r1);
 
-  if (openssl_version_ok) {
-    r1 = cert_lifetime_test();
-    if (r1 != 0) return fail("lifetime", r1);
+  r1 = cert_lifetime_test();
+  if (r1 != 0) return fail("lifetime", r1);
 
-    r1 = file_test();
-    if (r1 != 0) return fail("file", r1);
+  r1 = file_test();
+  if (r1 != 0) return fail("file", r1);
 
-    r1 = verify_test();
-    if (r1 != 0) return fail("verify", r1);
-  }
+  r1 = verify_test();
+  if (r1 != 0) return fail("verify", r1);
+
+  r1 = trust_store_test();
+  if (r1 != 0) return fail("trust store", r1);
 
   return 0;
 }

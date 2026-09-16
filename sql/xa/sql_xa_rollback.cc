@@ -23,6 +23,7 @@
 
 #include "sql/xa/sql_xa_rollback.h"  // Sql_cmd_xa_rollback
 #include "mysqld_error.h"            // Error codes
+#include "scope_guard.h"             // create_scope_guard
 #include "sql/clone_handler.h"       // Clone_handler::XA_Operation
 #include "sql/debug_sync.h"          // DEBUG_SYNC
 #include "sql/handler.h"             // commit_owned_gtids
@@ -31,8 +32,7 @@
 #include "sql/sql_class.h"           // THD
 #include "sql/tc_log.h"              // tc_log
 #include "sql/transaction.h"  // trans_reset_one_shot_chistics, trans_track_end_trx
-#include "sql/transaction_info.h"      // Transaction_ctx
-#include "sql/xa/transaction_cache.h"  // xa::Transaction_cache
+#include "sql/transaction_info.h"  // Transaction_ctx
 
 Sql_cmd_xa_rollback::Sql_cmd_xa_rollback(xid_t *xid_arg)
     : Sql_cmd_xa_second_phase{xid_arg} {}
@@ -64,6 +64,10 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd) {
 
   /* Inform clone handler of XA operation. */
   Clone_handler::XA_Operation xa_guard(thd);
+  // A TC log can finish XA without performing a GTID state update.
+  auto gtid_action_guard = create_scope_guard(
+      [thd]() { thd->call_actions_before_gtid_state_update(false); });
+
   if (!xid_state->has_same_xid(this->m_xid)) {
     return this->process_detached_xa_rollback(thd);
   }
@@ -102,7 +106,13 @@ bool Sql_cmd_xa_rollback::process_attached_xa_rollback(THD *thd) const {
 
   bool gtid_error = false;
   bool need_clear_owned_gtid = false;
+  const bool was_prepared = xid_state->has_state(XID_STATE::XA_PREPARED);
   std::tie(gtid_error, need_clear_owned_gtid) = commit_owned_gtids(thd, true);
+  if (!gtid_error && was_prepared) {
+    this->register_xa_recover_finalization_action(thd, thd->get_transaction(),
+                                                  need_clear_owned_gtid);
+  }
+
   CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_rollback_xa_trx");
   bool res = xa_trans_force_rollback(thd) || gtid_error;
   gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
@@ -136,6 +146,7 @@ bool Sql_cmd_xa_rollback::process_detached_xa_rollback(THD *thd) {
 
   CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_rollback_xa_trx");
   this->assign_xid_to_thd(thd);
+  this->register_xa_recover_finalization_action(thd);
   if (tc_log == nullptr) {
     this->m_result =
         trx_coordinator::rollback_detached_by_xid(thd) || this->m_result;
@@ -147,10 +158,7 @@ bool Sql_cmd_xa_rollback::process_detached_xa_rollback(THD *thd) {
   // This is normally done in ha_rollback_trans, but since we do not call this
   // for an external rollback we need to do it explicitly here.
   this->m_detached_trx_context->push_unsafe_rollback_warnings(thd);
-
-  assert(this->m_detached_trx_context != nullptr);
-  xa::Transaction_cache::remove(this->m_detached_trx_context.get());
-  this->cleanup_context(thd);
+  this->cleanup_context(thd, /*remove_from_cache=*/true);
 
   return this->m_result;
 }

@@ -1040,7 +1040,7 @@ bool Query_dumpvar::send_data(THD *thd, const mem_root_deque<Item *> &items) {
     } else {
       Item_func_set_user_var *suv = new Item_func_set_user_var(mv->name, item);
       if (suv->fix_fields(thd, nullptr)) return true;
-      suv->save_item_result(item);
+      if (suv->save_item_result(item)) return true;
       if (suv->update()) return true;
       /*
         Note that this variable isn't added to LEX::set_var_list, as it's not
@@ -1050,7 +1050,8 @@ bool Query_dumpvar::send_data(THD *thd, const mem_root_deque<Item *> &items) {
       */
     }
   }
-  return thd->is_error();
+  assert(!thd->is_error());
+  return false;
 }
 
 bool Query_dumpvar::send_eof(THD *thd) {

@@ -17,6 +17,7 @@ include/assert.inc ["CREATE TABLE t1 is not be replicated"]
 [connection default]
 SET DEBUG_SYNC = "now SIGNAL continue";
 [connection master]
+include/rpl/sync_to_replica.inc
 [connection master]
 #
 # Case 2: The events are able to be replicated before they are synced to
@@ -24,6 +25,7 @@ SET DEBUG_SYNC = "now SIGNAL continue";
 #
 SET GLOBAL sync_binlog = 0;
 DROP TABLE t1;
+include/rpl/sync_to_replica.inc
 SET DEBUG_SYNC = "now SIGNAL continue";
 [connection master]
 SET DEBUG_SYNC = 'RESET';

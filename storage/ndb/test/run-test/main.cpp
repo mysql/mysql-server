@@ -38,6 +38,7 @@
 #include <FileLogHandler.hpp>
 #include <SysLogHandler.hpp>
 #include <util/File.hpp>
+#include "util/require.h"
 
 #include <NdbSleep.h>
 #include <ndb_opts.h>
@@ -658,9 +659,11 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
   {
     int tmp = Logger::LL_WARNING - g_verbosity;
     tmp = (tmp < Logger::LL_DEBUG ? Logger::LL_DEBUG : tmp);
+    auto level = Logger::to_enum_LoggerLevel(tmp);
+    require(level.has_value());
     g_logger.disable(Logger::LL_ALL);
     g_logger.enable(Logger::LL_ON);
-    g_logger.enable((Logger::LoggerLevel)tmp, Logger::LL_ALERT);
+    g_logger.enable(level.value(), Logger::LL_ALERT);
   }
 
   if (!g_basedir) {

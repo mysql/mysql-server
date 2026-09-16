@@ -42,13 +42,37 @@
 
 --source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc
+--source include/have_replica_preserve_commit_order.inc
 --let $rpl_extra_connections_per_server = 3
 --source include/rpl/init_source_replica.inc
 
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+
+# The indexes calculated by the source (seq lc) are the following:
+# 1 0 -> CSA calculated time: 0
+# 2 1 -> CSA calculated time: 1
+# 3 2 -> CSA calculated time: 2
+# 4 3 -> CSA calculated time: 3
+# 5 4 -> CSA calculated time: 4
+# 6 4 -> CSA calculated time: 4
+# 7 5 -> CSA calculated time: 5
+# 8 5 -> CSA calculated time: 5
+# Due to the fact that we need to close the window (5 and 6 are parallel),
+# in CSA, 7 and 8 are executed in a different time window. By setting below
+# debug point, we make sure that we forcibly close the parallel window after
+# 5, which will result in a new parallel window for 6(T1), 7(T2) and 8(T3).
+--let $debug_point= csa_bump_logical_clock_time_after_trx
+--source include/add_debug_point.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+
 --disable_query_log
-CALL mtr.add_suppression("Replica SQL for channel '': Worker 1 failed executing transaction .* handler error HA_ERR_FOUND_DUPP_KEY;.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .* handler error HA_ERR_FOUND_DUPP_KEY;.*");
 CALL mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression("Replica SQL for channel '': Worker 2 failed executing transaction .* an error when replica-preserve-commit-order was enabled.*");
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
 --enable_query_log
 
 SET @@session.xa_detach_on_prepare = 1;
@@ -61,6 +85,10 @@ XA PREPARE 'T2';
 --source include/rpl/sync_to_replica.inc
 --let $rpl_connection_name= server_2
 --source include/connection.inc
+
+# CSA - remove clock tweak
+--let $debug_point= csa_bump_logical_clock_time_after_trx
+--source include/remove_debug_point.inc
 
 # Replica: Insert a row that conflicts with transaction T1.
 # So, once T1 gets replicated and starts to execute, it will stop with an error.
@@ -144,8 +172,8 @@ BEGIN;
 # Let T2 execute
 let $wait_condition =
   SELECT count(*) = 2
-    FROM performance_schema.threads
-    WHERE PROCESSLIST_STATE="Waiting for preceding transaction to commit";
+    FROM information_schema.processlist
+    WHERE STATE="Waiting for preceding transaction to commit";
 --source include/wait_condition.inc
 
 # Unblock T1
@@ -156,7 +184,7 @@ ROLLBACK;
 SET @@gtid_next = 'AUTOMATIC';
 
 # Let T1 fail
---let $slave_sql_errno = convert_error(ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR)
+--let $slave_sql_errno = 1062, 3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --source include/rpl/wait_for_applier_error.inc
 
 # Replica: Check requirements
@@ -191,6 +219,7 @@ XA RECOVER;
 # Replica: Delete conflicting row
 DELETE FROM t1 WHERE a = 2;
 
+--let $rpl_only_running_threads=1
 --source include/rpl/stop_replica.inc
 RESET REPLICA;
 --source include/rpl/start_replica.inc

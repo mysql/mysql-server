@@ -39,17 +39,13 @@ class Ssl_context : public iface::Ssl_context {
   Ssl_context();
   virtual ~Ssl_context() override;
 
-  MOCK_METHOD(bool, setup,
-              (const char *tls_version, const char *ssl_key, const char *ssl_ca,
-               const char *ssl_capath, const char *ssl_cert,
-               const char *ssl_cipher, const char *ssl_crl,
-               const char *ssl_crlpath),
+  MOCK_METHOD(bool, setup, (const iface::Ssl_context_config &config),
               (override));
   MOCK_METHOD(bool, activate_tls,
               (iface::Vio * conn, const int32_t handshake_timeout), (override));
   MOCK_METHOD(iface::Ssl_context_options &, options, (), (override));
   MOCK_METHOD(bool, has_ssl, (), (override));
-  MOCK_METHOD(void, reset, (), (override));
+  MOCK_METHOD(bool, reset, (), (override));
 };
 
 }  // namespace mock

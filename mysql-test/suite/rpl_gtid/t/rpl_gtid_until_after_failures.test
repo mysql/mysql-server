@@ -36,6 +36,7 @@ Replica: Coordinator experienced an error or was killed while scheduling an even
 Replica SQL for channel '': Relay log read failure: Could not parse relay log event entry*
 Replica SQL for channel '': Error 'Duplicate entry '2' for key 't1.PRIMARY''*
 Replica SQL for channel '': Could not execute Write_rows event on table test.t1*
+Replica SQL for channel '': Change Stream Applier channel stopped because of error*
 ;
 
 --let $suppress_on_current_connection = 1

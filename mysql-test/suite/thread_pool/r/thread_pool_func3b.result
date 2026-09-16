@@ -1,0 +1,230 @@
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");
+# Check and generate prerequisites used in various tests.
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (connection_name VARCHAR(20), id BIGINT, PRIMARY KEY(connection_name))
+ENGINE = MEMORY;
+CREATE TABLE t2 (col1 BIGINT) ENGINE = MEMORY;
+INSERT INTO t2 VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(11);
+#--------------------------------------
+# 1.1.1 KILL other inactive connection.
+#--------------------------------------
+# Establish connection con_to_kill1
+# Switch to connection default
+# Poll till the just started session is visible within the processlist
+# and command is "sleep".
+KILL <target_id>;
+# Poll till the just killed session is no more visible within the processlist.
+#--------------------------------------------------
+# 1.1.2 KILL other active connection which executes
+#       SELECT SLEEP(30)
+#       and just does the "sleep" from the SELECT.
+#--------------------------------------------------
+# Establish connection con_to_kill2
+# Send statement to the server, don't wait for results
+SELECT SLEEP(30);
+# Switch to connection default
+# Poll till the just started session and its SELECT is visible within the processlist
+# and the state contains the string 'sleep'.
+KILL <target_id>;
+# Poll till the just killed session is no more visible within the processlist.
+LOCK TABLE t1 WRITE;
+#--------------------------------------------------
+# 1.1.3 KILL other active connection which executes
+#       SELECT * FROM t1
+#       and just waits for getting a lock.
+#--------------------------------------------------
+# Establish connection con_to_kill3
+# Send statement to the server, don't wait for results
+SELECT * FROM t1;
+# Switch to connection default
+# Poll till the just started session and its SELECT is visible within the processlist
+# and the state contains the string 'lock'.
+KILL <target_id>;
+# Poll till the just killed session is no more visible within the processlist.
+UNLOCK TABLES;
+#--------------------------------------------------------------
+# 1.1.4 KILL other active connection which executes a huge join
+#       and just causes a high load.
+#--------------------------------------------------------------
+# Establish connection con_to_kill4
+# Send statement to the server, don't wait for results
+SELECT COUNT(*)
+FROM t2 C1, t2 C2, t2 C3, t2 C4, t2 C5 , t2 C6 , t2 C7 , t2 C8
+WHERE C1.col1 <> 1 AND C2.col1 <> 2 AND C3.col1 <> 3 AND C4.col1 <> 4 AND C5.col1 <> 5
+AND C6.col1 <> 6 AND C7.col1 <> 7 AND C8.col1 <> 8 ;
+# Switch to connection default
+# Poll till the just started session and its SELECT is visible within the processlist
+# and time > 0.
+KILL <target_id>;
+# Poll till the just killed session is no more visible within the processlist.
+#--------------------------------
+# 1.2 KILL own active connection.
+#--------------------------------
+# Establish connection con_to_kill5
+KILL CONNECTION_ID();
+ERROR 70100: Query execution was interrupted
+# Switch to connection default
+# Poll till the just killed session is no more visible within the processlist.
+#------------------------------------------------------------
+# 2.1 KILL ongoing query of another connection which executes
+#     SELECT SLEEP(30)
+#     and just does the "sleep" from the SELECT.
+#------------------------------------------------------------
+# Establish connection con_to_kill6
+# Send statement to the server, reap result later
+SELECT SLEEP(30);
+# Switch to connection default
+# Poll till execution of 'SELECT SLEEP(30)' has started
+KILL QUERY <target_id>;
+# Switch to connection con_to_kill6
+# Reap result
+SLEEP(30)
+1
+# Switch to connection default
+LOCK TABLE t1 WRITE;
+#------------------------------------------------------------
+# 2.2 KILL ongoing query of another connection which executes
+#     SELECT * FROM t1
+#     and just waits for getting a lock.
+#------------------------------------------------------------
+# Switch to connection con_to_kill6
+# Send statement to the server, reap result later
+SELECT * FROM t1;
+# Switch to connection default
+# Poll till execution of 'SELECT * FROM t1' has started
+# and state contains the string 'lock'
+KILL QUERY <target_id>;
+# Switch to connection con_to_kill6
+# Reap result
+ERROR 70100: Query execution was interrupted
+UNLOCK TABLES;
+#------------------------------------------------------------
+# 2.3 KILL ongoing query of another connection which executes
+#     a huge join and just causes a high load.
+#------------------------------------------------------------
+# Switch to connection con_to_kill6
+# Send statement to the server, reap result later
+SELECT COUNT(*)
+FROM t2 C1, t2 C2, t2 C3, t2 C4, t2 C5 , t2 C6 , t2 C7 , t2 C8
+WHERE C1.col1 <> 1 AND C2.col1 <> 2 AND C3.col1 <> 3 AND C4.col1 <> 4 AND C5.col1 <> 5
+AND C6.col1 <> 6 AND C7.col1 <> 7 AND C8.col1 <> 8 ;
+# Switch to connection default
+# Poll till the execution of 'SELECT COUNT(*)
+FROM t2 C1, t2 C2, t2 C3, t2 C4, t2 C5 , t2 C6 , t2 C7 , t2 C8
+WHERE C1.col1 <> 1 AND C2.col1 <> 2 AND C3.col1 <> 3 AND C4.col1 <> 4 AND C5.col1 <> 5
+AND C6.col1 <> 6 AND C7.col1 <> 7 AND C8.col1 <> 8 ' has started
+# and time > 0.
+KILL QUERY <target_id>;
+# Switch to connection con_to_kill6
+# Reap result
+ERROR 70100: Query execution was interrupted
+#-------------------------------------
+# 2.4 KILL own query (pathologic case)
+#-------------------------------------
+# Switch to connection con_to_kill6
+KILL QUERY CONNECTION_ID();
+ERROR 70100: Query execution was interrupted
+# Switch to connection default
+# Poll till it becomes visible that the connection con_to_kill6 is
+# inactive.
+#---------------------------------
+# 3. Disconnect current connection
+#---------------------------------
+# Switch to connection con_to_kill6
+# Disconnect connection con_to_kill6
+# Poll till the connection con_to_kill6 disappeared from the processlist.
+#--------------------------------------------------------------
+# 4. Thread pool group related tests
+#    In case these tests are applied to a server without thread
+#    pooling than the comments are partially no more valid.
+#--------------------------------------------------------------
+# Establish connections_to_add (= thread_pool_size if possible) additional connections
+# so that every thread group contains one of these additional connections.
+# Switch to connection default
+SELECT COUNT(*) = <connections_to_add> AS "Expect 1" FROM t1;
+Expect 1
+1
+#-------------------------------------------------------------------------
+# 4.1 Have within every thread group a connection A executing
+#        SELECT SLEEP(30)
+#     and just doing the "sleep" from the SELECT.
+#     Show that
+#     - con_extra: connect, run some statement, disconnect
+#     - default:   run SELECT ... and KILL QUERY <A>
+#     works.
+#-------------------------------------------------------------------------
+# Switch to connection default
+# Poll till connections_to_add connections are busy with their statement.
+# Establish connection con_extra
+SET @connections_to_add = <connections_to_add>;
+SELECT COUNT(*) = @connections_to_add AS "Expect 1" FROM information_schema.processlist
+WHERE info = 'SELECT SLEEP(30)';
+Expect 1
+1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# Switch to connection default
+# Disconnect the additional session con_extra
+# Poll till the connection con_extra disappeared from the processlist.
+# KILL the queries of all additional sessions (printing is suppressed).
+# Let all additional sessions reap their results (printing is suppressed).
+# Switch to connection default
+LOCK TABLE t1 WRITE;
+#-------------------------------------------------------------------------
+# 4.2 Have within every thread group a connection A executing
+#        SELECT * FROM t1
+#     and just waiting for a lock.
+#     Show that
+#     - con_extra: connect, run some statement, disconnect
+#     - default:   run SELECT ... and KILL QUERY <A>
+#     works.
+#-------------------------------------------------------------------------
+# Switch to connection default
+# Poll till connections_to_add connections are busy with their statement.
+# Establish connection con_extra
+SET @connections_to_add = <connections_to_add>;
+SELECT COUNT(*) = @connections_to_add AS "Expect 1" FROM information_schema.processlist
+WHERE info = 'SELECT * FROM t1';
+Expect 1
+1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# Switch to connection default
+# Disconnect the additional session con_extra
+# Poll till the connection con_extra disappeared from the processlist.
+# KILL the queries of all additional sessions (printing is suppressed).
+# Let all additional sessions reap their results (printing is suppressed).
+# Switch to connection default
+UNLOCK TABLES;
+#-------------------------------------------------------------------------
+# 4.3 Have within every thread group a connection A executing a huge join
+#     and just causing high load.
+#     Show that
+#     - con_extra: connect, run some statement, disconnect
+#     works.
+#-------------------------------------------------------------------------
+# Switch to connection default
+# Poll till connections_to_add connections are busy with their statement.
+# Establish connection con_extra
+SET @connections_to_add = <connections_to_add>;
+SELECT COUNT(*) = @connections_to_add AS "Expect 1" FROM information_schema.processlist
+WHERE info = 'SELECT COUNT(*)
+FROM t2 C1, t2 C2, t2 C3, t2 C4, t2 C5 , t2 C6 , t2 C7 , t2 C8
+WHERE C1.col1 <> 1 AND C2.col1 <> 2 AND C3.col1 <> 3 AND C4.col1 <> 4 AND C5.col1 <> 5
+AND C6.col1 <> 6 AND C7.col1 <> 7 AND C8.col1 <> 8 ';
+Expect 1
+1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# Switch to connection default
+# Disconnect the additional session con_extra
+# Poll till the connection con_extra disappeared from the processlist.
+#--------------------------------------------------------------------------------------
+# 4.4 Reveal that some session having another session causing high load within the same
+#     thread group is able to KILL this other session.
+#--------------------------------------------------------------------------------------
+# KILL the queries of all additional sessions (printing is suppressed).
+# Poll till there is no connection running which has an id occurring in t1
+DROP TABLE t1;
+DROP TABLE t2;

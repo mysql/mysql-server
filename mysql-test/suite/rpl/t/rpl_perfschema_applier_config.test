@@ -140,4 +140,22 @@ let $assert_text= Value for Assign_gtids_to_anonymous_transactions_value is init
 let $assert_cond= "NULL" = "$ps_value";
 source include/assert.inc;
 
+--echo
+--echo # Verify that `Applier_version` is initialized to MTA.
+--echo
+
+let $ps_value= query_get_value(select Applier_version from performance_schema.replication_applier_configuration, Applier_version, 1);
+let $assert_text= Value for Applier_version is initialized to MTA;
+let $assert_cond= 1 = "$ps_value";
+source include/assert.inc;
+
+--echo
+--echo # Verify that `Applier_worker_count` is initialized to 4.
+--echo
+
+let $ps_value= query_get_value(select Applier_worker_count from performance_schema.replication_applier_configuration, Applier_worker_count, 1);
+let $assert_text= Value for Applier_worker_count is initialized to 4;
+let $assert_cond= "4" = "$ps_value";
+source include/assert.inc;
+
 source include/rpl/deinit.inc;

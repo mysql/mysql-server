@@ -515,6 +515,8 @@ static void safe_exit(int error) {
   if (!first_error) first_error = error;
   if (ignore_errors) return;
   if (sock) mysql_close(sock);
+  mysql_server_end();
+  my_end(my_end_arg);
   exit(error);
 }
 
@@ -548,6 +550,7 @@ int main(int argc, char **argv) {
   my_free(shared_memory_base_name);
 #endif
   alloc.Clear();
+  mysql_server_end();
   my_end(my_end_arg);
   return (first_error != 0);
 } /* main */

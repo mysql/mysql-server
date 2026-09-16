@@ -14,6 +14,7 @@
 call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 call mtr.add_suppression("Failed to set up SSL because of");
 call mtr.add_suppression("Plugin mysqlx reported: 'Failed at SSL configuration");
+call mtr.add_suppression("TLS session on channel 'mysql_main' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
 --enable_query_log
 
 # We let our server restart attempts write to the file $error_log.

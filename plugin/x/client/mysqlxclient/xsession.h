@@ -181,7 +181,7 @@ class MYSQLXCLIENT_EXPORT XSession {
       TLS protocols permitted by the client for encrypted connections.
 
       The value is a comma-separated list containing one or more protocol
-      names. (TLSv1,TLSv1.1,TLSv1.2)
+      names. (TLSv1.2,TLSv1.3)
 
       Default: ""
       Option type: STRING.
@@ -345,7 +345,29 @@ class MYSQLXCLIENT_EXPORT XSession {
       Default: 64k
       Option type: INTEGER
      */
-    Buffer_recevie_size
+    Buffer_recevie_size,
+    /**
+      TLS key exchange groups permitted by the client for encrypted
+      connections.
+
+      Default: ""
+      Option type: STRING.
+    */
+    Tls_kex,
+    /**
+      Require encrypted connections to use a PQC compatible key exchange group.
+
+      Default: false
+      Option type: BOOL.
+    */
+    Force_pqc,
+    /**
+      Advertise PQC TLS handshake signature algorithms.
+
+      Default: false
+      Option type: BOOL.
+    */
+    Use_pqc_sign
   };
 
  public:

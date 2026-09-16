@@ -687,14 +687,6 @@ byte *dfield_t::blobref() const {
   return static_cast<byte *>(data) + len - BTR_EXTERN_FIELD_REF_SIZE;
 }
 
-uint32_t dfield_t::lob_version() const {
-  ut_ad(ext);
-  byte *field_ref = blobref();
-
-  lob::ref_t ref(field_ref);
-  return (ref.version());
-}
-
 void dfield_t::adjust_v_data_mysql(const dict_v_col_t *vcol, bool comp,
                                    const byte *field, ulint len,
                                    mem_heap_t *heap) {
@@ -806,20 +798,6 @@ void dtuple_t::validate_for_index(const dict_index_t *index) const {
   }
 }
 #endif /* UNIV_DEBUG */
-
-trx_id_t dtuple_t::get_trx_id() const {
-  for (ulint i = 0; i < n_fields; ++i) {
-    dfield_t &field = fields[i];
-
-    uint32_t prtype = field.type.prtype & DATA_SYS_PRTYPE_MASK;
-
-    if (field.type.mtype == DATA_SYS && prtype == DATA_TRX_ID) {
-      return (mach_read_from_6((byte *)field.data));
-    }
-  }
-
-  return (0);
-}
 
 void dtuple_t::ignore_trailing_default(const dict_index_t *index) {
   ut_a(index->has_instant_cols());
@@ -1105,6 +1083,7 @@ dtuple_t *dtuple_t::deep_copy(mem_heap_t *heap) const {
   for (uint32_t i = 0; i < n_fields; ++i) {
     dfield_dup(&copy->fields[i], heap);
   }
+  copy->n_fields_cmp = n_fields_cmp;
   return copy;
 }
 

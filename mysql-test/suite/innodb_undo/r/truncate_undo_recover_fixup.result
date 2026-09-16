@@ -1,0 +1,153 @@
+#
+# wl#16989 Innodb: Make UNDO log truncation crash safe
+#
+# Scenario 1 : During recovery, crash before updating the space_id in DD
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+Setting server to crash at "ib_undo_trunc_after_writing_unusable_flag" during UNDO truncate
+SET GLOBAL DEBUG = "+d,ib_undo_trunc_after_writing_unusable_flag";
+# Make the 1st explicit undo tablespace inactive so it gets truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# Restart server to crash during recovery at "fixup_crash_before_updating_space_id_in_dd"
+"--debug=+d,fixup_crash_before_updating_space_id_in_dd"
+# restart_abort: --debug=+d,fixup_crash_before_updating_space_id_in_dd
+# Wait until failed bootstrap is seen
+include/wait_for_pattern_in_file.inc [fixup_crash_before_updating_space_id_in_dd]
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;
+# Scenario 2 : During recovery, crash after updating the space_id in DD
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+Setting server to crash at "ib_undo_trunc_after_writing_unusable_flag" during UNDO truncate
+SET GLOBAL DEBUG = "+d,ib_undo_trunc_after_writing_unusable_flag";
+# Make the 1st explicit undo tablespace inactive so it gets truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# Restart server to crash during recovery at "fixup_crash_after_updating_space_id_in_dd"
+"--debug=+d,fixup_crash_after_updating_space_id_in_dd"
+# restart_abort: --debug=+d,fixup_crash_after_updating_space_id_in_dd
+# Wait until failed bootstrap is seen
+include/wait_for_pattern_in_file.inc [fixup_crash_after_updating_space_id_in_dd]
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;
+# Scenario 3 : During recovery, crash after creating UNDO tablespace in
+# srv_undo_tablespace_fixup
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+Setting server to crash at "ib_undo_trunc_after_writing_unusable_flag" during UNDO truncate
+SET GLOBAL DEBUG = "+d,ib_undo_trunc_after_writing_unusable_flag";
+# Make the 1st explicit undo tablespace inactive so it gets truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# Restart server to crash during recovery at "fixup_crash_after_creating_undo"
+"--debug=+d,fixup_crash_after_creating_undo"
+# restart_abort: --debug=+d,fixup_crash_after_creating_undo
+# Wait until failed bootstrap is seen
+include/wait_for_pattern_in_file.inc [fixup_crash_after_creating_undo]
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;
+# Scenario 4 : During recovery, crash before updating state in DD
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+Setting server to crash at "ib_undo_trunc_after_writing_unusable_flag" during UNDO truncate
+SET GLOBAL DEBUG = "+d,ib_undo_trunc_after_writing_unusable_flag";
+# Make the 1st explicit undo tablespace inactive so it gets truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# Restart server to crash during recovery at "fixup_crash_before_updating_state_in_dd"
+"--debug=+d,fixup_crash_before_updating_state_in_dd"
+# restart_abort: --debug=+d,fixup_crash_before_updating_state_in_dd
+# Wait until failed bootstrap is seen
+include/wait_for_pattern_in_file.inc [fixup_crash_before_updating_state_in_dd]
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;
+# Scenario 5 : During recovery, crash after updating state in DD
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+Setting server to crash at "ib_undo_trunc_after_writing_unusable_flag" during UNDO truncate
+SET GLOBAL DEBUG = "+d,ib_undo_trunc_after_writing_unusable_flag";
+# Make the 1st explicit undo tablespace inactive so it gets truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# Restart server to crash during recovery at "fixup_crash_after_updating_state_in_dd"
+"--debug=+d,fixup_crash_after_updating_state_in_dd"
+# restart_abort: --debug=+d,fixup_crash_after_updating_state_in_dd
+# Wait until failed bootstrap is seen
+include/wait_for_pattern_in_file.inc [fixup_crash_after_updating_state_in_dd]
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;
+# Scenario 6 : During recovery, crash after creating an empty
+# undo file.
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+Setting server to crash at "ib_undo_trunc_after_writing_unusable_flag" during UNDO truncate
+SET GLOBAL DEBUG = "+d,ib_undo_trunc_after_writing_unusable_flag";
+# Make the 1st explicit undo tablespace inactive so it gets truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# Restart server to crash during recovery at "fixup_crash_after_creating_empty_file"
+"--debug=+d,fixup_crash_after_creating_empty_file"
+# restart_abort: --debug=+d,fixup_crash_after_creating_empty_file
+# Wait until failed bootstrap is seen
+include/wait_for_pattern_in_file.inc [fixup_crash_after_creating_empty_file]
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;
+# Scenario 7 : During recovery, crash after initiliazing
+# undo file with zeros.
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+Setting server to crash at "ib_undo_trunc_after_writing_unusable_flag" during UNDO truncate
+SET GLOBAL DEBUG = "+d,ib_undo_trunc_after_writing_unusable_flag";
+# Make the 1st explicit undo tablespace inactive so it gets truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+# Restart server to crash during recovery at "fixup_crash_after_init_with_zeros"
+"--debug=+d,fixup_crash_after_init_with_zeros"
+# restart_abort: --debug=+d,fixup_crash_after_init_with_zeros
+# Wait until failed bootstrap is seen
+include/wait_for_pattern_in_file.inc [fixup_crash_after_init_with_zeros]
+# Restart server normally
+# restart:
+SELECT name, space_type, state, autoextend_size FROM
+INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type="Undo";
+name	space_type	state	autoextend_size
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+undo_003	Undo	empty	0
+DROP UNDO TABLESPACE undo_003;

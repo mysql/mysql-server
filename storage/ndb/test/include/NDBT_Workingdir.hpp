@@ -51,6 +51,8 @@ class NDBT_Workingdir {
     if (!NdbDir::create(m_wd.c_str())) abort();
   }
 
+  NDBT_Workingdir(const NDBT_Workingdir &x) : m_wd(x.m_wd) {}
+
   ~NDBT_Workingdir() {
     if (access(m_wd.c_str(), F_OK) == 0) NdbDir::remove_recursive(m_wd.c_str());
   }

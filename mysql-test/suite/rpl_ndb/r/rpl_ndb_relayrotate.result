@@ -10,8 +10,11 @@ RESET REPLICA;
 START REPLICA;
 STOP REPLICA;
 START REPLICA;
+[connection master]
+include/rpl/sync_to_replica.inc
 select max(a) from t1;
 max(a)
 loop_max
 drop table t1;
+include/rpl/sync_to_replica.inc
 include/rpl/deinit.inc

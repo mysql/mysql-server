@@ -4,6 +4,17 @@
 -- source include/not_ndb_default.inc
 -- source include/rpl/init_source_replica.inc
 -- source include/have_myisam.inc
+--disable_query_log
+--connection slave
+# Bug#39580589 tracks the MyISAM/GTID visibility behavior observed here:
+# with concurrent_insert enabled, a MyISAM SELECT may observe the previous
+# table state after WAIT_FOR_EXECUTED_GTID_SET() returns. Revisit this
+# test's dependency on @@global.concurrent_insert after Bug#39580589
+# is evaluated.
+SET @old_slave_concurrent_insert= @@global.concurrent_insert;
+SET @@global.concurrent_insert= 0;
+--connection master
+--enable_query_log
 
 eval create table t1 (a int not null auto_increment,b int, primary key (a)) engine=$engine_type2 auto_increment=3;
 insert into t1 values (NULL,1),(NULL,2),(NULL,3);
@@ -212,5 +223,10 @@ source include/diff_tables.inc;
 DROP TABLE t2;
 SET SQL_MODE='';
 --source include/rpl/sync_to_replica.inc
+
+--disable_query_log
+--connection slave
+SET @@global.concurrent_insert= @old_slave_concurrent_insert;
+--enable_query_log
 
 --source include/rpl/deinit.inc

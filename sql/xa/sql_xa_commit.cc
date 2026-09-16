@@ -24,6 +24,7 @@
 #include "sql/xa/sql_xa_commit.h"         // Sql_cmd_xa_commit
 #include "mysql/psi/mysql_transaction.h"  // MYSQL_SET_TRANSACTION_XA_STATE
 #include "mysqld_error.h"                 // Error codes
+#include "scope_guard.h"                  // create_scope_guard
 #include "sql/clone_handler.h"            // Clone_handler::XA_Operation
 #include "sql/debug_sync.h"               // DEBUG_SYNC
 #include "sql/handler.h"                  // commit_owned_gtids
@@ -33,8 +34,7 @@
 #include "sql/sql_lex.h"                  // struct LEX
 #include "sql/tc_log.h"                   // tc_log
 #include "sql/transaction.h"  // trans_reset_one_shot_chistics, trans_track_end_trx
-#include "sql/transaction_info.h"      // Transaction_ctx
-#include "sql/xa/transaction_cache.h"  // xa::Transaction_cache
+#include "sql/transaction_info.h"  // Transaction_ctx
 
 namespace {
 /**
@@ -85,6 +85,9 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd) {
 
   /* Inform clone handler of XA operation. */
   Clone_handler::XA_Operation xa_guard(thd);
+  // A TC log can finish XA without performing a GTID state update.
+  auto gtid_action_guard = create_scope_guard(
+      [thd]() { thd->call_actions_before_gtid_state_update(false); });
 
   if (!xid_state->has_same_xid(this->m_xid)) {
     return this->process_detached_xa_commit(thd);
@@ -155,6 +158,9 @@ bool Sql_cmd_xa_commit::process_attached_xa_commit(THD *thd) const {
       ha_rollback_trans(thd, true);
       my_error(ER_XAER_RMERR, MYF(0));
     } else {
+      this->register_xa_recover_finalization_action(thd, thd->get_transaction(),
+                                                    need_clear_owned_gtid);
+
       CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_commit_xa_trx");
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
@@ -239,6 +245,7 @@ bool Sql_cmd_xa_commit::process_detached_xa_commit(THD *thd) {
 
   CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_commit_xa_trx");
   this->assign_xid_to_thd(thd);
+  this->register_xa_recover_finalization_action(thd);
 
   if (!this->m_result) {
     if (tc_log == nullptr) {
@@ -270,12 +277,8 @@ bool Sql_cmd_xa_commit::process_detached_xa_commit(THD *thd) {
   }
 
   this->exit_commit_order(thd);
-
-  if (result == TC_LOG::enum_result::RESULT_SUCCESS) {
-    assert(this->m_detached_trx_context != nullptr);
-    xa::Transaction_cache::remove(this->m_detached_trx_context.get());
-  }
-  this->cleanup_context(thd);
+  this->cleanup_context(thd,
+                        result == TC_LOG::enum_result::RESULT_SUCCESS);
 
   return this->m_result;
 }

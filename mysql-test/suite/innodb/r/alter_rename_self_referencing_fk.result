@@ -1,0 +1,21 @@
+#
+# Rename a column used by a self-referencing foreign key.
+#
+CREATE TABLE t1 (
+c4 INT NOT NULL,
+UNIQUE KEY c1 (c4),
+UNIQUE KEY c4 (c4),
+CONSTRAINT t1_ibfk_1 FOREIGN KEY (c4) REFERENCES t1 (c4)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1831	Duplicate index 'c4' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+ALTER TABLE t1 RENAME COLUMN c4 TO c7;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c7` int NOT NULL,
+  UNIQUE KEY `c1` (`c7`),
+  UNIQUE KEY `c4` (`c7`),
+  CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`c7`) REFERENCES `t1` (`c7`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

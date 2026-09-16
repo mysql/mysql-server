@@ -109,39 +109,6 @@ class Log_files_capacity {
   @return limitation for free space in the redo log for the log writer thread */
   lsn_t hard_logical_capacity() const;
 
-  /** Once checkpoint age exceeds this value, the flushing of pages starts to
-  be adaptive. The adaptive page flushing is becoming more and more aggressive
-  in the following range: adaptive_flush_min_age()..adaptive_flush_max_age().
-  @note This value changes only during calls to @see update or @see initialize.
-  @note Note that it must hold:
-  adaptive_flush_min_age() < adaptive_flush_max_age() <=
-  soft_logical_capacity().
-  @remarks
-  The diagram below shows how flushing / checkpointing becomes more aggressive
-  when the age of the oldest modified page gets increased:
-
-  adaptive_flush_min_age  adaptive_flush_max_age  aggressive_checkpoint_min_age
-         |                        |                     |
-  -------!------------------------!---------------------!----------------->age
-  regular     adaptive flushing     aggressive flushing   aggr. checkpoints
-  @return limitation to start adaptive flushing */
-  lsn_t adaptive_flush_min_age() const;
-
-  /** Once checkpoint age exceeds that value, the flushing of pages is the most
-  aggressive possible since then. For more details @see adaptive_flush_min_age.
-  @note This value changes only during calls to @see update or @see initialize.
-  @return limitation to start furious flushing */
-  lsn_t adaptive_flush_max_age() const;
-
-  /** Once checkpoint age exceeds that value, the log checkpointer thread keeps
-  writing checkpoints aggressively (whatever the progress of last_checkpoint_lsn
-  would it make). Before that happens, checkpoints could be written periodically
-  (for more details @see adaptive_flush_min_age).
-  @note This value changes only during calls to @see update or @see initialize.
-  @note It holds: adaptive_flush_max_age() < aggressive_checkpoint_min_age().
-  @return limitation to start aggressive checkpointing */
-  lsn_t aggressive_checkpoint_min_age() const;
-
   /** Provides size of the next redo log file that will be created. The initial
   value becomes set during a call to @see initialize. Since then, it changes
   only when innodb_redo_log_capacity is changed, during a call to @see update.
@@ -235,15 +202,6 @@ class Log_files_capacity {
 
     /** Value returned by @see hard_logical_capacity */
     atomic_lsn_t m_hard_logical_capacity{0};
-
-    /** Value returned by @see adaptive_flush_min_age */
-    atomic_lsn_t m_adaptive_flush_min_age{0};
-
-    /** Value returned by @see adaptive_flush_max_age */
-    atomic_lsn_t m_adaptive_flush_max_age{0};
-
-    /** Value returned by @see aggressive_checkpoint_min_age */
-    atomic_lsn_t m_agressive_checkpoint_min_age{0};
   };
 
   /** Cache for values returned by getters in this object, which otherwise
@@ -332,9 +290,6 @@ class Log_files_capacity {
   /** Updates cached and exposed values related to the logical redo capacity:
     - @see m_soft_logical_capacity
     - @see m_hard_logical_capacity
-    - @see m_agressive_checkpoint_min_age
-    - @see m_adaptive_flush_min_age
-    - @see m_adaptive_flush_max_age
   @param[in]  current_logical_size  current logical size of the redo log */
   void update_exposed(lsn_t current_logical_size);
 
@@ -349,24 +304,5 @@ class Log_files_capacity {
   @return suggested value for current hard logical capacity */
   lsn_t get_suggested_hard_logical_capacity(lsn_t current_checkpoint_age) const;
 };
-
-/** Retrieves limitations determined by the current state of log.m_capacity.
-These values are retrieved atomically (are consistent with each other).
-@param[in]   log                       redo log
-@param[out]  limit_for_free_check      soft capacity of the redo decreased by
-                                       the current free check margin; this is
-                                       limit for size of redo until which the
-                                       log_free_check calls do not force waits
-@param[out]  limit_for_dirty_page_age  limit for the oldest dirty page until
-                                       which the async (adaptive) flushing is
-                                       not forced to be started (it might be
-                                       started if turned on explicitly by the
-                                       innodb_adaptive_flushing); note that
-                                       computation of this value include doing
-                                       the subtraction of the current log free
-                                       check margin */
-void log_files_capacity_get_limits(const log_t &log,
-                                   lsn_t &limit_for_free_check,
-                                   lsn_t &limit_for_dirty_page_age);
 
 #endif /* !log0files_capacity_h */

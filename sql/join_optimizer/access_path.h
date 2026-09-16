@@ -85,6 +85,11 @@ struct JoinPredicate {
   // of each row as stored in the hash table, in bytes.
   size_t estimated_bytes_per_row;
 
+  // Cached result of EstimateHashJoinKeyWidth(expr). Populated after
+  // MakeJoinHypergraph() and InjectCastNodes() complete, used by
+  // ProposeHashJoin() during plan enumeration.
+  size_t estimated_hash_join_key_width{0};
+
   // The set of (additional) functional dependencies that are active
   // after this join predicate has been applied. E.g. if we're joining
   // on t1.x = t2.x, there will be a bit for that functional dependency.
@@ -1349,11 +1354,13 @@ struct AccessPath {
       AccessPath *child;
       table_map tables_to_delete_from;
       table_map immediate_tables;
+      table_map tables_to_get_rowid_for;
     } delete_rows;
     struct {
       AccessPath *child;
       table_map tables_to_update;
       table_map immediate_tables;
+      table_map tables_to_get_rowid_for;
     } update_rows;
   } u;
 };

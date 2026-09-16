@@ -1,0 +1,11 @@
+################################################################################
+#
+# Verify that a post-recovery change-buffer merge uses the configured encrypted
+# mode.
+#
+################################################################################
+
+--let $REDO_RECOVERY_ENCRYPTION = 1
+--let REDO_MARKERS_NOT_VISIBLE_IN_PLAINTEXT = b,c,x
+--let REDO_MARKERS_VISIBLE_IN_PLAINTEXT =
+--source ../include/redo_log_encryption_recovery.inc

@@ -1,3 +1,6 @@
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
 # Check if a DDL operation can be interrupted.
 CREATE PROCEDURE insert_rows(IN BASE INT, IN SIZE INT)
 BEGIN
@@ -37,3 +40,5 @@ ERROR 70100: Query execution was interrupted
 SET DEBUG_SYNC="RESET";
 DROP PROCEDURE insert_rows;
 DROP TABLE t;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

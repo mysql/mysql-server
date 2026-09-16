@@ -22,6 +22,7 @@ call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': 
 call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Error 'Table 't1' already exists' on query.*");
 call mtr.add_suppression("Replica: Table 't1' already exists Error_code: MY-001050");
 call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Change Stream Applier channel stopped because of error*");
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 SET SESSION sql_log_bin= 1;
 SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;

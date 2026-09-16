@@ -51,6 +51,9 @@
 # BUG#19774317 GTID_NEXT WITH EMPTY TRANSACTIONS DOES NOT WORK INSIDE STORED PROCEDURES
 # - Addressing gtid_next with empty transaction inside stored procedure.
 
+# See rpl_gtid_empty_transaction_csa
+--source include/have_mta.inc
+
 --let $rpl_topology= 1->2->3
 --let $rpl_gtid_utils= 1
 --source include/rpl/init.inc

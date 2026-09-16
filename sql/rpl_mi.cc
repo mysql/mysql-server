@@ -185,6 +185,8 @@ Master_info::Master_info(
       key_info_rotate_cond(param_key_info_rotate_cond),
 #endif
       ssl(true),
+      force_pqc(false),
+      use_pqc_sign(false),
       ssl_verify_server_cert(false),
       get_public_key(false),
       port(MYSQL_PORT),
@@ -215,6 +217,7 @@ Master_info::Master_info(
   ssl_cipher[0] = 0;
   ssl_key[0] = 0;
   tls_version[0] = 0;
+  tls_kex[0] = 0;
   ssl_crl[0] = 0;
   ssl_crlpath[0] = 0;
   master_uuid[0] = 0;

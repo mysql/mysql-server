@@ -751,9 +751,7 @@ zlib_done:
                d_stream->next_out);
   }
 
-#ifdef UNIV_DEBUG
   page_zip->m_start = PAGE_DATA + d_stream->total_in;
-#endif /* UNIV_DEBUG */
 
   /* Apply the modification log. */
   {
@@ -766,7 +764,6 @@ zlib_done:
       return false;
     }
     page_zip->m_end = mod_log_ptr - page_zip->data;
-    page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
   }
 
   if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, index->is_clustered()) +
@@ -895,9 +892,7 @@ zlib_done:
                d_stream->next_out);
   }
 
-#ifdef UNIV_DEBUG
   page_zip->m_start = PAGE_DATA + d_stream->total_in;
-#endif /* UNIV_DEBUG */
 
   /* Apply the modification log. */
   {
@@ -910,7 +905,6 @@ zlib_done:
       return false;
     }
     page_zip->m_end = mod_log_ptr - page_zip->data;
-    page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
   }
 
   if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, false) +
@@ -1297,9 +1291,7 @@ zlib_done:
                d_stream->next_out);
   }
 
-#ifdef UNIV_DEBUG
   page_zip->m_start = PAGE_DATA + d_stream->total_in;
-#endif /* UNIV_DEBUG */
 
   /* Apply the modification log. */
   {
@@ -1312,7 +1304,6 @@ zlib_done:
       return false;
     }
     page_zip->m_end = mod_log_ptr - page_zip->data;
-    page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
   }
 
   if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, true) +
@@ -1403,7 +1394,7 @@ zlib_done:
  @return true on success, false on failure */
 bool page_zip_decompress_low(
     page_zip_des_t *page_zip, /*!< in: data, ssize;
-                             out: m_start, m_end, m_nonempty, n_blobs */
+                              out: m_start, m_end, n_blobs */
     page_t *page,             /*!< out: uncompressed page, may be trashed */
     bool all)                 /*!< in: true=decompress the whole page;
                                false=verify but do not copy some

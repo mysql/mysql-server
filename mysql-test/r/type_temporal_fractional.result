@@ -2512,9 +2512,9 @@ ERROR 42000: Too-big precision 31 specified for 'a'. Maximum is 6.
 SELECT CURTIME(-1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)' at line 1
 SELECT CURTIME(7);
-ERROR 42000: Too-big precision 7 specified for 'curtime'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
 SELECT CURTIME(31);
-ERROR 42000: Too-big precision 31 specified for 'curtime'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'datetime precision'. Maximum is 6.
 #
 # Testing INSERT, ORDER, KEY, BETWEEN, comparison
 #
@@ -7054,15 +7054,15 @@ ERROR 42000: Too-big precision 31 specified for 'a'. Maximum is 6.
 SELECT SYSDATE(-1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)' at line 1
 SELECT SYSDATE(7);
-ERROR 42000: Too-big precision 7 specified for 'sysdate'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
 SELECT SYSDATE(31);
-ERROR 42000: Too-big precision 31 specified for 'sysdate'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'datetime precision'. Maximum is 6.
 SELECT NOW(-1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)' at line 1
 SELECT NOW(7);
-ERROR 42000: Too-big precision 7 specified for 'now'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
 SELECT NOW(31);
-ERROR 42000: Too-big precision 31 specified for 'now'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'datetime precision'. Maximum is 6.
 #
 # Testing INSERT, ORDER, KEY, BETWEEN, comparison
 #
@@ -17730,3 +17730,249 @@ NULL
 SELECT current_time IN ( MAX(NULL), 1 );
 current_time IN ( MAX(NULL), 1 )
 NULL
+#
+# Bug#37141651: handling of fsp > 255 is incorrect
+#
+# NOW precision
+SELECT NOW(6);
+NOW(6)
+NOW
+SELECT NOW(+6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+6)' at line 1
+SELECT NOW(-6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-6)' at line 1
+SELECT NOW(  6);
+NOW(  6)
+NOW
+SELECT NOW(6  );
+NOW(6  )
+NOW
+SELECT NOW( 0006);
+NOW( 0006)
+NOW
+SELECT NOW(7);
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
+SELECT NOW(255);
+ERROR 42000: Too-big precision 255 specified for 'datetime precision'. Maximum is 6.
+SELECT NOW(256);
+ERROR 42000: Too-big precision 256 specified for 'datetime precision'. Maximum is 6.
+SELECT NOW(999999999);
+ERROR 42000: Too-big precision 999999999 specified for 'datetime precision'. Maximum is 6.
+SELECT NOW(9999999999);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '9999999999)' at line 1
+# CURTIME precision
+SELECT CURTIME(6);
+CURTIME(6)
+CURTIME
+SELECT CURTIME(+6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+6)' at line 1
+SELECT CURTIME(-6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-6)' at line 1
+SELECT CURTIME(  6);
+CURTIME(  6)
+CURTIME
+SELECT CURTIME(6  );
+CURTIME(6  )
+CURTIME
+SELECT CURTIME( 0006);
+CURTIME( 0006)
+CURTIME
+SELECT CURTIME(7);
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
+SELECT CURTIME(255);
+ERROR 42000: Too-big precision 255 specified for 'datetime precision'. Maximum is 6.
+SELECT CURTIME(256);
+ERROR 42000: Too-big precision 256 specified for 'datetime precision'. Maximum is 6.
+SELECT CURTIME(999999999);
+ERROR 42000: Too-big precision 999999999 specified for 'datetime precision'. Maximum is 6.
+SELECT CURTIME(9999999999);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '9999999999)' at line 1
+# CURRENT_TIME precision
+SELECT CURRENT_TIME(6);
+CURRENT_TIME(6)
+CURRENT_TIME
+SELECT CURRENT_TIME(+6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+6)' at line 1
+SELECT CURRENT_TIME(-6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-6)' at line 1
+SELECT CURRENT_TIME(  6);
+CURRENT_TIME(  6)
+CURRENT_TIME
+SELECT CURRENT_TIME(6  );
+CURRENT_TIME(6  )
+CURRENT_TIME
+SELECT CURRENT_TIME( 0006);
+CURRENT_TIME( 0006)
+CURRENT_TIME
+SELECT CURRENT_TIME(7);
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
+SELECT CURRENT_TIME(255);
+ERROR 42000: Too-big precision 255 specified for 'datetime precision'. Maximum is 6.
+SELECT CURRENT_TIME(256);
+ERROR 42000: Too-big precision 256 specified for 'datetime precision'. Maximum is 6.
+SELECT CURRENT_TIME(999999999);
+ERROR 42000: Too-big precision 999999999 specified for 'datetime precision'. Maximum is 6.
+SELECT CURRENT_TIME(9999999999);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '9999999999)' at line 1
+# UTC_TIME precision
+SELECT UTC_TIME(6);
+UTC_TIME(6)
+UTC_TIME
+SELECT UTC_TIME(+6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+6)' at line 1
+SELECT UTC_TIME(-6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-6)' at line 1
+SELECT UTC_TIME(  6);
+UTC_TIME(  6)
+UTC_TIME
+SELECT UTC_TIME(6  );
+UTC_TIME(6  )
+UTC_TIME
+SELECT UTC_TIME( 0006);
+UTC_TIME( 0006)
+UTC_TIME
+SELECT UTC_TIME(7);
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
+SELECT UTC_TIME(255);
+ERROR 42000: Too-big precision 255 specified for 'datetime precision'. Maximum is 6.
+SELECT UTC_TIME(256);
+ERROR 42000: Too-big precision 256 specified for 'datetime precision'. Maximum is 6.
+SELECT UTC_TIME(999999999);
+ERROR 42000: Too-big precision 999999999 specified for 'datetime precision'. Maximum is 6.
+SELECT UTC_TIME(9999999999);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '9999999999)' at line 1
+# CURRENT_TIMESTAMP precision
+SELECT CURRENT_TIMESTAMP(6);
+CURRENT_TIMESTAMP(6)
+CURRENT_TIMESTAMP
+SELECT CURRENT_TIMESTAMP(+6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+6)' at line 1
+SELECT CURRENT_TIMESTAMP(-6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-6)' at line 1
+SELECT CURRENT_TIMESTAMP(  6);
+CURRENT_TIMESTAMP(  6)
+CURRENT_TIMESTAMP
+SELECT CURRENT_TIMESTAMP(6  );
+CURRENT_TIMESTAMP(6  )
+CURRENT_TIMESTAMP
+SELECT CURRENT_TIMESTAMP( 0006);
+CURRENT_TIMESTAMP( 0006)
+CURRENT_TIMESTAMP
+SELECT CURRENT_TIMESTAMP(7);
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
+SELECT CURRENT_TIMESTAMP(255);
+ERROR 42000: Too-big precision 255 specified for 'datetime precision'. Maximum is 6.
+SELECT CURRENT_TIMESTAMP(256);
+ERROR 42000: Too-big precision 256 specified for 'datetime precision'. Maximum is 6.
+SELECT CURRENT_TIMESTAMP(999999999);
+ERROR 42000: Too-big precision 999999999 specified for 'datetime precision'. Maximum is 6.
+SELECT CURRENT_TIMESTAMP(9999999999);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '9999999999)' at line 1
+# LOCALTIME precision
+SELECT LOCALTIME(6);
+LOCALTIME(6)
+LOCALTIME
+SELECT LOCALTIME(+6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+6)' at line 1
+SELECT LOCALTIME(-6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-6)' at line 1
+SELECT LOCALTIME(  6);
+LOCALTIME(  6)
+LOCALTIME
+SELECT LOCALTIME(6  );
+LOCALTIME(6  )
+LOCALTIME
+SELECT LOCALTIME( 0006);
+LOCALTIME( 0006)
+LOCALTIME
+SELECT LOCALTIME(7);
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
+SELECT LOCALTIME(255);
+ERROR 42000: Too-big precision 255 specified for 'datetime precision'. Maximum is 6.
+SELECT LOCALTIME(256);
+ERROR 42000: Too-big precision 256 specified for 'datetime precision'. Maximum is 6.
+SELECT LOCALTIME(999999999);
+ERROR 42000: Too-big precision 999999999 specified for 'datetime precision'. Maximum is 6.
+SELECT LOCALTIME(9999999999);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '9999999999)' at line 1
+# LOCALTIMESTAMP precsion
+SELECT LOCALTIMESTAMP(6);
+LOCALTIMESTAMP(6)
+LOCALTIMESTAMP
+SELECT LOCALTIMESTAMP(+6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+6)' at line 1
+SELECT LOCALTIMESTAMP(-6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-6)' at line 1
+SELECT LOCALTIMESTAMP(  6);
+LOCALTIMESTAMP(  6)
+LOCALTIMESTAMP
+SELECT LOCALTIMESTAMP(6  );
+LOCALTIMESTAMP(6  )
+LOCALTIMESTAMP
+SELECT LOCALTIMESTAMP( 0006);
+LOCALTIMESTAMP( 0006)
+LOCALTIMESTAMP
+SELECT LOCALTIMESTAMP(7);
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
+SELECT LOCALTIMESTAMP(255);
+ERROR 42000: Too-big precision 255 specified for 'datetime precision'. Maximum is 6.
+SELECT LOCALTIMESTAMP(256);
+ERROR 42000: Too-big precision 256 specified for 'datetime precision'. Maximum is 6.
+SELECT LOCALTIMESTAMP(999999999);
+ERROR 42000: Too-big precision 999999999 specified for 'datetime precision'. Maximum is 6.
+SELECT LOCALTIMESTAMP(9999999999);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '9999999999)' at line 1
+# UTC_TIMESTAMP precision
+SELECT UTC_TIMESTAMP(6);
+UTC_TIMESTAMP(6)
+UTC_TIMESTAMP
+SELECT UTC_TIMESTAMP(+6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+6)' at line 1
+SELECT UTC_TIMESTAMP(-6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-6)' at line 1
+SELECT UTC_TIMESTAMP(  6);
+UTC_TIMESTAMP(  6)
+UTC_TIMESTAMP
+SELECT UTC_TIMESTAMP(6  );
+UTC_TIMESTAMP(6  )
+UTC_TIMESTAMP
+SELECT UTC_TIMESTAMP( 0006);
+UTC_TIMESTAMP( 0006)
+UTC_TIMESTAMP
+SELECT UTC_TIMESTAMP(7);
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
+SELECT UTC_TIMESTAMP(255);
+ERROR 42000: Too-big precision 255 specified for 'datetime precision'. Maximum is 6.
+SELECT UTC_TIMESTAMP(256);
+ERROR 42000: Too-big precision 256 specified for 'datetime precision'. Maximum is 6.
+SELECT UTC_TIMESTAMP(999999999);
+ERROR 42000: Too-big precision 999999999 specified for 'datetime precision'. Maximum is 6.
+SELECT UTC_TIMESTAMP(9999999999);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '9999999999)' at line 1
+# SYSDATE precision
+SELECT SYSDATE(6);
+SYSDATE(6)
+SYSDATE
+SELECT SYSDATE(+6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+6)' at line 1
+SELECT SYSDATE(-6);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-6)' at line 1
+SELECT SYSDATE(  6);
+SYSDATE(  6)
+SYSDATE
+SELECT SYSDATE(6  );
+SYSDATE(6  )
+SYSDATE
+SELECT SYSDATE( 0006);
+SYSDATE( 0006)
+SYSDATE
+SELECT SYSDATE(7);
+ERROR 42000: Too-big precision 7 specified for 'datetime precision'. Maximum is 6.
+SELECT SYSDATE(255);
+ERROR 42000: Too-big precision 255 specified for 'datetime precision'. Maximum is 6.
+SELECT SYSDATE(256);
+ERROR 42000: Too-big precision 256 specified for 'datetime precision'. Maximum is 6.
+SELECT SYSDATE(999999999);
+ERROR 42000: Too-big precision 999999999 specified for 'datetime precision'. Maximum is 6.
+SELECT SYSDATE(9999999999);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '9999999999)' at line 1

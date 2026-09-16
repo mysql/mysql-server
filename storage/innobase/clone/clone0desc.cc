@@ -33,22 +33,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "clone0desc.h"
 #include "dict0dict.h"
 #include "mach0data.h"
+#include "storage/innobase/include/clone_descriptor_format.h"
 
-/** Maximum supported descriptor version. The version represents the current
-set of descriptors and its elements. */
-static const uint CLONE_DESC_MAX_VERSION = 100;
+using namespace clone_desc_format;
 
-/** Header: Version is in first 4 bytes */
-static const uint CLONE_DESC_VER_OFFSET = 0;
-
-/** Header: Total length is stored in next 4 bytes */
-static const uint CLONE_DESC_LEN_OFFSET = CLONE_DESC_VER_OFFSET + 4;
-
-/** Header: Descriptor type is in next 4 bytes */
-static const uint CLONE_DESC_TYPE_OFFSET = CLONE_DESC_LEN_OFFSET + 4;
-
-/** Header: Fixed length. */
-static const uint CLONE_DESC_HEADER_LEN = CLONE_DESC_TYPE_OFFSET + 4;
+static_assert(clone_desc_format::CLONE_DESC_FILE_METADATA_TYPE ==
+              CLONE_DESC_FILE_METADATA);
 
 uint choose_desc_version(const byte *ref_loc) {
   if (ref_loc == nullptr) {
@@ -90,18 +80,6 @@ bool Clone_Desc_Header::deserialize(const byte *desc_hdr, uint desc_len) {
   m_type = static_cast<Clone_Desc_Type>(int_type);
   return (true);
 }
-
-/** Task: Clone task index in 4 bytes */
-static const uint CLONE_TASK_INDEX_OFFSET = CLONE_DESC_HEADER_LEN;
-
-/** Task: Task chunk number in 4 bytes */
-static const uint CLONE_TASK_CHUNK_OFFSET = CLONE_TASK_INDEX_OFFSET + 4;
-
-/** Task: Task block number in 4 bytes */
-static const uint CLONE_TASK_BLOCK_OFFSET = CLONE_TASK_CHUNK_OFFSET + 4;
-
-/** Task: Total length */
-static const uint CLONE_TASK_META_LEN = CLONE_TASK_BLOCK_OFFSET + 4;
 
 /** Initialize header
 @param[in]      version descriptor version */
@@ -146,24 +124,6 @@ bool Clone_Desc_Task_Meta::deserialize(const byte *desc_task, uint desc_len) {
       mach_read_from_4(desc_task + CLONE_TASK_BLOCK_OFFSET);
   return (true);
 }
-
-/** Locator: Clone identifier in 8 bytes */
-static const uint CLONE_LOC_CID_OFFSET = CLONE_DESC_HEADER_LEN;
-
-/** Locator: Snapshot identifier in 8 bytes */
-static const uint CLONE_LOC_SID_OFFSET = CLONE_LOC_CID_OFFSET + 8;
-
-/** Locator: Clone array index in 4 bytes */
-static const uint CLONE_LOC_IDX_OFFSET = CLONE_LOC_SID_OFFSET + 8;
-
-/** Locator: Clone Snapshot state in 1 byte */
-static const uint CLONE_LOC_STATE_OFFSET = CLONE_LOC_IDX_OFFSET + 4;
-
-/** Locator: Clone Snapshot sub-state in 1 byte */
-static const uint CLONE_LOC_META_OFFSET = CLONE_LOC_STATE_OFFSET + 1;
-
-/** Locator: Total length */
-static const uint CLONE_DESC_LOC_BASE_LEN = CLONE_LOC_META_OFFSET + 1;
 
 uint32_t *Chnunk_Bitmap::reset(uint32_t max_bits, mem_heap_t *heap) {
   m_bits = max_bits;
@@ -603,57 +563,6 @@ inline void DESC_SET_FLAG(ulint &flag, ulint bit) {
   flag |= static_cast<ulint>(1ULL << (bit - 1));
 }
 
-/** File Metadata: Snapshot state in 4 bytes */
-static const uint CLONE_FILE_STATE_OFFSET = CLONE_DESC_HEADER_LEN;
-
-/** File Metadata: File size in 8 bytes */
-static const uint CLONE_FILE_SIZE_OFFSET = CLONE_FILE_STATE_OFFSET + 4;
-
-/** File Metadata: Sparse file allocation size on disk in 8 bytes */
-static const uint CLONE_FILE_ALLOC_SIZE_OFFSET = CLONE_FILE_SIZE_OFFSET + 8;
-
-/** File Metadata: FSP flags in 4 bytes */
-static const uint CLONE_FILE_FSP_OFFSET = CLONE_FILE_ALLOC_SIZE_OFFSET + 8;
-
-/** File Metadata: File system block size for compressed tables in 4 bytes. */
-static const uint CLONE_FILE_FSBLK_OFFSET = CLONE_FILE_FSP_OFFSET + 4;
-
-/** File Metadata: File space flags in next 2 bytes [Maximum 16 flags] */
-static const uint CLONE_FILE_FLAGS_OFFSET = CLONE_FILE_FSBLK_OFFSET + 4;
-/** Clone File Flag: Compression type ZLIB*/
-static const uint CLONE_DESC_FILE_FLAG_ZLIB = 1;
-/** Clone File Flag: Compression type LZ4*/
-static const uint CLONE_DESC_FILE_FLAG_LZ4 = 2;
-/** Clone File Flag: Encryption type AES */
-static const uint CLONE_DESC_FILE_FLAG_AES = 3;
-/** Clone File Flag: File is renamed. */
-static const uint CLONE_DESC_FILE_FLAG_RENAMED = 4;
-/** Clone File Flag: File is deleted. */
-static const uint CLONE_DESC_FILE_FLAG_DELETED = 5;
-/** Clone File Flag: File metadata has encryption key. */
-static const uint CLONE_DESC_FILE_HAS_KEY = 6;
-
-/** File Metadata: Tablespace ID in 4 bytes */
-static const uint CLONE_FILE_SPACE_ID_OFFSET = CLONE_FILE_FLAGS_OFFSET + 2;
-
-/** File Metadata: File index in 4 bytes */
-static const uint CLONE_FILE_IDX_OFFSET = CLONE_FILE_SPACE_ID_OFFSET + 4;
-
-/** File Metadata: First chunk number in 4 bytes */
-static const uint CLONE_FILE_BCHUNK_OFFSET = CLONE_FILE_IDX_OFFSET + 4;
-
-/** File Metadata: Last chunk number in 4 bytes */
-static const uint CLONE_FILE_ECHUNK_OFFSET = CLONE_FILE_BCHUNK_OFFSET + 4;
-
-/** File Metadata: File name length in 4 bytes */
-static const uint CLONE_FILE_FNAMEL_OFFSET = CLONE_FILE_ECHUNK_OFFSET + 4;
-
-/** File Metadata: File name */
-static const uint CLONE_FILE_FNAME_OFFSET = CLONE_FILE_FNAMEL_OFFSET + 4;
-
-/** File Metadata: Length excluding the file name */
-static const uint CLONE_FILE_BASE_LEN = CLONE_FILE_FNAME_OFFSET;
-
 void Clone_Desc_File_MetaData::init_header(uint version) {
   m_header.m_version = version;
 
@@ -873,36 +782,6 @@ bool Clone_Desc_File_MetaData::deserialize(const byte *desc_file,
   return (true);
 }
 
-/** Clone State: Snapshot state in 4 bytes */
-static const uint CLONE_DESC_STATE_OFFSET = CLONE_DESC_HEADER_LEN;
-
-/** Clone State: Task index in 4 bytes */
-static const uint CLONE_DESC_TASK_OFFSET = CLONE_DESC_STATE_OFFSET + 4;
-
-/** Clone State: Number of chunks in 4 bytes */
-static const uint CLONE_DESC_STATE_NUM_CHUNKS = CLONE_DESC_TASK_OFFSET + 4;
-
-/** Clone State: Number of files in 4 bytes */
-static const uint CLONE_DESC_STATE_NUM_FILES = CLONE_DESC_STATE_NUM_CHUNKS + 4;
-
-/** Clone State: Estimated number of bytes in 8 bytes */
-static const uint CLONE_DESC_STATE_EST_BYTES = CLONE_DESC_STATE_NUM_FILES + 4;
-
-/** Clone State: Estimated number of bytes in 8 bytes */
-static const uint CLONE_DESC_STATE_EST_DISK = CLONE_DESC_STATE_EST_BYTES + 8;
-
-/** Clone State: flags in 2 byte [max 16 flags] */
-static const uint CLONE_DESC_STATE_FLAGS = CLONE_DESC_STATE_EST_DISK + 8;
-
-/** Clone State: Total length */
-static const uint CLONE_DESC_STATE_LEN = CLONE_DESC_STATE_FLAGS + 2;
-
-/** Clone State Flag: Start processing state */
-static const uint CLONE_DESC_STATE_FLAG_START = 1;
-
-/** Clone State Flag: Acknowledge processing state */
-static const uint CLONE_DESC_STATE_FLAG_ACK = 2;
-
 void Clone_Desc_State::init_header(uint version) {
   m_header.m_version = version;
 
@@ -974,35 +853,6 @@ bool Clone_Desc_State::deserialize(const byte *desc_state, uint desc_len) {
 
   return (true);
 }
-
-/** Clone Data: Snapshot state in 4 bytes */
-static const uint CLONE_DATA_STATE_OFFSET = CLONE_DESC_HEADER_LEN;
-
-/** Clone Data: Task index in 4 bytes */
-static const uint CLONE_DATA_TASK_INDEX_OFFSET = CLONE_DATA_STATE_OFFSET + 4;
-
-/** Clone Data: Current chunk number in 4 bytes */
-static const uint CLONE_DATA_TASK_CHUNK_OFFSET =
-    CLONE_DATA_TASK_INDEX_OFFSET + 4;
-
-/** Clone Data: Current block number in 4 bytes */
-static const uint CLONE_DATA_TASK_BLOCK_OFFSET =
-    CLONE_DATA_TASK_CHUNK_OFFSET + 4;
-
-/** Clone Data: Data file index in 4 bytes */
-static const uint CLONE_DATA_FILE_IDX_OFFSET = CLONE_DATA_TASK_BLOCK_OFFSET + 4;
-
-/** Clone Data: Data length in 4 bytes */
-static const uint CLONE_DATA_LEN_OFFSET = CLONE_DATA_FILE_IDX_OFFSET + 4;
-
-/** Clone Data: Data file offset in 8 bytes */
-static const uint CLONE_DATA_FOFF_OFFSET = CLONE_DATA_LEN_OFFSET + 4;
-
-/** Clone Data: Updated file size in 8 bytes */
-static const uint CLONE_DATA_FILE_SIZE_OFFSET = CLONE_DATA_FOFF_OFFSET + 8;
-
-/** Clone Data: Total length */
-static const uint CLONE_DESC_DATA_LEN = CLONE_DATA_FILE_SIZE_OFFSET + 8;
 
 void Clone_Desc_Data::init_header(uint version) {
   m_header.m_version = version;

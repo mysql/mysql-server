@@ -212,10 +212,13 @@ class DD_bootstrap_ctx {
             m_upgraded_server_version > compare_upgraded_server_version);
   }
 
-  bool is_minor_downgrade() const {
-    return !opt_initialize &&
-           (m_actual_dd_version / 10000 == dd::DD_VERSION / 10000) &&
-           (m_actual_dd_version > dd::DD_VERSION);
+  /*
+    DD_VERSION is just a schema label, so server version components are not a
+    DD compatibility boundary. The persisted MINOR_DOWNGRADE_THRESHOLD later
+    decides whether this downgrade is allowed.
+  */
+  bool is_dd_downgrade() const {
+    return !opt_initialize && (m_actual_dd_version > dd::DD_VERSION);
   }
 
   bool is_above_minor_downgrade_threshold(THD *thd) const;

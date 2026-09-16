@@ -52,7 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "fts0fts.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "read0read.h"
+
 #include "sql/handler.h"  // Xa_state_list
 #include "srv0srv.h"
 
@@ -65,7 +65,7 @@ extern std::vector<std::pair<trx_id_t, table_id_t>> to_rollback_trx_tables;
 struct mtr_t;
 
 // Forward declaration
-class ReadView;
+class Read_view_interface;
 
 // Forward declaration
 class Flush_observer;
@@ -143,11 +143,6 @@ void trx_disconnect_prepared(trx_t *trx);
 void trx_lists_init_at_db_start(void);
 
 /** Starts the transaction if it is not yet started.
-@param[in,out] trx Transaction
-@param[in] read_write True if read write transaction */
-void trx_start_if_not_started_xa_low(trx_t *trx, bool read_write);
-
-/** Starts the transaction if it is not yet started.
 @param[in] trx Transaction
 @param[in] read_write True if read write transaction */
 void trx_start_if_not_started_low(trx_t *trx, bool read_write);
@@ -210,14 +205,14 @@ void trx_commit_complete_for_mysql(trx_t *trx); /*!< in/out: transaction */
 void trx_mark_sql_stat_end(trx_t *trx); /*!< in: trx handle */
 /** Assigns a read view for a consistent read query. All the consistent reads
  within the same transaction will get the same read view, which is created
- when this function is first called for a new started transaction. */
-ReadView *trx_assign_read_view(trx_t *trx); /*!< in: active transaction */
+ when this function is first called for a new started transaction.
+@param[in]    trx   active transaction */
+void trx_assign_read_view(trx_t *trx);
 
-/** @return the transaction's read view or NULL if one not assigned. */
-static inline ReadView *trx_get_read_view(trx_t *trx);
-
-/** @return the transaction's read view or NULL if one not assigned. */
-static inline const ReadView *trx_get_read_view(const trx_t *trx);
+/** Get the view which was open by this transaction, if any.
+@param trx              the transaction the view of which we are interested in
+@return the transaction's read view or nullptr if has no open view. */
+[[nodiscard]] const Read_view_interface *trx_get_read_view(const trx_t *trx);
 
 /** Prepares a transaction for commit/rollback. */
 void trx_commit_or_rollback_prepare(trx_t *trx); /*!< in/out: transaction */
@@ -806,8 +801,10 @@ struct trx_t {
   concurrent unique insert or replace operation. */
   bool skip_lock_inheritance;
 
-  ReadView *read_view; /*!< consistent read view used in the
-                       transaction, or NULL if not yet set */
+  /** Consistent read view used in the transaction, or nullptr if not yet set.
+  Even if not null, it might be in "closed" state, which can be checked via
+  trx_sys->mvcc->is_view_open(trx->read_view) */
+  Read_view_interface *read_view;
 
   UT_LIST_NODE_T(trx_t)
   trx_list; /*!< list of transactions;
@@ -1001,6 +998,16 @@ struct trx_t {
                         with no gaps; thus it represents
                         the number of modified/inserted
                         rows in a transaction */
+
+  /** This is used to create a skip-list of the undo log pages which we need to
+  read during recovery to reconstruct the full set of table ids modified by
+  this transaction. Whenever this transaction modifies another table for the
+  first time, and we generate an undo log record about it, we note the page
+  number on which it happened. We only care about non-temporary tables, for
+  which changes are described in redo-logged undo logs of two types:
+  [0] = INSERT log, [1] = UPDATE */
+  std::array<page_no_t, 2> undo_page_with_last_new_table_mod{};
+
   space_id_t undo_rseg_space;
   /*!< space id where last undo record
   was written */
@@ -1176,26 +1183,6 @@ static inline void assert_trx_in_rw_list(const trx_t *t) {
   check_trx_state(t);
 }
 
-/** Check if transaction is free so that it can be re-initialized.
-@param t transaction handle */
-static inline void assert_trx_is_free(const trx_t *t) {
-  ut_ad(trx_state_eq(t, TRX_STATE_NOT_STARTED) ||
-        trx_state_eq(t, TRX_STATE_FORCED_ROLLBACK));
-  ut_ad(!trx_is_rseg_updated(t));
-  ut_ad(!MVCC::is_view_active(t->read_view));
-  ut_ad((t)->lock.wait_thr == nullptr);
-  ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);
-  ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);
-}
-
-/** Check if transaction is in-active so that it can be freed and put back to
-transaction pool.
-@param t transaction handle */
-static inline void assert_trx_is_inactive(const trx_t *t) {
-  assert_trx_is_free(t);
-  ut_ad(t->dict_operation_lock_mode == 0);
-}
-
 #ifdef UNIV_DEBUG
 /** Assert that an autocommit non-locking select cannot be in the
  rw_trx_list and that it is a read-only transaction.
@@ -1253,49 +1240,32 @@ static inline uint64_t TRX_WEIGHT(const trx_t *t) {
   return t->undo_no + UT_LIST_GET_LEN(t->lock.trx_locks);
 }
 
+static inline void trx_start_if_not_started(trx_t *t, bool rw,
+                                            ut::Location l [[maybe_unused]]) {
 #ifdef UNIV_DEBUG
-static inline void trx_start_if_not_started_xa(trx_t *t, bool rw,
-                                               ut::Location loc) {
-  t->start_line = loc.line;
-  t->start_file = loc.filename;
-  trx_start_if_not_started_xa_low(t, rw);
-}
-
-static inline void trx_start_if_not_started(trx_t *t, bool rw, ut::Location l) {
   t->start_line = l.line;
   t->start_file = l.filename;
-  trx_start_if_not_started_low(t, rw);
-}
-
-static inline void trx_start_internal(trx_t *t, ut::Location loc) {
-  t->start_line = loc.line;
-  t->start_file = loc.filename;
-  trx_start_internal_low(t);
-}
-
-static inline void trx_start_internal_read_only(trx_t *t, ut::Location loc) {
-  t->start_line = loc.line;
-  t->start_file = loc.filename;
-  trx_start_internal_read_only_low(t);
-}
-#else
-static inline void trx_start_if_not_started_xa(trx_t *t, bool rw,
-                                               ut::Location loc) {
-  trx_start_if_not_started_low(t, rw);
-}
-
-static inline void trx_start_internal(trx_t *t, ut::Location loc) {
-  trx_start_internal_low(t);
-}
-
-static inline void trx_start_internal_read_only(trx_t *t, ut::Location loc) {
-  trx_start_internal_read_only_low(t);
-}
-
-static inline void trx_start_if_not_started(trx_t *t, bool rw, ut::Location l) {
-  trx_start_if_not_started_xa_low(t, rw);
-}
 #endif /* UNIV_DEBUG */
+  trx_start_if_not_started_low(t, rw);
+}
+
+static inline void trx_start_internal(trx_t *t,
+                                      ut::Location loc [[maybe_unused]]) {
+#ifdef UNIV_DEBUG
+  t->start_line = loc.line;
+  t->start_file = loc.filename;
+#endif /* UNIV_DEBUG */
+  trx_start_internal_low(t);
+}
+
+static inline void trx_start_internal_read_only(trx_t *t, ut::Location loc
+                                                [[maybe_unused]]) {
+#ifdef UNIV_DEBUG
+  t->start_line = loc.line;
+  t->start_file = loc.filename;
+#endif /* UNIV_DEBUG */
+  trx_start_internal_read_only_low(t);
+}
 
 /* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED trx_t::READ_UNCOMMITTED

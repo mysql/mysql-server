@@ -133,7 +133,12 @@
 #      transaction, leading to the following lock acquisition dependencies:
 #      Worker 1 --data lock--> Client B.
 #   3. On the source, issue `XA COMMIT` to allow the applier worker threads
-#      to finish applying.
+#      to finish applying and release the prepared XA row lock.
+#      Note: under CSA, the worker can advance fast enough to finish `XA
+#      PREPARE` before the client acquires the conflicting row lock. At
+#      that point the scenario has already moved past the intended retry
+#      window, so CSA coverage for this condition lives in
+#      `rpl_csa_xa_retry.test`.
 #
 # ==== References ====
 #
@@ -154,11 +159,16 @@
 #              DEADLOCK HAPPENS
 # BUG#29512103 OPTIMIZE TABLE CAUSE THE SLAVE MTS DEADLOCK!
 #
+# TC5 is retained only for MTA in this shared test. CSA coverage uses the
+# dedicated rpl_gtid_mts_spco_deadlock_other_locks_retries_csa and
+# rpl_csa_xa_retry tests instead.
+--source include/have_mta.inc
 --source include/have_debug_sync.inc
 --let $rpl_privilege_checks_user = *:'applier'@'localhost'
 --source include/rpl/init_source_replica.inc
 
 CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+CALL mtr.add_suppression(".*Error in Xid_log_event: Commit could not be completed, 'Deadlock found when trying to get lock; try restarting transaction'.*");
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES

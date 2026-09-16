@@ -58,6 +58,16 @@ bool File_class::remove(const char *aFileName) {
   return ::remove(aFileName) == 0;
 }
 
+bool File_class::realpath(const char *name, char *resolved, size_t len) {
+#ifdef _WIN32
+  return (GetFullPathName(name, len, resolved, nullptr) > 0);
+#else
+  assert(len >= PATH_MAX);
+  if (len < PATH_MAX) return false;
+  return (bool)::realpath(name, resolved);
+#endif
+}
+
 File_class::File_class() : m_file(nullptr), m_fileMode("r") {}
 
 File_class::File_class(const char *aFileName, const char *mode)

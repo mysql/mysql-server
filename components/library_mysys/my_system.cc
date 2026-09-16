@@ -34,6 +34,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <new>
 #include <optional>
 #include <thread>
 
@@ -62,7 +63,7 @@ inline bool string_to_bool(const std::string &input) {
 }
 
 inline std::optional<ulonglong> string_to_ull(const std::string &input) {
-  if (input[0] == '-') {
+  if (input.empty() || input[0] == '-') {
     return std::nullopt;
   }
 
@@ -91,11 +92,13 @@ bool init_container_aware(const std::string &is_container_aware) noexcept {
 }
 
 bool init_container_aware(const bool is_container_aware) noexcept {
-  should_use_container_config = new bool{is_container_aware};
+  should_use_container_config = new (std::nothrow) bool{is_container_aware};
+  if (should_use_container_config == nullptr) {
+    return false;
+  }
 
 #ifndef _WIN32
-  if (should_use_container_config && *should_use_container_config &&
-      !is_running_in_cgroup()) {
+  if (*should_use_container_config && !is_running_in_cgroup()) {
     return false;
   }
   return true;
@@ -150,7 +153,10 @@ static inline uint64_t total_physical_memory() noexcept {
 bool init_my_physical_memory(const std::string &memory) {
   const auto server_memory = string_to_ull(memory);
   assert(server_memory.has_value());
-  return init_my_physical_memory(server_memory.value());
+  if (!server_memory.has_value()) {
+    return false;
+  }
+  return init_my_physical_memory(*server_memory);
 }
 
 bool init_my_physical_memory(ulonglong memory) {

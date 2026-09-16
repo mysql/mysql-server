@@ -37,7 +37,9 @@ enum Duality_view_tags : int {
   DVT_DELETE = 4,
   DVT_NOINSERT = 8,
   DVT_NOUPDATE = 16,
-  DVT_NODELETE = 32
+  DVT_NODELETE = 32,
+  DVT_CHECK = 64,
+  DVT_NOCHECK = 128
 };
 
 constexpr std::size_t VOID_COLUMN_INDEX =
@@ -100,6 +102,10 @@ class Key_column_info {
   bool allows_delete() const {
     return static_cast<bool>(m_column_tags & DVT_DELETE);
   }
+  [[nodiscard]] bool allows_check() const {
+    return static_cast<bool>(m_column_tags & DVT_CHECK);
+  }
+
   bool read_only() const {
     return !(m_column_tags & (DVT_INSERT | DVT_UPDATE | DVT_DELETE));
   }
@@ -241,6 +247,10 @@ class Content_tree_node {
 
   bool allows_delete() const { return (table_tags() & DVT_DELETE) != 0; }
 
+  [[nodiscard]] bool allows_check() const {
+    return (table_tags() & DVT_CHECK) != 0;
+  }
+
   bool read_only() const {
     return !allows_insert() && !allows_update() && !allows_delete();
   }
@@ -362,8 +372,8 @@ class Content_tree_node {
 /**
    Constructs the content tree for given JSON duality view.
 
-   @param [in] thd      THD context.
-   @param [in] view_lex LEX* object for the current query
+   @param [in]  thd                              THD context.
+   @param [in]  view_lex LEX* object for the current query.
 
    @returns Content_tree on success, nullptr otherwise.
 */

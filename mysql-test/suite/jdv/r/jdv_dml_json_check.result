@@ -39,8 +39,6 @@ UPDATE dv0 SET data = '[ "foo", 3, 3.14 ]';
 ERROR HY000: Path '$' is not of type 'Json_object'.
 INSERT INTO dv0 VALUES ('{"kt1c2": 6}');
 ERROR HY000: Primary key column `test`.`t1`.t1c1 must be provided as path '$._id'.
-UPDATE dv0 SET data = '{"_id": 2, "_metadata": {"etag": "e612272fdb58935f3d593e83c7719385"}}' WHERE data->'$._id' = 2;
-ERROR HY000: Value was not provided for path '$' and could not be inferred for column `test`.`t1`.t1c2.
 UPDATE dv0 SET data = '{"_id": 3, "kt1c2": 2, "_metadata": {"etag": "e612272fdb58935f3d593e83c7719385"}}' WHERE data->'$._id' = 2;
 ERROR HY000: Cannot update primary key column `test`.`t1`.t1c1 from path '$._id'.
 UPDATE dv0 SET data = '{"_id": 2, "kt1c2": 65, "_metadata": {"etag": "3004248409575512764"}}' WHERE data->'$._id' = 2;

@@ -48,6 +48,8 @@ struct PkiFile {
 
   static bool remove(const PathName &);
   static bool remove(const char *);
+  static bool exists(const PathName &);
+  static bool exists(const char *);
   static int assign(PathName &path, const char *dir, const char *file);
 };
 
@@ -92,10 +94,21 @@ class TlsSearchPath {
   /* Find file name in search path and write whole path into buffer */
   bool find(const char *name, PkiFile::PathName &buffer) const;
 
-  /* Find file name in search path.
+  /* Find file name in search path, beginning at component directory start_pos.
      Returns the index of the directory where file exists, or -1 if not found.
   */
-  int find(const char *name) const;
+  int find(const char *name, int start_pos = 0) const;
+
+  /* Use File_class::realpath() to normalize directory component i.
+     Writes the normalized name into buffer. Returns true on success.
+  */
+  bool realpath(unsigned int i, char *buffer, size_t len) const;
+
+  /* Use realpath() to normalize all directory names, and then eliminate any
+     duplicate directories. Note that this performs heap memory allocation.
+     It returns a new TlsSearchPath that contains no duplicate paths.
+  */
+  TlsSearchPath *dedup() const;
 
  private:
   Vector<BaseString> m_path;
@@ -197,6 +210,50 @@ inline struct x509_st *Certificate::open_one(const PkiFile::PathName &p) {
   return Certificate::open_one(p.c_str());
 }
 
+class TrustStore {
+ public:
+  static constexpr const char *Filename = "NDB-trusted-certs";
+
+  /* load() reads trusted certificates from searchPath into stack.
+     Returns number of trusted certificates read.
+     Returns -1 if stack is null, -2 on fopen() error, or -3 on read error
+     (including empty trust file).
+  */
+  static int load(stack_st_X509 *stack, const TlsSearchPath *searchPath);
+
+  /* Find trust store file in search path */
+  static int find(const TlsSearchPath *, PkiFile::PathName &, int start_pos);
+
+  static FILE *open(const char *dir, const char *mode);
+  static int close(FILE *fp);
+
+  /* Read all trusted certificates from an open file.
+     Returns number read, or -1 on openssl read error */
+  static int read_all(struct stack_st_X509 *, FILE *);
+
+  /* write() and write_all() return 1 on success or 0 on failure */
+  static int write(FILE *, struct x509_st *);
+  static int write_all(FILE *, struct stack_st_X509 *);
+
+  /* Remove trust store file from directory */
+  static bool remove(const char *dir);
+
+ private:
+  /* Read a single trusted certificate from an open file.
+     Returns 1 on success, 0 on eof, or -1 on openssl read error */
+  static int read(struct stack_st_X509 *, FILE *);
+
+  /* Read a single trusted certificate from an open file.
+     Returns cert or null; produces log message on error */
+  static struct x509_st *read(FILE *);
+};
+
+inline int TrustStore::close(FILE *fp) { return fp ? fclose(fp) : EOF; }
+
+inline bool TrustStore::remove(const char *dir) {
+  return Certificate::remove(dir, Filename);
+}
+
 class CertSubject {
  public:
   CertSubject(Node::Type, int node_id);
@@ -206,6 +263,7 @@ class CertSubject {
 
   /* Class Methods */
   static int set_common_name(struct X509_name_st *, const char *);
+  static BaseString timestamp(time_t time, const char *fmt);
 
   /* Public Instance Methods */
   bool bind_hostname(const char *);
@@ -222,10 +280,10 @@ class CertSubject {
 
  protected:
   int bound_hostname(int n, char *, int len) const;  // Returns length written
-  size_t timestamp(time_t, char *m, size_t) const;
+  static size_t timestamp(time_t, char *m, size_t, const char *fmt = "%b %Y");
   size_t timestamp(char *, size_t) const;
   size_t print_name(char *, size_t) const;
-  bool parse_name(struct X509_name_st *);
+  bool parse_name(const struct X509_name_st *);
   bool parse_name(const struct asn1_string_st *);
 
   /* Member variables */
@@ -270,6 +328,9 @@ class CertLifetime {
 
   /* Returns the expiration time, and sets tp (if non-null) to point to it */
   time_t expire_time(struct tm **tp) const;
+
+  /* Print expiration time to buffer */
+  size_t print_expire_time(char *, size_t, const char *format = "%c");
 
   /* Returns total lifetime in seconds */
   time_t duration() const { return m_duration; }
@@ -414,9 +475,13 @@ class NodeCertificate : public CertSubject, public CertLifetime {
      for remote signing. A signed and finalised NodeCertificate should be
      considered immutable, except for adding CAs to its authority chain.
 
+     If chain_CA is true, include the CA certificate as a chained
+     certificate.
+
      Returns 0 on success.
   */
-  int finalise(struct x509_st *CA_cert, struct evp_pkey_st *CA_key);
+  int finalise(struct x509_st *CA_cert, struct evp_pkey_st *CA_key,
+               bool chain_CA = true);
 
   /* Self-sign the node certificate
    */

@@ -16,6 +16,8 @@ EXPLAIN
 -> Aggregate: count(t1.a)  (rows=1)
     -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`
 SELECT SUM(b) FROM t1 GROUP BY a ORDER BY SUM(b);
 SUM(b)
 NULL
@@ -29,6 +31,8 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` order by sum(`test`.`t1`.`b`)
 DROP TABLE t1;
 # MyISAM table
 CREATE TABLE t1 (a BIT(7), b INT) ENGINE=MyISAM;
@@ -44,6 +48,8 @@ EXPLAIN
 -> Aggregate: count(t1.a)  (rows=1)
     -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`
 SELECT SUM(b) FROM t1 GROUP BY a ORDER BY SUM(b);
 SUM(b)
 NULL
@@ -57,6 +63,8 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` order by sum(`test`.`t1`.`b`)
 DROP TABLE t1;
 # HEAP table
 CREATE TABLE t1 (a BIT(7), b INT) ENGINE=HEAP;
@@ -72,6 +80,8 @@ EXPLAIN
 -> Aggregate: count(t1.a)  (rows=1)
     -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`
 SELECT SUM(b) FROM t1 GROUP BY a ORDER BY SUM(b);
 SUM(b)
 NULL
@@ -85,6 +95,8 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` order by sum(`test`.`t1`.`b`)
 DROP TABLE t1;
 SET internal_tmp_mem_storage_engine='TempTable';
 #
@@ -104,6 +116,8 @@ EXPLAIN
 -> Aggregate: count(t1.a)  (rows=1)
     -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`
 SELECT SUM(b) FROM t1 GROUP BY a ORDER BY SUM(b);
 SUM(b)
 NULL
@@ -117,6 +131,8 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` order by sum(`test`.`t1`.`b`)
 DROP TABLE t1;
 # MyISAM table
 CREATE TABLE t1 (a BIT(7), b INT) ENGINE=MyISAM;
@@ -132,6 +148,8 @@ EXPLAIN
 -> Aggregate: count(t1.a)  (rows=1)
     -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`
 SELECT SUM(b) FROM t1 GROUP BY a ORDER BY SUM(b);
 SUM(b)
 NULL
@@ -145,6 +163,8 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` order by sum(`test`.`t1`.`b`)
 DROP TABLE t1;
 # HEAP table
 CREATE TABLE t1 (a BIT(7), b INT) ENGINE=HEAP;
@@ -160,6 +180,8 @@ EXPLAIN
 -> Aggregate: count(t1.a)  (rows=1)
     -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`
 SELECT SUM(b) FROM t1 GROUP BY a ORDER BY SUM(b);
 SUM(b)
 NULL
@@ -173,6 +195,8 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` order by sum(`test`.`t1`.`b`)
 DROP TABLE t1;
 SET internal_tmp_mem_storage_engine=default;
 SET SESSION big_tables=true;
@@ -193,6 +217,8 @@ EXPLAIN
 -> Aggregate: count(t1.a)  (rows=1)
     -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`
 SELECT SUM(b) FROM t1 GROUP BY a ORDER BY SUM(b);
 SUM(b)
 NULL
@@ -206,6 +232,8 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` order by sum(`test`.`t1`.`b`)
 DROP TABLE t1;
 # MyISAM table
 CREATE TABLE t1 (a BIT(7), b INT) ENGINE=MyISAM;
@@ -221,6 +249,8 @@ EXPLAIN
 -> Aggregate: count(t1.a)  (rows=1)
     -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`
 SELECT SUM(b) FROM t1 GROUP BY a ORDER BY SUM(b);
 SUM(b)
 NULL
@@ -234,6 +264,8 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` order by sum(`test`.`t1`.`b`)
 DROP TABLE t1;
 # HEAP table
 CREATE TABLE t1 (a BIT(7), b INT) ENGINE=HEAP;
@@ -249,6 +281,8 @@ EXPLAIN
 -> Aggregate: count(t1.a)  (rows=1)
     -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `COUNT(a)` from `test`.`t1`
 SELECT SUM(b) FROM t1 GROUP BY a ORDER BY SUM(b);
 SUM(b)
 NULL
@@ -262,5 +296,7 @@ EXPLAIN
         -> Aggregate using temporary table
             -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` order by sum(`test`.`t1`.`b`)
 DROP TABLE t1;
 SET SESSION big_tables=default;

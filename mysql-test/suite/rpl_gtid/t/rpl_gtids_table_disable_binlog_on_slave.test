@@ -90,6 +90,7 @@ call mtr.add_suppression("Replica SQL for channel '': Error in Xid_log_event: Co
 call mtr.add_suppression("Replica.*Got error -1 .* from storage engine.*Error_code: MY-001030");
 call mtr.add_suppression("Replica: An error occurred at storing the GTID value");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 
 --let $assert_text= committed gtids SOURCE_UUID:$gno_root:$gno_1-$gno_2
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"

@@ -10,6 +10,7 @@ CALL mtr.add_suppression("Replica SQL.*:.* Could not execute Write_rows event on
 CALL mtr.add_suppression("Replica SQL.*:.*Duplicate entry '3' for key.*");
 CALL mtr.add_suppression("Replica SQL.*:.*Replica worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
 CALL mtr.add_suppression("Replica SQL .*Deadlock found when trying to get lock; try restarting transaction.*");
+call mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error*");
 # Check EEREE
 [connection master]
 CREATE TABLE t1(a INT PRIMARY KEY);
@@ -43,7 +44,7 @@ include/rpl/wait_for_replica_status.inc [Last_Errno]
 ROLLBACK;
 # Wait for all worker threads to exit
 include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
-include/assert.inc [Verify table t1 has 3 values]
+include/assert.inc [Verify the number of rows in t1]
 # Delete conflicting transactions on slave
 [connection slave]
 BEGIN;
@@ -93,7 +94,7 @@ include/rpl/wait_for_replica_status.inc [Last_Errno]
 ROLLBACK;
 # Wait for all worker threads to exit
 include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
-include/assert.inc [Verify table t1 has 3 values]
+include/assert.inc [Verify the number of rows in t1]
 # Delete conflicting transactions on slave
 [connection slave]
 BEGIN;
@@ -142,7 +143,7 @@ include/rpl/wait_for_replica_status.inc [Last_Errno]
 ROLLBACK;
 # Wait for all worker threads to exit
 include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
-include/assert.inc [Verify table t1 has 3 values]
+include/assert.inc [Verify the number of rows in t1]
 # Delete conflicting transactions on slave
 [connection slave]
 BEGIN;
@@ -190,7 +191,7 @@ include/rpl/wait_for_replica_status.inc [Last_Errno]
 ROLLBACK;
 # Wait for all worker threads to exit
 include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
-include/assert.inc [Verify table t1 has 3 values]
+include/assert.inc [Verify the number of rows in t1]
 # Delete conflicting transactions on slave
 [connection slave]
 BEGIN;
@@ -238,7 +239,7 @@ include/rpl/wait_for_replica_status.inc [Last_Errno]
 ROLLBACK;
 # Wait for all worker threads to exit
 include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
-include/assert.inc [Verify table t1 has 3 values]
+include/assert.inc [Verify the number of rows in t1]
 # Delete conflicting transactions on slave
 [connection slave]
 BEGIN;
@@ -287,7 +288,7 @@ include/rpl/wait_for_replica_status.inc [Last_Errno]
 ROLLBACK;
 # Wait for all worker threads to exit
 include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
-include/assert.inc [Verify table t1 has 3 values]
+include/assert.inc [Verify the number of rows in t1]
 # Delete conflicting transactions on slave
 [connection slave]
 BEGIN;
@@ -335,7 +336,7 @@ include/rpl/wait_for_replica_status.inc [Last_Errno]
 ROLLBACK;
 # Wait for all worker threads to exit
 include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
-include/assert.inc [Verify table t1 has 3 values]
+include/assert.inc [Verify the number of rows in t1]
 # Delete conflicting transactions on slave
 [connection slave]
 BEGIN;
@@ -382,7 +383,7 @@ include/rpl/wait_for_replica_status.inc [Last_Errno]
 ROLLBACK;
 # Wait for all worker threads to exit
 include/rpl/wait_for_replica_status.inc [Replica_SQL_Running]
-include/assert.inc [Verify table t1 has 3 values]
+include/assert.inc [Verify the number of rows in t1]
 # Delete conflicting transactions on slave
 [connection slave]
 BEGIN;

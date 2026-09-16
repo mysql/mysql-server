@@ -1714,7 +1714,7 @@ dberr_t FTS::scan_finished(dberr_t err) noexcept {
       consistent in sync_doc_id. */
       auto table = const_cast<dict_table_t *>(m_ctx.m_new_table);
 
-      err = fts_sync_table(table, false, true, false);
+      err = fts_sync_table(table, false, true);
 
       if (err == DB_SUCCESS) {
         auto name = m_ctx.m_old_table->name.m_name;

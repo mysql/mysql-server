@@ -80,6 +80,7 @@ set session sql_log_bin=1;
 # Configure the member to use single-primary mode as server 1 is already configured
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= TRUE;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error 0, ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

@@ -89,6 +89,10 @@ SET GTID_NEXT= "AUTOMATIC";
 --let $slave_param_value= convert_error(ER_SPECIFIC_ACCESS_DENIED)
 --source include/rpl/wait_for_replica_status.inc
 
+--let $slave_param= Replica_SQL_Running
+--let $slave_param_value= No
+--source include/rpl/wait_for_replica_status.inc
+
 --echo
 --echo # 3. Try again with more privileges, replication succeeds
 --echo #    Privileges: SYSTEM_VARIABLES_ADMIN && TRANSACTION_GTID_TAG

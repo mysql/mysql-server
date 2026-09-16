@@ -1,0 +1,22 @@
+# Test to check that the performance_schema tables status_by_thread and
+# variables_by_thread display output when the thread pool plugin is enabled.
+# Bug#25933891 - STATUS_BY_THREAD DOES NOT HAVE ANY DATA WHEN THE THREAD
+#                POOL PLUGIN IS ENABLED
+
+--source include/have_thread_pool.inc
+
+CREATE USER tp_user1;
+GRANT ALL ON *.* TO tp_user1;
+connect (con1, localhost, tp_user1, , );
+
+--connection default
+USE performance_schema;
+SELECT thread_id INTO @con1_id FROM threads WHERE processlist_user IN ('tp_user1');
+--disable_result_log
+SELECT * FROM status_by_thread WHERE thread_id = @con1_id;
+SELECT * FROM variables_by_thread WHERE thread_id = @con1_id;
+--enable_result_log
+--disconnect con1
+
+#Clean up
+DROP USER tp_user1;

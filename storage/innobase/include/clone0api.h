@@ -162,10 +162,6 @@ dberr_t clone_init();
 /** Uninitialize Clone system */
 void clone_free();
 
-/** Check if active clone is running.
-@return true, if any active clone is found. */
-bool clone_check_active();
-
 /** @return true, if clone provisioning in progress. */
 bool clone_check_provisioning();
 #endif /* !UNIV_HOTBACKUP */

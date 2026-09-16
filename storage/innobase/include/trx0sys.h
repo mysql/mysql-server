@@ -57,11 +57,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 
 // Forward declaration
-class MVCC;
-class ReadView;
+class MVCC_interface;
 
 /** The transaction system */
 extern trx_sys_t *trx_sys;
+
+/** The MVCC system along with information on how to destroy it */
+using trx_mvcc_sys_t =
+    std::unique_ptr<MVCC_interface, std::function<void(MVCC_interface *)>>;
+
+/** The MVCC system along with information on how to destroy it */
+extern trx_mvcc_sys_t trx_sys_mvcc;
 
 /** Checks if a page address is the trx sys header page.
 @param[in]      page_id page id
@@ -684,7 +690,7 @@ struct trx_sys_t {
 
   /** Multi version concurrency control manager */
 
-  MVCC *mvcc;
+  MVCC_interface *mvcc;
 
   /** Vector of pointers to rollback segments within the temp tablespace;
   This vector is created and destroyed in single-threaded mode so it is not
@@ -835,6 +841,16 @@ static inline void trx_sys_serialisation_mutex_enter() {
 static inline void trx_sys_serialisation_mutex_exit() {
   trx_sys->serialisation_mutex.exit();
 }
+
+/** Check whether transaction id is valid.
+@param[in]      id      transaction id to check
+@param[in]      name    table name */
+void trx_sys_check_id_sanity(trx_id_t id, const struct table_name_t &name);
+
+/** Writes (unless in read-only mode) the value of next_trx_id_or_no to the
+system tablespace's header TRX_SYS_TRX_ID_STORE using a redo-logged mtr.
+The caller should hold trx_sys->mutex or trx_sys->serialisation_mutex. */
+void trx_sys_write_max_trx_id();
 
 #endif /* !UNIV_HOTBACKUP */
 

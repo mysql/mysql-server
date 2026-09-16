@@ -45,7 +45,7 @@ call mtr.add_suppression("Failed to compress the gtid_executed table.");
 let $MYSQL_TMP_DIR = `select @@tmpdir`;
 let $MYSQL_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
-let $args = --loose-console --core-file > $SEARCH_FILE 2>&1;
+let $args = --loose-console > $SEARCH_FILE 2>&1;
 let nameconflicts = $args --innodb_data_file_path="ibdata1:12M:autoextend:max:134217728" --innodb_temp_data_file_path="ibdata1:12M:autoextend";
 let rawdevice1 = $args --innodb_temp_data_file_path="/dev/hdd1:3Gnewraw;/dev/hdd2:2Gnewraw";
 let rawdevice2 = $args --innodb_temp_data_file_path="/dev/hdd1:3Graw;/dev/hdd2:2Graw";
@@ -636,7 +636,7 @@ let SEARCH_PATTERN = Tablespace size must be at least;
 --source ./include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo "try starting server with sys-tablespace size < min. threshold"
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $sizeoftempfile2
 let SEARCH_PATTERN = Tablespace size must be at least;
 --source ./include/search_pattern.inc
@@ -660,7 +660,7 @@ drop table t1;
 # InnoDB aborts, so ASAN may report leaks
 --error 1,42
 --exec $MYSQLD_CMD $notemptablespacefile
-let SEARCH_PATTERN = init function returned error;
+let SEARCH_PATTERN = must contain at least one data file definition;
 --source ./include/search_pattern.inc
 --remove_file $SEARCH_FILE
 

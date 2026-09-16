@@ -103,7 +103,7 @@ struct data_page_t : public basic_page_t {
 
   /** Create a new data page and replace some or all parts of the old data
   with data.
-  @param[in]      trx     Current transaction.
+  @param[in]      trx     Non-null current transaction.
   @param[in]      offset  Offset where replace begins.
   @param[in,out]  ptr     Pointer to new data.
   @param[in]      want    Amount of data the caller wants to replace.
@@ -151,8 +151,6 @@ struct data_page_t : public basic_page_t {
   ulint append(trx_id_t trxid, byte *&data, ulint &len);
 
   ulint max_space_available() const { return (payload()); }
-
-  ulint space_left() const;
 };
 
 } /* namespace lob */

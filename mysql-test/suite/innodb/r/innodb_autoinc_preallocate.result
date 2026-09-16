@@ -1,0 +1,512 @@
+SET @initial_innodb_autoinc_preallocate = @@global.innodb_autoinc_preallocate;
+SET @@global.innodb_autoinc_preallocate = 10;
+SET @types = 'TINYINT|SMALLINT|MEDIUMINT|INT|BIGINT|';
+SET @types = CONCAT(
+@types,
+REPLACE(@types,'|',' UNSIGNED|')
+);
+SET @types = CONCAT(
+@types,
+REPLACE(@types,'|',' NOT NULL|')
+);
+CREATE TABLE t1 (id INT, val TINYINT AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t1 (id) VALUES (0);
+SELECT val FROM t1;
+val
+1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int DEFAULT NULL,
+  `val` tinyint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2 (id INT, val SMALLINT AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t2 (id) VALUES (0);
+SELECT val FROM t2;
+val
+1
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int DEFAULT NULL,
+  `val` smallint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t3 (id INT, val MEDIUMINT AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t3 (id) VALUES (0);
+SELECT val FROM t3;
+val
+1
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int DEFAULT NULL,
+  `val` mediumint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t4 (id INT, val INT AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t4 (id) VALUES (0);
+SELECT val FROM t4;
+val
+1
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int DEFAULT NULL,
+  `val` int NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t5 (id INT, val BIGINT AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t5 (id) VALUES (0);
+SELECT val FROM t5;
+val
+1
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `id` int DEFAULT NULL,
+  `val` bigint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t6 (id INT, val TINYINT UNSIGNED AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t6 (id) VALUES (0);
+SELECT val FROM t6;
+val
+1
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `id` int DEFAULT NULL,
+  `val` tinyint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t7 (id INT, val SMALLINT UNSIGNED AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t7 (id) VALUES (0);
+SELECT val FROM t7;
+val
+1
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `id` int DEFAULT NULL,
+  `val` smallint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t8 (id INT, val MEDIUMINT UNSIGNED AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t8 (id) VALUES (0);
+SELECT val FROM t8;
+val
+1
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `id` int DEFAULT NULL,
+  `val` mediumint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t9 (id INT, val INT UNSIGNED AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t9 (id) VALUES (0);
+SELECT val FROM t9;
+val
+1
+SHOW CREATE TABLE t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `id` int DEFAULT NULL,
+  `val` int unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t10 (id INT, val BIGINT UNSIGNED AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t10 (id) VALUES (0);
+SELECT val FROM t10;
+val
+1
+SHOW CREATE TABLE t10;
+Table	Create Table
+t10	CREATE TABLE `t10` (
+  `id` int DEFAULT NULL,
+  `val` bigint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t11 (id INT, val TINYINT NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t11 (id) VALUES (0);
+SELECT val FROM t11;
+val
+1
+SHOW CREATE TABLE t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `id` int DEFAULT NULL,
+  `val` tinyint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t12 (id INT, val SMALLINT NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t12 (id) VALUES (0);
+SELECT val FROM t12;
+val
+1
+SHOW CREATE TABLE t12;
+Table	Create Table
+t12	CREATE TABLE `t12` (
+  `id` int DEFAULT NULL,
+  `val` smallint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t13 (id INT, val MEDIUMINT NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t13 (id) VALUES (0);
+SELECT val FROM t13;
+val
+1
+SHOW CREATE TABLE t13;
+Table	Create Table
+t13	CREATE TABLE `t13` (
+  `id` int DEFAULT NULL,
+  `val` mediumint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t14 (id INT, val INT NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t14 (id) VALUES (0);
+SELECT val FROM t14;
+val
+1
+SHOW CREATE TABLE t14;
+Table	Create Table
+t14	CREATE TABLE `t14` (
+  `id` int DEFAULT NULL,
+  `val` int NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t15 (id INT, val BIGINT NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t15 (id) VALUES (0);
+SELECT val FROM t15;
+val
+1
+SHOW CREATE TABLE t15;
+Table	Create Table
+t15	CREATE TABLE `t15` (
+  `id` int DEFAULT NULL,
+  `val` bigint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t16 (id INT, val TINYINT UNSIGNED NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t16 (id) VALUES (0);
+SELECT val FROM t16;
+val
+1
+SHOW CREATE TABLE t16;
+Table	Create Table
+t16	CREATE TABLE `t16` (
+  `id` int DEFAULT NULL,
+  `val` tinyint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t17 (id INT, val SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t17 (id) VALUES (0);
+SELECT val FROM t17;
+val
+1
+SHOW CREATE TABLE t17;
+Table	Create Table
+t17	CREATE TABLE `t17` (
+  `id` int DEFAULT NULL,
+  `val` smallint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t18 (id INT, val MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t18 (id) VALUES (0);
+SELECT val FROM t18;
+val
+1
+SHOW CREATE TABLE t18;
+Table	Create Table
+t18	CREATE TABLE `t18` (
+  `id` int DEFAULT NULL,
+  `val` mediumint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t19 (id INT, val INT UNSIGNED NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t19 (id) VALUES (0);
+SELECT val FROM t19;
+val
+1
+SHOW CREATE TABLE t19;
+Table	Create Table
+t19	CREATE TABLE `t19` (
+  `id` int DEFAULT NULL,
+  `val` int unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t20 (id INT, val BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, KEY on_val(val));
+INSERT INTO t20 (id) VALUES (0);
+SELECT val FROM t20;
+val
+1
+SHOW CREATE TABLE t20;
+Table	Create Table
+t20	CREATE TABLE `t20` (
+  `id` int DEFAULT NULL,
+  `val` bigint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Kill and restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int DEFAULT NULL,
+  `val` tinyint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 (id) VALUES (0);
+SELECT val FROM t1;
+val
+1
+2
+DROP TABLE t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int DEFAULT NULL,
+  `val` smallint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 (id) VALUES (0);
+SELECT val FROM t2;
+val
+1
+2
+DROP TABLE t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int DEFAULT NULL,
+  `val` mediumint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t3 (id) VALUES (0);
+SELECT val FROM t3;
+val
+1
+12
+DROP TABLE t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int DEFAULT NULL,
+  `val` int NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t4 (id) VALUES (0);
+SELECT val FROM t4;
+val
+1
+12
+DROP TABLE t4;
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `id` int DEFAULT NULL,
+  `val` bigint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t5 (id) VALUES (0);
+SELECT val FROM t5;
+val
+1
+12
+DROP TABLE t5;
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `id` int DEFAULT NULL,
+  `val` tinyint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t6 (id) VALUES (0);
+SELECT val FROM t6;
+val
+1
+2
+DROP TABLE t6;
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `id` int DEFAULT NULL,
+  `val` smallint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t7 (id) VALUES (0);
+SELECT val FROM t7;
+val
+1
+2
+DROP TABLE t7;
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `id` int DEFAULT NULL,
+  `val` mediumint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t8 (id) VALUES (0);
+SELECT val FROM t8;
+val
+1
+12
+DROP TABLE t8;
+SHOW CREATE TABLE t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `id` int DEFAULT NULL,
+  `val` int unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t9 (id) VALUES (0);
+SELECT val FROM t9;
+val
+1
+12
+DROP TABLE t9;
+SHOW CREATE TABLE t10;
+Table	Create Table
+t10	CREATE TABLE `t10` (
+  `id` int DEFAULT NULL,
+  `val` bigint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t10 (id) VALUES (0);
+SELECT val FROM t10;
+val
+1
+12
+DROP TABLE t10;
+SHOW CREATE TABLE t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `id` int DEFAULT NULL,
+  `val` tinyint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t11 (id) VALUES (0);
+SELECT val FROM t11;
+val
+1
+2
+DROP TABLE t11;
+SHOW CREATE TABLE t12;
+Table	Create Table
+t12	CREATE TABLE `t12` (
+  `id` int DEFAULT NULL,
+  `val` smallint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t12 (id) VALUES (0);
+SELECT val FROM t12;
+val
+1
+2
+DROP TABLE t12;
+SHOW CREATE TABLE t13;
+Table	Create Table
+t13	CREATE TABLE `t13` (
+  `id` int DEFAULT NULL,
+  `val` mediumint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t13 (id) VALUES (0);
+SELECT val FROM t13;
+val
+1
+12
+DROP TABLE t13;
+SHOW CREATE TABLE t14;
+Table	Create Table
+t14	CREATE TABLE `t14` (
+  `id` int DEFAULT NULL,
+  `val` int NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t14 (id) VALUES (0);
+SELECT val FROM t14;
+val
+1
+12
+DROP TABLE t14;
+SHOW CREATE TABLE t15;
+Table	Create Table
+t15	CREATE TABLE `t15` (
+  `id` int DEFAULT NULL,
+  `val` bigint NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t15 (id) VALUES (0);
+SELECT val FROM t15;
+val
+1
+12
+DROP TABLE t15;
+SHOW CREATE TABLE t16;
+Table	Create Table
+t16	CREATE TABLE `t16` (
+  `id` int DEFAULT NULL,
+  `val` tinyint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t16 (id) VALUES (0);
+SELECT val FROM t16;
+val
+1
+2
+DROP TABLE t16;
+SHOW CREATE TABLE t17;
+Table	Create Table
+t17	CREATE TABLE `t17` (
+  `id` int DEFAULT NULL,
+  `val` smallint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t17 (id) VALUES (0);
+SELECT val FROM t17;
+val
+1
+2
+DROP TABLE t17;
+SHOW CREATE TABLE t18;
+Table	Create Table
+t18	CREATE TABLE `t18` (
+  `id` int DEFAULT NULL,
+  `val` mediumint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t18 (id) VALUES (0);
+SELECT val FROM t18;
+val
+1
+12
+DROP TABLE t18;
+SHOW CREATE TABLE t19;
+Table	Create Table
+t19	CREATE TABLE `t19` (
+  `id` int DEFAULT NULL,
+  `val` int unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t19 (id) VALUES (0);
+SELECT val FROM t19;
+val
+1
+12
+DROP TABLE t19;
+SHOW CREATE TABLE t20;
+Table	Create Table
+t20	CREATE TABLE `t20` (
+  `id` int DEFAULT NULL,
+  `val` bigint unsigned NOT NULL AUTO_INCREMENT,
+  KEY `on_val` (`val`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t20 (id) VALUES (0);
+SELECT val FROM t20;
+val
+1
+12
+DROP TABLE t20;

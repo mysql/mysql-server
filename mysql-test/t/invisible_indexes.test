@@ -131,3 +131,132 @@ SET optimizer_switch="use_invisible_indexes=default";
 EXPLAIN SELECT * FROM t1 FORCE INDEX (b) WHERE b = 3;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#37972859: DROP INDEX + ADD INDEX in a single ALTER TABLE silently
+--echo # loses the INVISIBLE / VISIBLE change.
+--echo #
+
+--echo #
+--echo # 1. Default algorithm: DROP + ADD INDEX with visibility flip
+--echo #    must take effect (originally reported case).
+--echo #
+CREATE TABLE t1 (
+  user_id   INT PRIMARY KEY AUTO_INCREMENT,
+  user_name VARCHAR(50),
+  age       INT,
+  city      VARCHAR(50),
+  KEY idx_age (age)
+) ENGINE=InnoDB;
+
+# Visible -> Invisible
+ALTER TABLE t1 DROP INDEX idx_age, ADD INDEX idx_age (age) INVISIBLE;
+SHOW CREATE TABLE t1;
+SELECT INDEX_NAME, IS_VISIBLE
+  FROM information_schema.statistics
+ WHERE table_schema = DATABASE() AND table_name = 't1' AND index_name = 'idx_age';
+
+# Invisible -> Visible
+ALTER TABLE t1 DROP INDEX idx_age, ADD INDEX idx_age (age) VISIBLE;
+SHOW CREATE TABLE t1;
+SELECT INDEX_NAME, IS_VISIBLE
+  FROM information_schema.statistics
+ WHERE table_schema = DATABASE() AND table_name = 't1' AND index_name = 'idx_age';
+
+DROP TABLE t1;
+
+--echo #
+--echo # 2. ALGORITHM=INPLACE must keep working: DROP+ADD with visibility
+--echo #    flip succeeds in-place (no ER_ALTER_OPERATION_NOT_SUPPORTED).
+--echo #
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  KEY k (a)
+) ENGINE=InnoDB;
+
+ALTER TABLE t1 DROP INDEX k, ADD INDEX k (a) INVISIBLE, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 DROP INDEX k, ADD INDEX k (a) VISIBLE, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # 3. ALGORITHM=COPY variant works and yields the right visibility.
+--echo #
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  KEY k (a)
+) ENGINE=InnoDB;
+
+ALTER TABLE t1 DROP INDEX k, ADD INDEX k (a) INVISIBLE, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # 4. Regression guard for the previously rejected patch scenario:
+--echo #    ALTER INDEX ... VISIBLE, ALGORITHM=INPLACE must stay INPLACE.
+--echo #
+CREATE TABLE t1 (a INT, b INT, KEY (a) INVISIBLE, KEY (b)) ENGINE=InnoDB;
+ALTER TABLE t1 ALTER INDEX a VISIBLE, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # 5. Multi-column / prefix / composite key variant.
+--echo #
+CREATE TABLE t1 (
+  a VARCHAR(64),
+  b INT,
+  c INT,
+  KEY idx_ab (a(10), b)
+) ENGINE=InnoDB;
+
+ALTER TABLE t1 DROP INDEX idx_ab, ADD INDEX idx_ab (a(10), b) INVISIBLE;
+SHOW CREATE TABLE t1;
+SELECT INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME, SUB_PART, IS_VISIBLE
+  FROM information_schema.statistics
+ WHERE table_schema = DATABASE() AND table_name = 't1'
+ ORDER BY SEQ_IN_INDEX;
+
+DROP TABLE t1;
+
+--echo #
+--echo # 6. Combined with an unrelated DROP/ADD in the same statement:
+--echo #    visibility flip on k1 coexists with a structural change on k2.
+--echo #
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  c INT,
+  KEY k1 (a),
+  KEY k2 (b)
+) ENGINE=InnoDB;
+
+ALTER TABLE t1
+  DROP INDEX k1, ADD INDEX k1 (a) INVISIBLE,
+  DROP INDEX k2, ADD INDEX k2 (b, c);
+SHOW CREATE TABLE t1;
+SELECT INDEX_NAME, COLUMN_NAME, IS_VISIBLE
+  FROM information_schema.statistics
+ WHERE table_schema = DATABASE() AND table_name = 't1'
+ ORDER BY INDEX_NAME, SEQ_IN_INDEX;
+
+DROP TABLE t1;
+
+--echo #
+--echo # 7. Unique key variant.
+--echo #
+CREATE TABLE t1 (a INT, b INT, UNIQUE KEY uk (a)) ENGINE=InnoDB;
+ALTER TABLE t1 DROP INDEX uk, ADD UNIQUE KEY uk (a) INVISIBLE;
+SHOW CREATE TABLE t1;
+SELECT INDEX_NAME, NON_UNIQUE, IS_VISIBLE
+  FROM information_schema.statistics
+ WHERE table_schema = DATABASE() AND table_name = 't1';
+DROP TABLE t1;

@@ -1,0 +1,19 @@
+SELECT LENGTH(@@GLOBAL.replication_tls_kex);
+
+SELECT @@replication_tls_kex = @@GLOBAL.replication_tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.replication_tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.replication_tls_kex;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.replication_tls_kex = 'secp256r1';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.replication_tls_kex = 'invalid';
+
+SELECT LENGTH(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='replication_tls_kex';

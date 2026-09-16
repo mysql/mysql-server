@@ -184,6 +184,10 @@ int main(int argc, char **argv) {
                            (first_argument_uses_wildcards) ? "" : argv[0],
                            opt_mysql_port, opt_mysql_unix_port, 0))) {
     fprintf(stderr, "%s: %s\n", my_progname, mysql_error(&mysql));
+    mysql_close(&mysql);
+    free_passwords();
+    mysql_server_end();
+    my_end(my_end_arg);
     exit(1);
   }
   if (ssl_client_check_post_connect_ssl_setup(

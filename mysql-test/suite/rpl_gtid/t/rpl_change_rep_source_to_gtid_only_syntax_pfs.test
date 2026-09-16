@@ -42,6 +42,8 @@
 #
 
 --source include/have_binlog_format_row.inc
+# CSA supports only channels with REQUIRE_ROW_FORMAT=1 and GTID_ONLY=1
+--source include/have_mta.inc
 --let $rpl_skip_start_slave= 1
 --source include/rpl/init_source_replica.inc
 

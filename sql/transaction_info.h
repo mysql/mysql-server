@@ -43,6 +43,18 @@ class Ha_trx_info_list;
 class THD;
 struct handlerton;
 
+/**
+    Has the transaction been prepared while logging to binary log.
+    NO, YES - Transaction is 2PC commited between binlog and storage engine.
+              YES - prepare was invoked and prepare is used
+              NO - prepare was invoked and preprare is not used as
+                   transaction is not persisted
+    NO_2PC - Transaction is not 2PC between binary log and storage engine,
+             prepare is not invoked
+ */
+enum class Transaction_prepared { NO = 0, YES = 1, NO_2PC = 2 };
+enum class Transaction_flushed { NO = 0, YES = 1, UNSET = 2 };
+
 struct SAVEPOINT {
   SAVEPOINT *prev;
   char *name;
@@ -242,6 +254,8 @@ class Transaction_ctx {
     return;
   }
 
+  void cleanup_transaction();
+
   bool is_active(enum_trx_scope scope) const {
     return m_scope_info[scope].m_ha_list != nullptr;
   }
@@ -392,6 +406,8 @@ class Transaction_ctx {
 
  public:
   Engine_combination_tracker tracker;
+  Transaction_prepared m_transaction_prepared;
+  Transaction_flushed m_transaction_flushed;
 };
 
 /**

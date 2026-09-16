@@ -69,6 +69,7 @@ CALL mtr.add_suppression("Error while starting the group replication incremental
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Change Stream Applier channel stopped because of error");
 SET SESSION sql_log_bin= 1;
 
 SET @saved_reconnect_interval= @@GLOBAL.group_replication_recovery_reconnect_interval;
@@ -87,6 +88,9 @@ SET SESSION sql_log_bin= 1;
 --echo #####################################################
 --echo # 2.2 Wait until server2 gave up on joining the group
 
+# Set long wait timeout in case CSA errors out before registering recovery observer.
+# in that case, we rely on the recovery timeout
+--let $wait_timeout=150
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 

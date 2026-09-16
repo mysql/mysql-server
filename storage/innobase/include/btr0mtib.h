@@ -167,10 +167,8 @@ struct Page_extent {
   /** Flush the used pages to disk. It also frees the unused pages back to the
   segment.
   @param[in,out] node space file node
-  @param[in,out] iov vector IO array
-  @param[in] iov_size vector IO array size
   @return On success, return DB_SUCCESS. */
-  dberr_t flush(fil_node_t *node, void *iov, size_t iov_size);
+  dberr_t flush(fil_node_t *node);
 
   /** Flush one page at a time.  This can be used when scatter/gather i/o is
   not available for use.
@@ -182,20 +180,14 @@ struct Page_extent {
   API (either bulk_flush_win() on Windows or bulk_flush_linux() on other
   operating systems.
   @param[in,out] node space file node
-  @param[in,out] iov vector IO array
-  @param[in] iov_size vector IO array size
   @return DB_SUCCESS on success, error code on failure. */
-  dberr_t bulk_flush(fil_node_t *node, void *iov [[maybe_unused]],
-                     size_t iov_size [[maybe_unused]]);
+  dberr_t bulk_flush(fil_node_t *node);
 
 #ifdef UNIV_LINUX
   /** Flush 1 extent pages at a time. Uses pwritev() i/o API.
   @param[in,out] node space file node
-  @param[in,out] iov vector IO array
-  @param[in] iov_size vector IO array size
   @return DB_SUCCESS on success, error code on failure. */
-  dberr_t bulk_flush_linux(fil_node_t *node, struct iovec *iov,
-                           size_t iov_size);
+  dberr_t bulk_flush_linux(fil_node_t *node);
 #endif /* UNIV_LINUX */
 
   /** Free all resources. */
@@ -246,7 +238,7 @@ struct Page_extent {
   /** true if this extent belongs to leaf segment. */
   bool m_is_leaf{true};
 
-  /** true iff the the extent is cached. */
+  /** true iff the extent is cached. */
   std::atomic_bool m_is_cached{false};
   /** true if the cached entry is free to be used. */
   std::atomic_bool m_is_free{true};
@@ -601,6 +593,19 @@ class Bulk_extent_allocator {
   @return innodb error code. */
   dberr_t allocate_page(bool is_leaf, Page_range_t &range);
 
+#ifdef UNIV_DEBUG
+  /** Synchronize a query interruption when a newly allocated range reuses a
+  freed page still present in the buffer pool.
+  @param[in] range newly allocated page range */
+  void debug_sync_reused_freed_page(const Page_range_t &range);
+#endif /* UNIV_DEBUG */
+
+  /** Evict any buffer-pool incarnation of a newly allocated page range.
+  MTIB pages bypass the buffer pool until they are flushed, so an older
+  incarnation must not remain visible while the range is privately owned.
+  @param[in] range newly allocated page range */
+  void evict_allocated_range(const Page_range_t &range);
+
   /** @return true if operation is interrupted. */
   bool is_interrupted();
 
@@ -704,10 +709,8 @@ class Bulk_flusher {
 
  private:
   /** Do the actual work of flushing.
-  @param[in,out] node space file node
-  @param[in,out] iov vector IO array
-  @param[in] iov_size vector IO array size */
-  void do_work(fil_node_t *node, void *iov, size_t iov_size);
+  @param[in,out] node space file node */
+  void do_work(fil_node_t *node);
 
   /** Check if the bulk flush thread should stop working. */
   bool should_i_stop() const { return m_stop.load(); }
@@ -940,7 +943,6 @@ class Btree_load : private ut::Non_copyable {
   }
 
  public:
-  using Page_loaders = std::vector<Page_load *, ut::allocator<Page_load *>>;
   using Level_ctxs = std::vector<Level_ctx *, ut::allocator<Level_ctx *>>;
 
   /** Helper to set wait callbacks for the current scope. */
@@ -988,6 +990,7 @@ class Btree_load : private ut::Non_copyable {
   void track_page_flush(page_no_t page_no) {
     m_bulk_flusher.m_flushed_page_nos.push_back(page_no);
   }
+
 #endif /* UNIV_DEBUG */
 
   /** Check if the index build operation has been interrupted.
@@ -1020,6 +1023,8 @@ class Btree_load : private ut::Non_copyable {
   /** Get the transaction id.
   @return the transaction id. */
   trx_id_t get_trx_id() const;
+
+  Flush_observer *get_flush_observer() const;
 
   /** Btree bulk load finish. We commit the last page in each level
   and copy the last page in top level to the root page of the index
@@ -1733,7 +1738,7 @@ class Page_load : private ut::Non_copyable {
 
   Page_extent *m_page_extent{};
 
-  /** true iff the the Page load is cached. */
+  /** true iff the Page load is cached. */
   std::atomic_bool m_is_cached{false};
 
   friend class Btree_load;

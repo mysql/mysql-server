@@ -30,6 +30,7 @@
 #include <memory>
 
 #include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/ngs/client_list.h"
 
 namespace xpl {

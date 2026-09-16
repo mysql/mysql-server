@@ -41,12 +41,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 buffer buf_pool if it is not already there, in which case does nothing.
 Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
 flag is cleared and the x-lock released by an i/o-handler thread.
-@param[out]     err             DB_SUCCESS or DB_TABLESPACE_DELETED
-                                if we are trying to read from a non-existent
-                                tablespace or a tablespace which is just now
-                                being dropped
+@param[out]     err             DB_SUCCESS, DB_INDEX_CORRUPT if decryption or
+  decompression failed or DB_TABLESPACE_DELETED if we are trying to read from a
+  non-existent tablespace or a tablespace which is just now being dropped.
 @param[in]      sync            whether synchronous aio is desired
-@param[in]      type            Request type
+@param[in]      type            Specifies flags additional to the implied
+  IORequest::Type::READ.
 @param[in]      mode            BUF_READ_IBUF_PAGES_ONLY, ...
 @param[in]      page_id         page id
 @param[in]      page_size       page size
@@ -55,9 +55,9 @@ flag is cleared and the x-lock released by an i/o-handler thread.
 buf_pool, or if the page is in the doublewrite buffer blocks in which case it
 is never read into the pool, or if the tablespace does not exist or is being
 dropped */
-ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
-                        const page_id_t &page_id, const page_size_t &page_size,
-                        bool unzip);
+ulint buf_read_page_low(dberr_t *err, bool sync, IORequest::Type type,
+                        ulint mode, const page_id_t &page_id,
+                        const page_size_t &page_size, bool unzip);
 
 /** High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets

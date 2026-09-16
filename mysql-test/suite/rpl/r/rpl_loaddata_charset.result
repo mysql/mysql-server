@@ -66,6 +66,7 @@ E4B883E585ABE4B99D
 E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D0A
+include/rpl/sync_to_replica.inc
 ----------content on slave----------
 USE mysqltest;
 SELECT hex(cl) FROM t;
@@ -77,6 +78,7 @@ E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D0A
 DROP DATABASE mysqltest;
+include/rpl/sync_to_replica.inc
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest CHARSET utf8mb3;
 Warnings:
@@ -96,6 +98,7 @@ E4B883E585ABE4B99D
 E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D0A
+include/rpl/sync_to_replica.inc
 ----------content on slave----------
 USE mysqltest;
 SELECT hex(cl) FROM t;
@@ -107,4 +110,5 @@ E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D0A
 DROP DATABASE mysqltest;
+include/rpl/sync_to_replica.inc
 include/rpl/deinit.inc

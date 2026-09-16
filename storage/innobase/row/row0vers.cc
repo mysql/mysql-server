@@ -41,7 +41,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "mach0data.h"
 #include "que0que.h"
-#include "read0read.h"
+#include "read0mvcc_interface.h"
+#include "read0read_view_interface.h"
 #include "rem0cmp.h"
 #include "row0ext.h"
 #include "row0mysql.h"
@@ -584,10 +585,10 @@ trx_t *row_vers_impl_x_locked(const rec_t *rec, const dict_index_t *index,
 bool row_vers_must_preserve_del_marked(trx_id_t trx_id,
                                        const table_name_t &name, mtr_t *mtr) {
   ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
-
+  trx_sys_check_id_sanity(trx_id, name);
   mtr_s_lock(&purge_sys->latch, mtr, UT_LOCATION_HERE);
 
-  return (!purge_sys->view.changes_visible(trx_id, name));
+  return !purge_sys->view->changes_visible(trx_id);
 }
 
 /** Check whether all non-virtual columns in a index entries match
@@ -1224,31 +1225,9 @@ bool row_vers_old_has_index_entry(
   }
 }
 
-/** Constructs the version of a clustered index record which a consistent
- read should see. We assume that the trx id stored in rec is such that
- the consistent read should not see rec in its present version.
- @param[in]   rec   record in a clustered index; the caller must have a latch
-                    on the page; this latch locks the top of the stack of
-                    versions of this records
- @param[in]   mtr   mtr holding the latch on rec; it will also hold the latch
-                    on purge_view
- @param[in]   index   the clustered index
- @param[in]   offsets   offsets returned by rec_get_offsets(rec, index)
- @param[in]   view   the consistent read view
- @param[in,out]   offset_heap   memory heap from which the offsets are
-                                allocated
- @param[in]   in_heap   memory heap from which the memory for *old_vers is
-                        allocated; memory for possible intermediate versions
-                        is allocated and freed locally within the function
- @param[out]   old_vers   old version, or NULL if the history is missing or
-                          the record does not exist in the view, that is, it
-                          was freshly inserted afterwards.
- @param[out]   vrow   reports virtual column info if any
- @param[in]   lob_undo   undo log to be applied to blobs.
- @return DB_SUCCESS or DB_MISSING_HISTORY */
 dberr_t row_vers_build_for_consistent_read(
     const rec_t *rec, mtr_t *mtr, dict_index_t *index, ulint **offsets,
-    ReadView *view, mem_heap_t **offset_heap, mem_heap_t *in_heap,
+    Read_view_interface *view, mem_heap_t **offset_heap, mem_heap_t *in_heap,
     rec_t **old_vers, const dtuple_t **vrow, lob::undo_vers_t *lob_undo) {
   DBUG_TRACE;
   const rec_t *version;
@@ -1271,8 +1250,8 @@ dberr_t row_vers_build_for_consistent_read(
   if (lob_undo != nullptr) {
     lob_undo->reset();
   }
-
-  ut_ad(!view->changes_visible(trx_id, index->table->name));
+  ut_d(trx_sys_check_id_sanity(trx_id, index->table->name));
+  ut_ad(!view->changes_visible(trx_id));
 
   ut_ad(!vrow || !(*vrow));
 
@@ -1315,8 +1294,8 @@ dberr_t row_vers_build_for_consistent_read(
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
     trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
-
-    if (view->changes_visible(trx_id, index->table->name)) {
+    trx_sys_check_id_sanity(trx_id, index->table->name);
+    if (view->changes_visible(trx_id)) {
       /* The view already sees this version: we can copy
       it to in_heap and return */
 

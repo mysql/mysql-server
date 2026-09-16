@@ -1229,7 +1229,7 @@ call mtr.add_suppression("\\[Warning\\] .* Monitor ibuf_merges is already enable
 call mtr.add_suppression("\\[Warning\\] .* Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("\\[Warning\\] .* Page 0 at offset 0 looks corrupted in file");
 call mtr.add_suppression("\\[Warning\\] .* Tablespace.*, name 'test_wl5522.t1', file '.*test_wl5522.t1.ibd' is missing!");
-call mtr.add_suppression("\\[ERROR\\] .* Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\].* A tablespace file '.*' cannot be opened. InnoDB error code: 65 \\(Cannot open a file\\)");
 call mtr.add_suppression("\\[ERROR\\] .* Could not find a valid tablespace file for `test_wl5522/t1`");
 call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `test_wl5522`.`t1` in the cache");
 call mtr.add_suppression("\\[ERROR\\] .* If you are installing InnoDB, remember that you must create directories yourself");

@@ -17,6 +17,8 @@
 # that issue is sorted out.
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
+# CSA supports only GTID-based replication
+# -- source include/have_mta.inc
 -- source include/not_ndb_default.inc
 -- source include/rpl/init_source_replica.inc
 
@@ -41,24 +43,24 @@ INSERT INTO t1 (a) SELECT null FROM t1;
 INSERT INTO t1 (a) SELECT null FROM t1;
 INSERT INTO t1 (a) SELECT null FROM t1;
 --enable_warnings
-save_master_pos;
+
 # a few updates to force OPTIMIZE to do something
 --disable_warnings
 update t1 set b=(a/2*rand());
 delete from t1 order by b limit 10000;
 --enable_warnings
 
-connection slave;
-sync_with_master;
+--source include/rpl/sync_to_replica.inc
+
 --disable_result_log
 optimize table t1;
 --enable_result_log
 connection master;
-save_master_pos;
-connection slave;
+
 # Bug was that when the INSERT terminated on slave,
 # the slave SQL thread got killed by OPTIMIZE.
-sync_with_master; # won't work if slave SQL thread stopped
+# synchronization won't work if slave SQL thread stopped
+--source include/rpl/sync_to_replica.inc
 
 connection master; # cleanup
 drop table t1;

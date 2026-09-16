@@ -192,6 +192,7 @@ class ClusterMgr : public trp_client {
     API_REGREQ heartbeat messages.
    */
   Uint32 m_hbCheckInterval;
+  Uint32 m_hbCheckIntervalDbApi;
 
   /**
    * The maximal time between connection attempts to data nodes.

@@ -73,6 +73,7 @@ SET @debug_group_replication_start_on_boot= @@GLOBAL.group_replication_start_on_
 ## 1.1. START GROUP_REPLICATION should fail on server1.
 ##      Since server_uuid matches group_name GR should not start.
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
@@ -117,6 +118,7 @@ START GROUP_REPLICATION;
 ## 2.3. START GROUP_REPLICATION should fail on server2.
 ##      Since server_uuid matches group_name GR should not start.
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

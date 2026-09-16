@@ -56,6 +56,7 @@ namespace authentication {
 
 using GenericSessionData = Oauth2Handler::GenericSessionData;
 using AuthApp = mrs::database::entry::AuthApp;
+using QueryParameters = helper::http::Url::Parameters;
 
 bool Oauth2Handler::redirects(RequestContext &) const {
   log_debug("Oauth2Handler::redirects");
@@ -113,7 +114,6 @@ bool Oauth2Handler::send_http_request(HttpMethodType method,
       std::make_unique<::http::client::Client>(io_ctx, std::move(tls_ctx));
 
   log_debug("Oauth2Handler::send_http_request url:%s", url.c_str());
-  log_debug("Oauth2Handler::send_http_request body:%s", body.c_str());
 
   ::http::client::Request req{u, method};
   auto &output_headers = req.get_output_headers();
@@ -168,7 +168,6 @@ bool Oauth2Handler::http_acquire_access_token(GenericSessionData *data) {
   }
 
   data->acquired_at = steady_clock::now();
-  log_debug("acquired_access_token = %s", data->access_token.c_str());
 
   return true;
 }
@@ -186,6 +185,29 @@ static std::string escape(const std::string &in) {
 
   return path;
 }
+
+static QueryParameters redact_sensitive_query_parameters(
+    const QueryParameters &query_parameters) {
+  QueryParameters result{query_parameters};
+
+  for (const std::string key :
+       {"accessToken", "access_token", "client_assertion", "client_secret",
+        "code", "id_token", "refresh_token", "token"}) {
+    auto it = result.find(key);
+    if (it != result.end()) it->second = "*****";
+  }
+
+  return result;
+}
+
+static void remove_sensitive_oauth_query_parameters(helper::http::Url &url) {
+  for (const std::string key :
+       {"accessToken", "access_token", "client_assertion", "client_secret",
+        "code", "id_token", "refresh_token", "token"}) {
+    url.remove_query_parameter(key);
+  }
+}
+
 void Oauth2Handler::new_session_start_login(RequestContext &ctxt,
                                             Session *session) {
   auto url = ctxt.get_http_url();
@@ -208,7 +230,10 @@ void Oauth2Handler::new_session_start_login(RequestContext &ctxt,
   std::string params;
   if (url.get_query().length()) {
     url.remove_query_parameter("onCompletionRedirect");
-    params = "?" + url.get_query();
+    // Do not reflect credential-like OAuth parameters into provider
+    // redirect_uri.
+    remove_sensitive_oauth_query_parameters(url);
+    if (url.get_query().length()) params = "?" + url.get_query();
   }
 
   data->redirection = uri + escape(params);
@@ -227,11 +252,9 @@ bool Oauth2Handler::authorize(RequestContext &ctxt, const SessionPtr &session,
   const static std::string kCode{"code"};
   const static std::string kState{"state"};
   const static std::string kError{"error"};
-  const static std::string kToken{"token"};
   auto session_data = session->get_data<GenericSessionData>();
 
   const auto &query_parameters = ctxt.get_http_url().get_query_elements();
-  const bool token_in_parameters = 0 != query_parameters.count(kToken);
   const bool code_in_parameters = 0 != query_parameters.count(kCode);
 
   log_debug(
@@ -241,10 +264,12 @@ bool Oauth2Handler::authorize(RequestContext &ctxt, const SessionPtr &session,
       entry_.id.to_string().c_str(),
       session_data ? session_data->internal_session->get_session_id().c_str()
                    : "null",
-      helper::json::to_string(query_parameters).c_str());
+      helper::json::to_string(
+          redact_sensitive_query_parameters(query_parameters))
+          .c_str());
 
   if (nullptr == session_data) {
-    if (!token_in_parameters && !code_in_parameters) {
+    if (!code_in_parameters) {
       log_debug("SessionData doesn't exist in new-session");
       new_session_start_login(ctxt, session.get());
       return false;
@@ -252,15 +277,9 @@ bool Oauth2Handler::authorize(RequestContext &ctxt, const SessionPtr &session,
 
     session_data = new GenericSessionData();
     session->set_data(session_data);
-    if (token_in_parameters)
-      session_data->access_token = query_parameters.at(kToken);
-    session->state = token_in_parameters ? Session::kTokenVerified
-                                         : Session::kWaitingForCode;
+    session->state = Session::kWaitingForCode;
   }
 
-  if (session->state == Session::kWaitingForCode && token_in_parameters) {
-    session->state = Session::kTokenVerified;
-  }
   switch (session->state) {
     case Session::kUninitialized:
     case Session::kWaitingForCode: {

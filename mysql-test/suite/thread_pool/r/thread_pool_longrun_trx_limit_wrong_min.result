@@ -1,0 +1,6 @@
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-longrun-trx-limit':.*value .* adjusted to 10 found]
+SET SESSION thread_pool_longrun_trx_limit = 9;
+ERROR HY000: Variable 'thread_pool_longrun_trx_limit' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL thread_pool_longrun_trx_limit = 9;
+ERROR 42000: Variable 'thread_pool_longrun_trx_limit' can't be set to the value of '9'

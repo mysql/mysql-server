@@ -32,6 +32,7 @@
 #include <memory>
 #include <string>
 
+#include "mysql/components/services/system_variable_source_type.h"
 #include "mysql/plugin.h"
 #include "plugin/x/src/compression_level_variable.h"
 #include "plugin/x/src/interface/client.h"
@@ -56,6 +57,9 @@ class Plugin_system_variables {
   static uint32_t m_interactive_timeout;
   static uint32_t m_document_id_unique_prefix;
   static bool m_enable_hello_notice;
+  static bool m_tls_force_pqc;
+  static bool m_tls_use_pqc_sign;
+  static char *m_tls_kex;
 
   static Set_variable m_compression_algorithms;
 
@@ -81,6 +85,9 @@ class Plugin_system_variables {
 
   static std::string get_system_variable(const std::string &name,
                                          bool *out_error = nullptr);
+  static bool get_system_variable_source(const std::string &name,
+                                         enum_variable_source *source);
+  static bool is_system_variable_configured(const std::string &name);
 
   static Get_client_callback get_client_callback();
   static void initialize(iface::Service_sys_variables *sys_var,

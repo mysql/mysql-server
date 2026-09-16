@@ -27,11 +27,6 @@
 
 #include <stdexcept>
 
-#include "my_rapidjson_size_t.h"
-
-#include <rapidjson/ostreamwrapper.h>
-#include <rapidjson/writer.h>
-
 namespace mrs {
 namespace database {
 
@@ -40,28 +35,10 @@ void QueryRestSPMedia::query_entries(MySQLSession *session,
                                      const std::string &object,
                                      const mysqlrouter::sqlstring &values) {
   items = 0;
-  query_ = {"CALL !.!(!)"};
-  query_ << schema << object << values;
+  mysqlrouter::sqlstring query{"CALL !.!(!)"};
+  query << schema << object << values;
 
-  auto result = query_one(session);
-
-  if (result->size() < 1)
-    throw std::logic_error("Query returned an empty resultset.");
-
-  items = 1;
-  response.assign((*result.get())[0], result->get_data_size(0));
-}
-
-void QueryRestSPMedia::query_entries(MySQLSession *session, const std::string &,
-                                     const std::string &, const std::string &,
-                                     const PrimaryKeyColumnValues &) {
-  assert(0);
-  items = 0;
-  query_ = {"SELECT ! FROM !.! WHERE ?"};
-  // query_ << column << schema << object
-  //        << format_where_expr(object->table, pk);
-  auto result = session->query_one(
-      query_, [this](auto no, auto fields) { on_metadata(no, fields); });
+  auto result = session->query_one(query);
 
   if (result->size() < 1)
     throw std::logic_error("Query returned an empty resultset.");
@@ -69,28 +46,6 @@ void QueryRestSPMedia::query_entries(MySQLSession *session, const std::string &,
   items = 1;
   response.assign((*result.get())[0], result->get_data_size(0));
 }
-
-void QueryRestSPMedia::query_entries(
-    MySQLSession *session, const std::string &column, const std::string &schema,
-    const std::string &object, const uint64_t limit, const uint64_t offset) {
-  assert(0);
-  items = 0;
-  query_ = {"SELECT ! FROM !.! LIMIT ?,?"};
-  query_ << column << schema << object << offset << limit;
-
-  auto result = session->query_one(
-      query_, [this](auto no, auto fields) { on_metadata(no, fields); });
-
-  if (result->size() < 1)
-    throw std::logic_error("Query returned an empty resultset.");
-
-  items = 1;
-  response.assign((*result.get())[0], result->get_data_size(0));
-}
-
-void QueryRestSPMedia::on_row(const ResultRow &) {}
-
-void QueryRestSPMedia::on_metadata(unsigned int, MYSQL_FIELD *) {}
 
 }  // namespace database
 }  // namespace mrs

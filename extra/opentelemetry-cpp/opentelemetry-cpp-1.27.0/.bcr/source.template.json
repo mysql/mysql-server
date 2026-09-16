@@ -1,0 +1,5 @@
+{
+  "integrity": "",
+  "strip_prefix": "opentelemetry-cpp-{VERSION}",
+  "url": "https://github.com/{OWNER}/{REPO}/archive/refs/tags/{TAG}.tar.gz"
+}

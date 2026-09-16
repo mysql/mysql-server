@@ -1,0 +1,37 @@
+SELECT CONNECTIONS_STARTED INTO @connection_started_0
+FROM performance_schema.tp_thread_group_stats WHERE TP_GROUP_ID = 0;
+SELECT SLEEP(3);
+SELECT SLEEP(3);
+SLEEP(3)
+0
+SLEEP(3)
+0
+SET @TP_GROUP_ID = <tp_group_id>;
+SELECT RESERVE_THREADS = 0 AS "Expect 1" FROM performance_schema.tp_thread_group_state
+WHERE TP_GROUP_ID = @TP_GROUP_ID;
+Expect 1
+1
+SELECT THREAD_COUNT = 3 AND CONSUMER_THREADS = 2 AND RESERVE_THREADS = 0 AND CONNECT_THREAD_COUNT = 1 AS "Expect 1"
+FROM performance_schema.tp_thread_group_state
+WHERE TP_GROUP_ID = @TP_GROUP_ID;
+Expect 1
+0
+SELECT SLEEP(3);
+SELECT SLEEP(3);
+SELECT SLEEP(3);
+SLEEP(3)
+0
+SLEEP(3)
+0
+SLEEP(3)
+0
+SELECT RESERVE_THREADS = 0 AS "Expect 1" FROM performance_schema.tp_thread_group_state
+WHERE TP_GROUP_ID = @TP_GROUP_ID;
+Expect 1
+1
+SELECT THREAD_COUNT = 3 AND CONSUMER_THREADS = 2 AND RESERVE_THREADS = 0 AND CONNECT_THREAD_COUNT = 1 AS "Expect 1"
+FROM performance_schema.tp_thread_group_state
+WHERE TP_GROUP_ID = @TP_GROUP_ID;
+Expect 1
+0
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

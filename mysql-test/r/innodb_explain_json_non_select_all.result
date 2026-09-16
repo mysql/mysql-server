@@ -4191,6 +4191,10 @@ EXPLAIN
           "key2"
         ] /* possible_keys */,
         "key": "sort_union(key1,key2)",
+        "used_key_parts": [
+          "key1",
+          "key2"
+        ] /* used_key_parts */,
         "key_length": "5,5",
         "rows_examined_per_scan": "X",
         "filtered": "X",
@@ -4225,6 +4229,10 @@ EXPLAIN
           "key2"
         ] /* possible_keys */,
         "key": "sort_union(key1,key2)",
+        "used_key_parts": [
+          "key1",
+          "key2"
+        ] /* used_key_parts */,
         "key_length": "5,5",
         "rows_examined_per_scan": "X",
         "rows_produced_per_join": "X",
@@ -5234,6 +5242,10 @@ EXPLAIN
           "key2"
         ] /* possible_keys */,
         "key": "sort_union(key1,key2)",
+        "used_key_parts": [
+          "key1",
+          "key2"
+        ] /* used_key_parts */,
         "key_length": "5,5",
         "rows_examined_per_scan": "X",
         "filtered": "X",
@@ -5268,6 +5280,10 @@ EXPLAIN
           "key2"
         ] /* possible_keys */,
         "key": "sort_union(key1,key2)",
+        "used_key_parts": [
+          "key1",
+          "key2"
+        ] /* used_key_parts */,
         "key_length": "5,5",
         "rows_examined_per_scan": "X",
         "rows_produced_per_join": "X",

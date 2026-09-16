@@ -74,7 +74,9 @@ SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION)
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id2;
 
 
+--sorted_result
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
+--sorted_result
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 
 set global innodb_optimize_fulltext_only=1;
@@ -85,8 +87,10 @@ UPDATE t1 SET a1 = "changing column - on update cascade" , b1 = "to check foreig
 MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 
 # no records expected
+--sorted_result
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 # InnoDB:Error child table shows records which is incorrect - UPADTE on Fix
+--sorted_result
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 
 # it shows updated record
@@ -106,6 +110,7 @@ insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
 commit;
+--sorted_result
 select * from t2 where match(s2) against ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -117,6 +122,7 @@ create table t2 (s1 int, s2 varchar(200),
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 delete from t1  where s2 <> 'Sunshine';
+--sorted_result
 select * from t2 where match(s2) against ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -128,6 +134,7 @@ create table t2 (s1 int, s2 varchar(200),
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 delete from t1 where s2 <> 'Sunshine';
+--sorted_result
 select * from t2 where match(s2) against ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -141,6 +148,7 @@ insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
 commit;
+--sorted_result
 select * from t2 where match(s2) against ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -162,6 +170,7 @@ insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 
 update t1 set s1 = 3 where s1=1;
 
+--sorted_result
 select * from t2 where match(s2) against ('sunshine');
 
 # FTS Doc ID cannot be reused
@@ -218,7 +227,9 @@ DELETE FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOO
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 
+--sorted_result
 SELECT * FROM t1 WHERE a1 LIKE '%tutorial%';
+--sorted_result
 SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
 
 DROP TABLE t2 , t1;
@@ -288,7 +299,9 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN B
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ORDER BY id2;
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id1;
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY id2;
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
+--sorted_result
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 
 # no records as data not COMMITted.
@@ -334,6 +347,7 @@ INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
 INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
 UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
 COMMIT;
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -347,6 +361,7 @@ INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
 INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
 DELETE FROM t1  WHERE s2 <> 'Sunshine';
 COMMIT;
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -360,6 +375,7 @@ INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
 INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
 DELETE FROM t1 WHERE s2 <> 'Sunshine';
 COMMIT;
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -374,6 +390,7 @@ INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
 INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
 UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
 COMMIT;
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -390,6 +407,7 @@ INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
 INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
 UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
 ROLLBACK;
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -403,6 +421,7 @@ INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
 INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
 DELETE FROM t1  WHERE s2 <> 'Sunshine';
 ROLLBACK;
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -416,6 +435,7 @@ INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
 INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
 DELETE FROM t1 WHERE s2 <> 'Sunshine';
 ROLLBACK;
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -430,6 +450,7 @@ INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
 INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
 UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
 ROLLBACK;
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
 DROP TABLE t2 , t1;
 
@@ -478,13 +499,17 @@ SELECT * FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) ORDER BY id;
 
 # boolean mode
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("+tutorial +VÐƷWİ" IN BOOLEAN MODE);
 --error ER_PARSE_ERROR
 select * from t1 where MATCH(a,b) AGAINST("+-VÐƷWİ" IN BOOLEAN MODE);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE) ORDER BY id;
 select *, MATCH(a,b) AGAINST("mysql stands" IN BOOLEAN MODE) as x from t1 ORDER BY id;
+--sorted_result
 select * from t1 where MATCH a,b AGAINST ("+database* +VÐƷW*" IN BOOLEAN MODE);
+--sorted_result
 select * from t1 where MATCH a,b AGAINST ('"security mysql"' IN BOOLEAN MODE);
 
 # query expansion
@@ -507,13 +532,17 @@ SELECT * FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) ORDER BY id;
 
 # boolean mode
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("+tutorial +VÐƷWİ" IN BOOLEAN MODE);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("+dbms" IN BOOLEAN MODE);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE) ORDER BY id;
 select *, MATCH(a,b) AGAINST("mysql VÐƷWİ" IN BOOLEAN MODE) as x from t1 ORDER BY id;
 # Innodb:Assert eval0eval.c line 148
 #select * from t1 where MATCH a,b AGAINST ("+database* +VÐƷWİ*" IN BOOLEAN MODE);
+--sorted_result
 select * from t1 where MATCH a,b AGAINST ('"security mysql"' IN BOOLEAN MODE);
 
 # query expansion
@@ -557,15 +586,18 @@ SELECT * FROM t1
 
 # Test with more word The last document will return, please notice there
 # is no ordering requirement for proximity search.
+--sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
 
 # The phrase search will not require exact word ordering
+--sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"more fts proximity"@03' IN BOOLEAN MODE);
@@ -574,7 +606,9 @@ SELECT * FROM t1
 UPDATE t1 SET a = UPPER(a) , b = UPPER(b) ;
 UPDATE t1 SET a = UPPER(a) , b = LOWER(b) ;
 
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("+tutorial +dbms" IN BOOLEAN MODE);
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST("+VÐƷWİ" IN BOOLEAN MODE);
 
 SELECT * FROM t1 WHERE MATCH (a,b)
@@ -584,6 +618,7 @@ DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
 
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH (a,b)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
@@ -625,37 +660,50 @@ CREATE FULLTEXT INDEX idx on t1 (a,b);
 
 # FTS Queries
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("вредит χωρὶς") ORDER BY id;
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("оно" WITH QUERY EXPANSION);
 
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE) ORDER BY id;
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+γυαλιὰ +tutorial" IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+tutorial +(Мога τίποτα)" IN BOOLEAN MODE);
 
 # Innodb:error - no result returned (update result of query once fixed) (innodb limit , does not understand character boundry for japanses like charcter set)
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("ちりぬる" WITH QUERY EXPANSION);
 
 # Innodb:error - no result returned (update result of query once fixed) (innodb limit , does not understand character boundry for japanses like charcter set)
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("+あさきゆめみじ　+ゑひもせず" IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("うゐのおく*" IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"γυαλιὰ χωρὶς"@2' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"query performace"@02' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"πάθω τίποτα"@2' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"あさきゆめみじ ゑひもせず"@1' IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"あさきゆめみじ ゑひもせず"@2' IN BOOLEAN MODE);
@@ -665,6 +713,7 @@ ALTER TABLE t1 DROP INDEX idx;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 
 # Innodb:error - no result returned (update result of query once fixed) (innodb limit , does not understand character boundry for japanses like charcter set)
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ ゑひもせず");
 # Update fails because where condition do not succeed which is incorrect (update result of query once fixed)
 UPDATE t1 SET a = "Pchnąć w tę łódź jeża" , b = "lub osiem skrzyń fig" WHERE MATCH(a,b) AGAINST ("あさきゆめみじ ゑひもせず");
@@ -672,12 +721,18 @@ UPDATE t1 SET a = "В чащах юга жил-был цитрус? Да", b = "
 DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
 
 # Innodb error - no result returned
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("łódź osiem");
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("фальшив*" IN BOOLEAN MODE) ORDER BY id;
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
 
+--sorted_result
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"łódź jeża"@2' IN BOOLEAN MODE);
@@ -694,23 +749,28 @@ CREATE TABLE t1(ID INT PRIMARY KEY,
 
 INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
 
 # Update FULLTEXT indexed column, Doc ID will be updated
 UPDATE t1 SET fts_field='anychange' where id = 1;
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
 
 # Update non-FULLTEXT indexed column, Doc ID stay to be the same
 UPDATE t1 SET no_fts_field='anychange' where id = 1;
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
 
 # Update both FULLTEXT indexed and non-indexed column, Doc ID will be updated
 UPDATE t1 SET no_fts_field='anychange', fts_field='other' where id = 1;
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
 
 # FTS index dropped, the DOC_ID column is kept, however, the ID will not
@@ -725,6 +785,7 @@ UPDATE t1 SET no_fts_field='anychange', fts_field='other' where id = 1;
 
 CREATE FULLTEXT INDEX f ON t1(FTS_FIELD);
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
 
 DROP TABLE t1;
@@ -743,19 +804,23 @@ UPDATE t1 SET fts_field='anychange' where FTS_DOC_ID = 1;
 
 UPDATE t1 SET fts_field='anychange', FTS_DOC_ID = 2 where FTS_DOC_ID = 1;
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
 
 # "BBB" should be marked as deleted.
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
 
 UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
 
 # "HA_FTS_INVALID_DOCID"
 --error 182
 UPDATE t1 SET no_fts_field='anychange', fts_field='other' where FTS_DOC_ID = 2;
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
 
 # Doc ID must be monotonically increase (HA_FTS_INVALID_DOCID)
@@ -769,6 +834,7 @@ UPDATE t1 SET fts_field='newchange' where FTS_DOC_ID = 2;
 
 UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
 
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -793,9 +859,13 @@ INSERT INTO t2 VALUES (1, 'AAA', 'BBB');
 
 update t1 set fts_field='newchange' where id =1;
 
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(fts_field) against("BBB");
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("newchange");
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(fts_field) against("newchange");
 
 DROP TABLE t2;
@@ -826,18 +896,25 @@ UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'xoo'), t2.fts_field = CON
 # Following selects shows whether the correct Doc ID are updated
 
 # This row should present in table t1
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("100foofoo");
 
 # Following rows should be dropped
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("100foo");
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(fts_field) against("100");
 
 # This row should present in table t2
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(fts_field) against("400fooxoo");
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(fts_field) against("100");
 
 # Follow rows should be marked as dropped
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(fts_field) against("200");
+--sorted_result
 SELECT * FROM t2 WHERE MATCH(fts_field) against("400");
 
 

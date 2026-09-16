@@ -129,23 +129,51 @@ void Transaction_with_guarantee_message::decode_payload(const unsigned char *,
 
 enum_group_replication_consistency_level
 Transaction_with_guarantee_message::decode_and_get_consistency_level(
-    const unsigned char *buffer, size_t) {
+    const unsigned char *buffer, size_t length, bool *decode_error) {
   DBUG_TRACE;
+  if (decode_error != nullptr) *decode_error = false;
+  if (length < Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+                   Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+    if (decode_error != nullptr) *decode_error = true;
+    return GROUP_REPLICATION_CONSISTENCY_AFTER;
+  }
 
-  // Get first payload item pointer and size.
-  const unsigned char *payload_data = nullptr;
-  size_t payload_size = 0;
-  get_first_payload_item_raw_data(buffer, &payload_data, &payload_size);
-
-  const unsigned char *slider = payload_data + payload_size;
+  const unsigned char *end = buffer + length;
+  const unsigned char *slider =
+      buffer + Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE;
   uint16 payload_item_type = 0;
+  unsigned long long payload_item_length = 0;
+
+  if (slider > end || static_cast<size_t>(end - slider) <
+                          Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+    if (decode_error != nullptr) *decode_error = true;
+    return GROUP_REPLICATION_CONSISTENCY_AFTER;
+  }
+
+  decode_payload_item_type_and_length(&slider, &payload_item_type,
+                                      &payload_item_length);
+  if (payload_item_type != PIT_TRANSACTION_DATA || slider > end ||
+      static_cast<unsigned long long>(end - slider) < payload_item_length) {
+    if (decode_error != nullptr) *decode_error = true;
+    return GROUP_REPLICATION_CONSISTENCY_AFTER;
+  }
+
+  slider += payload_item_length;
 
   unsigned char consistency_level_aux = 0;
-  decode_payload_item_char(&slider, &payload_item_type, &consistency_level_aux);
+  if (decode_payload_item_char(&slider, &payload_item_type, end,
+                               &consistency_level_aux) ||
+      payload_item_type != PIT_TRANSACTION_CONSISTENCY_LEVEL) {
+    if (decode_error != nullptr) *decode_error = true;
+    return GROUP_REPLICATION_CONSISTENCY_AFTER;
+  }
   enum_group_replication_consistency_level consistency_level =
       static_cast<enum_group_replication_consistency_level>(
           consistency_level_aux);
-  assert(consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
+  if (consistency_level < GROUP_REPLICATION_CONSISTENCY_AFTER) {
+    if (decode_error != nullptr) *decode_error = true;
+    return GROUP_REPLICATION_CONSISTENCY_AFTER;
+  }
 
   return consistency_level;
 }

@@ -195,6 +195,7 @@ SET PERSIST local_infile= ON;
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_enforce_update_everywhere_checks=FALSE;
@@ -217,6 +218,7 @@ SET GLOBAL group_replication_clone_threshold= 1;
 
 --replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1 $local_address_server2 LOCAL_ADDRESS_SERVER2 $local_address_server3 LOCAL_ADDRESS_SERVER3
 --eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_server1, $local_address_server2, $local_address_server3"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 --source include/wait_until_disconnected.inc

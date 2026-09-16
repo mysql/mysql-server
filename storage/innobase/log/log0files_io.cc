@@ -37,41 +37,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <windows.h>
 #endif /* WIN32 */
 
-/* std::sort */
-#include <algorithm>
+#include <algorithm> /* std::sort */
+#include <cstring>   /* strncpy */
+#include <limits>    /* std::numeric_limits */
+#include <sstream>   /* std::ostringstream */
 
-/* strncpy */
-#include <cstring>
-
-/* std::numeric_limits */
-#include <limits>
-
-/* std::ostringstream */
-#include <sstream>
-
-/* log_block_set_checksum, ... */
-#include "log0files_io.h"
-
-/* log_pre_8_0_30::FILE_BASE_NAME, ... */
-#include "log0pre_8_0_30.h"
-
-/* LOG_HEADER_FORMAT, ... */
-#include "log0types.h"
-
-/* mach_write_to_4, ... */
-#include "mach0data.h"
-
-/* DBUG_EXECUTE_IF, ... */
-#include "my_dbug.h"
-
-/* os_file_scan_directory */
-#include "os0file.h"
-
-/* ut::vector */
-#include "ut0new.h"
-
-/* ut::random_from_interval */
-#include "ut0rnd.h"
+#include "log0files_io.h"          /* log_block_set_checksum, ... */
+#include "log0handler_interface.h" /* Redo log handler */
+#include "log0pre_8_0_30.h"        /* log_pre_8_0_30::FILE_BASE_NAME, ... */
+#include "log0types.h"             /* LOG_HEADER_FORMAT, ... */
+#include "mach0data.h"             /* mach_write_to_4, ... */
+#include "my_dbug.h"               /* DBUG_EXECUTE_IF, ... */
+#include "os0file.h"               /* os_file_scan_directory */
+#include "ut0new.h"                /* ut::vector */
+#include "ut0rnd.h"                /* ut::random_from_interval */
 
 /* srv_redo_log_encrypt */
 #include "srv0srv.h"
@@ -256,7 +235,7 @@ dberr_t Log_file_handle::open() {
   const bool read_only = m_access_mode == Log_file_access_mode::READ_ONLY;
   os_file_stat_t stat_info;
   dberr_t err;
-  err = os_file_get_status(m_file_path.c_str(), &stat_info, false, read_only);
+  err = os_file_get_status(m_file_path.c_str(), &stat_info);
   if (err != DB_SUCCESS) {
     return err;
   }
@@ -314,22 +293,23 @@ Log_file_id Log_file_handle::file_id() const { return m_file_id; }
 
 os_offset_t Log_file_handle::file_size() const { return m_file_size; }
 
-IORequest Log_file_handle::prepare_io_request(int req_type, os_offset_t offset,
+IORequest Log_file_handle::prepare_io_request(IORequest::Type req_type,
+                                              os_offset_t offset,
                                               os_offset_t size,
                                               bool can_use_encryption) {
   ut_a(size > 0);
   ut_a(size % OS_FILE_LOG_BLOCK_SIZE == 0);
   ut_a(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-  ut_a(req_type == IORequest::READ || req_type == IORequest::WRITE);
+  ut_a(req_type == IORequest::Type::READ || req_type == IORequest::Type::WRITE);
   ut_a(m_block_size > 0);
 
-  IORequest io_request{IORequest::LOG | req_type};
+  IORequest io_request{IORequest::Type::LOG | req_type};
   io_request.block_size(m_block_size);
 
   // Finally, set up encryption related fields, if needed
 
   if (!(can_use_encryption && m_encryption_metadata.can_encrypt())) {
-    return io_request;  // There is no ecryption involved
+    return io_request;  // There is no encryption involved
   }
 
   if (offset + size <= LOG_FILE_HDR_SIZE) {
@@ -344,11 +324,11 @@ IORequest Log_file_handle::prepare_io_request(int req_type, os_offset_t offset,
 }
 
 dberr_t Log_file_handle::read(os_offset_t read_offset, os_offset_t read_size,
-                              byte *buf) {
+                              byte *buf, bool can_decrypt) {
   if (!is_open()) return DB_ERROR;
 
-  auto io_request =
-      prepare_io_request(IORequest::READ, read_offset, read_size, true);
+  auto io_request = prepare_io_request(IORequest::Type::READ, read_offset,
+                                       read_size, can_decrypt);
 
   ut_ad(m_access_mode != Log_file_access_mode::WRITE_ONLY);
 
@@ -364,7 +344,7 @@ dberr_t Log_file_handle::write(os_offset_t write_offset, os_offset_t write_size,
                                const byte *buf) {
   if (!is_open()) return DB_ERROR;
 
-  auto io_request = prepare_io_request(IORequest::WRITE, write_offset,
+  auto io_request = prepare_io_request(IORequest::Type::WRITE, write_offset,
                                        write_size, srv_redo_log_encrypt);
 
   ut_ad(m_access_mode != Log_file_access_mode::READ_ONLY);
@@ -630,19 +610,18 @@ dberr_t log_checkpoint_header_read(
 
 dberr_t log_checkpoint_header_read(
     Log_file_handle &file_handle, Log_checkpoint_header_no checkpoint_header_no,
-    Log_checkpoint_header &header) {
-  Log_file_block buf;
-
-  const dberr_t err =
-      log_checkpoint_header_read(file_handle, checkpoint_header_no, buf.data);
+    Log_checkpoint_header &header,
+    ib::redo::Handler_interface::Metadata_value &block) {
+  const dberr_t err = log_checkpoint_header_read(
+      file_handle, checkpoint_header_no, block.data());
   if (err != DB_SUCCESS) {
     return err;
   }
 
-  if (!log_checkpoint_header_deserialize(buf.data, header)) {
+  if (!log_checkpoint_header_deserialize(block.data(), header)) {
     DBUG_PRINT("ib_log", ("invalid checkpoint " UINT32PF " checksum %lx",
                           uint32_t{to_int(checkpoint_header_no)},
-                          ulong{log_block_get_checksum(buf.data)}));
+                          ulong{log_block_get_checksum(block.data())}));
     return DB_CORRUPTION;
   }
 
@@ -675,9 +654,9 @@ dberr_t log_data_blocks_write(Log_file_handle &file_handle,
 
 dberr_t log_data_blocks_read(Log_file_handle &file_handle,
                              os_offset_t read_offset, size_t read_size,
-                             byte *buf) {
+                             byte *buf, bool can_decrypt) {
   log_data_blocks_validate(read_offset, read_size);
-  return file_handle.read(read_offset, read_size, buf);
+  return file_handle.read(read_offset, read_size, buf, can_decrypt);
 }
 
 /** @} */
@@ -890,12 +869,8 @@ dberr_t log_mark_file_as_unused(const Log_files_context &ctx,
 static dberr_t log_remove_file_low(const Log_files_context &,
                                    const std::string &file_path,
                                    int err_msg_id) {
-  os_file_type_t file_type;
-  os_file_status(file_path.c_str(), nullptr, &file_type);
-  if (file_type == OS_FILE_TYPE_MISSING) {
-    /* File does not exist (note: there is no reason to use the "exists"
-    argument of the os_file_status(), because the "file_type" argument
-    provides information about the missing file by OS_FILE_TYPE_MISSING. */
+  const auto file_type = os_file_type(file_path.c_str());
+  if (os_file_is_missing(file_type)) {
     return DB_NOT_FOUND;
   }
   ut_a(file_type == OS_FILE_TYPE_FILE);
@@ -1009,18 +984,19 @@ dberr_t log_create_unused_file(const Log_files_context &ctx,
     return DB_ERROR;
   }
 
-  ret = os_file_set_size_fast(file_path.c_str(), file, 0, size_in_bytes, true);
+  /* Log files are opened as OS_LOG_FILE in buffered mode, which does not have
+  any offset and length alignment requirements. */
+  const auto err = os_file_fill_range_with_zeros(file_path.c_str(), file, 0,
+                                                 size_in_bytes, true, false);
 
-  if (!ret) {
+  if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_LOG_FILE_RESIZE_FAILED, file_path.c_str(),
               ulonglong{size_in_bytes / (1024 * 1024UL)}, "Failed to set size");
 
-    /* Delete incomplete file if OOM */
-    if (os_has_said_disk_full) {
-      ret = os_file_close(file);
-      ut_a(ret);
-      os_file_delete(innodb_log_file_key, file_path.c_str());
-    }
+    /* Delete possibly incomplete file. */
+    ret = os_file_close(file);
+    ut_a(ret);
+    os_file_delete(innodb_log_file_key, file_path.c_str());
 
     return DB_ERROR;
   }
@@ -1034,8 +1010,7 @@ dberr_t log_create_unused_file(const Log_files_context &ctx,
 static dberr_t log_resize_file_low(const std::string &file_path,
                                    os_offset_t size_in_bytes, int err_msg_id) {
   os_file_stat_t stat_info;
-  const dberr_t err =
-      os_file_get_status(file_path.c_str(), &stat_info, false, false);
+  const dberr_t err = os_file_get_status(file_path.c_str(), &stat_info);
   if (err != DB_SUCCESS) {
     ib::error(err_msg_id, file_path.c_str(),
               ulonglong{size_in_bytes / (1024 * 1024UL)},
@@ -1060,8 +1035,11 @@ static dberr_t log_resize_file_low(const std::string &file_path,
   }
 
   if (size_in_bytes > stat_info.size) {
+    /* Log files are opened as OS_LOG_FILE in buffered mode, which does not have
+    any offset and length alignment requirements. */
     ret =
-        os_file_set_size_fast(file_path.c_str(), file, 0, size_in_bytes, true);
+        os_file_fill_range_with_zeros(file_path.c_str(), file, 0, size_in_bytes,
+                                      true, false) == DB_SUCCESS;
 
   } else if (size_in_bytes < stat_info.size) {
     ret = os_file_truncate(file_path.c_str(), file, size_in_bytes);
@@ -1075,7 +1053,7 @@ static dberr_t log_resize_file_low(const std::string &file_path,
   ut_a(close_ret);
 
   if (!ret) {
-    if (os_has_said_disk_full) {
+    if (os_was_file_write_error_reported) {
       ib::error(err_msg_id, file_path.c_str(),
                 ulonglong{size_in_bytes / (1024 * 1024UL)},
                 "Missing space on disk");
@@ -1110,7 +1088,11 @@ static dberr_t log_check_file(const Log_files_context &ctx, Log_file_id file_id,
     return DB_NOT_FOUND;
   }
 
-  if (!os_file_check_mode(file_path.c_str(), read_only)) {
+  if (!os_file_check_mode(
+#ifdef UNIV_PFS_IO
+          innodb_log_file_key,
+#endif /* UNIV_PFS_IO */
+          file_path.c_str(), false, read_only)) {
     /* Error has been emitted in os_file_check_mode */
     return DB_ERROR;
   }

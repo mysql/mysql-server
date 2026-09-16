@@ -19,6 +19,8 @@
 
 # This test is binary_log format agnostic so row is chosen.
 --source include/have_binlog_format_row.inc
+# CSA does not support position-based UNTIL clauses
+--source include/have_mta.inc
 --source include/rpl/init_source_replica.inc
 
 # Test is dependent on binlog positions

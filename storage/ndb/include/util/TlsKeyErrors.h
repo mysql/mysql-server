@@ -73,6 +73,12 @@ class TlsKeyError {
     active_cert_invalid = 45,
     active_cert_expired = 46,
     no_writable_dir = 47,
+
+    trust_store_fs_error = 48,
+    trust_file_not_found = 49,
+    trust_store_cannot_write = 50,
+    trust_store_bad_indicator = 51,
+    trust_store_duplicate = 52,
     END_ERRORS
   };
 
@@ -132,7 +138,14 @@ class TlsKeyError {
       "node certificate has wrong public key",
       "active node certificate is not valid",
       "active node certificate has expired",
-      "no writable directory found in TLS search path"};
+      "no writable directory found in TLS search path",
+
+      "trust store filesystem error",
+      "trust store file not found",
+      "cannot write trust store file",
+      "cannot find certificate using indicator",
+      "duplicate certificate; already in trust store",
+  };
 };
 
 #endif

@@ -1637,7 +1637,8 @@ static bool can_persist_non_persistent_var(THD *thd, sys_var *var,
   cert = SSL_get_peer_certificate(ssl);
   if (!cert) goto done;
 
-  ptr = X509_NAME_oneline(X509_get_subject_name(cert), nullptr, 0);
+  ptr = X509_NAME_oneline(const_cast<X509_NAME *>(X509_get_subject_name(cert)),
+                          nullptr, 0);
   if (!ptr) goto done;
 
   result = !strcmp(sys_var_persist_only_admin_x509_subject, ptr);

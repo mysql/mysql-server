@@ -14,6 +14,8 @@ EXPLAIN
     -> Select #2 (subquery in condition; run only once)
         -> Table scan on t
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` where (0 <> (/* select#2 */ select `test`.`t`.`x` from `test`.`t`))
 SELECT * FROM t WHERE (SELECT x FROM t);
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t;

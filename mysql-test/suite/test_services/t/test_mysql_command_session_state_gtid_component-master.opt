@@ -1,0 +1,6 @@
+$TEST_MYSQL_COMMAND_SERVICES_OPT
+--log-bin=mysqld-bin
+--server-id=1
+--gtid-mode=ON
+--enforce-gtid-consistency
+--binlog-format=ROW

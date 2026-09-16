@@ -9,6 +9,7 @@ CALL mtr.add_suppression("Worker .* failed executing transaction");
 CALL mtr.add_suppression("Replica worker has stopped since one or more of the
   previous worker(s) have encountered an error and replica-preserve-commit-order
   is enabled.*");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
 SET @save_debug = @@GLOBAL.debug;
 SET GLOBAL debug = "+d,set_commit_parent_100";
 CREATE TABLE t_w1 (c1 int PRIMARY KEY) ENGINE = InnoDB;
@@ -42,7 +43,7 @@ include/rpl/save_server_position.inc
 [connection slave]
 UNLOCK TABLES;
 include/rpl/wait_for_applier_error.inc [errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR]
-include/assert.inc ['Rows have been inserted to table t_w1']
+include/assert.inc ['MTA: verify rows in t_w1, CSA: verify no gaps in gtid_executed']
 include/assert.inc ['No rows have been inserted to table t_w2']
 include/assert.inc ['No rows have been inserted to table t_w3']
 include/assert.inc ['No rows have been inserted to table t_w4']

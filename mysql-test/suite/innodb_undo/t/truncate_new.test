@@ -1,0 +1,68 @@
+--echo #
+--echo # wl#16989 Innodb: Make UNDO log truncation crash safe
+--echo #
+
+# This test uses debug settings like innodb_purge_stop_now.
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+# The test must start with only 2 undo tablespaces
+--source include/have_innodb_default_undo_tablespaces.inc
+
+# As we forcefully delete the undo logs and restart, these errors
+# are expected while the server looks for the removed undo files
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .* The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] .* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\].* File .* 'open' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].* File .* 'delete' returned OS error .*");
+--enable_query_log
+
+--echo # Create 2 explicit undo tablespaces.
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
+
+SELECT name, space_type, state, autoextend_size FROM
+    INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE name LIKE '%undo_%';
+
+--echo # Crash just after writing truncation flags to tablespace header
+set global debug='+d,ib_undo_trunc_after_writing_unusable_flag';
+--echo # Write file to make mysql-test-run.pl expect crash
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # Make the 1st implicit undo tablespace inactive so that it can get
+--echo # truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+--source include/wait_until_disconnected.inc
+
+--echo # Restart mysqld after the crash and reconnect.
+--source include/wait_until_connected_again.inc
+SELECT name, space_type, state, autoextend_size FROM
+    INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE name LIKE '%undo_%';
+
+--echo #
+--echo # Cleanup
+--echo #
+
+ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
+
+SET GLOBAL innodb_purge_rseg_truncate_frequency=default;
+DROP UNDO TABLESPACE undo_003;
+DROP UNDO TABLESPACE undo_004;
+SELECT name, space_type, state, autoextend_size FROM
+    INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE name LIKE '%undo_%';

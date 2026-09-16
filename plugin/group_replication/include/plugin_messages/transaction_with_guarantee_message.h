@@ -96,10 +96,14 @@ class Transaction_with_guarantee_message
   /**
     Decode transaction consistency without unmarshal transaction data.
 
+    @param[in]  buffer       the buffer to decode from
+    @param[in]  length       the buffer length
+    @param[out] decode_error whether the consistency item could not be decoded
     @return the transaction consistency
   */
   static enum_group_replication_consistency_level
-  decode_and_get_consistency_level(const unsigned char *buffer, size_t);
+  decode_and_get_consistency_level(const unsigned char *buffer, size_t length,
+                                   bool *decode_error);
 
   /**
     Return the time at which the message contained in the buffer was sent.

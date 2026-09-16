@@ -8,6 +8,8 @@ EXPLAIN
 -> Filter: (rand() < rand())  (cost=0..0 rows=1)
     -> Rows fetched before execution  (cost=0..0 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from DUAL  where (rand() < rand())
 #
 # Bug#33535379 Wrong value for RAND() expression when aggregating on empty table.
 #

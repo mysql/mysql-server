@@ -84,6 +84,13 @@ char *NdbConfig_ErrorFileName(int node_id) {
   return buf;
 }
 
+char *NdbConfig_ErrorFileCopyName(int node_id) {
+  char *buf = get_prefix_buf(PATH_MAX, node_id);
+  int len = (int)strlen(buf);
+  snprintf(buf + len, PATH_MAX, "_error.log.bak");
+  return buf;
+}
+
 char *NdbConfig_ClusterLogFileName(int node_id) {
   char *buf = get_prefix_buf(PATH_MAX, node_id);
   int len = (int)strlen(buf);

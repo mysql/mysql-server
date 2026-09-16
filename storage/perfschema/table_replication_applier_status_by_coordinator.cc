@@ -183,7 +183,7 @@ int table_replication_applier_status_by_coordinator::rnd_next() {
       'replication_applier_status_by_worker' table.
     */
     if (channel_map.is_channel_configured(mi) && mi->rli &&
-        mi->rli->get_worker_count() > 0) {
+        (mi->rli->get_worker_count() > 0 || mi->rli->is_csa_enabled())) {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
       channel_map.unlock();
@@ -253,7 +253,7 @@ int table_replication_applier_status_by_coordinator::index_next() {
       'replication_applier_status_by_worker' table.
     */
     if (channel_map.is_channel_configured(mi) && mi->rli &&
-        mi->rli->get_worker_count() > 0) {
+        (mi->rli->get_worker_count() > 0 || mi->rli->is_csa_enabled())) {
       if (m_opened_index->match(mi)) {
         res = make_row(mi);
         m_next_pos.set_after(&m_pos);

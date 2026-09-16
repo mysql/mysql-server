@@ -9,7 +9,9 @@
 connection master;
 DROP TABLE IF EXISTS t1;
 
-sync_slave_with_master;
+--let $include_silent=1
+--source include/rpl/sync_to_replica.inc
+--let $include_silent=0
 STOP REPLICA;
 eval $test_table_slave;
 

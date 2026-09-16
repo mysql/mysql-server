@@ -64,6 +64,7 @@ Data dictionary interface */
 #ifndef UNIV_HOTBACKUP
 class THD;
 class MDL_ticket;
+class Dirs_in_datadir;
 
 struct CHARSET_INFO;
 
@@ -966,21 +967,6 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
     mem_heap_t *heap, const rec_t *rec, dict_table_t **table,
     dict_table_t *dd_tables, MDL_ticket **mdl, mtr_t *mtr);
 
-/** Process one mysql.columns record and get info to dict_col_t
-@param[in,out]  heap            Temp memory heap
-@param[in]      rec             mysql.columns record
-@param[in,out]  col             dict_col_t to fill
-@param[in,out]  table_id        Table id
-@param[in,out]  col_name        Column name
-@param[in,out]  nth_v_col       Nth v column
-@param[in]      dd_columns      dict_table_t obj of mysql.columns
-@param[in,out]  mtr             Mini-transaction
-@retval true if column is filled */
-bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
-                               dict_col_t *col, table_id_t *table_id,
-                               char **col_name, ulint *nth_v_col,
-                               const dict_table_t *dd_columns, mtr_t *mtr);
-
 /** Process one mysql.columns record for virtual columns
 @param[in]      heap            temp memory heap
 @param[in,out]  rec             mysql.columns record
@@ -1256,9 +1242,11 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
 /** Update the data directory flag in dd::Table key strings
 @param[in]      object_id       dd tablespace object id
 @param[in]      path            path where the ibd file is located currently
+@param[in]      dirs_in_datadir full paths for dirs directly under datadir
 @retval DB_SUCCESS on success. */
-dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
-                                                        std::string path);
+dberr_t dd_update_table_and_partitions_after_dir_change(
+    dd::Object_id object_id, std::string path,
+    const Dirs_in_datadir &dirs_in_datadir);
 
 /** Create metadata for specified tablespace, acquiring exclusive MDL first
 @param[in,out]  dd_client       data dictionary client
@@ -1450,9 +1438,26 @@ for the named tablespace.
 @param[in]  space_name  tablespace name
 @param[in]  space_id    tablespace id
 @param[in]  state       value to set for key 'state'
-@return DB_SUCCESS or DD_FAILURE. */
+@return DD_SUCCESS or DD_FAILURE. */
 bool dd_tablespace_set_id_and_state(const char *space_name, space_id_t space_id,
                                     dd_space_states state);
+
+/** Set the Space ID and retrieve the attribute state from the `se_private_data`
+of the named tablespace.
+@param[in]  space_name  tablespace name
+@param[in]  space_id    tablespace id
+@param[out] out_state   return the state of tablespace
+@return DD_SUCCESS or DD_FAILURE. */
+[[nodiscard]] bool dd_tablespace_set_space_id_and_get_state(
+    const char *space_name, space_id_t space_id, dd_space_states &out_state);
+
+/** Set Space ID in se_private_data of mysql.tablespaces
+for the named tablespace.
+@param[in]  space_name  tablespace name
+@param[in]  space_id    tablespace id
+@return DD_SUCCESS or DD_FAILURE. */
+[[nodiscard]] bool dd_tablespace_set_space_id(const char *space_name,
+                                              space_id_t space_id);
 
 /** Get state attribute value in dd::Tablespace::se_private_data
 @param[in]     dd_space  dd::Tablespace object

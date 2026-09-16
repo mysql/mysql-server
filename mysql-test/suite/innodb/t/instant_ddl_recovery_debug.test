@@ -4,6 +4,7 @@
 ##########################################################################
 
 --source include/have_debug.inc
+--source include/have_innodb_min_16k.inc
 let $is_debug = 1;
 
 --echo ##############################################
@@ -23,4 +24,3 @@ let $row_format = DYNAMIC;
 --echo ############################################
 let $row_format = COMPACT;
 --source suite/innodb/include/instant_ddl_recovery.inc
-

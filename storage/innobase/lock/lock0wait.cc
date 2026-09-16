@@ -263,12 +263,14 @@ void lock_wait_suspend_thread(que_thr_t *thr) {
     case 0:
       break;
     case RW_S_LATCH:
+      ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
       /* Release foreign key check latch */
       row_mysql_unfreeze_data_dictionary(trx);
 
       DEBUG_SYNC_C("lock_wait_release_s_latch_before_sleep");
       break;
     case RW_X_LATCH:
+      ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
       /* We may wait for rec lock in dd holding
       dict_operation_lock for creating FTS AUX table */
       ut_ad(!dict_sys_mutex_own());

@@ -86,7 +86,7 @@ struct row_events_waits {
   /** Length in bytes of @c m_index_name. */
   uint m_index_name_length{0};
   /** Column OBJECT_INSTANCE_BEGIN. */
-  intptr m_object_instance_addr;
+  pfs_identity m_object_instance_addr;
   /** Column SOURCE. */
   char m_source[COL_SOURCE_SIZE];
   /** Length in bytes of @c m_source. */

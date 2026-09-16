@@ -17,6 +17,7 @@
 # [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 # [--let $rpl_require_row_format= *:0,1:0,2:1]
 # [--let $rpl_gtid_only= *:0,1:0,2:1]
+# [--let $rpl_applier_version=*:1,1:1,2:2]
 # --let $rpl_source_file= rpl/impl/change_topology_helper.inc
 # --source include/rpl/for_each_connection.inc
 #
@@ -59,9 +60,10 @@
 if (!$rpl_unconditional_change_master)
 {
   if (`SELECT LOCATE(CONCAT('m',
-                            RPAD('$rpl_master', $rpl_server_count_length, ' '),
-                            ' s',
-                            RPAD('$rpl_slave', $rpl_server_count_length, ' '),
+                            '$rpl_master',
+                            REPEAT(' ', $rpl_server_count_length),
+                            's',
+                            '$rpl_slave',
                             ' '),
                      '$_rpl_old_connection_list')`)
   {
@@ -104,6 +106,35 @@ if (!$_rpl_change_topology_helper_skip)
     --source include/rpl/assert_gtid_mode_on.inc
     --let $use_gtids= 1
     --source include/have_binlog_format_row.inc
+  }
+
+  # Get APPLIER_VERSION for current `$rpl_slave`
+  --let $_rpl_change_topology_helper_applier_version_index= `SELECT LOCATE('$rpl_slave:', "$rpl_applier_version")`
+  --let $_rpl_change_topology_helper_applier_vERSION = 1
+  if ($_rpl_change_topology_helper_applier_version_index)
+  {
+    --let $_rpl_change_topology_helper_applier_version= `SELECT REPLACE(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_applier_version", $_rpl_change_topology_helper_applier_version_index), ',', 1), ':', -1), '"', '')`
+  }
+  # Get APPLIER_VERSION for all slaves
+  if (`SELECT $_rpl_change_topology_helper_applier_version_index = 0 AND "$_rpl_change_topology_helper_applier_version_all" != ""`)
+  {
+    --let $_rpl_change_topology_helper_applier_version= $_rpl_change_topology_helper_applier_version_all
+  }
+
+  if (`SELECT $_rpl_change_topology_helper_applier_version_index = 0 AND "$_rpl_change_topology_helper_applier_version_all" = ""`)
+  {
+    # Load environment variable if option is not set
+    --source include/rpl/impl/applier_version_configuration.inc
+    if (`SELECT "$rpl_applier_version" != ""`)
+    {
+      --let $_rpl_change_topology_helper_applier_version= $rpl_applier_version
+    }
+  }
+
+  # Validate that if we are using APPLIER_VERSION=2, requirements are met or the test is skipped.
+  if ($_rpl_change_topology_helper_applier_version != 1)
+  {
+    --source include/rpl/have_csa_requirements.inc
   }
 
 
@@ -184,6 +215,47 @@ if (!$_rpl_change_topology_helper_skip)
   # Set it if defined
   if ($_rpl_change_topology_helper_require_table_primary_key_check != -1){
     --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_rpl_change_topology_helper_require_table_primary_key_check,
+  }
+
+  # Set APPLIER_VERSION to CSA if needed
+  if ($_rpl_change_topology_helper_applier_version != 1)
+  {
+    --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position APPLIER_VERSION = $_rpl_change_topology_helper_applier_version, GTID_ONLY = 1, REQUIRE_ROW_FORMAT = 1,
+  }
+
+  # Get APPLIER_WORKER_COUNT for current `$rpl_slave`
+  --let $_rpl_change_topology_applier_worker_count_index= `SELECT LOCATE('$rpl_slave:', "$rpl_applier_worker_count")`
+  --let $_rpl_change_topology_applier_worker_count = -1
+  if ($_rpl_change_topology_applier_worker_count_index)
+  {
+    --let $_rpl_change_topology_applier_worker_count= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_applier_worker_count", $_rpl_change_topology_applier_worker_count_index), ',', 1), ':', -1)`
+  }
+  # Get APPLIER_WORKER_COUNT for all slaves
+  if (`SELECT $_rpl_change_topology_applier_worker_count_index = 0 AND "$_rpl_change_topology_applier_worker_count_all" != ""`)
+  {
+    --let $_rpl_change_topology_applier_worker_count= $_rpl_change_topology_applier_worker_count_all
+  }
+  # Set APPLIER_WORKER_COUNT to selected value if needed
+  if ($_rpl_change_topology_applier_worker_count != -1)
+  {
+    --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position APPLIER_WORKER_COUNT = $_rpl_change_topology_applier_worker_count,
+  }
+  # Get APPLIER_EVENT_MEMORY_LIMIT for current `$rpl_slave`
+  --let $_rpl_change_topology_applier_event_memory_limit_index= `SELECT LOCATE('$rpl_slave:', "$rpl_applier_event_memory_limit")`
+  --let $_rpl_change_topology_applier_event_memory_limit = -1
+  if ($_rpl_change_topology_applier_event_memory_limit_index)
+  {
+    --let $_rpl_change_topology_applier_event_memory_limit= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_applier_event_memory_limit", $_rpl_change_topology_applier_event_memory_limit_index), ',', 1), ':', -1)`
+  }
+  # Get APPLIER_EVENT_MEMORY_LIMIT for all slaves
+  if (`SELECT $_rpl_change_topology_applier_event_memory_limit_index = 0 AND "$_rpl_change_topology_applier_event_memory_limit_all" != ""`)
+  {
+    --let $_rpl_change_topology_applier_applier_event_memory_limit= $_rpl_change_topology_applier_event_memory_limit_all
+  }
+  # Set APPLIER_EVENT_MEMORY_LIMIT to selected value if needed
+  if ($_rpl_change_topology_applier_event_memory_limit != -1)
+  {
+    --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position APPLIER_EVENT_MEMORY_LIMIT = $_rpl_change_topology_applier_event_memory_limit,
   }
 
   --replace_regex /[0-9]{4}/####/

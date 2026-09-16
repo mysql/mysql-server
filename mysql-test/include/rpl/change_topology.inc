@@ -39,6 +39,8 @@
 # [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 # [--let $rpl_require_row_format= *:0,1:0,2:1]
 # [--let $rpl_gtid_only= *:0,1:0,2:1]
+# [--let $rpl_applier_version= *:1,1:1,2:2]
+# [--let $rpl_applier_worker_count= *:-1,1:-1,2:16]
 # --source include/rpl/change_topology.inc
 #
 # Parameters:
@@ -151,6 +153,32 @@
 #     To specify that all nodes have the flag enabled, do:
 #
 #       --let $rpl_gtid_only= *:1
+#
+#   $rpl_applier_version
+#     Include `APPLIER_VERSION` option in the `CHANGE REPLICATION SOURCE TO ...`
+#     statement to be executed. For example, to specify that server_1 should
+#     have the CSA enabled and server_5 shouldn't, do:
+#
+#       --let $rpl_applier_version= 1:2,5:1
+#
+#     To specify that all nodes have the CSA enabled, do:
+#
+#       --let $rpl_applier_version= *:2
+#
+#   $rpl_applier_worker_count
+#     Include `APPLIER_WORKER_COUNT` option in the
+#     `CHANGE REPLICATION SOURCE TO ...` statement to be executed. For example,
+#     to specify that server_1 should have the APPLIER_WORKER_COUNT specified
+#     and server_5 shouldn't, do:
+#
+#       --let $rpl_applier_worker_count= 1:16,5:-1
+#
+#     To specify that all nodes have the APPLIER_WORKER_COUNT specified, do:
+#
+#       --let $rpl_applier_worker_count= *:16
+#
+#     Note that the number of workers may be specified only for CSA.
+#
 
 #
 # ==== Internal variables configured by this file ====
@@ -246,9 +274,9 @@ while ($_rpl_topology)
   #  - If it is equal to 's1->s2', remove 's1->s2'
   --let $_rpl_topology= `SELECT SUBSTR('$_rpl_topology', IF(SUBSTR('$_rpl_topology', LENGTH('$_rpl_master_slave') + 1, 2) != '->', LENGTH('$_rpl_master_slave'), LOCATE('->', '$_rpl_master_slave')) + 2)`
   # Get 's1' from 's1->s2'
-  --let $_rpl_master= `SELECT RPAD(SUBSTRING_INDEX('$_rpl_master_slave', '->', 1), $rpl_server_count_length, ' ')`
+  --let $_rpl_master= `SELECT RTRIM(RPAD(SUBSTRING_INDEX('$_rpl_master_slave', '->', 1), $rpl_server_count_length, ' '))`
   # Get 's2' from 's1->s2'
-  --let $_rpl_slave= `SELECT RPAD(SUBSTRING('$_rpl_master_slave', LENGTH('$_rpl_master') + 3), $rpl_server_count_length, ' ')`
+  --let $_rpl_slave= `SELECT RTRIM(RPAD(SUBSTRING('$_rpl_master_slave', LENGTH('$_rpl_master') + 3), $rpl_server_count_length, ' '))`
 
   if (!$rpl_multi_source)
   {
@@ -260,7 +288,7 @@ while ($_rpl_topology)
     }
   }
   # Append 'm<s1> s<s2> ' to $rpl_connection_list
-  --let $_rpl_new_connection= m$_rpl_master s$_rpl_slave$_rpl_space
+  --let $_rpl_new_connection= `SELECT CONCAT('m$_rpl_master', REPEAT(' ', $rpl_server_count_length), 's$_rpl_slave', REPEAT(' ', $rpl_server_count_length))`
   --let $rpl_connection_list= $rpl_connection_list$_rpl_new_connection
   --inc $rpl_connection_count
 }
@@ -311,6 +339,18 @@ if ($_rpl_change_topology_require_row_all_index)
 if ($_rpl_require_table_primary_key_check_all_index)
 {
   --let $_rpl_require_table_primary_key_check_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_table_primary_key_check", $_rpl_require_table_primary_key_check_all_index), ',', 1), ':', -1)`
+}
+
+--let $_rpl_change_topology_applier_version_all_index= `SELECT LOCATE('*:', "$rpl_applier_version")`
+if ($_rpl_change_topology_applier_version_all_index)
+{
+  --let $_rpl_change_topology_applier_version_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_applier_version", $_rpl_change_topology_applier_version_all_index), ',', 1), ':', -1)`
+}
+
+--let $_rpl_change_topology_applier_worker_count_all_index= `SELECT LOCATE('*:', "$rpl_applier_worker_count")`
+if ($_rpl_change_topology_applier_worker_count_all_index)
+{
+  --let $_rpl_change_topology_applier_worker_count_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_applier_worker_count", $_rpl_change_topology_applier_worker_count_all_index), ',', 1), ':', -1)`
 }
 
 if (!$rpl_skip_change_master)

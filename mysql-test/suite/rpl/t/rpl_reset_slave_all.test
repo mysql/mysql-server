@@ -45,6 +45,8 @@ INSERT INTO t1 VALUES(1);
 CALL mtr.add_suppression(".*worker thread retried transaction 1 time.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are "
                          "stopped, possibly leaving data in inconsistent.*");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+
 --let $assert_text= count_transactions_retries should be greater than 0
 --let $assert_status_name= count_transactions_retries
 --let $assert_status_value= 0

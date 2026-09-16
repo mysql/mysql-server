@@ -61,7 +61,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "pars0pars.h"
 #include "pars0sym.h"
 #include "que0que.h"
-#include "read0read.h"
+#include "read0mvcc_interface.h"
 #include "record_buffer.h"
 #include "rem0cmp.h"
 #include "row0mysql.h"
@@ -687,22 +687,28 @@ static inline void sel_enqueue_prefetched_row(
 }
 
 /** Builds a previous version of a clustered index record for a consistent read
- @return DB_SUCCESS or error code */
+@param[in]     read_view
+                   read view
+@param[in]     index
+                   plan node for table
+@param[in]     rec
+                   record in a clustered index
+@param[in,out] offsets
+                   offsets returned by rec_get_offsets(rec, plan->index)
+@param[in,out] offset_heap
+                   memory heap from which the offsets are allocated
+@param[out]    old_vers_heap
+                   old version heap to use
+@param[out]    old_vers
+                   old version, or NULL if the record does not exist in the
+                   view: i.e., it was freshly inserted afterwards
+@param[in]     mtr
+                   an mtr
+@return DB_SUCCESS or error code */
 [[nodiscard]] static dberr_t row_sel_build_prev_vers(
-    ReadView *read_view,        /*!< in: read view */
-    dict_index_t *index,        /*!< in: plan node for table */
-    rec_t *rec,                 /*!< in: record in a clustered index */
-    ulint **offsets,            /*!< in/out: offsets returned by
-                                rec_get_offsets(rec, plan->index) */
-    mem_heap_t **offset_heap,   /*!< in/out: memory heap from which
-                                the offsets are allocated */
-    mem_heap_t **old_vers_heap, /*!< out: old version heap to use */
-    rec_t **old_vers,           /*!< out: old version, or NULL if the
-                                record does not exist in the view:
-                                i.e., it was freshly inserted
-                                afterwards */
-    mtr_t *mtr)                 /*!< in: mtr */
-{
+    Read_view_interface *read_view, dict_index_t *index, rec_t *rec,
+    ulint **offsets, mem_heap_t **offset_heap, mem_heap_t **old_vers_heap,
+    rec_t **old_vers, mtr_t *mtr) {
   dberr_t err;
 
   if (*old_vers_heap) {
@@ -2130,7 +2136,7 @@ que_thr_t *row_sel_step(que_thr_t *thr) /*!< in: query thread */
     /* It may be that the current session has not yet started
     its transaction, or it has been committed: */
 
-    trx_start_if_not_started_xa(thr_get_trx(thr), false, UT_LOCATION_HERE);
+    trx_start_if_not_started(thr_get_trx(thr), false, UT_LOCATION_HERE);
 
     plan_reset_cursor(sel_node_get_nth_plan(node, 0));
 
@@ -3077,10 +3083,10 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
 @param[in,out]  lob_undo        Undo information for BLOBs.
 @return DB_SUCCESS or error code */
 [[nodiscard]] static dberr_t row_sel_build_prev_vers_for_mysql(
-    ReadView *read_view, dict_index_t *clust_index, row_prebuilt_t *prebuilt,
-    const rec_t *rec, ulint **offsets, mem_heap_t **offset_heap,
-    rec_t **old_vers, const dtuple_t **vrow, mtr_t *mtr,
-    lob::undo_vers_t *lob_undo) {
+    Read_view_interface *read_view, dict_index_t *clust_index,
+    row_prebuilt_t *prebuilt, const rec_t *rec, ulint **offsets,
+    mem_heap_t **offset_heap, rec_t **old_vers, const dtuple_t **vrow,
+    mtr_t *mtr, lob::undo_vers_t *lob_undo) {
   DBUG_TRACE;
 
   dberr_t err;
@@ -4664,7 +4670,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
     if (trx->mysql_n_tables_locked == 0 && !prebuilt->ins_sel_stmt &&
         prebuilt->select_lock_type == LOCK_NONE &&
         trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
-        MVCC::is_view_active(trx->read_view)) {
+        trx_sys->mvcc->is_view_open(trx->read_view)) {
       /* This is a SELECT query done as a consistent read,
       and the read view has already been allocated:
       let us try a search shortcut through the hash
@@ -4778,7 +4784,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
         trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
 
   ut_ad(prebuilt->sql_stat_start || prebuilt->select_lock_type != LOCK_NONE ||
-        MVCC::is_view_active(trx->read_view) || srv_read_only_mode);
+        trx_sys->mvcc->is_view_open(trx->read_view) || srv_read_only_mode);
 
   trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
@@ -4821,7 +4827,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   if (!prebuilt->sql_stat_start) {
     /* No need to set an intention lock or assign a read view */
 
-    if (!MVCC::is_view_active(trx->read_view) && !srv_read_only_mode &&
+    if (!trx_sys->mvcc->is_view_open(trx->read_view) && !srv_read_only_mode &&
         prebuilt->select_lock_type == LOCK_NONE) {
       ib::error(ER_IB_MSG_1031) << "MySQL is trying to perform a"
                                    " consistent read but the read view is not"

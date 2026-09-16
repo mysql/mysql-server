@@ -3,6 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection server_2]
+# Adding debug point 'csa_bump_logical_clock_time_after_trx' to @@GLOBAL.debug
+[connection server_1]
 SET @@session.xa_detach_on_prepare = 1;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 XA START 'T2';
@@ -11,6 +14,7 @@ XA END 'T2';
 XA PREPARE 'T2';
 include/rpl/sync_to_replica.inc
 [connection server_2]
+# Removing debug point 'csa_bump_logical_clock_time_after_trx' from @@GLOBAL.debug
 INSERT INTO t1 VALUES (2);
 include/rpl/save_binlog_file_position.inc
 SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
@@ -29,7 +33,7 @@ BEGIN;
 [connection server_2]
 ROLLBACK;
 SET @@gtid_next = 'AUTOMATIC';
-include/rpl/wait_for_applier_error.inc [errno=3030]
+include/rpl/wait_for_applier_error.inc [errno=1062, 3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR]
 include/assert.inc [gtid_owned should be empty]
 include/assert.inc [GTID_EXECUTED has not been updated]
 XA RECOVER;

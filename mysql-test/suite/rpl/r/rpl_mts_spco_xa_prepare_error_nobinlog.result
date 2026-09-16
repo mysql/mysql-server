@@ -9,6 +9,8 @@ CALL mtr.add_suppression(".*replica coordinator and worker threads are stopped.*
 CALL mtr.add_suppression("Could not execute Write_rows event on table test.*");
 CALL mtr.add_suppression("Worker .* failed executing transaction");
 CALL mtr.add_suppression("Error writing relay log configuration");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("Commit could not be completed");
 # Adding debug point 'rpl_fake_commit_order_deadlock_for_timestamp_100' to @@GLOBAL.debug
 [connection master]
 

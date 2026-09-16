@@ -25,16 +25,24 @@
 
 #include "plugin/x/src/variables/system_variables.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <limits>
+#include <string>
 
+#include "include/dh_ecdh_config.h"
 #include "my_inttypes.h"  // NOLINT(build/include_subdir)
 #include "my_sys.h"       // NOLINT(build/include_subdir)
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/variables/system_variables_defaults.h"
+#include "plugin/x/src/xpl_log.h"
+#include "sql/sql_class.h"
+#include "violite.h"
 
 namespace xpl {
 
@@ -46,6 +54,156 @@ void update_plugin_system_variable(THD *, SYS_VAR *, void *tgt,
   *static_cast<Copy_type *>(tgt) = *static_cast<const Copy_type *>(save);
 
   Plugin_system_variables::fetch_plugin_variables();
+}
+
+static int check_bool_value(void *save, st_mysql_value *value) {
+  bool result;
+
+  if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
+    char buffer[STRING_BUFFER_USUAL_SIZE];
+    int length = sizeof(buffer);
+    const char *str = value->val_str(value, buffer, &length);
+    if (str == nullptr) return 1;
+
+    std::string text(str, length);
+    std::transform(
+        text.begin(), text.end(), text.begin(),
+        [](unsigned char ch) { return static_cast<char>(std::toupper(ch)); });
+    if (text == "OFF")
+      result = false;
+    else if (text == "ON")
+      result = true;
+    else
+      return 1;
+  } else {
+    longlong integer_value;
+    if (value->val_int(value, &integer_value) < 0) return 1;
+    if (integer_value < 0 || integer_value > 1) return 1;
+    result = integer_value != 0;
+  }
+
+  *static_cast<bool *>(save) = result;
+  return 0;
+}
+
+static int check_string_value(MYSQL_THD thd, void *save,
+                              st_mysql_value *value) {
+  char buffer[STRING_BUFFER_USUAL_SIZE];
+  int length = sizeof(buffer);
+  const char *str = value->val_str(value, buffer, &length);
+
+  if (str != nullptr) str = thd->strmake(str, length);
+
+  *static_cast<const char **>(save) = str;
+  return 0;
+}
+
+static constexpr const char *k_mysqlx_force_pqc_name = "mysqlx_force_pqc";
+static constexpr const char *k_mysqlx_use_pqc_sign_name = "mysqlx_use_pqc_sign";
+static constexpr const char *k_mysqlx_tls_kex_name = "mysqlx_tls_kex";
+
+static bool tls_force_pqc_supported_for_version(const char *tls_version
+                                                [[maybe_unused]]) {
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
+  return false;
+#else
+  return !(process_tls_version(tls_version) & SSL_OP_NO_TLSv1_3);
+#endif
+}
+
+static bool validate_force_pqc_tls_version(const char *name,
+                                           const char *tls_version) {
+  if (tls_force_pqc_supported_for_version(tls_version)) return false;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "ON");
+  return true;
+}
+
+static bool validate_force_pqc_tls_kex(const char *name, const char *tls_kex) {
+  std::string filtered_tls_kex;
+  if (!sanitize_tls_kex_list(tls_kex, true, &filtered_tls_kex)) return false;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "ON");
+  return true;
+}
+
+static bool validate_tls_kex_setting(const char *name, const char *tls_kex,
+                                     bool force_pqc) {
+  std::string filtered_tls_kex;
+  if (!sanitize_tls_kex_list(tls_kex, force_pqc, &filtered_tls_kex))
+    return false;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, tls_kex ? tls_kex : "");
+  return true;
+}
+
+static bool validate_use_pqc_sign(const char *name, bool use_pqc_sign) {
+  if (!use_pqc_sign || tls_pqc_sign_supported()) return false;
+
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "ON");
+  return true;
+}
+
+static std::string get_tls_version() {
+  bool error = false;
+  std::string tls_version =
+      Plugin_system_variables::get_system_variable("tls_version", &error);
+  return error ? std::string{} : tls_version;
+}
+
+static void adjust_startup_force_pqc_for_tls_version() {
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (!Plugin_system_variables::m_tls_force_pqc) return;
+
+  const std::string tls_version = get_tls_version();
+  if (tls_force_pqc_supported_for_version(tls_version.c_str())) return;
+
+  const std::string error =
+      std::string(k_mysqlx_force_pqc_name) +
+      "=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but tls_version=" +
+      tls_version + " disables TLSv1.3; setting " + k_mysqlx_force_pqc_name +
+      "=OFF";
+  log_error(ER_LOG_PRINTF_MSG, error.c_str());
+  Plugin_system_variables::m_tls_force_pqc = false;
+#endif
+}
+
+static int check_tls_force_pqc(MYSQL_THD, SYS_VAR *, void *save,
+                               st_mysql_value *value) {
+  if (check_bool_value(save, value)) return 1;
+
+  const bool force_pqc = *static_cast<bool *>(save);
+  const char *tls_kex = Plugin_system_variables::m_tls_kex;
+  const std::string tls_version = get_tls_version();
+  if (force_pqc &&
+      (validate_force_pqc_tls_version(k_mysqlx_force_pqc_name,
+                                      tls_version.c_str()) ||
+       validate_force_pqc_tls_kex(k_mysqlx_force_pqc_name, tls_kex)))
+    return 1;
+
+  return 0;
+}
+
+static int check_tls_use_pqc_sign(MYSQL_THD, SYS_VAR *, void *save,
+                                  st_mysql_value *value) {
+  if (check_bool_value(save, value)) return 1;
+
+  const bool use_pqc_sign = *static_cast<bool *>(save);
+  if (validate_use_pqc_sign(k_mysqlx_use_pqc_sign_name, use_pqc_sign)) return 1;
+
+  return 0;
+}
+
+static int check_tls_kex(MYSQL_THD thd, SYS_VAR *, void *save,
+                         st_mysql_value *value) {
+  if (check_string_value(thd, save, value)) return 1;
+
+  const char *tls_kex = *static_cast<const char **>(save);
+  if (validate_tls_kex_setting(k_mysqlx_tls_kex_name, tls_kex,
+                               Plugin_system_variables::m_tls_force_pqc))
+    return 1;
+
+  return 0;
 }
 
 template <typename Copy_type,
@@ -271,6 +429,34 @@ static MYSQL_SYSVAR_BOOL(
     nullptr, &details::update_plugin_system_variable<bool>,
     defaults::connectivity::k_enable_hello_notice);
 
+/*
+  X Plugin applies these PQC settings when its TLS context is built. Keep them
+  read-only at runtime, but allow SET PERSIST_ONLY to stage values for restart.
+*/
+static MYSQL_SYSVAR_BOOL(
+    force_pqc, xpl_sys_var::m_tls_force_pqc,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "If set to TRUE, only accept X Plugin TLS connections negotiated with a "
+    "PQC compatible key exchange group.",
+    &details::check_tls_force_pqc,
+    &details::update_plugin_system_variable<bool>, false);
+
+static MYSQL_SYSVAR_STR(tls_kex, xpl_sys_var::m_tls_kex,
+                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY |
+                            PLUGIN_VAR_MEMALLOC,
+                        "TLS key exchange groups to use for X Plugin TLS "
+                        "connections",
+                        &details::check_tls_kex,
+                        &details::update_plugin_system_variable<char *>, "");
+
+static MYSQL_SYSVAR_BOOL(
+    use_pqc_sign, xpl_sys_var::m_tls_use_pqc_sign,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "If set to FALSE, advertise only classical TLS handshake signature "
+    "algorithms on X Plugin TLS connections.",
+    &details::check_tls_use_pqc_sign,
+    &details::update_plugin_system_variable<bool>, false);
+
 static MYSQL_SYSVAR_SET(
     compression_algorithms, *xpl_sys_var::m_compression_algorithms.value(),
     PLUGIN_VAR_OPCMDARG,
@@ -359,6 +545,9 @@ char *Plugin_system_variables::m_bind_address;
 uint32_t Plugin_system_variables::m_interactive_timeout;
 uint32_t Plugin_system_variables::m_document_id_unique_prefix;
 bool Plugin_system_variables::m_enable_hello_notice;
+bool Plugin_system_variables::m_tls_force_pqc;
+bool Plugin_system_variables::m_tls_use_pqc_sign;
+char *Plugin_system_variables::m_tls_kex;
 Set_variable Plugin_system_variables::m_compression_algorithms{
     {"DEFLATE_STREAM", "LZ4_MESSAGE", "ZSTD_STREAM"}};
 
@@ -409,6 +598,9 @@ struct SYS_VAR *Plugin_system_variables::m_plugin_system_variables[] = {
     MYSQL_SYSVAR(write_timeout),
     MYSQL_SYSVAR(document_id_unique_prefix),
     MYSQL_SYSVAR(enable_hello_notice),
+    MYSQL_SYSVAR(force_pqc),
+    MYSQL_SYSVAR(tls_kex),
+    MYSQL_SYSVAR(use_pqc_sign),
     MYSQL_SYSVAR(compression_algorithms),
     MYSQL_SYSVAR(deflate_default_compression_level),
     MYSQL_SYSVAR(lz4_default_compression_level),
@@ -435,6 +627,19 @@ std::string Plugin_system_variables::get_system_variable(
   result.resize(buffer_size);
 
   return result;
+}
+
+bool Plugin_system_variables::get_system_variable_source(
+    const std::string &name, enum_variable_source *source) {
+  if (!m_sys_var || !source) return false;
+  return m_sys_var->get_variable_source(name.c_str(), source);
+}
+
+bool Plugin_system_variables::is_system_variable_configured(
+    const std::string &name) {
+  enum_variable_source source = COMPILED;
+  if (!get_system_variable_source(name, &source)) return true;
+  return source != COMPILED;
 }
 
 void Plugin_system_variables::fetch_plugin_variables() {
@@ -466,6 +671,8 @@ void Plugin_system_variables::initialize(iface::Service_sys_variables *sys_var,
 
   details::setup_variable_value_from_env_or_compile_opt(
       &m_socket, "MYSQLX_UNIX_PORT", MYSQLX_UNIX_ADDR);
+
+  details::adjust_startup_force_pqc_for_tls_version();
 
   if (fetch) {
     fetch_plugin_variables();

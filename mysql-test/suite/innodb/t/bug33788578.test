@@ -125,14 +125,17 @@ INSERT INTO t1_dynamic VALUES ('row2', 22);
 --echo # INSERT INTO t4_redundant VALUES ("row1", 2, 3, 4);
 --echo # INSERT INTO t4_redundant (c1, c3) VALUES ("row2", 33);
 --echo # INSERT INTO t4_redundant VALUES ("row3", 222, 333, 444);
-# -- upgrade to 8.4.3 and zip data directory
+# -- upgrade to 8.4.3, and to 9.7.1 and zip data directory
 
 --echo # -----------------------------------------
 --echo # Replace data directory for upgrade
 --source include/shutdown_mysqld.inc
---copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/bug33788578_8_4_3.zip $MYSQL_TMP_DIR/bug33788578_8_4_3.zip
---file_exists $MYSQL_TMP_DIR/bug33788578_8_4_3.zip
---exec unzip -qo $MYSQL_TMP_DIR/bug33788578_8_4_3.zip -d $MYSQL_TMP_DIR
+
+let $zipfile = bug33788578_9_7_1.zip;
+
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/$zipfile $MYSQL_TMP_DIR/$zipfile
+--file_exists $MYSQL_TMP_DIR/$zipfile
+--exec unzip -qo $MYSQL_TMP_DIR/$zipfile -d $MYSQL_TMP_DIR
 let $DATADIR = $MYSQL_TMP_DIR/data;
 
 --echo # Restart the server
@@ -357,9 +360,9 @@ DROP TABLE t6_redundant;
 --source include/shutdown_mysqld.inc
 
 --echo # Remove temp files used
---file_exists $MYSQL_TMP_DIR/bug33788578_8_4_3.zip
+--file_exists $MYSQL_TMP_DIR/$zipfile
 --force-rmdir $MYSQL_TMP_DIR/data
---remove_file $MYSQL_TMP_DIR/bug33788578_8_4_3.zip
+--remove_file $MYSQL_TMP_DIR/$zipfile
 
 --echo # Restart server to restore server state
 let $restart_parameters =;

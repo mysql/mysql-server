@@ -57,6 +57,8 @@
 # WL#12819:GTIDs: Replicate from GTID disabled source to GTID enabled replica directly
 
 --source include/big_test.inc
+# CSA supports GTID_ONLY=1. It is sufficient to check persistence with MTA
+--source include/have_mta.inc
 --source include/not_group_replication_plugin.inc
 --source include/not_rpl_gtid_only.inc
 # This test is unrelated to log format

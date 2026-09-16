@@ -3,4 +3,14 @@ INSTALL COMPONENT "file://component_test_mysql_current_thread_reader";
 SELECT test_thd_reader_current_user();
 test_thd_reader_current_user()
 root@localhost
+CREATE USER 'test_account_locked'@'localhost' ACCOUNT LOCK;
+# Test account lock state from a looked-up security context.
+SELECT test_security_context_account_locked();
+test_security_context_account_locked()
+1
+ALTER USER 'test_account_locked'@'localhost' ACCOUNT UNLOCK;
+SELECT test_security_context_account_locked();
+test_security_context_account_locked()
+0
+DROP USER 'test_account_locked'@'localhost';
 UNINSTALL COMPONENT "file://component_test_mysql_current_thread_reader";

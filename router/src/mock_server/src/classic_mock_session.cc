@@ -747,7 +747,8 @@ void MySQLClassicProtocol::encode_server_greeting(
   }
 }
 
-stdx::expected<std::string, std::error_code> cert_get_name(X509_NAME *name) {
+static stdx::expected<std::string, std::error_code> cert_get_name(
+    const X509_NAME *name) {
   std::unique_ptr<BIO, decltype(&BIO_free)> bio{BIO_new(BIO_s_mem()),
                                                 &BIO_free};
   // X509_NAME_oneline() is a legacy function and supposed to be not used for

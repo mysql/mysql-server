@@ -23,6 +23,9 @@ SELECT * FROM t;
 a	b
 9	9
 DROP TABLE t;
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
 CREATE TABLE t (
 a INTEGER,
 b BLOB GENERATED ALWAYS AS (a) VIRTUAL,
@@ -73,3 +76,5 @@ SELECT * FROM t;
 a	b	d
 9	10	29
 DROP TABLE t;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/rpl_gtid_persist.h"
 #include "sql/sql_class.h"
 #include "sql/sql_thd_internal_api.h"
+#include "trx0undo.h" /* trx_undo_t::Gtid_storage */
 
 /* To get current session thread default THD */
 THD *thd_get_current_thd();

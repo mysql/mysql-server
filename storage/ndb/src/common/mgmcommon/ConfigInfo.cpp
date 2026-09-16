@@ -41,7 +41,6 @@
 #include "InitConfigFileParser.hpp"
 #include "m_string.h"
 #include "portlib/ndb_localtime.h"
-#include "portlib/ndb_openssl_version.h"
 #include "portlib/ndb_sockaddr.h"
 
 #define KEY_INTERNAL 0
@@ -51,6 +50,8 @@
 
 #define _STR_VALUE(x) #x
 #define STR_VALUE(x) _STR_VALUE(x)
+
+static int configErrorInsert = 0;
 
 /****************************************************************************
  * Section names
@@ -524,6 +525,16 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
      "MaxDMLOperationsPerTransaction", DB_TOKEN,
      "Max DML-operations in one transaction", ConfigInfo::CI_USED, false,
      ConfigInfo::CI_INT, STR_VALUE(MAX_INT32), "32", STR_VALUE(MAX_INT32)},
+
+    /*
+     * Keep the minimum high enough for internal metadata operations.
+     * Keep the limit at most 2^14 - 1. DBTUX uses the high bit of the
+     * 15-bit tuple version to detect version wrap when ordering entries
+     * in Dbtux::TreeEnt::cmp().
+     */
+    {CFG_DB_MAX_ROW_VERSIONS_PER_TRANSACTION, "MaxRowVersionsPerTransaction",
+     DB_TOKEN, "Max row versions in one transaction", ConfigInfo::CI_USED,
+     false, ConfigInfo::CI_INT, "1000", "3", "16383"},
 
     {CFG_DB_NO_LOCAL_OPS, "MaxNoOfLocalOperations", DB_TOKEN,
      "TransactionMemory", ConfigInfo::CI_DEPRECATED, false, ConfigInfo::CI_INT,
@@ -1529,6 +1540,14 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     {CFG_API_VERBOSE, "ApiVerbose", "API", "Tracelevel for API nodes.",
      ConfigInfo::CI_USED, false, ConfigInfo::CI_INT, nullptr, "0", "100"},
 
+    {CFG_DB_API_HEARTBEAT_INTERVAL, "HeartbeatIntervalDbApi", API_TOKEN,
+     "Time between " API_TOKEN_PRINT "-" DB_TOKEN_PRINT
+     " heartbeats. " DB_TOKEN_PRINT
+     " connection closed by API after 3 missed HBs. " API_TOKEN_PRINT
+     " connection closed by DB after 4 missed HBs.",
+     ConfigInfo::CI_USED, false, ConfigInfo::CI_INT, nullptr, "100",
+     STR_VALUE(MAX_INT_RNIL)},
+
     /****************************************************************************
      * MGM
      ***************************************************************************/
@@ -2169,6 +2188,8 @@ ConfigInfo::ConfigInfo() : m_info(true), m_systemDefaults(true) {
     }
   }
 }
+
+void ConfigInfo::insertError(int err) { configErrorInsert = err; }
 
 /****************************************************************************
  * Getters
@@ -2854,7 +2875,7 @@ static bool checkLocalhostHostnameMix(InitConfigFileParser::Context &ctx,
     ctx.m_userProperties.put("$computer-localhost", hostname);
   }
 
-  if (localhost_used) {
+  if (localhost_used && configErrorInsert != 904) {
     ctx.reportError(
         "Mixing of localhost (default for [NDBD]HostName) with other "
         "hostname(%s) is illegal",

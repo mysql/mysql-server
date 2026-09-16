@@ -14,6 +14,11 @@
 
 # Create local keyring config
 --let KEYRING_FILE_PATH = `SELECT CONCAT( '$MYSQLTEST_VARDIR', '/keyring_file')`
+if ($KEYRING_FILE_PATH_OVERRIDE)
+{
+  --let KEYRING_FILE_PATH = $KEYRING_FILE_PATH_OVERRIDE
+}
+--let $KEYRING_FILE_PATH_OVERRIDE =
 --let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ \"path\": \"', '$KEYRING_FILE_PATH','\", \"read_only\": false }')`
 --source include/keyring_tests/helper/local_keyring_create_config.inc
 
@@ -24,4 +29,3 @@
 # Restart server with manifest file 
 --source include/keyring_tests/helper/start_server_with_manifest.inc
 --echo # ----------------------------------------------------------------------
-

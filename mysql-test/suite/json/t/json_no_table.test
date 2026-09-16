@@ -3001,3 +3001,15 @@ DO COALESCE(JSON_SEARCH(JSON_ARRAY('{}', '$[0]', '{}'), 'all',
                         JSON_REMOVE('{}','{"a":1}')
                        )
            );
+
+--echo #
+--echo # Bug#39649893: JSON_VALUE RETURNING DATETIME DEFAULT returns garbage
+--echo #
+
+SELECT CAST(JSON_VALUE('"x"', '$' RETURNING DATETIME
+            DEFAULT '2023-07-19 08:09:10' ON ERROR) AS DATE) AS d;
+
+SELECT CAST(JSON_VALUE('{}', '$.x' RETURNING DATETIME
+            DEFAULT '2023-07-19 08:09:10' ON EMPTY) AS DATE) AS d;
+
+SELECT CAST(TIMESTAMP'2023-07-19 08:09:10' AS DATE) AS d;

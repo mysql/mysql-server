@@ -30,16 +30,16 @@ user() like _latin1"%@%"
 select charset(user());
 charset(user())
 utf8mb3
-select version()>="3.23.29";
-version()>="3.23.29"
+select version()>="10.0.0";
+version()>="10.0.0"
 1
-select version()>=_utf8mb3"3.23.29";
-version()>=_utf8mb3"3.23.29"
+select version()>=_utf8mb3"10.0.0";
+version()>=_utf8mb3"10.0.0"
 1
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-select version()>=_latin1"3.23.29";
-version()>=_latin1"3.23.29"
+select version()>=_latin1"10.0.0";
+version()>=_latin1"10.0.0"
 1
 select charset(version());
 charset(version())

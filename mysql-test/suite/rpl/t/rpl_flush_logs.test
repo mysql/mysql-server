@@ -4,6 +4,9 @@
 # works fine.  
 #
 
+# CSA does not support use_gtids=0
+--source include/have_mta.inc
+
 # "Flush" commands are logged as rotate events in the binary
 # log without gtid events. So it is correct to check master
 # and slave sync logic with positions instead gtids numbers.

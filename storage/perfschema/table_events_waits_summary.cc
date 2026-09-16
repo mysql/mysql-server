@@ -226,7 +226,7 @@ int table_events_waits_summary_by_instance::index_init(uint idx, bool) {
 
 int table_events_waits_summary_by_instance::make_instr_row(
     pfs_lock *object_lock, PFS_instr_class *klass,
-    const void *object_instance_begin, PFS_single_stat *pfs_stat) {
+    pfs_identity object_instance_begin, PFS_single_stat *pfs_stat) {
   pfs_optimistic_state lock;
 
   /*
@@ -237,7 +237,7 @@ int table_events_waits_summary_by_instance::make_instr_row(
 
   m_row.m_name = klass->m_name.str();
   m_row.m_name_length = klass->m_name.length();
-  m_row.m_object_instance_addr = (intptr)object_instance_begin;
+  m_row.m_object_instance_addr = object_instance_begin;
 
   m_row.m_stat.set(m_normalizer, pfs_stat);
 
@@ -306,11 +306,8 @@ int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs) {
 
   PFS_single_stat sum;
   pfs->m_file_stat.m_io_stat.sum_waits(&sum);
-  /*
-    Files don't have a in memory structure associated to it,
-    so we use the address of the PFS_file buffer as object_instance_begin
-  */
-  return make_instr_row(&pfs->m_lock, safe_class, pfs, &sum);
+
+  return make_instr_row(&pfs->m_lock, safe_class, pfs->m_identity, &sum);
 }
 
 /**
@@ -331,11 +328,7 @@ int table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs) {
   PFS_byte_stat pfs_stat;
   pfs->m_socket_stat.m_io_stat.sum(&pfs_stat);
 
-  /*
-    Sockets don't have an associated in-memory structure, so use the address of
-    the PFS_socket buffer as object_instance_begin.
-  */
-  return make_instr_row(&pfs->m_lock, safe_class, pfs, &pfs_stat);
+  return make_instr_row(&pfs->m_lock, safe_class, pfs->m_identity, &pfs_stat);
 }
 
 int table_events_waits_summary_by_instance::read_row_values(TABLE *table,

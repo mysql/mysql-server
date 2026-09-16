@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 SET @@GLOBAL.group_replication_ip_allowlist= "AUTOMATIC";
+Warnings:
+Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.
 include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
@@ -28,9 +30,9 @@ include/stop_group_replication.inc
 #
 # Test Unit#1
 # Set global/session group replication variables to default.
-# Curently there are 60 group replication variables.
+# Curently there are 63 group replication variables.
 #
-include/assert.inc [There are 60 GR variables at present.]
+include/assert.inc [There are 63 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -131,13 +133,15 @@ include/assert.inc [Default group_replication_recovery_tls_version is "TLSv1.2,T
 include/assert.inc [Default group_replication_recovery_tls_ciphersuites is NULL]
 include/assert.inc [Default group_replication_advertise_recovery_endpoints is "DEFAULT"]
 include/assert.inc [Default group_replication_view_change_uuid is "AUTOMATIC"]
-include/assert.inc [Default group_replication_communication_stack is XCom]
+include/assert.inc [Default group_replication_communication_stack is MYSQL]
 include/assert.inc [Default group_replication_paxos_single_leader is 0]
 include/assert.inc [Default group_replication_preemptive_garbage_collection is 0]
 include/assert.inc [Default group_replication_preemptive_garbage_collection_rows_threshold is 100000]
 #
 # Clean up
 #
+Warnings:
+Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

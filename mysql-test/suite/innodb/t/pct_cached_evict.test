@@ -5,16 +5,17 @@
 
 
 let $get_n_cached_pages=
-SELECT cached.n_cached_pages AS n_cached_pages
-FROM
-information_schema.innodb_cached_indexes AS cached,
-information_schema.innodb_indexes AS indexes,
-information_schema.innodb_tables AS tables
-WHERE
-cached.index_id = indexes.index_id
-AND cached.space_id = indexes.space
-AND indexes.table_id = tables.table_id
-AND tables.name LIKE '%pct_cached_evict';
+SELECT COALESCE((
+  SELECT cached.n_cached_pages AS n_cached_pages
+  FROM
+  information_schema.innodb_cached_indexes AS cached,
+  information_schema.innodb_indexes AS indexes,
+  information_schema.innodb_tables AS tables
+  WHERE
+  cached.index_id = indexes.index_id
+  AND cached.space_id = indexes.space
+  AND indexes.table_id = tables.table_id
+  AND tables.name LIKE '%pct_cached_evict'), 0);
 
 CREATE TABLE pct_cached_evict (a TEXT) ENGINE=INNODB;
 

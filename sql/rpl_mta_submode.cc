@@ -480,7 +480,7 @@ void Mts_submode_logical_clock::attach_temp_tables(THD *thd,
   DBUG_TRACE;
   if (!is_mts_worker(thd) || (ev->ends_group() || ev->starts_group())) return;
   /* fetch coordinator's rli */
-  Relay_log_info *c_rli = static_cast<const Slave_worker *>(rli)->c_rli;
+  Relay_log_info *c_rli = rli->get_parent_rli();
   assert(!thd->temporary_tables);
   mysql_mutex_lock(&c_rli->mts_temp_table_LOCK);
   if (!(table = c_rli->info_thd->temporary_tables)) {
@@ -536,7 +536,7 @@ void Mts_submode_logical_clock::detach_temp_tables(THD *thd,
     there are no race conditions which may lead to assert failures and
     non-deterministic results.
   */
-  Relay_log_info *c_rli = static_cast<const Slave_worker *>(rli)->c_rli;
+  Relay_log_info *c_rli = rli->get_parent_rli();
   mysql_mutex_lock(&c_rli->mts_temp_table_LOCK);
   mts_move_temp_tables_to_thd(c_rli->info_thd, thd->temporary_tables);
   mysql_mutex_unlock(&c_rli->mts_temp_table_LOCK);

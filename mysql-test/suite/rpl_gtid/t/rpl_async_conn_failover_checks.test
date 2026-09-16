@@ -36,6 +36,8 @@
 
 --source include/rpl/connection_replica.inc
 call mtr.add_suppression("Detected misconfiguration: replication channel '' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1.*");
+# CSA channel fails to set GTID_MODE below ON
+call mtr.add_suppression("Replication channel '' is configured with GTID_ONLY=1, which is invalid when GTID_MODE <> ON");
 
 --echo #
 --echo # 1. Enable AUTO_POSITION.

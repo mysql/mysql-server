@@ -52,8 +52,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include <zlib.h>
 
-#include "my_dbug.h"
-
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "buf0buf.h"
@@ -64,20 +62,27 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "fil0fil.h"
+#include "fil0pages_persistence_interface.h"
+#include "fil0tablespace_scan.h"
+#include "fil0tablespaces_nodes_interface.h"
 #include "fsp0fsp.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "log0buf.h"
 #include "log0chkp.h"
+#include "log0encryption.h"
+#include "log0handler.h"
+#include "log0helpers.h"
 #include "log0recv.h"
 #include "log0write.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
 
+#include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysqld.h"
+#include "scope_guard.h"
 
 #include "ddl0fts.h"
 #include "os0file.h"
@@ -121,21 +126,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0rseg.h"
 #include "usr0sess.h"
 #include "ut0crc32.h"
+#include "ut0dbg.h"
 #include "ut0new.h"
-
-/** fil_space_t::flags for hard-coded tablespaces */
-extern uint32_t predefined_flags;
 
 /** true if a raw partition is in use */
 bool srv_start_raw_disk_in_use = false;
 
-/** true if the server is being started */
 bool srv_is_being_started = false;
-/** true if SYS_TABLESPACES is available for lookups */
 bool srv_sys_tablespaces_open = false;
-/** true if the server is being started, before rolling back any
-incomplete transactions */
 bool srv_startup_is_before_trx_rollback_phase = false;
+
 /** true if srv_start() has been called */
 static bool srv_start_has_been_called = false;
 
@@ -221,79 +221,33 @@ static constexpr uint32_t SHUTDOWN_SLEEP_ROUNDS =
 /** Create undo tablespace.
 @param[in]  undo_space  Undo Tablespace
 @return DB_SUCCESS or error code */
-static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
-  pfs_os_file_t fh;
-  bool ret;
-  dberr_t err = DB_SUCCESS;
-  char *file_name = undo_space.file_name();
+[[nodiscard]] static dberr_t srv_undo_tablespace_create(
+    undo_truncate::Tablespace &undo_space) {
   space_id_t space_id = undo_space.id();
 
   ut_a(!srv_read_only_mode);
   ut_a(!srv_force_recovery);
 
-  os_file_create_subdirs_if_needed(file_name);
+  ut_d(undo_truncate::inject_crash(
+      "create_crash_before_undo_tablespace_create"));
 
-  /* Until this undo tablespace can become active, keep a truncate log
-  file around so that if a crash happens it can be rebuilt at startup. */
-  err = undo::start_logging(&undo_space);
+  auto flags = fsp_flags_init(univ_page_size, false, false, false, false);
+  fsp_flags_set_undo_unusable(flags);
+
+  /* Create the new UNDO tablespace. */
+  const auto err = fil_undo_create(
+      space_id, undo_space.space_name(), undo_space.file_name(), flags,
+      UNDO_INITIAL_SIZE_IN_PAGES, undo_space.is_explicit());
   if (err != DB_SUCCESS) {
-    ib::error(ER_IB_MSG_1070, undo_space.log_file_name(),
-              undo_space.space_name());
-  }
-  ut_ad(err == DB_SUCCESS);
-
-  fh = os_file_create(innodb_data_file_key, file_name,
-                      (srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE) |
-                          OS_FILE_ON_ERROR_NO_EXIT,
-                      OS_DATA_FILE, srv_read_only_mode, &ret);
-
-  if (ret == false) {
-    std::ostringstream stmt;
-
-    if (os_file_get_last_error(false) == OS_FILE_ALREADY_EXISTS) {
-      stmt << " since '" << file_name << "' already exists.";
-    } else {
-      stmt << ". os_file_create() returned " << ret << ".";
-    }
-
-    ib::error(ER_IB_MSG_1214, undo_space.space_name(), stmt.str().c_str());
-
-    err = DB_ERROR;
-  } else {
-    ut_a(!srv_read_only_mode);
-
-    /* We created the data file and now write it full of zeros */
-    undo_space.set_new();
-
-    ib::info(ER_IB_MSG_1071, file_name);
-
-    ulint size_mb = UNDO_INITIAL_SIZE >> 20;
-
-    ib::info(ER_IB_MSG_1072, file_name, ulonglong{size_mb});
-
-    ib::info(ER_IB_MSG_1073);
-
-    ret = os_file_set_size(file_name, fh, 0, UNDO_INITIAL_SIZE, true);
-
-    DBUG_EXECUTE_IF("ib_undo_tablespace_create_fail", ret = false;);
-
-    if (!ret) {
-      ib::info(ER_IB_MSG_1074, file_name);
-      err = DB_OUT_OF_FILE_SPACE;
-    }
-
-    os_file_close(fh);
-
-    /* Add this space to the list of undo tablespaces to
-    construct by creating header pages. If an old undo
-    tablespace needed fixup before it is upgraded,
-    there is no need to construct it.*/
-    if (undo::is_reserved(space_id)) {
-      undo::add_space_to_construction_list(space_id);
-    }
+    return err;
   }
 
-  return (err);
+  ut_d(
+      undo_truncate::inject_crash("create_crash_after_undo_tablespace_create"));
+
+  undo_space.set_new();
+  ut_a(undo_truncate::is_reserved(space_id));
+  return err;
 }
 
 /** Try to enable encryption of an undo log tablespace.
@@ -304,8 +258,8 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
 
   ut_ad(Encryption::check_keyring());
 
-  /* Set the space flag.  The encryption metadata
-  will be generated in fsp_header_init later. */
+  /* Set the space flag. The encryption metadata will be generated in
+  fsp_header_init later. */
   fil_space_t *space = fil_space_get(space_id);
   if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     fsp_flags_set_encryption(space->flags);
@@ -320,38 +274,33 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
 }
 
 /** Try to read encryption metadata from an undo tablespace.
-@param[in]      fh              file handle of undo log file
-@param[in]      file_name       file name
+@param[in]      file_handle     file handle of undo log file
 @param[in]      space           undo tablespace
 @return DB_SUCCESS if success */
-static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
-                                                   const char *file_name,
-                                                   fil_space_t *space) {
-  IORequest request;
-  ulint n_read = 0;
-  size_t page_size = UNIV_PAGE_SIZE_MAX;
+static dberr_t srv_undo_tablespace_read_encryption(
+    ib::fil::Tablespace_node_handle_interface *file_handle,
+    fil_space_t *space) {
   dberr_t err = DB_ERROR;
+
+  IORequest request{IORequest::Type::READ};
+  /* Don't want unnecessary complaints about partial reads. */
+  request.disable_partial_io_warnings();
 
   /* Align the memory for a possible read from a raw device */
   byte *first_page = static_cast<byte *>(
       ut::aligned_alloc(UNIV_PAGE_SIZE_MAX, UNIV_PAGE_SIZE));
 
-  /* Don't want unnecessary complaints about partial reads. */
-  request.disable_partial_io_warnings();
+  ib::fil::Tablespace_node_handle_interface::Status_IO status =
+      file_handle->read_page(request, first_page, 0);
 
-  err = os_file_read_no_error_handling(request, file_name, fh, first_page, 0,
-                                       page_size, &n_read);
-
-  if (err != DB_SUCCESS) {
-    ib::info(ER_IB_MSG_1076, space->name, ut_strerr(err));
+  if (status != ib::fil::Tablespace_node_handle_interface::Status_IO::SUCCESS) {
+    ib::info(ER_IB_MSG_FIRST_PAGE_READ_FAILED, space->name, ut_strerr(err));
     ut::aligned_free(first_page);
     return (err);
   }
 
-  ulint offset;
   const page_size_t space_page_size(space->flags);
-
-  offset = fsp_header_get_encryption_offset(space_page_size);
+  const auto offset = fsp_header_get_encryption_offset(space_page_size);
   ut_ad(offset);
 
   /* Return if the encryption metadata is empty. */
@@ -378,110 +327,189 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   return (DB_SUCCESS);
 }
 
-/** Start the fix-up process on an undo tablespace if it was in the process
-of being truncated when the server crashed. At this point, just delete the
-old file if it exists.
-We could do the whole reconstruction here for implicit undo spaces since we
-know the space_id, space_name, and file_name implicitly.  But for explicit
-undo spaces, we must wait for the DD to be scanned in boot_tablespaces()
-in order to know the space_id, space_name, and file_name.
+/** Handles the undo_$num_trunc.log marker generated by 9.x, by removing the
+space with corresponding space_id, if it was found during tablespace scanning.
+This ensures:
+1. It will not be opened by subsequent srv_undo_tablespace_open_by_num(num)
+2. It will clean up file created by CREATE UNDO TABLESPACE if it wasn't yet
+   registered in DD (and thus wouldn't be found in DD and processed by
+   srv_undo_tablespace_fixup)
 @param[in]  space_num  undo tablespace number
 @return error code */
 static dberr_t srv_undo_tablespace_fixup_num(space_id_t space_num) {
-  if (!undo::is_active_truncate_log_present(space_num)) {
+  if (!undo_truncate::is_active_truncate_log_present(space_num)) {
     return (DB_SUCCESS);
   }
 
-  ib::info(ER_IB_MSG_1077, ulong{space_num});
+  ib::info(ER_IB_MSG_UNDO_TRUNCATE_DURING_SHUTDOWN_OR_CRASH, ulong{space_num});
 
   if (srv_read_only_mode) {
-    ib::error(ER_IB_MSG_1078);
+    ib::error(ER_IB_MSG_UNDO_RECOVER_FAILED_READ_ONLY_MODE);
     return (DB_READ_ONLY);
   }
 
-  /*
-    Search for a file that is using any of the space IDs assigned to this
-    undo number. The directory scan assured that there are no duplicate files
-    with the same space_id or with the same undo space number.
-   */
-  space_id_t space_id = SPACE_UNKNOWN;
-  std::string scanned_name;
-  fil_system_get_file_by_space_num(space_num, space_id, scanned_name);
+  if (undo_truncate::num2id_map->contains(space_num)) {
+    /* Delete the tablespace file found with this space number. */
+    const auto space_id = undo_truncate::num2id_map->get(space_num);
+    ut_ad(fsp_is_undo_tablespace(space_id));
+    ut_ad(fil_space_get(space_id) == nullptr);
+    ut_a(tablespace_scanning != nullptr);
+    const auto scanned_name =
+        tablespace_scanning->get_tablespace_file_by_id(space_id);
+    mtr_t mtr;
+    mtr.start();
+    fil_op_write_log(MLOG_FILE_DELETE, space_id, scanned_name->c_str(), nullptr,
+                     0, &mtr);
+    mtr.commit();
 
-  /* If the previous file still exists, delete it. */
-  if (scanned_name.length() > 0) {
-    /* Flush any changes recovered in REDO */
-    fil_flush(space_id);
-    fil_space_close(space_id);
-    os_file_delete_if_exists(innodb_data_file_key, scanned_name.c_str(),
-                             nullptr);
+    ib::redo::must_succeed(
+        ib::redo::handler->persist_smaller_than(mtr.commit_lsn()),
+        UT_LOCATION_HERE);
 
-  } else if (space_num < FSP_IMPLICIT_UNDO_TABLESPACES) {
-    /* If there is any file with the implicit file name, delete it. */
-    undo::Tablespace undo_space(undo::num2id(space_num, 0));
-    os_file_delete_if_exists(innodb_data_file_key, undo_space.file_name(),
-                             nullptr);
+    /* We are sure here that the file exists, since the corresponding
+    space_id is present in the map. */
+    ut_ad(os_file_exists(scanned_name->c_str()));
+    auto status = tablespaces_nodes->remove(space_id, 0,
+                                            {.m_path = scanned_name->c_str()});
+    if (status != ib::fil::Tablespaces_nodes_interface::Status::SUCCESS) {
+      ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE, scanned_name->c_str());
+      return DB_IO_ERROR;
+    }
   }
 
-  return (DB_SUCCESS);
+  /* Remove the truncate log file */
+  undo_truncate::remove_truncate_log_file(space_num);
+  return DB_SUCCESS;
 }
 
-/** Fix up an undo tablespace if it was in the process of being truncated
-when the server crashed. This is the second call and is done after the DD
-is available so now we know the space_name, file_name and previous space_id.
-@param[in]  space_name  undo tablespace name
-@param[in]  file_name   undo tablespace file name
-@param[in]  space_id    undo tablespace ID
-@return error code */
 dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
                                   space_id_t space_id) {
   ut_ad(fsp_is_undo_tablespace(space_id));
+  const space_id_t space_num = undo_truncate::id2num(space_id);
 
-  space_id_t space_num = undo::id2num(space_id);
-  if (!undo::is_active_truncate_log_present(space_num)) {
-    return (DB_SUCCESS);
+  /* If it was successfully opened during srv_undo_tablespaces_open() then the
+  file exists and doesn't have FSP_FLAGS_MASK_UNDO_UNUSABLE, and there's
+  nothing to do here.
+
+  If it was not successfully opened, and srv_undo_tablespaces_open() itself did
+  not report an error (as we've reached here), then that means that either:
+  a) The srv_undo_tablespace_open_by_num(num) was not even called, because:
+     the file with a space_id which maps to this num could not be found during
+     the scan either because:
+     i)  it simply doesn't exists, or
+     ii) it was impossible to figure out its space_id by looking at its header
+         as it was empty, corrupted or zeroed.
+  b) It was called, but returned DB_UNDO_FILE_UNDER_TRUNCATION as the file had
+     FSP_FLAGS_MASK_UNDO_UNUSABLE flag in its header. In this case the file was
+     already removed by that function.
+  c) It was called, but returned DB_CANNOT_OPEN_FILE as the file was missing,
+     even though it was found during the scan, which means that
+     srv_undo_tablespace_fixup_num() has removed it already seeing the legacy
+     undo_{num}_trunc.log marker for it.
+
+  In case a.ii) we want to clean up the file. We use the file_name from the DD
+  as a hint to find it, even if its header is unreadable.
+
+  In all a), b) and c) we treat the situation as a result of a failed truncate
+  operation, so we proceed to re-create the space with next(space_id). */
+  if (undo_truncate::spaces->contains(space_num)) {
+    return DB_SUCCESS;
   }
 
+  ut_ad(!srv_read_only_mode);
   if (srv_read_only_mode) {
-    return (DB_READ_ONLY);
+    ib::error(ER_IB_MSG_UNDO_RECOVER_FAILED_READ_ONLY_MODE);
+    return DB_READ_ONLY;
   }
 
-  ib::info(ER_IB_MSG_1079, ulong{space_num});
+  const auto node_info =
+      tablespaces_nodes->get_node_info(space_id, 0, {.m_path = file_name}, 0);
 
-  /* It is possible for an explicit undo tablespace to have been truncated and
-  recreated but not yet written with a header page when a crash occurred.  In
-  this case, the empty file would not have been scanned at startup and the
-  first call to fixup did not know the filename.  Now that we know it, just
-  delete any file with that name if it exists.  The dictionary claims it is
-  an undo tablespace and there is a truncate log file present. */
-  os_file_delete_if_exists(innodb_data_file_key, file_name, nullptr);
+  if (node_info) {
+    /*  Check if the DD path is present in the known paths */
+    if (tablespace_scanning &&
+        (!tablespace_scanning->is_known_path(file_name))) {
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED,
+                file_name, space_name);
+    }
+
+    mtr_t mtr;
+    mtr.start();
+
+    fil_op_write_log(MLOG_FILE_DELETE, space_id, file_name, nullptr, 0, &mtr);
+
+    mtr.commit();
+
+    ib::redo::must_succeed(
+        ib::redo::handler->persist_smaller_than(mtr.commit_lsn()),
+        UT_LOCATION_HERE);
+
+    /* This must be the case of (a.ii) as the node exists, so we delete the file
+     */
+    auto status = tablespaces_nodes->remove(space_id, 0, {file_name, false});
+    if (status != ib::fil::Tablespaces_nodes_interface::Status::SUCCESS) {
+      ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE, file_name);
+      return DB_IO_ERROR;
+    }
+  }
+
+  ib::info(ER_IB_MSG_UNDO_TABLESPACE_RECONSTRUCTING, ulong{space_num});
 
   /* Mark the space_id for this undo tablespace number as in-use. */
-  undo::spaces->x_lock();
-  undo::unuse_space_id(space_id);
-  space_id_t new_space_id = undo::next_space_id(space_id);
-  undo::use_space_id(new_space_id);
-  undo::spaces->x_unlock();
+  undo_truncate::spaces->x_lock(UT_LOCATION_HERE);
+  undo_truncate::unuse_space_id(space_id);
+  space_id_t new_space_id = undo_truncate::next_space_id(space_id);
+  undo_truncate::use_space_id(new_space_id);
+  undo_truncate::spaces->x_unlock();
 
+  ut_d(undo_truncate::inject_crash(
+      "fixup_crash_before_updating_space_id_in_dd"));
+
+  /* Update the DD with the new space id. */
+  dd_space_states old_state = DD_SPACE_STATE__LAST;
+  bool dd_result = dd_tablespace_get_mdl(space_name);
+  if (dd_result == DD_SUCCESS) {
+    dd_result = dd_tablespace_set_space_id_and_get_state(
+        space_name, new_space_id, old_state);
+  }
+  if (dd_result != DD_SUCCESS) {
+    return DB_ERROR;
+  }
+
+  ut_d(
+      undo_truncate::inject_crash("fixup_crash_after_updating_space_id_in_dd"));
+
+  /* Create the undo tablespace with new space id. */
   dberr_t err = srv_undo_tablespace_create(space_name, file_name, new_space_id);
   if (err != DB_SUCCESS) {
     return (err);
   }
 
-  /* Update the DD with the new space ID and state. */
-  undo::spaces->s_lock();
-  undo::Tablespace *undo_space = undo::spaces->find(space_num);
+  ut_d(undo_truncate::inject_crash("fixup_crash_after_creating_undo"));
+
+  /* Update the DD with the new state. */
+  undo_truncate::spaces->x_lock(UT_LOCATION_HERE);
+
+  undo_truncate::Tablespace *undo_space =
+      undo_truncate::spaces->find(space_num);
+
   dd_space_states to_state;
-  if (undo_space->is_inactive_explicit()) {
+  ut_a(old_state != DD_SPACE_STATE__LAST);
+  if (old_state == DD_SPACE_STATE_INACTIVE ||
+      old_state == DD_SPACE_STATE_EMPTY) {
     to_state = DD_SPACE_STATE_EMPTY;
     undo_space->set_empty();
   } else {
     to_state = DD_SPACE_STATE_ACTIVE;
     undo_space->set_active();
   }
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->x_unlock();
+  ut_d(undo_truncate::inject_crash("fixup_crash_before_updating_state_in_dd"));
 
-  bool dd_result = dd_tablespace_get_mdl(space_name);
+  /* We need to acquire the MDL on space_name again because the MDL acquired
+  earlier in this function was released as part of the commit called inside
+  the function dd_tablespace_set_space_id_and_get_state(). */
+  dd_result = dd_tablespace_get_mdl(space_name);
   if (dd_result == DD_SUCCESS) {
     dd_result =
         dd_tablespace_set_id_and_state(space_name, new_space_id, to_state);
@@ -489,21 +517,16 @@ dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
   if (dd_result != DD_SUCCESS) {
     err = DB_ERROR;
   }
+  ut_d(undo_truncate::inject_crash("fixup_crash_after_updating_state_in_dd"));
 
   return (err);
 }
 
-/** Open an undo tablespace.
-@param[in]  undo_space  Undo tablespace
-@return DB_SUCCESS or error code */
-dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
+dberr_t srv_undo_tablespace_open(undo_truncate::Tablespace &undo_space,
+                                 bool expected_to_be_unusable) {
   DBUG_EXECUTE_IF("ib_undo_tablespace_open_fail",
                   return (DB_CANNOT_OPEN_FILE););
 
-  pfs_os_file_t fh;
-  bool success;
-  uint32_t flags;
-  dberr_t err = DB_ERROR;
   space_id_t space_id = undo_space.id();
   char *undo_name = undo_space.space_name();
   char *file_name = undo_space.file_name();
@@ -518,143 +541,237 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
     fil_space_close(space_id);
   }
 
-  if (!os_file_check_mode(file_name, srv_read_only_mode)) {
-    ib::error(ER_IB_MSG_1081, file_name,
-              srv_read_only_mode ? "readable!" : "writable!");
+  using Open_error = ib::fil::Tablespaces_nodes_interface::Open_error;
 
-    return (DB_READ_ONLY);
-  }
+  /* Create in memory fil_space_t and fil_node_t structure */
+  {
+    /* Open a local handle. */
+    uint32_t flags = fsp_flags_init(univ_page_size, false, false, false, false);
+    if (expected_to_be_unusable) {
+      fsp_flags_set_undo_unusable(flags);
+    }
+    const auto status =
+        tablespaces_nodes->open(space_id, 0, {.m_path = file_name},
+                                page_size_t(flags).physical(), true);
+    if (!status) {
+      switch (status.error()) {
+        case Open_error::NO_ACCESS_PERMISSIONS:
+          return DB_READ_ONLY;
+        case Open_error::NODE_DOES_NOT_EXIST:
+        case Open_error::IO_ERROR:
+          return DB_CANNOT_OPEN_FILE;
 
-  /* Open a local handle. */
-  fh = os_file_create(
-      innodb_data_file_key, file_name,
-      OS_FILE_OPEN_RETRY | OS_FILE_ON_ERROR_NO_EXIT | OS_FILE_ON_ERROR_SILENT,
-      OS_DATA_FILE, srv_read_only_mode, &success);
-  if (!success) {
-    return (DB_CANNOT_OPEN_FILE);
-  }
+        default:
+          ut_d(ut_error);
+          ut_o(return DB_CANNOT_OPEN_FILE);
+      }
+    }
+    if (space == nullptr) {
+      /* Load the tablespace into InnoDB's internal data structures.
+      Set the compressed page size to 0 (non-compressed) */
+      space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
+      ut_a(space != nullptr);
+      ut_ad(fil_validate());
 
-  if (space == nullptr) {
-    /* Load the tablespace into InnoDB's internal data structures.
-    Set the compressed page size to 0 (non-compressed) */
-    flags = fsp_flags_init(univ_page_size, false, false, false, false);
-    space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
-    ut_a(space != nullptr);
-    ut_ad(fil_validate());
+      fil_node_create(file_name, space, false, PAGE_NO_MAX);
+    }
 
-    os_offset_t size = os_file_get_size(fh);
-    ut_a(size != (os_offset_t)-1);
-    page_no_t n_pages = static_cast<page_no_t>(size / UNIV_PAGE_SIZE);
+    /* Read the encryption metadata in this undo tablespace.
+    If the encryption info in the first page cannot be decrypted
+    by the master key, this tablespace cannot be opened. */
+    const dberr_t err =
+        srv_undo_tablespace_read_encryption(status->get(), space);
 
-    if (fil_node_create(file_name, n_pages, space, false) == nullptr) {
-      os_file_close(fh);
-
-      ib::error(ER_IB_MSG_1082, undo_name);
-
-      return (DB_ERROR);
+    if (err != DB_SUCCESS) {
+      ib::error(ER_IB_MSG_ENCRYPTION_READ_FAILED, undo_name);
+      return err;
     }
   }
 
-  /* Read the encryption metadata in this undo tablespace.
-  If the encryption info in the first page cannot be decrypted
-  by the master key, this table cannot be opened. */
-  err = srv_undo_tablespace_read_encryption(fh, file_name, space);
-
-  /* The file handle will no longer be needed. */
-  success = os_file_close(fh);
-  ut_ad(success);
-
-  if (err != DB_SUCCESS) {
-    ib::error(ER_IB_MSG_1083, undo_name);
-    return (err);
+  /* Now that space and node exist, make sure this undo tablespace is open so
+  that it stays open until shutdown. But if it is still marked unusable, we
+  cannot open it until the header page has been written, because it would fill
+  the FSP-related cache with invalid data. */
+  if (!expected_to_be_unusable) {
+    const auto open_res = fil_space_open(space_id);
+    ut_a(open_res);
+    fil_space_release(*open_res);
   }
 
-  /* Now that space and node exist, make sure this undo tablespace
-  is open so that it stays open until shutdown.
-  But if it is under construction, we cannot open it until the
-  header page has been written. */
-  if (!undo::is_under_construction(space_id)) {
-    bool success = fil_space_open(space_id);
-    ut_a(success);
+  if (undo_truncate::is_reserved(space_id)) {
+    undo_truncate::spaces->add(undo_space);
   }
 
-  if (undo::is_reserved(space_id)) {
-    undo::spaces->add(undo_space);
-  }
-
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Open an undo tablespace with a specified undo number.
+If the undo space is undergoing truncation, we will delete the undo file.
 @param[in]  space_num  undo tablespace number
 @return DB_SUCCESS or error code */
-static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
-  space_id_t space_id = SPACE_UNKNOWN;
-  std::string scanned_name;
+static dberr_t srv_undo_tablespace_open_by_num(const space_id_t space_num) {
+  ut_a(undo_truncate::num2id_map->contains(space_num));
+  const auto space_id = undo_truncate::num2id_map->get(space_num);
+  ut_a(fsp_is_undo_tablespace(space_id));
+  undo_truncate::Tablespace undo_space(space_id);
 
-  /* Search for a file that is using any of the space IDs assigned to this
-  undo number. The directory scan assured that there are no duplicate files
-  with the same space_id or with the same undo space number. */
-  if (!fil_system_get_file_by_space_num(space_num, space_id, scanned_name)) {
-    return (DB_CANNOT_OPEN_FILE);
+  if (tablespace_scanning) {
+    /* Search for a file that is using any of the space IDs assigned to this
+    undo space_id. The directory scan assured that there are no duplicate files
+    with the same space_id. */
+    const auto scanned_name =
+        tablespace_scanning->get_tablespace_file_by_id(space_id);
+    if (!scanned_name) {
+      return DB_CANNOT_OPEN_FILE;
+    }
+
+    /* The first 2 undo space numbers must be implicit. */
+    const bool is_default = space_num <= FSP_IMPLICIT_UNDO_TABLESPACES;
+
+    if (!Fil_path::is_same_as(undo_space.file_name(), scanned_name->c_str())) {
+      if (is_default) {
+        ib::info(ER_IB_MSG_UNDO_TABLESPACE_CREATE_FAILED_ALREADY_EXIST,
+                 undo_space.file_name(), scanned_name->c_str(),
+                 ulong{space_id});
+
+        return DB_WRONG_FILE_NAME;
+      }
+
+      /* Explicit undo tablespaces must end with the suffix '.ibu'. */
+      if (!Fil_path::has_suffix(IBU, *scanned_name)) {
+        ib::info(ER_IB_MSG_NOT_END_WITH_IBU, scanned_name->c_str());
+
+        return DB_WRONG_FILE_NAME;
+      }
+
+      /* Use the file name found in the scan. */
+      undo_space.set_file_name(scanned_name->c_str());
+    }
   }
 
-  /* The first 2 undo space numbers must be implicit. */
-  bool is_default = (space_num <= FSP_IMPLICIT_UNDO_TABLESPACES);
+  fil_space_t *space = fil_space_get(space_id);
+  if (space == nullptr) {
+    /* Try to open the undo file and read the header */
+    using Open_error = ib::fil::Tablespaces_nodes_interface::Open_error;
+    bool unusable_header;
+    {
+      const auto handle = tablespaces_nodes->open(
+          space_id, 0, {.m_path = undo_space.file_name()}, srv_page_size, true);
+      if (!handle) {
+        switch (handle.error()) {
+          case Open_error::NO_ACCESS_PERMISSIONS:
+          case Open_error::NODE_DOES_NOT_EXIST:
+          case Open_error::IO_ERROR:
+            return DB_CANNOT_OPEN_FILE;
 
-  undo::Tablespace undo_space(space_id);
-  if (!Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
-    if (is_default) {
-      ib::info(ER_IB_MSG_1080, undo_space.file_name(), scanned_name.c_str(),
-               ulong{space_id});
+          default:
+            ut_d(ut_error);
+            ut_o(return DB_CANNOT_OPEN_FILE);
+        }
+      }
 
-      return (DB_WRONG_FILE_NAME);
+      IORequest request{IORequest::Type::READ};
+
+      const auto first_page =
+          ut::make_unique_aligned<byte[]>(srv_page_size, srv_page_size);
+
+      ib::fil::Tablespace_node_handle_interface::Status_IO page_read_status =
+          handle->get()->read_page(request, first_page.get(), 0);
+
+      if (page_read_status !=
+          ib::fil::Tablespace_node_handle_interface::Status_IO::SUCCESS) {
+        ib::info(ER_IB_MSG_FIRST_PAGE_READ_FAILED, undo_space.file_name(),
+                 ut_strerr(DB_ERROR));
+        return DB_ERROR;
+      }
+      unusable_header =
+          (fsp_header_get_field(first_page.get(), FSP_SIZE) == 0) ||
+          FSP_FLAGS_GET_UNDO_UNUSABLE(fsp_header_get_flags(first_page.get()));
+      /* Releasing the handle at the end of scope, which is crucial for
+      Windows, where we have to close all handles before removing a file.*/
+    }
+    if (unusable_header) {
+      if (srv_read_only_mode) {
+        ib::error(ER_IB_MSG_UNDO_RECOVER_FAILED_READ_ONLY_MODE);
+        return DB_READ_ONLY;
+      }
+
+      mtr_t mtr;
+      mtr.start();
+
+      fil_op_write_log(MLOG_FILE_DELETE, space_id, undo_space.file_name(),
+                       nullptr, 0, &mtr);
+
+      mtr.commit();
+
+      ib::redo::must_succeed(
+          ib::redo::handler->persist_smaller_than(mtr.commit_lsn()),
+          UT_LOCATION_HERE);
+
+      auto status = tablespaces_nodes->remove(space_id, 0,
+                                              {undo_space.file_name(), false});
+      if (status != ib::fil::Tablespaces_nodes_interface::Status::SUCCESS) {
+        ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE,
+                  undo_space.file_name());
+        return DB_IO_ERROR;
+      }
+
+      return DB_UNDO_FILE_UNDER_TRUNCATION;
     }
 
-    /* Explicit undo tablespaces must end with the suffix '.ibu'. */
-    if (!Fil_path::has_suffix(IBU, scanned_name)) {
-      ib::info(ER_IB_MSG_NOT_END_WITH_IBU, scanned_name.c_str());
-
-      return (DB_WRONG_FILE_NAME);
+  } else if (FSP_FLAGS_GET_UNDO_UNUSABLE(space->flags)) {
+    if (srv_read_only_mode) {
+      ib::error(ER_IB_MSG_UNDO_RECOVER_FAILED_READ_ONLY_MODE);
+      return DB_READ_ONLY;
     }
+    fil_flush(space_id);
+    fil_space_close(space_id);
+    auto err = fil_delete_tablespace(space_id);
+    if (err != DB_SUCCESS) {
+      ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE)
+          << " with space id=" << space_id << ", file '"
+          << undo_space.file_name() << "'!";
 
-    /* Use the file name found in the scan. */
-    undo_space.set_file_name(scanned_name.c_str());
+      return DB_ERROR;
+    }
+    return DB_UNDO_FILE_UNDER_TRUNCATION;
   }
 
   /* Mark the space_id for this undo tablespace number as in-use. */
-  undo::use_space_id(space_id);
+  undo_truncate::use_space_id(space_id);
+  ib::info(ER_IB_MSG_USING_UNDO_SPACE, undo_space.file_name());
 
-  ib::info(ER_IB_MSG_USING_UNDO_SPACE, scanned_name.c_str());
-
-  dberr_t err = srv_undo_tablespace_open(undo_space);
+  dberr_t err = srv_undo_tablespace_open(undo_space, false);
 
   if (err == DB_SUCCESS) {
     fil_space_set_undo_size(space_id, false);
   }
 
-  return (err);
+  return err;
 }
 
-/* Open existing undo tablespaces up to the number in target_undo_tablespace.
-If we are making a new database, these have been created.
-If doing recovery, these should exist and may be needed for recovery.
-If we fail to open any of these it is a fatal error.
+/* Open existing undo tablespaces up to the number FSP_MAX_UNDO_TABLESPACES.
+We are attempting to open undo tablespaces before opening the DD; we must open
+all undo tablespaces that are not undergoing truncation. If an undo tablespace
+is undergoing truncation, it will be recreated in srv_undo_tablespace_fixup().
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespaces_open() {
-  /* Open all existing implicit and explicit undo tablespaces.
-  The tablespace scan has completed and the undo::space_id_bank has been
-  filled with the space Ids that were found. */
-  undo::spaces->x_lock();
-  ut_ad(undo::spaces->size() == 0);
+  /* Open all existing implicit and explicit undo tablespaces.*/
+  undo_truncate::spaces->x_lock(UT_LOCATION_HERE);
+
+  ut_ad(undo_truncate::spaces->size() == 0);
 
   for (space_id_t num = 1; num <= FSP_MAX_UNDO_TABLESPACES; ++num) {
-    /* Check if this undo tablespace was in the process of being truncated.
-    If so, recreate it and add it to the construction list. */
     dberr_t err = srv_undo_tablespace_fixup_num(num);
     if (err != DB_SUCCESS) {
-      undo::spaces->x_unlock();
+      undo_truncate::spaces->x_unlock();
       return (err);
+    }
+
+    /* If no tablespace file is found with this space number, continue. */
+    if (!undo_truncate::num2id_map->contains(num)) {
+      /* No UNDO space with this number found. */
+      continue;
     }
 
     err = srv_undo_tablespace_open_by_num(num);
@@ -663,177 +780,145 @@ static dberr_t srv_undo_tablespaces_open() {
         /* An Undo tablespace was found where the mapping
         file said it was.  Now we have a different filename
         for it. The undo directory must have changed and
-        the the files were not moved. Cannot startup. */
+        the files were not moved. Cannot startup. */
       case DB_READ_ONLY:
         /* The undo tablespace was found where it should be
         but it cannot be opened in read/write mode. */
       default:
         /* The undo tablespace was found where it should be
         but it cannot be used. */
-        undo::spaces->x_unlock();
+        undo_truncate::spaces->x_unlock();
         return (err);
 
       case DB_SUCCESS:
-
+      case DB_UNDO_FILE_UNDER_TRUNCATION:
+        /* Undergoing truncation, recreate it in srv_undo_tablespace_fixup(). */
       case DB_CANNOT_OPEN_FILE:
-        /* Doesn't exist, keep looking */
+        /* Doesn't exist, possibly deleted by srv_undo_tablespace_fixup_num().
+         */
         break;
     }
   }
 
-  const size_t n_found_new = undo::spaces->size();
-  undo::spaces->x_unlock();
+  const size_t n_found = undo_truncate::spaces->size();
+  undo_truncate::spaces->x_unlock();
 
-  if (n_found_new < FSP_IMPLICIT_UNDO_TABLESPACES) {
-    ib::info(ER_IB_MSG_WILL_CREATE_N_UNDO_TS,
-             FSP_IMPLICIT_UNDO_TABLESPACES - n_found_new);
+  /* If no UNDO tablespaces found, abort the server startup. */
+  if (n_found == 0) {
+    ib::error(ER_IB_MSG_UNDO_TS_NOT_FOUND);
+    return DB_ERROR;
   }
 
-  if (n_found_new) {
-    ib::info(ER_IB_MSG_OPENED_N_UNDO_TS, n_found_new);
+  if (n_found < FSP_IMPLICIT_UNDO_TABLESPACES) {
+    ib::info(ER_IB_MSG_WILL_CREATE_N_UNDO_TS,
+             FSP_IMPLICIT_UNDO_TABLESPACES - n_found);
+  }
+
+  if (n_found) {
+    ib::info(ER_IB_MSG_OPENED_N_UNDO_TS, n_found);
   }
 
   return (DB_SUCCESS);
 }
 
-/** Create the implicit undo tablespaces if we are creating a new instance
-or if there was not enough implicit undo tablespaces previously existing.
+/** Create the implicit undo tablespaces for the new instance. It only ensures
+the Undo Tablespace exists, has a minimal valid header and is open. It doesn't
+create rseg arrays, nor rollback segments.
 @return DB_SUCCESS or error code */
-static dberr_t srv_undo_tablespaces_create() {
+static dberr_t srv_undo_create_implicit_tablespaces() {
   dberr_t err = DB_SUCCESS;
+  ut_a(!srv_read_only_mode);
+  ut_a(srv_force_recovery == 0);
+  undo_truncate::spaces->x_lock(UT_LOCATION_HERE);
 
-  undo::spaces->x_lock();
-
-  ulint initial_implicit_undo_spaces = 0;
-  for (auto undo_space : undo::spaces->m_spaces) {
-    if (undo_space->num() <= FSP_IMPLICIT_UNDO_TABLESPACES) {
-      initial_implicit_undo_spaces++;
-    }
-  }
-
-  if (initial_implicit_undo_spaces >= FSP_IMPLICIT_UNDO_TABLESPACES) {
-    undo::spaces->x_unlock();
-    return (DB_SUCCESS);
-  }
-
-  if (srv_read_only_mode || srv_force_recovery > 0) {
-    const char *mode;
-
-    mode = srv_read_only_mode ? "read_only" : "force_recovery",
-
-    ib::warn(ER_IB_MSG_1086, mode, ulonglong{initial_implicit_undo_spaces});
-
-    if (initial_implicit_undo_spaces == 0) {
-      ib::error(ER_IB_MSG_1087, mode);
-
-      undo::spaces->x_unlock();
-      return (DB_ERROR);
-    }
-
-    undo::spaces->x_unlock();
-    return (DB_SUCCESS);
-  }
-
-  /* Create all implicit undo tablespaces that are needed. */
+  /* Create implicit undo tablespaces */
   for (space_id_t num = 1; num <= FSP_IMPLICIT_UNDO_TABLESPACES; ++num) {
-    /* If the trunc log file is present, the fixup process will be
-    finished later. */
-    if (undo::is_active_truncate_log_present(num)) {
-      continue;
-    }
-
-    /* Check if an independent undo space for this space_id
-    has already been found. */
-    if (undo::spaces->contains(num)) {
-      continue;
-    }
+    /* This part of the code is only executed during database creation, so no
+    truncate log files should be present in the data directory. */
+    ut_a(!undo_truncate::is_active_truncate_log_present(num));
+    ut_a(!undo_truncate::spaces->contains(num));
 
     /* Mark this implicit undo space number as used and return the next
     available space_id. */
-    space_id_t space_id = undo::use_next_space_id(num);
+    space_id_t space_id = undo_truncate::use_next_space_id(num);
 
-    /* Since it is not found, create it. */
-    undo::Tablespace undo_space(space_id);
+    undo_truncate::Tablespace undo_space(space_id);
     undo_space.set_new();
     err = srv_undo_tablespace_create(undo_space);
     if (err != DB_SUCCESS) {
-      ib::info(ER_IB_MSG_1088, undo_space.space_name());
-      break;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_UNDO_TABLESPACE_CREATE_FAILED,
+                undo_space.space_name());
     }
 
     /* Open this new undo tablespace. */
-    err = srv_undo_tablespace_open(undo_space);
+    err = srv_undo_tablespace_open(undo_space, true);
     if (err != DB_SUCCESS) {
-      ib::info(ER_IB_MSG_1089, int{err}, ut_strerr(err),
-               undo_space.space_name());
-
-      break;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_NEW_UNDO_TABLESPACE_OPEN_ERROR,
+                int{err}, ut_strerr(err), undo_space.space_name());
     }
   }
 
-  undo::spaces->x_unlock();
+  undo_truncate::spaces->x_unlock();
 
-  ulint new_spaces =
-      FSP_IMPLICIT_UNDO_TABLESPACES - initial_implicit_undo_spaces;
-
-  ib::info(ER_IB_MSG_1090, ulonglong{new_spaces});
+  ib::info(ER_IB_MSG_CREATED_N_UNDO_TABLESPACES, FSP_IMPLICIT_UNDO_TABLESPACES);
 
   return (err);
 }
 
-/** Finish building an undo tablespace. So far these tablespace files in
-the construction list should be created and filled with zeros.
+/** Initialize FSP structures (such as fragment and inode lists) and the (empty)
+rseg array of an undo tablespace. Before the call this tablespace file should be
+created and filled with zeros with a minimal tablespace header.
+This function does not create any rollback segments.
+@param[in]      space_id        undo tablespace id
+@param[in]      enable_undo_encryption  whether to update global undo
+                                        encryption metadata after construction
 @return DB_SUCCESS or error code */
-static dberr_t srv_undo_tablespaces_construct() {
-  mtr_t mtr;
-
-  if (undo::s_under_construction.empty()) {
-    return (DB_SUCCESS);
-  }
-
+static dberr_t srv_undo_prepare_empty_structure(space_id_t space_id,
+                                                bool enable_undo_encryption) {
   ut_a(!srv_read_only_mode);
   ut_a(!srv_force_recovery);
 
-  if (srv_undo_log_encrypt && Encryption::check_keyring() == false) {
+  if (srv_undo_log_encrypt && !Encryption::check_keyring()) {
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
     return (DB_ERROR);
   }
 
-  for (auto space_id : undo::s_under_construction) {
-    /* Enable undo log encryption if it's ON. */
-    if (srv_undo_log_encrypt) {
-      dberr_t err = srv_undo_tablespace_enable_encryption(space_id);
+  /* Enable undo log encryption if it's ON. */
+  if (srv_undo_log_encrypt) {
+    dberr_t err = srv_undo_tablespace_enable_encryption(space_id);
 
-      if (err != DB_SUCCESS) {
-        ib::error(ER_IB_MSG_1091, ulong{undo::id2num(space_id)});
+    if (err != DB_SUCCESS) {
+      ib::error(ER_IB_MSG_ENCRYPTED_UNDO_CREATE_FAILED,
+                ulong{undo_truncate::id2num(space_id)});
 
-        return (err);
-      }
+      return (err);
     }
-
-    log_free_check();
-
-    mtr_start(&mtr);
-
-    mtr_x_lock(fil_space_get_latch(space_id), &mtr, UT_LOCATION_HERE);
-
-    if (!fsp_header_init(space_id, UNDO_INITIAL_SIZE_IN_PAGES, &mtr)) {
-      ib::error(ER_IB_MSG_1093, ulong{undo::id2num(space_id)});
-
-      mtr_commit(&mtr);
-      return (DB_ERROR);
-    }
-
-    /* Add the RSEG_ARRAY page. */
-    trx_rseg_array_create(space_id, &mtr);
-
-    mtr_commit(&mtr);
-
-    /* The rollback segments will get created later in
-    trx_rseg_add_rollback_segments(). */
   }
 
-  if (srv_undo_log_encrypt) {
+  log_free_check();
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  mtr_x_lock(fil_space_get_latch(space_id), &mtr, UT_LOCATION_HERE);
+
+  if (!fsp_header_init(space_id, UNDO_INITIAL_SIZE_IN_PAGES, &mtr)) {
+    ib::error(ER_IB_MSG_UNDO_HEADER_INITIALIZE_FAIL,
+              ulong{undo_truncate::id2num(space_id)});
+
+    mtr_commit(&mtr);
+    return (DB_ERROR);
+  }
+
+  /* Add the RSEG_ARRAY page. */
+  trx_rseg_array_create(space_id, &mtr);
+
+  mtr_commit(&mtr);
+
+  /* The rollback segments will get created later in
+  trx_rseg_add_rollback_segments(). */
+
+  if (srv_undo_log_encrypt && enable_undo_encryption) {
     ut_d(bool ret =) srv_enable_undo_encryption();
     ut_ad(!ret);
   }
@@ -841,163 +926,177 @@ static dberr_t srv_undo_tablespaces_construct() {
   return (DB_SUCCESS);
 }
 
-/** Mark the point in which the undo tablespaces in the construction list
-are fully constructed and ready to use. */
-static void srv_undo_tablespaces_mark_construction_done() {
-  /* Remove the truncate log files if they exist. */
-  for (auto space_id : undo::s_under_construction) {
-    /* Flush these pages to disk since they were not redo logged. */
-    auto flush_observer = ut::new_withkey<Flush_observer>(
-        UT_NEW_THIS_FILE_PSI_KEY, space_id, nullptr, nullptr);
+/** Mark the point in which an undo tablespace is fully constructed and ready
+to use.
+@param[in]      space_id        undo tablespace id */
+static void srv_undo_mark_tablespace_usable(space_id_t space_id) {
+  const auto space = fil_space_get(space_id);
 
-    flush_observer->flush();
-    ut::delete_(flush_observer);
-
-    space_id_t space_num = undo::id2num(space_id);
-    if (undo::is_active_truncate_log_present(space_num)) {
-      undo::done_logging(space_num);
-    }
+  if (space && FSP_FLAGS_GET_UNDO_UNUSABLE(space->flags)) {
+    mtr_t mtr;
+    mtr.start();
+    undo_truncate::mark_undo_tablespace_usable(space_id, &mtr);
+    mtr.commit();
   }
-
-  undo::clear_construction_list();
 }
 
-/** Create an undo tablespace with an explicit file name
-This is called during CREATE UNDO TABLESPACE.
-@param[in]  space_name  tablespace name
-@param[in]  file_name   file name
-@param[in]  space_id    Tablespace ID
-@return DB_SUCCESS or error code */
+/** Mark any fully constructed undo tablespaces ready to use. */
+static void srv_undo_mark_all_tablespaces_usable() {
+  Space_Ids space_ids;
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
+    space_ids.push_back(undo_space->id());
+  }
+  undo_truncate::spaces->s_unlock();
+
+  for (const auto space_id : space_ids) {
+    srv_undo_mark_tablespace_usable(space_id);
+  }
+}
+
 dberr_t srv_undo_tablespace_create(const char *space_name,
                                    const char *file_name, space_id_t space_id) {
-  if (srv_undo_log_encrypt && Encryption::check_keyring() == false) {
+  if (srv_undo_log_encrypt && !Encryption::check_keyring()) {
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
     return (DB_ERROR);
   }
 
-  /* We need to x_lock the undo::spaces list until after this
+  /* We need to x_lock the undo_truncate::spaces list until after this
   is created and added to it. */
-  undo::spaces->x_lock();
+  undo_truncate::spaces->x_lock(UT_LOCATION_HERE);
 
-  ut_ad(undo::spaces->find(undo::id2num(space_id)) == nullptr);
-
-  undo::Tablespace undo_space(space_id);
+  undo_truncate::Tablespace undo_space(space_id);
   undo_space.set_space_name(space_name);
   undo_space.set_file_name(file_name);
 
-  dberr_t err = srv_undo_tablespace_create(undo_space);
-  if (err != DB_SUCCESS) {
-    undo::spaces->x_unlock();
-    goto cleanup_and_exit;
+  ut_ad(undo_truncate::spaces->find(undo_space.num()) == nullptr);
+
+  if (const auto err = srv_undo_tablespace_create(undo_space);
+      err != DB_SUCCESS) {
+    undo_truncate::spaces->x_unlock();
+    return err;
   }
+
+  auto undo_space_create_guard = create_scope_guard([&undo_space]() {
+    mtr_t mtr;
+    mtr.start();
+    fil_op_write_log(MLOG_FILE_DELETE, undo_space.id(), undo_space.file_name(),
+                     nullptr, 0, &mtr);
+
+    mtr.commit();
+
+    ib::redo::must_succeed(
+        ib::redo::handler->persist_smaller_than(mtr.commit_lsn()),
+        UT_LOCATION_HERE);
+
+    [[maybe_unused]] const auto status = tablespaces_nodes->remove(
+        undo_space.id(), 0, {.m_path = undo_space.file_name()});
+    ut_ad(status == ib::fil::Tablespaces_nodes_interface::Status::SUCCESS);
+  });
 
   /* Open this new undo tablespace. */
-  err = srv_undo_tablespace_open(undo_space);
-  if (err != DB_SUCCESS) {
+  if (const auto err = srv_undo_tablespace_open(undo_space, true);
+      err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_ERROR_OPENING_NEW_UNDO_SPACE, int{err}, space_name);
-    undo::spaces->x_unlock();
-    goto cleanup_and_exit;
+    undo_truncate::spaces->x_unlock();
+    return err;
   }
 
-  /* Unlock the undo::spaces list now that we are no longer changing it.
-  This new undo space will not be used by new transactions until it
-  becomes active. */
-  undo::spaces->x_unlock();
+  /* Unlock the undo_truncate::spaces list now that we are no longer changing
+  it. This new undo space will not be used by new transactions until it becomes
+  active. */
+  undo_truncate::spaces->x_unlock();
+
+  /* srv_undo_tablespace_open adds the undo space to the list, rollback this
+  operation in case of errors. */
+  auto undo_space_list_guard = create_scope_guard([&undo_space]() {
+    undo_truncate::spaces->x_lock(UT_LOCATION_HERE);
+    undo_truncate::spaces->drop(undo_space);
+    undo_truncate::spaces->x_unlock();
+  });
 
   /* Write header and RSEG_ARRAY pages to this undo tablespace. */
-  err = srv_undo_tablespaces_construct();
-  if (err != DB_SUCCESS) {
-    goto cleanup_and_exit;
+  if (const auto err = srv_undo_prepare_empty_structure(space_id, true);
+      err != DB_SUCCESS) {
+    return err;
   }
 
   /* Create the rollback segments in this tablespace and add an Rseg object
   for each one to the Rsegs list. */
   if (!trx_rseg_init_rollback_segments(space_id, srv_rollback_segments)) {
-    err = DB_ERROR;
-    goto cleanup_and_exit;
+    return DB_ERROR;
   }
 
-cleanup_and_exit:
-  /* If UNDO tablespace couldn't initialize completely, remove it from
-  undo tablespace list */
-  if (err != DB_SUCCESS) {
-    undo::spaces->x_lock();
-    undo::spaces->drop(undo_space);
-    undo::spaces->x_unlock();
+  undo_space_list_guard.release();
+  undo_space_create_guard.release();
 
-    /* Remove undo tablespace file (if created) */
-    os_file_delete_if_exists(innodb_data_file_key, undo_space.file_name(),
-                             nullptr);
-  }
+  srv_undo_mark_tablespace_usable(space_id);
 
-  srv_undo_tablespaces_mark_construction_done();
-  return (err);
+  return DB_SUCCESS;
 }
 
-void undo_spaces_init() {
-  ut_ad(undo::spaces == nullptr);
+void undo_truncate_spaces_init() {
+  ut_ad(undo_truncate::spaces == nullptr);
 
-  undo::spaces = ut::new_withkey<undo::Tablespaces>(
+  undo_truncate::spaces = ut::new_withkey<undo_truncate::Tablespaces>(
       ut::make_psi_memory_key(mem_key_undo_spaces));
-
-  undo::init_space_id_bank();
 }
 
-void undo_spaces_deinit() {
-  if (undo::spaces != nullptr) {
+void undo_truncate_spaces_deinit() {
+  if (undo_truncate::spaces != nullptr) {
     /* There can't be any active transactions. */
-    undo::spaces->clear();
+    undo_truncate::spaces->clear();
 
-    ut::delete_(undo::spaces);
-    undo::spaces = nullptr;
-  }
-
-  if (undo::space_id_bank != nullptr) {
-    ut::delete_arr(undo::space_id_bank);
-    undo::space_id_bank = nullptr;
+    ut::delete_(undo_truncate::spaces);
+    undo_truncate::spaces = nullptr;
   }
 }
 
-/** Open the configured number of implicit undo tablespaces.
-@param[in]      create_new_db   true if new db being created
+/** Create the implicit undo tablespaces for the new instance, and create
+their rseg arrrays, but not their rollback segments.
 @return DB_SUCCESS or error code */
-static dberr_t srv_undo_tablespaces_init(bool create_new_db) {
+static dberr_t srv_undo_create_implicit_tablespaces_with_empty_structure() {
   dberr_t err = DB_SUCCESS;
 
-  /* Open any existing implicit undo tablespaces. */
-  if (!create_new_db) {
-    err = srv_undo_tablespaces_open();
+  /* Create and open implicit undo tablespaces for the new DB. */
+  mutex_enter(&undo_truncate::ddl_mutex);
+  err = srv_undo_create_implicit_tablespaces();
+  if (err != DB_SUCCESS) {
+    mutex_exit(&undo_truncate::ddl_mutex);
+    return (err);
+  }
+
+  Space_Ids new_space_ids;
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
+    if (undo_space->is_new()) {
+      new_space_ids.push_back(undo_space->id());
+    }
+  }
+  undo_truncate::spaces->s_unlock();
+
+  for (const auto space_id : new_space_ids) {
+    err = srv_undo_prepare_empty_structure(space_id, false);
     if (err != DB_SUCCESS) {
+      mutex_exit(&undo_truncate::ddl_mutex);
       return (err);
     }
   }
 
-  /* If this is opening an existing database, create and open any
-  undo tablespaces that are still needed. For a new DB, create
-  them all. */
-  mutex_enter(&undo::ddl_mutex);
-  err = srv_undo_tablespaces_create();
-  if (err != DB_SUCCESS) {
-    mutex_exit(&undo::ddl_mutex);
-    return (err);
+  if (srv_undo_log_encrypt) {
+    ut_d(bool ret =) srv_enable_undo_encryption();
+    ut_ad(!ret);
   }
 
-  /* Finish building any undo tablespaces just created by adding
-  header pages, rseg_array pages, and rollback segments. Then delete
-  any undo truncation log files and clear the construction list.
-  This list includes any tablespace newly created or fixed-up. */
-  err = srv_undo_tablespaces_construct();
-  if (err != DB_SUCCESS) {
-    mutex_exit(&undo::ddl_mutex);
-    return (err);
-  }
+  /* We don't want to mark construction done here as we will do it later in
+  srv_start() after doing trx_rseg_adjust_rollback_segments(), which will
+  finalize construction of the undo tablespaces. */
 
-  mutex_exit(&undo::ddl_mutex);
+  mutex_exit(&undo_truncate::ddl_mutex);
   return (DB_SUCCESS);
 }
 
-/********************************************************************
-Wait for the purge thread(s) to start up. */
+/** Wait for the purge thread(s) to start up. */
 static void srv_start_wait_for_purge_to_start() {
   /* Wait for the purge coordinator and master thread to startup. */
 
@@ -1026,67 +1125,65 @@ static void srv_start_wait_for_purge_to_start() {
   }
 }
 
+/** Deletes all files used by the System Temporary Tablespace. */
+static void srv_delete_temporary_space_files(
+    ib::fsp::SysTablespace &tmp_space) {
+  for (const auto node_order : srv_tmp_space.delete_files()) {
+    ib::info(ER_IB_REMOVED_TEMPORARY_TABLESPACE_FILE,
+             tmp_space.node(node_order).name().c_str());
+  }
+}
+
 /** Create the temporary file tablespace.
-@param[in]      create_new_db   whether we are creating a new database
 @param[in,out]  tmp_space       Shared Temporary SysTablespace
 @return DB_SUCCESS or error code. */
-static dberr_t srv_open_tmp_tablespace(bool create_new_db,
-                                       SysTablespace *tmp_space) {
-  page_no_t sum_of_new_sizes;
-
-  /* Will try to remove if there is existing file left-over by last
-  unclean shutdown */
-  tmp_space->set_sanity_check_status(true);
-  tmp_space->delete_files();
-  tmp_space->set_ignore_read_only(true);
+static dberr_t srv_open_tmp_tablespace(ib::fsp::SysTablespace &tmp_space) {
+  /* Will try to remove if there is existing file left-over by last unclean
+  shutdown */
+  srv_delete_temporary_space_files(tmp_space);
 
   ib::info(ER_IB_MSG_1098);
 
-  bool create_new_temp_space = true;
+  srv_recovery_crash(100);
 
-  tmp_space->set_space_id(dict_sys_t::s_temp_space_id);
+  const auto err = tmp_space.check_file_spec(true, 12 * 1024 * 1024, false);
 
-  RECOVERY_CRASH(100);
-
-  dberr_t err =
-      tmp_space->check_file_spec(create_new_temp_space, 12 * 1024 * 1024);
-
-  if (err == DB_FAIL) {
-    ib::error(ER_IB_MSG_1099, tmp_space->name());
-
-    err = DB_ERROR;
-
-  } else if (err != DB_SUCCESS) {
-    ib::error(ER_IB_MSG_1100, tmp_space->name());
-
-  } else if ((err = tmp_space->open_or_create(true, create_new_db,
-                                              &sum_of_new_sizes, nullptr)) !=
-             DB_SUCCESS) {
-    ib::error(ER_IB_MSG_1101, tmp_space->name());
-
-  } else {
-    mtr_t mtr;
-    page_no_t size = tmp_space->get_sum_of_sizes();
-
-    /* Open this shared temp tablespace in the fil_system so that
-    it stays open until shutdown. */
-    if (fil_space_open(tmp_space->space_id())) {
-      /* Initialize the header page */
-      mtr_start(&mtr);
-      mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-
-      fsp_header_init(tmp_space->space_id(), size, &mtr);
-
-      mtr_commit(&mtr);
-    } else {
-      /* This file was just opened in the code above! */
-      ib::error(ER_IB_MSG_1102, tmp_space->name());
-
-      err = DB_ERROR;
-    }
+  if (err != DB_SUCCESS) {
+    return err;
   }
 
-  return (err);
+  const auto prepare_err = tmp_space.prepare_nodes();
+
+  if (prepare_err != DB_SUCCESS) {
+    ib::error(ER_IB_MSG_1101, tmp_space.name());
+    return err;
+  }
+
+  const auto size = tmp_space.get_sum_of_expected_sizes_in_pages();
+  ut_ad_eq(size, fil_space_get_size(tmp_space.space_id()));
+
+  /* Open this shared temp tablespace in the fil_system so that
+  it stays open until shutdown. */
+  if (const auto space = fil_space_open(tmp_space.space_id()); !space) {
+    ib::error(ER_IB_MSG_1102, tmp_space.name());
+    return space.error();
+  } else {
+    fil_space_release(*space);
+  }
+
+  /* Initialize the header page */
+  mtr_t mtr;
+  mtr_start(&mtr);
+  mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
+  /* Could the write_initial_pages() be called in the prepare_nodes() above?
+  This would cause the if statement in the `fil_space_t::validate_first_page()`
+  to not be needed anymore. */
+  fsp_header_init(tmp_space.space_id(), size, &mtr);
+
+  mtr_commit(&mtr);
+
+  return DB_SUCCESS;
 }
 
 /** Create SDI Indexes in system tablespace. */
@@ -1148,6 +1245,9 @@ static const Thread_to_stop threads_to_stop[]{
      SRV_SHUTDOWN_MASTER_STOP}};
 
 void srv_shutdown_exit_threads() {
+  if (srv_thread_is_active(srv_threads.m_log_checkpointer)) {
+    (void)ib::redo::handler->persist_available();
+  }
   srv_shutdown_state.store(SRV_SHUTDOWN_EXIT_THREADS);
 
   if (srv_start_state == SRV_START_STATE_NONE) {
@@ -1212,13 +1312,23 @@ void srv_shutdown_exit_threads() {
       if (!buf_flush_page_cleaner_is_active() ||
           i >= SHUTDOWN_SLEEP_ROUNDS * 0.75) {
         log_stop_background_threads_nowait(*log_sys);
-
       } else {
         /* Ensure log threads are working. The redo log is
         like a blood, we need it for a lot of other systems
         to work. Ensure the blood flows. */
         log_wake_threads(*log_sys);
       }
+    }
+    /* Stop the checkpointer only once writer and flusher aren't active, as it
+    asserts all mtrs which did write_mtr() are already persisted to disc, and
+    that therefore it can recognize that dirty pages were added to flush list by
+    comparing buf_flush_list_added->smallest_not_added_lsn() to
+    peek_first_nonpersisted_lsn(). */
+    if (srv_thread_is_active(srv_threads.m_log_checkpointer) &&
+        (!log_sys || (!srv_thread_is_active(srv_threads.m_log_flusher) &&
+                      !srv_thread_is_active(srv_threads.m_log_writer)))) {
+      ut_a(log_checkpointing != nullptr);
+      log_checkpointing->stop_thread_no_wait();
     }
 
     bool active = os_thread_any_active();
@@ -1278,62 +1388,32 @@ static dberr_t srv_init_abort_low(bool create_new_db,
   return (err);
 }
 
-/** Recreate REDO log files.
-@param[in,out] flushed_lsn flushed_lsn
-@return DB_SUCCESS or error code */
-static dberr_t recreate_redo_files(lsn_t &flushed_lsn) {
-  ut_d(log_sys->disable_redo_writes = true);
+/** Check the page type, if there is a mismatch then throw
+fatal error. It may so happen that data file before 5.7 GA version
+may contain uninitialized bytes in the FIL_PAGE_TYPE field.
+@param[in]  page_id         Page id to verify
+@param[in]  type            Expected page type */
+static void verify_page_type(page_id_t page_id, page_type_t type) {
+  mtr_t mtr;
+  mtr_start(&mtr);
+  /* We should not write to redo log before checkpointing is enabled as it risks
+  running out of space, and we don't expect to write anything in this mtr.
+  It should be read only */
+  mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-  /* Emit a message to the error log. */
-  const auto target_size = log_sys->m_capacity.target_physical_capacity();
-  const auto target_size_in_M = target_size / (1024 * 1024UL);
-  ib::info(ER_IB_MSG_LOG_FILES_UPGRADE, ulonglong{target_size_in_M},
-           ulonglong{flushed_lsn});
+  const auto *block =
+      buf_page_get(page_id, univ_page_size, RW_S_LATCH, UT_LOCATION_HERE, &mtr);
 
-  RECOVERY_CRASH(5);
-  RECOVERY_CRASH(6);
-  ib::info(ER_IB_MSG_LOG_FILES_REWRITING);
-
-  /* Remove all existing log files. */
-  log_files_remove(*log_sys);
-
-  log_sys_close();
-  ut_a(log_sys == nullptr);
-
-  /* The checkpoint_lsn found could be larger than flushed_lsn in the system
-  tables space in case the shutdown wasn't slow. In such case we should start
-  from an lsn at least equal to checkpoint_lsn as pages in the tablespace will
-  have lsns larger than flushed_lsn. */
-  if (recv_sys->checkpoint_lsn != 0) {
-    ut_ad(flushed_lsn <= recv_sys->checkpoint_lsn);
-    flushed_lsn = std::max(flushed_lsn, recv_sys->checkpoint_lsn);
+  const auto page_type = fil_page_get_type(block->frame);
+  if (page_type != type) {
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_INVALID_PAGE_TYPE, unsigned{type},
+              unsigned{page_type}, ulong{page_id.space()},
+              ulong{page_id.page_no()});
   }
-
-  /* This is to provide the property that data byte at given lsn never
-  changes and avoid the need to rewrite the block with flushed_lsn. */
-  flushed_lsn = ut_uint64_align_up(flushed_lsn, OS_FILE_LOG_BLOCK_SIZE) +
-                LOG_BLOCK_HDR_SIZE;
-
-  /* `true` parameter makes sure new files are created */
-  dberr_t err = log_sys_init(true, flushed_lsn, flushed_lsn);
-  if (err != DB_SUCCESS) {
-    return err;
-  }
-
-  ut_d(log_sys->disable_redo_writes = false);
-
-  fil_open_system_tablespace_files();
-
-  return DB_SUCCESS;
+  mtr_commit(&mtr);
 }
 
 dberr_t srv_start(bool create_new_db) {
-  page_no_t sum_of_data_file_sizes;
-  page_no_t tablespace_size_in_header;
-  dberr_t err;
-  mtr_t mtr;
-  purge_pq_t *purge_queue;
-
   /* Reset the start state. */
   srv_start_state = SRV_START_STATE_NONE;
 
@@ -1363,11 +1443,6 @@ dberr_t srv_start(bool create_new_db) {
       << "Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG";
 #endif
 #endif
-
-#ifdef UNIV_LOG_LSN_DEBUG
-  ib::info(ER_IB_MSG_1116)
-      << "!!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!";
-#endif /* UNIV_LOG_LSN_DEBUG */
 
 #if defined(COMPILER_HINTS_ENABLED)
   ib::info(ER_IB_MSG_1117) << "Compiler hints enabled.";
@@ -1437,46 +1512,22 @@ dberr_t srv_start(bool create_new_db) {
 
   fil_init(innobase_get_open_files_limit());
 
-  /* This is the default directory for IBD and IBU files. Put it first
-  in the list of known directories. */
-  fil_set_scan_dir(MySQL_datadir_path.path());
+  /** Minimum expected tablespace size. TBD Why is it 5MB exactly? */
+  constexpr auto MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
-  /* Add --innodb-data-home-dir as a known location for IBD and IBU files
-  if it is not already there. */
-  ut_ad(srv_data_home != nullptr && *srv_data_home != '\0');
-  fil_set_scan_dir(Fil_path::remove_quotes(srv_data_home));
-
-  /* Add --innodb-directories as known locations for IBD and IBU files. */
-  if (srv_innodb_directories != nullptr && *srv_innodb_directories != 0) {
-    fil_set_scan_dirs(Fil_path::remove_quotes(srv_innodb_directories));
+  /* Check if the data files exist or not and if their sizes are correct. */
+  if (const auto err = srv_sys_space.check_file_spec(
+          create_new_db, MIN_EXPECTED_TABLESPACE_SIZE,
+          tablespaces_nodes->get_capabilities().supports_raw_devices);
+      err != DB_SUCCESS) {
+    return srv_init_abort(err);
   }
-
-  /* Note whether the undo path is different (not the same or under)
-  from all other known directories. If so, this will allow us to keep
-  IBD files out of this unique undo location.*/
-  MySQL_undo_path_is_unique = !fil_path_is_known(MySQL_undo_path.path());
-
-  /* For the purpose of file discovery at startup, we need to scan
-  --innodb-undo-directory also if it is different from the locations above. */
-  if (MySQL_undo_path_is_unique) {
-    fil_set_scan_dir(Fil_path::remove_quotes(MySQL_undo_path));
-  }
-
-  ib::info(ER_IB_MSG_378) << "Directories to scan '" << fil_get_dirs() << "'";
 
   /* Must replace clone files before scanning directories. When
   clone replaces current database, cloned files are moved to data files
   at this stage. */
-  err = clone_init();
-
-  if (err != DB_SUCCESS) {
-    return (srv_init_abort(err));
-  }
-
-  err = fil_scan_for_tablespaces();
-
-  if (err != DB_SUCCESS) {
-    return (srv_init_abort(err));
+  if (const auto err = clone_init(); err != DB_SUCCESS) {
+    return srv_init_abort(err);
   }
 
   if (!srv_read_only_mode) {
@@ -1496,14 +1547,14 @@ dberr_t srv_start(bool create_new_db) {
       if (!srv_monitor_file) {
         ib::error(ER_IB_MSG_1127, srv_monitor_file_name, strerror(errno));
 
-        return (srv_init_abort(DB_ERROR));
+        return srv_init_abort(DB_ERROR);
       }
     } else {
       srv_monitor_file_name = nullptr;
       srv_monitor_file = os_file_create_tmpfile();
 
       if (!srv_monitor_file) {
-        return (srv_init_abort(DB_ERROR));
+        return srv_init_abort(DB_ERROR);
       }
     }
 
@@ -1512,14 +1563,14 @@ dberr_t srv_start(bool create_new_db) {
     srv_misc_tmpfile = os_file_create_tmpfile();
 
     if (!srv_misc_tmpfile) {
-      return (srv_init_abort(DB_ERROR));
+      return srv_init_abort(DB_ERROR);
     }
   }
 
   if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads)) {
     ib::error(ER_IB_MSG_1129);
 
-    return (srv_init_abort(DB_ERROR));
+    return srv_init_abort(DB_ERROR);
   }
 
   double size;
@@ -1547,12 +1598,11 @@ dberr_t srv_start(bool create_new_db) {
   ib::info(ER_IB_MSG_1130, size, unit, srv_buf_pool_instances, chunk_size,
            chunk_unit);
 
-  err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
-
-  if (err != DB_SUCCESS) {
+  if (const auto err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
+      err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_1131);
 
-    return (srv_init_abort(DB_ERROR));
+    return srv_init_abort(DB_ERROR);
   }
 
   ib::info(ER_IB_MSG_1132);
@@ -1572,41 +1622,59 @@ dberr_t srv_start(bool create_new_db) {
   recv_sys_init();
   trx_sys_create();
   lock_sys_create(srv_lock_table_size);
+  dict_persist_init();
 
   /* Create i/o-handler threads: */
   os_aio_start_threads();
-
-  /* Even in read-only mode there could be flush job generated by
-  intrinsic table operations. */
-  buf_flush_page_cleaner_init();
-
-  srv_start_state_set(SRV_START_STATE_IO);
-
-  srv_startup_is_before_trx_rollback_phase = !create_new_db;
 
   if (create_new_db) {
     recv_sys_free();
   }
 
-  /* Open or create the data files. */
-  page_no_t sum_of_new_sizes;
-  lsn_t flushed_lsn;
+  srv_startup_is_before_trx_rollback_phase = !create_new_db;
 
-  err = srv_sys_space.open_or_create(false, create_new_db, &sum_of_new_sizes,
-                                     &flushed_lsn);
-
-  switch (err) {
+  /* Open or create the data files for the System Tablespace. */
+  switch (const auto err = srv_sys_space.prepare_nodes(); err) {
     case DB_SUCCESS:
       break;
     case DB_CANNOT_OPEN_FILE:
       ib::error(ER_IB_MSG_1134);
       [[fallthrough]];
     default:
+      return srv_init_abort(err);
+  }
 
-      /* Other errors might come from
-      Datafile::validate_first_page() */
+  /* Load Double-write buffer pages before we use them to recover broken pages.
+  We will start with recovering the System Tablespace right away. */
+  if (const auto err = recv_sys->dblwr->load(); err != DB_SUCCESS) {
+    return srv_init_abort(err);
+  }
 
-      return (srv_init_abort(err));
+  /* Check if the System Tablespace has to be recovered from the Double-write
+  buffer. Other tablespaces will attempt to be recovered on calls to
+  Fil_system::open_for_recovery(). For all tablespaces that don't have any redo
+  log changes to be applied, we don't have to run the Double-write buffer
+  recovery, as they have all pages written out before the checkpoint, so no
+  writes could be torn when attempting to do a checkpoint past any of such
+  writes. */
+  const auto sys_space = fil_space_get_sys_space();
+  ut_a(sys_space != nullptr);
+
+  recv_sys->dblwr->recover(*sys_space);
+
+  lsn_t flushed_lsn;
+  if (create_new_db) {
+    /* The data files are empty, so we assign the initial value to flush_lsn
+    instead of reading it from disk. */
+    flushed_lsn = LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
+  } else {
+    /* Validate the header page in the first datafile in the system tablespace
+    and read flush_lsn from the validated header page. */
+    const auto res = srv_sys_space.read_lsn_and_check_flags();
+    if (!res) {
+      return srv_init_abort(res.error());
+    }
+    flushed_lsn = *res;
   }
 
   if (flushed_lsn < LOG_START_LSN) {
@@ -1616,60 +1684,85 @@ dberr_t srv_start(bool create_new_db) {
     return srv_init_abort(DB_ERROR);
   }
 
-  /* FIXME: This can be done earlier, but we now have to wait for
-  checking of system tablespace. */
-  dict_persist_init();
-
   mtr_t::s_logging.init();
 
-  if (dblwr::is_enabled() && ((err = dblwr::open()) != DB_SUCCESS)) {
-    return srv_init_abort(err);
+  if (dblwr::is_enabled()) {
+    if (const auto err = dblwr::open(); err != DB_SUCCESS) {
+      return srv_init_abort(err);
+    }
+  }
+  if (ib::redo::handler == nullptr) {
+    ib::redo::set_handler(new ib::redo::Handler{});
   }
 
-  lsn_t new_files_lsn;
-
-  err = log_sys_init(create_new_db, flushed_lsn, new_files_lsn);
-
-  if (err != DB_SUCCESS) {
-    return srv_init_abort(err);
+  if (!srv_reconfigure_log_handler()) {
+    return srv_init_abort(DB_ERROR);
   }
 
-  ut_a(log_sys != nullptr);
+  if (srv_redo_log_encrypt &&
+      !ib::redo::handler->get_capabilities().supports_encryption) {
+    ib::error(ER_IB_REDO_HANDLER_NO_ENCRYPTION_SUPPORT);
+    return srv_init_abort(DB_ERROR);
+  }
 
-  arch_init();
+  if (pages_persistence->init() !=
+      ib::fil::Pages_persistence_interface::Status::SUCCESS) {
+    return srv_init_abort(DB_ERROR);
+  }
+
+  srv_start_state_set(SRV_START_STATE_IO);
 
   if (create_new_db) {
+    /* There are no pages to be recovered. */
     ut_a(buf_are_flush_lists_empty_validate());
 
     ut_a(!srv_read_only_mode);
 
-    ut_a(log_sys->last_checkpoint_lsn.load() ==
-         LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
+    ut_a(flushed_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
+    if (ib::redo::handler->create(flushed_lsn) != ib::redo::Status::SUCCESS) {
+      return srv_init_abort(DB_ERROR);
+    }
 
-    ut_a(new_files_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
+    if (ib::redo::handler->get_capabilities().supports_clone) {
+      /* arch_init() should be called before recovery, but after
+      log_sys_create() */
+      ut_a(log_sys != nullptr);
+      arch_init();
+    }
 
-    err = log_start(*log_sys, new_files_lsn, new_files_lsn);
+    if (pages_persistence->assume_checkpoint_lsn(flushed_lsn) !=
+        ib::fil::Pages_persistence_interface::Status::SUCCESS) {
+      return srv_init_abort(DB_ERROR);
+    }
 
-    if (err != DB_SUCCESS) {
+    if (ib::redo::handler->start_writing(flushed_lsn) !=
+        ib::redo::Status::SUCCESS) {
+      return srv_init_abort(DB_ERROR);
+    }
+    pages_persistence->enable_checkpointing();
+
+    ut_a(ib::redo::handler->peek_first_unassigned_lsn() == flushed_lsn);
+    ut_a(ib::redo::handler->peek_first_nonpersisted_lsn() == flushed_lsn);
+
+    if (const auto err =
+            srv_undo_create_implicit_tablespaces_with_empty_structure();
+        err != DB_SUCCESS) {
       return srv_init_abort(err);
     }
 
-    log_start_background_threads(*log_sys);
+    {
+      const auto size = srv_sys_space.get_sum_of_expected_sizes_in_pages();
+      ut_ad_eq(size, fil_space_get_size(TRX_SYS_SPACE));
+      /* Initialize header for system tablespace */
+      mtr_t mtr;
+      mtr_start(&mtr);
 
-    err = srv_undo_tablespaces_init(true);
+      const auto ret = fsp_header_init(TRX_SYS_SPACE, size, &mtr);
 
-    if (err != DB_SUCCESS) {
-      return (srv_init_abort(err));
-    }
-
-    mtr_start(&mtr);
-
-    bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr);
-
-    mtr_commit(&mtr);
-
-    if (!ret) {
-      return (srv_init_abort(DB_ERROR));
+      mtr_commit(&mtr);
+      if (!ret) {
+        return srv_init_abort(DB_ERROR);
+      }
     }
 
     /* To maintain backward compatibility we create only
@@ -1680,17 +1773,15 @@ dberr_t srv_start(bool create_new_db) {
 
     trx_purge_sys_mem_create();
 
-    purge_queue = trx_sys_init_at_db_start();
+    const auto purge_queue = trx_sys_init_at_db_start();
 
     /* The purge system needs to create the purge view and
-    therefore requires that the trx_sys is inited. */
+    therefore requires that the trx_sys is initialized. */
 
     trx_purge_sys_initialize(srv_threads.m_purge_workers_n, purge_queue);
 
-    err = dict_create();
-
-    if (err != DB_SUCCESS) {
-      return (srv_init_abort(err));
+    if (const auto err = dict_create(); err != DB_SUCCESS) {
+      return srv_init_abort(err);
     }
 
     srv_create_sdi_indexes();
@@ -1698,9 +1789,7 @@ dberr_t srv_start(bool create_new_db) {
     /* We always create the legacy double write buffer to preserve the
     expected page ordering of the system tablespace.
     FIXME: Try and remove this requirement. */
-    err = dblwr::v1::create();
-
-    if (err != DB_SUCCESS) {
+    if (const auto err = dblwr::v1::create(); err != DB_SUCCESS) {
       return srv_init_abort(err);
     }
 
@@ -1709,9 +1798,7 @@ dberr_t srv_start(bool create_new_db) {
     required to check for stray reads and writes trying to access this
     reserved region in the sys tablespace.
     FIXME: Try and remove this requirement. */
-    err = dblwr::v1::init();
-
-    if (err != DB_SUCCESS) {
+    if (const auto err = dblwr::v1::init(); err != DB_SUCCESS) {
       return srv_init_abort(err);
     }
 
@@ -1722,120 +1809,68 @@ dberr_t srv_start(bool create_new_db) {
     and there must be no page in the buf_flush list. */
     buf_pool_invalidate();
 
-    /* Open all data files in the system tablespace:
-    we keep them open until database shutdown. */
-    fil_open_system_tablespace_files();
-
-    /* We always try to do a recovery, even if the database had
-    been shut down normally: this is the normal startup path */
-    RECOVERY_CRASH(1);
-
-    if (new_files_lsn != 0) {
-      /* This means that either no log files have been found
-      or the existing log files were marked as uninitialized. */
-      flushed_lsn = new_files_lsn;
-    }
-
-    ut_a(log_sys->m_format <= Log_format::CURRENT);
-
-    const bool log_upgrade = log_sys->m_format < Log_format::CURRENT;
-
-    if (log_upgrade) {
-      if (srv_read_only_mode) {
-        ib::error(ER_IB_MSG_LOG_UPGRADE_IN_READ_ONLY_MODE,
-                  ulong{to_int(log_sys->m_format)});
+    auto recovered_lsn = flushed_lsn;
+    /* Do the recovery and persist all the changes to tablespace pages found in
+    REDO. Also create undo number to space id mapping for UNDO tablespaces. */
+    {
+      const auto space_ids = pages_persistence->recover_pages(recovered_lsn);
+      if (!space_ids.has_value()) {
         return srv_init_abort(DB_ERROR);
       }
 
-      /* Check if the redo log from an older known redo log
-      version is from a clean shutdown. */
-      err = recv_verify_log_is_clean_pre_8_0_30(*log_sys);
-      if (err != DB_SUCCESS) {
-        return srv_init_abort(err);
-      }
+      /* Tablespaces should have been found */
+      ut_a(!space_ids.value().empty());
 
-      /* Redo logs are clean. We need to recreate REDO files */
-      err = recreate_redo_files(flushed_lsn);
-      if (err != DB_SUCCESS) {
-        return srv_init_abort(err);
-      }
+      undo_truncate::num2id_map =
+          ut::make_unique<undo_truncate::Undo_num2id_map>(space_ids.value());
     }
-
-    err = recv_recovery_from_checkpoint_start(*log_sys, flushed_lsn);
-    if (err != DB_SUCCESS) {
-      return srv_init_abort(err);
-    }
-
-    arch_page_sys->post_recovery_init();
-
-    ut_ad(clone_check_recovery_crashpoint(recv_sys->is_cloned_db));
-
-    ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO || srv_read_only_mode);
-    const lsn_t checkpoint_lsn_after_recovery =
-        log_sys->last_checkpoint_lsn.load();
-    const lsn_t write_lsn_after_recovery = log_get_lsn(*log_sys);
-    ut_a(!recv_sys->found_corrupt_log);
 
     if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-      RECOVERY_CRASH(2);
+      /* We need to start log threads now, because will write recovered updates
+      to actual B-tree pages during pages_persistence->recover_tables() -
+      an operation on pages which itself needs to be redo logged.
+      Even in srv_read_only_mode we call start_writing(), because many places
+      in innodb assume that log_start() was called - in particular, that we can
+      call peek_unassigned_lsn() in buf_page_lsn_check after reads. However in
+      srv_read_only_mode, the background threads will not be started. */
+      const auto start_result = ib::redo::handler->start_writing(recovered_lsn);
+      if (start_result != ib::redo::Status::SUCCESS) {
+        ut_ad(start_result == ib::redo::Status::WRITE_ERROR);
+        return srv_init_abort(DB_ERROR);
+      }
 
-      /* Recovery complete, start verifying the page LSN on read. */
-      recv_lsn_checks_on = true;
+      if (!srv_read_only_mode &&
+          srv_recovered_redo_block_was_encrypted != srv_redo_log_encrypt) {
+        /* Seal the recovered partial block using its physical encryption mode
+        before dictionary startup can generate new redo. */
+        const bool configured_encryption = srv_redo_log_encrypt;
+
+        srv_redo_log_encrypt = srv_recovered_redo_block_was_encrypted;
+        log_encryption_write_dummy_barrier();
+        srv_redo_log_encrypt = configured_encryption;
+      }
+
+      /* Validate a few system page types that were left uninitialized
+      by older versions of MySQL. */
+      verify_page_type({IBUF_SPACE_ID, FSP_IBUF_HEADER_PAGE_NO},
+                       FIL_PAGE_TYPE_SYS);
+      verify_page_type({TRX_SYS_SPACE, FSP_FIRST_RSEG_PAGE_NO},
+                       FIL_PAGE_TYPE_SYS);
+      verify_page_type({TRX_SYS_SPACE, TRX_SYS_PAGE_NO}, FIL_PAGE_TYPE_TRX_SYS);
+      verify_page_type({TRX_SYS_SPACE, FSP_DICT_HDR_PAGE_NO},
+                       FIL_PAGE_TYPE_SYS);
     }
 
-    /* We have gone through the redo log, now check if all the
-    tablespaces were found and recovered. */
+    /* We should not start checkpointer before persisted metadata is stored. */
+    ut_a(!log_checkpointer_is_active());
 
-    if (srv_force_recovery == 0 && fil_check_missing_tablespaces()) {
-      ib::error(ER_IB_MSG_1139);
-      RECOVERY_CRASH(3);
-
-      /* Set the abort flag to true. */
-      auto p = recv_recovery_from_checkpoint_finish(true);
-
-      ut_a(p == nullptr);
-
-      return (srv_init_abort(DB_ERROR));
-    }
-
-    /* We have successfully recovered from the redo log. The
-    data dictionary should now be readable. */
-
-    if (recv_sys->found_corrupt_log) {
-      ib::warn(ER_IB_MSG_RECOVERY_CORRUPT);
-    }
-
-    if (!srv_force_recovery && !srv_read_only_mode) {
-      buf_flush_sync_all_buf_pools();
-    }
-
-    ut_a(checkpoint_lsn_after_recovery == log_sys->last_checkpoint_lsn.load());
-    ut_a(write_lsn_after_recovery == log_get_lsn(*log_sys));
-    RECOVERY_CRASH(3);
-
-    auto *dict_metadata = recv_recovery_from_checkpoint_finish(false);
-    ut_a(dict_metadata != nullptr);
-
-    /* We need to save the dynamic metadata collected from redo log to DD
-    buffer table here. This is to make sure that the dynamic metadata is not
-    lost by any future checkpoint. Since DD and data dictionary in memory
-    objects are not fully initialized at this point, the usual mechanism to
-    persist dynamic metadata at checkpoint wouldn't work. */
-    ut_a(checkpoint_lsn_after_recovery == log_sys->last_checkpoint_lsn.load());
-    ut_a(write_lsn_after_recovery == log_get_lsn(*log_sys));
-
-    /* We must start the log threads because we might need to write out the dict
-    persistent data into redolog, if the server is not in read-only mode. */
-    if (!srv_read_only_mode) {
-      log_start_background_threads(*log_sys);
-    }
-
-    /* We could possibly execute it much later if not the current dict_persist
-    functionality implementation, which requires it to work properly. */
-    err = dict_boot();
-
-    if (err != DB_SUCCESS) {
-      return (srv_init_abort(err));
+    /* We have to call dict_boot() either before setting recv_lsn_checks_on,
+    or after ib::redo::handler->start_writing(), as it will read pages from
+    disc. dict_boot() also initializes the change buffer which is needed for any
+    disk i/o. We need to call dict_boot() so pages_persistence->recover_tables()
+    can access dict_table_t and dict_index_t objects. */
+    if (const auto err = dict_boot(); err != DB_SUCCESS) {
+      return srv_init_abort(err);
     }
 
     DBUG_EXECUTE_IF("log_first_rec_group_test", {
@@ -1844,68 +1879,59 @@ dberr_t srv_start(bool create_new_db) {
       DBUG_SUICIDE();
     });
 
-    if (!recv_sys->is_cloned_db && !dict_metadata->empty()) {
-      ut_a(!srv_read_only_mode);
-
-      /* Open this table in case dict_metadata should be applied to this
-      table before checkpoint. And because DD is not fully up yet, the table
-      can be opened by internal APIs. */
-
-      fil_space_t *space =
-          fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
-      if (space == nullptr) {
-        dberr_t error =
-            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_dict_space_id,
-                         predefined_flags, dict_sys_t::s_dd_space_name,
-                         dict_sys_t::s_dd_space_file_name, true, false);
-        if (error != DB_SUCCESS) {
-          ib::error(ER_IB_MSG_1142);
-          return (srv_init_abort(DB_ERROR));
-        }
-      } else {
-        fil_space_release(space);
-      }
-
-      dict_persist->table_buffer =
-          ut::new_withkey<DDTableBuffer>(UT_NEW_THIS_FILE_PSI_KEY);
-      /* We write redo log here. We assume that there should be enough room in
-      log files, supposing log_free_check() works fine before crash. */
-      dict_metadata->store();
-
-      /* Flush logs to persist the changes. */
-      log_buffer_flush_to_disk(*log_sys);
+    if (pages_persistence->recover_tables() !=
+        ib::fil::Pages_persistence_interface::Status::SUCCESS) {
+      return srv_init_abort(DB_ERROR);
     }
-    ut::delete_(dict_metadata);
-    ut_a(checkpoint_lsn_after_recovery == log_sys->last_checkpoint_lsn.load());
 
-    RECOVERY_CRASH(4);
+    srv_recovery_crash(4);
 
-    log_sys->m_allow_checkpoints.store(true, std::memory_order_release);
+    if (!srv_read_only_mode) {
+      pages_persistence->enable_checkpointing();
+    }
 
     /* for a restored database we reset creator for log. To do this we stop
     background log processing for unknown reason, possibly just in case. */
     if (recv_sys->is_cloned_db || recv_sys->is_meb_db) {
+      ut_a(!recv_sys->is_cloned_db ||
+           ib::redo::handler->get_capabilities().supports_clone);
+      ut_a(!recv_sys->is_meb_db ||
+           ib::redo::handler->get_capabilities().supports_meb);
       buf_pool_wait_for_no_pending_io();
 
       ut_a(!srv_read_only_mode);
-
-      log_stop_background_threads(*log_sys);
+      ib::redo::must_succeed(ib::redo::handler->persist_available(),
+                             UT_LOCATION_HERE);
+      const auto end_lsn = ib::redo::handler->peek_first_unassigned_lsn();
+      pages_persistence->disable_checkpointing();
+      ib::redo::handler->stop_writing();
 
       ut_ad(buf_pool_pending_io_reads_count() == 0);
-      err = log_files_reset_creator_and_set_full(*log_sys);
-      if (err != DB_SUCCESS) {
+
+      if (const auto err = log_files_reset_creator_and_set_full(*log_sys);
+          err != DB_SUCCESS) {
         return srv_init_abort(err);
       }
-      log_start_background_threads(*log_sys);
+      ut_a(end_lsn == buf_flush_list_added->smallest_not_added_lsn());
+      if (ib::redo::handler->start_writing(end_lsn) !=
+          ib::redo::Status::SUCCESS) {
+        return srv_init_abort(DB_ERROR);
+      }
+      pages_persistence->enable_checkpointing();
     }
 
-    if (sum_of_new_sizes > 0) {
+    /* We will add sizes of all newly created files. It may happen that old size
+    plus the sum_of_new_sizes is not the actual size, because some files might
+    be missing or truncated. We will detect such situation later. */
+    if (srv_sys_space.get_sum_of_new_sizes_in_pages() > 0) {
       ut_a(!srv_read_only_mode);
 
       /* New data file(s) were added */
+      mtr_t mtr;
       mtr_start(&mtr);
 
-      fsp_header_inc_size(0, sum_of_new_sizes, &mtr);
+      fsp_header_inc_size(TRX_SYS_SPACE,
+                          srv_sys_space.get_sum_of_new_sizes_in_pages(), &mtr);
 
       mtr_commit(&mtr);
 
@@ -1914,20 +1940,23 @@ dberr_t srv_start(bool create_new_db) {
       is durable even if mysqld would crash
       quickly */
 
-      log_buffer_flush_to_disk(*log_sys);
+      ib::redo::must_persist_all(UT_LOCATION_HERE);
     }
 
-    err = srv_undo_tablespaces_init(false);
-
-    if (err != DB_SUCCESS && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-      return (srv_init_abort(err));
+    /* Open implicit UNDO tablespaces */
+    if (const auto err = srv_undo_tablespaces_open();
+        err != DB_SUCCESS && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+      return srv_init_abort(err);
     }
+
+    /* Clear the mapping as it is not needed anymore. */
+    undo_truncate::num2id_map.reset();
 
     trx_purge_sys_mem_create();
 
     /* The purge system needs to create the purge view and
-    therefore requires that the trx_sys is inited. */
-    purge_queue = trx_sys_init_at_db_start();
+    therefore requires that the trx_sys is initialized. */
+    const auto purge_queue = trx_sys_init_at_db_start();
 
     /* The purge system needs to create the purge view and
     therefore requires that the trx_sys and trx lists were
@@ -1936,14 +1965,13 @@ dberr_t srv_start(bool create_new_db) {
   }
 
   /* Open temp-tablespace and keep it open until shutdown. */
-  err = srv_open_tmp_tablespace(create_new_db, &srv_tmp_space);
-  if (err != DB_SUCCESS) {
-    return (srv_init_abort(err));
+  if (const auto err = srv_open_tmp_tablespace(srv_tmp_space);
+      err != DB_SUCCESS) {
+    return srv_init_abort(err);
   }
 
-  err = ibt::open_or_create(create_new_db);
-  if (err != DB_SUCCESS) {
-    return (srv_init_abort(err));
+  if (const auto err = ibt::open_or_create(create_new_db); err != DB_SUCCESS) {
+    return srv_init_abort(err);
   }
 
   /* Here the double write buffer has already been created and so
@@ -1967,22 +1995,21 @@ dberr_t srv_start(bool create_new_db) {
   If any of these rollback segments contain undo logs, load them into
   the purge queue */
   if (!trx_rseg_adjust_rollback_segments(srv_rollback_segments)) {
-    return (srv_init_abort(DB_ERROR));
+    return srv_init_abort(DB_ERROR);
   }
 
   /* Any undo tablespaces under construction are now fully built
-  with all needed rsegs. Delete the trunc.log files and clear the
-  construction list. */
-  srv_undo_tablespaces_mark_construction_done();
+  with all needed rsegs. */
+  srv_undo_mark_all_tablespaces_usable();
 
   /* Now that all rsegs are ready for use, make them active. */
-  undo::spaces->s_lock();
-  for (auto undo_space : undo::spaces->m_spaces) {
+  undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+  for (auto undo_space : undo_truncate::spaces->m_spaces) {
     if (!undo_space->is_empty()) {
       undo_space->set_active();
     }
   }
-  undo::spaces->s_unlock();
+  undo_truncate::spaces->s_unlock();
 
   /* Undo Tablespaces and Rollback Segments are ready. */
   srv_startup_is_before_trx_rollback_phase = false;
@@ -2035,47 +2062,48 @@ dberr_t srv_start(bool create_new_db) {
   /* wake main loop of page cleaner up */
   os_event_set(buf_flush_event);
 
-  sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
-  ut_a(sum_of_new_sizes != FIL_NULL);
+  const auto sum_of_data_file_sizes_in_pages =
+      fil_space_get_size(TRX_SYS_SPACE);
 
-  tablespace_size_in_header = fsp_header_get_tablespace_size();
+  const auto tablespace_size_in_header = fsp_header_get_tablespace_size();
 
   if (!srv_read_only_mode && !srv_sys_space.can_auto_extend_last_file() &&
-      sum_of_data_file_sizes != tablespace_size_in_header) {
+      sum_of_data_file_sizes_in_pages != tablespace_size_in_header) {
     ib::error(ER_IB_MSG_1147, ulong{tablespace_size_in_header},
-              ulong{sum_of_data_file_sizes});
+              ulong{sum_of_data_file_sizes_in_pages});
 
     if (srv_force_recovery == 0 &&
-        sum_of_data_file_sizes < tablespace_size_in_header) {
+        sum_of_data_file_sizes_in_pages < tablespace_size_in_header) {
       /* This is a fatal error, the tail of a tablespace is
       missing */
 
       ib::error(ER_IB_MSG_1148);
 
-      return (srv_init_abort(DB_ERROR));
+      return srv_init_abort(DB_ERROR);
     }
   }
 
   if (!srv_read_only_mode && srv_sys_space.can_auto_extend_last_file() &&
-      sum_of_data_file_sizes < tablespace_size_in_header) {
+      sum_of_data_file_sizes_in_pages < tablespace_size_in_header) {
     ib::error(ER_IB_MSG_1149, ulong{tablespace_size_in_header},
-              ulong{sum_of_data_file_sizes});
+              ulong{sum_of_data_file_sizes_in_pages});
 
     if (srv_force_recovery == 0) {
       ib::error(ER_IB_MSG_1150);
 
-      return (srv_init_abort(DB_ERROR));
+      return srv_init_abort(DB_ERROR);
     }
   }
 
-  /* Finish clone files recovery. This call is idempotent and is no op
-  if it is already done before creating new log files. */
+  /* Finish clone files recovery. */
   clone_files_recovery(true);
 
   ib::info(ER_IB_MSG_1151, INNODB_VERSION_STR,
-           ulonglong{log_get_lsn(*log_sys)});
+           ulonglong{srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+                         ? ib::redo::handler->peek_first_unassigned_lsn()
+                         : 0});
 
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Applier of dynamic metadata */
@@ -2205,16 +2233,14 @@ void srv_start_threads() {
     Only the required checkpoints were allowed, which includes:
             - checkpoints because of too old last_checkpoint_lsn,
             - checkpoints explicitly requested (because of call to
-              log_make_latest_checkpoint()).
+              pages_persistence->request_sharp_checkpoint()).
     The reason was to make the situation more deterministic during
     the startup, because then:
             - it is easier to write mtr tests,
             - there are less possible flows - smaller risk of bug.
     Now we start allowing periodical checkpoints! Since now, it's
     hard to predict when checkpoints are written! */
-    log_limits_mutex_enter(*log_sys);
-    log_sys->periodical_checkpoints_enabled = true;
-    log_limits_mutex_exit(*log_sys);
+    pages_persistence->enable_periodical_checkpoints();
   }
 
   srv_threads.m_buf_resize =
@@ -2579,6 +2605,18 @@ static lsn_t srv_shutdown_log() {
   ut_ad(buf_pool_pending_io_reads_count() == 0);
   ut_ad(buf_pool_pending_io_writes_count() == 0);
 
+  lsn_t lsn{srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+                ? ib::redo::handler->peek_first_unassigned_lsn()
+                : 0};
+  const auto persist_available_and_stop = [&lsn] {
+    ib::redo::must_succeed(ib::redo::handler->persist_available(),
+                           UT_LOCATION_HERE);
+    pages_persistence->disable_checkpointing();
+    lsn = ib::redo::handler->peek_first_unassigned_lsn();
+    ut_a(lsn == ib::redo::handler->peek_first_nonpersisted_lsn());
+    ib::redo::handler->stop_writing();
+  };
+
   if (srv_fast_shutdown == 2) {
     if (!srv_read_only_mode) {
       ib::info(ER_IB_MSG_1253);
@@ -2592,8 +2630,7 @@ static lsn_t srv_shutdown_log() {
       a crash recovery. We must not write the lsn stamps
       to the data files, since at a startup InnoDB deduces
       from the stamps if the previous shutdown was clean. */
-
-      log_stop_background_threads(*log_sys);
+      persist_available_and_stop();
     }
 
     /* No redo log might be generated since now. */
@@ -2601,18 +2638,19 @@ static lsn_t srv_shutdown_log() {
 
     srv_shutdown_set_state(SRV_SHUTDOWN_LAST_PHASE);
 
-    return (log_get_lsn(*log_sys));
+    return lsn;
   }
 
   if (!srv_read_only_mode) {
-    log_make_empty_and_stop_background_threads(*log_sys);
+    pages_persistence->request_sharp_checkpoint();
+    ut_ad_eq(pages_persistence->get_checkpoint_lsn(),
+             ib::redo::handler->peek_first_unassigned_lsn());
+    persist_available_and_stop();
   }
 
   /* No redo log might be generated since now. */
   log_background_threads_inactive_validate();
   buf_assert_all_are_replaceable();
-
-  const lsn_t lsn = log_get_lsn(*log_sys);
 
   if (!srv_read_only_mode) {
     /* Redo log has been flushed at the log_flusher's exit. */
@@ -2624,10 +2662,8 @@ static lsn_t srv_shutdown_log() {
   /* Validate lsn and write it down. */
   ut_a(log_is_data_lsn(lsn) || srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
 
-  ut_a(lsn == log_sys->last_checkpoint_lsn.load() ||
+  ut_a(lsn == pages_persistence->get_checkpoint_lsn() ||
        srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
-
-  ut_a(lsn == log_get_lsn(*log_sys));
 
   if (!srv_read_only_mode) {
     ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO);
@@ -2637,7 +2673,6 @@ static lsn_t srv_shutdown_log() {
   }
 
   buf_assert_all_are_replaceable();
-  ut_a(lsn == log_get_lsn(*log_sys));
 
   return (lsn);
 }
@@ -2721,7 +2756,7 @@ void srv_shutdown() {
     - redo-log-threads - these need to be shutdown after page cleaners,
     - archiver threads - these need to be shutdown after redo threads.
   After this call the state of shutdown is advanced to SRV_SHUTDOWN_MASTER_STOP.
-*/
+  */
   srv_shutdown_cleanup_and_master_stop();
 
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_MASTER_STOP);
@@ -2747,15 +2782,23 @@ void srv_shutdown() {
 
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_LAST_PHASE);
 
-  /* 3. Close all opened files. */
+  /* 3. Close all opened files and delete System Temporary space files. */
   ibt::close_files();
   fil_close_all_files();
+
+  /* Call reset here because Tablespace_scanning destructor calls
+  Tablespace_scanning::rename_partition_files() in case of failed upgrade
+  which logs the info in error log. For which error log mechanism should
+  still be initialized */
+  tablespace_scanning.reset(nullptr);
+
   if (srv_monitor_file) {
     fclose(srv_monitor_file);
   }
   if (srv_misc_tmpfile) {
     fclose(srv_misc_tmpfile);
   }
+  srv_delete_temporary_space_files(srv_tmp_space);
 
   /* 4. Copy all log data to archive and stop archiver threads. */
   srv_shutdown_arch();
@@ -2791,7 +2834,8 @@ void srv_shutdown() {
 
   ibuf_close();
   ddl_log_close();
-  log_sys_close();
+  delete ib::redo::handler;
+  pages_persistence->deinit();
   recv_sys_close();
   trx_sys_close();
   lock_sys_close();
@@ -2799,7 +2843,7 @@ void srv_shutdown() {
 
   dict_close();
   dict_persist_close();
-  undo_spaces_deinit();
+  undo_truncate_spaces_deinit();
   os_aio_free();
   que_close();
   row_mysql_close();
@@ -2841,17 +2885,4 @@ void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
   strcpy(filename, filepath);
 
   ut::free(filepath);
-}
-
-/** Call std::_Exit(3) */
-void srv_fatal_error() {
-  ib::error(ER_IB_MSG_1156);
-
-  fflush(stderr);
-
-  ut_d(innodb_calling_exit = true);
-
-  flush_error_log_messages();
-
-  std::_Exit(3);
 }

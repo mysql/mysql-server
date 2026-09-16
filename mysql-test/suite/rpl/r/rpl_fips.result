@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 CALL mtr.add_suppression("Failed to set up SSL because of the following *");
 CALL mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQL Thread received while *");
+CALL mtr.add_suppression("Query execution was interrupted");
 [on master]
 SET PERSIST_ONLY ssl_fips_mode=ON;
 Warnings:

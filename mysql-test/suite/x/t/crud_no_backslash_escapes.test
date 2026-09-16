@@ -1,0 +1,76 @@
+## Check CRUD string arguments with NO_BACKSLASH_ESCAPES.
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (name VARCHAR(64), touched INT DEFAULT 0);
+INSERT INTO xtest.xtable VALUES ('innocent', 0), ('target', 0);
+
+SET @old_global_sql_mode = @@GLOBAL.sql_mode;
+SET @@GLOBAL.sql_mode = 'NO_BACKSLASH_ESCAPES';
+
+--let $xtest_file= $MYSQL_TMP_DIR/crud_no_backslash_escapes.xpl
+--write_file $xtest_file
+-->echo Attempted predicate injection through CRUD string argument
+-->quiet
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  operation {
+    source { name: "touched" }
+    operation: SET
+    value {
+      type: LITERAL
+      literal { type: V_SINT v_signed_int: 1 }
+    }
+  }
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "||"
+      param {
+        type: OPERATOR
+        operator {
+          name: "=="
+          param { type: IDENT identifier { name: "name" } }
+          param { type: PLACEHOLDER position: 0 }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "=="
+          param { type: IDENT identifier { name: "name" } }
+          param { type: PLACEHOLDER position: 1 }
+        }
+      }
+    }
+  }
+  args {
+    type: V_STRING
+    v_string { value: "missing')) OR TRUE -- " }
+  }
+  args {
+    type: V_STRING
+    v_string { value: "target" }
+  }
+}
+-->recvresult be-quiet
+-->noquiet
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+--let $assert_text= CRUD update must touch exactly one row
+--let $assert_cond= (SELECT COUNT(*) FROM xtest.xtable WHERE touched = 1) = 1
+--source include/assert.inc
+
+--let $assert_text= CRUD update must touch target row
+--let $assert_cond= (SELECT COUNT(*) FROM xtest.xtable WHERE touched = 1 AND name = 0x746172676574) = 1
+--source include/assert.inc
+
+SET @@GLOBAL.sql_mode = @old_global_sql_mode;
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

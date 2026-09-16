@@ -78,6 +78,14 @@ undo_004	UNDO LOG	./undo_004.ibu
 undo_005	UNDO LOG	./undo_005.ibu
 # Make sure file is not left behind in datadir
 #
+# Check if creating a tablespace still works after recent failure
+#
+CREATE UNDO TABLESPACE undo_007 ADD DATAFILE 'undo_007.ibu';
+# Wait for page cleaners to write back all dirty pages
+SET GLOBAL innodb_log_checkpoint_now = ON;
+ALTER UNDO TABLESPACE undo_007 SET INACTIVE;
+DROP UNDO TABLESPACE undo_007;
+#
 # Inject a failure to get the MDL during undo truncate.
 #
 SET GLOBAL DEBUG="+d,ib_undo_trunc_fail_get_mdl";

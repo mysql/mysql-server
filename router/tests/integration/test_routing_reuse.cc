@@ -2306,28 +2306,13 @@ TEST_P(ReuseConnectionTest,
     GTEST_SKIP() << "test requires plaintext connection.";
   }
 
-  bool expect_success =
-#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 0, 2)
-      // DISABLED/DISABLED will get the public-key from the server.
-      //
-      // other modes that should fail, will fail as the router can't get the
-      // public-key from the ssl-certs in openssl 1.0.1
-      (param.client_ssl_mode == kDisabled &&
-       (param.server_ssl_mode == kDisabled ||
-        param.server_ssl_mode == kAsClient)) ||
-      (param.client_ssl_mode == kPassthrough) ||
-      (param.client_ssl_mode == kPreferred &&
-       (param.server_ssl_mode == kDisabled ||
-        param.server_ssl_mode == kAsClient));
-#else
-      is_tcp ? (param.client_ssl_mode != kDisabled ||
-                (param.server_ssl_mode == kDisabled ||
-                 param.server_ssl_mode == kAsClient))
-             : (param.client_ssl_mode != kDisabled ||
-                (param.server_ssl_mode == kDisabled ||
-                 param.server_ssl_mode == kAsClient ||
-                 param.server_ssl_mode == kPreferred));
-#endif
+  bool expect_success = is_tcp ? (param.client_ssl_mode != kDisabled ||
+                                  (param.server_ssl_mode == kDisabled ||
+                                   param.server_ssl_mode == kAsClient))
+                               : (param.client_ssl_mode != kDisabled ||
+                                  (param.server_ssl_mode == kDisabled ||
+                                   param.server_ssl_mode == kAsClient ||
+                                   param.server_ssl_mode == kPreferred));
 
   auto account = SharedServer::sha256_password_account();
 

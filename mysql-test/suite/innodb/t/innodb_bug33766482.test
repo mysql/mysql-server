@@ -40,25 +40,27 @@ REPLACE INTO t1(id,a) VALUES(7,CONCAT('{"a":"\'{ab:a,ba:',FLOOR(RAND()*100000),'
 UPDATE t1 SET a= CONCAT('{"b":',FLOOR(RAND()*100000),',"aba":"\'{a:[a,aa,b,aab,aa,bba,baa,a],b:bba}\'","b":',FLOOR(RAND()*100000),',"bb":2}');
 UPDATE t1 SET a= CONCAT('{"b":',FLOOR(RAND()*100000),',"aba":"\'{a:[a,aa,b,aab,aa,bba,baa,a],b:bba}\'","b":',FLOOR(RAND()*100000),',"bb":2}');
 
---sleep 5
---let $memory_before_insert= `SELECT CURRENT_COUNT_USED FROM performance_schema.memory_summary_global_by_event_name WHERE event_name LIKE 'memory/innodb/memory';`
+--let $innodb_mem_count= SELECT COALESCE(SUM(CURRENT_COUNT_USED), 0) FROM performance_schema.memory_summary_by_thread_by_event_name WHERE THREAD_ID = PS_CURRENT_THREAD_ID() AND EVENT_NAME = "memory/innodb/memory"
+--let $memory_before_insert= `$innodb_mem_count`
 
 CALL fill();
 
---sleep 5
---let $memory_after_insert= `SELECT CURRENT_COUNT_USED FROM performance_schema.memory_summary_global_by_event_name WHERE event_name LIKE 'memory/innodb/memory';`
+--let $assert_text= Current thread InnoDB memory count must match after fill()
+--let $assert_cond= [$innodb_mem_count] = $memory_before_insert
+--let $include_silent= 1
+--source include/assert.inc
+--let $include_silent=
 
-assert($memory_after_insert == $memory_before_insert);
-
---let $memory_before_update= `SELECT CURRENT_COUNT_USED FROM performance_schema.memory_summary_global_by_event_name WHERE event_name LIKE 'memory/innodb/memory';`
+--let $memory_before_update= `$innodb_mem_count`
 
 CALL upd();
 
---sleep 5
---let $memory_after_update= `SELECT CURRENT_COUNT_USED FROM performance_schema.memory_summary_global_by_event_name WHERE event_name LIKE 'memory/innodb/memory';`
-
-assert($memory_after_update == $memory_before_update);
-
+--let $assert_text= Current thread InnoDB memory count must match after upd()
+--let $assert_cond= [$innodb_mem_count] = $memory_before_update
+--let $include_silent= 1
+--source include/assert.inc
+--let $include_silent=
+--let $assert_timeout=
 
 DROP PROCEDURE IF EXISTS fill;
 DROP PROCEDURE IF EXISTS upd;

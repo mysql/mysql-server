@@ -26,6 +26,7 @@ call mtr.add_suppression("It was not possible to identify the group replication 
 SET SESSION sql_log_bin=1;
 
 SET GLOBAL server_id=0;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_BAD_REPLICA, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 

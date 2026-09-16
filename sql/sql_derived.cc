@@ -813,9 +813,14 @@ Item *resolve_expression(THD *thd, Item *item, Query_block *query_block) {
   placed.
 
   @param thd            Current thread
-  @param item           Item for which clone is requested
-  @param derived_table  derived table to which the item belongs to.
-
+  @param item           Expression for which clone is requested
+  @param derived_table  derived table to which the expression belongs to.
+                        When set, we are cloning expressions
+                        from derived table which replace the columns
+                        in the pushed where condition.
+                        If not set, we are cloning the original
+                        where condition which needs to be pushed
+                        down(SET operations).
   @returns
   Cloned object for the item.
 */
@@ -831,11 +836,14 @@ Item *Query_block::clone_expression(THD *thd, Item *item,
   // original expression. Assign it to the corresponding field in the cloned
   // expression.
   if (copy_field_info(thd, item, cloned_item)) return nullptr;
-  // A boolean expression to be cloned comes from a WHERE condition,
-  // which treats UNKNOWN the same as FALSE, thus the cloned expression
-  // should have the same property. apply_is_true() is ignored for
-  // non-boolean expressions
-  cloned_item->apply_is_true();
+  // In case of a set operation, we first clone the entire WHERE condition.
+  // A boolean expression in a WHERE clause has an implicit IS TRUE clause
+  // appended to it, which must be preserved for cloned conditions.
+  // If "derived_table" is not set, we are cloning the original WHERE
+  // condition for set operations.
+  if (derived_table == nullptr) {
+    cloned_item->apply_is_true();
+  }
   return resolve_expression(thd, cloned_item, this);
 }
 
@@ -1126,7 +1134,6 @@ bool Condition_pushdown::make_cond_for_derived() {
           derived_query_expression->outer_query_block()->clone_expression(
               thd, orig_cond_to_push, /*derived_table=*/nullptr);
       if (m_cond_to_push == nullptr) return true;
-      m_cond_to_push->apply_is_true();
     }
     m_query_block = qb;
 
@@ -1689,31 +1696,31 @@ bool Table_ref::create_materialized_table(THD *thd) {
   assert((is_table_function() || derived_query_expression()) &&
          uses_materialization() && table);
 
-  if (!table->is_created()) {
-    Derived_refs_iterator it(this);
-    while (TABLE *t = it.get_next())
-      if (t->is_created()) {
-        assert(table->in_use == nullptr || table->in_use == thd);
-        table->in_use = thd;
-        if (open_tmp_table(table)) return true; /* purecov: inspected */
-        break;
-      }
+  // Don't create result table if table is already created.
+  if (table->is_created()) {
+    return false;
   }
 
   /*
-    Don't create result table if:
-    1) Table is already created, or
-    2) Table is a constant one with all NULL values.
+    For a CTE, table may have been created through some other reference.
+    Loop over all references and open the table, if possible.
   */
-  if (table->is_created() ||                           // 1
-      (query_block->join != nullptr &&                 // 2
-       (query_block->join->const_table_map & map())))  // 2
-  {
-    /*
-      At this point, a const table should have null rows.
-      Exception being a shared CTE.
-    */
+  Derived_refs_iterator it(this);
+  while (TABLE *t = it.get_next()) {
+    if (t->is_created()) {
+      assert(table->in_use == nullptr || table->in_use == thd);
+      table->in_use = thd;
+      if (open_tmp_table(table)) return true; /* purecov: inspected */
+      assert(table->is_created());
+      return false;
+    }
+  }
+
+  // Don't create result table if table is a constant one with all NULL rows.
+  if (query_block->join != nullptr &&
+      (query_block->join->const_table_map & map())) {
 #ifndef NDEBUG
+    // Assert that const table has one NULL row, unless it is a CTE.
     QEP_TAB *tab = table->reginfo.qep_tab;
     assert((common_table_expr() != nullptr &&
             common_table_expr()->references.size() > 1) ||

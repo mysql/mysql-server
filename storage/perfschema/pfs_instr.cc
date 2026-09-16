@@ -335,12 +335,12 @@ void cleanup_file_hash() {
 /**
   Create instrumentation for a mutex instance.
   @param klass                        the mutex class
-  @param identity                     the mutex address
   @return a mutex instance, or NULL
 */
-PFS_mutex *create_mutex(PFS_mutex_class *klass, const void *identity) {
+PFS_mutex *create_mutex(PFS_mutex_class *klass, const void * /* identity */) {
   PFS_mutex *pfs;
   pfs_dirty_state dirty_state;
+  pfs_identity id;
   unsigned int partition;
 
   /*
@@ -354,9 +354,9 @@ PFS_mutex *create_mutex(PFS_mutex_class *klass, const void *identity) {
     partition = 0;
   }
 
-  pfs = global_mutex_container.allocate(&dirty_state, partition);
+  pfs = global_mutex_container.allocate(&dirty_state, partition, &id);
   if (pfs != nullptr) {
-    pfs->m_identity = identity;
+    pfs->m_identity = id;
     pfs->m_class = klass;
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
@@ -394,16 +394,17 @@ void destroy_mutex(PFS_mutex *pfs) {
 /**
   Create instrumentation for a rwlock instance.
   @param klass                        the rwlock class
-  @param identity                     the rwlock address
   @return a rwlock instance, or NULL
 */
-PFS_rwlock *create_rwlock(PFS_rwlock_class *klass, const void *identity) {
+PFS_rwlock *create_rwlock(PFS_rwlock_class *klass,
+                          const void * /* identity */) {
   PFS_rwlock *pfs;
   pfs_dirty_state dirty_state;
+  pfs_identity id;
 
-  pfs = global_rwlock_container.allocate(&dirty_state);
+  pfs = global_rwlock_container.allocate(&dirty_state, &id);
   if (pfs != nullptr) {
-    pfs->m_identity = identity;
+    pfs->m_identity = id;
     pfs->m_class = klass;
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
@@ -443,16 +444,16 @@ void destroy_rwlock(PFS_rwlock *pfs) {
 /**
   Create instrumentation for a condition instance.
   @param klass                        the condition class
-  @param identity                     the condition address
   @return a condition instance, or NULL
 */
-PFS_cond *create_cond(PFS_cond_class *klass, const void *identity) {
+PFS_cond *create_cond(PFS_cond_class *klass, const void * /* identity */) {
   PFS_cond *pfs;
   pfs_dirty_state dirty_state;
+  pfs_identity id;
 
-  pfs = global_cond_container.allocate(&dirty_state);
+  pfs = global_cond_container.allocate(&dirty_state, &id);
   if (pfs != nullptr) {
-    pfs->m_identity = identity;
+    pfs->m_identity = id;
     pfs->m_class = klass;
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
@@ -613,7 +614,7 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
   PFS_thread *pfs;
   pfs_dirty_state dirty_state;
 
-  pfs = global_thread_container.allocate(&dirty_state);
+  pfs = global_thread_container.allocate(&dirty_state, nullptr);
   if (pfs != nullptr) {
     pfs->m_thread_internal_id = thread_internal_id_counter.m_u64++;
     pfs->m_parent_thread_internal_id = 0;
@@ -1075,6 +1076,7 @@ PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   uint retry_count = 0;
   constexpr uint retry_max = 3;
   pfs_dirty_state dirty_state;
+  pfs_identity id;
 
 search:
 
@@ -1094,15 +1096,15 @@ search:
     return nullptr;
   }
 
-  pfs = global_file_container.allocate(&dirty_state);
+  pfs = global_file_container.allocate(&dirty_state, &id);
   if (pfs != nullptr) {
+    pfs->m_identity = id;
     pfs->m_class = klass;
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
     pfs->m_file_name = normalized_filename;
     pfs->m_file_stat.m_open_count = 1;
     pfs->m_file_stat.m_io_stat.reset();
-    pfs->m_identity = (const void *)pfs;
     pfs->m_temporary = false;
 
     int res;
@@ -1301,17 +1303,17 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs, bool delete_name) {
   Create instrumentation for a table instance.
   @param share                        the table share
   @param opening_thread               the opening thread
-  @param identity                     the table address
   @return a table instance, or NULL
 */
 PFS_table *create_table(PFS_table_share *share, PFS_thread *opening_thread,
-                        const void *identity) {
+                        const void * /* identity */) {
   PFS_table *pfs;
   pfs_dirty_state dirty_state;
+  pfs_identity id;
 
-  pfs = global_table_container.allocate(&dirty_state);
+  pfs = global_table_container.allocate(&dirty_state, &id);
   if (pfs != nullptr) {
-    pfs->m_identity = identity;
+    pfs->m_identity = id;
     pfs->m_share = share;
     pfs->m_io_enabled = share->m_enabled && flag_global_instrumentation &&
                         global_table_io_class.m_enabled;
@@ -1463,6 +1465,7 @@ PFS_socket *create_socket(PFS_socket_class *klass, const my_socket *fd,
                           const struct sockaddr *addr, socklen_t addr_len) {
   PFS_socket *pfs;
   pfs_dirty_state dirty_state;
+  pfs_identity id;
 
   uint fd_used = 0;
   uint addr_len_used = addr_len;
@@ -1475,12 +1478,11 @@ PFS_socket *create_socket(PFS_socket_class *klass, const my_socket *fd,
     addr_len_used = sizeof(sockaddr_storage);
   }
 
-  pfs = global_socket_container.allocate(&dirty_state);
+  pfs = global_socket_container.allocate(&dirty_state, &id);
 
   if (pfs != nullptr) {
+    pfs->m_identity = id;
     pfs->m_fd = fd_used;
-    /* There is no socket object, so we use the instrumentation. */
-    pfs->m_identity = pfs;
     pfs->m_class = klass;
     pfs->m_enabled = klass->m_enabled && flag_global_instrumentation;
     pfs->m_timed = klass->m_timed;
@@ -1544,17 +1546,19 @@ void destroy_socket(PFS_socket *pfs) {
   global_socket_container.deallocate(pfs);
 }
 
-PFS_metadata_lock *create_metadata_lock(void *identity, const MDL_key *mdl_key,
+PFS_metadata_lock *create_metadata_lock(void * /* identity */,
+                                        const MDL_key *mdl_key,
                                         opaque_mdl_type mdl_type,
                                         opaque_mdl_duration mdl_duration,
                                         opaque_mdl_status mdl_status,
                                         const char *src_file, uint src_line) {
   PFS_metadata_lock *pfs;
   pfs_dirty_state dirty_state;
+  pfs_identity id;
 
-  pfs = global_mdl_container.allocate(&dirty_state);
+  pfs = global_mdl_container.allocate(&dirty_state, &id);
   if (pfs != nullptr) {
-    pfs->m_identity = identity;
+    pfs->m_identity = id;
     pfs->m_enabled =
         global_metadata_class.m_enabled && flag_global_instrumentation;
     pfs->m_timed = global_metadata_class.m_timed;

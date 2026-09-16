@@ -13,10 +13,13 @@ GET /svc/test_schema/tab
 Ok(200)
 # Set the server to offline mode, wait for the REST service to return 404
 set global offline_mode = 1;
+include/wait_for_pattern_in_file.inc [.*ERROR .* MRS metadata refresh failed: .*The server is currently in offline mode.*]
+include/wait_for_pattern_in_file.inc [.*WARNING .* Destination is offline, stopping the REST service.*]
 GET /svc/test_schema/tab
 Not Found(404)
 # Clear the offline mode, wait for the REST service to become available again
 set global offline_mode = 0;
+include/wait_for_pattern_in_file.inc [.*INFO .* Destination .+ is available again.*]
 GET /svc/test_schema/tab
 Ok(200)
 DROP SCHEMA mysql_rest_service_metadata;

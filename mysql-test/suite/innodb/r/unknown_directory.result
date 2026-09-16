@@ -6,6 +6,31 @@ SET default_storage_engine=InnoDB;
 # Restart the engine to make the remote directory known.
 # restart: --innodb-directories=MYSQL_TMP_DIR/remote_dir
 #
+# Create an undo tablespace in a known remote directory.
+#
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'MYSQL_TMP_DIR/remote_dir/undo_003.ibu';
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE space_type="Undo"  ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_003	Undo	active
+#
+# Restart mysqld without the remote directory in --innodb-directories
+#
+# restart_abort: 
+include/wait_for_pattern_in_file.inc [The datafile '.*' for tablespace undo_003 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories]
+# Restart the engine to make the remote directory known.
+# restart: --innodb-directories=MYSQL_TMP_DIR/remote_dir
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE space_type="Undo"  ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_003	Undo	active
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+DROP UNDO TABLESPACE undo_003;
+#
 # Create two tables in a known remote directory.
 #
 CREATE TABLE t1(c1 INT) DATA DIRECTORY='MYSQL_TMP_DIR/remote_dir';
@@ -65,27 +90,22 @@ SUBPARTITION BY HASH (`c2`)
  PARTITION p2 VALUES LESS THAN (20)
  (SUBPARTITION `s3` DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir/' ENGINE = InnoDB,
   SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir/' ENGINE = InnoDB)) */
-#
-# Create two undo tablespaces in a known remote directory.
-#
-CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'MYSQL_TMP_DIR/remote_dir/undo_003.ibu';
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'MYSQL_TMP_DIR/remote_dir/undo_004.ibu';
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-WHERE NAME LIKE 'undo_0%' ORDER BY NAME;
+WHERE space_type="Undo"  ORDER BY NAME;
 NAME	SPACE_TYPE	STATE
-undo_003	Undo	active
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
 undo_004	Undo	active
-#
 # Restart mysqld without the remote directory in --innodb-directories
-# and with one of the undo tablespaces deleted.
+# and the explicit undo tablespace undo_004 deleted
 #
 # restart
 #
 # Validate the messages that should have been put into the error log at startup.
 #
-Pattern "The datafile '.*' for tablespace undo_003 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories" found
-Pattern "Tablespace .*, name 'undo_004', file '.*undo_004.ibu' is missing" found
-Pattern "Cannot find undo tablespace undo_004 with filename '.*' as indicated by the Data Dictionary. Did you move or delete this tablespace. Any undo logs in it cannot be used" found
+Pattern "Tablespace .*, name 'undo_004', file '.*undo_004.ibu' is missing" not found
+Pattern "Cannot find undo tablespace undo_004 with filename '.*' as indicated by the Data Dictionary. Did you move or delete this tablespace. Any undo logs in it cannot be used" not found
 Pattern "The datafile '.*' for tablespace test/t1 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories" found
 Pattern "The datafile '.*' for tablespace test/t2 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories" found
 Pattern "The datafile '.*' for tablespace ts1 is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories" found
@@ -531,10 +551,10 @@ DROP TABLESPACE ts1;
 # Cleanup the Undo IBU tablespaces
 #
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-WHERE NAME LIKE 'undo_0%' ORDER BY NAME;
+WHERE space_type="Undo"  ORDER BY NAME;
 NAME	SPACE_TYPE	STATE
-undo_003	Undo	active
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
 undo_004	Undo	active
-ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-DROP UNDO TABLESPACE undo_003;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 DROP UNDO TABLESPACE undo_004;

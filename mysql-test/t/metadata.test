@@ -17,6 +17,71 @@ select * from t1;
 select a b, b c from t1 as t2;
 drop table t1;
 
+--echo #
+--echo # Bug#39734461: Preserve aliases for duplicate merged derived fields
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT NOT NULL,
+  c5 DATE NOT NULL,
+  c6 VARCHAR(10) NOT NULL
+);
+
+INSERT INTO t1 VALUES (50, '2026-01-01', 'x');
+
+WITH cte_1 AS (
+  SELECT
+    (SELECT c6 FROM t1 WHERE c1 > 43 LIMIT 1) AS col_1,
+    c5 AS col_2
+  FROM t1
+  WHERE c1 > 42
+    AND NOT c5 IN (SELECT c5 FROM t1)
+)
+SELECT
+  t20.col_1 AS a,
+  t20.col_1 AS b
+FROM cte_1 AS t20
+ORDER BY t20.col_2;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (i INT NOT NULL);
+# Force a materialized derived table and an outer temporary table.
+SET optimizer_switch = 'derived_merge=off';
+SELECT DISTINCT
+  dt.a AS x,
+  dt.a AS y
+FROM (
+  SELECT i AS a
+  FROM t1
+) AS dt;
+SET optimizer_switch = default;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#38249983: Select Query is showing wrong column name alias
+--echo #                from sub-query
+--echo #
+
+CREATE TABLE t1 (i INT NOT NULL);
+INSERT INTO t1 VALUES (1);
+
+SELECT dt.*, a AS b
+FROM (
+  SELECT ABS(i) AS a
+  FROM t1
+) AS dt;
+
+SELECT
+  dt.a AS x,
+  dt.a AS y
+FROM (
+  SELECT i AS a
+  FROM t1
+) AS dt;
+
+DROP TABLE t1;
+
 #
 # Test metadata from ORDER BY (Bug #2654)
 #

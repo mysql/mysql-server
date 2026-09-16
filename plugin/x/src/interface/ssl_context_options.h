@@ -53,6 +53,10 @@ class Ssl_context_options {
   virtual int64_t ssl_session_cache_size() = 0;
   virtual int64_t ssl_session_cache_timeouts() = 0;
   virtual int64_t ssl_used_session_cache_entries() = 0;
+
+  virtual std::string tls_kex() = 0;
+  virtual bool tls_force_pqc() = 0;
+  virtual bool tls_use_pqc_sign() = 0;
 };
 
 }  // namespace iface

@@ -423,9 +423,9 @@ void get_server_main_ssl_parameters(
   OptionalString ca, capath, cert, cipher, ciphersuites, key, crl, crlpath,
       version;
 
-  server_main_callback.read_parameters(&ca, &capath, &version, &cert, &cipher,
-                                       &ciphersuites, &key, &crl, &crlpath,
-                                       nullptr, nullptr);
+  server_main_callback.read_parameters(
+      &ca, &capath, &version, &cert, &cipher, &ciphersuites, &key, &crl,
+      &crlpath, nullptr, nullptr, nullptr, nullptr, nullptr);
 
   server_ssl_variables->ssl_ca = my_strdup_nullable(ca);
   server_ssl_variables->ssl_capath = my_strdup_nullable(capath);
@@ -446,9 +446,9 @@ void get_server_admin_ssl_parameters(
   OptionalString ca, capath, cert, cipher, ciphersuites, key, crl, crlpath,
       version;
 
-  server_admin_callback.read_parameters(&ca, &capath, &version, &cert, &cipher,
-                                        &ciphersuites, &key, &crl, &crlpath,
-                                        nullptr, nullptr);
+  server_admin_callback.read_parameters(
+      &ca, &capath, &version, &cert, &cipher, &ciphersuites, &key, &crl,
+      &crlpath, nullptr, nullptr, nullptr, nullptr, nullptr);
 
   server_ssl_variables->ssl_ca = my_strdup_nullable(ca);
   server_ssl_variables->ssl_capath = my_strdup_nullable(capath);

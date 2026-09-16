@@ -177,16 +177,24 @@ bool mysql_registry_no_lock_imp::register_service_nolock(
     if (!addition_result.second) {
       return true;
     }
+    bool interface_added = false;
+    my_interface_mapping::iterator interface_iter;
     try {
       /* Register interface in mapping */
-      mysql_registry_no_lock_imp::interface_mapping.emplace(imp->interface(),
-                                                            imp.get());
+      auto const mapping_res =
+          mysql_registry_no_lock_imp::interface_mapping.emplace(
+              imp->interface(), imp.get());
+      interface_added = mapping_res.second;
+      interface_iter = mapping_res.first;
 
       /* Register the Service Implementation as default for Service name in
         case none were registered before. */
       mysql_registry_no_lock_imp::service_registry.emplace_hint(
           addition_result.first, imp->service_name_c_str(), imp.get());
     } catch (...) {
+      if (interface_added) {
+        mysql_registry_no_lock_imp::interface_mapping.erase(interface_iter);
+      }
       mysql_registry_no_lock_imp::service_registry.erase(addition_result.first);
       /* unique_ptr still has ownership over implementation object, we
         don't have to delete it explicitly. */

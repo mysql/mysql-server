@@ -44,17 +44,19 @@ TEST_P(Xcl_session_impl_tests_param_bool_option,
 INSTANTIATE_TEST_SUITE_P(
     InstantiationNotSupportedBoolOptions,
     Xcl_session_impl_tests_param_bool_option,
-    Values(
-        XSession::Mysqlx_option::Read_timeout,
-        XSession::Mysqlx_option::Write_timeout,
-        XSession::Mysqlx_option::Connect_timeout,
-        XSession::Mysqlx_option::Allowed_tls, XSession::Mysqlx_option::Ssl_mode,
-        XSession::Mysqlx_option::Hostname_resolve_to,
-        XSession::Mysqlx_option::Ssl_key, XSession::Mysqlx_option::Ssl_ca,
-        XSession::Mysqlx_option::Ssl_ca_path, XSession::Mysqlx_option::Ssl_cert,
-        XSession::Mysqlx_option::Ssl_cipher, XSession::Mysqlx_option::Ssl_crl,
-        XSession::Mysqlx_option::Ssl_crl_path,
-        XSession::Mysqlx_option::Authentication_method));
+    Values(XSession::Mysqlx_option::Read_timeout,
+           XSession::Mysqlx_option::Write_timeout,
+           XSession::Mysqlx_option::Connect_timeout,
+           XSession::Mysqlx_option::Allowed_tls,
+           XSession::Mysqlx_option::Tls_kex, XSession::Mysqlx_option::Ssl_mode,
+           XSession::Mysqlx_option::Hostname_resolve_to,
+           XSession::Mysqlx_option::Ssl_key, XSession::Mysqlx_option::Ssl_ca,
+           XSession::Mysqlx_option::Ssl_ca_path,
+           XSession::Mysqlx_option::Ssl_cert,
+           XSession::Mysqlx_option::Ssl_cipher,
+           XSession::Mysqlx_option::Ssl_crl,
+           XSession::Mysqlx_option::Ssl_crl_path,
+           XSession::Mysqlx_option::Authentication_method));
 
 class Xcl_session_impl_tests_param_int_option
     : public Xcl_session_impl_tests_param_bool_option {};
@@ -96,6 +98,7 @@ INSTANTIATE_TEST_SUITE_P(InstantiationNotSupportedTextOptions,
                          Xcl_session_impl_tests_param_text_option,
                          Values(XSession::Mysqlx_option::Hostname_resolve_to,
                                 XSession::Mysqlx_option::Allowed_tls,
+                                XSession::Mysqlx_option::Tls_kex,
                                 XSession::Mysqlx_option::Ssl_mode,
                                 XSession::Mysqlx_option::Ssl_key,
                                 XSession::Mysqlx_option::Ssl_ca,
@@ -111,6 +114,44 @@ TEST_F(Xcl_session_impl_tests, xsession_option_allowed_tls) {
                                        expected_str_value);
   ASSERT_FALSE(error);
   ASSERT_EQ(expected_str_value, m_out_ssl_config->m_tls_version);
+}
+
+TEST_F(Xcl_session_impl_tests, xsession_option_tls_kex) {
+  const std::string expected_str_value = "X25519MLKEM768";
+  auto error = m_sut->set_mysql_option(XSession::Mysqlx_option::Tls_kex,
+                                       expected_str_value);
+  ASSERT_FALSE(error);
+  ASSERT_EQ(expected_str_value, m_out_ssl_config->m_tls_kex);
+}
+
+TEST_F(Xcl_session_impl_tests, xsession_option_force_pqc) {
+  auto error =
+      m_sut->set_mysql_option(XSession::Mysqlx_option::Force_pqc, true);
+  ASSERT_FALSE(error);
+  ASSERT_TRUE(m_out_ssl_config->m_tls_force_pqc);
+
+  ASSERT_EQ(
+      CR_X_UNSUPPORTED_OPTION,
+      m_sut->set_mysql_option(XSession::Mysqlx_option::Force_pqc, int64_t{0})
+          .error());
+  ASSERT_EQ(
+      CR_X_UNSUPPORTED_OPTION,
+      m_sut->set_mysql_option(XSession::Mysqlx_option::Force_pqc, "").error());
+}
+
+TEST_F(Xcl_session_impl_tests, xsession_option_use_pqc_sign) {
+  auto error =
+      m_sut->set_mysql_option(XSession::Mysqlx_option::Use_pqc_sign, false);
+  ASSERT_FALSE(error);
+  ASSERT_FALSE(m_out_ssl_config->m_tls_use_pqc_sign);
+
+  ASSERT_EQ(
+      CR_X_UNSUPPORTED_OPTION,
+      m_sut->set_mysql_option(XSession::Mysqlx_option::Use_pqc_sign, int64_t{0})
+          .error());
+  ASSERT_EQ(CR_X_UNSUPPORTED_OPTION,
+            m_sut->set_mysql_option(XSession::Mysqlx_option::Use_pqc_sign, "")
+                .error());
 }
 
 TEST_F(Xcl_session_impl_tests, xsession_option_ssl_mode) {

@@ -58,7 +58,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* log_update_buf_limit, ... */
 #include "log0buf.h"
 
-/* log_request_checkpoint */
+/* pages_persistence */
+#include "fil0pages_persistence_interface.h"
+
+/* log_checkpointing */
 #include "log0chkp.h"
 
 /* Log_files_capacity::soft_logical_capacity, ... */
@@ -153,7 +156,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
    occupied by the links (in the recent written buffer), the log writer thread
    updates @ref subsect_redo_log_buf_ready_for_write_lsn.
 
-   @diafile storage/innobase/log/recent_written_buffer.dia "Example of links in the recent written buffer"
+   @diafile recent_written_buffer.dia "Example of links in the recent written buffer"
 
    @note The log buffer has no holes up to the
    _log_buffer_ready_for_write_lsn()_
@@ -406,8 +409,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  any writes to the log files themselves then. Previously they were writing
  checkpoints when needed, which required synchronization between them.
 
- The log checkpointer thread updates log.available_for_checkpoint_lsn,
- which is calculated as:
+ The log checkpointer thread updates
+ log_checkpointing->m_available_for_checkpoint_lsn, which is calculated as:
 
          min(buf_flush_list_added->smallest_not_added_lsn(), max(0, oldest_lsn - L))
 
@@ -867,7 +870,7 @@ static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn,
       os_event_set(log.writer_event);
     }
 
-    ut_d(log_background_write_threads_active_validate(log));
+    ut_d(log_background_write_threads_active_validate());
     return false;
   };
 
@@ -1812,7 +1815,7 @@ static dberr_t log_write_buffer(log_t &log, byte *buffer, size_t buffer_size,
   /* The free space may be negative (up to -extra_margin),
   in which case we are in the emergency mode, eating the
   extra margin and asking to pause next user threads. */
-  free_space -= new_write_lsn - log.last_checkpoint_lsn.load();
+  free_space -= new_write_lsn - pages_persistence->get_checkpoint_lsn();
 
   MONITOR_SET(MONITOR_LOG_FREE_SPACE, free_space);
 
@@ -1825,21 +1828,23 @@ static dberr_t log_write_buffer(log_t &log, byte *buffer, size_t buffer_size,
 
 static void log_writer_enter_extra_margin(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
+  ut_a(log_checkpointing != nullptr);
   ut_ad(!log.m_writer_inside_extra_margin);
-  log_limits_mutex_enter(log);
+  log_limits_mutex_enter();
   log.m_writer_inside_extra_margin = true;
   ib::warn(ER_IB_MSG_LOG_WRITER_ENTERED_EXTRA_MARGIN);
-  log_limits_mutex_exit(log);
+  log_limits_mutex_exit();
   log_sync_point("log_writer_entered_extra_margin");
 }
 
 static void log_writer_exit_extra_margin(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
+  ut_a(log_checkpointing != nullptr);
   ut_ad(log.m_writer_inside_extra_margin);
-  log_limits_mutex_enter(log);
+  log_limits_mutex_enter();
   log.m_writer_inside_extra_margin = false;
   ib::info(ER_IB_MSG_LOG_WRITER_EXITED_EXTRA_MARGIN);
-  log_limits_mutex_exit(log);
+  log_limits_mutex_exit();
   log_sync_point("log_writer_exited_extra_margin");
 }
 
@@ -1847,6 +1852,7 @@ static inline bool log_writer_extra_margin_check(log_t &log,
                                                  lsn_t checkpoint_lsn,
                                                  lsn_t next_write_lsn) {
   ut_ad(log_writer_mutex_own(log));
+  ut_a(log_checkpointing != nullptr);
 
   const lsn_t soft_limited_lsn =
       ut_uint64_align_down(checkpoint_lsn, OS_FILE_LOG_BLOCK_SIZE) +
@@ -1867,9 +1873,10 @@ static inline bool log_writer_extra_margin_check(log_t &log,
 
 void log_writer_check_if_exited_extra_margin(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
+  ut_a(log_checkpointing != nullptr);
   ut_ad(log.m_writer_inside_extra_margin);
 
-  const lsn_t checkpoint_lsn = log_get_checkpoint_lsn(log);
+  const lsn_t checkpoint_lsn = log_checkpointing->get_checkpoint();
 
   /* Choose an option which minimizes the possibility that the current
   value of log.m_writer_inside_extra_margin changes. That's to avoid
@@ -1888,7 +1895,7 @@ static inline std::pair<lsn_t, bool> log_writer_wait_on_checkpoint_optimistic(
     log_t &log, lsn_t last_write_lsn, lsn_t next_write_lsn) {
   ut_ad(log_writer_mutex_own(log));
 
-  const lsn_t checkpoint_lsn = log.last_checkpoint_lsn.load();
+  const lsn_t checkpoint_lsn = pages_persistence->get_checkpoint_lsn();
 
   const lsn_t hard_limited_lsn =
       ut_uint64_align_down(checkpoint_lsn, OS_FILE_LOG_BLOCK_SIZE) +
@@ -1905,14 +1912,15 @@ static lsn_t log_writer_wait_on_checkpoint_pessimistic(log_t &log,
                                                        lsn_t last_write_lsn,
                                                        lsn_t next_write_lsn) {
   ut_ad(log_writer_mutex_own(log));
+  ut_a(log_checkpointing != nullptr);
 
   auto missing_space_started = Log_clock::now();
 
   while (true) {
     const int64_t next_checkpoint_sig_count =
-        os_event_reset(log.next_checkpoint_event);
+        os_event_reset(log_checkpointing->m_next_checkpoint_event);
 
-    const lsn_t checkpoint_lsn = log.last_checkpoint_lsn.load();
+    const lsn_t checkpoint_lsn = log_checkpointing->get_checkpoint();
 
     auto [hard_limited_lsn, write_allowed] =
         log_writer_wait_on_checkpoint_optimistic(log, last_write_lsn,
@@ -1922,7 +1930,7 @@ static lsn_t log_writer_wait_on_checkpoint_pessimistic(log_t &log,
       return hard_limited_lsn;
     }
 
-    os_event_set(log.checkpointer_event);
+    os_event_set(log_checkpointing->m_event);
 
     if (last_write_lsn + OS_FILE_LOG_BLOCK_SIZE <= hard_limited_lsn) {
       /* Write what we have - adjust the speed to speed of checkpoints
@@ -1943,7 +1951,7 @@ static lsn_t log_writer_wait_on_checkpoint_pessimistic(log_t &log,
 
     log_writer_mutex_exit(log);
 
-    if (!log.m_allow_checkpoints.load()) {
+    if (!log_checkpointer_is_active()) {
       if (srv_force_recovery < 4) {
         ib::fatal(UT_LOCATION_HERE,
                   ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES);
@@ -1952,7 +1960,6 @@ static lsn_t log_writer_wait_on_checkpoint_pessimistic(log_t &log,
                   ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED);
       }
     }
-
     /* We don't want to ask for sync checkpoint, because it
     is possible, that the oldest dirty page is latched and
     user thread, which keeps the latch, is waiting for space
@@ -1960,9 +1967,9 @@ static lsn_t log_writer_wait_on_checkpoint_pessimistic(log_t &log,
     case it would be deadlock (we can't flush the latched
     page and advance the checkpoint). We only ask for the
     checkpoint, and wait for some time. */
-    log_request_checkpoint(log, false);
+    log_checkpointing->request_fuzzy_checkpoint(false);
 
-    os_event_wait_time_low(log.next_checkpoint_event,
+    os_event_wait_time_low(log_checkpointing->m_next_checkpoint_event,
                            std::chrono::microseconds(100),
                            next_checkpoint_sig_count);
 
@@ -2067,18 +2074,18 @@ static void log_writer_wait_on_consumers(log_t &log, lsn_t next_write_lsn) {
   while (log.m_oldest_need_lsn_lowerbound +
              log.m_capacity.hard_logical_capacity() <
          next_write_lsn) {
-    log_files_mutex_enter(*log_sys);
+    log_limits_mutex_enter();
     lsn_t oldest_needed_lsn;
     const auto consumer = log_consumer_get_oldest(log, oldest_needed_lsn);
     ut_ad(log.m_oldest_need_lsn_lowerbound <= oldest_needed_lsn);
     log.m_oldest_need_lsn_lowerbound = oldest_needed_lsn;
     if (next_write_lsn <=
         oldest_needed_lsn + log.m_capacity.hard_logical_capacity()) {
-      log_files_mutex_exit(*log_sys);
+      log_limits_mutex_exit();
       break;
     }
     const std::string name = consumer->get_name();
-    log_files_mutex_exit(*log_sys);
+    log_limits_mutex_exit();
     /* This should not be a checkpointer nor archiver, as we've used dedicated
     log_writer_wait_on_checkpoint() and log_writer_wait_on_archiver() to wait
     for them already */

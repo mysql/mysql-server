@@ -1,0 +1,6 @@
+#
+# WL6117 : Resize the InnoDB Buffer Pool Online
+#
+
+create table t1 (id int not null, val int not null default '0', primary key (id)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+--source innodb_buffer_pool_resize.inc

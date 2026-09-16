@@ -46,11 +46,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "my_dbug.h"
 #include "my_io.h"
 
+#include "fil0fil.h"
+#include "fsp0fsp.h"      /* fsp_header_get_flags() */
+#include "fsp0sysspace.h" /* srv_sys_space */
+#include "ha_prototypes.h"
 #include "my_macros.h"
+#include "os0file.h"
+#include "page0types.h" /* page_t */
+#include "page0zip.h"   /* page_zip_level */
 #include "sql_const.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "ut0counting_semaphore.h"
+#include "ut0mem.h" /* ut::is_zeros() */
 #ifndef UNIV_HOTBACKUP
 #include "os0event.h"
 #include "os0thread.h"
@@ -106,7 +114,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 static_assert(OS_FILE_CLOSED == -1,
               "Our implementation for OSes other than Windows assumes an "
               "invalid handle is indicated by -1");
-#endif
+#endif /* _WIN32 */
 
 /* Flush after each os_fsync_threshold bytes */
 unsigned long long os_fsync_threshold = 0;
@@ -122,9 +130,6 @@ static Blocks *block_cache;
 
 /** Number of blocks to allocate for sync read/writes */
 static const size_t MAX_BLOCKS = 128;
-
-/** Block buffer size */
-#define BUFFER_BLOCK_SIZE ((ulint)(UNIV_PAGE_SIZE * 1.3))
 
 /** Determine if O_DIRECT is supported
 @retval true    if O_DIRECT is supported.
@@ -323,8 +328,12 @@ struct Slot {
 
   bool is_read() const { return type.is_read(); }
 
-  /** OS_FILE_READ or OS_FILE_WRITE */
-  IORequest type{IORequest::UNSET};
+#ifdef UNIV_DEBUG
+  void simulate_incorrect_page_read(dberr_t err);
+#endif /* UNIV_DEBUG */
+
+  /** IO context used for the IO operation. */
+  IORequest type{IORequest::Type::UNSET};
 
   /** file offset in bytes */
   os_offset_t offset{0};
@@ -345,12 +354,7 @@ struct Slot {
   to the caller of os_aio_simulated_handler */
   bool io_already_done{false};
 
-  /** The file node for which the IO is requested. */
-  fil_node_t *m1{nullptr};
-
-  /** the requester of an aio operation and which can be used
-  to identify which pending aio operation was completed */
-  void *m2{nullptr};
+  std::function<void(dberr_t)> callback;
 
   /** AIO completion status */
   dberr_t err{DB_ERROR_UNSET};
@@ -389,14 +393,8 @@ struct Slot {
   ulint n_bytes{0};
 #endif /* !_WIN32 && !LINUX_NATIVE_AIO */
 
-  /** Buffer block for compressed pages or encrypted pages */
-  file::Block *buf_block{nullptr};
-
-  /** true, if we shouldn't punch a hole after writing the page */
-  bool skip_punch_hole{false};
-
   Slot() {
-#if defined(LINUX_NATIVE_AIO)
+#ifdef LINUX_NATIVE_AIO
     memset(&control, 0, sizeof(control));
 #endif /* LINUX_NATIVE_AIO */
   }
@@ -414,7 +412,6 @@ std::string Slot::to_json() const noexcept {
   std::ostringstream out;
   out << "{\"type\": \"Slot\", \"pos\":" << pos << ", \"objectPtr\": \""
       << (void *)this << "\", "
-      << "\"buf_block\": \"" << (void *)buf_block << "\""
       << ", \"n_bytes\": " << n_bytes << ", \"len\":" << len
       << ", \"orig_len\":" << type.get_original_size()
       << ", \"offset\":" << offset << "}";
@@ -429,6 +426,19 @@ std::ostream &Slot::print(std::ostream &out) const noexcept {
 inline std::ostream &operator<<(std::ostream &out, const Slot &obj) noexcept {
   return (obj.print(out));
 }
+
+#ifdef UNIV_DEBUG
+void Slot::simulate_incorrect_page_read(dberr_t err) {
+  if (err == DB_SUCCESS && is_read() && !recv_recovery_is_on()) {
+    if (ut::random_from_interval(0, 16) == 1) {
+      mach_write_to_4(ptr + FIL_PAGE_OFFSET, 987654321);
+    }
+    if (ut::random_from_interval(0, 16) == 1) {
+      mach_write_to_4(ptr + FIL_PAGE_SPACE_ID, 123456789);
+    }
+  }
+}
+#endif /* UNIV_DEBUG */
 
 /** The asynchronous i/o array structure */
 class AIO {
@@ -450,19 +460,23 @@ class AIO {
   until not_full-event becomes signaled.
 
   @param[in,out]        type    IO context
-  @param[in,out]        m1      message to be passed along with AIO operation
-  @param[in,out]        m2      message to be passed along with AIO operation
-  @param[in]    file    file handle
-  @param[in]    name    name of the file or path as a null-terminated string
+  @param[in]    file            file handle
+  @param[in]    name            name of the file or path as a null-terminated
+                                string
   @param[in,out]        buf     buffer where to read or from which to write
   @param[in]    offset          file offset, where to read from or start writing
   @param[in]    len             length of the block to read or write
-  @param[in]    e_block         Encrypted block or nullptr.
-  @return pointer to slot */
-  [[nodiscard]] Slot *reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
-                                   pfs_os_file_t file, const char *name,
-                                   void *buf, os_offset_t offset, ulint len,
-                                   const file::Block *e_block);
+  @param[in]    callback        A lambda to be called when the result of this
+                                operation is known. It may be a success if the
+                                read or write succeeded or a subset of `dberr_t`
+                                errors if the write or read could not be
+                                executed or if it failed. It will be executed
+                                asynchronously from another thread, before or
+                                after this call returns. */
+  [[nodiscard]] Slot *reserve_slot(const IORequest &type, pfs_os_file_t file,
+                                   const char *name, void *buf,
+                                   os_offset_t offset, ulint len,
+                                   std::function<void(dberr_t)> callback);
 
   /** @return number of reserved slots */
   ulint pending_io_count() const;
@@ -648,10 +662,9 @@ class AIO {
 
   /** Select the IO slot array
   @param[in,out]        type            Type of IO, READ or WRITE
-  @param[in]    read_only       true if running in read-only mode
   @param[in]    aio_mode        IO mode
   @return slot array or NULL if invalid mode specified */
-  [[nodiscard]] static AIO *select_slot_array(IORequest &type, bool read_only,
+  [[nodiscard]] static AIO *select_slot_array(IORequest &type,
                                               AIO_mode aio_mode);
 
   /** Calculates segment number for a slot.
@@ -762,7 +775,7 @@ class AIO {
   Handles *m_handles;
 #endif /* _WIN32 */
 
-#if defined(LINUX_NATIVE_AIO)
+#ifdef LINUX_NATIVE_AIO
   typedef std::vector<io_event> IOEvents;
 
   /** completion queue for IO. There is one such queue per
@@ -793,7 +806,7 @@ AIO *AIO::s_reads;
 AIO *AIO::s_writes;
 AIO *AIO::s_ibuf;
 
-#if defined(LINUX_NATIVE_AIO)
+#ifdef LINUX_NATIVE_AIO
 /** timeout for each io_getevents() call = 500ms. */
 static constexpr uint64_t OS_AIO_REAP_TIMEOUT = 500000000UL;
 
@@ -830,12 +843,9 @@ std::atomic<ulint> os_n_pending_writes{0};
 std::atomic<ulint> os_n_pending_reads{0};
 
 static std::chrono::steady_clock::time_point os_last_printout;
-bool os_has_said_disk_full = false;
+bool os_was_file_write_error_reported = false;
 
 #ifndef UNIV_HOTBACKUP
-
-/** Default Zip compression level */
-extern uint page_zip_level;
 
 static_assert(DATA_TRX_ID_LEN <= 6, "COMPRESSION_ALGORITHM will not fit!");
 
@@ -882,43 +892,57 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
 #ifndef UNIV_HOTBACKUP
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
-
-@param[in]      global_segment  The number of the segment in the aio arrays to
-                                await for; segment 0 is the ibuf i/o thread,
-                                then follow the non-ibuf read threads,
-                                and as the last are the non-ibuf write threads
-@param[out]     m1              the messages passed with the AIO request; note
-                                that also in the case where the AIO operation
-                                failed, these output parameters are valid and
-                                can be used to restart the operation, for
-                                example
-@param[out]     m2              Callback argument
-@param[in]      type            IO context
-@return DB_SUCCESS or error code */
-static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
-                                        void **m2, IORequest *type);
-#ifdef _WIN32
-/** This function is only used in Windows asynchronous i/o.
-Waits for an aio operation to complete. This function is used to wait
-for completed requests. The aio array of pending requests is divided
-into segments. The thread specifies which segment or slot it wants to wait
-for. NOTE: this function will also take care of freeing the aio slot,
-therefore no other thread is allowed to do the freeing!
-@param[in]      segment         The number of the segment in the aio arrays to
+Waits for an AIO operation to complete. This function is used to wait the
+for completed requests. After the IO completes this method returns the IO
+metadata and callback specified when issuing the IO, to allow the IO completion
+routines to be called. It may return before any AIO completes, but only in case
+the InnoDB is shutting down. In such case the DB_SHUTTING_DOWN is returned. The
+AIO array of pending requests is divided into segments. The thread specifies
+which segment or slot it wants to wait for. NOTE: this function will also take
+care of freeing the AIO slot, therefore no other thread is allowed to do the
+freeing!
+@param[in]      global_segment  The number of the segment in the AIO arrays to
                                 wait for; segment 0 is the ibuf I/O thread,
-                                then follow the non-ibuf read threads,
-                                and as the last are the non-ibuf write threads
-@param[out]     m1              the messages passed with the AIO request; note
-that also in the case where the AIO operation
-failed, these output parameters are valid and
-can be used to restart the operation,
-for example
-@param[out]     m2              callback message
-@param[out]     type            OS_FILE_WRITE or ..._READ
-@return DB_SUCCESS or error code */
-static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
-                                      IORequest *type);
-#endif /* _WIN32 */
+                                then follow the non-ibuf read threads, and as
+                                the last are the non-ibuf write threads
+@param[out]     callback        The callback specified when issuing the AIO
+                                operation. It should be called as part of IO
+                                completion routines. It will not be set if the
+                                returned error code is DB_SHUTTING_DOWN.
+@param[out]     request         The IO request metadata specified when issuing
+                                the AIO operation. It will not be set if the
+                                returned error code is DB_SHUTTING_DOWN.
+@return DB_SUCCESS, DB_SHUTTING_DOWN or error code of result of the IO
+operation. */
+static dberr_t os_aio_simulated_handler(ulint global_segment,
+                                        std::function<void(dberr_t)> &callback,
+                                        IORequest *request);
+
+/** Waits for a native AIO operation to complete. This function is used to wait
+the for completed requests. After the IO completes this method returns the IO
+metadata and callback specified when issuing the IO, to allow the IO completion
+routines to be called. It may return before any AIO completes, but only in case
+the InnoDB is shutting down. In such case the DB_SHUTTING_DOWN is returned. The
+AIO array of pending requests is divided into segments. The thread specifies
+which segment or slot it wants to wait for. NOTE: this function will also take
+care of freeing the AIO slot, therefore no other thread is allowed to do the
+freeing!
+@param[in]      segment         The number of the segment in the AIO arrays to
+                                wait for; segment 0 is the ibuf I/O thread,
+                                then follow the non-ibuf read threads, and as
+                                the last are the non-ibuf write threads
+@param[out]     callback        The callback specified when issuing the AIO
+                                operation. It should be called as part of IO
+                                completion routines. It will not be set if the
+                                returned error code is DB_SHUTTING_DOWN.
+@param[out]     request         The IO request metadata specified when issuing
+                                the AIO operation. It will not be set if the
+                                returned error code is DB_SHUTTING_DOWN.
+@return DB_SUCCESS, DB_SHUTTING_DOWN or error code of result of the IO
+operation. */
+static dberr_t os_aio_native_handler(ulint segment,
+                                     std::function<void(dberr_t)> &callback,
+                                     IORequest *request);
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -994,7 +1018,8 @@ file::Block *os_alloc_block() noexcept {
       byte *ptr;
 
       ptr = static_cast<byte *>(ut::malloc_withkey(
-          UT_NEW_THIS_FILE_PSI_KEY, sizeof(*block) + BUFFER_BLOCK_SIZE));
+          UT_NEW_THIS_FILE_PSI_KEY,
+          sizeof(*block) + UNIV_PAGE_SIZE + UNIV_SECTOR_SIZE - 1));
 
       block = new (ptr) file::Block();
       block->m_ptr = static_cast<byte *>(ptr + sizeof(*block));
@@ -1045,10 +1070,30 @@ class AIOHandler {
   it was a write */
   static dberr_t io_complete(const Slot *slot) {
     ut_a(slot->offset > 0);
-    ut_a(slot->type.is_read() || !slot->skip_punch_hole);
+    ut_a(slot->type.is_read() || slot->type.is_punch_hole_requested());
     return (os_file_io_complete(slot->type, slot->file.m_file, slot->buf,
                                 slot->type.get_original_size(), slot->offset,
                                 slot->len));
+  }
+
+  /* Checks if a write request needs a io_complete call after the IO request was
+  completed by the OS.
+  @param[in]    slot            The slot that contains the IO request, must be
+                                of Type::WRITE. */
+  static bool needs_io_complete_for_write(const Slot *slot) {
+    ut_ad(slot->type.is_write());
+    /** If write of the page is compressed (compression is enabled, it is not
+    the first page, it is not a redolog, not a doublewrite buffer) and punch
+    holes are enabled, call AIOHandler::io_complete to check if hole punching
+    is needed. */
+    if (slot->type.is_punch_hole_requested()) {
+      ut_ad(slot->offset > 0);
+      ut_ad(slot->type.is_compression_enabled());
+      ut_ad(!slot->type.is_log());
+      ut_ad(!slot->type.is_dblwr());
+      return true;
+    }
+    return false;
   }
 
  private:
@@ -1128,22 +1173,6 @@ ulint os_file_compressed_page_size(const byte *buf) {
   return (ULINT_UNDEFINED);
 }
 
-/** If it is a compressed page return the original page data + footer size
-@param[in] buf          Buffer to check, must include header + 10 bytes
-@return ULINT_UNDEFINED if the page is not a compressed page or length
-        of the original data + footer if it is a compressed page */
-ulint os_file_original_page_size(const byte *buf) {
-  ulint type = mach_read_from_2(buf + FIL_PAGE_TYPE);
-
-  if (type == FIL_PAGE_COMPRESSED) {
-    ulint version = mach_read_from_1(buf + FIL_PAGE_VERSION);
-    ut_a(Compression::is_valid_page_version(version));
-
-    return (mach_read_from_2(buf + FIL_PAGE_ORIGINAL_SIZE_V1));
-  }
-
-  return (ULINT_UNDEFINED);
-}
 #ifndef UNIV_HOTBACKUP
 /** Check if we need to read some more data.
 @param[in]      slot            The slot that contains the IO request
@@ -1191,11 +1220,6 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
     err = DB_FAIL;
   }
 
-  if (slot->buf_block != nullptr) {
-    os_free_block(slot->buf_block);
-    slot->buf_block = nullptr;
-  }
-
   return (err);
 }
 
@@ -1206,13 +1230,13 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
   ut_a(!slot->type.is_log());
   ut_ad(slot->is_reserved);
 
-  /* Total bytes read so far */
+  /* Total bytes read or written so far */
   ulint n_bytes = (slot->ptr - slot->buf) + slot->n_bytes;
 
   /* Compressed writes can be smaller than the original length.
   Therefore they can be processed without further IO. */
   if (n_bytes == slot->type.get_original_size() ||
-      (slot->type.is_write() && slot->type.is_compressed() &&
+      (slot->type.is_write() &&
        slot->len == static_cast<ulint>(slot->n_bytes))) {
     if (is_compressed_page(slot) || is_encrypted_page(slot)) {
       ut_a(slot->offset > 0);
@@ -1222,7 +1246,6 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
       }
 
       /* The punch hole has been done on collect() */
-
       if (slot->type.is_read()) {
         err = io_complete(slot);
       } else {
@@ -1235,12 +1258,6 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
     } else {
       err = DB_SUCCESS;
     }
-
-    if (slot->buf_block != nullptr) {
-      os_free_block(slot->buf_block);
-      slot->buf_block = nullptr;
-    }
-
   } else if ((ulint)slot->n_bytes == (ulint)slot->len) {
     /* It *must* be a partial read. */
     ut_ad(slot->len < slot->type.get_original_size());
@@ -1629,11 +1646,10 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
     } else {
       return (ret);
     }
-  } else if (type.punch_hole()) {
+  } else if (type.is_punch_hole_requested()) {
     ut_ad(len <= src_len);
     ut_ad(!type.is_log());
     ut_ad(type.is_write());
-    ut_ad(type.is_compressed());
 
     /* Nothing to do. */
     if (len == src_len) {
@@ -1819,11 +1835,10 @@ dberr_t os_file_create_subdirs_if_needed(const char *path) {
   }
 
   /* Test if subdir exists */
-  os_file_type_t type;
-  bool subdir_exists;
-  bool success = os_file_status(subdir, &subdir_exists, &type);
+  const auto type = os_file_type(subdir);
+  bool success = os_file_status_is_conclusive(type);
 
-  if (success && !subdir_exists) {
+  if (os_file_is_missing(type)) {
     /* Subdir does not exist, create it */
     dberr_t err = os_file_create_subdirs_if_needed(subdir);
 
@@ -1841,26 +1856,25 @@ dberr_t os_file_create_subdirs_if_needed(const char *path) {
   return (success ? DB_SUCCESS : DB_ERROR);
 }
 
-file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
+file::Block *os_file_compress_page(IORequest &type, byte *&buf, ulint *n) {
   ut_ad(!type.is_log());
   ut_ad(type.is_write());
-  ut_ad(type.is_compressed());
+  ut_ad(type.is_compression_requested());
 
 #ifdef UNIV_DEBUG
   /* Uncompressed length. */
   const ulint buf_len = *n;
   {
-    Fil_page_header fph(reinterpret_cast<byte *>(buf));
+    Fil_page_header fph(buf);
     space_id_t space_id = fph.get_space_id();
     page_no_t page_no = fph.get_page_no();
     fil_space_t *space = fil_space_get(space_id);
     if (space != nullptr) {
-      fil_node_t *node = space->get_file_node(&page_no);
-      ut_ad(node->block_size == type.block_size());
+      fil_node_t *node = space->get_node_for_page_no(page_no);
+      ut_ad(node->get_block_size() == type.block_size());
       /* The page size must be a multiple of the OS punch hole size. */
-      ut_ad(!(*n % node->block_size));
-      ut_ad(
-          BlockReporter::is_lsn_valid(reinterpret_cast<byte *>(buf), buf_len));
+      ut_ad(!(*n % node->get_block_size()));
+      ut_ad(BlockReporter::is_lsn_valid(buf, buf_len));
     }
   }
 #endif /* UNIV_DEBUG */
@@ -1876,8 +1890,7 @@ file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
   ulint old_compressed_len;
   ulint compressed_len = *n;
 
-  old_compressed_len = mach_read_from_2(reinterpret_cast<byte *>(buf) +
-                                        FIL_PAGE_COMPRESS_SIZE_V1);
+  old_compressed_len = mach_read_from_2(buf + FIL_PAGE_COMPRESS_SIZE_V1);
 
   if (old_compressed_len > 0) {
     old_compressed_len =
@@ -1886,21 +1899,14 @@ file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
     old_compressed_len = *n;
   }
 
-  byte *compressed_page;
-
-  compressed_page =
-      static_cast<byte *>(ut_align(block->m_ptr, UNIV_SECTOR_SIZE));
-
-  byte *buf_ptr;
-
-  buf_ptr = os_file_compress_page(
-      type.compression_algorithm(), type.block_size(),
-      reinterpret_cast<byte *>(buf), *n, compressed_page, &compressed_len);
+  auto *const buf_ptr = os_file_compress_page(
+      type.compression_algorithm(), type.block_size(), buf, *n,
+      os_block_get_frame(block), &compressed_len);
 
   if (buf_ptr != buf) {
     /* Set new compressed size to uncompressed page. */
-    memcpy(reinterpret_cast<byte *>(buf) + FIL_PAGE_COMPRESS_SIZE_V1,
-           buf_ptr + FIL_PAGE_COMPRESS_SIZE_V1, 2);
+    memcpy(buf + FIL_PAGE_COMPRESS_SIZE_V1, buf_ptr + FIL_PAGE_COMPRESS_SIZE_V1,
+           2);
 
     buf = buf_ptr;
     *n = compressed_len;
@@ -1911,28 +1917,25 @@ file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
       ut_ad(old_compressed_len <= UNIV_PAGE_SIZE);
 
       type.clear_punch_hole();
+    } else {
+      ut_ad(type.is_punch_hole_requested());
     }
   }
 
   return (block);
 }
 
-file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint n) {
-  byte *encrypted_page;
+file::Block *os_file_encrypt_page(const IORequest &type, byte *&buf, ulint n) {
   ulint encrypted_len = n;
-  byte *buf_ptr;
   Encryption encryption(type.encryption_algorithm());
 
   ut_ad(type.is_write());
-  ut_ad(type.is_encrypted());
+  ut_ad(type.is_encryption_requested());
 
   auto block = os_alloc_block();
 
-  encrypted_page =
-      static_cast<byte *>(ut_align(block->m_ptr, UNIV_SECTOR_SIZE));
-
-  buf_ptr = encryption.encrypt(type, reinterpret_cast<byte *>(buf), n,
-                               encrypted_page, &encrypted_len);
+  auto *const buf_ptr = encryption.encrypt(
+      type, buf, n, os_block_get_frame(block), &encrypted_len);
   block->m_size = encrypted_len;
 
   bool encrypted = buf_ptr != buf;
@@ -1963,18 +1966,18 @@ os_free_block(block) and scratch memory by using ut::aligned_free(scratch).
                                 change the length)
 @return if not null, then it's the block which contain the buf, and should be
 freed using os_free_block(block). */
-static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
+static file::Block *os_file_encrypt_log(const IORequest &type, byte *&buf,
                                         byte *&scratch, ulint n) {
   byte *buf_ptr;
   Encryption encryption(type.encryption_algorithm());
   file::Block *block{};
 
-  ut_ad(type.is_write() && type.is_encrypted() && type.is_log());
+  ut_ad(type.is_write() && type.is_encryption_requested() && type.is_log());
   ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
 
-  if (n <= BUFFER_BLOCK_SIZE - UNIV_SECTOR_SIZE) {
+  if (n <= UNIV_PAGE_SIZE) {
     block = os_alloc_block();
-    buf_ptr = static_cast<byte *>(ut_align(block->m_ptr, UNIV_SECTOR_SIZE));
+    buf_ptr = os_block_get_frame(block);
     scratch = nullptr;
     block->m_size = n;
   } else {
@@ -1982,7 +1985,7 @@ static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
     scratch = buf_ptr;
   }
 
-  if (!encryption.encrypt_log(reinterpret_cast<byte *>(buf), n, buf_ptr)) {
+  if (!encryption.encrypt_log(buf, n, buf_ptr)) {
     if (block) {
       os_free_block(block);
     } else {
@@ -2101,14 +2104,15 @@ class LinuxAIOHandler {
 
   /**
   Process a Linux AIO request
-  @param[out]   m1              the messages passed with the
-  @param[out]   m2              AIO request; note that in case the
-                                  AIO operation failed, these output
-                                  parameters are valid and can be used to
-                                  restart the operation.
-  @param[out]   request         IO context
+  @param[out]     callback      The callback specified when issuing the AIO
+                                operation. It should be called as part of IO
+                                completion routines. It will not be set if the
+                                returned error code is DB_SHUTTING_DOWN.
+  @param[out]     request       The IO request metadata specified when issuing
+                                the AIO operation. It will not be set if the
+                                returned error code is DB_SHUTTING_DOWN.
   @return DB_SUCCESS or error code */
-  dberr_t poll(fil_node_t **m1, void **m2, IORequest *request);
+  dberr_t poll(std::function<void(dberr_t)> &callback, IORequest *request);
 
  private:
   /** Resubmit an IO request that was only partially successful
@@ -2340,15 +2344,10 @@ void LinuxAIOHandler::collect() {
       /* We have not overstepped to next segment. */
       ut_a(slot->pos < end_pos);
 
-      /** If write of the page is compressed (compression is enabled, it is not
-      the first page, it is not a redolog, not a doublewrite buffer) and punch
-      holes are enabled, call AIOHandler::io_complete to check if hole punching
-      is needed.
-      Keep in sync with os_aio_windows_handler(). */
-      if (slot->offset > 0 && !slot->skip_punch_hole &&
-          slot->type.is_compression_enabled() && !slot->type.is_log() &&
-          slot->type.is_write() && slot->type.is_compressed() &&
-          slot->type.punch_hole() && !slot->type.is_dblwr()) {
+      /* io_complete call for reads is done in AIOHandler::post_io_processing().
+       */
+      if (slot->type.is_write() &&
+          AIOHandler::needs_io_complete_for_write(slot)) {
         slot->err = AIOHandler::io_complete(slot);
       } else {
         slot->err = DB_SUCCESS;
@@ -2413,15 +2412,8 @@ void LinuxAIOHandler::collect() {
   }
 }
 
-/** Process a Linux AIO request
-@param[out]     m1              the messages passed with the
-@param[out]     m2              AIO request; note that in case the
-                                AIO operation failed, these output
-                                parameters are valid and can be used to
-                                restart the operation.
-@param[out]     request         IO context
-@return DB_SUCCESS or error code */
-dberr_t LinuxAIOHandler::poll(fil_node_t **m1, void **m2, IORequest *request) {
+dberr_t LinuxAIOHandler::poll(std::function<void(dberr_t)> &callback,
+                              IORequest *request) {
   dberr_t err;
   Slot *slot;
 
@@ -2456,10 +2448,7 @@ dberr_t LinuxAIOHandler::poll(fil_node_t **m1, void **m2, IORequest *request) {
       no pending request at all, and the system is
       being shut down, exit. */
 
-      *m1 = nullptr;
-      *m2 = nullptr;
-
-      return (DB_SUCCESS);
+      return DB_SHUTTING_DOWN;
 
     } else {
       /* Wait for some request. Note that we return
@@ -2482,48 +2471,16 @@ dberr_t LinuxAIOHandler::poll(fil_node_t **m1, void **m2, IORequest *request) {
         << slot->name << ".";
   }
 
-  *m1 = slot->m1;
-  *m2 = slot->m2;
-
+  callback = std::move(slot->callback);
   *request = slot->type;
+
+  /* We do not support os_aio() calls to redo log files. They need to use sync
+  IO methods. */
+  ut_a(!request->is_log());
 
   m_array->release(slot);
 
   m_array->release();
-
-  return (err);
-}
-
-/** This function is only used in Linux native asynchronous i/o.
-Waits for an aio operation to complete. This function is used to wait for
-the completed requests. The aio array of pending requests is divided
-into segments. The thread specifies which segment or slot it wants to wait
-for. NOTE: this function will also take care of freeing the aio slot,
-therefore no other thread is allowed to do the freeing!
-
-@param[in]      global_segment  segment number in the aio array
-                                to wait for; segment 0 is the ibuf i/o thread,
-                                then follow the non-ibuf read threads,
-                                and the last are the non-ibuf write threads.
-@param[out]     m1              the messages passed with the
-@param[out]     m2                      AIO request; note that in case the
-                                AIO operation failed, these output
-                                parameters are valid and can be used to
-                                restart the operation.
-@param[out]     request         IO context
-@return DB_SUCCESS if the IO was successful */
-static dberr_t os_aio_linux_handler(ulint global_segment, fil_node_t **m1,
-                                    void **m2, IORequest *request) {
-  LinuxAIOHandler handler(global_segment);
-
-  dberr_t err = handler.poll(m1, m2, request);
-
-  if (err == DB_IO_NO_PUNCH_HOLE) {
-    if (!request->is_dblwr()) {
-      fil_no_punch_hole(*m1);
-      err = DB_SUCCESS;
-    }
-  }
 
   return (err);
 }
@@ -2633,7 +2590,7 @@ and native aio.
 bool AIO::is_linux_native_aio_supported() {
   int fd;
   io_context_t io_ctx;
-  const char *name;
+  std::string name;
 
   if (!linux_create_io_ctx(1, &io_ctx)) {
     /* The platform does not support native aio. */
@@ -2652,9 +2609,9 @@ bool AIO::is_linux_native_aio_supported() {
     }
     name = "tmpdir";
   } else {
-    const auto file_path = srv_sys_space.first_datafile()->filepath();
+    const auto file_path = srv_sys_space.get_node_full_path(0);
 
-    fd = ::open(file_path, O_RDONLY);
+    fd = ::open(file_path.c_str(), O_RDONLY);
 
     if (fd == -1) {
       ib::warn(ER_IB_MSG_764) << "Unable to open"
@@ -2906,87 +2863,37 @@ static void os_parent_dir_fsync_posix(const char *path) {
   ::close(dir_fd);
 }
 
-/** Check the existence and type of the given file.
-@param[in]      path            path name of file
-@param[out]     exists          true if the file exists
-@param[out]     type            Type of the file, if it exists
-@return true if call succeeded */
-static bool os_file_status_posix(const char *path, bool *exists,
-                                 os_file_type_t *type) {
+os_file_type_t os_file_type(const char *path) {
+  os_file_type_t type;
   struct stat statinfo;
 
   int ret = stat(path, &statinfo);
-
-  if (exists != nullptr) {
-    *exists = !ret;
-  }
 
   if (ret == 0) {
     /* file exists, everything OK */
-
-  } else if (errno == ENOENT || errno == ENOTDIR) {
-    if (exists != nullptr) {
-      *exists = false;
+    if (S_ISDIR(statinfo.st_mode)) {
+      type = OS_FILE_TYPE_DIR;
+    } else if (S_ISLNK(statinfo.st_mode)) {
+      type = OS_FILE_TYPE_LINK;
+    } else if (S_ISREG(statinfo.st_mode)) {
+      type = OS_FILE_TYPE_FILE;
+    } else {
+      type = OS_FILE_TYPE_UNKNOWN;
     }
-
+  } else if (errno == ENOENT || errno == ENOTDIR) {
     /* file does not exist */
-    *type = OS_FILE_TYPE_MISSING;
-    return (true);
-
+    type = OS_FILE_TYPE_MISSING;
   } else if (errno == ENAMETOOLONG) {
-    *type = OS_FILE_TYPE_NAME_TOO_LONG;
-    return (false);
+    type = OS_FILE_TYPE_NAME_TOO_LONG;
   } else if (errno == EACCES) {
-    *type = OS_FILE_PERMISSION_ERROR;
-    return (false);
+    type = OS_FILE_PERMISSION_ERROR;
   } else {
-    *type = OS_FILE_TYPE_FAILED;
+    type = OS_FILE_TYPE_FAILED;
 
     /* The stat() call failed with some other error. */
     os_file_handle_error_no_exit(path, "file_status_posix_stat", false);
-    return (false);
   }
-
-  if (exists != nullptr) {
-    *exists = true;
-  }
-
-  if (S_ISDIR(statinfo.st_mode)) {
-    *type = OS_FILE_TYPE_DIR;
-
-  } else if (S_ISLNK(statinfo.st_mode)) {
-    *type = OS_FILE_TYPE_LINK;
-
-  } else if (S_ISREG(statinfo.st_mode)) {
-    *type = OS_FILE_TYPE_FILE;
-
-  } else {
-    *type = OS_FILE_TYPE_UNKNOWN;
-  }
-
-  return (true);
-}
-
-/** Check the existence and usefulness of a given path.
-@param[in]  path  path name
-@retval true if the path exists and can be used
-@retval false if the path does not exist or if the path is
-unusable to get to a possibly existing file or directory. */
-static bool os_file_exists_posix(const char *path) {
-  struct stat statinfo;
-
-  int ret = stat(path, &statinfo);
-
-  if (ret == 0) {
-    return (true);
-  }
-
-  if (!(errno == ENOENT || errno == ENOTDIR || errno == ENAMETOOLONG ||
-        errno == EACCES)) {
-    os_file_handle_error_no_exit(path, "file_exists_posix_stat", false);
-  }
-
-  return (false);
+  return type;
 }
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -3256,9 +3163,11 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
   return (file);
 }
 
-pfs_os_file_t os_file_create_simple_no_error_handling_func(
-    const char *name, ulint create_mode, ulint access_type, bool read_only,
-    mode_t umask, bool *success) {
+pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
+                                                           ulint create_mode,
+                                                           ulint access_type,
+                                                           mode_t umask,
+                                                           bool *success) {
   pfs_os_file_t file;
   int create_flag;
 
@@ -3275,18 +3184,12 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(
     if (access_type == OS_FILE_READ_ONLY) {
       create_flag = O_RDONLY;
 
-    } else if (read_only) {
-      create_flag = O_RDONLY;
-
     } else {
       ut_a(access_type == OS_FILE_READ_WRITE ||
            access_type == OS_FILE_READ_ALLOW_DELETE);
 
       create_flag = O_RDWR;
     }
-
-  } else if (read_only) {
-    create_flag = O_RDONLY;
 
   } else if (create_mode == OS_FILE_CREATE) {
     create_flag = O_RDWR | O_CREAT | O_EXCL;
@@ -3303,7 +3206,7 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(
   *success = (file.m_file != -1);
 
 #ifdef USE_FILE_LOCK
-  if (!read_only && *success && access_type == OS_FILE_READ_WRITE &&
+  if (*success && access_type == OS_FILE_READ_WRITE &&
       os_file_lock(file.m_file, name)) {
     *success = false;
     close(file.m_file);
@@ -3380,16 +3283,11 @@ file is closed before calling this function.
 @param[in]      newpath         new file path
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath) {
-#ifdef UNIV_DEBUG
   /* New path must be valid but not exist. */
-  os_file_type_t type;
-  bool exists;
-  ut_ad(os_file_status(newpath, &exists, &type));
-  ut_ad(!exists);
+  ut_ad(os_file_is_missing(os_file_type(newpath)));
 
   /* Old path must exist. */
   ut_ad(os_file_exists(oldpath));
-#endif /* UNIV_DEBUG */
 
   int ret = rename(oldpath, newpath);
 
@@ -3404,12 +3302,6 @@ bool os_file_rename_func(const char *oldpath, const char *newpath) {
   return (true);
 }
 
-/** NOTE! Use the corresponding macro os_file_close(), not directly
-this function!
-Closes a file handle. In case of error, error number can be retrieved with
-os_file_get_last_error.
-@param[in]      file            Handle to a file
-@return true if success */
 bool os_file_close_func(os_file_t file) {
   int ret = close(file);
 
@@ -3479,14 +3371,10 @@ static dberr_t os_get_free_space_posix(const char *path, uint64_t &free_space) {
 @param[in]      path            pathname of the file
 @param[out]     stat_info       information of a file in a directory
 @param[in,out]  statinfo        information of a file in a directory
-@param[in]      check_rw_perm   for testing whether the file can be opened
-                                in RW mode
-@param[in]      read_only       if true read only mode checks are enforced
 @return DB_SUCCESS if all OK */
 static dberr_t os_file_get_status_posix(const char *path,
                                         os_file_stat_t *stat_info,
-                                        struct stat *statinfo,
-                                        bool check_rw_perm, bool read_only) {
+                                        struct stat *statinfo) {
   int ret = stat(path, statinfo);
 
   if (ret && (errno == ENOENT || errno == ENOTDIR)) {
@@ -3523,19 +3411,6 @@ static dberr_t os_file_get_status_posix(const char *path,
   stat_info->size = statinfo->st_size;
   stat_info->block_size = statinfo->st_blksize;
   stat_info->alloc_size = statinfo->st_blocks * 512;
-
-  if (check_rw_perm && (stat_info->type == OS_FILE_TYPE_FILE ||
-                        stat_info->type == OS_FILE_TYPE_BLOCK)) {
-    int access = !read_only ? O_RDWR : O_RDONLY;
-    int fh = ::open(path, access, os_innodb_umask);
-
-    if (fh == -1) {
-      stat_info->rw_perm = false;
-    } else {
-      stat_info->rw_perm = true;
-      close(fh);
-    }
-  }
 
   return (DB_SUCCESS);
 }
@@ -3768,84 +3643,33 @@ static dberr_t os_file_punch_hole_win32(os_file_t fh, os_offset_t off,
   return (!result ? DB_IO_NO_PUNCH_HOLE : DB_SUCCESS);
 }
 
-/** Check the existence and type of a given path.
-@param[in]   path    pathname of the file
-@param[out]  exists  true if file exists
-@param[out]  type    type of the file (if it exists)
-@return true if call succeeded */
-static bool os_file_status_win32(const char *path, bool *exists,
-                                 os_file_type_t *type) {
+os_file_type_t os_file_type(const char *path) {
+  os_file_type_t type;
   struct _stat64 statinfo;
 
   int ret = _stat64(path, &statinfo);
-
-  if (exists != nullptr) {
-    *exists = !ret;
-  }
 
   if (ret == 0) {
     /* file exists, everything OK */
-
-  } else if (errno == ENOENT || errno == ENOTDIR) {
-    *type = OS_FILE_TYPE_MISSING;
-
-    /* file does not exist */
-
-    if (exists != nullptr) {
-      *exists = false;
+    if (_S_IFDIR & statinfo.st_mode) {
+      type = OS_FILE_TYPE_DIR;
+    } else if (_S_IFREG & statinfo.st_mode) {
+      type = OS_FILE_TYPE_FILE;
+    } else {
+      type = OS_FILE_TYPE_UNKNOWN;
     }
-
-    return (true);
-
+  } else if (errno == ENOENT || errno == ENOTDIR) {
+    /* file does not exist */
+    type = OS_FILE_TYPE_MISSING;
   } else if (errno == EACCES) {
-    *type = OS_FILE_PERMISSION_ERROR;
-    return (false);
-
+    type = OS_FILE_PERMISSION_ERROR;
   } else {
-    *type = OS_FILE_TYPE_FAILED;
+    type = OS_FILE_TYPE_FAILED;
 
     /* The _stat64() call failed with some other error */
     os_file_handle_error_no_exit(path, "file_status_win_stat64", false);
-    return (false);
   }
-
-  if (exists != nullptr) {
-    *exists = true;
-  }
-
-  if (_S_IFDIR & statinfo.st_mode) {
-    *type = OS_FILE_TYPE_DIR;
-
-  } else if (_S_IFREG & statinfo.st_mode) {
-    *type = OS_FILE_TYPE_FILE;
-
-  } else {
-    *type = OS_FILE_TYPE_UNKNOWN;
-  }
-
-  return (true);
-}
-
-/** Check the existence and usefulness of a given path.
-@param[in]  path  path name
-@retval true if the path exists and can be used
-@retval false if the path does not exist or if the path is
-unusable to get to a possibly existing file or directory. */
-static bool os_file_exists_win32(const char *path) {
-  struct _stat64 statinfo;
-
-  int ret = _stat64(path, &statinfo);
-
-  if (ret == 0) {
-    return (true);
-  }
-
-  if (!(errno == ENOENT || errno == EINVAL || errno == EACCES)) {
-    /* The _stat64() call failed with an unknown error */
-    os_file_handle_error_no_exit(path, "file_exists_win_stat64", false);
-  }
-
-  return (false);
+  return type;
 }
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -4144,8 +3968,6 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
   }
 
 #ifdef UNIV_NON_BUFFERED_IO
-  // TODO: Create a bug, this looks wrong. The flush log
-  // parameter is dynamic.
   if (purpose == OS_BUFFERED_FILE || purpose == OS_CLONE_LOG_FILE ||
       purpose == OS_LOG_FILE) {
     /* Do not use unbuffered i/o for the log files because
@@ -4213,7 +4035,6 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
                                                            ulint create_mode,
                                                            ulint access_type,
-                                                           bool read_only,
                                                            bool *success) {
   pfs_os_file_t file;
 
@@ -4236,9 +4057,6 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
   if (create_mode == OS_FILE_OPEN) {
     create_flag = OPEN_EXISTING;
 
-  } else if (read_only) {
-    create_flag = OPEN_EXISTING;
-
   } else if (create_mode == OS_FILE_CREATE) {
     create_flag = CREATE_NEW;
 
@@ -4254,15 +4072,10 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
   if (access_type == OS_FILE_READ_ONLY) {
     access = GENERIC_READ;
 
-  } else if (read_only) {
-    access = GENERIC_READ;
-
   } else if (access_type == OS_FILE_READ_WRITE) {
     access = GENERIC_READ | GENERIC_WRITE;
 
   } else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
-    ut_a(!read_only);
-
     access = GENERIC_READ;
 
     /* A backup program has to give mysqld the maximum
@@ -4358,8 +4171,7 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
     ++count;
 
     if (count % 10 == 0) {
-      /* Print error information */
-      os_file_get_last_error(true);
+      os_file_log_last_error();
 
       if (strcmp(name, name_to_delete) == 0) {
         ib::warn(ER_IB_MSG_803)
@@ -4403,16 +4215,11 @@ file is closed before calling this function.
 @param[in]      newpath         new file path
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath) {
-#ifdef UNIV_DEBUG
   /* New path must be valid but not exist. */
-  os_file_type_t type;
-  bool exists;
-  ut_ad(os_file_status(newpath, &exists, &type));
-  ut_ad(!exists);
+  ut_ad(os_file_is_missing(os_file_type(newpath)));
 
   /* Old path must exist. */
   ut_ad(os_file_exists(oldpath));
-#endif /* UNIV_DEBUG */
 
   if (MoveFileExA(oldpath, newpath, MOVEFILE_WRITE_THROUGH)) {
     return true;
@@ -4423,12 +4230,6 @@ bool os_file_rename_func(const char *oldpath, const char *newpath) {
   return false;
 }
 
-/** NOTE! Use the corresponding macro os_file_close(), not directly
-this function!
-Closes a file handle. In case of error, error number can be retrieved with
-os_file_get_last_error.
-@param[in]      file            Handle to a file
-@return true if success */
 bool os_file_close_func(os_file_t file) {
   ut_a(file != INVALID_HANDLE_VALUE);
 
@@ -4456,6 +4257,29 @@ os_offset_t os_file_get_size(pfs_os_file_t file) {
   return (os_offset_t(low | (os_offset_t(high) << 32)));
 }
 
+/** Helper method to get the actual file size
+@param[in]  file_path           File path to check
+@param[out] allocated_file_size Actual number of bytes allocated
+                                on the disk for the file
+@return true if allocated_file_size points to the valid size,
+        false otherwise, additionally the `allocated_file_size` will be set to
+              `errno` (even though on Windows it is useless, we should look at
+              `GetLastError()`. */
+static bool os_allocated_file_size(const char *file_path,
+                                   os_offset_t &allocated_file_size) {
+  DWORD high_size;
+  DWORD low_size = GetCompressedFileSize(file_path, &high_size);
+
+  if (low_size != INVALID_FILE_SIZE || GetLastError() == NO_ERROR) {
+    allocated_file_size = high_size;
+    allocated_file_size <<= 32;
+    allocated_file_size |= low_size;
+    return true;
+  }
+  allocated_file_size = (os_offset_t)errno;
+  return false;
+}
+
 os_file_size_t os_file_get_size(const char *filename) {
   struct __stat64 s;
   os_file_size_t file_size;
@@ -4464,19 +4288,8 @@ os_file_size_t os_file_get_size(const char *filename) {
 
   if (ret == 0) {
     file_size.m_total_size = s.st_size;
-
-    DWORD low_size;
-    DWORD high_size;
-
-    low_size = GetCompressedFileSize(filename, &high_size);
-
-    if (low_size != INVALID_FILE_SIZE || GetLastError() == NO_ERROR) {
-      file_size.m_alloc_size = high_size;
-      file_size.m_alloc_size <<= 32;
-      file_size.m_alloc_size |= low_size;
-    } else {
+    if (!os_allocated_file_size(filename, file_size.m_alloc_size)) {
       file_size.m_total_size = ~0ULL;
-      file_size.m_alloc_size = (os_offset_t)errno;
     }
   } else {
     file_size.m_total_size = ~0ULL;
@@ -4534,14 +4347,10 @@ static dberr_t os_get_free_space_win32(const char *path, uint32_t &block_size,
 @param[in]      path            pathname of the file
 @param[out]     stat_info       information of a file in a directory
 @param[in,out]  statinfo        information of a file in a directory
-@param[in]      check_rw_perm   for testing whether the file can be opened
-                                in RW mode
-@param[in]      read_only       true if the file is opened in read-only mode
 @return DB_SUCCESS if all OK */
 static dberr_t os_file_get_status_win32(const char *path,
                                         os_file_stat_t *stat_info,
-                                        struct _stat64 *statinfo,
-                                        bool check_rw_perm, bool read_only) {
+                                        struct _stat64 *statinfo) {
   int ret = _stat64(path, statinfo);
 
   if (ret && (errno == ENOENT || errno == ENOTDIR)) {
@@ -4560,33 +4369,7 @@ static dberr_t os_file_get_status_win32(const char *path,
     stat_info->type = OS_FILE_TYPE_DIR;
 
   } else if (_S_IFREG & statinfo->st_mode) {
-    DWORD access = GENERIC_READ;
-
-    if (!read_only) {
-      access |= GENERIC_WRITE;
-    }
-
     stat_info->type = OS_FILE_TYPE_FILE;
-
-    /* Check if we can open it in read-only mode. */
-
-    if (check_rw_perm) {
-      HANDLE fh;
-
-      fh = CreateFile((LPCTSTR)path,  // File to open
-                      access, FILE_SHARE_READ,
-                      nullptr,                // Default security
-                      OPEN_EXISTING,          // Existing file only
-                      FILE_ATTRIBUTE_NORMAL,  // Normal file
-                      nullptr);               // No attr. template
-
-      if (fh == INVALID_HANDLE_VALUE) {
-        stat_info->rw_perm = false;
-      } else {
-        stat_info->rw_perm = true;
-        CloseHandle(fh);
-      }
-    }
 
     uint64_t free_space;
     auto err = os_get_free_space_win32(path, stat_info->block_size, free_space);
@@ -4616,6 +4399,11 @@ static dberr_t os_file_get_status_win32(const char *path,
     stat_info->block_size = (stat_info->block_size <= 4096)
                                 ? stat_info->block_size * 16
                                 : UINT32_UNDEFINED;
+
+    if (!os_allocated_file_size(path, stat_info->alloc_size)) {
+      stat_info->alloc_size = 0;
+    }
+
   } else {
     stat_info->type = OS_FILE_TYPE_UNKNOWN;
   }
@@ -4818,66 +4606,70 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[in]      file            handle to an open file
 @param[out]     buf             buffer where to read
 @param[in]      offset          file offset from the start where to read
-@param[in]      n               number of bytes to read, starting from offset
+@param[in]      len             number of bytes to read, starting from offset
 @param[out]     err             DB_SUCCESS or error code
-@param[in]      e_block         encrypted block or nullptr.
 @return number of bytes read/written, -1 if error */
 [[nodiscard]] static ssize_t os_file_io(const IORequest &in_type,
-                                        os_file_t file, void *buf, ulint n,
-                                        os_offset_t offset, dberr_t *err,
-                                        const file::Block *e_block) {
-  ulint original_n = n;
+                                        os_file_t file, byte *buf, ulint len,
+                                        os_offset_t offset, dberr_t *err) {
   file::Block *block{};
+  const auto original_len = len;
   IORequest type = in_type;
   ssize_t bytes_returned = 0;
   byte *encrypt_log_buf = nullptr;
 
-  if (type.is_compressed()) {
-    /* We don't compress the first page of any file. */
-    ut_ad(offset > 0);
-    ut_ad(!type.is_log());
-    if (e_block == nullptr) {
-      block = os_file_compress_page(type, buf, &n);
-    } else {
-      /* Since e_block is valid, encryption must have already happened. Since we
-      do compression before encryption, we assert here that there is no
-      encryption involved. */
-      ut_ad(!type.is_encrypted());
-    }
+  if (!type.are_write_transformations_enabled()) {
+    ut_ad(type.get_original_size() > 0);
+    /* Encryption or compression must have already happened. We assert here that
+    there is no more transformations to do. */
+    ut_ad(!type.is_compression_requested());
+    ut_ad(!type.is_encryption_requested());
   }
 
-  /* We do encryption after compression, since if we do encryption
-  before compression, the encrypted data will cause compression fail
-  or low compression rate. */
-  if ((type.is_encrypted() || e_block != nullptr) && type.is_write()) {
-    if (!type.is_log()) {
-      /* We don't encrypt the first page of any file. */
-      auto compressed_block = block;
+  if (type.get_original_size() == 0) {
+    type.set_original_size(len);
+  }
+  ut_ad(!type.is_read() || type.get_original_size() == len);
+
+  if (type.is_write()) {
+    if (type.is_compression_requested()) {
+      /* We don't compress the first page of any file. */
       ut_ad(offset > 0);
+      ut_ad(!type.is_log());
+      ut_a(type.are_write_transformations_enabled());
+      block = os_file_compress_page(type, buf, &len);
+    }
 
-      /* If dblwr is involved, we should not be reaching here, because we
-      encrypt the page at higher layer so that the same encrypted page can be
-      written to the dblwr file and the data file. During importing an
-      encrypted tablespace, we reach here. */
-      if (e_block == nullptr) {
-        block = os_file_encrypt_page(type, buf, n);
+    /* We do encryption after compression, since if we do encryption
+    before compression, the encrypted data will cause compression fail
+    or low compression rate. */
+    if (type.is_encryption_requested()) {
+      if (!type.is_log()) {
+        /* If dblwr is involved, we should not be reaching here, because we
+        encrypt the page at higher layer so that the same encrypted page can be
+        written to the dblwr file and the data file. During importing an
+        encrypted tablespace, we reach here. */
+
+        /* We don't encrypt the first page of any file. */
+        auto compressed_block = block;
+        ut_ad(offset > 0);
+        ut_a(type.are_write_transformations_enabled());
+        block = os_file_encrypt_page(type, buf, len);
+
+        if (compressed_block != nullptr) {
+          os_free_block(compressed_block);
+        }
       } else {
-        block = const_cast<file::Block *>(e_block);
-      }
-
-      if (compressed_block != nullptr) {
-        os_free_block(compressed_block);
-      }
-    } else {
-      ut_a(block == nullptr);
-      /* Skip encrypt log file header */
-      if (offset >= LOG_FILE_HDR_SIZE) {
-        block = os_file_encrypt_log(type, buf, encrypt_log_buf, n);
+        ut_a(block == nullptr);
+        /* Skip encrypt log file header */
+        if (offset >= LOG_FILE_HDR_SIZE) {
+          block = os_file_encrypt_log(type, buf, encrypt_log_buf, len);
+        }
       }
     }
   }
 
-  SyncFileIO sync_file_io(file, buf, n, offset);
+  SyncFileIO sync_file_io(file, buf, len, offset);
 
   for (ulint i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
     ssize_t n_bytes = sync_file_io.execute(type);
@@ -4886,12 +4678,12 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
     if (n_bytes < 0) {
       break;
 
-    } else if ((ulint)n_bytes + bytes_returned == n) {
+    } else if ((ulint)n_bytes + bytes_returned == len) {
       bytes_returned += n_bytes;
 
-      if (offset > 0 && (type.is_compressed() || type.is_read())) {
-        *err = os_file_io_complete(type, file, reinterpret_cast<byte *>(buf),
-                                   original_n, offset, n);
+      if (offset > 0 && (type.is_punch_hole_requested() || type.is_read())) {
+        *err = os_file_io_complete(type, file, buf, type.get_original_size(),
+                                   offset, len);
       } else {
         *err = DB_SUCCESS;
       }
@@ -4904,12 +4696,12 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
         ut::aligned_free(encrypt_log_buf);
       }
 
-      return (original_n);
+      return original_len;
     }
 
     /* Handle partial read/write. */
 
-    ut_ad((ulint)n_bytes + bytes_returned < n);
+    ut_ad((ulint)n_bytes + bytes_returned < len);
 
     bytes_returned += (ulint)n_bytes;
 
@@ -4917,7 +4709,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       const char *op = type.is_read() ? "read" : "written";
 
       ib::warn(ER_IB_MSG_812)
-          << n << " bytes should have been " << op << ". Only "
+          << len << " bytes should have been " << op << ". Only "
           << bytes_returned << " bytes " << op << ". Retrying"
           << " for the remaining bytes.";
     }
@@ -4953,12 +4745,10 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[in]      n               number of bytes to read, starting from offset
 @param[in]      offset          file offset from the start where to read
 @param[out]     err             DB_SUCCESS or error code
-@param[in]      e_block         encrypted block or nullptr.
 @return number of bytes written, -1 if error */
 [[nodiscard]] static ssize_t os_file_pwrite(IORequest &type, os_file_t file,
                                             const byte *buf, ulint n,
-                                            os_offset_t offset, dberr_t *err,
-                                            const file::Block *e_block) {
+                                            os_offset_t offset, dberr_t *err) {
 #ifdef UNIV_HOTBACKUP
   static meb::Mutex meb_mutex;
 #endif /* UNIV_HOTBACKUP */
@@ -4977,7 +4767,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
 
   ssize_t n_bytes =
-      os_file_io(type, file, (void *)buf, n, offset, err, e_block);
+      os_file_io(type, file, const_cast<byte *>(buf), n, offset, err);
 
   os_n_pending_writes.fetch_sub(1);
   MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
@@ -4993,21 +4783,19 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[out]     buf             buffer from which to write
 @param[in]      offset          file offset from the start where to read
 @param[in]      n               number of bytes to read, starting from offset
-@param[in]      e_block         encrypted block or nullptr.
 @return DB_SUCCESS if request was successful, false if fail */
 [[nodiscard]] static dberr_t os_file_write_page(IORequest &type,
                                                 const char *name,
                                                 os_file_t file, const byte *buf,
-                                                os_offset_t offset, ulint n,
-                                                const file::Block *e_block) {
+                                                os_offset_t offset, ulint n) {
   dberr_t err(DB_ERROR_UNSET);
 
   ut_ad(type.validate());
   ut_ad(n > 0);
 
-  ssize_t n_bytes = os_file_pwrite(type, file, buf, n, offset, &err, e_block);
+  ssize_t n_bytes = os_file_pwrite(type, file, buf, n, offset, &err);
 
-  if ((ulint)n_bytes != n && !os_has_said_disk_full) {
+  if ((ulint)n_bytes != n && !os_was_file_write_error_reported) {
     ib::error(ER_IB_MSG_814) << "Write to file " << name << " failed at offset "
                              << offset << ", " << n
                              << " bytes should have been written,"
@@ -5029,7 +4817,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 
     ib::info(ER_IB_MSG_816) << OPERATING_SYSTEM_ERROR_MSG;
 
-    os_has_said_disk_full = true;
+    os_was_file_write_error_reported = true;
   }
 
   return (err);
@@ -5043,8 +4831,8 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[in]      n               number of bytes to read, starting from offset
 @param[out]     err             DB_SUCCESS or error code
 @return number of bytes read, -1 if error */
-[[nodiscard]] static ssize_t os_file_pread(IORequest &type, os_file_t file,
-                                           void *buf, ulint n,
+[[nodiscard]] static ssize_t os_file_pread(const IORequest &type,
+                                           os_file_t file, byte *buf, ulint n,
                                            os_offset_t offset, dberr_t *err) {
 #ifdef UNIV_HOTBACKUP
   static meb::Mutex meb_mutex;
@@ -5059,7 +4847,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   os_n_pending_reads.fetch_add(1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 
-  ssize_t n_bytes = os_file_io(type, file, buf, n, offset, err, nullptr);
+  ssize_t n_bytes = os_file_io(type, file, buf, n, offset, err);
 
   os_n_pending_reads.fetch_sub(1);
   MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
@@ -5078,9 +4866,9 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[out]     o               number of bytes actually read
 @param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS or error code */
-[[nodiscard]] static dberr_t os_file_read_page(IORequest &type,
+[[nodiscard]] static dberr_t os_file_read_page(const IORequest &type,
                                                const char *file_name,
-                                               os_file_t file, void *buf,
+                                               os_file_t file, byte *buf,
                                                os_offset_t offset, ulint n,
                                                ulint *o, bool exit_on_err) {
   dberr_t err(DB_ERROR_UNSET);
@@ -5118,7 +4906,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       for various reasons. */
 
       if (type.is_compression_enabled() &&
-          !Compression::is_compressed_page(static_cast<byte *>(buf))) {
+          !Compression::is_compressed_page(buf)) {
         return (DB_SUCCESS);
 
       } else {
@@ -5144,7 +4932,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
     if (n_bytes > 0 && (ulint)n_bytes < n) {
       n -= (ulint)n_bytes;
       offset += (ulint)n_bytes;
-      buf = reinterpret_cast<uchar *>(buf) + (ulint)n_bytes;
+      buf += (ulint)n_bytes;
     }
   }
 
@@ -5154,24 +4942,19 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   return (err);
 }
 
-/** Retrieves the last error number if an error occurs in a file io function.
-The number should be retrieved before any other OS calls (because they may
-overwrite the error number). If the number is not known to this program,
-the OS error number + 100 is returned.
-@param[in]      report_all_errors       true if we want an error message printed
-                                        for all errors
-@return error number, or OS error number + 100 */
-ulint os_file_get_last_error(bool report_all_errors) {
-  return (os_file_get_last_error_low(report_all_errors, false));
+ulint os_file_get_and_log_last_error() {
+  return (os_file_get_last_error_low(true, false));
 }
 
+void os_file_log_last_error() { (void)os_file_get_and_log_last_error(); }
+
 /** Does error handling when a file operation fails.
-Conditionally exits (calling srv_fatal_error()) based on should_exit value
+Conditionally exits (calling ib::fatal) based on should_exit value
 and the error type, if should_exit is true then on_error_silent is ignored.
 @param[in]      name            name of a file or NULL
 @param[in]      operation       operation
-@param[in]      should_exit     call srv_fatal_error() on an unknown error,
-                                if this parameter is true
+@param[in]      should_exit     call ib::fatal on an unknown error, if this
+                                parameter is true
 @param[in]      on_error_silent if true then don't print any message to the log
                                 iff it is an unknown non-fatal error
 @return true if we should retry the operation */
@@ -5187,7 +4970,7 @@ and the error type, if should_exit is true then on_error_silent is ignored.
     case OS_FILE_DISK_FULL:
       /* We only print a warning about disk full once */
 
-      if (os_has_said_disk_full) {
+      if (os_was_file_write_error_reported) {
         return (false);
       }
 
@@ -5202,7 +4985,7 @@ and the error type, if should_exit is true then on_error_silent is ignored.
       ib::error(ER_IB_MSG_820)
           << "Disk is full. Try to clean the disk to free space.";
 
-      os_has_said_disk_full = true;
+      os_was_file_write_error_reported = true;
 
       return (false);
 
@@ -5247,13 +5030,9 @@ and the error type, if should_exit is true then on_error_silent is ignored.
       }
 
       if (should_exit) {
-#ifndef UNIV_HOTBACKUP
-        srv_fatal_error();
-#else  /* UNIV_HOTBACKUP */
         ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_822)
             << "Internal error,"
             << " cannot continue operation.";
-#endif /* UNIV_HOTBACKUP */
       }
   }
 
@@ -5329,120 +5108,111 @@ void os_file_set_nocache(int fd [[maybe_unused]],
 #endif /* !(UNIV_SOLARIS && DIRECTIO_ON) && O_DIRECT */
 }
 
-bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
-                           os_offset_t offset, os_offset_t size, bool flush) {
-#if defined(UNIV_LINUX) && defined(HAVE_FALLOC_FL_ZERO_RANGE)
-  ut_a(size >= offset);
-
-  static bool print_message = true;
-
-  int ret =
-      fallocate(pfs_file.m_file, FALLOC_FL_ZERO_RANGE, offset, size - offset);
-
-  if (ret == 0) {
-    if (flush) {
-      return os_file_flush(pfs_file);
+dberr_t os_file_fill_range_with_zeros(const char *const name,
+                                      const pfs_os_file_t file,
+                                      const os_offset_t offset,
+                                      const os_offset_t length,
+                                      const bool flush,
+                                      [[maybe_unused]] bool force_raw_writes) {
+  const auto file_size_in_bytes_before_fill = os_file_get_size(file);
+  const auto is_extension = file_size_in_bytes_before_fill < (offset + length);
+  const auto positive_result = [flush, &file, is_extension]() {
+    if (is_extension) {
+      os_was_file_write_error_reported = false;
     }
 
-    return true;
-  }
+    if (flush) {
+      return os_file_flush(file) ? DB_SUCCESS : DB_IO_ERROR;
+    }
+    return DB_SUCCESS;
+  };
+#if defined(UNIV_LINUX) && defined(HAVE_FALLOC_FL_ZERO_RANGE)
+  /* Even if force_raw_writes is true then also calling the fallocate() is
+  useful. It let us allocate the file size precisely. Otherwise it may so happen
+  that the operating system allocates more blocks on the file system than
+  required file size in the anticipation that they will be used. We explicitly
+  initialize the allocated range with zero later in the method. */
+  int ret = fallocate(file.m_file, FALLOC_FL_ZERO_RANGE, offset, length);
+  if (!force_raw_writes) {
+    DBUG_EXECUTE_IF("fil_create_temp_tablespace_fail_fallocate", ret = -1;);
+    DBUG_EXECUTE_IF("ib_posix_fallocate_fail_eintr", ret = -1; errno = EINTR;);
+    DBUG_EXECUTE_IF("ib_posix_fallocate_fail_einval", ret = -1;
+                    errno = EINVAL;);
 
-  ut_a(ret == -1);
+    if (ret == 0) {
+      return positive_result();
+    }
 
-  /* Print the failure message only once for all the redo log files. */
-  if (print_message) {
-    ib::info(ER_IB_MSG_1359) << "fallocate() failed with errno " << errno
-                             << " - falling back to writing NULLs.";
-    print_message = false;
+    ut_a(ret == -1);
+
+    /* Print the failure message, but only once. */
+    static bool print_message = true;
+    if (print_message) {
+      ib::info(ER_IB_MSG_1359) << "fallocate() failed with errno " << errno
+                               << " - falling back to writing NULLs.";
+      print_message = false;
+    }
   }
 #endif /* UNIV_LINUX && HAVE_FALLOC_FL_ZERO_RANGE */
 
-  return os_file_set_size(name, pfs_file, offset, size, flush);
-}
-
-bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
-                      os_offset_t size, bool flush) {
-  /* Write up to FSP_EXTENT_SIZE bytes at a time. */
-  ulint buf_size = 0;
-
-  if (size <= UNIV_PAGE_SIZE) {
-    buf_size = 1;
-  } else {
-    buf_size = std::min(static_cast<ulint>(64),
-                        static_cast<ulint>(size / UNIV_PAGE_SIZE));
-  }
+  /* Write up to FSP_EXTENT_SIZE pages at a time. */
+  const auto buf_size = std::min(os_offset_t{FSP_EXTENT_SIZE * UNIV_PAGE_SIZE},
+                                 ut_calc_align_down(length, UNIV_SECTOR_SIZE));
 
   ut_ad(buf_size != 0);
 
-  buf_size *= UNIV_PAGE_SIZE;
+  /* Align the buffer for possible unbuffered IO. */
+  auto buf = ut::make_unique_aligned<byte[]>(UNIV_SECTOR_SIZE, buf_size);
 
-  /* Align the buffer for possible raw i/o */
-  byte *buf = static_cast<byte *>(ut::aligned_zalloc(buf_size, UNIV_PAGE_SIZE));
-
-  os_offset_t current_size = offset;
+  const auto end_offset = offset + length;
+  os_offset_t bytes_written_since_last_flush = 0;
 
   /* Count to check and print progress of file write for file_size > 100 MB. */
   uint percentage_count = 10;
 
-  while (current_size < size) {
-    ulint n_bytes;
+  for (auto current_offset = offset; current_offset < end_offset;) {
+    const auto n_bytes =
+        std::min(os_offset_t{buf_size}, end_offset - current_offset);
 
-    if (size - current_size < (os_offset_t)buf_size) {
-      n_bytes = (ulint)(size - current_size);
-    } else {
-      n_bytes = buf_size;
-    }
+    IORequest request(IORequest::Type::WRITE);
 
-    dberr_t err;
-    IORequest request(IORequest::WRITE);
-
-    err = os_file_write(request, name, file, buf, current_size, n_bytes);
+    const auto err =
+        os_file_write(request, name, file, buf.get(), current_offset, n_bytes);
 
     if (err != DB_SUCCESS) {
-      ut::aligned_free(buf);
-      return (false);
+      return err;
     }
+    current_offset += n_bytes;
+    bytes_written_since_last_flush += n_bytes;
 
     /* Flush after each os_fsync_threhold bytes */
     if (flush && os_fsync_threshold != 0) {
-      if ((current_size + n_bytes) / os_fsync_threshold !=
-          current_size / os_fsync_threshold) {
+      if (bytes_written_since_last_flush >= os_fsync_threshold) {
         DBUG_EXECUTE_IF("flush_after_reaching_threshold",
                         std::cerr << os_fsync_threshold
                                   << " bytes being flushed at once"
                                   << std::endl;);
 
-        bool ret = os_file_flush(file);
-
-        if (!ret) {
-          ut::aligned_free(buf);
-          return (false);
+        if (!os_file_flush(file)) {
+          return DB_IO_ERROR;
         }
       }
     }
 
     /* Print percentage of progress if the size is more than 100MB */
-    if ((size >> 20) > 100) {
-      float progress_percentage =
-          ((float)(current_size + n_bytes) / (float)size) * 100;
+    if ((length >> 20) > 100) {
+      const auto progress_percentage =
+          (current_offset - offset) / (length / 100);
 
       if (progress_percentage >= percentage_count) {
-        ib::info(ER_IB_MSG_FILE_RESIZE, name, ulonglong{size >> 20},
-                 percentage_count);
+        ib::info(ER_IB_MSG_FILE_FILL_RANGE_WITH_ZEROS, ulonglong{length >> 20},
+                 name, percentage_count);
         percentage_count += 10;
       }
     }
-
-    current_size += n_bytes;
   }
 
-  ut::aligned_free(buf);
-
-  if (flush) {
-    return (os_file_flush(file));
-  }
-
-  return (true);
+  return positive_result();
 }
 
 /** Truncates a file to a specified size in bytes.
@@ -5501,18 +5271,8 @@ bool os_file_seek(const char *pathname, os_file_t file, os_offset_t offset) {
   return (success);
 }
 
-/** NOTE! Use the corresponding macro os_file_read_first_page(), not directly
-this function!
-Requests a synchronous read operation of page 0 of IBD file.
-@param[in]      type            IO request context
-@param[in]  file_name file name
-@param[in]      file            Open file handle
-@param[out]     buf             buffer where to read
-@param[in]      offset          file offset where to read
-@param[in]      n               number of bytes to read
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
-dberr_t os_file_read_func(IORequest &type, const char *file_name,
-                          os_file_t file, void *buf, os_offset_t offset,
+dberr_t os_file_read_func(const IORequest &type, const char *file_name,
+                          os_file_t file, byte *buf, os_offset_t offset,
                           ulint n) {
   ut_ad(type.is_read());
 
@@ -5520,31 +5280,23 @@ dberr_t os_file_read_func(IORequest &type, const char *file_name,
       os_file_read_page(type, file_name, file, buf, offset, n, nullptr, true));
 }
 
-/** NOTE! Use the corresponding macro os_file_read_first_page(),
-not directly this function!
-Requests a synchronous read operation of page 0 of IBD file
-@param[in]      type            IO request context
-@param[in]  file_name file name
-@param[in]      file            Open file handle
-@param[out]     buf             buffer where to read
-@param[in]      n               number of bytes to read
-@return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
-                                     os_file_t file, void *buf, ulint n) {
+                                     os_file_t file, byte *buf,
+                                     page_no_t n_pages) {
   ut_ad(type.is_read());
 
   dberr_t err = os_file_read_page(type, file_name, file, buf, 0,
                                   UNIV_ZIP_SIZE_MIN, nullptr, true);
 
   if (err == DB_SUCCESS) {
-    uint32_t flags = fsp_header_get_flags(static_cast<byte *>(buf));
+    uint32_t flags = fsp_header_get_flags(buf);
     const page_size_t page_size(flags);
     /* TODO: Revert to single page access.
     Temporally, accepting multiple pages for Fil_shard::get_file_size() during
     recovery phase, until we can get consistent DD flag at the time.
     Fil_shard::get_file_size() doesn't need multiple pages access for
     estimation, if the consistent flag is got from recovered DD. */
-    const size_t read_size = page_size.physical() * (n >> UNIV_PAGE_SIZE_SHIFT);
+    const size_t read_size = page_size.physical() * n_pages;
     ut_ad(read_size > 0);
     err = os_file_read_page(type, file_name, file, buf, 0, read_size, nullptr,
                             true);
@@ -5567,15 +5319,12 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
   uint request_size;
   const uint BUF_SIZE = 4 * UNIV_SECTOR_SIZE;
 
-  alignas(UNIV_SECTOR_SIZE) char buf[BUF_SIZE];
+  alignas(UNIV_SECTOR_SIZE) byte buf[BUF_SIZE];
 
-  IORequest read_request(IORequest::READ);
-  read_request.disable_compression();
-  read_request.clear_encrypted();
-
-  IORequest write_request(IORequest::WRITE);
-  write_request.disable_compression();
-  write_request.clear_encrypted();
+  IORequest read_request(IORequest::Type::READ |
+                         IORequest::Type::NO_COMPRESSION);
+  IORequest write_request(IORequest::Type::WRITE |
+                          IORequest::Type::NO_COMPRESSION);
 
   while (size > 0) {
     if (size > BUF_SIZE) {
@@ -5584,7 +5333,7 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
       request_size = size;
     }
 
-    err = os_file_read_func(read_request, nullptr, src_file, &buf, src_offset,
+    err = os_file_read_func(read_request, nullptr, src_file, buf, src_offset,
                             request_size);
 
     if (err != DB_SUCCESS) {
@@ -5592,7 +5341,7 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
     }
     src_offset += request_size;
 
-    err = os_file_write_func(write_request, "file copy", dest_file, &buf,
+    err = os_file_write_func(write_request, "file copy", dest_file, buf,
                              dest_offset, request_size);
 
     if (err != DB_SUCCESS) {
@@ -5678,7 +5427,7 @@ dberr_t os_file_copy_func(os_file_t src_file, os_offset_t src_offset,
 
 dberr_t os_file_read_no_error_handling_func(IORequest &type,
                                             const char *file_name,
-                                            os_file_t file, void *buf,
+                                            os_file_t file, byte *buf,
                                             os_offset_t offset, ulint n,
                                             ulint *o) {
   ut_ad(type.is_read());
@@ -5698,7 +5447,7 @@ Requests a synchronous write operation.
 @param[in]      n               number of bytes to read
 @return DB_SUCCESS if request was successful */
 dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
-                           const void *buf, os_offset_t offset, ulint n) {
+                           const byte *buf, os_offset_t offset, ulint n) {
   ut_ad(type.validate());
   ut_ad(type.is_write());
 
@@ -5710,24 +5459,24 @@ dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
 
   const byte *ptr = reinterpret_cast<const byte *>(buf);
 
-  return os_file_write_page(type, name, file, ptr, offset, n,
-                            type.get_encrypted_block());
-}
-
-bool os_file_status(const char *path, bool *exists, os_file_type_t *type) {
-#ifdef _WIN32
-  return (os_file_status_win32(path, exists, type));
-#else  /* !_WIN32 */
-  return (os_file_status_posix(path, exists, type));
-#endif /* !_WIN32 */
+  return os_file_write_page(type, name, file, ptr, offset, n);
 }
 
 bool os_file_exists(const char *path) {
-#ifdef _WIN32
-  return (os_file_exists_win32(path));
-#else  /* !_WIN32 */
-  return (os_file_exists_posix(path));
-#endif /* !_WIN32 */
+  return os_file_exists(os_file_type(path));
+}
+
+bool os_file_status_is_conclusive(os_file_type_t type) {
+  return type != OS_FILE_PERMISSION_ERROR && type != OS_FILE_TYPE_FAILED &&
+         type != OS_FILE_TYPE_NAME_TOO_LONG;
+}
+
+bool os_file_exists(os_file_type_t type) {
+  return os_file_status_is_conclusive(type) && type != OS_FILE_TYPE_MISSING;
+}
+
+bool os_file_is_missing(os_file_type_t type) {
+  return type == OS_FILE_TYPE_MISSING;
 }
 
 /** Free storage space associated with a section of the file.
@@ -5748,21 +5497,6 @@ dberr_t os_file_punch_hole(os_file_t fh, os_offset_t off, os_offset_t len) {
 #endif /* !_WIN32 */
 }
 
-bool os_is_sparse_file_supported(pfs_os_file_t fh) {
-  /* In this debugging mode, we act as if punch hole is supported,
-  then we skip any calls to actually punch a hole.  In this way,
-  Transparent Page Compression is still being tested. */
-  DBUG_EXECUTE_IF("ignore_punch_hole", return (true););
-
-  dberr_t err;
-
-  /* We don't know the FS block size, use the sector size. The FS
-  will do the magic. */
-  err = os_file_punch_hole(fh.m_file, 0, UNIV_PAGE_SIZE);
-
-  return (err == DB_SUCCESS);
-}
-
 dberr_t os_get_free_space(const char *path, uint64_t &free_space) {
 #ifdef _WIN32
   uint32_t block_size;
@@ -5775,28 +5509,47 @@ dberr_t os_get_free_space(const char *path, uint64_t &free_space) {
   return (err);
 }
 
-/** This function returns information about the specified file
-@param[in]      path            pathname of the file
-@param[out]     stat_info       information of a file in a directory
-@param[in]      check_rw_perm   for testing whether the file can be opened
-                                in RW mode
-@param[in]      read_only       true if file is opened in read-only mode
-@return DB_SUCCESS if all OK */
-dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
-                           bool check_rw_perm, bool read_only) {
+Access_permissions os_file_check_access(
+#ifdef UNIV_PFS_IO
+    mysql_pfs_key_t pfs_key,
+#endif /* UNIV_PFS_IO */
+    const char *path, bool is_raw_device) {
+  bool success = false;
+  Access_permissions res{};
+  {
+    const auto file = os_file_create_simple_no_error_handling(
+        pfs_key, path, is_raw_device ? OS_FILE_OPEN_RAW : OS_FILE_OPEN,
+        OS_FILE_READ_WRITE, &success);
+    res.has_write_access = res.has_read_access = success;
+    if (success) {
+      os_file_close(file);
+      return res;
+    }
+  }
+  {
+    const auto file = os_file_create_simple_no_error_handling(
+        pfs_key, path, is_raw_device ? OS_FILE_OPEN_RAW : OS_FILE_OPEN,
+        OS_FILE_READ_ONLY, &success);
+    res.has_read_access = success;
+    if (success) {
+      os_file_close(file);
+    }
+  }
+  return res;
+}
+
+dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info) {
   dberr_t ret;
 
 #ifdef _WIN32
   struct _stat64 info;
 
-  ret = os_file_get_status_win32(path, stat_info, &info, check_rw_perm,
-                                 read_only);
+  ret = os_file_get_status_win32(path, stat_info, &info);
 
 #else /* !_WIN32 */
   struct stat info;
 
-  ret = os_file_get_status_posix(path, stat_info, &info, check_rw_perm,
-                                 read_only);
+  ret = os_file_get_status_posix(path, stat_info, &info);
 
 #endif /* !_WIN32 */
 
@@ -5810,59 +5563,31 @@ dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
   return (ret);
 }
 
-dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
-                            ulint page_size, os_offset_t start, ulint len) {
-  ut_a(len > 0);
-
-  /* Extend at most 1M at a time */
-  ulint n_bytes = std::min(static_cast<ulint>(1024 * 1024), len);
-
-  byte *buf = reinterpret_cast<byte *>(ut::aligned_zalloc(n_bytes, page_size));
-
-  os_offset_t offset = start;
-  dberr_t err = DB_SUCCESS;
-  const os_offset_t end = start + len;
-  IORequest request(IORequest::WRITE);
-
-  while (offset < end) {
-    err = os_file_write(request, name, file, buf, offset, n_bytes);
-
-    if (err != DB_SUCCESS) {
-      break;
-    }
-
-    offset += n_bytes;
-
-    n_bytes = std::min(n_bytes, static_cast<ulint>(end - offset));
-
-    DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension", DBUG_SUICIDE(););
-  }
-
-  ut::aligned_free(buf);
-
-  return (err);
-}
-
-bool os_file_check_mode(const char *name, bool read_only) {
+bool os_file_check_mode(
+#ifdef UNIV_PFS_IO
+    mysql_pfs_key_t pfs_key,
+#endif /* UNIV_PFS_IO */
+    const char *name, bool is_raw_device, bool read_only) {
   os_file_stat_t stat;
 
   memset(&stat, 0x0, sizeof(stat));
 
-  dberr_t err = os_file_get_status(name, &stat, true, read_only);
+  dberr_t err = os_file_get_status(name, &stat);
 
   if (err == DB_FAIL) {
     ib::error(ER_IB_MSG_1058, name);
     return false;
 
   } else if (err == DB_SUCCESS) {
-    /* Note: stat.rw_perm is only valid on files */
-
     if (stat.type == OS_FILE_TYPE_FILE) {
-      /* Note: stat.rw_perm is true if it can be opened in
-      mode specified by the "read_only" argument. */
-      if (!stat.rw_perm) {
+      const auto access_permissions = os_file_check_access(
+#ifdef UNIV_PFS_IO
+          pfs_key,
+#endif
+          name, is_raw_device);
+      if (!(read_only ? access_permissions.has_read_access
+                      : access_permissions.has_write_access)) {
         const char *mode = read_only ? "read" : "read-write";
-
         ib::error(ER_IB_MSG_1059, name, mode);
         return false;
       }
@@ -5884,32 +5609,20 @@ bool os_file_check_mode(const char *name, bool read_only) {
     return true;
   }
 }
+
 #ifndef UNIV_HOTBACKUP
-dberr_t os_aio_handler(ulint segment, fil_node_t **m1, void **m2,
+dberr_t os_aio_handler(ulint segment, std::function<void(dberr_t)> &callback,
                        IORequest *request) {
   dberr_t err;
 
   if (srv_use_native_aio) {
     srv_set_io_thread_op_info(segment, "native aio handle");
 
-#ifdef _WIN32
-
-    err = os_aio_windows_handler(segment, m1, m2, request);
-
-#elif defined(LINUX_NATIVE_AIO)
-
-    err = os_aio_linux_handler(segment, m1, m2, request);
-#else /* !_WIN32 && !LINUX_NATIVE_AIO */
-    ut_error;
-
-    err = DB_ERROR; /* Eliminate compiler warning */
-
-#endif /* !_WIN32 && !LINUX_NATIVE_AIO */
-
+    err = os_aio_native_handler(segment, callback, request);
   } else {
     srv_set_io_thread_op_info(segment, "simulated aio handle");
 
-    err = os_aio_simulated_handler(segment, m1, m2, request);
+    err = os_aio_simulated_handler(segment, callback, request);
   }
 
   return (err);
@@ -6227,14 +5940,6 @@ void AIO::shutdown() {
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Creates and initializes block_cache. Creates array of MAX_BLOCKS
-and allocates the memory in each block to hold BUFFER_BLOCK_SIZE
-of data.
-
-This function is called by InnoDB during srv_start().
-It is also called by MEB while applying the redo logs on TDE tablespaces,
-the "Blocks" allocated in this block_cache are used to hold the decrypted
-page data. */
 void os_create_block_cache() {
   ut_a(block_cache == nullptr);
 
@@ -6245,11 +5950,8 @@ void os_create_block_cache() {
     ut_a(!it->m_in_use);
     ut_a(it->m_ptr == nullptr);
 
-    /* Allocate double of max page size memory, since
-    compress could generate more bytes than original
-    data. */
-    it->m_ptr = static_cast<byte *>(
-        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, BUFFER_BLOCK_SIZE));
+    it->m_ptr = static_cast<byte *>(ut::aligned_alloc_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY, UNIV_PAGE_SIZE, UNIV_SECTOR_SIZE));
 
     ut_a(it->m_ptr != nullptr);
   }
@@ -6265,7 +5967,7 @@ void meb_free_block_cache() {
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
     ut_a(!it->m_in_use);
-    ut::free(it->m_ptr);
+    ut::aligned_free(it->m_ptr);
   }
 
   ut::delete_(block_cache);
@@ -6305,7 +6007,7 @@ void os_aio_free() {
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
     ut_a(!it->m_in_use);
-    ut::free(it->m_ptr);
+    ut::aligned_free(it->m_ptr);
   }
 
   ut::delete_(block_cache);
@@ -6371,10 +6073,9 @@ ulint AIO::get_segment_no_from_slot(const AIO *array, const Slot *slot) {
   return earlier_segments + slot->pos / s_writes->slots_per_segment();
 }
 
-Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
-                        pfs_os_file_t file, const char *name, void *buf,
-                        os_offset_t offset, ulint len,
-                        const file::Block *e_block) {
+Slot *AIO::reserve_slot(const IORequest &type, pfs_os_file_t file,
+                        const char *name, void *buf, os_offset_t offset,
+                        ulint len, std::function<void(dberr_t)> callback) {
   ut_a(!type.is_log());
 #ifdef _WIN32
   ut_a((len & 0xFFFFFFFFUL) == len);
@@ -6446,8 +6147,22 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
 
   slot->is_reserved = true;
   slot->reservation_time = std::chrono::steady_clock::now();
-  slot->m1 = m1;
-  slot->m2 = m2;
+  slot->callback = std::move(callback);
+
+#ifdef UNIV_DEBUG
+  /* DBUG_EXECUTE_IF does not work fine when commas are used in the expression,
+  here they are in the lambda capture list. */
+  const auto change_callback = [slot]() {
+    slot->callback = [original_callback = std::move(slot->callback),
+                      slot](dberr_t err) {
+      slot->simulate_incorrect_page_read(err);
+      original_callback(err);
+    };
+  };
+#endif /* UNIV_DEBUG */
+
+  DBUG_EXECUTE_IF("buf_page_read_simulate_incorrect_read", change_callback(););
+
   slot->file = file;
   slot->name = name;
 #ifdef _WIN32
@@ -6459,8 +6174,6 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   slot->buf = static_cast<byte *>(buf);
   slot->ptr = slot->buf;
   slot->n_bytes = 0;
-
-  ut_ad(m1->is_offset_valid(offset));
 
   slot->offset = offset;
   slot->err = DB_ERROR_UNSET;
@@ -6476,74 +6189,75 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
     }
   }
   slot->io_already_done = false;
-  slot->buf_block = nullptr;
 
-  if (!srv_use_native_aio) {
-    slot->buf_block = const_cast<file::Block *>(e_block);
-  }
+  if (!type.are_write_transformations_enabled()) {
+    ut_ad(!type.is_compression_requested());
+    ut_ad(!type.is_encryption_requested());
+  } else if (srv_use_native_aio) {
+    /* For non-native IO we leave the compression and encryption for os_file_io
+    method. For native we must perform page encryption and compression
+    ourselves. */
 
-  if (srv_use_native_aio && offset > 0 && type.is_write() &&
-      type.is_compressed()) {
-    ulint compressed_len = len;
+    if (offset > 0 && type.is_write()) {
+      file::Block *file_block{};
+      if (type.is_compression_requested()) {
+        ulint compressed_len = len;
 
-    ut_ad(!type.is_log());
+        release();
 
-    release();
+        ut_a(!type.is_log());
 
-    void *src_buf = slot->buf;
+        file_block =
+            os_file_compress_page(slot->type, slot->buf, &compressed_len);
 
-    if (e_block == nullptr) {
-      slot->buf_block = os_file_compress_page(type, src_buf, &compressed_len);
-    }
-
-    slot->buf = static_cast<byte *>(src_buf);
-    slot->ptr = slot->buf;
+        slot->ptr = slot->buf;
 #ifdef _WIN32
-    slot->len = static_cast<DWORD>(compressed_len);
+        slot->len = static_cast<DWORD>(compressed_len);
 #else  /* !_WIN32 */
-    slot->len = static_cast<ulint>(compressed_len);
+        slot->len = static_cast<ulint>(compressed_len);
 #endif /* !_WIN32 */
-    slot->skip_punch_hole = !type.punch_hole();
 
-    acquire();
-  }
+        acquire();
+      } else {
+        /* Not compressed request without e_block can't have punch hole. */
+        ut_ad(!type.is_punch_hole_requested());
+      }
 
-  /* We do encryption after compression, since if we do encryption
-  before compression, the encrypted data will cause compression fail
-  or low compression rate. */
-  if (srv_use_native_aio && offset > 0 && type.is_write() &&
-      (type.is_encrypted() || e_block != nullptr)) {
-    file::Block *encrypted_block = nullptr;
+      /* We do encryption after compression, since if we do encryption
+      before compression, the encrypted data will cause compression fail
+      or low compression rate. */
+      if (type.is_encryption_requested()) {
+        release();
 
-    release();
+        ut_a(!type.is_log());
 
-    void *src_buf = slot->buf;
-    ut_a(!type.is_log());
-    if (e_block == nullptr) {
-      encrypted_block = os_file_encrypt_page(type, src_buf, slot->len);
-    } else {
-      encrypted_block = const_cast<file::Block *>(e_block);
-    }
+        file::Block *old_block = file_block;
+        file_block = os_file_encrypt_page(type, slot->buf, slot->len);
 
-    if (slot->buf_block != nullptr) {
-      os_free_block(slot->buf_block);
-    }
+        if (old_block != nullptr) {
+          os_free_block(old_block);
+        }
 
-    slot->buf_block = encrypted_block;
+        slot->ptr = slot->buf;
 
-    slot->buf = static_cast<byte *>(src_buf);
-
-    slot->ptr = slot->buf;
-
-    if (encrypted_block != nullptr) {
+        if (file_block != nullptr) {
 #ifdef _WIN32
-      slot->len = static_cast<DWORD>(encrypted_block->m_size);
+          slot->len = static_cast<DWORD>(file_block->m_size);
 #else  /* !_WIN32 */
-      slot->len = static_cast<ulint>(encrypted_block->m_size);
+          slot->len = static_cast<ulint>(file_block->m_size);
 #endif /* !_WIN32 */
-    }
+        }
 
-    acquire();
+        acquire();
+      }
+      if (file_block != nullptr) {
+        slot->callback = [file_block,
+                          callback = std::move(slot->callback)](dberr_t err) {
+          os_free_block(file_block);
+          callback(err);
+        };
+      }
+    }
   }
 
 #ifdef _WIN32
@@ -6647,13 +6361,7 @@ void os_aio_simulated_wake_handler_threads() {
   }
 }
 
-/** Select the IO slot array
-@param[in,out]  type            Type of IO, READ or WRITE
-@param[in]      read_only       true if running in read-only mode
-@param[in]      aio_mode        IO mode
-@return slot array or NULL if invalid mode specified */
-AIO *AIO::select_slot_array(IORequest &type, bool read_only,
-                            AIO_mode aio_mode) {
+AIO *AIO::select_slot_array(IORequest &type, AIO_mode aio_mode) {
   AIO *array;
 
   ut_ad(type.validate());
@@ -6671,7 +6379,9 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
 
       type.clear_do_not_wake();
 
-      array = read_only ? AIO::s_reads : AIO::s_ibuf;
+      /* In read_only mode we are not starting the s_ibuf array, see
+      implementation of `srv_start()`. */
+      array = srv_read_only_mode ? AIO::s_reads : AIO::s_ibuf;
       break;
 
     default:
@@ -6681,10 +6391,11 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
   return (array);
 }
 
+static dberr_t os_aio_native_handler(
+    [[maybe_unused]] ulint segment,
+    [[maybe_unused]] std::function<void(dberr_t)> &callback,
+    [[maybe_unused]] IORequest *request) {
 #ifdef _WIN32
-
-static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
-                                      IORequest *type) {
   Slot *slot = nullptr;
   AIO *array{};
 
@@ -6708,12 +6419,9 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
 
     if (srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS &&
         array->is_empty() && !buf_flush_page_cleaner_is_active()) {
-      *m1 = nullptr;
-      *m2 = nullptr;
-
       array->release();
 
-      return (DB_SUCCESS);
+      return DB_SHUTTING_DOWN;
     }
 
     ulint n = array->slots_per_segment();
@@ -6729,10 +6437,12 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
     BOOL ret = GetOverlappedResult(slot->file.m_file, &slot->control,
                                    &slot->n_bytes, TRUE);
 
-    *m1 = slot->m1;
-    *m2 = slot->m2;
+    callback = std::move(slot->callback);
+    *request = slot->type;
 
-    *type = slot->type;
+    /* We do not support os_aio() calls to redo log files. They need to use sync
+    IO methods. */
+    ut_a(!request->is_log());
 
     bool retry = false;
 
@@ -6785,16 +6495,10 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
   }
 
   if (err == DB_SUCCESS) {
-    ut_ad(!slot->type.is_log());
-    /** If write of the page is compressed (compression is enabled, it is not
-    the first page, it is not a redolog, not a doublewrite buffer) and punch
-    holes are enabled, call AIOHandler::io_complete to check if hole punching is
-    needed.
-    Keep in sync with LinuxAIOHandler::collect(). */
-    if (slot->offset > 0 && !slot->skip_punch_hole &&
-        slot->type.is_compression_enabled() && !slot->type.is_log() &&
-        slot->type.is_write() && slot->type.is_compressed() &&
-        slot->type.punch_hole() && !slot->type.is_dblwr()) {
+    /* io_complete call for reads is done in AIOHandler::post_io_processing().
+     */
+    if (slot->type.is_write() &&
+        AIOHandler::needs_io_complete_for_write(slot)) {
       slot->err = AIOHandler::io_complete(slot);
     } else {
       slot->err = DB_SUCCESS;
@@ -6805,57 +6509,39 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
   array->release_with_mutex(slot);
 
   return (err);
-}
+#elif defined(LINUX_NATIVE_AIO)
+  LinuxAIOHandler handler(segment);
+
+  return handler.poll(callback, request);
+#else
+  ut_error;
 #endif /* _WIN32 */
+}
 
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
-                    pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
-                    bool read_only, fil_node_t *m1, void *m2) {
+                    pfs_os_file_t file, byte *buf, os_offset_t offset, ulint n,
+                    std::function<void(dberr_t)> callback) {
+  /* We do not support os_aio() calls to redo log files. They need to use sync
+  IO methods. */
   ut_a(!type.is_log());
 
-  const file::Block *e_block = type.get_encrypted_block();
-
-#ifdef UNIV_DEBUG
-  if (type.is_write() && e_block != nullptr) {
-    ut_ad(os_block_get_frame(e_block) == buf);
-  }
-#endif /* UNIV_DEBUG */
-
   ut_ad(n > 0);
-  ut_ad((n % OS_FILE_LOG_BLOCK_SIZE) == 0);
-  ut_ad((offset % OS_FILE_LOG_BLOCK_SIZE) == 0);
+  ut_ad((n % UNIV_SECTOR_SIZE) == 0);
+  ut_ad((offset % UNIV_SECTOR_SIZE) == 0);
   ut_ad(os_aio_validate_skip());
 
 #ifdef _WIN32
   ut_ad((n & 0xFFFFFFFFUL) == n);
 #endif /* _WIN32 */
 
-  if (aio_mode == AIO_mode::SYNC) {
-    /* This is actually an ordinary synchronous read or write:
-    no need to use an i/o-handler thread. NOTE that if we use
-    Windows "async" overlapped i/o, Windows does not allow us to use
-    ordinary synchronous operations etc. on the same file. The os_file_read()
-    and os_file_write() are handling this case correctly.
-    Also note that the Performance Schema instrumentation has
-    been performed by current os_aio_func()'s wrapper function
-    pfs_os_aio_func(). So we would no longer need to call
-    Performance Schema instrumented os_file_read() and
-    os_file_write(). Instead, we should use os_file_read_func()
-    and os_file_write_func() */
-    if (type.is_read()) {
-      return (os_file_read_func(type, name, file.m_file, buf, offset, n));
-    }
+  ut_a(aio_mode == AIO_mode::NORMAL || aio_mode == AIO_mode::IBUF);
 
-    ut_ad(type.is_write());
-    return (os_file_write_func(type, name, file.m_file, buf, offset, n));
-  }
-
-  const auto array = AIO::select_slot_array(type, read_only, aio_mode);
+  const auto array = AIO::select_slot_array(type, aio_mode);
   bool io_dispatched = false;
   while (!io_dispatched) {
     {
-      auto slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n,
-                                      e_block);
+      auto slot = array->reserve_slot(type, file, name, buf, offset, n,
+                                      std::move(callback));
       if (srv_use_native_aio) {
         if (type.is_read()) {
           ++os_n_file_reads;
@@ -6943,7 +6629,7 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
   }
 
   /* AIO request was dispatched successfully! */
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Simulated AIO handler for reaping IO requests */
@@ -7265,23 +6951,9 @@ ulint SimulatedAIOHandler::check_pending(ulint global_segment,
   return (m_array->slots_per_segment());
 }
 
-/** Does simulated AIO. This function should be called by an i/o-handler
-thread.
-
-@param[in]      global_segment  The number of the segment in the aio arrays to
-                                await for; segment 0 is the ibuf i/o thread,
-                                then follow the non-ibuf read threads,
-                                and as the last are the non-ibuf write threads
-@param[out]     m1              the messages passed with the AIO request; note
-                                that also in the case where the AIO operation
-                                failed, these output parameters are valid and
-                                can be used to restart the operation, for
-                                example
-@param[out]     m2              Callback argument
-@param[in]      type            IO context
-@return DB_SUCCESS or error code */
-static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
-                                        void **m2, IORequest *type) {
+static dberr_t os_aio_simulated_handler(ulint global_segment,
+                                        std::function<void(dberr_t)> &callback,
+                                        IORequest *request) {
   Slot *slot;
   AIO *array{};
   os_event_t event = os_aio_segment_wait_events[global_segment];
@@ -7325,12 +6997,7 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 
       array->release();
 
-      *m1 = nullptr;
-
-      *m2 = nullptr;
-
-      return (DB_SUCCESS);
-
+      return DB_SHUTTING_DOWN;
     } else if (handler.select(current_time)) {
       break;
     }
@@ -7339,7 +7006,7 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 
     srv_set_io_thread_op_info(global_segment, "resetting wait event");
 
-    /* We wait here until tbere are more IO requests
+    /* We wait here until there are more IO requests
     for this segment. */
 
     os_event_reset(event);
@@ -7351,7 +7018,7 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
     os_event_wait(event);
   }
 
-  /** Found a slot that has already completed its IO */
+  /* Found a slot that has already completed its IO */
 
   if (slot == nullptr) {
     /* Merge adjacent requests */
@@ -7395,10 +7062,12 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 
   ut_ad(slot->is_reserved);
 
-  *m1 = slot->m1;
-  *m2 = slot->m2;
+  callback = std::move(slot->callback);
+  *request = slot->type;
 
-  *type = slot->type;
+  /* We do not support os_aio() calls to redo log files. They need to use sync
+  IO methods. */
+  ut_a(!request->is_log());
 
   array->release(slot);
 
@@ -7534,12 +7203,7 @@ void os_aio_print(FILE *file) {
                   current_time - os_last_printout)
                   .count();
 
-  uint64_t n_log_pending_flushes;
-#ifndef UNIV_HOTBACKUP
-  n_log_pending_flushes = log_pending_flushes();
-#else  /* UNIV_HOTBACKUP */
-  n_log_pending_flushes = 0;
-#endif /* UNIV_HOTBACKUP */
+  const uint64_t n_log_pending_flushes = log_pending_flushes();
 
   fprintf(file,
           "Pending flushes (fsync) log: " UINT64PF
@@ -7659,24 +7323,22 @@ void os_file_set_umask(mode_t umask) {
 @param[in]      path            The path to check
 @return true if it is a directory */
 bool Dir_Walker::is_directory(const Path &path) {
-  os_file_type_t type;
-  bool exists;
+  os_file_type_t type = os_file_type(path.c_str());
 
-  if (os_file_status(path.c_str(), &exists, &type)) {
-    ut_ad(exists);
-    ut_ad(type != OS_FILE_TYPE_MISSING);
+  if (os_file_status_is_conclusive(type)) {
+    ut_ad(os_file_exists(type));
 
     return (type == OS_FILE_TYPE_DIR);
   }
 
-  ut_ad(exists || type == OS_FILE_TYPE_FAILED);
+  ut_ad(type == OS_FILE_TYPE_FAILED);
   ut_ad(type != OS_FILE_TYPE_MISSING);
 
   return (false);
 }
 
 dberr_t os_file_write_retry(IORequest &type, const char *name,
-                            pfs_os_file_t file, const void *buf,
+                            pfs_os_file_t file, const byte *buf,
                             os_offset_t offset, ulint n) {
   dberr_t err;
   for (;;) {
@@ -7694,47 +7356,4 @@ dberr_t os_file_write_retry(IORequest &type, const char *name,
     }
   }
   return err;
-}
-
-std::string IORequest::type_str(const ulint type) {
-  std::ostringstream os;
-  if (type & READ) {
-    os << " READ";
-  } else if (type & WRITE) {
-    os << " WRITE";
-  } else if (type & DBLWR) {
-    os << " DBLWR";
-  }
-
-  /** Enumerations below can be ORed to READ/WRITE above*/
-
-  /** Data file */
-  if (type & DATA_FILE) {
-    os << " | DATA_FILE";
-  }
-
-  if (type & LOG) {
-    os << " | LOG";
-  }
-
-  if (type & DISABLE_PARTIAL_IO_WARNINGS) {
-    os << " | DISABLE_PARTIAL_IO_WARNINGS";
-  }
-
-  if (type & DO_NOT_WAKE) {
-    os << " | DO_NOT_WAKE";
-  }
-
-  if (type & IGNORE_MISSING) {
-    os << " | IGNORE_MISSING";
-  }
-
-  if (type & PUNCH_HOLE) {
-    os << " | PUNCH_HOLE";
-  }
-
-  if (type & NO_COMPRESSION) {
-    os << " | NO_COMPRESSION";
-  }
-  return os.str();
 }

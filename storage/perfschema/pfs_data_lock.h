@@ -102,7 +102,7 @@ struct row_data_lock {
   const char *m_sub_partition_name;
   size_t m_sub_partition_name_length;
   /** Column OBJECT_INSTANCE_BEGIN */
-  const void *m_identity;
+  pfs_identity m_identity;
   /** Column LOCK_MODE */
   const char *m_lock_mode;
   /** Column LOCK_TYPE */
@@ -207,7 +207,7 @@ struct row_data_lock_wait {
   /** Column REQUESTING_EVENT_ID */
   ulonglong m_requesting_event_id{0};
   /** Column REQUESTING_OBJECT_INSTANCE_BEGIN */
-  const void *m_requesting_identity{nullptr};
+  pfs_identity m_requesting_identity{0};
   /** Column BLOCKING_ENGINE_TRANSACTION_ID */
   ulonglong m_blocking_transaction_id{0};
   /** Column BLOCKING_THREAD_ID */
@@ -215,7 +215,7 @@ struct row_data_lock_wait {
   /** Column BLOCKING_EVENT_ID */
   ulonglong m_blocking_event_id{0};
   /** Column BLOCKING_OBJECT_INSTANCE_BEGIN */
-  const void *m_blocking_identity{nullptr};
+  pfs_identity m_blocking_identity{0};
 };
 
 class PFS_index_data_locks : public PFS_engine_index {

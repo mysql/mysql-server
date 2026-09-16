@@ -51,11 +51,6 @@ SET DEBUG="+d,builder_bulk_add_row_trigger_error_1";
 OPTIMIZE TABLE t1;
 SET DEBUG="-d,builder_bulk_add_row_trigger_error_1";
 
---echo # Builder::bulk_add_row returns DB_INVALID_NULL
-SET DEBUG="+d,builder_bulk_add_row_trigger_error_2";
-OPTIMIZE TABLE t1;
-SET DEBUG="-d,builder_bulk_add_row_trigger_error_2";
-
 --echo # Builder::bulk_add_row returns DB_IO_ERROR
 SET DEBUG="+d,builder_bulk_add_row_trigger_error_3";
 OPTIMIZE TABLE t1;

@@ -1,0 +1,56 @@
+#
+# WL#14037: Thread Pool Optimizations
+#
+#
+SELECT @@global.thread_pool_max_transactions_limit;
+@@global.thread_pool_max_transactions_limit
+16
+SHOW STATUS LIKE 'Thread_pool_query_threads';
+Variable_name	Value
+Thread_pool_query_threads	#
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1);
+# perform write lock on table t1
+LOCK TABLES t1 WRITE;
+# from con1, select query stalled due to write lock on t1
+SELECT * FROM t1;
+UNLOCK TABLES;
+c1
+1
+CREATE USER u1;
+SET @@global.thread_pool_max_transactions_limit=32;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+GRANT CONNECTION_ADMIN ON *.* TO u1;
+SET @@global.thread_pool_max_transactions_limit=32;
+SELECT @@global.thread_pool_max_transactions_limit;
+@@global.thread_pool_max_transactions_limit
+32
+SET @@global.thread_pool_dedicated_listeners=ON;
+ERROR HY000: Variable 'thread_pool_dedicated_listeners' is a read only variable
+DROP USER u1;
+DROP TABLE t1;
+SET @@global.thread_pool_max_transactions_limit = 0;
+ERROR HY000: The variable thread_pool_max_transactions_limit cannot be set to 0 when thread_pool_dedicated_listernes is ON.
+SHOW VARIABLES LIKE 'thread_pool_max_transactions_limit';
+Variable_name	Value
+thread_pool_max_transactions_limit	32
+SET @@global.thread_pool_max_transactions_limit = DEFAULT;
+SHOW VARIABLES LIKE 'thread_pool_max_transactions_limit';
+Variable_name	Value
+thread_pool_max_transactions_limit	32
+SET @@global.thread_pool_max_transactions_limit = -1;
+ERROR 42000: Variable 'thread_pool_max_transactions_limit' can't be set to the value of '-1'
+SET @@global.thread_pool_max_transactions_limit = 1000001;
+ERROR 42000: Variable 'thread_pool_max_transactions_limit' can't be set to the value of '1000001'
+# Bug#35019884: set persist_only thread_pool_max_transactions_limit
+# broken
+SET PERSIST_ONLY thread_pool_max_transactions_limit = 256;
+# restart
+SELECT COUNT(*) AS EXPECT_0 FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-013140';
+EXPECT_0
+0
+SHOW VARIABLES LIKE 'thread_pool_max_transactions_limit';
+Variable_name	Value
+thread_pool_max_transactions_limit	256
+RESET PERSIST;

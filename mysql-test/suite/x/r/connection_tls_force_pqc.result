@@ -1,0 +1,158 @@
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([-0-9]*\\)'");
+call mtr.add_suppression("Plugin mysqlx reported: '[-0-9]*: Error during SSL handshake'");
+# restart: --mysqlx-force-pqc=ON
+SELECT @@GLOBAL.mysqlx_force_pqc;
+@@GLOBAL.mysqlx_force_pqc
+1
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'Mysqlx_force_pqc';
+VARIABLE_NAME	VARIABLE_VALUE
+Mysqlx_force_pqc	ON
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.3
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+include/save_error_log_position.inc
+# restart: --tls-version=TLSv1.2 --mysqlx-force-pqc=ON
+SELECT @@GLOBAL.mysqlx_force_pqc;
+@@GLOBAL.mysqlx_force_pqc
+0
+SELECT @@GLOBAL.tls_version;
+@@GLOBAL.tls_version
+TLSv1.2
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'Mysqlx_force_pqc';
+VARIABLE_NAME	VARIABLE_VALUE
+Mysqlx_force_pqc	OFF
+include/assert_error_log.inc [server: 1, pattern: Plugin mysqlx reported: 'mysqlx_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but tls_version=TLSv1.2 disables TLSv1.3; setting mysqlx_force_pqc=OFF']
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+include/save_error_log_position.inc
+# restart:
+include/assert_error_log.inc [server: 1, pattern: TLS channel 'mysqlx' is not configured to require post-quantum key exchange algorithms; future TLS sessions may use a non-post-quantum key exchange algorithm because force_pqc is disabled]
+Runtime rejects read-only X Plugin tls_kex
+SET GLOBAL mysqlx_tls_kex = 'X25519MLKEM768';
+ERROR HY000: Variable 'mysqlx_tls_kex' is a read only variable
+Runtime rejects read-only X Plugin use_pqc_sign
+SET GLOBAL mysqlx_use_pqc_sign = ON;
+ERROR HY000: Variable 'mysqlx_use_pqc_sign' is a read only variable
+X Plugin falls back to server PQC variables when mysqlx PQC variables are defaults
+# restart: --tls-version=TLSv1.3 --tls-kex=X25519MLKEM768 --force-pqc=ON --use-pqc-sign=ON
+SELECT @@GLOBAL.mysqlx_tls_kex = '' AS mysqlx_tls_kex_default,
+@@GLOBAL.mysqlx_force_pqc AS mysqlx_force_pqc,
+@@GLOBAL.mysqlx_use_pqc_sign AS mysqlx_use_pqc_sign;
+mysqlx_tls_kex_default	mysqlx_force_pqc	mysqlx_use_pqc_sign
+1	0	0
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME IN ('Mysqlx_tls_kex', 'Mysqlx_force_pqc',
+'Mysqlx_use_pqc_sign')
+ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+Mysqlx_force_pqc	ON
+Mysqlx_tls_kex	X25519MLKEM768
+Mysqlx_use_pqc_sign	ON
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.3
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+X Plugin starts with configured PQC tls_kex and use_pqc_sign enabled
+# restart: --mysqlx-tls-kex=X25519MLKEM768 --mysqlx-use-pqc-sign=ON
+SELECT @@GLOBAL.mysqlx_tls_kex = 'X25519MLKEM768' AS mysqlx_tls_kex_configured,
+@@GLOBAL.mysqlx_use_pqc_sign AS mysqlx_use_pqc_sign_enabled;
+mysqlx_tls_kex_configured	mysqlx_use_pqc_sign_enabled
+1	1
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME IN ('Mysqlx_tls_kex', 'Mysqlx_force_pqc',
+'Mysqlx_use_pqc_sign')
+ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+Mysqlx_force_pqc	OFF
+Mysqlx_tls_kex	X25519MLKEM768
+Mysqlx_use_pqc_sign	ON
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.3
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# restart:
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Runtime rejects read-only mysqlx_force_pqc
+SET GLOBAL mysqlx_force_pqc = ON;
+ERROR HY000: Variable 'mysqlx_force_pqc' is a read only variable
+SELECT @@GLOBAL.mysqlx_force_pqc AS mysqlx_force_pqc;
+mysqlx_force_pqc
+0
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.2
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# restart: --mysqlx-force-pqc=ON
+SELECT @@GLOBAL.mysqlx_force_pqc;
+@@GLOBAL.mysqlx_force_pqc
+1
+Runtime rejects read-only mysqlx_tls_kex when mysqlx_force_pqc=ON
+SET GLOBAL mysqlx_tls_kex = 'X25519';
+ERROR HY000: Variable 'mysqlx_tls_kex' is a read only variable
+Variable_name	Value
+Mysqlx_ssl_version	TLSv1.3
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: TLS version is invalid (code 2026)
+ok
+# restart:
+X Plugin PQC variables are persistable with PERSIST_ONLY
+SET PERSIST_ONLY mysqlx_force_pqc = ON;
+SET PERSIST_ONLY mysqlx_tls_kex = 'X25519MLKEM768';
+SET PERSIST_ONLY mysqlx_use_pqc_sign = ON;
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.persisted_variables
+WHERE VARIABLE_NAME IN ('mysqlx_force_pqc', 'mysqlx_tls_kex',
+'mysqlx_use_pqc_sign')
+ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+mysqlx_force_pqc	ON
+mysqlx_tls_kex	X25519MLKEM768
+mysqlx_use_pqc_sign	ON
+SELECT @@GLOBAL.mysqlx_force_pqc AS mysqlx_force_pqc,
+@@GLOBAL.mysqlx_tls_kex = '' AS mysqlx_tls_kex_default,
+@@GLOBAL.mysqlx_use_pqc_sign AS mysqlx_use_pqc_sign;
+mysqlx_force_pqc	mysqlx_tls_kex_default	mysqlx_use_pqc_sign
+0	1	0
+RESET PERSIST mysqlx_force_pqc;
+RESET PERSIST mysqlx_tls_kex;
+RESET PERSIST mysqlx_use_pqc_sign;

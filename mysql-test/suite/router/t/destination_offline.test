@@ -47,8 +47,15 @@ exec $MRS_CLIENT_ARGS
 --echo # Set the server to offline mode, wait for the REST service to return 404
 set global offline_mode = 1;
 
-# We sleep here to give the MRS monitor a chance to notice the offline mode (ttl=1)
---sleep 2
+--let $grep_pattern = .*ERROR .* MRS metadata refresh failed: .*The server is currently in offline mode.*
+--let $grep_file = $MYSQLROUTER_LOGFILE
+--let $wait_timeout = 60
+--source ../include/wait_for_pattern_in_file.inc
+
+--let $grep_pattern = .*WARNING .* Destination is offline, stopping the REST service.*
+--let $grep_file = $MYSQLROUTER_LOGFILE
+--let $wait_timeout = 60
+--source ../include/wait_for_pattern_in_file.inc
 
 exec $MRS_CLIENT_ARGS
   --path /svc/test_schema/tab
@@ -57,6 +64,11 @@ exec $MRS_CLIENT_ARGS
 
 --echo # Clear the offline mode, wait for the REST service to become available again
 set global offline_mode = 0;
+
+--let $grep_pattern = .*INFO .* Destination .+ is available again.*
+--let $grep_file = $MYSQLROUTER_LOGFILE
+--let $wait_timeout = 60
+--source ../include/wait_for_pattern_in_file.inc
 
 exec $MRS_CLIENT_ARGS
   --path /svc/test_schema/tab

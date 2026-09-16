@@ -1,0 +1,72 @@
+INSTALL COMPONENT "file://component_test_mysql_command_services";
+# Test : schema tracker data is exposed through mysql_command_session_state
+SELECT test_mysql_command_session_state_udf("SET @@session.session_track_schema=ON", "USE test", "SESSION_TRACK_SCHEMA");
+test_mysql_command_session_state_udf("SET @@session.session_track_schema=ON", "USE test", "SESSION_TRACK_SCHEMA")
+test
+# Test : system-variable tracker data is exposed through mysql_command_session_state
+SELECT test_mysql_command_session_state_udf("SET @@session.session_track_system_variables='autocommit'", "SET @@session.autocommit=OFF", "SESSION_TRACK_SYSTEM_VARIABLES");
+test_mysql_command_session_state_udf("SET @@session.session_track_system_variables='autocommit'", "SET @@session.autocommit=OFF", "SESSION_TRACK_SYSTEM_VARIABLES")
+autocommit|OFF
+# Test : character_set_client tracker data is exposed through mysql_command_session_state
+SELECT test_mysql_command_session_state_udf("SET @@session.session_track_system_variables='character_set_client'", "SET NAMES latin1", "SESSION_TRACK_SYSTEM_VARIABLES");
+test_mysql_command_session_state_udf("SET @@session.session_track_system_variables='character_set_client'", "SET NAMES latin1", "SESSION_TRACK_SYSTEM_VARIABLES")
+character_set_client|latin1
+# Test : state-change tracker data is exposed through mysql_command_session_state
+SELECT test_mysql_command_session_state_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=1", "SESSION_TRACK_STATE_CHANGE");
+test_mysql_command_session_state_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=1", "SESSION_TRACK_STATE_CHANGE")
+1
+# Test : default consumer capabilities do not expose session-tracker data
+SELECT LENGTH(test_mysql_command_session_state_default_consumer_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=2", "SESSION_TRACK_STATE_CHANGE"));
+LENGTH(test_mysql_command_session_state_default_consumer_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=2", "SESSION_TRACK_STATE_CHANGE"))
+0
+# Test : MYSQL_COMMAND_CLIENT_FLAGS CLIENT_SESSION_TRACK exposes session-tracker data
+SELECT test_mysql_command_session_state_client_flags_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=2", "SESSION_TRACK_STATE_CHANGE");
+test_mysql_command_session_state_client_flags_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=2", "SESSION_TRACK_STATE_CHANGE")
+1
+# Test : transaction-characteristics tracker data is exposed through mysql_command_session_state
+SELECT test_mysql_command_session_state_udf("SET @@session.session_track_transaction_info='CHARACTERISTICS'", "START TRANSACTION READ ONLY", "SESSION_TRACK_TRANSACTION_CHARACTERISTICS");
+test_mysql_command_session_state_udf("SET @@session.session_track_transaction_info='CHARACTERISTICS'", "START TRANSACTION READ ONLY", "SESSION_TRACK_TRANSACTION_CHARACTERISTICS")
+START TRANSACTION READ ONLY;
+# Test : transaction-state tracker data is exposed through mysql_command_session_state
+SELECT test_mysql_command_session_state_udf("SET @@session.session_track_transaction_info='STATE'", "START TRANSACTION", "SESSION_TRACK_TRANSACTION_STATE");
+test_mysql_command_session_state_udf("SET @@session.session_track_transaction_info='STATE'", "START TRANSACTION", "SESSION_TRACK_TRANSACTION_STATE")
+T_______
+# Test : cached session-state data is cleared before the next command
+SELECT LENGTH(test_mysql_command_session_state_sequence_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=3", "SELECT 1", "SESSION_TRACK_STATE_CHANGE"));
+LENGTH(test_mysql_command_session_state_sequence_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=3", "SELECT 1", "SESSION_TRACK_STATE_CHANGE"))
+0
+CREATE PROCEDURE test.test_mysql_command_session_state_multi_result()
+BEGIN
+SET @test_mysql_command_services_state=4;
+SELECT 1;
+END$$
+GRANT EXECUTE ON PROCEDURE test.test_mysql_command_session_state_multi_result TO 'mysql.session'@'localhost';
+# Test : multi-result commands keep only the latest completion boundary
+SELECT LENGTH(test_mysql_command_session_state_udf("SET @@session.session_track_state_change=ON", "CALL test.test_mysql_command_session_state_multi_result()", "SESSION_TRACK_STATE_CHANGE"));
+LENGTH(test_mysql_command_session_state_udf("SET @@session.session_track_state_change=ON", "CALL test.test_mysql_command_session_state_multi_result()", "SESSION_TRACK_STATE_CHANGE"))
+0
+DROP PROCEDURE test.test_mysql_command_session_state_multi_result;
+CREATE PROCEDURE test.test_mysql_command_session_state_error_after_state()
+BEGIN
+SET @test_mysql_command_services_state=6;
+SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='forced failure';
+END$$
+GRANT EXECUTE ON PROCEDURE test.test_mysql_command_session_state_error_after_state TO 'mysql.session'@'localhost';
+# Test : stale cache is cleared, and pending tracker state from a failing command is discarded
+SELECT test_mysql_command_session_state_error_reset_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=5", "CALL test.test_mysql_command_session_state_error_after_state()", "SESSION_TRACK_STATE_CHANGE");
+test_mysql_command_session_state_error_reset_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=5", "CALL test.test_mysql_command_session_state_error_after_state()", "SESSION_TRACK_STATE_CHANGE")
+1
+DROP PROCEDURE test.test_mysql_command_session_state_error_after_state;
+# Test : a later successful command clears prior mysql_command_error_info diagnostics
+SELECT test_mysql_command_session_error_info_success_clears_udf();
+test_mysql_command_session_error_info_success_clears_udf()
+1
+# Test : cached session-state data is cleared by reset_connection
+SELECT test_mysql_command_session_state_reset_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=7", "SESSION_TRACK_STATE_CHANGE");
+test_mysql_command_session_state_reset_udf("SET @@session.session_track_state_change=ON", "SET @test_mysql_command_services_state=7", "SESSION_TRACK_STATE_CHANGE")
+1
+# Test : attached THD execution populates MYSQL_H session-state cache
+SELECT test_mysql_command_session_state_local_thd_udf();
+test_mysql_command_session_state_local_thd_udf()
+1
+UNINSTALL COMPONENT "file://component_test_mysql_command_services";

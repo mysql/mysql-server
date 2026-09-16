@@ -90,10 +90,7 @@ class HARNESS_TLS_EXPORT TlsContext {
    * @returns if curves_list() is supported.
    * @retval false curves_list() is not supported
    */
-  static constexpr bool has_set_curves_list() {
-    // 1.0.2 and later
-    return OPENSSL_VERSION_NUMBER >= 0x1000200f;
-  }
+  static constexpr bool has_set_curves_list() { return true; }
 
   /**
    * if TLS context allows setting cipher-suites (TLSv1.3 and later).
@@ -101,10 +98,7 @@ class HARNESS_TLS_EXPORT TlsContext {
    * @returns if cipher_suites() is supported.
    * @retval false cipher_suites() is not supported
    */
-  static constexpr bool has_set_cipher_suites() {
-    // 1.1.1 and later
-    return OPENSSL_VERSION_NUMBER >= 0x1010100f;
-  }
+  static constexpr bool has_set_cipher_suites() { return true; }
 
   /**
    * construct a TlsContext based on the SSL_METHODs provided by openssl.

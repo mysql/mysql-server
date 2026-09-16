@@ -206,6 +206,14 @@ bool fsp_is_session_temporary(space_id_t space_id);
 @return true if tablespace is global temporary. */
 bool fsp_is_global_temporary(space_id_t space_id);
 
+/** Check if tablespace can contain multiple storage nodes. This currently
+applies to the System Tablespace `srv_sys_space` and the Global Temporary
+Tablespace `srv_tmp_space`.
+@param[in]      space_id        tablespace ID
+@return true if tablespace is Global Temporary Tablespace or System Tablespace.
+*/
+bool fsp_allows_multiple_nodes(space_id_t space_id);
+
 /** Check if checksum is disabled for the given space.
 @param[in]      space_id        tablespace ID
 @return true if checksum is disabled for given space. */
@@ -248,6 +256,9 @@ constexpr uint32_t FSP_FLAGS_WIDTH_ENCRYPTION = 1;
 /** Width of the SDI flag.  This flag indicates the presence of
 tablespace dictionary.*/
 constexpr uint32_t FSP_FLAGS_WIDTH_SDI = 1;
+/** Width of the UNDO_UNUSABLE flag. This flag indicates that the UNDO
+tablespace was being constructed or was being removed.*/
+constexpr uint32_t FSP_FLAGS_WIDTH_UNDO_UNUSABLE = 1;
 
 /** Width of all the currently known tablespace flags */
 constexpr uint32_t FSP_FLAGS_WIDTH =
@@ -255,7 +266,7 @@ constexpr uint32_t FSP_FLAGS_WIDTH =
     FSP_FLAGS_WIDTH_ATOMIC_BLOBS + FSP_FLAGS_WIDTH_PAGE_SSIZE +
     FSP_FLAGS_WIDTH_DATA_DIR + FSP_FLAGS_WIDTH_SHARED +
     FSP_FLAGS_WIDTH_TEMPORARY + FSP_FLAGS_WIDTH_ENCRYPTION +
-    FSP_FLAGS_WIDTH_SDI;
+    FSP_FLAGS_WIDTH_SDI + FSP_FLAGS_WIDTH_UNDO_UNUSABLE;
 
 /** A mask of all the known/used bits in tablespace flags */
 constexpr uint32_t FSP_FLAGS_MASK = ~(~0U << FSP_FLAGS_WIDTH);
@@ -286,10 +297,13 @@ constexpr uint32_t FSP_FLAGS_POS_ENCRYPTION =
 /** Zero relative shift position of the start of the SDI bits */
 constexpr uint32_t FSP_FLAGS_POS_SDI =
     FSP_FLAGS_POS_ENCRYPTION + FSP_FLAGS_WIDTH_ENCRYPTION;
+/** Zero relative shift position of the start of the UNDO_UNUSABLE bits */
+constexpr uint32_t FSP_FLAGS_POS_UNDO_UNUSABLE =
+    FSP_FLAGS_POS_SDI + FSP_FLAGS_WIDTH_SDI;
 
 /** Zero relative shift position of the start of the UNUSED bits */
 constexpr uint32_t FSP_FLAGS_POS_UNUSED =
-    FSP_FLAGS_POS_SDI + FSP_FLAGS_WIDTH_SDI;
+    FSP_FLAGS_POS_UNDO_UNUSABLE + FSP_FLAGS_WIDTH_UNDO_UNUSABLE;
 
 /** Bit mask of the POST_ANTELOPE field */
 constexpr uint32_t FSP_FLAGS_MASK_POST_ANTELOPE =
@@ -318,6 +332,9 @@ constexpr uint32_t FSP_FLAGS_MASK_ENCRYPTION =
 /** Bit mask of the SDI field */
 constexpr uint32_t FSP_FLAGS_MASK_SDI = (~(~0U << FSP_FLAGS_WIDTH_SDI))
                                         << FSP_FLAGS_POS_SDI;
+/** Bit mask of the UNDO_UNUSABLE field */
+constexpr uint32_t FSP_FLAGS_MASK_UNDO_UNUSABLE =
+    (~(~0U << FSP_FLAGS_WIDTH_UNDO_UNUSABLE)) << FSP_FLAGS_POS_UNDO_UNUSABLE;
 
 /** Return the value of the POST_ANTELOPE field */
 constexpr uint32_t FSP_FLAGS_GET_POST_ANTELOPE(uint32_t flags) {
@@ -355,6 +372,10 @@ constexpr uint32_t FSP_FLAGS_GET_ENCRYPTION(uint32_t flags) {
 constexpr uint32_t FSP_FLAGS_HAS_SDI(uint32_t flags) {
   return (flags & FSP_FLAGS_MASK_SDI) >> FSP_FLAGS_POS_SDI;
 }
+/** Return the undo unusable status flag */
+constexpr uint32_t FSP_FLAGS_GET_UNDO_UNUSABLE(uint32_t flags) {
+  return (flags & FSP_FLAGS_MASK_UNDO_UNUSABLE) >> FSP_FLAGS_POS_UNDO_UNUSABLE;
+}
 /** Return the contents of the UNUSED bits */
 constexpr uint32_t FSP_FLAGS_GET_UNUSED(uint32_t flags) {
   return flags >> FSP_FLAGS_POS_UNUSED;
@@ -369,7 +390,7 @@ constexpr void fsp_flags_set_encryption(uint32_t &flags) {
   flags |= FSP_FLAGS_MASK_ENCRYPTION;
 }
 
-/** Set ENCRYPTION bit in tablespace flags */
+/** Unset ENCRYPTION bit in tablespace flags */
 constexpr void fsp_flags_unset_encryption(uint32_t &flags) {
   flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
 }
@@ -382,6 +403,16 @@ constexpr void fsp_flags_set_sdi(uint32_t &flags) {
 /** Set SDI Index bit in tablespace flags */
 constexpr void fsp_flags_unset_sdi(uint32_t &flags) {
   flags &= ~FSP_FLAGS_MASK_SDI;
+}
+
+/** Set UNDO UNUSABLE bit in tablespace flags */
+constexpr void fsp_flags_set_undo_unusable(uint32_t &flags) {
+  flags |= FSP_FLAGS_MASK_UNDO_UNUSABLE;
+}
+
+/** Unset UNDO UNUSABLE bit in tablespace flags */
+constexpr void fsp_flags_unset_undo_unusable(uint32_t &flags) {
+  flags &= ~FSP_FLAGS_MASK_UNDO_UNUSABLE;
 }
 
 /** Use an alias in the code for FSP_FLAGS_GET_SHARED() */

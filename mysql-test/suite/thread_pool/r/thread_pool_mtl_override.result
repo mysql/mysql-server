@@ -1,0 +1,235 @@
+# On windows, the default connection is a named pipe. This is always
+# reported as readable by poll, will allways be attached to a thread,
+# and will be counted as a long-running transaction thread. This would
+# prevent the mtl override mechanism from being turned off, so we
+# disconnect it and open a new TCP connection instead.
+SHOW VARIABLES LIKE 'thread_pool_size';
+Variable_name	Value
+thread_pool_size	1
+SHOW VARIABLES LIKE 'thread_pool_algorithm';
+Variable_name	Value
+thread_pool_algorithm	1
+SHOW VARIABLES LIKE 'thread_pool_dedicated_listeners';
+Variable_name	Value
+thread_pool_dedicated_listeners	OFF
+SHOW VARIABLES LIKE 'thread_pool_max_transactions_limit';
+Variable_name	Value
+thread_pool_max_transactions_limit	1
+# Check how many connections there are in the admin group
+SELECT CONNECTION_COUNT FROM performance_schema.tp_thread_group_state WHERE tp_group_id = 1;
+CONNECTION_COUNT
+0
+GRANT TP_CONNECTION_ADMIN ON *.* TO root@localhost;
+connect admcon,localhost,root,,,,,;
+connection default_tcp;
+# Verify that the admin connection was placed in the admin group
+SELECT CONNECTION_COUNT FROM performance_schema.tp_thread_group_state WHERE tp_group_id = 1;
+CONNECTION_COUNT
+1
+REVOKE TP_CONNECTION_ADMIN ON *.* FROM root@localhost;
+CREATE TABLE t1(i INT);
+# With MTL=1 we need to create two long-running transactions to block additional transactions/queries
+connect con1,localhost,root,,,,,;
+SELECT CONNECTION_COUNT FROM performance_schema.tp_thread_group_state WHERE tp_group_id = 0;
+CONNECTION_COUNT
+2
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES (1);
+connect con2,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES (2);
+connect con3,localhost,root,,,,;
+# Normally, this would block unless MTL is increased
+BEGIN WORK;
+INSERT INTO t1 VALUES (2);
+connection admcon;
+SELECT TIME_OF_LAST_LONGRUNNING_TRXS_CHECK IS NOT NULL AS MTL_OVERRIDE
+FROM performance_schema.tp_thread_group_state WHERE TP_GROUP_ID = 0;
+MTL_OVERRIDE
+1
+connection con3;
+COMMIT WORK;
+connection admcon;
+SET GLOBAL thread_pool_max_transactions_limit = 151;
+# Create some more connections all running long running transactions, to drive up the number of threads
+# in the thread group
+connect con4,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES(3);
+connect con5,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES(3);
+connect con6,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES(3);
+connect con7,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES(3);
+connect con8,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES(3);
+connect con9,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES(3);
+connect con10,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES(3);
+connect con11,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES(3);
+connect con12,localhost,root,,,,;
+SELECT 1;
+1
+1
+BEGIN WORK;
+INSERT INTO t1 VALUES(3);
+# Now commit all active transactions
+connection con1;
+COMMIT WORK;
+connection con2;
+COMMIT WORK;
+connection con3;
+COMMIT WORK;
+connection con4;
+COMMIT WORK;
+connection con5;
+COMMIT WORK;
+connection con6;
+COMMIT WORK;
+connection con7;
+COMMIT WORK;
+connection con8;
+COMMIT WORK;
+connection con9;
+COMMIT WORK;
+connection con10;
+COMMIT WORK;
+connection con11;
+COMMIT WORK;
+connection con12;
+COMMIT WORK;
+connection admcon;
+# Set MTL back to 1 and verify that we can still proceed with a third transaction
+SET GLOBAL thread_pool_max_transactions_limit = 1;
+connection con1;
+BEGIN WORK;
+INSERT INTO t1 VALUES (10);
+connection con2;
+BEGIN WORK;
+INSERT INTO t1 VALUES (20);
+connection con3;
+SELECT 1;
+1
+1
+# Cleaning up
+connection con12;
+disconnect con12;
+connection con11;
+disconnect con11;
+connection con10;
+disconnect con10;
+connection con9;
+disconnect con9;
+connection con8;
+disconnect con8;
+connection con7;
+disconnect con7;
+connection con6;
+disconnect con6;
+connection con5;
+disconnect con5;
+connection con4;
+disconnect con4;
+connection con3;
+disconnect con3;
+connection con2;
+COMMIT WORK;
+disconnect con2;
+connection con1;
+COMMIT WORK;
+disconnect con1;
+connection admcon;
+SELECT TIME_OF_LAST_LONGRUNNING_TRXS_CHECK IS NOT NULL AS MTL_OVERRIDE
+FROM performance_schema.tp_thread_group_state WHERE TP_GROUP_ID = 0;
+MTL_OVERRIDE
+1
+# Wait until MTL override has been disabled
+SELECT TIME_OF_LAST_LONGRUNNING_TRXS_CHECK IS NOT NULL AS MTL_OVERRIDE
+FROM performance_schema.tp_thread_group_state WHERE TP_GROUP_ID = 0;
+MTL_OVERRIDE
+0
+#
+# Bug#36347102: system variable thread_pool_longrun_trx_limit can't be
+# set
+#
+# Verify that the updated value for thread_pool_longrun_trx_limit is
+# visible
+connection default_tcp;
+SHOW VARIABLES LIKE 'thread_pool_longrun_trx_limit';
+Variable_name	Value
+thread_pool_longrun_trx_limit	65
+SELECT @@GLOBAL.thread_pool_longrun_trx_limit;
+@@GLOBAL.thread_pool_longrun_trx_limit
+65
+SET GLOBAL thread_pool_longrun_trx_limit = 1000;
+SHOW VARIABLES LIKE 'thread_pool_longrun_trx_limit';
+Variable_name	Value
+thread_pool_longrun_trx_limit	1000
+SELECT @@GLOBAL.thread_pool_longrun_trx_limit;
+@@GLOBAL.thread_pool_longrun_trx_limit
+1000
+#
+# Bug#36371145: system variable thread_pool_longrun_trx_limit does not honour MIN, MAX limits
+#
+SET GLOBAL thread_pool_longrun_trx_limit=0;
+ERROR 42000: Variable 'thread_pool_longrun_trx_limit' can't be set to the value of '0'
+SET GLOBAL thread_pool_longrun_trx_limit=9;
+ERROR 42000: Variable 'thread_pool_longrun_trx_limit' can't be set to the value of '9'
+SET GLOBAL thread_pool_longrun_trx_limit=10;
+SET GLOBAL thread_pool_longrun_trx_limit=86400000;
+SET GLOBAL thread_pool_longrun_trx_limit=86400001;
+ERROR 42000: Variable 'thread_pool_longrun_trx_limit' can't be set to the value of '86400001'
+SET GLOBAL thread_pool_longrun_trx_limit=-1;
+ERROR 42000: Variable 'thread_pool_longrun_trx_limit' can't be set to the value of '-1'
+SET GLOBAL thread_pool_longrun_trx_limit=18446744073709551615;
+ERROR 42000: Variable 'thread_pool_longrun_trx_limit' can't be set to the value of '18446744073709551615'
+SET GLOBAL thread_pool_longrun_trx_limit=18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_longrun_trx_limit'
+# Restore original value
+SET GLOBAL thread_pool_longrun_trx_limit = 65;
+connection admcon;
+disconnect admcon;
+connection default_tcp;
+DROP TABLE t1;
+SET GLOBAL thread_pool_max_transactions_limit = 1;
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

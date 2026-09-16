@@ -154,12 +154,12 @@ inline space_id_t trx_undo_num_to_space_id(ulint num, bool is_temp) {
 
   /* We assume at this point that all undo tablespaces have
   reserved space_ids and RSEG_ARRAY pages. */
-  ut_ad(!undo::spaces->empty());
+  ut_ad(!undo_truncate::spaces->empty());
 
   /* The space_id_bank for this slot cannot change since this call is done
   by purge or MVCC. This space_id can only change during truncate when
   there are no more undo logs in this undo tablespace. */
-  space_id_t space_id = undo::num2id(static_cast<space_id_t>(num));
+  space_id_t space_id = undo_truncate::num2id(static_cast<space_id_t>(num));
   ut_ad(space_id != SPACE_UNKNOWN);
 
   return (space_id);
@@ -175,7 +175,7 @@ inline trx_rsegsf_t *trx_rsegsf_get(space_id_t space_id, mtr_t *mtr) {
   trx_rsegsf_t *rsegs_header;
 
   ut_ad(mtr != nullptr);
-  ut_ad(undo::is_reserved(space_id));
+  ut_ad(undo_truncate::is_reserved(space_id));
 
   block = buf_page_get(page_id_t(space_id, FSP_RSEG_ARRAY_PAGE_NO),
                        univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);

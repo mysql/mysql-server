@@ -3,6 +3,11 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection slave]
+SET @saved_relay_log_purge = @@global.relay_log_purge;
+SET @@global.relay_log_purge = OFF;
+START REPLICA;
+[connection master]
 ###################################################
 # Step 1                                          #
 ###################################################
@@ -49,4 +54,6 @@ Log file had no transactions with length information.
 [connection master]
 Asserting all GTID transaction length information in 'master-bin.000001'
 Inspected 566 transactions, all with correct transaction length.
+[connection slave]
+SET @@global.relay_log_purge = @saved_relay_log_purge;
 include/rpl/deinit.inc

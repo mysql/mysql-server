@@ -32,12 +32,33 @@ Clone Plugin: Client implementation
 #include "plugin/clone/include/clone_os.h"
 
 #include "my_byteorder.h"
-#include "my_systime.h"  // my_sleep()
+#include "my_systime.h"      // my_sleep()
+#include "sql/sql_plugin.h"  // For check_valid_path() only.
 #include "sql/sql_thd_internal_api.h"
 #include "sql_string.h"
+#include "storage/innobase/include/clone_descriptor_format.h"
 
 /* Namespace for all clone data types */
 namespace myclone {
+
+#ifndef NDEBUG
+namespace {
+
+uint32_t clone_desc_read4(const uchar *ptr) {
+  return (static_cast<uint32_t>(ptr[0]) << 24) |
+         (static_cast<uint32_t>(ptr[1]) << 16) |
+         (static_cast<uint32_t>(ptr[2]) << 8) | static_cast<uint32_t>(ptr[3]);
+}
+
+void clone_desc_write4(uchar *ptr, uint32_t val) {
+  ptr[0] = static_cast<uchar>(val >> 24);
+  ptr[1] = static_cast<uchar>(val >> 16);
+  ptr[2] = static_cast<uchar>(val >> 8);
+  ptr[3] = static_cast<uchar>(val);
+}
+
+}  // namespace
+#endif
 
 /** Default timeout is 300 seconds */
 Time_Sec Client::s_reconnect_timeout{300};
@@ -704,6 +725,16 @@ int Client::clone() {
   uint restart_count = 0;
   char info_mesg[128];
 
+#ifndef NDEBUG
+  if (clone_inject_invalid_file_index) {
+    m_share->m_inject_invalid_file_index = true;
+  }
+
+  if (clone_inject_missing_task_mapping) {
+    m_share->m_inject_missing_task_mapping = true;
+  }
+#endif
+
   auto num_workers = get_max_concurrency() - 1;
 
   /* Begin PFS state if no concurrent clone in progress. */
@@ -1011,6 +1042,10 @@ bool Client::plugin_is_loadable(std::string &so_name) {
     return false;
   }
 
+  if (check_valid_path(so_name.c_str(), so_name.length())) {
+    return false;
+  }
+
   std::string path(configs[0].second);
   path.append("/");
   path.append(so_name);
@@ -1074,7 +1109,7 @@ static void test_configure_versions([[maybe_unused]] std::string &config_val,
     donor_val = "8.0.37";
   });
   DBUG_EXECUTE_IF("clone_one_lts_to_next_lts", {
-    config_val = "10.7.0";
+    config_val = "28.4.0";
     donor_val = "9.7.0";
   });
 }
@@ -1105,8 +1140,12 @@ static int validate_json_configs(rapidjson::Document &recipient,
     DBUG_EXECUTE_IF("clone_one_lts_to_next_lts", { is_donor_lts = true; });
   }
 
+  const std::string recp_prev_lts =
+      recipient.HasMember("prev_lts") ? recipient["prev_lts"].GetString() : "";
+
   return mysql_service_clone_protocol->mysql_clone_validate_version(
-      recipient_version, donor_version, is_recipient_lts, is_donor_lts);
+      recipient_version, donor_version, is_recipient_lts, is_donor_lts,
+      recp_prev_lts);
 }
 
 int Client::validate_remote_params() {
@@ -1175,6 +1214,7 @@ int Client::validate_remote_params() {
 
   if (m_share->m_protocol_version == CLONE_PROTOCOL_VERSION_V4) {
     configs.push_back({"maturity", MYSQL_VERSION_MATURITY});
+    configs.push_back({"prev_lts", MYSQL_PREVIOUS_LTS_VERSION});
   }
 
   rapidjson::Document recipient_configs;
@@ -1253,6 +1293,10 @@ int Client::add_plugin_with_so(const uchar *packet, size_t length) {
   auto err = extract_key_value(packet, length, plugin);
 
   if (err == 0) {
+    DBUG_EXECUTE_IF("clone_inject_invalid_donor_plugin_so", {
+      plugin.first.assign("clone_path_traversal");
+      plugin.second.assign("../clone_path_traversal.so");
+    });
     m_parameters.m_plugins_with_so.push_back(plugin);
   }
   return (err);
@@ -1774,6 +1818,17 @@ int Client::set_locators(const uchar *buffer, size_t length) {
     return (err);
   }
 
+#ifndef NDEBUG
+  /* Fault injection for coverage: remove one task mapping after locator
+  initialization so later descriptor handling sees a valid locator index but
+  an undersized task vector. This simulates the condition guarded in
+  set_descriptor() without requiring protocol corruption beyond the test hook.
+  */
+  if (m_share->m_inject_missing_task_mapping && !m_tasks.empty()) {
+    m_tasks.pop_back();
+  }
+#endif
+
   /* Master should set locators */
   if (is_master()) {
     int index = 0;
@@ -1792,16 +1847,24 @@ int Client::set_locators(const uchar *buffer, size_t length) {
 int Client::set_descriptor(const uchar *buffer, size_t length) {
   int err = 0;
 
+  if (length == 0) {
+    return ER_CLONE_PROTOCOL;
+  }
   /* Get Storage Engine */
   auto db_type = static_cast<enum legacy_db_type>(*buffer);
   ++buffer;
   length--;
 
+  if (length == 0) {
+    return ER_CLONE_PROTOCOL;
+  }
   /* Get Locator Index */
   auto loc_index = *buffer;
   ++buffer;
   length--;
-
+  if (loc_index >= m_share->m_storage_vec.size()) {
+    return ER_CLONE_PROTOCOL;
+  }
   auto *loc = &m_share->m_storage_vec[loc_index];
   auto *hton = loc->m_hton;
 
@@ -1813,8 +1876,35 @@ int Client::set_descriptor(const uchar *buffer, size_t length) {
 
   Ha_clone_cbk *clone_callback = new Client_Cbk(this);
 
+#ifndef NDEBUG
+  /** Corrupt the serialized file metadata index for debug test coverage of
+  recipient-side descriptor validation. */
+  std::vector<uchar> desc_buffer;
+  if (m_share->m_inject_invalid_file_index &&
+      length >= clone_desc_format::CLONE_FILE_IDX_OFFSET + 4 &&
+      clone_desc_read4(buffer + clone_desc_format::CLONE_DESC_TYPE_OFFSET) ==
+          clone_desc_format::CLONE_DESC_FILE_METADATA_TYPE) {
+    desc_buffer.assign(buffer, buffer + length);
+    auto file_index = clone_desc_read4(
+        desc_buffer.data() + clone_desc_format::CLONE_FILE_IDX_OFFSET);
+    clone_desc_write4(
+        desc_buffer.data() + clone_desc_format::CLONE_FILE_IDX_OFFSET,
+        file_index + 1024);
+    buffer = desc_buffer.data();
+    length = desc_buffer.size();
+  }
+#endif
+
   clone_callback->set_data_desc(buffer, length);
   clone_callback->clear_flags();
+
+  if (loc_index >= m_tasks.size()) {
+    err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0),
+             "Wrong Clone RPC response, invalid descriptor task mapping");
+    delete clone_callback;
+    return (err);
+  }
 
   /* Apply using descriptor */
   assert(loc_index < m_tasks.size());

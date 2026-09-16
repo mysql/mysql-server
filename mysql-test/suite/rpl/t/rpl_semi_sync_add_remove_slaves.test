@@ -52,6 +52,7 @@ while ($i < 10)
   {
     --connect(server1_1, localhost,root,,,$MASTER_MYPORT)
     CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
+    CALL mtr.add_suppression("Query execution was interrupted");
     --source include/rpl/install_semisync_source.inc
   }
   if ( $i != 1 )

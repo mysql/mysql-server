@@ -804,7 +804,9 @@ MySQL clients support the protocol:
 #include "sql/conn_handler/socket_connection.h"  // stmt_info_new_packet
 #include "sql/current_thd.h"                     // current_thd
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/debug_sync.h"  // debug_sync_end
+#include "sql/dd/dd_utility.h"   // dd::check_if_server_ddse_readonly
+#include "sql/dd/types/table.h"  // dd::Table::is_temporary(), ::engine()
+#include "sql/debug_sync.h"      // debug_sync_end
 #include "sql/derror.h"
 #include "sql/event_data_objects.h"  // init_scheduler_psi_keys
 #include "sql/events.h"              // Events
@@ -1280,6 +1282,7 @@ char *opt_replica_skip_errors;
 bool opt_replica_allow_batching = true;
 bool opt_collect_replica_applier_metrics = false;
 bool opt_replica_allow_higher_version_source = true;
+bool opt_rpl_dump_thread_account_affinity = false;
 
 /*
   Legacy global handlerton. These will be removed (please do not add more).
@@ -7250,27 +7253,21 @@ static int init_thread_environment() {
 
 static PSI_memory_key key_memory_openssl = PSI_NOT_INSTRUMENTED;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#define FILE_LINE_ARGS
-#else
-#define FILE_LINE_ARGS , const char *, int
-#endif
-
-static void *my_openssl_malloc(size_t size FILE_LINE_ARGS) {
+static void *my_openssl_malloc(size_t size, const char *, int) {
 #ifndef _WIN32
   return my_malloc(key_memory_openssl, size, MYF(MY_WME));
 #else
   return my_std_malloc(key_memory_openssl, size, MYF(MY_WME));
 #endif  // !_WIN32
 }
-static void *my_openssl_realloc(void *ptr, size_t size FILE_LINE_ARGS) {
+static void *my_openssl_realloc(void *ptr, size_t size, const char *, int) {
 #ifndef _WIN32
   return my_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
 #else
   return my_std_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
 #endif  // !_WIN32
 }
-static void my_openssl_free(void *ptr FILE_LINE_ARGS) {
+static void my_openssl_free(void *ptr, const char *, int) {
 #ifndef _WIN32
   return my_free(ptr);
 #else
@@ -7328,10 +7325,6 @@ static int init_ssl_communication() {
                mysql_admin_channel.c_str(), mysql_main_channel.c_str());
     }
   }
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   if (init_rsa_keys()) return 1;
 
@@ -9182,16 +9175,16 @@ Manifest_file_option_parser_helper::Manifest_file_option_parser_helper(
 
   /* Backup mysql_real_data_home */
   memcpy(save_datadir_, mysql_real_data_home, mysql_real_data_home_size);
+  memset(mysql_real_data_home, 0, mysql_real_data_home_size);
   /* Copy the string ensuring it is always 0 terminated */
-  strncpy(mysql_real_data_home, local_datadir_buffer,
+  strmake(mysql_real_data_home, local_datadir_buffer,
           mysql_real_data_home_size - 1);
-  mysql_real_data_home[mysql_real_data_home_size - 1] = 0;
 
   /* Backup opt_plugin_dir */
   memcpy(save_plugindir_, opt_plugin_dir, opt_plugin_dir_size);
+  memset(opt_plugin_dir, 0, opt_plugin_dir_size);
   /* Copy the string ensuring it is always 0 terminated */
-  strncpy(opt_plugin_dir, local_plugindir_buffer, opt_plugin_dir_size - 1);
-  opt_plugin_dir[opt_plugin_dir_size - 1] = 0;
+  strmake(opt_plugin_dir, local_plugindir_buffer, opt_plugin_dir_size - 1);
 
   valid_ = true;
 }
@@ -11522,6 +11515,30 @@ static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+static const char *ssl_get_key_exchange_group_name(SSL_handle ssl) {
+  if (ssl == nullptr) return "";
+
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  const char *group = SSL_get0_group_name(ssl);
+  if (group != nullptr) return group;
+#endif
+
+  return "";
+}
+
+static const char *ssl_get_local_signature_name(SSL_handle ssl) {
+  if (ssl == nullptr) return "";
+
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  const char *sigalg = nullptr;
+  if (SSL_get0_signature_name(ssl, &sigalg) == 1 && sigalg != nullptr) {
+    return sigalg;
+  }
+#endif
+
+  return "";
+}
+
 static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff) {
   SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
@@ -11551,6 +11568,20 @@ static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *) {
     var->value = const_cast<char *>(SSL_get_cipher(ssl));
   else
     var->value = const_cast<char *>("");
+  return 0;
+}
+
+static int show_ssl_get_kex_algorithm(THD *thd, SHOW_VAR *var, char *) {
+  SSL_handle ssl = thd->get_ssl();
+  var->type = SHOW_CHAR;
+  var->value = const_cast<char *>(ssl_get_key_exchange_group_name(ssl));
+  return 0;
+}
+
+static int show_ssl_get_sign_algorithm(THD *thd, SHOW_VAR *var, char *) {
+  SSL_handle ssl = thd->get_ssl();
+  var->type = SHOW_CHAR;
+  var->value = const_cast<char *>(ssl_get_local_signature_name(ssl));
   return 0;
 }
 
@@ -11591,11 +11622,7 @@ static int show_replica_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
 }
 
 static int show_tls_library_version(THD *, SHOW_VAR *var, char *buff) {
-#if OPENSSL_VERSION_NUMBER <= 0x10100000L
-  strncpy(buff, SSLeay_version(SSLEAY_VERSION), SHOW_VAR_FUNC_BUFF_SIZE);
-#else
   strncpy(buff, OpenSSL_version(OPENSSL_VERSION), SHOW_VAR_FUNC_BUFF_SIZE);
-#endif
   buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
   var->type = SHOW_CHAR;
   var->value = buff;
@@ -12056,8 +12083,12 @@ SHOW_VAR status_vars[] = {
     {"Ssl_session_cache_timeout",
      (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_timeout, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
+    {"Tls_key_exchange_algorithm", (char *)&show_ssl_get_kex_algorithm,
+     SHOW_FUNC, SHOW_SCOPE_SESSION},
     {"Tls_library_version", (char *)&show_tls_library_version, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
+    {"Tls_sign_algorithm", (char *)&show_ssl_get_sign_algorithm, SHOW_FUNC,
+     SHOW_SCOPE_SESSION},
     {"Resource_group_supported", (char *)show_resource_group_support, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Telemetry_logs_supported", (char *)show_telemetry_logs_support, SHOW_FUNC,
@@ -14006,8 +14037,6 @@ PSI_mutex_key key_RELAYLOG_LOCK_log_end_pos;
 PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_gtid_ensure_index_mutex;
-PSI_mutex_key key_object_cache_mutex;  // TODO need to initialize
-PSI_cond_key key_object_loading_cond;  // TODO need to initialize
 PSI_mutex_key key_mta_temp_table_LOCK;
 PSI_mutex_key key_mta_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
@@ -14015,6 +14044,7 @@ PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_monitor_info_run_lock;
 PSI_mutex_key key_LOCK_delegate_connection_mutex;
 PSI_mutex_key key_LOCK_group_replication_connection_mutex;
+PSI_mutex_key key_object_cache_mutex;
 
 /* clang-format off */
 static PSI_mutex_info all_server_mutexes[]=
@@ -14110,6 +14140,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_group_replication_connection_mutex, "LOCK_group_replication_connection_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_authentication_policy, "LOCK_authentication_policy", PSI_FLAG_SINGLETON, 0, "A lock to ensure execution of CREATE USER or ALTER USER sql and SET @@global.authentication_policy variable are serialized"},
   { &key_LOCK_global_conn_mem_limit, "LOCK_global_conn_mem_limit", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_object_cache_mutex, "DD::object_cache_mutex", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 
@@ -14181,6 +14212,7 @@ PSI_cond_key key_commit_order_manager_cond;
 PSI_cond_key key_monitor_info_run_cond;
 PSI_cond_key key_COND_delegate_connection_cond_var;
 PSI_cond_key key_COND_group_replication_connection_cond_var;
+PSI_cond_key key_object_loading_cond;
 
 /* clang-format off */
 static PSI_cond_info all_server_conds[]=
@@ -14224,7 +14256,8 @@ static PSI_cond_info all_server_conds[]=
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_monitor_info_run_cond, "Source_IO_monitor::run_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_COND_delegate_connection_cond_var, "THD::COND_delegate_connection_cond_var", 0, 0, PSI_DOCUMENT_ME},
-  { &key_COND_group_replication_connection_cond_var, "THD::COND_group_replication_connection_cond_var", 0, 0, PSI_DOCUMENT_ME}
+  { &key_COND_group_replication_connection_cond_var, "THD::COND_group_replication_connection_cond_var", 0, 0, PSI_DOCUMENT_ME},
+  { &key_object_loading_cond, "DD::object_loading_cond", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 
@@ -14702,12 +14735,91 @@ bool do_create_native_table_for_pfs(THD *thd, const Plugin_table *t) {
   return false;
 }
 
+/**
+  Validate that DD metadata already exists for a Performance Schema plugin
+  table.
+
+  This is used when the DD storage engine is read-only. In that mode, plugin
+  table initialization may register local PFS table shares, but must not create,
+  drop, or recreate shared DD metadata.
+
+  @param  thd    Current THD handle
+  @param  t      Table definition
+  @retval false  Success, table metadata exists
+  @retval true   Fail, table metadata does not exist or error
+*/
+static bool validate_existing_native_table_for_pfs(THD *thd,
+                                                   const Plugin_table *t) {
+  const char *schema_name = t->get_schema_name();
+  const char *table_name = t->get_name();
+
+  MDL_request_list mdl_requests;
+  MDL_request schema_request;
+  MDL_request table_request;
+
+  /* Acquire locks for the PERFORMANCE_SCHEMA and for the table.  */
+  MDL_REQUEST_INIT(&schema_request, MDL_key::SCHEMA, schema_name, "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&table_request, MDL_key::TABLE, schema_name, table_name,
+                   MDL_SHARED_READ, MDL_TRANSACTION);
+
+  mdl_requests.push_front(&schema_request);
+  mdl_requests.push_front(&table_request);
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout)) {
+    return true;
+  }
+  /* Release table metadata on exit. */
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  /* Retrieve the table metadata. */
+  const dd::Table *table_def = nullptr;
+  if (thd->dd_client()->acquire(schema_name, table_name, &table_def)) {
+    return true;
+  }
+
+  /* Verify that the table exists. */
+  if (table_def == nullptr) {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
+    return true;
+  }
+
+  /* Confirm that it is not a temporary table. */
+  if (table_def->is_temporary()) {
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "Performance Schema plugin table metadata is temporary");
+    return true;
+  }
+  /* Verify that the correct storage engine is associated with the table. */
+  if (my_strcasecmp(system_charset_info, table_def->engine().c_str(),
+                    "PERFORMANCE_SCHEMA") != 0) {
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "Performance Schema plugin table metadata has unexpected engine");
+    return true;
+  }
+
+  return false;
+}
+
 bool create_native_table_for_pfs(const Plugin_table *t) {
-  /* If InnoDB is not initialized yet, return error */
+  /* If InnoDB is not initialized yet, return error. */
   if (!is_builtin_and_core_se_initialized()) return true;
 
   THD *thd = current_thd;
   assert(thd);
+
+  /*
+    If the DD storage engine is read-only, plugin/component PFS table
+    initialization must not create, drop, or recreate DD metadata.
+
+    In this mode, the table share may still be registered locally in PFS, but
+    the corresponding DD metadata must already exist.
+  */
+  if (dd::check_if_server_ddse_readonly(thd, t->get_schema_name())) {
+    return validate_existing_native_table_for_pfs(thd, t);
+  }
+
   return do_create_native_table_for_pfs(thd, t);
 }
 
@@ -14735,10 +14847,11 @@ static bool do_drop_native_table_for_pfs(THD *thd, const char *schema_name,
 
 bool drop_native_table_for_pfs(const char *schema_name,
                                const char *table_name) {
-  /* If server is shutting down, by the time control reaches here, DD would have
-   * already been shut down. Therefore return success and tables won't be
-   * deleted and would be available at next server start.
-   */
+  /*
+    If server is shutting down, by the time control reaches here, DD would have
+    already been shut down. Therefore return success and tables won't be
+    deleted and would be available at next server start.
+  */
   if (get_server_state() == SERVER_SHUTTING_DOWN) {
     return false;
   }
@@ -14749,6 +14862,16 @@ bool drop_native_table_for_pfs(const char *schema_name,
     assert(get_server_state() == SERVER_BOOTING);
     return false;
   }
+
+  /*
+    If the DD storage engine is read-only, plugin/component PFS table
+    deinitialization must not drop shared DD metadata. The caller may still
+    remove the local PFS table share, but the DD metadata must remain intact.
+  */
+  if (dd::check_if_server_ddse_readonly(thd, schema_name)) {
+    return false;
+  }
+
   return do_drop_native_table_for_pfs(thd, schema_name, table_name);
 }
 
@@ -14769,7 +14892,7 @@ bool update_named_pipe_full_access_group(const char *new_group_name) {
 
   @return a bool indicating partial_revokes status of the server.
     @retval true  Parital revokes is ON
-    @retval flase Partial revokes is OFF
+    @retval false Partial revokes is OFF
 */
 bool mysqld_partial_revokes() {
   return partial_revokes.load(std::memory_order_relaxed);

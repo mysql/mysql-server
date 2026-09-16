@@ -25,6 +25,7 @@ CREATE TABLE t (a int);
 [connection server_2]
 include/rpl/restart_server.inc [server_number=2 gtids=on parameters: --skip_slave_start=0 --rpl_semi_sync_replica_enabled=1]
 # 4. Sanity check - check whether semi-sync replication was correctly restarted
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 include/rpl/assert_replica_running.inc
 include/rpl/assert_replica_no_error.inc
 include/assert.inc [Semi sync should be enabled on the replica]

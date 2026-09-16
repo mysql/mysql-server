@@ -61,8 +61,6 @@ void ut_set_assert_callback(std::function<void()> &callback) {
       << ((expr != nullptr) ? ":" : "") << ((expr != nullptr) ? expr : "")
       << " thread " << to_string(std::this_thread::get_id());
 
-  flush_error_log_messages();
-
 #else  /* !UNIV_HOTBACKUP && !defined(UNIV_NO_ERR_MSGS) */
   const auto *filename = base_name(file);
 
@@ -91,11 +89,21 @@ void ut_set_assert_callback(std::function<void()> &callback) {
       "InnoDB: about forcing recovery.\n",
       stderr);
 
-  fflush(stderr);
-  fflush(stdout);
   /* Call any registered callback function. */
   if (assert_callback) {
     assert_callback();
   }
+  ut_fatal_error();
+}
+
+[[noreturn]] void ut_fatal_error() {
+  fflush(stdout);
+  fflush(stderr);
+
+#if !defined(UNIV_LIBRARY) && !defined(UNIV_HOTBACKUP) && \
+    !defined(INNORWLOCKTEST)
+  flush_error_log_messages();
+#endif
+
   my_abort();
 }

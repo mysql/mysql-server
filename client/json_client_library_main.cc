@@ -138,7 +138,7 @@ int main() {
                     << std::endl;
         },
         [] { std::cout << "2. depth_error" << std::endl; }));
-    if (dom != nullptr) assert(false);
+    assert(dom == nullptr);
   }
 
   {
@@ -150,7 +150,7 @@ int main() {
                     << std::endl;
         },
         [] { assert(false); }));
-    if (dom != nullptr) assert(false);
+    assert(dom == nullptr);
   }
 
   {
@@ -169,7 +169,7 @@ int main() {
 
   {
     /* DATETIME scalar */
-    Datetime_val dt{1988, 12, 15};
+    Datetime_val dt{1988, 12, 15, 0, 0, 0, 0};
     const Json_datetime jd{dt, MYSQL_TYPE_DATETIME};
 
     if (json_binary::serialize(&jd, CoutSerializationErrorHandler(), &buf))
@@ -275,7 +275,7 @@ int main() {
           [](const char *, int) { std::cout << "9.1. ERROR \n"; },
           [](MYSQL_TIME_STATUS &) { std::cout << "9.1. checking \n"; }, &dt);
       std::cout << "9.1. 2015-01-15 23:24:25.000000 is" << (res ? " NOT " : " ")
-                << "a valid DATE \n";
+                << "a valid DATETIME \n";
     }
     {
       Json_wrapper jw = Json_wrapper(
@@ -285,7 +285,7 @@ int main() {
           [](const char *, int) { std::cout << "9.2. ERROR \n"; },
           [](MYSQL_TIME_STATUS &) { std::cout << "9.2. checking \n"; }, &dt);
       std::cout << "9.2. 2015-99-15 23:24:25.000000 is" << (res ? " NOT " : " ")
-                << "a valid DATE \n";
+                << "a valid DATETIME \n";
     }
     {
       Json_wrapper jw = Json_wrapper(

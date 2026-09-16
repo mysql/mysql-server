@@ -25,12 +25,10 @@ DROP TABLE t1;
 [connection slave]
 
 # T1.3. On the replica: Check that SQL thread has stopped
-
-include/assert.inc ["SQL thread should be stopped"]
-
 # T1.4. On the replica: Check that a correct message has been printed
 #       into the error log
 
+include/rpl/wait_for_applier_error.inc [errno=13121]
 include/assert_error_log.inc [server: 2, pattern: Unrecognized event format. The event appears to originate from a future server version]
 #
 # Clean-up after T1
@@ -54,6 +52,7 @@ DROP TABLE t1;
 # T2.3. On the replica: Check that IO thread has stopped
 
 [connection slave]
+include/rpl/wait_for_receiver_error.inc [errno=13122]
 include/assert.inc ["IO thread should be stopped"]
 #
 # Clean-up after T2

@@ -4,9 +4,9 @@
 #  master. So they become common comments and will not be applied on slave.
 #
 #  - Example: 
-#  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /*!99999 ,(3)*/ 
+#  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /*!999999 ,(3)*/ 
 #  will be binlogged as 
-#  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /* 99999 ,(3)*/'.
+#  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /* 999999 ,(3)*/'.
 ###############################################################################
 --source include/rpl/set_privilege_checks_user_as_system_user.inc
 source include/rpl/init_source_replica.inc;
@@ -23,7 +23,7 @@ let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --echo # In a statement, some CCs are applied while others are not. The CCs
 --echo # which are not applied on master will be binlogged as common comments.
 
-/*!99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /*!99999 ,(11)*/;
+/*!999999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /*!999999 ,(11)*/;
 
 source include/rpl/deprecated/show_binlog_events.inc;
 let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
@@ -37,7 +37,7 @@ let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --echo # Verify whether it can be binlogged correctly when executing prepared
 --echo # statement.
 --connection master
-PREPARE stmt FROM 'INSERT INTO /*!99999 blabla*/ t1 VALUES(60) /*!99999 ,(61)*/';
+PREPARE stmt FROM 'INSERT INTO /*!999999 blabla*/ t1 VALUES(60) /*!999999 ,(61)*/';
 EXECUTE stmt;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT);
@@ -50,7 +50,7 @@ EXECUTE stmt;
 --connection master
 --echo
 SET @value=62;
-PREPARE stmt FROM 'INSERT INTO /*!99999 blabla */ t1 VALUES(?) /*!99999 ,(63)*/';
+PREPARE stmt FROM 'INSERT INTO /*!999999 blabla */ t1 VALUES(?) /*!999999 ,(63)*/';
 EXECUTE stmt USING @value;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT);
@@ -70,7 +70,7 @@ let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --echo # comments
 --connection master
 --error 1064
-SELECT c1 FROM /*!99999 t1 WHEREN;
+SELECT c1 FROM /*!999999 t1 WHEREN;
 
 
 --echo #

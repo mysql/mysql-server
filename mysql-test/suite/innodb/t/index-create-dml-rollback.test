@@ -5,6 +5,13 @@
 
 --source include/have_debug_sync.inc
 
+# DDL DEBUG_SYNC actions belong to the foreground THD. Multiple DDL workers
+# execute them with a worker THD and trip the debug-sync ownership assertion.
+# Therefore, run the DDL in single-thread mode.
+SET @saved_innodb_ddl_threads = @@GLOBAL.innodb_ddl_threads;
+SET GLOBAL innodb_ddl_threads = 1;
+SET SESSION innodb_ddl_threads = 1;
+
 --echo #
 --echo # Bug#37235041 - Duplicate Detection Flaw for NULL Values in UK During
 --echo # DDL Rollback Operations
@@ -23,7 +30,7 @@ CREATE TABLE t1 (id int primary key, c1 int,c2 int);
 INSERT INTO t1 VALUES (1,1,null);
 INSERT INTO t1 VALUES (2,2,null);
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
-SET DEBUG_SYNC = 'row_log_apply_after  WAIT_FOR s3';
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL s4 WAIT_FOR s3';
 --send ALTER TABLE t1 ADD UNIQUE KEY uk1(c1,c2)
 
 connection con1;
@@ -32,6 +39,7 @@ BEGIN;
 # delete (1,null) from uk1
 DELETE FROM t1 where id=1;
 SET DEBUG_SYNC = 'now SIGNAL s2';
+SET DEBUG_SYNC = 'now WAIT_FOR s4';
 
 connection con2;
 # insert the deleted values into uk1
@@ -56,7 +64,7 @@ CREATE TABLE t1 (id int primary key, c1 int);
 INSERT INTO t1 VALUES (1,1);
 
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
-SET DEBUG_SYNC = 'row_log_apply_after  WAIT_FOR s3';
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL s4 WAIT_FOR s3';
 --send ALTER TABLE t1 ADD UNIQUE KEY uk2(c1)
 
 connection con1;
@@ -65,6 +73,7 @@ BEGIN;
 # delete (1) from uk2
 DELETE FROM t1 where id=1;
 SET DEBUG_SYNC = 'now SIGNAL s2';
+SET DEBUG_SYNC = 'now WAIT_FOR s4';
 
 connection con2;
 # insert the deleted values into uk2
@@ -85,3 +94,6 @@ SELECT * FROM t1;
 DROP TABLE t1;
 disconnect con1;
 disconnect con2;
+connection default;
+SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
+SET SESSION innodb_ddl_threads = DEFAULT;

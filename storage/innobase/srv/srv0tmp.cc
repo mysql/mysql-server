@@ -84,9 +84,8 @@ Tablespace::~Tablespace() {
                                           &file_pre_exists);
 
   if (file_pre_exists && !success) {
-    ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE)
-        << "Failed to delete file " << path();
-    os_file_get_last_error(true);
+    ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE, path().c_str());
+    os_file_log_last_error();
     ut_d(ut_error);
   }
 }
@@ -228,7 +227,7 @@ void Tablespace_pool::free_ts(Tablespace *ts) {
   fil_space_t *space = fil_space_get(space_id);
   ut_ad(space != nullptr);
 
-  if (space->size != FIL_IBT_FILE_INITIAL_SIZE) {
+  if (space->m_size_in_pages != FIL_IBT_FILE_INITIAL_SIZE) {
     ts->truncate();
   }
 
@@ -302,15 +301,8 @@ void Tablespace_pool::delete_old_pool(bool create_new_db) {
   ib::info(ER_IB_MSG_SCANNING_TEMP_TABLESPACE_DIR)
       << "Scanning temp tablespace dir:'" << temp_tbsp_dir << "'";
 
-  os_file_type_t type;
-  bool exists = false;
-
-  os_file_status(temp_tbsp_dir.c_str(), &exists, &type);
-
-  if (!exists) {
+  if (os_file_type(temp_tbsp_dir.c_str()) != OS_FILE_TYPE_DIR) {
     return;
-  } else {
-    ut_ad(type == OS_FILE_TYPE_DIR);
   }
 
   /* Walk the sub-tree of dir. */

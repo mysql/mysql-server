@@ -466,7 +466,7 @@ struct Context {
   void set_error(dberr_t err) noexcept {
     ut_a(err != DB_SUCCESS && err != DB_END_OF_INDEX);
 
-    /* This should only be settable by the the thread that encounters the
+    /* This should only be settable by the thread that encounters the
     first error, therefore try only once. */
 
     dberr_t expected{DB_SUCCESS};
@@ -478,7 +478,7 @@ struct Context {
   @param[in] id                 Index ordinal value where error occurred.
   @return true iff this thread successfully set the error code.*/
   bool set_error(dberr_t err, size_t id) noexcept {
-    /* This should only be settable by the the thread that encounters the
+    /* This should only be settable by the thread that encounters the
     first error, therefore try only once. */
 
     ut_a(err != DB_SUCCESS);

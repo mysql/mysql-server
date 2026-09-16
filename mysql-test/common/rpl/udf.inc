@@ -36,9 +36,7 @@ eval CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
 SELECT * FROM mysql.func ORDER BY name;
 --disable_info
 
-save_master_pos;
-connection slave;
-sync_with_master;
+--source include/rpl/sync_to_replica.inc
 
 # Check to see that UDF CREATE statements were replicated
 --echo "Running on the slave"
@@ -62,7 +60,7 @@ SELECT * FROM t1 ORDER BY sum;
 --enable_warnings
 --disable_info
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 # Check to see if data was replicated
 --echo "Running on the slave"
@@ -84,7 +82,7 @@ DROP FUNCTION myfunc_int;
 SELECT * FROM mysql.func ORDER BY name;
 --disable_info
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 # Check to see if the UDFs were dropped on the slave
 --echo "Running on the slave"
@@ -113,7 +111,7 @@ SELECT routine_schema, routine_name, routine_type, routine_definition
   WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 --disable_info
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 # Check to see that UDF CREATE statements were replicated
 --echo "Running on the slave"
@@ -136,7 +134,7 @@ INSERT INTO t1 VALUES(myfuncsql_int(1), myfuncsql_double(500.00));
 SELECT * FROM t1 ORDER BY sum;
 --disable_info
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 # Check to see if data was replicated
 --echo "Running on the slave"
@@ -156,7 +154,7 @@ SELECT routine_schema, routine_name, routine_type, routine_definition
   WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 --disable_info
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 # Check to see if data was replicated
 --echo "Running on the slave"
@@ -182,7 +180,7 @@ SELECT routine_schema, routine_name, routine_type, routine_definition
   WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 --disable_info
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 # Check to see if the UDFs were dropped on the slave
 --echo "Running on the slave"

@@ -1,0 +1,6 @@
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-transaction-delay':.*value .* adjusted to 300000 found]
+SET SESSION thread_pool_transaction_delay = 300001;
+ERROR HY000: Variable 'thread_pool_transaction_delay' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL thread_pool_transaction_delay = 300001;
+ERROR 42000: Variable 'thread_pool_transaction_delay' can't be set to the value of '300001'

@@ -21,6 +21,8 @@
 #############################################################
 --source include/not_group_replication_plugin.inc
 --source include/force_myisam_default.inc
+# This test is MTA-specific
+--source include/have_mta.inc
 --source include/have_myisam.inc
 --source include/rpl/set_privilege_checks_user_as_system_user.inc
 --source include/rpl/init_source_replica.inc

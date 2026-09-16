@@ -24,10 +24,14 @@
 --source include/group_replication.inc
 
 --echo #
---echo # There are two relay logs of Group Replication applier
+--echo # MTA: There are two relay logs of Group Replication applier
 --echo # channel before the attempt to flush it.
+--echo # CSA: There is a guarantee that the last relay log file exists. The
+--echo # previous one are immediately purged after events are read.
 --echo #
---file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000001
+if($rpl_applier_version == '') {
+  --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000001
+}
 --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/server-relay-log-group_replication_applier.000002
 
 --echo #

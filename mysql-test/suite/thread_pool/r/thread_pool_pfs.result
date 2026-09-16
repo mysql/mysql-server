@@ -1,0 +1,100 @@
+select
+NAME,
+TYPE,
+PROCESSLIST_ID - connection_id() as PROCESSLIST_ID_delta,
+PROCESSLIST_USER,
+PROCESSLIST_HOST
+from performance_schema.threads
+where processlist_id = connection_id();
+NAME	TYPE	PROCESSLIST_ID_delta	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/thread_pool/tp_one_connection	FOREGROUND	0	root	localhost
+select NAME, TYPE, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where NAME = "thread/sql/main";
+NAME	TYPE	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/main	BACKGROUND	NULL	NULL
+select NAME, TYPE, THREAD_OS_ID
+from performance_schema.threads
+where PROCESSLIST_ID = CONNECTION_ID();
+NAME	TYPE	THREAD_OS_ID
+thread/thread_pool/tp_one_connection	FOREGROUND	NULL
+#
+# Bug#34019988 - PFS events related to THD creation are never cleared
+#
+CREATE TABLE tp_thd_pfs_mem_events(event_name VARCHAR(256));
+INSERT INTO tp_thd_pfs_mem_events VALUES ("memory/sql/Prepared_statement::infrastructure"),
+("memory/sql/user_var_entry"),("memory/sql/User_level_lock"),
+("memory/sql/NET::buff"), ("memory/sql/THD::handler_tables_hash"),
+("Session_tracker"), ("memory/sql/THD::Session_sysvar_resource_manager"),
+("memory/vio/vio");
+# Create new user connection.
+#
+# Verify that all PFS events related to the THD for "con1" are
+# under user job instrumentation.
+SELECT event_name FROM performance_schema.memory_summary_by_thread_by_event_name WHERE thread_id = con1_thread_id AND count_alloc > 0 AND event_name IN (SELECT event_name FROM tp_thd_pfs_mem_events);
+event_name
+memory/sql/NET::buff
+memory/sql/Prepared_statement::infrastructure
+memory/sql/THD::Session_sysvar_resource_manager
+memory/sql/THD::handler_tables_hash
+memory/sql/User_level_lock
+memory/sql/user_var_entry
+memory/vio/vio
+#
+# Verify that all PFS events related to the THD for "con1" are
+# cleared when connecton terminates.
+SELECT event_name FROM performance_schema.memory_summary_by_thread_by_event_name WHERE thread_id = con1_thread_id AND count_alloc > 0 AND event_name IN (SELECT event_name FROM tp_thd_pfs_mem_events);
+event_name
+#
+# Verify that thread pool worker thread uses thread pool memory
+# and does not use SQL memory.
+#
+# Event "tp_client_low_level" is excluded intentionally. Only on platforms
+# using epoll implementation to handle event notifications, memory for
+# tp_client_low_level instance is instrumented using the PSI key
+# "memory/thread_pool/tp_client_low_level". But on platforms using poll
+# implementation, memory allocation for tp_client_low_level is not
+# instrumented. Hence event "tp_client_low_level" is excluded to run
+# test on all the platforms.
+SELECT event_name FROM performance_schema.memory_summary_by_thread_by_event_name
+WHERE thread_id IN (SELECT thread_id FROM performance_schema.threads
+WHERE name LIKE '%thread_pool/tp_worker')
+AND event_name NOT LIKE '%tp_client_low_level'
+             AND count_alloc > 0 group by(event_name);
+event_name
+#
+# Verify mutexes used by the thread pool worker thread.
+# Query lists mostly thread pool mutexes and following non thread pool
+# mutexes,
+# "THD_LOCK_threads"      - acquired to initialize worker thread.
+#                           Excluding this in the resultset as it is
+#                           acquired only in the debug build.
+# "LOCK_thd_data"         - acquired to set client context to THD::scheduler
+SELECT event_name FROM performance_schema.events_waits_summary_by_thread_by_event_name
+WHERE thread_id IN (SELECT thread_id FROM performance_schema.threads
+WHERE name LIKE '%thread_pool/tp_worker')
+AND event_name LIKE '%mutex%' AND event_name NOT LIKE "%THR_LOCK_threads"
+             AND count_star > 0 group by(event_name) order by (event_name);
+event_name
+wait/synch/mutex/sql/THD::LOCK_thd_data
+wait/synch/mutex/thread_pool/tp_group_t::LOCK_connect
+wait/synch/mutex/thread_pool/tp_group_t::LOCK_group
+#
+# Verify that user connection does not uses thread pool memory.
+SELECT event_name FROM performance_schema.memory_summary_by_thread_by_event_name
+WHERE thread_id IN (SELECT thread_id FROM performance_schema.threads
+WHERE processlist_id = CONNECTION_ID())
+AND event_name LIKE '%thread_pool%' AND count_alloc > 0;
+event_name
+#
+# Verify that user connection does not uses thread pool mutexes.
+# User connections uses only SQL mutexes. Query lists
+# `wait/synch/mutex/thread_pool/tp_group_t::LOCK_group` acquired to
+# update thread group by thd_begin_wait().
+SELECT event_name FROM performance_schema.events_waits_summary_by_thread_by_event_name
+WHERE thread_id IN (SELECT thread_id FROM performance_schema.threads
+WHERE processlist_id = CONNECTION_ID())
+AND event_name LIKE '%mutex/thread_pool%' AND count_star > 0 group by(event_name);
+event_name
+wait/synch/mutex/thread_pool/tp_group_t::LOCK_group
+DROP TABLE tp_thd_pfs_mem_events;

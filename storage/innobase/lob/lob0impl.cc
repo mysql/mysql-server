@@ -749,14 +749,6 @@ z_frag_entry_t z_frag_page_t::get_frag_entry_x() {
   return (entry);
 }
 
-z_frag_entry_t z_frag_page_t::get_frag_entry_s() {
-  fil_addr_t node_loc = get_frag_entry_addr();
-  flst_node_t *node = addr2ptr_s(node_loc);
-  z_frag_entry_t entry(node, m_mtr);
-  ut_ad(entry.get_page_no() == get_page_no());
-  return (entry);
-}
-
 void z_frag_page_t::dealloc_with_entry(z_first_page_t &first,
                                        mtr_t *alloc_mtr) {
   ut_ad(get_n_frags() == 0);
@@ -1074,21 +1066,19 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
 ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
   DBUG_TRACE;
   ut_ad(offset == 0);
+  ut_ad(len > 0);
+  ut_ad(buf == ctx->m_buf);
+  ut_ad(len <= ctx->m_len);
+  UNIV_MEM_ASSERT_W(buf, len);
+  ut_ad(memset(buf, 0x00, len));
+
   const uint32_t lob_version = ref.version();
 
   ref_mem_t ref_mem;
   ref.parse(ref_mem);
 
-#ifdef LOB_DEBUG
-  std::cout << "thread=" << std::this_thread::get_id()
-            << ", lob::read(): table=" << ctx->index()->table->name
-            << ", ref=" << ref << std::endl;
-#endif /* LOB_DEBUG */
-
   /* Cache of s-latched blocks of LOB index pages.*/
   BlockCache cached_blocks;
-
-  ut_ad(len > 0);
 
   /* Obtain length of LOB available in clustered index.*/
   const ulint avail_lob = ref.length();

@@ -31,8 +31,10 @@
 #include <bitset>
 #include <list>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -274,7 +276,18 @@ class Connection : public base::ConnectionInterface, public cno::CnoInterface {
         &cno_, reinterpret_cast<char *>(input_buffer_), bytes_transferred);
 
     if (result < 0) {
-      auto ec = make_error_code(cno_error());
+      const cno_error_t *cno_ec = cno_error();
+      if (!cno_.client) {
+        if (const auto reason =
+                invalid_request_body_headers_rejection_reason(cno_ec)) {
+          connection_handler_->log_invalid_request_body_headers_rejection(
+              *reason);
+          send_bad_request_and_close();
+          return stop_running() ? k_pending_writing : k_pending_closing;
+        }
+      }
+
+      auto ec = make_error_code(cno_ec);
       connection_handler_->on_connection_io_error(this, ec);
       return stop_running() ? k_pending_writing : k_pending_closing;
     }
@@ -363,6 +376,44 @@ class Connection : public base::ConnectionInterface, public cno::CnoInterface {
 
  protected:
   virtual void on_output_buffer_empty() {}
+
+  static std::optional<std::string_view>
+  invalid_request_body_headers_rejection_reason(const cno_error_t *ec) {
+    if (ec->code != CNO_ERRNO_PROTOCOL) return std::nullopt;
+
+    using namespace std::literals;
+    switch (ec->detail) {
+      case CNO_ERROR_DETAIL_INVALID_CONTENT_LENGTH:
+      case CNO_ERROR_DETAIL_MULTIPLE_CONTENT_LENGTHS:
+        return "invalid Content-Length"sv;
+      default:
+        return std::nullopt;
+    }
+  }
+
+  void send_bad_request_and_close() {
+    Headers headers;
+    static const IOBuffer k_empty;
+    headers.add("Connection", "close");
+    headers.add("Content-Length", "0");
+
+    auto stream_id = cno_.last_stream[CNO_REMOTE];
+    prepare_h1_error_response_stream(stream_id);
+    send(&stream_id, status_code::BadRequest,
+         status_code::to_string(status_code::BadRequest), "", headers, k_empty);
+    keep_alive_ = false;
+  }
+
+  void prepare_h1_error_response_stream(uint32_t stream_id) {
+    if (cno_.client || cno_.mode == CNO_HTTP2) return;
+
+    // cno_when_h1_head() normally enables server writes before on_message_head.
+    // Protocol errors during header parsing happen earlier, so mirror that step
+    // before sending the error response through cno_write_head().
+    if (cno_.last_stream[CNO_LOCAL] == 0) {
+      cno_.last_stream[CNO_LOCAL] = stream_id;
+    }
+  }
 
  protected:  // CnoInterface implementation
   int on_cno_writev(const cno_buffer_t *buffer, size_t count) override {

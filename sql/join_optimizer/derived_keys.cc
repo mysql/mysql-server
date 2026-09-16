@@ -349,7 +349,7 @@ static void RemoveUnusedKeys(const Query_block &query_block,
         while (TABLE *derived_tab = it.get_next()) {
           if (derived_tab->pos_in_table_list->uses_materialization() &&
               !derived_tab->is_created()) {
-            assert(share->owner_of_possible_tmp_keys == &query_block);
+            assert(share->owner_of_tmp_keys == &query_block);
             derived_tab->move_tmp_key(old_idx, modify_share);
             modify_share = false;
           }
@@ -374,9 +374,9 @@ static void RemoveUnusedKeys(const Query_block &query_block,
   assert(std::cmp_greater_equal(share->keys,
                                 PopulationCount(share_info->used_keys)));
 
-  if (share->owner_of_possible_tmp_keys == &query_block) {
+  if (share->owner_of_tmp_keys == &query_block) {
     // Unlock TABLE_SHARE.
-    share->owner_of_possible_tmp_keys = nullptr;
+    share->owner_of_tmp_keys = nullptr;
   }
 }
 

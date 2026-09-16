@@ -1,6 +1,7 @@
 --echo #
 --echo # WL#6965: Truncate UNDO logs during recovery.
---echo # Crash before MDL with encryption on.
+
+--echo # Crash before taking MDL for truncate operation with encryption.
 --echo #
 --source include/have_component_keyring_file.inc
 --source suite/component_keyring_file/inc/setup_component.inc
@@ -9,7 +10,6 @@ let $restart_parameters = restart: $PLUGIN_DIR_OPT --innodb_undo_log_encrypt=1;
 
 let CRASH_ON_SHUTDOWN = 1;
 let CRASH_POINT = ib_undo_trunc_before_mdl;
-let SHOULD_TRUNCATE_AT_RECOVERY=0;
 let USE_EXPLICIT = 0;
 
 --source suite/innodb_undo/include/truncate_at_shutdown.inc

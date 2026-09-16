@@ -1,0 +1,103 @@
+--source include/have_debug.inc
+--source include/have_thread_pool.inc
+
+# The test hangs endless when using "cursor-protocol".
+if(`SELECT $CURSOR_PROTOCOL > 0`)
+{
+   --skip Test requires: cursor-protocol disabled
+}
+
+# The test case must be executed with thread_pool_size = 2.
+if(`SELECT @@global.thread_pool_size <> 2`)
+{
+   --die @@global.thread_pool_size must be 2, please check <testcase>-master.opt
+}
+
+# The connections are named <letter>_<number> to indicate they are belonging to
+# thread group <letter> and <number> within this group.
+let $connection= conn_A_1_hold_wait_thread;
+--connect ($connection, localhost, root,,)
+let $id_list= `SELECT CONNECTION_ID()`;
+
+let $connection= conn_B_1;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+
+let $connection= conn_A_2_to_be_killed;
+--connect ($connection, localhost, root,,)
+let $target_id_A_2_to_be_killed= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $target_id_A_2_to_be_killed;
+
+let $connection= conn_B_2;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+
+let $connection= conn_A_3;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+
+let $connection= conn_B_3;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+
+let $connection= conn_A_4;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+
+--connection conn_B_1
+--replace_result $target_id_A_2_to_be_killed <target_id_A_2_to_be_killed>
+eval SET @kill_target_id = $target_id_A_2_to_be_killed;
+
+--connection conn_A_1_hold_wait_thread
+# This query will block in wait_begin_waiter_thread sync point before going to sleep.
+SET SESSION debug="+d,info,enter,exit,error,query,wait_begin_waiter_thread";
+--send
+SELECT SLEEP(1);
+
+# Now while we don't have a waiter thread active we'll send off a number of queries
+# and then finally ensure that one of those queries are killed from another thread
+# group before the waiter thread goes active again.
+--connection conn_A_2_to_be_killed
+--send
+SELECT SLEEP(1);
+
+--connection conn_A_3
+--send
+SELECT SLEEP(1);
+
+--connection conn_A_4
+--send
+SELECT SLEEP(1);
+
+--connection conn_B_1
+KILL @kill_target_id;
+
+# Wait for kill command to complete
+let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.processlist
+WHERE id = @kill_target_id;
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: KILL @kill_target_id wasn't successful.
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id;
+   sleep 30;
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id;
+   --echo # abort
+   exit;
+}
+
+--connection default
+--disconnect conn_A_1_hold_wait_thread
+--disconnect conn_A_3
+--disconnect conn_A_4
+--disconnect conn_B_1
+--disconnect conn_B_2
+--disconnect conn_B_3
+# Take care that all disconnected session disappeared from processlist
+--source ../inc/wait_until_disappeared.inc
+

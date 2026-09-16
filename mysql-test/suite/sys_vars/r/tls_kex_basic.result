@@ -1,0 +1,37 @@
+SELECT LENGTH(@@GLOBAL.tls_kex);
+LENGTH(@@GLOBAL.tls_kex)
+0
+SELECT @@tls_kex = @@GLOBAL.tls_kex;
+@@tls_kex = @@GLOBAL.tls_kex
+1
+SELECT @@SESSION.tls_kex;
+ERROR HY000: Variable 'tls_kex' is a GLOBAL variable
+SELECT @@LOCAL.tls_kex;
+ERROR HY000: Variable 'tls_kex' is a GLOBAL variable
+SET @@SESSION.tls_kex = 'secp256r1';
+ERROR HY000: Variable 'tls_kex' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@GLOBAL.tls_kex = 'invalid';
+ERROR 42000: Variable 'tls_kex' can't be set to the value of 'invalid'
+SET @@GLOBAL.tls_kex = 'secp256r1:invalid';
+ERROR 42000: Variable 'tls_kex' can't be set to the value of 'secp256r1:invalid'
+SET @@GLOBAL.tls_kex = 'X 2 5 5 1 9';
+ERROR 42000: Variable 'tls_kex' can't be set to the value of 'X 2 5 5 1 9'
+SET @@GLOBAL.tls_kex = 'secp256r1::secp384r1';
+ERROR 42000: Variable 'tls_kex' can't be set to the value of 'secp256r1::secp384r1'
+SET @@GLOBAL.tls_kex = 'secp256r1:';
+ERROR 42000: Variable 'tls_kex' can't be set to the value of 'secp256r1:'
+SET @@GLOBAL.tls_kex = ':secp256r1';
+ERROR 42000: Variable 'tls_kex' can't be set to the value of ':secp256r1'
+SET @@GLOBAL.tls_kex = ' secp256r1';
+ERROR 42000: Variable 'tls_kex' can't be set to the value of ' secp256r1'
+SET @tls_kex_saved = @@GLOBAL.tls_kex;
+Duplicate TLS key exchange groups are accepted
+SET @@GLOBAL.tls_kex = 'X25519:secp384r1:secp256r1:secp521r1:secp256r1:secp256r1:secp256r1';
+ALTER INSTANCE RELOAD TLS;
+SET @@GLOBAL.tls_kex = @tls_kex_saved;
+ALTER INSTANCE RELOAD TLS;
+SELECT LENGTH(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='tls_kex';
+LENGTH(VARIABLE_VALUE)
+0

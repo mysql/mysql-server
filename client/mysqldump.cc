@@ -112,6 +112,8 @@
 #define FIRST_REPLICA_COMMAND_VERSION 80023
 /*  First mysql version supporting source statements. */
 #define FIRST_SOURCE_COMMAND_VERSION 80200
+/* First mysql version supporting JSON relational duality views. */
+#define FIRST_JSON_DUALITY_VIEW_VERSION 90500
 
 using std::string;
 
@@ -141,7 +143,8 @@ static bool verbose = false, opt_no_create_info = false, opt_no_data = false,
             opt_network_timeout = false, stats_tables_included = false,
             column_statistics = false,
             opt_show_create_table_skip_secondary_engine = false,
-            opt_ignore_views = false, opt_drop_masking_policies = true;
+            opt_ignore_views = false, opt_drop_masking_policies = true,
+            opt_extended_insert_multiline = false;
 static bool insert_pat_inited = false, debug_info_flag = false,
             debug_check_flag = false;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
@@ -768,6 +771,10 @@ static struct my_option my_long_options[] = {
     {"ignore-views", 0, "Skip dumping table views.", &opt_ignore_views,
      &opt_ignore_views, nullptr, GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+    {"extended-insert-multiline", 0,
+     "New line per row in extended insert mode.",
+     &opt_extended_insert_multiline, &opt_extended_insert_multiline, nullptr,
+     GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #include "client/include/authentication_kerberos_clientopt-longopts.h"
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
@@ -3486,9 +3493,10 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
     if (write_data) {
       if (opt_replace_into)
         dynstr_append_checked(&insert_pat, "REPLACE ");
-      else
+      else {
         dynstr_append_checked(&insert_pat, "INSERT ");
-      dynstr_append_checked(&insert_pat, insert_option);
+        dynstr_append_checked(&insert_pat, insert_option);
+      }
       dynstr_append_checked(&insert_pat, "INTO ");
       dynstr_append_checked(&insert_pat, opt_quoted_table);
       if (complete_insert) {
@@ -3605,9 +3613,10 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
     if (write_data) {
       if (opt_replace_into)
         dynstr_append_checked(&insert_pat, "REPLACE ");
-      else
+      else {
         dynstr_append_checked(&insert_pat, "INSERT ");
-      dynstr_append_checked(&insert_pat, insert_option);
+        dynstr_append_checked(&insert_pat, insert_option);
+      }
       dynstr_append_checked(&insert_pat, "INTO ");
       dynstr_append_checked(&insert_pat, result_table);
       if (complete_insert)
@@ -4454,7 +4463,11 @@ static void dump_table(char *table, char *db) {
                 : 0;
         if (extended_insert && !opt_xml) {
           if (first_column) {
-            dynstr_set_checked(&extended_row, "(");
+            if (opt_extended_insert_multiline) {
+              dynstr_set_checked(&extended_row, "\n(");
+            } else {
+              dynstr_set_checked(&extended_row, "(");
+            }
             first_column = false;
           } else
             dynstr_append_checked(&extended_row, ",");
@@ -4593,7 +4606,7 @@ static void dump_table(char *table, char *db) {
         row_length = 2 + extended_row.length;
         if (total_length + row_length < opt_net_buffer_length) {
           total_length += row_length;
-          fputc(',', md_result_file); /* Always row break */
+          fputc(',', md_result_file);
           fputs(extended_row.str, md_result_file);
         } else {
           if (row_break) fputs(";\n", md_result_file);
@@ -6424,12 +6437,21 @@ static bool get_view_structure(char *table, char *db) {
   verbose_msg("-- Dropping the temporary view structure created\n");
   fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);
 
+  const char *is_json_duality_view_expression =
+      mysql_get_server_version(mysql) >= FIRST_JSON_DUALITY_VIEW_VERSION
+          ? "EXISTS(SELECT 1 "
+            "       FROM information_schema.json_duality_views jdv "
+            "       WHERE jdv.table_name=v.table_name "
+            "         AND jdv.table_schema=v.table_schema)"
+          : "FALSE";
+
   snprintf(query, sizeof(query),
            "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE, "
-           "       CHARACTER_SET_CLIENT, COLLATION_CONNECTION "
-           "FROM information_schema.views "
-           "WHERE table_name='%s' AND table_schema='%s'",
-           table_string_buff, db_string_buff);
+           "       CHARACTER_SET_CLIENT, COLLATION_CONNECTION, "
+           "       %s "
+           "FROM information_schema.views v "
+           "WHERE v.table_name='%s' AND v.table_schema='%s'",
+           is_json_duality_view_expression, table_string_buff, db_string_buff);
 
   if (mysql_query(mysql, query)) {
     /*
@@ -6465,27 +6487,32 @@ static bool get_view_structure(char *table, char *db) {
     }
 
     lengths = mysql_fetch_lengths(table_res);
+    const char *view_version_comment_begin = "";
+    const char *view_version_comment_end = "";
+    if (row[5] == nullptr || strcmp(row[5], "1") != 0) {
+      view_version_comment_begin = "/*!50001 ";
+      view_version_comment_end = " */";
 
-    /*
-      "WITH %s CHECK OPTION" is available from 5.0.2
-      Surround it with !50002 comments
-    */
-    if (strcmp(row[0], "NONE") != 0) {
-      ptr = search_buf;
-      search_len =
-          (ulong)(strxmov(ptr, "WITH ", row[0], " CHECK OPTION", NullS) - ptr);
-      ptr = replace_buf;
-      replace_len = (ulong)(strxmov(ptr, "*/\n/*!50002 WITH ", row[0],
-                                    " CHECK OPTION", NullS) -
-                            ptr);
-      replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
-    }
+      /*
+        "WITH %s CHECK OPTION" is available from 5.0.2
+        Surround it with !50002 comments
+      */
+      if (strcmp(row[0], "NONE") != 0) {
+        ptr = search_buf;
+        search_len =
+            (ulong)(strxmov(ptr, "WITH ", row[0], " CHECK OPTION", NullS) -
+                    ptr);
+        ptr = replace_buf;
+        replace_len = (ulong)(strxmov(ptr, "*/\n/*!50002 WITH ", row[0],
+                                      " CHECK OPTION", NullS) -
+                              ptr);
+        replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
+      }
 
-    /*
-      "DEFINER=%s SQL SECURITY %s" is available from 5.0.13
-      Surround it with !50013 comments
-    */
-    {
+      /*
+        "DEFINER=%s SQL SECURITY %s" is available from 5.0.13
+        Surround it with !50013 comments
+      */
       size_t user_name_len;
       char user_name_str[USERNAME_LENGTH + 1];
       char quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
@@ -6529,13 +6556,14 @@ static bool get_view_structure(char *table, char *db) {
             "/*!50001 SET character_set_client      = %s */;\n"
             "/*!50001 SET character_set_results     = %s */;\n"
             "/*!50001 SET collation_connection      = %s */;\n"
-            "/*!50001 %s */;\n"
+            "%s%s%s;\n"
             "/*!50001 SET character_set_client      = @saved_cs_client */;\n"
             "/*!50001 SET character_set_results     = @saved_cs_results */;\n"
             "/*!50001 SET collation_connection      = @saved_col_connection "
             "*/;\n",
             (const char *)row[3], (const char *)row[3], (const char *)row[4],
-            (const char *)ds_view.str);
+            view_version_comment_begin, (const char *)ds_view.str,
+            view_version_comment_end);
 
     check_io(sql_file);
     mysql_free_result(table_res);

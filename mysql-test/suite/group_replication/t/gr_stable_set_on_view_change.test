@@ -15,6 +15,8 @@
 ################################################################################
 
 --source include/have_debug.inc
+# CSA does not support legacy VCLE
+--source include/have_mta.inc
 --let $group_replication_group_name= 6d387320-185d-11e6-bdf4-0800200c9a66
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

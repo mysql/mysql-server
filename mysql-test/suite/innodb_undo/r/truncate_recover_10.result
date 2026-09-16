@@ -1,0 +1,93 @@
+#
+# WL#6965: Truncate UNDO logs during recovery.
+# Crash after deleting the old undo tablespace during truncate operation 
+#
+# While the purge thread is turned off, perform enough DML to cause
+# undo tablespace sizes grow beyond the truncation threshold.
+# Then inject a crash at ib_undo_trunc_after_delete_undo_tablespace and check that recovery occurs
+# and that the truncation is completed if it was started.
+# Create 2 explicit undo tablespaces.
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
+# Make the 2 implicit undo tablespaces inactive so they get truncated.
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
+# Make the 2 implicit undo tablespaces active.
+ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+# Get rid of the explicit undo tablespaces.
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+DROP UNDO TABLESPACE undo_003;
+DROP UNDO TABLESPACE undo_004;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=default;
+# The two undo tablespaces to truncate at shutdown will be innodb_undo_001 and innodb_undo_002
+SELECT NAME, SPACE_TYPE, STATE, AUTOEXTEND_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE	AUTOEXTEND_SIZE
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+# Turn off purging so that UPDATE undo logs build up in the undo tablespaces.
+SET GLOBAL innodb_purge_stop_now=ON;
+# Perform enough DML action so that both undo tablespaces grow beyond
+# the threshold set by --innodb-max-undo-log-size.
+CREATE TABLE t1(
+id INT PRIMARY KEY,
+c1 CHAR(255) NOT NULL,
+c2 CHAR(255) NOT NULL,
+c3 CHAR(255) NOT NULL
+);
+INSERT INTO t1 VALUES
+(1, 'ab', 'ab', 'ab'),
+(2, 'ab', 'ab', 'ab'),
+(3, 'ab', 'ab', 'ab'),
+(4, 'ab', 'ab', 'ab');
+CREATE PROCEDURE generate_many_update_undo_logs(tid INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 10000) DO
+UPDATE t1 SET c1=REVERSE(c1),c2=REVERSE(c2),c3=REVERSE(c3) WHERE id=tid;
+SET i = i + 1;
+END WHILE;
+END |
+SET @saved_innodb_flush_log_at_trx_commit = @@innodb_flush_log_at_trx_commit;
+SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+SET @saved_sync_binlog = @@sync_binlog;
+SET GLOBAL sync_binlog = 0;
+CALL generate_many_update_undo_logs(1);
+CALL generate_many_update_undo_logs(2);
+CALL generate_many_update_undo_logs(3);
+CALL generate_many_update_undo_logs(4);
+SET GLOBAL innodb_flush_log_at_trx_commit = @saved_innodb_flush_log_at_trx_commit;
+SET GLOBAL sync_binlog = @saved_sync_binlog;
+DROP PROCEDURE generate_many_update_undo_logs;
+DROP TABLE t1;
+SELECT NAME, SPACE_TYPE, STATE, AUTOEXTEND_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE	AUTOEXTEND_SIZE
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+# Compare the undo tablespace sizes before and after DML growth.
+Setting crash point = 'ib_undo_trunc_after_delete_undo_tablespace'.
+SET GLOBAL DEBUG = "+d,ib_undo_trunc_after_delete_undo_tablespace";
+# Do a slow shut down so the undo tablespaces can be truncated.
+SET GLOBAL innodb_max_undo_log_size=20000000;
+SET GLOBAL innodb_fast_shutdown=0;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+SET GLOBAL innodb_purge_run_now=ON;
+Recovery from crash point = 'ib_undo_trunc_after_delete_undo_tablespace'.
+Pattern "ib_undo_trunc_after_delete_undo_tablespace" found
+SELECT NAME, SPACE_TYPE, STATE, AUTOEXTEND_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE	AUTOEXTEND_SIZE
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0
+#
+# Cleanup
+#
+SELECT NAME, SPACE_TYPE, STATE, AUTOEXTEND_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE	AUTOEXTEND_SIZE
+innodb_undo_001	Undo	active	0
+innodb_undo_002	Undo	active	0

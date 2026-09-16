@@ -31,6 +31,7 @@ MYSQL_ADD_COMPONENT(connection_control
   MODULE_ONLY
   LINK_LIBRARIES
     library_mysys
+    mytime
   )
 
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="CONNECTION_CONTROL")

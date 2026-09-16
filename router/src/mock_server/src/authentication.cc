@@ -59,13 +59,8 @@ static std::optional<std::vector<uint8_t>> scramble(
 
   const auto digest_size = EVP_MD_size(digest_func);
 
-#if OPENSSL_VERSION_NUMBER >= 0x1010000fL
   std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> const digest_ctx(
       EVP_MD_CTX_new(), &EVP_MD_CTX_free);
-#else
-  std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_destroy)> digest_ctx(
-      EVP_MD_CTX_create(), &EVP_MD_CTX_destroy);
-#endif
 
   std::vector<uint8_t> hashed_password(digest_size);
   std::vector<uint8_t> double_hashed_password(digest_size);

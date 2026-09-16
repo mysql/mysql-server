@@ -378,7 +378,7 @@ struct first_page_t : public basic_page_t {
   ulint write(trx_id_t trxid, const byte *&data, ulint &len);
 
   /** Replace data in the page by making a copy-on-write.
-  @param[in]      trx     Current transaction.
+  @param[in]      trx     Non-null current transaction.
   @param[in]      offset  Location where replace operation starts.
   @param[in,out]  ptr     Buffer containing new data. after the call it will
   point to remaining data.

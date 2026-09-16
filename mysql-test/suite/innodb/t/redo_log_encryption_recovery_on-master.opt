@@ -1,0 +1,5 @@
+--innodb-buffer-pool-size=24M
+--innodb-change-buffering=all
+--innodb_redo_log_encrypt=OFF
+--innodb-redo-log-capacity=64M
+$KEYRING_FILE_COMPONENT_OPT

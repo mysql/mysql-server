@@ -361,6 +361,7 @@ INSERT INTO global_suppressions VALUES
    TLS warnings
  */
  ("Channel mysql_main configured to support TLS"),
+ ("TLS channel '.*' is not configured to require post-quantum key exchange algorithms; future TLS sessions may use a non-post-quantum key exchange algorithm because force_pqc is disabled"),
 
  /*
    systemd debug (when built WITH_SYSTEMD and WITH_SYSTEMD_DEBUG,
@@ -482,6 +483,5 @@ END
 */$$
 
 DELIMITER ;
-
 
 

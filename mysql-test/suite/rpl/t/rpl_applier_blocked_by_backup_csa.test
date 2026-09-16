@@ -1,0 +1,103 @@
+# === Purpose ===
+# Check PURGE BINARY LOGS operation is mutually exclusive with BACKUP lock.
+#
+# === Requirements ===
+# R1. PURGE BINARY LOGS must be mutually exclusive with BACKUP operation.
+#
+# === Implementation ===
+# 1. Lock replica for backup
+# 2. Flush binary logs so relay log is tried to be pureged
+# 3. Check that relay logs have not been purged
+# 4. Unblock backup on replica
+# 5. Generate log purge from source onto replica
+# 6. Check relay logs have been purged on replica
+#
+# === References ===
+# Bug#35342521	Binary log purge should hold IX backup lock
+#
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# MTA has a separate test
+--source include/have_csa.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave=1
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Lock replica for backup
+--echo #
+
+--source include/rpl/connection_replica.inc
+--let $MYSQLD_SLAVE_DATADIR = `select @@datadir`
+--source include/save_error_log_position.inc
+LOCK INSTANCE FOR BACKUP;
+
+# By starting replica threads after locking the instance we
+# ensure that the first relay log won't be purged before
+# taking a backup lock
+--source include/rpl/start_replica.inc
+
+--echo #
+--echo # Flush binary logs so relay log is tried to be purged
+--echo #
+
+--source include/rpl/connection_source.inc
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # Check that relay logs have not been purged on replica
+--echo #
+
+--source include/rpl/sync_to_replica.inc
+
+# Give some time to process rotation event - sync_to_replica guarantees syncing on GTIDs only
+--sleep 5
+
+--replace_regex /[\\]/\//
+--cat_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
+
+let $error_pattern =
+Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.
+Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.
+Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.;
+
+--source include/assert_error_log.inc
+
+--echo #
+--echo # Unblock backup on replica
+--echo #
+
+--source include/save_error_log_position.inc
+UNLOCK INSTANCE;
+
+--echo #
+--echo # Generate log purge from source onto replica
+--echo #
+
+--source include/rpl/connection_source.inc
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # Check relay logs have been purged on replica
+--echo #
+
+--source include/rpl/sync_to_replica.inc
+
+# Give some time to process rotation events - sync_to_replica guarantees syncing on GTIDs only
+--sleep 5
+
+--replace_regex /[\\]/\//
+--cat_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
+
+--let $error_pattern = NONE
+--source include/assert_error_log.inc
+
+call mtr.add_suppression("Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.");
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--source include/rpl/connection_source.inc
+--source include/rpl/deinit.inc
+

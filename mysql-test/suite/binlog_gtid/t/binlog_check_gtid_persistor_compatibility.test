@@ -7,9 +7,9 @@
 # ==== IMPLEMENTATION ====
 #
 # Steps:
-#   1. Set debug points which save GTID in version 1 and cause
-#      a crash before GTID is persisted in table.
-#   2. Execute queries, restart server after crash
+#   1. Set debug points which save GTID in version 1 and disable
+#      clone GTID flushing during setup.
+#   2. Execute setup query, set crash debug point, restart server after crash
 #   3. Verify that GTIDs were persisted correctly
 #
 # ==== REQUIREMENTS ====
@@ -26,21 +26,27 @@
 --source include/have_debug.inc
 
 --echo
---echo # 1. Set debug points which save GTID in version 1 and cause
---echo #    a crash before GTID is persisted in table.
+--echo # 1. Set debug points which save GTID in version 1 and disable
+--echo #    clone GTID flushing during setup.
 --echo
 
---let $debug_point = crash_before_gtid_table_persistor_save
+# Prevent the clone GTID background thread from flushing the GTID before
+# the crash point is armed for the FLUSH LOGS statement.
+--let $debug_point = gtid_persist_flush_disable
 --source include/add_debug_point.inc
 --let $debug_point = gtid_persistor_use_gtid_version_one
 --source include/add_debug_point.inc
 
 --echo
---echo # 2. Execute queries, restart server after crash
+--echo # 2. Execute setup query, set crash debug point, restart server after crash
 --echo
 
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 CREATE TABLE t (a INT);
+--let $debug_point = crash_before_gtid_table_persistor_save
+--let $debug_type = SESSION
+--source include/add_debug_point.inc
+--let $debug_type =
 --error 2013
 FLUSH LOGS;
 --source include/wait_until_disconnected.inc

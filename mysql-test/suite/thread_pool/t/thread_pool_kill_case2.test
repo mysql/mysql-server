@@ -1,0 +1,219 @@
+--source include/have_debug.inc
+--source include/have_thread_pool.inc
+
+# The test case must be executed with thread_pool_size = 2.
+if(`SELECT @@global.thread_pool_size <> 2`)
+{
+   --die @@global.thread_pool_size must be 2, please check <testcase>-master.opt
+}
+
+# The connections are named <letter>_<number> to indicate they are belonging to
+# thread group <letter> and <number> within this group.
+let $connection= conn_A_1_hold_wait_thread;
+--connect ($connection, localhost, root,,)
+let $conn_A_1_hold_wait_thread= `SELECT CONNECTION_ID()`;
+let $id_list= $conn_A_1_hold_wait_thread;
+
+let $connection= conn_B_1;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+
+let $connection= conn_A_2_to_be_killed;
+--connect ($connection, localhost, root,,)
+let $target_id_A_2_to_be_killed= `SELECT CONNECTION_ID()`;
+
+let $connection= conn_B_2;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+
+let $connection= conn_A_3;
+--connect ($connection, localhost, root,,)
+let $conn_A_3= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $conn_A_3;
+
+let $connection= conn_B_3;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+
+let $connection= conn_A_4;
+--connect ($connection, localhost, root,,)
+let $conn_A_4= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $conn_A_4;
+
+--connection conn_B_1
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+--replace_result $target_id_A_2_to_be_killed <target_id_A_2_to_be_killed>
+eval SET @kill_target_id = $target_id_A_2_to_be_killed;
+SET SESSION debug="+d,info,enter,error,exit,query,thd_pool_post_kill_notification_hang";
+
+--connection conn_A_1_hold_wait_thread
+# This query will block in wait_begin_waiter_thread sync point before going to sleep
+SET SESSION DEBUG="+d,info,enter,error,exit,query,wait_begin_waiter_thread";
+--send
+SELECT SLEEP(1);
+
+# Experiment
+############
+if(0)
+{
+  --connection conn_B_1
+  --replace_result $conn_A_1_hold_wait_thread <conn_A_1_hold_wait_thread>
+  eval SET @conn_A_1_hold_wait_thread = $conn_A_1_hold_wait_thread;
+  let $run= 100;
+  while($run)
+  {
+     SELECT COMMAND,TIME,STATE,INFO FROM information_schema.processlist
+     WHERE id = @conn_A_1_hold_wait_thread;
+     dec $run;
+     --sleep 0.1
+  }
+  # Summarized result of the while loop
+  # -----------------------------------
+  # SELECT COMMAND,TIME,STATE,INFO FROM information_schema.processlist
+  # WHERE id = @conn_A_1_hold_wait_thread;
+  # COMMAND TIME STATE      INFO
+  # Query      0 User sleep SELECT SLEEP(1)
+  # Query      1 User sleep SELECT SLEEP(1)
+  # ...
+  # Query      3 User sleep SELECT SLEEP(1)
+  # Sleep      3            NULL Time is immediate 4
+  #    Unclear why TIME immediate jumps to 3 instead of 0 or 1.
+  # ...
+  # Sleep      5            NULL
+  # ...
+  # Sleep     11            NULL
+
+  # Notes:
+  # 1. It is not guaranteed that we already see on the first processlist query
+  #    the connection running the
+  #    "SELECT SLEEP(1)".
+  #    In case of extreme parallel load on the testing box it can happen that
+  #    more than two seconds need to pass till the execution of the command
+  #    starts.
+  # 2. In case of state = 'User sleep' and INFO = 'SELECT SLEEP(1)' we see
+  #    values of 1 till 3 for time.
+  #    - Without SET SESSION DEBUG=".... wait_begin_waiter_thread ...";
+  #      I never saw values of time > 2;
+  #    - state is 'User sleep' though the execution of the command is within
+  #      the 3 second block phase (caused by DEBUG setting) and before the
+  #      SLEEP(1) part of the statement happens.
+  exit;
+}
+
+# Now while we don't have a waiter thread active we'll send off a number of queries
+# and then finally ensure that one of those queries are killed from another thread
+# group before the waiter thread goes active again.
+--connection conn_A_2_to_be_killed
+--send
+SELECT SLEEP(1);
+
+--connection conn_A_3
+--send
+SELECT SLEEP(1);
+
+--connection conn_A_4
+--send
+SELECT SLEEP(1);
+
+# Experiment
+############
+if(0)
+{
+  --connection conn_B_1
+  --replace_result $conn_A_1_hold_wait_thread <conn_A_1_hold_wait_thread>
+  eval SET @conn_A_1_hold_wait_thread = $conn_A_1_hold_wait_thread;
+  --replace_result $conn_A_3 <conn_A_3>
+  eval SET @conn_A_3 = $conn_A_3;
+  --replace_result $conn_A_4 <conn_A_4>
+  eval SET @conn_A_4 = $conn_A_4;
+  let $run= 100;
+  while($run)
+  {
+     SELECT CASE ID
+            WHEN @conn_A_1_hold_wait_thread THEN '@conn_A_1_hold_wait_thread'
+            WHEN @conn_A_3                  THEN '@conn_A_3'
+            WHEN @conn_A_4                  THEN '@conn_A_4'
+            ELSE 'garbage' END AS 'connection',
+        COMMAND,TIME,STATE,INFO FROM information_schema.processlist
+     WHERE ID IN (@conn_A_1_hold_wait_thread,@conn_A_3,@conn_A_4)
+     ORDER BY ID;
+     --disable_query_log
+     dec $run;
+     --sleep 0.1
+  }
+  # Summarized result of the while loop
+  # -----------------------------------
+  # SELECT CASE ID
+  # WHEN @conn_A_1_hold_wait_thread THEN '@conn_A_1_hold_wait_thread'
+  #             WHEN @conn_A_3                  THEN '@conn_A_3'
+  #             WHEN @conn_A_4                  THEN '@conn_A_4'
+  #             ELSE 'garbage' END AS 'connection',
+  # COMMAND,TIME,STATE,INFO FROM information_schema.processlist
+  # WHERE ID IN (@conn_A_1_hold_wait_thread,@conn_A_3,@conn_A_4)
+  # ORDER BY ID;
+  # connection                 COMMAND TIME STATE      INFO
+  # @conn_A_1_hold_wait_thread	Query    0   User sleep	SELECT SLEEP(1)
+  # @conn_A_3                  Sleep    0              NULL
+  # @conn_A_4                  Sleep    0              NULL
+  # ....
+  # @conn_A_1_hold_wait_thread	Query    1   User sleep	SELECT SLEEP(1)
+  # @conn_A_3                  Sleep    1              NULL
+  # @conn_A_4                  Sleep    1              NULL
+  # ...
+  # @conn_A_1_hold_wait_thread	Query    3   User sleep	SELECT SLEEP(1)
+  # @conn_A_3                  Sleep    3              NULL
+  # @conn_A_4                  Sleep    3              NULL
+  # ...
+  # @conn_A_1_hold_wait_thread Sleep    3              NULL
+  # @conn_A_3                  Query    0   User sleep SELECT SLEEP(1)
+  # @conn_A_4                  Query    0   User sleep SELECT SLEEP(1)
+  # ....
+  # @conn_A_1_hold_wait_thread Sleep    4              NULL
+  # @conn_A_3                  Query    1   User sleep SELECT SLEEP(1)
+  # @conn_A_4                  Query    1   User sleep SELECT SLEEP(1)
+  # ....
+  # @conn_A_1_hold_wait_thread Sleep    4              NULL
+  # @conn_A_3                  Sleep    1              NULL
+  # @conn_A_4                  Sleep    1              NULL
+  # ....
+  # @conn_A_1_hold_wait_thread Sleep    n+3            NULL
+  # @conn_A_3                  Sleep    n              NULL
+  # @conn_A_4                  Sleep    n              NULL
+  # ....
+  #
+  exit;
+}
+
+--connection conn_B_1
+KILL @kill_target_id;
+# This KILL needs ~ 5 seconds till it's effect is visible within the processlist.
+# The reason is the 3 seconds sleeping caused by "thd_pool_post_kill_notification_hang".
+
+# Wait till the killed session disappeared from information_schema.processlist.
+let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.processlist
+WHERE id = @kill_target_id;
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: The killed session did not disappear from the processlist
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id;
+   --sleep 30
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id;
+   --echo # abort
+   exit;
+}
+
+# Cleanup
+--connection default
+--disconnect conn_A_1_hold_wait_thread
+--disconnect conn_A_3
+--disconnect conn_A_4
+--disconnect conn_B_1
+--disconnect conn_B_2
+--disconnect conn_B_3
+# Take care that all disconnected session disappeared from processlist
+--source ../inc/wait_until_disappeared.inc

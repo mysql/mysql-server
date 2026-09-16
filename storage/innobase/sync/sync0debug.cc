@@ -1760,6 +1760,31 @@ bool Sync_point::enabled(const std::string &target) noexcept {
 #endif /* !UNIV_NO_ERR_MSGS */
 }
 
+void Sync_point::clone_from(const THD *thd) noexcept {
+#ifndef UNIV_NO_ERR_MSGS
+  if (thd == nullptr || current_thd == nullptr || thd == current_thd) {
+    return;
+  }
+
+  Targets targets;
+  {
+    const std::lock_guard<std::mutex> lock(s_mutex);
+    const auto src = std::find_if(
+        std::begin(s_sync_points), std::end(s_sync_points),
+        [=](const Sync_point &sync_point) { return thd == sync_point.m_thd; });
+
+    if (src == s_sync_points.end()) {
+      return;
+    }
+    targets = src->m_targets;
+  }
+
+  for (const auto &target : targets) {
+    add(current_thd, target);
+  }
+#endif /* !UNIV_NO_ERR_MSGS */
+}
+
 void Sync_point::erase(const THD *thd, const std::string &target) noexcept {
   const std::lock_guard<std::mutex> lock(s_mutex);
 
@@ -1779,5 +1804,14 @@ void Sync_point::erase(const THD *thd, const std::string &target) noexcept {
       }
     }
   }
+}
+
+void Sync_point::erase(const THD *thd) noexcept {
+#ifndef UNIV_NO_ERR_MSGS
+  const std::lock_guard<std::mutex> lock(s_mutex);
+  std::erase_if(s_sync_points, [thd](const auto &sync_point) {
+    return thd == sync_point.m_thd;
+  });
+#endif /* !UNIV_NO_ERR_MSGS */
 }
 #endif /* UNIV_DEBUG */

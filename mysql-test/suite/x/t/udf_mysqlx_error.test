@@ -40,6 +40,10 @@
 -->expecterror ER_CANT_INITIALIZE_UDF
 -->recvresult
 
+-->stmtsql SELECT MYSQLX_ERROR(CAST(NULL AS SIGNED));
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
 -->stmtsql DO MYSQLX_ERROR(123.45);
 -->expecterror ER_CANT_INITIALIZE_UDF
 -->recvresult
@@ -78,6 +82,15 @@ DO MYSQLX_ERROR('abc');
 
 --error 1123
 DO MYSQLX_ERROR(NULL);
+
+--error 1123
+SELECT MYSQLX_ERROR(CAST(NULL AS SIGNED));
+
+CREATE TEMPORARY TABLE mysqlx_error_argument (error_code INT NOT NULL);
+INSERT INTO mysqlx_error_argument VALUES (5018);
+--error 5018
+SELECT MYSQLX_ERROR(error_code) FROM mysqlx_error_argument;
+DROP TEMPORARY TABLE mysqlx_error_argument;
 
 --error 1123
 DO MYSQLX_ERROR(123.45);

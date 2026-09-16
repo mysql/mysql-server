@@ -22,10 +22,10 @@ INSERT INTO t(a) VALUES(42);
 # Start MySQL...
 # Verify...
 Pattern "CORRUPT LOG RECORD FOUND" found
-Pattern "Log record type 0, page .*:.*. Log parsing proceeded successfully up to RECOVERED_LSN" found
+Pattern "Log record type 0. Log parsing proceeded successfully up to RECOVERED_LSN" found
 Pattern "Apply batch completed" not found
 Pattern "innodb-unknown-compound-v" not found
-Pattern "Doing recovery: scanned up to log sequence number .* start_lsn:.* end_lsn:.* log_segments_read:1" found
+Pattern "Doing recovery: scanned up to log sequence number .* log_segments_read:1" found
 ############################################################################################
 # Case 2. Verify that recovery could be re-executed from previous checkpoint and go further
 #         after the corrupted log block is fixed.

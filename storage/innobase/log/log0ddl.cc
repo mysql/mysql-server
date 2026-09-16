@@ -48,9 +48,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0mem.h"
 #include "dict0stats.h"
+#include "fil0pages_persistence_interface.h"
 #include "ha_innodb.h"
 #include "log0chkp.h"
 #include "log0ddl.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysqld.h"  //get_server_state
@@ -858,9 +860,10 @@ inline uint64_t Log_DDL::next_id() {
 }
 
 inline bool Log_DDL::skip(const dict_table_t *table, THD *thd) {
-  return (recv_recovery_on || thread_local_ddl_log_replay ||
-          (table != nullptr && table->is_temporary()) ||
-          thd_is_bootstrap_thread(thd));
+  ut_a(!recv_recovery_on);
+  return thread_local_ddl_log_replay ||
+         (table != nullptr && table->is_temporary()) ||
+         thd_is_bootstrap_thread(thd);
 }
 
 dberr_t Log_DDL::write_delete_schema_directory_log(
@@ -991,6 +994,8 @@ dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
   dberr_t err;
 
   trx->ddl_operation = true;
+
+  ut_ad(thd_sql_command(trx->mysql_thd) != SQLCOM_LOAD);
 
   DBUG_INJECT_CRASH("ddl_log_crash_before_free_tree_log",
                     crash_before_free_tree_log_counter++);
@@ -1608,6 +1613,7 @@ dberr_t Log_DDL::replay_all() {
 
     err = delete_by_ids(current_records);
     ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+
     if (err != DB_SUCCESS) {
       break;
     }
@@ -1811,7 +1817,7 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
 
   if (fsp_is_undo_tablespace(space_id)) {
     /* Serialize this delete with all undo tablespace DDLs. */
-    mutex_enter(&undo::ddl_mutex);
+    mutex_enter(&undo_truncate::ddl_mutex);
 
     /* If this is called during DROP UNDO TABLESPACE, then the undo_space
     is already gone. But if this is called at startup after a crash, that
@@ -1821,15 +1827,16 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
     contain any undo logs was set to empty.  That prevented any new undo
     logs to be added during the startup process up till now.  So whether
     we are at runtime or startup, we assert that the undo tablespace is
-    empty and delete the undo::Tablespace object if it exists. */
-    undo::spaces->x_lock();
-    space_id_t space_num = undo::id2num(space_id);
-    undo::Tablespace *undo_space = undo::spaces->find(space_num);
+    empty and delete the undo_truncate::Tablespace object if it exists. */
+    undo_truncate::spaces->x_lock(UT_LOCATION_HERE);
+    space_id_t space_num = undo_truncate::id2num(space_id);
+    undo_truncate::Tablespace *undo_space =
+        undo_truncate::spaces->find(space_num);
     if (undo_space != nullptr) {
       ut_a(undo_space->is_empty());
-      undo::spaces->drop(undo_space);
+      undo_truncate::spaces->drop(undo_space);
     }
-    undo::spaces->x_unlock();
+    undo_truncate::spaces->x_unlock();
   }
 
   if (thd != nullptr) {
@@ -1849,14 +1856,17 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
 
   row_drop_tablespace(space_id, file_path);
 
+  DBUG_EXECUTE_IF("ddl_log_replay_delete_space_crash_after_file_delete",
+                  DBUG_SUICIDE(););
+
   /* If this is an undo space_id, allow the undo number for it
   to be reused. */
   if (fsp_is_undo_tablespace(space_id)) {
-    undo::spaces->x_lock();
-    undo::unuse_space_id(space_id);
-    undo::spaces->x_unlock();
+    undo_truncate::spaces->x_lock(UT_LOCATION_HERE);
+    undo_truncate::unuse_space_id(space_id);
+    undo_truncate::spaces->x_unlock();
 
-    mutex_exit(&undo::ddl_mutex);
+    mutex_exit(&undo_truncate::ddl_mutex);
   }
 
   DBUG_INJECT_CRASH("ddl_log_crash_after_replay", crash_after_replay_counter++);

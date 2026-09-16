@@ -309,75 +309,75 @@ def	hospital	doctors_dv	root@localhost	DEFINER	data	def	hospital	Doctors	0	0	0	1
 def	hospital	lab_reports_dv	root@localhost	DEFINER	data	def	hospital	Lab_Reports	0	0	0	1	valid
 def	hospital	patient_dv	root@localhost	DEFINER	data	def	hospital	Patients	1	1	1	0	valid
 SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES ORDER BY TABLE_NAME,REFERENCED_TABLE_NAME;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
-def	hospital	appointments_dv	def	hospital	Appointments		1	1	1	0	1	0	NULL	NULL
-def	hospital	appointments_dv	def	hospital	Doctors	hospital.Doctors.doctor_id = hospital.Appointments.doctor_id	1	1	0	0	0	2	0	singleton
-def	hospital	appointments_dv	def	hospital	Patients	hospital.Patients.patient_id = hospital.Appointments.patient_id	1	1	0	0	0	1	0	singleton
-def	hospital	doctors_dv	def	hospital	Appointments	NULL	0	0	0	1	0	1	0	nested
-def	hospital	doctors_dv	def	hospital	Doctors		0	0	0	1	1	0	NULL	NULL
-def	hospital	doctors_dv	def	hospital	Patients	hospital.Patients.patient_id = hospital.Appointments.patient_id	0	0	0	1	0	2	1	singleton
-def	hospital	lab_reports_dv	def	hospital	Doctors	hospital.Doctors.doctor_id = hospital.Lab_Reports.doctor_id	0	0	0	1	0	2	0	singleton
-def	hospital	lab_reports_dv	def	hospital	Lab_Reports		0	0	0	1	1	0	NULL	NULL
-def	hospital	lab_reports_dv	def	hospital	Patients	hospital.Patients.patient_id = hospital.Lab_Reports.patient_id	0	0	0	1	0	1	0	singleton
-def	hospital	patient_dv	def	hospital	Appointments	hospital.Appointments.patient_id = hospital.Patients.patient_id	1	1	1	0	0	1	0	nested
-def	hospital	patient_dv	def	hospital	Doctors	hospital.Doctors.doctor_id = hospital.Appointments.doctor_id	1	1	0	0	0	2	1	singleton
-def	hospital	patient_dv	def	hospital	Lab_Reports	hospital.Lab_Reports.patient_id = hospital.Patients.patient_id	1	1	1	0	0	3	0	nested
-def	hospital	patient_dv	def	hospital	Patients		1	1	1	0	1	0	NULL	NULL
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	ALLOW_CHECK	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	hospital	appointments_dv	def	hospital	Appointments		1	1	1	1	0	1	0	NULL	NULL
+def	hospital	appointments_dv	def	hospital	Doctors	hospital.Doctors.doctor_id = hospital.Appointments.doctor_id	1	1	0	1	0	0	2	0	singleton
+def	hospital	appointments_dv	def	hospital	Patients	hospital.Patients.patient_id = hospital.Appointments.patient_id	1	1	0	1	0	0	1	0	singleton
+def	hospital	doctors_dv	def	hospital	Appointments	NULL	0	0	0	1	1	0	1	0	nested
+def	hospital	doctors_dv	def	hospital	Doctors		0	0	0	1	1	1	0	NULL	NULL
+def	hospital	doctors_dv	def	hospital	Patients	hospital.Patients.patient_id = hospital.Appointments.patient_id	0	0	0	1	1	0	2	1	singleton
+def	hospital	lab_reports_dv	def	hospital	Doctors	hospital.Doctors.doctor_id = hospital.Lab_Reports.doctor_id	0	0	0	1	1	0	2	0	singleton
+def	hospital	lab_reports_dv	def	hospital	Lab_Reports		0	0	0	1	1	1	0	NULL	NULL
+def	hospital	lab_reports_dv	def	hospital	Patients	hospital.Patients.patient_id = hospital.Lab_Reports.patient_id	0	0	0	1	1	0	1	0	singleton
+def	hospital	patient_dv	def	hospital	Appointments	hospital.Appointments.patient_id = hospital.Patients.patient_id	1	1	1	1	0	0	1	0	nested
+def	hospital	patient_dv	def	hospital	Doctors	hospital.Doctors.doctor_id = hospital.Appointments.doctor_id	1	1	0	1	0	0	2	1	singleton
+def	hospital	patient_dv	def	hospital	Lab_Reports	hospital.Lab_Reports.patient_id = hospital.Patients.patient_id	1	1	1	1	0	0	3	0	nested
+def	hospital	patient_dv	def	hospital	Patients		1	1	1	1	0	1	0	NULL	NULL
 SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS ORDER BY TABLE_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
-def	hospital	appointments_dv	def	hospital	Appointments	1	0	appointment_id	_id	0	0	0	1
-def	hospital	appointments_dv	def	hospital	Appointments	1	0	appointment_time	time	0	1	0	0
-def	hospital	appointments_dv	def	hospital	Appointments	1	0	status	status	0	1	0	0
-def	hospital	appointments_dv	def	hospital	Doctors	0	2	doctor_id	doctor_id	0	0	0	1
-def	hospital	appointments_dv	def	hospital	Doctors	0	2	first_name	first_name	0	1	0	0
-def	hospital	appointments_dv	def	hospital	Doctors	0	2	last_name	last_name	0	1	0	0
-def	hospital	appointments_dv	def	hospital	Patients	0	1	first_name	first_name	0	1	0	0
-def	hospital	appointments_dv	def	hospital	Patients	0	1	last_name	last_name	0	1	0	0
-def	hospital	appointments_dv	def	hospital	Patients	0	1	patient_id	patient_id	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Appointments	0	1	appointment_id	appointment_id	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Appointments	0	1	appointment_time	appointment_time	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Appointments	0	1	notes	notes	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Appointments	0	1	status	status	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Doctors	1	0	department	department	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Doctors	1	0	doctor_id	_id	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Doctors	1	0	email	email	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Doctors	1	0	first_name	first_name	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Doctors	1	0	last_name	last_name	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Doctors	1	0	specialty	specialty	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Patients	0	2	email	email	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Patients	0	2	first_name	first_name	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Patients	0	2	last_name	last_name	0	0	0	1
-def	hospital	doctors_dv	def	hospital	Patients	0	2	patient_id	patient_id	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Doctors	0	2	doctor_id	doctor_id	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Doctors	0	2	first_name	first_name	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Doctors	0	2	last_name	last_name	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	remarks	remarks	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	report_id	_id	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	results	results	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	test_date	test_date	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	test_name	test_name	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Patients	0	1	first_name	first_name	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Patients	0	1	last_name	last_name	0	0	0	1
-def	hospital	lab_reports_dv	def	hospital	Patients	0	1	patient_id	patient_id	0	0	0	1
-def	hospital	patient_dv	def	hospital	Appointments	0	1	appointment_id	appointment_id	0	0	0	1
-def	hospital	patient_dv	def	hospital	Appointments	0	1	appointment_time	appointment_time	0	1	0	0
-def	hospital	patient_dv	def	hospital	Appointments	0	1	notes	notes	0	1	0	0
-def	hospital	patient_dv	def	hospital	Appointments	0	1	status	status	0	1	0	0
-def	hospital	patient_dv	def	hospital	Doctors	0	2	doctor_id	doctor_id	0	0	0	1
-def	hospital	patient_dv	def	hospital	Doctors	0	2	first_name	first_name	0	1	0	0
-def	hospital	patient_dv	def	hospital	Doctors	0	2	last_name	last_name	0	1	0	0
-def	hospital	patient_dv	def	hospital	Doctors	0	2	specialty	specialty	0	1	0	0
-def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	remarks	remarks	0	1	0	0
-def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	report_id	report_id	0	0	0	1
-def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	results	results	0	1	0	0
-def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	test_date	test_date	0	1	0	0
-def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	test_name	test_name	0	1	0	0
-def	hospital	patient_dv	def	hospital	Patients	1	0	dob	dob	0	1	0	0
-def	hospital	patient_dv	def	hospital	Patients	1	0	email	email	0	1	0	0
-def	hospital	patient_dv	def	hospital	Patients	1	0	first_name	first_name	0	1	0	0
-def	hospital	patient_dv	def	hospital	Patients	1	0	gender	gender	0	1	0	0
-def	hospital	patient_dv	def	hospital	Patients	1	0	last_name	last_name	0	1	0	0
-def	hospital	patient_dv	def	hospital	Patients	1	0	patient_id	_id	0	0	0	1
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	ALLOW_CHECK	READ_ONLY
+def	hospital	appointments_dv	def	hospital	Appointments	1	0	appointment_id	_id	0	0	0	1	1
+def	hospital	appointments_dv	def	hospital	Appointments	1	0	appointment_time	time	0	1	0	1	0
+def	hospital	appointments_dv	def	hospital	Appointments	1	0	status	status	0	1	0	1	0
+def	hospital	appointments_dv	def	hospital	Doctors	0	2	doctor_id	doctor_id	0	0	0	1	1
+def	hospital	appointments_dv	def	hospital	Doctors	0	2	first_name	first_name	0	1	0	1	0
+def	hospital	appointments_dv	def	hospital	Doctors	0	2	last_name	last_name	0	1	0	1	0
+def	hospital	appointments_dv	def	hospital	Patients	0	1	first_name	first_name	0	1	0	1	0
+def	hospital	appointments_dv	def	hospital	Patients	0	1	last_name	last_name	0	1	0	1	0
+def	hospital	appointments_dv	def	hospital	Patients	0	1	patient_id	patient_id	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Appointments	0	1	appointment_id	appointment_id	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Appointments	0	1	appointment_time	appointment_time	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Appointments	0	1	notes	notes	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Appointments	0	1	status	status	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Doctors	1	0	department	department	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Doctors	1	0	doctor_id	_id	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Doctors	1	0	email	email	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Doctors	1	0	first_name	first_name	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Doctors	1	0	last_name	last_name	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Doctors	1	0	specialty	specialty	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Patients	0	2	email	email	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Patients	0	2	first_name	first_name	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Patients	0	2	last_name	last_name	0	0	0	1	1
+def	hospital	doctors_dv	def	hospital	Patients	0	2	patient_id	patient_id	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Doctors	0	2	doctor_id	doctor_id	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Doctors	0	2	first_name	first_name	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Doctors	0	2	last_name	last_name	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	remarks	remarks	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	report_id	_id	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	results	results	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	test_date	test_date	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Lab_Reports	1	0	test_name	test_name	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Patients	0	1	first_name	first_name	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Patients	0	1	last_name	last_name	0	0	0	1	1
+def	hospital	lab_reports_dv	def	hospital	Patients	0	1	patient_id	patient_id	0	0	0	1	1
+def	hospital	patient_dv	def	hospital	Appointments	0	1	appointment_id	appointment_id	0	0	0	1	1
+def	hospital	patient_dv	def	hospital	Appointments	0	1	appointment_time	appointment_time	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Appointments	0	1	notes	notes	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Appointments	0	1	status	status	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Doctors	0	2	doctor_id	doctor_id	0	0	0	1	1
+def	hospital	patient_dv	def	hospital	Doctors	0	2	first_name	first_name	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Doctors	0	2	last_name	last_name	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Doctors	0	2	specialty	specialty	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	remarks	remarks	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	report_id	report_id	0	0	0	1	1
+def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	results	results	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	test_date	test_date	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Lab_Reports	0	3	test_name	test_name	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Patients	1	0	dob	dob	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Patients	1	0	email	email	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Patients	1	0	first_name	first_name	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Patients	1	0	gender	gender	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Patients	1	0	last_name	last_name	0	1	0	1	0
+def	hospital	patient_dv	def	hospital	Patients	1	0	patient_id	_id	0	0	0	1	1
 SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS ORDER BY TABLE_NAME,PARENT_TABLE_NAME,CHILD_TABLE_NAME,PARENT_COLUMN_NAME;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
 def	hospital	appointments_dv	def	hospital	Appointments	def	hospital	Doctors	doctor_id	doctor_id	outer	doctor

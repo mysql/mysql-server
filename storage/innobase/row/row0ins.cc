@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "eval0eval.h"
+#include "fil0pages_persistence_interface.h"
 #include "fts0fts.h"
 #include "fts0types.h"
 #include "gis0geo.h"
@@ -279,8 +280,7 @@ void ins_node_set_new_row(
 
     /* TODO: pass only *offsets */
     err = btr_cur_optimistic_update(flags | BTR_KEEP_SYS_FLAG, cursor, offsets,
-                                    &offsets_heap, update, 0, thr,
-                                    thr_get_trx(thr)->id, mtr);
+                                    &offsets_heap, update, 0, thr, mtr);
     switch (err) {
       case DB_OVERFLOW:
       case DB_UNDERFLOW:
@@ -294,11 +294,11 @@ void ins_node_set_new_row(
     if (buf_LRU_buf_pool_running_out()) {
       return (DB_LOCK_TABLE_FULL);
     }
-
-    trx_t *trx = thr_get_trx(thr);
-    err = btr_cur_pessimistic_update(
-        flags | BTR_KEEP_SYS_FLAG, cursor, offsets, &offsets_heap, heap,
-        &dummy_big_rec, update, 0, thr, trx->id, trx->undo_no, mtr);
+    ut_ad(!thr_get_trx(thr)->in_rollback);
+    const undo_no_t dummy_undo_no = 0;
+    err = btr_cur_pessimistic_update(flags | BTR_KEEP_SYS_FLAG, cursor, offsets,
+                                     &offsets_heap, heap, &dummy_big_rec,
+                                     update, 0, thr, dummy_undo_no, mtr);
     ut_ad(!dummy_big_rec);
   }
 
@@ -360,7 +360,7 @@ void ins_node_set_new_row(
     within the page */
 
     err = btr_cur_optimistic_update(flags, cursor, offsets, offsets_heap,
-                                    update, 0, thr, thr_get_trx(thr)->id, mtr);
+                                    update, 0, thr, mtr);
     switch (err) {
       case DB_OVERFLOW:
       case DB_UNDERFLOW:
@@ -376,13 +376,13 @@ void ins_node_set_new_row(
 
     big_rec_t *big_rec = nullptr;
     trx_t *trx = thr_get_trx(thr);
-    trx_id_t trx_id = thr_get_trx(thr)->id;
 
     DEBUG_SYNC_C("before_row_ins_upd_pessimistic");
-
+    ut_ad(!trx->in_rollback);
+    const undo_no_t dummy_undo_no = 0;
     err = btr_cur_pessimistic_update(flags | BTR_KEEP_POS_FLAG, cursor, offsets,
                                      offsets_heap, heap, &big_rec, update, 0,
-                                     thr, trx_id, trx->undo_no, mtr);
+                                     thr, dummy_undo_no, mtr);
 
     if (big_rec) {
       ut_a(err == DB_SUCCESS);
@@ -2475,8 +2475,6 @@ dberr_t row_ins_clust_index_entry_low(uint32_t flags, ulint mode,
   }
 #endif /* UNIV_DEBUG */
 
-  bool persist_autoinc = false;
-
   /* Write logs for AUTOINC right after index lock has been got and
   before any further resource acquisitions to prevent deadlock.
   No need to log for temporary tables */
@@ -2487,9 +2485,9 @@ dberr_t row_ins_clust_index_entry_low(uint32_t flags, ulint mode,
         row_get_autoinc_counter(entry, index->table->autoinc_field_no);
 
     if (counter != 0) {
-      /* Always log the counter change first, so it won't
+      /* Always persist the counter change first, so it won't
       be affected by any follow-up failure. */
-      persist_autoinc = dict_table_autoinc_log(index->table, counter, &mtr);
+      dict_table_autoinc_persist(index->table, counter);
     }
   }
 
@@ -2607,7 +2605,7 @@ dberr_t row_ins_clust_index_entry_low(uint32_t flags, ulint mode,
       row_ins_index_entry_big_rec() will write log. */
 
       DBUG_EXECUTE_IF("row_ins_extern_checkpoint",
-                      log_make_latest_checkpoint(););
+                      pages_persistence->request_sharp_checkpoint(););
       err = row_ins_index_entry_big_rec(thr_get_trx(thr), entry, big_rec,
                                         offsets, &offsets_heap, index,
                                         thr_get_trx(thr)->mysql_thd);
@@ -2634,12 +2632,6 @@ func_exit:
             << "ib_sdi: row_ins_clust_index_entry_low: " << index->name << " "
             << index->table->name << " return status: " << err;
       });
-
-  /* Persist auto increment value to DD buffer table if requested. Do it after
-  closing the mini transaction and releasing latches. */
-  if (persist_autoinc) {
-    dict_table_persist_to_dd_table_buffer(index->table);
-  }
 
   return err;
 }
@@ -3666,7 +3658,7 @@ que_thr_t *row_ins_step(que_thr_t *thr) /*!< in: query thread */
 
   trx = thr_get_trx(thr);
 
-  trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   node = static_cast<ins_node_t *>(thr->run_node);
 

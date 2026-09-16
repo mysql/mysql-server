@@ -147,7 +147,7 @@ void dict_table_persist_to_dd_table_buffer(dict_table_t *table);
 @param[in]      buffer          buffer to read
 @param[in]      size            size of data in buffer
 @param[in]      metadata        where we store the metadata from buffer */
-void dict_table_read_dynamic_metadata(const byte *buffer, ulint size,
+void dict_table_read_dynamic_metadata(const byte *buffer, size_t size,
                                       PersistentTableMetadata *metadata);
 
 /** Determine bytes of column prefix to be stored in the undo log. Please
@@ -227,13 +227,15 @@ static inline void dict_table_autoinc_persisted_update(dict_table_t *table,
 static inline void dict_table_autoinc_set_col_pos(dict_table_t *table,
                                                   ulint pos);
 
-/** Write redo logs for autoinc counter that is to be inserted, or to
-update some existing smaller one to bigger.
+/** Makes sure that the persisted autoinc value for the table is at least equal
+to `value`. Note that due to innodb_autoinc_preallocate the actually persisted
+value can be larger than required. Also stores the maximum of the real values
+passed to this function in table->autoinc_persisted, so that it can be persisted
+exactly if needed.
 @param[in,out]  table   InnoDB table object
-@param[in]      value   AUTOINC counter to log
-@param[in,out]  mtr     Mini-transaction
-@return true if auto increment needs to be persisted to DD table buffer. */
-bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr);
+@param[in]      value   AUTOINC counter to persist
+*/
+void dict_table_autoinc_persist(dict_table_t *table, uint64_t value);
 
 /** Check if a table has an autoinc counter column.
 @param[in]      table   table
@@ -301,24 +303,35 @@ void dict_table_change_id_in_cache(
 /** Removes a foreign constraint struct from the dictionary cache. */
 void dict_foreign_remove_from_cache(
     dict_foreign_t *foreign); /*!< in, own: foreign constraint */
-/** Adds a foreign key constraint object to the dictionary cache. May free
- the object if there already is an object with the same identifier in.
- At least one of foreign table or referenced table must already be in
- the dictionary cache!
- @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t dict_foreign_add_to_cache(
-    dict_foreign_t *foreign,
-    /*!< in, own: foreign key constraint */
-    const char **col_names,
-    /*!< in: column names, or NULL to use
-    foreign->foreign_table->col_names */
-    bool check_charsets,
-    /*!< in: whether to check charset
-    compatibility */
-    bool can_free_fk,
-    /*!< in: whether free existing FK */
-    dict_err_ignore_t ignore_err);
-/*!< in: error to be ignored */
+/**
+Adds a foreign key constraint to the dictionary cache.
+
+If a constraint with the same identifier is already cached, this function
+can free @p foreign. At least one of the foreign or referenced tables must
+already be in the dictionary cache.
+
+@param[in,out] foreign           Foreign key constraint to cache. Ownership
+                                  remains with the caller only if it is not
+                                  adopted or freed by this function.
+@param[in]     col_names         Column names, or nullptr to use the foreign
+                                  table's column names.
+@param[in]     check_charsets    Whether to verify character-set compatibility.
+@param[in]     can_free_fk       Whether an existing foreign key may be freed.
+@param[in]     ignore_err        Errors to ignore while adding the constraint.
+@param[in]     skip_referenced   Whether to avoid registering the constraint
+                                  in the referenced table's referenced set and
+                                  to avoid preventing that table's eviction.
+                                  COPY ALTER uses this while the referenced
+                                  table may be concurrently opened.
+
+@return DB_SUCCESS on success, or an error code on failure.
+*/
+[[nodiscard]] dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
+                                                const char **col_names,
+                                                bool check_charsets,
+                                                bool can_free_fk,
+                                                dict_err_ignore_t ignore_err,
+                                                bool skip_referenced = false);
 /** Checks if a table is referenced by foreign keys.
  @return true if table is referenced by a foreign key */
 [[nodiscard]] bool dict_table_is_referenced_by_foreign_key(
@@ -617,14 +630,6 @@ void dict_table_copy_v_types(dtuple_t *tuple, const dict_table_t *table);
 void dict_table_copy_types(dtuple_t *tuple, /*!< in/out: data tuple */
                            const dict_table_t *table); /*!< in: table */
 #ifndef UNIV_HOTBACKUP
-/********************************************************************
-Wait until all the background threads of the given table have exited, i.e.,
-bg_threads == 0. Note: bg_threads_mutex must be reserved when
-calling this. */
-void dict_table_wait_for_bg_threads_to_exit(
-    dict_table_t *table,              /* in: table */
-    std::chrono::microseconds delay); /* in: time to wait between
-                         checks of bg_threads. */
 
 /** Look up an index among already opened tables. Does not attempt to open
 tables that are not available in the dictionary cache.  This behaviour is fine
@@ -1296,10 +1301,6 @@ class DDTableBuffer {
   @return DB_SUCCESS or error code */
   dberr_t remove(table_id_t id);
 
-  /** Truncate the table. We can call it after all the dynamic
-  metadata has been written back to DD table */
-  void truncate();
-
   /** Get the buffered metadata for a specific table, the caller
   has to delete the returned std::string object by ut::delete_
   @param[in]    id      table id
@@ -1695,7 +1696,7 @@ void get_permissible_max_size(const dict_table_t *table,
 @param[in]  page_rec_max maximum size of possible record on leaf page
 @param[in]  page_ptr_max maximum size of possible record on non-leaf page
 @param[out] rec_max_size maximum size of record on page
-@return true if max record size is within limit, false otherwise. */
+@return true if max record size exceeds the limit, false otherwise. */
 bool dict_index_validate_max_rec_size(const dict_table_t *table,
                                       const dict_index_t *index,
                                       const size_t page_rec_max,

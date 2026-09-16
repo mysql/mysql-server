@@ -34,8 +34,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef fsp0sysspace_h
 #define fsp0sysspace_h
 
+#include "fil0tablespace_node_handle_interface.h"
+#include "fil0tablespaces_nodes_interface.h"
 #include "fsp0space.h"
 #include "univ.i"
+#include "ut0expected.h" /* ut::Expected */
 
 #ifdef UNIV_HOTBACKUP
 #include "srv0srv.h"
@@ -53,20 +56,78 @@ developer to enable it during debug. */
 extern bool srv_skip_temp_table_checks_debug;
 #endif /* UNIV_DEBUG */
 
-/** Data structure that contains the information about shared tablespaces.
-Currently this can be the system tablespace or a temporary table tablespace */
-class SysTablespace : public Tablespace {
+namespace ib::fsp {
+
+/** Stores information about a single system tablespace node parsed out from the
+param string. It represents a "const" config part of the node. */
+struct SysTablespace_node_config : public Tablespace_node {
  public:
-  SysTablespace()
-      : m_auto_extend_last_file(),
-        m_last_file_size_max(),
-        m_created_new_raw(),
-        m_is_tablespace_full(false),
-        m_sanity_checks_done(false) {
-    /* No op */
+  /** Constructor with all information that could be parsed out of the param
+  string. */
+  SysTablespace_node_config(const std::string &name, page_no_t size,
+                            size_t order, node_device_type_t device_type)
+      : Tablespace_node(name, size, order), m_device_type(device_type) {}
+
+  node_device_type_t device_type() const { return m_device_type; }
+
+ private:
+  /** Type of the node's device. */
+  const node_device_type_t m_device_type;
+};
+
+/** Represents a tablespace node, including runtime info acquired and changed
+after the node is parsed out of the param string. */
+struct SysTablespace_node : public SysTablespace_node_config {
+ public:
+  SysTablespace_node(const std::string &name, page_no_t size, size_t order,
+                     node_device_type_t device_type)
+      : SysTablespace_node_config(name, size, order, device_type) {}
+
+  void set_node_storage_exists() {
+    ut_a(m_node_storage_exists == false);
+    m_node_storage_exists = true;
   }
 
-  ~SysTablespace() override { shutdown(); }
+  [[nodiscard]] bool node_storage_exists() const {
+    return m_node_storage_exists;
+  }
+
+ private:
+  /** Specifies if the storage node exists. This is populated only after
+  checking the actual nodes' storage. */
+  bool m_node_storage_exists{};
+};
+
+/** Data structure that contains the information about shared tablespaces.
+Currently this can be the system tablespace or a temporary table tablespace */
+class SysTablespace : public Tablespace<SysTablespace_node> {
+ private:
+  class Opened_storage_node {
+   public:
+    Opened_storage_node(
+        const SysTablespace_node &node,
+        ut::unique_ptr<ib::fil::Tablespace_node_handle_interface>
+            storage) noexcept
+        : m_node(node), m_storage(std::move(storage)) {}
+
+    const SysTablespace_node &m_node;
+    ut::unique_ptr<ib::fil::Tablespace_node_handle_interface> m_storage;
+  };
+
+ public:
+  SysTablespace(space_id_t space_id, fil_type_t space_type)
+      : Tablespace(space_id, space_type) { /* No op */
+  }
+
+#ifdef UNIV_HOTBACKUP
+  void reset() override {
+    m_auto_extend_last_file = false;
+    m_last_file_size_in_pages_max = 0;
+    m_is_tablespace_full = false;
+    m_sum_of_new_sizes_in_pages = 0;
+    Tablespace::reset();
+  }
+#endif
 
   /** Set tablespace full status
   @param[in]    is_full         true if full */
@@ -76,121 +137,64 @@ class SysTablespace : public Tablespace {
 
   /** Get tablespace full status
   @return true if table is full */
-  bool get_tablespace_full_status() { return (m_is_tablespace_full); }
-
-  /** Set sanity check status
-  @param[in]    status  true if sanity checks are done */
-  void set_sanity_check_status(bool status) { m_sanity_checks_done = status; }
-
-  /** Get sanity check status
-  @return true if sanity checks are done */
-  bool get_sanity_check_status() { return (m_sanity_checks_done); }
+  [[nodiscard]] bool get_tablespace_full_status() {
+    return m_is_tablespace_full;
+  }
 
   /** Parse the input params and populate member variables.
   @param[in]    filepath_spec   path to data files
-  @param[in]    supports_raw    true if the tablespace supports raw devices
   @return true on success parse */
-  bool parse_params(const char *filepath_spec, bool supports_raw);
+  [[nodiscard]] bool parse_params(const char *filepath_spec);
 
   /** Check the data file specification.
-  @param[in]  create_new_db     True if a new database is to be created
-  @param[in]  min_expected_size Minimum expected tablespace size in bytes
+  @param[in]  create_new_tablespace True if a new tablespace is to be created
+  @param[in]  min_expected_size     Minimum expected tablespace size in bytes
+  @param[in]  supports_raw_devices  True if the tablespace supports raw devices.
   @return DB_SUCCESS if all OK else error code */
-  dberr_t check_file_spec(bool create_new_db, ulint min_expected_size);
-
-  /** Free the memory allocated by parse() */
-  void shutdown();
-
-  /**
-  @return true if a new raw device was created. */
-  bool created_new_raw() const { return (m_created_new_raw); }
+  [[nodiscard]] dberr_t check_file_spec(bool create_new_tablespace,
+                                        uint64_t min_expected_size,
+                                        bool supports_raw_devices);
 
   /**
   @return auto_extend value setting */
-  ulint can_auto_extend_last_file() const { return (m_auto_extend_last_file); }
-
-  /** Set the last file size.
-  @param[in]    size    the size to set */
-  void set_last_file_size(page_no_t size) {
-    ut_ad(!m_files.empty());
-    m_files.back().m_size = size;
-  }
-
-  /** Get the number of pages in the last data file in the tablespace
-  @return the size of the last data file in the array */
-  page_no_t last_file_size() const {
-    ut_ad(!m_files.empty());
-    return (m_files.back().m_size);
+  [[nodiscard]] ulint can_auto_extend_last_file() const {
+    return (m_auto_extend_last_file);
   }
 
   /**
   @return the autoextend increment in pages. */
-  page_no_t get_autoextend_increment() const {
-    return (sys_tablespace_auto_extend_increment *
-            ((1024 * 1024) / UNIV_PAGE_SIZE));
+  [[nodiscard]] static page_no_t get_autoextend_increment() {
+    return sys_tablespace_auto_extend_increment *
+           ((1024 * 1024) / UNIV_PAGE_SIZE);
   }
 
-  /** Round the number of bytes in the file to MegaBytes
-  and then return the number of pages.
-  Note: Only system tablespaces are required to be at least
-  1 megabyte.
-  @return the number of pages in the file. */
-  page_no_t get_pages_from_size(os_offset_t size) {
-    return static_cast<page_no_t>(
-        ((size / (1024 * 1024)) * ((1024 * 1024) / UNIV_PAGE_SIZE)));
-  }
-
-  /**
-  @return next increment size */
-  page_no_t get_increment() const;
-
-  /** Open or create the data files
-  @param[in]  is_temp         whether this is a temporary tablespace
-  @param[in]  create_new_db   whether we are creating a new database
-  @param[out] sum_new_sizes   sum of sizes of the new files added
-  @param[out] flush_lsn       lsn stored at offset FIL_PAGE_FILE_FLUSH_LSN
-                              in the system tablespace header; might be
-                              nullptr if not interested in having that
+  /** Open or create the data files, register the tablespace and its nodes in
+  the `fil`'s tablespace registry.
   @return DB_SUCCESS or error code */
-  [[nodiscard]] dberr_t open_or_create(bool is_temp, bool create_new_db,
-                                       page_no_t *sum_new_sizes,
-                                       lsn_t *flush_lsn);
+  [[nodiscard]] dberr_t prepare_nodes();
+
+  /** Check the tablespace header for this tablespace and read the flush LSN.
+  @return value stored at offset FIL_PAGE_FILE_FLUSH_LSN or error code */
+  [[nodiscard]] ut::Expected<lsn_t> read_lsn_and_check_flags();
+
+  /** @return the sum of the node sizes that were created, in pages. */
+  [[nodiscard]] page_no_t get_sum_of_new_sizes_in_pages() const {
+    return m_sum_of_new_sizes_in_pages;
+  }
 
  private:
-  /** Check the tablespace header for this tablespace.
-  @param[out]   flushed_lsn     value stored at offset FIL_PAGE_FILE_FLUSH_LSN
-  @return DB_SUCCESS or error code */
-  dberr_t read_lsn_and_check_flags(lsn_t *flushed_lsn);
+  /** Create storage for the specified data node.
+  @param[in,out]        node    data node object. May change value of the
+                                m_node_storage_exists member.
+  @return Opened storage node or error code */
+  [[nodiscard]] ut::Expected<SysTablespace::Opened_storage_node> create_node(
+      SysTablespace_node &node);
 
-  /** Note that the data file was not found.
-  @param[in]    file            data file object
-  @param[in]    create_new_db   true if a new instance to be created
-  @return DB_SUCCESS or error code */
-  dberr_t file_not_found(Datafile &file, bool create_new_db);
-
-  /** Note that the data file was found.
-  @param[in,out]        file    data file object */
-  void file_found(Datafile &file);
-
-  /** Create a data file.
-  @param[in,out]        file    data file object
-  @return DB_SUCCESS or error code */
-  dberr_t create(Datafile &file);
-
-  /** Create a data file.
-  @param[in,out]        file    data file object
-  @return DB_SUCCESS or error code */
-  dberr_t create_file(Datafile &file);
-
-  /** Open a data file.
-  @param[in,out]        file    data file object
-  @return DB_SUCCESS or error code */
-  dberr_t open_file(Datafile &file);
-
-  /** Set the size of the file.
-  @param[in,out]        file    data file object
-  @return DB_SUCCESS or error code */
-  dberr_t set_size(Datafile &file);
+  /** Open storage of the specified data node.
+  @param[in]        node    data node object
+  @return Opened storage node or error code */
+  [[nodiscard]] ut::Expected<SysTablespace::Opened_storage_node> open_node(
+      const SysTablespace_node &node);
 
  private:
   /* Put the pointer to the next byte after a valid file name.
@@ -200,59 +204,52 @@ class SysTablespace : public Tablespace {
   \\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw.
   @param[in]    str             system tablespace file path spec
   @return next character in string after the file name */
-  static char *parse_file_name(char *ptr);
+  [[nodiscard]] static char *parse_file_name(char *ptr);
 
-  /** Convert a numeric string that optionally ends in upper or lower
-  case G, M, or K, rounding off to the nearest number of megabytes.
-  Then return the number of pages in the file.
-  @param[in,out]        ptr     Pointer to a numeric string
+  /** Convert a numeric string representing a number of bytes optionally ending
+  in upper or lower case G, M, or K, to a number of megabytes, rounding down to
+  the nearest megabyte. Then return the number of pages in the file.
+  @param[in,out]  ptr     Pointer to a numeric string
   @return the number of pages in the file. */
-  page_no_t parse_units(char *&ptr);
+  [[nodiscard]] page_no_t parse_suffixed_page_count(char *&ptr);
 
-  enum file_status_t {
+  enum class file_status_t_ {
     FILE_STATUS_VOID = 0,              /** status not set */
     FILE_STATUS_RW_PERMISSION_ERROR,   /** permission error */
     FILE_STATUS_READ_WRITE_ERROR,      /** not readable/writable */
     FILE_STATUS_NOT_REGULAR_FILE_ERROR /** not a regular file */
   };
 
-  /** Verify the size of the physical file
-  @param[in]    file    data file object
+  /** Verify the size of the node storage
+  @param[in]    node        data node object
+  @param[in]    node_info   Information about the node storage specified.
   @return DB_SUCCESS if OK else error code. */
-  dberr_t check_size(Datafile &file);
-
-  /** Check if a file can be opened in the correct mode.
-  @param[in,out]        file    data file object
-  @param[out]   reason  exact reason if file_status check failed.
-  @return DB_SUCCESS or error code. */
-  dberr_t check_file_status(const Datafile &file, file_status_t &reason);
+  [[nodiscard]] dberr_t check_size(
+      SysTablespace_node &node,
+      const ib::fil::Tablespaces_nodes_interface::Node_info &node_info);
 
   /* DATA MEMBERS */
 
   /** if true, then we auto-extend the last data file */
-  bool m_auto_extend_last_file;
+  bool m_auto_extend_last_file{};
 
   /** if != 0, this tells the max size auto-extending may increase the
   last data file size */
-  page_no_t m_last_file_size_max;
-
-  /** If the following is true we do not allow
-  inserts etc. This protects the user from forgetting
-  the 'newraw' keyword to my.cnf */
-  bool m_created_new_raw;
+  page_no_t m_last_file_size_in_pages_max{};
 
   /** Tablespace full status */
-  bool m_is_tablespace_full;
+  bool m_is_tablespace_full{};
 
-  /** if false, then sanity checks are still pending */
-  bool m_sanity_checks_done;
+  /** Sum of sizes of all nodes, in pages, that had the storage created during
+  this instance lifetime. */
+  page_no_t m_sum_of_new_sizes_in_pages{};
 };
 
-/* GLOBAL OBJECTS */
+}  // namespace ib::fsp
 
 /** The control info of the system tablespace. */
-extern SysTablespace srv_sys_space;
+extern ib::fsp::SysTablespace srv_sys_space;
 
 /** The control info of a temporary table shared tablespace. */
-extern SysTablespace srv_tmp_space;
+extern ib::fsp::SysTablespace srv_tmp_space;
 #endif /* fsp0sysspace_h */

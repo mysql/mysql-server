@@ -87,7 +87,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "srv0start.h"
 #ifndef UNIV_HOTBACKUP
 #include "trx0rec.h"
 #include "trx0roll.h"
@@ -3267,7 +3266,7 @@ bool btr_cur_update_alloc_zip_func(page_zip_des_t *page_zip, page_cur_t *cursor,
     return (true);
   }
 
-  if (!page_zip->m_nonempty && !page_has_garbage(page)) {
+  if (!page_zip->has_modifications() && !page_has_garbage(page)) {
     /* The page has been freshly compressed, so
     reorganizing it will not help. */
     return (false);
@@ -3311,25 +3310,9 @@ out_of_space:
   return (false);
 }
 
-/** Updates a record when the update causes no size changes in its fields.
-@param[in] flags Undo logging and locking flags
-@param[in] cursor Cursor on the record to update; cursor stays valid and
-positioned on the same record
-@param[in,out] offsets Offsets on cursor->page_cur.rec
-@param[in] update Update vector
-@param[in] cmpl_info Compiler info on secondary index updates
-@param[in] thr Query thread, or null if flags & (btr_no_locking_flag |
-btr_no_undo_log_flag | btr_create_flag | btr_keep_sys_flag)
-@param[in] trx_id Transaction id
-@param[in,out] mtr Mini-transaction; if this is a secondary index, the caller
-must mtr_commit(mtr) before latching any further pages
-@return locking or undo log related error code, or
-@retval DB_SUCCESS on success
-@retval DB_ZIP_OVERFLOW if there is not enough space left
-on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
 dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
                                 const upd_t *update, ulint cmpl_info,
-                                que_thr_t *thr, trx_id_t trx_id, mtr_t *mtr) {
+                                que_thr_t *thr, mtr_t *mtr) {
   dict_index_t *index;
   buf_block_t *block;
   page_zip_des_t *page_zip;
@@ -3342,8 +3325,6 @@ dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
   index = cursor->index;
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_ad(page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-  ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG) ||
-        index->table->is_intrinsic());
   /* The insert buffer tree should never be updated in place. */
   ut_ad(!dict_index_is_ibuf(index));
   ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG) ||
@@ -3351,13 +3332,13 @@ dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
   ut_ad((flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP)) ==
             (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG |
              BTR_KEEP_SYS_FLAG) ||
-        thr_get_trx(thr)->id == trx_id);
+        thr != nullptr);
   ut_ad(fil_page_index_page_check(btr_cur_get_page(cursor)));
   ut_ad(btr_page_get_index_id(btr_cur_get_page(cursor)) == index->id);
-
+  trx_t *trx = thr ? thr_get_trx(thr) : nullptr;
   DBUG_PRINT("ib_cur",
              ("update-in-place %s (" IB_ID_FMT ") by " TRX_ID_FMT ": %s",
-              index->name(), index->id, trx_id,
+              index->name(), index->id, (trx ? trx->id : 0),
               rec_printer(rec, offsets).str().c_str()));
 
   block = btr_cur_get_block(cursor);
@@ -3387,8 +3368,9 @@ dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
   }
 
   if (!(flags & BTR_KEEP_SYS_FLAG) && !index->table->is_intrinsic()) {
-    row_upd_rec_sys_fields(rec, nullptr, index, offsets, thr_get_trx(thr),
-                           roll_ptr);
+    ut_a(trx);
+    ut_a_lt(0, trx->id);
+    row_upd_rec_sys_fields(rec, nullptr, index, offsets, trx, roll_ptr);
   }
 
   was_delete_marked =
@@ -3413,8 +3395,9 @@ dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
 
   block->ahi.validate();
   row_upd_rec_in_place(rec, index, offsets, update, page_zip);
-
-  btr_cur_update_in_place_log(flags, rec, index, update, trx_id, roll_ptr, mtr);
+  ut_a(trx == nullptr || 0 < trx->id);
+  btr_cur_update_in_place_log(flags, rec, index, update, (trx ? trx->id : 0),
+                              roll_ptr, mtr);
 
   if (was_delete_marked &&
       !rec_get_deleted_flag(rec, page_is_comp(buf_block_get_frame(block)))) {
@@ -3495,7 +3478,7 @@ bool materialize_instant_default(const dict_index_t *index, const rec_t *rec) {
 dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
                                   ulint **offsets, mem_heap_t **heap,
                                   const upd_t *update, ulint cmpl_info,
-                                  que_thr_t *thr, trx_id_t trx_id, mtr_t *mtr) {
+                                  que_thr_t *thr, mtr_t *mtr) {
   dict_index_t *index;
   page_cur_t *page_cursor;
   dberr_t err;
@@ -3509,13 +3492,12 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
   dtuple_t *new_entry;
   roll_ptr_t roll_ptr;
   ulint i;
+  const trx_t *trx = thr ? thr_get_trx(thr) : nullptr;
 
   block = btr_cur_get_block(cursor);
   page = buf_block_get_frame(block);
   rec_t *rec = btr_cur_get_rec(cursor);
   index = cursor->index;
-  ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG) ||
-        index->table->is_intrinsic());
   ut_ad(page_rec_is_comp(rec) == dict_table_is_comp(index->table));
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
   /* This is intended only for leaf page updates */
@@ -3527,7 +3509,7 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
   ut_ad((flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP)) ==
             (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG |
              BTR_KEEP_SYS_FLAG) ||
-        thr_get_trx(thr)->id == trx_id);
+        thr != nullptr);
   ut_ad(fil_page_index_page_check(page));
   ut_ad(btr_page_get_index_id(page) == index->id);
   ut_ad(update);
@@ -3543,7 +3525,7 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
        (flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP)) ==
            (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG |
             BTR_KEEP_SYS_FLAG) ||
-       trx_is_recv(thr_get_trx(thr)));
+       trx_is_recv(trx));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
   if (!row_upd_changes_field_size_or_external(index, *offsets, update)) {
@@ -3553,7 +3535,7 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
     on the compressed page to log the update. */
 
     return (btr_cur_update_in_place(flags, cursor, *offsets, update, cmpl_info,
-                                    thr, trx_id, mtr));
+                                    thr, mtr));
   }
 
   if (rec_offs_any_extern(*offsets)) {
@@ -3574,9 +3556,9 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
     }
   }
 
-  DBUG_PRINT("ib_cur",
-             ("update %s (" IB_ID_FMT ") by " TRX_ID_FMT ": %s", index->name(),
-              index->id, trx_id, rec_printer(rec, *offsets).str().c_str()));
+  DBUG_PRINT("ib_cur", ("update %s (" IB_ID_FMT ") by " TRX_ID_FMT ": %s",
+                        index->name(), index->id, (trx ? trx->id : 0),
+                        rec_printer(rec, *offsets).str().c_str()));
 
   page_cursor = btr_cur_get_page_cur(cursor);
 
@@ -3696,8 +3678,10 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
   page_cur_move_to_prev(page_cursor);
 
   if (!(flags & BTR_KEEP_SYS_FLAG) && !index->table->is_intrinsic()) {
+    ut_ad(trx != nullptr);
+    ut_ad_lt(0, trx->id);
     row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR, roll_ptr);
-    row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID, trx_id);
+    row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID, trx->id);
   }
 
   /* There are no externally stored columns in new_entry */
@@ -3776,9 +3760,8 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
                                    ulint **offsets, mem_heap_t **offsets_heap,
                                    mem_heap_t *entry_heap, big_rec_t **big_rec,
                                    upd_t *update, ulint cmpl_info,
-                                   que_thr_t *thr, trx_id_t trx_id,
-                                   undo_no_t undo_no, mtr_t *mtr,
-                                   btr_pcur_t *pcur) {
+                                   que_thr_t *thr, undo_no_t undo_no,
+                                   mtr_t *mtr, btr_pcur_t *pcur) {
   DBUG_TRACE;
   big_rec_t *big_rec_vec = nullptr;
   big_rec_t *dummy_big_rec;
@@ -3814,19 +3797,17 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   ut_ad(!page_zip || !index->table->is_temporary());
   /* The insert buffer tree should never be updated in place. */
   ut_ad(!dict_index_is_ibuf(index));
-  ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG) ||
-        index->table->is_intrinsic());
   ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG) ||
         index->is_clustered());
   ut_ad((flags & ~BTR_KEEP_POS_FLAG) ==
             (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG |
              BTR_KEEP_SYS_FLAG) ||
-        thr_get_trx(thr)->id == trx_id);
+        thr != nullptr);
   ut_d(update->validate_for_index(index));
 
-  err = optim_err = btr_cur_optimistic_update(
-      flags | BTR_KEEP_IBUF_BITMAP, cursor, offsets, offsets_heap, update,
-      cmpl_info, thr, trx_id, mtr);
+  err = optim_err =
+      btr_cur_optimistic_update(flags | BTR_KEEP_IBUF_BITMAP, cursor, offsets,
+                                offsets_heap, update, cmpl_info, thr, mtr);
 
   switch (err) {
     case DB_ZIP_OVERFLOW:
@@ -3932,22 +3913,24 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
     inherited values. They can be inherited if we have
     updated the primary key to another value, and then
     update it back again. */
+    ut_ad(trx != nullptr);
+    ut_ad(trx->in_rollback);
+    ut_ad_lt(0, trx->id);
 
     /* During rollback of a record in table having INSTANT fields, it is
     possible to have an external field now which wasn't there before update */
     ut_ad(big_rec_vec == nullptr || materialize_instant_default(index, rec));
 
     ut_ad(index->is_clustered());
-    ut_ad((flags & ~BTR_KEEP_POS_FLAG) ==
-              (BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG) ||
-          thr_get_trx(thr)->id == trx_id);
 
-    DBUG_EXECUTE_IF("ib_blob_update_rollback", DBUG_SUICIDE(););
-    RECOVERY_CRASH(99);
+    DBUG_EXECUTE_IF("ib_blob_update_rollback", {
+      fprintf(stderr, "ib_blob_update_rollback crash triggered\n");
+      DBUG_SUICIDE();
+    });
 
     lob::BtrContext ctx(mtr, pcur, index, rec, *offsets, block);
 
-    ctx.free_updated_extern_fields(trx_id, undo_no, update, true, big_rec_vec);
+    ctx.free_updated_extern_fields(trx->id, undo_no, update, true, big_rec_vec);
 
     /* The cursor position could have changed because of the call to
     lob::purge() above. */
@@ -3983,8 +3966,10 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   }
 
   if (!(flags & BTR_KEEP_SYS_FLAG) && !index->table->is_intrinsic()) {
+    ut_ad(trx != nullptr);
+    ut_ad_lt(0, trx->id);
     row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR, roll_ptr);
-    row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID, trx_id);
+    row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID, trx->id);
   }
 
   if (!page_zip) {
@@ -4124,9 +4109,10 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
     buf_block_t *rec_block;
 
     rec_block = btr_cur_get_block(cursor);
-
-    page_update_max_trx_id(rec_block, buf_block_get_page_zip(rec_block), trx_id,
-                           mtr);
+    ut_ad(trx != nullptr);
+    ut_ad_lt(0, trx->id);
+    page_update_max_trx_id(rec_block, buf_block_get_page_zip(rec_block),
+                           trx->id, mtr);
   }
 
   if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {

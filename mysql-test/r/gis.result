@@ -4753,4 +4753,10 @@ UPDATE t1 SET geom = DEFAULT;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SET sql_mode= @orig_sql_mode;
 DROP TABLE t1;
+#
+# Bug#39300278: Item_func_latlongfromgeohash::val_real():
+# Assertion 'input_value != nullptr || args[0]->null_value' failed
+#
+DO ST_LONGFROMGEOHASH((@c:= ST_ASGEOJSON(POINT(28, 63), 51, 156)));
+ERROR HY000: Incorrect options value: '156' for function st_asgeojson
 include/rpl/set_gtid_mode_on.inc

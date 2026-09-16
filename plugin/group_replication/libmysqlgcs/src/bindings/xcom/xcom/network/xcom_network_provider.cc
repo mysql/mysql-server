@@ -132,7 +132,11 @@ void xcom_tcp_server_startup(Xcom_network_provider *net_provider) {
 #endif
       if (accept_fd != -1) {
         new_incoming_connection->has_error = false;
-        net_provider->set_new_connection(new_incoming_connection);
+        if (net_provider->set_new_connection(new_incoming_connection) ==
+            Network_connection_handoff_status::BUSY) {
+          net_provider->close_connection(*new_incoming_connection);
+          delete new_incoming_connection;
+        }
       } else {
         delete new_incoming_connection;
       }

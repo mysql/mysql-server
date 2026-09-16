@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection slave]
 include/suppress_messages.inc
-# Connection 2 suppresses message <Replica SQL for channel .*: Worker 1 failed executing transaction.*>.
+# Connection 2 suppresses message <Replica SQL for channel .*>.
 #
 # R6.1 INSERT fails because row exists: ROW (MyISAM)
 #

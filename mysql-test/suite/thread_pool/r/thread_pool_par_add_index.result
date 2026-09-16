@@ -1,0 +1,17 @@
+# Bug#34723788: Using the repro case from Bug#34723119
+# There should not be any hangs after ALTER statements.
+CREATE TABLE t1(a INT NOT NULL PRIMARY KEY, b INT, c CHAR(10) NOT NULL, d VARCHAR(20));
+INSERT INTO t1 VALUES (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
+ALTER TABLE t1 ADD UNIQUE INDEX (c), ADD INDEX (d);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `c` (`c`),
+  KEY `d` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

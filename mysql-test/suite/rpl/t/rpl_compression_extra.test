@@ -5,6 +5,8 @@
 #
 --source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
+# CSA does not support SOURCE_POS_WAIT
+--source include/have_mta.inc
 
 #
 # Test 1: Make sure that SOURCE_POS_WAIT return with success

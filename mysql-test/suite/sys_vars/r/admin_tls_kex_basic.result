@@ -1,0 +1,19 @@
+SELECT LENGTH(@@GLOBAL.admin_tls_kex);
+LENGTH(@@GLOBAL.admin_tls_kex)
+0
+SELECT @@admin_tls_kex = @@GLOBAL.admin_tls_kex;
+@@admin_tls_kex = @@GLOBAL.admin_tls_kex
+1
+SELECT @@SESSION.admin_tls_kex;
+ERROR HY000: Variable 'admin_tls_kex' is a GLOBAL variable
+SELECT @@LOCAL.admin_tls_kex;
+ERROR HY000: Variable 'admin_tls_kex' is a GLOBAL variable
+SET @@SESSION.admin_tls_kex = 'secp256r1';
+ERROR HY000: Variable 'admin_tls_kex' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@GLOBAL.admin_tls_kex = 'invalid';
+ERROR 42000: Variable 'admin_tls_kex' can't be set to the value of 'invalid'
+SELECT LENGTH(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_tls_kex';
+LENGTH(VARIABLE_VALUE)
+0

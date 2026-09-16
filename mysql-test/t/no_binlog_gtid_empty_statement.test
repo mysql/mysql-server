@@ -23,11 +23,11 @@ USE test;
 --source include/rpl/set_gtid_next.inc
 CREATE TABLE t1 (c1 INT);
 # This statement should be considered an empty statement
-/*!99999 SET @@SESSION.non_supported_session_variable = 1*/;
+/*!999999 SET @@SESSION.non_supported_session_variable = 1*/;
 --source include/rpl/set_gtid_next.inc
 INSERT INTO t1 VALUES (1);
 # This statement should be considered an empty statement
-/*!99999 SET @@SESSION.non_supported_session_variable = 1*/;
+/*!999999 SET @@SESSION.non_supported_session_variable = 1*/;
 --source include/rpl/set_gtid_next.inc
 DROP TABLE t1;
 
@@ -46,11 +46,11 @@ RESET BINARY LOGS AND GTIDS;
 --source include/rpl/set_gtid_next.inc
 CREATE TABLE t2 (c1 INT);
 # This statement should be considered an empty statement
-/*!99999 SET @@SESSION.non_supported_session_variable = 1*/;
+/*!999999 SET @@SESSION.non_supported_session_variable = 1*/;
 --source include/rpl/set_gtid_next.inc
 INSERT INTO t2 VALUES (1);
 # This statement should be considered an empty statement
-/*!99999 SET @@SESSION.non_supported_session_variable = 1*/;
+/*!999999 SET @@SESSION.non_supported_session_variable = 1*/;
 --source include/rpl/set_gtid_next.inc
 DROP TABLE t2;
 

@@ -19,6 +19,7 @@ include/suppress_messages.inc
 # Connection 2 suppresses message <Replica SQL for channel '': Relay log read failure: Could not parse relay log event entry*>.
 # Connection 2 suppresses message <Replica SQL for channel '': Error 'Duplicate entry '2' for key 't1.PRIMARY''*>.
 # Connection 2 suppresses message <Replica SQL for channel '': Could not execute Write_rows event on table test.t1*>.
+# Connection 2 suppresses message <Replica SQL for channel '': Change Stream Applier channel stopped because of error*>.
 
 ##############################################################
 # 1. Check general data failures are handled correctly.

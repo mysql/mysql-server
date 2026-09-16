@@ -21,6 +21,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <atomic>
+#include <chrono>
+#include <thread>
+
 #include "unittest/gunit/libmysqlgcs/include/gcs_base_test.h"
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/xcom_network_provider.h"
@@ -33,6 +37,28 @@ class XComNetworkProviderTest : public GcsBaseTest {
   void SetUp() override {}
 
   void TearDown() override {}
+};
+
+class CountingXcomNetworkProvider : public Xcom_network_provider {
+ public:
+  int close_connection(const Network_connection &connection) override {
+    const int result = Xcom_network_provider::close_connection(connection);
+    m_last_closed_fd.store(connection.fd);
+    m_last_close_result.store(result);
+    m_close_count.fetch_add(1);
+    return result;
+  }
+
+  unsigned int close_count() const { return m_close_count.load(); }
+
+  int last_closed_fd() const { return m_last_closed_fd.load(); }
+
+  int last_close_result() const { return m_last_close_result.load(); }
+
+ private:
+  std::atomic<unsigned int> m_close_count{0};
+  std::atomic<int> m_last_closed_fd{-1};
+  std::atomic<int> m_last_close_result{-1};
 };
 
 TEST_F(XComNetworkProviderTest, StartAndStopTestMissingPort) {
@@ -115,6 +141,56 @@ TEST_F(XComNetworkProviderTest, CreateConnectionToSelfTest) {
   ASSERT_EQ(0, close_connection_retval);
 
   net_provider.stop();
+}
+
+TEST_F(XComNetworkProviderTest, BusyHandoffRejectsAndClosesIncomingConnection) {
+  CountingXcomNetworkProvider net_provider;
+  Network_configuration_parameters params{};
+  params.port = 12346;
+  net_provider.configure(params);
+
+  // Keep the handoff slot occupied so that the native acceptor must reject
+  // the next incoming connection instead of waiting for a consumer.
+  auto *pending_connection = new Network_connection(-1);
+  ASSERT_EQ(Network_connection_handoff_status::ACCEPTED,
+            net_provider.set_new_connection(pending_connection));
+  ASSERT_FALSE(net_provider.start().first);
+
+  auto client_connection =
+      net_provider.open_connection("localhost", params.port, {"", "", false});
+
+  int rejected_fd = -1;
+  if (client_connection != nullptr && client_connection->fd >= 0) {
+    for (int attempt = 0; attempt != 500; ++attempt) {
+      if (net_provider.close_count() != 0) {
+        rejected_fd = net_provider.last_closed_fd();
+        break;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  }
+
+  EXPECT_NE(nullptr, client_connection);
+  if (client_connection != nullptr) {
+    EXPECT_GE(client_connection->fd, 0);
+    EXPECT_NE(client_connection->fd, rejected_fd);
+  }
+  EXPECT_GE(rejected_fd, 0);
+  EXPECT_EQ(1U, net_provider.close_count());
+  EXPECT_EQ(0, net_provider.last_close_result());
+
+  Network_connection *retrieved_connection = net_provider.get_new_connection();
+  EXPECT_EQ(pending_connection, retrieved_connection);
+  delete retrieved_connection;
+
+  if (client_connection != nullptr && client_connection->fd >= 0) {
+    EXPECT_EQ(0, net_provider.close_connection(*client_connection));
+  }
+  EXPECT_EQ(2U, net_provider.close_count());
+  EXPECT_EQ(0, net_provider.last_close_result());
+
+  EXPECT_FALSE(net_provider.stop().first);
+  EXPECT_EQ(2U, net_provider.close_count());
 }
 
 }  // namespace gcs_xcom_networkprovidertest

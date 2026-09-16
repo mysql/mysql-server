@@ -54,11 +54,14 @@
 
 #include <atomic>  // error_handler_hook
 #include <cstring>
+#include <optional>
 #include <string>
 
+#include "my_clone.h"
 #include "my_compiler.h"
 #include "my_compress.h"
 #include "my_inttypes.h"
+#include "my_server_version.h"
 #include "mysql/my_loglevel.h"
 
 /* HAVE_PSI_*_INTERFACE */
@@ -955,11 +958,6 @@ extern void set_psi_transaction_service(void *psi);
 extern MYSQL_PLUGIN_IMPORT PSI_tls_channel_bootstrap *psi_tls_channel_hook;
 extern void set_psi_tls_channel_service(void *psi);
 #endif /* HAVE_PSI_INTERFACE */
-
-/* Compare versions and determine if clone is allowed */
-[[nodiscard]] extern bool are_versions_clone_compatible(
-    const std::string &recipient, const std::string &donor,
-    const bool is_recipient_lts = false, const bool is_donor_lts = false);
 
 /**
   @} (end of group MYSYS)

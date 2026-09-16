@@ -55,7 +55,8 @@ dberr_t dict_build_table_def(dict_table_t *table,
 @param[in,out]  trx             DD transaction
 @param[in,out]  tablespace      Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
-dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace);
+[[nodiscard]] dberr_t dict_build_tablespace(trx_t *trx,
+                                            ib::fsp::Tablespace<> *tablespace);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]  table           Table to build in its own tablespace.

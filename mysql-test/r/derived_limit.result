@@ -13,6 +13,8 @@ EXPLAIN
         -> Limit: 5 row(s)  (rows=5)
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` limit 5) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH cte AS (SELECT * FROM t1 LIMIT 5) SELECT * FROM cte;
 a
 1
@@ -30,6 +32,8 @@ EXPLAIN
         -> Limit table size: 5 unique row(s)
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select (`test`.`t1`.`a` + 20) AS `a+20` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`a` + 40) AS `a+40` from `test`.`t1` limit 5) /* select#1 */ select `cte`.`a+20` AS `a+20` from `cte`
 WITH cte AS (SELECT a+20 FROM t1 UNION SELECT a+40 FROM t1 LIMIT 5)
 SELECT * FROM cte;
 a+20
@@ -48,6 +52,8 @@ EXPLAIN
         -> Limit table size: 5 row(s)
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select (`test`.`t1`.`a` + 20) AS `a+20` from `test`.`t1` union all /* select#3 */ select (`test`.`t1`.`a` + 40) AS `a+40` from `test`.`t1` limit 5) /* select#1 */ select `cte`.`a+20` AS `a+20` from `cte`
 WITH cte AS (SELECT a+20 FROM t1 UNION ALL SELECT a+40 FROM t1 LIMIT 5)
 SELECT * FROM cte;
 a+20
@@ -66,6 +72,8 @@ EXPLAIN
         -> Limit table size: 15 unique row(s)
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select (`test`.`t1`.`a` + 20) AS `a+20` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`a` + 40) AS `a+40` from `test`.`t1` limit 15) /* select#1 */ select `cte`.`a+20` AS `a+20` from `cte`
 WITH cte AS (SELECT a+20 FROM t1 UNION SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 a+20
@@ -94,6 +102,8 @@ EXPLAIN
         -> Limit table size: 15 unique row(s)
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select (`test`.`t1`.`a` + 20) AS `a+20` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`a` + 40) AS `a+40` from `test`.`t1` limit 15) /* select#1 */ select `cte`.`a+20` AS `a+20` from `cte`
 WITH cte AS (SELECT a+20 FROM t1 UNION DISTINCT SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 a+20
@@ -122,6 +132,8 @@ EXPLAIN
         -> Limit table size: 15 row(s)
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select (`test`.`t1`.`a` + 20) AS `a+20` from `test`.`t1` union all /* select#3 */ select (`test`.`t1`.`a` + 40) AS `a+40` from `test`.`t1` limit 15) /* select#1 */ select `cte`.`a+20` AS `a+20` from `cte`
 WITH cte AS (SELECT a+20 FROM t1 UNION ALL SELECT a+40 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 a+20
@@ -150,6 +162,8 @@ EXPLAIN
         -> Limit table size: 15 row(s)
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union all /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 15) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 a
@@ -178,6 +192,8 @@ EXPLAIN
         -> Limit table size: 15 unique row(s)
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 15) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte;
 a
@@ -200,6 +216,8 @@ EXPLAIN
         -> Limit/Offset: 5/1 row(s)  (rows=5)
             -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` limit 1,5) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH cte AS (SELECT * FROM t1 LIMIT 5 OFFSET 1) SELECT * FROM cte;
 a
 2
@@ -218,6 +236,8 @@ EXPLAIN
             -> Limit table size: 16 row(s)
                 -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union all /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 1,15) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte;
 a
@@ -247,6 +267,8 @@ EXPLAIN
             -> Limit table size: 16 unique row(s)
                 -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 1,15) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte;
 a
@@ -273,6 +295,8 @@ EXPLAIN
                 -> Limit table size: 16 row(s)
                     -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union all /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 1,15) /* select#1 */ select `cte`.`a` AS `a` from `cte` limit 7,4
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte LIMIT 4 OFFSET 7;
 a
@@ -292,6 +316,8 @@ EXPLAIN
                 -> Limit table size: 16 unique row(s)
                     -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 1,15) /* select#1 */ select `cte`.`a` AS `a` from `cte` limit 7,2
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15 OFFSET 1)
 SELECT * FROM cte LIMIT 2 OFFSET 7;
 a
@@ -308,6 +334,8 @@ EXPLAIN
             -> Limit table size: 15 row(s)
                 -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union all /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 15) /* select#1 */ select `cte`.`a` AS `a` from `cte` limit 4
 WITH cte AS (SELECT a FROM t1 UNION ALL SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte LIMIT 4;
 a
@@ -326,6 +354,8 @@ EXPLAIN
             -> Limit table size: 15 unique row(s)
                 -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 15) /* select#1 */ select `cte`.`a` AS `a` from `cte` limit 2
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 15)
 SELECT * FROM cte LIMIT 2;
 a
@@ -346,6 +376,8 @@ EXPLAIN
         -> Table scan on cte2  (rows=20)
             -> Materialize union CTE cte if needed (query plan printed elsewhere) with deduplication  (rows=20)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 8,10) /* select#1 */ select /*+ NO_BNL(@`select#1`) */ `cte1`.`a` AS `a`,`cte2`.`a` AS `a` from `cte` `cte1` join `cte` `cte2`
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 10 OFFSET 8)
 SELECT /*+ no_bnl() */ * FROM cte cte1, cte cte2;
 a	a
@@ -383,6 +415,8 @@ EXPLAIN
                 -> Limit table size: 18 unique row(s)
                     -> Table scan on t1  (rows=10)
 
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`a` + 2) AS `a+2` from `test`.`t1` limit 8,10) /* select#1 */ select /*+ NO_BNL(@`select#1`) */ `cte1`.`a` AS `a`,`dt`.`100` AS `100` from `cte` `cte1` join (/* select#5 */ select 100 AS `100` union /* select#6 */ select 101 AS `101`) `dt`
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 10 OFFSET 8)
 SELECT /*+ no_bnl() */ *
 FROM cte cte1,
@@ -406,6 +440,8 @@ EXPLAIN
         -> Limit table size: 5 row(s), repeat until convergence
             -> Scan new records on cte  (rows=2)
 
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `a` union all /* select#3 */ select (`cte`.`a` + 1) AS `a+1` from `cte` limit 5) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte;
 a
@@ -424,6 +460,8 @@ EXPLAIN
         -> Limit table size: 5 unique row(s), repeat until convergence
             -> Scan new records on cte  (rows=2)
 
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `a` union /* select#3 */ select (`cte`.`a` + 1) AS `a+1` from `cte` limit 5) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte;
 a
@@ -442,6 +480,8 @@ EXPLAIN
         -> Limit table size: 5 unique row(s), repeat until convergence
             -> Scan new records on cte  (rows=2)
 
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `a` union /* select#3 */ select (`cte`.`a` + 1) AS `a+1` from `cte` limit 5) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION DISTINCT SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte;
 a
@@ -471,6 +511,8 @@ EXPLAIN
             -> Limit table size: 6 row(s), repeat until convergence
                 -> Scan new records on cte  (rows=2)
 
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `a` union all /* select#3 */ select (`cte`.`a` + 1) AS `a+1` from `cte` limit 1,5) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL
 SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
 SELECT * FROM cte;
@@ -492,6 +534,8 @@ EXPLAIN
             -> Limit table size: 6 unique row(s), repeat until convergence
                 -> Scan new records on cte  (rows=2)
 
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `a` union /* select#3 */ select (`cte`.`a` + 1) AS `a+1` from `cte` limit 1,5) /* select#1 */ select `cte`.`a` AS `a` from `cte`
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION
 SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
 SELECT * FROM cte;
@@ -514,6 +558,8 @@ EXPLAIN
                 -> Limit table size: 6 row(s), repeat until convergence
                     -> Scan new records on cte  (rows=2)
 
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `a` union all /* select#3 */ select (`cte`.`a` + 1) AS `a+1` from `cte` limit 1,5) /* select#1 */ select `cte`.`a` AS `a` from `cte` limit 2,1
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL
 SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
 SELECT * FROM cte LIMIT 1 OFFSET 2;
@@ -532,6 +578,8 @@ EXPLAIN
                 -> Limit table size: 6 unique row(s), repeat until convergence
                     -> Scan new records on cte  (rows=2)
 
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `a` union /* select#3 */ select (`cte`.`a` + 1) AS `a+1` from `cte` limit 1,5) /* select#1 */ select `cte`.`a` AS `a` from `cte` limit 2,1
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION
 SELECT a+1 FROM cte LIMIT 5 OFFSET 1)
 SELECT * FROM cte LIMIT 1 OFFSET 2;
@@ -549,6 +597,8 @@ EXPLAIN
             -> Limit table size: 5 row(s), repeat until convergence
                 -> Scan new records on cte  (rows=2)
 
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `a` union all /* select#3 */ select (`cte`.`a` + 1) AS `a+1` from `cte` limit 5) /* select#1 */ select `cte`.`a` AS `a` from `cte` limit 3
 WITH RECURSIVE cte AS (SELECT 1 AS a UNION ALL
 SELECT a+1 FROM cte LIMIT 5)
 SELECT * FROM cte LIMIT 3;

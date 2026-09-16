@@ -132,6 +132,7 @@ class BackupRestore : public BackupConsumer {
   virtual void cback(int result, restore_callback_t *cb);
   virtual void cback_logentry(int result, restore_callback_t *cb);
   virtual bool errorHandler(restore_callback_t *cb);
+  void release_callback(restore_callback_t *cb);
   bool endOfTuples() override;
   bool logEntry(const LogEntry &) override;
   void logEntry_a(restore_callback_t *cb, bool retry);
@@ -231,6 +232,10 @@ class BackupRestore : public BackupConsumer {
   bool get_fatal_error();
   void set_fatal_error(bool);
   void report_error(restore_callback_t *cb, const NdbError &errObj);
+
+  enum Outcome { DONE, RETRY, FAIL };
+  Outcome get_logentry_apply_outcome(int result, const NdbError &errObj,
+                                     restore_callback_t *cb);
 
   Ndb *m_ndb;
   Ndb_cluster_connection *m_cluster_connection;

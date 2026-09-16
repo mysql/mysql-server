@@ -15,6 +15,7 @@ call mtr.add_suppression("Internal TLS error.*");
 call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
 call mtr.add_suppression("Value for option 'admin_ssl_cipher' contains cipher 'gizmo' that is blocked");
 call mtr.add_suppression("Value for option 'admin_tls_ciphersuites' contains cipher 'gizmo' that is blocked");
+call mtr.add_suppression("TLS session on channel 'mysql_admin' is not using a post-quantum key exchange algorithm; this session may be vulnerable to store-now, decrypt-later attacks");
 --enable_query_log
 
 --echo # Create test user

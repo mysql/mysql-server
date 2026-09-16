@@ -30,9 +30,11 @@
 --echo # Shutdown server
 --source include/shutdown_mysqld.inc
 
+let $zipfile = data_9_7_1_with_externally_stored_tablespaces.zip;
+
 --echo # Unzip the zip directory of 8.4.0 from MYSQL_TEST_DIR/std_data/ into MYSQL_TMP_DIR/test_Bug33398681 working location.
 --mkdir $MYSQL_TMP_DIR/test_Bug33398681
---exec unzip -qo $MYSQL_TEST_DIR/std_data/data84_with_externally_stored_tablespaces.zip -d $MYSQL_TMP_DIR/test_Bug33398681
+--exec unzip -qo $MYSQL_TEST_DIR/std_data/$zipfile  -d $MYSQL_TMP_DIR/test_Bug33398681
 
 --echo # Check that the file exists in the working folder.
 --file_exists $MYSQL_TMP_DIR/test_Bug33398681/data_dir

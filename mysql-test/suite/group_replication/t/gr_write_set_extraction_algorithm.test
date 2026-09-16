@@ -27,6 +27,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_write_set_extraction_algorithm_murmur3
 --enable_query_log
 
 # server2 will use XXHASH64 write set extraction algorithm.
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

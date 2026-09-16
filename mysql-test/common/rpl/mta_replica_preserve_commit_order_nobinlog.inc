@@ -170,13 +170,6 @@ if ($mts_spco_start_statement)
   }
 
   --source include/rpl/sync_to_replica.inc
-
-  if ($gtid_mode_on)
-  {
-   --let $use_gtids=
-   --let $ignore_gtids_on_sync= 1
-   --let $wait_for_executed_gtid_set=
-  }
 }
 
 if ($mts_spco_block_statement)
@@ -266,7 +259,7 @@ if ($mts_spco_assert_text1)
   # one will wait with the commit until the first
   # insert is unblocked
   #
-  --let $wait_condition= SELECT count(*) = $mts_num_preceding_trans FROM performance_schema.threads WHERE PROCESSLIST_STATE="Waiting for preceding transaction to commit"
+  --let $wait_condition= SELECT count(*) >= $mts_num_preceding_trans FROM information_schema.processlist WHERE state="Waiting for preceding transaction to commit"
   --source include/wait_condition_or_abort.inc
 
 

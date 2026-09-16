@@ -47,6 +47,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0priv.h"
 #include "mach0data.h"
 #include "my_dbug.h"
+#include "read0mvcc_interface.h"
+#include "read0read_view_interface.h"
 #include "rem0rec.h"
 #include "ut0crc32.h"
 #endif /* !UNIV_HOTBACKUP */
@@ -611,11 +613,19 @@ bool dict_index_t::is_usable(const trx_t *trx) const {
   if (is_corrupted()) {
     return false;
   }
-
   /* Check if the specified transaction can see this index. */
-  return (table->is_temporary() || trx_id == 0 ||
-          !MVCC::is_view_active(trx->read_view) ||
-          trx->read_view->changes_visible(trx_id, table->name));
+  if (table->is_temporary() || trx_id == 0 ||
+      !trx_sys->mvcc->is_view_open(trx->read_view) ||
+      trx->read_view->changes_visible(trx_id)) {
+    return true;
+  }
+  /* TBD: why since WL#7682 "Optimizing temporary tables" we set trx_id to
+  ULINT_UNDEFINED for intrinsic tables in row_create_index_for_mysql()?
+  Note: is_intrinsic() implies is_temporary(), which we've ruled out.
+  Note: trx_sys_check_id_sanity() may cause congestion on a global atomic, so we
+  avoid calling it if trx_id is small enough that read view sees it.*/
+  trx_sys_check_id_sanity(trx_id, table->name);
+  return false;
 }
 #endif /* !UNIV_HOTBACKUP */
 

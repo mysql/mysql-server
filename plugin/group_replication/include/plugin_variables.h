@@ -174,6 +174,9 @@ struct plugin_options_variables {
   uint recovery_zstd_compression_level_var;
   char *recovery_tls_version_var;
   char *recovery_tls_ciphersuites_var;
+  bool force_pqc_var;
+  bool use_pqc_sign_var;
+  char *tls_kex_var;
 
   ulong components_stop_timeout_var;
 

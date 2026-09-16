@@ -43,11 +43,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0log.h"
 #include "ut0new.h"
 
-#ifdef UNIV_DEBUG
-/** Set when InnoDB has invoked exit(). */
-extern bool innodb_calling_exit;
-#endif /* UNIV_DEBUG */
-
 #ifdef _WIN32
 /** Native mutex */
 typedef CRITICAL_SECTION sys_mutex_t;
@@ -500,7 +495,7 @@ struct OSMutex {
 
   /** Destroy the mutex */
   void destroy() UNIV_NOTHROW {
-    ut_ad(innodb_calling_exit || !m_freed);
+    ut_ad(!m_freed);
 #ifdef _WIN32
     DeleteCriticalSection((LPCRITICAL_SECTION)&m_mutex);
 #else
@@ -522,7 +517,7 @@ struct OSMutex {
 
   /** Release the mutex. */
   void exit() UNIV_NOTHROW {
-    ut_ad(innodb_calling_exit || !m_freed);
+    ut_ad(!m_freed);
 #ifdef _WIN32
     LeaveCriticalSection(&m_mutex);
 #else
@@ -533,7 +528,7 @@ struct OSMutex {
 
   /** Acquire the mutex. */
   void enter() UNIV_NOTHROW {
-    ut_ad(innodb_calling_exit || !m_freed);
+    ut_ad(!m_freed);
 #ifdef _WIN32
     EnterCriticalSection((LPCRITICAL_SECTION)&m_mutex);
 #else
@@ -547,7 +542,7 @@ struct OSMutex {
 
   /** @return true if locking succeeded */
   bool try_lock() UNIV_NOTHROW {
-    ut_ad(innodb_calling_exit || !m_freed);
+    ut_ad(!m_freed);
 #ifdef _WIN32
     return (TryEnterCriticalSection(&m_mutex) != 0);
 #else

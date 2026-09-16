@@ -290,13 +290,15 @@ class dyn_buf_t {
     return (m_size);
   }
 
+  [[nodiscard]] size_t get_blocks_count() const { return m_list.get_length(); }
+
   /**
   Iterate over each block and call the functor.
   @return       false if iteration was terminated. */
   template <typename Functor>
-  bool for_each_block(Functor &functor) const {
+  bool for_each_block(Functor &&functor) const {
     for (const block_t *block : m_list) {
-      if (!functor(block)) {
+      if (!std::forward<Functor>(functor)(block)) {
         return (false);
       }
     }
@@ -308,10 +310,10 @@ class dyn_buf_t {
   Iterate over all the blocks in reverse and call the iterator
   @return       false if iteration was terminated. */
   template <typename Functor>
-  bool for_each_block_in_reverse(Functor &functor) const {
+  bool for_each_block_in_reverse(Functor &&functor) const {
     for (block_t *block = UT_LIST_GET_LAST(m_list); block != nullptr;
          block = UT_LIST_GET_PREV(m_node, block)) {
-      if (!functor(block)) {
+      if (!std::forward<Functor>(functor)(block)) {
         return (false);
       }
     }

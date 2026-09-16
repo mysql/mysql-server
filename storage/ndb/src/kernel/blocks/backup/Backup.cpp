@@ -7845,7 +7845,6 @@ void Backup::init_file_for_lcp(Signal *signal, Uint32 index,
  * The limit 4000 is ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO set in DblqhMain.cpp.
  * This constant limit the impact of wide rows on responsiveness.
  *
-<<<<<<< HEAD
  * When operating in normal mode, we will not continue gathering when we
  * already gathered at least 500 words. However we will only operate in
  * this mode when we are in low load scenario in which case this speed will
@@ -9351,6 +9350,15 @@ void Backup::fragmentCompleted(Signal *signal, BackupFilePtr filePtr,
 
     ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_CONF;
     ptr.p->slaveState.setState(STARTED);
+
+    if (ERROR_INSERTED(10061)) {
+      jam();
+      g_eventLogger->info(
+          "Backup %u finished T%uF%u scan, setting EI 10030 to cause backup "
+          "log overflow",
+          instance(), filePtr.p->tableId, filePtr.p->fragmentNo);
+      SET_ERROR_INSERT_VALUE(10030);
+    }
   }
   return;
 }
@@ -10809,7 +10817,10 @@ void Backup::execABORT_BACKUP_ORD(Signal *signal) {
          */
         ndbrequire(previousGsn == GSN_BACKUP_FRAGMENT_REF ||
                    previousGsn == GSN_BACKUP_FRAGMENT_CONF ||
-                   previousGsn == GSN_ABORT_BACKUP_ORD);
+                   previousGsn == GSN_ABORT_BACKUP_ORD ||
+                   previousGsn == GSN_STOP_BACKUP_REQ ||
+                   previousGsn == GSN_STOP_BACKUP_CONF ||
+                   previousGsn == GSN_STOP_BACKUP_REF);
 
         g_eventLogger->info("Participant was not scanning, leaving gsn as %u",
                             previousGsn);
@@ -13397,6 +13408,15 @@ void Backup::lcp_open_data_file(Signal *signal, BackupRecordPtr ptr) {
   req->fileFlags = FsOpenReq::OM_WRITEONLY | FsOpenReq::OM_TRUNCATE |
                    FsOpenReq::OM_CREATE | FsOpenReq::OM_APPEND |
                    FsOpenReq::OM_AUTOSYNC;
+  /*
+   * FsOpenReq::OM_PARTIAL_LAST_BLOCK should always be set, but for backward
+   * compatibility we only set it when it otherwise cause problems. With
+   * ODirect=0, CompressedLCP=0, EncryptedFilesystem=1
+   */
+  if (!c_defaults.m_o_direct && !c_defaults.m_compressed_lcp &&
+      c_encrypted_filesystem) {
+    req->fileFlags |= FsOpenReq::OM_PARTIAL_LAST_BLOCK;
+  }
 
   if (c_defaults.m_compressed_lcp) {
     req->fileFlags |= FsOpenReq::OM_GZ;

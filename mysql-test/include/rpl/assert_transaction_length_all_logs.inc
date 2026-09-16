@@ -75,14 +75,6 @@ while ($_atlal_channel_counter)
     --let $_atlal_relaylog_prefix=`SELECT CONCAT(SUBSTRING_INDEX('$_atlal_current_relaylog_file', '.', 1), '.')`
     --let $_atlal_relaylog_number=`SELECT CAST(SUBSTRING_INDEX('$_atlal_current_relaylog_file', '.', -1) AS UNSIGNED)`
     --let $_atlal_current_relaylog_pos= query_get_value(SHOW REPLICA STATUS FOR CHANNEL '$_atlal_channel_name', Relay_Log_Pos, 1)
-    # This channel was just RESET and probably has no relay log file yet.
-    if ($_atlal_relaylog_number == 2)
-    {
-      if ($_atlal_current_relaylog_pos == 4)
-      {
-        --let $_atlal_relaylog_number= 0
-      }
-    }
   }
   # Iterate backwards for each existing relay log file
   while ($_atlal_relaylog_number)

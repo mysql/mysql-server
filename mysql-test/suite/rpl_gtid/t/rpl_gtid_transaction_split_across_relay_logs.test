@@ -24,6 +24,8 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/not_rpl_gtid_only.inc
+# CSA is compatible with GTID-based replication
+--source include/have_mta.inc
 
 # Disable auto position protocol
 --let use_gtids=0

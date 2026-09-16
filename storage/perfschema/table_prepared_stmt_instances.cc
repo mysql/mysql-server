@@ -349,7 +349,7 @@ int table_prepared_stmt_instances::read_row_values(TABLE *table,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* OBJECT_INSTANCE_BEGIN */
-          set_field_ulonglong(f, (intptr)m_row.m_identity);
+          set_field_ulonglong(f, m_row.m_identity);
           break;
         case 1: /* STATEMENT_ID */
           set_field_ulonglong(f, m_row.m_stmt_id);

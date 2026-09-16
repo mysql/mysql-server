@@ -315,3 +315,8 @@ invalid column  	0	bravo,delta,foxtrot
 invalid column  	0	foxtrot
 invalid column  	0	alpha
 DROP TABLE t1;
+#
+# Bug#39136916: INTERVAL() is failing in decimal_cmp
+#
+SELECT INTERVAL(BIT_OR(UTC_TIMESTAMP), ORD(PERIOD_ADD(-12795,-17171)));
+ERROR HY000: Incorrect arguments to period_add

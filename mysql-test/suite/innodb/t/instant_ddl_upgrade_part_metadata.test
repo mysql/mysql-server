@@ -61,9 +61,10 @@
 --source include/shutdown_mysqld.inc
 
 --echo # Copy and unzip the datadir.
---copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade_8_4_3.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade_8_4_3.zip
---file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_8_4_3.zip
---exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade_8_4_3.zip -d $MYSQL_TMP_DIR
+let $zipfile = data_instant_ddl_upgrade_9_7_1.zip;
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/$zipfile $MYSQL_TMP_DIR/$zipfile
+--file_exists $MYSQL_TMP_DIR/$zipfile
+--exec unzip -qo $MYSQL_TMP_DIR/$zipfile -d $MYSQL_TMP_DIR
 let $DATADIR = $MYSQL_TMP_DIR/data;
 
 --echo # Restart the server against the unzipped datadir
@@ -240,9 +241,9 @@ DROP TABLE t1_part;
 --source include/shutdown_mysqld.inc
 
 --echo # Remove copied files
---file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_8_4_3.zip
+--file_exists $MYSQL_TMP_DIR/$zipfile
 --force-rmdir $MYSQL_TMP_DIR/data
---remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade_8_4_3.zip
+--remove_file $MYSQL_TMP_DIR/$zipfile
 
 --echo # Restarting server to restore server state
 let $restart_parameters =;

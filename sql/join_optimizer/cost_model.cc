@@ -716,13 +716,19 @@ void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
              FilterCost *cost) {
   switch (subquery.strategy) {
     case ContainedSubquery::Strategy::kMaterializable: {
+      // The materialization build executes the no-in2exists plan; use it
+      // for the one-time build cost and for sizing the temporary table.
+      const AccessPath *materialize_path = subquery.path_no_in2exists != nullptr
+                                               ? subquery.path_no_in2exists
+                                               : subquery.path;
       // We can't ask the handler for costs at this stage, since that
       // requires an actual TABLE, and we don't want to be creating
       // them every time we're evaluating a cost-> Thus, instead,
       // we ask the cost model for an estimate. Longer-term, these two
       // estimates should really be guaranteed to be the same somehow.
       Cost_model_server::enum_tmptable_type tmp_table_type;
-      if (subquery.row_width * num_rows < thd->variables.max_heap_table_size) {
+      if (subquery.row_width * materialize_path->num_output_rows() <
+          thd->variables.max_heap_table_size) {
         tmp_table_type = Cost_model_server::MEMORY_TMPTABLE;
       } else {
         tmp_table_type = Cost_model_server::DISK_TMPTABLE;
@@ -731,8 +737,8 @@ void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
           tmp_table_type, /*write_rows=*/0,
           /*read_rows=*/num_rows);
       cost->cost_to_materialize +=
-          subquery.path->cost() +
-          kMaterializeOneRowCostOldModel * subquery.path->num_output_rows();
+          materialize_path->cost() +
+          kMaterializeOneRowCostOldModel * materialize_path->num_output_rows();
 
       cost->cost_if_not_materialized += num_rows * subquery.path->cost();
     } break;
@@ -798,6 +804,14 @@ static void SetDistinctGroupByOutputRowsAndSubqueryCosts(
                              // ROLLUP.
   }
   // else for DISTINCT, it's always preset.
+
+  if (path->materialize().param->deduplication_reason ==
+          MaterializePathParameters::DEDUP_FOR_DISTINCT &&
+      path->materialize().param->limit_rows != HA_POS_ERROR) {
+    path->set_num_output_rows(
+        std::min(path->num_output_rows(),
+                 static_cast<double>(path->materialize().param->limit_rows)));
+  }
 
   *subquery_cost = *cost_for_cacheable = 0;
   AddOperandCosts(operand, subquery_cost, cost_for_cacheable);
@@ -1586,14 +1600,26 @@ void EstimateAggregateCost(THD *thd, AccessPath *path,
         thd, child, query_block, path->aggregate().olap == ROLLUP_TYPE));
   }
 
-  path->set_init_cost(child->init_cost());
   path->set_init_once_cost(child->init_once_cost());
 
+  const uint num_group_elements =
+      CountOrderElements(query_block->join->group_list.order);
   path->set_cost(
       std::max(0.0, child->cost()) +
       AggregateCost(thd, path->num_output_rows(), child->num_output_rows(),
                     query_block->join->tmp_table_param.sum_func_count,
-                    CountOrderElements(query_block->join->group_list.order)));
+                    num_group_elements));
+
+  if (num_group_elements == 0 && thd->lex->using_hypergraph_optimizer()) {
+    // Without GROUP BY (e.g. SELECT avg(x) FROM t), the aggregate must
+    // process ALL input rows before producing its single output row.
+    // This is a blocking operation, so init_cost equals total cost.
+    // Restricted to hypergraph because the old optimizer does not consume
+    // init_cost for planning, so we keep its EXPLAIN output unchanged.
+    path->set_init_cost(path->cost());
+  } else {
+    path->set_init_cost(child->init_cost());
+  }
 
   path->num_output_rows_before_filter = path->num_output_rows();
   path->set_cost_before_filter(path->cost());
@@ -1794,7 +1820,8 @@ double EstimateSemijoinFanOut(THD *thd, double right_rows,
   return std::min(1.0, distinct_rows * edge.selectivity);
 }
 
-HashJoinCost::HashJoinCost(THD *thd, const HashJoinMetrics &metrics) {
+HashJoinCost::HashJoinCost(THD *thd, const HashJoinMetrics &metrics,
+                           bool allow_spill_to_disk) {
   // Size of the length field for each hash value.
   constexpr int kHashValueOverhead{10};
   // Size of the length field and other overhead for each hash key.
@@ -1822,6 +1849,9 @@ HashJoinCost::HashJoinCost(THD *thd, const HashJoinMetrics &metrics) {
           (metrics.build_row_size + kHashValueOverhead + kHashKeyOverhead) <
       std::min<double>(join_buff_size, 64 * 1024)) {
     m_spill_to_disk_probability = 0.0;
+    m_overflow_probability = 0.0;
+    // Build side fits in memory, so a single probe pass suffices.
+    m_probe_iterations = 1.0;
 
     m_init_cost =
         metrics.build_rows *
@@ -1861,18 +1891,38 @@ HashJoinCost::HashJoinCost(THD *thd, const HashJoinMetrics &metrics) {
 
     for hash_table_usage < join_buffer_size and 1.0 otherwise.
   */
-  m_spill_to_disk_probability =
+  // Number of iterations over the probe input.
+  //
+  // With spill-to-disk: build and probe sides are partitioned into up to
+  // kMaxChunks chunk files. Each probe chunk contains ~1/kMaxChunks of the
+  // probe rows. If a build chunk exceeds the join buffer, the buffer is
+  // refilled and only that chunk's probe data is re-scanned. So the
+  // iteration count is per-chunk: ceil(hash_table / (buffer * kMaxChunks)).
+  //
+  // Without spill-to-disk: there are no chunks. The entire probe side is
+  // re-scanned for each hash table refill. So the iteration count is
+  // ceil(hash_table / buffer), which can be much larger.
+  const double chunk_count =
+      allow_spill_to_disk ? HashJoinIterator::kMaxChunks : 1.0;
+  m_probe_iterations =
+      std::ceil(hash_table_usage / (join_buff_size * chunk_count));
+
+  const bool spill{hash_table_usage >= join_buff_size && allow_spill_to_disk};
+
+  // Probability that the build input overflows one join buffer at runtime.
+  // The squared ratio gives a smooth transition that strongly prefers
+  // in-memory plans when the build is well under the buffer, but quickly
+  // approaches 1.0 as we near the limit (reflecting uncertainty in
+  // row-count and row-width estimates). This is independent of
+  // allow_spill_to_disk: a no-spill plan that overflows refills the hash
+  // table rather than writing chunk files, but the in-memory buffer is
+  // still not reusable across re-Init() in that case.
+  m_overflow_probability =
       std::min(1.0, std::pow(hash_table_usage / join_buff_size, 2.0));
-
-  const bool spill{hash_table_usage >= join_buff_size};
-
-  // Number of iterations over the probe relation. We split the build relation
-  // in at most 128 chunks. If a build chunks is too big to fit in the join
-  // buffer, we will fill the join buffer from the build chunk,
-  // iterate over the corresponding probe chunk, and repeat until we have
-  // consumed the entire build chunk.
-  const double probe_iterations{std::ceil(
-      hash_table_usage / (join_buff_size * HashJoinIterator::kMaxChunks))};
+  // Probability of writing chunk files to disk. When spill is disallowed,
+  // the iterator never writes chunk files regardless of build size.
+  m_spill_to_disk_probability =
+      allow_spill_to_disk ? m_overflow_probability : 0.0;
 
   // The volume written to (and read from) build spill files.
   const double build_spill_volume{
@@ -1889,27 +1939,64 @@ HashJoinCost::HashJoinCost(THD *thd, const HashJoinMetrics &metrics) {
 
   // The volume read from probe spill files.
   const double probe_spill_read_volume{
-      spill ? metrics.probe_rows * metrics.probe_row_size * probe_iterations
+      spill ? metrics.probe_rows * metrics.probe_row_size * m_probe_iterations
             : 0.0};
 
-  m_init_cost =
+  // The cost of inserting the full build relation into the hash table
+  // (summed over all refills, since each build row is inserted exactly
+  // once regardless of how many batches we split it into).
+  const double build_hash_cost{
       metrics.build_rows *
-          (kCostPerBuildRow + metrics.build_row_size * kCostPerBuildByte) +
-      // We assume that we write the build chunks and then start reading
-      // the probe relation before we can output the first row.
-      // Therefore we do not count the cost of reading any chunks here.
-      build_spill_volume * kCostPerSpillByte;
+      (kCostPerBuildRow + metrics.build_row_size * kCostPerBuildByte)};
 
-  m_cost =
-      m_init_cost +
-      // The cost of doing the probing.
-      metrics.probe_rows * probe_iterations * kCostPerProbeOperation +
-      // The cost of generating the result row.
-      metrics.result_rows *
-          (kCostPerResultRow + metrics.build_row_size * kCostPerCopyBackByte) +
-      // The cost of reading the build spill files, plus the cost of reading
-      // and writing the probe spill files.
-      (build_spill_volume + probe_spill_write_volume +
-       probe_spill_read_volume) *
-          kCostPerSpillByte;
+  // m_init_cost models the work done before the first result row can be
+  // produced. The two execution strategies differ fundamentally here:
+  //
+  // - allow_spill_to_disk (hybrid hash join, see
+  //   HashJoinIterator::BuildHashTable and
+  //   WriteProbeRowToDiskIfApplicable): the entire build input is consumed
+  //   up front; the first join-buffer-sized batch stays in memory, the
+  //   overflow is partitioned to chunk files. Probe rows are then read one
+  //   by one, matched against the in-memory batch (producing result rows
+  //   immediately), and written to their probe chunk file in the same step.
+  //   So only the full build-hash insertion plus the build-side spill write
+  //   are startup costs; probe-side spill writes and all spill reads are
+  //   interleaved with output.
+  //
+  // - !allow_spill_to_disk (IN_MEMORY_WITH_HASH_TABLE_REFILL): the iterator
+  //   reads build rows only until the join buffer is full and then starts
+  //   probing. The first result row appears after just the first
+  //   1/m_probe_iterations fraction of the build rows have been hashed.
+  //   Charging the full build_hash_cost here would make the no-spill plan's
+  //   init_cost indistinguishable from the spilling plan's, defeating the
+  //   purpose of proposing it as a low-startup alternative for LIMIT
+  //   queries.
+  if (allow_spill_to_disk) {
+    m_init_cost = build_hash_cost + build_spill_volume * kCostPerSpillByte;
+
+    m_cost =
+        m_init_cost +
+        // The cost of doing the probing.
+        metrics.probe_rows * m_probe_iterations * kCostPerProbeOperation +
+        // The cost of generating the result row.
+        metrics.result_rows * (kCostPerResultRow +
+                               metrics.build_row_size * kCostPerCopyBackByte) +
+        // The cost of reading the build spill files, plus the cost of
+        // writing and reading the probe spill files.
+        (build_spill_volume + probe_spill_write_volume +
+         probe_spill_read_volume) *
+            kCostPerSpillByte;
+  } else {
+    // IN_MEMORY_WITH_HASH_TABLE_REFILL: the first result row appears after
+    // only the first 1/m_probe_iterations fraction of build rows is hashed.
+    // No chunk files are written (spill==false above), so the spill-volume
+    // terms vanish.
+    m_init_cost = build_hash_cost / m_probe_iterations;
+
+    m_cost =
+        build_hash_cost +
+        metrics.probe_rows * m_probe_iterations * kCostPerProbeOperation +
+        metrics.result_rows *
+            (kCostPerResultRow + metrics.build_row_size * kCostPerCopyBackByte);
+  }
 }

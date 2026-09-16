@@ -1,0 +1,29 @@
+if (!$GROUP_REPLICATION)
+{
+  --skip Need Group Replication plugin
+}
+
+if (!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='group_replication'`)
+{
+  --skip Need Group Replication plugin
+}
+
+SELECT LENGTH(@@GLOBAL.group_replication_tls_kex);
+
+SELECT @@group_replication_tls_kex = @@GLOBAL.group_replication_tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.group_replication_tls_kex;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.group_replication_tls_kex;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_tls_kex = 'secp256r1';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_tls_kex = 'invalid';
+
+SELECT LENGTH(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='group_replication_tls_kex';

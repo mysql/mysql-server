@@ -214,24 +214,206 @@ std::string string_to_hex(std::string_view s, bool prefix) {
   return encoded;
 }
 
+namespace {
+
+bool escape_control_character(unsigned char c, std::string &out) {
+  static constexpr char hex[] = "0123456789ABCDEF";
+
+  switch (c) {
+    case '\b':
+      out.append("\\b");
+      return true;
+    case '\f':
+      out.append("\\f");
+      return true;
+    case '\n':
+      out.append("\\n");
+      return true;
+    case '\r':
+      out.append("\\r");
+      return true;
+    case '\t':
+      out.append("\\t");
+      return true;
+    default:
+      break;
+  }
+
+  if (c >= 0x20) return false;
+
+  out.append("\\x");
+  out.push_back(hex[(c >> 4) & 0x0F]);
+  out.push_back(hex[c & 0x0F]);
+  return true;
+}
+
+bool escape_javascript_line_terminator(std::string_view input,
+                                       std::size_t &index, std::string &out) {
+  static constexpr std::array<unsigned char, 3> kLineSeparatorUtf8 = {
+      0xE2, 0x80, 0xA8};
+  static constexpr std::array<unsigned char, 3> kParagraphSeparatorUtf8 = {
+      0xE2, 0x80, 0xA9};
+
+  auto matches = [input, index](const std::array<unsigned char, 3> &sequence) {
+    if (index + sequence.size() > input.length()) return false;
+
+    for (std::size_t i = 0; i < sequence.size(); ++i) {
+      if (static_cast<unsigned char>(input[index + i]) != sequence[i])
+        return false;
+    }
+
+    return true;
+  };
+
+  // ECMAScript treats U+2028 LINE SEPARATOR and U+2029 PARAGRAPH SEPARATOR as
+  // line terminators, so their UTF-8 sequences must not appear raw in a string
+  // literal embedded in generated JavaScript source.
+  if (matches(kLineSeparatorUtf8)) {
+    out.append("\\u2028");
+  } else if (matches(kParagraphSeparatorUtf8)) {
+    out.append("\\u2029");
+  } else {
+    return false;
+  }
+
+  index += 2;
+  return true;
+}
+
+}  // namespace
+
 std::string quote_string(const std::string &s, char quote) {
-  const std::string q{quote};
-  const std::string backslash = str_replace(s, "\\", "\\\\");
-  const std::string esc = str_replace(backslash, q, "\\" + q);
-  return std::string(q + esc + q);
+  const std::string_view input{s};
+
+  std::string result;
+  result.reserve(s.length() + 2);
+  result.push_back(quote);
+
+  for (std::size_t i = 0; i < s.length(); ++i) {
+    const auto c = static_cast<unsigned char>(s[i]);
+
+    if (c == '\\' || c == static_cast<unsigned char>(quote)) {
+      result.push_back('\\');
+      result.push_back(c);
+    } else if (quote == '`' && c == '$' && i + 1 < s.length() &&
+               s[i + 1] == '{') {
+      result.append("\\${");
+      ++i;
+    } else if (!escape_control_character(c, result) &&
+               !escape_javascript_line_terminator(input, i, result)) {
+      result.push_back(c);
+    }
+  }
+
+  result.push_back(quote);
+  return result;
 }
 
 std::string unquote_string(std::string_view s, char quote) {
-  const std::string q{quote};
-  auto result = std::string{s};
+  auto to_hex = [](char c) -> int {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+  };
 
-  if (result.length() >= 2 && result[0] == quote &&
-      result[result.length() - 1] == quote) {
-    result = result.substr(1, result.length() - 2);
+  auto append_utf8 = [](std::string &out, unsigned int codepoint) {
+    if (codepoint <= 0x7F) {
+      out.push_back(static_cast<char>(codepoint));
+    } else if (codepoint <= 0x7FF) {
+      out.push_back(static_cast<char>(0xC0 | (codepoint >> 6)));
+      out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+    } else {
+      out.push_back(static_cast<char>(0xE0 | (codepoint >> 12)));
+      out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+      out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+    }
+  };
+
+  if (s.length() >= 2 && s.front() == quote && s.back() == quote) {
+    s.remove_prefix(1);
+    s.remove_suffix(1);
   }
 
-  result = str_replace(result, "\\" + q, q);
-  result = str_replace(result, "\\\\", "\\");
+  std::string result;
+  result.reserve(s.length());
+
+  for (std::size_t i = 0; i < s.length(); ++i) {
+    const auto c = s[i];
+    if (c != '\\' || i + 1 == s.length()) {
+      result.push_back(c);
+      continue;
+    }
+
+    const auto escaped = s[++i];
+    switch (escaped) {
+      case '\\':
+      case '\'':
+      case '"':
+      case '`':
+        result.push_back(escaped);
+        break;
+      case '$':
+        if (quote == '`' && i + 1 < s.length() && s[i + 1] == '{') {
+          result.push_back('$');
+        } else {
+          result.push_back('\\');
+          result.push_back(escaped);
+        }
+        break;
+      case 'b':
+        result.push_back('\b');
+        break;
+      case 'f':
+        result.push_back('\f');
+        break;
+      case 'n':
+        result.push_back('\n');
+        break;
+      case 'r':
+        result.push_back('\r');
+        break;
+      case 't':
+        result.push_back('\t');
+        break;
+      case 'x':
+        if (i + 2 < s.length()) {
+          const int high = to_hex(s[i + 1]);
+          const int low = to_hex(s[i + 2]);
+          if (high >= 0 && low >= 0) {
+            result.push_back(static_cast<char>((high << 4) | low));
+            i += 2;
+            break;
+          }
+        }
+        result.append("\\x");
+        break;
+      case 'u':
+        if (i + 4 < s.length()) {
+          unsigned int codepoint = 0;
+          bool valid = true;
+          for (std::size_t digit = 1; digit <= 4; ++digit) {
+            const int value = to_hex(s[i + digit]);
+            if (value < 0) {
+              valid = false;
+              break;
+            }
+            codepoint = (codepoint << 4) | value;
+          }
+          if (valid) {
+            append_utf8(result, codepoint);
+            i += 4;
+            break;
+          }
+        }
+        result.append("\\u");
+        break;
+      default:
+        result.push_back('\\');
+        result.push_back(escaped);
+        break;
+    }
+  }
 
   return result;
 }

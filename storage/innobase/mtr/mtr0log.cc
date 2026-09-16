@@ -748,6 +748,12 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
   size_t size_needed = 0;
   log_index_get_size_needed(index, size, n, is_comp, is_versioned, is_instant,
                             fields_with_changed_order, size_needed);
+  DBUG_EXECUTE_IF("simulate_3mb_mtr_recovery_2", {
+    if (strstr(index->table_name, "t1")) {
+      size_needed += 3 * 1024 * 1024;
+    }
+  });
+
   size_t total = size_needed;
   size_t alloc = total;
   if (alloc > mtr_buf_t::MAX_DATA_SIZE) {
@@ -767,6 +773,27 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
 
   log_ptr = mlog_write_initial_log_record_fast(rec, type, log_ptr, mtr);
 
+  /* To check _size is available on buffer. If not, close and reopen buffer */
+  auto f = [&](const size_t _size) {
+    if (log_ptr + _size > log_end) {
+      if (!close_and_reopen_log(log_ptr, log_start, log_end, mtr, alloc,
+                                total)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  DBUG_EXECUTE_IF("simulate_3mb_mtr_recovery_2", {
+    if (strstr(index->table_name, "t1")) {
+      for (size_t i = 0; i < 3 * 1024 * 1024; ++i) {
+        f(1);
+        mach_write_to_1(log_ptr, MLOG_DUMMY_RECORD);
+        log_ptr++;
+      }
+    }
+  });
+
   uint8_t index_log_version = INDEX_LOG_VERSION_CURRENT;
   DBUG_EXECUTE_IF("invalid_index_log_version",
                   index_log_version = INDEX_LOG_VERSION_MAX + 1;);
@@ -783,17 +810,6 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
 
   /* List of INSTANT fields to be logged */
   std::vector<dict_field_t *> instant_fields_to_log;
-
-  /* To check _size is available on buffer. If not, close and reopen buffer */
-  auto f = [&](const size_t _size) {
-    if (log_ptr + _size > log_end) {
-      if (!close_and_reopen_log(log_ptr, log_start, log_end, mtr, alloc,
-                                total)) {
-        return false;
-      }
-    }
-    return true;
-  };
 
   if (is_comp) {
     /* Write fields info. */
@@ -1129,6 +1145,16 @@ static const byte *parse_index_flag(const byte *ptr, const byte *end_ptr,
 
 const byte *mlog_parse_index(const byte *ptr, const byte *end_ptr,
                              dict_index_t **index) {
+  DBUG_EXECUTE_IF("simulate_3mb_mtr_recovery_2", {
+    uint8_t dummy_value = mach_read_from_1(ptr);
+    if (dummy_value == MLOG_DUMMY_RECORD) {
+      for (size_t i = 0; i < 3 * 1024 * 1024; ++i) {
+        ptr = read_1_byte(ptr, end_ptr, dummy_value);
+        if (ptr == nullptr) return nullptr;
+      }
+    }
+  });
+
   /* Read the 1 byte for index log version */
   uint8_t index_log_version = 0;
   ptr = parse_index_log_version(ptr, end_ptr, index_log_version);

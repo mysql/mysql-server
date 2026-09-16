@@ -61,7 +61,7 @@ XA ROLLBACK 'xa2_t1';
 --let $assert_cond= "[SELECT c2 FROM t1 WHERE c1 = 2]" = \'c\'
 --source include/assert.inc
 
---sync_slave_with_master
+--source include/rpl/sync_to_replica.inc
 --source include/rpl/connection_source.inc
 --let $binlog_file= LAST
 --source include/rpl/deprecated/show_binlog_events.inc

@@ -1,0 +1,27 @@
+# This test verifies that the value of innodb_temp_data_file_path when specified
+# with multiple files, is running correctly.
+
+SELECT @@innodb_temp_data_file_path;
+
+SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+  WHERE TABLESPACE_NAME='innodb_temporary';
+
+# Restart the server with a non-default value of innodb-temp-data-file-path with multiple files
+--let $restart_parameters = restart: --innodb-temp-data-file-path=mytemp_1:12M;mytemp_2:30M;mytemp_3:12M:autoextend
+--source include/restart_mysqld.inc
+
+# Verify that the new temp data file path is reflect correctly
+SELECT @@innodb_temp_data_file_path;
+
+# Here we would expect 3 rows to be displayed, but because of the following bug, there is only one:
+# Bug#35445723	InnoDB: I_S.FILES wrongly shows the System Temporary Tablespace has only 1 file
+SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+  WHERE TABLESPACE_NAME='innodb_temporary';
+
+--echo # Expect 3 files to be printed below:
+let $MYSQLD_DATADIR= `select @@datadir`;
+--list_files $MYSQLD_DATADIR mytemp*
+
+# Restart the server with the default innodb-temp-data-file-path
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

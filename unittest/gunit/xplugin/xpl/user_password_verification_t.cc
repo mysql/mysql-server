@@ -152,6 +152,14 @@ TEST_F(User_password_verification, sha256_memory_verification_no_entry) {
       "user", "host", SHA256_MEMORY_CLIENT_STRING, "", true));
 }
 
+TEST_F(User_password_verification, sha256_memory_verification_malformed_hash) {
+  EXPECT_CALL(*m_cache_mock.get(), get_entry(_, _)).Times(0);
+  mock::Cache_based_verification const verificator{m_cache_mock.get()};
+  EXPECT_CALL(verificator, get_salt()).Times(0);
+  ASSERT_FALSE(
+      verificator.verify_authentication_string("user", "host", "A", "", true));
+}
+
 TEST_F(User_password_verification, sha256_memory_verification_fail) {
   const std::string bogus_entry(32, 'z');
   EXPECT_CALL(*m_cache_mock.get(), get_entry("user", "host"))

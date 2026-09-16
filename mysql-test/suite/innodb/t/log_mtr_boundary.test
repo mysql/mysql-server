@@ -1,0 +1,202 @@
+##########################################################################
+# Test script to test RECOVERY in corner cases when MTR is filling up
+# REDO log block.
+##########################################################################
+
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+CALL mtr.add_suppression("Assertion failure: log0handler.cc");
+CALL mtr.add_suppression("Attempting backtrace");
+
+DELIMITER $$;
+CREATE FUNCTION last_innodb_error_log_data_after(
+  start_logged TIMESTAMP(6),
+  data_pattern VARCHAR(512)
+)
+RETURNS VARCHAR(10000)
+READS SQL DATA
+BEGIN
+  RETURN (
+    SELECT DATA
+    FROM performance_schema.error_log
+    WHERE LOGGED > start_logged
+      AND SUBSYSTEM = 'InnoDB'
+      AND DATA LIKE data_pattern
+    ORDER BY LOGGED DESC
+    LIMIT 1
+  );
+END $$
+
+CREATE PROCEDURE crash_at_redo_block_boundary()
+BEGIN
+  SET SESSION DEBUG="+d,mtr_filling_redo_block_write";
+  simple_loop: LOOP
+    INSERT INTO t1 SELECT * FROM t1;
+  END LOOP simple_loop;
+END $$
+DELIMITER ;$$
+
+--echo # -----------------------------------------------------------------------
+--echo # Scenario : An MTR is filling REDO block upto last data byte and during
+--echo #            recovery, next block header is invalid
+--echo # -----------------------------------------------------------------------
+
+--let $scenario_start_logged = `SELECT COALESCE(MAX(LOGGED), TIMESTAMP'1970-01-01 00:00:00.000000') FROM performance_schema.error_log`
+
+CREATE TABLE t1 (c1 CHAR(10)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ("a");
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+CALL crash_at_redo_block_boundary();
+
+--echo # Restart the server to recover the generated redo log
+--let $restart_parameters = restart: --debug=d,mtr_filling_redo_block_recovery
+--source include/start_mysqld.inc
+
+--disable_query_log
+--eval SET @scenario_start_logged = TIMESTAMP'$scenario_start_logged'
+--enable_query_log
+
+SET @scenario1_corrupted_next_block_data =
+  last_innodb_error_log_data_after(
+    @scenario_start_logged,
+    '%Mimicking corrupted next block header behavior. scanned_lsn : %');
+SET @scenario1_corrupted_next_block_lsn =
+  CAST(REGEXP_SUBSTR(@scenario1_corrupted_next_block_data, '[0-9]+$') AS UNSIGNED);
+
+SET @scenario1_scanned_upto_data =
+  last_innodb_error_log_data_after(
+    @scenario_start_logged,
+    '%Doing recovery: scanned up to log sequence number %');
+SET @scenario1_scanned_upto_lsn =
+  CAST(REGEXP_SUBSTR(@scenario1_scanned_upto_data, '[0-9]+$') AS UNSIGNED);
+
+SET @scenario1_recovered_till_data =
+  last_innodb_error_log_data_after(
+    @scenario_start_logged,
+    '%Last MTR couldn''t be parsed successfully. Recovered till : %');
+SET @scenario1_recovered_till_lsn =
+  CAST(REGEXP_SUBSTR(@scenario1_recovered_till_data, '[0-9]+$') AS UNSIGNED);
+
+--let $assert_text = Recovery detected the invalid next redo block header
+--let $assert_cond = @scenario1_corrupted_next_block_lsn IS NOT NULL
+--source include/assert.inc
+
+--let $assert_text = Invalid next block header LSN is at a redo block boundary
+--let $assert_cond = [SELECT @scenario1_corrupted_next_block_lsn] % 512 = 0
+--source include/assert.inc
+
+--let $assert_text = Recovery scanned up to the last data byte before the trailer
+--let $assert_cond = @scenario1_scanned_upto_lsn IS NOT NULL
+--source include/assert.inc
+
+--let $assert_text = Recovery scanned LSN has the expected block offset
+--let $assert_cond = [SELECT @scenario1_scanned_upto_lsn] % 512 = 507
+--source include/assert.inc
+
+--let $assert_text = Recovery reported the unparsable mini-transaction
+--let $assert_cond = @scenario1_recovered_till_lsn IS NOT NULL
+--source include/assert.inc
+
+--let $assert_text = Recovery stopped before the unparsable mini-transaction
+--let $assert_cond = [SELECT @scenario1_recovered_till_lsn] < [SELECT @scenario1_scanned_upto_lsn]
+--source include/assert.inc
+
+--let $assert_text = Recovery stopped within the same redo block
+--let $assert_cond = [SELECT @scenario1_scanned_upto_lsn] - [SELECT @scenario1_recovered_till_lsn] < 512
+--source include/assert.inc
+
+DROP TABLE t1;
+
+--echo # -----------------------------------------------------------------------
+--echo # Scenario : When the last BLOCK in a READ batch is read successfully.
+--echo #            This same block will be read again in next READ but will
+--echo #            add only last byte in parsing buffer.
+--echo # -----------------------------------------------------------------------
+
+--let $scenario_start_logged = `SELECT COALESCE(MAX(LOGGED), TIMESTAMP'1970-01-01 00:00:00.000000') FROM performance_schema.error_log`
+
+CREATE TABLE t1 (c1 CHAR(10)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ("a");
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+CALL crash_at_redo_block_boundary();
+
+--echo # Restart the server to recover the generated redo log
+--let $restart_parameters = restart: --debug=d,read_only_one_block
+--source include/start_mysqld.inc
+
+--disable_query_log
+--eval SET @scenario_start_logged = TIMESTAMP'$scenario_start_logged'
+--enable_query_log
+
+SET @scenario2_read_one_block_data =
+  last_innodb_error_log_data_after(
+    @scenario_start_logged,
+    '%Handler::read : Read one block%');
+
+SET @scenario2_adjusted_data =
+  last_innodb_error_log_data_after(
+    @scenario_start_logged,
+    '%Adjusting parsed length from : % to : %');
+SET @scenario2_adjusted_from =
+  CAST(REGEXP_SUBSTR(@scenario2_adjusted_data, '[0-9]+', 1, 1) AS UNSIGNED);
+SET @scenario2_adjusted_to =
+  CAST(REGEXP_SUBSTR(@scenario2_adjusted_data, '[0-9]+', 1, 2) AS UNSIGNED);
+
+SET @scenario2_scanned_upto_data =
+  last_innodb_error_log_data_after(
+    @scenario_start_logged,
+    '%Doing recovery: scanned up to log sequence number %');
+SET @scenario2_scanned_upto_lsn =
+  CAST(REGEXP_SUBSTR(@scenario2_scanned_upto_data, '[0-9]+$') AS UNSIGNED);
+
+--let $assert_text = Recovery exercised the one-block read debug path
+--let $assert_cond = @scenario2_read_one_block_data IS NOT NULL
+--source include/assert.inc
+
+--let $assert_text = Recovery found the adjusted parsing buffer source length
+--let $assert_cond = @scenario2_adjusted_from IS NOT NULL
+--source include/assert.inc
+
+--let $assert_text = Recovery found the adjusted parsing buffer target length
+--let $assert_cond = @scenario2_adjusted_to IS NOT NULL
+--source include/assert.inc
+
+--let $assert_text = Recovery adjusted the parsing buffer by one byte
+--let $assert_cond = [SELECT @scenario2_adjusted_from] = [SELECT @scenario2_adjusted_to] + 1
+--source include/assert.inc
+
+--let $assert_text = Recovery scanned up to the next redo block header
+--let $assert_cond = @scenario2_scanned_upto_lsn IS NOT NULL
+--source include/assert.inc
+
+--let $assert_text = Recovery scanned LSN has the redo block header offset
+--let $assert_cond = [SELECT @scenario2_scanned_upto_lsn] % 512 = 12
+--source include/assert.inc
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+DROP PROCEDURE crash_at_redo_block_boundary;
+DROP FUNCTION last_innodb_error_log_data_after;
+DROP TABLE t1;
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

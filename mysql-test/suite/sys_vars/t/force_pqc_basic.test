@@ -1,0 +1,36 @@
+SELECT @@GLOBAL.force_pqc;
+--echo 0 Expected
+
+SHOW GLOBAL VARIABLES LIKE 'force_pqc';
+
+SELECT @@force_pqc = @@GLOBAL.force_pqc;
+--echo 1 Expected
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.force_pqc;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.force_pqc;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.force_pqc = ON;
+
+SET @tls_version_saved = @@GLOBAL.tls_version;
+SET @@GLOBAL.force_pqc = OFF;
+SET @@GLOBAL.tls_version = 'TLSv1.2';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.force_pqc = ON;
+SELECT @@GLOBAL.force_pqc;
+--echo 0 Expected
+SET @@GLOBAL.tls_version = @tls_version_saved;
+
+SET @@GLOBAL.force_pqc = OFF;
+SELECT @@GLOBAL.force_pqc;
+--echo 0 Expected
+
+SET @@GLOBAL.force_pqc = DEFAULT;
+
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='force_pqc';
+--echo OFF Expected

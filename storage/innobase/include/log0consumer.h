@@ -42,16 +42,16 @@ class Log_consumer {
   virtual ~Log_consumer() {}
 
   /** @return Name of this consumer. */
-  virtual const std::string &get_name() const = 0;
+  [[nodiscard]] virtual const std::string &get_name() const = 0;
 
-  /** @return Maximum LSN up to which this consumer has consumed redo.
-  The caller should acquire log.files_mutex. */
-  virtual lsn_t get_consumed_lsn() const = 0;
+  /** Caller should hold limits_mutex.
+  @return Maximum LSN up to which this consumer has consumed redo. */
+  [[nodiscard]] virtual lsn_t get_consumed_lsn() const = 0;
 
   /** Request the log consumer to consume faster.
   @remarks This is called whenever the redo log consumer is the most lagging one
   and it is critical to consume up to the request_lsn. The caller has to hold
-  log.files_mutex and log.limits_mutex. */
+  log.limits_mutex. */
   virtual void consumption_requested(lsn_t request_lsn) = 0;
 };
 
@@ -59,15 +59,16 @@ class Log_user_consumer : public Log_consumer {
  public:
   explicit Log_user_consumer(const std::string &name);
 
-  const std::string &get_name() const override;
+  [[nodiscard]] const std::string &get_name() const override;
 
   /** Set the lsn reported by get_consumed_lsn() to the given value.
   It is required that the given value is greater or equal to the value
   currently reported by the get_consumed_lsn().
+  Caller should hold limits_mutex.
   @param[in]  consumed_lsn    the given lsn to report */
   void set_consumed_lsn(lsn_t consumed_lsn);
 
-  lsn_t get_consumed_lsn() const override;
+  [[nodiscard]] lsn_t get_consumed_lsn() const override;
 
   void consumption_requested(lsn_t request_lsn) override;
 
@@ -76,6 +77,7 @@ class Log_user_consumer : public Log_consumer {
   const std::string m_name;
 
   /** Value reported by get_consumed_lsn().
+  Protected by limits_mutex.
   Set by set_consumed_lsn(lsn). */
   lsn_t m_consumed_lsn{};
 };
@@ -84,9 +86,9 @@ class Log_checkpoint_consumer : public Log_consumer {
  public:
   explicit Log_checkpoint_consumer(log_t &log);
 
-  const std::string &get_name() const override;
+  [[nodiscard]] const std::string &get_name() const override;
 
-  lsn_t get_consumed_lsn() const override;
+  [[nodiscard]] lsn_t get_consumed_lsn() const override;
 
   void consumption_requested(lsn_t request_lsn) override;
 
@@ -95,11 +97,13 @@ class Log_checkpoint_consumer : public Log_consumer {
 };
 
 /** Register the given redo log consumer.
+Caller should hold limits_mutex.
 @param[in,out]  log           redo log
 @param[in]      log_consumer  redo log consumer to register */
 void log_consumer_register(log_t &log, Log_consumer *log_consumer);
 
 /** Unregister the given redo log consumer.
+Caller should hold limits_mutex.
 @param[in,out]  log           redo log
 @param[in]      log_consumer  redo log consumer to unregister */
 void log_consumer_unregister(log_t &log, Log_consumer *log_consumer);
@@ -107,6 +111,7 @@ void log_consumer_unregister(log_t &log, Log_consumer *log_consumer);
 /** Find the registered redo log consumer which has the smallest value
 reported by get_consumed_lsn() - ie. the most lagging consumer. When
 multiple consumers have the same value, any of them might be returned.
+Caller should hold limits_mutex.
 @param[in]  log               the redo log
 @param[out] oldest_needed_lsn the oldest lsn needed by the most lagging consumer
 @return the most lagging consumer */

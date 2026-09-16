@@ -231,7 +231,7 @@ search:
                               &key.m_object_name, &is_enabled, &is_timed);
 
   /* Else create a new record in program stat array. */
-  pfs = global_program_container.allocate(&dirty_state);
+  pfs = global_program_container.allocate(&dirty_state, nullptr);
   if (pfs != nullptr) {
     /* Do the assignments. */
     pfs->m_key = key;

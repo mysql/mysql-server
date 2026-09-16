@@ -127,9 +127,8 @@ Used only to assert, that the state is correct. */
 void log_writer_thread_active_validate();
 
 /** Validates that the log writer, flusher threads are active.
-Used only to assert, that the state is correct.
-@param[in]	log	redo log */
-void log_background_write_threads_active_validate(const log_t &log);
+Used only to assert, that the state is correct. */
+void log_background_write_threads_active_validate();
 
 #define log_flusher_mutex_enter(log) mutex_enter(&((log).flusher_mutex))
 

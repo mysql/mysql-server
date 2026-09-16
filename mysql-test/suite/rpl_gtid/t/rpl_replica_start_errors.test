@@ -41,6 +41,11 @@ INSERT INTO t1 (c1) VALUES (2);
 
 TRUNCATE mysql.slave_master_info;
 
+# This should not be here, because START REPLICA should not report anything
+# to the error log. Report a bug and fix.
+call mtr.add_suppression("Failed to open the relay log*");
+call mtr.add_suppression("Could not find target log file mentioned*");
+
 --echo #  4. Restart the server
 
 --let $rpl_server_number= 2
@@ -49,12 +54,15 @@ TRUNCATE mysql.slave_master_info;
 
 --echo #  5. Observe that replication threads cannot be started
 
-# Start replica must fail because of missing connection metadata
---error ER_BAD_REPLICA
+# Start replica must fail because of missing connection metadata.
+# Since index file is not reloaded from disk and at the same time default file
+# is not found, CSA fails with ER_CONNECTION_METADATA instead of ER_BAD_REPLICA
+--error ER_BAD_REPLICA, ER_CONNECTION_METADATA
 START REPLICA;
 
 --echo #  6. Restore connection metadata and start replication
 
+RESET REPLICA ALL;
 --replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 START REPLICA;

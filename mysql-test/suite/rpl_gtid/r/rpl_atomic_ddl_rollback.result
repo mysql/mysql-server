@@ -9,6 +9,7 @@ CALL mtr.add_suppression("A commit for an atomic DDL statement was unsuccessful 
 CALL mtr.add_suppression("Query caused different errors on source and replica.");
 CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 CALL mtr.add_suppression("Replica worker thread has failed to apply an event. As a consequence, the coordinator thread is stopping execution.");
+CALL mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
 RESET REPLICA;
 START REPLICA;
 include/rpl/wait_for_applier_error.inc [errno=13113]

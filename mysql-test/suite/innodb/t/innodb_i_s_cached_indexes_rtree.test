@@ -1,0 +1,44 @@
+#
+# Check that INFORMATION_SCHEMA.INNODB_CACHED_INDEXES agrees with a direct
+# INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU walk for R-tree indexes.
+#
+
+--source include/have_innodb_16k.inc
+
+CREATE TABLE rtree_cached (
+  id INT NOT NULL,
+  g POINT NOT NULL SRID 0,
+  pad CHAR(60) NOT NULL,
+  PRIMARY KEY (id),
+  SPATIAL INDEX g_idx(g)
+) ENGINE=InnoDB STATS_PERSISTENT=0;
+
+--let $cached_index_pages_table= test/rtree_cached
+--let $cached_index_pages_index= g_idx
+--source suite/innodb/include/create_cached_index_page_functions.inc
+
+INSERT INTO rtree_cached
+VALUES (1, ST_GeomFromText('POINT(1 1)', 0), REPEAT('p', 60));
+
+# The small spatial index fits in one root-leaf page, so the R-tree page should
+# be counted once by both INNODB_CACHED_INDEXES and the LRU walk.
+--let $cached_index_pages_checkpoint= small R-tree index
+--let $expected_non_leaf_pages= 0
+--source suite/innodb/include/check_cached_index_pages.inc
+
+--let $row_count = 1
+while ($row_count < 8192)
+{
+  --eval INSERT INTO rtree_cached SELECT id + $row_count, ST_GeomFromText(CONCAT('POINT(', id + $row_count, ' ', id + $row_count, ')'), 0), pad FROM rtree_cached
+  --let $row_count = `SELECT $row_count * 2`
+}
+
+# After enough insertions, g_idx has leaf pages plus the R-tree root. The cached
+# index counter tracks only leaves, while the LRU walk sees the root too.
+--let $cached_index_pages_checkpoint= split R-tree index
+--let $expected_non_leaf_pages= 1
+--source suite/innodb/include/check_cached_index_pages.inc
+
+DROP FUNCTION get_n_cached_pages;
+DROP FUNCTION count_index_pages_in_lru;
+DROP TABLE rtree_cached;

@@ -48,7 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0inf.h"
 #include "lob0lob.h"
 #include "que0que.h"
-#include "read0read.h"
+#include "read0read_view_interface.h"
 #include "row0ext.h"
 #include "row0mysql.h"
 #include "row0row.h"
@@ -2168,8 +2168,9 @@ dberr_t trx_undo_report_row_operation(
   so do not bother adding it to the list of modified tables by
   the transaction - this list is only used for maintaining
   INFORMATION_SCHEMA.TABLES.UPDATE_TIME. */
+  bool is_new_non_temp_table = false;
   if (!is_temp_table) {
-    trx->mod_tables.insert(index->table);
+    is_new_non_temp_table = trx->mod_tables.insert(index->table).second;
   }
 
   /* If trx is read-only then only temp-tables can be written. */
@@ -2320,6 +2321,10 @@ dberr_t trx_undo_report_row_operation(
       *roll_ptr =
           trx_undo_build_roll_ptr(op_type == TRX_UNDO_INSERT_OP,
                                   undo_ptr->rseg->space_id, page_no, offset);
+      if (is_new_non_temp_table) {
+        trx->undo_page_with_last_new_table_mod[op_type != TRX_UNDO_INSERT_OP] =
+            page_no;
+      }
       return (DB_SUCCESS);
     }
 
@@ -2423,11 +2428,10 @@ err_exit:
                                                 mem_heap_t *heap, bool is_temp,
                                                 const table_name_t &name,
                                                 trx_undo_rec_t **undo_rec) {
-  bool missing_history;
-
+  trx_sys_check_id_sanity(trx_id, name);
   rw_lock_s_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
-  missing_history = purge_sys->view.changes_visible(trx_id, name);
+  const bool missing_history = purge_sys->view->changes_visible(trx_id);
   if (!missing_history) {
     *undo_rec = trx_undo_get_undo_rec_low(roll_ptr, heap, is_temp);
   }
@@ -2562,12 +2566,11 @@ bool trx_undo_prev_version_build(
 
     if ((update->info_bits & REC_INFO_DELETED_FLAG) &&
         row_upd_changes_disowned_external(update)) {
-      bool missing_extern;
+      trx_sys_check_id_sanity(trx_id, index->table->name);
 
       rw_lock_s_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
-      missing_extern =
-          purge_sys->view.changes_visible(trx_id, index->table->name);
+      const bool missing_extern = purge_sys->view->changes_visible(trx_id);
 
       rw_lock_s_unlock(&purge_sys->latch);
 

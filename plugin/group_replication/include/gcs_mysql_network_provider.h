@@ -34,6 +34,7 @@
 
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
+#include "sql/rpl_group_replication.h"
 #include "sql/sql_class.h"
 
 /**
@@ -126,6 +127,15 @@ class Gcs_mysql_network_provider_native_interface {
   virtual bool send_command(MYSQL *mysql, enum enum_server_command command,
                             const unsigned char *arg, size_t length,
                             bool skip_check) = 0;
+
+  /**
+   * @brief Proxy method to mysql_errno from the MySQL client API
+   *
+   * @param mysql an initialized MySQL connection
+   *
+   * @return the last client error number
+   */
+  virtual unsigned int mysql_errno(MYSQL *mysql) = 0;
 
   /**
    * @brief Proxy method to mysql_init from the MySQL Client API
@@ -239,6 +249,12 @@ class Gcs_mysql_network_provider_native_interface_impl
 
   /**
    * @brief Implementation of @see
+   * Gcs_mysql_network_provider_native_interface#mysql_errno
+   */
+  unsigned int mysql_errno(MYSQL *mysql) override;
+
+  /**
+   * @brief Implementation of @see
    * Gcs_mysql_network_provider_native_interface#mysql_init
    */
   MYSQL *mysql_init(MYSQL *sock) override;
@@ -310,10 +326,16 @@ class Gcs_mysql_network_provider : public Network_provider {
   std::map<int, MYSQL *> m_connection_map;
 
   /**
-   * @brief A map that holds THD's for all open MySQL Server connections.
+   * @brief A map that holds THDs for incoming MySQL Server connections.
    *
-   * We need to maintain this reference in order to call the appropriate closing
-   * mechanisms when destroying an incoming connection.
+   * The map tracks the server threads associated with incoming connections so
+   * that close_connection() and stop() can terminate them. Multiple accepted
+   * connections may remain active concurrently.
+   *
+   * This map is not a pending connection queue. Network_connection objects are
+   * handed to XCom separately through Network_provider::set_new_connection(),
+   * which provides a single pending handoff slot. An entry added for a handoff
+   * that returns BUSY is removed before returning to the caller.
    *
    * The map's index is the open connection's file descriptor.
    */
@@ -419,12 +441,24 @@ class Gcs_mysql_network_provider : public Network_provider {
   int close_connection(const Network_connection &connection) override;
 
   /**
-   * @brief Set the new connection coming form MySQL server
+   * @brief Register and publish an incoming MySQL Server connection
+   *
+   * Registers the connection's THD for later close and stop handling, then
+   * attempts to publish the connection through Network_provider's single
+   * handoff slot. If the slot is occupied, the registration is rolled back and
+   * ownership remains with the caller.
    *
    * @param thd the THD to which the connection belongs to.
    * @param connection the connection data itself.
+   *
+   * @retval Gr_incoming_connection_status::ACCEPTED the connection was
+   * accepted
+   * @retval Gr_incoming_connection_status::BUSY the handoff slot was occupied
+   * @retval Gr_incoming_connection_status::ERROR the connection could not be
+   * registered
    */
-  void set_new_connection(THD *thd, Network_connection *connection);
+  Gr_incoming_connection_status set_new_connection(
+      THD *thd, Network_connection *connection);
 };
 
 /**
@@ -435,6 +469,17 @@ class Gcs_mysql_network_provider_util {
  public:
   // Out of range log value
   static constexpr int OUT_OF_RANGE_LOG_LEVEL = 255;
+
+  /**
+   * @brief Check whether a MySQL client error represents transient contention
+   * on the incoming connection handoff slot.
+   *
+   * @param error_number MySQL client error number
+   *
+   * @return true if the connection can be retried without logging a protocol
+   * error
+   */
+  static bool is_retryable_connection_handoff_error(unsigned int error_number);
 
  private:
   /**

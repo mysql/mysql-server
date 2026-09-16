@@ -1,0 +1,17 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.t1 (n INT PRIMARY KEY);
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+INSERT INTO mysqltest.t1 VALUES (1);
+include/rpl/sync.inc
+DROP DATABASE mysqltest;
+include/rpl/sync.inc
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';;
+SHOW DATABASES;
+include/rpl/sync.inc
+include/assert_grep.inc [Find replicated statement in telemetry traces log]
+include/rpl/deinit.inc

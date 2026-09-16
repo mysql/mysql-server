@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0sys.h"
+#include "trx0undo.h"
 
 class Clone_persist_gtid;
 

@@ -1,0 +1,23 @@
+SELECT variable_name FROM performance_schema.global_variables
+WHERE variable_name LIKE '%thread_pool%'
+AND variable_name <> 'thread_pool_max_transactions_limit'
+AND variable_name <> 'thread_pool_dedicated_listeners'
+AND variable_name <> 'thread_pool_connection_report_interval'
+UNION
+SELECT variable_name FROM performance_schema.session_variables
+WHERE variable_name LIKE '%thread_pool%'
+AND variable_name <> 'thread_pool_max_transactions_limit'
+AND variable_name <> 'thread_pool_dedicated_listeners'
+AND variable_name <> 'thread_pool_connection_report_interval'
+ORDER BY variable_name;
+variable_name
+thread_pool_algorithm
+thread_pool_high_priority_connection
+thread_pool_longrun_trx_limit
+thread_pool_max_active_query_threads
+thread_pool_max_unused_threads
+thread_pool_prio_kickup_timer
+thread_pool_query_threads_per_group
+thread_pool_size
+thread_pool_stall_limit
+thread_pool_transaction_delay

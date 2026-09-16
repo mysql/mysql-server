@@ -156,6 +156,23 @@ static xcl::XError make_x_connection(
                           password.c_str(), "");
 }
 
+static xcl::XError make_x_raw_connection(
+    XProtocolSession &session, const std::string &host, const uint16_t port,
+    int64_t connect_timeout = 10000 /*10s*/) {
+  session = xcl::create_session();
+  xcl::XError err = setup_x_session(session, connect_timeout, "PREFERRED");
+  if (err) return err;
+
+  return session->get_protocol().get_connection().connect(
+      host, port, xcl::Internet_protocol::Any);
+}
+
+static std::string format_xerror(const xcl::XError &e) {
+  if (!e) return "no-error";
+
+  return "(code:" + std::to_string(e.error()) + ", message:" + e.what() + ")";
+}
+
 #ifndef _WIN32
 static xcl::XError make_x_connection(XProtocolSession &session,
                                      const std::string &socket,
@@ -1982,6 +1999,77 @@ static size_t xproto_frame_encode(const T &msg, uint8_t msg_type,
   codecouts.WriteLittleEndian32(out_payload_size + 1);
   codecouts.WriteRaw(&msg_type, 1);
   return msg.SerializeToCodedStream(&codecouts);
+}
+
+/**
+ * @test Verify that repeated TLS activation requests are properly rejected
+ * and do not crash the Router.
+ */
+TEST_F(RouterRoutingTest, XProtocolRepeatedTlsUpgrade) {
+  const auto server_classic_port = port_pool_.get_next_available();
+  const auto server_x_port = port_pool_.get_next_available();
+  const auto router_x_rw_port = port_pool_.get_next_available();
+
+  mock_server_spawner().spawn(mock_server_cmdline("bootstrap_gr.js")
+                                  .port(server_classic_port)
+                                  .x_port(server_x_port)
+                                  .bind_address("127.0.0.1")
+                                  .enable_ssl(true)
+                                  .args());
+
+  const std::string routing_x_section = get_static_routing_section(
+      "x", router_x_rw_port, "", {server_x_port}, "x");
+
+  TempDirectory conf_dir("conf");
+  const std::string ssl_conf =
+      "client_ssl_mode=PREFERRED\n"
+      "server_ssl_mode=AS_CLIENT\n"
+      "client_ssl_key=" SSL_TEST_DATA_DIR
+      "/server-key-sha512.pem\n"
+      "client_ssl_cert=" SSL_TEST_DATA_DIR "/server-cert-sha512.pem";
+  std::string conf_file =
+      create_config_file(conf_dir.name(), routing_x_section, nullptr,
+                         "mysqlrouter.conf", ssl_conf, true);
+
+  launch_router({"-c", conf_file});
+
+  Mysqlx::Connection::CapabilitiesSet switch_tls_msg;
+  auto *cap = switch_tls_msg.mutable_capabilities()->add_capabilities();
+  cap->set_name("tls");
+  auto *cap_value = cap->mutable_value();
+  cap_value->set_type(Mysqlx::Datatypes::Any_Type::Any_Type_SCALAR);
+  auto *cap_scalar = cap_value->mutable_scalar();
+  cap_scalar->set_type(Mysqlx::Datatypes::Scalar_Type::Scalar_Type_V_BOOL);
+  cap_scalar->set_v_bool(true);
+
+  XProtocolSession x_session;
+  const auto x_connect_error =
+      make_x_raw_connection(x_session, "127.0.0.1", router_x_rw_port);
+  ASSERT_FALSE(x_connect_error) << format_xerror(x_connect_error);
+
+  const auto x_cap_set_error =
+      x_session.get()->get_protocol().execute_set_capability(switch_tls_msg);
+  ASSERT_FALSE(x_cap_set_error) << format_xerror(x_cap_set_error);
+
+  const auto x_tls_error =
+      x_session.get()->get_protocol().get_connection().activate_tls();
+
+  ASSERT_FALSE(x_tls_error) << format_xerror(x_tls_error);
+
+  const auto x_cap_set2_error =
+      x_session.get()->get_protocol().execute_set_capability(switch_tls_msg);
+  ASSERT_EQ(x_cap_set2_error.error(), 5001) << format_xerror(x_cap_set2_error);
+
+  const auto x_login_error =
+      x_session.get()->get_protocol().execute_authenticate("root", "fake-pass",
+                                                           "", "SHA256_MEMORY");
+  ASSERT_FALSE(x_login_error) << format_xerror(x_login_error);
+
+  // Router should still accept a fresh X Protocol connection after the loop.
+  XProtocolSession x_session2;
+  const auto res = make_x_connection(x_session2, "127.0.0.1", router_x_rw_port,
+                                     "root", "fake-pass");
+  EXPECT_THAT(res.error(), ::testing::AnyOf(0, 3159));
 }
 
 /**

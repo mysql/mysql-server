@@ -1,0 +1,18 @@
+#
+# Bug #120529: Warn when purge lag exceeds limits
+#
+include/save_error_log_position.inc
+value
+0
+include/assert_error_log.inc [server: 1, pattern: .*\[Warning\].*InnoDB purge history list length .* has exceeded innodb_max_purge_lag=2.
+]
+include/assert_error_log.inc [server: 1, pattern: NONE]
+include/assert_error_log.inc [server: 1, pattern: .*\[Warning\].*InnoDB purge history list length .* has exceeded innodb_max_purge_lag=2.
+.*\[Warning\].*InnoDB DML operations are being delayed by .* due to purge lag. History list length is .*, innodb_max_purge_lag=2, innodb_max_purge_lag_delay=1000.
+]
+include/assert_error_log.inc [server: 1, pattern: NONE]
+value
+6
+include/assert_error_log.inc [server: 1, pattern: .*\[Warning\].*InnoDB purge history list length .* has exceeded innodb_max_purge_lag=2.
+.*\[Warning\].*InnoDB DML operations are being delayed by .* due to purge lag. History list length is .*, innodb_max_purge_lag=2, innodb_max_purge_lag_delay=1000.
+]

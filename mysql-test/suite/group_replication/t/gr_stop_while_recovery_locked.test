@@ -21,6 +21,9 @@
 #
 ###############################################################################
 
+# This test is disabled when CSA is running, because STOP REPLICA
+# always suceeeds
+--source include/have_mta.inc
 --source include/big_test.inc
 --source include/not_have_privilege_checks_user.inc
 --source include/have_group_replication_plugin.inc
@@ -69,6 +72,7 @@ FLUSH TABLES WITH READ LOCK;
 --echo # 4. Starting server2 will fail, recovery module fail to stop, as it is
 --echo #    blocked
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING
 START GROUP_REPLICATION;
 

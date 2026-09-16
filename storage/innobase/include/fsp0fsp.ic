@@ -161,7 +161,7 @@ static inline uint32_t fsp_flags_set_page_size(uint32_t flags,
 
 /** Initialize an FSP flags integer.
 @param[in]      page_size       page sizes in bytes and compression flag.
-@param[in]      atomic_blobs    Used by Dynammic and Compressed.
+@param[in]      atomic_blobs    Used by Dynamic and Compressed.
 @param[in]      has_data_dir    This tablespace is in a remote location.
 @param[in]      is_shared       This tablespace can be shared by many tables.
 @param[in]      is_temporary    This tablespace is temporary.
@@ -375,7 +375,7 @@ inline bool fsp_flags_is_valid(uint32_t flags) {
   }
 
   static_assert(
-      FSP_FLAGS_POS_UNUSED == 15,
+      FSP_FLAGS_POS_UNUSED == 16,
       "You have added a new FSP_FLAG without adding a validation check.");
 
   return (true);

@@ -6,6 +6,25 @@
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 -- source include/rpl/init_source_replica.inc
+
+--disable_query_log
+--connection slave
+# Bug#39580589 tracks the MyISAM/GTID visibility behavior observed here:
+# with concurrent_insert enabled, a MyISAM SELECT may observe the previous
+# table state after WAIT_FOR_EXECUTED_GTID_SET() returns. Revisit this
+# test's dependency on @@global.concurrent_insert after Bug#39580589
+# is evaluated.
+SET @old_slave_concurrent_insert= @@global.concurrent_insert;
+SET @@global.concurrent_insert= 0;
+--connection master
+--enable_query_log
+
 let $engine_type=myisam;
 -- source common/rpl/rpl_delete_no_where.test
+
+--disable_query_log
+--connection slave
+SET @@global.concurrent_insert= @old_slave_concurrent_insert;
+--enable_query_log
+
 --source include/rpl/deinit.inc

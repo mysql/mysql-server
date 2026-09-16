@@ -1,0 +1,8 @@
+CALL mtr.add_suppression("Detected wrong page_id:");
+CALL mtr.add_suppression("Fixed wrong page_id with sync read:");
+# Emptying InnoDB buffer pool: begin
+# Buffer pool size: 67108864 bytes
+# Creating and dropping a table with size: 134217728 bytes
+# Emptying InnoDB buffer pool: end
+Pattern "Detected wrong page_id:" found
+Pattern "Fixed wrong page_id with sync read:" found

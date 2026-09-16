@@ -146,9 +146,26 @@ int Message_service_handler::initialize() {
   return 0;
 }
 
+void Message_service_handler::leave_on_message_service_error(
+    const char *leave_error_msg) {
+  DBUG_TRACE;
+
+  leave_group_on_failure::mask leave_actions;
+  leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
+  leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+  leave_group_on_failure::leave(leave_actions,
+                                ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR, nullptr,
+                                leave_error_msg);
+}
+
 void Message_service_handler::dispatcher() {
   DBUG_TRACE;
 
+  const char *const abort_message_decode_error =
+      "Malformed payload length in the group replication message service "
+      "message";
+  const char *const abort_message_notify_error =
+      "Message delivery error on message service of Group Replication.";
   bool pop_failed = false;
 
   // Thread context operations
@@ -197,16 +214,14 @@ void Message_service_handler::dispatcher() {
 
     if (pop_failed || service_message == nullptr) break;
 
-    if (notify_message_service_recv(service_message)) {
+    if (service_message->has_error()) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
+                   abort_message_decode_error);
       m_aborted = true;
-      const char *exit_state_action_abort_log_message =
-          "Message delivery error on message service of Group Replication.";
-      leave_group_on_failure::mask leave_actions;
-      leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
-      leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
-      leave_group_on_failure::leave(
-          leave_actions, ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR, nullptr,
-          exit_state_action_abort_log_message);
+      leave_on_message_service_error(abort_message_decode_error);
+    } else if (notify_message_service_recv(service_message)) {
+      m_aborted = true;
+      leave_on_message_service_error(abort_message_notify_error);
     }
 
     delete service_message;

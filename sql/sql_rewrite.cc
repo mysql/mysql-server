@@ -1028,9 +1028,12 @@ bool Rewriter_alter_user::rewrite(String &rlb) const {
 void Rewriter_alter_user::append_user_auth_info(LEX_USER *user, bool comma,
                                                 String *str) const {
   append_auth_id(m_thd, user, comma, str);
-  if (user->first_factor_auth_info.uses_identified_by_clause ||
-      user->first_factor_auth_info.uses_identified_with_clause ||
-      user->first_factor_auth_info.uses_authentication_string_clause) {
+  const bool has_auth_data_clause =
+      user->first_factor_auth_info.uses_identified_by_clause ||
+      user->first_factor_auth_info.uses_authentication_string_clause;
+
+  if (has_auth_data_clause ||
+      user->first_factor_auth_info.uses_identified_with_clause) {
     str->append(STRING_WITH_LEN(" IDENTIFIED"));
     if (user->first_factor_auth_info.uses_identified_with_clause ||
         m_consumer_type == Consumer_type::BINLOG)
@@ -1047,6 +1050,15 @@ void Rewriter_alter_user::append_user_auth_info(LEX_USER *user, bool comma,
     } else if (user->first_factor_auth_info.auth.length > 0) {
       str->append(STRING_WITH_LEN(" AS "));
       append_auth_str(user, str);
+    } else if (m_consumer_type == Consumer_type::BINLOG &&
+               has_auth_data_clause) {
+      /*
+        If empty password was specified, add it explicitly.
+        Not adding pasword at all will cause replica to
+        fall out of sync because the account will be created
+        with password expired.
+      */
+      str->append(STRING_WITH_LEN(" AS ''"));
     }
 
     if (user->retain_current_password) {

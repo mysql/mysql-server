@@ -41,6 +41,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "clone0clone.h"
 #include "dict0dd.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
@@ -956,7 +957,7 @@ void row_quiesce_table_start(dict_table_t *table, trx_t *trx) {
       mutex_enter(&master_key_id_mutex);
     }
 
-    buf_LRU_flush_or_remove_pages(table->space, BUF_REMOVE_FLUSH_WRITE, trx);
+    pages_persistence->persist_tablespace(table->space, trx);
 
     if (dd_is_table_in_encrypted_tablespace(table)) {
       mutex_exit(&master_key_id_mutex);
@@ -964,15 +965,19 @@ void row_quiesce_table_start(dict_table_t *table, trx_t *trx) {
 
     if (trx_is_interrupted(trx)) {
       ib::warn(ER_IB_MSG_1018) << "Quiesce aborted!";
-
-    } else if (row_quiesce_write_cfg(table, trx->mysql_thd) != DB_SUCCESS) {
-      ib::warn(ER_IB_MSG_1019) << "There was an error writing to the"
-                                  " meta data file";
-    } else if (row_quiesce_write_cfp(table, trx->mysql_thd) != DB_SUCCESS) {
-      ib::warn(ER_IB_MSG_1020) << "There was an error writing to the"
-                                  " encryption info file";
     } else {
-      ib::info(ER_IB_MSG_1021) << "Table " << table->name << " flushed to disk";
+      ut_ad_eq(buf_flush_get_dirty_pages_count_for_space(table->space), 0);
+
+      if (row_quiesce_write_cfg(table, trx->mysql_thd) != DB_SUCCESS) {
+        ib::warn(ER_IB_MSG_1019) << "There was an error writing to the"
+                                    " meta data file";
+      } else if (row_quiesce_write_cfp(table, trx->mysql_thd) != DB_SUCCESS) {
+        ib::warn(ER_IB_MSG_1020) << "There was an error writing to the"
+                                    " encryption info file";
+      } else {
+        ib::info(ER_IB_MSG_1021)
+            << "Table " << table->name << " flushed to disk";
+      }
     }
   } else {
     ib::warn(ER_IB_MSG_1022) << "Quiesce aborted!";

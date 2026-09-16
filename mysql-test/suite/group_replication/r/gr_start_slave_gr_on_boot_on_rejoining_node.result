@@ -31,7 +31,7 @@ INSERT INTO test.t2 VALUES (1);
 include/rpl/sync_to_replica.inc [FOR CHANNEL 'ch3_1']
 include/rpl/sync.inc
 [connection server1]
-include/assert.inc [Verify two tables (t1 & t2) are present in test database]
+include/assert.inc [Verify test.t1 is synced]
 include/assert.inc [Verify test.t2 is synced]
 
 # 5. Restart server1 with group replication start on boot

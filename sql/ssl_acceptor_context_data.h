@@ -58,6 +58,9 @@ enum class Ssl_acceptor_context_property_type {
   current_tls_crlpath,
   current_tls_key,
   current_tls_version,
+  force_pqc,
+  use_pqc_sign,
+  tls_kex,
   finished_accepts,
   finished_connects,
   server_not_after,
@@ -145,6 +148,9 @@ class Ssl_acceptor_context_data final {
   /** TLS context validity */
   bool have_ssl() const { return ssl_acceptor_fd_ != nullptr; }
 
+  /** Report that this channel can negotiate non-PQC sessions. */
+  void report_tls_channel_without_force_pqc() const;
+
   /** Get channel name */
   const char *channel_name() const { return channel_.c_str(); }
 
@@ -183,6 +189,8 @@ class Ssl_acceptor_context_data final {
     return current_ciphersuites_.c_str();
   }
 
+  const char *current_tls_kex() const { return current_tls_kex_.c_str(); }
+
  private:
   /** Channel name */
   std::string channel_;
@@ -203,9 +211,11 @@ class Ssl_acceptor_context_data final {
   */
   OptionalString current_ca_, current_capath_, current_version_, current_cert_,
       current_cipher_, current_ciphersuites_, current_key_, current_crl_,
-      current_crlpath_;
+      current_crlpath_, current_tls_kex_;
   long current_tls_session_cache_timeout_;
   bool current_tls_session_cache_mode_;
+  bool current_tls_force_pqc_;
+  bool current_tls_use_pqc_sign_;
 
   /* F.R.I.E.N.D.S. */
   friend class Ssl_acceptor_context_container;

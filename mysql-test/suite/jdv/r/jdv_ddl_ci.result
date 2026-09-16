@@ -2539,29 +2539,29 @@ def	sch	dv	root@localhost	DEFINER	data	def	sch	employee	0	0	0	1	valid
 def	test	dv1	root@localhost	DEFINER	data	def	test	t1	1	1	1	0	valid
 def	test	dv2	root@localhost	DEFINER	data	def	test	t1	0	0	0	1	valid
 SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES ORDER BY TABLE_NAME;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
-def	sch	dv	def	sch	employee		0	0	0	1	1	0	NULL	NULL
-def	sch	dv	def	sch	employee	sch.employee.ID = sch.employee.MANAGER	0	0	0	1	0	1	0	singleton
-def	test	dv1	def	test	t1		1	1	1	0	1	0	NULL	NULL
-def	test	dv1	def	test	t2	test.t2.C2 = test.t1.C1	0	0	0	1	0	1	0	nested
-def	test	dv1	def	test	t6	test.t6.C1 = test.t2.C4	1	1	0	0	0	2	1	singleton
-def	test	dv2	def	test	t1		0	0	0	1	1	0	NULL	NULL
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	WHERE_CLAUSE	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	ALLOW_CHECK	READ_ONLY	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_TABLE_PARENT_ID	REFERENCED_TABLE_PARENT_RELATIONSHIP
+def	sch	dv	def	sch	employee		0	0	0	1	1	1	0	NULL	NULL
+def	sch	dv	def	sch	employee	sch.employee.ID = sch.employee.MANAGER	0	0	0	1	1	0	1	0	singleton
+def	test	dv1	def	test	t1		1	1	1	1	0	1	0	NULL	NULL
+def	test	dv1	def	test	t2	test.t2.C2 = test.t1.C1	0	0	0	1	1	0	1	0	nested
+def	test	dv1	def	test	t6	test.t6.C1 = test.t2.C4	1	1	0	1	0	0	2	1	singleton
+def	test	dv2	def	test	t1		0	0	0	1	1	1	0	NULL	NULL
 SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS ORDER BY TABLE_NAME;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	READ_ONLY
-def	sch	dv	def	sch	employee	1	0	CITY	CITY	0	0	0	1
-def	sch	dv	def	sch	employee	1	0	NAME	NAME	0	0	0	1
-def	sch	dv	def	sch	employee	1	0	ID	_id	0	0	0	1
-def	sch	dv	def	sch	employee	0	1	CITY	CITY	0	0	0	1
-def	sch	dv	def	sch	employee	0	1	ID	ID	0	0	0	1
-def	sch	dv	def	sch	employee	0	1	NAME	NAME	0	0	0	1
-def	test	dv1	def	test	t1	1	0	C2	C2	0	1	0	0
-def	test	dv1	def	test	t1	1	0	C1	_id	0	0	0	1
-def	test	dv1	def	test	t2	0	1	C1	C1	0	0	0	1
-def	test	dv1	def	test	t2	0	1	C2	C2	0	0	0	1
-def	test	dv1	def	test	t6	0	2	C1	C1	0	0	0	1
-def	test	dv1	def	test	t6	0	2	C2	C2	0	1	0	0
-def	test	dv2	def	test	t1	1	0	C2	C2	0	0	0	1
-def	test	dv2	def	test	t1	1	0	C1	_id	0	0	0	1
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	REFERENCED_TABLE_CATALOG	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	IS_ROOT_TABLE	REFERENCED_TABLE_ID	REFERENCED_COLUMN_NAME	JSON_KEY_NAME	ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	ALLOW_CHECK	READ_ONLY
+def	sch	dv	def	sch	employee	1	0	CITY	CITY	0	0	0	1	1
+def	sch	dv	def	sch	employee	1	0	NAME	NAME	0	0	0	1	1
+def	sch	dv	def	sch	employee	1	0	ID	_id	0	0	0	1	1
+def	sch	dv	def	sch	employee	0	1	CITY	CITY	0	0	0	1	1
+def	sch	dv	def	sch	employee	0	1	ID	ID	0	0	0	1	1
+def	sch	dv	def	sch	employee	0	1	NAME	NAME	0	0	0	1	1
+def	test	dv1	def	test	t1	1	0	C2	C2	0	1	0	1	0
+def	test	dv1	def	test	t1	1	0	C1	_id	0	0	0	1	1
+def	test	dv1	def	test	t2	0	1	C1	C1	0	0	0	1	1
+def	test	dv1	def	test	t2	0	1	C2	C2	0	0	0	1	1
+def	test	dv1	def	test	t6	0	2	C1	C1	0	0	0	1	1
+def	test	dv1	def	test	t6	0	2	C2	C2	0	1	0	1	0
+def	test	dv2	def	test	t1	1	0	C2	C2	0	0	0	1	1
+def	test	dv2	def	test	t1	1	0	C1	_id	0	0	0	1	1
 SELECT * FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_LINKS ORDER BY TABLE_NAME;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARENT_TABLE_CATALOG	PARENT_TABLE_SCHEMA	PARENT_TABLE_NAME	CHILD_TABLE_CATALOG	CHILD_TABLE_SCHEMA	CHILD_TABLE_NAME	PARENT_COLUMN_NAME	CHILD_COLUMN_NAME	JOIN_TYPE	JSON_KEY_NAME
 def	sch	dv	def	sch	employee	def	sch	employee	MANAGER	ID	outer	MANAGER
@@ -2590,3 +2590,1422 @@ ERROR 42S02: Unknown table 'test.non_existent_view'
 #################################################################
 DROP TABLE T1, T2, T3, T4, T5, T6, T1_TEMP, T2_TEMP, T3_TEMP;
 #################################################################
+#################################################################
+# WL#17054: granular table and column annotations
+#################################################################
+# Shared tables for DDL and metadata tests.
+#
+CREATE TABLE gct_base (
+id INT PRIMARY KEY,
+check_value INT,
+no_check_value INT,
+update_value INT,
+no_update_value INT,
+default_value INT DEFAULT 700
+);
+CREATE TABLE gct_singleton (
+id INT PRIMARY KEY,
+check_value INT,
+no_check_value INT,
+update_value INT,
+no_update_value INT
+);
+CREATE TABLE gct_parent (
+id INT PRIMARY KEY,
+singleton_id INT,
+check_value INT,
+no_check_value INT,
+FOREIGN KEY (singleton_id) REFERENCES gct_singleton(id)
+);
+CREATE TABLE gct_nested (
+id INT PRIMARY KEY,
+parent_id INT,
+check_value INT,
+no_check_value INT,
+FOREIGN KEY (parent_id) REFERENCES gct_parent(id)
+);
+INSERT INTO gct_base VALUES (1, 10, 20, 30, 40, 50);
+INSERT INTO gct_singleton VALUES (10, 100, 200, 300, 400);
+INSERT INTO gct_parent VALUES (1, 10, 1000, 2000);
+INSERT INTO gct_nested VALUES (100, 1, 10000, 20000),
+(101, 1, 10001, 20001);
+#
+# 20.1. Table-level CHECK and NO CHECK tags
+#
+# 20.1.1: explicit CHECK is accepted on a root table.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH CHECK
+"_id" : id,
+"check_value" : check_value
+)
+FROM gct_base;
+# The explicit root CHECK setting is visible in table metadata.
+SELECT TABLE_NAME, REFERENCED_TABLE_NAME, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view';
+TABLE_NAME	REFERENCED_TABLE_NAME	ALLOW_CHECK
+gct_view	gct_base	1
+DROP VIEW gct_view;
+# 20.1.1: explicit CHECK is accepted independently on root,
+# singleton, and nested tables.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH CHECK
+"_id" : p.id,
+"check_value" : p.check_value,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH CHECK
+"id" : s.id,
+"check_value" : s.check_value
+)
+FROM gct_singleton AS s
+WHERE s.id = p.singleton_id
+),
+"nested" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH CHECK
+"id" : n.id,
+"check_value" : n.check_value
+)
+)
+FROM gct_nested AS n
+WHERE n.parent_id = p.id
+)
+)
+FROM gct_parent AS p;
+# Recording the document verifies that all three annotated levels are usable.
+SELECT data FROM gct_view;
+data
+{"_id": 1, "nested": [{"id": 100, "check_value": 10000}, {"id": 101, "check_value": 10001}], "_metadata": {"etag": "609e5a4c4ed49a4936d42a8cbbf7e902"}, "singleton": {"id": 10, "check_value": 100}, "check_value": 1000}
+# Table metadata records CHECK for all projected levels.
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	IS_ROOT_TABLE
+gct_nested	1	0
+gct_parent	1	1
+gct_singleton	1	0
+DROP VIEW gct_view;
+# 20.1.2: explicit NO CHECK is accepted independently on root and
+# child tables.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"_id" : p.id,
+"check_value" : p.check_value,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, NO CHECK)
+"id" : s.id,
+"check_value" : s.check_value
+)
+FROM gct_singleton AS s
+WHERE s.id = p.singleton_id
+),
+"nested" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE, NO CHECK)
+"id" : n.id,
+"check_value" : n.check_value
+)
+)
+FROM gct_nested AS n
+WHERE n.parent_id = p.id
+)
+)
+FROM gct_parent AS p;
+# Table metadata records NO CHECK for all projected levels.
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	IS_ROOT_TABLE
+gct_nested	0	0
+gct_parent	0	1
+gct_singleton	0	0
+DROP VIEW gct_view;
+# 20.1.3: omitting a table CHECK tag defaults its columns to CHECK.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"check_value" : check_value
+)
+FROM gct_base;
+# The default CHECK value is visible at both table and column level.
+SELECT 'TABLE' AS OBJECT_TYPE, REFERENCED_TABLE_NAME AS OBJECT_NAME,
+ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+UNION ALL
+SELECT 'COLUMN', JSON_KEY_NAME, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY OBJECT_TYPE, OBJECT_NAME;
+OBJECT_TYPE	OBJECT_NAME	ALLOW_CHECK
+COLUMN	_id	1
+COLUMN	check_value	1
+TABLE	gct_base	1
+DROP VIEW gct_view;
+# 20.1.3: omitted table and column CHECK tags default to CHECK at
+# root, singleton-child, and nested-child levels.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : p.id,
+"check_value" : p.check_value,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+"id" : s.id,
+"check_value" : s.check_value
+)
+FROM gct_singleton AS s
+WHERE s.id = p.singleton_id
+),
+"nested" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+"id" : n.id,
+"check_value" : n.check_value
+)
+)
+FROM gct_nested AS n
+WHERE n.parent_id = p.id
+)
+)
+FROM gct_parent AS p;
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK, IS_ROOT_TABLE
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY REFERENCED_TABLE_NAME;
+REFERENCED_TABLE_NAME	ALLOW_CHECK	IS_ROOT_TABLE
+gct_nested	1	0
+gct_parent	1	1
+gct_singleton	1	0
+SELECT REFERENCED_TABLE_NAME, JSON_KEY_NAME, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY REFERENCED_TABLE_NAME, JSON_KEY_NAME;
+REFERENCED_TABLE_NAME	JSON_KEY_NAME	ALLOW_CHECK
+gct_nested	check_value	1
+gct_nested	id	1
+gct_parent	_id	1
+gct_parent	check_value	1
+gct_singleton	check_value	1
+gct_singleton	id	1
+DROP VIEW gct_view;
+# 20.1.4: a single CHECK tag is accepted without parentheses.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH CHECK
+"_id" : id
+)
+FROM gct_base;
+DROP VIEW gct_view;
+# A single CHECK tag is accepted with parentheses.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (CHECK)
+"_id" : id
+)
+FROM gct_base;
+DROP VIEW gct_view;
+# A single NO CHECK tag is accepted without parentheses.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"_id" : id
+)
+FROM gct_base;
+DROP VIEW gct_view;
+# A single NO CHECK tag is accepted with parentheses.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO CHECK)
+"_id" : id
+)
+FROM gct_base;
+DROP VIEW gct_view;
+# 20.1.5: CHECK can appear first in a valid table-tag group.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (CHECK, INSERT, NO UPDATE, NO DELETE)
+"_id" : id,
+"check_value" : check_value
+)
+FROM gct_base;
+SELECT ALLOW_INSERT, ALLOW_UPDATE, ALLOW_DELETE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view';
+ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	ALLOW_CHECK
+1	0	0	1
+DROP VIEW gct_view;
+# CHECK can appear in the middle of a valid table-tag group.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, CHECK, NO UPDATE, NO DELETE)
+"_id" : id,
+"check_value" : check_value
+)
+FROM gct_base;
+SELECT ALLOW_INSERT, ALLOW_UPDATE, ALLOW_DELETE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view';
+ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	ALLOW_CHECK
+1	0	0	1
+DROP VIEW gct_view;
+# NO CHECK can appear last in a valid table-tag group.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, NO UPDATE, NO DELETE, NO CHECK)
+"_id" : id,
+"check_value" : check_value
+)
+FROM gct_base;
+SELECT ALLOW_INSERT, ALLOW_UPDATE, ALLOW_DELETE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view';
+ALLOW_INSERT	ALLOW_UPDATE	ALLOW_DELETE	ALLOW_CHECK
+1	0	0	0
+DROP VIEW gct_view;
+# 20.1.6: multiple table tags without parentheses are rejected
+# with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH CHECK, UPDATE
+"_id" : id
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', UPDATE
+"_id" : id
+)
+FROM gct_base' at line 3
+# A missing comma in a table-tag group fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (CHECK UPDATE)
+"_id" : id
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UPDATE)
+"_id" : id
+)
+FROM gct_base' at line 3
+# An extra comma in a table-tag group fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (CHECK,, UPDATE)
+"_id" : id
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', UPDATE)
+"_id" : id
+)
+FROM gct_base' at line 3
+# A trailing comma in a table-tag group fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (CHECK,)
+"_id" : id
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')
+"_id" : id
+)
+FROM gct_base' at line 3
+# An empty table-tag group fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH ()
+"_id" : id
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')
+"_id" : id
+)
+FROM gct_base' at line 3
+# A restrictive table tag without a space fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH NOCHECK
+"_id" : id
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOCHECK
+"_id" : id
+)
+FROM gct_base' at line 3
+# Table-level NOUPDATE without a space fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH NOUPDATE
+"_id" : id
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOUPDATE
+"_id" : id
+)
+FROM gct_base' at line 3
+# A repeated table-level WITH keyword fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH WITH CHECK
+"_id" : id
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CHECK
+"_id" : id
+)
+FROM gct_base' at line 3
+# 20.1.7: a duplicate CHECK table tag is rejected with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (CHECK, CHECK)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Duplicate NO CHECK fails with ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO CHECK, NO CHECK)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Duplicate INSERT fails with ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, INSERT)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Duplicate UPDATE fails with ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, UPDATE)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Duplicate DELETE fails with ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (DELETE, DELETE)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# 20.1.8: CHECK followed by NO CHECK is rejected as conflicting
+# with ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (CHECK, NO CHECK)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Conflicting NO CHECK, CHECK fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO CHECK, CHECK)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Conflicting INSERT, NO INSERT fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, NO INSERT)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Conflicting NO UPDATE, UPDATE fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO UPDATE, UPDATE)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Conflicting DELETE, NO DELETE fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (DELETE, NO DELETE)
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# 20.1.9: raw table annotations are rejected in a standalone SELECT
+# with ER_PARSE_ERROR.
+SELECT id FROM gct_base WITH CHECK;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CHECK' at line 1
+# Raw table annotations in a regular view fail with ER_PARSE_ERROR.
+CREATE VIEW gct_regular_view AS
+SELECT * FROM gct_base WITH CHECK;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 2
+# Raw table annotations in CTAS fail with ER_PARSE_ERROR.
+CREATE TABLE gct_bad_ctas AS SELECT id FROM gct_base WITH CHECK;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CHECK' at line 1
+# Raw annotations inside JSON_OBJECT fail with ER_PARSE_ERROR.
+SELECT JSON_OBJECT(WITH CHECK "id": id) FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CHECK "id": id) FROM gct_base' at line 1
+# 20.1.10: a syntactically valid tagged JSON_DUALITY_OBJECT is rejected in a
+# standalone SELECT with ER_JDV_INVALID_JSON_DUALITY_OBJECT_USAGE.
+SELECT JSON_DUALITY_OBJECT(
+WITH CHECK
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: JSON_DUALITY_OBJECT() can only be used to define a JSON duality view.
+# Tagged JSON_DUALITY_OBJECT in a regular view fails with
+# ER_JDV_INVALID_JSON_DUALITY_OBJECT_USAGE.
+CREATE VIEW gct_regular_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH CHECK
+"_id" : id
+)
+FROM gct_base;
+ERROR HY000: JSON_DUALITY_OBJECT() can only be used to define a JSON duality view.
+# 20.1.11: CHECK does not relax the existing rule that forbids DELETE on a
+# singleton child joined through the child's primary key.
+# ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ is expected.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"_id" : p.id,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, UPDATE, DELETE, CHECK)
+"id" : s.id,
+"check_value" : s.check_value
+)
+FROM gct_singleton AS s
+WHERE s.id = p.singleton_id
+)
+)
+FROM gct_parent AS p;
+ERROR HY000: Invalid JSON duality view definition: Incorrect annotations for "singleton". For singleton child object linked using primary key column with parent, table annotations must enforce both read-only or INSERT and UPDATE. DELETE is not allowed.
+# 20.1.12: ALTER can replace a default table setting with NO CHECK.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"check_value" : check_value
+)
+FROM gct_base;
+ALTER JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"_id" : id,
+"check_value" : check_value
+)
+FROM gct_base;
+# Metadata reflects the replacement definition after ALTER.
+SELECT REFERENCED_TABLE_NAME, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view';
+REFERENCED_TABLE_NAME	ALLOW_CHECK
+gct_base	0
+# The altered NO CHECK definition ignores direct value changes in ETAG.
+UPDATE gct_base SET check_value = 11 WHERE id = 1;
+SELECT @alter_table_no_check_etag =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS altered_table_no_check_keeps_etag
+FROM gct_view;
+altered_table_no_check_keeps_etag
+1
+# The altered default NO UPDATE permission rejects JDV DML with
+# ER_JDV_MISSING_UPDATE_TAG.
+UPDATE gct_view
+SET data = JSON_SET(data, '$.check_value', 12)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Missing UPDATE tag on `test`.`gct_base`.check_value, path '$.check_value'.
+# ALTER can reverse NO CHECK to CHECK while retaining UPDATE.
+ALTER JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id,
+"check_value" : check_value
+)
+FROM gct_base;
+SELECT REFERENCED_TABLE_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view';
+REFERENCED_TABLE_NAME	ALLOW_UPDATE	ALLOW_CHECK
+gct_base	1	1
+# The altered UPDATE permission allows JDV DML, and CHECK changes ETAG.
+UPDATE gct_view
+SET data = JSON_SET(data, '$.check_value', 12)
+WHERE data->>'$._id' = 1;
+SELECT @alter_table_check_etag <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS altered_table_check_changes_etag
+FROM gct_view;
+altered_table_check_changes_etag
+1
+SELECT id, check_value FROM gct_base;
+id	check_value
+1	12
+# ALTER can remove the explicit CHECK tag and restore default CHECK.
+ALTER JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"_id" : id,
+"check_value" : check_value
+)
+FROM gct_base;
+SHOW CREATE VIEW gct_view;
+View	Create View	character_set_client	collation_connection
+gct_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_view` AS select json_duality_object( WITH (UPDATE) '_id':`gct_base`.`id`,'check_value':`gct_base`.`check_value`) AS `Name_exp_1` from `gct_base`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT REFERENCED_TABLE_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view';
+REFERENCED_TABLE_NAME	ALLOW_UPDATE	ALLOW_CHECK
+gct_base	1	1
+DROP VIEW gct_view;
+#
+# 20.2. Column-level CHECK, NO CHECK, UPDATE, and NO UPDATE tags
+#
+# 20.2.1: all four supported column tags are accepted on non-PK
+# projections.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id WITH NO CHECK,
+"checked" : check_value WITH CHECK,
+"not_checked" : no_check_value WITH NO CHECK,
+"updatable" : update_value WITH UPDATE,
+"not_updatable" : no_update_value WITH NO UPDATE
+)
+FROM gct_base;
+# Column metadata records the effective setting of every projection.
+SELECT JSON_KEY_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY JSON_KEY_NAME;
+JSON_KEY_NAME	ALLOW_UPDATE	ALLOW_CHECK
+_id	0	0
+checked	1	1
+not_checked	1	0
+not_updatable	0	1
+updatable	1	1
+DROP VIEW gct_view;
+# Parenthesized single column tags are accepted.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id WITH (CHECK),
+"checked" : check_value WITH (CHECK),
+"not_checked" : no_check_value WITH (NO CHECK),
+"updatable" : update_value WITH (UPDATE),
+"not_updatable" : no_update_value WITH (NO UPDATE)
+)
+FROM gct_base;
+DROP VIEW gct_view;
+# 20.2.2: untagged columns inherit NO CHECK and NO UPDATE from
+# their table.
+# 20.2.3: explicit column tags override both inherited settings.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO UPDATE, NO CHECK)
+"_id" : id,
+"inherited" : check_value,
+"overridden" : update_value WITH (UPDATE, CHECK)
+)
+FROM gct_base;
+SELECT JSON_KEY_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY JSON_KEY_NAME;
+JSON_KEY_NAME	ALLOW_UPDATE	ALLOW_CHECK
+_id	0	0
+inherited	0	0
+overridden	1	1
+DROP VIEW gct_view;
+# Untagged non-PK columns inherit UPDATE and CHECK from their table.
+# Explicit NO UPDATE and NO CHECK override both inherited settings.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id,
+"inherited" : check_value,
+"overridden" : no_check_value WITH (NO UPDATE, NO CHECK)
+)
+FROM gct_base;
+SELECT JSON_KEY_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY JSON_KEY_NAME;
+JSON_KEY_NAME	ALLOW_UPDATE	ALLOW_CHECK
+_id	0	1
+inherited	1	1
+overridden	0	0
+DROP VIEW gct_view;
+# 20.2.4: valid column-tag groups are order agnostic.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id,
+"first_order" : check_value WITH (CHECK, UPDATE),
+"second_order" : no_check_value WITH (UPDATE, CHECK),
+"restrictive_order" : no_update_value WITH (NO CHECK, NO UPDATE)
+)
+FROM gct_base;
+SELECT JSON_KEY_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY JSON_KEY_NAME;
+JSON_KEY_NAME	ALLOW_UPDATE	ALLOW_CHECK
+_id	0	1
+first_order	1	1
+restrictive_order	0	0
+second_order	1	1
+DROP VIEW gct_view;
+# 20.2.5: multiple column tags without parentheses are rejected
+# with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH CHECK, UPDATE
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UPDATE
+)
+FROM gct_base' at line 4
+# A missing comma in a column-tag group fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (CHECK UPDATE)
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UPDATE)
+)
+FROM gct_base' at line 4
+# An extra comma in a column-tag group fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (CHECK,, UPDATE)
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', UPDATE)
+)
+FROM gct_base' at line 4
+# A trailing comma in a column-tag group fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (CHECK,)
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')
+)
+FROM gct_base' at line 4
+# An empty column-tag group fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH ()
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')
+)
+FROM gct_base' at line 4
+# Column-level NOUPDATE without a space fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH NOUPDATE
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOUPDATE
+)
+FROM gct_base' at line 4
+# Column-level NOCHECK without a space fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH NOCHECK
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOCHECK
+)
+FROM gct_base' at line 4
+# A repeated column-level WITH keyword fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH WITH CHECK
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CHECK
+)
+FROM gct_base' at line 4
+# 20.2.6: INSERT is not a supported column annotation and fails
+# with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH INSERT
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INSERT
+)
+FROM gct_base' at line 4
+# Column-level NO INSERT fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH NO INSERT
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INSERT
+)
+FROM gct_base' at line 4
+# Column-level DELETE fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH DELETE
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DELETE
+)
+FROM gct_base' at line 4
+# Column-level NO DELETE fails with ER_PARSE_ERROR.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH NO DELETE
+)
+FROM gct_base;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DELETE
+)
+FROM gct_base' at line 4
+# 20.2.7: a duplicate CHECK column tag is rejected with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (CHECK, CHECK)
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Duplicate column NO UPDATE fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (NO UPDATE, NO UPDATE)
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Duplicate column NO CHECK fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (NO CHECK, NO CHECK)
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Duplicate column UPDATE fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (UPDATE, UPDATE)
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# 20.2.8: CHECK and NO CHECK are conflicting column annotations and
+# fail with ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (CHECK, NO CHECK)
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Conflicting column NO CHECK, CHECK fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (NO CHECK, CHECK)
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Conflicting column NO UPDATE, UPDATE fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (NO UPDATE, UPDATE)
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# Conflicting column UPDATE, NO UPDATE fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH (UPDATE, NO UPDATE)
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# 20.2.9: column annotations cannot be attached to a singleton
+# child subquery; ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY is expected.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : p.id,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+"id" : s.id
+)
+FROM gct_singleton AS s
+WHERE s.id = p.singleton_id
+) WITH CHECK
+)
+FROM gct_parent AS p;
+ERROR HY000: Column tags are supported only for column projections at JSON path 'Root Node.singleton'.
+# A nested-subquery column tag fails with
+# ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : p.id,
+"nested" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+"id" : n.id
+)
+)
+FROM gct_nested AS n
+WHERE n.parent_id = p.id
+) WITH NO CHECK
+)
+FROM gct_parent AS p;
+ERROR HY000: Column tags are supported only for column projections at JSON path 'Root Node.nested'.
+# 20.2.10: column annotations cannot be attached to a computed scalar;
+# ER_JDV_INVALID_DEFINITION_WRONG_FIELD_TYPE is expected.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"computed" : (check_value + 1) WITH CHECK
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: JSON_DUALITY_OBJECT value must be either a table column or a sub-query. Object "computed" contains an invalid value.
+# A column annotation on a literal fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_FIELD_TYPE.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"literal" : 1 WITH NO CHECK
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: JSON_DUALITY_OBJECT value must be either a table column or a sub-query. Object "literal" contains an invalid value.
+# A column annotation on a function result fails with
+# ER_JDV_INVALID_DEFINITION_WRONG_FIELD_TYPE.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"function_result" : ABS(check_value) WITH NO UPDATE
+)
+FROM gct_base;
+ERROR HY000: Invalid JSON duality view definition: JSON_DUALITY_OBJECT value must be either a table column or a sub-query. Object "function_result" contains an invalid value.
+# 20.2.11: UPDATE on the root PK fails with
+# ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"_id" : id WITH UPDATE,
+"value" : check_value
+)
+FROM gct_base;
+ERROR HY000: The UPDATE column tag is not supported for a primary key projection at JSON path 'Root Node._id'.
+# 20.2.12: UPDATE on a child PK fails with
+# ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"_id" : p.id,
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"id" : s.id WITH (UPDATE, CHECK),
+"value" : s.check_value
+)
+FROM gct_singleton AS s
+WHERE s.id = p.singleton_id
+)
+)
+FROM gct_parent AS p;
+ERROR HY000: The UPDATE column tag is not supported for a primary key projection at JSON path 'Root Node.singleton.id'.
+# UPDATE on a nested-child PK fails with
+# ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"_id" : p.id,
+"nested" : (
+SELECT JSON_ARRAYAGG(
+JSON_DUALITY_OBJECT(
+WITH UPDATE
+"id" : n.id WITH UPDATE,
+"value" : n.check_value
+)
+)
+FROM gct_nested AS n
+WHERE n.parent_id = p.id
+)
+)
+FROM gct_parent AS p;
+ERROR HY000: The UPDATE column tag is not supported for a primary key projection at JSON path 'Root Node.nested.id'.
+# 20.2.13: CHECK, NO CHECK, and NO UPDATE remain valid on PKs.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"_id" : p.id WITH (NO UPDATE, NO CHECK),
+"singleton" : (
+SELECT JSON_DUALITY_OBJECT(
+WITH UPDATE
+"id" : s.id WITH (NO UPDATE, CHECK),
+"value" : s.check_value
+)
+FROM gct_singleton AS s
+WHERE s.id = p.singleton_id
+)
+)
+FROM gct_parent AS p;
+# PK metadata confirms NO UPDATE while retaining each requested CHECK setting.
+SELECT REFERENCED_TABLE_NAME, JSON_KEY_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+  AND JSON_KEY_NAME IN ('_id', 'id')
+ORDER BY REFERENCED_TABLE_NAME, JSON_KEY_NAME;
+REFERENCED_TABLE_NAME	JSON_KEY_NAME	ALLOW_UPDATE	ALLOW_CHECK
+gct_parent	_id	0	0
+gct_singleton	id	0	1
+DROP VIEW gct_view;
+# 20.2.14: JSON_DUALITY_OBJECT with column tags in a regular view
+# fails with ER_JDV_INVALID_JSON_DUALITY_OBJECT_USAGE.
+CREATE VIEW gct_regular_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"value" : check_value WITH CHECK
+)
+FROM gct_base;
+ERROR HY000: JSON_DUALITY_OBJECT() can only be used to define a JSON duality view.
+# 20.2.15: ALTER can add and reverse column-level overrides.
+CREATE JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO UPDATE, NO CHECK)
+"_id" : id,
+"value" : check_value
+)
+FROM gct_base;
+ALTER JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id,
+"value" : check_value WITH (NO UPDATE, NO CHECK)
+)
+FROM gct_base;
+# Column metadata reflects the replacement definition after ALTER.
+SELECT JSON_KEY_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY JSON_KEY_NAME;
+JSON_KEY_NAME	ALLOW_UPDATE	ALLOW_CHECK
+_id	0	1
+value	0	0
+# The altered column NO CHECK override preserves ETAG on direct change.
+UPDATE gct_base SET check_value = 13 WHERE id = 1;
+SELECT @alter_column_no_check_etag =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS altered_column_no_check_keeps_etag
+FROM gct_view;
+altered_column_no_check_keeps_etag
+1
+# The altered column NO UPDATE override rejects JDV DML with
+# ER_JDV_MISSING_UPDATE_TAG.
+UPDATE gct_view
+SET data = JSON_SET(data, '$.value', 14)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Missing UPDATE tag on `test`.`gct_base`.check_value, path '$.value'.
+# ALTER can remove the column override and restore table inheritance.
+ALTER JSON DUALITY VIEW gct_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id,
+"value" : check_value
+)
+FROM gct_base;
+SHOW CREATE VIEW gct_view;
+View	Create View	character_set_client	collation_connection
+gct_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_view` AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`gct_base`.`id`,'value':`gct_base`.`check_value`) AS `Name_exp_1` from `gct_base`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT JSON_KEY_NAME, ALLOW_UPDATE, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gct_view'
+ORDER BY JSON_KEY_NAME;
+JSON_KEY_NAME	ALLOW_UPDATE	ALLOW_CHECK
+_id	0	1
+value	1	1
+# Removing the override restores UPDATE and CHECK behavior.
+UPDATE gct_view
+SET data = JSON_SET(data, '$.value', 14)
+WHERE data->>'$._id' = 1;
+SELECT @alter_column_check_etag <>
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS altered_column_check_changes_etag
+FROM gct_view;
+altered_column_check_changes_etag
+1
+SELECT id, check_value FROM gct_base;
+id	check_value
+1	14
+DROP VIEW gct_view;
+# Shared DDL tables are no longer needed.
+DROP TABLE gct_nested;
+DROP TABLE gct_parent;
+DROP TABLE gct_singleton;
+DROP TABLE gct_base;
+#
+# 20.3. SHOW CREATE version comments and semantic round trips
+#
+CREATE TABLE gct_show (
+id INT PRIMARY KEY,
+value_check INT,
+value_no_check INT,
+value_update INT,
+value_no_update INT,
+value_update_check INT,
+value_update_no_check INT,
+value_no_update_check INT,
+value_no_update_no_check INT
+);
+INSERT INTO gct_show VALUES (1, 10, 20, 30, 40, 50, 60, 70, 80);
+# 20.3.1: standalone table CHECK is emitted as the complete
+# versioned clause /*!261000 WITH (CHECK) */.
+CREATE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH CHECK
+"_id" : id,
+"value" : value_check
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( /*!261000 WITH (CHECK) */ '_id':`gct_show`.`id`,'value':`gct_show`.`value_check`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.1: standalone table NO CHECK is emitted as the complete
+# versioned clause /*!261000 WITH (NO CHECK) */.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH NO CHECK
+"_id" : id,
+"value" : value_no_check
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( /*!261000 WITH (NO CHECK) */ '_id':`gct_show`.`id`,'value':`gct_show`.`value_no_check`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.2: when CHECK follows a positive CRUD tag, only CHECK and
+# its connecting comma are inside the version comment.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, CHECK)
+"_id" : id,
+"value" : value_check
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( WITH (INSERT /*!261000 , CHECK */) '_id':`gct_show`.`id`,'value':`gct_show`.`value_check`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.2: when CHECK precedes a restrictive CRUD tag, its trailing
+# connecting comma is inside the version comment.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (CHECK, NO INSERT)
+"_id" : id,
+"value" : value_check
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( WITH (/*!261000 CHECK, */ NO INSERT) '_id':`gct_show`.`id`,'value':`gct_show`.`value_check`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.2: CHECK between positive and restrictive tags keeps valid
+# SQL when the versioned fragment is removed.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, CHECK, NO UPDATE)
+"_id" : id,
+"value" : value_check
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( WITH (INSERT, /*!261000 CHECK, */ NO UPDATE) '_id':`gct_show`.`id`,'value':`gct_show`.`value_check`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.2: NO CHECK after a positive CRUD tag versions its leading
+# connecting comma with the tag.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, NO CHECK)
+"_id" : id,
+"value" : value_no_check
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( WITH (INSERT /*!261000 , NO CHECK */) '_id':`gct_show`.`id`,'value':`gct_show`.`value_no_check`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.2: NO CHECK before a restrictive CRUD tag versions its
+# trailing connecting comma with the tag.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO CHECK, NO INSERT)
+"_id" : id,
+"value" : value_no_check
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( WITH (/*!261000 NO CHECK, */ NO INSERT) '_id':`gct_show`.`id`,'value':`gct_show`.`value_no_check`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.2: NO CHECK between positive and restrictive tags keeps
+# valid SQL when the versioned fragment is removed.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (INSERT, NO CHECK, NO UPDATE)
+"_id" : id,
+"value" : value_no_check
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( WITH (INSERT, /*!261000 NO CHECK, */ NO UPDATE) '_id':`gct_show`.`id`,'value':`gct_show`.`value_no_check`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.3: every standalone and grouped column tag is versioned as
+# one complete column WITH clause.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"check" : value_check WITH CHECK,
+"no_check" : value_no_check WITH NO CHECK,
+"update" : value_update WITH UPDATE,
+"no_update" : value_no_update WITH NO UPDATE,
+"update_check" : value_update_check WITH (UPDATE, CHECK),
+"update_no_check" : value_update_no_check WITH (UPDATE, NO CHECK),
+"no_update_check" : value_no_update_check WITH (NO UPDATE, CHECK),
+"no_update_no_check" : value_no_update_no_check
+WITH (NO UPDATE, NO CHECK)
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object('_id':`gct_show`.`id`,'check':`gct_show`.`value_check` /*!261000 WITH (CHECK) */,'no_check':`gct_show`.`value_no_check` /*!261000 WITH (NO CHECK) */,'update':`gct_show`.`value_update` /*!261000 WITH (UPDATE) */,'no_update':`gct_show`.`value_no_update` /*!261000 WITH (NO UPDATE) */,'update_check':`gct_show`.`value_update_check` /*!261000 WITH (UPDATE,CHECK) */,'update_no_check':`gct_show`.`value_update_no_check` /*!261000 WITH (UPDATE,NO CHECK) */,'no_update_check':`gct_show`.`value_no_update_check` /*!261000 WITH (CHECK,NO UPDATE) */,'no_update_no_check':`gct_show`.`value_no_update_no_check` /*!261000 WITH (NO UPDATE,NO CHECK) */) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.4: existing table UPDATE remains ordinary SQL while the
+# accompanying CHECK tag alone is version-commented.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id,
+"value" : value_update
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`gct_show`.`id`,'value':`gct_show`.`value_update`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+# 20.3.4: existing table NO UPDATE likewise remains ordinary SQL
+# while only NO CHECK is version-commented.
+CREATE OR REPLACE JSON DUALITY VIEW gct_show_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (NO UPDATE, NO CHECK)
+"_id" : id,
+"value" : value_no_update
+)
+FROM gct_show;
+SHOW CREATE VIEW gct_show_view;
+View	Create View	character_set_client	collation_connection
+gct_show_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_show_view` AS select json_duality_object( WITH (/*!261000 NO CHECK, */ NO UPDATE) '_id':`gct_show`.`id`,'value':`gct_show`.`value_no_update`) AS `Name_exp_1` from `gct_show`	utf8mb4	utf8mb4_0900_ai_ci
+DROP VIEW gct_show_view;
+DROP TABLE gct_show;
+# 20.3.5: create a mixed-tag source view for an executable
+# SHOW CREATE version-comment round trip.
+CREATE TABLE gct_roundtrip (
+id INT PRIMARY KEY,
+mutable_value INT,
+protected_value INT
+);
+INSERT INTO gct_roundtrip VALUES (1, 10, 20);
+CREATE JSON DUALITY VIEW gct_roundtrip_source AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id,
+"mutable_value" : mutable_value WITH (UPDATE, CHECK),
+"protected_value" : protected_value WITH (NO UPDATE, NO CHECK)
+)
+FROM gct_roundtrip;
+# Record the canonical version comments emitted for the source.
+SHOW CREATE VIEW gct_roundtrip_source;
+View	Create View	character_set_client	collation_connection
+gct_roundtrip_source	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_roundtrip_source` AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`gct_roundtrip`.`id`,'mutable_value':`gct_roundtrip`.`mutable_value` /*!261000 WITH (UPDATE,CHECK) */,'protected_value':`gct_roundtrip`.`protected_value` /*!261000 WITH (NO UPDATE,NO CHECK) */) AS `Name_exp_1` from `gct_roundtrip`	utf8mb4	utf8mb4_0900_ai_ci
+# Execute that canonical annotation structure under a second name.
+# Removing every /*!261000 ... */ fragment leaves pre-WL valid SQL.
+CREATE JSON DUALITY VIEW gct_roundtrip_copy AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`gct_roundtrip`.`id`,'mutable_value':`gct_roundtrip`.`mutable_value` /*!261000 WITH (UPDATE,CHECK) */,'protected_value':`gct_roundtrip`.`protected_value` /*!261000 WITH (NO UPDATE,NO CHECK) */) AS `Name_exp_1` from `gct_roundtrip`;
+SHOW CREATE VIEW gct_roundtrip_copy;
+View	Create View	character_set_client	collation_connection
+gct_roundtrip_copy	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_roundtrip_copy` AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`gct_roundtrip`.`id`,'mutable_value':`gct_roundtrip`.`mutable_value` /*!261000 WITH (UPDATE,CHECK) */,'protected_value':`gct_roundtrip`.`protected_value` /*!261000 WITH (NO UPDATE,NO CHECK) */) AS `Name_exp_1` from `gct_roundtrip`	utf8mb4	utf8mb4_0900_ai_ci
+# Source and recreated views produce the same document and ETAG.
+SELECT data FROM gct_roundtrip_source;
+data
+{"_id": 1, "_metadata": {"etag": "0356056dcbd132a717f580dface86c13"}, "mutable_value": 10, "protected_value": 20}
+SELECT data FROM gct_roundtrip_copy;
+data
+{"_id": 1, "_metadata": {"etag": "0356056dcbd132a717f580dface86c13"}, "mutable_value": 10, "protected_value": 20}
+# Source and recreated columns have identical effective permissions.
+SELECT source.JSON_KEY_NAME,
+source.ALLOW_CHECK = copy.ALLOW_CHECK AS same_allow_check,
+source.ALLOW_UPDATE = copy.ALLOW_UPDATE AS same_allow_update
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS AS source
+JOIN INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS AS copy
+ON copy.TABLE_SCHEMA = source.TABLE_SCHEMA
+AND copy.JSON_KEY_NAME = source.JSON_KEY_NAME
+AND copy.TABLE_NAME = 'gct_roundtrip_copy'
+WHERE source.TABLE_SCHEMA = DATABASE()
+AND source.TABLE_NAME = 'gct_roundtrip_source'
+ORDER BY source.JSON_KEY_NAME;
+JSON_KEY_NAME	same_allow_check	same_allow_update
+_id	1	1
+mutable_value	1	1
+protected_value	1	1
+# An allowed mutable update succeeds through the source definition.
+UPDATE gct_roundtrip_source
+SET data = JSON_SET(data, '$.mutable_value', 11)
+WHERE data->>'$._id' = 1;
+SELECT id, mutable_value, protected_value FROM gct_roundtrip;
+id	mutable_value	protected_value
+1	11	20
+UPDATE gct_roundtrip SET mutable_value = 10 WHERE id = 1;
+# The equivalent mutable update succeeds through the recreated view.
+UPDATE gct_roundtrip_copy
+SET data = JSON_SET(data, '$.mutable_value', 11)
+WHERE data->>'$._id' = 1;
+SELECT id, mutable_value, protected_value FROM gct_roundtrip;
+id	mutable_value	protected_value
+1	11	20
+UPDATE gct_roundtrip SET mutable_value = 10 WHERE id = 1;
+# The source rejects a protected change with ER_JDV_MISSING_UPDATE_TAG.
+UPDATE gct_roundtrip_source
+SET data = JSON_SET(data, '$.protected_value', 21)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Missing UPDATE tag on `test`.`gct_roundtrip`.protected_value, path '$.protected_value'.
+# The recreated view rejects the protected change with
+# ER_JDV_MISSING_UPDATE_TAG.
+UPDATE gct_roundtrip_copy
+SET data = JSON_SET(data, '$.protected_value', 21)
+WHERE data->>'$._id' = 1;
+ERROR HY000: Missing UPDATE tag on `test`.`gct_roundtrip`.protected_value, path '$.protected_value'.
+# A direct NO CHECK change preserves ETAG in both definitions.
+UPDATE gct_roundtrip SET protected_value = 21 WHERE id = 1;
+SELECT @roundtrip_source_etag =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS source_no_check_keeps_etag
+FROM gct_roundtrip_source;
+source_no_check_keeps_etag
+1
+SELECT @roundtrip_copy_etag =
+JSON_UNQUOTE(JSON_EXTRACT(data, '$._metadata.etag'))
+AS copy_no_check_keeps_etag
+FROM gct_roundtrip_copy;
+copy_no_check_keeps_etag
+1
+DROP VIEW gct_roundtrip_copy;
+DROP VIEW gct_roundtrip_source;
+# 20.3.6: SHOW CREATE for an untagged view does not inject an
+# explicit CHECK clause, while effective CHECK still defaults to 1.
+CREATE JSON DUALITY VIEW gct_untagged_source AS
+SELECT JSON_DUALITY_OBJECT(
+"_id" : id,
+"mutable_value" : mutable_value,
+"protected_value" : protected_value
+)
+FROM gct_roundtrip;
+SHOW CREATE VIEW gct_untagged_source;
+View	Create View	character_set_client	collation_connection
+gct_untagged_source	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_untagged_source` AS select json_duality_object('_id':`gct_roundtrip`.`id`,'mutable_value':`gct_roundtrip`.`mutable_value`,'protected_value':`gct_roundtrip`.`protected_value`) AS `Name_exp_1` from `gct_roundtrip`	utf8mb4	utf8mb4_0900_ai_ci
+# Recreate the emitted untagged definition under a second name.
+CREATE JSON DUALITY VIEW gct_untagged_copy AS select json_duality_object('_id':`gct_roundtrip`.`id`,'mutable_value':`gct_roundtrip`.`mutable_value`,'protected_value':`gct_roundtrip`.`protected_value`) AS `Name_exp_1` from `gct_roundtrip`;
+# Both untagged definitions retain default CHECK semantics and output.
+SELECT TABLE_NAME, JSON_KEY_NAME, ALLOW_CHECK
+FROM INFORMATION_SCHEMA.JSON_DUALITY_VIEW_COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME IN ('gct_untagged_source', 'gct_untagged_copy')
+ORDER BY TABLE_NAME, JSON_KEY_NAME;
+TABLE_NAME	JSON_KEY_NAME	ALLOW_CHECK
+gct_untagged_copy	_id	1
+gct_untagged_copy	mutable_value	1
+gct_untagged_copy	protected_value	1
+gct_untagged_source	_id	1
+gct_untagged_source	mutable_value	1
+gct_untagged_source	protected_value	1
+SELECT data FROM gct_untagged_source;
+data
+{"_id": 1, "_metadata": {"etag": "e9231fd9f80509a13bb187e955c89ace"}, "mutable_value": 10, "protected_value": 21}
+SELECT data FROM gct_untagged_copy;
+data
+{"_id": 1, "_metadata": {"etag": "e9231fd9f80509a13bb187e955c89ace"}, "mutable_value": 10, "protected_value": 21}
+DROP VIEW gct_untagged_copy;
+DROP VIEW gct_untagged_source;
+DROP TABLE gct_roundtrip;
+# 20.4: failed CREATE OR REPLACE and ALTER leave an existing JDV intact.
+CREATE TABLE gct_atomicity (
+id INT PRIMARY KEY,
+mutable_value INT
+);
+INSERT INTO gct_atomicity VALUES (1, 10);
+CREATE JSON DUALITY VIEW gct_atomicity_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK)
+"_id" : id,
+"mutable_value" : mutable_value
+)
+FROM gct_atomicity;
+# A duplicate CHECK annotation prevents CREATE OR REPLACE.
+CREATE OR REPLACE JSON DUALITY VIEW gct_atomicity_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK, CHECK)
+"_id" : id,
+"mutable_value" : mutable_value
+)
+FROM gct_atomicity;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# The same new annotation violation prevents ALTER.
+ALTER JSON DUALITY VIEW gct_atomicity_view AS
+SELECT JSON_DUALITY_OBJECT(
+WITH (UPDATE, CHECK, CHECK)
+"_id" : id,
+"mutable_value" : mutable_value
+)
+FROM gct_atomicity;
+ERROR HY000: Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field.
+# The original definition and its UPDATE behavior remain intact.
+SHOW CREATE VIEW gct_atomicity_view;
+View	Create View	character_set_client	collation_connection
+gct_atomicity_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER JSON RELATIONAL DUALITY VIEW `gct_atomicity_view` AS select json_duality_object( WITH (UPDATE /*!261000 , CHECK */) '_id':`gct_atomicity`.`id`,'mutable_value':`gct_atomicity`.`mutable_value`) AS `Name_exp_1` from `gct_atomicity`	utf8mb4	utf8mb4_0900_ai_ci
+UPDATE gct_atomicity_view
+SET data = JSON_SET(data, '$.mutable_value', 11)
+WHERE data->>'$._id' = 1;
+SELECT id, mutable_value FROM gct_atomicity;
+id	mutable_value
+1	11
+DROP VIEW gct_atomicity_view;
+DROP TABLE gct_atomicity;
+###############################################################################

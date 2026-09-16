@@ -36,6 +36,7 @@
 #include "plugin/x/src/admin_cmd_index.h"
 #include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/helper/sql_commands.h"
+#include "plugin/x/src/helper/sql_literal_escaping.h"
 #include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/notice_configuration.h"
@@ -567,6 +568,9 @@ ngs::Error_code Admin_command_handler::list_objects(Command_arguments *args) {
   if (error) return error;
 
   Query_string_builder qb;
+  const bool no_backslash_escapes =
+      is_no_backslash_escapes(&m_session->data_context());
+  qb.set_no_backslash_escapes(no_backslash_escapes);
   qb.put("SELECT ")
       .put(BINARY_OPERATOR)
       .put(
@@ -578,7 +582,7 @@ ngs::Error_code Admin_command_handler::list_objects(Command_arguments *args) {
       .put(k_count_without_schema)
       .put("-2 = ");
 
-  if (m_session->data_context().is_sql_mode_set("NO_BACKSLASH_ESCAPES")) {
+  if (no_backslash_escapes) {
     qb.put(k_count_gen_no_backslash_escapes)
         .put(" AND ")
         .put(k_count_doc)

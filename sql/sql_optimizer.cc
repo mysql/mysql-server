@@ -468,6 +468,8 @@ bool JOIN::optimize(bool finalize_access_paths) {
   }
   if (having_cond || calc_found_rows) m_select_limit = HA_POS_ERROR;
 
+  // select_limit_cnt already includes offset_limit_cnt, so this can only
+  // happen for LIMIT 0.
   if (query_expression()->select_limit_cnt == 0 && !calc_found_rows) {
     zero_result_cause = "Zero limit";
     best_rowcount = 0;
@@ -819,14 +821,6 @@ bool JOIN::optimize(bool finalize_access_paths) {
   if (query_block->has_ft_funcs() && optimize_fts_query()) return true;
 
   /*
-    By setting child_subquery_can_materialize so late we gain the following:
-    JOIN::compare_costs_of_subquery_strategies() can test this variable to
-    know if we are have finished evaluating constant conditions, which itself
-    helps determining fanouts.
-  */
-  child_subquery_can_materialize = true;
-
-  /*
     It's necessary to check const part of HAVING cond as
     there is a chance that some cond parts may become
     const items after make_join_plan() (for example
@@ -854,6 +848,14 @@ bool JOIN::optimize(bool finalize_access_paths) {
       goto setup_subq_exit;
     }
   }
+
+  /*
+    By setting child_subquery_can_materialize after constant-condition
+    evaluation, JOIN::compare_costs_of_subquery_strategies() can use it to
+    determine whether parent fanouts are available. Constant folding can
+    execute nested subqueries before qep_tab is built.
+  */
+  child_subquery_can_materialize = true;
 
   // Inject cast nodes into the HAVING conditions
   if (having_cond != nullptr &&
@@ -2476,10 +2478,10 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     // 3. Optimizer has chosen to do table scan currently.
     if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX) ||
         is_force_index || ref_key == -1)
-      test_if_cheaper_ordering(tab, &order, table, usable_keys, ref_key_hint,
-                               select_limit, &best_key, &best_key_direction,
-                               &select_limit, &best_key_parts,
-                               &saved_best_key_parts, &best_read_time);
+      test_if_cheaper_ordering(
+          thd, tab, &order, table, usable_keys, ref_key_hint, select_limit,
+          &best_key, &best_key_direction, &select_limit, &best_key_parts,
+          &saved_best_key_parts, &best_read_time);
 
     // Try backward scan for previously found key
     if (best_key < 0 && order_direction < 0) goto check_reverse_order;
@@ -2698,7 +2700,8 @@ check_reverse_order:
         tab->set_type(calc_join_type(tab->range_scan()));
         tab->use_quick = QS_RANGE;
         if (is_loose_index_scan(tab->range_scan()))
-          join->tmp_table_param.precomputed_group_by = true;
+          join->tmp_table_param.precomputed_group_by =
+              !is_agg_loose_index_scan(tab->range_scan());
         tab->position()->filter_effect = COND_FILTER_STALE;
       }
     }  // best_key >= 0
@@ -5716,9 +5719,16 @@ bool JOIN::extract_const_tables() {
         break;
 
       case extract_empty_table:
-        // Extract tables with zero rows, but only if statistics are exact
+        /*
+          Extract tables with zero rows, but only if
+          1. statistics are exact, and
+          2. it is not a derived table that cannot be safely treated as
+             const (e.g., with stored programs in EXPLAIN mode)
+        */
         if ((table->file->stats.records == 0 || all_partitions_pruned_away) &&
-            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) != 0u)
+            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) !=
+                0u &&                       // 1
+            is_const_optimizable(thd, tl))  // 2
           mark_const_table(tab, nullptr);
         break;
 
@@ -7877,23 +7887,51 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
   return false;
 }
 
-/*
-  Add all keys with uses 'field' for some keypart
-  If field->and_level != and_level then only mark key_part as const_part
+/**
+  Add a Key_use entry for a given Key_field.
 
-  RETURN
-   0 - OK
-   1 - Out of memory.
+  @param keyuse_array          Destination array for general keyuses used in
+                               access method selection and range analysis.
+  @param key_field             Key_field describing the equality predicate.
+  @param primary_keyuse_array  Optional separate array that will receive
+                               Key_use entries for the primary key even when
+                               that key is not in keys_in_use_for_query.
+
+  The optimizer normally ignores keys that are masked out by
+  TABLE::keys_in_use_for_query when populating @c keyuse_array. However,
+  some consumers (notably test_if_order_by_key()) rely on
+  TABLE::const_key_parts[] to understand which key parts are constant, even
+  if the primary key itself is not considered as a candidate access method
+  (for example because an INDEX hint forced a secondary index).
+
+  To support such cases without changing access method selection semantics,
+  this function optionally records primary key keyuses into
+  @c primary_keyuse_array when the primary key is not in
+  keys_in_use_for_query. The caller may then derive const_key_parts from
+  those keyuses while keeping the primary key excluded from access planning.
 */
-
-static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
+static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field,
+                         Key_use_array *primary_keyuse_array = nullptr) {
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS)) {
     const Field *const field = key_field->item_field->field;
     Table_ref *const tl = key_field->item_field->m_table_ref;
     TABLE *const table = tl->table;
 
+    Key_use_array *cur_keyuse_array = keyuse_array;
     for (uint key = 0; key < table->s->keys; key++) {
-      if (!(table->keys_in_use_for_query.is_set(key))) continue;
+      cur_keyuse_array = keyuse_array;
+      if (!(table->keys_in_use_for_query.is_set(key))) {
+        /*
+          When primary_keyuse_array is provided, record Key_use entries for
+          the primary key there even if keys_in_use_for_query masks it out.
+          All other keys remain filtered purely by keys_in_use_for_query.
+        */
+        if (key == table->s->primary_key && primary_keyuse_array != nullptr) {
+          cur_keyuse_array = primary_keyuse_array;
+        } else {
+          continue;
+        }
+      }
       if (table->key_info[key].flags & (HA_FULLTEXT | HA_SPATIAL))
         continue;  // ToDo: ft-keys in non-ft queries.   SerG
 
@@ -7907,7 +7945,7 @@ static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
                                ~(ha_rows)0,  // will be set in optimize_keyuse
                                key_field->null_rejecting, key_field->cond_guard,
                                key_field->sj_pred_no);
-          if (keyuse_array->push_back(keyuse))
+          if (cur_keyuse_array->push_back(keyuse))
             return true; /* purecov: inspected */
         }
       }
@@ -8440,6 +8478,11 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
     return true; /* purecov: inspected */
   and_level = 0;
   field = end = key_fields;
+  // Used to collect primary-key Key_use entries even when the primary key is
+  // not in TABLE::keys_in_use_for_query (e.g. due to an INDEX hint). These
+  // are later converted to TABLE::const_key_parts so ORDER BY/GROUP BY
+  // optimization can still reason about primary-key suffixes for sorting.
+  Key_use_array primary_keyuses(thd->mem_root);
   *sargables = (SARGABLE_PARAM *)key_fields +
                (sz - sizeof((*sargables)[0].field)) / sizeof(SARGABLE_PARAM);
   /* set a barrier for the array of SARGABLE_PARAM */
@@ -8499,7 +8542,23 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
   }
   /* fill keyuse with found key parts */
   for (; field != end; field++) {
-    if (add_key_part(keyuse, field)) return true;
+    if (add_key_part(keyuse, field, &primary_keyuses)) return true;
+  }
+
+  /*
+    Primary-key Key_use entries recorded in primary_keyuses are not considered
+    for access method selection when the primary key has been masked out of
+    keys_in_use_for_query (e.g. by an INDEX hint). However, their const
+    keyparts are still relevant for ORDER BY/GROUP BY optimization via
+    TABLE::const_key_parts[]. Populate const_key_parts for those primary-key
+    parts that are constant for the execution.
+  */
+  for (auto use = primary_keyuses.begin(); use != primary_keyuses.end();
+       ++use) {
+    if (use->val->const_for_execution() &&
+        use->optimize != KEY_OPTIMIZE_REF_OR_NULL) {
+      use->table_ref->table->const_key_parts[use->key] |= use->keypart_map;
+    }
   }
 
   if (query_block->ftfunc_list->elements) {
@@ -9025,6 +9084,35 @@ static Item *part_of_refkey(TABLE *table, Index_lookup *ref,
   return nullptr;
 }
 
+/**
+  Store item value into field and check whether the value survived the
+  round-trip without truncation.  Field_num::store_decimal() silently
+  drops fractional digits when storing a decimal value into an integer
+  field and returns TYPE_OK, so the caller cannot rely on the return
+  status alone.  This helper re-reads the stored value and compares it
+  with the original to detect such silent truncation.
+
+  @param item   The item whose value is stored.
+  @param field  The target field.
+
+  @returns TYPE_OK if the value survived storage unchanged, or
+           TYPE_NOTE_TRUNCATED if the stored value differs from the
+           original.
+*/
+static type_conversion_status save_in_field_check_truncation(Item *item,
+                                                             Field *field) {
+  type_conversion_status res = item->save_in_field_no_warnings(field, true);
+  if (res != TYPE_OK) return res;
+  // Round-trip check: did the value survive storage?
+  if (item->result_type() == DECIMAL_RESULT) {
+    my_decimal orig_buf, stored_buf;
+    my_decimal *orig = item->val_decimal(&orig_buf);
+    field->val_decimal(&stored_buf);
+    if (my_decimal_cmp(orig, &stored_buf) != 0) return TYPE_NOTE_TRUNCATED;
+  }
+  return TYPE_OK;
+}
+
 bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
                                     bool can_evaluate, bool *subsumes) {
   *subsumes = false;
@@ -9083,7 +9171,7 @@ bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
           field->binary()) &&
         !(field->type() == MYSQL_TYPE_FLOAT && field->decimals() > 0))  // 2
     {
-      *subsumes = !right_item->save_in_field_no_warnings(field, true);
+      *subsumes = save_in_field_check_truncation(right_item, field) == TYPE_OK;
       if (thd->is_error()) return true;
     }
   }
@@ -9419,14 +9507,16 @@ void JOIN::finalize_derived_keys() {
       1) it is a materialized derived table, and
       2) it is not yet instantiated, and
       3) it has some keys defined, and
-      4) it has not yet been processed (may happen if there are more than one
+      4) keys have been added through this query block, and
+      5) it has not yet been processed (may happen if there are more than one
          local references to the same CTE, which are processed on seeing the
          first reference).
     */
     if (table == nullptr || !tr->uses_materialization() ||  // (1)
         table->is_created() ||                              // (2)
         table->s->keys == 0 ||                              // (3)
-        (processed_tables & tr->map())) {                   // (4)
+        table->s->owner_of_tmp_keys != query_block ||       // (4)
+        (processed_tables & tr->map())) {                   // (5)
       continue;
     }
     /*
@@ -9513,7 +9603,7 @@ void JOIN::finalize_derived_keys() {
       assert(old_idx != new_idx);
 
       if (old_idx > new_idx) {
-        assert(t->s->owner_of_possible_tmp_keys == query_block);
+        assert(t->s->owner_of_tmp_keys == query_block);
         Derived_refs_iterator it1(tr);
         while (TABLE *t1 = it1.get_next()) {
           /*
@@ -9558,11 +9648,9 @@ void JOIN::finalize_derived_keys() {
       }
     }
 
-    // Finally, we know how many keys remain in the table.
-    if (table->s->owner_of_possible_tmp_keys != query_block) continue;
+    // Release lock and remove the unused keys:
+    table->s->owner_of_tmp_keys = nullptr;
 
-    // Release lock:
-    table->s->owner_of_possible_tmp_keys = nullptr;
     it.rewind();
     while (TABLE *t = it.get_next()) {
       t->drop_unused_tmp_keys(it.is_first());
@@ -9961,8 +10049,10 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   used_index(tab->range_scan()) != MAX_KEY) {
                 const uint ref_key = used_index(tab->range_scan());
                 bool skip_quick;
-                read_direction = test_if_order_by_key(
-                    &join->order, tab->table(), ref_key, nullptr, &skip_quick);
+                uint used_key_parts = 0;
+                read_direction =
+                    test_if_order_by_key(&join->order, tab->table(), ref_key,
+                                         &used_key_parts, &skip_quick);
                 if (skip_quick) read_direction = 0;
                 /*
                   If the index provides order there is no need to recheck
@@ -9976,8 +10066,15 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                 if (read_direction == 1 ||
                     (read_direction == -1 &&
                      reverse_sort_possible(tab->range_scan()) &&
-                     !make_reverse(get_used_key_parts(tab->range_scan()),
-                                   tab->range_scan()))) {
+                     // Ensure the reverse range scan uses at least as
+                     // many keyparts as ORDER BY; otherwise a composite
+                     // index might be scanned in reverse using only a
+                     // shorter prefix, and we would incorrectly treat
+                     // ORDER BY as satisfied.
+                     !make_reverse(
+                         std::max(used_key_parts,
+                                  get_used_key_parts(tab->range_scan())),
+                         tab->range_scan()))) {
                   recheck_reason = DONT_RECHECK;
                 }
               }
@@ -10007,9 +10104,12 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   usable_keys.intersect(tab->table()->keys_in_use_for_order_by);
 
                 // Do a cost based search on the indexes that give sort order.
-                test_if_cheaper_ordering(
-                    tab, &join->order, tab->table(), usable_keys, -1,
-                    select_limit, &best_key, &read_direction, &select_limit);
+                {
+                  const Opt_trace_array trace_recheck_steps(trace, "steps");
+                  test_if_cheaper_ordering(
+                      thd, tab, &join->order, tab->table(), usable_keys, -1,
+                      select_limit, &best_key, &read_direction, &select_limit);
+                }
                 if (best_key < 0)
                   recheck_reason = DONT_RECHECK;  // No usable keys
                 else {

@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "clone0api.h"
 #include "clone0clone.h"
 #include "os0thread-create.h"
+#include "trx0purge.h"  // undo::Tablespace
 
 #include "sql/clone_handler.h"
 #include "sql/mysqld.h"
@@ -105,9 +106,9 @@ static void create_file(std::string &file_name) {
 /** Delete clone status file or directory.
 @param[in]      file    name of file */
 static void remove_file(const std::string &file) {
-  os_file_type_t file_type;
+  const auto file_type = os_file_type(file.c_str());
 
-  if (!os_file_status(file.c_str(), nullptr, &file_type)) {
+  if (!os_file_status_is_conclusive(file_type)) {
     ib::error(ER_IB_CLONE_STATUS_FILE)
         << "Error checking a file to remove : " << file.c_str();
     return;
@@ -1661,14 +1662,6 @@ void clone_free() {
 
 bool clone_check_provisioning() { return Clone_handler::is_provisioning(); }
 
-bool clone_check_active() {
-  mutex_enter(clone_sys->get_mutex());
-  auto is_active = clone_sys->check_active_clone(false);
-  mutex_exit(clone_sys->get_mutex());
-
-  return (is_active || Clone_handler::is_provisioning());
-}
-
 template <typename T>
 using DD_Objs = std::vector<const T *>;
 
@@ -1937,7 +1930,7 @@ class Fixup_data {
       /* In rare case, the undo might be kept halfway truncated due to some
       error during truncate. Check and add truncate log file as old file if
       present. */
-      undo::Tablespace undo_space(space_id);
+      undo_truncate::Tablespace undo_space(space_id);
       const char *log_file_name = undo_space.log_file_name();
 
       if (os_file_exists(log_file_name)) {
@@ -2621,8 +2614,6 @@ Clone_notify::~Clone_notify() {
       break;
 
     case Wait_at::NONE:
-      [[fallthrough]];
-
     default:
       return;
   }

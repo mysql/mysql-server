@@ -64,7 +64,7 @@ while ($extra_pages < 2)
   --disable_query_log
   while ($extraops > 0)
   {
-    update t1 set c=c+1 limit 1;
+    --eval update t1 set c=c+1 where a = 1 and b = 1 + ($extraops MOD 512)
     dec $extraops;
   }
   --enable_query_log

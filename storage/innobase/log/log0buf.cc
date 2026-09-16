@@ -61,6 +61,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* log_t::X */
 #include "log0sys.h"
 
+/* ib::redo::must_persist_all */
+#include "log0helpers.h"
+
 /* log_sync_point, log_test */
 #include "log0test.h"
 
@@ -72,6 +75,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* DBUG_EXECUTE_IF, ... */
 #include "my_dbug.h"
+
+/* SRV_SHUTDOWN_FLUSH_PHASE */
+#include "srv0shutdown.h"
 
 /* srv_read_only_mode */
 #include "srv0srv.h"
@@ -596,7 +602,7 @@ lsn_t log_buffer_wait_for_ready_for_write_lsn(log_t &log, lsn_t end_lsn,
   /* must wait for (ready_lsn >= end_lsn) at first */
   for (ulong i = 0; i < srv_n_spin_wait_rounds && ready_lsn < end_lsn; i++) {
     if (srv_spin_wait_delay) {
-      ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
+      ut_delay(ut::random_from_interval_fast(0, srv_spin_wait_delay));
     }
     ready_lsn = log_buffer_ready_for_write_lsn(log);
   }
@@ -667,7 +673,6 @@ void log_buffer_x_lock_enter(log_t &log) {
 
   if (sn > 0) {
     /* redo log system has been started */
-
     log_buffer_wait_for_ready_for_write_lsn(log, log_translate_sn_to_lsn(sn));
   }
 
@@ -814,7 +819,8 @@ static void log_wait_for_space_after_reserving(log_t &log,
     However, for extra safety, we prefer to acquire writer_mutex,
     and checkpointer_mutex. We consider this rare event. */
 
-    log_checkpointer_mutex_enter(log);
+    ut_a(log_checkpointing != nullptr);
+    log_checkpointer_mutex_enter();
     log_writer_mutex_enter(log);
 
     /* We multiply size at least by 1.382 to avoid case
@@ -828,7 +834,7 @@ static void log_wait_for_space_after_reserving(log_t &log,
     log_buffer_resize_low(log, new_lsn_size, handle.start_lsn);
 
     log_writer_mutex_exit(log);
-    log_checkpointer_mutex_exit(log);
+    log_checkpointer_mutex_exit();
 
   } else {
     /* Note that the size cannot get decreased.
@@ -884,15 +890,6 @@ static void log_wait_for_space_in_log_buf(log_t &log, sn_t end_sn) {
 Log_handle log_buffer_reserve(log_t &log, size_t len) {
   Log_handle handle;
 
-  /* In 5.7, we incremented log_write_requests for each single
-  write to log buffer in commit of mini-transaction.
-
-  However, writes which were solved by log_reserve_and_write_fast
-  that missed to increment the counter. Therefore, it wasn't reliable.
-
-  We changed meaning of the counter to reflect mtr commit rate. */
-  srv_stats.log_write_requests.inc();
-
   ut_ad(srv_shutdown_state_matches([](auto state) {
     return state <= SRV_SHUTDOWN_FLUSH_PHASE ||
            state == SRV_SHUTDOWN_EXIT_THREADS;
@@ -906,11 +903,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   /* Ensure that redo log has been initialized properly. */
   ut_a(start_sn > 0);
 
-#ifdef UNIV_DEBUG
-  if (!recv_recovery_is_on()) {
-    log_background_threads_active_validate(log);
-  }
-#endif
+  ut_d(log_background_threads_active_validate());
 
   /* Headers in redo blocks are not calculated to sn values: */
   const sn_t end_sn = start_sn + len;
@@ -1178,24 +1171,17 @@ void log_buffer_set_first_record_group(log_t &log, lsn_t rec_group_end_lsn) {
                                 rec_group_end_lsn % OS_FILE_LOG_BLOCK_SIZE);
 }
 
-void log_buffer_flush_to_disk(log_t &log, bool sync) {
-  ut_a(!srv_read_only_mode);
-  ut_a(!recv_recovery_is_on());
-
-  const lsn_t lsn = log_get_lsn(log);
-
-  /* Google's patch introduced log_buffer_sync_in_background which was calling
-  log_write_up_to, and this is the left-over from that. */
-  log_write_up_to(log, lsn, sync);
-}
-
 void log_buffer_sync_in_background() {
+  if (log_sys == nullptr) {
+    return;
+  }
+
   log_t &log = *log_sys;
 
   /* If the log flusher thread is working, no need to call. */
   if (log.writer_threads_paused.load(std::memory_order_acquire)) {
     log.recent_written.advance_tail();
-    log_buffer_flush_to_disk(log, true);
+    ib::redo::must_persist_all(UT_LOCATION_HERE);
   }
 }
 

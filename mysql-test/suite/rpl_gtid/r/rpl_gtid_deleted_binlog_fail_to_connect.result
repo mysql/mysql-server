@@ -39,11 +39,14 @@ include/rpl/stop_applier.inc
 include/assert_grep.inc [Found warning containing lost GTIDs in the master error log.]
 include/assert_grep.inc [Found warning containing lost GTIDs in the slave error log.]
 #
-# 6) Verify that replication succeeds if it tries to connect using CHANGE
-#    REPLICATION SOURCE TO SOURCE_LOG_POS.
+# 6) Verify that replication succeeds if it skips missing transactions
 #
-CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = 'MASTER_FILE', SOURCE_LOG_POS = MASTER_POS, SOURCE_AUTO_POSITION = 0;
+SET GTID_NEXT="UUID:2";
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
 include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
 include/assert.inc [t1 should contain only one row with the value 2]
 include/rpl/stop_replica.inc
 [connection master]

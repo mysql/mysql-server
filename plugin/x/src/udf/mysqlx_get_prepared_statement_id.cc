@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstring>
 
 #include "my_sys.h"  // NOLINT(build/include_subdir)
+#include "mysqld_error.h"
 
 #include "mysql/thread_pool_priv.h"
 #include "plugin/x/src/module_mysqlx.h"
@@ -54,7 +55,7 @@ bool mysqlx_get_prepared_statement_id_init(UDF_INIT *, UDF_ARGS *args,
                                            char *message) {
   if (args->arg_count == 1 && args->arg_type[0] == INT_RESULT) return false;
 
-  sprintf(message, "Function expect only one numeric argument");
+  sprintf(message, "Function expects only one numeric argument");
   return true;
 }
 
@@ -63,6 +64,14 @@ long long mysqlx_get_prepared_statement_id(UDF_INIT *, UDF_ARGS *args,
                                            unsigned char *is_null,
                                            unsigned char *error) {
   *error = 0;
+  if (args->args[0] == nullptr) {
+    my_error(ER_CANT_INITIALIZE_UDF, MYF(0), "mysqlx_get_prepared_statement_id",
+             "Function expects only one numeric argument");
+    *error = 1;
+    *is_null = 1;
+    return 0;
+  }
+
   uint32_t stmt_id = 0;
   if (get_prepared_statement_id(thd_get_current_thd(),
                                 // NOLINTNEXTLINE(runtime/int)

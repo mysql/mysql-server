@@ -216,9 +216,10 @@ class SslIoCompletionToken {
                   " - result:", result,
                   " - number_bytes_transfered_:", number_bytes_transfered_);
       switch (result) {
-        case Operation::Result::fatal:
-          do_token(make_tls_error(), 0);
+        case Operation::Result::fatal: {
+          do_token(make_fatal_result_error(), 0);
           return result;
+        }
 
         case Operation::Result::close:
           do_token(std::make_error_code(std::errc::broken_pipe), 0);
@@ -262,16 +263,31 @@ class SslIoCompletionToken {
     token_(ec, no_of_bytes);
   }
 
+  std::error_code make_fatal_result_error() {
+    auto ec = make_tls_error();
+    // Workaround: our previous assumption that every terminal/fatal TLS
+    // condition always yields a non-zero OpenSSL error (via ERR_get_error
+    // / make_tls_error()) is too strong. In some alert-driven shutdown
+    // paths (observed with user_cancelled followed by close_notify),
+    // OpenSSL can report a terminal state while the error queue remains
+    // empty, so make_tls_error() returns ec==0. If propagated as-is,
+    // upper layers may treat this as "no error" and spin forever on
+    // zero-byte callbacks. Force a non-zero error code on this path to
+    // reliably signal termination.
+    if (ec) return ec;
+
+    const auto shutdown_state = SSL_get_shutdown(tls_layer_.ssl_.get());
+    if ((shutdown_state & SSL_RECEIVED_SHUTDOWN) != 0)
+      return make_error_code(net::stream_errc::eof);
+
+    return std::make_error_code(std::errc::io_error);
+  }
+
   int bio_read_ex(size_t *out_readbytes) {
     auto bio = tls_layer_.network_bio_.get();
     *out_readbytes = 0;
-#if OPENSSL_VERSION_NUMBER >= NET_TLS_USE_BACKWARD_COMPATIBLE_OPENSSL
     auto result = BIO_read_ex(bio, output_.data_free(), output_.size_free(),
                               out_readbytes);
-#else
-    auto result = BIO_read(bio, output_.data_free(), output_.size_free());
-    if (result > 0) *out_readbytes = result;
-#endif
 
     return result;
   }
@@ -279,13 +295,8 @@ class SslIoCompletionToken {
   int bio_write_ex(size_t *out_written) {
     auto bio = tls_layer_.network_bio_.get();
     *out_written = 0;
-#if OPENSSL_VERSION_NUMBER >= NET_TLS_USE_BACKWARD_COMPATIBLE_OPENSSL
     auto result =
         BIO_write_ex(bio, input_.data_used(), input_.size_used(), out_written);
-#else
-    auto result = BIO_write(bio, input_.data_used(), input_.size_used());
-    if (result > 0) *out_written = result;
-#endif
 
     return result;
   }

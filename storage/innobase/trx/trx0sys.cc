@@ -48,6 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0log.h"
 #include "mysql/components/library_mysys/my_system.h"  // my_num_vcpus
 #include "os0file.h"
+#include "read0mvcc_interface.h"
 #include "read0read.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -58,6 +59,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** The transaction system */
 trx_sys_t *trx_sys = nullptr;
+
+trx_mvcc_sys_t trx_sys_mvcc;
 
 std::atomic<trx_id_t> Trx_by_id_with_min::s_lower_bound[2] = {0, 0};
 std::atomic<bool> Trx_by_id_with_min::s_updating_lower_bound{false};
@@ -107,11 +110,13 @@ trx_id_t Trx_by_id_with_min::get_better_lower_bound_for_already_active_id() {
   return min_seen;
 }
 
-/** Check whether transaction id is valid.
-@param[in]      id      transaction id to check
-@param[in]      name    table name */
-void ReadView::check_trx_id_sanity(trx_id_t id, const table_name_t &name) {
-  if (&name == &dict_sys->dynamic_metadata->name) {
+void trx_sys_check_id_sanity(trx_id_t id, const table_name_t &name) {
+  /* This method might be called before dynamic_metadata object is initialized,
+  but then it shouldn't be called for DB_TRX_ID from its rows nor
+  dict_index_t->trx_id of any of its indexes, as these should be accessed after
+  initializing dict_sys->dynamic_metadata pointer. */
+  if (dict_sys->dynamic_metadata != nullptr &&
+      &name == &dict_sys->dynamic_metadata->name) {
     /* The table mysql.innodb_dynamic_metadata uses a
     constant DB_TRX_ID=~0. */
     ut_ad(id == (1ULL << 48) - 1);
@@ -147,8 +152,7 @@ void ReadView::check_trx_id_sanity(trx_id_t id, const table_name_t &name) {
 uint trx_rseg_n_slots_debug = 0;
 #endif /* UNIV_DEBUG */
 
-/** Writes the value of max_trx_id to the file based trx system header. */
-void trx_sys_write_max_trx_id(void) {
+void trx_sys_write_max_trx_id() {
   mtr_t mtr;
   trx_sysf_t *sys_header;
 
@@ -592,6 +596,13 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
 
   trx_sys->found_prepared_trx = trx_sys->n_prepared_trx > 0;
 
+  /* Transactions will not start nor commit during the call as we still haven't
+  finished initializing InnoDB, but we call it under the mutex anyway, so that
+  the MVCC code can assert that the mutex is held, which ensures no changes to
+  trx set. This costs us nothing as there's no congestion, yet simplifies code,
+  reasoning and contract for mvcc->initialize(..). */
+  trx_sys->mvcc->initialize(trx_sys->next_trx_id_or_no.load() - 1,
+                            trx_sys->rw_trx_ids);
   trx_sys_mutex_exit();
 
   return (purge_queue);
@@ -611,7 +622,11 @@ void trx_sys_create(void) {
   UT_LIST_INIT(trx_sys->rw_trx_list);
   UT_LIST_INIT(trx_sys->mysql_trx_list);
 
-  trx_sys->mvcc = ut::new_withkey<MVCC>(UT_NEW_THIS_FILE_PSI_KEY, 1024);
+  if (trx_sys_mvcc == nullptr) {
+    trx_sys_mvcc = {ut::new_withkey<MVCC>(UT_NEW_THIS_FILE_PSI_KEY, 1024),
+                    [](MVCC_interface *ptr) { ut::delete_(ptr); }};
+  }
+  trx_sys->mvcc = trx_sys_mvcc.get();
 
   trx_sys->serialisation_min_trx_no.store(0);
 
@@ -648,18 +663,14 @@ void trx_sys_close(void) {
     return;
   }
 
-  ulint size = trx_sys->mvcc->size();
-
-  if (size > 0) {
-    ib::error(ER_IB_MSG_1201) << "All read views were not closed before"
-                                 " shutdown: "
-                              << size << " read views open";
-  }
-
   sess_close(trx_dummy_sess);
   trx_dummy_sess = nullptr;
 
   trx_purge_sys_close();
+
+  if (const auto count = trx_sys->mvcc->get_open_views_count(); 0 < count) {
+    ib::error(ER_IB_MSG_OPEN_READ_VIEWS_ON_SHUTDOWN, count);
+  }
 
   /* Only prepared or active-recovered transactions may be left in the system.
   The active-recovered transactions are allowed only if we did not force to
@@ -673,7 +684,8 @@ void trx_sys_close(void) {
 
   trx_sys->tmp_rsegs.~Rsegs();
 
-  ut::delete_(trx_sys->mvcc);
+  trx_sys_mvcc.reset();
+  trx_sys->mvcc = nullptr;
 
   ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
   ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);

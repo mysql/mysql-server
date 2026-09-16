@@ -42,10 +42,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0types.h"
 #include "pars0sym.h"
 #include "que0types.h"
-#include "read0types.h"
 #include "row0mysql.h"
 #include "row0types.h"
 #include "trx0types.h"
+
+class Read_view_interface;
 
 /** Creates a select node struct.
  @return own: select node struct */
@@ -327,38 +328,44 @@ enum sel_node_state {
 
 /** Select statement node */
 struct sel_node_t {
-  que_common_t common;       /*!< node type: QUE_NODE_SELECT */
-  enum sel_node_state state; /*!< node state */
-  que_node_t *select_list;   /*!< select list */
-  sym_node_t *into_list;     /*!< variables list or NULL */
-  sym_node_t *table_list;    /*!< table list */
-  bool asc;                  /*!< true if the rows should be fetched
-                              in an ascending order */
-  bool set_x_locks;          /*!< true if the cursor is for update or
-                              delete, which means that a row x-lock
-                              should be placed on the cursor row */
-  ulint row_lock_mode;       /*!< LOCK_X or LOCK_S */
-  ulint n_tables;            /*!< number of tables */
-  ulint fetch_table;         /*!< number of the next table to access
-                             in the join */
-  plan_t *plans;             /*!< array of n_tables many plan nodes
-                             containing the search plan and the
-                             search data structures */
-  que_node_t *search_cond;   /*!< search condition */
-  ReadView *read_view;       /*!< if the query is a non-locking
-                             consistent read, its read view is
-                             placed here, otherwise NULL */
-  bool consistent_read;      /*!< true if the select is a consistent,
-                              non-locking read */
-  order_node_t *order_by;    /*!< order by column definition, or
-                             NULL */
-  bool is_aggregate;         /*!< true if the select list consists of
-                              aggregate functions */
+  /** node type: QUE_NODE_SELECT */
+  que_common_t common;
+  /** node state */
+  enum sel_node_state state;
+  /** select list */
+  que_node_t *select_list;
+  /** variables list or NULL */
+  sym_node_t *into_list;
+  /** table list */
+  sym_node_t *table_list;
+  /** true if the rows should be fetched in an ascending order */
+  bool asc;
+  /** true if the cursor is for update or delete, which means that a row x-lock
+  should be placed on the cursor row */
+  bool set_x_locks;
+  /** LOCK_X or LOCK_S */
+  ulint row_lock_mode;
+  /** number of tables */
+  ulint n_tables;
+  /** number of the next table to access in the join */
+  ulint fetch_table;
+  /** array of n_tables many plan nodes containing the search plan and the
+  search data structures */
+  plan_t *plans;
+  /** search condition */
+  que_node_t *search_cond;
+  /** if the query is a non-locking consistent read, its read view is placed
+  here, otherwise NULL */
+  Read_view_interface *read_view;
+  /** true if the select is a consistent, non-locking read */
+  bool consistent_read;
+  /** order by column definition, or NULL */
+  order_node_t *order_by;
+  /** true if the select list consists of aggregate functions */
+  bool is_aggregate;
+  /** true if the aggregate row has already been fetched for the current cursor
+   */
   bool aggregate_already_fetched;
-  /*!< true if the aggregate row has
-  already been fetched for the current
-  cursor */
-
   /** this is true if the select is in a single-table explicit cursor which can
   get updated within the stored procedure, or in a searched update or delete;
   NOTE that to determine of an explicit cursor if it can get updated, the

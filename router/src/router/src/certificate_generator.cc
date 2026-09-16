@@ -199,13 +199,7 @@ std::string CertificateGenerator::pkey_to_string(EVP_PKEY *pkey) {
 
   return std::string{reinterpret_cast<char *>(data), data_size};
 #else
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
   RSA *rsa = EVP_PKEY_get0_RSA(pkey);
-#else
-  OsslUniquePtr<RSA> rsa_storage{EVP_PKEY_get1_RSA(pkey)};
-
-  RSA *rsa = rsa_storage.get();
-#endif
   return write_custom_pem_to_string(PEM_write_bio_RSAPrivateKey, rsa, nullptr,
                                     nullptr, 10, nullptr, nullptr);
 #endif
@@ -254,21 +248,26 @@ stdx::expected<X509Cert, std::error_code> CertificateGenerator::generate_x509(
   }
 
   // Set CN value in subject
-  auto name = X509_get_subject_name(cert.get());
-  if (!name) {
+  X509_NAME *subject_name = X509_NAME_new();
+  if (!subject_name) {
     return stdx::unexpected(make_error_code(cert_errc::cert_set_cn_failed));
   }
 
   if (!X509_NAME_add_entry_by_txt(
-          name, "CN", MBSTRING_ASC,
+          subject_name, "CN", MBSTRING_ASC,
           reinterpret_cast<const unsigned char *>(common_name.c_str()), -1, -1,
-          0)) {
+          0) ||
+      !X509_set_subject_name(cert.get(), subject_name)) {
+    X509_NAME_free(subject_name);
     return stdx::unexpected(make_error_code(cert_errc::cert_set_cn_failed));
   }
+  X509_NAME_free(subject_name);
 
   // Set Issuer
-  if (!X509_set_issuer_name(cert.get(),
-                            ca_cert ? X509_get_subject_name(ca_cert) : name)) {
+  const X509_NAME *issuer_name = ca_cert ? X509_get_subject_name(ca_cert)
+                                         : X509_get_subject_name(cert.get());
+  if (!issuer_name ||
+      !X509_set_issuer_name(cert.get(), const_cast<X509_NAME *>(issuer_name))) {
     return stdx::unexpected(make_error_code(cert_errc::cert_set_issuer_failed));
   }
 

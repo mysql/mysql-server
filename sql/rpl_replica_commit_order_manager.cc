@@ -33,8 +33,10 @@
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/scheduler/logger_stream.h"
 #include "mysqld_error.h"
 #include "sql/binlog.h"
+#include "sql/changestreams/apply/csa_worker_context.h"
 #include "sql/handler.h"  // ha_flush_logs
 #include "sql/mdl.h"
 #include "sql/mysqld.h"       // key_commit_order_manager_mutex ..
@@ -45,6 +47,8 @@
 #include "sql/sql_lex.h"
 #include "string_with_len.h"
 
+using Parallel_worker_context = Commit_order_manager::Parallel_worker_context;
+
 Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
     : m_workers(worker_numbers) {
   unset_rollback_status();
@@ -52,58 +56,66 @@ Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
 
 Commit_order_manager::~Commit_order_manager() = default;
 
-void Commit_order_manager::init_worker_context(Slave_worker &worker) {
-  this->m_workers[worker.id].m_mdl_context = &worker.info_thd->mdl_context;
+std::size_t Commit_order_manager::pool_size() const { return m_workers.size(); }
+
+void Commit_order_manager::init_worker_context(std::size_t worker_id,
+                                               THD *thd) {
+  this->m_workers[worker_id].m_mdl_context = &thd->mdl_context;
 }
 
-void Commit_order_manager::register_trx(Slave_worker *worker) {
+void Commit_order_manager::register_trx(Parallel_worker_context *worker) {
   DBUG_TRACE;
 
   DBUG_PRINT("info", ("Worker %d added to the commit order queue",
-                      (int)worker->info_thd->thread_id()));
+                      (int)worker->get_transaction_ctx()->thread_id()));
 
   /* only transition allowed: FINISHED -> REGISTERED */
-  assert(this->m_workers[worker->id].m_stage ==
+  assert(this->m_workers[worker->get_worker_id()].m_stage ==
          cs::apply::Commit_order_queue::enum_worker_stage::FINISHED);
-  this->m_workers[worker->id].m_stage =
+  this->m_workers[worker->get_worker_id()].m_stage =
       cs::apply::Commit_order_queue::enum_worker_stage::REGISTERED;
-  this->m_workers.push(worker->id);
+  this->m_workers.push(worker->get_worker_id());
 }
 
-bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
+bool Commit_order_manager::wait_on_graph(Parallel_worker_context *worker) {
+  auto worker_thd = worker->get_transaction_ctx();
   auto &worker_stats = worker->get_worker_metrics();
-  auto worker_thd = worker->info_thd;
   bool rollback_status{false};
   bool allow_commit_out_of_order{false};
   raii::Sentry<> wait_status_guard{[&]() -> void {
     worker_thd->mdl_context.m_wait.reset_status();
     if (rollback_status)
-      this->m_workers[worker->id].m_stage =
+      this->m_workers[worker->get_worker_id()].m_stage =
           cs::apply::Commit_order_queue::enum_worker_stage::REGISTERED;
     else if (allow_commit_out_of_order)
-      this->m_workers[worker->id].m_stage =
+      this->m_workers[worker->get_worker_id()].m_stage =
           cs::apply::Commit_order_queue::enum_worker_stage::WAITED_OVERTAKE;
     else
-      this->m_workers[worker->id].m_stage =
+      this->m_workers[worker->get_worker_id()].m_stage =
           cs::apply::Commit_order_queue::enum_worker_stage::WAITED;
   }};
 
   worker_thd->mdl_context.m_wait.reset_status();
-  this->m_workers[worker->id].m_stage =
+
+  assert(this->m_workers[worker->get_worker_id()].m_stage ==
+         cs::apply::Commit_order_queue::enum_worker_stage::REGISTERED);
+
+  this->m_workers[worker->get_worker_id()].m_stage =
       cs::apply::Commit_order_queue::enum_worker_stage::FINISHED_APPLYING;
 
-  if (this->m_workers.front() != worker->id) {
+  if (this->m_workers.front() != worker->get_worker_id()) {
     if (worker->found_commit_order_deadlock()) {
       /* purecov: begin inspected */
       rollback_status = true;
       return true;
       /* purecov: end */
     }
-    this->m_workers[worker->id].m_stage =
+    this->m_workers[worker->get_worker_id()].m_stage =
         cs::apply::Commit_order_queue::enum_worker_stage::REQUESTED_GRANT;
 
-    Commit_order_lock_graph ticket{worker_thd->mdl_context, *this,
-                                   static_cast<std::uint32_t>(worker->id)};
+    Commit_order_lock_graph ticket{
+        worker_thd->mdl_context, *this,
+        static_cast<std::uint32_t>(worker->get_worker_id())};
     worker_thd->mdl_context.will_wait_for(&ticket);
     worker_thd->mdl_context.find_deadlock();
     raii::Sentry<> ticket_guard{
@@ -271,7 +283,7 @@ bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
         my_error(ER_LOCK_DEADLOCK, MYF(0));
         break;
     }
-    worker->report_commit_order_deadlock();
+    worker->report_commit_order_deadlock(true /* for_self */);
     rollback_status = true;
     return true;
   } else {
@@ -282,20 +294,20 @@ bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
   return false;
 }
 
-bool Commit_order_manager::wait(Slave_worker *worker) {
+bool Commit_order_manager::wait(Parallel_worker_context *worker) {
   DBUG_TRACE;
 
   /*
     When prior transaction fail, current trx should stop and wait for signal
     to rollback itself
   */
-  if (this->m_workers[worker->id].m_stage ==
+  if (this->m_workers[worker->get_worker_id()].m_stage ==
       cs::apply::Commit_order_queue::enum_worker_stage::REGISTERED) {
     CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("commit_order_manager_before_wait");
 
     if (this->wait_on_graph(worker)) return true;
 
-    THD *worker_thd = worker->info_thd;
+    THD *worker_thd = worker->get_transaction_ctx();
     bool rollback_status = m_rollback_trx.load();
 
     DBUG_EXECUTE_IF("rpl_fake_commit_order_deadlock_for_timestamp_100", {
@@ -328,7 +340,8 @@ bool Commit_order_manager::wait(Slave_worker *worker) {
       group commit. The tx_commit_pending and next_to_commit variables are
       reset before thread enters group commit later.
     */
-    else if (worker_thd->is_current_stmt_binlog_disabled()) {
+    else if (worker_thd->is_current_stmt_binlog_disabled() ||
+             !mysql_bin_log.is_persistence_enabled()) {
       worker_thd->durability_property = HA_IGNORE_DURABILITY;
       worker_thd->tx_commit_pending = true;
       worker_thd->next_to_commit = nullptr;
@@ -341,7 +354,7 @@ bool Commit_order_manager::wait(Slave_worker *worker) {
 }
 
 void Commit_order_manager::flush_engine_and_signal_threads(
-    Slave_worker *worker) {
+    Parallel_worker_context *worker) {
   DBUG_TRACE;
 
   /*
@@ -355,9 +368,10 @@ void Commit_order_manager::flush_engine_and_signal_threads(
     followers.
   */
   if (!Commit_stage_manager::get_instance().enroll_for(
-          Commit_stage_manager::COMMIT_ORDER_FLUSH_STAGE, worker->info_thd,
-          nullptr, mysql_bin_log.get_log_lock())) {
-    m_workers[worker->id].m_stage =
+          Commit_stage_manager::COMMIT_ORDER_FLUSH_STAGE,
+          worker->get_transaction_ctx(), nullptr,
+          mysql_bin_log.get_log_lock())) {
+    m_workers[worker->get_worker_id()].m_stage =
         cs::apply::Commit_order_queue::enum_worker_stage::FINISHED;
     return;
   }
@@ -402,10 +416,10 @@ void Commit_order_manager::reset_server_status(THD *first_thd) {
   }
 }
 
-void Commit_order_manager::finish_one(Slave_worker *worker) {
+void Commit_order_manager::finish_one(Parallel_worker_context *worker) {
   DBUG_TRACE;
   const cs::apply::Commit_order_queue::enum_worker_stage worker_stage =
-      this->m_workers[worker->id].m_stage;
+      this->m_workers[worker->get_worker_id()].m_stage;
 
   if (worker_stage ==
           cs::apply::Commit_order_queue::enum_worker_stage::WAITED ||
@@ -416,16 +430,17 @@ void Commit_order_manager::finish_one(Slave_worker *worker) {
 
     if (worker_stage ==
         cs::apply::Commit_order_queue::enum_worker_stage::WAITED) {
-      assert(this->m_workers.front() == worker->id);
+      assert(this->m_workers.front() == worker->get_worker_id());
       std::tie(this_worker, next_seq_nr) = this->m_workers.pop();
     }
 
     else if (worker_stage == cs::apply::Commit_order_queue::enum_worker_stage::
                                  WAITED_OVERTAKE) {
-      std::tie(this_worker, next_seq_nr) = this->m_workers.remove(worker->id);
+      std::tie(this_worker, next_seq_nr) =
+          this->m_workers.remove(worker->get_worker_id());
     }
 
-    assert(worker->id == this_worker);
+    assert(worker->get_worker_id() == this_worker);
     auto next_worker = this->m_workers.front();
     if (next_worker !=
             cs::apply::Commit_order_queue::NO_WORKER &&  // There is a worker to
@@ -450,20 +465,20 @@ void Commit_order_manager::finish_one(Slave_worker *worker) {
   }
 }
 
-void Commit_order_manager::finish(Slave_worker *worker) {
+void Commit_order_manager::finish(Parallel_worker_context *worker) {
   DBUG_TRACE;
   const cs::apply::Commit_order_queue::enum_worker_stage worker_stage =
-      this->m_workers[worker->id].m_stage;
+      this->m_workers[worker->get_worker_id()].m_stage;
 
   if (worker_stage ==
           cs::apply::Commit_order_queue::enum_worker_stage::WAITED ||
       worker_stage ==
           cs::apply::Commit_order_queue::enum_worker_stage::WAITED_OVERTAKE) {
-    DBUG_PRINT("info",
-               ("Worker %lu is signalling next transaction", worker->id));
+    DBUG_PRINT("info", ("Worker %lu is signalling next transaction",
+                        static_cast<unsigned long>(worker->get_worker_id())));
 
     if (!get_rollback_status() &&
-        worker->info_thd->is_current_stmt_binlog_disabled()) {
+        worker->get_transaction_ctx()->is_current_stmt_binlog_disabled()) {
       /*
         If flush queue contains only threads executing slave preserve commit
         order, then flush committed transactions of all those waiting threads
@@ -488,27 +503,37 @@ void Commit_order_manager::check_and_report_deadlock(THD *thd_self,
                                                      THD *thd_wait_for) {
   DBUG_TRACE;
 
-  Slave_worker *self_w = get_thd_worker(thd_self);
-  Slave_worker *wait_for_w = get_thd_worker(thd_wait_for);
-  Commit_order_manager *mngr = self_w->get_commit_order_manager();
+  // If no worker is attached, thread already committed - there is no deadlock
+  if (!thd_self->rli_slave || !thd_wait_for->rli_slave) {
+    return;
+  }
+
+  Parallel_worker_context *self_w =
+      thd_self->rli_slave->get_parallel_worker_context();
+  Parallel_worker_context *wait_for_w =
+      thd_wait_for->rli_slave->get_parallel_worker_context();
+  Commit_order_manager *mngr = thd_self->rli_slave->get_commit_order_manager();
 
   /* Check if both workers are working for the same channel */
-  if (mngr != nullptr && self_w->c_rli == wait_for_w->c_rli &&
-      wait_for_w->sequence_number() > self_w->sequence_number()) {
+  if (mngr != nullptr && wait_for_w->is_same_channel(self_w) &&
+      // if (mngr != nullptr && self_w->c_rli == wait_for_w->c_rli &&
+      wait_for_w->get_trx_id() > self_w->get_trx_id()) {
     DBUG_PRINT("info", ("Found replica order commit deadlock"));
     mngr->report_deadlock(wait_for_w);
   }
 }
 
-void Commit_order_manager::report_deadlock(Slave_worker *worker) {
+void Commit_order_manager::report_deadlock(Parallel_worker_context *worker) {
   DBUG_TRACE;
   worker->report_commit_order_deadlock();
   DBUG_EXECUTE_IF("rpl_fake_cod_deadlock", {
     const char act[] = "now signal reported_deadlock";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
-  this->m_workers[worker->id].m_mdl_context->m_wait.set_status(
-      MDL_wait::VICTIM);
+  if (!worker->is_csa()) {
+    this->m_workers[worker->get_worker_id()].m_mdl_context->m_wait.set_status(
+        MDL_wait::VICTIM);
+  }
 }
 
 bool Commit_order_manager::wait(THD *thd) {
@@ -520,8 +545,8 @@ bool Commit_order_manager::wait(THD *thd) {
       We only care about read/write transactions and those that
       have been registered in the commit order manager.
      */
-    Slave_worker *worker = dynamic_cast<Slave_worker *>(thd->rli_slave);
-    Commit_order_manager *mngr = worker->get_commit_order_manager();
+    auto *worker = thd->rli_slave->get_parallel_worker_context();
+    Commit_order_manager *mngr = thd->rli_slave->get_commit_order_manager();
 
     if (mngr->wait(worker)) {
       thd->commit_error = THD::CE_COMMIT_ERROR;
@@ -540,15 +565,12 @@ void Commit_order_manager::wait_and_finish(THD *thd, bool error) {
       We only care about read/write transactions and those that
       have been registered in the commit order manager.
      */
-    Slave_worker *worker = dynamic_cast<Slave_worker *>(thd->rli_slave);
-    Commit_order_manager *mngr = worker->get_commit_order_manager();
+    auto *worker = thd->rli_slave->get_parallel_worker_context();
+    Commit_order_manager *mngr = thd->rli_slave->get_commit_order_manager();
 
     if (error || worker->found_commit_order_deadlock()) {
       // Error or deadlock: if not retryable, release next worker
-      bool ret;
-      std::tie(ret, std::ignore, std::ignore) =
-          worker->check_and_report_end_of_retries(thd);
-      if (ret) {
+      if (!worker->can_be_retried(thd)) {
         /*
           worker can set m_rollback_trx when it is its turn to commit,
           so need to call wait() before updating m_rollback_trx.
@@ -583,8 +605,7 @@ bool Commit_order_manager::get_rollback_status(THD *thd) {
       We only care about read/write transactions and those that
       have been registered in the commit order manager.
      */
-    Slave_worker *worker = dynamic_cast<Slave_worker *>(thd->rli_slave);
-    Commit_order_manager *mngr = worker->get_commit_order_manager();
+    Commit_order_manager *mngr = thd->rli_slave->get_commit_order_manager();
 
     return mngr->get_rollback_status();
   }
@@ -599,8 +620,8 @@ void Commit_order_manager::finish_one(THD *thd) {
       We only care about read/write transactions and those that
       have been registered in the commit order manager.
      */
-    Slave_worker *worker = dynamic_cast<Slave_worker *>(thd->rli_slave);
-    Commit_order_manager *mngr = worker->get_commit_order_manager();
+    auto *worker = thd->rli_slave->get_parallel_worker_context();
+    Commit_order_manager *mngr = thd->rli_slave->get_commit_order_manager();
 
     mngr->finish_one(worker);
   }

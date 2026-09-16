@@ -1,0 +1,45 @@
+--echo #
+--echo # wl#16989 Innodb: Make UNDO log truncation crash safe
+--echo #
+
+# This test uses debug settings like innodb_purge_stop_now.
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+ --source include/not_crashrep.inc
+
+# The test must start with only 2 undo tablespaces
+--source include/have_innodb_default_undo_tablespaces.inc
+
+let CRASH_ON_DROP_UNDO_TABLESPACE = 0;
+let SKIP_DROP = 0;
+--echo # Scenario 1 :- crash after writing ddl log
+let $crash_point = create_undo_crash_after_ddl_log;
+--source suite/innodb_undo/include/create_undo_crash.inc
+
+--echo # Scenario 2 :- crash before undo create
+let $crash_point = create_crash_before_undo_tablespace_create;
+--source suite/innodb_undo/include/create_undo_crash.inc
+
+--echo # Scenario 3 : crash_after_undo_create
+let $crash_point = create_crash_after_undo_tablespace_create;
+--source suite/innodb_undo/include/create_undo_crash.inc
+
+--echo # Scenario 4 : crash before commiting the create undo statement
+let $crash_point = create_undo_crash_before_statement_commit;
+--source suite/innodb_undo/include/create_undo_crash.inc
+
+let CRASH_ON_DROP_UNDO_TABLESPACE = 1;
+
+--echo # Scenario 5: crash after writing DDL log during drop tablespace
+let $crash_point = drop_undo_crash_after_log_ddl;
+--source suite/innodb_undo/include/create_undo_crash.inc
+
+let SKIP_DROP = 1;
+--echo #Sceanrio 6: Crash in post DDL operation code.
+let $crash_point = ddl_log_replay_delete_space_crash_after_file_delete;
+--source suite/innodb_undo/include/create_undo_crash.inc
+

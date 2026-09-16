@@ -523,12 +523,13 @@ class partition_info {
                 by evaluate the partition_id on row by row basis.
   */
   enum enum_can_prune { PRUNE_NO = 0, PRUNE_DEFAULTS, PRUNE_YES };
-  bool can_prune_insert(THD *thd, enum_duplicates duplic, COPY_INFO &update,
-                        const mem_root_deque<Item *> &update_fields,
-                        const mem_root_deque<Item *> &fields, bool empty_values,
-                        enum_can_prune *can_prune_partitions,
-                        bool *prune_needs_default_values,
-                        MY_BITMAP *used_partitions);
+  bool can_prune_insert(
+      THD *thd, enum_duplicates duplic, COPY_INFO &update,
+      const mem_root_deque<Item *> &update_fields,
+      const mem_root_deque<Item *> &fields, bool empty_values,
+      const mem_root_deque<mem_root_deque<Item *> *> &insert_values,
+      enum_can_prune *can_prune_partitions, bool *prune_needs_default_values,
+      MY_BITMAP *used_partitions);
   bool has_same_partitioning(partition_info *new_part_info);
   inline bool is_partition_used(uint part_id) const {
     return bitmap_is_set(&read_partitions, part_id);

@@ -1,0 +1,22 @@
+{
+  "homepage": "https://github.com/open-telemetry/opentelemetry-cpp",
+  "maintainers": [
+    {
+      "name": "Keith Smiley",
+      "email": "keithbsmiley@gmail.com",
+      "github": "keith",
+      "github_user_id": 283886
+    },
+    {
+      "name": "Marc Alff",
+      "email": "marc.alff@oracle.com",
+      "github": "marcalff",
+      "github_user_id": 17238896
+    }
+  ],
+  "repository": [
+    "github:open-telemetry/opentelemetry-cpp"
+  ],
+  "versions": [],
+  "yanked_versions": {}
+}

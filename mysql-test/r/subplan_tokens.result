@@ -15,6 +15,8 @@ EXPLAIN
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93';
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
 EXPLAIN
 -> [0x6d8e7db8c811fc24] Covering index scan on t1 using a  (rows=160)
@@ -22,6 +24,8 @@ EXPLAIN
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0x6d8e7db8c811fc24';
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93';
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
 EXPLAIN
@@ -31,6 +35,8 @@ EXPLAIN
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0xd3135ef8a92cb9b8';
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 SET DEBUG='+d,subplan_tokens,'
   'force_subplan_0x38d170e70c04e92c,'
   'force_subplan_0xeed2c0bd3e39ba93,'
@@ -46,6 +52,8 @@ EXPLAIN
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x079e429c703ec298,force_subplan_0x38d170e70c04e92c,force_subplan_0x1836646581797f8f';
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`t2`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2` where multiple equal(`test`.`t1`.`a`, `t2`.`a`) order by `test`.`t1`.`a`
 SET DEBUG='-d,subplan_tokens';
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
 EXPLAIN
@@ -53,4 +61,6 @@ EXPLAIN
     -> Covering index scan on t2 using a  (rows=160)
     -> Covering index lookup on t1 using a (a = t2.a)  (rows=16)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`t2`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2` where multiple equal(`test`.`t1`.`a`, `t2`.`a`) order by `test`.`t1`.`a`
 DROP TABLE t1;

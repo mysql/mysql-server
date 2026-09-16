@@ -331,6 +331,7 @@ extern ulong binlog_row_metadata;
 extern const char *binlog_checksum_type_names[];
 extern bool opt_source_verify_checksum;
 extern bool opt_replica_sql_verify_checksum;
+extern bool opt_rpl_dump_thread_account_affinity;
 extern uint32 gtid_executed_compression_period;
 extern bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
@@ -795,7 +796,7 @@ inline void set_mysqld_offline_mode(bool value) { offline_mode.store(value); }
 
   @return a bool indicating partial_revokes status of the server.
     @retval true  Parital revokes is ON
-    @retval flase Partial revokes is OFF
+    @retval false Partial revokes is OFF
 */
 bool mysqld_partial_revokes();
 

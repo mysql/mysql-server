@@ -87,7 +87,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 
 # Search the failure pattern in error log
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let SEARCH_PATTERN=CORRUPT LOG RECORD FOUND;
+let SEARCH_PATTERN=\[ERROR\].*Encryption can\'t find master key, please check the keyring is loaded;
 --source include/search_pattern.inc
 
 --echo # Server shouldn't have restarted, so query should fail.
@@ -184,5 +184,5 @@ DROP TABLESPACE encrypt_ts;
 remove_file $SEARCH_FILE;
 
 --echo # Restarting server without keyring to restore server state
-let $restart_parameters = restart: ;
+let $restart_parameters = restart:;
 --source include/restart_mysqld.inc

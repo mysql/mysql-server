@@ -28,6 +28,7 @@ GRANT INSERT, SELECT ON *.* TO u5 AS foo WITH ROLE r1;
 GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
 GRANT INSERT, SELECT ON *.* TO u7;
 [connection master]
+include/rpl/sync_to_replica.inc
 include/rpl/diff.inc
 include/rpl/diff.inc
 include/rpl/diff.inc
@@ -55,6 +56,7 @@ include/rpl/diff.inc
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
+include/rpl/sync_to_replica.inc
 [connection master]
 SET @@global.partial_revokes = @save_partial_revokes_master;
 [connection slave]
@@ -83,6 +85,7 @@ GRANT INSERT, SELECT ON *.* TO u5 AS foo WITH ROLE r1;
 GRANT INSERT, SELECT ON *.* TO u6 AS foo WITH ROLE NONE;
 GRANT INSERT, SELECT ON *.* TO u7;
 [connection master]
+include/rpl/sync_to_replica.inc
 include/rpl/diff.inc
 include/rpl/diff.inc
 include/rpl/diff.inc

@@ -26,25 +26,57 @@
 #ifndef PLUGIN_X_SRC_INTERFACE_SSL_CONTEXT_H_
 #define PLUGIN_X_SRC_INTERFACE_SSL_CONTEXT_H_
 
+#include <string>
+
 #include "plugin/x/src/interface/ssl_context_options.h"
 #include "plugin/x/src/interface/vio.h"
 
 namespace xpl {
 namespace iface {
 
+struct Ssl_context_config {
+  Ssl_context_config() = default;
+  Ssl_context_config(const char *tls_version, const char *ssl_key,
+                     const char *ssl_ca, const char *ssl_capath,
+                     const char *ssl_cert, const char *ssl_cipher,
+                     const char *ssl_crl, const char *ssl_crlpath,
+                     const char *tls_kex, bool tls_force_pqc,
+                     bool tls_use_pqc_sign)
+      : tls_version(tls_version ? tls_version : ""),
+        ssl_key(ssl_key ? ssl_key : ""),
+        ssl_ca(ssl_ca ? ssl_ca : ""),
+        ssl_capath(ssl_capath ? ssl_capath : ""),
+        ssl_cert(ssl_cert ? ssl_cert : ""),
+        ssl_cipher(ssl_cipher ? ssl_cipher : ""),
+        ssl_crl(ssl_crl ? ssl_crl : ""),
+        ssl_crlpath(ssl_crlpath ? ssl_crlpath : ""),
+        tls_kex(tls_kex ? tls_kex : ""),
+        tls_force_pqc(tls_force_pqc),
+        tls_use_pqc_sign(tls_use_pqc_sign) {}
+
+  std::string tls_version;
+  std::string ssl_key;
+  std::string ssl_ca;
+  std::string ssl_capath;
+  std::string ssl_cert;
+  std::string ssl_cipher;
+  std::string ssl_crl;
+  std::string ssl_crlpath;
+  std::string tls_kex;
+  bool tls_force_pqc{false};
+  bool tls_use_pqc_sign{false};
+};
+
 class Ssl_context {
  public:
   virtual ~Ssl_context() = default;
 
-  virtual bool setup(const char *tls_version, const char *ssl_key,
-                     const char *ssl_ca, const char *ssl_capath,
-                     const char *ssl_cert, const char *ssl_cipher,
-                     const char *ssl_crl, const char *ssl_crlpath) = 0;
+  virtual bool setup(const Ssl_context_config &config) = 0;
   virtual bool activate_tls(Vio *conn, const int32_t handshake_timeout) = 0;
 
   virtual Ssl_context_options &options() = 0;
   virtual bool has_ssl() = 0;
-  virtual void reset() = 0;
+  virtual bool reset() = 0;
 };
 
 }  // namespace iface

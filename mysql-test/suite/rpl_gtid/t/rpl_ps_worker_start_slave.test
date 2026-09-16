@@ -29,6 +29,7 @@
 --source include/rpl/connection_replica.inc
 call mtr.add_suppression(".*worker thread retried transaction 5 time.*");
 call mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+call mtr.add_suppression("Replica SQL for channel '': Change Stream Applier channel stopped because of error");
 
 SET @saved_replica_parallel_workers= @@GLOBAL.replica_parallel_workers;
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
@@ -59,9 +60,8 @@ while ($scenario < 3)
   --let $slave_sql_errno = convert_error(ER_LOCK_WAIT_TIMEOUT)
   --source include/rpl/wait_for_applier_to_stop.inc
 
-
-  --let $applying_trx_before = query_get_value(SELECT APPLYING_TRANSACTION FROM $ps_table, APPLYING_TRANSACTION, 1)
-  --let $applying_trx_start_apply_before = query_get_value(SELECT APPLYING_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, APPLYING_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $applying_trx_before = query_get_value(SELECT APPLYING_TRANSACTION FROM $ps_table WHERE NOT APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER=0, APPLYING_TRANSACTION, 1)
+  --let $applying_trx_start_apply_before = query_get_value(SELECT APPLYING_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table WHERE APPLYING_TRANSACTION="$applying_trx_before", APPLYING_TRANSACTION_START_APPLY_TIMESTAMP, 1)
 
   ROLLBACK;
 
@@ -69,8 +69,8 @@ while ($scenario < 3)
   --source include/rpl/connection_source.inc
   --source include/rpl/sync_to_replica.inc
 
-  --let $last_applied_trx_after = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
-  --let $last_applied_trx_start_apply_after = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
+  --let $last_applied_trx_after = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table WHERE NOT LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP=0, LAST_APPLIED_TRANSACTION, 1)
+  --let $last_applied_trx_start_apply_after = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table WHERE NOT LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP=0, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
 
   --let $assert_text = Confirm that we are checking the correct transaction
   --let $assert_cond = "$last_applied_trx_after" = "$applying_trx_before"

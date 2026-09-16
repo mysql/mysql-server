@@ -67,6 +67,7 @@ call mtr.add_suppression("Fatal error during the Recovery process of Group Repli
 call mtr.add_suppression("It was not possible to identify the group replication applier thread");
 call mtr.add_suppression("Error on group communication engine start");
 call mtr.add_suppression("Error reading relay log event for channel 'group_replication_applier': Error purging processed logs");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Change Stream Applier channel stopped because of error*");
 SET SESSION sql_log_bin= 1;
 [connection server1]
 include/stop_group_replication.inc

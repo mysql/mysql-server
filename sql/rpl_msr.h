@@ -322,6 +322,13 @@ class Multisource_info {
   */
   Checkable_rwlock *m_channel_map_lock;
 
+  /// In order to avoid locks when gathering
+  /// statistics, CSA needs to have a unique size_t identifier pinned to each
+  /// channel. This is maximum id of the channel that was created.
+  std::size_t m_channel_counter{0};
+  /// Ids restored from channels that have been removed from multi-source info
+  std::vector<std::size_t> m_restored_channels_ids;
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
   /* Array for  replication performance schema related tables */
@@ -625,6 +632,13 @@ class Multisource_info {
      @return         index of mi for the channel_name. Else -1;
   */
   int get_index_from_rpl_pfs_mi(const char *channel_name);
+
+  /// Helper function called during channel creation in order to prepare
+  /// metadata unilized by CSA service (unique
+  /// channel identifier, statistics initialization...).
+  /// @param rli RLI pointer for newly created channel
+  /// @return False if succeeded. True otherwise.
+  bool prepare_csa_service_metadata(Relay_log_info *rli);
 
  public:
   /**

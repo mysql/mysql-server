@@ -7,6 +7,11 @@ Ssl_version	TLSv1.3
 Default TLS cipher
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
+TLSv1.3 status variables
+Variable_name	Value
+Tls_key_exchange_algorithm   TLS_KEY_EXCHANGE
+Variable_name	Value
+Tls_sign_algorithm        TLS_SIGN_ALGORITHM
 Setting TLS version TLSv1.3 from the client
 Variable_name	Value
 Ssl_version	TLSv1.3

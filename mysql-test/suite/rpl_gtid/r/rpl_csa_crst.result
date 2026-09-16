@@ -1,0 +1,43 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/rpl/stop_replica.inc
+
+# Test failures: CSA is enabled + violated prereqs
+
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=1;
+ERROR HY000: The Change Stream Applier does not currently support the SOURCE_DELAY option of the CHANGE REPLICATION SOURCE TO command. Please unset SOURCE_DELAY when using CSA.
+CHANGE REPLICATION SOURCE TO GTID_ONLY=0, REQUIRE_ROW_FORMAT=0;
+ERROR HY000: The Change Stream Applier currently supports row-based replication. Please set REQUIRE_ROW_FORMAT to 1 when using CSA.
+CHANGE REPLICATION SOURCE TO GTID_ONLY=0;
+ERROR HY000: The Change Stream Applier currently supports row-based replication with GTIDs. Please set GTID_ONLY to 1 when using CSA.
+
+# Test success when setting compatible options
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=2, SOURCE_DELAY=0, REQUIRE_ROW_FORMAT=1, GTID_ONLY=1;
+
+# Verify current CSA configuration
+
+SELECT * FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE	APPLIER_VERSION	APPLIER_WORKER_COUNT	APPLIER_EVENT_MEMORY_LIMIT
+	0	NULL	YES	STREAM	OFF	NULL	2	4	1073741824
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=1;
+
+# Test failures: CSA is being enabled + violated prereqs
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=2, SOURCE_DELAY=1 FOR CHANNEL '';
+ERROR HY000: The Change Stream Applier does not currently support the SOURCE_DELAY option of the CHANGE REPLICATION SOURCE TO command. Please unset SOURCE_DELAY when using CSA.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=2, REQUIRE_ROW_FORMAT=0, GTID_ONLY=0 FOR CHANNEL '';
+ERROR HY000: The Change Stream Applier currently supports row-based replication. Please set REQUIRE_ROW_FORMAT to 1 when using CSA.
+
+# Test success: Set violating CSA requirements and explicit MTA (no CSA trigger)
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=1, SOURCE_DELAY=1, GTID_ONLY=0, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';
+
+# Cleanup
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=2, SOURCE_DELAY=0, REQUIRE_ROW_FORMAT=1, GTID_ONLY=1 FOR CHANNEL '';
+include/rpl/deinit.inc

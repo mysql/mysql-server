@@ -119,7 +119,7 @@ class Binlog_read_error {
 */
 class Binlog_encryption_istream : public Basic_seekable_istream {
  public:
-  ~Binlog_encryption_istream() override;
+  virtual ~Binlog_encryption_istream() override;
 
   /**
     Initialize the context used in the decryption stream.
@@ -167,7 +167,7 @@ class Basic_binlog_ifile : public Basic_seekable_istream {
   Basic_binlog_ifile(Binlog_read_error *binlog_read_error);
   Basic_binlog_ifile(const Basic_binlog_ifile &) = delete;
   Basic_binlog_ifile &operator=(const Basic_binlog_ifile &) = delete;
-  ~Basic_binlog_ifile() override;
+  virtual ~Basic_binlog_ifile() override;
   /**
      Open a binlog file.
 

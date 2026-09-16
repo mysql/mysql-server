@@ -23,6 +23,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <algorithm>
+#include <random>
+#include <string>
+#include <vector>
+
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include "../../src/ndbapi/NdbInfo.hpp"
@@ -111,6 +116,94 @@ static bool scan_table(NdbInfo &ndbinfo, const NdbInfo::Table *table,
   return true;
 }
 
+static bool scan_all(NdbInfo &ndbinfo, std::vector<const char *> tables,
+                     int &ok, int &failed) {
+  const std::string dict_base = "ndbinfo/";
+
+  for (const char *tableName : tables) {
+    int nrows = 0;
+    const NdbInfo::Table *table;
+    std::string tablePath = dict_base + tableName;
+
+    if (ndbinfo.openTable(tablePath.c_str(), &table) == 0) {
+      g_info << "Scanning " << tableName << endl;
+      if (scan_table(ndbinfo, table, nrows))
+        ok++;
+      else
+        failed++;
+      ndbinfo.closeTable(table);
+    } else {
+      g_err << "Failed to open table " << tableName << endl;
+      failed++;
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static int scanAllUntilStopped(NDBT_Context *ctx, NdbInfo &ndbinfo,
+                               std::vector<const char *> tables) {
+  ndbout << "scanAllUntilStopped " << tables[0] << ",... starting" << endl;
+
+  int ok = 0, failed = 0;
+  int result = NDBT_OK;
+  while (!ctx->isTestStopped()) {
+    if (!scan_all(ndbinfo, tables, ok, failed)) {
+      result = NDBT_FAILED;
+      ndbout << "scanAllUntilStopped bailing out." << endl;
+      break;
+    }
+  }
+
+  ndbout << "Scanned (" << tables[0] << ",...) ok: " << ok
+         << " failed: " << failed << endl;
+  return result;
+}
+
+int runScanTransportersTablesUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbInfo ndbinfo(&ctx->m_cluster_connection, "ndbinfo/");
+  if (!ndbinfo.init()) {
+    g_err << "ndbinfo.init failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  std::vector<const char *> tables = {"transporters", "transporter_details",
+                                      "transporter_activity"};
+  return scanAllUntilStopped(ctx, ndbinfo, tables);
+}
+
+int runScanAllTablesRandomizedUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbInfo ndbinfo(&ctx->m_cluster_connection, "ndbinfo/");
+  if (!ndbinfo.init()) {
+    g_err << "ndbinfo.init failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  /* Get a list of all ndbinfo tables */
+  std::vector<const char *> allTables;
+  for (int tableId = 0;; tableId++) {
+    const NdbInfo::Table *table;
+    int err = ndbinfo.openTable(tableId, &table);
+    if (err == NdbInfo::ERR_NoSuchTable)
+      break;  // all done
+    else if (err != 0) {
+      g_err << "Failed to openTable(" << tableId << "), err: " << err << endl;
+      return NDBT_FAILED;
+    }
+
+    allTables.push_back(table->getName());
+  }
+
+  /* Sort the list randomly */
+  std::random_device rd;
+  std::mt19937 g(rd());
+  std::shuffle(allTables.begin(), allTables.end(), g);
+
+  /* Scan the list until stopped */
+  return scanAllUntilStopped(ctx, ndbinfo, allTables);
+}
+
 int runScanAll(NDBT_Context *ctx, NDBT_Step *step) {
   NdbInfo ndbinfo(&ctx->m_cluster_connection, "ndbinfo/");
   if (!ndbinfo.init()) {
@@ -131,7 +224,7 @@ int runScanAll(NDBT_Context *ctx, NDBT_Step *step) {
       g_err << "Failed to openTable(" << tableId << "), err: " << err << endl;
       return NDBT_FAILED;
     }
-    ndbout << "table(" << tableId << "): " << table->getName() << endl;
+    g_info << "table(" << tableId << "): " << table->getName() << endl;
 
     int last_rows = 0;
     bool rows_may_increase1 = (strstr(table->getName(), "cpustat_") != nullptr);
@@ -222,7 +315,7 @@ int runScanStop(NDBT_Context *ctx, NDBT_Step *step) {
       while (scanOp->nextResult() == 1) {
         row++;
         if (row == stopRow) {
-          ndbout_c("Aborting scan at row %d", stopRow);
+          g_info << "Aborting scan at row " << stopRow << endl;
           break;
         }
       }
@@ -257,7 +350,7 @@ int runRatelimit(NDBT_Context *ctx, NDBT_Step *step) {
       g_err << "Failed to openTable(" << tableId << "), err: " << err << endl;
       return NDBT_FAILED;
     }
-    ndbout << "table: " << table->getName() << endl;
+    g_info << "table: " << table->getName() << endl;
 
     struct {
       Uint32 rows;
@@ -302,7 +395,7 @@ int runRatelimit(NDBT_Context *ctx, NDBT_Step *step) {
       while (scanOp->nextResult() == 1) row++;
       ndbinfo.releaseScanOperation(scanOp);
 
-      ndbout_c("[%u,%u] rows: %d", maxRows, maxBytes, row);
+      g_info.println("[%u,%u] rows: %d", maxRows, maxBytes, row);
       // Check if the number of rows is as expected:
       // Expected scenario 1: Same number of rows as last round (or)
       // Expected scenario 2: Same or increased number of rows for tables which
@@ -384,7 +477,7 @@ int runTestTable(NDBT_Context *ctx, NDBT_Step *step) {
       g_err << "scan failed, ret: " << ret << endl;
       return NDBT_FAILED;
     }
-    ndbout << "rows: " << rows << endl;
+    g_info << "rows: " << rows << endl;
   }
 
   ndbinfo.closeTable(table);
@@ -408,7 +501,7 @@ int runRestarter(NDBT_Context *ctx, NDBT_Step *step) {
   int sleep0 = ctx->getProperty("Sleep0", (unsigned)0);
   int sleep1 = ctx->getProperty("Sleep1", (unsigned)0);
   int randnode = ctx->getProperty("RandNode", (unsigned)0);
-  NdbRestarter restarter;
+  NdbRestarter restarter(opt_ndb_connectstring);
   int i = 0;
   int lastId = 0;
 
@@ -472,7 +565,7 @@ int runRestarter(NDBT_Context *ctx, NDBT_Step *step) {
 
 int runCreateDropTableUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
   Ndb *pNdb = GETNDB(step);
-  NdbRestarter res;
+  NdbRestarter res(opt_ndb_connectstring);
   const char *tableName = ctx->getProperty("tableName", (char *)NULL);
 
   NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
@@ -645,6 +738,12 @@ TESTCASE("ScanFragMemUseDuringCreateDropTable",
   TC_PROPERTY("infoTableName", "ndbinfo/frag_mem_use");
   STEPS(runCreateDropTableUntilStopped, 1);
   STEPS(runScanNdbInfoTable, 16);
+}
+TESTCASE("ScanAllTablesDuringNodeRestart",
+         "Scan ndbinfo tables while restarting nodes") {
+  STEP(runRestarter);
+  STEPS(runScanTransportersTablesUntilStopped, 2);
+  STEPS(runScanAllTablesRandomizedUntilStopped, 3);
 }
 
 NDBT_TESTSUITE_END(testNdbinfo)

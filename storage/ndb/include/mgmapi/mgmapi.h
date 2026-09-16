@@ -26,6 +26,8 @@
 #ifndef MGMAPI_H
 #define MGMAPI_H
 
+#include <time.h>
+
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <ws2tcpip.h>
@@ -1658,6 +1660,15 @@ int ndb_mgm_connect_tls(NdbMgmHandle handle, int no_retries,
 int ndb_mgm_has_tls(NdbMgmHandle handle);
 
 /**
+ * Values used in the flags field of ndb\_mgm\_cert\_table
+ */
+enum ndb_mgm_cert_flags {
+  NDB_MGM_CA_IS_ROOT = 1,
+  NDB_MGM_CA_IN_TRUST_STORE = 2,
+  NDB_MGM_CA_IN_CERT_CHAIN = 4
+};
+
+/**
  * Struct ndb\_mgm\_cert\_table is a linked structure describing a
  * TLS client session.
  */
@@ -1668,6 +1679,9 @@ struct ndb_mgm_cert_table {
   char *cert_name;
   char *cert_expires;
   struct ndb_mgm_cert_table *next;
+  time_t last_use;
+  unsigned short use_count;
+  unsigned short flags;
 };
 
 /**
@@ -1684,6 +1698,22 @@ struct ndb_mgm_cert_table {
  * should be freed after use by calling ndb\_mgm\_cert\_table\_free().
  */
 int ndb_mgm_list_certs(NdbMgmHandle handle, struct ndb_mgm_cert_table **list);
+
+/**
+ * Query the list of trusted CA certificates
+ *
+ * @param   handle        Management handle.
+ * @param   list          Address of pointer to ndb_mgm_cert_table (out)
+ *
+ * @return                The total number of linked decriptions, if positive.
+ *                        If zero, success, but no descriptions to report.
+ *                        -1 on error.
+ *
+ * On return, list will be populated with a pointer to a table. The table
+ * should be freed after use by calling ndb\_mgm\_cert\_table\_free().
+ */
+int ndb_mgm_list_trusted_certs(NdbMgmHandle handle,
+                               struct ndb_mgm_cert_table **list);
 
 /**
  * Free a linked list of certificate descriptions.

@@ -27,6 +27,7 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <atomic>
+#include <memory>
 
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -47,6 +48,10 @@ struct LEX_SOURCE_INFO;
 struct mysql_cond_t;
 struct mysql_mutex_t;
 class Rpl_channel_filters;
+
+namespace mysql::csa {
+class Csa_service;
+}
 
 const long mts_online_stat_period = 60 * 2;
 
@@ -364,6 +369,9 @@ extern bool opt_collect_replica_applier_metrics;
 extern const char *relay_log_index;
 extern const char *relay_log_basename;
 
+/// Global CSA object handle initialized in init_replica
+extern std::unique_ptr<mysql::csa::Csa_service> csa_service;
+
 /// @brief Helper class used to initialize the replica (includes init_replica())
 /// @details init_replica is called once during the mysqld start-up
 class ReplicaInitializer {
@@ -409,6 +417,9 @@ class ReplicaInitializer {
   int m_init_code = 0;    ///< Replica initialization error code
   int m_thread_mask = 0;  ///< Thread mask indicating type of the thread
 };
+
+/// Obtain CSA service reference
+inline mysql::csa::Csa_service &get_csa_service() { return *csa_service; }
 
 /*
   3 possible values for Master_info::slave_running and

@@ -1,0 +1,45 @@
+# Scenario: inplace update
+# (record size does not change)
+CREATE TEMPORARY TABLE tm(id INT PRIMARY KEY, val INT NOT NULL);
+INSERT INTO tm VALUES (1, 1);
+START TRANSACTION READ ONLY;
+UPDATE tm SET val=1002;
+COMMIT;
+DROP TABLE tm;
+
+# Scenario: pessimistic update
+# (record size does change and the page have very little data so InnoDB thinks
+# it might end up merged with siblings)
+CREATE TEMPORARY TABLE tm(id INT PRIMARY KEY, val VARCHAR(20));
+INSERT INTO tm VALUES (1,NULL);
+START TRANSACTION READ ONLY;
+UPDATE tm SET val="whatever";
+COMMIT;
+DROP TABLE tm;
+
+# Scenario: optimistic update
+# (record size changes, but new and old should fit, and the page has reasonable
+# amount of data)
+#
+# NOTE: temporary tables do not support referencing same table twice, so we use
+#       a regular table `nums` first to create many rows)
+CREATE TABLE nums(id INT PRIMARY KEY);
+INSERT INTO nums VALUES (1);
+--let $n=10
+while($n>0){
+  INSERT INTO nums SELECT id + (SELECT MAX(id) FROM nums) FROM nums;
+  --dec $n
+}
+CREATE TEMPORARY TABLE tm(id INT PRIMARY KEY, val VARCHAR(101));
+INSERT INTO tm SELECT id, REPEAT("a",100) FROM nums;
+DROP TABLE nums;
+START TRANSACTION READ ONLY;
+# NOTE: the way InnoDB splits pages is rather peculiar, and it so happens that
+#       the left-most leaf has barely 7kb of data, so it always seems to be
+#       DB_UNDERFLOW case even if UPDATE increases the length of a record.
+#       Thus we modify a record which is at least "10kb from the left edge",
+#       so it is either on the first page when it has more than 50% occupancy,
+#       or on the next page (in which case this second page has more than 50%).
+UPDATE tm SET val=CONCAT(val,"x") WHERE id=100;
+COMMIT;
+DROP TABLE tm;

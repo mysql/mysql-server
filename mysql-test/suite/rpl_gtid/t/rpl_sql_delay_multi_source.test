@@ -18,6 +18,8 @@
 
 --source include/big_test.inc
 --source include/have_debug.inc
+# CSA does not support delayed applier
+--source include/have_mta.inc
 
 --let $rpl_topology=1->2,3->2
 --let $rpl_multi_source= 1

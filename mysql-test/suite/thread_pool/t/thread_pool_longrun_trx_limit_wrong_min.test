@@ -1,0 +1,12 @@
+--source ../inc/thread_pool_err.inc
+
+--let $error_pattern= $tp_lrtl_min_warn
+
+--source ../inc/wrong_value.inc
+
+# Test by setting a wrong min value at runtime
+--error ER_GLOBAL_VARIABLE
+SET SESSION thread_pool_longrun_trx_limit = 9;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL thread_pool_longrun_trx_limit = 9;

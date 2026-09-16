@@ -268,9 +268,6 @@ class Item_func_aes_encrypt final : public Item_str_func {
   String tmp_value;
   typedef Item_str_func super;
   EVP_CIPHER_CTX *ctx{nullptr};
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-#endif
 
  public:
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b)
@@ -308,9 +305,6 @@ class Item_func_aes_encrypt final : public Item_str_func {
 class Item_func_aes_decrypt : public Item_str_func {
   typedef Item_str_func super;
   EVP_CIPHER_CTX *ctx{nullptr};
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-#endif
 
  public:
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b)
@@ -1269,7 +1263,7 @@ class Item_func_uncompressed_length final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     if (reject_vector_args()) return true;
-    max_length = 10;
+    max_length = MY_INT32_NUM_DECIMAL_DIGITS;
     return false;
   }
   longlong val_int() override;

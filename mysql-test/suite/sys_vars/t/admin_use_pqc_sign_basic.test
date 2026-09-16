@@ -1,0 +1,19 @@
+SELECT @@GLOBAL.admin_use_pqc_sign;
+
+SELECT @@admin_use_pqc_sign = @@GLOBAL.admin_use_pqc_sign;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.admin_use_pqc_sign;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.admin_use_pqc_sign;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.admin_use_pqc_sign = ON;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.admin_use_pqc_sign = 'invalid';
+
+SELECT VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_use_pqc_sign';

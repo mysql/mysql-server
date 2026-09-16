@@ -164,7 +164,7 @@ DROP PROCEDURE p2;
 DROP EVENT e2;
 DROP TABLE t1, t2;
 
---sync_slave_with_master
+--source include/rpl/sync_to_replica.inc
 #
 # BUG#20574550
 # CREATE TABLE LIKE <TEMP_TABLE> does not preserve original table storage
@@ -180,7 +180,7 @@ DROP TABLE t1, t2;
 
 # Create t1 based on temporary tables
 CREATE TABLE t1 LIKE temp_t1;
---sync_slave_with_master
+--source include/rpl/sync_to_replica.inc
 
 # On master
 --connection master

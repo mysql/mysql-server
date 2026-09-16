@@ -345,6 +345,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` left join (`test`.`t` `t2` semi join (`test`.`t` `t3` left join (/* select#3 */ select `t4`.`a` AS `a` from `test`.`t` `t4`) `derived_2_3` on(true))) on(((`t3`.`a` <=> `derived_2_3`.`a`))) where true
 DROP TABLE t;
 #
 # Bug#34534373: Heatwave offload issue - Sees inner tables
@@ -381,6 +382,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` join `test`.`t1` `t2` semi join (`test`.`t1` `t3`) left join (/* select#3 */ select sum(`t4`.`f2`) AS `SUM(f2)` from `test`.`t1` `t4`) `derived_1_3` on(true) where ((`t2`.`f1` = `test`.`t1`.`f2`) and (`t3`.`f1` = `test`.`t1`.`f1`) and (((`test`.`t1`.`f2` = `test`.`t1`.`f1`) and (`derived_1_3`.`SUM(f2)` is null)) or (`t2`.`f2` <= 0)))
 DROP TABLE t1;
 set optimizer_switch="subquery_to_derived=off";
 #
@@ -411,6 +413,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` join `test`.`t1` `t2` left join (`test`.`t1` `t3` semi join (`test`.`t1` `t4`)) on(((`t2`.`f2` = `test`.`t1`.`f2`) and (`t4`.`f1` = `test`.`t1`.`f2`))) where (`t2`.`f1` = `test`.`t1`.`f1`)
 SELECT 1
 FROM t1 JOIN t1 AS t2 ON (t2.f1 = t1.f1)
 LEFT JOIN t1 AS t3 ON (t2.f2 = t1.f2 AND t2.f2 IN (SELECT f1 FROM t1 AS t4));

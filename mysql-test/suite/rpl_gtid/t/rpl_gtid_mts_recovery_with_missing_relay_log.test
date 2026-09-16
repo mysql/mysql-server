@@ -36,6 +36,8 @@
 
 # This test case is binlog format agnostic
 --source include/have_binlog_format_row.inc
+# CSA supports only Gtid-based replication (GTID_MODE = ON)
+--source include/have_mta.inc
 --source include/rpl/init_source_replica.inc
 
 --echo #

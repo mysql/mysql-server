@@ -1,0 +1,192 @@
+--source include/have_thread_pool.inc
+# Need this to avoid the default connection being counted as stalled
+--source include/reopen_default_connection_as_tcpip.inc
+
+SET @org_thread_pool_max_transactions_limit = @@global.thread_pool_max_transactions_limit;
+SET @org_thread_pool_query_threads_per_group = @@global.thread_pool_query_threads_per_group;
+
+--echo #
+--echo # Basic testing
+--echo #
+SHOW VARIABLES LIKE 'thread_pool_query_threads_per_group';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL thread_pool_query_threads_per_group=0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL thread_pool_query_threads_per_group=4097;
+
+SET GLOBAL thread_pool_query_threads_per_group=DEFAULT;
+SHOW VARIABLES LIKE 'thread_pool_query_threads_per_group';
+
+SET GLOBAL thread_pool_query_threads_per_group=4;
+SHOW VARIABLES LIKE 'thread_pool_query_threads_per_group';
+
+--echo # Query threads per thread group should *not* be more than trxn thread
+--echo # limit per group.
+--error ER_TP_QUERY_THRS_PER_GRP_EXCEEDS_TXN_THR_LIMIT
+SET GLOBAL thread_pool_max_transactions_limit=2;
+
+SET GLOBAL thread_pool_max_transactions_limit=10;
+SHOW VARIABLES LIKE 'thread_pool_max_transactions_limit';
+
+--echo # Query threads per thread group should *not* be more than trxn thread
+--echo # limit per group.
+--error ER_TP_QUERY_THRS_PER_GRP_EXCEEDS_TXN_THR_LIMIT
+SET GLOBAL thread_pool_query_threads_per_group=12;
+
+
+--echo #
+--echo # Verify that with high concurrency algorithm consumer thread
+--echo # is awakened to wait for new queries.
+--echo #
+--enable_connect_log
+connect (con1, localhost,root,,test,,);
+connect (con2, localhost,root,,test,,);
+
+connection default;
+CREATE TABLE t1 (f1 INT);
+LOCK TABLE t1 WRITE;
+
+connection con1;
+--send INSERT INTO t1 VALUES(1);
+
+connection con2;
+--echo # There are two possibilites here:
+--echo # Normally the waiting thread will only process
+--echo # con1 and block waiting for the lock. con2 is then processed by a new
+--echo # thread taking over as waiting thread.
+--echo # But occasionally, con2 may be processed together with con1, and then
+--echo # the HC algo will likely wake another query worker to handle one of
+--echo # the connections (the order in which the connectons are queued is
+--echo # unspecified).
+--echo # The thread processing con1, whichever it is, will eventually be marked as
+--echo # stalled, so we should end up with STALLED_TRHEAD_COUNT = 1.
+let $wait_condition = SELECT STALLED_THREAD_COUNT = 1 FROM performance_schema.tp_thread_group_state
+WHERE TP_GROUP_ID = 0;
+--source include/wait_condition.inc
+SELECT STALLED_THREAD_COUNT FROM performance_schema.tp_thread_group_state WHERE TP_GROUP_ID = 0;
+
+connection default;
+UNLOCK TABLES;
+
+connection con1;
+--reap
+
+DROP TABLE t1;
+disconnect con1;
+disconnect con2;
+
+
+--echo #
+--echo # Verify privileges needed to modify thread_pool_query_threads_per_group
+--echo # variable.
+--echo #
+connection default;
+CREATE USER u1;
+connect (con1, localhost, u1, '');
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.thread_pool_query_threads_per_group=32;
+
+connection default;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+GRANT CONNECTION_ADMIN ON *.* TO u1;
+
+--connection con1
+SET @@global.thread_pool_query_threads_per_group=4;
+SELECT @@global.thread_pool_query_threads_per_group;
+SHOW VARIABLES LIKE 'thread_pool_query_threads_per_group';
+
+--connection default
+--disconnect con1
+DROP USER u1;
+
+
+--echo #
+--echo # Verify that updating system variable thread_pool_query_threads_per_group
+--echo # adjusts worker threads.
+--echo #
+
+--echo # Verify that query worker threads adjustment when thread_pool_query_threads_per_group
+--echo # is decremented.
+
+let $consumer_threads = `SELECT consumer_threads FROM information_schema.tp_thread_group_state WHERE tp_group_id = 0`;
+
+--echo # Run query in all worker threads.
+connect (con1, localhost,root,,test,,);
+connect (con2, localhost,root,,test,,);
+connect (con3, localhost,root,,test,,);
+
+connection default;
+CREATE TABLE t1 (f1 INT);
+LOCK TABLE t1 WRITE;
+
+connection con1;
+--send INSERT INTO t1 VALUES(1);
+
+connection con2;
+--send INSERT INTO t1 VALUES(1);
+
+connection con3;
+--send INSERT INTO t1 VALUES(1);
+
+connection default;
+let $wait_condition=
+  SELECT count(*) = 3 FROM performance_schema.processlist
+         WHERE info LIKE 'INSERT INTO t1%' AND state = 'Waiting for table metadata lock';
+--source include/wait_condition.inc
+SET @@global.thread_pool_query_threads_per_group=1;
+
+UNLOCK TABLES;
+connection con1;
+--reap
+connection con2;
+--reap
+connection con3;
+--reap
+
+connection default;
+--echo # Query worker threads should be reduced and unused threads are
+--echo # moved to reserve threads pool.
+let $wait_condition =
+      SELECT consumer_threads <= $consumer_threads FROM performance_schema.tp_thread_group_state
+              WHERE tp_group_id = 0;
+--source include/wait_condition.inc
+let $consumer_threads = `SELECT consumer_threads FROM information_schema.tp_thread_group_state WHERE tp_group_id = 0`;
+let $thread_count1 = `SELECT THREAD_COUNT FROM performance_schema.tp_thread_group_state WHERE tp_group_id = 0`;
+
+
+--echo # Verify that query worker threads adjustment when thread_pool_query_threads_per_group
+--echo # is incremented.
+--echo # Reserve threads are used in this case.
+SET @@global.thread_pool_query_threads_per_group=4;
+let $wait_condition =
+      SELECT consumer_threads > $consumer_threads FROM performance_schema.tp_thread_group_state
+              WHERE tp_group_id = 0;
+--source include/wait_condition.inc
+let $consumer_threads = `SELECT consumer_threads FROM information_schema.tp_thread_group_state WHERE tp_group_id = 0`;
+--echo # New thread are not created in this case.
+let $thread_count2 = `SELECT THREAD_COUNT FROM performance_schema.tp_thread_group_state WHERE tp_group_id = 0`;
+if ($thread_count1 <= $thread_count2) {
+  --echo # Reserve threads are used. No new query thread is created.
+}
+
+--echo # New threads are created in this case.
+SET @@global.thread_pool_query_threads_per_group=10;
+--echo # Consumer threads count should be increased after thread_pool_query_threads_per_group update.
+let $wait_condition =
+      SELECT thread_count > $thread_count2 FROM performance_schema.tp_thread_group_state
+              WHERE tp_group_id = 0;
+--source include/wait_condition.inc
+
+
+connection default;
+DROP TABLE t1;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+--disable_connect_log
+
+SET @@global.thread_pool_query_threads_per_group = @org_thread_pool_query_threads_per_group;
+SET @@global.thread_pool_max_transactions_limit = @org_thread_pool_max_transactions_limit;

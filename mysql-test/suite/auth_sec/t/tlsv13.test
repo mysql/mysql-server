@@ -14,6 +14,7 @@
 --disable_query_log
 call mtr.add_suppression("Failed to set up SSL because of");
 call mtr.add_suppression("Plugin mysqlx reported: 'Failed at SSL configuration");
+call mtr.add_suppression("TLS session on channel 'mysql_main' is not using a post-quantum key exchange algorithm");
 --enable_query_log
 
 # We let our server restart attempts write to the file $error_log.
@@ -32,6 +33,10 @@ let $MYSQL_PORT= `SELECT @@port`;
 --echo Default TLS cipher
 --replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
+
+--echo TLSv1.3 status variables
+--replace_regex /Tls_key_exchange_algorithm.*/Tls_key_exchange_algorithm   TLS_KEY_EXCHANGE/ /Tls_sign_algorithm.*/Tls_sign_algorithm        TLS_SIGN_ALGORITHM/
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 -e "SHOW STATUS like 'Tls_key_exchange_algorithm'; SHOW STATUS like 'Tls_sign_algorithm'"
 
 --echo Setting TLS version TLSv1.3 from the client
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.3 -e "SHOW STATUS like 'Ssl_version'"

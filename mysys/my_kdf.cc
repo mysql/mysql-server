@@ -31,9 +31,7 @@
 
 #include <openssl/evp.h>  // IWYU pragma: keep
 // IWYU pragma: no_include <openssl/types.h>
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
 #include <openssl/kdf.h>
-#endif
 
 #include <cassert>
 #include <cstdlib>
@@ -60,11 +58,7 @@ int create_kdf_key(const unsigned char *key, const unsigned int key_length,
   std::unique_ptr<Key_derivation_function> kdf_function;
 
   if (kdf_name == "hkdf") {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
     kdf_function = std::make_unique<Key_hkdf_function>(kdf_options);
-#else
-    return 1;
-#endif
   }
   if (kdf_name == "pbkdf2_hmac") {
     kdf_function = std::make_unique<Key_pbkdf2_hmac_function>(kdf_options);
@@ -75,7 +69,6 @@ int create_kdf_key(const unsigned char *key, const unsigned int key_length,
   return kdf_function->derive_key(key, key_length, rkey, rkey_size);
 }
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
 Key_hkdf_function::Key_hkdf_function(vector<string> *kdf_options) {
   kdf_options_ = {kdf_options};
 }
@@ -150,7 +143,6 @@ int Key_hkdf_function::derive_key(const unsigned char *key,
   }
   return 0;
 }
-#endif
 
 Key_pbkdf2_hmac_function::Key_pbkdf2_hmac_function(
     vector<string> *kdf_options) {

@@ -77,6 +77,7 @@ Note	1003	Can't push table 't4' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't5' as child of 't1', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 't5' as child of 't2', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 't5' as child of 't3', it is in a hash-bucket-branch which can't be referred.
+Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t` `t1` join `test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4` join `test`.`t` `t5` where (`t5`.`pk` = `t4`.`col_int`)
 set join_buffer_size = 128;
 SELECT
 STRAIGHT_JOIN count(*)

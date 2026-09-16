@@ -92,6 +92,9 @@ bool Cached_item_str::cmp() {
     if (null_value) return false;
     null_value = true;
     return true;
+  } else if (res == nullptr) {
+    assert(current_thd->is_error());
+    return false;
   } else if (null_value ||
              sortcmp(&value, res, item->collation.collation) != 0) {
     null_value = false;
@@ -254,6 +257,9 @@ bool Cached_item_decimal::cmp() {
     if (null_value) return false;
     null_value = true;
     return true;
+  } else if (ptmp == nullptr) {
+    assert(current_thd->is_error());
+    return false;
   } else if (null_value || my_decimal_cmp(&value, ptmp)) {
     null_value = false;
     my_decimal2decimal(ptmp, &value);

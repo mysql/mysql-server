@@ -68,13 +68,16 @@ while ($i <= $servers)
     SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
     CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
     CALL mtr.add_suppression(".* Timeout waiting for reply of binlog .*");
+    CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
     --source include/rpl/install_semisync_source.inc
   }
   if ($i != 2)
   {
     SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
     CALL mtr.add_suppression("Semi-sync replica net_flush.*");
+    CALL mtr.add_suppression("Replica SQL for channel '': .*'Query execution was interrupted'.*");
     --source include/rpl/install_semisync_replica.inc
+
   }
   --inc $i
 }

@@ -117,7 +117,15 @@ NDB_ADD_EXECUTABLE(testNDBT testNDBT.cpp NDBTEST NDBCLIENT MYSQLCLIENT)
 TARGET_LINK_LIBRARIES(testBackup ndbbank ndbNDBT ndbclient_so)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank ndbNDBT ndbclient_so)
 
-NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST NDBCLIENT)
+# Some tests can run independently and are also built as CTest unit tests
+#
+IF(NOT WITH_UNIT_TESTS)
+  NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST NDBCLIENT)
+  NDB_ADD_EXECUTABLE(testTls  testTls.cpp NDBTEST NDBCLIENT)
+ELSE()
+  NDB_ADD_TEST(testMgmd testMgmd.cpp LIBS ndbNDBT ndbclient_so)
+  NDB_ADD_TEST(testTls  testTls.cpp LIBS ndbNDBT ndbclient_so)
+ENDIF()
 
 IF(WITH_NDB_JAVA)
   NDB_ADD_EXECUTABLE(testClusterJ testClusterJ.cpp NDBCLIENT)

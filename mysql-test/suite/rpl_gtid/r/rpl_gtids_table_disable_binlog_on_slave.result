@@ -51,6 +51,7 @@ call mtr.add_suppression("Replica SQL for channel '': Error in Xid_log_event: Co
 call mtr.add_suppression("Replica.*Got error -1 .* from storage engine.*Error_code: MY-001030");
 call mtr.add_suppression("Replica: An error occurred at storing the GTID value");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 include/assert.inc [committed gtids SOURCE_UUID:1-6:17-18]
 #
 # Verify that the transaction is skiped if its specified gtid

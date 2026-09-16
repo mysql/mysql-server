@@ -712,6 +712,8 @@ EXPLAIN
             -> Rows fetched before execution  (rows=2)
             -> Rows fetched before execution  (rows=2)
 
+Warnings:
+Note	1003	insert into `test`.`t` /* select#1 */ select column_0 AS `column_0` from dual union all values row(2),row(3)
 INSERT INTO t VALUES ROW(1), ROW(2) UNION ALL VALUES ROW(2), ROW(3);
 SELECT * FROM t;
 x
@@ -766,6 +768,8 @@ EXPLAIN
             -> Filter: <if>(outer_field_is_not_null, ((<cache>(t.a) = column_0) or (column_0 is null)), true)  (rows=3)
                 -> Rows fetched before execution  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,<exists>(values row(5),row(55),row(NULL)))
 SELECT * FROM t WHERE a IN (VALUES ROW(5), ROW(55), ROW(NULL));
 a	b
 5	6

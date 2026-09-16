@@ -75,6 +75,7 @@ SET PERSIST group_replication_consistency= AFTER;
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --eval SET PERSIST  group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_start_on_boot= ON;
@@ -96,6 +97,7 @@ SET GLOBAL group_replication_clone_threshold= 1;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_consistency]" = "AFTER"
 --source include/assert.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 --source include/wait_until_disconnected.inc

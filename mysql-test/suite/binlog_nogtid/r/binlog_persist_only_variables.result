@@ -47,7 +47,7 @@ INSERT INTO aliases(name) VALUES
 ('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
 ('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc [Expect 107 variables in the table.]
+include/assert.inc [Expect 111 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -156,8 +156,12 @@ SET PERSIST_ONLY replica_skip_errors = @@GLOBAL.replica_skip_errors;
 SET PERSIST_ONLY replica_sql_verify_checksum = @@GLOBAL.replica_sql_verify_checksum;
 SET PERSIST_ONLY replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET PERSIST_ONLY replica_type_conversions = @@GLOBAL.replica_type_conversions;
+SET PERSIST_ONLY replication_force_pqc = @@GLOBAL.replication_force_pqc;
 SET PERSIST_ONLY replication_optimize_for_static_plugin_config = @@GLOBAL.replication_optimize_for_static_plugin_config;
 SET PERSIST_ONLY replication_sender_observe_commit_only = @@GLOBAL.replication_sender_observe_commit_only;
+SET PERSIST_ONLY replication_tls_kex = @@GLOBAL.replication_tls_kex;
+SET PERSIST_ONLY replication_use_pqc_sign = @@GLOBAL.replication_use_pqc_sign;
+SET PERSIST_ONLY rpl_dump_thread_account_affinity = @@GLOBAL.rpl_dump_thread_account_affinity;
 SET PERSIST_ONLY rpl_read_size = @@GLOBAL.rpl_read_size;
 SET PERSIST_ONLY rpl_semi_sync_replica_enabled = @@GLOBAL.rpl_semi_sync_replica_enabled;
 SET PERSIST_ONLY rpl_semi_sync_replica_trace_level = @@GLOBAL.rpl_semi_sync_replica_trace_level;
@@ -254,16 +258,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 96 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 100 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 96 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 96 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 96 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 100 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 100 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 100 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
@@ -342,8 +346,12 @@ RESET PERSIST replica_skip_errors;
 RESET PERSIST replica_sql_verify_checksum;
 RESET PERSIST replica_transaction_retries;
 RESET PERSIST replica_type_conversions;
+RESET PERSIST replication_force_pqc;
 RESET PERSIST replication_optimize_for_static_plugin_config;
 RESET PERSIST replication_sender_observe_commit_only;
+RESET PERSIST replication_tls_kex;
+RESET PERSIST replication_use_pqc_sign;
+RESET PERSIST rpl_dump_thread_account_affinity;
 RESET PERSIST rpl_read_size;
 RESET PERSIST rpl_semi_sync_replica_enabled;
 RESET PERSIST rpl_semi_sync_replica_trace_level;

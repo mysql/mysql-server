@@ -46,6 +46,8 @@ CALL mtr.add_suppression("Replica SQL for channel '':.*Lock wait timeout exceede
 CALL mtr.add_suppression("Replica SQL for channel '': Worker . failed executing transaction.*");
 CALL mtr.add_suppression("Replica SQL for channel '': .*Error_code: MY-001756");
 CALL mtr.add_suppression("Replica SQL for channel '': worker thread retried transaction.*");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("Duplicate entry");
 
 # Backup the original value of the variables
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;

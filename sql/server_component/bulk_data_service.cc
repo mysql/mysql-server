@@ -45,6 +45,11 @@
 #include "sql/tztime.h"
 #include "vector-common/vector_conversion.h"
 
+constexpr size_t BTR_EXTERN_FIELD_REF_SIZE = 20;
+
+// Refer to REC_VERSION_56_MAX_INDEX_COL_LEN = 3072;
+constexpr size_t MAX_PREFIX_LEN = 3072 + BTR_EXTERN_FIELD_REF_SIZE;
+
 namespace Bulk_data_convert {
 
 /** Log details of error during data conversion.
@@ -144,6 +149,7 @@ static int format_int_column(const Column_text &text_col,
 }
 
 /** Create a blob column.
+@param[in]   keynr        key number used to detect prefix-key participation
 @param[in]   field        table column metadata
 @param[in]   from_cs      charset of the input string from CSV.
 @param[in]   text_col     input column in text read from CSV.
@@ -151,13 +157,16 @@ static int format_int_column(const Column_text &text_col,
 @param[out]  length_size  number of bytes used to write the length
 @param[out]  error_details  error location details
 @return 0 on success, error code on failure. */
-static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
+static int format_blob_column(size_t keynr, Field *field,
+                              const CHARSET_INFO *from_cs,
                               const Column_text &text_col,
                               Column_mysql &sql_col, size_t &length_size,
                               Bulk_load_error_location_details &error_details) {
   assert(!sql_col.m_is_null);
   auto field_str = (const Field_str *)field;
   const CHARSET_INFO *field_charset = field_str->charset();
+  const bool is_prefix_key = field_str->part_of_prefixkey.is_set(keynr) ||
+                             field_str->part_of_prefixkey.is_set(0);
 
   switch (sql_col.m_type) {
     case MYSQL_TYPE_TINY_BLOB:
@@ -184,18 +193,24 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
 
   char *field_begin = sql_col.get_data();
   char *field_data = field_begin + length_size;
-
   size_t copy_size = text_col.m_data_len;
+  size_t ext_ref_size = 0;
 
   if (text_col.is_ext()) {
-    /* Column data stored externally. */
+    sql_col.set_ext();
+    ext_ref_size = BTR_EXTERN_FIELD_REF_SIZE;
+  }
+
+  assert(text_col.m_data_len >= ext_ref_size);
+
+  if (text_col.m_data_len - ext_ref_size == 0) {
     memcpy(field_data, text_col.m_data_ptr, copy_size);
 
-  } else {
+  } else if (text_col.m_data_len - ext_ref_size > 0) {
     const char *error_pos = nullptr;
     const char *convert_error_pos = nullptr;
     const char *end_pos = nullptr;
-    const size_t nchars = text_col.m_data_len;
+    const size_t nchars = text_col.m_data_len - ext_ref_size;
     auto field_size = sql_col.m_data_len;
 
     if (sql_col.m_type == MYSQL_TYPE_VECTOR) {
@@ -245,7 +260,7 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
     if (field_charset == &my_charset_bin) {
       /* If the charset of the field is binary, then the column data in the CSV
       would also be binary. Don't do any charset conversions. */
-      if (text_col.m_data_len > sql_col.m_data_len) {
+      if (text_col.m_data_len > sql_col.m_data_len && !is_prefix_key) {
         error_details.m_column_length = sql_col.m_data_len;
         return ER_TOO_BIG_FIELDLENGTH;
       }
@@ -254,8 +269,8 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
     } else {
       copy_size = well_formed_copy_nchars(
           field_charset, field_data, field_size, from_cs, text_col.m_data_ptr,
-          text_col.m_data_len, nchars, &error_pos, &convert_error_pos,
-          &end_pos);
+          text_col.m_data_len - ext_ref_size, nchars, &error_pos,
+          &convert_error_pos, &end_pos);
 
       if (error_pos != nullptr || convert_error_pos != nullptr) {
         error_details.column_type = "text";
@@ -263,9 +278,23 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
         return ER_INVALID_CHARACTER_STRING;
       }
 
-      if (end_pos < text_col.m_data_ptr + text_col.m_data_len) {
+      /* This is the expected end position. */
+      const char *end_ptr =
+          text_col.m_data_ptr + (text_col.m_data_len - ext_ref_size);
+
+      /* If all data available in the input text_col is not consumed, then
+      check if this is "too big to fit" or just a prefix index. */
+      if (end_pos < end_ptr && !is_prefix_key) {
         error_details.m_column_length = sql_col.m_data_len;
         return ER_TOO_BIG_FIELDLENGTH;
+      }
+
+      if (text_col.is_ext()) {
+        char *ptr = sql_col.get_data() + length_size + copy_size;
+        const char *src = text_col.m_data_ptr + text_col.m_data_len -
+                          BTR_EXTERN_FIELD_REF_SIZE;
+        memcpy(ptr, src, BTR_EXTERN_FIELD_REF_SIZE);
+        copy_size += BTR_EXTERN_FIELD_REF_SIZE;
       }
     }
 
@@ -292,6 +321,8 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
       memcpy(field_data, value.ptr(), value.length());
       copy_size = value.length();
     }
+  } else {
+    assert(text_col.m_data_len >= ext_ref_size);
   }
 
   switch (sql_col.m_type) {
@@ -380,22 +411,26 @@ static int format_char_column(const Column_text &text_col,
 
   size_t copy_size{0};
 
-  if (text_col.m_data_len > field_size) {
+  if (text_col.m_data_len > field_size && !col_meta.m_is_prefix_key) {
     error_details.m_column_length = sql_col.m_data_len;
     return ER_TOO_BIG_FIELDLENGTH;
   }
 
   if (text_col.is_ext()) {
+    sql_col.set_ext();
     assert(text_col.m_data_len == 20);
     memcpy(field_data, text_col.m_data_ptr, text_col.m_data_len);
     copy_size = text_col.m_data_len;
   } else {
+    const size_t src_size =
+        col_meta.m_is_prefix_key
+            ? std::min((size_t)text_col.m_data_len, (size_t)field_size)
+            : text_col.m_data_len;
     copy_size = well_formed_copy_nchars(
         field_charset, field_data, field_size, charset, text_col.m_data_ptr,
-        text_col.m_data_len, field_char_size, &error_pos, &convert_error_pos,
-        &end_pos);
+        src_size, field_char_size, &error_pos, &convert_error_pos, &end_pos);
 
-    if (end_pos < text_col.m_data_ptr + text_col.m_data_len) {
+    if (end_pos < text_col.m_data_ptr + src_size) {
       /* The error is expected when fixed_length = true, where we try to adjust
       the data within character length limit. The data could not be fit in
       such limit here which is possible for multi-byte character set. We
@@ -755,7 +790,11 @@ class Row_header {
 
   /** Add length to row.
   @param[in]  add  length to add */
-  void add_length(size_t add) { m_row_length += add; }
+  void add_length(size_t add) {
+    assert(m_row_length + add <=
+           std::numeric_limits<decltype(m_row_length)>::max());
+    m_row_length += add;
+  }
 
   /** @return current row length. */
   size_t get_row_length() const { return m_row_length; }
@@ -774,20 +813,25 @@ class Row_header {
   /** Set the column value as NULL in header.
   @param[in]  col_meta  column metadata */
   void set_column_null(const Column_meta &col_meta);
+  void set_column_ext(const Column_meta &col_meta);
 
   /** check if column value is NULL in header.
   @param[in]  col_meta  column metadata
   @return true iff NULL */
   bool is_column_null(const Column_meta &col_meta) const;
+  bool is_column_ext(const Column_meta &col_meta) const;
 
   /** @return total header length. */
   size_t header_length() const {
-    return m_null_bitmap_length + sizeof(m_row_length) + sizeof(m_flags);
+    return (m_null_bitmap_length * 2) + sizeof(m_row_length) + sizeof(m_flags);
   }
 
  private:
   /** NULL bitmap for the row. Needed only while sorting by key. */
   std::array<unsigned char, MAX_NULLABLE_BYTES> m_null_bitmap;
+
+  /** Bitmap to indicate if a column has been externally stored. */
+  std::array<unsigned char, MAX_NULLABLE_BYTES> m_ext_bitmap;
 
   /** Actual length of bitmap in bytes. Must be less than or equal to
   MAX_NULLABLE_BYTES. */
@@ -803,6 +847,7 @@ class Row_header {
 Row_header::Row_header(const Row_meta &metadata) {
   m_null_bitmap_length = metadata.m_bitmap_length;
   memset(m_null_bitmap.data(), 0, m_null_bitmap_length);
+  memset(m_ext_bitmap.data(), 0, m_null_bitmap_length);
   m_row_length = 0;
   m_flags = 0;
 }
@@ -820,6 +865,17 @@ bool Row_header::is_column_null(const Column_meta &col_meta) const {
           0);
 }
 
+void Row_header::set_column_ext(const Column_meta &col_meta) {
+  unsigned char &ext_byte = m_ext_bitmap[col_meta.m_null_byte];
+  ext_byte |= static_cast<unsigned char>(1 << col_meta.m_null_bit);
+}
+
+bool Row_header::is_column_ext(const Column_meta &col_meta) const {
+  const unsigned char &ext_byte = m_ext_bitmap[col_meta.m_null_byte];
+  return ((ext_byte & static_cast<unsigned char>(1 << col_meta.m_null_bit)) !=
+          0);
+}
+
 bool Row_header::serialize(char *buffer, size_t length) {
   if (length < header_length()) {
     return false;
@@ -832,6 +888,9 @@ bool Row_header::serialize(char *buffer, size_t length) {
   buffer += sizeof(uint16_t);
 
   memcpy(buffer, m_null_bitmap.data(), m_null_bitmap_length);
+  buffer += m_null_bitmap_length;
+
+  memcpy(buffer, m_ext_bitmap.data(), m_null_bitmap_length);
   return true;
 }
 
@@ -847,6 +906,11 @@ bool Row_header::deserialize(const char *buffer, size_t length) {
 
   auto dest = m_null_bitmap.data();
   memcpy(dest, buffer, m_null_bitmap_length);
+  buffer += m_null_bitmap_length;
+
+  auto ext_bitmap = m_ext_bitmap.data();
+  memcpy(ext_bitmap, buffer, m_null_bitmap_length);
+
   return true;
 }
 
@@ -1318,9 +1382,6 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
 
     auto &text_col = text_rows.read_column(text_row_offset, text_index);
 
-    /* Only primary key can contain externally stored fields. */
-    assert(!text_col.is_ext() || metadata.is_pk);
-
     /* With keys we are interested to fill only the key columns. */
     bool use_temp = (with_keys && sql_index >= metadata.m_keys);
     Column_mysql col_temp;
@@ -1345,9 +1406,9 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
     }
     size_t length_size = 0;
 
+    sql_col.init();
     sql_col.set_data(buffer);
     sql_col.m_data_len = field_size;
-    sql_col.m_int_data = 0;
 
     /* If field is a nullptr, then it is generated rowid column */
     sql_col.m_is_null =
@@ -1427,8 +1488,8 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
       case MYSQL_TYPE_JSON:
         [[fallthrough]];
       case MYSQL_TYPE_LONG_BLOB:
-        err = format_blob_column(field, charset, text_col, sql_col, length_size,
-                                 error_details);
+        err = format_blob_column(metadata.m_keynr, field, charset, text_col,
+                                 sql_col, length_size, error_details);
         break;
       case MYSQL_TYPE_STRING:
         if (field->real_type() == MYSQL_TYPE_ENUM) {
@@ -1503,6 +1564,10 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
       }
     }
 
+    if (sql_col.is_ext()) {
+      header.set_column_ext(col_meta);
+    }
+
     if (err != 0) {
       error_details.column_name = field->field_name;
       error_details.column_input_data =
@@ -1533,8 +1598,8 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
     bool success = header.serialize(header_buffer, header_length);
     assert(success);
     if (!success) {
-      LogErr(INFORMATION_LEVEL, ER_IB_MSG_1381,
-             "Bulk Load: Error writing NULL bitmap");
+      LogErr(INFORMATION_LEVEL, ER_BULK_LOADER_INFO,
+             "Error writing NULL bitmap");
       err = ER_INTERNAL_ERROR;
     }
   }
@@ -1563,6 +1628,7 @@ static int fill_column_data(char *row_begin, char *buffer, size_t buffer_length,
                             size_t &col_length, Column_mysql &sql_col) {
   sql_col.m_type = col_meta.m_type;
   sql_col.m_is_null = header.is_column_null(col_meta);
+  sql_col.m_is_ext = header.is_column_ext(col_meta);
   sql_col.m_int_data = 0;
   sql_col.set_data(nullptr);
   sql_col.m_data_len = 0;
@@ -1749,6 +1815,7 @@ static int fill_row_data(char *buffer, size_t buffer_length, bool fill_keys,
   if (!header.deserialize(buffer, buffer_length)) {
     return 0;
   }
+
   bool fixed_length = header.is_set(Row_header::Flag::IS_FIXED_CHAR);
 
   auto header_length = header.header_length();
@@ -1782,9 +1849,6 @@ static int fill_row_data(char *buffer, size_t buffer_length, bool fill_keys,
       col_index = loop_count;
     } else {
       col_index = static_cast<size_t>(col_meta.m_index);
-      if (col_meta.m_is_prefix_key) {
-        continue;
-      }
     }
     auto &sql_col = sql_rows.get_column(sql_row_offset, col_index);
     ++loop_count;
@@ -1807,49 +1871,12 @@ DEFINE_METHOD(int, mysql_format_using_key,
                size_t key_offset, Rows_mysql &sql_rows, size_t sql_index)) {
   Row_header header(metadata);
   size_t row_length = 0;
-  /* Get to the beginning of the row from first key. */
-#if 0
-  const auto &first_key = sql_keys.read_column(key_offset, 0);
-  char *buffer = (first_key.m_is_null) ? first_key.m_data_ptr : first_key.m_data_ptr - metadata.m_first_key_len;
-
-  /* In the case of secondary indexes, the key columns can be null. So, look
-  for the first column that is not null. */
-  size_t i = 0;
-  for (i = 0; i < metadata.m_num_columns; ++i) {
-    const auto &key = sql_keys.read_column(key_offset, i);
-    if (key.m_data_ptr == nullptr) {
-      continue;
-    }
-    break;
-  }
-
-  if (i == metadata.m_num_columns) {
-    return ER_INTERNAL_ERROR;
-  }
-#endif
 
   const size_t first_col = 0;
   const auto &key = sql_keys.read_column(key_offset, first_col);
 
-#if 0
-  // const auto &colmeta = metadata.m_columns[first_col];
-  /* number of bytes to store the length of column. */
-  size_t len = 0;
-
-  if (!colmeta.m_is_fixed_len) {
-    len = colmeta.m_is_single_byte_len ? 1 : 2;
-  }
-#endif
-
-  /* We cannot calculate this buffer, if all of them are null.  It is possible
-   * for secondary indexes. */
+  /* Get to the beginning of the row from first key. */
   char *buffer = key.get_row_begin(metadata, first_col);
-#if 0
-  char *buffer = key.m_is_null
-                     ? key.get_data()
-                     : key.get_data() - len - metadata.m_header_length;
-  // buffer -= metadata.m_header_length;
-#endif
 
   /* We have already parsed the keys and the row must follow the pointer. Need
   to be updated if we support larger rows. */
@@ -2151,9 +2178,10 @@ static void fill_column_metadata(const Field *field, Column_meta &col_meta) {
   col_meta.m_null_bit = 0;
 }
 
-static bool add_index_columns(TABLE_SHARE *table_share, const KEY &key,
+static bool add_index_columns(const TABLE *table, const KEY &key,
                               Row_meta &row_meta, const KEY &pk,
                               bool &all_key_int, bool &all_key_int_signed_asc) {
+  TABLE_SHARE *table_share = table->s;
   assert(table_share != nullptr);
 
   all_key_int = true;
@@ -2165,7 +2193,7 @@ static bool add_index_columns(TABLE_SHARE *table_share, const KEY &key,
   /* The column index in the secondary index. */
   auto col_index = 0;
 
-  for (size_t index = 0; index < key.actual_key_parts; ++index) {
+  for (size_t index = 0; index < key.user_defined_key_parts; ++index) {
     KEY_PART_INFO &key_part = key.key_part[index];
     auto key_field = key_part.field;
 
@@ -2190,21 +2218,12 @@ static bool add_index_columns(TABLE_SHARE *table_share, const KEY &key,
 
     if (key_part.key_part_flag & HA_PART_KEY_SEG) {
       col_meta.m_max_len = key_part.length;
-      col_meta.m_fixed_len = col_meta.m_max_len;
-
-      auto type = key_field->type();
-      if ((type == MYSQL_TYPE_STRING || type == MYSQL_TYPE_VARCHAR) &&
-          col_meta.m_compare == Column_meta::Compare::MYSQL) {
-        auto charset = key_field->charset();
-        if (charset->mbmaxlen > 0) {
-          col_meta.m_fixed_len = col_meta.m_max_len / charset->mbmaxlen;
-        }
-      }
       col_meta.m_is_prefix_key = true;
     }
 
     auto field_index = key_field->field_index();
-    field_added[field_index] = true;
+    field_added[field_index] = !col_meta.m_is_prefix_key;
+
     col_meta.m_null_byte = col_meta.m_index / 8;
     col_meta.m_null_bit = col_meta.m_index % 8;
     columns.push_back(col_meta);
@@ -2238,12 +2257,19 @@ static bool add_index_columns(TABLE_SHARE *table_share, const KEY &key,
       auto &key_part = pk.key_part[index];
       auto key_field = key_part.field;
       auto field_index = key_field->field_index();
-      if (field_added[field_index]) {
+      Column_meta col_meta;
+
+      fill_column_metadata(key_field, col_meta);
+
+      if (key_part.key_part_flag & HA_PART_KEY_SEG) {
+        col_meta.m_max_len = key_part.length;
+        col_meta.m_is_prefix_key = true;
+      }
+
+      if (!col_meta.m_is_prefix_key && field_added[field_index]) {
         continue;
       }
-      Column_meta col_meta;
-      col_meta.m_is_pk = false;
-      fill_column_metadata(key_field, col_meta);
+
       /* The column index in the secondary index. */
       col_meta.m_index = col_index++;
 
@@ -2261,6 +2287,20 @@ static bool add_index_columns(TABLE_SHARE *table_share, const KEY &key,
 
       columns.push_back(col_meta);
       field_added[field_index] = true;
+
+      switch (col_meta.m_type) {
+        case MYSQL_TYPE_VARCHAR:
+        case MYSQL_TYPE_BLOB:
+        case MYSQL_TYPE_MEDIUM_BLOB:
+        case MYSQL_TYPE_LONG_BLOB:
+          row_meta.m_key_length += MAX_PREFIX_LEN;
+          break;
+        case MYSQL_TYPE_TINY_BLOB:
+          row_meta.m_key_length += col_meta.m_fixed_len;
+          break;
+        default:
+          break;
+      }
     }
   }
   return true;
@@ -2354,26 +2394,14 @@ bool get_row_metadata_for_pk(THD *thd [[maybe_unused]], const TABLE *table,
       }
 
       if (key_part.key_part_flag & HA_PART_KEY_SEG) {
-        col_meta.m_max_len = key_part.length;
-        col_meta.m_fixed_len = col_meta.m_max_len;
-
-        auto type = key_field->type();
-        if ((type == MYSQL_TYPE_STRING || type == MYSQL_TYPE_VARCHAR) &&
-            col_meta.m_compare == Column_meta::Compare::MYSQL) {
-          auto charset = key_field->charset();
-          if (charset->mbmaxlen > 0) {
-            col_meta.m_fixed_len = col_meta.m_max_len / charset->mbmaxlen;
-          }
-        }
+        col_meta.m_max_len = MAX_PREFIX_LEN;
         col_meta.m_is_prefix_key = true;
-
-      } else {
-        auto field_index = key_field->field_index();
-        /* For non-prefix index the column doesn't need to be added again. */
-        field_added[field_index] = true;
-        col_meta.m_null_byte = field_index / 8;
-        col_meta.m_null_bit = field_index % 8;
       }
+      auto field_index = key_field->field_index();
+      /* For non-prefix index the column doesn't need to be added again. */
+      field_added[field_index] = true;
+      col_meta.m_null_byte = field_index / 8;
+      col_meta.m_null_bit = field_index % 8;
       columns.push_back(col_meta);
       const auto last_index = columns.size() - 1;
       columns_text_order.push_back(&columns[last_index]);
@@ -2408,6 +2436,12 @@ bool get_row_metadata_for_pk(THD *thd [[maybe_unused]], const TABLE *table,
     }
     col_meta.m_is_part_of_sk = is_field_part_of_sk(table, field);
     row_meta.m_approx_row_len += col_meta.m_fixed_len;
+
+    col_meta.m_is_prefix_key = !field->part_of_prefixkey.is_clear_all();
+
+    if (col_meta.m_is_prefix_key) {
+      col_meta.m_max_len = MAX_PREFIX_LEN;
+    }
 
     col_meta.m_null_byte = index / 8;
     col_meta.m_null_bit = index % 8;
@@ -2468,6 +2502,16 @@ bool get_row_metadata_for_pk(THD *thd [[maybe_unused]], const TABLE *table,
     if (!first_key_col.m_is_fixed_len) {
       row_meta.m_first_key_len = first_key_col.m_is_single_byte_len ? 1 : 2;
     }
+
+    switch (first_key_col.m_type) {
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+        row_meta.m_first_key_len = 0;
+      default:
+        break;
+    }
   }
   row_meta.m_approx_row_len += row_meta.m_header_length;
   return true;
@@ -2497,7 +2541,7 @@ bool get_row_metadata_for_sk(THD *thd [[maybe_unused]], const TABLE *table,
   row_meta.m_keys = key.user_defined_key_parts + pk_key_parts;
   row_meta.m_non_keys = 0;
 
-  if (!add_index_columns(table_share, key, row_meta, pk, all_key_int,
+  if (!add_index_columns(table, key, row_meta, pk, all_key_int,
                          all_key_int_signed_asc)) {
     return false;
   }
@@ -2529,6 +2573,16 @@ bool get_row_metadata_for_sk(THD *thd [[maybe_unused]], const TABLE *table,
 
   if (!first_key_col.m_is_fixed_len) {
     row_meta.m_first_key_len = first_key_col.m_is_single_byte_len ? 1 : 2;
+  }
+
+  switch (first_key_col.m_type) {
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+      row_meta.m_first_key_len = 0;
+    default:
+      break;
   }
   return true;
 }
@@ -2573,11 +2627,13 @@ DEFINE_METHOD(bool, get_row_metadata_all,
     Row_meta &row_meta = row_meta_all.back();
     row_meta.dbrowid_is_pk = true;
     success = get_row_metadata_for_pk(thd, table, have_key, row_meta);
+    row_meta.m_keynr = 0;
   }
 
   for (size_t keynr = 0; success && keynr < table_share->keys; ++keynr) {
     row_meta_all.push_back(default_row_meta);
     Row_meta &row_meta = row_meta_all.back();
+    row_meta.m_keynr = keynr;
     if (keynr == table_share->primary_key) {
       assert(!table_share->is_missing_primary_key());
       success = get_row_metadata_for_pk(thd, table, have_key, row_meta);
@@ -2773,16 +2829,8 @@ DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
     return false;
   }
 
-  if (table->table_check_constraint_list != nullptr) {
-    std::ostringstream err_strm;
-    err_strm << "LOAD DATA ALGORITHM = BULK not supported for tables with"
-                "CHECK constraints.";
-    LogErr(INFORMATION_LEVEL, ER_BULK_LOADER_INFO, err_strm.str().c_str());
-    my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "CHECK constraint",
-             "LOAD DATA ALGORITHM = BULK");
-    return false;
-  }
-
+  // Check constraints are validated by the SQL layer after the bulk load
+  // finishes and before foreign key validation runs.
   for (size_t keynr = 0; keynr < share->keys; ++keynr) {
     const auto &key = table->key_info[keynr];
 
@@ -2796,25 +2844,6 @@ DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
       my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Functional Index",
                "LOAD DATA ALGORITHM = BULK");
       return false;
-    }
-  }
-
-  for (size_t keynr = 0; keynr < share->keys; ++keynr) {
-    const auto &key = table->key_info[keynr];
-
-    for (size_t ind = 0; ind < key.user_defined_key_parts; ++ind) {
-      auto &key_part = key.key_part[ind];
-      if (key_part.key_part_flag & HA_PART_KEY_SEG) {
-        std::ostringstream err_strm;
-        err_strm << "LOAD DATA ALGORITHM = BULK not supported for tables with "
-                    "Prefix Key";
-
-        LogErr(INFORMATION_LEVEL, ER_BULK_LOADER_INFO, err_strm.str().c_str());
-
-        my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Prefix Key",
-                 "LOAD DATA ALGORITHM = BULK");
-        return false;
-      }
     }
   }
 

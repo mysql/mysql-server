@@ -27,6 +27,8 @@
 # Bug #18306199 START SLAVE UNTIL MASTER_LOG_POS=MIDDLE-OF-GTID-EVENT
 #               STOPS BEFORE TRANSACTION
 
+# CSA supports the following UNTIL conditions: SQL_BEFORE_GTIDS, SQL_AFTER_GTIDS
+--source include/have_mta.inc
 --source include/have_binlog_format_row.inc
 --source include/rpl/init_source_replica.inc
 

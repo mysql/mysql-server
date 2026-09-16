@@ -35,6 +35,7 @@
 #include <time.h>
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <bitset>
 #include <functional>
 #include <map>
@@ -5401,6 +5402,15 @@ class handler {
     return false;
   }
 
+  /** Preserve the AUTO_INCREMENT value that was in effect before an
+  empty-table bulk load recreated the table.
+  @param[in] auto_increment_value  next AUTO_INCREMENT value to preserve
+  @return 0 on success, non-zero on error */
+  virtual int bulk_load_preserve_auto_increment(ulonglong auto_increment_value
+                                                [[maybe_unused]]) {
+    return 0;
+  }
+
   /**
     Submit a dd::Table object representing a core DD table having
     hardcoded data to be filled in by the DDSE. This function can be
@@ -7980,6 +7990,30 @@ bool ha_notify_table_ddl(THD *thd, const MDL_key *mdl_key,
 std::pair<int, bool> commit_owned_gtids(THD *thd, bool all);
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);
 bool is_index_access_error(int error);
+
+/**
+  Check if index statistics can be used for an equality range.
+
+  Index statistics are suitable for equality ranges when:
+  1) It is an equality range (EQ_RANGE flag set)
+  2) It contains no NULL parts (NULL_RANGE flag not set)
+  3) Index statistics are available for the required keyparts
+
+  Ranges of the form "x IS NULL" will not use index statistics because
+  the number of rows with NULL values are likely to be very different
+  than the values in the index statistics.
+
+  @param table         The table structure
+  @param keyno         The index number
+  @param range_flag    The range flags (EQ_RANGE, NULL_RANGE, etc.)
+  @param keypart_map   Bitmap of keyparts used in the range
+  @param[out] keyparts_used  Number of keyparts used (output parameter)
+
+  @retval true   Index statistics can be used for this range
+  @retval false  Index statistics cannot be used for this range
+*/
+bool can_use_index_statistics(const TABLE *table, uint keyno, uint range_flag,
+                              key_part_map keypart_map, int *keyparts_used);
 
 /*
   This class is used by INFORMATION_SCHEMA.FILES to read SE specific

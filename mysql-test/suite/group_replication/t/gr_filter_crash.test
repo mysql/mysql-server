@@ -47,6 +47,7 @@ SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --let rpl_connection_name= server_2
 --source include/connection.inc
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 START GROUP_REPLICATION;
 
 --echo # Wait until donor is confirmed

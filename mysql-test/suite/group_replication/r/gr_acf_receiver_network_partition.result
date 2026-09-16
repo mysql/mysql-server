@@ -96,7 +96,17 @@ include/assert.inc ['There is one row in performance_schema.replication_asynchro
 include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
 
 ############################################################
-# 10. Clean up.
+# 10. Disable failover channels auto-start before cleanup.
+[connection server1]
+SELECT group_replication_disable_member_action("mysql_start_failover_channels_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_disable_member_action("mysql_start_failover_channels_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/assert.inc [The action mysql_start_failover_channels_if_primary must be disabled]
+[connection server2]
+include/assert.inc [The action mysql_start_failover_channels_if_primary must be disabled on server2]
+
+############################################################
+# 11. Clean up.
 [connection server1]
 include/stop_group_replication.inc
 include/rpl/reset_replica.inc

@@ -2402,10 +2402,10 @@ static CURLcode ossl_verifyhost(struct Curl_easy *data,
     bool free_cn = FALSE;
 
     /* The following is done because of a bug in 0.9.6b */
-    X509_NAME *name = X509_get_subject_name(server_cert);
+    const X509_NAME *name = X509_get_subject_name(server_cert);
     if(name) {
       int j;
-      while((j = X509_NAME_get_index_by_NID(name, NID_commonName, i)) >= 0)
+      while((j = X509_NAME_get_index_by_NID(CURL_UNCONST(name), NID_commonName, i)) >= 0)
         i = j;
     }
 
@@ -2415,7 +2415,7 @@ static CURLcode ossl_verifyhost(struct Curl_easy *data,
 
     if(i >= 0) {
       ASN1_STRING *tmp =
-        X509_NAME_ENTRY_get_data(X509_NAME_get_entry(name, i));
+        X509_NAME_ENTRY_get_data(X509_NAME_get_entry(CURL_UNCONST(name), i));
 
       /* In OpenSSL 0.9.7d and earlier, ASN1_STRING_to_UTF8 fails if the input
          is already UTF-8 encoded. We check for this case and copy the raw

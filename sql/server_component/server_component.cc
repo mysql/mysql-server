@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/mysql_audit_print_service_longlong_data_source.h"
 #include "mysql/components/services/mysql_command_consumer.h"
 #include "mysql/components/services/mysql_command_services.h"
+#include "mysql/components/services/mysql_command_session_state.h"
 #include "mysql/components/services/mysql_cond_service.h"
 #include "mysql/components/services/mysql_json_encode.h"
 #include "mysql/components/services/mysql_library.h"
@@ -86,6 +87,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_clone_protocol_imp.h"
 #include "mysql_command_consumer_imp.h"
 #include "mysql_command_services_imp.h"
+#include "mysql_command_session_state_imp.h"
 #include "mysql_connection_attributes_iterator_imp.h"
 #include "mysql_current_thread_reader_imp.h"
 #include "mysql_file_imp.h"
@@ -579,6 +581,11 @@ mysql_command_services_imp::field_metadata_get END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_error_info)
 mysql_command_services_imp::sql_errno, mysql_command_services_imp::sql_error,
     mysql_command_services_imp::sql_state END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_session_state)
+mysql_command_session_state_imp::init,
+    mysql_command_session_state_imp::get_next,
+    mysql_command_session_state_imp::deinit END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_text_consumer_factory_v1)
 mysql_command_consumer_dom_imp::start,
@@ -1139,6 +1146,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_command_query),
     PROVIDES_SERVICE(mysql_server, mysql_command_query_result),
     PROVIDES_SERVICE(mysql_server, mysql_command_field_info),
+    PROVIDES_SERVICE(mysql_server, mysql_command_session_state),
     PROVIDES_SERVICE(mysql_server, mysql_command_error_info),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_factory_v1),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_metadata_v1),

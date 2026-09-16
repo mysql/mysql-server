@@ -51,7 +51,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* !UNIV_HOTBACKUP */
 #include "ha_prototypes.h"
 #include "log0chkp.h"
-#include "log0write.h"
+#include "log0handler_interface.h"
+#include "log0helpers.h"
 #include "my_dbug.h"
 
 #ifndef UNIV_HOTBACKUP
@@ -224,13 +225,6 @@ static void dict_index_remove_from_cache_low(
     dict_index_t *index, /*!< in, own: index */
     bool lru_evict);     /*!< in: true if page being evicted
                          to make room in the table LRU list */
-
-/** Calculate and update the redo log margin for current tables which
-have some changed dynamic metadata in memory and have not been written
-back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
-to stop user threads when redo log is running out of space and they
-do not hold latches (log.free_check_limit_lsn). */
-static void dict_persist_update_log_margin();
 
 /** Removes a table object from the dictionary cache. */
 static void dict_table_remove_from_cache_low(
@@ -436,7 +430,6 @@ void dict_table_stats_lock(dict_table_t *table, ulint latch_mode) {
       rw_lock_x_lock(table->stats_latch, UT_LOCATION_HERE);
       break;
     case RW_NO_LATCH:
-      [[fallthrough]];
     default:
       ut_error;
   }
@@ -464,7 +457,6 @@ void dict_table_stats_unlock(dict_table_t *table, ulint latch_mode) {
       rw_lock_x_unlock(table->stats_latch);
       break;
     case RW_NO_LATCH:
-      [[fallthrough]];
     default:
       ut_error;
   }
@@ -813,55 +805,162 @@ void dict_table_autoinc_initialize(dict_table_t *table, uint64_t value) {
   table->autoinc = value;
 }
 
-bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
-  bool log = false;
+static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table);
 
-  mutex_enter(table->autoinc_persisted_mutex);
+/** Ensures the table is properly tracked as having in-memory PTM info not in
+sync with that in DDTableBuffer. The caller should make sure that the state in
+DDTableBuffer is also correct, but perhaps suboptimal (the auto increment value
+stored in DDTableBuffer could be higher than the one in-memory, which is safe,
+but wasteful). Ensures the table->dirty_status is METADATA_DIRTY and the table
+is in the dict_persist->dirty_dict_tables list, if it wasn't yet. This
+guarantees that in case the dict_table_t is evicted from memory, or the server
+is shutting down, the values from in-memory PTM will be written back to
+DDTableBuffer.
+@param[in] table The table which should be marked as dirty */
+static void dict_table_mark_dirty_low(dict_table_t *table) {
+  ut_ad(mutex_own(&dict_persist->mutex));
+  switch (table->dirty_status.load()) {
+    case METADATA_DIRTY:
+      break;
+    case METADATA_CLEAN:
+      /* Not in dirty_tables list, add it now */
+      UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
+      ut_d(table->in_dirty_dict_tables_list = true);
+      [[fallthrough]];
+    case METADATA_BUFFERED:
+      table->dirty_status.store(METADATA_DIRTY);
+      ++dict_persist->num_dirty_tables;
+  }
 
-  if (table->autoinc_persisted < value) {
+  ut_ad(table->in_dirty_dict_tables_list);
+}
+
+void dict_table_autoinc_persist(dict_table_t *table, uint64_t value) {
+  IB_mutex_guard autoinc_persisted_guard{table->autoinc_persisted_mutex,
+                                         UT_LOCATION_HERE};
+  /* In general, threads first get autoinc value assigned and later call this
+  function when actually inserting the record to the B-tree which doesn't have
+  to be the same order as order of inserted values. The transactions can even
+  commit in the order opposite to the autoinc values they got assigned! */
+  if (value <= table->autoinc_persisted) {
+    return;
+  }
+
+  /* The innodb_autoinc_preallocate mechanism aims to achieve following goals:
+  - ensure that the value stored to DDTableBuffer is at least max(value), so
+    that after crash and recovery there are no conflicts due to duplicates
+  - ensure the number of stores to DDTableBuffer is low, so we don't waste too
+    much time on them
+  - ensure the value stored in DDTableBuffer is not larger than
+    max(value) + innodb_autoinc_preallocate, so that the "gaps" are small
+  In order to do that, the `value` which we want to store, is compared to the
+  value which we've stored last time (table->autoinc_buffered). If it is already
+  smaller then we don't have to do much, except remembering what is the real
+  value which we'd like to store (value) in table->autoinc_persisted, which can
+  be used during normal or slow shutdown, or when evicting the table.
+  If the `value` is larger than `table->autoinc_buffered`, then we first store
+  value + innodb_autoinc_preallocate to DDTableBuffer (and register this fact
+  by updating table->autoinc_buffered) and then, as before, remember the real
+  exact value we'd like to store in table->autoinc_persisted.
+
+  Above idea in pseudo-code looks as simple as:
+  if( table->autoinc_buffered < value ){
+     table->autoinc_persisted = value + innodb_autoinc_preallocate;
+     dict_table_persist_to_dd_table_buffer_low(table);
+  }
+  table->autoinc_persisted = value
+
+  In practice, it gets complicated because another thread might be executing
+  dict_table_persist_to_dd_table_buffer_low(table) in parallel to us - this is
+  because for performance reasons we avoid acquiring dict_persist->mutex on the
+  fast path, and this is the only mutex held while
+  dict_table_persist_to_dd_table_buffer_low(table).
+
+  The dict_table_persist_to_dd_table_buffer_low(table) does the following steps:
+  D1.   table->dirty_status.store(METADATA_BUFFERED)
+  D2.   x = table->autoinc_persisted.load()
+  D3.   table->autoinc_buffered.store(x)
+  D4.   actually store x to DDTableBuffer
+
+  Here we do following steps:
+  L1.   table->autoinc_persisted.store(value)
+  L2.   y = table->dirty_status.load()
+  L3.   z = table->autoinc_buffered.load()
+  L4.   if ( y == METADATA_DIRTY && value <= z ) {
+  L4.1.   assume DDTableBuffer contains at least `value`
+        }else{
+  L4.2.   update the DDTableBuffer
+        }
+
+  In case we end up in L4.2. we will ensure ourselves that DDTableBuffer gets
+  the right value. The difficulty is in proving that for L4.1. we don't need to
+  do anything, even though (hypothetically) "at any moment" another thread can
+  be executing D4 with an "old" value of x obtained in D2 some time ago. We'll
+  show this can't happen.
+  Reaching L4.1. is only possible if in L2 we've loaded METADATA_DIRTY, which
+  means that a thread which is doing dict_table_persist_to_dd_table_buffer_low()
+  has not yet reached D1. That means D2 happens after L1. This in turn means
+  that x read in D2 must be the value stored by us (modifications of
+  autoinc_persisted require autoinc_persisted_mutex which we hold). This in turn
+  means that D3 may indeed cause autoinc_buffered to drop below the z we've read
+  in L3, but can't drop below our `value`, and this is sufficient to ensure
+  persistence of our `value` */
+
+  // L1:
+  dict_table_autoinc_persisted_update(table, value);
+  const bool persist_immediately = dict_persist->check_persist_immediately();
+
+  /* Note: autoinc_buffered could still be 0 as we don't bother to initialize it
+  to equal autoinc_persisted on restart. But, the following condition resolves
+  the same way no matter if autoinc_buffered is autoinc_persisted or 0 as we've
+  already established that autoinc_persisted < value.
+
+  Note: We have to load dirty_status (L2) BEFORE loading autoinc_buffered (L3)
+  when checking the condition (L4). */
+  if (!persist_immediately && table->dirty_status.load() == METADATA_DIRTY &&
+      value <= table->autoinc_buffered.load()) {
+    /* We have just seen that dirty_status was METADATA_DIRTY and
+    autoinc_buffered was at least the value we need. It could happen that right
+    after those checks, the state has changed to METADATA_BUFFERED (in which
+    case table is still in the in_dirty_dict_tables_list, though) or the
+    autoinc_buffered has changed to a slightly smaller value - but this smaller
+    value would have to be at least equal to value which we've stored in
+    autoinc_persisted. */
+    ut_ad(table->in_dirty_dict_tables_list);
+    ut_ad(value <= table->autoinc_buffered.load());
+    return;
+  }
+  const auto clustered_index = table->first_index();
+  const auto autoinc_col_no =
+      clustered_index->get_col_no(table->autoinc_field_no);
+  /* If integer field is at most 2 bytes, then the total number of inserts with
+  AUTOINCREMENT in the life-time of the table will be small enough that we don't
+  have to care about performance. OTOH, "burning" more than 1 value on each
+  restart can exhaust the range of available numbers too fast. Also, it seems
+  plausible that a user which chose a short integer for the column have a
+  use-case less tolerant of *any* "gaps" in numbering. */
+  const bool no_gaps =
+      persist_immediately || table->cols[autoinc_col_no].len <= 2;
+  /* TODO: add support for a AUTO_INCREMENT_PREALLOCATE=$n table_option which
+  could be used in CREATE TABLE or ALTER TABLE to set the value to be used
+  for this table as an override for the global --innodb_autoinc_preallocate=$m.
+  Could be useful, if the application is really sensitive to any gaps in
+  numbering for a particular table, but otherwise favors speed. */
+  const uint64_t preallocate{no_gaps ? 0 : innodb_autoinc_preallocate.load()};
+  /* This is to avoid overflow */
+  const uint64_t available = std::numeric_limits<uint64_t>::max() - value;
+  const uint64_t to_buffer = value + std::min(preallocate, available);
+
+  IB_mutex_guard dict_persist_guard{&dict_persist->mutex, UT_LOCATION_HERE};
+  dict_table_autoinc_persisted_update(table, to_buffer);
+  dict_table_mark_dirty_low(table);
+  dict_table_persist_to_dd_table_buffer_low(table);
+  ut_ad(table->dirty_status.load() == METADATA_BUFFERED);
+  /* Save the "real" (exact) value we'd like to persist at shutdown */
+  if (value != to_buffer) {
     dict_table_autoinc_persisted_update(table, value);
-
-    /* The only concern here is some concurrent thread may
-    change the dirty_status to METADATA_BUFFERED. And the
-    only function is dict_table_persist_to_dd_table_buffer_low(),
-    which could be called by checkpoint and will first set the
-    dirty_status to METADATA_BUFFERED, and then write back
-    the latest changes to DDTableBuffer, all of which are under
-    protection of dict_persist->mutex.
-
-    If that function sets the dirty_status to METADATA_BUFFERED
-    first, below checking will force current thread to wait on
-    dict_persist->mutex. Above update to AUTOINC would be either
-    written back to DDTableBuffer or not. But the redo logs for
-    current change won't be counted into current checkpoint.
-    See how log_sys->dict_max_allowed_checkpoint_lsn is set.
-    So even a crash after below redo log flushed, no change lost.
-
-    If that function sets the dirty_status after below checking,
-    which means current change would be written back to
-    DDTableBuffer. It's also safe. */
-    if (table->dirty_status.load() == METADATA_DIRTY) {
-      ut_ad(table->in_dirty_dict_tables_list);
-    } else {
-      dict_table_mark_dirty(table);
-    }
-
-    log = true;
+    dict_table_mark_dirty_low(table);
   }
-
-  mutex_exit(table->autoinc_persisted_mutex);
-
-  if (log) {
-    PersistentTableMetadata metadata(table->id, table->version);
-    metadata.set_autoinc(value);
-
-    Persister *persister = dict_persist->persisters->get(PM_TABLE_AUTO_INC);
-    persister->write_log(table->id, metadata, mtr);
-    /* No need to flush due to performance reason */
-  }
-
-  /* Check and return if auto increment is to be persisted. */
-  return (log && dict_persist->check_persist_immediately());
 }
 
 /** Get all the FTS indexes on a table.
@@ -1391,10 +1490,9 @@ void dict_table_move_from_non_lru_to_lru(dict_table_t *table) {
 @param[in]      id      index identifier
 @return index
 @retval NULL if not found */
-static const dict_index_t *dict_table_find_index_on_id(
-    const dict_table_t *table, const index_id_t &id) {
-  for (const dict_index_t *index = table->first_index(); index != nullptr;
-       index = index->next()) {
+[[nodiscard]] static dict_index_t *dict_table_find_index_on_id(
+    dict_table_t *table, const index_id_t &id) {
+  for (dict_index_t *index : table->indexes) {
     if (index->space == id.m_space_id && index->id == id.m_index_id) {
       return (index);
     }
@@ -1449,7 +1547,6 @@ dberr_t dict_table_rename_in_cache(
 {
   dberr_t err;
   dict_foreign_t *foreign;
-  dict_index_t *index;
   char old_name[MAX_FULL_NAME_LEN + 1];
 
   ut_ad(dict_sys_mutex_own());
@@ -1505,7 +1602,7 @@ dberr_t dict_table_rename_in_cache(
       return (DB_OUT_OF_MEMORY);
     }
 
-    err = fil_delete_tablespace(table->space, BUF_REMOVE_NONE);
+    err = fil_delete_tablespace(table->space);
 
     ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND ||
          err == DB_IO_ERROR);
@@ -1517,9 +1614,7 @@ dberr_t dict_table_rename_in_cache(
     }
 
     /* Delete any temp file hanging around. */
-    os_file_type_t ftype;
-    bool exists;
-    if (os_file_status(filepath, &exists, &ftype) && exists &&
+    if (os_file_exists(filepath) &&
         !os_file_delete_if_exists(innodb_temp_file_key, filepath, nullptr)) {
       ib::info(ER_IB_MSG_180) << "Delete of " << filepath << " failed.";
     }
@@ -1607,7 +1702,7 @@ dberr_t dict_table_rename_in_cache(
   ut_a(dict_sys->size > 0);
 
   /* Update the table_name field in indexes */
-  for (index = table->first_index(); index != nullptr; index = index->next()) {
+  for (dict_index_t *index : table->indexes) {
     index->table_name = table->name.m_name;
   }
 
@@ -2033,7 +2128,7 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
   ulint comp;
   ulint i;
   /* maximum possible storage size of a record */
-  ulint rec_max_size;
+  size_t rec_max_size;
 
   if (dict_index_is_ibuf(index)) {
     /* cannot estimate accurately */
@@ -2066,7 +2161,7 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
   }
 
   /* Compute the maximum possible record size. */
-  for (i = 0; i < dict_index_get_n_unique_in_tree(index); i++) {
+  for (i = 0; i < dict_index_get_n_unique_in_tree_nonleaf(index); i++) {
     const dict_field_t *field = index->get_field(i);
     get_field_max_size(index->table, index, field, rec_max_size);
   }
@@ -2283,7 +2378,7 @@ bool dict_index_validate_max_rec_size(const dict_table_t *table,
     of the B-tree) and a node pointer field. When we have processed the unique
     columns, rec_max_size equals the size of the node pointer record minus the
     node pointer column. */
-    if (i + 1 == dict_index_get_n_unique_in_tree(index) &&
+    if (i + 1 == dict_index_get_n_unique_in_tree_nonleaf(index) &&
         rec_max_size + REC_NODE_PTR_SIZE >= page_ptr_max) {
       return (true);
     }
@@ -2926,21 +3021,6 @@ void dict_table_copy_types(dtuple_t *tuple,           /*!< in/out: data tuple */
   dict_table_copy_v_types(tuple, table);
 }
 
-void dict_table_wait_for_bg_threads_to_exit(dict_table_t *table,
-                                            std::chrono::microseconds delay) {
-  fts_t *fts = table->fts;
-
-  ut_ad(mutex_own(&fts->bg_threads_mutex));
-
-  while (fts->bg_threads > 0) {
-    mutex_exit(&fts->bg_threads_mutex);
-
-    std::this_thread::sleep_for(delay);
-
-    mutex_enter(&fts->bg_threads_mutex);
-  }
-}
-
 /** Builds the internal dictionary cache representation for a clustered
  index, containing also system fields not defined by the user.
  @return own: the internal representation of the clustered index */
@@ -3416,24 +3496,11 @@ static void dict_foreign_error_report(
   mutex_exit(&dict_foreign_err_mutex);
 }
 
-/** Adds a foreign key constraint object to the dictionary cache. May free
- the object if there already is an object with the same identifier in.
- At least one of the foreign table and the referenced table must already
- be in the dictionary cache!
- @return DB_SUCCESS or error code */
 dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
-                                  /*!< in, own: foreign key constraint */
-                                  const char **col_names,
-                                  /*!< in: column names, or NULL to use
-                                  foreign->foreign_table->col_names */
-                                  bool check_charsets,
-                                  /*!< in: whether to check charset
-                                  compatibility */
+                                  const char **col_names, bool check_charsets,
                                   bool can_free_fk,
-                                  /*!< in: whether free existing FK */
-                                  dict_err_ignore_t ignore_err)
-/*!< in: error to be ignored */
-{
+                                  dict_err_ignore_t ignore_err,
+                                  bool skip_referenced) {
   dict_table_t *for_table;
   dict_table_t *ref_table;
   dict_foreign_t *for_in_cache = nullptr;
@@ -3468,7 +3535,13 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
     for_in_cache = foreign;
   }
 
-  if (ref_table && !for_in_cache->referenced_table) {
+  /* When skip_referenced is true (COPY ALTER temp table), we must not
+  touch ref_table's referenced_set or eviction state.  ref_table may be
+  half-initialised by a concurrent dd_open_table_one (added to the cache
+  but FK not yet loaded).  FK checks still work because
+  row_ins_check_foreign_constraints opens the referenced table on-demand
+  when referenced_table is nullptr. */
+  if (ref_table && !for_in_cache->referenced_table && !skip_referenced) {
     index = dict_foreign_find_index(
         ref_table, nullptr, for_in_cache->referenced_col_names,
         for_in_cache->n_fields, for_in_cache->foreign_index, check_charsets,
@@ -3547,7 +3620,7 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
   /* We need to move the table to the non-LRU end of the table LRU
   list. Otherwise it will be evicted from the cache. */
 
-  if (ref_table != nullptr) {
+  if (ref_table != nullptr && !skip_referenced) {
     dict_table_prevent_eviction(ref_table);
   }
 
@@ -3907,10 +3980,6 @@ void dict_persist_init() {
       ut::new_withkey<Persisters>(UT_NEW_THIS_FILE_PSI_KEY);
   dict_persist->persisters->add(PM_INDEX_CORRUPTED);
   dict_persist->persisters->add(PM_TABLE_AUTO_INC);
-
-#ifndef UNIV_HOTBACKUP
-  dict_persist_update_log_margin();
-#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Clear the structure */
@@ -3943,9 +4012,7 @@ static void dict_init_dynamic_metadata(dict_table_t *table,
     }
   }
 
-  if (table->autoinc_persisted != 0) {
-    metadata->set_autoinc(table->autoinc_persisted);
-  }
+  metadata->set_autoinc(table->autoinc_persisted.load());
 
   /* Will initialize other metadata here */
 }
@@ -3963,15 +4030,9 @@ static bool dict_table_apply_dynamic_metadata(
   ut_ad(dict_sys_mutex_own());
 
   /* Apply corrupted index ids first */
-  const corrupted_ids_t corrupted_ids = metadata->get_corrupted_indexes();
 
-  for (corrupted_ids_t::const_iterator iter = corrupted_ids.begin();
-       iter != corrupted_ids.end(); ++iter) {
-    const index_id_t index_id = *iter;
-    dict_index_t *index;
-
-    index = const_cast<dict_index_t *>(
-        dict_table_find_index_on_id(table, index_id));
+  for (const index_id_t index_id : metadata->get_corrupted_indexes()) {
+    dict_index_t *index = dict_table_find_index_on_id(table, index_id);
 
     if (index != nullptr) {
       ut_ad(index->space == index_id.m_space_id);
@@ -4030,12 +4091,11 @@ static bool dict_table_apply_dynamic_metadata(
 @param[in]      buffer          buffer to read
 @param[in]      size            size of data in buffer
 @param[in]      metadata        where we store the metadata from buffer */
-void dict_table_read_dynamic_metadata(const byte *buffer, ulint size,
+void dict_table_read_dynamic_metadata(const byte *buffer, size_t size,
                                       PersistentTableMetadata *metadata) {
   const byte *pos = buffer;
   persistent_type_t type;
   Persister *persister;
-  ulint consumed;
   bool corrupt;
 
   while (size > 0) {
@@ -4043,12 +4103,12 @@ void dict_table_read_dynamic_metadata(const byte *buffer, ulint size,
     ut_ad(type > PM_SMALLEST_TYPE && type < PM_BIGGEST_TYPE);
 
     persister = dict_persist->persisters->get(type);
-    ut_ad(persister != nullptr);
+    ut_a(persister != nullptr);
     pos++;
     size--;
 
-    consumed = persister->read(*metadata, pos, size, &corrupt);
-    ut_ad(consumed != 0);
+    const size_t consumed = persister->read(*metadata, pos, size, &corrupt);
+    ut_a(consumed != 0);
     ut_ad(size >= consumed);
     ut_ad(!corrupt);
 
@@ -4117,22 +4177,7 @@ void dict_table_mark_dirty(dict_table_t *table) {
 
   mutex_enter(&dict_persist->mutex);
 
-  switch (table->dirty_status.load()) {
-    case METADATA_DIRTY:
-      break;
-    case METADATA_CLEAN:
-      /* Not in dirty_tables list, add it now */
-      UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
-      ut_d(table->in_dirty_dict_tables_list = true);
-      [[fallthrough]];
-    case METADATA_BUFFERED:
-      table->dirty_status.store(METADATA_DIRTY);
-      ++dict_persist->num_dirty_tables;
-
-      dict_persist_update_log_margin();
-  }
-
-  ut_ad(table->in_dirty_dict_tables_list);
+  dict_table_mark_dirty_low(table);
 
   mutex_exit(&dict_persist->mutex);
 }
@@ -4156,24 +4201,10 @@ void dict_set_corrupted(dict_index_t *index) {
   index->type |= DICT_CORRUPT;
 
   if (!srv_read_only_mode && !table->is_temporary()) {
-    PersistentTableMetadata metadata(table->id, table->version);
-    metadata.add_corrupted_index(index_id_t(index->space, index->id));
-
-    Persister *persister = dict_persist->persisters->get(PM_INDEX_CORRUPTED);
-    ut_ad(persister != nullptr);
-
-    mtr_t mtr;
-
-    mtr.start();
-    persister->write_log(table->id, metadata, &mtr);
-    mtr.commit();
-
-    /* Make sure the corruption bit won't be lost */
-    log_write_up_to(*log_sys, mtr.commit_lsn(), true);
-
-    DBUG_INJECT_CRASH("log_corruption_crash", 1);
-
     dict_table_mark_dirty(table);
+    dict_table_persist_to_dd_table_buffer(table);
+    ib::redo::must_persist_all(UT_LOCATION_HERE);
+    DBUG_INJECT_CRASH("log_corruption_crash", 1);
   }
 }
 
@@ -4189,17 +4220,18 @@ static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table) {
 
   DDTableBuffer *table_buffer = dict_persist->table_buffer;
   PersistentTableMetadata metadata(table->id, table->version);
-  byte buffer[REC_MAX_DATA_SIZE];
-  ulint size;
 
-  /* Here the status gets changed first, to make concurrent
-  update to this table to wait on dict_persist_t::mutex.
-  See dict_table_autoinc_log(), etc. */
+  /* The order of accesses to dirty_status (D1), autoinc_persisted (D2) and
+  autoinc_buffered (D3) is crucial for correctness. See the proof in
+  dict_table_autoinc_persist() for details */
   table->dirty_status.store(METADATA_BUFFERED);
 
   dict_init_dynamic_metadata(table, &metadata);
 
-  size = dict_persist->persisters->write(metadata, buffer);
+  table->autoinc_buffered.store(metadata.get_autoinc());
+
+  byte buffer[REC_MAX_DATA_SIZE];
+  const size_t size = dict_persist->persisters->write(metadata, buffer);
 
   dberr_t error =
       table_buffer->replace(table->id, table->version, buffer, size);
@@ -4207,7 +4239,6 @@ static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table) {
 
   ut_ad(dict_persist->num_dirty_tables > 0);
   --dict_persist->num_dirty_tables;
-  dict_persist_update_log_margin();
 }
 
 /** Write back the dirty persistent dynamic metadata of the table
@@ -4236,8 +4267,7 @@ accordingly. */
 void dict_persist_to_dd_table_buffer() {
   bool persisted = false;
 
-  if (dict_sys == nullptr) {
-    log_set_dict_max_allowed_checkpoint_lsn(*log_sys, 0);
+  if (dict_sys == nullptr || srv_read_only_mode) {
     return;
   }
 
@@ -4265,69 +4295,14 @@ void dict_persist_to_dd_table_buffer() {
   /* Get this lsn with dict_persist->mutex held,
   so no other concurrent dynamic metadata change logs
   would be before this lsn. */
-  const lsn_t persisted_lsn = log_get_lsn(*log_sys);
-
-  /* As soon as we release the dict_persist->mutex, new dynamic
-  metadata changes could happen. They would be not persisted
-  until next call to dict_persist_to_dd_table_buffer.
-  We must not remove redo which could allow to deduce them.
-  Therefore the maximum allowed lsn for checkpoint is the
-  current lsn. */
-  log_set_dict_max_allowed_checkpoint_lsn(*log_sys, persisted_lsn);
+  const lsn_t persisted_lsn = ib::redo::handler->peek_first_unassigned_lsn();
 
   mutex_exit(&dict_persist->mutex);
 
   if (persisted) {
-    log_write_up_to(*log_sys, persisted_lsn, true);
-  }
-}
-
-/** Calculate and update the redo log margin for current tables which
-have some changed dynamic metadata in memory and have not been written
-back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
-to stop user threads when redo log is running out of space and they
-do not hold latches (log.free_check_limit_lsn). */
-static void dict_persist_update_log_margin() {
-  /* Below variables basically considers only the AUTO_INCREMENT counter
-  and a small margin for corrupted indexes. */
-
-  /* Every table will generate less than 80 bytes without
-  considering page split */
-  static constexpr uint32_t log_margin_per_table_no_split = 80;
-
-  /* Every table metadata log may roughly consume such many bytes. */
-  static constexpr uint32_t record_size_per_table = 50;
-
-  /* How many tables may generate one page split */
-  static const uint32_t tables_per_split =
-      (univ_page_size.physical() - PAGE_NEW_SUPREMUM_END) /
-      record_size_per_table / 2;
-
-  /* Every page split needs at most this log margin, if not root split. */
-  static const uint32_t log_margin_per_split_no_root = 500;
-
-  /* Extra margin for root split, we always leave this margin,
-  since we don't know exactly it will split root or not */
-  static const uint32_t log_margin_per_split_root =
-      univ_page_size.physical() / 2 * 3; /* Add 50% margin. */
-
-  /* Read without holding the dict_persist_t::mutex */
-  uint32_t num_dirty_tables = dict_persist->num_dirty_tables;
-  uint32_t total_splits = 0;
-  uint32_t num_tables = num_dirty_tables;
-
-  while (num_tables > 0) {
-    total_splits += num_tables / tables_per_split + 1;
-    num_tables = num_tables / tables_per_split;
-  }
-
-  const auto margin = (num_dirty_tables * log_margin_per_table_no_split +
-                       total_splits * log_margin_per_split_no_root +
-                       (num_dirty_tables == 0 ? 0 : log_margin_per_split_root));
-
-  if (log_sys != nullptr) {
-    /* Update margin for redo log */
-    log_set_dict_persist_margin(*log_sys, margin);
+    ib::redo::must_succeed(
+        ib::redo::handler->persist_smaller_than(persisted_lsn),
+        UT_LOCATION_HERE);
   }
 }
 
@@ -5354,10 +5329,10 @@ dberr_t DDTableBuffer::replace(table_id_t id, uint64_t version,
     static const ulint flags =
         (BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG |
          BTR_KEEP_POS_FLAG | BTR_KEEP_SYS_FLAG);
-
+    const undo_no_t dummy_undo_no = 0;
     error = btr_cur_pessimistic_update(
         flags, pcur.get_btr_cur(), &cur_offsets, &m_dynamic_heap,
-        m_replace_heap, &big_rec, update, 0, nullptr, 0, 0, &mtr);
+        m_replace_heap, &big_rec, update, 0, nullptr, dummy_undo_no, &mtr);
     ut_a(error == DB_SUCCESS);
     /* We don't have big rec in this table */
     ut_ad(!big_rec);
@@ -5402,14 +5377,6 @@ dberr_t DDTableBuffer::remove(table_id_t id) {
   mtr.commit();
 
   return (DB_SUCCESS);
-}
-
-/** Truncate the table. We can call it after all the dynamic metadata
-has been written back to DD table */
-void DDTableBuffer::truncate() {
-  ut_ad(mutex_own(&dict_persist->mutex));
-
-  btr_truncate(m_index);
 }
 
 /** Get the buffered metadata for a specific table, the caller
@@ -5461,37 +5428,6 @@ std::vector<byte> DDTableBuffer::get(table_id_t id, uint64_t *version) {
 
   return (metadata);
 }
-
-/** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic metadata of table
-@param[in]      id              Table id
-@param[in]      metadata        Metadata used to write the log
-@param[in,out]  mtr             Mini-transaction */
-void Persister::write_log(table_id_t id,
-                          const PersistentTableMetadata &metadata,
-                          mtr_t *mtr) const {
-  byte *log_ptr;
-  ulint size = get_write_size(metadata);
-  /* Both table id and version would be written in a compressed format,
-  each of which would cost 1..11 bytes, and MLOG_TABLE_DYNAMIC_META costs
-  1 byte. Refer to mlog_write_initial_dict_log_record() as well */
-  static constexpr uint8_t metadata_log_header_size = 23;
-
-  ut_ad(size > 0);
-
-  if (!mlog_open_metadata(mtr, metadata_log_header_size + size, log_ptr)) {
-    /* Currently possible only when global redo logging is not enabled. */
-    ut_ad(!mtr_t::s_logging.is_enabled());
-    return;
-  }
-
-  log_ptr = mlog_write_initial_dict_log_record(
-      MLOG_TABLE_DYNAMIC_META, id, metadata.get_version(), log_ptr, mtr);
-
-  ulint consumed = write(metadata, log_ptr, size);
-  log_ptr += consumed;
-
-  mlog_close(mtr, log_ptr);
-}
 #endif /* !UNIV_HOTBACKUP */
 
 /** Write the corrupted indexes of a table, we can pre-calculate the size
@@ -5501,10 +5437,11 @@ by calling get_write_size()
 @param[in]      size            size of write buffer, should be at least
                                 get_write_size()
 @return the length of bytes written */
-ulint CorruptedIndexPersister::write(const PersistentTableMetadata &metadata,
-                                     byte *buffer, ulint size) const {
-  ulint length = 0;
-  corrupted_ids_t corrupted_ids = metadata.get_corrupted_indexes();
+size_t CorruptedIndexPersister::write(const PersistentTableMetadata &metadata,
+                                      byte *buffer, size_t size) const {
+  ut_a(get_write_size(metadata) <= size);
+  size_t length = 0;
+  const corrupted_ids_t &corrupted_ids = metadata.get_corrupted_indexes();
   ulint num = corrupted_ids.size();
 
   ut_ad(num < MAX_INDEXES);
@@ -5530,17 +5467,16 @@ ulint CorruptedIndexPersister::write(const PersistentTableMetadata &metadata,
     buffer += INDEX_ID_LENGTH;
     ut_ad(length <= size);
   }
-
+  ut_ad(get_write_size(metadata) == length);
   return (length);
 }
 
 /** Pre-calculate the size of metadata to be written
 @param[in]      metadata        metadata to be written
 @return the size of metadata */
-ulint CorruptedIndexPersister::get_write_size(
+size_t CorruptedIndexPersister::get_write_size(
     const PersistentTableMetadata &metadata) const {
-  ulint length = 0;
-  corrupted_ids_t corrupted_ids = metadata.get_corrupted_indexes();
+  const corrupted_ids_t &corrupted_ids = metadata.get_corrupted_indexes();
 
   ut_ad(corrupted_ids.size() < MAX_INDEXES);
 
@@ -5548,11 +5484,8 @@ ulint CorruptedIndexPersister::get_write_size(
     return (0);
   }
 
-  /* PM_INDEX_CORRUPTED mark and number of corrupted indexes' ids */
-  length += 1 + 1;
-  length += corrupted_ids.size() * INDEX_ID_LENGTH;
-
-  return (length);
+  /* Space for: PM_INDEX_CORRUPTED, number of ids, and the ids themselves */
+  return 1 + 1 + corrupted_ids.size() * INDEX_ID_LENGTH;
 }
 
 /** Read the corrupted indexes from buffer, and store them to
@@ -5565,11 +5498,11 @@ metadata object
                                 otherwise false
 @return the bytes we read from the buffer if the buffer data
 is complete and we get everything, 0 if the buffer is incompleted */
-ulint CorruptedIndexPersister::read(PersistentTableMetadata &metadata,
-                                    const byte *buffer, ulint size,
-                                    bool *corrupt) const {
+size_t CorruptedIndexPersister::read(PersistentTableMetadata &metadata,
+                                     const byte *buffer, size_t size,
+                                     bool *corrupt) const {
   const byte *end = buffer + size;
-  ulint consumed = 0;
+  size_t consumed = 0;
   ulint num;
 
   *corrupt = false;
@@ -5619,20 +5552,22 @@ the size by calling get_write_size()
 @param[in]      size            size of write buffer, should be
                                 at least get_write_size()
 @return the length of bytes written */
-ulint AutoIncPersister::write(const PersistentTableMetadata &metadata,
-                              byte *buffer, ulint size) const {
-  ulint length = 0;
+size_t AutoIncPersister::write(const PersistentTableMetadata &metadata,
+                               byte *buffer, size_t size) const {
+  ut_a(get_write_size(metadata) <= size);
+  size_t length = 0;
   uint64_t autoinc = metadata.get_autoinc();
 
   mach_write_to_1(buffer, static_cast<byte>(PM_TABLE_AUTO_INC));
   ++length;
   ++buffer;
 
-  ulint len = mach_u64_write_much_compressed(buffer, autoinc);
+  const auto len = mach_u64_write_much_compressed(buffer, autoinc);
   length += len;
   buffer += len;
 
   ut_ad(length <= size);
+  ut_ad(length <= get_write_size(metadata));
   return (length);
 }
 
@@ -5642,13 +5577,13 @@ a metadata object
 @param[in]      buffer          buffer to read
 @param[in]      size            size of buffer
 @param[out]     corrupt         true if we found something wrong in
-                                  the buffer except incomplete buffer,
-                                  otherwise false
+                                the buffer except incomplete buffer,
+                                otherwise false
 @return the bytes we read from the buffer if the buffer data
 is complete and we get everything, 0 if the buffer is incomplete */
-ulint AutoIncPersister::read(PersistentTableMetadata &metadata,
-                             const byte *buffer, ulint size,
-                             bool *corrupt) const {
+size_t AutoIncPersister::read(PersistentTableMetadata &metadata,
+                              const byte *buffer, size_t size,
+                              bool *corrupt) const {
   *corrupt = false;
 
   const byte *start = buffer;
@@ -5746,7 +5681,8 @@ void Persisters::remove(persistent_type_t type) {
 @param[in]      metadata        metadata to serialize
 @param[out]     buffer          buffer to store the serialized metadata
 @return the length of serialized metadata */
-size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
+size_t Persisters::write(PersistentTableMetadata &metadata,
+                         byte *buffer) const {
   size_t size = 0;
   byte *pos = buffer;
   persistent_type_t type;
@@ -5756,8 +5692,8 @@ size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
        type = static_cast<persistent_type_t>(type + 1)) {
     ut_ad(size <= REC_MAX_DATA_SIZE);
 
-    Persister *persister = get(type);
-    ulint consumed = persister->write(metadata, pos, REC_MAX_DATA_SIZE - size);
+    const size_t consumed =
+        get(type)->write(metadata, pos, REC_MAX_DATA_SIZE - size);
 
     pos += consumed;
     size += consumed;
@@ -5932,7 +5868,7 @@ dberr_t dict_set_compression(dict_table_t *table, const char *algorithm,
   if ((table->ibd_file_missing && !is_import_op) ||
       !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE) ||
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY) ||
-      page_size_t(table->flags).is_compressed()) {
+      DICT_TF_GET_ZIP_SSIZE(table->flags) > 0) {
     return (DB_IO_NO_PUNCH_HOLE_TABLESPACE);
   }
 

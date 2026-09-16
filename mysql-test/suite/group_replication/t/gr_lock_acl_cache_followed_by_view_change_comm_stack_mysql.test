@@ -37,6 +37,8 @@
 #        it is not accepting any MySQL client connections.
 ###########################################################
 
+# CSA does not support legacy VCLE
+--source include/have_mta.inc
 --source include/have_group_replication_paxos_single_leader_disabled.inc
 --source include/big_test.inc
 --source include/have_debug.inc

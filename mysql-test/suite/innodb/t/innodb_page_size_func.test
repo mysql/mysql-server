@@ -36,7 +36,7 @@
 # -   1 for debugging.(a result difference will show up)
 let $test_debug= 0;
 
---echo # 0. Check and generate prerequites
+--echo # 0. Check and generate prerequisites
 #-----------------------------------------
 
 # InnoDb page size values in 2011-11
@@ -111,14 +111,23 @@ let SEARCH_FILE= $error_log;
 
 --source include/shutdown_mysqld.inc
 
-let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 --innodb-page-size;
+# We are using the mysqltest_safe_process as we need to start the Server
+# synchronously with expectation it will crash. We don't want any message boxes
+# on Windows, so we need the `mysqltest_safe_process --nocore` to be used.
+# Normally we would use `start_mysqld.inc` infrastructure for that as it will
+# use the `mysqltest_safe_process --nocore` seeing the `--skip-core-file`
+# argument in the `.opt` file. However, it will start the server asynchronously,
+# and we would have to synchronize with it stopping, for which I couldn't find a
+# way. And even if there is one, this solution will be shorter, without any
+# disadvantages.
+let $mysqld=$MYSQLTEST_SAFE_PROCESS --nocore -- $MYSQLD_CMD --console > $error_log 2>&1 --innodb-page-size;
 
 --echo # 1. Try to restart the server with some other legal innodb page size value.
 --echo #    It must fail because we had a different value before.
 #----------------------------------------------------------------------------------
 --echo # 1.1 The value assigned is a number.
 # Detailed explanations of what happens are placed nearby the checks.
---error 1,42
+--error 1,2,-2147483645
 --exec $mysqld=$other_page_size
 if ( $default_page_size != $other_page_size )
 {
@@ -128,13 +137,13 @@ if ( $default_page_size != $other_page_size )
    --source include/search_pattern.inc
 }
 --replace_result $start_page_size START_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
-let SEARCH_PATTERN=Data file '.*ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
+--let SEARCH_PATTERN=Tablespace file \..*ibdata1 has page size \[page size: physical=$start_page_size, logical=$start_page_size, compressed=0\] \(flags=[0-9a-fx]*\) but the data dictionary expects page size \[page size: physical=$other_page_size, logical=$other_page_size, compressed=0\] \(flags=[0-9a-fx]*\)!
 --source include/search_pattern.inc
 # The server restart aborts
-let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
+--let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Assertion failure: fil0fil.cc
 --source include/search_pattern.inc
 --echo # 1.2 The value assigned is a number followed by 'k'.
---error 1,42
+--error 1,2,-2147483645
 --exec $mysqld=$other_page_size_nk
 if ( $default_page_size != $other_page_size )
 {
@@ -145,11 +154,11 @@ if ( $default_page_size != $other_page_size )
 }
 
 --replace_result $start_page_size START_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
-let SEARCH_PATTERN=Data file '.*ibdata1' uses page size $start_page_size, but the innodb_page_size start-up parameter is $other_page_size;
+--let SEARCH_PATTERN=Tablespace file \..*ibdata1 has page size \[page size: physical=$start_page_size, logical=$start_page_size, compressed=0\] \(flags=[0-9a-fx]*\) but the data dictionary expects page size \[page size: physical=$other_page_size, logical=$other_page_size, compressed=0\] \(flags=[0-9a-fx]*\)!
 --source include/search_pattern.inc
 
 # The server restart aborts
-let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
+--let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Assertion failure: fil0fil.cc
 --source include/search_pattern.inc
 
 
@@ -161,7 +170,7 @@ let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
 # 1. not supported
 # 2. below the smallest supported one
 # The restart attempt has to fail.
---error 1,42
+--error 1,2,-2147483645
 --exec $mysqld=$out_range_page_size
 # The innodb page size gets raised to the lowest or biggest legal value.
 --replace_result $out_range_page_size OUT_RANGE_PAGE_SIZE $adjust_page_size ADJUST_PAGE_SIZE
@@ -189,7 +198,7 @@ if ($zero_test)
    {
      --echo # We do not omit the test.
    }
---error 1,42
+--error 1,2,-2147483645
 --exec $mysqld=garbage
 # General server properties cause that
 # - the plain wrong value "garbage" assigned to innodb page size gets
@@ -215,7 +224,7 @@ let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $d
 # 1. not supported
 # 2. between smallest (4k) and biggest (16k) supported one
 # InnoDB aborts, so ASAN may report leaks
---error 1,42
+--error 1,2,42,-2147483645
 --exec $mysqld=$illegal_pagesize
 # InnoDB cannot handle this value.
 --replace_result $illegal_pagesize ILLEGAL_PAGESIZE
@@ -228,7 +237,7 @@ let SEARCH_PATTERN= \[ERROR\] .*MY-\\d+.* Invalid page size=$illegal_pagesize;
 --echo #    <number>k is a legal page size.
 #---------------------------------------------------------------------------------
 # The restart attempt has to fail.
---error 1,42
+--error 1,2,-2147483645
 --exec $mysqld=$other_page_size_nkaramel
 # The plain wrong value "<number>karamel" assigned to innodb page size seems
 # to get mangled to "<number>k" which is a legal value.

@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstring>
 
 #include "my_sys.h"  // NOLINT(build/include_subdir)
+#include "mysqld_error.h"
 
 namespace xpl {
 
@@ -33,13 +34,21 @@ namespace {
 bool mysqlx_error_init(UDF_INIT *, UDF_ARGS *args, char *message) {
   if (args->arg_count == 1 && args->arg_type[0] == INT_RESULT) return false;
 
-  sprintf(message, "Function expect only one numeric argument");
+  sprintf(message, "Function expects only one numeric argument");
   return true;
 }
 
 // NOLINTNEXTLINE(runtime/int)
 char *mysqlx_error(UDF_INIT *, UDF_ARGS *args, char *, unsigned long *,
                    unsigned char *is_null, unsigned char *error) {
+  if (args->args[0] == nullptr) {
+    my_error(ER_CANT_INITIALIZE_UDF, MYF(0), "mysqlx_error",
+             "Function expects only one numeric argument");
+    *error = 1;
+    *is_null = 1;
+    return nullptr;
+  }
+
   // NOLINTNEXTLINE(runtime/int)
   my_message(*reinterpret_cast<long long *>(args->args[0]),
              "Mysqlx internal error", MYF(0));

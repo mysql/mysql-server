@@ -1,0 +1,98 @@
+# ==== PURPOSE ====
+#
+# This test validates that CSA retries a replicated XA transaction when the
+# worker is blocked by a client-side row lock before `XA PREPARE` completes.
+#
+# ==== IMPLEMENTATION ====
+#
+# Test steps
+# 1. Set up replication with APPLIER_VERSION=2 and commit order preservation.
+# 2. On the replica, start a transaction that inserts the target primary key
+#    and keeps the row lock.
+# 3. On the source, execute an XA transaction that inserts the same primary
+#    key and stops at `XA PREPARE`.
+# 4. Wait until CSA reports at least one retry for the applying transaction.
+# 5. Release the client-side row lock and commit the XA transaction on the
+#    source.
+# 6. Synchronize source and replica and verify the final table contents.
+#
+# Test pass conditions
+# 1. CSA reports retry activity while applying the XA transaction.
+# 2. The last transient error reported by the applying worker is
+#    `ER_LOCK_WAIT_TIMEOUT`.
+# 3. The source and replica tables match after the client-side lock is
+#    released and the XA transaction is committed.
+#
+# ==== REFERENCES ====
+#
+# WL#10500 MTA: Optimized and generic change stream applier
+# BUG#32175785 ADD NEW MDL WEIGHT FOR NODES WAITING ON COMMIT ORDER
+#
+
+--source include/have_csa.inc
+--source include/have_binlog_format_row.inc
+--source include/have_replica_preserve_commit_order.inc
+
+--let $rpl_applier_version=2:2
+--let $rpl_applier_worker_count=2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+let $sysvars_to_save = [
+  "GLOBAL.replica_transaction_retries",
+  "GLOBAL.innodb_lock_wait_timeout",
+  "GLOBAL.replica_preserve_commit_order",
+  "GLOBAL.replica_parallel_workers"
+];
+--source include/save_sysvars.inc
+--source include/rpl/stop_applier.inc
+SET @@GLOBAL.replica_transaction_retries = 50;
+SET @@GLOBAL.innodb_lock_wait_timeout = 5;
+SET @@GLOBAL.replica_preserve_commit_order = ON;
+SET @@GLOBAL.replica_parallel_workers = 4;
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica1.inc
+BEGIN;
+INSERT INTO t1 VALUES (10, 11);
+
+--source include/rpl/connection_source.inc
+XA START 'xa1';
+INSERT INTO t1 VALUES (10, 1);
+XA END 'xa1';
+XA PREPARE 'xa1';
+
+--source include/rpl/connection_replica.inc
+# Wait until the applier thread starts retrying.
+--let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.replication_applier_status_by_worker WHERE APPLYING_TRANSACTION_RETRIES_COUNT > 0
+--source include/wait_condition.inc
+
+--let $lock_wait_timeout_errno = convert_error(ER_LOCK_WAIT_TIMEOUT)
+--let $assert_text = CSA retry path reports lock wait timeout as the transient error
+--let $actual_transient_errno = query_get_value(SELECT APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER FROM performance_schema.replication_applier_status_by_worker WHERE APPLYING_TRANSACTION_RETRIES_COUNT > 0, APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER, 1)
+--let $assert_cond = "$actual_transient_errno" = "$lock_wait_timeout_errno"
+--source include/assert.inc
+
+--source include/rpl/connection_replica1.inc
+ROLLBACK;
+
+--source include/rpl/connection_source.inc
+XA COMMIT 'xa1';
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables=master:test.t1,slave:test.t1
+--source include/diff_tables.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+--source include/restore_sysvars.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/deinit.inc

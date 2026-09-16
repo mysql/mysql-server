@@ -1,0 +1,130 @@
+################################################################################
+# Verify asynchronous replication I/O works with replication_force_pqc enabled on the
+# replica channel and that the source-side dump thread negotiated a PQC key exchange.
+################################################################################
+--source include/not_group_replication_plugin.inc
+--source include/no_valgrind_without_big.inc
+--source include/have_tlsv13.inc
+
+# no need to test all variants
+--source include/have_binlog_format_row.inc
+
+--let $openssl_binary_version=OpenSSL (3\.[5-9]|3\.[1-9][0-9]|[4-9][0-9]*)\.
+--source include/have_openssl_binary_version.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_source.inc
+
+SET SESSION sql_log_bin=0;
+CREATE USER 'replpqc'@'%' IDENTIFIED BY 'password' REQUIRE SSL;
+GRANT REPLICATION SLAVE ON *.* TO 'replpqc'@'%';
+SET SESSION sql_log_bin=1;
+
+SET @tls_version_saved= @@GLOBAL.tls_version;
+SET GLOBAL tls_version='TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+
+CREATE TABLE test.t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (1);
+
+--source include/rpl/connection_replica.inc
+--let $replication_force_pqc_saved= `SELECT @@GLOBAL.replication_force_pqc`
+--let $replication_tls_kex_saved= `SELECT QUOTE(@@GLOBAL.replication_tls_kex)`
+--let $replication_use_pqc_sign_saved= `SELECT @@GLOBAL.replication_use_pqc_sign`
+--let $saved_source_user= query_get_value(SHOW REPLICA STATUS, Source_User, 1)
+--let $saved_source_ssl_ca= query_get_value(SHOW REPLICA STATUS, Source_SSL_CA_File, 1)
+--let $saved_source_ssl_cert= query_get_value(SHOW REPLICA STATUS, Source_SSL_Cert, 1)
+--let $saved_source_ssl_key= query_get_value(SHOW REPLICA STATUS, Source_SSL_Key, 1)
+--let $saved_source_tls_version= query_get_value(SHOW REPLICA STATUS, Source_TLS_Version, 1)
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_SSL=1, SOURCE_TLS_VERSION='TLSv1.2'
+
+--source include/save_error_log_position.inc
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --skip-replica-start=1 --replication-force-pqc=ON
+--source include/rpl/restart_server.inc
+--let $rpl_server_parameters=
+--source include/rpl/connection_replica.inc
+
+--echo Startup disables replication_force_pqc when channel TLS version excludes TLSv1.3
+SELECT @@GLOBAL.replication_force_pqc;
+--let $error_pattern=replication_force_pqc=ON requires TLSv1.3 with OpenSSL 3.5.0 or newer, but SOURCE_TLS_VERSION=TLSv1.2 for channel .* disables TLSv1.3; setting replication_force_pqc=OFF
+--source include/assert_error_log.inc
+
+--echo Runtime validation rejects replication_force_pqc when channel TLS version excludes TLSv1.3
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replication_force_pqc=ON;
+SELECT @@GLOBAL.replication_force_pqc;
+--echo 0 Expected
+
+--replace_result $MASTER_MYPORT SOURCE_PORT $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='replpqc', SOURCE_PASSWORD='password', SOURCE_SSL=1, SOURCE_SSL_CA='$MYSQL_TEST_DIR/std_data/cacert.pem', SOURCE_SSL_CERT='$MYSQL_TEST_DIR/std_data/client-cert.pem', SOURCE_SSL_KEY='$MYSQL_TEST_DIR/std_data/client-key.pem', SOURCE_TLS_VERSION='TLSv1.3'
+SET GLOBAL replication_force_pqc=ON;
+
+--echo Runtime validation rejects non-PQC replication_tls_kex when replication_force_pqc=ON
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replication_tls_kex = 'X25519';
+
+--echo Runtime validation rejects invalid replication_use_pqc_sign
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replication_use_pqc_sign = 'not_a_bool';
+
+SET GLOBAL replication_tls_kex = 'X25519MLKEM768';
+SET GLOBAL replication_use_pqc_sign = ON;
+SELECT @@GLOBAL.replication_tls_kex = 'X25519MLKEM768' AS replication_tls_kex_configured,
+       @@GLOBAL.replication_use_pqc_sign AS replication_use_pqc_sign_enabled;
+
+--source include/rpl/start_replica.inc
+
+--let $assert_text= Replica I/O uses TLS when replication_force_pqc is enabled
+--let $assert_cond= "[SHOW REPLICA STATUS, Source_SSL_Allowed, 1]" = "Yes"
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE USER='replpqc' AND COMMAND LIKE 'Binlog Dump%'
+  INTO @master_dump_pid;
+SELECT VARIABLE_VALUE LIKE '%MLKEM%' AS uses_pqc
+  FROM performance_schema.status_by_thread
+  WHERE VARIABLE_NAME='Tls_key_exchange_algorithm'
+    AND THREAD_ID = (
+      SELECT THREAD_ID FROM performance_schema.threads
+      WHERE PROCESSLIST_ID=@master_dump_pid
+    );
+
+INSERT INTO test.t1 VALUES (2);
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/sync.inc
+
+--let $assert_text= Replica received rows through a PQC-enforced TLS I/O channel
+--let $assert_cond= [SELECT COUNT(*) FROM test.t1] = 2
+--source include/assert.inc
+
+--source include/rpl/stop_replica.inc
+
+--disable_query_log
+DROP TABLE test.t1;
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$saved_source_user', SOURCE_PASSWORD='', SOURCE_SSL_CA='$saved_source_ssl_ca', SOURCE_SSL_CERT='$saved_source_ssl_cert', SOURCE_SSL_KEY='$saved_source_ssl_key', SOURCE_TLS_VERSION='$saved_source_tls_version'
+--enable_query_log
+
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET @@GLOBAL.replication_force_pqc= $replication_force_pqc_saved
+--eval SET @@GLOBAL.replication_tls_kex= $replication_tls_kex_saved
+--eval SET @@GLOBAL.replication_use_pqc_sign= $replication_use_pqc_sign_saved
+--enable_query_log
+--source include/rpl/connection_source.inc
+SET @@GLOBAL.tls_version= @tls_version_saved;
+ALTER INSTANCE RELOAD TLS;
+
+SET SESSION sql_log_bin=0;
+DROP USER 'replpqc'@'%';
+SET SESSION sql_log_bin=1;
+
+DROP TABLE test.t1;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl/deinit.inc

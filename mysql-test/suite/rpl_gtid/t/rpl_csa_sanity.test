@@ -1,0 +1,48 @@
+# ==== PURPOSE ====
+#
+# This is the CSA applier sanity test
+#
+# ==== IMPLEMENTATION ====
+#
+#     Test steps:
+#
+#     1. Set up replication with APPLIER_VERSION=2
+#     2. Start replica, apply some transactions
+#     3. Apply some transactions
+#     4. Synchronize & cleanup
+#
+# ==== REFERENCES ====
+#
+# WL#10500 MTA: Optimized and generic change stream applier
+#
+
+--source include/have_binlog_format_row.inc
+
+--let $rpl_applier_version=2:2
+--let $rpl_applier_worker_count=2:8
+--source include/rpl/init_source_replica.inc
+
+CREATE TABLE t1 (c1 INT);
+
+--disable_result_log
+--disable_query_log
+--let $i = 1000
+while ($i>0)
+{
+  --eval INSERT INTO t1 VALUES($i)
+  --dec $i
+}
+
+--enable_result_log
+--enable_query_log
+
+--source include/rpl/sync_to_replica.inc
+
+--let diff_tables=master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

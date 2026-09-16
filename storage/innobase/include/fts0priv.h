@@ -347,14 +347,6 @@ dberr_t fts_config_get_ulint(
 void fts_cache_append_deleted_doc_ids(
     const fts_cache_t *cache, /*!< in: cache to use */
     ib_vector_t *vector);     /*!< in: append to this vector */
-/** Wait for the background thread to start. We poll to detect change
-of state, which is acceptable, since the wait should happen only
-once during startup.
-@param[in] table table to which the thread is attached
-@param[in] max_wait Time to wait. If set to 0 then it disables timeout checking
-@return true if the thread started else false (i.e timed out) */
-bool fts_wait_for_background_thread_to_start(
-    dict_table_t *table, std::chrono::microseconds max_wait);
 /** Search the index specific cache for a particular FTS index.
  @return the index specific cache else NULL */
 [[nodiscard]] fts_index_cache_t *fts_find_index_cache(

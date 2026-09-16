@@ -42,7 +42,8 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                       // dd::create_object
-#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"        // DD_bootstrap_ctx
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // DD_bootstrap_ctx
+#include "sql/dd/impl/bootstrap/server_version_transition.h"
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"  // Shared_dictionary_cache
 #include "sql/dd/impl/cache/storage_adapter.h"          // Storage_adapter
 #include "sql/dd/impl/dictionary_impl.h"                // dd::Dictionary_impl
@@ -105,9 +106,9 @@ bool DDSE_dict_recover(THD *thd, dict_recovery_mode_t dict_recovery_mode,
 
 /*
   Update the System_tables registry with meta data from 'dd_properties'.
-  Iterate over the tables in the DD_properties. If this is minor downgrade,
+  Iterate over the tables in the DD_properties. If this is DD downgrade,
   add new tables that were added in the newer version to the System_tables
-  registry. If this is not minor downgrade, assert that all tables in the
+  registry. If this is not DD downgrade, assert that all tables in the
   DD_properties indeed have a corresponding entry in the System_tables
   registry.
 */
@@ -131,7 +132,7 @@ bool update_system_tables(THD *thd) {
     // Check if this is a CORE, INERT, SECOND or DDSE table.
     if (!dd::get_dictionary()->is_dd_table_name(MYSQL_SCHEMA_NAME.str,
                                                 it->first)) {
-      if (bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade()) {
+      if (bootstrap::DD_bootstrap_ctx::instance().is_dd_downgrade()) {
         /*
           Add tables as type CORE regardless of the actual type, which
           is irrelevant in this case.
@@ -202,12 +203,12 @@ bool create_target_table(THD *thd, const Object_table *object_table) {
 /* purecov: begin inspected */
 bool create_actual_table(THD *thd, const Object_table *object_table) {
   /*
-    For minor downgrade, tables might have been added in the upgraded
+    For DD downgrade, tables might have been added in the upgraded
     server that we do not have any Object_table instance for. In that
     case, we just skip them.
   */
   if (object_table == nullptr) {
-    assert(bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade());
+    assert(bootstrap::DD_bootstrap_ctx::instance().is_dd_downgrade());
     return false;
   }
 
@@ -252,7 +253,7 @@ bool acquire_exclusive_mdl(THD *thd) {
   // Prepare MDL requests for all tables names.
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it) {
-    // Skip extraneous tables during minor downgrade.
+    // Skip extraneous tables during DD downgrade.
     if ((*it)->entity() == nullptr) continue;
 
     MDL_request *table_request = new (thd->mem_root) MDL_request;
@@ -681,7 +682,7 @@ bool verify_contents(THD *thd) {
            System_tables::instance()->begin(System_tables::Types::CORE);
        it != System_tables::instance()->end();
        it = System_tables::instance()->next(it, System_tables::Types::CORE)) {
-    // Skip extraneous tables for minor downgrade.
+    // Skip extraneous tables for DD downgrade.
     if ((*it)->entity() == nullptr) continue;
 
 #ifndef NDEBUG
@@ -1156,75 +1157,60 @@ bool initialize_dd_properties(THD *thd) {
     /*
       Get information from DD properties. Do this after 8.2.0 / 8.0.35.
       Older versions do not have the required information available.
+      MYSQL_PREVIOUS_LTS_VERSION was introduced with calendar versioning. Keep
+      0 when it is not persisted so transition validation can use the
+      legacy-to-calendar bridge.
     */
     String_type mysql_version_maturity{"INNOVATION"};
+    uint mysql_version_previous_lts = 0;
+    uint stored_mysql_version_previous_lts = 0;
+    bool has_mysql_version_previous_lts = false;
     uint server_downgrade_threshold = 0;
     uint server_upgrade_threshold = 0;
     /* purecov: begin inspected */
     if (actual_server_version >= 80035 && actual_server_version != 80100) {
       (void)getprop(thd, "MYSQL_VERSION_STABILITY", &mysql_version_maturity,
                     false, WARNING_LEVEL);
+      (void)dd::tables::DD_properties::instance().get(
+          thd, "MYSQL_PREVIOUS_LTS_VERSION", &stored_mysql_version_previous_lts,
+          &has_mysql_version_previous_lts);
+      if (has_mysql_version_previous_lts)
+        mysql_version_previous_lts = stored_mysql_version_previous_lts;
       (void)getprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
                     &server_downgrade_threshold, false, WARNING_LEVEL);
       (void)getprop(thd, "SERVER_UPGRADE_THRESHOLD", &server_upgrade_threshold,
                     false, WARNING_LEVEL);
     }
 
-    /* Is there a server version change? */
-    if (MYSQL_VERSION_ID != actual_server_version) {
-      if (MYSQL_VERSION_ID > actual_server_version) {
-        // This is an upgrade attempt.
-        if ((MYSQL_VERSION_ID / 10000) != (actual_server_version / 10000) &&
-            (mysql_version_maturity != "LTS" ||
-             actual_server_version / 100 == 800 ||
-             MYSQL_VERSION_ID / 10000 != actual_server_version / 10000 + 1)) {
-          LogErr(ERROR_LEVEL, ER_INVALID_SERVER_UPGRADE_NOT_LTS,
-                 actual_server_version, MYSQL_VERSION_ID,
-                 actual_server_version);
-          return true;
-        } else if (MYSQL_VERSION_ID < server_upgrade_threshold &&
-                   MYSQL_VERSION_ID / 100 != actual_server_version / 100) {
-          LogErr(ERROR_LEVEL, ER_BEYOND_SERVER_UPGRADE_THRESHOLD,
-                 actual_server_version, MYSQL_VERSION_ID,
-                 server_upgrade_threshold);
-          return true;
-        }
-      } else {
-        // This is a downgrade attempt.
-        if (MYSQL_VERSION_ID / 100 != actual_server_version / 100) {
-          LogErr(ERROR_LEVEL, ER_INVALID_SERVER_DOWNGRADE_NOT_PATCH,
-                 actual_server_version, MYSQL_VERSION_ID);
-          return true;
-        } else if (MYSQL_VERSION_ID < server_downgrade_threshold) {
-          // Emit the most suitable error message. Patch downgrades are not
-          // supported for innovation releases, so print that if it's the case.
-          if (mysql_version_maturity == "INNOVATION")
-            LogErr(ERROR_LEVEL, ER_NO_PATCH_DOWNGRADE_FOR_INNOVATION_RELEASES,
-                   actual_server_version, MYSQL_VERSION_ID, MYSQL_VERSION_ID);
-          else
-            LogErr(ERROR_LEVEL, ER_BEYOND_SERVER_DOWNGRADE_THRESHOLD,
-                   actual_server_version, MYSQL_VERSION_ID,
-                   server_downgrade_threshold);
-          return true;
-        }
-      }
-    }
+    const bootstrap::Server_version_transition server_version_transition{
+        {.version = actual_server_version,
+         .is_lts = mysql_version_maturity == "LTS",
+         .previous_lts = mysql_version_previous_lts,
+         .upgrade_threshold = server_upgrade_threshold,
+         .downgrade_threshold = server_downgrade_threshold},
+        {.version = MYSQL_VERSION_ID,
+         .previous_lts = MYSQL_PREVIOUS_LTS_VERSION_ID}};
+    if (server_version_transition.check_and_report()) return true;
+
+    bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(
+        actual_dd_version);
 
     if (actual_dd_version != dd::DD_VERSION) {
-      bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(
-          actual_dd_version);
-
       if (!bootstrap::DD_bootstrap_ctx::instance().supported_dd_version()) {
         /*
-          If we are attempting on minor downgrade, make sure this is
+          If we are attempting on DD downgrade, make sure this is
           supported.
         */
-        if (!bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade()) {
+        if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_downgrade()) {
           LogErr(ERROR_LEVEL, ER_DD_UPGRADE_VERSION_NOT_SUPPORTED,
                  actual_dd_version);
           return true;
         }
 
+        /*
+          MINOR_DOWNGRADE_THRESHOLD is kept for historical reasons. Despite
+          its name, it acts only as the DD downgrade threshold here.
+        */
         uint minor_downgrade_threshold = 0;
         if (dd::tables::DD_properties::instance().get(
                 thd, "MINOR_DOWNGRADE_THRESHOLD", &minor_downgrade_threshold,
@@ -1296,8 +1282,8 @@ bool initialize_dd_properties(THD *thd) {
     LogErr(INFORMATION_LEVEL, ER_DD_INITIALIZE, dd::DD_VERSION);
   else if (bootstrap::DD_bootstrap_ctx::instance().is_restart())
     LogErr(INFORMATION_LEVEL, ER_DD_RESTART, dd::DD_VERSION);
-  else if (bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade())
-    LogErr(INFORMATION_LEVEL, ER_DD_MINOR_DOWNGRADE, actual_dd_version,
+  else if (bootstrap::DD_bootstrap_ctx::instance().is_dd_downgrade())
+    LogErr(INFORMATION_LEVEL, ER_DD_DOWNGRADE, actual_dd_version,
            dd::DD_VERSION);
   else {
     /*
@@ -1365,13 +1351,13 @@ bool create_tables(THD *thd, const std::set<String_type> *create_set) {
     restart and initialize, we create the target tables. For the second
     table creation stage during upgrade, we also create target tables.
     So we create the actual tables only during the first table creation
-    stage for upgrade, and for minor downgrade.
+    stage for upgrade, and for DD downgrade.
   */
   bool create_target_tables = true;
   if (bootstrap::DD_bootstrap_ctx::instance().get_stage() ==
           bootstrap::Stage::FETCHED_PROPERTIES &&
       (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade() ||
-       bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade()))
+       bootstrap::DD_bootstrap_ctx::instance().is_dd_downgrade()))
     create_target_tables = false;
 
   /*
@@ -1444,7 +1430,7 @@ bool sync_meta_data(THD *thd) {
     std::vector<Table *> dd_tables;  // Owned by the shared cache.
     for (System_tables::Const_iterator it = System_tables::instance()->begin();
          it != System_tables::instance()->end(); ++it) {
-      // Skip extraneous tables during minor downgrade.
+      // Skip extraneous tables during DD downgrade.
       if ((*it)->entity() == nullptr) continue;
 
       const dd::Table *dd_table = nullptr;
@@ -1489,7 +1475,7 @@ bool sync_meta_data(THD *thd) {
     std::vector<std::unique_ptr<Table_impl>> persisted_dd_tables;
     for (System_tables::Const_iterator it = System_tables::instance()->begin();
          it != System_tables::instance()->end(); ++it) {
-      // Skip extraneous tables during minor downgrade.
+      // Skip extraneous tables during DD downgrade.
       if ((*it)->entity() == nullptr) continue;
 
       const dd::Abstract_table *dd_table = nullptr;
@@ -1669,7 +1655,7 @@ bool sync_meta_data(THD *thd) {
 
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it) {
-    // Skip extraneous tables during minor downgrade.
+    // Skip extraneous tables during DD downgrade.
     if ((*it)->entity() == nullptr) continue;
 
     if ((*it)->property() == System_tables::Types::CORE ||
@@ -1735,7 +1721,7 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
        it != System_tables::instance()->end(); ++it) {
     if (is_non_inert_dd_or_ddse_table((*it)->property())) {
       /*
-        This will not be called for minor downgrade, so all tables
+        This will not be called for DD downgrade, so all tables
         will have a corresponding Object_table.
       */
       assert((*it)->entity() != nullptr);
@@ -1836,7 +1822,7 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
 bool update_versions(THD *thd) {
   /*
     During initialize, store the DD version number, the LCTN used, and the
-    mysqld server version.
+    mysqld server version metadata.
   */
   if (opt_initialize) {
     if (setprop(thd, "DD_VERSION", dd::DD_VERSION) ||
@@ -1845,6 +1831,8 @@ bool update_versions(THD *thd) {
         setprop(thd, "SDI_VERSION", dd::SDI_VERSION) ||
         setprop(thd, "LCTN", lower_case_table_names) ||
         setprop(thd, "MYSQL_VERSION_STABILITY", MYSQL_VERSION_MATURITY) ||
+        setprop(thd, "MYSQL_PREVIOUS_LTS_VERSION",
+                MYSQL_PREVIOUS_LTS_VERSION_ID) ||
         setprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
                 SERVER_DOWNGRADE_THRESHOLD) ||
         setprop(thd, "SERVER_UPGRADE_THRESHOLD", SERVER_UPGRADE_THRESHOLD) ||
@@ -1882,9 +1870,21 @@ bool update_versions(THD *thd) {
         (mysqld_version != MYSQL_VERSION_ID &&
          (setprop(thd, "MYSQLD_VERSION", MYSQL_VERSION_ID) ||
           setprop(thd, "MYSQL_VERSION_STABILITY", MYSQL_VERSION_MATURITY) ||
+          setprop(thd, "MYSQL_PREVIOUS_LTS_VERSION",
+                  MYSQL_PREVIOUS_LTS_VERSION_ID) ||
           setprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
                   SERVER_DOWNGRADE_THRESHOLD) ||
           setprop(thd, "SERVER_UPGRADE_THRESHOLD", SERVER_UPGRADE_THRESHOLD))))
+      return dd::end_transaction(thd, true);
+
+    bool mysql_version_previous_lts_exists = false;
+    uint mysql_version_previous_lts = 0;
+    if (dd::tables::DD_properties::instance().get(
+            thd, "MYSQL_PREVIOUS_LTS_VERSION", &mysql_version_previous_lts,
+            &mysql_version_previous_lts_exists) ||
+        (!mysql_version_previous_lts_exists &&
+         setprop(thd, "MYSQL_PREVIOUS_LTS_VERSION",
+                 MYSQL_PREVIOUS_LTS_VERSION_ID)))
       return dd::end_transaction(thd, true);
 
     /*
@@ -1908,7 +1908,7 @@ bool update_versions(THD *thd) {
       return dd::end_transaction(thd, true);
 
     /*
-      Update the minor downgrade threshold in case of upgrade.
+      Update the DD downgrade threshold in case of upgrade.
       Note that on downgrade, we keep the threshold version which is
       already present.
     */

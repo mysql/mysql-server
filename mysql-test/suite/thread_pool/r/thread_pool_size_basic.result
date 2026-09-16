@@ -1,0 +1,38 @@
+SET @default_val = 16;
+CREATE USER low_priv@localhost;
+GRANT USAGE ON test.* TO low_priv@localhost;
+SET @default_val = <default_val>;
+#---------------------BS_STVARS_051_01----------------------#
+SELECT @@GLOBAL.thread_pool_size = @default_val AS "Expect 1";
+Expect 1
+1
+SELECT @@GLOBAL.thread_pool_size = @default_val AS "Expect 1";
+Expect 1
+1
+DROP USER low_priv@localhost;
+#---------------------BS_STVARS_051_02----------------------#
+SET @@GLOBAL.thread_pool_size = 0;
+ERROR HY000: Variable 'thread_pool_size' is a read only variable
+SELECT @@GLOBAL.thread_pool_size = @default_val AS "Expect 1";
+Expect 1
+1
+#---------------------BS_STVARS_051_03----------------------#
+SELECT @@GLOBAL.thread_pool_size = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'thread_pool_size';
+Expect 1
+1
+SELECT @@GLOBAL.thread_pool_size = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME = 'thread_pool_size';
+Expect 1
+1
+#---------------------BS_STVARS_051_04----------------------#
+SELECT @@thread_pool_size = @@GLOBAL.thread_pool_size AS "Expect 1";
+Expect 1
+1
+#---------------------BS_STVARS_051_05----------------------#
+SELECT COUNT(@@SESSION.thread_pool_size);
+ERROR HY000: Variable 'thread_pool_size' is a GLOBAL variable
+SELECT thread_pool_size = @@SESSION.thread_pool_size;
+ERROR HY000: Variable 'thread_pool_size' is a GLOBAL variable

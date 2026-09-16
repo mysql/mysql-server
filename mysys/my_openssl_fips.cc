@@ -32,10 +32,6 @@
 
 #include <cassert>
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
-#include <openssl/ec.h>
-#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>
 #include <openssl/provider.h>

@@ -25,6 +25,27 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <string>
+
+/*
+  Do not let flex + bison generate
+  a YYSTYPE symbol, because this collides
+  with other parsers (innodb) and causes ODR violations.
+
+  Instead, declare our own type, LOYYSTYPE,
+  and force the flex + bison generated code to use it.
+*/
+#ifndef YYSTYPE_IS_DECLARED
+  #define YYSTYPE LOYYSTYPE
+  #define YYSTYPE_IS_DECLARED 1
+
+  union YYSTYPE
+  {
+    char *m_str;
+    int m_flags;
+  };
+#endif
+
+
 #include "sql/debug_lo_misc.h"
 #include "sql/debug_lo_parser.h"
 #include "sql/debug_lo_scanner.h"
@@ -60,17 +81,18 @@ void LOCK_ORDER_error(YYLTYPE *yyloc, LO_parser_param *p, const char* msg);
 
 %}
 
-%pure-parser
+%define api.pure
 %locations
 
 %lex-param { yyscan_t YYLEX_PARAM }
 %parse-param { struct LO_parser_param *param }
 
-%union
-{
-  char *m_str;
-  int m_flags;
-}
+// YYSTYPE is declared manually
+// %union
+// {
+//   char *m_str;
+//   int m_flags;
+// }
 
 %start graph
 

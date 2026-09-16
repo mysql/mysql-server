@@ -26,7 +26,7 @@
 
 #include "sql/sql_load.h"
 #include "my_sqlcommand.h"
-#include "sql/sql_rename.h"
+#include "sql/mysqld_cs.h"
 
 #include <fcntl.h>
 #include <limits.h>
@@ -39,7 +39,9 @@
 #include <algorithm>
 #include <atomic>
 #include <limits>
+#include <memory>
 #include <sstream>
+#include <string>
 
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -69,6 +71,8 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_table.h"                 // dd::table_storage_engine
 #include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/schema.h"  // dd::Schema
+#include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/error_handler.h"  // Ignore_error_handler
 #include "sql/field.h"
@@ -115,7 +119,231 @@
 class READ_INFO;
 
 using std::max;
-using std::min;
+
+/**
+  Lock a generated backup table name and verify that it is not already in use.
+
+  @param thd          Thread context.
+  @param schema_name  Schema containing the table.
+  @param table_name   Original table name, used for error reporting.
+  @param backup_name  Generated name for the backup table.
+
+  @retval false  Success.
+  @retval true   Error.
+*/
+static bool lock_and_check_bulk_load_backup_name(
+    THD *thd, const std::string &schema_name, const std::string &table_name,
+    const std::string &backup_name) {
+  MDL_request backup_name_mdl_request;
+  MDL_REQUEST_INIT(&backup_name_mdl_request, MDL_key::TABLE,
+                   schema_name.c_str(), backup_name.c_str(), MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
+                                    thd->variables.lock_wait_timeout)) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             "Failed to acquire metadata lock on temporary backup table name "
+             "for table duplication during incremental bulk load!");
+    return true;
+  }
+
+  const dd::Table *backup_table = nullptr;
+  if (thd->dd_client()->acquire(schema_name.c_str(), backup_name.c_str(),
+                                &backup_table)) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             "Failed to check temporary backup table name for table "
+             "duplication during incremental bulk load!");
+    return true;
+  }
+
+  if (backup_table != nullptr) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             "Temporary backup table name already exists!");
+    return true;
+  }
+
+  return false;
+}
+
+/**
+  Rename a table as part of an atomic copy-style bulk load replacement.
+
+  The rename does not commit data dictionary changes or rename generated
+  foreign key names.
+
+  @param thd           Thread context.
+  @param hton          Table storage engine handlerton.
+  @param schema        Data dictionary object for the table schema.
+  @param schema_name   Schema containing the table.
+  @param table_name    Original table name, used for error reporting.
+  @param from_name     Current name of the table being renamed.
+  @param from_fk_name  Name used to identify self-referencing foreign keys.
+  @param to_name       New name for the table.
+
+  @retval false  Success.
+  @retval true   Error.
+*/
+static bool rename_table_for_bulk_load(THD *thd, handlerton *hton,
+                                       const dd::Schema &schema,
+                                       const std::string &schema_name,
+                                       const std::string &table_name,
+                                       const std::string &from_name,
+                                       const std::string &from_fk_name,
+                                       const std::string &to_name) {
+  constexpr uint flags = NO_DD_COMMIT | NO_FK_RENAME;
+
+  const dd::Table *from_table_def = nullptr;
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  if (thd->dd_client()->acquire(schema_name.c_str(), from_name.c_str(),
+                                &from_table_def) ||
+      from_table_def == nullptr) {
+    std::string message = "Failed to acquire table definition for '";
+    message += from_name;
+    message += "' during copy-style replacement!";
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             message.c_str());
+    return true;
+  }
+
+  /*
+    mysql_rename_table() renames generated check constraint names. Lock their
+    source and target names before it updates the data dictionary.
+  */
+  if (lock_check_constraint_names_for_rename(
+          thd, schema_name.c_str(), from_name.c_str(), from_table_def,
+          schema_name.c_str(), to_name.c_str())) {
+    std::string message =
+        "Failed to acquire metadata locks on check "
+        "constraint names for table '";
+    message += from_name;
+    message += "' during copy-style replacement!";
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             message.c_str());
+    return true;
+  }
+
+  if (mysql_rename_table(thd, hton, schema_name.c_str(), from_name.c_str(),
+                         schema_name.c_str(), from_fk_name.c_str(), schema,
+                         schema_name.c_str(), to_name.c_str(), flags)) {
+    std::string message = "Failed to rename table from '";
+    message += from_name;
+    message += "' to '";
+    message += to_name;
+    message += "' during copy-style replacement!";
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_name.c_str(),
+             message.c_str());
+    return true;
+  }
+
+  return false;
+}
+
+static bool replace_table_for_bulk_load(THD *thd, handlerton *hton,
+                                        Table_ref *table_ref,
+                                        const std::string &schema_name,
+                                        const std::string &original_name,
+                                        const std::string &loaded_table_name,
+                                        const std::string &backup_name) {
+  /*
+    Generated backup names are only reasonably unique. Lock the rename target
+    while verifying that no existing table uses it.
+  */
+  if (lock_and_check_bulk_load_backup_name(thd, schema_name, original_name,
+                                           backup_name))
+    return true;
+
+  const dd::Schema *schema = nullptr;
+  if (thd->dd_client()->acquire(schema_name.c_str(), &schema) ||
+      schema == nullptr) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), original_name.c_str(),
+             "Failed to acquire schema for table replacement after incremental "
+             "bulk load!");
+    return true;
+  }
+
+  if (table_ref->table == nullptr) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), original_name.c_str(),
+             "Failed to find open table for table replacement after "
+             "incremental bulk load!");
+    return true;
+  }
+
+  /*
+    Match ALTER TABLE COPY: evict open and cached instances of the old table
+    before renaming it to the backup that will later be dropped.
+  */
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::TABLE, schema_name.c_str(), original_name.c_str(),
+      MDL_EXCLUSIVE));
+  close_all_tables_for_name(thd, table_ref->table->s, false, nullptr);
+  table_ref->table = nullptr;
+
+  /*
+    Incremental bulk load replaces only the physical parent table. The loaded
+    duplicate has the same definition and logical name, so FK children must not
+    follow either internal rename and their definitions need no adjustment.
+  */
+  if (rename_table_for_bulk_load(thd, hton, *schema, schema_name, original_name,
+                                 original_name, original_name, backup_name))
+    return true;
+
+  if (rename_table_for_bulk_load(thd, hton, *schema, schema_name, original_name,
+                                 loaded_table_name, original_name,
+                                 original_name))
+    return true;
+
+  /* Reload reverse FK metadata for the newly installed parent definition. */
+  if (adjust_fk_parents(thd, schema_name.c_str(), original_name.c_str(), true,
+                        nullptr)) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), original_name.c_str(),
+             "Failed to refresh foreign key parent metadata after table "
+             "replacement for incremental bulk load!");
+    return true;
+  }
+
+  close_thread_tables(thd);
+
+  if (quick_rm_table(thd, hton, schema_name.c_str(), backup_name.c_str(),
+                     NO_DD_COMMIT)) {
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), original_name.c_str(),
+             "Failed to remove temporary backup table after table "
+             "replacement for incremental bulk load!");
+    return true;
+  }
+
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, schema_name.c_str(),
+                   backup_name.c_str(), false);
+
+  return false;
+}
+
+/*
+  Temporary NULL values must outlive temporary nullability so that NOT NULL
+  constraints can inspect them, but must not leak past the current row or
+  statement.
+*/
+class Load_data_tmp_null_guard {
+ public:
+  explicit Load_data_tmp_null_guard(TABLE *table) : m_table(table) {}
+
+  ~Load_data_tmp_null_guard() {
+    for (Field **field = m_table->field; *field; ++field) {
+      (*field)->reset_tmp_nullable();
+      (*field)->reset_tmp_null();
+    }
+  }
+
+  void set_tmp_nullable(Field *field) { field->set_tmp_nullable(); }
+
+  void reset_tmp_nullable() {
+    for (Field **field = m_table->field; *field; ++field) {
+      (*field)->reset_tmp_nullable();
+    }
+  }
+
+ private:
+  TABLE *const m_table;
+};
 
 class XML_TAG {
  public:
@@ -336,8 +564,9 @@ bool Sql_cmd_load_table::validate_table_for_bulk_load(
     return true;
   }
 
-  if (table_ref->table->part_info != nullptr) {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Partitioned Table");
+  if (table_ref->table->part_info != nullptr && m_opt_partitions == nullptr) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "Partitioned Table without explicit PARTITION clause.");
     return true;
   }
 
@@ -352,29 +581,6 @@ bool Sql_cmd_load_table::validate_table_for_bulk_load(
   */
 
   return false;
-}
-
-bool Sql_cmd_load_table::rename_table_for_incremental_bulk_load(
-    THD *thd, const std::string &schema_name, const std::string &old_table_name,
-    const std::string &new_table_name) {
-  close_thread_tables(thd);
-
-  Table_ref old_table_ref{};
-  old_table_ref.table_name = old_table_name.c_str();
-  old_table_ref.table_name_length = old_table_name.length();
-  old_table_ref.db = schema_name.c_str();
-  old_table_ref.db_length = schema_name.length();
-  old_table_ref.alias = old_table_ref.table_name;
-  Table_ref new_table_ref{};
-  new_table_ref.table_name = new_table_name.c_str();
-  new_table_ref.table_name_length = new_table_name.length();
-  new_table_ref.db = schema_name.c_str();
-  new_table_ref.db_length = schema_name.length();
-  new_table_ref.alias = new_table_ref.table_name;
-  new_table_ref.next_local = nullptr;
-  old_table_ref.next_local = &new_table_ref;
-
-  return mysql_rename_tables(thd, &old_table_ref);
 }
 
 bool Sql_cmd_load_table::duplicate_table_for_bulk_load(
@@ -411,6 +617,209 @@ bool Sql_cmd_load_table::duplicate_table_for_bulk_load(
   return res;
 }
 
+bool Sql_cmd_load_table::validate_check_constraints_for_bulk_load(
+    THD *thd, TABLE *table) {
+  DBUG_TRACE;
+  assert(table != nullptr);
+
+  if (table->table_check_constraint_list == nullptr) return false;
+
+  bool has_enforced_check_constraint = false;
+  for (auto &table_cc : *table->table_check_constraint_list) {
+    if (table_cc.is_enforced()) {
+      has_enforced_check_constraint = true;
+      break;
+    }
+  }
+
+  if (!has_enforced_check_constraint) return false;
+
+  MY_BITMAP saved_read_set{};
+  MY_BITMAP saved_write_set{};
+  MY_BITMAP saved_read_set_internal{};
+  if (bitmap_init(&saved_read_set, nullptr, table->s->fields) ||
+      bitmap_init(&saved_write_set, nullptr, table->s->fields) ||
+      bitmap_init(&saved_read_set_internal, nullptr, table->s->fields)) {
+    if (saved_read_set.bitmap != nullptr) bitmap_free(&saved_read_set);
+    if (saved_write_set.bitmap != nullptr) bitmap_free(&saved_write_set);
+    if (saved_read_set_internal.bitmap != nullptr)
+      bitmap_free(&saved_read_set_internal);
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    return true;
+  }
+
+  bitmap_copy(&saved_read_set, table->read_set);
+  bitmap_copy(&saved_write_set, table->write_set);
+  bitmap_copy(&saved_read_set_internal, &table->read_set_internal);
+  const Key_map saved_covering_keys = table->covering_keys;
+  const Key_map saved_merge_keys = table->merge_keys;
+
+  auto restore_column_maps = create_scope_guard([&]() {
+    bitmap_copy(table->read_set, &saved_read_set);
+    bitmap_copy(table->write_set, &saved_write_set);
+    bitmap_copy(&table->read_set_internal, &saved_read_set_internal);
+    table->covering_keys = saved_covering_keys;
+    table->merge_keys = saved_merge_keys;
+    table->file->column_bitmaps_signal();
+    bitmap_free(&saved_read_set);
+    bitmap_free(&saved_write_set);
+    bitmap_free(&saved_read_set_internal);
+  });
+
+  table->covering_keys = table->s->keys_for_keyread;
+  table->merge_keys.clear_all();
+  table->clear_column_bitmaps();
+  table->mark_check_constraint_columns(false);
+  table->file->column_bitmaps_signal();
+
+  const bool need_handler_lock = table->s->tmp_table == NO_TMP_TABLE &&
+                                 table->file->get_lock_type() == F_UNLCK;
+  if (need_handler_lock && table->file->ha_external_lock(thd, F_RDLCK)) {
+    return true;
+  }
+  auto release_handler_lock = create_scope_guard([&]() {
+    if (need_handler_lock) {
+      (void)table->file->ha_external_lock(thd, F_UNLCK);
+    }
+  });
+
+  table->file->start_psi_batch_mode();
+  bool psi_batch_started = true;
+  auto end_psi_batch_mode = create_scope_guard([&]() {
+    if (psi_batch_started) table->file->end_psi_batch_mode();
+  });
+
+  int error = table->file->ha_rnd_init(true);
+  if (error) {
+    table->file->print_error(error, MYF(0));
+    return true;
+  }
+
+  bool scan_started = true;
+  auto end_scan = create_scope_guard([&]() {
+    if (scan_started && table->file->inited == handler::RND)
+      (void)table->file->ha_rnd_end();
+  });
+
+  DEBUG_SYNC(thd, "bulk_load_before_check_validation");
+  DBUG_EXECUTE_IF("crash_load_bulk_before_check_validation", DBUG_SUICIDE(););
+
+  for (;;) {
+    if (thd->killed) {
+      thd->send_kill_message();
+      return true;
+    }
+
+    error = table->file->ha_rnd_next(table->record[0]);
+    if (error != 0) {
+      if (error == HA_ERR_RECORD_DELETED) continue;
+      if (error == HA_ERR_END_OF_FILE) break;
+
+      table->file->print_error(error, MYF(0));
+      return true;
+    }
+
+    if (invoke_table_check_constraints(thd, table)) return true;
+  }
+
+  error = table->file->ha_rnd_end();
+  scan_started = false;
+  if (error) {
+    table->file->print_error(error, MYF(0));
+    return true;
+  }
+
+  table->file->end_psi_batch_mode();
+  psi_batch_started = false;
+  return false;
+}
+
+bool Sql_cmd_load_table::run_bulk_driver_for_target(
+    THD *thd, Table_ref *table_ref, Table_ref *new_table_ref,
+    bool has_duplicate_table, const std::string *partition_name_ptr,
+    Bulk_load_file_info &info, Bulk_source src, size_t &affected_rows) {
+  TABLE *saved_open_tables = thd->open_tables;
+
+  Table_ref table_ref_copy(table_ref->db, table_ref->db_length,
+                           table_ref->table_name, table_ref->table_name_length,
+                           table_ref->alias, table_ref->lock_descriptor().type,
+                           table_ref->mdl_request.type);
+  table_ref_copy.open_strategy = table_ref->open_strategy;
+  table_ref_copy.open_type = table_ref->open_type;
+  table_ref_copy.required_type = table_ref->required_type;
+  table_ref_copy.mdl_request.ticket = table_ref->mdl_request.ticket;
+
+  Table_ref new_table_ref_copy;
+  Table_ref *new_table_ref_ptr = nullptr;
+  if (has_duplicate_table && new_table_ref != nullptr) {
+    new_table_ref_copy = Table_ref(
+        new_table_ref->db, new_table_ref->db_length, new_table_ref->table_name,
+        new_table_ref->table_name_length, new_table_ref->alias,
+        new_table_ref->lock_descriptor().type, new_table_ref->mdl_request.type);
+    new_table_ref_copy.open_strategy = new_table_ref->open_strategy;
+    new_table_ref_copy.open_type = new_table_ref->open_type;
+    new_table_ref_copy.required_type = new_table_ref->required_type;
+    new_table_ref_copy.mdl_request.ticket = new_table_ref->mdl_request.ticket;
+    new_table_ref_ptr = &new_table_ref_copy;
+  }
+
+  List<String> partitions;
+  String partition_name_storage;
+  if (partition_name_ptr != nullptr) {
+    partition_name_storage.set_charset(character_set_filesystem);
+    partition_name_storage.copy(partition_name_ptr->c_str(),
+                                partition_name_ptr->length(),
+                                character_set_filesystem);
+    info.m_current_partition = *partition_name_ptr;
+    partitions.push_back(&partition_name_storage);
+    table_ref_copy.partition_names = &partitions;
+    if (new_table_ref_ptr != nullptr)
+      new_table_ref_ptr->partition_names = &partitions;
+  } else {
+    info.m_current_partition.clear();
+    table_ref_copy.partition_names = nullptr;
+    if (new_table_ref_ptr != nullptr)
+      new_table_ref_ptr->partition_names = nullptr;
+  }
+
+  thd->set_open_tables(nullptr);
+  auto cleanup_open_tables = create_scope_guard([&]() {
+    close_thread_tables(thd);
+    table_ref_copy.table = nullptr;
+    if (new_table_ref_ptr != nullptr) new_table_ref_ptr->table = nullptr;
+    thd->set_open_tables(saved_open_tables);
+  });
+
+  Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
+  if (open_table(thd, &table_ref_copy, &ot_ctx)) {
+    my_error(ER_INTERNAL_ERROR, MYF(0), "BULK LOAD: open_table failed");
+    return true;
+  }
+
+  if (has_duplicate_table && new_table_ref_ptr != nullptr) {
+    Open_table_context duplicate_ot_ctx(thd, MYSQL_OPEN_REOPEN);
+    if (open_table(thd, new_table_ref_ptr, &duplicate_ot_ctx)) {
+      my_error(ER_INTERNAL_ERROR, MYF(0),
+               "BULK LOAD: open_table failed on duplicate table");
+      return true;
+    }
+  }
+
+  size_t affected_rows_partition = 0;
+  TABLE *duplicate_table = (has_duplicate_table && new_table_ref_ptr != nullptr)
+                               ? new_table_ref_ptr->table
+                               : nullptr;
+  if (!bulk_driver_service(thd, table_ref_copy.table, duplicate_table, info,
+                           src, affected_rows_partition)) {
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "BULK LOAD: bulk_driver_service failed");
+    return true;
+  }
+
+  affected_rows += affected_rows_partition;
+  return false;
+}
+
 /**
   Execute BULK LOAD DATA
   @param thd Current thread.
@@ -418,6 +827,13 @@ bool Sql_cmd_load_table::duplicate_table_for_bulk_load(
 */
 bool Sql_cmd_load_table::execute_bulk(THD *thd) {
   DBUG_TRACE;
+
+  if (m_opt_partitions != nullptr && m_file_count > 1 &&
+      m_opt_partitions->mode() != Load_data_partition_mode::NAME_WITH_FILES) {
+    my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA with BULK Algorithm",
+             "PARTITION without FILES range mapping");
+    return true;
+  }
 
   if (check_bulk_load_parameters(thd)) {
     return true;
@@ -462,6 +878,29 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
     return true;
   }
 
+  if (m_opt_partitions != nullptr && table_ref->table->part_info != nullptr) {
+    partition_info *part_info = table_ref->table->part_info;
+    for (const auto *partition : m_opt_partitions->partitions()) {
+      uint32 part_id = NOT_A_PARTITION_ID;
+      partition_element *part_elem =
+          part_info->get_part_elem(partition->name().str, &part_id);
+
+      if (part_elem == nullptr) {
+        my_error(ER_UNKNOWN_PARTITION, MYF(0), partition->name().str,
+                 table_ref->alias);
+        return true;
+      }
+
+      if (part_info->is_sub_partitioned() &&
+          part_elem->subpartitions.elements > 0) {
+        my_error(
+            ER_LOAD_BULK_DATA_FAILED, MYF(0), partition->name().str,
+            "BULK LOAD requires leaf subpartition names in PARTITION clause");
+        return true;
+      }
+    }
+  }
+
   Bulk_source src = Bulk_source::LOCAL;
 
   switch (m_bulk_source) {
@@ -487,6 +926,23 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
     if (!info.parse(error)) {
       my_error(ER_BULK_PARSER_ERROR, MYF(0), error.c_str());
       return false;
+    }
+  }
+
+  if (m_opt_partitions != nullptr && !m_opt_partitions->partitions().empty()) {
+    info.m_partitions.clear();
+    for (const auto *partition : m_opt_partitions->partitions()) {
+      std::vector<int> file_indexes;
+      if (m_opt_partitions->mode() ==
+          Load_data_partition_mode::NAME_WITH_FILES) {
+        const auto &files_range = partition->files_range();
+        assert(files_range.has_value());
+        for (ulong file_index = files_range->first;
+             file_index <= files_range->second; ++file_index) {
+          file_indexes.push_back(static_cast<int>(file_index));
+        }
+      }
+      info.m_partitions.emplace(partition->name().str, std::move(file_indexes));
     }
   }
 
@@ -519,7 +975,6 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
   }
 
   Table_ref new_table_ref{};
-  Table_ref *new_table_ref_ptr = &new_table_ref;
 
   std::string original_name = table_ref->table_name;
   std::string temp_name{};
@@ -528,11 +983,9 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
   Disable_binlog_guard disable_binlog(thd);
 
   bool success = false;
-  bool new_table_opened = false;
   // Actions needed to cleanup before leaving scope.
   auto cleanup_guard = create_scope_guard([&]() {
     THD_STAGE_INFO(thd, stage_end);
-
     close_thread_tables(thd);
     // End transaction
     if (success) {
@@ -557,6 +1010,13 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
       hton->post_ddl(thd);
     }
   });
+
+  ulonglong auto_increment_value = 0;
+  if (table_ref->table->found_next_number_field) {
+    HA_CREATE_INFO create_info;
+    table_ref->table->file->update_create_info(&create_info);
+    auto_increment_value = create_info.auto_increment_value;
+  }
 
   if (!table_ref->table->file->is_table_empty()) {
     m_non_empty_table = true;
@@ -586,6 +1046,7 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
   tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_ref->db, table_ref->table_name,
                    false);
   table_ref->table = nullptr;
+
   if (m_non_empty_table && !info.m_is_dryrun) {
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, new_table_ref.db,
                      new_table_ref.table_name, false);
@@ -613,49 +1074,65 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
     return true;
   }
 
-  /* Open the table after truncate. Here we open the destination table, on
-  which we already have an exclusive metadata lock.  */
-  Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
-  if (open_table(thd, table_ref, &ot_ctx)) {
+  size_t affected_rows = 0;
+  const bool partitioned_load = !info.m_partitions.empty();
+  const bool has_duplicate_table = m_non_empty_table && !info.m_is_dryrun;
+
+  if (partitioned_load) {
+    for (const auto &p : info.m_partitions) {
+      if (run_bulk_driver_for_target(thd, table_ref, &new_table_ref,
+                                     has_duplicate_table, &p.first, info, src,
+                                     affected_rows)) {
+        success = false;
+        return true;
+      }
+    }
+  } else {
+    if (run_bulk_driver_for_target(thd, table_ref, &new_table_ref,
+                                   has_duplicate_table, nullptr, info, src,
+                                   affected_rows)) {
+      success = false;
+      return true;
+    }
+  }
+
+  Table_ref *const bulk_loaded_table_ref =
+      has_duplicate_table ? &new_table_ref : table_ref;
+  bulk_loaded_table_ref->partition_names = nullptr;
+  Open_table_context bulk_loaded_ot_ctx(thd, MYSQL_OPEN_REOPEN);
+  if (open_table(thd, bulk_loaded_table_ref, &bulk_loaded_ot_ctx)) {
     my_error(ER_INTERNAL_ERROR, MYF(0), "BULK LOAD: open_table failed");
     success = false;
     return true;
   }
 
-  if (m_non_empty_table && !info.m_is_dryrun) {
-    new_table_opened = !open_tables(thd, &new_table_ref_ptr, &counter,
-                                    MYSQL_OPEN_HAS_MDL_LOCK);
-    if (!new_table_opened) {
-      my_error(ER_INTERNAL_ERROR, MYF(0),
-               "BULK LOAD: open_tables failed on duplicate table");
-      success = false;
-      return true;
-    }
-  }
+  TABLE *const bulk_loaded_table = bulk_loaded_table_ref->table;
 
-  size_t affected_rows = 0;
-  if (!m_non_empty_table && !bulk_driver_service(thd, table_ref->table, nullptr,
-                                                 info, src, affected_rows)) {
+  if (!m_non_empty_table && auto_increment_value != 0 &&
+      bulk_loaded_table->file->bulk_load_preserve_auto_increment(
+          auto_increment_value) != 0) {
     my_error(ER_INTERNAL_ERROR, MYF(0),
-             "BULK LOAD: bulk_driver_service failed");
+             "BULK LOAD: Failed to preserve AUTO_INCREMENT value");
     success = false;
     return true;
   }
 
-  if (m_non_empty_table) {
-    auto *duplicate_table =
-        info.m_is_dryrun ? nullptr : new_table_ref_ptr->table;
-    if (!bulk_driver_service(thd, table_ref->table, duplicate_table, info, src,
-                             affected_rows)) {
-      my_error(ER_INTERNAL_ERROR, MYF(0),
-               "BULK LOAD: bulk_driver_service failed");
-      success = false;
-      return true;
-    }
+  if (validate_check_constraints_for_bulk_load(thd, bulk_loaded_table)) {
+    return true;
   }
 
   const bool no_fk_check =
       thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS;
+
+  table_ref->partition_names = nullptr;
+  if (table_ref->table == nullptr) {
+    Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
+    if (open_table(thd, table_ref, &ot_ctx)) {
+      my_error(ER_INTERNAL_ERROR, MYF(0), "BULK LOAD: open_table failed");
+      success = false;
+      return true;
+    }
+  }
 
   if (table_ref->table->s->foreign_keys > 0 && !no_fk_check) {
     auto *share = table_ref->table->s;
@@ -672,8 +1149,8 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
       }
     }
 
-    if (table_ref->table->file->ha_check_foreign_constraints(thd,
-                                                             m_concurrency)) {
+    if (bulk_loaded_table->file->ha_check_foreign_constraints(thd,
+                                                              m_concurrency)) {
       /* Foreign key constraint check failed. */
       my_error(ER_BULK_LOADER_COMPONENT_ERROR, MYF(0),
                "Foreign key check failed");
@@ -684,38 +1161,10 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
   if (m_non_empty_table && !info.m_is_dryrun) {
     auto final_temp_name =
         table_ref->table->file->bulk_load_generate_temporary_table_name();
-    Table_ref final_table_ref{};
-    final_table_ref.table_name = final_temp_name.c_str();
-    final_table_ref.table_name_length = final_temp_name.length();
-    final_table_ref.db = schema_name.c_str();
-    final_table_ref.db_length = schema_name.length();
-    MDL_REQUEST_INIT(&final_table_ref.mdl_request, MDL_key::TABLE,
-                     final_table_ref.db, final_table_ref.table_name,
-                     MDL_EXCLUSIVE, MDL_TRANSACTION);
-    if (lock_table_names(thd, &final_table_ref, nullptr,
-                         thd->variables.lock_wait_timeout, 0)) {
-      success = false;
-      return true;
-    }
-    if (rename_table_for_incremental_bulk_load(thd, schema_name, original_name,
-                                               final_temp_name)) {
-      success = false;
-      return true;
-    }
-    if (rename_table_for_incremental_bulk_load(thd, schema_name, temp_name,
-                                               original_name)) {
-      success = false;
-      return true;
-    }
 
-    Table_ref old_table_ref;
-    old_table_ref.table_name = final_temp_name.c_str();
-    old_table_ref.table_name_length = final_temp_name.length();
-    old_table_ref.db = schema_name.c_str();
-    old_table_ref.db_length = schema_name.length();
-    old_table_ref.alias = old_table_ref.table_name;
-    close_thread_tables(thd);
-    if (mysql_rm_table(thd, &old_table_ref, false, false)) {
+    if (replace_table_for_bulk_load(thd, hton, table_ref, schema_name,
+                                    original_name, temp_name,
+                                    final_temp_name)) {
       success = false;
       return true;
     }
@@ -773,7 +1222,8 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *sql_table,
   auto load_handle = load_driver->create_bulk_loader(
       thd, thd->thread_id(), sql_table, duplicate_table, src,
       (m_exchange.file_info.cs != nullptr) ? m_exchange.file_info.cs
-                                           : thd->variables.collation_database);
+                                           : thd->variables.collation_database,
+      info);
 
   /* Set schema, table, file name string options. */
   std::string schema_name(sql_table->s->db.str, sql_table->s->db.length);
@@ -1595,27 +2045,6 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
   return read_info.error;
 }
 
-class Field_tmp_nullability_guard {
- public:
-  explicit Field_tmp_nullability_guard(Item *item) : m_field(nullptr) {
-    if (item->type() == Item::FIELD_ITEM) {
-      m_field = ((Item_field *)item)->field;
-      /*
-        Enable temporary nullability for items that corresponds
-        to table fields.
-      */
-      m_field->set_tmp_nullable();
-    }
-  }
-
-  ~Field_tmp_nullability_guard() {
-    if (m_field) m_field->reset_tmp_nullable();
-  }
-
- private:
-  Field *m_field;
-};
-
 /**
   Read rows in delimiter-separated formats.
 
@@ -1648,6 +2077,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
     }
 
     restore_record(table, s->default_values);
+    Load_data_tmp_null_guard row_tmp_null_guard(table);
     /*
       Check whether default values of the fields not specified in column list
       are correct or not.
@@ -1680,13 +2110,16 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 
       real_item = item->real_item();
 
-      Field_tmp_nullability_guard fld_tmp_nullability_guard(real_item);
+      Field *field = nullptr;
+      if (real_item->type() == Item::FIELD_ITEM) {
+        field = down_cast<Item_field *>(real_item)->field;
+        row_tmp_null_guard.set_tmp_nullable(field);
+      }
 
       if ((!read_info.enclosed && (enclosed_length && length == 4 &&
                                    !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
           (length == 1 && read_info.found_null)) {
-        if (real_item->type() == Item::FIELD_ITEM) {
-          Field *field = ((Item_field *)real_item)->field;
+        if (field != nullptr) {
           if (field->reset())  // Set to 0
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0), field->field_name,
@@ -1712,8 +2145,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
         continue;
       }
 
-      if (real_item->type() == Item::FIELD_ITEM) {
-        Field *field = ((Item_field *)real_item)->field;
+      if (field != nullptr) {
         field->set_notnull();
         read_info.row_end[0] = 0;  // Safe to change end marker
         if (field == table->next_number_field)
@@ -1725,6 +2157,8 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
             ->set_value((char *)pos, length, read_info.read_charset);
       }
     }
+
+    row_tmp_null_guard.reset_tmp_nullable();
 
     if (thd->is_error()) read_info.error = true;
 

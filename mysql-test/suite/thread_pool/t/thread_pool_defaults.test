@@ -1,0 +1,215 @@
+########################################################################
+# === Purpose ===
+# This test verifies that default thread pool settings are applied
+# correctly when server starts.
+#
+# === Implementation ===
+#
+#  1. Start mysqld with default values
+#  2. Verify the defaults for the following variables.
+#     - thread_pool_size must be
+#         TP size = #NUM_VCPUS / 2
+#         min default: 1
+#         max default: 16
+#     - thread_pool_max_transactions_limit must be
+#         MTL = 32 * thread_pool_size
+#         min default: 32
+#         max default: 512
+#     - thread_pool_query_threads_per_group must be 2
+#     - thread_pool_algorithm must be 1
+#     - thread_pool_max_unused_threads must be 2
+#  3. Restart mysqld with --thread-pool-size=1
+#  4. Repeat step 2
+#  5. Restart mysqld with --thread-pool-size=8
+#  6. Repeat step 2
+#  7. Restart mysqld with --thread-pool-size=32
+#  8. Repeat step 2
+#  9. Restart mysqld with --thread-pool-size=128
+# 10. Repeat step 2
+#
+# === References ===
+# WL#16621: Change Thread Pool Plugin configuration defaults.
+########################################################################
+
+# This test changes thread pool size
+--source include/force_restart.inc
+
+--disable_query_log
+# Get the number of CPUs on the system.
+--eval SET @num_cpus = $NUMBER_OF_CPUS;
+
+# Calculate the expected thread pool size based on the number of CPUs
+# CLAMP(value, min, max) can be written as LEAST(GREATEST(value,min), max)
+
+--let $expected_tp_size = `SELECT LEAST(GREATEST(CEIL(@num_cpus / 2), 1), 16)`
+--eval SET @expected_tp_size = $expected_tp_size
+
+# Calculate the expected max-transactions-limit based on the thread pool size
+--let $expected_mtl = `SELECT LEAST(GREATEST(CEIL(32 * @expected_tp_size), 1), 512)`
+--enable_query_log
+
+# Verify that thread pool size is same as the expected value
+--let actual_tp_size = `SELECT @@global.thread_pool_size`
+if ($actual_tp_size != $expected_tp_size)
+{
+  --echo @@global.thread_pool_size must be = $expected_tp_size when NUM_CPUS = $NUMBER_OF_CPUS
+  --echo actual_size = $actual_tp_size
+  --die Got a different @@global.thread_pool_size
+}
+
+# Verify that max transactions limit is same as the expected value
+--let actual_mtl = `SELECT @@global.thread_pool_max_transactions_limit`
+if ($actual_mtl != $expected_mtl)
+{
+  --echo @@global.thread_pool_size must be = $expected_tp_size when NUM_CPUS = $NUMBER_OF_CPUS
+  --echo actual_tp_size = $actual_tp_size, actual_mtl_size = $actual_mtl
+  --die Got a different @@global.thread_pool_max_transactions_limit
+}
+
+--echo #
+--echo # Restart mysqld server with --thread-pool-size=1
+--echo #
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD --thread-pool-size=1
+--source include/restart_mysqld.inc
+
+# Ensure that server is started with thread_pool_size = 1.
+if (`SELECT @@global.thread_pool_size <> 1`)
+{
+  --die @@global.thread_pool_size must be = 1.
+}
+
+# When thread pool size is 1, then max-transactions-limit must be 32.
+if (`SELECT @@global.thread_pool_max_transactions_limit <> 32`)
+{
+  --die @@global.thread_pool_max_transactions_limit must be 32.
+}
+
+# The default value of query threads per group must be 2
+if (`SELECT @@global.thread_pool_query_threads_per_group <> 2`)
+{
+  --die @@global.thread_pool_query_threads_per_group must be 2.
+}
+
+# The default value of algorithm must be 1
+if (`SELECT @@global.thread_pool_algorithm <> 1`)
+{
+  --die @@global.thread_pool_algorithm must be 1.
+}
+
+# The default value of max unused threads must be 32
+if (`SELECT @@global.thread_pool_max_unused_threads <> 32`)
+{
+   --die @@global.thread_pool_max_unused_threads must be 32.
+}
+
+--echo #
+--echo # Restart mysqld server with --thread-pool-size=8
+--echo #
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD --thread-pool-size=8
+--source include/restart_mysqld.inc
+
+# Ensure that server is started with thread_pool_size = 8.
+if (`SELECT @@global.thread_pool_size <> 8`)
+{
+  --die @@global.thread_pool_size must be = 8.
+}
+
+# When thread pool size is 8, then max-transactions-limit must be 256.
+if (`SELECT @@global.thread_pool_max_transactions_limit <> 256`)
+{
+  --die @@global.thread_pool_max_transactions_limit must be 256.
+}
+
+# The default value of query threads per group must be 2
+if (`SELECT @@global.thread_pool_query_threads_per_group <> 2`)
+{
+  --die @@global.thread_pool_query_threads_per_group must be 2.
+}
+
+# The default value of algorithm must be 1
+if (`SELECT @@global.thread_pool_algorithm <> 1`)
+{
+  --die @@global.thread_pool_algorithm must be 1.
+}
+
+# The default value of max unused threads must be 32
+if (`SELECT @@global.thread_pool_max_unused_threads <> 32`)
+{
+   --die @@global.thread_pool_max_unused_threads must be 32.
+}
+
+--echo #
+--echo # Restart mysqld server with --thread-pool-size=32
+--echo #
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD --thread-pool-size=32
+--source include/restart_mysqld.inc
+
+# Ensure that server is started with thread_pool_size = 32.
+if (`SELECT @@global.thread_pool_size <> 32`)
+{
+  --die @@global.thread_pool_size must be = 32.
+}
+
+# When thread pool size is 32, then max-transactions-limit must be 512.
+if (`SELECT @@global.thread_pool_max_transactions_limit <> 512`)
+{
+  --die @@global.thread_pool_max_transactions_limit must be 512.
+}
+
+# The default value of query threads per group must be 2
+if (`SELECT @@global.thread_pool_query_threads_per_group <> 2`)
+{
+  --die @@global.thread_pool_query_threads_per_group must be 2.
+}
+
+# The default value of algorithm must be 1
+if (`SELECT @@global.thread_pool_algorithm <> 1`)
+{
+  --die @@global.thread_pool_algorithm must be 1.
+}
+
+# The default value of max unused threads must be 32
+if (`SELECT @@global.thread_pool_max_unused_threads <> 32`)
+{
+  --die @@global.thread_pool_max_unused_threads must be 32.
+}
+
+--echo #
+--echo # Restart mysqld server with --thread-pool-size=128
+--echo #
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD --thread-pool-size=128
+--source include/restart_mysqld.inc
+
+# Ensure that server is started with thread_pool_size = 128.
+if (`SELECT @@global.thread_pool_size <> 128`)
+{
+  --die @@global.thread_pool_size must be = 128.
+}
+
+# When thread pool size is 128, then max-transactions-limit must be 512.
+if (`SELECT @@global.thread_pool_max_transactions_limit <> 512`)
+{
+  --die @@global.thread_pool_max_transactions_limit must be 512.
+}
+
+# The default value of query threads per group must be 2
+if (`SELECT @@global.thread_pool_query_threads_per_group <> 2`)
+{
+  --die @@global.thread_pool_query_threads_per_group must be 2.
+}
+
+# The default value of algorithm must be 1
+if (`SELECT @@global.thread_pool_algorithm <> 1`)
+{
+  --die @@global.thread_pool_algorithm must be 1.
+}
+
+# The default value of max unused threads must be 32
+if (`SELECT @@global.thread_pool_max_unused_threads <> 32`)
+{
+  --die @@global.thread_pool_max_unused_threads must be 32.
+}

@@ -1,0 +1,95 @@
+call mtr.add_suppression("Access denied for user .*");
+
+
+## I. Test malformed challenge-response payloads:
+## * MYSQL41 payload with '*' prefix and invalid length
+## * MYSQL41 payload with expected length and no '*' prefix
+## * SHA256_MEMORY payload with invalid length
+#
+# 1. Verify MYSQL41 with '*' prefix and invalid length.
+# 2. Verify MYSQL41 with expected length and no '*' prefix.
+# 3. Verify SHA256_MEMORY with invalid length.
+
+
+CREATE USER xuser_cache2@'localhost'
+IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
+
+# Fill SHA256_MEMORY password cache.
+RUN select 1
+
+1
+1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+
+# 1. MYSQL41 with '*' prefix and invalid length.
+connecting...
+active session is now 'auth'
+Mysqlx.Ok {
+}
+
+send Mysqlx.Session.AuthenticateStart {
+  mech_name: "MYSQL41"
+}
+
+Mysqlx.Session.AuthenticateContinue {...}
+send Mysqlx.Session.AuthenticateContinue {
+  auth_data: "\000xuser_native\000*"
+}
+
+Mysqlx.Error(severity) = ERROR
+aborting session auth
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+# 2. MYSQL41 with expected length and no '*' prefix.
+connecting...
+active session is now 'auth'
+Mysqlx.Ok {
+}
+
+send Mysqlx.Session.AuthenticateStart {
+  mech_name: "MYSQL41"
+}
+
+Mysqlx.Session.AuthenticateContinue {...}
+send Mysqlx.Session.AuthenticateContinue {
+  auth_data: "\000xuser_native\000A0000000000000000000000000000000000000000"
+}
+
+Mysqlx.Error(severity) = ERROR
+aborting session auth
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+# 3. SHA256_MEMORY with invalid length.
+connecting...
+active session is now 'auth'
+Mysqlx.Ok {
+}
+
+send Mysqlx.Session.AuthenticateStart {
+  mech_name: "SHA256_MEMORY"
+}
+
+Mysqlx.Session.AuthenticateContinue {...}
+send Mysqlx.Session.AuthenticateContinue {
+  auth_data: "\000xuser_cache2\000A"
+}
+
+Mysqlx.Error(severity) = ERROR
+aborting session auth
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP USER xuser_cache2@'localhost';

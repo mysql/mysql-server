@@ -127,7 +127,9 @@ WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
 # An index lookup is not counted.
 let $query = SELECT x FROM t WHERE x = 1;
 --replace_regex $elide_costs
+--disable_warnings
 --eval EXPLAIN FORMAT=TREE $query
+--enable_warnings
 FLUSH STATUS;
 --disable_result_log
 --eval $query
@@ -151,7 +153,9 @@ SHOW STATUS LIKE 'select%';
 let $query = SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y;
 --let $normalize = $elide_costs /t2\.y = t1\.y/t1.y = t2.y/
 --replace_regex $normalize
+--disable_warnings
 --eval EXPLAIN FORMAT=TREE $query
+--enable_warnings
 FLUSH STATUS;
 --disable_result_log
 --eval $query
@@ -165,7 +169,9 @@ SELECT /*+ JOIN_INDEX(t1) */ * FROM t AS t1 STRAIGHT_JOIN t AS t2
 WHERE t1.y = t2.y AND t1.x < 1;
 --let $normalize = $elide_costs /t2\.y = t1\.y/t1.y = t2.y/ /, with index condition:.*?\)//
 --replace_regex $normalize
+--disable_warnings
 --eval EXPLAIN FORMAT=TREE $query
+--enable_warnings
 FLUSH STATUS;
 --disable_result_log
 --eval $query
@@ -179,7 +185,9 @@ let $query =
 SELECT /*+ JOIN_INDEX(t2) */ * FROM t AS t1 STRAIGHT_JOIN t AS t2
 WHERE t1.y = t2.y AND t2.x < 1;
 --replace_regex $normalize
+--disable_warnings
 --eval EXPLAIN FORMAT=TREE $query
+--enable_warnings
 FLUSH STATUS;
 --disable_result_log
 --eval $query
@@ -191,7 +199,9 @@ SHOW STATUS LIKE 'select%';
 # the index lookup is not counted at all.
 let $query = SELECT * FROM t AS t1, t AS t2 WHERE t1.y = t2.id LIMIT 1;
 --replace_regex $elide_costs
+--disable_warnings
 --eval EXPLAIN FORMAT=TREE $query
+--enable_warnings
 FLUSH STATUS;
 --disable_result_log
 --eval $query

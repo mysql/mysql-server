@@ -33,6 +33,7 @@ call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t
 call mtr.add_suppression("Replica SQL.*Column 1 .* of table .test.t. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Got error 149 - .Lock deadlock; Retry transaction. during COMMIT");
+call mtr.add_suppression("Change Stream Applier channel stopped because of error");
 ALTER TABLE t CHANGE name name VARCHAR(255);
 
 --source include/rpl/connection_source.inc

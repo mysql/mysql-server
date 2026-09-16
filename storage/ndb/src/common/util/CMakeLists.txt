@@ -54,6 +54,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   ndb_openssl_evp.cpp
   ndb_zlib.cpp
   ndbxfrm_file.cpp
+  ndbxfrm_padding.cpp
   OutputStream.cpp
   OwnProcessInfo.cpp
   Parser.cpp
@@ -111,6 +112,7 @@ FOREACH(tests
     ndb_barrier
     ndb_openssl_evp
     ndbxfrm_file
+    ndbxfrm_padding
     NdbSqlUtil
     OutputStream
     md5_hash

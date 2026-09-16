@@ -45,7 +45,8 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"          // Item_result
+#include "mysql_com.h"  // Item_result
+#include "sql/binlog/binlog_tc_log_processing.h"
 #include "sql/binlog_index.h"   // Log_info, Binlog_index
 #include "sql/binlog_reader.h"  // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
@@ -215,13 +216,15 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   int32 get_prep_xids() { return m_atomic_prep_xids; }
 
-  inline uint get_sync_period() { return *sync_period_ptr; }
-
  public:
   /**
     Wait until the number of prepared XIDs are zero.
    */
   void wait_for_prep_xids();
+  [[nodiscard]] inline char *get_log_file_name() { return log_file_name; }
+  [[nodiscard]] inline ulong get_max_size() { return max_size; }
+  [[nodiscard]] inline uint get_sync_period() { return *sync_period_ptr; }
+  [[nodiscard]] inline uint get_sync_counter() { return sync_counter; }
 
   /*
     This is used to start writing to a new log file. The difference from
@@ -473,14 +476,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   bool reencrypt_logs();
 
- private:
-  std::atomic<enum_log_state> atomic_log_state{LOG_CLOSED};
-
-  /* The previous gtid set in relay log. */
-  Gtid_set *previous_gtid_set_relaylog;
-
-  int open(const char *opt_name) override { return open_binlog(opt_name); }
-
   /**
     Enter a stage of the ordered commit procedure.
 
@@ -515,12 +510,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   bool change_stage(THD *thd, Commit_stage_manager::StageID stage, THD *queue,
                     mysql_mutex_t *leave_mutex, mysql_mutex_t *enter_mutex);
-  std::pair<int, my_off_t> flush_thread_caches(THD *thd);
-  int flush_cache_to_file(my_off_t *flush_end_pos);
-  int finish_commit(THD *thd);
-  std::pair<bool, bool> sync_binlog_file(bool force);
-  void process_commit_stage_queue(THD *thd, THD *queue);
-  void process_after_commit_stage_queue(THD *thd, THD *first);
 
   /**
     Set thread variables used while flushing a transaction.
@@ -535,34 +524,42 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   void init_thd_variables(THD *thd, bool all, bool skip_commit);
 
+  [[nodiscard]] int flush_cache_to_file(my_off_t *flush_end_pos);
+  [[nodiscard]] std::pair<int, my_off_t> flush_thread_caches(THD *thd);
+  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log,
+                                         const char *message);
+  void reset_thread_caches(THD *thd);
+
+  [[nodiscard]] std::pair<bool, bool> sync_binlog_file(bool force);
+  [[nodiscard]] int call_after_sync_hook(THD *queue_head);
+
+  void process_commit_stage_queue(THD *thd, THD *queue);
+  void process_after_commit_stage_queue(THD *thd, THD *first);
+
+  [[nodiscard]] int finish_commit(THD *thd);
+
+ private:
+  std::atomic<enum_log_state> atomic_log_state{LOG_CLOSED};
+
+  /* The previous gtid set in relay log. */
+  Gtid_set *previous_gtid_set_relaylog;
+
+  [[nodiscard]] int open(const char *opt_name) override {
+    return open_binlog(opt_name);
+  }
+
   /**
-    Fetch and empty BINLOG_FLUSH_STAGE and COMMIT_ORDER_FLUSH_STAGE flush queues
-    and flush transactions to the disk, and unblock threads executing slave
-    preserve commit order.
+  Finishes the transaction in the engines. If the `commit_low` flag is set,
+  will commit in the engines, otherwise, if the underlying statement is an
+  `XA ROLLBACK`, it will rollback in the engines.
 
-    @param[in] check_and_skip_flush_logs
-                 if false then flush prepared records of transactions to the log
-                 of storage engine.
-                 if true then flush prepared records of transactions to the log
-                 of storage engine only if COMMIT_ORDER_FLUSH_STAGE queue is
-                 non-empty.
-
-    @return Pointer to the first session of the BINLOG_FLUSH_STAGE stage queue.
+  @param thd The THD session object holding the transaction to finalize.
+  @param all Finalizing a transaction (i.e. true) or a statement
+             (i.e. false).
+  @param run_after_commit In the case of a commit being issued, whether or
+                          not to run the `after_commit` hook.
   */
-  THD *fetch_and_process_flush_stage_queue(
-      const bool check_and_skip_flush_logs = false);
-
-  /**
-    Execute the flush stage.
-
-    @param[out] total_bytes_var Pointer to variable that will be set to total
-                                number of bytes flushed, or NULL.
-
-    @param[out] out_queue_var  Pointer to the sessions queue in flush stage.
-
-    @return Error code on error, zero on success
-  */
-  int process_flush_stage_queue(my_off_t *total_bytes_var, THD **out_queue_var);
+  void finish_transaction_in_engines(THD *thd, bool all, bool run_after_commit);
 
   /**
     Flush and commit the transaction.
@@ -638,8 +635,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
                    be skipped and @c false otherwise (the normal case).
   */
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
-  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log,
-                                         const char *message);
   bool do_write_cache(Binlog_cache_storage *cache,
                       class Binlog_event_writer *writer);
   void report_binlog_write_error();
@@ -892,6 +887,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   inline char *get_log_fname() { return log_file_name; }
   const char *get_name() const { return name; }
   inline mysql_mutex_t *get_log_lock() { return &LOCK_log; }
+  [[nodiscard]] inline mysql_mutex_t *get_sync_lock() { return &LOCK_sync; }
   inline mysql_mutex_t *get_commit_lock() { return &LOCK_commit; }
   inline mysql_mutex_t *get_after_commit_lock() { return &LOCK_after_commit; }
   inline mysql_cond_t *get_log_cond() { return &update_cond; }
@@ -1019,6 +1015,17 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  private:
   mysql_mutex_t LOCK_log_info;
+
+ public:
+  [[nodiscard]] bool binlog_register_observer();
+  void binlog_unregister_observer();
+  [[nodiscard]] bool is_persistence_enabled();
+
+  void set_tc_log_processing(
+      std::shared_ptr<Binlog_tc_log_processing> tc_log_processing);
+
+ private:
+  std::shared_ptr<Binlog_tc_log_processing> m_tc_log_processing;
 };
 
 struct LOAD_FILE_INFO {

@@ -250,7 +250,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
       break;
     case MYSQL_TYPE_TIME: {
       MYSQL_TIME tm;
-      if (param->length >= 8) {
+      if (param->length == 8 || param->length == 12) {
         const uchar *to = param->value;
         uint day;
 
@@ -259,7 +259,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
         tm.hour = (uint)to[5] + day * 24;
         tm.minute = (uint)to[6];
         tm.second = (uint)to[7];
-        tm.second_part = (param->length > 8) ? (ulong)sint4korr(to + 8) : 0;
+        tm.second_part = (param->length == 12) ? (ulong)sint4korr(to + 8) : 0;
         if (tm.hour > 838) {
           /* TODO: add warning 'Data truncated' here */
           tm.hour = 838;
@@ -283,7 +283,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
     }
     case MYSQL_TYPE_DATE: {
       MYSQL_TIME tm;
-      if (param->length >= 4) {
+      if (param->length == 4) {
         const uchar *to = param->value;
 
         tm.year = (uint)sint2korr(to);
@@ -310,9 +310,8 @@ static String *query_parameter_val_str(const PS_PARAM *param,
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP: {
       MYSQL_TIME tm;
-      assert(param->length == 0 || param->length == 4 || param->length == 7 ||
-             param->length == 11 || param->length == 13);
-      if (param->length >= 4) {
+      if (param->length == 4 || param->length == 7 || param->length == 11 ||
+          param->length == 13) {
         const uchar *to = param->value;
 
         tm.neg = false;
@@ -320,18 +319,18 @@ static String *query_parameter_val_str(const PS_PARAM *param,
         tm.month = (uint)to[2];
         tm.day = (uint)to[3];
 
-        if (param->length >= 7) {
+        if (param->length == 7 || param->length == 11 || param->length == 13) {
           tm.hour = (uint)to[4];
           tm.minute = (uint)to[5];
           tm.second = (uint)to[6];
         } else  // len == 4
           tm.hour = tm.minute = tm.second = 0;
         tm.time_type = MYSQL_TIMESTAMP_DATETIME;
-        tm.second_part = (param->length >= 11)
+        tm.second_part = (param->length == 11 || param->length == 13)
                              ? static_cast<std::uint64_t>(sint4korr(to + 7))
                              : 0;
 
-        if (param->length >= 13) {
+        if (param->length == 13) {
           tm.time_zone_displacement = sint2korr(to + 11) * SECS_PER_MIN;
           tm.time_type = MYSQL_TIMESTAMP_DATETIME_TZ;
         }

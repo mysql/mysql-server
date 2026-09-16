@@ -39,7 +39,7 @@ SET DEBUG_SYNC = "now SIGNAL continue";
 --source include/rpl/connection_source.inc
 --reap
 
---sync_slave_with_master
+--source include/rpl/sync_to_replica.inc
 --source include/rpl/connection_source.inc
 
 --echo #
@@ -54,7 +54,7 @@ send DROP TABLE t1;
 --let $wait_binlog_event= DROP
 --source include/rpl/wait_for_binlog_event.inc
 
---sync_slave_with_master
+--source include/rpl/sync_to_replica.inc
 
 --connection default
 SET DEBUG_SYNC = "now SIGNAL continue";

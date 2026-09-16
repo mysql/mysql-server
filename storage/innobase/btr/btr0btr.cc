@@ -364,9 +364,7 @@ void btr_page_create(
 
   btr_page_set_index_id(page, page_zip, index->id, mtr);
 
-  if (level == 0) {
-    buf_stat_per_index->inc(index_id_t(index->space, index->id));
-  }
+  buf_stat_per_index->inc_if_tracked_page(page);
 }
 
 /** Allocates a new file page to be used in an ibuf tree. Takes the page from
@@ -811,9 +809,6 @@ static void btr_free_root(buf_block_t *block, mtr_t *mtr) {
   }
 }
 
-/** PAGE_INDEX_ID value for freed index B-trees */
-static const space_index_t BTR_FREED_INDEX_ID = 0;
-
 /** Invalidate an index root page so that btr_free_root_check()
 will not find it.
 @param[in,out]  block   Index root page
@@ -821,8 +816,15 @@ will not find it.
 static void btr_free_root_invalidate(buf_block_t *block, mtr_t *mtr) {
   ut_ad(page_is_root(block->frame));
 
-  btr_page_set_index_id(buf_block_get_frame(block),
-                        buf_block_get_page_zip(block), BTR_FREED_INDEX_ID, mtr);
+  page_t *frame = buf_block_get_frame(block);
+
+  /* Even though this index will no longer be reported in
+  INFORMATION_SCHEMA.INNODB_CACHED_INDEXES, decrement the raw counter so it can
+  eventually drop to zero and let the hash table reclaim the entry. */
+  buf_stat_per_index->dec_if_tracked_page(frame);
+
+  btr_page_set_index_id(frame, buf_block_get_page_zip(block),
+                        BTR_FREED_INDEX_ID, mtr);
 }
 
 /** Prepare to free a B-tree.
@@ -864,6 +866,9 @@ ulint btr_create(ulint type, space_id_t space, space_index_t index_id,
   page_zip_des_t *page_zip;
 
   ut_ad(index_id != BTR_FREED_INDEX_ID);
+
+  ut_ad(buf_stat_per_index->get(index_id_t(space, index_id)) == 0);
+  buf_stat_per_index->reset(index_id_t(space, index_id));
 
   /* Create the two new segments (one, in the case of an ibuf tree) for
   the index tree; the segment headers are put on the allocated root page
@@ -972,7 +977,7 @@ ulint btr_create(ulint type, space_id_t space, space_index_t index_id,
 
   ut_ad(page_get_max_insert_size(page, 2) > 2 * BTR_PAGE_MAX_REC_SIZE);
 
-  buf_stat_per_index->inc(index_id_t(space, index_id));
+  buf_stat_per_index->inc_if_tracked_page(page);
 
   return (page_no);
 }
@@ -1174,10 +1179,6 @@ bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
   page_zip_des_t *page_zip = buf_block_get_page_zip(block);
   buf_block_t *temp_block;
   page_t *temp_page;
-  ulint data_size1;
-  ulint data_size2;
-  ulint max_ins_size1;
-  ulint max_ins_size2;
   bool success = false;
   ulint pos;
   bool log_compressed;
@@ -1189,8 +1190,9 @@ bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
 #ifdef UNIV_ZIP_DEBUG
   ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
-  data_size1 = page_get_data_size(page);
-  max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
+  const ulint data_size1 = page_get_data_size(page);
+  const ulint max_ins_size1 =
+      page_get_max_insert_size_after_reorganize(page, 1);
 
   /* Turn logging off */
   mtr_log_t log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -1286,20 +1288,24 @@ bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
   }
 #endif /* !UNIV_HOTBACKUP */
 
-  data_size2 = page_get_data_size(page);
-  max_ins_size2 = page_get_max_insert_size_after_reorganize(page, 1);
+  /* The reorganized page must match the original data size and insert size
+  before the reorganization. If it doesn't, abort. */
+  {
+    const ulint data_size2 = page_get_data_size(page);
+    const ulint max_ins_size2 =
+        page_get_max_insert_size_after_reorganize(page, 1);
+    if (data_size1 != data_size2 || max_ins_size1 != max_ins_size2) {
+      ib::error(ER_IB_MSG_30)
+          << "Page old data size " << data_size1 << " new data size "
+          << data_size2 << ", page old max ins size " << max_ins_size1
+          << " new max ins size " << max_ins_size2;
 
-  if (data_size1 != data_size2 || max_ins_size1 != max_ins_size2) {
-    ib::error(ER_IB_MSG_30)
-        << "Page old data size " << data_size1 << " new data size "
-        << data_size2 << ", page old max ins size " << max_ins_size1
-        << " new max ins size " << max_ins_size2;
-
-    ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
-    ut_d(ut_error);
-  } else {
-    success = true;
+      ib::error(ER_IB_MSG_SUBMIT_DETAILED_BUG_REPORT);
+      ut_error;
+    }
   }
+
+  success = true;
 
   /* Restore the cursor position. */
   if (pos > 0) {
@@ -1463,7 +1469,9 @@ static void btr_page_empty(
   }
 
   /* Recreate the page: note that global data on page (possible
-  segment headers, next page-field, etc.) is preserved intact */
+  segment headers, next page-field, etc.) is preserved intact.
+  This can change the leaf-page accounting predicate by changing PAGE_LEVEL. */
+  buf_stat_per_index->dec_if_tracked_page(page);
 
   if (page_zip) {
     page_create_zip(block, index, level, 0, mtr, page_type);
@@ -1471,6 +1479,8 @@ static void btr_page_empty(
     page_create(block, mtr, dict_table_is_comp(index->table), page_type);
     btr_page_set_level(page, nullptr, level, mtr);
   }
+
+  buf_stat_per_index->inc_if_tracked_page(page);
 }
 
 /** Makes tree one level higher by splitting the root, and inserts

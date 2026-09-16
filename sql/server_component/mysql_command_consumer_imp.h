@@ -37,6 +37,9 @@ struct Dom_ctx {
   unsigned int m_cur_field_num = 0;
   uint32_t m_sql_errno = 0;
   MYSQL_ROWS *m_cur_row = nullptr;
+  size_t *m_cur_field_offsets = nullptr;
+  unsigned int m_cur_field_capacity = 0;
+  std::string *m_cur_row_data = nullptr;
   MYSQL_ROWS **m_prev_ptr = nullptr;
   std::string *m_message = nullptr;
   std::string *m_err_msg = nullptr;

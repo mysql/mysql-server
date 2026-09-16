@@ -61,8 +61,9 @@
 #include "sql/field.h"
 #include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/handler.h"
-#include "sql/item_func.h"  // Item_func
-#include "sql/item_sum.h"   // Item_sum
+#include "sql/item_func.h"       // Item_func
+#include "sql/item_subselect.h"  // Item_subselect
+#include "sql/item_sum.h"        // Item_sum
 #include "sql/key.h"
 #include "sql/mem_root_allocator.h"
 #include "sql/mem_root_array.h"     // Mem_root_array
@@ -403,6 +404,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
   switch (type) {
     case Item::FIELD_ITEM:
     case Item::DEFAULT_VALUE_ITEM:
+    case Item::INSERT_VALUE_ITEM:
     case Item::TRIGGER_FIELD_ITEM: {
       Item_field *item_field = down_cast<Item_field *>(item);
       /*
@@ -896,6 +898,33 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
 #define AVG_STRING_LENGTH_TO_PACK_ROWS 64
 #define RATIO_TO_PACK_ROWS 2
 
+/**
+  Returns true if the item is a hidden subquery that may be evaluated before
+  windowing and was split from an expression containing a window function.
+*/
+static bool IsExtractedWindowSubquery(const THD *thd,
+                                      const Temp_table_param *param,
+                                      const Item *item, Item::Type type) {
+  if (!thd->lex->using_hypergraph_optimizer() || param->m_window == nullptr ||
+      !item->hidden || type != Item::SUBQUERY_ITEM) {
+    return false;
+  }
+
+  const Item_subselect *subq = down_cast<const Item_subselect *>(item);
+  switch (subq->subquery_type()) {
+    case Item_subselect::SCALAR_SUBQUERY:
+      return subq->is_single_column_scalar_subquery();
+    case Item_subselect::EXISTS_SUBQUERY:
+      return true;
+    case Item_subselect::IN_SUBQUERY:
+    case Item_subselect::ANY_SUBQUERY:
+    case Item_subselect::ALL_SUBQUERY:
+      return false;
+  }
+  assert(false);
+  return false;
+}
+
 TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
                         const mem_root_deque<Item *> &fields, ORDER *group,
                         bool distinct, bool save_sum_fields,
@@ -1050,8 +1079,9 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     if (not_all_columns) {
       if (item->has_aggregation() && type != Item::SUM_FUNC_ITEM) {
         if (item->is_outer_reference()) item->update_used_tables();
-        if (type == Item::SUBQUERY_ITEM ||
-            (item->used_tables() & ~OUTER_REF_TABLE_BIT)) {
+        if ((type == Item::SUBQUERY_ITEM ||
+             (item->used_tables() & ~OUTER_REF_TABLE_BIT)) &&
+            !IsExtractedWindowSubquery(thd, param, item, type)) {
           /*
             Mark that we have ignored an item that refers to a summary
             function. We need to know this if someone is going to use
@@ -2889,6 +2919,13 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     thd_proc_info(thd, (!strcmp(save_proc_info, "Copying to tmp table")
                             ? "Copying to tmp table on disk"
                             : save_proc_info));
+
+  /*
+    Reading from the in-memory table clears wtable's not-started state, so reset
+    it here.
+  */
+  wtable->set_not_started();
+
   return false;
 
 err_after_open:

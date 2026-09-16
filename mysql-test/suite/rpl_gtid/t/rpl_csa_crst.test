@@ -1,0 +1,80 @@
+# ====Purpose====
+#
+# Test CHANGE REPLICATION SOURCE TO validation for CSA applier prerequisites.
+# Validates error codes when CSA requested but prereqs violated; success when met.
+#
+# ====Requirements====
+#
+# When CSA enabled or will be enabled in CRST:
+#
+# R1. Reject if SOURCE_DELAY >0 (current or set) - ER_CSA_CRST_DELAYED_APPLIER_NOT_SUPPORTED
+# R2. Reject if REQUIRE_ROW_FORMAT is set to 0 or will be set to 0 - ER_CSA_CRST_REQUIREMENT_ROW_FORMAT
+# R3. Reject if GTID_ONLY is set to 0 or will be set to 0 - ER_CSA_CRST_REQUIREMENT_GTID_ONLY
+#
+# ====Implementation====
+#
+#  1. Setup replication
+#  2. Test failures: CSA is enabled + violated prereqs
+#  3. Test success when setting compatible options
+#  4. Test failures: CSA is being enabled + violated prereqs
+#  5. Test success: Set violating CSA requirements and explicit MTA (no CSA trigger)
+#  6. Cleanup
+#
+# ====References====
+#
+# WL#10500 MTA: Optimized and generic change stream applier
+#
+
+# Validates CSA requirements
+--source include/have_csa.inc
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+--source include/rpl/stop_replica.inc
+
+--echo
+--echo # Test failures: CSA is enabled + violated prereqs
+--echo
+--error ER_CSA_CRST_DELAYED_APPLIER_NOT_SUPPORTED
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=1;
+
+--error ER_CSA_CRST_REQUIREMENT_ROW_FORMAT
+CHANGE REPLICATION SOURCE TO GTID_ONLY=0, REQUIRE_ROW_FORMAT=0;
+
+--error ER_CSA_CRST_REQUIREMENT_GTID_ONLY
+CHANGE REPLICATION SOURCE TO GTID_ONLY=0;
+
+--echo
+--echo # Test success when setting compatible options
+--echo
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=2, SOURCE_DELAY=0, REQUIRE_ROW_FORMAT=1, GTID_ONLY=1;
+
+--echo
+--echo # Verify current CSA configuration
+--echo
+SELECT * FROM performance_schema.replication_applier_configuration;
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=1;
+
+--echo
+--echo # Test failures: CSA is being enabled + violated prereqs
+--echo
+--error ER_CSA_CRST_DELAYED_APPLIER_NOT_SUPPORTED
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=2, SOURCE_DELAY=1 FOR CHANNEL '';
+
+--error ER_CSA_CRST_REQUIREMENT_ROW_FORMAT
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=2, REQUIRE_ROW_FORMAT=0, GTID_ONLY=0 FOR CHANNEL '';
+
+--echo
+--echo # Test success: Set violating CSA requirements and explicit MTA (no CSA trigger)
+--echo
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=1, SOURCE_DELAY=1, GTID_ONLY=0, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';
+
+--echo
+--echo # Cleanup
+--echo
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION=2, SOURCE_DELAY=0, REQUIRE_ROW_FORMAT=1, GTID_ONLY=1 FOR CHANNEL '';
+
+--let $rpl_only_running_threads= 1
+--source include/rpl/deinit.inc

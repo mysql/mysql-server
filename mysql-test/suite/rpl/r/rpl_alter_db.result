@@ -9,6 +9,7 @@ use temp_db;
 show create schema temp_db;
 Database	Create Database
 temp_db	CREATE DATABASE `temp_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+include/rpl/sync_to_replica.inc
 [connection slave]
 show create schema temp_db;
 Database	Create Database
@@ -19,6 +20,7 @@ alter database collate latin1_bin;
 show create schema temp_db;
 Database	Create Database
 temp_db	CREATE DATABASE `temp_db` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
+include/rpl/sync_to_replica.inc
 [connection slave]
 show create schema temp_db;
 Database	Create Database
@@ -32,6 +34,7 @@ ERROR HY000: Schema 'temp_db' is in read only mode.
 show create schema temp_db;
 Database	Create Database
 temp_db	CREATE DATABASE `temp_db` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_bin */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+include/rpl/sync_to_replica.inc
 [connection slave]
 insert into temp_db.t values(2);
 ERROR HY000: Schema 'temp_db' is in read only mode.
@@ -44,6 +47,7 @@ insert into temp_db.t values(1);
 show create schema temp_db;
 Database	Create Database
 temp_db	CREATE DATABASE `temp_db` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
+include/rpl/sync_to_replica.inc
 [connection slave]
 show create schema temp_db;
 Database	Create Database
@@ -68,6 +72,7 @@ Database	Create Database
 temp_db	CREATE DATABASE `temp_db` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_bin */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
 insert into temp_db.t values(1);
 ERROR HY000: Schema 'temp_db' is in read only mode.
+include/rpl/sync_to_replica.inc
 [connection slave]
 show create schema temp_db;
 Database	Create Database
@@ -84,6 +89,7 @@ alter schema temp_db read only=1 collate utf8mb4_0900_ai_ci;
 show create schema temp_db;
 Database	Create Database
 temp_db	CREATE DATABASE `temp_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+include/rpl/sync_to_replica.inc
 [connection slave]
 select * from temp_db.t;
 i
@@ -103,6 +109,7 @@ temp_db	CREATE DATABASE `temp_db` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE 
 drop table temp_db.t;
 create table temp_db.t(i int);
 insert into temp_db.t values(1);
+include/rpl/sync_to_replica.inc
 [connection slave]
 show create schema temp_db;
 Database	Create Database

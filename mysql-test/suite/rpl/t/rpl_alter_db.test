@@ -6,7 +6,7 @@ create database temp_db;
 use temp_db; # to be different from initial `test' db of mysqltest client
 show create schema temp_db;
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --source include/rpl/connection_replica.inc
 show create schema temp_db;
@@ -17,7 +17,7 @@ show create schema temp_db;
 alter database collate latin1_bin;
 show create schema temp_db;
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --source include/rpl/connection_replica.inc
 show create schema temp_db;
@@ -31,7 +31,7 @@ alter schema temp_db read only=1;
 insert into temp_db.t values(1);
 show create schema temp_db;
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --source include/rpl/connection_replica.inc
 --error ER_SCHEMA_READ_ONLY
@@ -43,7 +43,7 @@ alter schema temp_db read only=0;
 insert into temp_db.t values(1);
 show create schema temp_db;
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --source include/rpl/connection_replica.inc
 show create schema temp_db;
@@ -63,7 +63,7 @@ show create schema temp_db;
 --error ER_SCHEMA_READ_ONLY
 insert into temp_db.t values(1);
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --source include/rpl/connection_replica.inc
 show create schema temp_db;
@@ -77,7 +77,7 @@ set sql_log_bin = 1;
 alter schema temp_db read only=1 collate utf8mb4_0900_ai_ci;
 show create schema temp_db;
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --source include/rpl/connection_replica.inc
 select * from temp_db.t;
@@ -96,7 +96,7 @@ drop table temp_db.t;
 create table temp_db.t(i int);
 insert into temp_db.t values(1);
 
-sync_slave_with_master;
+--source include/rpl/sync_to_replica.inc
 
 --source include/rpl/connection_replica.inc
 show create schema temp_db;

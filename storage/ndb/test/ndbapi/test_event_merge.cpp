@@ -98,6 +98,8 @@ struct Opts {
   bool use_table;
 };
 
+static void short_usage_func(void) { ndb_short_usage_sub(nullptr); }
+
 static Opts g_opts;
 static const uint g_maxpk = 1000;
 static const uint g_maxtab = 100;
@@ -2125,16 +2127,20 @@ static int doconnect() {
 }
 
 int main(int argc, char **argv) {
-  ndb_init();
+  NDB_INIT(argv[0]);
   const char *progname =
       strchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
   ndbout << progname;
   for (int i = 1; i < argc; i++) ndbout << " " << argv[i];
   ndbout << endl;
   int ret;
-  ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
-  if (ret != 0 || argc != 0 || checkopts() != 0)
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_func);
+  ret = opts.handle_options();
+  if (ret != 0 || argc != 0 || checkopts() != 0) {
+    opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
   if (doconnect() == 0 && runtest() == 0) {
     delete g_ndb;
     delete g_ncc;

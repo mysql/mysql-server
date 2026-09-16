@@ -413,14 +413,6 @@ void z_first_page_t::init_index_entries() {
   }
 }
 
-void z_first_page_t::load_entry_s(fil_addr_t &addr, z_index_entry_t &entry) {
-  entry.load_s(addr);
-}
-
-void z_first_page_t::load_entry_x(fil_addr_t &addr, z_index_entry_t &entry) {
-  entry.load_x(addr);
-}
-
 /** Deallocate the first page of a compressed LOB. */
 void z_first_page_t::dealloc() {
   ut_ad(m_mtr != nullptr);

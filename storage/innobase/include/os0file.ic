@@ -53,17 +53,15 @@ monitor file creation/open.
 @param[in]      access_type     OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
                                 OS_FILE_READ_ALLOW_DELETE; the last option is
                                 used by a backup program reading the file
-@param[in]      read_only       if true read only mode checks are enforced
 @param[in]      umask           UNIX access permission to be set when creating a
                                 file. Use os_umask_default to use global default
                                 umask.
 @param[out]     success         true if succeeded
 @param[in]      src_location    location where func invoked
 @return own: handle to the file, not defined if error, error number
-can be retrieved with os_file_get_last_error */
+can be retrieved with os_file_get_and_log_last_error */
 static inline pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
-    bool read_only,
 #ifndef _WIN32
     mode_t umask,
 #endif
@@ -79,7 +77,7 @@ static inline pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
       src_location);
 
   file = os_file_create_simple_no_error_handling_func(name, create_mode,
-                                                      access_type, read_only,
+                                                      access_type,
 #ifndef _WIN32
                                                       umask,
 #endif
@@ -114,6 +112,7 @@ static inline pfs_os_file_t pfs_os_file_create_func(
 
   return (file);
 }
+
 /**
 NOTE! Please use the corresponding macro os_file_close(), not directly
 this function!
@@ -140,8 +139,8 @@ static inline bool pfs_os_file_close_func(pfs_os_file_t file,
 #ifndef UNIV_HOTBACKUP
 static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode,
                                       const char *name, pfs_os_file_t file,
-                                      void *buf, os_offset_t offset, ulint n,
-                                      bool read_only, fil_node_t *m1, void *m2,
+                                      byte *buf, os_offset_t offset, ulint n,
+                                      std::function<void(dberr_t)> callback,
                                       ut::Location src_location) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
@@ -154,7 +153,7 @@ static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode,
                              src_location);
 
   dberr_t result = os_aio_func(type, aio_mode, name, file, buf, offset, n,
-                               read_only, m1, m2);
+                               std::move(callback));
 
   register_pfs_file_io_end(locker, n);
 
@@ -174,9 +173,9 @@ os_file_read() which requests a synchronous read operation.
 @param[in]      n               number of bytes to read
 @param[in]      src_location    location where func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_func(IORequest &type,
+static inline dberr_t pfs_os_file_read_func(const IORequest &type,
                                             const char *file_name,
-                                            pfs_os_file_t file, void *buf,
+                                            pfs_os_file_t file, byte *buf,
                                             os_offset_t offset, ulint n,
                                             ut::Location src_location) {
   PSI_file_locker_state state;
@@ -196,33 +195,25 @@ static inline dberr_t pfs_os_file_read_func(IORequest &type,
   return (result);
 }
 
-/** NOTE! Please use the corresponding macro os_file_read_first_page(),
-not directly this function!
-This is the performance schema instrumented wrapper function for
-os_file_read() which requests a synchronous read operation.
-@param[in, out] type            IO request context
-@param[in]  file_name file name
-@param[in]      file            Open file handle
-@param[out]     buf             buffer where to read
-@param[in]      n               number of bytes to read
-@param[in]      src_location    location where func invoked
-@return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_read_first_page_func(
-    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-    ulint n, ut::Location src_location) {
+    IORequest &type, const char *file_name, pfs_os_file_t file, byte *buf,
+    page_no_t n_pages, ut::Location src_location) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
 
   ut_ad(type.validate());
 
-  register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_READ,
-                             src_location);
+  register_pfs_file_io_begin(&state, locker, file,
+                             UNIV_ZIP_SIZE_MIN + n_pages * UNIV_PAGE_SIZE,
+                             PSI_FILE_READ, src_location);
 
   dberr_t result;
 
-  result = os_file_read_first_page_func(type, file_name, file.m_file, buf, n);
+  result =
+      os_file_read_first_page_func(type, file_name, file.m_file, buf, n_pages);
 
-  register_pfs_file_io_end(locker, n);
+  register_pfs_file_io_end(locker,
+                           UNIV_ZIP_SIZE_MIN + n_pages * UNIV_PAGE_SIZE);
 
   return (result);
 }
@@ -265,7 +256,7 @@ static inline dberr_t pfs_os_file_copy_func(pfs_os_file_t src,
 }
 
 static inline dberr_t pfs_os_file_read_no_error_handling_func(
-    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
+    IORequest &type, const char *file_name, pfs_os_file_t file, byte *buf,
     os_offset_t offset, ulint n, ulint *o, ut::Location src_location) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
@@ -297,7 +288,7 @@ synchronous  read operation.
 @return DB_SUCCESS if request was successful */
 
 static inline dberr_t pfs_os_file_read_no_error_handling_int_fd_func(
-    IORequest &type, const char *file_name, int file, void *buf,
+    IORequest &type, const char *file_name, int file, byte *buf,
     os_offset_t offset, ulint n, ulint *o, ut::Location src_location) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
@@ -333,7 +324,7 @@ os_file_write() which requests a synchronous write operation.
 @return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_write_func(IORequest &type, const char *name,
                                              pfs_os_file_t file,
-                                             const void *buf,
+                                             const byte *buf,
                                              os_offset_t offset, ulint n,
                                              ut::Location src_location) {
   PSI_file_locker_state state;
@@ -366,7 +357,7 @@ os_file_write() which requests a synchronous write operation.
 @return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_write_int_fd_func(IORequest &type,
                                                     const char *name, int file,
-                                                    const void *buf,
+                                                    const byte *buf,
                                                     os_offset_t offset, ulint n,
                                                     ut::Location src_location) {
   PSI_file_locker_state state;

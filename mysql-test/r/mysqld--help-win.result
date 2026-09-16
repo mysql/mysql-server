@@ -29,6 +29,8 @@ The following options may be given as the first argument:
  System. Attempt to specify a network namespace for a
  platform that doesn't support it results in error during
  socket creation.
+ --admin-force-pqc   If set to TRUE, only accept admin TLS connections
+ negotiated with a PQC compatible key exchange group.
  --admin-port=#      Port number to use for service connection, built-in
  default (33062)
  --admin-ssl-ca=name CA file in PEM format (check OpenSSL docs) for
@@ -48,6 +50,11 @@ The following options may be given as the first argument:
  X509 key in PEM format for --admin-port
  --admin-tls-ciphersuites=name 
  TLS v1.3 ciphersuite to use for --admin-port
+ --admin-tls-kex=name 
+ TLS key exchange groups to use for --admin-port
+ --admin-use-pqc-sign 
+ If set to FALSE, advertise only classical TLS handshake
+ signature algorithms on the admin connection channel.
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -420,6 +427,8 @@ The following options may be given as the first argument:
  --flush             Flush MyISAM tables to disk between SQL commands
  --flush-time=#      A dedicated thread is created to flush all tables at the
  given interval
+ --force-pqc         If set to TRUE, only accept TLS connections negotiated
+ with a PQC compatible key exchange group.
  --ft-boolean-syntax=name 
  List of operators for MATCH ... AGAINST ( ... IN BOOLEAN
  MODE)
@@ -457,6 +466,16 @@ The following options may be given as the first argument:
  Transaction consistency guarantee, possible values:
  EVENTUAL, BEFORE_ON_PRIMARY_FAILOVER, BEFORE, AFTER,
  BEFORE_AND_AFTER
+ --group-replication-force-pqc 
+ If set to TRUE, require Group Replication recovery TLS
+ connections to use a PQC compatible key exchange group.
+ --group-replication-tls-kex=name 
+ TLS key exchange groups to use for Group Replication
+ recovery TLS connections
+ --group-replication-use-pqc-sign 
+ If set to FALSE, advertise only classical TLS handshake
+ signature algorithms on Group Replication recovery TLS
+ connections.
  --gtid-executed-compression-period[=#] 
  Compress the mysql.gtid_executed table whenever this
  number of transactions have been added, by waking up a
@@ -1280,6 +1299,9 @@ The following options may be given as the first argument:
  applier thread will not apply updates to tables in
  databases that start with foo and whose table names start
  with bar.
+ --replication-force-pqc 
+ If set to TRUE, require asynchronous replication TLS
+ connections to use a PQC compatible key exchange group.
  --replication-optimize-for-static-plugin-config 
  Optional flag that blocks plugin install/uninstall and
  allows skipping the acquisition of the lock to read from
@@ -1289,6 +1311,13 @@ The following options may be given as the first argument:
  --replication-sender-observe-commit-only 
  Optional flag that allows for only calling back observer
  hooks at commit.
+ --replication-tls-kex=name 
+ TLS key exchange groups to use for asynchronous
+ replication TLS connections
+ --replication-use-pqc-sign 
+ If set to FALSE, advertise only classical TLS handshake
+ signature algorithms on asynchronous replication TLS
+ connections.
  --report-host=name  Hostname or IP that this replica will report to the
  source while initiating the replication connection. Will
  appear in the output of SHOW REPLICAS. Leave this unset
@@ -1317,6 +1346,11 @@ The following options may be given as the first argument:
  Disallow the creation of foreign keys referencing
  non-unique key or partial key
  (Defaults to on; use --skip-restrict-fk-on-non-standard-key to disable.)
+ --rpl-dump-thread-account-affinity 
+ Require a reconnect matching an existing dump thread's
+ replica identity to use the same authenticated account.
+ Disabled by default to preserve legacy dump-thread
+ replacement behavior.
  --rpl-read-size=#   The size for reads done from the binlog and relay log. It
  must be a multiple of 4kb. Making it larger might help
  with IO stalls while reading these files when they are
@@ -1592,6 +1626,7 @@ The following options may be given as the first argument:
  validation fails. 
  --tls-ciphersuites=name 
  TLS v1.3 ciphersuite to use
+ --tls-kex=name      TLS key exchange groups to use
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY or
  TempTable storage engine exceeds this size, MySQL will
  automatically convert it to an on-disk table 
@@ -1621,6 +1656,8 @@ The following options may be given as the first argument:
  start the server, but skip upgrade steps that are not
  absolutely necessary; AUTO (default) to upgrade the
  server if required; FORCE to force upgrade server.
+ --use-pqc-sign      If set to FALSE, advertise only classical TLS handshake
+ signature algorithms on the main connection channel.
  -u, --user=name     Run mysqld daemon as user.
  --validate-config   Validate the server configuration specified by the user.
  --validate-user-plugins 
@@ -1653,6 +1690,7 @@ Variables (--variable-name=value)
 activate-all-roles-on-login FALSE
 activate-mandatory-roles TRUE
 admin-address (No default value)
+admin-force-pqc FALSE
 admin-port 33062
 admin-ssl-ca (No default value)
 admin-ssl-capath (No default value)
@@ -1662,6 +1700,8 @@ admin-ssl-crl (No default value)
 admin-ssl-crlpath (No default value)
 admin-ssl-key (No default value)
 admin-tls-ciphersuites (No default value)
+admin-tls-kex 
+admin-use-pqc-sign FALSE
 allow-suspicious-udfs FALSE
 authentication-policy *,,
 auto-increment-increment 1
@@ -1744,6 +1784,7 @@ explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE
 flush-time 0
+force-pqc FALSE
 ft-boolean-syntax + -><()~*:""&|
 ft-max-word-len 84
 ft-min-word-len 4
@@ -1757,6 +1798,9 @@ global-connection-memory-status-limit 18446744073709551615
 global-connection-memory-tracking FALSE
 group-concat-max-len 1024
 group-replication-consistency BEFORE_ON_PRIMARY_FAILOVER
+group-replication-force-pqc FALSE
+group-replication-tls-kex 
+group-replication-use-pqc-sign FALSE
 gtid-executed-compression-period 0
 gtid-mode ON
 help TRUE
@@ -1978,14 +2022,18 @@ replica-sql-verify-checksum TRUE
 replica-transaction-retries 10
 replica-type-conversions 
 replicate-same-server-id FALSE
+replication-force-pqc FALSE
 replication-optimize-for-static-plugin-config FALSE
 replication-sender-observe-commit-only FALSE
+replication-tls-kex 
+replication-use-pqc-sign FALSE
 report-host (No default value)
 report-password (No default value)
 report-port 0
 report-user (No default value)
 require-secure-transport FALSE
 restrict-fk-on-non-standard-key TRUE
+rpl-dump-thread-account-affinity FALSE
 rpl-read-size 8192
 rpl-stop-replica-timeout 31536000
 rpl-stop-slave-timeout 31536000
@@ -2062,6 +2110,7 @@ thread-handling one-thread-per-connection
 thread-stack 1048576
 tls-certificates-enforced-validation FALSE
 tls-ciphersuites (No default value)
+tls-kex 
 tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
@@ -2069,11 +2118,15 @@ transaction-prealloc-size 4096
 transaction-read-only FALSE
 updatable-views-with-limit YES
 upgrade AUTO
+use-pqc-sign FALSE
 validate-config FALSE
 validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800
 windowing-use-high-precision TRUE
+x-plugin-force-pqc FALSE
+x-plugin-tls-kex 
+x-plugin-use-pqc-sign FALSE
 xa-detach-on-prepare TRUE
 
 To see what values a running MySQL server is using, type

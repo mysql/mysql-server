@@ -1409,7 +1409,6 @@ struct z_frag_page_t {
   }
 
   z_frag_entry_t get_frag_entry_x();
-  z_frag_entry_t get_frag_entry_s();
 
   void update_frag_entry() {
     z_frag_entry_t entry = get_frag_entry_x();

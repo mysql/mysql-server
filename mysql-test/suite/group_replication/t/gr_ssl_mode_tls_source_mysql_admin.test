@@ -52,6 +52,7 @@ SET GLOBAL group_replication_ssl_mode= REQUIRED;
 
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET GLOBAL group_replication_ssl_mode= DISABLED;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
