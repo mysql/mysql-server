@@ -5021,8 +5021,10 @@ static void do_learn(site_def const *site [[maybe_unused]], pax_machine *p,
 
 bool_t handle_simple_ack_prepare(site_def const *site, pax_machine *p,
                                  pax_msg *m) {
-  if (get_nodeno(site) != VOID_NODE_NO)
-    BIT_SET(m->from, p->proposer.prep_nodeset);
+  if (get_nodeno(site) == VOID_NODE_NO || !node_no_exists(m->from, site))
+    return FALSE;
+
+  BIT_SET(m->from, p->proposer.prep_nodeset);
 
   {
     bool_t can_propose = FALSE;
@@ -5122,7 +5124,7 @@ static void handle_accept(site_def const *site, pax_machine *p,
 pax_msg *handle_simple_ack_accept(site_def const *site, pax_machine *p,
                                   pax_msg *m) {
   pax_msg *learn_msg = nullptr;
-  if (get_nodeno(site) != VOID_NODE_NO && m->from != VOID_NODE_NO &&
+  if (get_nodeno(site) != VOID_NODE_NO && node_no_exists(m->from, site) &&
       eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my accept */
     BIT_SET(m->from, p->proposer.prop_nodeset);
     if (gt_ballot(m->proposal, p->proposer.sent_learn)) {
