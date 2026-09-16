@@ -2157,6 +2157,22 @@ size_t Rows_log_event::print_verbose_one_row(
   const uchar *value0 = value;
   char typestr[64] = "";
 
+  const auto remaining_bytes = [&]() -> size_t {
+    return value <= m_rows_end ? static_cast<size_t>(m_rows_end - value) : 0;
+  };
+  const auto has_remaining = [&](size_t bytes) -> bool {
+    return value <= m_rows_end && bytes <= remaining_bytes();
+  };
+  const auto print_truncated_row_metadata = [&](const char *metadata_name,
+                                                size_t metadata_size) {
+    my_b_printf(file,
+                "***Corrupted replication event was detected: "
+                "%s size is set to %u, but there are only %u bytes "
+                "left of the event. Not printing the value***\n",
+                metadata_name, (uint)metadata_size, (uint)remaining_bytes());
+    return 0;
+  };
+
   // Read value_options if this is AI for PARTIAL_UPDATE_ROWS_EVENT
   ulonglong value_options = 0;
   Bit_reader partial_bits;
@@ -2170,8 +2186,12 @@ size_t Rows_log_event::print_verbose_one_row(
       return 0;
     }
     if ((value_options & PARTIAL_JSON_UPDATES) != 0) {
+      const size_t partial_bits_size = (td->json_column_count() + 7) / 8;
+      if (!has_remaining(partial_bits_size))
+        return print_truncated_row_metadata("partial update bitmap",
+                                            partial_bits_size);
       partial_bits.set_ptr(value);
-      value += (td->json_column_count() + 7) / 8;
+      value += partial_bits_size;
     }
   }
 
@@ -2180,8 +2200,11 @@ size_t Rows_log_event::print_verbose_one_row(
     master columns. Master writes one bit for each column in the
     image.
   */
+  const size_t null_bits_size = (bitmap_bits_set(cols_bitmap) + 7) / 8;
+  if (!has_remaining(null_bits_size))
+    return print_truncated_row_metadata("NULL bitmap", null_bits_size);
   Bit_reader null_bits(value);
-  value += (bitmap_bits_set(cols_bitmap) + 7) / 8;
+  value += null_bits_size;
 
   my_b_printf(file, "%s", prefix);
 
@@ -2204,14 +2227,24 @@ size_t Rows_log_event::print_verbose_one_row(
 
     my_b_printf(file, "###   @%d=", static_cast<int>(i + 1));
     if (!is_null) {
-      size_t fsize =
-          td->calc_field_size((uint)i, pointer_cast<const uchar *>(value));
-      if (fsize > (size_t)(m_rows_end - value)) {
+      if (value > m_rows_end) {
         my_b_printf(file,
                     "***Corrupted replication event was detected: "
                     "field size is set to %u, but there are only %u bytes "
                     "left of the event. Not printing the value***\n",
-                    (uint)fsize, (uint)(m_rows_end - value));
+                    0U, 0U);
+        return 0;
+      }
+      const size_t remaining = m_rows_end - value;
+      uint32 fsize = 0;
+      if (td->calc_field_size_checked(
+              (uint)i, pointer_cast<const uchar *>(value), remaining, &fsize) !=
+          CALC_FIELD_SIZE_OK) {
+        my_b_printf(file,
+                    "***Corrupted replication event was detected: "
+                    "field data is truncated; there are only %u bytes "
+                    "left of the event. Not printing the value***\n",
+                    (uint)remaining);
         return 0;
       }
     }

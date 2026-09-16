@@ -436,11 +436,16 @@ static const uchar *start_partial_bit_reader(const uchar *pack_ptr,
   }
   DBUG_PRINT("info", ("event_value_options=%llx", *event_value_options));
   if ((*event_value_options & PARTIAL_JSON_UPDATES) != 0) {
-    int json_column_count = tabledef->json_column_count();
+    const size_t partial_bits_size =
+        (static_cast<size_t>(tabledef->json_column_count()) + 7) / 8;
+    if (length < partial_bits_size) {
+      my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
+      return nullptr;
+    }
     partial_bits->set_ptr(pack_ptr);
     DBUG_PRINT("info", ("there are %d JSON columns in the partial_bits",
-                        json_column_count));
-    return pack_ptr + (json_column_count + 7) / 8;
+                        tabledef->json_column_count()));
+    return pack_ptr + partial_bits_size;
   }
   return pack_ptr;
 }
@@ -510,6 +515,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
     pack_ptr =
         start_partial_bit_reader(pack_ptr, event_end - pack_ptr, tabledef,
                                  &partial_bits, &event_value_options);
+    if (pack_ptr == nullptr) return true;
     /*
       We *can* compute partial updates if event_value_options has
       PARTIAL_JSON, unless only_seek==true.
@@ -570,8 +576,9 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
   // NULL bits
   Bit_reader null_bits(pack_ptr);
   pack_ptr = translate_beginning_of_raw_data(
-      pack_ptr, column_image, image_column_count, null_bits, tabledef,
-      source_has_gipk, replica_has_gipk);
+      pack_ptr, event_end, column_image, image_column_count, null_bits,
+      tabledef, source_has_gipk, replica_has_gipk);
+  if (pack_ptr == nullptr) return true;
   size_t last_source_pos = 0;
   // Iterate over columns that exist both in source and replica
   for (auto it = fields->begin();
@@ -649,14 +656,22 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
 #ifndef NDEBUG
         uchar const *const old_pack_ptr = pack_ptr;
 #endif
-        /// @todo calc_field_size may read out of bounds /Sven
-        uint32 len = tabledef->calc_field_size(col_i, pack_ptr);
-        uint32 event_len = event_end - pack_ptr;
-        DBUG_PRINT("info", ("calc_field_size ret=%d event_len=%d", (int)len,
-                            (int)event_len));
-        // Reject fields whose reported packed length exceeds either the
-        // remaining event payload or the maximum packed destination size.
-        if (len > event_len || len > f->max_packed_col_length()) {
+        if (pack_ptr > event_end) {
+          my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
+          return true;
+        }
+        const size_t event_len = event_end - pack_ptr;
+        uint32 len = 0;
+        if (tabledef->calc_field_size_checked(col_i, pack_ptr, event_len,
+                                              &len) != CALC_FIELD_SIZE_OK) {
+          my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
+          return true;
+        }
+        DBUG_PRINT("info",
+                   ("calc_field_size ret=%u event_len=%zu", len, event_len));
+        // Reject fields whose reported packed length exceeds the maximum
+        // packed destination size.
+        if (len > f->max_packed_col_length()) {
           my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
           return true;
         }
@@ -677,8 +692,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           RBR mode.
          */
         assert(tabledef->type(col_i) == MYSQL_TYPE_DECIMAL ||
-               tabledef->calc_field_size(col_i, old_pack_ptr) ==
-                   (uint32)(pack_ptr - old_pack_ptr));
+               len == (uint32)(pack_ptr - old_pack_ptr));
       }
 
       /*
@@ -728,14 +742,19 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       partial_bits.get();
     if (bitmap_is_set(column_image, col_i)) {
       if (!null_bits.get()) {
-        uint32 len = tabledef->calc_field_size(col_i, pack_ptr);
-        uint32 event_len = event_end - pack_ptr;
-        DBUG_PRINT("info", ("Skipping field"));
-        DBUG_DUMP("info", pack_ptr, len);
-        if (len > event_len) {
+        if (pack_ptr > event_end) {
           my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
           return true;
         }
+        const size_t event_len = event_end - pack_ptr;
+        uint32 len = 0;
+        if (tabledef->calc_field_size_checked(col_i, pack_ptr, event_len,
+                                              &len) != CALC_FIELD_SIZE_OK) {
+          my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
+          return true;
+        }
+        DBUG_PRINT("info", ("Skipping field"));
+        DBUG_DUMP("info", pack_ptr, len);
         pack_ptr += len;
       }
     }
@@ -755,6 +774,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
     pack_ptr =
         start_partial_bit_reader(pack_ptr, event_end - pack_ptr, tabledef,
                                  &partial_bits, &event_value_options);
+    if (pack_ptr == nullptr) return true;
     if ((event_value_options & PARTIAL_JSON_UPDATES) != 0) {
       for (auto it = fields->begin();
            it != fields->end() && it.translated_pos() != source_column_count;
@@ -780,18 +800,29 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
 }
 
 const uchar *translate_beginning_of_raw_data(
-    const uchar *raw_data, MY_BITMAP const *column_image, size_t column_count,
-    Bit_reader &null_bits, table_def *tabledef, bool source_has_gipk,
-    bool replica_has_gipk) {
+    const uchar *raw_data, const uchar *event_end,
+    MY_BITMAP const *column_image, size_t column_count, Bit_reader &null_bits,
+    table_def *tabledef, bool source_has_gipk, bool replica_has_gipk) {
+  const size_t null_bytes = (column_count + 7) / 8;
+  if (raw_data > event_end ||
+      static_cast<size_t>(event_end - raw_data) < null_bytes) {
+    my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
+    return nullptr;
+  }
   if (source_has_gipk && !replica_has_gipk) {
     if (bitmap_is_set(column_image, 0)) {
       null_bits.get();
     }
-    const uchar *ptr = raw_data + ((column_count + 7) / 8);
-    uint32 first_column_len = tabledef->calc_field_size(0, ptr);
+    const uchar *ptr = raw_data + null_bytes;
+    uint32 first_column_len = 0;
+    if (tabledef->calc_field_size_checked(
+            0, ptr, event_end - ptr, &first_column_len) != CALC_FIELD_SIZE_OK) {
+      my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
+      return nullptr;
+    }
     return ptr + first_column_len;
   }
-  return raw_data + (column_count + 7) / 8;
+  return raw_data + null_bytes;
 }
 
 /**
