@@ -174,7 +174,9 @@ FOREACH(X xcom_vp)
       WORKING_DIRECTORY ${gen_xdr_dir}
 
       DEPENDS
-      ${x_vanilla_x})
+      ${x_vanilla_x}
+      ${enumfix}
+      ${versionfix})
   ENDIF()
 
   SET(GEN_RPC_H_FILES ${GEN_RPC_H_FILES} ${x_gen_h})

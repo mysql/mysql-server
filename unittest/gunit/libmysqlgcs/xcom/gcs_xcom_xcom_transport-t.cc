@@ -35,6 +35,24 @@
 
 namespace xcom_transport_unittest {
 
+namespace {
+
+pax_msg *new_client_msg_with_exit_app_data(size_t app_data_count) {
+  pax_msg *p = pax_msg_new_0(null_synode);
+  p->op = client_msg;
+
+  for (size_t i = 0; i < app_data_count; i++) {
+    app_data_ptr a = new_app_data();
+    a->body.c_t = exit_type;
+    a->next = p->a;
+    p->a = a;
+  }
+
+  return p;
+}
+
+}  // namespace
+
 class XcomTransport : public GcsBaseTest {
  protected:
   XcomTransport() = default;
@@ -63,6 +81,40 @@ TEST_F(XcomTransport, SerializeTooManySynodes) {
   unchecked_replace_pax_msg(&p, nullptr);
 
   std::free(buf);
+}
+
+TEST_F(XcomTransport, DeserializeRejectsTooManyAppDataElements) {
+#if defined(_WIN32)
+  GTEST_SKIP()
+      << "Recursive XDR deserialization depends on the available stack size.";
+#endif
+
+  struct Test_case {
+    size_t app_data_count;
+    int expected_deserialize_result;
+  };
+
+  Test_case const test_cases[] = {{MAX_BATCH_APP_DATA, 1},
+                                  {MAX_BATCH_APP_DATA + 1, 0}};
+
+  for (auto const &test_case : test_cases) {
+    pax_msg *p = new_client_msg_with_exit_app_data(test_case.app_data_count);
+    uint32_t buffer_len = 0;
+    char *buffer = nullptr;
+
+    ASSERT_EQ(serialize_msg(p, x_1_9, &buffer_len, &buffer), 1);
+    delete_pax_msg(p);
+
+    pax_msg *received = pax_msg_new_0(null_synode);
+    EXPECT_EQ(deserialize_msg(received, x_1_9, MSG_PTR(buffer),
+                              buffer_len - MSG_HDR_SIZE),
+              test_case.expected_deserialize_result);
+    if (test_case.expected_deserialize_result)
+      delete_pax_msg(received);
+    else
+      std::free(received);
+    std::free(buffer);
+  }
 }
 
 TEST_F(XcomTransport, is_new_node_eligible_for_ipv6) {
