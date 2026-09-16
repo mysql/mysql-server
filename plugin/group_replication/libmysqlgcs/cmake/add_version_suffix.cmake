@@ -68,6 +68,11 @@ FILE(STRINGS ${rpcgen_output} xcom_vp_def)
 
 #MESSAGE("writing ${x_gen_c}")
 
+SET(emit_app_data_xdr_guard 0)
+IF(NOT EXISTS ${x_gen_c})
+  SET(emit_app_data_xdr_guard 1)
+ENDIF()
+
 # Process file line by line, and add version numbers and code stubs
 SET(blurb 0)
 FOREACH(line ${xcom_vp_def})
@@ -110,7 +115,51 @@ FOREACH(line ${xcom_vp_def})
               SET(IGNORE_PATTERN_WITH_VERSION "${IGNORE_PATTERN}${version}")
               STRING(REPLACE "${IGNORE_PATTERN_WITH_VERSION}" "${IGNORE_PATTERN}" vline "${vline}")
 	  ENDFOREACH()
+	  IF(vline MATCHES "xdr_pointer \\(xdrs, .*sizeof \\(app_data\\),")
+	    STRING(REPLACE "xdr_pointer (xdrs,"
+			   "xcom_app_data_pointer (xdrs," vline "${vline}")
+	  ENDIF()
 	  FILE(APPEND ${x_gen_c} "${vline}\n")
+          IF(emit_app_data_xdr_guard AND
+             vline MATCHES "^#include \"xcom/xcom_profile.h\"$")
+            FILE(APPEND ${x_gen_c} [=[
+typedef struct xcom_app_data_xdr_context {
+  uint32_t app_data_depth;
+} xcom_app_data_xdr_context;
+
+static bool_t xcom_app_data_pointer(XDR *xdrs, char **objpp, u_int obj_size,
+                                    xdrproc_t xdr_obj) {
+  bool_t more_data;
+  xcom_app_data_xdr_context *context;
+  bool_t stat;
+
+  if (xdrs->x_op != XDR_DECODE) {
+    return xdr_pointer(xdrs, objpp, obj_size, xdr_obj);
+  }
+
+  more_data = (*objpp != NULL);
+  if (!xdr_bool(xdrs, &more_data)) {
+    return FALSE;
+  }
+  if (!more_data) {
+    *objpp = NULL;
+    return TRUE;
+  }
+
+  context = (xcom_app_data_xdr_context *)xdrs->x_public;
+  if (context == NULL || context->app_data_depth >= MAX_BATCH_APP_DATA) {
+    return FALSE;
+  }
+
+  context->app_data_depth++;
+  stat = xdr_reference(xdrs, objpp, obj_size, xdr_obj);
+  context->app_data_depth--;
+  return stat;
+}
+
+]=])
+            SET(emit_app_data_xdr_guard 0)
+          ENDIF()
 	ENDIF()
   ENDIF()
 ENDFOREACH()
