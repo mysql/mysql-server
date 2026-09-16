@@ -14,7 +14,6 @@
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,6 +24,40 @@
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
+typedef struct xcom_app_data_xdr_context {
+  uint32_t app_data_depth;
+} xcom_app_data_xdr_context;
+
+static bool_t xcom_app_data_pointer(XDR *xdrs, char **objpp, u_int obj_size,
+                                    xdrproc_t xdr_obj) {
+  bool_t more_data;
+  xcom_app_data_xdr_context *context;
+  bool_t stat;
+
+  if (xdrs->x_op != XDR_DECODE) {
+    return xdr_pointer(xdrs, objpp, obj_size, xdr_obj);
+  }
+
+  more_data = (*objpp != NULL);
+  if (!xdr_bool(xdrs, &more_data)) {
+    return FALSE;
+  }
+  if (!more_data) {
+    *objpp = NULL;
+    return TRUE;
+  }
+
+  context = (xcom_app_data_xdr_context *)xdrs->x_public;
+  if (context == NULL || context->app_data_depth >= MAX_BATCH_APP_DATA) {
+    return FALSE;
+  }
+
+  context->app_data_depth++;
+  stat = xdr_reference(xdrs, objpp, obj_size, xdr_obj);
+  context->app_data_depth--;
+  return stat;
+}
+
 extern synode_no const null_synode;
 extern synode_no get_delivered_msg();
 #ifndef _WIN32
@@ -402,7 +435,7 @@ xdr_app_data_1_0 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_0 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -435,7 +468,7 @@ xdr_app_data_1_0 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_0 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -461,7 +494,7 @@ xdr_app_data_1_0 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_0 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
 		 return FALSE;
 	return TRUE;
 }
@@ -469,7 +502,7 @@ bool_t
 xdr_app_data_ptr_1_0 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
 		 return FALSE;
 	return TRUE;
 }
@@ -667,7 +700,7 @@ xdr_pax_msg_1_0 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_0))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_0))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_0))
 		 return FALSE;
@@ -712,7 +745,6 @@ xdr_pax_msg_1_0 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -1098,7 +1130,7 @@ xdr_app_data_1_1 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_1 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -1131,7 +1163,7 @@ xdr_app_data_1_1 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_1 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -1157,7 +1189,7 @@ xdr_app_data_1_1 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_1 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
 		 return FALSE;
 	return TRUE;
 }
@@ -1165,7 +1197,7 @@ bool_t
 xdr_app_data_ptr_1_1 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
 		 return FALSE;
 	return TRUE;
 }
@@ -1363,7 +1395,7 @@ xdr_pax_msg_1_1 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_1))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_1))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_1))
 		 return FALSE;
@@ -1408,7 +1440,6 @@ xdr_pax_msg_1_1 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -1794,7 +1825,7 @@ xdr_app_data_1_2 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_2 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -1827,7 +1858,7 @@ xdr_app_data_1_2 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_2 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -1853,7 +1884,7 @@ xdr_app_data_1_2 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_2 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
 		 return FALSE;
 	return TRUE;
 }
@@ -1861,7 +1892,7 @@ bool_t
 xdr_app_data_ptr_1_2 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
 		 return FALSE;
 	return TRUE;
 }
@@ -2059,7 +2090,7 @@ xdr_pax_msg_1_2 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_2))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_2))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_2))
 		 return FALSE;
@@ -2103,7 +2134,6 @@ xdr_pax_msg_1_2 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -2489,7 +2519,7 @@ xdr_app_data_1_3 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_3 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -2522,7 +2552,7 @@ xdr_app_data_1_3 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_3 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -2548,7 +2578,7 @@ xdr_app_data_1_3 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_3 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
 		 return FALSE;
 	return TRUE;
 }
@@ -2556,7 +2586,7 @@ bool_t
 xdr_app_data_ptr_1_3 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
 		 return FALSE;
 	return TRUE;
 }
@@ -2749,7 +2779,7 @@ xdr_pax_msg_1_3 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_3))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_3))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_3))
 		 return FALSE;
@@ -2793,7 +2823,6 @@ xdr_pax_msg_1_3 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -3179,7 +3208,7 @@ xdr_app_data_1_4 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_4 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -3212,7 +3241,7 @@ xdr_app_data_1_4 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_4 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -3238,7 +3267,7 @@ xdr_app_data_1_4 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_4 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
 		 return FALSE;
 	return TRUE;
 }
@@ -3246,7 +3275,7 @@ bool_t
 xdr_app_data_ptr_1_4 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
 		 return FALSE;
 	return TRUE;
 }
@@ -3443,7 +3472,7 @@ xdr_pax_msg_1_4 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_4))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_4))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_4))
 		 return FALSE;
@@ -3486,7 +3515,6 @@ xdr_pax_msg_1_4 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -3872,7 +3900,7 @@ xdr_app_data_1_5 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_5 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -3905,7 +3933,7 @@ xdr_app_data_1_5 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_5 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -3931,7 +3959,7 @@ xdr_app_data_1_5 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_5 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
 		 return FALSE;
 	return TRUE;
 }
@@ -3939,7 +3967,7 @@ bool_t
 xdr_app_data_ptr_1_5 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
 		 return FALSE;
 	return TRUE;
 }
@@ -4136,7 +4164,7 @@ xdr_pax_msg_1_5 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_5))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_5))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_5))
 		 return FALSE;
@@ -4179,7 +4207,6 @@ xdr_pax_msg_1_5 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -4565,7 +4592,7 @@ xdr_app_data_1_6 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_6 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -4598,7 +4625,7 @@ xdr_app_data_1_6 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_6 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -4624,7 +4651,7 @@ xdr_app_data_1_6 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_6 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
 		 return FALSE;
 	return TRUE;
 }
@@ -4632,7 +4659,7 @@ bool_t
 xdr_app_data_ptr_1_6 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
 		 return FALSE;
 	return TRUE;
 }
@@ -4829,7 +4856,7 @@ xdr_pax_msg_1_6 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_6))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_6))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_6))
 		 return FALSE;
@@ -4870,7 +4897,6 @@ xdr_pax_msg_1_6 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -5256,7 +5282,7 @@ xdr_app_data_1_7 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_7 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -5289,7 +5315,7 @@ xdr_app_data_1_7 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_7 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -5315,7 +5341,7 @@ xdr_app_data_1_7 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_7 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
 		 return FALSE;
 	return TRUE;
 }
@@ -5323,7 +5349,7 @@ bool_t
 xdr_app_data_ptr_1_7 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
 		 return FALSE;
 	return TRUE;
 }
@@ -5515,7 +5541,7 @@ xdr_pax_msg_1_7 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_7))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_7))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_7))
 		 return FALSE;
@@ -5556,7 +5582,6 @@ xdr_pax_msg_1_7 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -5942,7 +5967,7 @@ xdr_app_data_1_8 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_8 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -5975,7 +6000,7 @@ xdr_app_data_1_8 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_8 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -6001,7 +6026,7 @@ xdr_app_data_1_8 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_8 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
 		 return FALSE;
 	return TRUE;
 }
@@ -6009,7 +6034,7 @@ bool_t
 xdr_app_data_ptr_1_8 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
 		 return FALSE;
 	return TRUE;
 }
@@ -6201,7 +6226,7 @@ xdr_pax_msg_1_8 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_8))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_8))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_8))
 		 return FALSE;
@@ -6242,7 +6267,6 @@ xdr_pax_msg_1_8 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -6625,7 +6649,7 @@ xdr_app_data_1_9 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_9 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -6658,7 +6682,7 @@ xdr_app_data_1_9 (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u_1_9 (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -6684,7 +6708,7 @@ xdr_app_data_1_9 (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u_1_9 (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
 		 return FALSE;
 	return TRUE;
 }
@@ -6692,7 +6716,7 @@ bool_t
 xdr_app_data_ptr_1_9 (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
 		 return FALSE;
 	return TRUE;
 }
@@ -6879,7 +6903,7 @@ xdr_pax_msg_1_9 (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set_1_9))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data_1_9))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot_1_9))
 		 return FALSE;
@@ -6917,7 +6941,6 @@ xdr_pax_msg_1_9 (XDR *xdrs, pax_msg *objp)
    permission to link the program and your derivative works with the
    separately licensed software that they have either included with
    the program or referenced in the documentation.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -7300,7 +7323,7 @@ xdr_app_data (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data))
 			 return FALSE;
 		return TRUE;
 	} else if (xdrs->x_op == XDR_DECODE) {
@@ -7333,7 +7356,7 @@ xdr_app_data (XDR *xdrs, app_data *objp)
 			 return FALSE;
 		 if (!xdr_app_u (xdrs, &objp->body))
 			 return FALSE;
-		 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data))
+		 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data))
 			 return FALSE;
 	 return TRUE;
 	}
@@ -7359,7 +7382,7 @@ xdr_app_data (XDR *xdrs, app_data *objp)
 		 return FALSE;
 	 if (!xdr_app_u (xdrs, &objp->body))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->next, sizeof (app_data), (xdrproc_t) xdr_app_data))
 		 return FALSE;
 	return TRUE;
 }
@@ -7367,7 +7390,7 @@ bool_t
 xdr_app_data_ptr (XDR *xdrs, app_data_ptr *objp)
 {
 	register int32_t *buf;
-	 if (!xdr_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data))
+	 if (!xcom_app_data_pointer (xdrs, (char **)objp, sizeof (app_data), (xdrproc_t) xdr_app_data))
 		 return FALSE;
 	return TRUE;
 }
@@ -7554,7 +7577,7 @@ xdr_pax_msg (XDR *xdrs, pax_msg *objp)
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set))
 		 return FALSE;
-	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data))
+	 if (!xcom_app_data_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data))
 		 return FALSE;
 	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot))
 		 return FALSE;
