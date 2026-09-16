@@ -2030,19 +2030,21 @@ static char *quote_for_like(const char *name, char (&buff)[BufferSize]) {
   char *to = buff;
   size_t remaining = BufferSize;
 
-  DBUG_EXECUTE_IF("mysqldump_maximum_like_identifier", {
-    static char maximum_identifier[NAME_LEN + 1];
-    memset(maximum_identifier, '\\', sizeof(maximum_identifier) - 1);
-    maximum_identifier[sizeof(maximum_identifier) - 1] = 0;
-    name = maximum_identifier;
-  });
+  if constexpr (BufferSize == MAX_ESCAPED_LIKE_IDENTIFIER_SIZE) {
+    DBUG_EXECUTE_IF("mysqldump_maximum_like_identifier", {
+      static char maximum_identifier[NAME_LEN + 1];
+      memset(maximum_identifier, '\\', sizeof(maximum_identifier) - 1);
+      maximum_identifier[sizeof(maximum_identifier) - 1] = 0;
+      name = maximum_identifier;
+    });
 
-  DBUG_EXECUTE_IF("mysqldump_oversized_like_identifier", {
-    static char oversized_identifier[NAME_LEN + 2];
-    memset(oversized_identifier, '\\', sizeof(oversized_identifier) - 1);
-    oversized_identifier[sizeof(oversized_identifier) - 1] = 0;
-    name = oversized_identifier;
-  });
+    DBUG_EXECUTE_IF("mysqldump_oversized_like_identifier", {
+      static char oversized_identifier[NAME_LEN + 2];
+      memset(oversized_identifier, '\\', sizeof(oversized_identifier) - 1);
+      oversized_identifier[sizeof(oversized_identifier) - 1] = 0;
+      name = oversized_identifier;
+    });
+  }
 
   if (name == nullptr) {
     die(EX_CONSCHECK, "Cannot quote a NULL identifier");
