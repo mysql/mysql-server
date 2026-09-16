@@ -124,9 +124,9 @@ class Stat_Buffer {
     The buffer holds up to m_count valid elements. This function accepts a row
     non-negative row_num range [0, m_count].
 
-    Thread-safety:
+    Thread safety:
     - If this buffer is shared (m_no_lock == false), the caller should hold a
-      read lock, or use read()/read_last() which manage locking.
+      read lock or use read()/read_last() which manage locking.
     - This method itself does not acquire locks.
 
     @param[out] record   On success, set to element at requested logical row.
@@ -163,7 +163,7 @@ class Stat_Buffer {
     - m_full remains true
     - m_wrapped is set when the first overwrite occurs and stays true
 
-    Thread-safety:
+    Thread safety:
     - This method does not acquire locks. For shared buffers (m_no_lock ==
     false), call write() which manages locking, or ensure the caller holds an
     exclusive lock.
@@ -324,7 +324,7 @@ class Stat_Buffer {
     older than the oldest existing element or newer than the most recent one,
     the mapping fails and the function returns false.
 
-    Thread-safety:
+    Thread safety:
     - Acquires the buffer’s read lock internally (if the buffer is shared) to
       provide a coherent snapshot of count() and total_written().
 

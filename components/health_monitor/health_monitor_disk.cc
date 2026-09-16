@@ -163,12 +163,12 @@ void Disk_Collector::process() {
   }
   // Advance fallback and recovery timers
   advance_timers();
-  // Check the available space against the storage thresholds, react as necessry
+  // Check the available space against the storage thresholds, react as necessary
   check_storage_levels();
   // If the system variables were updated during exclusive processing such as
   // fallback mode, then signal the task supervisor to apply the changes
   if (settings_pending()) {
-    supervisor->notify_settings_update();
+    Health_Monitor::supervisor()->notify_settings_update();
   }
 }
 
@@ -214,7 +214,7 @@ bool Disk_Collector::resolve_monitored_path() {
     m_refresh_storage_profile = true;
     if (m_disk_forecaster != nullptr) {
       m_disk_forecaster->set_settings_pending(true);
-      supervisor->notify_settings_update();
+      Health_Monitor::supervisor()->notify_settings_update();
     }
   }
   return true;

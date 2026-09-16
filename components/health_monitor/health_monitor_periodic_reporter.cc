@@ -132,14 +132,16 @@ void Periodic_Reporter::process() {
   if (!Health_Monitor::available()) return;
 
   // If the memory collector is running, then check available memory
-  if (memory_collector->running()) {
+  if (Health_Monitor::memory_collector()->running()) {
     // If a reading hasn't been taken, don't run the report
-    if (memory_collector->m_avail_mb == 0) return;
+    if (Health_Monitor::memory_collector()->m_avail_mb == 0) return;
     // We need 1/2 of the warning level 3 limit (50 MiB) to run the report
     bool const low_memory =
-        memory_collector->m_avail_mb <= memory_collector->m_warn_level_3_mb / 2;
+        Health_Monitor::memory_collector()->m_avail_mb <=
+        Health_Monitor::memory_collector()->m_warn_level_3_mb / 2;
     // Ignore test values used to provoke warnings
-    bool const test_mode = memory_collector->m_warn_level_3_mb == k_max_level;
+    bool const test_mode =
+        Health_Monitor::memory_collector()->m_warn_level_3_mb == k_max_level;
     if (low_memory && !test_mode) {
       log_diag("Diagnostic report unavailable due to low memory");
       return;
@@ -151,7 +153,7 @@ void Periodic_Reporter::process() {
   // the task supervisor to apply the changes now to avoid a potential deadlock
   // with LOCK_global_system_variables
   if (settings_pending()) {
-    supervisor->notify_settings_update();
+    Health_Monitor::supervisor()->notify_settings_update();
   }
 }
 
@@ -174,9 +176,10 @@ int Periodic_Reporter::report_deprecated_usage() {
       std::stringstream str;
       std::time_t const sec = std::stoll(time_val) / 1000000;
       str << std::put_time(std::gmtime(&sec), "%F %T");
-      log->log_message_lu(INFORMATION_LEVEL, ER_USAGE_DEPRECATION_COUNTER,
-                          "information_schema.processlist", count_val.c_str(),
-                          str.str().c_str());
+      Health_Monitor::log()->log_message_lu(
+          INFORMATION_LEVEL, ER_USAGE_DEPRECATION_COUNTER,
+          "information_schema.processlist", count_val.c_str(),
+          str.str().c_str());
     }
     // periodically reporting usage of the deprecated foreign key on non
     // standard key(non unique keys and partial columns in indexes)
@@ -188,9 +191,9 @@ int Periodic_Reporter::report_deprecated_usage() {
       std::stringstream str;
       std::time_t const sec = std::stoll(time_val) / 1000000;
       str << std::put_time(std::gmtime(&sec), "%F %T");
-      log->log_message_lu(INFORMATION_LEVEL, ER_USAGE_DEPRECATION_COUNTER,
-                          "fk_on_non_standard_key", count_val.c_str(),
-                          str.str().c_str());
+      Health_Monitor::log()->log_message_lu(
+          INFORMATION_LEVEL, ER_USAGE_DEPRECATION_COUNTER,
+          "fk_on_non_standard_key", count_val.c_str(), str.str().c_str());
     }
     deprecation_msg_next = DEPRECATION_REPORT_SAMPLE_INTERVAL;
   }

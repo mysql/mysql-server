@@ -73,7 +73,7 @@ bool utl::stoi(const std::string &s, int &result) {
     return true;
   }
   std::istringstream ss(s);
-  // Success if conversion is successful and entire string was consumeed
+  // Success if conversion is successful and entire string was consumed
   return !((ss >> result) && ss.eof());
 }
 

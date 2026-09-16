@@ -66,7 +66,7 @@ void Storage_State::get_levels() { available_mb = dc->m_avail_mb; }
   Storage levels are intended to be logically sequential such that
   normal > warning 1 > warning 2 > warning 3 > low > critical, however
   they can be defined in any order. To ensure logical consistency,
-  each level has a primary definition with zero more qualifiers.
+  each level has a primary definition with zero or more qualifiers.
 
   For example, low level *always* means that available space is below the
   reserve level, but must also be above the critical level, even if the critical

@@ -35,14 +35,9 @@ namespace hm {
 /**
   Convert a process memory snapshot into a Health Monitor memory record.
 
-  The snapshot must have a valid System_result to be converted.
-  - Process_identity and Process_residency must have valid System_result values.
-  - The memory_details and page_faults field are optional.
-  - 'Unavailable' for a value means there is no equivalent on this platform.
-  - 'Failed' means that the collection attempt failed.
-
-  If the record is valid a value is unavailable, then that value is represented
-  as NULL in the table.
+  Identity and residency must have available System_result values. The details
+  and page_faults fields are optional. Optional fields without available values
+  become SQL NULL.
 
   @param[in] snapshot Process memory snapshot to convert
   @param[in,out] output Destination record, unchanged on failure

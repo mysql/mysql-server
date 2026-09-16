@@ -251,7 +251,7 @@ void Memory_Collector::set_memory_profile(const Memory_Info &memory_info) {
   m_last_warn_level_mb = no_warn_level;
   // Refresh the threshold parameters in the memory states
   set_state_params();
-  // New deal, reset to normal state
+  // Reset the warning state after updating thresholds
   set_normal_state();
   m_refresh_memory_profile = false;
   m_force_status = true;
@@ -325,7 +325,7 @@ void Memory_Collector::log_warning_level(int) {
   log_warning("%s",
               build_resource_message(state, tag_mode(), "", true).c_str());
   // Emit memory
-  memory_reporter->signal();
+  Health_Monitor::memory_reporter()->signal();
 }
 
 /**

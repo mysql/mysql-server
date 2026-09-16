@@ -43,29 +43,19 @@ static inline int clamp_int(int v, int lo, int hi) {
 }
 
 /**
-  @brief Approximate a confidence percentage for a point forecast.
+  @brief Compute a display score from interval width relative to forecast
+         magnitude.
 
-  Computes a simple, bounded confidence score in [0, 99] based on the relative
-  half–width of the forecast’s prediction interval:
+  This score is not a statistical confidence level.
 
     span  = |CI_UB − CI_LB|
     half  = span / 2
     denom = max(1, |FORECAST_MB|)
     conf  = 100 * (1 − half / denom), then clamped to [0, 99] and rounded
 
-  Rationale:
-  - Narrow intervals (small half/denom) yield higher confidence.
-  - Very small or zero forecast magnitudes are guarded by a unit floor in the
-    denominator to avoid division spikes.
-  - The result is intended for logs and status), not for statistical inference,
-    so it is deliberately conservative and heuristic.
-
-  Thread-safety:
-  - Pure function; does not write shared state.
-
   @param[in] f  Horizon forecast containing forecast_mb and CI bounds.
-  @return int   Confidence percentage in [0, 99], where larger values indicate
-                tighter (relatively narrower) intervals around the forecast.
+  @return Score in [0, 99]. Larger values indicate narrower intervals relative
+          to the forecast magnitude.
 */
 static inline int approximate_confidence(const hm::Disk_Forecast &f) {
   const double span = std::fabs(f.ci_upper_mb - f.ci_lower_mb);
@@ -90,51 +80,15 @@ static inline std::string action_required_for_status(const std::string &status_n
 }
 
 /**
-  @brief Build a long‑form disk space forecast report as a single formatted string.
+  @brief Format the disk forecast report for the diagnostic log.
 
-  Generates a human‑readable, multi‑section report summarizing current storage
-  conditions and projections based on the most recent forecast summary and a set
-  of horizon forecasts (e.g., 1h, 24h, 7d). The report is suitable for writing
-  to the diagnostics log on the configured cadence (e.g., every 4 hours), and
-  may also be emitted immediately when certain events occur (e.g., volume size
-  change) to override timer schedules.
+  Sort forecasts by horizon. Return "No forecasts available" if the vector is
+  empty. Trend, accuracy and usage breakdown sections currently contain
+  placeholders.
 
-  Report content:
-  - Header: Report title, generation time, method (Holt‑Winters), server info
-  - Headline: Status (NORMAL/WARNING/CRITICAL), current usage %, ETA to
-              depletion (if any), daily usage rate (%/day)
-  - Projected depletion time and a confidence approximation
-  - Forecast timeline: Horizon (minutes/hours/days), projected usage %,
-                       status per horizon, and an action hint
-  - Usage trend (24h): Visualization and recent rate
-  - Immediate actions: Prioritized suggestions
-  - Storage details: Capacity, used/free, mount point, filesystem
-  - Model performance: Accuracy/MAE, patterns, anomaly status
-  - Threshold config: Documented rules and current classification
-  - Next forecast update time
-
-  Input expectations:
-  - @p summary is the most recent Disk_Forecast_Summary (one row per forecast cycle).
-  - @p forecasts is a collection of point forecasts for one or more horizons
-    (e.g., 60, 1440, 10080 minutes).
-
-  Assumptions and notes:
-  - Confidence is approximated from each forecast’s CI width (relative half‑width),
-    then summarized.
-  - Some sections (trend visualization, anomaly, detailed accuracy, etc.) are
-    placeholders unless supporting metrics are available.
-  - Mount point and filesystem are included if known.
-
-  Thread safety:
-  - Pure formatter, does not modify forecast or collector states.
-
-  Error handling:
-  - If @p forecasts is empty, the report still renders using @p summary and
-    marks missing forecast details as N/A.
-
-  @param[in] forecasts  Vector of horizon forecasts (1h/24h/7d). May be empty.
+  @param[in,out] forecasts Vector of horizon forecasts (1h/1d/7d), sorted in place.
   @param[in] summary    Latest forecast summary (trend, rate, ETA, status).
-  @return std::string   Fully formatted report string ready for logging.
+  @return Formatted report, or "No forecasts available".
 */
 std::string Disk_Forecaster::generate_report(std::vector<Disk_Forecast> &forecasts,
                                              Disk_Forecast_Summary &summary) {
@@ -254,8 +208,8 @@ std::string Disk_Forecaster::generate_report(std::vector<Disk_Forecast> &forecas
       << sep
       << "Total Capacity:     " << std::setprecision(0) << std::fixed << summary.volume_size_mb << " MiB"
       << "          Mount Point:    " << volume() << "\n"
-      << "Used Space:         " << std::setprecision(0) << std::fixed << summary.current_usage_mb << " MiB"
-      << "Free Space:          " << std::setprecision(0) << std::fixed << free_mb << " MiB"
+      << "Used Space:         " << std::setprecision(0) << std::fixed << summary.current_usage_mb << " MiB\n"
+      << "Free Space:          " << std::setprecision(0) << std::fixed << free_mb << " MiB\n"
       << "Usage Breakdown:\n"
       << "  Database Files:   N/A\n"
       << "  Transaction Logs: N/A\n"

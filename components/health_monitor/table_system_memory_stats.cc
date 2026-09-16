@@ -52,7 +52,7 @@ PSI_table_handle *table_system_memory_stats::open_table(PSI_pos **psi_pos) {
   auto *table = new table_system_memory_stats();
   auto *pos = reinterpret_cast<pos_t **>(psi_pos);
   *pos = &table->m_pos;
-  table->m_buffer = system_collector->get_memory_stats_buffer();
+  table->m_buffer = Health_Monitor::system_collector()->get_memory_stats_buffer();
   return reinterpret_cast<PSI_table_handle *>(table);
 }
 

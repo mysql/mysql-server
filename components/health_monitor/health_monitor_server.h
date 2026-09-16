@@ -59,10 +59,10 @@ class GR_Status_Listener {
   static DEFINE_BOOL_METHOD(notify_member_state_change, (const char *));
 };
 
-// When an unfenced OOD secondary is promoted to primary, the new primary
-// will be fenced. However, the switchover process may take some time such that
-// the lag until GR sets SUPER_READ_ONLY = OFF is unbounded. The Health Monitor
-// must wait until SUPER_READ_ONLY = OFF before fencing the server.
+// When an unfenced secondary that is out of disk space is promoted to primary,
+// the new primary will be fenced. The delay until GR sets SUPER_READ_ONLY = OFF
+// during switchover is unbounded. The Health Monitor must wait until
+// SUPER_READ_ONLY = OFF before fencing the server.
 
 // #define DEBUG_SWITCHOVER_LAG
 

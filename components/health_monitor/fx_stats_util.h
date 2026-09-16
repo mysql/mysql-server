@@ -79,9 +79,8 @@ double mean_average(const std::vector<double> &values);
   @param series The full time series (vector of samples).
   @param lo  Inclusive start index within the series.
   @param hi  Inclusive end index within the series.
-  @return double The average value of y[lo..hi].
-
-  @warning No bounds checking: caller must ensure 0 <= lo <= hi < series.size().
+  @return The mean for the inclusive range [lo, hi], or 0.0 if the range is
+  invalid.
   @note Used for initializing Holt-Winters state (level and detrended season).
 */
 double mean_average(const Series &series, int lo, int hi);

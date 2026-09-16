@@ -29,7 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @struct Holt_Winters_State
-  @brief Represents the internal state of the Holt-Winters forecasting model.
+  @brief Holt-Winters parameters, fitted state and residual statistics.
 
   This struct encapsulates the parameters and state variables required by the
   Holt-Winters algorithm to generate forecasts. The members include:
@@ -49,16 +49,13 @@ struct Holt_Winters_State {
   double gamma{0.05};  // smoothing factor for seasonal component (0 <= γ <= 1)
   double level{0.0};   // current level (baseline value)
   double trend{0.0};   // current trend (slope), MiB/min
-  // Seaonal component ring buffer, size m, by phase (minute of day)
+  // Seasonal component ring buffer, size m, by phase (minute of day)
   std::vector<double> season;
 
-  // Last processed index relative to the total samples processed since the
-  // model was initialized (aka T). Used to track of where a sample is relative
-  // to the entire time series, not just the current batch. Essential for
-  // maintaining seasonal alignment, and to determine what 'phase' (minute) of
-  // the seasonal component to use when forecasting.
+  // Index of the last processed observation across all batches since model
+  // initialization, used to select the seasonal slot when forecasting.
   int64_t last_idx{-1};
-  // Timestampe of the last data point
+  // Timestamp of the last data point
   int64_t last_ts{0};
   // Index of the next metric to process, zero-based
   unsigned int next_metric{0};

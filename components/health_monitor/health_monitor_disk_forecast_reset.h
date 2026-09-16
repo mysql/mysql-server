@@ -74,8 +74,8 @@ using Disk_series_reset_action = std::function<void()>;
 /**
   Pause disk metric writes, reset the series and restore the prior write state.
 
-  @param[in] get_writeable Current write-state reader
-  @param[in] set_writeable Write-state setter
+  @param[in] get_writeable Write state reader
+  @param[in] set_writeable Write state setter
   @param[in] reset_series Locked series reset action
 */
 void reset_disk_series(const Disk_writeable_getter &get_writeable,
@@ -98,10 +98,9 @@ void clear_disk_forecast_retained_state(
     bool &volume_size_changed);
 
 /**
-  Clear filesystem-specific metric, model, forecast and reporting state.
+  Clear metric, model, forecast and reporting state.
 
-  The caller must hold the metric-buffer write lock and forecast-model write
-  lock.
+  The caller must hold the buffer write lock and forecast model write lock.
 */
 void clear_disk_forecast_series_no_lock(
     const Disk_Metric_Buffer &metric_buffer,

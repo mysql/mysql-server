@@ -40,7 +40,7 @@ struct table_disk_forecast_row {
   time_t prediction_time{};   // predicted time of the forecasted values
   int32_t horizon_minutes{};  // forecast horizon in minutes (60, 1440, 10080)
   double volume_size_mb{};    // filesystem capacity (MiB)
-  double forecast_mb{};       // predicted available disk space (MiB)
+  double forecast_mb{};       // predicted used disk space (MiB)
   double ci_lower_mb{};       // lower bound of confidence interval (MiB)
   double ci_upper_mb{};       // upper bound of confidence interval (MiB)
 };

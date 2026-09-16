@@ -107,7 +107,7 @@ class Normal_State : public Memory_State {
 /**
   Warning State
 
-  Available space is below one or more warning levels.
+  Available memory is below one or more warning levels.
 */
 class Warning_State : public Memory_State {
  public:

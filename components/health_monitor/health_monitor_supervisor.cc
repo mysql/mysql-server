@@ -84,12 +84,12 @@ void Supervisor::process() {
         processed_settings = collector->update_settings() || processed_settings;
       }
     };
-    process_pending(disk_collector.get());
-    process_pending(disk_forecaster.get());
-    process_pending(memory_collector.get());
-    process_pending(system_collector.get());
-    process_pending(periodic_reporter.get());
-    process_pending(memory_reporter.get());
+    process_pending(Health_Monitor::disk_collector());
+    process_pending(Health_Monitor::disk_forecaster());
+    process_pending(Health_Monitor::memory_collector());
+    process_pending(Health_Monitor::system_collector());
+    process_pending(Health_Monitor::periodic_reporter());
+    process_pending(Health_Monitor::memory_reporter());
   } while (processed_settings);
 }
 

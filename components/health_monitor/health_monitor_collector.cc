@@ -126,7 +126,7 @@ void Collector::mark_settings_pending() { set_settings_pending(true); }
 
 /**
   Update system variable settings for the Collector.
-  - Static system variables require the thread to the restarted.
+  - Static system variables require the thread to be restarted.
   - Dynamic system variables can be applied without restarting the thread.
   - Collectors that do not distinguish between static and dynamic settings use
     settings_changed() to detect changes and therefore require a thread restart.
@@ -256,12 +256,8 @@ void Collector::log_collector_status(const std::string &state_msg,
 
   - Status messages are used by the collector state machines to report
     storage level changes.
-  - In order to limit the number of unnecessary log messages, status messages
-    are issued every status_interval collection cycles.
-  - The status timer counts the number of collection cycles since the last
-    status message.
-  - The status timer is only advanced when a sample was taken and stored.
-    It is not advanced for monitoring/read-only collection cycles.
+  - The status timer advances every collection cycle and expires after
+    status_interval * sample_interval seconds to limit repeated messages.
   - Status messages can be forced with m_force_status = true.
 */
 void Collector::log_status() {

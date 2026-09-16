@@ -91,7 +91,8 @@ void Disk_Forecaster::initialize() {
   set_disk_forecast_buffer_size();
   initialize_timers();
   // Share the time series buffer with the Disk Collector
-  disk_collector->set_disk_metric_buffer(disk_metric_buffer(), this);
+  Health_Monitor::disk_collector()->set_disk_metric_buffer(disk_metric_buffer(),
+                                                           this);
 }
 
 /**
@@ -140,7 +141,7 @@ void Disk_Forecaster::pre_process() {
 }
 
 /**
-  Main processing loop, 10 second internval.
+  Main processing loop, 10 second interval.
   Get disk metrics every minute, generate forecasts, issue forecast reports.
 */
 void Disk_Forecaster::process() {
@@ -188,7 +189,7 @@ void Disk_Forecaster::process() {
   if (settings_pending()) {
     settings_guard.unlock();
     processing_guard.unlock();
-    supervisor->notify_settings_update();
+    Health_Monitor::supervisor()->notify_settings_update();
   }
 }
 

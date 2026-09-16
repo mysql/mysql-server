@@ -448,16 +448,16 @@ class Disk_Collector : public Collector {
   bool m_status_super_read_only_disk_full{false};
 
   // A note on the different intervals:
-  // - The base interval is the frequency that the Collector checks the resource
-  // - The sample interval is the frequency of storing samples, and is always
+  // - The base interval is the time between resource checks
+  // - The sample interval is the time between stored samples, and is always
   //   a multiple of the base interval
-  // - The report interval is the frequency of reporting the resource status,
+  // - The report interval is the time between resource status reports,
   //   and is a multiple of the sample interval
   static constexpr int k_disk_base_interval{10};
-  // Reporting interval while the fallback timer is running (30 sec)
-  static constexpr int k_fallback_report_interval{k_disk_base_interval};//*3};
-  // Reporting interval while the recover timer is running (60 sec)
-  static constexpr int k_recovery_report_interval{k_disk_base_interval};//*6};
+  // Reporting interval while the fallback timer is running (10 sec)
+  static constexpr int k_fallback_report_interval{k_disk_base_interval};
+  // Reporting interval while a recovery timer is running (10 sec)
+  static constexpr int k_recovery_report_interval{k_disk_base_interval};
   // Number of attempts to set SUPER_READ_ONLY
   static constexpr int k_fallback_retries{5};
   // Percent change in disk space to trigger status message

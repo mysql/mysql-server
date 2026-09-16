@@ -46,17 +46,17 @@ const std::string k_disk_forecaster_test_state{"disk_forecaster_test_state"};
 int Status_vars::initialize_all() {
   // Disk collector status variables
   offline_mode_disk_full.var.name = k_offline_mode_disk_full.c_str();
-  offline_mode_disk_full.var.value = reinterpret_cast<char *>(disk_collector->offline_mode_set_ptr());
+  offline_mode_disk_full.var.value = reinterpret_cast<char *>(Health_Monitor::disk_collector()->offline_mode_set_ptr());
   offline_mode_disk_full.var.type = SHOW_BOOL;
   offline_mode_disk_full.var.scope = SHOW_SCOPE_GLOBAL;
 
   super_read_only_disk_full.var.name = k_super_read_only_disk_full.c_str();
-  super_read_only_disk_full.var.value = reinterpret_cast<char *>(disk_collector->super_read_only_set_ptr());
+  super_read_only_disk_full.var.value = reinterpret_cast<char *>(Health_Monitor::disk_collector()->super_read_only_set_ptr());
   super_read_only_disk_full.var.type = SHOW_BOOL;
   super_read_only_disk_full.var.scope = SHOW_SCOPE_GLOBAL;
 
   disk_recovery_count.var.name = k_recovery_cycles.c_str();
-  disk_recovery_count.var.value = reinterpret_cast<char *>(disk_collector->recovery_count_ptr());
+  disk_recovery_count.var.value = reinterpret_cast<char *>(Health_Monitor::disk_collector()->recovery_count_ptr());
   disk_recovery_count.var.type = SHOW_INT;
   disk_recovery_count.var.scope = SHOW_SCOPE_GLOBAL;
 
@@ -66,12 +66,12 @@ int Status_vars::initialize_all() {
   option_tracker_usage.var.scope = SHOW_SCOPE_GLOBAL;
 
   disk_forecaster_run_mode.var.name = k_disk_forecaster_run_mode.c_str();
-  disk_forecaster_run_mode.var.value = const_cast<char *>(disk_forecaster->run_mode_name_ptr());
+  disk_forecaster_run_mode.var.value = const_cast<char *>(Health_Monitor::disk_forecaster()->run_mode_name_ptr());
   disk_forecaster_run_mode.var.type = SHOW_CHAR;
   disk_forecaster_run_mode.var.scope = SHOW_SCOPE_GLOBAL;
 
   disk_forecaster_test_state.var.name = k_disk_forecaster_test_state.c_str();
-  disk_forecaster_test_state.var.value = const_cast<char *>(disk_forecaster->test_state_name_ptr());
+  disk_forecaster_test_state.var.value = const_cast<char *>(Health_Monitor::disk_forecaster()->test_state_name_ptr());
   disk_forecaster_test_state.var.type = SHOW_CHAR;
   disk_forecaster_test_state.var.scope = SHOW_SCOPE_GLOBAL;
   return 0;
@@ -86,22 +86,28 @@ int Status_vars::register_all() {
   if (m_registered) {
     return 0;
   }
-  if (register_status_var(status_vars->offline_mode_disk_full) != 0) {
+  if (register_status_var(
+          Health_Monitor::status_vars()->offline_mode_disk_full) != 0) {
     return 1;
   }
-  if (register_status_var(status_vars->super_read_only_disk_full) != 0) {
+  if (register_status_var(
+          Health_Monitor::status_vars()->super_read_only_disk_full) != 0) {
     return 1;
   }
-  if (register_status_var(status_vars->disk_recovery_count) != 0) {
+  if (register_status_var(Health_Monitor::status_vars()->disk_recovery_count) !=
+      0) {
     return 1;
   }
-  if (register_status_var(status_vars->option_tracker_usage) != 0) {
+  if (register_status_var(
+          Health_Monitor::status_vars()->option_tracker_usage) != 0) {
     return 1;
   }
-  if (register_status_var(status_vars->disk_forecaster_run_mode) != 0) {
+  if (register_status_var(
+          Health_Monitor::status_vars()->disk_forecaster_run_mode) != 0) {
     return 1;
   }
-  if (register_status_var(status_vars->disk_forecaster_test_state) != 0) {
+  if (register_status_var(
+          Health_Monitor::status_vars()->disk_forecaster_test_state) != 0) {
     return 1;
   }
   m_registered = true;
@@ -113,13 +119,17 @@ int Status_vars::register_all() {
 */
 // cppcheck-suppress unusedFunction
 void Status_vars::unregister_all() {
-  if (status_vars->m_registered) {
-    unregister_status_var(status_vars->offline_mode_disk_full);
-    unregister_status_var(status_vars->super_read_only_disk_full);
-    unregister_status_var(status_vars->disk_recovery_count);
-    unregister_status_var(status_vars->option_tracker_usage);
-    unregister_status_var(status_vars->disk_forecaster_run_mode);
-    unregister_status_var(status_vars->disk_forecaster_test_state);
+  if (Health_Monitor::status_vars()->m_registered) {
+    unregister_status_var(
+        Health_Monitor::status_vars()->offline_mode_disk_full);
+    unregister_status_var(
+        Health_Monitor::status_vars()->super_read_only_disk_full);
+    unregister_status_var(Health_Monitor::status_vars()->disk_recovery_count);
+    unregister_status_var(Health_Monitor::status_vars()->option_tracker_usage);
+    unregister_status_var(
+        Health_Monitor::status_vars()->disk_forecaster_run_mode);
+    unregister_status_var(
+        Health_Monitor::status_vars()->disk_forecaster_test_state);
   }
   m_registered = false;
 }
@@ -128,7 +138,8 @@ void Status_vars::unregister_all() {
   Register one status variable.
 */
 int Status_vars::register_status_var(Statvar &statvar) {
-  SHOW_VAR statvars[]{{statvar.var}, {status_vars->null_entry.var}};
+  SHOW_VAR statvars[]{{statvar.var},
+                      {Health_Monitor::status_vars()->null_entry.var}};
   if (statvar_register_srv->register_variable(statvars) != 0) {
     log_error("Health Monitor: Failed to register status variable '%s'",
               statvar.var.name);
@@ -142,7 +153,8 @@ int Status_vars::register_status_var(Statvar &statvar) {
   Unregister one status variable.
 */
 int Status_vars::unregister_status_var(Statvar &statvar) {
-  SHOW_VAR statvars[]{{statvar.var}, {status_vars->null_entry.var}};
+  SHOW_VAR statvars[]{{statvar.var},
+                      {Health_Monitor::status_vars()->null_entry.var}};
   if (statvar_register_srv->unregister_variable(statvars) != 0) {
     log_error("Health Monitor: Failed to unregister status variable '%s'",
               statvar.var.name);

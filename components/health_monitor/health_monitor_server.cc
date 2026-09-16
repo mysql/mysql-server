@@ -65,7 +65,7 @@ mysql_event_tracking_shutdown_subclass_t
     Event_tracking_lifecycle_implementation::shutdown_filtered_sub_events = 0;
 bool Event_tracking_lifecycle_implementation::callback(
     const mysql_event_tracking_shutdown_data *data [[maybe_unused]]) {
-  hm::health_monitor->set_server_shutting_down(true); // stop all work
+  hm::Health_Monitor::instance()->set_server_shutting_down(true); // stop all work
   return false;
 }
 

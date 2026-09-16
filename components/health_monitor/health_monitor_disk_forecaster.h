@@ -65,7 +65,7 @@ class Disk_Forecaster : public Collector {
   // - mode:  Refers to a configuration or operational regime that persists
   //          until changed by explicit action.
   // - state: Refers to the current condition or status of a process, and can
-  //          changes as a result of internal events.
+  //          change as a result of internal events.
   // ---------------------------------------------------------------------------
 
   // Run_Mode - Disk Forecaster operational mode.
@@ -73,7 +73,7 @@ class Disk_Forecaster : public Collector {
   enum class Dfx_Run_Mode {
     NONE,    // system not initialized
     NORMAL,  // active normal operation, collecting live data (default)
-    TEST,    // run unit test from pre-loaded disk metrics
+    TEST,    // run unit test from preloaded disk metrics
     STANDBY  // forecaster thread is alive but not processing data
   };
   static const std::array<std::string, 4> RUN_MODE_NAMES;
@@ -266,7 +266,7 @@ class Disk_Forecaster : public Collector {
   // Forecast record retention (internal, fixed)
   //   - how long forecast records are retained in the Disk_Forecast table
   //   - default: 14 days @ 1 forecast per hour
-  //   - rows: 14 days * 24 fx/day * 3 (60s/24h/7d) = 1008 records
+  //   - rows: 14 days * 24 fx/day * 3 (1h/1d/7d) = 1008 records
   //   - size: 1008 records * 52 bytes/record = 52 KB
   static constexpr int k_forecast_retention_seconds{seconds_per_day * 14};
 

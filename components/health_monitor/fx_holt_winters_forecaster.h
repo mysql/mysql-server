@@ -61,10 +61,9 @@ class Holt_Winters_Forecaster {
   /**
     @brief Advance the Holt-Winters model with new observations.
 
-    Processes observations batch[begin_idx..end_idx], applying iterative state
-    updates via ingest_one().
+    Process every observation in batch using ingest_one().
     @param batch  Time series of samples, this batch is the unprocessed tail
-    @return Advance_Result Summary of processing: indices and count.
+    @return Advance_Result Number of observations processed.
     @note Assumes a write lock on the forecast model is active.
   */
   Advance_Result advance(const Series &batch);

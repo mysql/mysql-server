@@ -167,7 +167,7 @@ namespace {
   Register one system variable.
 
   The PERSIST_AS_READ_ONLY flag ensures that persisted or otherwise
-  pre-configured system variables are loaded during component initialization,
+  preconfigured system variables are loaded during component initialization,
   before the Health Monitor can react to its environment.
 */
 int register_system_var(Sysvar_base &sysvar, void *args) {

@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <string>
 
 #include "component_log.h"
+#include "health_monitor.h"
 #include "mysqld_error.h"
 
 namespace hm {
@@ -74,24 +75,26 @@ class Log {
 };
 
 // Logging helper macros
-#define log_diag(msg, ...)                                                    \
-  log->log_message(LOG_TYPE_DIAG, INFORMATION_LEVEL, ER_DIAG_LOG_STRING, msg, \
-                   ##__VA_ARGS__)
+#define log_diag(msg, ...)                                                   \
+  ::hm::Health_Monitor::log()->log_message(LOG_TYPE_DIAG, INFORMATION_LEVEL, \
+                                           ER_DIAG_LOG_STRING, msg,          \
+                                           ##__VA_ARGS__)
 
-#define log_info(msg, ...)                                                 \
-  log->log_message(LOG_TYPE_ERROR, INFORMATION_LEVEL, ER_HEALTH_INFO, msg, \
-                   ##__VA_ARGS__)
+#define log_info(msg, ...)                                                    \
+  ::hm::Health_Monitor::log()->log_message(LOG_TYPE_ERROR, INFORMATION_LEVEL, \
+                                           ER_HEALTH_INFO, msg, ##__VA_ARGS__)
 
-#define log_warning(msg, ...)                                             \
-  log->log_message(LOG_TYPE_ERROR, WARNING_LEVEL, ER_HEALTH_WARNING, msg, \
-                   ##__VA_ARGS__)
+#define log_warning(msg, ...)               \
+  ::hm::Health_Monitor::log()->log_message( \
+      LOG_TYPE_ERROR, WARNING_LEVEL, ER_HEALTH_WARNING, msg, ##__VA_ARGS__)
 
-#define log_error(msg, ...)                                           \
-  log->log_message(LOG_TYPE_ERROR, ERROR_LEVEL, ER_HEALTH_ERROR, msg, \
-                   ##__VA_ARGS__)
+#define log_error(msg, ...)                 \
+  ::hm::Health_Monitor::log()->log_message( \
+      LOG_TYPE_ERROR, ERROR_LEVEL, ER_HEALTH_ERROR, msg, ##__VA_ARGS__)
 
-#define log_warn_usage(msgno, ...) \
-  log->log_message_lu(WARNING_LEVEL, msgno, ##__VA_ARGS__)
+#define log_warn_usage(msgno, ...)                                  \
+  ::hm::Health_Monitor::log()->log_message_lu(WARNING_LEVEL, msgno, \
+                                              ##__VA_ARGS__)
 
 // Logging helper functions
 std::string bool_to_string(bool value, std::string &if_true,

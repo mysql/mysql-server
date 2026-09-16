@@ -58,9 +58,10 @@ static void get_metric_disk_used_percent(
     void *delivery_context) {
   // return single (latest) measurement
   assert(delivery != nullptr);
-  const double value = disk_collector->m_used_pct;
-  delivery->value_double_attr(delivery_context, value, "device",
-                              disk_collector->m_info.device_name.c_str());
+  const double value = Health_Monitor::disk_collector()->m_used_pct;
+  delivery->value_double_attr(
+      delivery_context, value, "device",
+      Health_Monitor::disk_collector()->m_info.device_name.c_str());
 }
 
 static void get_metric_memory_used_percent(
@@ -68,7 +69,7 @@ static void get_metric_memory_used_percent(
     void *delivery_context) {
   // return single (latest) measurement
   assert(delivery != nullptr);
-  const double value = memory_collector->m_used_pct;
+  const double value = Health_Monitor::memory_collector()->m_used_pct;
   delivery->value_double(delivery_context, value);
 }
 
@@ -77,7 +78,8 @@ static void get_metric_disk_available(void * /* measurement_context */,
                                       void *delivery_context) {
   // return measurements for all monitored disks
   assert(delivery != nullptr);
-  const hm::Disk_Stats_Buffer stats = disk_collector->buffer();
+  const hm::Disk_Stats_Buffer stats =
+      Health_Monitor::disk_collector()->buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -104,7 +106,8 @@ static void get_metric_disk_total(void * /* measurement_context */,
                                   void *delivery_context) {
   // return measurements for all monitored disks
   assert(delivery != nullptr);
-  const hm::Disk_Stats_Buffer stats = disk_collector->buffer();
+  const hm::Disk_Stats_Buffer stats =
+      Health_Monitor::disk_collector()->buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -134,7 +137,8 @@ static void get_metric_cpu_system_time(void * /* measurement_context */,
 
   // return measurements for all available CPU cores
   assert(delivery != nullptr);
-  const hm::System_CPU_Stats_Buffer stats = system_collector->sys_cpu_buffer();
+  const hm::System_CPU_Stats_Buffer stats =
+      Health_Monitor::system_collector()->sys_cpu_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -216,7 +220,8 @@ static void get_metric_cpu_system_time_per_core(
 
   // return measurements for all available CPU cores
   assert(delivery != nullptr);
-  const hm::System_CPU_Stats_Buffer stats = system_collector->sys_cpu_buffer();
+  const hm::System_CPU_Stats_Buffer stats =
+      Health_Monitor::system_collector()->sys_cpu_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -297,7 +302,7 @@ static void get_metric_system_disk_reads(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -327,7 +332,7 @@ static void get_metric_system_disk_reads_per_partition(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -358,7 +363,7 @@ static void get_metric_system_disk_reads_bytes(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -388,7 +393,7 @@ static void get_metric_system_disk_reads_bytes_per_partition(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -418,7 +423,7 @@ static void get_metric_system_disk_reads_time(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -448,7 +453,7 @@ static void get_metric_system_disk_reads_time_per_partition(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -478,7 +483,7 @@ static void get_metric_system_disk_writes(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -508,7 +513,7 @@ static void get_metric_system_disk_writes_per_partition(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -538,7 +543,7 @@ static void get_metric_system_disk_writes_bytes(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -568,7 +573,7 @@ static void get_metric_system_disk_writes_bytes_per_partition(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -598,7 +603,7 @@ static void get_metric_system_disk_writes_time(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -628,7 +633,7 @@ static void get_metric_system_disk_writes_time_per_partition(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -658,7 +663,7 @@ static void get_metric_system_disk_flushes(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -688,7 +693,7 @@ static void get_metric_system_disk_flushes_per_partition(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -718,7 +723,7 @@ static void get_metric_system_disk_flushes_time(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -748,7 +753,7 @@ static void get_metric_system_disk_flushes_time_per_partition(
   // return measurements for all monitored disks
   assert(delivery != nullptr);
   const hm::System_Disk_Stats_Buffer stats =
-      system_collector->sys_disk_buffer();
+      Health_Monitor::system_collector()->sys_disk_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -782,7 +787,7 @@ static void get_metric_system_proc_time(
   // return measurements for all mysqld threads
   assert(delivery != nullptr);
   const hm::System_Process_Stats_Buffer stats =
-      system_collector->sys_process_buffer();
+      Health_Monitor::system_collector()->sys_process_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -836,7 +841,7 @@ static const char *proc_attr_names[proc_attr_count] = {
 static bool read_latest_process_metric(const Process_thread_metric metric,
                                        System_Process_Stats &record) {
   const System_Process_Stats_Buffer stats =
-      system_collector->sys_process_buffer();
+      Health_Monitor::system_collector()->sys_process_buffer();
   if (!stats) return false;
   if (stats->lock_read() != 0) return false;
 
@@ -966,7 +971,7 @@ static void get_metric_system_memory_total_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -983,7 +988,7 @@ static void get_metric_system_memory_free_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1000,7 +1005,7 @@ static void get_metric_system_memory_avail_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1017,7 +1022,7 @@ static void get_metric_system_memory_used_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1034,7 +1039,7 @@ static void get_metric_system_memory_buffers_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1052,7 +1057,7 @@ static void get_metric_system_memory_cached_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1070,7 +1075,7 @@ static void get_metric_system_memory_slab_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1088,7 +1093,7 @@ static void get_metric_system_memory_swap_total_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1106,7 +1111,7 @@ static void get_metric_system_memory_swap_free_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1124,7 +1129,7 @@ static void get_metric_system_memory_swap_used_bytes(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1142,7 +1147,7 @@ static void get_metric_system_memory_swap_in(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1160,7 +1165,7 @@ static void get_metric_system_memory_swap_out(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const hm::System_Memory_Stats_Buffer stats =
-      system_collector->sys_memory_buffer();
+      Health_Monitor::system_collector()->sys_memory_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1177,8 +1182,8 @@ static void get_metric_super_read_only_disk_full(
     void *delivery_context) {
   // based on 'super_read_only_disk_full' status variable
   assert(delivery != nullptr);
-  const int64_t value =
-      static_cast<int64_t>(disk_collector->m_status_super_read_only_disk_full);
+  const int64_t value = static_cast<int64_t>(
+      Health_Monitor::disk_collector()->m_status_super_read_only_disk_full);
   delivery->value_int64(delivery_context, value);
 }
 
@@ -1188,7 +1193,7 @@ static void get_metric_memory_process_page_faults(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const std::shared_ptr<Stat_Buffer<Process_Memory_Info>> stats =
-      memory_collector->proc_buffer();
+      Health_Monitor::memory_collector()->proc_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1210,7 +1215,7 @@ static void get_metric_memory_process_vmrss(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const std::shared_ptr<Stat_Buffer<Process_Memory_Info>> stats =
-      memory_collector->proc_buffer();
+      Health_Monitor::memory_collector()->proc_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1232,7 +1237,7 @@ static void get_metric_memory_process_vmdata(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const std::shared_ptr<Stat_Buffer<Process_Memory_Info>> stats =
-      memory_collector->proc_buffer();
+      Health_Monitor::memory_collector()->proc_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;
@@ -1254,7 +1259,7 @@ static void get_metric_memory_process_vmswap(
   // return single (latest) measurement
   assert(delivery != nullptr);
   const std::shared_ptr<Stat_Buffer<Process_Memory_Info>> stats =
-      memory_collector->proc_buffer();
+      Health_Monitor::memory_collector()->proc_buffer();
   if (!stats) return;
   const int count = stats->count();
   if (count == 0) return;

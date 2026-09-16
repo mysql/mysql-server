@@ -55,24 +55,24 @@ mysql_service_status_t Tables::register_all() {
   mysql_service_status_t rc{1};
   if (table_srv != nullptr) {
     // Create the table definitions
-    m_tables.push_back(table_disk_forecast_init(disk_forecaster->disk_forecast_buffer()));
-    m_tables.push_back(table_disk_forecast_summary_init(disk_forecaster->disk_forecast_summary_buffer()));
-    m_tables.push_back(table_disk_metric_init(disk_forecaster->disk_metric_buffer()));
+    m_tables.push_back(table_disk_forecast_init(Health_Monitor::disk_forecaster()->disk_forecast_buffer()));
+    m_tables.push_back(table_disk_forecast_summary_init(Health_Monitor::disk_forecaster()->disk_forecast_summary_buffer()));
+    m_tables.push_back(table_disk_metric_init(Health_Monitor::disk_forecaster()->disk_metric_buffer()));
     #if 0
     // Deferred until later release
-    m_tables.push_back(table_disk_metric_aggregate_init(disk_forecaster->disk_metric_aggregate_buffer()));
+    m_tables.push_back(table_disk_metric_aggregate_init(Health_Monitor::disk_forecaster()->disk_metric_aggregate_buffer()));
     #endif
-    m_tables.push_back(table_health_block_device_init(disk_collector->buffer()));
-    m_tables.push_back(table_health_process_memory_init(memory_collector->proc_buffer()));
-    m_tables.push_back(table_health_system_memory_init(memory_collector->sys_buffer()));
+    m_tables.push_back(table_health_block_device_init(Health_Monitor::disk_collector()->buffer()));
+    m_tables.push_back(table_health_process_memory_init(Health_Monitor::memory_collector()->proc_buffer()));
+    m_tables.push_back(table_health_system_memory_init(Health_Monitor::memory_collector()->sys_buffer()));
     m_tables.push_back(table_system_cpu_stats_init());
-    m_tables.push_back(table_system_cpu_stats_history_init(system_collector->sys_cpu_buffer()));
+    m_tables.push_back(table_system_cpu_stats_history_init(Health_Monitor::system_collector()->sys_cpu_buffer()));
     m_tables.push_back(table_system_disk_stats_init());
-    m_tables.push_back(table_system_disk_stats_history_init(system_collector->sys_disk_buffer()));
+    m_tables.push_back(table_system_disk_stats_history_init(Health_Monitor::system_collector()->sys_disk_buffer()));
     m_tables.push_back(table_system_memory_stats_init());
-    m_tables.push_back(table_system_memory_stats_history_init(system_collector->sys_memory_buffer()));
+    m_tables.push_back(table_system_memory_stats_history_init(Health_Monitor::system_collector()->sys_memory_buffer()));
     m_tables.push_back(table_system_process_stats_init());
-    m_tables.push_back(table_system_process_stats_history_init(system_collector->sys_process_buffer()));
+    m_tables.push_back(table_system_process_stats_history_init(Health_Monitor::system_collector()->sys_process_buffer()));
     // Register the tables in the Performance Schema
     // Assign a shared status buffer to each
     rc = table_srv->add_tables(m_tables.data(), m_tables.size());
