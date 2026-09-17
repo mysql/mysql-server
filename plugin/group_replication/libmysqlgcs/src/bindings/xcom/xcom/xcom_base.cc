@@ -512,6 +512,38 @@ static struct {
 
 synode_no get_max_synode() { return max_synode; }
 
+bool is_node_number_in_valid_range(node_no node) { return node < NSERVERS; }
+
+bool is_valid_snapshot_message(pax_msg const *p) {
+  return p != nullptr && p->gcs_snap != nullptr &&
+         is_node_number_in_valid_range(p->from);
+}
+
+/*
+  Process non-snapshot messages normally. Accept a valid snapshot while
+  booting. Drop snapshots that are no longer needed after boot completes. If a
+  snapshot received while booting is invalid, terminate the connection so the
+  normal reconnect flow can retry recovery.
+*/
+snapshot_receive_action get_snapshot_receive_action(pax_msg const *p,
+                                                    bool boot_completed) {
+  assert(p != nullptr);
+
+  if (p->op != gcs_snapshot_op) {
+    return snapshot_receive_action::not_snapshot;
+  }
+
+  if (boot_completed) {
+    return snapshot_receive_action::drop;
+  }
+
+  if (!is_valid_snapshot_message(p)) {
+    return snapshot_receive_action::terminate_connection;
+  }
+
+  return snapshot_receive_action::process;
+}
+
 static bool_t is_latest_config(site_def const *const config) {
   site_def const *const latest_config = get_site_def();
   assert(latest_config != nullptr);
@@ -6341,6 +6373,10 @@ static void process_gcs_snapshot_op(site_def const *site, pax_msg *p,
   (void)reply_queue;
   /* Avoid duplicate snapshots and snapshots from zombies */
   XCOM_IFDBG(D_BASE, FN; SYCEXP(executed_msg););
+  if (!is_valid_snapshot_message(p)) {
+    return;
+  }
+
   XCOM_IFDBG(D_BASE, FN; SYCEXP(start_config););
   if (!synode_eq(start_config, get_highest_boot_key(p->gcs_snap)) &&
       !is_dead_site(p->group_id)) {
@@ -6678,6 +6714,7 @@ int acceptor_learner_task(task_arg arg) {
   server *srv;
   site_def const *site;
   int behind;
+  snapshot_receive_action snapshot_action;
   ENV_INIT
   END_ENV_INIT
   END_ENV;
@@ -6736,6 +6773,30 @@ again:
     if (n <= 0) {
       break;
     }
+    ep->p->refcnt = 1; /* Refcnt from other end is void here */
+
+    /*
+      Validate snapshots before normal dispatch so invalid messages cannot
+      affect the snapshot state. Snapshots received after boot completes are
+      no longer needed and are dropped. An invalid snapshot received while
+      booting closes the connection so recovery can retry.
+    */
+    ep->snapshot_action =
+        get_snapshot_receive_action(ep->p, client_boot_done != 0);
+
+    if (ep->snapshot_action == snapshot_receive_action::drop) {
+      G_DEBUG(
+          "Dropping an XCom snapshot message received after boot completed");
+      continue;
+    }
+
+    if (ep->snapshot_action == snapshot_receive_action::terminate_connection) {
+      G_WARNING(
+          "Invalid XCom snapshot received while booting. Closing the "
+          "connection to retry recovery.");
+      TERMINATE;
+    }
+
     if (ep->p->op != client_msg) {  // Clients have no site
       ep->site = find_site_def(ep->p->synode);
     }
@@ -6809,7 +6870,6 @@ again:
       ceptor_learner_task.
     */
     update_srv(&ep->srv, get_server(ep->site, ep->p->from));
-    ep->p->refcnt = 1; /* Refcnt from other end is void here */
     XCOM_IFDBG(D_NONE, FN; NDBG(ep->rfd->fd, d); NDBG(task_now(), f);
                COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
     receive_count[ep->p->op]++;
@@ -6953,6 +7013,7 @@ int reply_handler_task(task_arg arg) {
   server *s;
   pax_msg *reply;
   double dtime;
+  snapshot_receive_action snapshot_action;
   ENV_INIT
   END_ENV_INIT
   END_ENV;
@@ -7004,6 +7065,30 @@ int reply_handler_task(task_arg arg) {
             add_event(EVENT_DUMP_PAD, string_arg(pax_op_to_str(ep->reply->op)));
             add_event(EVENT_DUMP_PAD, string_arg("get_site_def()->boot_key"));
             add_synode_event(get_site_def()->boot_key););
+
+    /*
+      Apply the same snapshot receive policy before normal dispatch. Unlike the
+      acceptor task, keep this persistent task alive so it can resume after
+      reconnection.
+    */
+    ep->snapshot_action =
+        get_snapshot_receive_action(ep->reply, client_boot_done != 0);
+
+    if (ep->snapshot_action == snapshot_receive_action::drop) {
+      G_DEBUG(
+          "Dropping an XCom snapshot message received after boot completed");
+      TASK_YIELD;
+      continue;
+    }
+
+    if (ep->snapshot_action == snapshot_receive_action::terminate_connection) {
+      G_WARNING(
+          "Invalid XCom snapshot received while booting. Closing the "
+          "connection to retry recovery.");
+      shutdown_connection(ep->s->con);
+      continue;
+    }
+
     /* Special test for need_snapshot, since node and site may not be
      * consistent
      */
@@ -7371,7 +7456,7 @@ static int snapshots[NSERVERS];
 
 /* Note that we have received snapshot from node */
 static void note_snapshot(node_no node) {
-  if (node != VOID_NODE_NO) {
+  if (is_node_number_in_valid_range(node)) {
     snapshots[node] = 1;
   }
 }
