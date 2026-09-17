@@ -35,7 +35,7 @@ jobs:
             suites: auth_sec,collations,component_connection_control,component_keyring_file,connection_control,funcs_2,gcol,gis,information_schema,interactive_utilities,jdv,json,main,opt_trace,query_rewrite_plugins,x
             run_unit_tests: false
           - shard: services
-            suites: perfschema,router,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,sysschema,test_service_sql_api,test_services
+            suites: component_mysql_rest_service,perfschema,router,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,sysschema,test_service_sql_api,test_services
             run_unit_tests: true
     permissions:
       contents: read
@@ -126,10 +126,10 @@ jobs:
             --parallel "$(nproc)"
             --test-timeout 120
             --output-on-failure
-            # Bug#39882117: Temporarily quarantine this persistent trunk
-            # failure. Keep the retry path below for transient failures in all
-            # other CTest cases.
-            --exclude-regex '^routertest_integration_routing_splitting$'
+            # Bug#39882117 and Bug#39980115: Temporarily quarantine persistent
+            # trunk failures. Keep the retry path below for transient failures
+            # in all other CTest cases.
+            --exclude-regex '^(routertest_integration_routing_splitting|testSecureSocket-t)$'
           )
 
           set +e

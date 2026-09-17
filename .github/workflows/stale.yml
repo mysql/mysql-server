@@ -4,20 +4,18 @@ on:
   schedule: [{ cron: "0 6 * * 1-5" }]   # weekday mornings
 permissions: { issues: write, pull-requests: write }
 
-# PR-only hygiene: only PRs explicitly waiting on the author for information
-# are eligible. The matching issue label is exempted so this scheduled action
-# never marks or closes issues.
-# Eligible PRs become stale after 16 inactive days and close 14 days later
-# (30 inactive days in total).
+# PR-only hygiene: inactive PRs become stale after 16 days and close 14 days
+# later (30 inactive days in total). Disable the action's default issue
+# handling explicitly so this scheduled action never marks or closes issues.
 jobs:
   stale:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
         with:
-          only-labels: "needs-info"
-          exempt-issue-labels: "needs-info"
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
           days-before-pr-stale: 16
           days-before-pr-close: 14
-          stale-pr-message: "Marking as stale: waiting on requested changes. Push or comment to keep it open."
+          stale-pr-message: "Marking as stale due to inactivity. Push or comment to keep it open."
           exempt-pr-labels: "good first issue,help wanted,under-review"
