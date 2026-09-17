@@ -4,18 +4,39 @@ name: Codex PR Review
 on:
   roles: all
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [synchronize, reopened, ready_for_review, labeled]
   slash_command:
     name: codex
     events: [pull_request_comment]
   permissions:
     actions: read
+    pull-requests: read
   steps:
+    - name: Check OCA verification
+      id: oca_verification
+      if: >-
+        steps.check_command_position.outputs.command_position_ok == 'true' &&
+        (github.event_name != 'pull_request_target' ||
+          (github.event.pull_request.draft == false &&
+            (github.event.action != 'labeled' || github.event.label.name == 'OCA Verified')))
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      with:
+        script: |
+          core.setOutput('verified', 'false');
+          const pull_number = context.payload.pull_request?.number ??
+            (context.payload.issue?.pull_request ? context.payload.issue.number : undefined);
+          if (!pull_number) return;
+          // Read current labels for both automatic and requested reviews.
+          const { data: pull } = await github.rest.pulls.get({
+            ...context.repo,
+            pull_number,
+          });
+          core.setOutput('verified', pull.labels.some(label => label.name === 'OCA Verified'));
     # The user-rate-limit schema omits pull_request_target. Invoke the
     # pinned helper explicitly so automatic and requested reviews share a quota.
     - name: Check review rate limit
       id: review_rate_limit
-      if: github.event_name != 'pull_request_target' || github.event.pull_request.draft == false
+      if: steps.oca_verification.outputs.verified == 'true'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         GH_AW_RATE_LIMIT_MAX: "3"
@@ -33,14 +54,23 @@ on:
           await main();
 if: >-
   (github.event_name != 'pull_request_target' || github.event.pull_request.draft == false) &&
+  needs.pre_activation.outputs.oca_verified == 'true' &&
   needs.pre_activation.outputs.review_rate_limit_ok == 'true'
 jobs:
   pre-activation:
     outputs:
+      oca_verified: ${{ steps.oca_verification.outputs.verified }}
       review_rate_limit_ok: ${{ steps.review_rate_limit.outputs.rate_limit_ok }}
 permissions:
   contents: read
   pull-requests: read
+tools:
+  github:
+    # Review external PRs only after the OCA verification process has approved
+    # them; anonymous and unverified contributor content remains filtered.
+    min-integrity: approved
+    approval-labels:
+      - OCA Verified
 checkout: false
 engine:
   id: codex
@@ -79,5 +109,7 @@ Report only specific, high-confidence defects or concrete improvements. Post
 inline comments only on valid changed-line anchors and post one concise summary
 review. Do not modify repository files or comment on style alone.
 
+Reviews require the `OCA Verified` label, including reviews requested with `/codex`.
+Applying that label also triggers an automatic review of a non-draft pull request.
 Comment `/codex` on a pull request to request another review. External users are
 limited to three reviews per 20 minutes; repository maintainers are exempt.

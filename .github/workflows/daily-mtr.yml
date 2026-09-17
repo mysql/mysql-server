@@ -1,0 +1,148 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Daily MTR
+
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+# Build the current trusted trunk once, cache that exact build, then run the
+# same default MTR selection used for pull requests. A failed matrix job makes
+# the workflow run fail and leaves its server and test logs attached for
+# diagnosis.
+concurrency:
+  group: daily-mtr-trunk
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build cached trunk
+    if: ${{ github.ref == 'refs/heads/trunk' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    env:
+      CC: gcc
+      CXX: g++
+    steps:
+      - name: Check out trusted trunk
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          path: source
+      - name: Install toolchain
+        working-directory: source
+        run: scripts/ci/bootstrap.sh
+      - name: Restore Boost cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/mysql-boost
+          key: boost-${{ hashFiles('source/cmake/boost.cmake') }}
+      - name: Restore ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ccache
+          key: ccache-gcc-${{ github.sha }}
+          restore-keys: ccache-gcc-
+      - name: Restore trunk build cache
+        id: build-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: source/build
+          key: daily-mtr-build-gcc-${{ github.sha }}
+      - name: Build
+        if: ${{ steps.build-cache.outputs.cache-hit != 'true' }}
+        working-directory: source
+        run: scripts/ci/build.sh debug
+      - name: Save trunk build cache
+        if: ${{ steps.build-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: source/build
+          key: daily-mtr-build-gcc-${{ github.sha }}
+      - name: Show ccache stats
+        if: always()
+        run: ccache --show-stats
+
+  mtr:
+    name: Daily MTR (${{ matrix.shard }})
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: replication
+            suites: binlog,binlog_gtid,binlog_nogtid,clone,federated,group_replication,rpl,rpl_gtid,rpl_nogtid
+          - shard: storage
+            suites: encryption,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,parts
+          - shard: core
+            suites: auth_sec,collations,component_connection_control,component_keyring_file,connection_control,funcs_2,gcol,gis,information_schema,interactive_utilities,jdv,json,main,opt_trace,query_rewrite_plugins,x
+          - shard: services
+            suites: component_mysql_rest_service,perfschema,router,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,sysschema,test_service_sql_api,test_services
+    env:
+      CC: gcc
+      CXX: g++
+    steps:
+      - name: Check out trusted trunk
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          path: source
+      - name: Install toolchain
+        working-directory: source
+        run: scripts/ci/bootstrap.sh
+      - name: Restore cached trunk build
+        id: build-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: source/build
+          key: daily-mtr-build-gcc-${{ github.sha }}
+      - name: Verify cached build
+        if: ${{ steps.build-cache.outputs.cache-hit != 'true' }}
+        run: |
+          echo "::error::The build job did not produce the expected trunk build cache."
+          exit 1
+      - name: Show runner resources
+        working-directory: source
+        run: |
+          echo "CPU cores: $(nproc)"
+          free -h
+          df -h .
+      - name: Run MTR
+        working-directory: source
+        env:
+          MTR_SUITES: ${{ matrix.suites }}
+        run: |
+          args=(
+            --parallel=auto
+            --force
+            --report-unstable-tests
+            --retry=3
+            --retry-failure=2
+            --max-test-fail=50
+            "--suite=${MTR_SUITES}"
+          )
+          scripts/ci/mtr.sh "${args[@]}"
+      - name: Publish test logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: daily-mtr-logs-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            source/build/mysql-test/var/log/
+            source/build/mysql-test/var/**/log/**
+            source/build/mysql-test/var/**/core*
+            source/build/mysql-test/var/**/mysqld*.err
+          if-no-files-found: ignore
+          retention-days: 14
