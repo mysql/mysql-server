@@ -1296,4 +1296,83 @@ TEST_F(XcomBase, ProcessPingToUsTwoServersSendingPings) {
   free(srv_from2.con);
 }
 
+TEST_F(XcomBase, ValidateSnapshotMessageRejectsInvalidSenderNodeNumbers) {
+  gcs_snapshot snapshot{};
+  pax_msg message{};
+
+  message.op = gcs_snapshot_op;
+  message.gcs_snap = &snapshot;
+
+  message.from = 0;
+  EXPECT_TRUE(is_valid_snapshot_message(&message));
+
+  message.from = NSERVERS - 1;
+  EXPECT_TRUE(is_valid_snapshot_message(&message));
+
+  message.from = NSERVERS;
+  EXPECT_FALSE(is_valid_snapshot_message(&message));
+
+  message.from = 0x08000000U;
+  EXPECT_FALSE(is_valid_snapshot_message(&message));
+
+  message.from = VOID_NODE_NO;
+  EXPECT_FALSE(is_valid_snapshot_message(&message));
+
+  message.from = 0;
+  message.gcs_snap = nullptr;
+  EXPECT_FALSE(is_valid_snapshot_message(&message));
+}
+
+TEST_F(XcomBase, GetSnapshotReceiveAction) {
+  gcs_snapshot snapshot{};
+  pax_msg message{};
+
+  message.op = are_you_alive_op;
+  EXPECT_EQ(snapshot_receive_action::not_snapshot,
+            get_snapshot_receive_action(&message, true));
+  EXPECT_EQ(snapshot_receive_action::not_snapshot,
+            get_snapshot_receive_action(&message, false));
+
+  message.op = gcs_snapshot_op;
+  message.gcs_snap = &snapshot;
+
+  message.from = 0;
+  EXPECT_EQ(snapshot_receive_action::drop,
+            get_snapshot_receive_action(&message, true));
+  EXPECT_EQ(snapshot_receive_action::process,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = NSERVERS - 1;
+  EXPECT_EQ(snapshot_receive_action::process,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = NSERVERS;
+  EXPECT_EQ(snapshot_receive_action::drop,
+            get_snapshot_receive_action(&message, true));
+  EXPECT_EQ(snapshot_receive_action::terminate_connection,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = 0x08000000U;
+  EXPECT_EQ(snapshot_receive_action::terminate_connection,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = VOID_NODE_NO;
+  EXPECT_EQ(snapshot_receive_action::terminate_connection,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = 0;
+  message.gcs_snap = nullptr;
+  EXPECT_EQ(snapshot_receive_action::terminate_connection,
+            get_snapshot_receive_action(&message, false));
+}
+
+TEST_F(XcomBase, IsNodeNumberInValidRange) {
+  EXPECT_TRUE(is_node_number_in_valid_range(0));
+  EXPECT_TRUE(is_node_number_in_valid_range(NSERVERS - 1));
+
+  EXPECT_FALSE(is_node_number_in_valid_range(NSERVERS));
+  EXPECT_FALSE(is_node_number_in_valid_range(0x08000000U));
+  EXPECT_FALSE(is_node_number_in_valid_range(VOID_NODE_NO));
+}
+
 }  // namespace xcom_base_unittest
