@@ -2172,8 +2172,9 @@ static inline int is_config(cargo_type x) {
 }
 
 static int wait_for_cache(pax_machine **pm, synode_no synode, double timeout);
-static int prop_started = 0;
-static int prop_finished = 0;
+/* Only read inside IFDBG(), which is compiled out by default. */
+static int prop_started [[maybe_unused]] = 0;
+static int prop_finished [[maybe_unused]] = 0;
 
 /* Find a free slot locally.
    Note that we will happily increment past the event horizon.
@@ -5559,8 +5560,6 @@ static void update_max_synode(pax_msg *p) {
 #define BAL_FMT "ballot {cnt %d node %d}"
 #define BAL_MEM(x) (x).cnt, (x).node
 
-static int clicnt = 0;
-
 xcom_event_horizon xcom_get_minimum_event_horizon() {
   return EVENT_HORIZON_MIN;
 }
@@ -5951,7 +5950,6 @@ static int can_send_snapshot();
 
 static void process_client_msg(site_def const *site, pax_msg *p,
                                linkage *reply_queue) {
-  clicnt++;
   if (p->a && (p->a->body.c_t == exit_type)) {
     /* purecov: begin deadcode */
     XCOM_IFDBG(D_NONE, FN; STRLIT("Got exit from client"); SYCEXP(p->synode););

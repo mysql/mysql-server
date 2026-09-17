@@ -1169,7 +1169,7 @@ int lock_counts[] = {sizeof(test_0) / sizeof(struct st_test),
 static mysql_cond_t COND_thread_count;
 static mysql_mutex_t LOCK_thread_count;
 static uint thread_count;
-static ulong sum = 0;
+static ulong sum [[maybe_unused]] = 0;
 
 #define MAX_LOCK_COUNT 8
 #define TEST_TIMEOUT 100000

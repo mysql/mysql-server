@@ -539,10 +539,8 @@ int main(int argc, char **argv) {
 
   mysql_check(sock, what_to_do, opt_alldbs, opt_check_only_changed,
               opt_extended, opt_databases, opt_fast, opt_medium_check,
-              opt_quick, opt_all_in_1, opt_silent, opt_auto_repair,
-              ignore_errors, opt_frm, opt_fix_table_names, opt_fix_db_names,
-              opt_upgrade, opt_write_binlog, verbose, opt_skip_database, conv,
-              DBerror);
+              opt_quick, opt_silent, opt_auto_repair, opt_frm, opt_upgrade,
+              opt_write_binlog, opt_skip_database, conv, DBerror);
 
   dbDisconnect(current_host);
   free_passwords();

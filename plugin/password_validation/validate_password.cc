@@ -89,12 +89,6 @@ static void init_validate_password_psi_keys() {
 #endif /* HAVE_PSI_INTERFACE */
 
 /*
-  Handle assigned when loading the plugin.
-  Used with the error reporting functions.
-*/
-
-static MYSQL_PLUGIN plugin_info_ptr;
-/*
   These are the 3 password policies that this plugin allow to set
   and configure as per the requirements.
 */
@@ -471,14 +465,13 @@ static struct st_mysql_validate_password validate_password_descriptor = {
   read dictionary file into std::set.
 */
 
-static int validate_password_init(MYSQL_PLUGIN plugin_info) {
+static int validate_password_init(MYSQL_PLUGIN) {
   push_deprecated_warn(thd_get_current_thd(), "validate password plugin",
                        "validate_password component");
   dictionary_words = new set_type();
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return (1);
 
-  plugin_info_ptr = plugin_info;
 #ifdef HAVE_PSI_INTERFACE
   init_validate_password_psi_keys();
 #endif
