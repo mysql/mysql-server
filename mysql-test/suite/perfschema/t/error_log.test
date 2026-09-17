@@ -103,6 +103,7 @@ SELECT prio,error_code,subsystem,data
 #
 # MY-011243, MY-011240, MY-011245, MY-011323: x-plugin
 # MY-010931: ER_SERVER_STARTUP_MSG (variable parts: port, path, version)
+# MY-015150: ER_SERVER_VERSION_INFO (version-dependent values)
 # MY-010949: ER_BASEDIR_SET_TO (variable part: path)
 # MY-010747: ER_PLUGIN_DISABLED
 # MY-013546,MY-011946,MY-011952: InnoDB %s
@@ -156,7 +157,8 @@ SELECT prio,error_code,subsystem
                          "MY-013884", "MY-013908", "MY-013930", "MY-014013",
                          "MY-000068", "MY-014066", "MY-014067", "MY-014068",
                          "MY-013932", "MY-010101", "MY-010099", "MY-011070",
-                         "MY-011872", "MY-011874", "MY-015140", "MY-015696")
+                         "MY-011872", "MY-011874", "MY-015140", "MY-015696",
+                         "MY-015150")
  ORDER BY logged, error_code;
 
 --echo
@@ -172,6 +174,7 @@ SELECT prio,error_code,subsystem
 # MY-010068: ER_CA_SELF_SIGNED (variable part: CA)
 # MY-010069: ER_SSL_LIBRARY_ERROR (variable part: error string)
 # MY-010931: see above
+# MY-015150: see above
 # MY-012363: see above
 # MY-010116: ER_STARTING_AS (variable part: PID)
 # MY-011810: see above (also, variable part: path)
@@ -194,7 +197,8 @@ SELECT prio,error_code,subsystem,data
                          "MY-000067", "MY-010159", "MY-013595", "MY-013602",
                          "MY-010108", "MY-012363", "MY-013711", "MY-013908",
                          "MY-013930", "MY-000068", "MY-015015", "MY-010101",
-                         "MY-010099", "MY-011070", "MY-015603", "MY-015696")
+                         "MY-010099", "MY-011070", "MY-015603", "MY-015696",
+                         "MY-015150")
  ORDER BY logged;
 
 --echo

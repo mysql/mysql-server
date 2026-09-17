@@ -1,0 +1,5 @@
+# Verify that mysqld reports its four-part version without starting.
+Pattern "Ver [0-9]+[.][0-9]+[.][0-9]+[.][0-9]+(-| )" found
+# restart:
+# Verify that the error log includes mysqld's four-part version.
+Pattern "Server version with update: '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+(-|')" found

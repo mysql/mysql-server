@@ -12841,6 +12841,9 @@ ER_TEMPTABLE_ENGINE_ERROR
 OBSOLETE_ER_AUTH_INITIAL_PLUGIN_OVERRIDE
   eng "Plugin '%s' from authentication policy cannot be used for initial handshake, using '%s' default instead"
 
+ER_SERVER_VERSION_INFO
+  eng "Server version with update: '%s'"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

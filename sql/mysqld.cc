@@ -6864,9 +6864,11 @@ int init_common_variables() {
   if (!opt_validate_config && (opt_initialize || opt_initialize_insecure)) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_INIT, my_progname, server_version,
            (ulong)getpid());
+    LogErr(SYSTEM_LEVEL, ER_SERVER_VERSION_INFO, server_version_with_update);
   } else if (!is_help_or_validate_option()) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_AS, my_progname, server_version,
            (ulong)getpid());
+    LogErr(SYSTEM_LEVEL, ER_SERVER_VERSION_INFO, server_version_with_update);
   }
   if (opt_help && !opt_verbose) unireg_abort(MYSQLD_SUCCESS_EXIT);
 
@@ -10859,6 +10861,10 @@ struct my_option my_long_early_options[] = {
      &opt_verbose, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"version", 'V', "Output version information and exit.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version-with-update", OPT_VERSION_WITH_UPDATE,
+     "Output version information including the update component and exit.",
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"initialize", 'I',
      "Create the default database and exit."
      " Create a super user with a random expired password and store it into "
@@ -12145,6 +12151,12 @@ static void print_server_version(void) {
   print_explicit_version(server_version);
 }
 
+static void print_server_version_with_update(void) {
+  set_server_version();
+
+  print_explicit_version(server_version_with_update);
+}
+
 /** Compares two options' names, treats - and _ the same */
 static bool operator<(const my_option &a, const my_option &b) {
   const char *sa = a.name;
@@ -12897,6 +12909,9 @@ bool mysqld_get_one_option(int optid,
       break;
     case 'V':
       print_server_version();
+      exit(MYSQLD_SUCCESS_EXIT);
+    case OPT_VERSION_WITH_UPDATE:
+      print_server_version_with_update();
       exit(MYSQLD_SUCCESS_EXIT);
     case 'T':
       test_flags = argument ? (uint)atoi(argument) : 0;
