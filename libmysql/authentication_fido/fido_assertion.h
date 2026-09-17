@@ -41,7 +41,7 @@ class fido_prepare_assert {
   ~fido_prepare_assert();
   bool parse_challenge(const unsigned char *challenge, size_t challenge_len);
   bool sign_challenge();
-  void get_signed_challenge(unsigned char **challenge_res,
+  bool get_signed_challenge(unsigned char **challenge_res,
                             size_t &challenge_res_len);
 
  private:
@@ -75,7 +75,7 @@ class fido_assertion {
  public:
   bool prepare_assert(const unsigned char *challenge, size_t challenge_len);
   bool sign_challenge();
-  void get_signed_challenge(unsigned char **challenge_res,
+  bool get_signed_challenge(unsigned char **challenge_res,
                             size_t &challenge_res_len);
 
  private:

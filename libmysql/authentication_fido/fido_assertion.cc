@@ -176,20 +176,28 @@ end:
 
   @param [out] challenge_res     buffer to signed challenge
   @param [out] challenge_res_len length of signed challenge
+
+  @retval false success
+  @retval true  allocation failed
 */
-void fido_prepare_assert::get_signed_challenge(unsigned char **challenge_res,
+bool fido_prepare_assert::get_signed_challenge(unsigned char **challenge_res,
                                                size_t &challenge_res_len) {
   unsigned long authdata_len = get_authdata_len();
   unsigned long sig_len = get_signature_len();
   challenge_res_len = net_length_size(authdata_len) + net_length_size(sig_len) +
                       authdata_len + sig_len;
   *challenge_res = new (std::nothrow) unsigned char[challenge_res_len];
+  if (!*challenge_res) {
+    challenge_res_len = 0;
+    return true;
+  }
   unsigned char *pos = *challenge_res;
   pos = net_store_length(pos, authdata_len);
   memcpy(pos, get_authdata_ptr(), authdata_len);
   pos += authdata_len;
   pos = net_store_length(pos, sig_len);
   memcpy(pos, get_signature_ptr(), sig_len);
+  return false;
 }
 
 /**
@@ -279,7 +287,8 @@ bool fido_assertion::sign_challenge() {
 /**
   Helper method to prepare challenge response to be passed to server
 */
-void fido_assertion::get_signed_challenge(unsigned char **challenge_res,
+bool fido_assertion::get_signed_challenge(unsigned char **challenge_res,
                                           size_t &challenge_res_len) {
-  m_fido_prepare_assert.get_signed_challenge(challenge_res, challenge_res_len);
+  return m_fido_prepare_assert.get_signed_challenge(challenge_res,
+                                                    challenge_res_len);
 }

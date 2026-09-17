@@ -168,7 +168,10 @@ static int fido_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *) {
       return true;
     }
     /* copy signed challenge into buff */
-    fa->get_signed_challenge(&buff, length);
+    if (fa->get_signed_challenge(&buff, length)) {
+      delete fa;
+      return true;
+    }
     /* send signed challenge to fido server plugin */
     vio->write_packet(vio, buff, length);
     delete fa;
