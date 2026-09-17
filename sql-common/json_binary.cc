@@ -290,10 +290,10 @@ static bool read_variable_length(const char *data, size_t data_length,
   */
   const size_t max_bytes = std::min(data_length, static_cast<size_t>(5));
 
-  size_t len = 0;
+  uint64_t len = 0;
   for (size_t i = 0; i < max_bytes; i++) {
     // Get the next 7 bits of the length.
-    len |= (data[i] & 0x7f) << (7 * i);
+    len |= (static_cast<uint64_t>(data[i]) & 0x7f) << (7 * i);
     if ((data[i] & 0x80) == 0) {
       // The length shouldn't exceed 32 bits.
       if (len > UINT_MAX32) return true; /* purecov: inspected */
@@ -989,9 +989,8 @@ static Value parse_scalar(uint8 type, const char *data, size_t len) {
     case JSONB_TYPE_STRING: {
       uint32 str_len;
       uint8 n;
-      if (read_variable_length(data, len, &str_len, &n))
-        return err();                      /* purecov: inspected */
-      if (len < n + str_len) return err(); /* purecov: inspected */
+      if (read_variable_length(data, len, &str_len, &n)) return err();
+      if (str_len > len - n) return err();
       return {data + n, str_len};
     }
     case JSONB_TYPE_OPAQUE: {
@@ -1008,9 +1007,8 @@ static Value parse_scalar(uint8 type, const char *data, size_t len) {
       // Then there's the length of the value.
       uint32 val_len;
       uint8 n;
-      if (read_variable_length(data + 1, len - 1, &val_len, &n))
-        return err();                          /* purecov: inspected */
-      if (len < 1 + n + val_len) return err(); /* purecov: inspected */
+      if (read_variable_length(data + 1, len - 1, &val_len, &n)) return err();
+      if (val_len > len - 1 - n) return err();
       return {field_type, data + 1 + n, val_len};
     }
     default:
@@ -1065,9 +1063,10 @@ static Value parse_array_or_object(Value::enum_type t, const char *data,
       are stored
     - value entries with pointers to where the actual values are stored
   */
-  size_t header_size = 2 * offset_size;
-  if (t == Value::OBJECT) header_size += element_count * key_entry_size(large);
-  header_size += element_count * value_entry_size(large);
+  uint64_t header_size = 2 * offset_size;
+  if (t == Value::OBJECT)
+    header_size += uint64_t{element_count} * key_entry_size(large);
+  header_size += uint64_t{element_count} * value_entry_size(large);
 
   // The header should not be larger than the full size of the value.
   if (header_size > bytes) return err(); /* purecov: inspected */
@@ -1154,6 +1153,13 @@ Value Value::element(size_t pos) const {
   return parse_value(type, m_data + value_offset, m_length - value_offset);
 }
 
+/** Check that a key lies after the entry tables and within the object. */
+static bool is_valid_key_range(size_t key_offset, size_t key_length,
+                               size_t first_key_offset, size_t object_length) {
+  return key_offset >= first_key_offset && key_offset <= object_length &&
+         key_length <= object_length - key_offset;
+}
+
 /**
   Get the key of the member stored at the specified position in a JSON
   object.
@@ -1184,10 +1190,11 @@ Value Value::key(size_t pos) const {
     The key must start somewhere after the last value entry, and it must
     end before the end of the m_data buffer.
   */
-  if ((key_offset < entry_offset + (m_element_count - pos) * key_entry_size +
-                        m_element_count * value_entry_size) ||
-      (m_length < key_offset + key_length))
-    return err(); /* purecov: inspected */
+  const size_t first_key_offset = entry_offset +
+                                  (m_element_count - pos) * key_entry_size +
+                                  m_element_count * value_entry_size;
+  if (!is_valid_key_range(key_offset, key_length, first_key_offset, m_length))
+    return err();
 
   return {m_data + key_offset, key_length};
 }
@@ -1215,10 +1222,13 @@ Value Value::lookup(std::string_view key) const {
 size_t Value::lookup_index(std::string_view key) const {
   assert(m_type == OBJECT);
 
-  const auto offset_size = json_binary::offset_size(m_large);
-  const auto entry_size = key_entry_size(m_large);
-
-  const size_t first_entry_offset = key_entry_offset(0);
+  const size_t offset_size = json_binary::offset_size(m_large);
+  const size_t key_entry_size = json_binary::key_entry_size(m_large);
+  const size_t value_entry_size = json_binary::value_entry_size(m_large);
+  const size_t first_entry_offset = 2 * offset_size;
+  const size_t first_key_offset =
+      first_entry_offset +
+      size_t{m_element_count} * (key_entry_size + value_entry_size);
 
   size_t lo = 0U;               // lower bound for binary search (inclusive)
   size_t hi = m_element_count;  // upper bound for binary search (exclusive)
@@ -1226,19 +1236,20 @@ size_t Value::lookup_index(std::string_view key) const {
   while (lo < hi) {
     // Find the entry in the middle of the search interval.
     const size_t idx = (lo + hi) / 2;
-    const size_t entry_offset = first_entry_offset + idx * entry_size;
+    const size_t entry_offset = first_entry_offset + idx * key_entry_size;
+    const uint32 key_offset =
+        read_offset_or_size(m_data + entry_offset, m_large);
+    const uint16 key_len = uint2korr(m_data + entry_offset + offset_size);
+    if (!is_valid_key_range(key_offset, key_len, first_key_offset, m_length))
+      return m_element_count;
 
     // Keys are ordered on length, so check length first.
-    const size_t key_len = uint2korr(m_data + entry_offset + offset_size);
     if (key.size() > key_len) {
       lo = idx + 1;
     } else if (key.size() < key_len) {
       hi = idx;
     } else {
       // The keys had the same length, so compare their contents.
-      const size_t key_offset =
-          read_offset_or_size(m_data + entry_offset, m_large);
-
       const int cmp = memcmp(key.data(), m_data + key_offset, key_len);
       if (cmp > 0)
         lo = idx + 1;
@@ -1394,6 +1405,8 @@ bool Value::element_offsets(size_t pos, size_t *start, size_t *end,
       return true;
   }
 
+  if (val_end < val_pos || val_end > m_length) return true;
+
   *start = val_pos;
   *end = val_end;
   *inlined = false;
@@ -1455,14 +1468,22 @@ bool Value::has_space(size_t pos, size_t needed, size_t *offset) const {
     No need to check further if we need more space than the total
     space available in the array or object.
   */
-  if (needed > m_length - first_value_offset) return false;
+  if (first_value_offset > m_length || needed > m_length - first_value_offset)
+    return false;
+
+  const auto has_candidate_space = [first_value_offset, needed, this](
+                                       size_t start, size_t end) {
+    return start >= first_value_offset && start <= end && end <= m_length &&
+           needed <= end - start;
+  };
 
   size_t val_start;
   size_t val_end;
   bool inlined;
   if (element_offsets(pos, &val_start, &val_end, &inlined)) return false;
+  if (!inlined && val_start < first_value_offset) return false;
 
-  if (!inlined && val_end - val_start >= needed) {
+  if (!inlined && has_candidate_space(val_start, val_end)) {
     // Found enough space at the position where the original value was located.
     *offset = val_start;
     return true;
@@ -1494,7 +1515,9 @@ bool Value::has_space(size_t pos, size_t needed, size_t *offset) const {
     val_end = m_length;
   }
 
-  if (!inlined && val_end - val_start >= needed) {
+  if (val_end < val_start) return false;
+
+  if (!inlined && has_candidate_space(val_start, val_end)) {
     *offset = val_start;
     return true;
   }
@@ -1504,7 +1527,7 @@ bool Value::has_space(size_t pos, size_t needed, size_t *offset) const {
     front of the original value. We can use space after the end of the
     first non-inlined value we find.
   */
-  if (needed > val_end - first_value_offset) return false;
+  if (!has_candidate_space(first_value_offset, val_end)) return false;
   for (i = pos; i > 0; --i) {
     size_t elt_start;
     size_t elt_end;
@@ -1524,8 +1547,7 @@ bool Value::has_space(size_t pos, size_t needed, size_t *offset) const {
     val_start = first_value_offset;
   }
 
-  if (val_start >= first_value_offset && val_end <= m_length &&
-      val_start <= val_end && val_end - val_start >= needed) {
+  if (has_candidate_space(val_start, val_end)) {
     *offset = val_start;
     return true;
   }
