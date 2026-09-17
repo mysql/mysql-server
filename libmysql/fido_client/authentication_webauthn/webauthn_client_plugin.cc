@@ -200,7 +200,7 @@ static int webauthn_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *) {
     }
     if (wa->sign_challenge()) return true;
     /* copy signed challenge into buff */
-    wa->get_signed_challenge(&buff, length);
+    if (wa->get_signed_challenge(&buff, length)) return true;
     /* send signed challenge to webauthn server plugin */
     vio->write_packet(vio, buff, length);
   }

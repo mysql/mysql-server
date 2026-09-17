@@ -117,7 +117,10 @@ bool webauthn_assertion::get_signed_challenge(unsigned char **challenge_res,
                                               size_t &challenge_res_len) {
   challenge_res_len = calculate_client_response_length();
   *challenge_res = new (std::nothrow) unsigned char[challenge_res_len];
-  if (!challenge_res) return true;
+  if (!*challenge_res) {
+    challenge_res_len = 0;
+    return true;
+  }
   unsigned char *pos = *challenge_res;
 
   /* Add tag */
