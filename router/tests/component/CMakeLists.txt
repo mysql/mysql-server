@@ -44,6 +44,12 @@ MYSQL_ADD_EXECUTABLE(signal_me
 
 ADD_SUBDIRECTORY(rest_signal)
 
+SET(REST_SYNC_POINT_TEST_DEPENDENCY)
+IF(ROUTER_SYNC_POINT_ENABLED)
+  ADD_SUBDIRECTORY(rest_sync_point/src)
+  LIST(APPEND REST_SYNC_POINT_TEST_DEPENDENCY rest_sync_point)
+ENDIF()
+
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file
@@ -134,6 +140,7 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   rest_metadata_cache
   rest_router
   rest_routing
+  ${REST_SYNC_POINT_TEST_DEPENDENCY}
   routing
   routertestplugin_logger
   signal_me

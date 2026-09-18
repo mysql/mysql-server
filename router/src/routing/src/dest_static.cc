@@ -65,6 +65,14 @@ void StaticDestinationsManager::add(const mysql_harness::Destination &dest) {
   }
 }
 
+DestinationManager::DestVector
+StaticDestinationsManager::get_remaining_destinations() {
+  std::lock_guard<std::mutex> lock(state_mtx_);
+  const auto begin =
+      std::min<std::size_t>(strategy_handler_->index(), destinations_.size());
+  return {destinations_.begin() + begin, destinations_.end()};
+}
+
 void StaticDestinationsManager::connect_status(std::error_code ec) {
   std::lock_guard<std::mutex> lock(state_mtx_);
   last_ec_ = ec;

@@ -277,6 +277,7 @@ SET(harness_source
   signal_handler.cc
   scoped_callback.cc
   sd_notify.cc
+  sync_point.cc
   socket_operations.cc
   tls_cipher.cc
   tty.cc
@@ -301,6 +302,10 @@ SET(harness_source
   resolver/registry.cc
   resolver/error_code.cc
   )
+
+IF(NOT ROUTER_SYNC_POINT_ENABLED)
+  LIST(REMOVE_ITEM harness_source sync_point.cc)
+ENDIF()
 
 IF(NOT SOLARIS)
   LIST(APPEND harness_source

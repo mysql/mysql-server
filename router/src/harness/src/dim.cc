@@ -37,4 +37,13 @@ namespace mysql_harness {
 DIM::DIM() = default;
 DIM::~DIM() = default;
 
+// Keep the static pointer's deleter in the harness library: the plugin that
+// registers the registry can be unloaded before DIM is destroyed.
+void DIM::set_static_SyncPointRegistry(SyncPointRegistry *inst
+                                       [[maybe_unused]]) {
+#if !defined(NDEBUG)
+  sync_point_registry_.set_static(inst);
+#endif
+}
+
 }  // namespace mysql_harness

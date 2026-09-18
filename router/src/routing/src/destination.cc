@@ -45,26 +45,17 @@ void DestinationNodesStateNotifier::unregister_allowed_nodes_change_callback(
   allowed_nodes_change_callbacks_.erase(it);
 }
 
-void DestinationNodesStateNotifier::register_start_router_socket_acceptor(
-    const StartSocketAcceptorCallback &callback) {
+void DestinationNodesStateNotifier::
+    register_refresh_router_socket_acceptor_state(
+        const RefreshSocketAcceptorStateCallback &callback) {
   std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
-  start_router_socket_acceptor_callback_ = callback;
+  refresh_router_socket_acceptor_state_callback_ = callback;
 }
 
-void DestinationNodesStateNotifier::unregister_start_router_socket_acceptor() {
+void DestinationNodesStateNotifier::
+    unregister_refresh_router_socket_acceptor_state() {
   std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
-  start_router_socket_acceptor_callback_ = nullptr;
-}
-
-void DestinationNodesStateNotifier::register_stop_router_socket_acceptor(
-    const StopSocketAcceptorCallback &callback) {
-  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
-  stop_router_socket_acceptor_callback_ = callback;
-}
-
-void DestinationNodesStateNotifier::unregister_stop_router_socket_acceptor() {
-  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
-  stop_router_socket_acceptor_callback_ = nullptr;
+  refresh_router_socket_acceptor_state_callback_ = nullptr;
 }
 
 void DestinationNodesStateNotifier::register_md_refresh_callback(
