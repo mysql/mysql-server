@@ -7212,6 +7212,17 @@ bool dd_tablespace_update_cache(THD *thd) {
       max_id = id;
     }
 
+    if (dd_tablespace_is_discarded(t)) {
+      /* Redo recovery can load an interrupted import before its discarded
+      DD state is reconciled. A discarded space must not remain in the cache. */
+      if (fil_space_get(id) != nullptr) {
+        const dberr_t err = fil_close_tablespace(id);
+        ut_a(err == DB_SUCCESS);
+      }
+
+      continue;
+    }
+
     const dd::Tablespace_file *f = *t->files().begin();
     fail = f == nullptr;
     if (fail) {
