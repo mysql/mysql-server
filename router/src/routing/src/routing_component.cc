@@ -262,14 +262,21 @@ void MySQLRoutingComponent::init(const mysql_harness::Config &config) {
                         routing::kDefaultMaxTotalConnections);
 
   QuarantineRoutingCallbacks quarantine_callbacks;
-  quarantine_callbacks.on_get_destinations = [&](
-      const std::string &route_name) -> auto{
-    return this->api(route_name).get_destinations();
+  quarantine_callbacks.on_get_destinations =
+      [this](const std::string &route_name)
+      -> std::vector<mysql_harness::TCPAddress> {
+    auto route = api(route_name);
+    if (!route) return {};
+
+    return route.get_destinations();
   };
 
   quarantine_callbacks.on_refresh_acceptor_state =
-      [&](const std::string &route_name) -> void {
-    (void)this->api(route_name).refresh_socket_acceptor_state();
+      [this](const std::string &route_name) -> void {
+    auto route = api(route_name);
+    if (!route) return;
+
+    (void)route.refresh_socket_acceptor_state();
   };
 
   DestinationStatusComponent::get_instance().register_quarantine_callbacks(

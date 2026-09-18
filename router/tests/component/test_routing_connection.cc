@@ -23,9 +23,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <atomic>
 #include <fstream>
 #include <stdexcept>
 #include <thread>
+#include <vector>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -48,6 +50,7 @@
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "router_test_helpers.h"
+#include "scope_guard.h"
 #include "tcp_port_pool.h"
 
 #define ASSERT_NO_ERROR(expr) \
@@ -1151,6 +1154,239 @@ INSTANTIATE_TEST_SUITE_P(
     RWDestinationUnreachable, RWDestinationUnreachableTest,
     ::testing::Values(TracefileTestParam("metadata_1_node_repeat_v2_gr.js",
                                          ClusterType::GR_V2)));
+
+TEST_F(RouterRoutingConnectionTest,
+       RwListenerReopensAfterPrimaryQuarantineRecovery) {
+  TempDirectory tmp_dir("conf");
+  const std::string tracefile{"metadata_1_node_repeat_v2_gr.js"};
+
+  // Keep the metadata view stable while the only PRIMARY is unavailable. This
+  // lets the quarantine worker, not a metadata refresh, drive listener
+  // recovery.
+  const auto ttl = 3600s;
+  config_generator_.reset(new ConfigGenerator(
+      get_DEFAULT_defaults(), tmp_dir.name(), {cluster_nodes_ports_[0]},
+      router_rw_port_, router_ro_port_, monitoring_port_, ttl));
+
+  SCOPED_TRACE("// launch the primary node on port " +
+               std::to_string(cluster_nodes_ports_.at(0)) +
+               " working also as metadata server");
+  cluster_nodes_.push_back(&launch_server(cluster_nodes_ports_[0], tracefile,
+                                          cluster_nodes_http_ports_[0], 1));
+
+  SCOPED_TRACE("// launching router");
+  auto &router = launch_router(router_rw_port_,
+                               config_generator_->build_config_file(
+                                   temp_test_dir_.name(), ClusterType::GR_V2));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
+
+  SCOPED_TRACE("// verify baseline RW connection works");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_rw_port_,
+                                           "username", "password", "", ""));
+    ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")});
+  }
+
+  SCOPED_TRACE("// kill the primary node");
+  EXPECT_NO_THROW(cluster_nodes_[0]->send_clean_shutdown_event());
+  EXPECT_NO_THROW(cluster_nodes_[0]->wait_for_exit());
+
+  SCOPED_TRACE("// trigger quarantine for the primary destination");
+  {
+    MySQLSession client;
+    ASSERT_THROW(client.connect("127.0.0.1", router_rw_port_, "username",
+                                "password", "", "", /*connect_timeout*/ 1),
+                 MySQLSession::Error);
+  }
+
+  ASSERT_TRUE(wait_log_contains(router,
+                                "add destination '127\\.0\\.0\\.1:" +
+                                    std::to_string(cluster_nodes_ports_[0]) +
+                                    "' to quarantine",
+                                5s));
+  ASSERT_TRUE(wait_log_contains(
+      router, "Stop accepting connections for routing routing:test_default_rw",
+      5s));
+  ASSERT_TRUE(wait_for_port_unused(router_rw_port_, 5s));
+
+  SCOPED_TRACE("// restore the primary node");
+  cluster_nodes_[0] = &launch_server(cluster_nodes_ports_[0], tracefile,
+                                     cluster_nodes_http_ports_[0], 1);
+
+  std::atomic_bool keep_connecting{true};
+  std::vector<std::thread> clients;
+  for (size_t i = 0; i < 16; ++i) {
+    clients.emplace_back([this, &keep_connecting]() {
+      while (keep_connecting.load()) {
+        try {
+          MySQLSession client;
+          client.connect("127.0.0.1", router_rw_port_, "username", "password",
+                         "", "", /*connect_timeout*/ 1);
+          std::unique_ptr<MySQLSession::ResultRow> result{
+              client.query_one("select @@port")};
+        } catch (const std::exception &) {
+        }
+        std::this_thread::sleep_for(5ms);
+      }
+    });
+  }
+
+  auto stop_clients = [&]() {
+    keep_connecting.store(false);
+    for (auto &client : clients) {
+      if (client.joinable()) client.join();
+    }
+  };
+  Scope_guard stop_clients_guard([&]() { stop_clients(); });
+
+  SCOPED_TRACE("// wait until quarantine recovery reopens the RW listener");
+  const auto remove_from_quarantine =
+      wait_log_contains(router,
+                        "Destination candidate '127\\.0\\.0\\.1:" +
+                            std::to_string(cluster_nodes_ports_[0]) +
+                            "' is available, remove it from quarantine",
+                        10s);
+  ASSERT_TRUE(remove_from_quarantine);
+  ASSERT_TRUE(wait_log_contains(
+      router, "Start accepting connections for routing routing:test_default_rw",
+      5s));
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, 5s));
+
+  SCOPED_TRACE("// new RW connections work after quarantine recovery");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_rw_port_,
+                                           "username", "password", "", ""));
+    ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")});
+  }
+
+  stop_clients();
+  stop_clients_guard.release();
+
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::Not(::testing::ContainsRegex(
+                  "Address already in use|address already in use|EADDRINUSE")));
+}
+
+TEST_F(RouterRoutingConnectionTest,
+       StaticRoundRobinListenerReopensAfterQuarantineRecovery) {
+  TempDirectory conf_dir("conf");
+  const std::string tracefile{"metadata_1_node_repeat_v2_gr.js"};
+  const auto server_port = cluster_nodes_ports_[0];
+  const auto router_port = router_rw_port_;
+
+  auto *server = &ProcessManager::launch_mysql_server_mock(
+      get_data_dir().join(tracefile).str(), server_port, EXIT_SUCCESS);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(*server, server_port));
+
+  auto writer = config_writer(conf_dir.name());
+  writer
+      .section("destination_status", {{"error_quarantine_threshold", "1"},
+                                      {"error_quarantine_interval", "1"}})
+      .section("routing:test_default_rw",
+               {{"bind_port", std::to_string(router_port)},
+                {"destinations", "127.0.0.1:" + std::to_string(server_port)},
+                {"protocol", "classic"},
+                {"routing_strategy", "round-robin"},
+                {"connect_timeout", "1"}});
+
+  auto &router =
+      ProcessManager::launch_router({"-c", writer.write()}, EXIT_SUCCESS);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
+
+  SCOPED_TRACE("// verify baseline static RW connection works");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
+                                           "password", "", ""));
+    ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")});
+  }
+
+  SCOPED_TRACE("// stop the only static destination");
+  EXPECT_NO_THROW(server->send_clean_shutdown_event());
+  EXPECT_NO_THROW(server->wait_for_exit());
+
+  SCOPED_TRACE("// trigger quarantine and listener stop");
+  {
+    MySQLSession client;
+    ASSERT_THROW(client.connect("127.0.0.1", router_port, "username",
+                                "password", "", "", /*connect_timeout*/ 1),
+                 MySQLSession::Error);
+  }
+
+  ASSERT_TRUE(wait_log_contains(
+      router,
+      "add destination '127\\.0\\.0\\.1:" + std::to_string(server_port) +
+          "' to quarantine",
+      5s));
+  ASSERT_TRUE(wait_log_contains(
+      router, "Stop accepting connections for routing routing:test_default_rw",
+      5s));
+  ASSERT_TRUE(wait_for_port_unused(router_port, 5s));
+
+  SCOPED_TRACE("// restore the static destination");
+  server = &ProcessManager::launch_mysql_server_mock(
+      get_data_dir().join(tracefile).str(), server_port, EXIT_SUCCESS);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(*server, server_port));
+
+  std::atomic_bool keep_connecting{true};
+  std::vector<std::thread> clients;
+  for (size_t i = 0; i < 64; ++i) {
+    clients.emplace_back([router_port, &keep_connecting]() {
+      while (keep_connecting.load()) {
+        try {
+          MySQLSession client;
+          client.connect("127.0.0.1", router_port, "username", "password", "",
+                         "", /*connect_timeout*/ 1);
+          std::unique_ptr<MySQLSession::ResultRow> result{
+              client.query_one("select @@port")};
+        } catch (const std::exception &) {
+        }
+        std::this_thread::sleep_for(1ms);
+      }
+    });
+  }
+
+  auto stop_clients = [&]() {
+    keep_connecting.store(false);
+    for (auto &client : clients) {
+      if (client.joinable()) client.join();
+    }
+  };
+  Scope_guard stop_clients_guard([&]() { stop_clients(); });
+
+  SCOPED_TRACE("// wait until quarantine recovery reopens the static listener");
+  const auto remove_from_quarantine = wait_log_contains(
+      router,
+      "Destination candidate '127\\.0\\.0\\.1:" + std::to_string(server_port) +
+          "' is available, remove it from quarantine",
+      10s);
+  ASSERT_TRUE(remove_from_quarantine);
+  ASSERT_TRUE(wait_log_contains(
+      router, "Start accepting connections for routing routing:test_default_rw",
+      5s));
+  ASSERT_TRUE(wait_for_port_ready(router_port, 5s));
+
+  SCOPED_TRACE("// new static RW connections work after quarantine recovery");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
+                                           "password", "", ""));
+    ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")});
+  }
+
+  stop_clients();
+  stop_clients_guard.release();
+
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::Not(::testing::ContainsRegex(
+                  "Address already in use|address already in use|EADDRINUSE")));
+}
 
 class IsROConnectionsKeptWhenPrimaryFailoverTest
     : public RouterRoutingConnectionTest,

@@ -157,7 +157,7 @@ class Acceptor {
   Acceptor(MySQLRouting *r, std::list<IoThread> &io_threads,
            acceptor_socket_type &acceptor_socket,
            const acceptor_endpoint_type &acceptor_endpoint,
-           WaitableMonitor<Nothing> &waitable)
+           WaitableMonitor<bool> &waitable)
       : r_(r),
         io_threads_{io_threads},
         acceptor_socket_(acceptor_socket),
@@ -194,7 +194,9 @@ class Acceptor {
   }
 
   void operator()(std::error_code ec) {
-    waitable_([this, ec](auto &) {
+    waitable_([this, ec](bool &continue_accepting) {
+      if (!continue_accepting) return;
+
       if (ec) {
         // TODO(jkneschk): in case we get EMFILE or ENFILE
         //
@@ -427,7 +429,7 @@ class Acceptor {
   const acceptor_endpoint_type &acceptor_endpoint_;
 
   std::list<IoThread>::iterator cur_io_thread_;
-  WaitableMonitor<Nothing> &waitable_;
+  WaitableMonitor<bool> &waitable_;
 
   bool debug_is_logged_{};
 
@@ -522,7 +524,7 @@ bool AcceptingEndpointTcpSocket::is_open() const { return service_.is_open(); }
 
 void AcceptingEndpointTcpSocket::start(MySQLRouting *r,
                                        std::list<IoThread> &io_threads,
-                                       WaitableMonitor<Nothing> &waitable) {
+                                       WaitableMonitor<bool> &waitable) {
   if (service_.is_open()) {
     service_.native_non_blocking(true);
     service_.async_wait(net::socket_base::wait_read,
@@ -638,7 +640,7 @@ bool AcceptingEndpointUnixSocket::is_open() const { return service_.is_open(); }
 
 void AcceptingEndpointUnixSocket::start(MySQLRouting *r,
                                         std::list<IoThread> &io_threads,
-                                        WaitableMonitor<Nothing> &waitable) {
+                                        WaitableMonitor<bool> &waitable) {
   if (service_.is_open()) {
     service_.native_non_blocking(true);
     service_.async_wait(
@@ -657,11 +659,13 @@ std::string AcceptingEndpointUnixSocket::name() { return socket_name_; }
 
 MySQLRouting::MySQLRouting(const RoutingConfig &routing_config,
                            net::io_context &io_ctx,
+                           net::io_context &acceptor_io_ctx,
                            const std::string &route_name,
                            TlsServerContext *client_ssl_ctx,
                            DestinationTlsContext *dest_ssl_ctx)
     : context_(routing_config, route_name, client_ssl_ctx, dest_ssl_ctx),
       io_ctx_{io_ctx},
+      acceptor_io_ctx_{acceptor_io_ctx},
       routing_strategy_(routing_config.routing_strategy),
       access_mode_(routing_config.access_mode),
       max_connections_(set_max_connections(routing_config.max_connections)) {
@@ -688,12 +692,22 @@ MySQLRouting::MySQLRouting(const RoutingConfig &routing_config,
   }
 }
 
+MySQLRouting::MySQLRouting(const RoutingConfig &routing_config,
+                           net::io_context &io_ctx,
+                           const std::string &route_name,
+                           TlsServerContext *client_ssl_ctx,
+                           DestinationTlsContext *dest_ssl_ctx)
+    : MySQLRouting(routing_config, io_ctx, io_ctx, route_name, client_ssl_ctx,
+                   dest_ssl_ctx) {}
+
 void MySQLRouting::run(mysql_harness::PluginFuncEnv *env) {
   my_thread_self_setname(get_routing_thread_name(context_.get_name(), "RtM")
                              .c_str());  // "Rt main" would be too long
+
   if (context_.get_bind_address().port() > 0) {
     accepting_endpoints_.push_back(std::make_unique<AcceptingEndpointTcpSocket>(
-        io_ctx_, context_.get_name(), context_.get_bind_address().address(),
+        acceptor_io_ctx_, context_.get_name(),
+        context_.get_bind_address().address(),
         context_.get_bind_address().port()));
   }
 
@@ -701,7 +715,7 @@ void MySQLRouting::run(mysql_harness::PluginFuncEnv *env) {
   if (context_.get_bind_named_socket().is_set()) {
     accepting_endpoints_.push_back(
         std::make_unique<AcceptingEndpointUnixSocket>(
-            io_ctx_, context_.get_name(),
+            acceptor_io_ctx_, context_.get_name(),
             context_.get_bind_named_socket().str()));
   }
 #endif
@@ -956,6 +970,9 @@ stdx::expected<void, std::string> MySQLRouting::start_accepting_connections() {
     return stdx::unexpected(std::string("Terminated"));
   }
 
+  acceptor_waitable_(
+      [](bool &continue_accepting) { continue_accepting = true; });
+
   std::string error_msg;
 
   for (const auto &accepting_endpoint : accepting_endpoints_) {
@@ -1015,6 +1032,9 @@ void MySQLRouting::stop_socket_acceptors_unlocked() {
                context_.get_name().c_str(), accepting_endpoint->name().c_str());
     }
   }
+
+  acceptor_waitable_(
+      [](bool &continue_accepting) { continue_accepting = false; });
 
   // 1. close and wait for acceptors to close
   // 2. cancel all connectors and wait for them to finish

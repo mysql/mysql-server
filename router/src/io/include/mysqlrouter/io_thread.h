@@ -30,6 +30,7 @@
 #include <memory>   // make_unique
 #include <string>
 #include <thread>
+#include <utility>
 
 #include "mysql/harness/net_ts/impl/socket_service.h"
 #include "mysql/harness/net_ts/io_context.h"
@@ -39,8 +40,8 @@
 class IoThread {
  public:
   IoThread(size_t ndx, std::bitset<ThreadAffinity::max_cpus> cpu_affinity,
-           const std::string &backend_name = "poll")
-      : ndx_{ndx},
+           const std::string &backend_name = "poll", std::string name = {})
+      : name_{name.empty() ? "io-" + std::to_string(ndx) : std::move(name)},
         cpu_affinity_{cpu_affinity},
         io_ctx_{std::make_unique<net::impl::socket::SocketService>(),
                 IoBackend::backend(backend_name)},
@@ -66,7 +67,7 @@ class IoThread {
   }
 
  private:
-  size_t ndx_;
+  std::string name_;
   std::bitset<ThreadAffinity::max_cpus> cpu_affinity_;
 
   net::io_context io_ctx_;

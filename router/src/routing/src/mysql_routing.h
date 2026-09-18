@@ -85,7 +85,6 @@ namespace mysql_harness {
 class PluginFuncEnv;
 }  // namespace mysql_harness
 
-struct Nothing {};
 class MySQLRouting;
 
 class ROUTING_EXPORT AcceptingEndpoint {
@@ -101,7 +100,7 @@ class ROUTING_EXPORT AcceptingEndpoint {
   virtual bool is_open() const = 0;
 
   virtual void start(MySQLRouting *r, std::list<IoThread> &,
-                     WaitableMonitor<Nothing> &waitable) = 0;
+                     WaitableMonitor<bool> &waitable) = 0;
 
   virtual std::string name() = 0;
 
@@ -124,7 +123,7 @@ class ROUTING_EXPORT AcceptingEndpointTcpSocket : public AcceptingEndpoint {
   bool is_open() const override;
 
   void start(MySQLRouting *r, std::list<IoThread> &,
-             WaitableMonitor<Nothing> &waitable) override;
+             WaitableMonitor<bool> &waitable) override;
 
   std::string name() override;
 
@@ -148,7 +147,7 @@ class ROUTING_EXPORT AcceptingEndpointUnixSocket : public AcceptingEndpoint {
   bool is_open() const override;
 
   void start(MySQLRouting *r, std::list<IoThread> &,
-             WaitableMonitor<Nothing> &waitable) override;
+             WaitableMonitor<bool> &waitable) override;
 
   std::string name() override;
 
@@ -172,11 +171,18 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /** @brief Default constructor
    *
    * @param routing_config routing configuration
-   * @param io_ctx IO context
+   * @param io_ctx IO context for routing connections
+   * @param acceptor_io_ctx IO context for accepting client connections
    * @param route_name Name of connection routing (can be empty string)
    * @param client_ssl_ctx SSL context of the client side
    * @param dest_ssl_ctx SSL contexts of the destinations
    */
+  MySQLRouting(const RoutingConfig &routing_config, net::io_context &io_ctx,
+               net::io_context &acceptor_io_ctx,
+               const std::string &route_name = {},
+               TlsServerContext *client_ssl_ctx = nullptr,
+               DestinationTlsContext *dest_ssl_ctx = nullptr);
+
   MySQLRouting(const RoutingConfig &routing_config, net::io_context &io_ctx,
                const std::string &route_name = {},
                TlsServerContext *client_ssl_ctx = nullptr,
@@ -329,13 +335,14 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   mysqlrouter::ServerMode purpose() const override;
 
  private:
-  /** Monitor for notifying socket acceptor */
-  WaitableMonitor<Nothing> acceptor_waitable_{Nothing{}};
+  /** Monitor for controlling and notifying socket acceptors. */
+  WaitableMonitor<bool> acceptor_waitable_{false};
 
   /** @brief wrapper for data used by all connections */
   MySQLRoutingContext context_;
 
   net::io_context &io_ctx_;
+  net::io_context &acceptor_io_ctx_;
 
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;

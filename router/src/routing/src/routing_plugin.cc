@@ -509,9 +509,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       }
     }
 
-    net::io_context &io_ctx = IoComponent::get_instance().io_context();
+    auto &io_component = IoComponent::get_instance();
+    net::io_context &io_ctx = io_component.io_context();
+    net::io_context &acceptor_io_ctx = io_component.acceptor_io_context();
     auto r = std::make_shared<MySQLRouting>(
-        config, io_ctx, name,
+        config, io_ctx, acceptor_io_ctx, name,
         config.source_ssl_mode != SslMode::kDisabled ? &source_tls_ctx
                                                      : nullptr,
         config.dest_ssl_mode != SslMode::kDisabled ? dest_tls_context.get()
