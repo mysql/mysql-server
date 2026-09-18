@@ -40,7 +40,11 @@ SET @@session.collation_database=DEFAULT/*!*/;
 /*!80011 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
 BEGIN
 /*!*/;
+/*!\C utf8mb3 *//*!*/;
+SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
 SET @`v`:=_ucs2 0x006100620063 COLLATE `ucs2_general_ci`/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
 use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
 insert into t2 values (@v)

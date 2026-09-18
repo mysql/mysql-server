@@ -50,7 +50,11 @@ SET @@session.collation_database=DEFAULT/*!*/;
 /*!80011 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
 BEGIN
 /*!*/;
+/*!\C utf8mb3 *//*!*/;
+SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
 SET @`a b`:=_utf8mb4 0x68656C6C6F COLLATE `utf8mb4_0900_ai_ci`/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
 use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(@`a b`)
@@ -65,8 +69,16 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
+/*!\C utf8mb3 *//*!*/;
+SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
 SET @`var1`:=_utf8mb4 0x273B616161 COLLATE `utf8mb4_0900_ai_ci`/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
+/*!\C utf8mb3 *//*!*/;
+SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
 SET @`var2`:=_binary 0x61 COLLATE `binary`/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
 SET TIMESTAMP=#/*!*/;
 insert into t1 values (@var1),(@var2)
 /*!*/;
