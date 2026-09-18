@@ -1204,6 +1204,10 @@ void init_sql_command_flags() {
       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_DISALLOW_IN_RO_TRANS |
       CF_ALLOW_PROTOCOL_PLUGIN | CF_NEEDS_AUTOCOMMIT_OFF |
       CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_TYPE] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_DISALLOW_IN_RO_TRANS |
+      CF_ALLOW_PROTOCOL_PLUGIN | CF_NEEDS_AUTOCOMMIT_OFF |
+      CF_POTENTIAL_ATOMIC_DDL;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command) {
@@ -4770,7 +4774,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_CREATE_LIBRARY:
     case SQLCOM_DROP_LIBRARY:
     case SQLCOM_ALTER_LIBRARY:
-    case SQLCOM_CREATE_TYPE: {
+    case SQLCOM_CREATE_TYPE:
+    case SQLCOM_DROP_TYPE: {
       assert(lex->m_sql_cmd != nullptr);
 
       res = lex->m_sql_cmd->execute(thd);

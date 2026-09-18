@@ -29,12 +29,7 @@
 #include "sql/transaction.h"
 #include "sql/warn_not_implemented.h"
 
-bool Sql_cmd_create_type::execute(THD *thd) {
-  bool rc;
-
-#ifdef WITH_EXPERIMENTAL_UDT
-  WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_create_type::execute()");
-
+bool Sql_cmd_ddl_type::use_default_db(THD *thd) {
   if (m_type_ident->db.length == 0) {
     m_type_ident->db = thd->db();
 
@@ -44,8 +39,20 @@ bool Sql_cmd_create_type::execute(THD *thd) {
     }
   }
 
+  return false;
+}
+
+bool Sql_cmd_ddl_type::check_privileges(THD * /* thd */) {
+  // TODO:
+  // - check CREATE TYPE privilege on DB.TYPE
+  // - check ALTER TYPE privilege on DB.TYPE
+  // - check DROP TYPE privilege on DB.TYPE
+
+  return false;
+}
+
+bool Sql_cmd_ddl_type::acquire_mdl_schema(THD *thd) {
   const char *db_name = m_type_ident->db.str;
-  const char *type_name = m_type_ident->type.str;
 
   assert(db_name != nullptr);
 
@@ -67,7 +74,12 @@ bool Sql_cmd_create_type::execute(THD *thd) {
     return true;
   }
 
-  // MDL LOCK (TYPE)
+  return false;
+}
+
+bool Sql_cmd_ddl_type::acquire_mdl_type(THD *thd) {
+  const char *db_name = m_type_ident->db.str;
+  const char *type_name = m_type_ident->type.str;
 
   MDL_request mdl_request;
   MDL_REQUEST_INIT(&mdl_request, MDL_key::UDT_TYPE, db_name, type_name,
@@ -83,19 +95,61 @@ bool Sql_cmd_create_type::execute(THD *thd) {
     return true;
   }
 
-  // DD LOOK UP
+  return false;
+}
 
-  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+const dd::Schema *Sql_cmd_ddl_type::acquire_dd_schema(THD *thd) {
+  const dd::Schema *schema;
 
   dd::cache::Dictionary_client &dc = *thd->dd_client();
   dd::String_type schema_name{m_type_ident->db.str};
-  const dd::Schema *existing_schema = nullptr;
-  if (dc.acquire(schema_name, &existing_schema)) {
+  if (dc.acquire(schema_name, &schema)) {
+    return nullptr;
+  }
+
+  return schema;
+}
+
+const dd::UDT_Type *Sql_cmd_ddl_type::acquire_dd_type(THD *thd) {
+  const dd::UDT_Type *udt;
+
+  dd::cache::Dictionary_client &dc = *thd->dd_client();
+  dd::String_type schema_name{m_type_ident->db.str};
+  dd::String_type type_name{m_type_ident->type.str};
+  if (dc.acquire(schema_name, type_name, &udt)) {
+    return nullptr;
+  }
+
+  return udt;
+}
+
+bool Sql_cmd_create_type::execute(THD *thd) {
+#ifdef WITH_EXPERIMENTAL_UDT
+  WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_create_type::execute()");
+
+  if (use_default_db(thd)) {
     return true;
   }
 
-  if (existing_schema == nullptr) {
-    my_error(ER_NO_SUCH_DB, MYF(0), schema_name.c_str());
+  if (check_privileges(thd)) {
+    return true;
+  }
+
+  if (acquire_mdl_schema(thd)) {
+    return true;
+  }
+
+  if (acquire_mdl_type(thd)) {
+    return true;
+  }
+
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const char *db_name = m_type_ident->db.str;
+  const char *type_name = m_type_ident->type.str;
+
+  const dd::Schema *schema = acquire_dd_schema(thd);
+  if (schema == nullptr) {
+    my_error(ER_NO_SUCH_DB, MYF(0), db_name);
     return true;
   }
 
@@ -111,7 +165,7 @@ bool Sql_cmd_create_type::execute(THD *thd) {
     return true;
   }
 
-  if (dd::create_udt_type(thd, *existing_schema, type_name)) {
+  if (dd::create_udt_type(thd, *schema, type_name)) {
     return true;
   }
 
@@ -120,11 +174,64 @@ bool Sql_cmd_create_type::execute(THD *thd) {
   }
 
   my_ok(thd);
-  rc = false;
+  return false;
 #else
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "CREATE TYPE");
-  rc = true;
+  return true;
 #endif
+}
 
-  return rc;
+bool Sql_cmd_drop_type::execute(THD *thd) {
+#ifdef WITH_EXPERIMENTAL_UDT
+  WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_drop_type::execute()");
+
+  if (use_default_db(thd)) {
+    return true;
+  }
+
+  if (check_privileges(thd)) {
+    return true;
+  }
+
+  if (acquire_mdl_schema(thd)) {
+    return true;
+  }
+
+  if (acquire_mdl_type(thd)) {
+    return true;
+  }
+
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const char *db_name = m_type_ident->db.str;
+  const char *type_name = m_type_ident->type.str;
+
+  const dd::Schema *schema = acquire_dd_schema(thd);
+  if (schema == nullptr) {
+    my_error(ER_NO_SUCH_DB, MYF(0), db_name);
+    return true;
+  }
+
+  const dd::UDT_Type *udt = acquire_dd_type(thd);
+
+  if ((udt == nullptr) && !m_if_exists) {
+    my_error(ER_UDT_TYPE_DROP_EXISTS, MYF(0), db_name, type_name);
+    return true;
+  }
+
+  if (udt != nullptr) {
+    if (dd::drop_udt_type(thd, *udt)) {
+      return true;
+    }
+  }
+
+  if (trans_commit_stmt(thd) || trans_commit(thd)) {
+    return true;
+  }
+
+  my_ok(thd);
+  return false;
+#else
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "DROP TYPE");
+  return true;
+#endif
 }

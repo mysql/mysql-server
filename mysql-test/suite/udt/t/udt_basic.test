@@ -69,3 +69,6 @@ UNINSTALL COMPONENT "file://component_udt_example";
 
 DROP PROCEDURE test.complex;
 
+DROP TYPE test.usbn13;
+DROP TYPE test.complex_number;
+

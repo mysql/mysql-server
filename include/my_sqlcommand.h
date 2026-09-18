@@ -215,6 +215,7 @@ enum enum_sql_command {
 
   // POC
   SQLCOM_CREATE_TYPE,
+  SQLCOM_DROP_TYPE,
   /* This should be the last !!! */
   SQLCOM_END
 };

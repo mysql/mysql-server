@@ -73,3 +73,9 @@ Warning	6914	The following code is not implemented: resolve_type_descriptor()
 Warning	6914	The following code is not implemented: resolve_type_descriptor()
 UNINSTALL COMPONENT "file://component_udt_example";
 DROP PROCEDURE test.complex;
+DROP TYPE test.usbn13;
+Warnings:
+Warning	6914	The following code is not implemented: Sql_cmd_drop_type::execute()
+DROP TYPE test.complex_number;
+Warnings:
+Warning	6914	The following code is not implemented: Sql_cmd_drop_type::execute()

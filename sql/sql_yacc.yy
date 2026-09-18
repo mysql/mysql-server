@@ -2034,6 +2034,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         drop_resource_group_stmt
         drop_role_stmt
         drop_srs_stmt
+        drop_type_stmt
         explain_stmt
         handler_stmt
         insert_stmt
@@ -2547,6 +2548,7 @@ simple_statement:
         | drop_undo_tablespace_stmt     { $$= nullptr; }
         | drop_table_stmt               { $$= nullptr; }
         | drop_trigger_stmt             { $$= nullptr; }
+        | drop_type_stmt
         | drop_user_stmt                { $$= nullptr; }
         | drop_view_stmt                { $$= nullptr; }
         | execute                       { $$= nullptr; }
@@ -13605,6 +13607,13 @@ drop_trigger_stmt:
             lex->drop_if_exists= $3;
             lex->spname= $4;
             Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_drop_trigger();
+          }
+        ;
+
+drop_type_stmt:
+          DROP TYPE_SYM if_exists type_ident
+          {
+            $$= NEW_PTN PT_drop_type_stmt(@$, $4, $3);
           }
         ;
 

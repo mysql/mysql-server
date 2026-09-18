@@ -6147,6 +6147,22 @@ class PT_create_type_stmt : public Parse_tree_root {
   Sql_cmd *make_cmd(THD *thd) override;
 };
 
+class PT_drop_type_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  bool m_if_exists;
+  POS m_columns_end_pos;
+
+ public:
+  PT_drop_type_stmt(const POS &pos, Type_ident *type_name, bool if_exists,
+                    const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_if_exists(if_exists),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
 // -- END POC
 
 #endif /* PARSE_TREE_NODES_INCLUDED */
