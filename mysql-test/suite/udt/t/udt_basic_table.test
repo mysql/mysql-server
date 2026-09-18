@@ -1,0 +1,32 @@
+
+CREATE TYPE test.complex_number AS BINARY(16);
+
+SELECT * FROM INFORMATION_SCHEMA.TYPES;
+
+INSTALL COMPONENT "file://component_udt_example";
+
+CREATE TABLE test.complex_demo(
+  col_a test.complex_number,
+  col_b test.complex_number,
+  col_c test.complex_number);
+
+SHOW CREATE TABLE test.complex_demo;
+
+INSERT INTO test.complex_demo SET
+  col_a = complex_number_from_string("1+2i"),
+  col_b = complex_number_from_string("3+4i");
+
+UPDATE test.complex_demo SET col_c = complex_number_add(col_a, col_b);
+
+SELECT * FROM test.complex_demo;
+
+SELECT complex_number_to_string(col_a) as A,
+  complex_number_to_string(col_b) as B,
+  complex_number_to_string(col_c) as C
+  FROM test.complex_demo;
+
+DROP TABLE test.complex_demo;
+DROP TYPE test.complex_number;
+
+UNINSTALL COMPONENT "file://component_udt_example";
+

@@ -1042,6 +1042,7 @@ class PT_field_def_base : public Parse_tree_node {
   typedef decltype(Alter_info::flags) alter_info_flags_t;
 
  public:
+  const Type_ident *type_ident = nullptr;
   enum_field_types type = MYSQL_TYPE_INVALID;
   ulong type_flags = 0;
   const char *length = nullptr;
@@ -1074,6 +1075,7 @@ class PT_field_def_base : public Parse_tree_node {
       return true;
 
     type = type_node->type;
+    type_ident = type_node->get_type_ident();
     type_flags = type_node->get_type_flags();
     length = type_node->get_length();
     dec = type_node->get_dec();

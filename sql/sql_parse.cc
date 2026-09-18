@@ -180,6 +180,7 @@
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_implicit
 #include "sql/transaction_info.h"
+#include "sql/sql_user_defined_type.h"
 #include "sql_string.h"
 #include "string_with_len.h"
 #include "strmake.h"
@@ -5585,7 +5586,9 @@ bool mysql_test_parse_for_slave(THD *thd) {
     Return 0 if ok
 */
 bool Alter_info::add_field(
-    THD *thd, const LEX_STRING *field_name, enum_field_types type,
+    THD *thd, const LEX_STRING *field_name,
+    const Type_ident * type_ident [[maybe_unused]],
+    enum_field_types type,
     const char *length, const char *decimals, uint type_modifier,
     Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
     const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
@@ -5689,6 +5692,12 @@ bool Alter_info::add_field(
     return true;
   }
 
+
+// === UDT, prototyping (begin)
+
+// #define OLD_WAY
+
+#ifdef OLD_WAY
   Create_field *new_field = new (thd->mem_root) Create_field();
   if ((new_field == nullptr) ||
       new_field->init(thd, field_name->str, type, length, decimals,
@@ -5697,6 +5706,61 @@ bool Alter_info::add_field(
                       uint_geom_type, gcol_info, default_val_expr,
                       masking_policy, srid, hidden, is_array))
     return true;
+#endif
+
+#ifndef OLD_WAY
+  Create_field *new_field = new (thd->mem_root) Create_field();
+  if (new_field == nullptr) {
+    return true;
+  }
+
+  {
+    TypeDescriptor td;
+    td.m_type = type;
+    td.m_type_flags = type_modifier;
+    td.m_length = length;
+    td.m_dec = decimals;
+    td.m_charset = cs;
+    td.m_has_explicit_collation = has_explicit_collation;
+    td.m_geo_type = uint_geom_type;
+    td.m_internal_list = interval_list;
+    td.m_type_ident = type_ident;
+
+#ifdef LATER
+    if (td.m_type_ident != nullptr) {
+      // FIXME: Using table schema as default ?
+      if (td.m_type_ident->db.length == 0) {
+        LEX_CSTRING db = to_lex_cstring(sp->m_db);
+        Type_ident *qualified = new Type_ident(db, td.m_type_ident->type);
+        td.m_type_ident = qualified;
+      }
+    }
+#endif
+
+    if (resolve_type_descriptor(thd, &td)) {
+      return true;
+    }
+
+    FieldDescriptor fd;
+    fd.m_default_value = default_value;
+    fd.m_on_update_value = on_update_value;
+    fd.m_comment = comment;
+    fd.m_change = change;
+    fd.m_gcol_info = gcol_info;
+    fd.m_default_val_expr = default_val_expr;
+    fd.m_fld_masking_policy = masking_policy;
+    fd.m_srid = srid;
+    fd.m_hidden = hidden;
+    fd.m_is_array = is_array;
+
+    if (new_field->init_from_type_descriptor(thd, field_name->str, &td, &fd))
+    {
+      return true;
+    }
+  }
+#endif
+
+// === UDT, prototyping (end)
 
   for (const auto &a : cf_appliers) {
     if (a(new_field, this)) return true;
