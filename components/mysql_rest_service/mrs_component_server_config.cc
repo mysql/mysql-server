@@ -102,14 +102,7 @@ int ServerConfig::get_have_ssl(bool &value) const {
 }
 
 bool ServerConfig::requires_local_authentication() const {
-  // Both the transport policy and TLS availability can change while MRS runs.
-  std::string require_secure_transport;
-  if (get_sysvar_value("require_secure_transport", require_secure_transport) !=
-      0) {
-    throw std::runtime_error("Failed to read MySQL secure transport policy");
-  }
-  if (require_secure_transport != "ON") return false;
-
+  // TLS availability can change while MRS runs.
   bool have_ssl = false;
   if (get_have_ssl(have_ssl) != 0) {
     throw std::runtime_error("Failed to read MySQL TLS availability");

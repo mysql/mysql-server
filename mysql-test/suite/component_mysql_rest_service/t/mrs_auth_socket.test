@@ -74,8 +74,7 @@ exec $MRS_CLIENT_ARGS -a basic_json -t POST
 SELECT name, vendor_user_id FROM mysql_rest_service_metadata.mrs_user
   WHERE vendor_user_id = 'mrs_socket_proxy@%';
 SELECT SUM(argument LIKE '%using Socket') AS socket_connections,
-  SUM(argument LIKE '%using TCP/IP' OR argument LIKE '%using SSL/TLS')
-    AS tcp_connections
+  SUM(argument LIKE '%using SSL/TLS') AS tls_connections
   FROM mysql.general_log
   WHERE command_type = 'Connect' AND argument LIKE 'mrs_socket_external@%';
 
@@ -189,15 +188,10 @@ SELECT VALUE FROM performance_schema.tls_channel_status
 --source ../include/test/verify_auth_socket_local.inc
 
 --echo
---echo # Relaxing the transport policy permits external-password TCP logins.
+--echo # Disabling the server requirement does not permit unencrypted TCP.
 SET GLOBAL require_secure_transport=OFF;
-exec $MRS_CLIENT_ARGS -a basic_json -t POST
-  --path /svc/authentication/login -u mrs_socket_external -p mrs_socket_proxy
-  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
-  --display REQUEST,STATUS;
-exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
-  --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
-  --display REQUEST,STATUS;
+--remove_file $MYSQL_TMP_DIR/mrs_socket_password.dat
+--source ../include/test/verify_auth_socket_local.inc
 
 --echo
 --echo # Re-enabling the policy takes effect without restarting MRS.

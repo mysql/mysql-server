@@ -97,10 +97,8 @@ void Mysql_command_service_session::connect_authenticated(
   constexpr bool initialize_thread = false;
   const char *host = "";
 
-#ifndef _WIN32
-  // Select supported TCP before authentication so one HTTP login does not
-  // consume two hourly connection admissions. Otherwise keep the local
-  // transport.
+  // Select the transport before authentication so one HTTP login does not
+  // consume two hourly connection admissions.
   const auto &config = mrs_component().server_config();
   if (config.m_port != "0") {
     // MRS rejects comma-separated bind_address values during startup,
@@ -113,9 +111,17 @@ void Mysql_command_service_session::connect_authenticated(
       host = "127.0.0.1";
     }
   }
-  // Unix sockets satisfy require_secure_transport even when MySQL TLS is off.
+#ifdef _WIN32
+  if (host[0] == '\0') {
+    close();
+    throw std::runtime_error(
+        "MySQL authentication requires a supported loopback TCP endpoint "
+        "on Windows");
+  }
+#else
+  // Unix sockets remain secure when MySQL TLS is unavailable.
   if (host[0] != '\0' && config.requires_local_authentication()) host = "";
-#endif
+#endif  // _WIN32
 
   connect_impl(user, host, initialize_thread, extra_client_flags,
                /*bypass_max_connections=*/false, &password);
@@ -146,6 +152,7 @@ void Mysql_command_service_session::connect_impl(
     // Preserve the bounded timeouts used by the former MySQLSession path.
     constexpr unsigned int authenticated_connect_timeout = 5;
     constexpr unsigned int authenticated_read_timeout = 30;
+    constexpr unsigned int authenticated_ssl_mode = SSL_MODE_REQUIRED;
     // Allow ML-DSA server certificates while retaining classical signatures.
     constexpr bool use_pqc_sign = true;
     if ((password == nullptr &&
@@ -161,7 +168,13 @@ void Mysql_command_service_session::connect_impl(
         cmd_options->set(mysql_h_, MYSQL_COMMAND_CLIENT_FLAGS, &client_flags) !=
             0 ||
         (password != nullptr &&
-         (cmd_options->set(mysql_h_, MYSQL_OPT_CONNECT_TIMEOUT,
+         ((!host_.empty() && cmd_options->set(mysql_h_, MYSQL_OPT_SSL_MODE,
+                                              &authenticated_ssl_mode) != 0) ||
+          (host_.empty() &&
+           cmd_options->set(mysql_h_, MYSQL_COMMAND_PROTOCOL,
+                            mrs_component().server_config().m_socket.c_str()) !=
+               0) ||
+          cmd_options->set(mysql_h_, MYSQL_OPT_CONNECT_TIMEOUT,
                            &authenticated_connect_timeout) != 0 ||
           cmd_options->set(mysql_h_, MYSQL_OPT_READ_TIMEOUT,
                            &authenticated_read_timeout) != 0 ||

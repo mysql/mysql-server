@@ -81,11 +81,10 @@ WHERE vendor_user_id = 'mrs_socket_proxy@%';
 name	vendor_user_id
 mrs_socket_proxy	mrs_socket_proxy@%
 SELECT SUM(argument LIKE '%using Socket') AS socket_connections,
-SUM(argument LIKE '%using TCP/IP' OR argument LIKE '%using SSL/TLS')
-AS tcp_connections
+SUM(argument LIKE '%using SSL/TLS') AS tls_connections
 FROM mysql.general_log
 WHERE command_type = 'Connect' AND argument LIKE 'mrs_socket_external@%';
-socket_connections	tcp_connections
+socket_connections	tls_connections
 0	1
 GET /svc/db/fixture/73
 Ok(200)
@@ -179,12 +178,24 @@ Unauthorized(401)
 GET /svc/db/fixture/73
 Unauthorized(401)
 
-# Relaxing the transport policy permits external-password TCP logins.
+# Disabling the server requirement does not permit unencrypted TCP.
 SET GLOBAL require_secure_transport=OFF;
 POST /svc/authentication/login
 Ok(200)
 GET /svc/db/fixture/73
 Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
 
 # Re-enabling the policy takes effect without restarting MRS.
 SET GLOBAL require_secure_transport=ON;
