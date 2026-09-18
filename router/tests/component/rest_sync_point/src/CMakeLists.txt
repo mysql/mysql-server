@@ -29,6 +29,8 @@ ADD_HARNESS_PLUGIN(rest_sync_point
   rest_sync_point_handler.cc
   REQUIRES_IF
   rest_api_interface
+  http_server_lib_interface
+  routing_interface
   REQUIRES
   rest_api_lib
   rest_api
