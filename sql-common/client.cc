@@ -6046,6 +6046,16 @@ static mysql_state_machine_status authsm_init_multi_auth(
     mysql_async_auth *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
+
+  DBUG_EXECUTE_IF("authsm_excess_factor",
+                  ctx->current_factor_index = MAX_AUTHENTICATION_FACTOR - 1;);
+
+  /* The server may request at most two additional authentication factors. */
+  if (ctx->current_factor_index >= MAX_AUTHENTICATION_FACTOR - 1) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return STATE_MACHINE_FAILED;
+  }
+
   /*
     If previous factor authentication is a success, read AuthNextFactor packet,
     extract client plugin name and plugin specific data and initiate next factor
