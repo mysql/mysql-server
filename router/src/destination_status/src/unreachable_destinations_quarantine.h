@@ -151,11 +151,11 @@ class UnreachableDestinationsQuarantine {
       const mysql_harness::TCPAddress &dest);
 
   /**
-   * Go through all routing instances and check if there are routing plugins
-   * which have all destination candidates added to quarantine, if so lets
-   * close the listening socket of such routing instances.
+   * Notify routing instances that their socket acceptor state may need to be
+   * refreshed.
    */
-  void stop_socket_acceptors_on_all_nodes_quarantined();
+  void refresh_acceptor_state(
+      const std::vector<std::string> &routing_instances);
 
   /**
    * For a given destination get names of all routing instances that references

@@ -115,12 +115,9 @@ std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {
   return r_->get_context().get_client_connect_timeout();
 }
 
-void MySQLRoutingAPI::start_accepting_connections() {
-  r_->start_accepting_connections();
-}
-
-void MySQLRoutingAPI::restart_accepting_connections() {
-  r_->restart_accepting_connections();
+stdx::expected<void, std::string>
+MySQLRoutingAPI::refresh_socket_acceptor_state() {
+  return r_->refresh_socket_acceptor_state();
 }
 
 void MySQLRoutingAPI::stop_socket_acceptors() { r_->stop_socket_acceptors(); }
@@ -270,14 +267,9 @@ void MySQLRoutingComponent::init(const mysql_harness::Config &config) {
     return this->api(route_name).get_destinations();
   };
 
-  quarantine_callbacks.on_start_acceptors =
+  quarantine_callbacks.on_refresh_acceptor_state =
       [&](const std::string &route_name) -> void {
-    this->api(route_name).restart_accepting_connections();
-  };
-
-  quarantine_callbacks.on_stop_acceptors =
-      [&](const std::string &route_name) -> void {
-    this->api(route_name).stop_socket_acceptors();
+    (void)this->api(route_name).refresh_socket_acceptor_state();
   };
 
   DestinationStatusComponent::get_instance().register_quarantine_callbacks(

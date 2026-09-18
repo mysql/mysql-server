@@ -63,10 +63,10 @@ using AllowedNodesChangedCallback =
 using AllowedNodesChangeCallbacksList = std::list<AllowedNodesChangedCallback>;
 using AllowedNodesChangeCallbacksListIterator =
     AllowedNodesChangeCallbacksList::iterator;
-// Starting a socket acceptor returns a value indicating if the start succeeded.
-using StartSocketAcceptorCallback =
+// Refreshing a socket acceptor returns a value indicating if the refresh
+// succeeded.
+using RefreshSocketAcceptorStateCallback =
     std::function<stdx::expected<void, std::string>()>;
-using StopSocketAcceptorCallback = std::function<void()>;
 // First callback argument informs if the instances returned from the metadata
 // has changed. Second argument is a list of new instances available after
 // md refresh.
@@ -106,33 +106,18 @@ class DestinationNodesStateNotifier {
 
   /**
    * Registers the callback for notification that the routing socket acceptor
-   * should accept new connections.
+   * state may need to be refreshed.
    *
    * @param clb callback that should be called
    */
-  void register_start_router_socket_acceptor(
-      const StartSocketAcceptorCallback &clb);
+  void register_refresh_router_socket_acceptor_state(
+      const RefreshSocketAcceptorStateCallback &clb);
 
   /**
    * Unregisters the callback registered with
-   * register_start_router_socket_acceptor().
+   * register_refresh_router_socket_acceptor_state().
    */
-  void unregister_start_router_socket_acceptor();
-
-  /**
-   * Registers the callback for notification that the routing socket acceptor
-   * should stop accepting new connections.
-   *
-   * @param clb callback that should be called
-   */
-  void register_stop_router_socket_acceptor(
-      const StopSocketAcceptorCallback &clb);
-
-  /**
-   * Unregisters the callback registered with
-   * register_stop_router_socket_acceptor().
-   */
-  void unregister_stop_router_socket_acceptor();
+  void unregister_refresh_router_socket_acceptor_state();
 
   /**
    * Registers a callback that is going to be used on metadata refresh
@@ -165,8 +150,8 @@ class DestinationNodesStateNotifier {
  protected:
   AllowedNodesChangeCallbacksList allowed_nodes_change_callbacks_;
   MetadataRefreshCallback md_refresh_callback_;
-  StartSocketAcceptorCallback start_router_socket_acceptor_callback_;
-  StopSocketAcceptorCallback stop_router_socket_acceptor_callback_;
+  RefreshSocketAcceptorStateCallback
+      refresh_router_socket_acceptor_state_callback_;
   QueryQuarantinedDestinationsCallback query_quarantined_destinations_callback_;
   mutable std::mutex allowed_nodes_change_callbacks_mtx_;
   mutable std::mutex md_refresh_callback_mtx_;

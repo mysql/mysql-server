@@ -83,6 +83,10 @@ if (mysqld.global.server_version === undefined) {
   mysqld.global.server_version = "8.3.0";
 }
 
+var connect_exec_time = (mysqld.global.connect_exec_time === undefined) ?
+    0 :
+    mysqld.global.connect_exec_time;
+
 var members = gr_memberships.gr_members(
     mysqld.global.gr_node_host, mysqld.global.gr_nodes);
 
@@ -154,7 +158,10 @@ var router_update_last_check_in_v2 =
       username: mysqld.global.user,
       password: mysqld.global.password,
     },
-    greeting: {server_version: mysqld.global.server_version}
+    greeting: {
+      server_version: mysqld.global.server_version,
+      exec_time: connect_exec_time,
+    }
   },
   stmts: function(stmt) {
     if (common_responses.hasOwnProperty(stmt)) {

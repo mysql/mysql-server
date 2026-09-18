@@ -37,6 +37,7 @@
 
 #include "connection.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/stdx/expected.h"
 #include "tcp_address.h"
 
 class MySQLRoutingBase;
@@ -109,8 +110,7 @@ class ROUTING_EXPORT MySQLRoutingAPI {
 
   std::vector<mysql_harness::TCPAddress> get_destinations() const;
 
-  void start_accepting_connections();
-  void restart_accepting_connections();
+  stdx::expected<void, std::string> refresh_socket_acceptor_state();
 
   bool is_accepting_connections() const;
 

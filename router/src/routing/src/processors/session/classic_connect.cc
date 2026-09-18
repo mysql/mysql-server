@@ -38,6 +38,7 @@
 #include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/sync_point.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/datatypes.h"
@@ -1055,9 +1056,11 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
       tr.trace(Tracer::Event().stage("connect::error::all_down"));
     }
     // all backends are down.
-    MySQLRoutingComponent::get_instance()
+    HARNESS_WAIT_FOR_SYNC_POINT(
+        "routing.before_client_failure_acceptor_refresh");
+    (void)MySQLRoutingComponent::get_instance()
         .api(connection()->context().get_id())
-        .stop_socket_acceptors();
+        .refresh_socket_acceptor_state();
   }
 
   connection()->server_conn().protocol().handshake_state(

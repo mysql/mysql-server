@@ -93,6 +93,7 @@ SET(harness_source
   random_generator.cc
   signal_handler.cc
   sd_notify.cc
+  sync_point.cc
   socket_operations.cc
   tcp_address.cc
   tls_cipher.cc
@@ -109,6 +110,12 @@ SET(harness_source
   section_config_exposer.cc
   auto_cleaner.cc
   )
+
+# mysys/dbug.cc is excluded in the same way when NDEBUG is defined. Keep the
+# sync-point implementation consistent with that behavior.
+IF(NOT ROUTER_SYNC_POINT_ENABLED)
+  LIST(REMOVE_ITEM harness_source sync_point.cc)
+ENDIF()
 
 IF(WIN32)
   LIST(APPEND harness_source

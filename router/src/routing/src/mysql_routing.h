@@ -279,19 +279,12 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   bool is_accepting_connections() const override;
 
   /**
-   * Start accepting new connections on a listening socket
+   * Refresh routing socket acceptor state based on currently usable
+   * destinations.
    *
    * @returns std::string on errors.
    */
-  stdx::expected<void, std::string> start_accepting_connections() override;
-
-  /**
-   * Start accepting new connections on a listening socket after it has been
-   * quarantined for lack of valid destinations
-   *
-   * @returns std::string on errors.
-   */
-  stdx::expected<void, std::string> restart_accepting_connections() override;
+  stdx::expected<void, std::string> refresh_socket_acceptor_state() override;
 
  private:
   /** @brief Sets unix socket permissions so that the socket is accessible
@@ -304,6 +297,12 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
 
   stdx::expected<void, std::string> run_acceptor(
       mysql_harness::PluginFuncEnv *env);
+
+  stdx::expected<void, std::string> start_accepting_connections();
+  stdx::expected<void, std::string> restart_accepting_connections();
+
+  /** Stop socket acceptors while socket_acceptor_state_mtx_ is held. */
+  void stop_socket_acceptors_unlocked();
 
  public:
   MySQLRoutingContext &get_context() override { return context_; }
@@ -366,6 +365,9 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /** Information if the routing plugin is still running. */
   std::atomic<bool> is_running_{true};
 
+  /** Serializes socket acceptor state transitions. */
+  std::mutex socket_acceptor_state_mtx_;
+
   /** Used when the accepting port is been reopened and it failed, to schedule
    * another retry for standalone-destination(s) route. */
   net::steady_timer accept_port_reopen_retry_timer_{io_ctx_};
@@ -373,6 +375,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
   FRIEND_TEST(RoutingTests, get_routing_thread_name);
+  FRIEND_TEST(RoutingTests, NoAcceptorRestartRetryAfterRoutingStops);
   FRIEND_TEST(ClassicProtocolRoutingTest, NoValidDestinations);
   FRIEND_TEST(TestSetupTcpService, single_addr_ok);
   FRIEND_TEST(TestSetupTcpService, getaddrinfo_fails);

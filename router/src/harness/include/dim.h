@@ -44,6 +44,7 @@ class Registry;
 }  // namespace logging
 class LoaderConfig;
 class DynamicState;
+class SyncPointRegistry;
 
 class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
 
@@ -118,6 +119,26 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
     return dynamic_state_.get();
   }
 
+  void set_static_SyncPointRegistry(mysql_harness::SyncPointRegistry *inst
+                                    [[maybe_unused]]) {
+#if !defined(NDEBUG)
+    std::unique_lock lk(sync_point_registry_mtx_);
+    sync_point_registry_ = inst;
+#endif
+  }
+
+#if !defined(NDEBUG)
+  bool has_SyncPointRegistry() const {
+    std::shared_lock lk(sync_point_registry_mtx_);
+    return sync_point_registry_ != nullptr;
+  }
+
+  mysql_harness::SyncPointRegistry &get_SyncPointRegistry() const {
+    std::shared_lock lk(sync_point_registry_mtx_);
+    return *sync_point_registry_;
+  }
+#endif
+
  private:
   template <class T>
   class RWLockedUniquePtr {
@@ -167,6 +188,10 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
   RWLockedUniquePtr<mysql_harness::LoaderConfig> loader_config_;
 
   RWLockedUniquePtr<mysql_harness::DynamicState> dynamic_state_;
+#if !defined(NDEBUG)
+  mysql_harness::SyncPointRegistry *sync_point_registry_{nullptr};
+  mutable std::shared_mutex sync_point_registry_mtx_;
+#endif
 
 };  // class DIM
 

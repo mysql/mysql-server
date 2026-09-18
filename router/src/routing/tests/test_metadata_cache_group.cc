@@ -197,6 +197,40 @@ class DestMetadataCacheTest : public ::testing::Test {
   net::io_context io_ctx_;
 };
 
+TEST_F(DestMetadataCacheTest, SocketAcceptorUpdateDelegatesToRefreshCallback) {
+  DestMetadataCacheGroup dest(
+      io_ctx_, "cache-name", routing::RoutingStrategy::kFirstAvailable,
+      mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
+          .query,
+      BaseProtocol::Type::kClassicProtocol, &metadata_cache_api_);
+
+  bool callback_called{false};
+  dest.register_refresh_router_socket_acceptor_state([&]() {
+    callback_called = true;
+    return stdx::expected<void, std::string>{};
+  });
+
+  metadata_cache::AcceptorUpdateHandlerInterface &acceptor_handler = dest;
+  EXPECT_TRUE(acceptor_handler.update_socket_acceptor_state({}));
+  EXPECT_TRUE(callback_called);
+}
+
+TEST_F(DestMetadataCacheTest,
+       SocketAcceptorUpdateReportsRefreshCallbackFailure) {
+  DestMetadataCacheGroup dest(
+      io_ctx_, "cache-name", routing::RoutingStrategy::kFirstAvailable,
+      mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
+          .query,
+      BaseProtocol::Type::kClassicProtocol, &metadata_cache_api_);
+
+  dest.register_refresh_router_socket_acceptor_state([]() {
+    return stdx::unexpected(std::string{"acceptor refresh failed"});
+  });
+
+  metadata_cache::AcceptorUpdateHandlerInterface &acceptor_handler = dest;
+  EXPECT_FALSE(acceptor_handler.update_socket_acceptor_state({}));
+}
+
 /*****************************************/
 /*STRATEGY FIRST AVAILABLE               */
 /*****************************************/
