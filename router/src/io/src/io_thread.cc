@@ -35,8 +35,6 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-using namespace std::string_literals;
-
 void IoThread::operator()() {
   try {
     if (lifecycle_.on_start) lifecycle_.on_start(ndx_);
@@ -63,14 +61,14 @@ void IoThread::operator()() {
     if (!res) {
       if (res.error() != make_error_code(std::errc::not_supported)) {
         // in case of failure, log it, but ignore it otherwise
-        log_info("failed to set cpu affinity for io-thread 'io-%zu': %s", ndx_,
-                 res.error().message().c_str());
+        log_info("failed to set cpu affinity for io-thread '%s': %s",
+                 name_.c_str(), res.error().message().c_str());
       }
     }
   }
   // ensure the .run() doesn't exit by itself as it has no more work
   auto work_guard = net::make_work_guard(io_ctx_);
 
-  my_thread_self_setname(("io-"s + std::to_string(ndx_)).c_str());
+  my_thread_self_setname(name_.c_str());
   io_ctx_.run();
 }

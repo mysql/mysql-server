@@ -567,23 +567,10 @@ void DestMetadataCacheManager::notify_instances_changed(
 }
 
 bool DestMetadataCacheManager::update_socket_acceptor_state() noexcept {
-  const auto &nodes_for_new_connections = get_new_connection_nodes();
-
-  {
-    std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
-    if (!nodes_for_new_connections.empty() &&
-        start_router_socket_acceptor_callback_) {
-      const auto &start_acceptor_res = start_router_socket_acceptor_callback_();
-      return start_acceptor_res ? true : false;
-    }
-
-    if (nodes_for_new_connections.empty() &&
-        stop_router_socket_acceptor_callback_) {
-      stop_router_socket_acceptor_callback_();
-      return true;
-    }
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  if (refresh_router_socket_acceptor_state_callback_) {
+    return refresh_router_socket_acceptor_state_callback_().has_value();
   }
-
   return true;
 }
 

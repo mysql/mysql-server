@@ -32,6 +32,7 @@
 #include "mysqlrouter/io_component.h"
 
 #include <atomic>
+#include <future>
 #include <limits>
 #include <stdexcept>
 #include <system_error>
@@ -97,6 +98,25 @@ TEST_F(IoComponentTest, init_reset_reinit) {
   io_comp.reset();
 }
 
+TEST_F(IoComponentTest, init_creates_dedicated_acceptor_context) {
+  auto &io_comp = IoComponent::get_instance();
+
+  SCOPED_TRACE("// init once");
+  ASSERT_TRUE(io_comp.init(1, defaultIoBackend));
+
+  EXPECT_EQ(io_comp.io_threads().size(), 1);
+  EXPECT_NE(&io_comp.acceptor_io_context(), &io_comp.io_context());
+  EXPECT_TRUE(io_comp.acceptor_io_context().open_res());
+
+  // Acceptor work must run even when the shared io_context is not running.
+  std::promise<void> accepted;
+  auto done = accepted.get_future();
+  net::post(io_comp.acceptor_io_context(),
+            [&accepted] { accepted.set_value(); });
+  EXPECT_EQ(done.wait_for(std::chrono::seconds(5)), std::future_status::ready);
+  io_comp.reset();
+}
+
 // test that run leaves as there is no work assigned to it.
 TEST_F(IoComponentTest, init_run_reset_no_work) {
   auto &io_comp = IoComponent::get_instance();
@@ -132,8 +152,8 @@ TEST_F(IoComponentTest, thread_lifecycle) {
   ASSERT_TRUE(io_comp.init(3, defaultIoBackend));
   io_comp.reset();
 
-  EXPECT_EQ(starts, 3);
-  EXPECT_EQ(stops, 3);
+  EXPECT_EQ(starts, 4);
+  EXPECT_EQ(stops, 4);
 }
 
 TEST_F(IoComponentTest, thread_lifecycle_start_failure) {

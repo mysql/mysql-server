@@ -787,6 +787,16 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   }
   EXPECT_FALSE(is_port_bindable(router_port));
 
+  SCOPED_TRACE(
+      "// recover a skipped server before exhausting the destinations");
+  auto &recovered = launch_standalone_server(server_ports[0]);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(recovered, server_ports[0]));
+  ASSERT_TRUE(wait_log_contains(
+      router,
+      "Destination candidate '.*:" + std::to_string(server_ports[0]) +
+          "' is available, remove it from quarantine",
+      5s));
+
   SCOPED_TRACE("// kill also 3rd server");
   kill_server(server_instances[2]);
   SCOPED_TRACE("// expect connection failure");
@@ -800,15 +810,15 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   // to be available again.
   EXPECT_TRUE(wait_for_port_unused(router_port, 200s));
 
-  SCOPED_TRACE("// bring back 1st server");
-  server_instances.emplace_back(&launch_standalone_server(server_ports[0]));
+  SCOPED_TRACE("// bring back 2nd server");
+  server_instances.emplace_back(&launch_standalone_server(server_ports[1]));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(
-      *server_instances[server_instances.size() - 1], server_ports[0]));
+      *server_instances[server_instances.size() - 1], server_ports[1]));
   SCOPED_TRACE(
-      "// 1st node is reachable and should be removed from quarantine");
+      "// 2nd node is reachable and should be removed from quarantine");
   EXPECT_TRUE(wait_log_contains(
       router,
-      "Destination candidate '.*:" + std::to_string(server_ports[0]) +
+      "Destination candidate '.*:" + std::to_string(server_ports[1]) +
           "' is available, remove it from quarantine",
       5s));
   SCOPED_TRACE(

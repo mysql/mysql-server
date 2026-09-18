@@ -515,7 +515,8 @@ class MysqlRoutingClassicConnectionBase
   Tracer tracer_{false};
 
   std::string get_routing_source() const override {
-    return destination_->route_name();
+    // Failed initial connections have no routing source.
+    return destination_ ? destination_->route_name() : std::string{};
   }
 
   void set_routing_source(std::string name) override {

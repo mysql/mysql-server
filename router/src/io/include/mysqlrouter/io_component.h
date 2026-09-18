@@ -56,6 +56,16 @@ class IO_COMPONENT_EXPORT IoComponent {
    */
   net::io_context &io_context();
 
+  /**
+   * get ref to the io_context dedicated to socket acceptors.
+   *
+   * Accepted client sockets are still assigned to io_threads().
+   *
+   * behaviour is undefined when called before IoComponent::init() and after
+   * IoComponent::reset()
+   */
+  net::io_context &acceptor_io_context();
+
   static IoComponent &get_instance();
 
   /**
@@ -135,6 +145,8 @@ class IO_COMPONENT_EXPORT IoComponent {
   IoComponent() = default;
 
   std::list<IoThread> io_threads_;
+
+  std::unique_ptr<IoThread> routing_acceptor_io_thread_;
 
   std::unique_ptr<net::io_context> io_ctx_;
 

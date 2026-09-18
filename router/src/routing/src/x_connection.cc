@@ -794,9 +794,9 @@ void MysqlRoutingXConnection::connect() {
     this->connector().socket().close();
 
     if (ec == DestinationsErrc::kNoDestinations) {
-      MySQLRoutingComponent::get_instance()
+      (void)MySQLRoutingComponent::get_instance()
           .api(context().get_id())
-          .stop_socket_acceptors();
+          .refresh_socket_acceptor_state();
     } else if (ec == make_error_condition(std::errc::too_many_files_open) ||
                ec == make_error_condition(
                          std::errc::too_many_files_open_in_system)) {

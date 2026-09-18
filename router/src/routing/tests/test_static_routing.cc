@@ -71,6 +71,8 @@ MATCHER_P(PortMatcher, value, "") {
 TEST_F(StaticRoutingTest, next_available) {
   auto dest = get_destination_manager(routing::RoutingStrategy::kNextAvailable);
   setup_destinations(dest);
+  EXPECT_EQ(dest->get_remaining_destinations(),
+            dest->get_destination_candidates());
   std::vector<std::unique_ptr<Destination>> nodes;
 
   for (int i = 0; i < 3; i++) {
@@ -95,6 +97,13 @@ TEST_F(StaticRoutingTest, next_available) {
   EXPECT_THAT(nodes, ::testing::ElementsAre(PortMatcher(42), PortMatcher(42),
                                             PortMatcher(42)));
 
+  EXPECT_THAT(dest->get_remaining_destinations(),
+              ::testing::ElementsAre(
+                  mysql_harness::Destination{
+                      mysql_harness::TcpDestination{"127.0.0.1", 42}},
+                  mysql_harness::Destination{
+                      mysql_harness::TcpDestination{"127.0.0.1", 43}}));
+
   SCOPED_TRACE("Move one position, to the third node");
   simulate_previous_connection_failed(dest);
   EXPECT_THAT(dest->get_next_destination({}), PortMatcher(43));
@@ -102,10 +111,12 @@ TEST_F(StaticRoutingTest, next_available) {
   SCOPED_TRACE("All nodes down");
   simulate_previous_connection_failed(dest);
   EXPECT_EQ(dest->get_next_destination({}), nullptr);
+  EXPECT_TRUE(dest->get_remaining_destinations().empty());
 
   SCOPED_TRACE("Not going back, still failing");
   dest->connect_status({});
   EXPECT_EQ(dest->get_next_destination({}), nullptr);
+  EXPECT_TRUE(dest->get_remaining_destinations().empty());
 }
 
 TEST_F(StaticRoutingTest, first_available) {

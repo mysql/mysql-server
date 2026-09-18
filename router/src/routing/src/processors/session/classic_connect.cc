@@ -42,6 +42,7 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/resolver/resolver.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/sync_point.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/datatypes.h"
@@ -153,6 +154,8 @@ ConnectProcessor::init_destination() {
     destination_ = destination_manager->get_last_used_destination();
   }
 
+  all_quarantined_ = true;
+
   if (!dest_manager_started || !destination_) {
     if (connect_errors_.empty()) {
       // no backends
@@ -168,8 +171,6 @@ ConnectProcessor::init_destination() {
 
   // reset the error-code for this destination.
   destination_ec_.clear();
-
-  all_quarantined_ = true;
 
   // adjust the current-server-mode depending if we have:
   //
@@ -1093,6 +1094,15 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
     trace_span_end(ev);
   }
 
+  connection()->server_conn().protocol().handshake_state(
+      ClassicProtocolState::HandshakeState::kConnected);
+  connection()->authenticated(false);
+
+  // Guidelines updates wait for completion while holding a connection
+  // container lock that the acceptor may need. Signal before refreshing
+  // acceptors to avoid a cycle between these three threads.
+  connection()->completed();
+
   if (last_ec == make_error_condition(std::errc::too_many_files_open) ||
       last_ec ==
           make_error_condition(std::errc::too_many_files_open_in_system)) {
@@ -1110,13 +1120,14 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("connect::error::all_down"));
     }
+    // all backends are down.
+    HARNESS_WAIT_FOR_SYNC_POINT(
+        "routing.before_client_failure_acceptor_refresh");
+    (void)MySQLRoutingComponent::get_instance()
+        .api(connection()->context().get_id())
+        .refresh_socket_acceptor_state();
   }
 
-  connection()->server_conn().protocol().handshake_state(
-      ClassicProtocolState::HandshakeState::kConnected);
-  connection()->authenticated(false);
-
-  connection()->completed();
   stage(Stage::Done);
 
   on_error_({2003, "Can't connect to remote MySQL server", "HY000"});
