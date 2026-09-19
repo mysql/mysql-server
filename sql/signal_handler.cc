@@ -353,9 +353,17 @@ static void print_fatal_signal(int sig, siginfo_t *info [[maybe_unused]]) {
       query = thd->query().str;
       query_length = thd->query().length;
     }
-    my_safe_printf_stderr("Query (%p): ", query);
+    /*
+      The query is printed as many complete, newline-terminated lines, each
+      prefixed with the same label, here the query pointer, and the byte
+      offset of the chunk, so that other threads writing to the error log
+      concurrently cannot mangle it and the lines can be reassembled
+      afterwards.
+    */
+    char label[48];
+    my_safe_snprintf(label, sizeof(label), "Query (%p)", query);
     // 1024 * 1024 * 1024 is the limit for max_allowed_packet
-    my_safe_puts_stderr(query,
+    my_safe_puts_stderr(label, query,
                         std::min(size_t{1024 * 1024 * 1024}, query_length));
     my_safe_printf_stderr("Connection ID (thread ID): %u\n", thd->thread_id());
     my_safe_printf_stderr("Status: %s\n\n", kreason);

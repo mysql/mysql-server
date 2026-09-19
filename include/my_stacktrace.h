@@ -49,7 +49,40 @@
 #define HAVE_STACKTRACE 1
 void my_init_stacktrace();
 void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack);
-void my_safe_puts_stderr(const char *val, size_t max_len);
+
+/**
+  Safely print a string of possibly untrusted memory to STDERR from a
+  signal handler.
+
+  The string is emitted as a sequence of complete, newline-terminated lines:
+
+    <label> +<offset>: <a bounded chunk of val>\n
+
+  where <label> is printed verbatim and <offset> is the byte offset of the
+  chunk within val, e.g.
+
+    Query (7f3a1c00b010) +132: ...
+
+  A chunk is currently at most 132 bytes (see mysys/stacktrace.cc). Each
+  line is written with a single write(2), so other threads writing to STDERR
+  concurrently can interleave lines but not mangle them. Callers are
+  encouraged to include a stable key such as the string address in the
+  label, so the lines of one dump can be correlated and reassembled even
+  when interleaved. Even a zero-length string produces one (empty) line.
+  Bytes which are not printable are replaced by ' '.
+
+  Printing stops at the first NUL byte or after max_len bytes. If (part of)
+  the memory is not readable, whatever could be read is printed, followed by
+  a line whose payload is "<is an invalid pointer>" and whose <offset> is
+  where reading failed.
+
+  @param label    Text identifying the string, printed verbatim; should
+                  include a stable key such as the address, e.g.
+                  "Query (7f3a1c00b010)".
+  @param val      Start of the string. May be invalid.
+  @param max_len  Maximum number of bytes to print.
+*/
+void my_safe_puts_stderr(const char *label, const char *val, size_t max_len);
 
 #ifdef _WIN32
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
