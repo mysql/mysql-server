@@ -178,6 +178,18 @@ ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
       covered_fields.SetBit(key_part->fieldnr - 1);
   }
   ror_scan->covered_fields = std::move(covered_fields);
+
+  MutableOverflowBitset constrained_fields(param->temp_mem_root,
+                                           needed_fields.capacity());
+  for (SEL_ROOT *cur = sel_root; cur != nullptr;
+       cur = cur->root->next_key_part) {
+    if (cur->elements == 1 && cur->root->is_singlepoint()) {
+      constrained_fields.SetBit(
+          param->table->key_info[keynr].key_part[cur->root->part].fieldnr - 1);
+    }
+  }
+  ror_scan->constrained_fields = std::move(constrained_fields);
+
   double rows = rows2double(param->table->quick_rows[ror_scan->keynr]);
   ror_scan->index_read_cost =
       param->table->file->index_scan_cost(ror_scan->keynr, 1, rows);
@@ -250,6 +262,8 @@ ROR_intersect_plan::ROR_intersect_plan(const RANGE_OPT_PARAM *param,
       m_ror_scans(param->return_mem_root, 0),
       m_out_rows(m_param->table->file->stats.records),
       m_covered_fields(
+          OverflowBitset::EmptySet(param->temp_mem_root, num_fields)),
+      m_constrained_fields(
           OverflowBitset::EmptySet(param->temp_mem_root, num_fields)) {}
 
 ROR_intersect_plan &ROR_intersect_plan::operator=(
@@ -259,6 +273,7 @@ ROR_intersect_plan &ROR_intersect_plan::operator=(
   for (ROR_SCAN_INFO *scan : plan.m_ror_scans) m_ror_scans.push_back(scan);
   m_is_covering = plan.m_is_covering;
   m_covered_fields = plan.m_covered_fields;
+  m_constrained_fields = plan.m_constrained_fields;
   m_out_rows = plan.m_out_rows;
   m_total_cost = plan.m_total_cost;
   m_index_records = plan.m_index_records;
@@ -384,7 +399,7 @@ double ROR_intersect_plan::get_scan_selectivity(
   SEL_ARG *tuple_arg = nullptr;
   key_part_map keypart_map = 0;
   bool cur_covered;
-  bool prev_covered = IsBitSet(key_part->fieldnr - 1, m_covered_fields);
+  bool prev_covered = IsBitSet(key_part->fieldnr - 1, m_constrained_fields);
   key_range min_range;
   key_range max_range;
   min_range.key = key_val;
@@ -397,8 +412,8 @@ double ROR_intersect_plan::get_scan_selectivity(
   for (SEL_ROOT *sel_root = scan->sel_root; sel_root;
        sel_root = sel_root->root->next_key_part) {
     DBUG_PRINT("info", ("sel_root step"));
-    cur_covered =
-        IsBitSet(key_part[sel_root->root->part].fieldnr - 1, m_covered_fields);
+    cur_covered = IsBitSet(key_part[sel_root->root->part].fieldnr - 1,
+                           m_constrained_fields);
     if (cur_covered != prev_covered) {
       /* create (part1val, ..., part{n-1}val) tuple. */
       bool is_null_range = false;
@@ -549,6 +564,9 @@ bool ROR_intersect_plan::add(OverflowBitset needed_fields,
       trace_costs->add("index_scan_cost", ror_scan->index_read_cost);
     m_covered_fields = OverflowBitset::Or(
         m_param->temp_mem_root, m_covered_fields, ror_scan->covered_fields);
+    m_constrained_fields =
+        OverflowBitset::Or(m_param->temp_mem_root, m_constrained_fields,
+                           ror_scan->constrained_fields);
     if (!m_is_covering && IsSubset(needed_fields, m_covered_fields)) {
       DBUG_PRINT("info", ("ROR-intersect is covering now"));
       m_is_covering = true;
