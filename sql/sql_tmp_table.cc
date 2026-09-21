@@ -1108,7 +1108,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
           store_column = false;
       }
 
-      if (hidden_field_count <= 0) {
+      if (hidden_field_count <= 0 && !(distinct && item->is_nullable())) {
         if (thd->lex->current_query_block()->is_implicitly_grouped() &&
             (item->used_tables() & ~(RAND_TABLE_BIT | INNER_TABLE_BIT)) == 0) {
           /*
