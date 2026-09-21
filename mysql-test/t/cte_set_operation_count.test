@@ -1,0 +1,29 @@
+--echo #
+--echo # Bug #121239: Repeated count of a CTE containing set operations
+--echo #
+
+WITH p AS (SELECT 'A' AS x UNION SELECT 'A' EXCEPT SELECT NULL WHERE FALSE), q AS (SELECT COUNT(*) AS y FROM p) SELECT (SELECT COUNT(*) FROM p) AS direct_count, (SELECT y FROM q) AS count_via_q;
+
+--echo # Hash-map materialization must retain the visible columns as well as the counter.
+WITH p AS (SELECT 1 AS a UNION SELECT 2 EXCEPT SELECT 2), q AS (SELECT COUNT(*) AS y FROM p) SELECT (SELECT COUNT(*) FROM p), (SELECT y FROM q);
+
+--echo # INTERSECT must preserve its counter semantics in both references.
+WITH p AS ((SELECT 1 AS a UNION SELECT 2) INTERSECT SELECT 2), q AS (SELECT COUNT(*) AS y FROM p) SELECT (SELECT COUNT(*) FROM p) AS direct_count, (SELECT y FROM q) AS count_via_q;
+
+--echo # Two references must retain all visible columns when a clone materializes.
+WITH p AS (SELECT 1 AS a, 10 AS b UNION SELECT 2, 20 UNION SELECT 3, 30 EXCEPT SELECT 2, 20) SELECT l.a, l.b AS left_b, r.b AS right_b FROM p AS l JOIN p AS r ON l.a = r.a ORDER BY l.a;
+
+--echo # INTERSECT self-join reads the correct rows through each clone.
+WITH p AS ((SELECT 1 AS a, 10 AS b UNION SELECT 2, 20 UNION SELECT 3, 30) INTERSECT (SELECT 1, 10 UNION SELECT 3, 30)) SELECT l.a, l.b AS left_b, r.b AS right_b FROM p AS l JOIN p AS r ON l.a = r.a ORDER BY l.a;
+
+--echo # ALL operations must preserve duplicate multiplicities.
+WITH p AS ((SELECT 1 AS a UNION ALL SELECT 1 UNION ALL SELECT 2) EXCEPT ALL SELECT 1), q AS (SELECT COUNT(*) AS y FROM p) SELECT (SELECT COUNT(*) FROM p) AS direct_count, (SELECT y FROM q) AS count_via_q;
+
+WITH p AS ((SELECT 1 AS a UNION ALL SELECT 1 UNION ALL SELECT 2) INTERSECT ALL (SELECT 1 UNION ALL SELECT 1)) SELECT COUNT(*) AS joined_count FROM p AS l JOIN p AS r ON l.a = r.a;
+
+--echo # Finite limits are set independently by each reference.
+WITH p AS ((SELECT 1 AS a UNION SELECT 2 UNION SELECT 3 EXCEPT SELECT 3) ORDER BY a LIMIT 1), q AS (SELECT COUNT(*) AS y FROM p) SELECT (SELECT COUNT(*) FROM p) AS direct_count, (SELECT y FROM q) AS count_via_q;
+
+WITH p AS (((SELECT 1 AS a UNION SELECT 2 UNION SELECT 3) INTERSECT (SELECT 1 UNION SELECT 2)) ORDER BY a LIMIT 1), q AS (SELECT COUNT(*) AS y FROM p) SELECT (SELECT COUNT(*) FROM p) AS direct_count, (SELECT y FROM q) AS count_via_q;
+
+WITH p AS ((SELECT 1 AS a UNION SELECT 2 EXCEPT SELECT 2) LIMIT 0), q AS (SELECT COUNT(*) AS y FROM p) SELECT (SELECT COUNT(*) FROM p) AS direct_count, (SELECT y FROM q) AS count_via_q;
