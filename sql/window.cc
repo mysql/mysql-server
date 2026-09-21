@@ -1519,7 +1519,79 @@ const char *Window::printable_name() const {
   return m_name->val_str(nullptr)->ptr();
 }
 
+bool Window::single_row_is_in_frame() {
+  const PT_frame *frame = m_frame;
+
+  auto offset_is_zero = [](PT_border *border) {
+    if (border->m_border_type != WBT_VALUE_PRECEDING &&
+        border->m_border_type != WBT_VALUE_FOLLOWING) {
+      return true;
+    }
+    Item *value = border->border();
+    if (value == nullptr) return true;
+    const double offset = value->val_real();
+    return !value->null_value && offset == 0.0;
+  };
+
+  if (frame->m_query_expression == WFU_RANGE &&
+      (frame->m_from->m_border_type == WBT_VALUE_PRECEDING ||
+       frame->m_from->m_border_type == WBT_VALUE_FOLLOWING ||
+       frame->m_to->m_border_type == WBT_VALUE_PRECEDING ||
+       frame->m_to->m_border_type == WBT_VALUE_FOLLOWING)) {
+    if (m_order_by_items.size() != 0) {
+      Item *order_item = m_order_by_items[0]->get_item();
+      if (order_item->update_null_value()) return true;
+      if (order_item->null_value) return true;
+    }
+  }
+
+  bool from_includes = false;
+  bool to_includes = false;
+
+  switch (frame->m_from->m_border_type) {
+    case WBT_UNBOUNDED_PRECEDING:
+    case WBT_CURRENT_ROW:
+    case WBT_VALUE_PRECEDING:
+      from_includes = true;
+      break;
+    case WBT_VALUE_FOLLOWING:
+      from_includes = offset_is_zero(frame->m_from);
+      break;
+    case WBT_UNBOUNDED_FOLLOWING:
+      assert(false);  // illegal frame start
+      break;
+  }
+
+  switch (frame->m_to->m_border_type) {
+    case WBT_UNBOUNDED_FOLLOWING:
+    case WBT_CURRENT_ROW:
+    case WBT_VALUE_FOLLOWING:
+      to_includes = true;
+      break;
+    case WBT_VALUE_PRECEDING:
+      to_includes = offset_is_zero(frame->m_to);
+      break;
+    case WBT_UNBOUNDED_PRECEDING:
+      assert(false);  // illegal frame end
+      break;
+  }
+
+  return from_includes && to_includes;
+}
+
 void Window::reset_all_wf_state() {
+  bool has_framing_function = false;
+  for (Item_sum &sum : m_functions) {
+    if (sum.framing()) {
+      has_framing_function = true;
+      break;
+    }
+  }
+
+  if (has_framing_function) {
+    m_do_copy_null = !single_row_is_in_frame();
+  }
+
   for (Item_sum &sum : m_functions) {
     for (bool framing : {false, true}) {
       (void)sum.walk(&Item::reset_wf_state, enum_walk::POSTFIX,
