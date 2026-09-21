@@ -498,13 +498,15 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
       } else {
         if (make_copy_field) {
           *from_field = item->get_tmp_table_field();
-          assert(*from_field);
         }
 
         result = create_tmp_field_from_item(item, table);
         if (result == nullptr) return nullptr;
         if (modify_item) item->set_result_field(result);
-        if (copy_func && !make_copy_field && item->is_result_field()) {
+        // Parameters and routine variables have no source field even when
+        // copying is forced for ROLLUP. Func_ptr stores the destination field
+        // explicitly, so their values can be copied directly.
+        if (copy_func && (!make_copy_field || *from_field == nullptr)) {
           copy_func->push_back(Func_ptr(item, result));
         }
       }
@@ -1108,7 +1110,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
           store_column = false;
       }
 
-      if (hidden_field_count <= 0) {
+      if (hidden_field_count <= 0 && !(distinct && item->is_nullable())) {
         if (thd->lex->current_query_block()->is_implicitly_grouped() &&
             (item->used_tables() & ~(RAND_TABLE_BIT | INNER_TABLE_BIT)) == 0) {
           /*
