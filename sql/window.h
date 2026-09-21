@@ -1447,6 +1447,13 @@ class Window {
 
  public:
   /**
+    Return whether the frame is empty for a single-row execution without
+    windowing steps. Evaluate only when the row, including any grouped
+    aggregates used by the ordering expressions, is ready.
+  */
+  bool is_single_row_frame_empty();
+
+  /**
     Reset the execution state for all window functions defined on this window.
   */
   void reset_all_wf_state();
