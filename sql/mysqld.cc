@@ -8833,7 +8833,13 @@ class Plugin_and_data_dir_option_parser final {
     }
     my_getopt_skip_unknown = false;
 
-    if (!datadir) {
+    /*
+      An empty value must be treated the same way as a missing one. The
+      buffers below are cleared before the replacement is copied in, so an
+      empty --datadir= would leave mysql_real_data_home empty and trip the
+      assert in initialize_manifest_file_components().
+    */
+    if (datadir == nullptr || datadir[0] == '\0') {
       /* mysql_real_data_home must be initialized at this point */
       assert(mysql_real_data_home[0]);
       /*
@@ -8852,7 +8858,9 @@ class Plugin_and_data_dir_option_parser final {
     memset(dir, 0, FN_REFLEN);
 
     convert_dirname(local_plugindir_buffer,
-                    plugindir ? plugindir : get_relative_path(PLUGINDIR),
+                    (plugindir != nullptr && plugindir[0] != '\0')
+                        ? plugindir
+                        : get_relative_path(PLUGINDIR),
                     NullS);
     (void)my_load_path(local_plugindir_buffer, local_plugindir_buffer,
                        mysql_home);
