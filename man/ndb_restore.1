@@ -2,12 +2,12 @@
 .\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/25/2026
+.\"      Date: 09/15/2026
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 9.7
 .\"  Language: English
 .\"
-.TH "NDB_RESTORE" "1" "06/25/2026" "MySQL 9\&.7" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "09/15/2026" "MySQL 9\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -366,9 +366,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.4\&.7 to a cluster running NDB Cluster 8\&.0\&.44, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.4\&.11 to a cluster running NDB Cluster 8\&.0\&.48, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 8\&.0\&.44 distribution\&.
+that comes with the NDB Cluster 8\&.0\&.48 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
