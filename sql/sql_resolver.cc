@@ -5710,6 +5710,24 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
 
       inner_qb->select_limit = limes;
       inner_qb->offset_limit = nullptr;
+    } else if (inner_qb->select_limit != nullptr ||
+               inner_qb->offset_limit != nullptr) {
+      // An EXISTS predicate only tests whether the inner query is non-empty.
+      // Once the subquery is decorrelated into a deduplicated derived table,
+      // any LIMIT/OFFSET would be applied globally after deduplication and
+      // cannot reproduce the cardinality/position semantics of a correlated
+      // EXISTS. A LIMIT/OFFSET that always preserves the first row does not
+      // change the EXISTS result, so drop it so that the derived table
+      // materializes every distinct decorrelation key. Any other LIMIT/OFFSET
+      // can change the result, so keep the subquery on the materialization
+      // path, which preserves its original LIMIT/OFFSET semantics.
+      if (!inner_qb->limit_offset_preserves_first_row()) {
+        subq_pred->strategy = Subquery_strategy::SUBQ_MATERIALIZATION;
+        return false;
+      }
+      inner_qb->select_limit = nullptr;
+      inner_qb->offset_limit = nullptr;
+      inner_qb->m_internal_limit = false;
     }
 
     Item::Cleanup_after_removal_context ctx(this);
