@@ -335,7 +335,7 @@ DEFINE_METHOD(void, mysql_udt_value_null_imp::get_null,
 
 DEFINE_METHOD(void, mysql_udt_value_string_imp::set_utf8mb4,
               (UDT_value_out * f, const char *value, unsigned int length)) {
-  fprintf(stderr, "mysql_udt_value_string_imp::set_utf8mb4()\n");
+  fprintf(stderr, "mysql_udt_value_string_imp::set_utf8mb4(str=%s, len=%d)\n", value, length);
   assert(f != nullptr);
   f->set_utf8mb4(value, length);
 }
@@ -374,13 +374,15 @@ static void convert_type_descriptor(const mysql_type_descriptor_t *from,
                                     TypeDescriptor *to) {
   to->m_type = static_cast<enum_field_types>(from->mysql_type);
   to->m_type_flags = from->type_flags;
-  // to->m_length = from->length;
-  // to->m_dec = from->decimals;
+  to->m_length = from->length;
+  to->m_dec = from->decimals;
 
   // FIXME: how/if to expose charset from component
   if (from->mysql_type == MYSQL_FIELD_TYPE_BLOB) {
     to->m_charset = &my_charset_bin;
   } else if (from->mysql_type == MYSQL_FIELD_TYPE_VARCHAR) {
+    to->m_charset = &my_charset_utf8mb4_0900_ai_ci;
+  } else if (from->mysql_type == MYSQL_FIELD_TYPE_STRING) {
     to->m_charset = &my_charset_utf8mb4_0900_ai_ci;
   } else {
     to->m_charset = from->charset;
@@ -558,12 +560,12 @@ bool Item_udt_func::evaluate_to_field(Field *field) {
 
   // Evaluate the function into the value
 
-  fprintf(stderr, "Item_udt_func::save_in_field_inner() field %s before eval\n",
+  fprintf(stderr, "Item_udt_func::evaluate_to_field() field %s before eval\n",
           field->field_name);
 
   rc = (*eval)(&result_value, param_count, param_array);
 
-  fprintf(stderr, "Item_udt_func::save_in_field_inner() field %s after eval\n",
+  fprintf(stderr, "Item_udt_func::evaluate_to_field() field %s after eval\n",
           field->field_name);
 
   destroy_argument_value_array(param_count, param_array);
@@ -590,6 +592,8 @@ longlong Item_udt_func::val_int() {
 }
 
 String *Item_udt_func::val_str(String *str) {
+  fprintf(stderr, "Item_udt_func::val_str() begin\n");
+
   if (execute()) {
     return error_str();
   }
@@ -598,7 +602,10 @@ String *Item_udt_func::val_str(String *str) {
     return nullptr;
   }
 
-  return m_return_field->val_str(str);
+  String *result = m_return_field->val_str(str);
+  fprintf(stderr, "Item_udt_func::val_str() end with value %s\n",
+          result == nullptr ? "NULL" : result->c_ptr());
+  return result;
 }
 
 bool Item_udt_func::val_date(Date_val * /* date */,

@@ -58,7 +58,7 @@ BEGIN
   SET c = complex_number_add(a, b);
   SET s = complex_number_to_string(c);
   SELECT s as "result";
-  # SELECT complex_number_to_string(c) as "result 2";
+  SELECT complex_number_to_string(c) as "result 2";
 END$$
 
 delimiter ;$$

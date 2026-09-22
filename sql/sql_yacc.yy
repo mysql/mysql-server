@@ -4268,8 +4268,8 @@ sp_decl:
               TypeDescriptor td;
               td.m_type = var_type;
               td.m_type_flags = $3->get_type_flags();
-              td.m_length = $3->get_length();
-              td.m_dec = $3->get_dec();
+              td.m_length = $3->get_length_as_size_t();
+              td.m_dec = $3->get_dec_as_size_t();
               td.m_charset = cs ? cs : thd->variables.collation_database;
               td.m_has_explicit_collation = ($4 != nullptr);
               td.m_geo_type = $3->get_uint_geom_type();

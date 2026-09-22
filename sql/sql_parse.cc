@@ -5718,8 +5718,17 @@ bool Alter_info::add_field(
     TypeDescriptor td;
     td.m_type = type;
     td.m_type_flags = type_modifier;
-    td.m_length = length;
-    td.m_dec = decimals;
+
+    td.m_length = 0;
+    if (length != nullptr) {
+      td.m_length = atoi(length);
+    }
+
+    td.m_dec = 0;
+    if (decimals != nullptr) {
+      td.m_dec = atoi(decimals);
+    }
+
     td.m_charset = cs;
     td.m_has_explicit_collation = has_explicit_collation;
     td.m_geo_type = uint_geom_type;

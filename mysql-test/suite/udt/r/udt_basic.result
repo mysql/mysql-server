@@ -58,7 +58,7 @@ SET b = complex_number_from_string("3+4i");
 SET c = complex_number_add(a, b);
 SET s = complex_number_to_string(c);
 SELECT s as "result";
-# SELECT complex_number_to_string(c) as "result 2";
+SELECT complex_number_to_string(c) as "result 2";
 END$$
 Warnings:
 Warning	6914	The following code is not implemented: resolve_type_descriptor()
@@ -66,6 +66,8 @@ Warning	6914	The following code is not implemented: resolve_type_descriptor()
 Warning	6914	The following code is not implemented: resolve_type_descriptor()
 call test.complex();
 result
+4.000000+6.000000i
+result 2
 4.000000+6.000000i
 Warnings:
 Warning	6914	The following code is not implemented: resolve_type_descriptor()

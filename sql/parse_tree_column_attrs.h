@@ -667,7 +667,23 @@ class PT_type : public Parse_tree_node {
  public:
   virtual ulong get_type_flags() const { return 0; }
   virtual const char *get_length() const { return nullptr; }
+  size_t get_length_as_size_t() const {
+    const char *length = get_length();
+    if (length == nullptr) {
+      return 0;
+    }
+    return atoi(length);
+  }
+
   virtual const char *get_dec() const { return nullptr; }
+  size_t get_dec_as_size_t() const {
+    const char *dec = get_dec();
+    if (dec == nullptr) {
+      return 0;
+    }
+    return atoi(dec);
+  }
+
   virtual const CHARSET_INFO *get_charset() const { return nullptr; }
   virtual uint get_uint_geom_type() const { return 0; }
   virtual List<String> *get_interval_list() const { return nullptr; }

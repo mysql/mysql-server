@@ -595,7 +595,22 @@ bool Create_field::init_from_type_descriptor(THD *thd,
   // Should be resolved already.
   assert(td->m_type != MYSQL_TYPE_INVALID);
 
-  rc = init(thd, field_name_arg, td->m_type, td->m_length, td->m_dec,
+  // FIXME: ::init() takes length as a string, really ?
+  const char *param_length = nullptr;
+  // FIXME: ::init() takes dec as a string, really ?
+  const char *param_dec = nullptr;
+  char buffer_length[80];
+  char buffer_dec[80];
+  if (td->m_length > 0) {
+    snprintf(buffer_length, sizeof(buffer_length), "%lu", td->m_length);
+    param_length = buffer_length;
+  }
+  if (td->m_dec > 0) {
+    snprintf(buffer_dec, sizeof(buffer_dec), "%lu", td->m_dec);
+    param_dec = buffer_dec;
+  }
+
+  rc = init(thd, field_name_arg, td->m_type, param_length, param_dec,
             td->m_type_flags, fd->m_default_value, fd->m_on_update_value,
             fd->m_comment, fd->m_change, td->m_internal_list, td->m_charset,
             td->m_has_explicit_collation, td->m_geo_type, fd->m_gcol_info,
