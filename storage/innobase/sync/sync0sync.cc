@@ -174,6 +174,8 @@ mysql_pfs_key_t fts_cache_rw_lock_key;
 mysql_pfs_key_t fts_cache_init_rw_lock_key;
 mysql_pfs_key_t trx_i_s_cache_lock_key;
 mysql_pfs_key_t trx_purge_latch_key;
+mysql_pfs_key_t vector_index_key;
+mysql_pfs_key_t vector_index_registry_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 /* There are mutexes/rwlocks that we want to exclude from instrumentation

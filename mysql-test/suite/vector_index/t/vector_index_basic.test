@@ -1,0 +1,89 @@
+# Copyright 2026 Google LLC
+
+# To test that we can create a vector index and do basic functions on the base table and the index
+
+--let $table_name=t1
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=0
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic | $MYSQL test 2>&1
+--echo Initial Data inserted
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=l2_squared;
+
+INSERT INTO t1 values (1001, string_to_vector('[10,11,12]'));
+
+--let $mutations = `SELECT mutations FROM information_schema.innodb_vector_indexes WHERE table_name = 'test.t1';`
+if ($mutations != 1) {
+  --die vector_index DML is broken, they are $mutations
+}
+
+--echo #rename should work with active Index
+RENAME TABLE t1 TO t2;
+INSERT INTO t2 values (1002, string_to_vector('[11,12,13]'));
+--let $mutations = `SELECT mutations FROM information_schema.innodb_vector_indexes WHERE table_name = 'test.t2';`
+if ($mutations != 2) {
+  --die vector_index DML is broken after rename table
+}
+
+--echo alter add column should work with active index
+ALTER TABLE t2 ADD COLUMN c_new varchar(25);
+INSERT INTO t2 values (1003, string_to_vector('[10,11,12]'),'new tuple');
+# uncomment this once the bug b/378964337 is fixed
+#SELECT * FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[10, 11, 12]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo # truncate should not work with active index
+--error ER_VECTOR_INDEX_OPERATION_ERROR
+TRUNCATE TABLE t2;
+#SELECT * FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[10, 11, 12]'), 'distance_measure=l2_squared') LIMIT 10;
+
+--echo # drop vector index
+DROP INDEX vec_index ON t2;
+
+RENAME TABLE t2 TO t1;
+
+--echo # create vector index of different types and check basic DMLs
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=l2_squared;
+
+START TRANSACTION;
+# updating primary key implies delete marking the old key and inserting new one
+# i.e.: two mutations to the vector index
+UPDATE t1 SET i = 1000000 + i;
+# ROLLBACK means deleting the existing entry and un-deleting the previously
+# deleted entry i.e.: two mutations to the vector index
+ROLLBACK;
+--let $mutations = `SELECT mutations FROM information_schema.innodb_vector_indexes WHERE table_name = 'test.t1';`
+if ($mutations != 1003) {
+  --die vector_index DML is broken, they are $mutations
+}
+
+# echo: using tree_ah
+DROP INDEX vec_index ON t1;
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+START TRANSACTION;
+UPDATE t1 SET j = string_to_vector('[9.0, 8.0, 7.0]') WHERE i = 133;
+COMMIT;
+--let $mutations = `SELECT mutations FROM information_schema.innodb_vector_indexes WHERE table_name = 'test.t1';`
+if ($mutations != 1) {
+  --die vector_index DML is broken
+}
+
+SELECT count(*) FROM t1;
+
+--echo # drop vector index
+DROP INDEX vec_index ON t1;
+
+
+--echo # Duplicate index name/Second Index on the table not allowed
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+
+--error ER_DUP_KEYNAME
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+--error ER_VECTOR_INDEX_OPERATION_ERROR
+CREATE VECTOR INDEX vec_index1 ON t1(j) DISTANCE_MEASURE=cosine;
+
+DROP INDEX vec_index ON t1;
+
+--echo # cleanup
+DROP TABLE t1;

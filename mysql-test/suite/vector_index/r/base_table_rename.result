@@ -1,0 +1,32 @@
+use test;
+RENAME TABLE t1 to t2;
+include/assert.inc [Verify table_id is not changed]
+include/assert.inc [Verify space_id is not changed]
+CREATE VECTOR INDEX vec_index ON t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=dot_product NUM_LEAVES=10;
+SELECT table_name FROM information_schema.innodb_vector_indexes where table_name = 'test.t2';
+table_name
+test.t2
+INSERT INTO t2 VALUES (10000, string_to_vector('[0.5,0.5,0.5]'));
+SELECT i FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.5,0.5,0.5]'), 'distance_measure=dot_product') LIMIT 1;
+i
+35
+RENAME TABLE t2 to t1;
+include/assert.inc [Verify table_id is not changed]
+include/assert.inc [Verify space_id is not changed]
+SELECT table_name FROM information_schema.innodb_vector_indexes where table_name = 'test.t1';
+table_name
+test.t1
+UPDATE t1 SET i = 11000 WHERE i = 10000;
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.5,0.5,0.5]'), 'distance_measure=dot_product') LIMIT 1;
+i
+35
+SELECT index_name FROM information_schema.innodb_vector_indexes WHERE table_name = 'test.t1';
+index_name
+vec_index
+ALTER TABLE t1 RENAME INDEX vec_index TO vec_index_changed;
+SELECT index_name FROM information_schema.innodb_vector_indexes WHERE table_name = 'test.t1';
+index_name
+vec_index_changed
+DROP INDEX vec_index_changed ON t1;
+# cleanup
+drop table t1;

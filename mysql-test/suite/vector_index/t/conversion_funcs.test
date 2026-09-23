@@ -1,0 +1,117 @@
+# Copyright 2026 Google LLC
+
+# To test vector conversion functions.
+
+echo # string_to_vector: valid cases
+select vector_to_string(string_to_vector('[1.0, -2.0, 3]'));
+select vector_to_string(string_to_vector(' [1.0, -2.0, 3]'));
+select vector_to_string(string_to_vector(' [1.0, -2.0, 3]         '));
+select vector_to_string(string_to_vector(' [1.0,-2.0,          3]         '));
+select string_to_vector(NULL);
+select string_to_vector(JSON_VALUE(JSON_OBJECT('emb', '[1, 2]'), '$.emb' RETURNING CHAR(100)));
+select string_to_vector(JSON_VALUE(JSON_OBJECT('emb', '[1, 2]'), '$.emb'));
+
+--echo # malformed string_to_vector
+--error ER_TO_VECTOR_CONVERSION
+select string_to_vector('');
+--error ER_TO_VECTOR_CONVERSION
+select string_to_vector('xyz');
+--error ER_TO_VECTOR_CONVERSION
+select string_to_vector('abc[1]');
+--error ER_TO_VECTOR_CONVERSION
+select string_to_vector('[1, 2]xyz');
+--error ER_TO_VECTOR_CONVERSION
+select string_to_vector('1, 2]');
+--error ER_TO_VECTOR_CONVERSION
+select string_to_vector('[1, 2');
+--error ER_TO_VECTOR_CONVERSION
+select string_to_vector('[1, 2, 3; 4]');
+--error ER_TO_VECTOR_CONVERSION
+select string_to_vector('[1.2.3]');
+--error ER_WRONG_ARGUMENTS
+select string_to_vector(JSON_OBJECT('emb', '[1, 2]'));
+--error ER_WRONG_ARGUMENTS
+select string_to_vector(JSON_OBJECT('emb', '[1, 2]'));
+--error ER_WRONG_ARGUMENTS
+select string_to_vector(JSON_EXTRACT(JSON_OBJECT('emb', 'xyz'), '$.emb'));
+
+# TODO: This should fail as well
+# --error ER_TO_VECTOR_CONVERSION
+# select string_to_vector('[1,.....2]');
+
+echo # vector_to_string: valid case
+select vector_to_string(string_to_vector('[1.0, -2.0, 3]'));
+select vector_to_string(NULL);
+
+--echo # malformed vector_to_string
+--error ER_WRONG_ARGUMENTS
+select vector_to_string('');
+--error ER_TO_VECTOR_CONVERSION
+select vector_to_string(0xDEAD);
+
+echo # vector_distance: valid case
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'));
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), 'distance_measure=l2_squared');
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), 'DISTANCE_MEASURE=cosine');
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), 'Distance_Measure=dot_product');
+select vector_distance(NULL, NULL);
+select vector_distance(NULL, string_to_vector('[1, -2, 3]'));
+select vector_distance(string_to_vector('[1, -2, 3]'), NULL);
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), NULL);
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'), CAST(NULL AS CHAR));
+select vector_distance(NULL, NULL, NULL);
+select concat('dist: ', vector_distance(NULL, NULL));
+select cosine_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'));
+select dot_product(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'));
+select l2_squared_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'));
+select cosine_distance(NULL, NULL);
+select cosine_distance(NULL, string_to_vector('[1, -2, 3]'));
+select cosine_distance(string_to_vector('[1, -2, 3]'), NULL);
+select dot_product(NULL, NULL);
+select dot_product(NULL, string_to_vector('[1, -2, 3]'));
+select dot_product(string_to_vector('[1, -2, 3]'), NULL);
+select l2_squared_distance(NULL, NULL);
+select l2_squared_distance(NULL, string_to_vector('[1, -2, 3]'));
+select l2_squared_distance(string_to_vector('[1, -2, 3]'), NULL);
+
+--echo # malformed vector_distance
+--error ER_INVALID_VECTOR_INPUT
+select vector_distance('', string_to_vector('[1, -2, 3]'));
+--error ER_VECTOR_DISTANCE_CALCULATION_ERROR
+select vector_distance(string_to_vector('[1, -2, 3, 4]'), string_to_vector('[1, -2, 3]'));
+--error ER_VECTOR_DISTANCE_CALCULATION_ERROR
+select vector_distance(string_to_vector('[1, -2]'), string_to_vector('[1, -2, 3]'));
+--error ER_VECTOR_DISTANCE_CALCULATION_ERROR
+select vector_distance(0xabcdefaa, 0xabcd);
+--error ER_VECTOR_DISTANCE_CALCULATION_ERROR
+select vector_distance(0xabcd, 0xabcdefaa);
+--error ER_VECTOR_DISTANCE_CALCULATION_ERROR
+select cosine_distance(0xabcd, 0xabcdefaa);
+--error ER_VECTOR_DISTANCE_CALCULATION_ERROR
+select dot_product(0xabcd, 0xabcdefaa);
+--error ER_VECTOR_DISTANCE_CALCULATION_ERROR
+select l2_squared_distance(0xabcd, 0xabcdefaa);
+--error ER_INVALID_OPTION_KEY
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'),'garbage=value');
+--error ER_INVALID_OPTION_KEY
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'),'num_partitions=10');
+--error ER_INVALID_OPTION_VALUE
+select vector_distance(string_to_vector('[1, -2, 3]'), string_to_vector('[4, 5, 6]'),'distance_measure=garbage');
+
+# Vector functions handling NULL values
+CREATE TABLE t1(k varchar(10) PRIMARY KEY, j VECTOR(5) USING VARBINARY);
+INSERT INTO t1 VALUES ('word1', string_to_vector('[1,2,3,4,5]'));
+INSERT INTO t1 VALUES ('word2', NULL);
+INSERT INTO t1 VALUES ('word3', string_to_vector('[3,2,3,9,2]'));
+INSERT INTO t1 VALUES ('word4', NULL);
+INSERT INTO t1 VALUES ('word5', NULL);
+INSERT INTO t1 VALUES ('word6', string_to_vector('[3,2,3,9,2]'));
+INSERT INTO t1 VALUES ('word7', string_to_vector('[3,2,3,9,2]'));
+INSERT INTO t1 VALUES ('word8', NULL);
+SELECT vector_to_string(j) FROM t1;
+SELECT string_to_vector(vector_to_string(j)) FROM t1;
+SELECT vector_distance(j, string_to_vector('[10,12,13,14,15]')) FROM t1;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+SELECT k, j, vector_to_string(j), vector_distance(j, string_to_vector('[10,12,13,14,15]')) FROM t2;
+DROP TABLE t1,t2;

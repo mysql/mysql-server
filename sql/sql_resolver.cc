@@ -4659,6 +4659,14 @@ bool Query_block::setup_group(THD *thd) {
     if (item->data_type() == MYSQL_TYPE_INVALID &&
         item->propagate_type(thd, MYSQL_TYPE_VARCHAR))
       return true;
+
+    // APPROX_DISTANCE for MySQL Vector is not supported in GROUP BY.
+    if (contains_function_of_type(item,
+                                  Item_func::CLOUDSQL_APPROX_DISTANCE_FUNC)) {
+      my_error(ER_UNABLE_TO_EXECUTE_ANN, MYF(0),
+               "APPROX_DISTANCE cannot be used in the GROUP BY list");
+      return true;
+    }
   }
 
   if (olap == GROUPING_SETS_TYPE && get_number_of_grouping_sets() == 1) {

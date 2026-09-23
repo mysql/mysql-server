@@ -1,0 +1,177 @@
+# Copyright 2026 Google LLC
+
+use test;
+
+--disable_query_log
+--source suite/vector_index/include/setup_gloveds_table.inc
+--enable_query_log
+
+select embeddings from gloveds limit 1 into @value;
+
+--echo # Test case 1: composite PK
+CREATE TABLE t1(
+  id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id int, PRIMARY KEY(id, name));
+
+INSERT INTO t1 SELECT id, embeddings, "name", id+1 FROM gloveds;
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index ON t1(emb) DISTANCE_MEASURE=l2_squared;
+
+SELECT id FROM t1 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Test case 2: composite PK in different column order than table definition
+CREATE TABLE t2(
+  id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id int, PRIMARY KEY(name, id));
+INSERT INTO t2 SELECT id, embeddings, "name", id+1 FROM gloveds;
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index2 ON t2(emb) DISTANCE_MEASURE=l2_squared;
+
+# TODO: PK in different order column
+SELECT id FROM t2 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Test case 3: PK that is not first in table definition
+CREATE TABLE t3(id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id int PRIMARY KEY);
+INSERT INTO t3 SELECT id, embeddings, "name", id+1 FROM gloveds;
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index3 ON t3(emb) DISTANCE_MEASURE=l2_squared;
+
+SELECT id FROM t3 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Test case 4: Attempt to create vector column with no PK
+CREATE TABLE t4(id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id int);
+INSERT INTO t4 (id, emb, name, next_id) SELECT id, embeddings, "name", id+1 FROM gloveds;
+-- error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+CREATE VECTOR INDEX vec_index4 ON t4(emb) DISTANCE_MEASURE=l2_squared;
+DROP TABLE t4;
+
+
+--echo # Test case 5: Generated PK
+CREATE TABLE t4(
+  gen_id INT NOT NULL AUTO_INCREMENT
+  PRIMARY KEY,
+  id int,
+  emb vector(50) USING varbinary, name VARCHAR(20), next_id int);
+
+INSERT INTO t4 (id, emb, name, next_id) SELECT id, embeddings, "name", id+1 FROM gloveds;
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index4 ON t4(emb) DISTANCE_MEASURE=l2_squared;
+
+SELECT id FROM t4 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Test case 6: Invisible PK
+#CREATE TABLE t5(gen_id INT NOT NULL, id int, name VARCHAR(20), next_id int);
+
+--echo # Test case 7: VARCHAR PK
+CREATE TABLE t6(
+  id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id VARCHAR(10) PRIMARY KEY);
+
+INSERT INTO t6 SELECT id, embeddings, "name", id+1 FROM gloveds;
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index6 ON t6(emb) DISTANCE_MEASURE=l2_squared;
+
+SELECT id FROM t6 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Test case 8: VARCHAR PK empty string
+INSERT INTO t6 VALUES (1002,  @value, 'test', '');
+
+SELECT id FROM t6 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Test case 9: Altering PK
+
+UPDATE t1 SET id = 1001 WHERE id = 1;
+SELECT id FROM t1 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Test case 10: Table uses foreign key as PK
+--echo # Disable AHI to avoid hitting upstream bug described in b/379985107
+SET @start_global_value  = @@global.innodb_adaptive_hash_index;
+SET GLOBAL innodb_adaptive_hash_index = off;
+CREATE TABLE t11(id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id int PRIMARY KEY, FOREIGN KEY (next_id) REFERENCES t3(next_id));
+
+INSERT INTO t11 SELECT id, embeddings, "name", id+1 FROM gloveds;
+
+#--echo # create vector index
+CREATE VECTOR INDEX vec_index11 ON t11(emb) DISTANCE_MEASURE=l2_squared;
+
+SELECT id FROM t11 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+#--echo # Test case 11: Table uses multiple indexes
+
+CREATE TABLE t12(id int, emb vector(50) USING varbinary, name VARCHAR(20),
+  next_id int PRIMARY KEY,
+  FOREIGN KEY (next_id) REFERENCES t3(next_id),
+  INDEX id_idx (id),
+  INDEX id_next_idx (id, next_id));
+INSERT INTO t12 SELECT id, embeddings, "name", id+1 FROM gloveds;
+SET GLOBAL innodb_adaptive_hash_index = @start_global_value;
+
+#--echo # create vector index
+CREATE VECTOR INDEX vec_index12 ON t12(emb) DISTANCE_MEASURE=l2_squared;
+
+SELECT id FROM t12 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Test case 13: (Happy case) Create with constraint on PK
+
+CREATE TABLE t13(id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id int PRIMARY KEY,
+  CONSTRAINT CHK_id_positive1 CHECK (next_id > 0));
+
+INSERT INTO t13 SELECT id, embeddings, "name", id+1 FROM gloveds;
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index13 ON t13(emb) DISTANCE_MEASURE=l2_squared;
+
+SELECT id FROM t13 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Test case 14: Sad case BINARY/VARBINARY/BLOB PK 
+CREATE TABLE t14(id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id BINARY(100));
+INSERT INTO t14 (id, emb, name, next_id) SELECT id, embeddings, "name", id+1 FROM gloveds;
+-- error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+CREATE VECTOR INDEX vec_index14 ON t14(emb) DISTANCE_MEASURE=l2_squared;
+DROP TABLE t14;
+
+CREATE TABLE t14(id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id VARBINARY(100) PRIMARY KEY);
+INSERT INTO t14 (id, emb, name, next_id) SELECT id, embeddings, "name", id+1 FROM gloveds;
+-- error ER_VECTOR_FEATURE_UNSUPPORTED
+CREATE VECTOR INDEX vec_index14 ON t14(emb) DISTANCE_MEASURE=l2_squared;
+DROP TABLE t14;
+
+CREATE TABLE t14(id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id BIT(64) PRIMARY KEY);
+INSERT INTO t14 (id, emb, name, next_id) SELECT id, embeddings, "name", id+1 FROM gloveds;
+-- error ER_VECTOR_FEATURE_UNSUPPORTED
+CREATE VECTOR INDEX vec_index14 ON t14(emb) DISTANCE_MEASURE=l2_squared;
+DROP TABLE t14;
+
+CREATE TABLE t14 (id VARCHAR(1020) PRIMARY KEY, emb VECTOR(50) USING VARBINARY) DEFAULT CHARSET=utf8mb3;
+INSERT INTO t14 (id, emb) SELECT id, embeddings FROM gloveds;
+-- error ER_VECTOR_FEATURE_UNSUPPORTED
+CREATE VECTOR INDEX vec_index14 ON t14(emb) DISTANCE_MEASURE=l2_squared;
+DROP TABLE t14;
+
+--echo # Test case 15: Create index on table with view
+
+CREATE TABLE t15(id int, emb vector(50) USING varbinary, name VARCHAR(20), next_id int PRIMARY KEY);
+CREATE VIEW t15_view AS
+SELECT * FROM t15;
+
+INSERT INTO t15_view SELECT id, embeddings, "name", id+1 FROM gloveds;
+
+--echo # create vector index
+CREATE VECTOR INDEX vec_index15 ON t15(emb) DISTANCE_MEASURE=l2_squared;
+
+SELECT id FROM t15 ORDER BY APPROX_DISTANCE(emb,  @value, 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+
+--echo # Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t11;
+DROP TABLE t12;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t6;
+DROP TABLE t13;
+DROP VIEW t15_view;
+DROP TABLE t15;
+DROP TABLE gloveds;

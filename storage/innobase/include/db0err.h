@@ -229,6 +229,21 @@ enum dberr_t {
   /** Column update or read failed because the types mismatch */
   DB_DATA_MISMATCH = 2000,
   /* Too many nested sub expression in full-text search string */
-  DB_FTS_TOO_MANY_NESTED_EXP
+  DB_FTS_TOO_MANY_NESTED_EXP,
+
+  /** The following are vector related error codes */
+
+  DB_VEC_ANN_FAILED = 10000,
+  /** The following errors are all related to vector index creation */
+  DB_VEC_INDEX_CONFIG_ERROR,
+  DB_VEC_INDEX_NOT_ENOUGH_DATA,
+  DB_VEC_INDEX_OUT_OF_MEMORY,
+  DB_VEC_INDEX_TRAIN_FAILED,
+  DB_VEC_INDEX_BUILD_FAILED,
+  DB_VEC_INDEX_PERSIST_FAILED,
+
+  /** When we fail to read vector index paritioner from sub_table */
+  DB_VEC_INDEX_LOAD_FAILED,
+  DB_VEC_INDEX_LOAD_TIMEDOUT,
 };
 #endif

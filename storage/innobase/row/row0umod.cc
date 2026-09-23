@@ -841,7 +841,7 @@ This is the specific function to handle the modify on multi-value indexes.
     dict_index_t *index = node->index;
     dtuple_t *entry;
 
-    if (index->type & DICT_FTS) {
+    if (index->type & DICT_FTS || dict_index_is_vector(index)) {
       dict_table_next_uncorrupted_index(node->index);
       continue;
     }
@@ -953,7 +953,7 @@ This is the specific function to handle the modify on multi-value indexes.
     dict_index_t *index = node->index;
     dtuple_t *entry;
 
-    if (index->type == DICT_FTS) {
+    if (index->type == DICT_FTS || dict_index_is_vector(index)) {
       dict_table_next_uncorrupted_index(node->index);
       continue;
     }
@@ -1095,7 +1095,7 @@ static dberr_t row_undo_mod_upd_exist_multi_sec(undo_node_t *node,
         continue;
       }
     } else {
-      if (index->type == DICT_FTS ||
+      if (index->type == DICT_FTS || dict_index_is_vector(index) ||
           !row_upd_changes_ord_field_binary(
               index, node->update, thr, node->row, node->ext,
               (index->is_multi_value() ? &non_mv_upd : nullptr))) {

@@ -1,0 +1,102 @@
+call mtr.add_suppression("vector_results is empty");
+use test;
+create procedure fill_vector_table(tname varchar(40), n_rows int)
+begin
+declare i int default 1;
+declare d1 float default 1.0;
+declare d2 float default 2.0;
+declare d3 float default 3.0;
+while i <= n_rows do
+set @s = concat("insert into ", tname, " values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'))");
+prepare stmt from @s;
+execute stmt;
+set i = i + 1;
+set d1 = d1 + 1;
+set d2 = d2 + 1;
+set d3 = d3 + 1;
+end while;
+end |
+# search - try a table without vector column
+create table t2 (id int primary key, emb varbinary(12));
+select count(id) from t2 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE cannot be used with non-vector column
+drop table t2;
+create table t1 (id int primary key, emb vector(3) using varbinary);
+# search - try table without vector index , this should fallback to KNN
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+# create brute_force vector index - more neighbors than index size
+CREATE VECTOR INDEX vec_index ON t1(emb) DISTANCE_MEASURE=l2_squared;
+# normal search
+select count(id) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10;
+count(id)
+1000
+select count(id) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10;
+count(id)
+1000
+# search - more neighbors than size
+select count(id) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10;
+count(id)
+1000
+# search - only one row in the index
+delete from t1 where id != 1;
+select count(id) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10;
+count(id)
+1
+# search - zero row in the index
+delete from t1;
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10;
+id
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10;
+id
+# misspelled search options
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squred') LIMIT 10;
+ERROR 22023: Invalid value 'l2_squred' for option 'distance_measure' in function 'APPROX_DISTANCE'.
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=') LIMIT 10;
+ERROR 22023: The options argument in function APPROX_DISTANCE ends with the invalid character '='.
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_mesure=l2_squared') LIMIT 10;
+ERROR 22023: Invalid option key 'distance_mesure' in function APPROX_DISTANCE.
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), '') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: distance_measure is a required parameter for APPROX_DISTANCE search
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'num_leaves_to_search=foo,distance_measure=l2_squared') LIMIT 10;
+ERROR 22023: Invalid value 'foo' for option 'num_leaves_to_search' in function 'APPROX_DISTANCE'.
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'numleaves_to_search=10,distance_measure=l2_squared') LIMIT 10;
+ERROR 22023: Invalid option key 'numleaves_to_search' in function APPROX_DISTANCE.
+select id from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'num_leaves_to_search=-10,distance_measure=l2_squared') LIMIT 10;
+ERROR 22023: Invalid value '-10' for option 'num_leaves_to_search' in function 'APPROX_DISTANCE'.
+# capitalized search options
+select count(*) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'DISTANCE_MEASURE=l2_squared') LIMIT 10;
+count(*)
+0
+select count(*) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'DISTANCE_measure=l2_squared') LIMIT 10;
+count(*)
+0
+select count(*) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'DISTANCE_MEASURE=l2_Squared') LIMIT 10;
+count(*)
+0
+select count(*) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=L2_SQUARED') LIMIT 10;
+count(*)
+0
+select count(*) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=L2_SQUARED,num_leaves_to_search=10') LIMIT 10;
+count(*)
+0
+select count(*) from t1 order by APPROX_DISTANCE(emb, string_to_vector('[1, 2, 3]'), 'distance_measure=L2_SQUARED,NUM_LEAVES_to_search=10') LIMIT 10;
+count(*)
+0
+# drop vector index
+DROP INDEX vec_index ON t1;
+# cleanup
+drop procedure fill_vector_table;
+drop table t1;

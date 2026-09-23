@@ -1,0 +1,74 @@
+# Copyright 2026 Google LLC
+
+# Test vector index DDL cannot be specified with any other DDL operations
+# This covers some basic DDLs. We should eventually cover all ALTER flavours
+# as listed here: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+
+call mtr.add_suppression("Only one vector index allowed in DDL");
+
+# Initial data
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted
+
+# Show that we can create vector index
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared;
+drop index vec_index on t1;
+
+
+# drop PK
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop primary key;
+
+# rebuild
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, engine = InnoDB;
+
+# add column
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column k int;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column k int default 0, algorithm=instant;
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column k int default 0, algorithm=inplace;
+
+alter table t1 add column k int;
+
+# generated columns
+--error ER_VECTOR_INDEX_DURING_CREATE_TABLE
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column m int generated always as (k + 1);
+
+--error ER_VECTOR_INDEX_DURING_CREATE_TABLE
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column m int generated always as (k + 1) stored;
+
+# modify column
+--error ER_VECTOR_INDEX_DURING_CREATE_TABLE
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, modify column k bigint default 0;
+
+# drop column
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop column k;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop column k, algorithm=instant;
+
+# add index
+--error ER_VECTOR_INDEX_INCOMPATIBLE_CREATE_DDL
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add index idx_k(k);
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add index idx_k(k), algorithm=instant;
+
+alter table t1 add index idx_k(k);
+
+# drop index
+--error ER_VECTOR_INDEX_INCOMPATIBLE_CREATE_DDL
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop index idx_k;
+
+--error ER_VECTOR_INDEX_INCOMPATIBLE_CREATE_DDL
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop index idx_k, algorithm=inplace;
+
+# Clean up
+drop table t1;

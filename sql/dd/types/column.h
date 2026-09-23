@@ -34,6 +34,10 @@
 
 #include "sql/gis/srid.h"
 
+#define VECTOR_MIN_SUPPORTED_DIMENSIONS 1
+#define VECTOR_MAX_SUPPORTED_DIMENSIONS 16383
+#define VECTOR_INDEX_DD_VERSION 1
+
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////

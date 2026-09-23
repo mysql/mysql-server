@@ -80,7 +80,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "ut0cpu_cache.h"
 #include "ut0new.h"
-
+#include "vector0dd.h"
+#include "vector0subtable.h"
 #include "current_thd.h"
 #include "my_dbug.h"
 #include "my_io.h"
@@ -1094,7 +1095,7 @@ static dtuple_t *row_get_prebuilt_insert_row(
 
 /** Updates the table modification counter and calculates new estimates
  for table and index statistics if necessary. */
-static inline void row_update_statistics_if_needed(
+void row_update_statistics_if_needed(
     dict_table_t *table) /*!< in: table */
 {
   uint64_t counter;
@@ -1434,6 +1435,8 @@ static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
   for (dict_index_t *index = UT_LIST_GET_FIRST(node->table->indexes);
        index != nullptr; index = UT_LIST_GET_NEXT(indexes, index),
                     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry)) {
+    /* No vector indexes on intrinsic tables. */
+    ut_ad(!dict_index_is_vector(index));
     node->index = index;
     err = row_ins_index_entry_set_vals(node->index, node->entry, node->row);
     if (err != DB_SUCCESS) {
@@ -3741,6 +3744,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   dd::Table *table_def = nullptr;
   bool file_per_table = false;
   aux_name_vec_t aux_vec;
+  dict_index_t *vector_index = nullptr;
 
   DBUG_TRACE;
   DBUG_PRINT("row_drop_table_for_mysql", ("table: '%s'", name));
@@ -3792,6 +3796,15 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
       err = fts_lock_all_aux_tables(thd, table);
       dict_sys_mutex_enter();
 
+      if (err != DB_SUCCESS) {
+        dd_table_close(table, nullptr, nullptr, true);
+        goto funct_exit;
+      }
+    }
+    if (table && table->is_vector_sub_table) {
+      dict_sys_mutex_exit();
+      err = ib_vector::lock_vector_index_sub_table(thd, table);
+      dict_sys_mutex_enter();
       if (err != DB_SUCCESS) {
         dd_table_close(table, nullptr, nullptr, true);
         goto funct_exit;
@@ -4011,7 +4024,9 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
     /* Mark the index unusable. */
     index->page = FIL_NULL;
     rw_lock_x_unlock(dict_index_get_lock(index));
-
+    if (index->type & DICT_VECTOR) {
+      vector_index = index;
+    }
     if (table->is_temporary()) {
       dict_drop_temporary_table_index(index, page);
     }
@@ -4048,6 +4063,15 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
     }
   }
 
+  if (vector_index != nullptr) {
+    err = ib_vector::drop_vector_index_sub_table(table, vector_index, trx);
+    /* If the sub table is not found, tolerate it so orphaned or desynced
+    vector-indexed tables can still be dropped cleanly without aborting. */
+    if (err != DB_SUCCESS && err != DB_TABLE_NOT_FOUND) {
+      goto funct_exit;
+    }
+    err = DB_SUCCESS;
+  }
   /* Table space file name has been renamed in TRUNCATE. */
   table_name = table->trunc_name.m_name;
   if (table_name == nullptr) {
@@ -4197,6 +4221,17 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
        DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) &&
       !dict_tables_have_same_db(old_name, new_name)) {
     err = fts_rename_aux_tables(table, new_name, trx, replay);
+  }
+
+  /* Moving a table with vector indexes across databases/schemas is not
+  supported because vector index sub tables are schema-qualified. */
+  if (ib_vector::dict_table_has_vector_index(table) &&
+      !dict_tables_have_same_db(old_name, new_name)) {
+    ib::error(ER_IB_MSG_464)
+        << "Moving table " << ut_get_name(trx, old_name)
+        << " with vector indexes to another schema is not supported.";
+    err = DB_UNSUPPORTED;
+    goto funct_exit;
   }
   if (err != DB_SUCCESS) {
     if (err == DB_DUPLICATE_KEY) {
@@ -4391,7 +4426,7 @@ dberr_t row_mysql_parallel_select_count_star(
   return err;
 }
 
-static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
+dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
                                     size_t n_threads, ulint *n_rows) {
   ut_a(n_threads > 1);
   using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;

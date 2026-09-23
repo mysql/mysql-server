@@ -1,0 +1,128 @@
+set @start_value = @@global.innodb_cloudsql_vector_mem_regulation;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+1
+set @@global.innodb_cloudsql_vector_mem_regulation=1;
+select * from performance_schema.global_variables
+where variable_name ='innodb_cloudsql_vector_mem_regulation' and
+variable_value = @@innodb_cloudsql_vector_mem_regulation;
+VARIABLE_NAME	VARIABLE_VALUE
+select @@innodb_cloudsql_vector_mem_regulation = @@global.innodb_cloudsql_vector_mem_regulation;
+@@innodb_cloudsql_vector_mem_regulation = @@global.innodb_cloudsql_vector_mem_regulation
+1
+select count(@@local.innodb_cloudsql_vector_mem_regulation);
+ERROR HY000: Variable 'innodb_cloudsql_vector_mem_regulation' is a GLOBAL variable
+select count(@@session.innodb_cloudsql_vector_mem_regulation);
+ERROR HY000: Variable 'innodb_cloudsql_vector_mem_regulation' is a GLOBAL variable
+set session innodb_cloudsql_vector_mem_regulation=1;
+ERROR HY000: Variable 'innodb_cloudsql_vector_mem_regulation' is a GLOBAL variable and should be set with SET GLOBAL
+set local innodb_cloudsql_vector_mem_regulation=1;
+ERROR HY000: Variable 'innodb_cloudsql_vector_mem_regulation' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_cloudsql_vector_mem_regulation=ON;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+1
+set global innodb_cloudsql_vector_mem_regulation=1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+1
+set global innodb_cloudsql_vector_mem_regulation=2;
+ERROR 42000: Variable 'innodb_cloudsql_vector_mem_regulation' can't be set to the value of '2'
+set global innodb_cloudsql_vector_mem_regulation="abc";
+ERROR 42000: Variable 'innodb_cloudsql_vector_mem_regulation' can't be set to the value of 'abc'
+set global innodb_cloudsql_vector_mem_regulation = 1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+1
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+set global innodb_cloudsql_vector_mem_regulation = 1;
+Warnings:
+Warning	1210	Vector index memory regulation cannot be turned back ON without restarting, if it is already OFF.
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+# restart: --innodb_cloudsql_vector_mem_regulation=0
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+set global innodb_cloudsql_vector_mem_regulation = 1;
+Warnings:
+Warning	1210	Vector index memory regulation cannot be turned back ON without restarting, if it is already OFF.
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+set @start_value = @@global.innodb_cloudsql_vector_mem_regulation;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+1
+set @@global.innodb_cloudsql_vector_mem_regulation=1;
+select * from performance_schema.global_variables
+where variable_name ='innodb_cloudsql_vector_mem_regulation' and
+variable_value = @@innodb_cloudsql_vector_mem_regulation;
+VARIABLE_NAME	VARIABLE_VALUE
+select @@innodb_cloudsql_vector_mem_regulation = @@global.innodb_cloudsql_vector_mem_regulation;
+@@innodb_cloudsql_vector_mem_regulation = @@global.innodb_cloudsql_vector_mem_regulation
+1
+select count(@@local.innodb_cloudsql_vector_mem_regulation);
+ERROR HY000: Variable 'innodb_cloudsql_vector_mem_regulation' is a GLOBAL variable
+select count(@@session.innodb_cloudsql_vector_mem_regulation);
+ERROR HY000: Variable 'innodb_cloudsql_vector_mem_regulation' is a GLOBAL variable
+set session innodb_cloudsql_vector_mem_regulation=1;
+ERROR HY000: Variable 'innodb_cloudsql_vector_mem_regulation' is a GLOBAL variable and should be set with SET GLOBAL
+set local innodb_cloudsql_vector_mem_regulation=1;
+ERROR HY000: Variable 'innodb_cloudsql_vector_mem_regulation' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_cloudsql_vector_mem_regulation=ON;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+1
+set global innodb_cloudsql_vector_mem_regulation=1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+1
+set global innodb_cloudsql_vector_mem_regulation=2;
+ERROR 42000: Variable 'innodb_cloudsql_vector_mem_regulation' can't be set to the value of '2'
+set global innodb_cloudsql_vector_mem_regulation="abc";
+ERROR 42000: Variable 'innodb_cloudsql_vector_mem_regulation' can't be set to the value of 'abc'
+set global innodb_cloudsql_vector_mem_regulation = 1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+1
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+set global innodb_cloudsql_vector_mem_regulation = 1;
+Warnings:
+Warning	1210	Vector index memory regulation cannot be turned back ON without restarting, if it is already OFF.
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+# restart: --innodb_cloudsql_vector_mem_regulation=0
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+set global innodb_cloudsql_vector_mem_regulation = 1;
+Warnings:
+Warning	1210	Vector index memory regulation cannot be turned back ON without restarting, if it is already OFF.
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+@@global.innodb_cloudsql_vector_mem_regulation
+0

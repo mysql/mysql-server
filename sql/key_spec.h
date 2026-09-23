@@ -43,7 +43,8 @@ enum keytype {
   KEYTYPE_MULTIPLE,
   KEYTYPE_FULLTEXT,
   KEYTYPE_SPATIAL,
-  KEYTYPE_FOREIGN
+  KEYTYPE_FOREIGN,
+  KEYTYPE_VECTOR
 };
 
 enum fk_option {
@@ -60,6 +61,16 @@ enum fk_match_opt {
   FK_MATCH_FULL,
   FK_MATCH_PARTIAL,
   FK_MATCH_SIMPLE
+};
+
+/* Distance measure for vector index. If you change this,
+ * change distance_measure_name function as well
+ */
+enum distance_measure {
+  DISTANCE_MEASURE_UNSPECIFIED,
+  DISTANCE_MEASURE_L2_SQUARED,
+  DISTANCE_MEASURE_COSINE,
+  DISTANCE_MEASURE_DOT_PRODUCT
 };
 
 enum enum_order : int { ORDER_NOT_RELEVANT = 1, ORDER_ASC, ORDER_DESC };
@@ -83,6 +94,9 @@ class KEY_CREATE_INFO {
 
   LEX_CSTRING m_engine_attribute = EMPTY_CSTR;
   LEX_CSTRING m_secondary_engine_attribute = EMPTY_CSTR;
+  enum distance_measure m_distance_measure = DISTANCE_MEASURE_UNSPECIFIED;
+  ulong m_num_partitions = 0;
+  enum ha_key_sub_alg m_quantizer_option = HA_KEY_SUB_ALG_UNSPECIFIED;
 };
 
 extern KEY_CREATE_INFO default_key_create_info;

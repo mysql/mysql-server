@@ -1,0 +1,16 @@
+use test;
+CREATE VECTOR INDEX vec_index ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=dot_product NUM_LEAVES=10;
+CREATE TABLE t2 LIKE t1;
+ERROR HY000: Creation of vector index is not supported during CREATE TABLE statement
+CREATE TABLE t2 AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int NOT NULL DEFAULT '0',
+  `j` vector(3) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP INDEX vec_index ON t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE TABLE t4 LIKE t1;
+# cleanup
+drop table t1, t2, t3, t4;

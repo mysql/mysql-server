@@ -1,0 +1,130 @@
+# Copyright 2026 Google LLC
+
+use test;
+
+delimiter |;
+create procedure fill_vector_table(tname varchar(40), n_rows int)
+begin
+  declare i int default 1;
+  declare d1 float default 1.0;
+  declare d2 float default 2.0;
+  declare d3 float default 3.0;
+  while i <= n_rows do
+    set @s = concat("insert into ", tname, " values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'))");
+    prepare stmt from @s;
+    execute stmt;
+    set i = i + 1;
+    set d1 = d1 + 1;
+    set d2 = d2 + 1;
+    set d3 = d3 + 1;
+  end while;
+end |
+delimiter ;|
+
+CREATE TABLE t1(id int PRIMARY KEY, emb vector(3) USING varbinary);
+
+--disable_query_log
+CALL fill_vector_table('t1', 1000);
+--enable_query_log
+
+CREATE TABLE t2(id int PRIMARY KEY, emb varbinary(100));
+
+--disable_query_log
+CALL fill_vector_table('t2', 1000);
+--enable_query_log
+
+CREATE VECTOR INDEX vec_index ON t1(emb) DISTANCE_MEASURE=l2_squared;
+
+--echo # Conversion functions
+SELECT HEX(emb) FROM t1 LIMIT 10;
+
+SELECT HEX(emb) FROM t2 LIMIT 10;
+
+SELECT HEX(emb) INTO @hexval
+FROM t2
+WHERE id = 1;
+
+INSERT INTO t1 VALUES (1001, UNHEX(@hexval));
+INSERT INTO t2 VALUES (1001, UNHEX(@hexval));
+
+SELECT vector_to_string(emb) FROM t1 WHERE id = 1001;
+
+SELECT vector_to_string(emb) FROM t2 WHERE id = 1001;
+
+--error ER_WRONG_ARGUMENTS
+SELECT CAST(emb as CHAR) FROM t1 LIMIT 1;
+
+SELECT CAST(emb as BINARY) FROM t1 LIMIT 1;
+
+SELECT INET_NTOA (CONV (HEX(emb),16,10)) FROM t1 LIMIT 1;
+
+--echo # String functions
+SELECT length(emb) FROM t1 WHERE id = 1001;
+
+SELECT length(emb) FROM t2 WHERE id = 1001;
+
+SELECT octet_length(emb) FROM t1 WHERE id = 1001;
+
+SELECT octet_length(emb) FROM t2 WHERE id = 1001;
+
+SELECT vector_to_string(concat(string_to_vector('[1,2,3]'), (SELECT emb FROM t1 WHERE id = 2)));
+
+SELECT
+  vector_to_string(
+    concat(
+      (SELECT emb FROM t1 WHERE id = 2), (SELECT emb FROM t2 WHERE id = 3)));
+
+SELECT
+  vector_to_string(
+    SUBSTRING(
+      (SELECT emb FROM t1 WHERE id = 1), 1, 8));
+
+SELECT
+  vector_to_string(
+    SUBSTRING(
+      (SELECT emb FROM t2 WHERE id = 1), 1, 8));
+
+--echo # Comparison functions
+--error ER_WRONG_ARGUMENTS
+SELECT id, vector_to_string(emb)
+FROM t1
+WHERE emb < string_to_vector('[4,5,6]')
+ORDER BY emb
+LIMIT 10;
+
+--error ER_WRONG_ARGUMENTS
+SELECT id, vector_to_string(emb)
+FROM t2
+WHERE emb < string_to_vector('[4,5,6]')
+ORDER BY emb
+LIMIT 10;
+
+--error ER_WRONG_ARGUMENTS
+SELECT id, vector_to_string(emb) FROM t1 WHERE emb = (SELECT MAX(emb) FROM t1);
+
+SELECT id, vector_to_string(emb) FROM t2 WHERE emb = (SELECT MAX(emb) FROM t2);
+
+--error ER_WRONG_ARGUMENTS
+SELECT id, vector_to_string(emb) FROM t2 WHERE emb = (SELECT MAX(emb) FROM t1);
+
+SELECT id, vector_to_string(emb) FROM t1 WHERE emb = (SELECT MAX(emb) FROM t2);
+
+--error ER_WRONG_ARGUMENTS
+SELECT id, vector_to_string(emb) FROM t1 WHERE emb = (SELECT MIN(emb) FROM t1);
+
+SELECT id, vector_to_string(emb) FROM t2 WHERE emb = (SELECT MIN(emb) FROM t2);
+
+--error ER_WRONG_ARGUMENTS
+SELECT id, vector_to_string(emb) FROM t2 WHERE emb = (SELECT MIN(emb) FROM t1);
+
+SELECT id, vector_to_string(emb) FROM t1 WHERE emb = (SELECT MIN(emb) FROM t2);
+
+--echo # These cause a bunch of warnings so commenting out
+--echo # SELECT AVG(emb) FROM t2;
+--echo # SELECT AVG(emb) FROM t1;
+
+DROP INDEX vec_index ON t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP procedure fill_vector_table;

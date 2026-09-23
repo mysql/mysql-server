@@ -1,0 +1,26 @@
+# Copyright 2026 Google LLC
+
+# Testing CREATE ... SELECT and CREATE ... LIKE
+
+use test;
+
+# Initial data
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+
+CREATE VECTOR INDEX vec_index ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=dot_product NUM_LEAVES=10;
+
+--error ER_VECTOR_INDEX_DURING_CREATE_TABLE
+CREATE TABLE t2 LIKE t1;
+
+CREATE TABLE t2 AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+DROP INDEX vec_index ON t1;
+
+CREATE TABLE t3 AS SELECT * FROM t1;
+
+# Without vector index this should work
+CREATE TABLE t4 LIKE t1;
+
+--echo # cleanup
+drop table t1, t2, t3, t4;

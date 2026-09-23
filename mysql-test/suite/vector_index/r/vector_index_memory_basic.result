@@ -1,0 +1,103 @@
+# restart: --debug=+d,vector_mem_mgmt_test
+create vector index v1 on t1(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+create vector index v2 on t2(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v2	INDEX_READY_TO_USE
+v1	INDEX_READY_TO_USE
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v3	INDEX_READY_TO_USE
+v2	INDEX_READY_TO_USE
+v1	INDEX_READY_TO_USE
+create vector index v4 on t4(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v4	INDEX_READY_TO_USE
+v3	INDEX_READY_TO_USE
+v2	INDEX_READY_TO_USE
+v1	INDEX_READY_TO_USE
+create vector index v5 on t5(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v5	INDEX_READY_TO_USE
+v4	INDEX_READY_TO_USE
+v3	INDEX_READY_TO_USE
+v2	INDEX_READY_TO_USE
+v1	INDEX_READY_TO_USE
+create vector index v6 on t6(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v6	INDEX_READY_TO_USE
+v5	INDEX_READY_TO_USE
+v4	INDEX_READY_TO_USE
+v3	INDEX_READY_TO_USE
+v2	INDEX_READY_TO_USE
+v1	INDEX_PENDING_LOAD
+select i from t1 order by approx_distance(j, string_to_vector('[1,1]'), "distance_measure=cosine") limit 1;
+i
+x
+create vector index v7 on t7(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v7	INDEX_READY_TO_USE
+v6	INDEX_READY_TO_USE
+v5	INDEX_READY_TO_USE
+v4	INDEX_READY_TO_USE
+v3	INDEX_PENDING_LOAD
+v2	INDEX_PENDING_LOAD
+v1	INDEX_READY_TO_USE
+drop index v5 on t5;
+drop index v6 on t6;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v7	INDEX_READY_TO_USE
+v4	INDEX_READY_TO_USE
+v3	INDEX_PENDING_LOAD
+v2	INDEX_PENDING_LOAD
+v1	INDEX_READY_TO_USE
+create vector index v5 on t5(j) distance_measure=cosine;;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v5	INDEX_PENDING_BUILD
+v7	INDEX_READY_TO_USE
+v4	INDEX_READY_TO_USE
+v3	INDEX_PENDING_LOAD
+v2	INDEX_PENDING_LOAD
+v1	INDEX_READY_TO_USE
+create vector index v6 on t6(j) distance_measure=cosine;;
+select i from t3 order by approx_distance(j, string_to_vector('[1,1]'), "distance_measure=cosine") limit 1;
+i
+x
+select i from t4 order by approx_distance(j, string_to_vector('[1,1]'), "distance_measure=cosine") limit 1;
+i
+x
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v6	INDEX_PENDING_BUILD
+v5	INDEX_PENDING_BUILD
+v7	INDEX_PENDING_LOAD
+v4	INDEX_READY_TO_USE
+v3	INDEX_READY_TO_USE
+v2	INDEX_PENDING_LOAD
+v1	INDEX_PENDING_LOAD
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v6	INDEX_READY_TO_USE
+v5	INDEX_READY_TO_USE
+v7	INDEX_PENDING_LOAD
+v4	INDEX_READY_TO_USE
+v3	INDEX_READY_TO_USE
+v2	INDEX_PENDING_LOAD
+v1	INDEX_PENDING_LOAD
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;

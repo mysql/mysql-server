@@ -68,6 +68,7 @@
 #include "aggregated_stats.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"  // UUID_LENGTH
+#include "include/field_types.h"
 
 class Rpl_global_filter;
 class Rpl_acf_configuration_handler;
@@ -191,6 +192,13 @@ extern bool opt_no_monitor;
 extern bool opt_debugging;
 extern bool opt_validate_config;
 
+/* Vector flags */
+extern bool opt_cloudsql_vector;
+extern bool opt_cloudsql_enable_test_component;
+extern bool opt_cloudsql_vector_test_mode;
+extern ulong opt_cloudsql_vector_max_mem_size;
+/* End of Vector flags */
+
 enum enum_replica_type_conversions {
   REPLICA_TYPE_CONVERSIONS_ALL_LOSSY,
   REPLICA_TYPE_CONVERSIONS_ALL_NON_LOSSY,
@@ -295,6 +303,13 @@ extern const double log_10[309];
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
 extern ulong aborted_threads;
+extern ulong csql_vector_knn_fallback_missing_index;
+extern ulong csql_vector_knn_fallback_unusable_index;
+extern ulong csql_vector_knn_fallback_index_inlining_failures;
+extern ulong csql_vector_knn_fallback_missing_limit;
+extern ulong csql_vector_knn_fallback_limit_too_large;
+extern ulong csql_vector_knn_fallback_knn_less_expensive;
+extern ulong csql_vector_knn_fallback_multiple_ann_one_table;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern std::atomic<int32> atomic_replica_open_temp_tables;
@@ -369,6 +384,7 @@ extern uint opt_server_id_bits;
 extern ulong opt_server_id_mask;
 extern const char *load_default_groups[];
 extern struct my_option my_long_early_options[];
+extern bool vector_reload_started;
 extern "C" MYSQL_PLUGIN_IMPORT bool mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
@@ -713,6 +729,7 @@ extern mysql_mutex_t LOCK_password_history;
 extern mysql_mutex_t LOCK_password_reuse_interval;
 extern mysql_mutex_t LOCK_default_password_lifetime;
 extern mysql_mutex_t LOCK_server_started;
+extern mysql_mutex_t LOCK_vector_reload_started;
 extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
 extern mysql_mutex_t LOCK_keyring_operations;
@@ -726,6 +743,7 @@ extern mysql_mutex_t LOCK_authentication_policy;
 extern mysql_mutex_t LOCK_rpl_opt_tracker;
 
 extern mysql_cond_t COND_server_started;
+extern mysql_cond_t COND_vector_reload_started;
 extern mysql_cond_t COND_compress_gtid_table;
 extern mysql_cond_t COND_manager;
 extern mysql_cond_t COND_rpl_opt_tracker;
@@ -864,5 +882,8 @@ extern std::atomic<time_t> last_mixed_non_transactional_engine_warning;
 /// The time period for which no warning for non-composable engines should
 /// be written to the error log after a similar warning was written
 
+bool is_pk_type_valid_for_csql_vector (const enum_field_types field_type,
+                                       const CHARSET_INFO *field_charset,
+                                       size_t field_flags);
 const uint16_t mixed_non_transactional_engine_warning_period = 60 * 2;
 #endif /* MYSQLD_INCLUDED */

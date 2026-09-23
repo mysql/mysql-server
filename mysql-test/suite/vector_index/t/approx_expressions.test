@@ -1,0 +1,57 @@
+# Copyright 2026 Google LLC
+
+--source include/elide_costs.inc
+--source include/have_debug.inc
+use test;
+use test;
+
+delimiter |;
+create procedure fill_vector_table(tname varchar(40), n_rows int)
+begin
+  declare i int default 1;
+  declare d1 float default 1.0;
+  declare d2 float default 2.0;
+  declare d3 float default 3.0;
+  while i <= n_rows do
+    set @s = concat("insert into ", tname, " (id, emb, name, next_id)values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'), name, ", i+1, ")");
+    prepare stmt from @s;
+    execute stmt;
+    set i = i + 1;
+    set d1 = d1 + 1;
+    set d2 = d2 + 1;
+    set d3 = d3 + 1;
+  end while;
+end |
+delimiter ;|
+
+use test;
+CREATE TABLE t1(
+  id int, name VARCHAR(20), emb vector(3) USING varbinary, next_id int auto_increment, PRIMARY KEY(id, name), INDEX n (next_id));
+
+CREATE TABLE t2(
+  id int, name VARCHAR(20), emb vector(3) USING varbinary, next_id int, PRIMARY KEY(id, name), INDEX n (name));
+
+--disable_query_log
+CALL fill_vector_table('t1', 1000);
+CALL fill_vector_table('t2', 1000);
+
+--enable_query_log
+
+--echo create vector index
+create vector index vecIndex1 on t1(emb)distance_measure=l2_squared;
+create vector index vecIndex1 on t2(emb)distance_measure=l2_squared;
+
+--echo "b/382528291 - ANN should not crash when using multiple approx_distance calls in a single query on multiple tables"
+--replace_regex $elide_costs
+explain format=tree SELECT (t1.id * approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')) - approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1, t2 WHERE t1.id = 10 LIMIT 10;
+--replace_numeric_round 4
+SELECT (t1.id * approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')) - approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1, t2 WHERE t1.id = 10 LIMIT 10;
+
+--replace_regex $elide_costs
+explain format=tree SELECT approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1, t2 WHERE t1.id = 10 LIMIT 10;
+--replace_numeric_round 4
+SELECT approx_distance(t1.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t2.emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1, t2 WHERE t1.id = 10 LIMIT 10;
+
+-- echo "Drop procedure and tables"
+drop procedure fill_vector_table;
+drop table t1, t2;

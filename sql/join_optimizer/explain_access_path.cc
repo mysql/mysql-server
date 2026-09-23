@@ -1207,6 +1207,22 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
+    case AccessPath::VECTOR_INDEX_SCAN: {
+      TABLE &table = *path->vector_index_scan().table;
+      description += string("Vector index scan on ") + table.alias;
+      description += table.file->explain_extra();
+
+      // We only support vector with the primary InnoDB storage engine
+      assert(!table.s->is_secondary_engine());
+
+      error |= AddMemberToObject<Json_string>(obj, "table_name", table.alias);
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "table");
+      if (!table.file->explain_extra().empty())
+        error |= AddMemberToObject<Json_string>(obj, "message",
+                                                table.file->explain_extra());
+      error |= AddChildrenFromPushedCondition(table, children);
+      break;
+    }
     case AccessPath::SAMPLE_SCAN: {
       const TABLE &table = *path->sample_scan().table;
       description += string("Sample scan on ") + table.alias;
@@ -1514,6 +1530,15 @@ static unique_ptr<Json_object> SetObjectMembers(
       }
       children->push_back({path->nested_loop_join().outer});
       children->push_back({path->nested_loop_join().inner});
+      break;
+    }
+    case AccessPath::VECTOR_INDEX_JOIN: {
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "join");
+      error |=
+          AddMemberToObject<Json_string>(obj, "join_algorithm", "vector_index_join");
+      description = "Vector index join (with iterative filtering)";
+      children->push_back({path->vector_index_join().outer});
+      children->push_back({path->vector_index_join().inner});
       break;
     }
     case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:

@@ -35,6 +35,12 @@
 #include "sql/key_spec.h"       /* fk_option */
 #include "sql/sql_plugin_ref.h" /* plugin_ref */
 
+/** Maximum allowed length of primary key when using vector index
+Max length allowed by MySQL is 3072. We have overhead of 2 bytes per column
+for varaiable length columns and 1 byte for header when we serialized the PK
+to be stored in the sub_table.  */
+#define VECTOR_MAX_ALLOWED_PRIMARY_KEY_LENGTH 3000
+
 class Field;
 class String;
 struct MY_BITMAP;
@@ -170,6 +176,11 @@ class KEY {
   // the struct
   LEX_CSTRING engine_attribute{nullptr, 0};
   LEX_CSTRING secondary_engine_attribute{nullptr, 0};
+
+  /** Vector index specific options */
+  enum ha_key_sub_alg quantizer { HA_KEY_SUB_ALG_UNSPECIFIED };
+  ulong m_num_partitions {0};
+  enum distance_measure distance_measure { DISTANCE_MEASURE_UNSPECIFIED };
 
  private:
   /**

@@ -792,6 +792,7 @@ void dict_mem_index_free(dict_index_t *index) /*!< in: index */
 #endif /* !UNIV_HOTBACKUP */
 
   index->rtr_srs.reset();
+  index->vec_index_info.reset();
 
   mem_heap_free(index->heap);
 }

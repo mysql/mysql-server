@@ -1,0 +1,91 @@
+create vector index v1 on t1(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+# restart
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=cosine") limit 1;
+i
+x
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+drop index v1 on t1;
+create vector index v1 on t1(j) distance_measure=l2_squared;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"SquaredL2Distance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+# restart
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 1;
+i
+x
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"SquaredL2Distance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+drop index v1 on t1;
+create vector index v1 on t1(j) distance_measure=dot_product;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"DotProductDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+# restart
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=dot_product") limit 1;
+i
+x
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"DotProductDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+drop index v1 on t1;
+create vector index v1 on t1(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+# restart
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=cosine") limit 1;
+i
+x
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+drop index v1 on t1;
+create vector index v1 on t1(j) distance_measure=l2_squared num_leaves=11;
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"SquaredL2Distance"},"tree_levels":{"D":"1"},"num_partitions":{"C":"11"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"11"}}
+# restart
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 1;
+i
+x
+select index_name, state from information_schema.innodb_vector_indexes;
+index_name	state
+v1	INDEX_READY_TO_USE
+select config from information_schema.innodb_all_vector_indexes;
+config
+{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"SquaredL2Distance"},"tree_levels":{"D":"1"},"num_partitions":{"C":"11"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"11"}}
+drop index v1 on t1;
+drop table t1;

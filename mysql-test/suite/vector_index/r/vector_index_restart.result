@@ -1,0 +1,175 @@
+CALL mtr.add_suppression("Vector index marked corrupted");
+CREATE VECTOR INDEX vectorIndext1 ON t1(j) DISTANCE_MEASURE=cosine;
+CREATE VECTOR INDEX vectorIndext2 ON t2(j) DISTANCE_MEASURE=dot_product;
+#######################################################################
+#     Test the vector indexes being persisted on a clean shutdown     #
+#######################################################################
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+state	corrupted	config
+INDEX_READY_TO_USE	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+INDEX_READY_TO_USE	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"DotProductDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vectorIndext2	test.t2	TREE_SQ	3	DOT_PRODUCT	Ready	INDEX_READY_TO_USE	10	10	0	0	443
+vectorIndext1	test.t1	TREE_SQ	3	COSINE	Ready	INDEX_READY_TO_USE	10	10	0	0	443
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.5,0.25,0.125]'), 'distance_measure=cosine'),i  LIMIT 10;
+i
+494
+22
+180
+739
+472
+53
+984
+586
+554
+65
+SELECT i FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.3,0.6,0.9]'), 'distance_measure=dot_product'),i LIMIT 10;
+i
+35
+628
+8
+201
+284
+559
+798
+83
+202
+152
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+state	corrupted	config
+INDEX_READY_TO_USE	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+INDEX_READY_TO_USE	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"DotProductDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vectorIndext2	test.t2	TREE_SQ	3	DOT_PRODUCT	Ready	INDEX_READY_TO_USE	10	10	1	0	443
+vectorIndext1	test.t1	TREE_SQ	3	COSINE	Ready	INDEX_READY_TO_USE	10	10	1	0	443
+# restart
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+state	corrupted	config
+INDEX_PENDING_LOAD	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+INDEX_PENDING_LOAD	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"DotProductDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vectorIndext2	test.t2	TREE_SQ	3	DOT_PRODUCT	Pending Load	INDEX_PENDING_LOAD	10	10	0	0	443
+vectorIndext1	test.t1	TREE_SQ	3	COSINE	Pending Load	INDEX_PENDING_LOAD	10	10	0	0	443
+########################################################################
+#     Test the vector indexes can be used by ANN queries after restart #
+########################################################################
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.1,0.322,0.064]'), 'distance_measure=cosine'),i  LIMIT 10;
+i
+373
+942
+514
+736
+214
+837
+846
+543
+311
+720
+SELECT i FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.389,0.873,0.689]'), 'distance_measure=dot_product'),i LIMIT 10;
+i
+35
+628
+8
+201
+319
+202
+83
+567
+284
+41
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+state	corrupted	config
+INDEX_READY_TO_USE	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+INDEX_READY_TO_USE	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"DotProductDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vectorIndext2	test.t2	TREE_SQ	3	DOT_PRODUCT	Ready	INDEX_READY_TO_USE	10	10	1	0	443
+vectorIndext1	test.t1	TREE_SQ	3	COSINE	Ready	INDEX_READY_TO_USE	10	10	1	0	443
+########################################################################
+#     Test that corruption persist through a restart                   #
+########################################################################
+SET SESSION debug='+d,dict_set_sub_table_clust_index_row_scan_corrupted';
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	Warning	InnoDB: The vector index vectorIndext2 is corrupted.
+test.t2	check	Warning	InnoDB: Vector index 'vectorIndext2' contains 1000 entries, should be 1002.
+test.t2	check	error	Corrupt
+SET SESSION debug='-d,dict_set_sub_table_clust_index_row_scan_corrupted';
+SELECT count(*) FROM information_schema.innodb_all_vector_indexes where corrupted = 1;
+count(*)
+1
+SELECT i FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.389,0.873,0.689]'), 'distance_measure=dot_product'),i LIMIT 10;
+i
+35
+628
+8
+201
+319
+567
+202
+83
+284
+41
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+# restart
+SELECT count(*) FROM information_schema.innodb_all_vector_indexes where corrupted = 1;
+count(*)
+1
+SELECT i FROM t2 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.389,0.873,0.689]'), 'distance_measure=dot_product'),i LIMIT 10;
+i
+35
+628
+8
+201
+319
+567
+202
+83
+284
+41
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+DROP INDEX vectorIndext2 ON t2;
+# restart: --debug=+d,simulate_dd_vector_read_error
+SELECT count(*) FROM information_schema.innodb_all_vector_indexes where corrupted = 1;
+count(*)
+1
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.1,0.322,0.064]'), 'distance_measure=cosine'),i  LIMIT 10;
+i
+837
+736
+942
+373
+311
+720
+178
+514
+276
+713
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+SET SESSION debug='-d,simulate_dd_vector_read_error';
+# restart:
+SELECT count(*) FROM information_schema.innodb_all_vector_indexes where corrupted = 1;
+count(*)
+1
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.1,0.322,0.064]'), 'distance_measure=cosine'),i  LIMIT 10;
+i
+837
+736
+942
+373
+311
+720
+178
+514
+276
+713
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+DROP TABLE t1;
+DROP TABLE t2;

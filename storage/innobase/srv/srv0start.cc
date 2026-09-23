@@ -115,6 +115,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0row.h"
 #include "row0sel.h"
 #include "row0upd.h"
+#include "vector0dd.h"
 #include "srv0tmp.h"
 #include "trx0purge.h"
 #include "trx0roll.h"
@@ -1274,7 +1275,9 @@ static dberr_t srv_init_abort_low(bool create_new_db,
 
   clone_files_error();
   srv_shutdown_exit_threads();
-
+  if (ib_vector::index_registry != nullptr) {
+    ib_vector::index_registry.reset();
+  }
   return (err);
 }
 
@@ -1764,6 +1767,13 @@ dberr_t srv_start(bool create_new_db) {
     err = recv_recovery_from_checkpoint_start(*log_sys, flushed_lsn);
     if (err != DB_SUCCESS) {
       return srv_init_abort(err);
+    }
+
+    /* Initialize vector index registry. */
+    err =
+        ib_vector::init_vector_index_registry(opt_cloudsql_vector_max_mem_size);
+    if (err != DB_SUCCESS) {
+      return (srv_init_abort(err));
     }
 
     arch_page_sys->post_recovery_init();
@@ -2799,6 +2809,7 @@ void srv_shutdown() {
 
   dict_close();
   dict_persist_close();
+  ib_vector::shutdown_index_registry();
   undo_spaces_deinit();
   os_aio_free();
   que_close();
