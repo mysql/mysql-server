@@ -157,6 +157,7 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd) {
 
 void Gtid_state::update_commit_group(THD *first_thd) {
   DBUG_TRACE;
+  mysql_mutex_assert_owner(mysql_bin_log.get_commit_lock());
 
   bool gtid_threshold_breach = false;
   /*
@@ -852,7 +853,7 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit) {
     In Group Replication the GTID may additionally be owned by another
     thread, and we won't remove that ownership (it will be rolled back later)
   */
-  assert(owned_gtids.is_owned_by(thd->owned_gtid, thd->thread_id()));
+  assert(owned_gtids.has_owner(thd->owned_gtid, thd->thread_id()));
   owned_gtids.remove_gtid(thd->owned_gtid, thd->thread_id());
 
   if (is_commit) {

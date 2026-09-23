@@ -4234,6 +4234,18 @@ void Qmgr::api_failed(Signal *signal, Uint32 nodeId, ApiFailureCause afc,
   if (processInfo) {
     processInfo->invalidate();
   }
+
+  if (ERROR_INSERTED(962)) {
+    /* Slow actual disconnect */
+    const Uint32 delayMillis = (getHighResTimer().getUint64() % 8000);
+    g_eventLogger->info(
+        "QMGR : Delaying CLOSE_COMREQ for node %u for %u millis", nodeId,
+        delayMillis);
+    sendSignalWithDelay(TRPMAN_REF, GSN_CLOSE_COMREQ, signal, delayMillis,
+                        CloseComReqConf::SignalLengthDB);
+    return;
+  }
+
   sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
              CloseComReqConf::SignalLengthDB, JBB);
 }  // api_failed

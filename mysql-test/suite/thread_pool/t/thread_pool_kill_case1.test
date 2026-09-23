@@ -1,0 +1,284 @@
+--source include/have_debug.inc
+--source include/have_thread_pool.inc
+
+# The test case must be executed with thread_pool_size = 2.
+if(`SELECT @@global.thread_pool_size <> 2`)
+{
+   --die @@global.thread_pool_size must be 2, please check <testcase>-master.opt
+}
+
+# The connections are named <letter>_<number> to indicate they are belonging to
+# thread group <letter> and <number> within this group.
+let $connection= conn_A_1;
+--connect ($connection, localhost, root,,)
+let $id_list= `SELECT CONNECTION_ID()`;
+
+let $connection= conn_B_1;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+
+let $connection= conn_A_2_to_be_killed;
+--connect ($connection, localhost, root,,)
+let $target_id_A_2_to_be_killed= `SELECT CONNECTION_ID()`;
+
+let $connection= conn_B_2;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+
+let $connection= conn_A_3;
+--connect ($connection, localhost, root,,)
+let $conn_A_3_id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $conn_A_3_id;
+
+let $connection= conn_B_3;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+
+let $connection= conn_A_4;
+--connect ($connection, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+
+--connection conn_B_1
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+--replace_result $target_id_A_2_to_be_killed <target_id_A_2_to_be_killed>
+eval SET @kill_target_id = $target_id_A_2_to_be_killed;
+
+# What we want to achieve here is to test Case 1) where the connection to kill
+# have been queued up. This means that the waiting_thread must be active but no
+# queries are allowed to start. To accomplish the start of a thread that handles
+# the waiting thread we use "SELECT SLEEP(1)" since this will call
+# thd_pool_wait_begin which will ensure that some other thread takes up the ball
+# to handle the waiting thread.
+#
+# The next step is to ensure that the we don't start the new queries until the
+# sleep is done and that we have again entered a new state where no new queries
+# can start. We must get them queued up before the query ends.
+# To enable "SELECT SLEEP(1)" to actually last so long that it becomes a long
+# query we introduce the new "DBUG_EXECUTE_IF make_query_very_long" that sleeps
+# for 6 seconds before detaching the thread.
+#
+# So the timing here is:
+# 0) Set debug="+d,info,enter,exit,error,query,make_query_very_long"
+# 1) Start "SELECT SLEEP(1)"
+# 2) Immediately hits thd_pool_wait_begin which kicks up a new waiter thread
+# 3) 1 second later sleep is completed and no queries send by this connection
+#    or another one within the same thread group will be executed before
+#    the 6 second blocking caused by "make_query_very_long" has passed.
+#        See also the experiments.
+# 4) 1 second later we issue 3 queries on different connections. These queries
+#    will all be queued up. These queries can be any query. To avoid that these
+#    queries also get stuck waiting for 6 seconds we use for those queries
+#    SET debug="+d,info,enter,error,exit,query"
+# 5) We wait for 1 second to allow the queries to be queued up whereafter we
+#    issue the "KILL <connection_id>".
+# 6) This should immediately start the handling of "KILL" in the thread group
+#    since the waiter thread is available and ready.
+# 7) After 7 seconds the "SELECT SLEEP(1)" completes and the remaining 3 queries
+#    are allowed to execute.
+# On a testing box with high parallel load we might get different orders like 3)
+# 3) overlaps with 4). We do not enforce that we get some particular
+# order because
+# - KILL <connection> has to work well anyway
+# - the most interesting order(see above) is the most likely one
+# - covering more orders by the sheer amount of test runs is an advantage.
+#
+--connection conn_A_1
+let $conn_A_1_id= `SELECT CONNECTION_ID()`;
+SET SESSION debug="+d,info,enter,exit,error,query,make_query_very_long";
+--send
+SELECT SLEEP(1);
+
+# The following experiments show the impact of the current debug settings and
+# overall state on future activities of some connections like
+# - timing, blockings etc.
+# - how connections show up within information_schema.processlist
+#
+# Please replace the "if(0)" with "if(1)" for enabling one of the following experiments.
+# You can run only one of the experiments at some point of time.
+# The test aborts immediated after the experiment because the experiment itself
+# "destroys" the base for anything which follows.
+# I have mixed the results I got (November 2010) as comments between the code.
+#
+
+# Experiment 1
+##############
+if(0)
+{
+   --connection conn_B_1
+   --replace_result $conn_A_1_id <conn_A_1_id>
+   eval SET @conn_A_1_id = $conn_A_1_id;
+   let $run= 100;
+   while($run)
+   {
+      SELECT COMMAND,TIME,STATE,INFO FROM information_schema.processlist
+      WHERE id = @conn_A_1_id;
+      dec $run;
+      --sleep 0.1
+   }
+   # Summarized result of the while loop
+   # -----------------------------------
+   # SELECT COMMAND,TIME,STATE,INFO FROM information_schema.processlist
+   # WHERE id = @conn_A_1_id;
+   # COMMAND TIME  STATE      INFO
+   # Query      0  User sleep SELECT SLEEP(1)
+   # ...
+   # Query      1  User sleep SELECT SLEEP(1)
+   # ...
+   # Sleep      1  NULL       NULL
+   #    Unclear why there was no row with time = 0 before.
+   # ...
+   # Sleep      7  NULL       NULL
+   # ...
+   # Sleep      7             NULL
+   #    Attention: STATE just became empty.
+   #               This seems to be the effect of the "make_query_very_long"
+   # ...
+   # Sleep     10             NULL
+   # Sleep     11             NULL
+   # -----------------------------------
+   exit;
+}
+
+# Experiment 2
+##############
+if(0)
+{
+   --connection conn_B_1
+   SELECT NOW();
+   # NOW()
+   # 2010-11-24 17:58:31
+   --connection conn_A_1
+   --reap
+   # SLEEP(1)
+   # 0
+   SELECT NOW();
+   # NOW()
+   # 2010-11-24 17:58:38
+   #    So it seems like
+   #    - conn_A_1 "sends" its SELECT SLEEP(1) to the server
+   #    - The SLEEP part of the statement gets immediate executed like without
+   #      "make_query_very_long".
+   #    - When the SLEEP part has passed the execution waits ~ 6 seconds
+   #      (because of "make_query_very_long") before being able to give
+   #      the result back.
+   #
+   exit;
+}
+
+# Experiment 3
+##############
+if(0)
+{
+   --connection conn_B_1
+   # Wait till connection conn_A_1 should be in the "make_query_very_long" wait phase.
+   --sleep 3
+   SELECT NOW();
+   # NOW()
+   # 2010-11-24 18:51:31
+   --connection conn_A_3
+   SELECT NOW();
+   # NOW()
+   # 2010-11-24 18:51:33
+   #    So the "SELECT NOW()" of conn_A_3 get delayed by ~ 3 seconds.
+   #    This seems to be the 6 seconds caused by the "make_query_very_long"
+   #    minus the 3 seconds sleep.
+   exit;
+}
+
+# Experiment 4
+##############
+if(0)
+{
+   --connection conn_B_1
+   --replace_result $conn_A_3_id <conn_A_3_id>
+   eval SET @conn_A_3_id = $conn_A_3_id;
+   # SET @conn_A_3_id = <conn_A_3_id>;
+
+   # Show how the "non busy" connection conn_A_3 looks like
+   SELECT COMMAND,TIME,STATE,INFO FROM information_schema.processlist
+   WHERE id = @conn_A_3_id;
+   # COMMAND TIME STATE INFO
+   # Sleep      0       NULL
+   # Wait till connection conn_A_1 should be in the "make_query_very_long" block phase.
+   --sleep 3
+   --connection conn_A_3
+   --send
+   SET = @aux 1;
+   --connection conn_B_1
+   let $run= 100;
+   while($run)
+   {
+      SELECT COMMAND,TIME,STATE,INFO FROM information_schema.processlist
+      WHERE id = @conn_A_3_id;
+      dec $run;
+      --sleep 0.1
+   }
+   # Summarized result of the while loop
+   # -----------------------------------
+   # SELECT COMMAND,TIME,STATE,INFO FROM information_schema.processlist
+   # WHERE id = @conn_A_3_id;
+   # COMMAND TIME  STATE      INFO
+   # Sleep      3             NULL
+   # ...
+   # Sleep      4             NULL
+   # ...
+   # Sleep      5             NULL
+   #    My guess: The complete execution of "SET = @aux 1" is just between
+   #              the line above and below because of the change in the content
+   #              of the column TIME.
+   # Sleep      1             NULL
+   # ...
+   # Sleep      8             NULL
+
+   # So it seems that the "make_query_very_long" blocks other connections
+   # within the same thread pool group..
+   exit;
+}
+
+--sleep 2
+
+--connection conn_A_2_to_be_killed
+--send
+SET SESSION debug="+d,enter,info,query,exit,error";
+
+--connection conn_A_3
+--send
+SET SESSION debug="+d,enter,info,query,exit,error";
+
+--connection conn_A_4
+--send
+SET SESSION debug="+d,enter,info,query,exit,error";
+
+--connection conn_B_1
+--sleep 1
+KILL @kill_target_id;
+
+# Wait till the killed session disappeared from information_schema.processlist.
+let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.processlist
+WHERE id = @kill_target_id;
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: The killed session did not disappear from the processlist
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id;
+   --sleep 30
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id;
+   --echo # abort
+   exit;
+}
+
+# Cleanup
+--connection default
+--disconnect conn_A_1
+--disconnect conn_A_3
+--disconnect conn_A_4
+--disconnect conn_B_1
+--disconnect conn_B_2
+--disconnect conn_B_3
+# Take care that all disconnected session disappeared from processlist
+--source ../inc/wait_until_disappeared.inc

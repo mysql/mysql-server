@@ -75,15 +75,21 @@ class HTTP_CLIENT_EXPORT RestClient {
 
   // Request might be send to different host than the default one.
   // 'uri' parameter overrides default uri settings.
+  static constexpr const char kDefaultContentType[] = "application/json";
+
   Request request_sync(http::base::method::key_type method, const HttpUri &uri,
                        const std::string &request_body = {},
-                       const std::string &content_type = "application/json");
+                       const std::string &content_type = kDefaultContentType);
 
   // Use default host, for this request.
   Request request_sync(http::base::method::key_type method,
                        const std::string &path,
                        const std::string &request_body = {},
-                       const std::string &content_type = "application/json");
+                       const std::string &content_type = kDefaultContentType);
+
+  void set_request_connection_close(const bool value) {
+    request_connection_close_ = value;
+  }
 
   operator bool() const { return http_client_->operator bool(); }
 
@@ -105,6 +111,7 @@ class HTTP_CLIENT_EXPORT RestClient {
   HttpUri uri_{"/"};
   std::unique_ptr<http::client::Client> http_client_;
   bool use_http2_;
+  bool request_connection_close_{true};
 };
 
 #endif  // MYSQL_ROUTER_REST_CLIENT_H_INCLUDED

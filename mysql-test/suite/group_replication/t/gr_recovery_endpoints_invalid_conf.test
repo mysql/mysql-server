@@ -90,6 +90,7 @@ SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "127.0.0.1:360
 --echo
 --echo # 7. START GROUP_REPLICATION , it will fail due invalid format.
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_DA_GRP_RPL_RECOVERY_ENDPOINT_FORMAT
 START GROUP_REPLICATION;
 
@@ -109,6 +110,7 @@ SET PERSIST_ONLY group_replication_advertise_recovery_endpoints = "128.0.0.1:360
  --let $rpl_server_number= 1
  --source include/rpl/reconnect.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_DA_GRP_RPL_RECOVERY_ENDPOINT_INVALID
 START GROUP_REPLICATION;
 

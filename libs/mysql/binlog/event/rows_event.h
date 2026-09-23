@@ -950,6 +950,9 @@ class Rows_event : public Binary_log_event {
   ~Rows_event() override;
 
  protected:
+  // Maximum number of columns.
+  static constexpr const int max_fields{4096};
+
   Log_event_type m_type; /** Actual event type */
 
   /** Post header content */

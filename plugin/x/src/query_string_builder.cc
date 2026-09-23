@@ -33,6 +33,7 @@
 #include "my_sys.h"  // escape_string_for_mysql NOLINT(build/include_subdir)
 #include "mysql/plugin.h"
 #include "mysql/strings/m_ctype.h"
+#include "plugin/x/src/helper/sql_literal_escaping.h"
 
 namespace xpl {
 
@@ -44,7 +45,9 @@ void Query_string_builder::init_charset() {
 }
 
 Query_string_builder::Query_string_builder(size_t reserve)
-    : m_in_quoted(false), m_in_identifier(false) {
+    : m_in_quoted(false),
+      m_in_identifier(false),
+      m_no_backslash_escapes(false) {
   std::call_once(m_charset_initialized, init_charset);
   assert(m_charset != nullptr);
 
@@ -106,8 +109,11 @@ Query_string_builder &Query_string_builder::escape_string(const char *s,
   // resize the buffer to fit the original size + worst case length of s
   m_str.resize(str_pos + 2 * length + 1);
 
-  size_t const r = escape_string_for_mysql(m_charset, &m_str[str_pos],
-                                           2 * length + 1, s, length);
+  size_t const r = m_no_backslash_escapes
+                       ? escape_sql_quote(m_charset, &m_str[str_pos],
+                                          2 * length + 1, s, length, '\'')
+                       : escape_string_for_mysql(m_charset, &m_str[str_pos],
+                                                 2 * length + 1, s, length);
   m_str.resize(str_pos + r);
 
   return *this;
@@ -149,7 +155,7 @@ Query_string_builder &Query_string_builder::put(const char *s, size_t length) {
 }
 
 Query_formatter Query_string_builder::format() {
-  return Query_formatter(m_str, *m_charset);
+  return Query_formatter(m_str, *m_charset, m_no_backslash_escapes);
 }
 
 }  // namespace xpl

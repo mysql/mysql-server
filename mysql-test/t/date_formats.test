@@ -347,3 +347,15 @@ SELECT STR_TO_DATE('31/11/22', '%d/%m/%Y');
 SELECT STR_TO_DATE('2023-02-31','%Y-%m-%d');
 SELECT STR_TO_DATE('2004.09.12 10:61:59','%Y.%m.%d %T');
 SELECT STR_TO_DATE('0000-00-00','%Y-%m-%d');
+
+--echo #
+--echo # Bug#39135197: failing Item_func_str_to_temporal::eval_datetime
+--echo #
+
+--error ER_WRONG_ARGUMENTS
+SELECT STR_TO_DATE(IFNULL(PERIOD_ADD('*(+(', 0xa0),
+                          BIT_OR(OCT(18446744073709551616))), '%i%m%T%V%U');
+
+--error ER_WRONG_ARGUMENTS
+SELECT (ST_SIMPLIFY(PERIOD_DIFF(15898334837425003442, -9223372036854775807),
+                    10) <> CURRENT_TIMESTAMP);

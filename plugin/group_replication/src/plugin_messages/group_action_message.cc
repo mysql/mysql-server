@@ -76,54 +76,92 @@ void Group_action_message::decode_payload(const unsigned char *buffer,
   unsigned long long payload_item_length = 0;
 
   uint16 group_action_message_type_aux = 0;
-  decode_payload_item_int2(&slider, &payload_item_type,
-                           &group_action_message_type_aux);
+  if (decode_payload_item_int2(&slider, &payload_item_type, end,
+                               &group_action_message_type_aux) ||
+      payload_item_type != PIT_ACTION_TYPE) {
+    set_error("gr::Group_action_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   group_action_type = (enum_action_message_type)group_action_message_type_aux;
 
   uint16 group_action_message_phase_aux = 0;
-  decode_payload_item_int2(&slider, &payload_item_type,
-                           &group_action_message_phase_aux);
+  if (decode_payload_item_int2(&slider, &payload_item_type, end,
+                               &group_action_message_phase_aux) ||
+      payload_item_type != PIT_ACTION_PHASE) {
+    set_error("gr::Group_action_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   group_action_phase =
       (enum_action_message_phase)group_action_message_phase_aux;
 
   uint32 return_value_aux = 0;
-  decode_payload_item_int4(&slider, &payload_item_type, &return_value_aux);
+  if (decode_payload_item_int4(&slider, &payload_item_type, end,
+                               &return_value_aux) ||
+      payload_item_type != PIT_ACTION_RETURN_VALUE) {
+    set_error("gr::Group_action_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   return_value = (int32)return_value_aux;
 
   while (slider + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE <= end) {
     // Read payload item header to find payload item length.
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
+    if (slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length) {
+      set_error("gr::Group_action_message", __FILE__, __LINE__,
+                "Malformed payload length");
+      return;
+    }
 
     switch (payload_item_type) {
       case PIT_ACTION_PRIMARY_ELECTION_UUID:
-        if (slider + payload_item_length <= end) {
-          assert(ACTION_PRIMARY_ELECTION_MESSAGE == group_action_type);
-          primary_election_uuid.assign(slider, slider + payload_item_length);
+        if (ACTION_PRIMARY_ELECTION_MESSAGE != group_action_type) {
+          set_error("gr::Group_action_message", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        primary_election_uuid.assign(slider, slider + payload_item_length);
+        slider += payload_item_length;
         break;
       case PIT_ACTION_SET_COMMUNICATION_PROTOCOL_VERSION:
-        assert(ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE == group_action_type);
-        if (slider + payload_item_length <= end) {
-          gcs_protocol = static_cast<Gcs_protocol_version>(uint2korr(slider));
+        if (ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE != group_action_type ||
+            payload_item_length != 2) {
+          set_error("gr::Group_action_message", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        gcs_protocol = static_cast<Gcs_protocol_version>(uint2korr(slider));
+        slider += payload_item_length;
         break;
       case PIT_ACTION_TRANSACTION_MONITOR_TIMEOUT:
-        assert(ACTION_PRIMARY_ELECTION_MESSAGE == group_action_type);
-        if (slider + payload_item_length <= end) {
-          m_transaction_monitor_timeout = static_cast<int32>(uint4korr(slider));
+        if (ACTION_PRIMARY_ELECTION_MESSAGE != group_action_type ||
+            payload_item_length != 4) {
+          set_error("gr::Group_action_message", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        m_transaction_monitor_timeout = static_cast<int32>(uint4korr(slider));
+        slider += payload_item_length;
         break;
       case PIT_ACTION_INITIATOR:
-        if (slider + payload_item_length <= end) {
-          m_action_initiator =
-              static_cast<enum_action_initiator_and_action>(uint2korr(slider));
+        if (payload_item_length != 2) {
+          set_error("gr::Group_action_message", __FILE__, __LINE__,
+                    "Malformed payload item");
+          return;
         }
+        m_action_initiator =
+            static_cast<enum_action_initiator_and_action>(uint2korr(slider));
+        slider += payload_item_length;
+        break;
+
+      default:
+        slider += payload_item_length;
         break;
     }
-
-    // Seek to next payload item.
-    slider += payload_item_length;
   }
 }
 

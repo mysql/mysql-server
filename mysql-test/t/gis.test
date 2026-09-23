@@ -4255,5 +4255,12 @@ UPDATE t1 SET geom = DEFAULT;
 SET sql_mode= @orig_sql_mode;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#39300278: Item_func_latlongfromgeohash::val_real():
+--echo # Assertion 'input_value != nullptr || args[0]->null_value' failed
+--echo #
+
+--error ER_WRONG_VALUE_FOR_TYPE
+DO ST_LONGFROMGEOHASH((@c:= ST_ASGEOJSON(POINT(28, 63), 51, 156)));
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc

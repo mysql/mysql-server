@@ -2323,6 +2323,10 @@ class Item : public Parse_tree_node {
   */
   bool get_date_from_time(Date_val *date);
   /**
+    Convert val_datetime() to date
+  */
+  bool get_date_from_datetime(Date_val *date, my_time_flags_t flags);
+  /**
     Convert a numeric type to date
   */
   bool get_date_from_numeric(Date_val *date, my_time_flags_t flags);
@@ -2692,8 +2696,9 @@ class Item : public Parse_tree_node {
     data types return "binary" charset in client-side metadata.
   */
   virtual const CHARSET_INFO *charset_for_protocol() {
-    return result_type() == STRING_RESULT ? collation.collation
-                                          : &my_charset_bin;
+    return result_type() == STRING_RESULT && !is_temporal_type(data_type())
+               ? collation.collation
+               : &my_charset_bin;
   }
 
   /**
@@ -6352,56 +6357,7 @@ class Item_view_ref final : public Item_ref {
 
   bool fix_fields(THD *, Item **) override;
 
-  /**
-    Takes into account whether an Item in a derived table / view is part of an
-    inner table of an outer join.
-  */
-  table_map used_tables() const override {
-    const Item_ref *inner_ref = this;
-    const Item *inner_item;
-    /*
-      Check whether any of the inner expressions is an outer reference,
-      and if it is, return OUTER_REF_TABLE_BIT.
-    */
-    while (true) {
-      if (inner_ref->depended_from != nullptr) {
-        return OUTER_REF_TABLE_BIT;
-      }
-      inner_item = inner_ref->ref_item();
-      if (inner_item->type() != REF_ITEM) break;
-      inner_ref = down_cast<const Item_ref *>(inner_item);
-    }
-
-    const Item_field *field = inner_item->type() == FIELD_ITEM
-                                  ? down_cast<const Item_field *>(inner_item)
-                                  : nullptr;
-
-    // If the field is an outer reference, return OUTER_REF_TABLE_BIT
-    if (field != nullptr && field->depended_from != nullptr) {
-      return OUTER_REF_TABLE_BIT;
-    }
-    /*
-      View references with expressions that are not deemed constant during
-      execution, or when they are constants but the merged view/derived table
-      was not from the inner side of an outer join, simply return the used
-      tables of the underlying item. A "const" field that comes from an inner
-      side of an outer join is not constant, since NULL values are issued
-      when there are no matching rows in the inner table(s).
-    */
-    if (!inner_item->const_for_execution() || first_inner_table == nullptr) {
-      return inner_item->used_tables();
-    }
-    /*
-      This is a const expression on the inner side of an outer join.
-      Augment its used table information with the map of an inner table from
-      the outer join nest. field can be nullptr if it is from a const table.
-      In this case, returning the table's original table map is required by
-      the join optimizer.
-    */
-    return field != nullptr
-               ? field->m_table_ref->map()
-               : inner_item->used_tables() | first_inner_table->map();
-  }
+  table_map used_tables() const override;
 
   bool eq(const Item *item) const override;
   Item *get_tmp_table_item(THD *thd) override {

@@ -983,6 +983,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_replication_applier_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
@@ -1031,7 +1032,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
@@ -1092,6 +1092,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/telemetry_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_replication_applier_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_flow_control_stats.so
@@ -1111,7 +1112,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so

@@ -1028,6 +1028,7 @@ static AccessPath *get_best_disjunct_quick(
     bool all_scans_rors = true;
     bool imerge_too_expensive = false;
     AccessPath **cur_child = range_scans;
+    uint num_scans = 0;
     for (auto tree_it = imerge->trees.begin(); tree_it != imerge->trees.end();
          ++tree_it, cur_child++) {
       DBUG_EXECUTE("info",
@@ -1072,10 +1073,23 @@ static AccessPath *get_best_disjunct_quick(
       trace_idx
           .add_utf8("index_to_merge", table->key_info[child_param.index].name)
           .add("cumulated_cost", imerge_cost);
+      num_scans++;
     }
 
     // Note: to_merge trace object is closed here
     to_merge.end();
+
+    if (num_scans < n_child_scans) {
+      // At least one disjunct in the OR expression could not be represented
+      // as an index-merge-capable range scan (eg. due to DESC key parts).
+      // Using index merge in this case would ignore part of the condition
+      // and may yield incorrect results, so reject index merge for this
+      // disjunction entirely.
+      trace_best_disjunct.add("chosen", false)
+          .add_alnum("cause",
+                     "not all disjuncts are candidates for index merge");
+      return nullptr;
+    }
 
     trace_best_disjunct.add("cost_of_reading_ranges", imerge_cost);
     if (imerge_too_expensive || (((imerge_cost > read_cost) ||

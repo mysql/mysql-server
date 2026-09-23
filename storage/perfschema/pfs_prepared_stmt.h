@@ -33,6 +33,7 @@
 
 #include "include/mysql/psi/mysql_ps.h"
 #include "my_inttypes.h"
+#include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/pfs_program.h"
 #include "storage/perfschema/pfs_stat.h"
@@ -41,7 +42,7 @@
 
 struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr {
   /** Column OBJECT_INSTANCE_BEGIN */
-  const void *m_identity;
+  pfs_identity m_identity;
 
   /** STATEMENT_ID */
   ulonglong m_stmt_id;

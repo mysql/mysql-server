@@ -33,11 +33,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0impl-cursor.h"
 #include "row0pread.h"
 #include "row0row.h"
+#include "sync0debug.h"
 #include "ut0stage.h"
 
-#ifdef UNIV_DEBUG
 #include <current_thd.h>
-#endif /* UNIV_DEBUG */
+#include <sql/sql_class.h>
+#include <sql_thd_internal_api.h>
+
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 
 namespace ddl {
 
@@ -74,9 +79,8 @@ struct Parallel_cursor : public Cursor {
   /** Copy the row data, by default only the pointers are copied.
   @param[in] thread_id          Scan thread ID.
   @param[in,out] row            Row to copy.
-  @return DB_SUCCESS or error code. */
-  [[nodiscard]] virtual dberr_t copy_row(size_t thread_id,
-                                         Row &row) noexcept override;
+  */
+  virtual void copy_row(size_t thread_id, Row &row) noexcept override;
 
   /** @return true if EOF reached. */
   [[nodiscard]] virtual bool eof() const noexcept override { return m_eof; }
@@ -258,6 +262,10 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       });
 
       if (err != DB_SUCCESS && err != DB_END_OF_INDEX) {
+        for (auto current_builder : builders) {
+          /* Discard returned error as it is same as err */
+          static_cast<void>(current_builder->handle_error(err));
+        }
         return err;
       }
     }
@@ -273,26 +281,57 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
   size_t nr{};
 
-  /* current_thread is a thread local variable. Set current_thd it
-  to the user thread's THD  instance so that the debug sync calls
-  will trigger for the spawned threads too. */
-  IF_DEBUG(reader.set_start_callback([&](Thread_ctx *thread_ctx) {
+  /* current_thd is thread-local. In sync mode, worker callbacks run on the
+  caller thread (which already has a THD). For spawned worker threads, create
+  an internal THD and clean it up at thread finish. */
+  reader.set_start_callback([&](Thread_ctx *thread_ctx) {
     if (thread_ctx->get_state() == Parallel_reader::State::THREAD) {
-      current_thd = m_ctx.thd();
+      if (!reader.is_sync()) {
+        ut_ad(current_thd == nullptr);
+        auto thd = create_internal_thd();
+        if (thd == nullptr) {
+          return DB_OUT_OF_MEMORY;
+        }
+        auto caller_thd = m_ctx.thd();
+        ut_ad_ne(caller_thd, nullptr);
+        ut_ad_eq(current_thd, thd);
+        /* Worker scan threads call Field::date_flags() when reporting
+        duplicates (via Dup::report()), which needs the caller thread's
+        sql_mode, so we only copy this from the caller thread. */
+#ifdef HAVE_ASAN
+        ASAN_POISON_MEMORY_REGION((void *)&thd->variables,
+                                  sizeof(thd->variables));
+        ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables.sql_mode,
+                                    sizeof(thd->variables.sql_mode));
+#endif
+        thd->variables.sql_mode = caller_thd->variables.sql_mode;
+        ut_d(Sync_point::clone_from(caller_thd);)
+      }
     }
     return DB_SUCCESS;
-  });)
+  });
 
   /* Called when a thread finishes traversing a page and when it completes. */
   reader.set_finish_callback([&](Thread_ctx *thread_ctx) {
+    const auto state = thread_ctx->get_state();
     if (reader.is_error_set()) {
+      if (state == Parallel_reader::State::THREAD && !reader.is_sync()) {
+        auto thd = current_thd;
+        ut_ad_ne(thd, nullptr);
+#ifdef HAVE_ASAN
+        ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables,
+                                    sizeof(thd->variables));
+#endif
+        ut_d(Sync_point::erase(thd));
+        destroy_internal_thd(thd);
+      }
       return reader.get_error_state();
     }
 
     dberr_t err{DB_SUCCESS};
     const auto thread_id = thread_ctx->m_thread_id;
 
-    switch (thread_ctx->get_state()) {
+    switch (state) {
       case Parallel_reader::State::PAGE:
         if (!batch_insert.empty()) {
           err = batch_inserter(thread_ctx);
@@ -316,6 +355,9 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
         return err;
 
       case Parallel_reader::State::THREAD: {
+        auto thd = current_thd;
+        ut_a(thd != nullptr);
+
         ut_a(n_rows[thread_id] == 0);
 
         /* End of index scan. */
@@ -325,7 +367,16 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
         m_eof = true;
 
-        return bulk_inserter(thread_ctx, row);
+        err = bulk_inserter(thread_ctx, row);
+        if (!reader.is_sync()) {
+#ifdef HAVE_ASAN
+          ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables,
+                                      sizeof(thd->variables));
+#endif
+          ut_d(Sync_point::erase(thd));
+          destroy_internal_thd(thd);
+        }
+        return err;
       }
 
       case Parallel_reader::State::CTX:
@@ -372,7 +423,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
         /* We only need to copy the data when the heap is emptied.
         @see Parallel_cursor::copy_row */
-        auto err = row.build(m_ctx, m_index, heap, ROW_COPY_POINTERS);
+        auto err = row.build(m_ctx, heap);
 
         if (err != DB_SUCCESS) {
           return err;
@@ -414,15 +465,11 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
   return cleanup(m_heaps, err);
 }
 
-dberr_t Parallel_cursor::copy_row(size_t thread_id, Row &row) noexcept {
+void Parallel_cursor::copy_row(size_t thread_id, Row &row) noexcept {
   ut_a(!eof());
 
   auto heap = m_heaps[thread_id];
-
-  row.m_offsets = rec_get_offsets(row.m_rec, index(), nullptr, ULINT_UNDEFINED,
-                                  UT_LOCATION_HERE, &heap);
-
-  return row.build(m_ctx, index(), heap, ROW_COPY_DATA);
+  row.deep_copy(heap);
 }
 
 Cursor *Cursor::create_cursor(ddl::Context &ctx) noexcept {

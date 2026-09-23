@@ -1,0 +1,4 @@
+# Set thread pool to a small value to avoid creating too many threads.
+--thread-pool-size=1
+--thread-pool-max-unused-threads=1000000
+--force-restart

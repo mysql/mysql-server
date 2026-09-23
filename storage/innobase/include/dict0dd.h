@@ -64,6 +64,7 @@ Data dictionary interface */
 #ifndef UNIV_HOTBACKUP
 class THD;
 class MDL_ticket;
+class Dirs_in_datadir;
 
 struct CHARSET_INFO;
 
@@ -1269,9 +1270,11 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
 /** Update the data directory flag in dd::Table key strings
 @param[in]      object_id       dd tablespace object id
 @param[in]      path            path where the ibd file is located currently
+@param[in]      dirs_in_datadir full paths for dirs directly under datadir
 @retval DB_SUCCESS on success. */
-dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
-                                                        std::string path);
+dberr_t dd_update_table_and_partitions_after_dir_change(
+    dd::Object_id object_id, std::string path,
+    const Dirs_in_datadir &dirs_in_datadir);
 
 /** Create metadata for specified tablespace, acquiring exclusive MDL first
 @param[in,out]  dd_client       data dictionary client

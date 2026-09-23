@@ -22,6 +22,9 @@ node_id	remote_node_id	encrypted
 2	49	1
 2	63	1
 2	127	1
+SELECT COUNT(*) FROM ndbinfo.ndb$certificates;
+COUNT(*)
+16
 Use test;
 CREATE TABLE t (i int primary key not null, j int) engine = ndb;
 INSERT INTO t VALUES(1, 1);

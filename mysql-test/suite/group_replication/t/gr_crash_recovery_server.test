@@ -161,6 +161,7 @@ LOCK TABLES t1 READ;
 
 --let $rpl_connection_name= server_3
 --source include/connection.inc
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 start group_replication;
 
 --let $group_replication_member_state= RECOVERING

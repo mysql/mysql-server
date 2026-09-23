@@ -412,3 +412,11 @@ max-time: 300
 cmd: testNdbApi
 args: -n IgnoreDisconnectFromInvalidNodeTypes T1
 max-time: 60
+
+cmd: test_event
+args: --loops 10 -n DisconnectFestWithLag T1
+max-time: 360
+
+cmd: testBackup
+args: -nBackupLogBufferFullAbort T1
+max-time : 120

@@ -25,6 +25,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_inject_gcs_join_error';
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --enable_query_log
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

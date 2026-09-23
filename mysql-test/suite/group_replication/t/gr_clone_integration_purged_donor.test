@@ -85,6 +85,7 @@ FLUSH BINARY LOGS;
 --eval SET PERSIST  group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST  group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST  group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX ONCE
 --eval SET PERSIST  group_replication_communication_stack= "$_group_replication_comm_stack"
 
 --enable_query_log
@@ -95,6 +96,7 @@ FLUSH BINARY LOGS;
 --echo #    from binary logs is not possible.
 --echo #    As a test variation, do not start on boot after cloning
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 --source include/wait_until_disconnected.inc
 

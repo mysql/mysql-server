@@ -306,10 +306,12 @@ int runScanRead(NDBT_Context *ctx, NDBT_Step *step) {
   int abort = ctx->getProperty("AbortProb", 5);
   int tupscan = ctx->getProperty("TupScan", (Uint32)0);
   int lockmode = ctx->getProperty("LockMode", NdbOperation::LM_CommittedRead);
+  const bool scanUntilStopped =
+      (ctx->getProperty("ScanReadUntilStopped", Uint32(0)) != 0);
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
-  while (i < loops && !ctx->isTestStopped()) {
+  while (!ctx->isTestStopped() && (scanUntilStopped || (i < loops))) {
     g_info << i << ": ";
 
     int scan_flags = 0;
@@ -404,6 +406,7 @@ int runScanReadCommitted(NDBT_Context *ctx, NDBT_Step *step) {
   int abort = ctx->getProperty("AbortProb", 5);
   bool tupScan = ctx->getProperty("TupScan");
   int scan_flags = (NdbScanOperation::SF_TupScan & -(int)tupScan);
+  bool ignoreError = ctx->getProperty("ScanReadIgnoreError", Uint32(0));
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -412,7 +415,7 @@ int runScanReadCommitted(NDBT_Context *ctx, NDBT_Step *step) {
     if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism,
                                   NdbOperation::LM_CommittedRead,
                                   scan_flags) != 0) {
-      return NDBT_FAILED;
+      if (!ignoreError) return NDBT_FAILED;
     }
     i++;
   }
@@ -2999,6 +3002,26 @@ static int runScanErrorHandling(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+static int runInsertErrorOnAllUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
+  int error = ctx->getProperty("ErrorCode");
+
+  NdbRestarter restarter;
+  while (!ctx->isTestStopped()) {
+    ndbout_c("Inserting error %u on all nodes", error);
+    restarter.insertErrorInAllNodes(error);
+    NdbSleep_SecSleep(10);
+  }
+
+  return NDBT_OK;
+}
+
+static int runClearErrorOnAll(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbRestarter restarter;
+  restarter.insertErrorInAllNodes(0);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead",
          "Verify scan requirement: It should be possible "
@@ -3700,6 +3723,17 @@ TESTCASE("ScanErrorHandling",
   STEP(runScanErrorHandling);
   FINALIZER(runClearTable);
   FINALIZER(createOrderedPkIndex_Drop);
+}
+TESTCASE("ScanStartRestart", "Test behaviour of scan start during restart") {
+  TC_PROPERTY("ErrorCode", 8128); /* Slow start */
+  TC_PROPERTY("Rows", Uint32(0)); /* Not interested in the content */
+  TC_PROPERTY("LockMode", NdbOperation::LM_Read); /* Spread out over nodes */
+  TC_PROPERTY("ScanReadUntilStopped", Uint32(1));
+  STEP(runInsertErrorOnAllUntilStopped);  // Keep error insert over data node
+                                          // restarts
+  STEPS(runScanRead, 200);                // Lots of scans
+  STEP(runRestarter9999);                 // Abrupt restarts
+  FINALIZER(runClearErrorOnAll);
 }
 
 NDBT_TESTSUITE_END(testScan)

@@ -1,0 +1,23 @@
+# Check general connect,disconnect,KILL functionality in connection with
+# pool of threads and thread_pool_algorithm = 0 (default)
+#
+# Autor: 2010-12 mleich
+#
+
+# We add this suppression here because this test compares the result file of
+# itself with thread_pool_noload/r/thread_pool_func3a.result
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");
+
+--source include/have_thread_pool.inc
+if(`SELECT @@global.thread_pool_algorithm <> 0`)
+{
+   --die @@global.thread_pool_algorithm must be 0, please check <testcase>-master.opt
+}
+# The tests thread_pool_func3a, thread_pool_func3b and thread_pool_func3c must have the same
+# expected results. We take the variant without pool of threads as reference.
+let $reference_expectation= $MYSQL_TEST_DIR/suite/thread_pool_noload/r/thread_pool_func3a.result;
+let $current_expectation=   $MYSQL_TEST_DIR/suite/thread_pool/r/thread_pool_func3b.result;
+--diff_files $reference_expectation $current_expectation
+
+let $connections_to_add= `SELECT @@global.thread_pool_size`;
+--source ../inc/check_connect_kill.inc

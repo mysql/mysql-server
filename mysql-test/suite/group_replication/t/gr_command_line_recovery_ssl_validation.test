@@ -23,6 +23,7 @@ SET SESSION sql_log_bin= 1;
 
 # Starting the group. This should fail as the group_replication_recovery_user
 # is set to a invalid value in the configuration file.
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

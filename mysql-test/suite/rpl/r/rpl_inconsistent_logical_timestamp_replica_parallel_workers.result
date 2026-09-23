@@ -75,6 +75,5 @@ include/assert_grep.inc [Warning Found - Transaction's sequence number is incons
 #  11. Cleanup
 #
 [connection master]
-include/rpl/set_gtid_mode.inc [0 on servers 1,2]
 DROP TABLE t1, t2;
 include/rpl/deinit.inc

@@ -68,6 +68,10 @@
 
 --source include/have_binlog_format_row.inc
 
+# This test case requires a deterministic relay log size.
+# Therefore, cannot run with compression on.
+--source include/not_binlog_transaction_compression_on.inc
+
 --let $rpl_skip_start_slave=1
 --source include/rpl/init_source_replica.inc
 

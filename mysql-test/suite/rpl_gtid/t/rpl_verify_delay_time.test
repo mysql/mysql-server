@@ -4,11 +4,11 @@
 # immediate_commit_timestamp and not with respect to when it started.
 #
 # ==== Implementation ====
-# In a master->slave topology it verifies that the delay of transaction
-# on slave is relative to the commit event time on master and not relative
+# In a source->replica topology it verifies that the delay of transaction
+# on replica is relative to the commit event time on source and not relative
 # to the begining of the transaction by sleeping for a time equal to $delay
 # before the commit event. It uses the timestamps of events in the mysqld
-# log of master and slave.
+# log of source and replica.
 #
 # ==== References ====
 #
@@ -68,28 +68,38 @@ perl;
 
   open(FILE, "$outfile2") or die("Unable to open $outfile2: $!\n");
 
-  my $next_stmt_slave;
-  my $insert_event_slave;
+  my $next_stmt_replica;
+  my $insert_event_replica;
+  my $found_test_table = 0;
 
-  #obtain the timestamp of BEGIN event by using regex. note that the
-  #the timestamps of BEGIN and INSERT events are almost same.
+  # Obtain the timestamp of the replicated BEGIN event by using regex.
+  # Ignore setup traffic that may have been logged before the test
+  # transaction.
 
-  while (my $next_stmt_slave = <FILE>)
+  while (my $next_stmt_replica = <FILE>)
   {
-    chomp $next_stmt_slave;
-    $insert_event_slave= $next_stmt_slave;
-    if ($next_stmt_slave =~ /BEGIN/)
+    chomp $next_stmt_replica;
+    if ($next_stmt_replica =~ /BEGIN/)
     {
+      next unless $found_test_table;
+      $insert_event_replica= $next_stmt_replica;
       last;
+    }
+    if ($next_stmt_replica =~ /\QCREATE TABLE t1 (a varchar(50))\E/)
+    {
+      $found_test_table = 1;
     }
   }
 
-  $insert_event_slave =~ s/.*([0-9][0-9]:[0-9][0-9]:[0-9][0-9]).*/\1/;
+  die("Unable to find the replicated test transaction in $outfile2\n")
+    unless defined $insert_event_replica;
+
+  $insert_event_replica =~ s/.*([0-9][0-9]:[0-9][0-9]:[0-9][0-9]).*/\1/;
 
   my $dir = $ENV{'MYSQLTEST_VARDIR'};
   open (OUTPUT, ">$dir/tmp/tar.inc") ;
   print OUTPUT "--let \$insert_timestamp =  $insert_event\n";
-  print OUTPUT "--let \$insert_timestamp2 =  $insert_event_slave\n";
+  print OUTPUT "--let \$insert_timestamp2 =  $insert_event_replica\n";
   close (OUTPUT);
 
 EOF
@@ -108,16 +118,16 @@ EOF
 
 --let $ICT_UTC= `SELECT CONVERT_TZ('$immediate_commit_timestamp','SYSTEM','+00:00')`
 --let $ICT_sec= `SELECT TIME_TO_SEC('$ICT_UTC')`
---let $insert_slave_sec= `SELECT TIME_TO_SEC('$insert_timestamp2')`
---let $insert_master_sec= `SELECT TIME_TO_SEC('$insert_timestamp')`
+--let $insert_replica_sec= `SELECT TIME_TO_SEC('$insert_timestamp2')`
+--let $insert_source_sec= `SELECT TIME_TO_SEC('$insert_timestamp')`
 
 # verify that the delay is relative to the ICT and not relative to BEGIN or INSERT event.
 --let $assert_text= Assert that the delay is relative to the immediate_commit_timestamp..
---let $assert_cond= $insert_slave_sec >= $ICT_sec + $delay
+--let $assert_cond= $insert_replica_sec >= $ICT_sec + $delay
 --source include/assert.inc
 
 --let $assert_text= Assert that the delay is not relative to the insert event timestamp or begining of transaction..
---let $assert_cond= $insert_slave_sec >= $insert_master_sec + 2 * $delay
+--let $assert_cond= $insert_replica_sec >= $insert_source_sec + 2 * $delay
 --source include/assert.inc
 
 # Cleanup

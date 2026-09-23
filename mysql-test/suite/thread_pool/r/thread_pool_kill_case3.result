@@ -1,0 +1,7 @@
+SET @kill_target_id = <target_id_A_2_to_be_killed>;
+SET SESSION debug="+d,info,enter,exit,error,query,wait_begin_waiter_thread";
+SELECT SLEEP(1);
+SELECT SLEEP(1);
+SELECT SLEEP(1);
+SELECT SLEEP(1);
+KILL @kill_target_id;

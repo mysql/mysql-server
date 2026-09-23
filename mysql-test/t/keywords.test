@@ -179,3 +179,21 @@ INSERT INTO t2 VALUES (1, 'test');
 SELECT * FROM t2 WHERE sets = 1;
 
 DROP TABLE sets, t1, t2;
+
+--echo #
+--echo # Bug#36584265: Five mistakes in information_schema.keywords_reserved
+--echo #
+
+CREATE TABLE manual(col1 INTEGER);
+CREATE TABLE parallel(col1 INTEGER);
+
+DROP TABLE manual, parallel;
+
+--error ER_PARSE_ERROR
+CREATE TABLE CUBE(col1 INTEGER);
+--error ER_PARSE_ERROR
+CREATE TABLE external(col1 INTEGER);
+--error ER_PARSE_ERROR
+CREATE TABLE QUALIFY(col1 INTEGER);
+--error ER_PARSE_ERROR
+CREATE TABLE TABLESAMPLE(col1 INTEGER);

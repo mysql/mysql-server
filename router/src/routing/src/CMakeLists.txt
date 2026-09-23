@@ -84,65 +84,66 @@ ROUTER_ADD_SHARED_LIBRARY(routing
   blocked_endpoints.cc
   routing_guidelines_adapter.cc
 
-  await_client_or_server.cc
-  forwarding_processor.cc
-  processor.cc
+  processors/base/await_client_or_server.cc
+  processors/base/forwarding_processor.cc
+  processors/base/processor.cc
+  processors/base/processor_diagnostics.cc
 
   classic_auth.cc
   classic_auth_cleartext.cc
   classic_auth_caching_sha2.cc
   classic_auth_native.cc
   classic_auth_sha256_password.cc
-  classic_command.cc
-  classic_connect.cc
-  classic_flow.cc
-  classic_forwarder.cc
+  processors/session/classic_command.cc
+  processors/session/classic_connect.cc
+  processors/session/classic_flow.cc
+  processors/base/classic_forwarder.cc
   classic_frame.cc
-  classic_lazy_connect.cc
+  processors/session/classic_lazy_connect.cc
 
-  classic_auth_cleartext_forwarder.cc
-  classic_auth_caching_sha2_forwarder.cc
-  classic_auth_forwarder.cc
-  classic_auth_native_forwarder.cc
-  classic_auth_openid_connect_forwarder.cc
-  classic_auth_sha256_password_forwarder.cc
-  classic_binlog_dump_forwarder.cc
-  classic_change_user_forwarder.cc
-  classic_clone_forwarder.cc
-  classic_debug_forwarder.cc
-  classic_greeting_forwarder.cc
-  classic_init_schema_forwarder.cc
-  classic_kill_forwarder.cc
-  classic_list_fields_forwarder.cc
-  classic_ping_forwarder.cc
-  classic_query_forwarder.cc
-  classic_quit_forwarder.cc
-  classic_register_replica_forwarder.cc
-  classic_reload_forwarder.cc
-  classic_reset_connection_forwarder.cc
-  classic_set_option_forwarder.cc
-  classic_statistics_forwarder.cc
-  classic_stmt_close_forwarder.cc
-  classic_stmt_execute_forwarder.cc
-  classic_stmt_fetch_forwarder.cc
-  classic_stmt_param_append_data_forwarder.cc
-  classic_stmt_prepare_forwarder.cc
-  classic_stmt_reset_forwarder.cc
+  processors/forwarders/classic_auth_cleartext_forwarder.cc
+  processors/forwarders/classic_auth_caching_sha2_forwarder.cc
+  processors/forwarders/classic_auth_forwarder.cc
+  processors/forwarders/classic_auth_native_forwarder.cc
+  processors/forwarders/classic_auth_sha256_password_forwarder.cc
+  processors/forwarders/classic_binlog_dump_forwarder.cc
+  processors/forwarders/classic_change_user_forwarder.cc
+  processors/forwarders/classic_clone_forwarder.cc
+  processors/forwarders/classic_debug_forwarder.cc
+  processors/session/classic_greeting_forwarder.cc
+  processors/forwarders/classic_init_schema_forwarder.cc
+  processors/forwarders/classic_kill_forwarder.cc
+  processors/forwarders/classic_list_fields_forwarder.cc
+  processors/forwarders/classic_ping_forwarder.cc
+  processors/forwarders/classic_query_forwarder.cc
+  processors/forwarders/classic_quit_forwarder.cc
+  processors/forwarders/classic_register_replica_forwarder.cc
+  processors/forwarders/classic_reload_forwarder.cc
+  processors/forwarders/classic_reset_connection_forwarder.cc
+  processors/forwarders/classic_set_option_forwarder.cc
+  processors/forwarders/classic_statistics_forwarder.cc
+  processors/forwarders/classic_stmt_close_forwarder.cc
+  processors/forwarders/classic_stmt_execute_forwarder.cc
+  processors/forwarders/classic_stmt_fetch_forwarder.cc
+  processors/forwarders/classic_stmt_param_append_data_forwarder.cc
+  processors/forwarders/classic_stmt_prepare_forwarder.cc
+  processors/forwarders/classic_stmt_reset_forwarder.cc
 
-  classic_auth_cleartext_sender.cc
-  classic_auth_caching_sha2_sender.cc
-  classic_auth_native_sender.cc
-  classic_auth_openid_connect_sender.cc
-  classic_auth_sha256_password_sender.cc
-  classic_change_user_sender.cc
+  processors/senders/classic_auth_cleartext_sender.cc
+  processors/senders/classic_auth_caching_sha2_sender.cc
+  processors/senders/classic_auth_native_sender.cc
+  processors/senders/classic_auth_sha256_password_sender.cc
+  processors/senders/classic_change_user_sender.cc
+  processors/forwarders/classic_auth_openid_connect_forwarder.cc
+  processors/senders/classic_auth_openid_connect_sender.cc
   # classic_greeting_sender.cc
-  classic_init_schema_sender.cc
-  classic_query_sender.cc
-  classic_quit_sender.cc
-  classic_reset_connection_sender.cc
-  classic_set_option_sender.cc
+  processors/senders/classic_init_schema_sender.cc
+  processors/senders/classic_query_sender.cc
+  processors/senders/classic_quit_sender.cc
+  processors/senders/classic_reset_connection_sender.cc
+  processors/senders/classic_set_option_sender.cc
 
-  classic_greeting_receiver.cc
+  processors/session/classic_greeting_receiver.cc
 
   classic_query_param.cc
   classic_session_tracker.cc

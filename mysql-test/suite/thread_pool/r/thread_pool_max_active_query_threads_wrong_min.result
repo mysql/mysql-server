@@ -1,0 +1,6 @@
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-max-active-query-threads':.*value .* adjusted to 0 found]
+SET SESSION thread_pool_max_active_query_threads = -1;
+ERROR HY000: Variable 'thread_pool_max_active_query_threads' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL thread_pool_max_active_query_threads = -1;
+ERROR 42000: Variable 'thread_pool_max_active_query_threads' can't be set to the value of '-1'

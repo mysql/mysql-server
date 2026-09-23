@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "my_inttypes.h"
+#include "mysql/utils/error.h"
 
 /**
  This is the base GCS plugin message.
@@ -63,6 +64,8 @@
 
 class Plugin_gcs_message {
  public:
+  using Error_ptr = mysql::utils::Error_ptr;
+
   /**
    The protocol version number.
    */
@@ -194,8 +197,42 @@ class Plugin_gcs_message {
    */
   enum_cargo_type m_cargo_type;
 
+  /**
+   Holds information about error that might occur during encoding/decoding
+   */
+  Error_ptr m_error;
+
  public:
   virtual ~Plugin_gcs_message() = default;
+
+  /**
+   Copy constructor.
+
+   Note that @c m_error is transient state and is intentionally not copied.
+
+   @param[in] other the source object to copy from
+   */
+  Plugin_gcs_message(const Plugin_gcs_message &other);
+
+  /**
+   Copy-assignment operator.
+
+   Note that @c m_error is transient state and is intentionally not copied.
+
+   @param[in] other the source object to copy from
+   @return a reference to this object
+   */
+  Plugin_gcs_message &operator=(const Plugin_gcs_message &other);
+
+  /**
+   @return true if this object already has an error recorded.
+   */
+  bool has_error() const;
+
+  /**
+   @return the decoding error, if any.
+   */
+  const Error_ptr &get_error() const;
 
   /**
    @return the value of the version field.
@@ -228,6 +265,10 @@ class Plugin_gcs_message {
     Decodes the contents of the buffer and sets the field values
     according to the values decoded.
 
+    Note that if this object is already in an error state
+    (that is, @c has_error() returns true), the error state is reset
+    before decoding starts.
+
     @param[in] buffer the buffer to decode from.
     @param[in] length the length of the buffer.
   */
@@ -237,23 +278,33 @@ class Plugin_gcs_message {
     Return the cargo type of a given message buffer, without decode
     the complete message.
 
-    @param[in] buffer the buffer to decode from.
+    @param[in]  buffer     the buffer to decode from.
+    @param[in]  length     the length of the buffer.
+    @param[out] cargo_type the decoded cargo type.
 
-    @return the cargo type of a given message buffer
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
    */
-  static enum_cargo_type get_cargo_type(const unsigned char *buffer);
+  static bool get_cargo_type(const unsigned char *buffer, size_t length,
+                             enum_cargo_type *cargo_type);
 
   /**
     Return the raw data of the first payload item of a given message buffer,
     without decode the complete message.
 
-    @param[out] buffer              the buffer to decode from.
+    @param[in]  buffer              the buffer to decode from.
+    @param[in]  length              the length of the buffer.
     @param[out] payload_item_data   the data.
     @param[out] payload_item_length the length of the data.
+
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
   */
-  static void get_first_payload_item_raw_data(
-      const unsigned char *buffer, const unsigned char **payload_item_data,
-      size_t *payload_item_length);
+  static bool get_first_payload_item_raw_data(
+      const unsigned char *buffer, size_t length,
+      const unsigned char **payload_item_data, size_t *payload_item_length);
 
   /**
     Return the raw data of the payload item of a given payload type of a given
@@ -338,6 +389,21 @@ class Plugin_gcs_message {
                               const unsigned char *end) = 0;
 
   /**
+    Stores a decode error if one has not already been recorded.
+
+    Note that if this object already has an error (@c has_error() returns true),
+    this member function retains the existing error value and does not set a
+    new one.
+
+    @param[in] type    the logical message type reporting the decode error
+    @param[in] file    the source file where the error was detected
+    @param[in] line    the source line where the error was detected
+    @param[in] message the decode error description
+   */
+  void set_error(const char *type, const char *file, size_t line,
+                 const char *message);
+
+  /**
     Encodes the given payload item type and length into the buffer.
 
     @param[out] buffer              the buffer to encode to
@@ -382,6 +448,23 @@ class Plugin_gcs_message {
                                        uint16 *type, unsigned char *value);
 
   /**
+    Decodes the given payload item (type, length and value) from the buffer as
+    a char (1 byte) while validating the bounds.
+
+    @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
+    @param[out] type   the type of the payload item
+    @param[out] value  the value of the payload item
+
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
+  */
+  static bool decode_payload_item_char(const unsigned char **buffer,
+                                       uint16 *type, const unsigned char *end,
+                                       unsigned char *value);
+
+  /**
     Encodes the given payload item (type, length and value) into the buffer as
     a 2 bytes integer.
 
@@ -402,6 +485,22 @@ class Plugin_gcs_message {
   */
   void decode_payload_item_int2(const unsigned char **buffer, uint16 *type,
                                 uint16 *value);
+
+  /**
+    Decodes the given payload item (type, length and value) from the buffer as
+    a 2 bytes integer while validating the bounds.
+
+    @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
+    @param[out] type   the type of the payload item
+    @param[out] value  the value of the payload item
+
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
+  */
+  bool decode_payload_item_int2(const unsigned char **buffer, uint16 *type,
+                                const unsigned char *end, uint16 *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -426,6 +525,22 @@ class Plugin_gcs_message {
                                 uint32 *value);
 
   /**
+    Decodes the given payload item (type, length and value) from the buffer as
+    a 4 bytes integer while validating the bounds.
+
+    @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
+    @param[out] type   the type of the payload item
+    @param[out] value  the value of the payload item
+
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
+  */
+  bool decode_payload_item_int4(const unsigned char **buffer, uint16 *type,
+                                const unsigned char *end, uint32 *value);
+
+  /**
     Encodes the given payload item (type, length and value) into the buffer as
     a 8 bytes integer.
 
@@ -448,6 +563,23 @@ class Plugin_gcs_message {
                                        uint16 *type, uint64 *value);
 
   /**
+    Decodes the given payload item (type, length and value) from the buffer as
+    a 8 bytes integer while validating the bounds.
+
+    @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
+    @param[out] type   the type of the payload item
+    @param[out] value  the value of the payload item
+
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
+  */
+  static bool decode_payload_item_int8(const unsigned char **buffer,
+                                       uint16 *type, const unsigned char *end,
+                                       uint64 *value);
+
+  /**
     Encodes the given payload item (type, length and value) into the buffer as
     a char array (variable size).
 
@@ -465,12 +597,13 @@ class Plugin_gcs_message {
     a char array (variable size).
 
     @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
     @param[out] length the length of the payload item
   */
-  void decode_payload_item_string(const unsigned char **buffer, uint16 *type,
-                                  std::string *value,
+  bool decode_payload_item_string(const unsigned char **buffer, uint16 *type,
+                                  const unsigned char *end, std::string *value,
                                   unsigned long long *length);
 
   /**
@@ -491,12 +624,13 @@ class Plugin_gcs_message {
     a byte buffer (variable size).
 
     @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
     @param[out] length the length of the payload item
   */
-  void decode_payload_item_bytes(const unsigned char **buffer, uint16 *type,
-                                 unsigned char *value,
+  bool decode_payload_item_bytes(const unsigned char **buffer, uint16 *type,
+                                 const unsigned char *end, unsigned char *value,
                                  unsigned long long *length);
 };
 

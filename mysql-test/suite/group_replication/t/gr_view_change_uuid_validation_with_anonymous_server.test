@@ -151,6 +151,7 @@
 --source include/assert_grep.inc
 
 # Verify that START fails for group_replication
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

@@ -3,10 +3,17 @@ CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 command ok
 
 command ok
+
+command ok
 Verify ["SHOW INDEX FROM xtest.bar WHERE Key_name='foo'" returns in "Key_name" column, following value foo]
 
 0 rows affected
 Verify ["list_objects" returns "bar" as a COLLECTION]
+Verify ["list_objects" accepts patterns with quotes]
+Verify ["create_collection" reuse_existing accepts collection names with quotes]
+Verify ["get_collection_options" accepts collection names with quotes]
+Verify ["create_collection_index" accepts collection and index names with quotes]
+Verify ["drop_collection_index" accepts collection and index names with quotes]
 
 command ok
 Verify ["SHOW INDEX FROM xtest.bar WHERE Key_name='foo'" returns in "Key_name" column, following value null]

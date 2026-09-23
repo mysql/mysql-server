@@ -577,6 +577,10 @@ Dbtc::Dbtc(Block_context &ctx, Uint32 instanceNo)
   cpackedListIndex = 0;
   c_ongoing_take_over_cnt = 0;
 
+  for (Uint32 i = 0; i < MAX_NODES; i++) {
+    capiConnectClosing[i] = 0;
+  }
+
   hostRecord = 0;
   tableRecord = 0;
   tcFailRecord = 0;

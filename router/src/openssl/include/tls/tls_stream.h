@@ -206,6 +206,10 @@ class TlsStream : private TlsBase<LowerLayer> {
   auto close() { return lower_layer().close(); }
   auto release() { return lower_layer().release(); }
   auto native_handle() { return lower_layer().native_handle(); }
+
+#ifdef MYSQL_ROUTER_ENABLE_OPENSSL_INTERNAL_ALERT_TESTS
+  SSL *native_ssl_handle() { return Parent::ssl_.get(); }
+#endif  // MYSQL_ROUTER_ENABLE_OPENSSL_INTERNAL_ALERT_TESTS
 };
 
 }  // namespace tls

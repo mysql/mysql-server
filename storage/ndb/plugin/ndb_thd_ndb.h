@@ -43,7 +43,7 @@ class Ndb_applier;
 class Thd_ndb {
   THD *const m_thd;
 
-  Thd_ndb(THD *thd, const char *name);
+  Thd_ndb(THD *thd, const char *name, Ndb_cluster_connection *cc = nullptr);
   ~Thd_ndb();
 
   uint32 options;
@@ -53,7 +53,8 @@ class Thd_ndb {
   const char *const m_thread_name;
 
  public:
-  static Thd_ndb *seize(THD *thd, const char *name = nullptr);
+  static Thd_ndb *seize(THD *thd, const char *name = nullptr,
+                        Ndb_cluster_connection *cc = nullptr);
   static void release(Thd_ndb *thd_ndb);
 
   // Keeps track of stats for tables taking part in transaction
@@ -93,6 +94,7 @@ class Thd_ndb {
   class Ndb_cluster_connection *connection;
   class Ndb *ndb;
   class ha_ndbcluster *m_handler;
+  bool m_autocommit; /* Whether transaction was started in autocommit mode */
 
   // Reference counter for external_lock() calls. The counter controls that
   // the handlerton is registered as being part of the MySQL transaction only at

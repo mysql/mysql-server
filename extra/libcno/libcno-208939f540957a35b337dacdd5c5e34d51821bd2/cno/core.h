@@ -87,6 +87,11 @@ struct cno_message_t {
   struct cno_buffer_t path;
   struct cno_header_t *headers;
   size_t headers_len;
+  // Parser-populated read-only flags for messages received via
+  // `on_message_head`. Not meaningful when passing a message to
+  // `cno_write_head`.
+  uint8_t has_transfer_encoding;
+  uint8_t has_content_length;
 };
 
 struct cno_tail_t {

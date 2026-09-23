@@ -1,0 +1,241 @@
+SET @saved_deprecated_i_s_usage_count = (SELECT VARIABLE_VALUE
+FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Deprecated_thread_pool_i_s_usage_count');
+SET @admin_thread_groups = 1;
+# 1. "pool of threads" functionality and its information_schema tables
+#    are provided as plugin.
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY,
+PLUGIN_AUTHOR, PLUGIN_LICENSE
+FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME IN
+('thread_pool','TP_THREAD_STATE','TP_THREAD_GROUP_STATE','TP_THREAD_GROUP_STATS');
+PLUGIN_NAME	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY	PLUGIN_AUTHOR	PLUGIN_LICENSE
+thread_pool	ACTIVE	DAEMON	thread_pool.<extension>	Oracle Corporation	PROPRIETARY
+TP_THREAD_STATE	ACTIVE	INFORMATION SCHEMA	thread_pool.<extension>	Oracle Corporation	PROPRIETARY
+TP_THREAD_GROUP_STATE	ACTIVE	INFORMATION SCHEMA	thread_pool.<extension>	Oracle Corporation	PROPRIETARY
+TP_THREAD_GROUP_STATS	ACTIVE	INFORMATION SCHEMA	thread_pool.<extension>	Oracle Corporation	PROPRIETARY
+# 2. Show the layout of the "pool of threads" tables.
+SHOW CREATE TABLE information_schema.TP_THREAD_GROUP_STATS;
+Table	Create Table
+TP_THREAD_GROUP_STATS	CREATE TEMPORARY TABLE `TP_THREAD_GROUP_STATS` (
+  `TP_GROUP_ID` int unsigned NOT NULL DEFAULT '0',
+  `CONNECTIONS_STARTED` bigint unsigned NOT NULL DEFAULT '0',
+  `CONNECTIONS_CLOSED` bigint unsigned NOT NULL DEFAULT '0',
+  `QUERIES_EXECUTED` bigint unsigned NOT NULL DEFAULT '0',
+  `QUERIES_QUEUED` bigint unsigned NOT NULL DEFAULT '0',
+  `THREADS_STARTED` bigint unsigned NOT NULL DEFAULT '0',
+  `PRIO_KICKUPS` bigint unsigned NOT NULL DEFAULT '0',
+  `STALLED_QUERIES_EXECUTED` bigint unsigned NOT NULL DEFAULT '0',
+  `BECOME_CONSUMER_THREAD` bigint unsigned NOT NULL DEFAULT '0',
+  `BECOME_RESERVE_THREAD` bigint unsigned NOT NULL DEFAULT '0',
+  `BECOME_WAITING_THREAD` bigint unsigned NOT NULL DEFAULT '0',
+  `WAKE_THREAD_STALL_CHECKER` bigint unsigned NOT NULL DEFAULT '0',
+  `SLEEP_WAITS` bigint unsigned NOT NULL DEFAULT '0',
+  `DISK_IO_WAITS` bigint unsigned NOT NULL DEFAULT '0',
+  `ROW_LOCK_WAITS` bigint unsigned NOT NULL DEFAULT '0',
+  `GLOBAL_LOCK_WAITS` bigint unsigned NOT NULL DEFAULT '0',
+  `META_DATA_LOCK_WAITS` bigint unsigned NOT NULL DEFAULT '0',
+  `TABLE_LOCK_WAITS` bigint unsigned NOT NULL DEFAULT '0',
+  `USER_LOCK_WAITS` bigint unsigned NOT NULL DEFAULT '0',
+  `BINLOG_WAITS` bigint unsigned NOT NULL DEFAULT '0',
+  `GROUP_COMMIT_WAITS` bigint unsigned NOT NULL DEFAULT '0',
+  `FSYNC_WAITS` bigint unsigned NOT NULL DEFAULT '0'
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
+SHOW CREATE TABLE information_schema.TP_THREAD_GROUP_STATE;
+Table	Create Table
+TP_THREAD_GROUP_STATE	CREATE TEMPORARY TABLE `TP_THREAD_GROUP_STATE` (
+  `TP_GROUP_ID` int unsigned NOT NULL DEFAULT '0',
+  `CONSUMER_THREADS` int unsigned NOT NULL DEFAULT '0',
+  `RESERVE_THREADS` int unsigned NOT NULL DEFAULT '0',
+  `CONNECT_THREAD_COUNT` int unsigned NOT NULL DEFAULT '0',
+  `CONNECTION_COUNT` int unsigned NOT NULL DEFAULT '0',
+  `QUEUED_QUERIES` int unsigned NOT NULL DEFAULT '0',
+  `QUEUED_TRANSACTIONS` int unsigned NOT NULL DEFAULT '0',
+  `STALL_LIMIT` int unsigned NOT NULL DEFAULT '0',
+  `PRIO_KICKUP_TIMER` int unsigned NOT NULL DEFAULT '0',
+  `ALGORITHM` varchar(20) NOT NULL DEFAULT '',
+  `THREAD_COUNT` int unsigned NOT NULL DEFAULT '0',
+  `ACTIVE_THREAD_COUNT` int unsigned NOT NULL DEFAULT '0',
+  `STALLED_THREAD_COUNT` int unsigned NOT NULL DEFAULT '0',
+  `WAITING_THREAD_NUMBER` int unsigned DEFAULT NULL,
+  `OLDEST_QUEUED` bigint unsigned DEFAULT NULL,
+  `MAX_THREAD_IDS_IN_GROUP` int unsigned NOT NULL DEFAULT '0'
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
+SHOW CREATE TABLE information_schema.TP_THREAD_STATE;
+Table	Create Table
+TP_THREAD_STATE	CREATE TEMPORARY TABLE `TP_THREAD_STATE` (
+  `TP_GROUP_ID` int unsigned NOT NULL DEFAULT '0',
+  `TP_THREAD_NUMBER` int unsigned NOT NULL DEFAULT '0',
+  `PROCESS_COUNT` bigint unsigned NOT NULL DEFAULT '0',
+  `WAIT_TYPE` varchar(30) DEFAULT NULL,
+  `TP_THREAD_TYPE` varchar(32) NOT NULL DEFAULT '',
+  `THREAD_ID` bigint unsigned DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
+# 3. Show the columns of these tables how they are reported within
+#    information_schema.columns.
+SELECT TABLE_NAME, COLUMN_NAME,COLUMN_DEFAULT,IS_NULLABLE,DATA_TYPE,
+CHARACTER_MAXIMUM_LENGTH,CHARACTER_OCTET_LENGTH,NUMERIC_PRECISION,
+NUMERIC_SCALE,CHARACTER_SET_NAME,COLLATION_NAME,COLUMN_TYPE,EXTRA,
+PRIVILEGES,COLUMN_COMMENT
+FROM information_schema.columns
+WHERE table_schema = 'information_schema'
+  AND table_name IN
+('TP_THREAD_GROUP_STATS','TP_THREAD_GROUP_STATE','TP_THREAD_STATE')
+ORDER BY table_name,column_name;
+TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TP_THREAD_GROUP_STATE	ACTIVE_THREAD_COUNT		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	ALGORITHM		NO	varchar	6	20	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(20)		select	
+TP_THREAD_GROUP_STATE	CONNECT_THREAD_COUNT		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	CONNECTION_COUNT		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	CONSUMER_THREADS		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	MAX_THREAD_IDS_IN_GROUP		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	OLDEST_QUEUED		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATE	PRIO_KICKUP_TIMER		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	QUEUED_QUERIES		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	QUEUED_TRANSACTIONS		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	RESERVE_THREADS		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	STALL_LIMIT		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	STALLED_THREAD_COUNT		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	THREAD_COUNT		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	TP_GROUP_ID		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATE	WAITING_THREAD_NUMBER		YES	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATS	BECOME_CONSUMER_THREAD		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	BECOME_RESERVE_THREAD		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	BECOME_WAITING_THREAD		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	BINLOG_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	CONNECTIONS_CLOSED		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	CONNECTIONS_STARTED		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	DISK_IO_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	FSYNC_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	GLOBAL_LOCK_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	GROUP_COMMIT_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	META_DATA_LOCK_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	PRIO_KICKUPS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	QUERIES_EXECUTED		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	QUERIES_QUEUED		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	ROW_LOCK_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	SLEEP_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	STALLED_QUERIES_EXECUTED		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	TABLE_LOCK_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	THREADS_STARTED		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	TP_GROUP_ID		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_GROUP_STATS	USER_LOCK_WAITS		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_GROUP_STATS	WAKE_THREAD_STALL_CHECKER		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_STATE	PROCESS_COUNT		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_STATE	THREAD_ID		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned		select	
+TP_THREAD_STATE	TP_GROUP_ID		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_STATE	TP_THREAD_NUMBER		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	int unsigned		select	
+TP_THREAD_STATE	TP_THREAD_TYPE		NO	varchar	10	32	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(32)		select	
+TP_THREAD_STATE	WAIT_TYPE		YES	varchar	10	30	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(30)		select	
+# 4. All these tables contain a column named TP_GROUP_ID and
+#    these columns must be of the same type.
+SELECT COUNT(*) AS "Expect 1" FROM
+( SELECT COLUMN_DEFAULT,IS_NULLABLE,DATA_TYPE,NUMERIC_PRECISION,NUMERIC_SCALE,
+COLUMN_TYPE,EXTRA,PRIVILEGES
+FROM information_schema.columns
+WHERE table_schema = 'information_schema' AND column_name = 'TP_GROUP_ID' AND table_name = 'TP_THREAD_GROUP_STATS'
+  UNION DISTINCT
+SELECT COLUMN_DEFAULT,IS_NULLABLE,DATA_TYPE,NUMERIC_PRECISION,NUMERIC_SCALE,
+COLUMN_TYPE,EXTRA,PRIVILEGES
+FROM information_schema.columns
+WHERE table_schema = 'information_schema' AND column_name = 'TP_GROUP_ID' AND table_name = 'TP_THREAD_GROUP_STATE'
+  UNION DISTINCT
+SELECT COLUMN_DEFAULT,IS_NULLABLE,DATA_TYPE,NUMERIC_PRECISION,NUMERIC_SCALE,
+COLUMN_TYPE,EXTRA,PRIVILEGES
+FROM information_schema.columns
+WHERE table_schema = 'information_schema' AND column_name = 'TP_GROUP_ID' AND table_name = 'TP_THREAD_STATE') AS A;
+Expect 1
+1
+# 5. It must be impossible to alter the layout of these tables or
+#    or to modify their content.
+DELETE FROM information_schema.TP_THREAD_GROUP_STATS;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.TP_THREAD_GROUP_STATS ADD COLUMN garbage VARCHAR(20);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DELETE FROM information_schema.TP_THREAD_GROUP_STATE;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.TP_THREAD_GROUP_STATE ADD COLUMN garbage VARCHAR(20);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DELETE FROM information_schema.TP_THREAD_STATE;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.TP_THREAD_STATE ADD COLUMN garbage VARCHAR(20);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+# 6. It must be possible to SELECT on these tables.
+#    The printing of results is partially suppressed.
+#    A high privileged user should see the same like a low
+#    privileged user. Example:
+#    There must be @@global.thread_pool_size distinct TP_GROUP_ID
+#    values per table.
+CREATE USER low_privilege@localhost;
+GRANT USAGE ON test.* TO low_privilege@localhost;
+# Establish connection (low_privilege,localhost,low_privilege,,test)
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATS;
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATE;
+SELECT * FROM information_schema.TP_THREAD_STATE;
+SET @admin_thread_groups = 1;
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+'TP_THREAD_GROUP_STATS' AS "Table"
+FROM information_schema.TP_THREAD_GROUP_STATS
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+'TP_THREAD_GROUP_STATE'
+FROM information_schema.TP_THREAD_GROUP_STATE
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+'TP_THREAD_STATE'
+FROM information_schema.TP_THREAD_STATE;
+Expect 1	Table
+1	TP_THREAD_GROUP_STATS
+1	TP_THREAD_GROUP_STATE
+1	TP_THREAD_STATE
+Warnings:
+Warning	1287	'information_schema.tp_thread_group_stats' is deprecated and will be removed in a future release. Please use performance_schema.tp_thread_group_stats instead
+Warning	1287	'information_schema.tp_thread_group_state' is deprecated and will be removed in a future release. Please use performance_schema.tp_thread_group_state instead
+Warning	1287	'information_schema.tp_thread_state' is deprecated and will be removed in a future release. Please use performance_schema.tp_thread_state instead
+# Switch to connection default
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATS;
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATE;
+SELECT * FROM information_schema.TP_THREAD_STATE;
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+'TP_THREAD_GROUP_STATS' AS "Table"
+FROM information_schema.TP_THREAD_GROUP_STATS
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+'TP_THREAD_GROUP_STATE'
+FROM information_schema.TP_THREAD_GROUP_STATE
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+'TP_THREAD_STATE'
+FROM information_schema.TP_THREAD_STATE;
+Expect 1	Table
+1	TP_THREAD_GROUP_STATS
+1	TP_THREAD_GROUP_STATE
+1	TP_THREAD_STATE
+Warnings:
+Warning	1287	'information_schema.tp_thread_group_stats' is deprecated and will be removed in a future release. Please use performance_schema.tp_thread_group_stats instead
+Warning	1287	'information_schema.tp_thread_group_state' is deprecated and will be removed in a future release. Please use performance_schema.tp_thread_group_state instead
+Warning	1287	'information_schema.tp_thread_state' is deprecated and will be removed in a future release. Please use performance_schema.tp_thread_state instead
+DROP USER low_privilege@localhost;
+#
+# Bug#34020058 - Extend PFS.tp_thread_state table to include PFS thread_id and TP thread type
+#
+# PFS thread id and thread type of each thread should be listed.
+SELECT TP_GROUP_ID, WAIT_TYPE, TP_THREAD_TYPE FROM information_schema.TP_THREAD_STATE WHERE TP_GROUP_ID = 0
+AND TP_THREAD_TYPE = 'CONNECTION_HANDLER_WORKER_THREAD';
+TP_GROUP_ID	WAIT_TYPE	TP_THREAD_TYPE
+0	NULL	CONNECTION_HANDLER_WORKER_THREAD
+Warnings:
+Warning	1287	'information_schema.tp_thread_state' is deprecated and will be removed in a future release. Please use performance_schema.tp_thread_state instead
+SELECT TP_GROUP_ID, WAIT_TYPE, TP_THREAD_TYPE FROM information_schema.TP_THREAD_STATE WHERE TP_GROUP_ID = 0
+AND TP_THREAD_TYPE = 'QUERY_WORKER_THREAD' LIMIT 1;
+TP_GROUP_ID	WAIT_TYPE	TP_THREAD_TYPE
+0	NULL	QUERY_WORKER_THREAD
+Warnings:
+Warning	1287	'information_schema.tp_thread_state' is deprecated and will be removed in a future release. Please use performance_schema.tp_thread_state instead
+#
+# Bug#36359860: No deprecation warning when accessing TP I_S tables
+#
+# Show increase in I_S usage counter from running this test
+SELECT VARIABLE_VALUE - @saved_deprecated_i_s_usage_count AS EXPECT_14
+FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Deprecated_thread_pool_i_s_usage_count';
+EXPECT_14
+14

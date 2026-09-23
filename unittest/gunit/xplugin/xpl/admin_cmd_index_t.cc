@@ -72,6 +72,14 @@ class Admin_command_index_test : public ::testing::Test {
     args.reset(new Admin_command_arguments_object(list));
   }
 
+  void expect_no_backslash_escapes(const int count = 1,
+                                   const bool value = false) {
+    EXPECT_CALL(data_context,
+                is_sql_mode_set(Eq(std::string("NO_BACKSLASH_ESCAPES"))))
+        .Times(count)
+        .WillRepeatedly(Return(value));
+  }
+
   StrictMock<mock::Sql_session> data_context;
   StrictMock<mock::Client> client;
   StrictMock<mock::Protocol_encoder> encoder;
@@ -331,6 +339,8 @@ TEST_F(Admin_command_index_test, create_bad_constraint) {
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_with_virtual_column) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
                       Return(ngs::Success())));
@@ -356,6 +366,8 @@ TEST_F(Admin_command_index_test, create_regular_index_with_virtual_column) {
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_with_stored_column) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
                       Return(ngs::Success())));
@@ -381,6 +393,8 @@ TEST_F(Admin_command_index_test, create_regular_index_with_stored_column) {
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_without_column) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
                       Return(ngs::Success())));
@@ -405,6 +419,8 @@ TEST_F(Admin_command_index_test, create_regular_index_without_column) {
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_with_two_virtual_column) {
+  expect_no_backslash_escapes(3);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
                       Return(ngs::Success())));
@@ -439,6 +455,8 @@ TEST_F(Admin_command_index_test, create_regular_index_with_two_virtual_column) {
 }
 
 TEST_F(Admin_command_index_test, create_spatial_index) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
                       Return(ngs::Success())));
@@ -478,6 +496,8 @@ TEST_F(Admin_command_index_test, create_unique_spatial_index) {
 }
 
 TEST_F(Admin_command_index_test, create_unable_to_create) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
                       Return(ngs::Success())));
@@ -503,6 +523,8 @@ TEST_F(Admin_command_index_test, create_unable_to_create) {
 }
 
 TEST_F(Admin_command_index_test, create_bd_null_error_required_field_missing) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
                       Return(ngs::Success())));
@@ -529,6 +551,8 @@ TEST_F(Admin_command_index_test, create_bd_null_error_required_field_missing) {
 }
 
 TEST_F(Admin_command_index_test, create_bd_null_error) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
                       Return(ngs::Success())));
@@ -551,6 +575,8 @@ TEST_F(Admin_command_index_test, create_bd_null_error) {
 }
 
 TEST_F(Admin_command_index_test, create_unable_to_craete_spatial_index) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
                       Return(ngs::Success())));
@@ -582,6 +608,8 @@ TEST_F(Admin_command_index_test, create_unable_to_craete_spatial_index) {
 }
 
 TEST_F(Admin_command_index_test, create_fulltext_index) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
                       Return(ngs::Success())));
@@ -609,6 +637,8 @@ TEST_F(Admin_command_index_test, create_fulltext_index) {
 }
 
 TEST_F(Admin_command_index_test, create_fulltext_index_with_parser) {
+  expect_no_backslash_escapes(2);
+
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
                       Return(ngs::Success())));

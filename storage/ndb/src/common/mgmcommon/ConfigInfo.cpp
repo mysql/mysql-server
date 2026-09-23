@@ -52,6 +52,8 @@
 #define _STR_VALUE(x) #x
 #define STR_VALUE(x) _STR_VALUE(x)
 
+static int configErrorInsert = 0;
+
 /****************************************************************************
  * Section names
  ****************************************************************************/
@@ -2170,6 +2172,8 @@ ConfigInfo::ConfigInfo() : m_info(true), m_systemDefaults(true) {
   }
 }
 
+void ConfigInfo::insertError(int err) { configErrorInsert = err; }
+
 /****************************************************************************
  * Getters
  ****************************************************************************/
@@ -2854,7 +2858,7 @@ static bool checkLocalhostHostnameMix(InitConfigFileParser::Context &ctx,
     ctx.m_userProperties.put("$computer-localhost", hostname);
   }
 
-  if (localhost_used) {
+  if (localhost_used && configErrorInsert != 904) {
     ctx.reportError(
         "Mixing of localhost (default for [NDBD]HostName) with other "
         "hostname(%s) is illegal",

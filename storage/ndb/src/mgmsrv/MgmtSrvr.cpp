@@ -3787,16 +3787,27 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
                                   const ndb_sockaddr *client_addr,
                                   int &error_code, BaseString &error_string,
                                   Uint32 timeout_s) {
-  if (m_opts.no_nodeid_checks) {
-    if (nodeid == 0) {
-      error_string.appfmt(
-          "no-nodeid-checks set in management server. "
-          "node id must be set explicitly in connectstring");
-      error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-      return false;
-    }
+  /* Skip all checks; just approve the requested node id. This error insert
+     replaces the original behavior of the --no-nodeid-checks option.
+  */
+  if (ERROR_INSERTED(901)) {
+    require(nodeid > 0);
     return true;
   }
+
+  /* Check the node id request. There are several stages of checks:
+      1) Fundamental checks: is the cluster configuration available, does the
+         requested id exist in it, does its configured type match the requested
+         type?
+      2) The address check: using the client's socket address, the configured
+         hostnames, and the DNS, match the request to a configured hostname.
+         This can be skipped using --skip-nodeid-address-checks.
+      3) The distributed availability check: every running mgm and db node must
+         confirm that the id is available (not currently connected, and not in
+         failure handling).
+  */
+
+  /* 1) Fundamental checks */
   /* Don't allow allocation of this ndb_mgmd's nodeid */
   assert(_ownNodeId);
   if (nodeid == _ownNodeId) {
@@ -3832,8 +3843,7 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
       if (NdbTick_Elapsed(start, now).milliSec() > timeout_ms) {
         error_code = NDB_MGM_ALLOCID_ERROR;
         error_string.append(
-            "Unable to allocate nodeid as configuration"
-            " not yet confirmed");
+            "Unable to allocate nodeid as configuration not yet confirmed");
         return false;
       }
 
@@ -3866,8 +3876,20 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
 
   /* Choose subset of candidates matching client address */
   Vector<PossibleNode> nodes;
-  match_client_addr_to_config_nodes(nodeid, type, client_addr, config_nodes,
-                                    nodes);
+
+  /* 2) The address check */
+  if (m_opts.nodeid_check_addr) {
+    match_client_addr_to_config_nodes(nodeid, type, client_addr, config_nodes,
+                                      nodes);
+  } else if (nodeid) {
+    nodes.push_back({nodeid, "", false});
+  } else {
+    error_string.appfmt(
+        "nodeid-address-check disabled in management server. "
+        "node id must be set explicitly in connectstring");
+    error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+    return false;
+  }
 
   if (nodes.size() == 0) {
     /**
@@ -3954,6 +3976,7 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
     }
   }
 
+  /* 3) The distributed availability check */
   const int try_alloc_rc = try_alloc_from_list(nodeid, type, timeout_ms, nodes,
                                                error_code, error_string);
   if (try_alloc_rc == 0) {
@@ -4665,7 +4688,7 @@ void MgmtSrvr::show_variables(NdbOut &out) {
   out << "config_filename: " << str_null(m_opts.config_filename) << endl;
   out << "mycnf: " << yes_no(m_opts.mycnf) << endl;
   out << "bind_address: " << str_null(m_opts.bind_address) << endl;
-  out << "no_nodeid_checks: " << yes_no(m_opts.no_nodeid_checks) << endl;
+  out << "check_address: " << yes_no(m_opts.nodeid_check_addr) << endl;
   out << "print_full_config: " << yes_no(m_opts.print_full_config) << endl;
   out << "configdir: " << str_null(m_opts.configdir) << endl;
   out << "config_cache: " << yes_no(m_opts.config_cache) << endl;

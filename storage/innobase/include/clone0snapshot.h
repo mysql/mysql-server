@@ -632,6 +632,18 @@ class Clone_Snapshot {
   @return file context */
   Clone_file_ctx *get_redo_file_ctx(uint32_t chunk_num, uint32_t hint_index);
 
+  /** Legacy low-level path construction helper.
+  This method preserves the historical path building behavior and performs
+  no containment validation on the computed result. New code should not call
+  it directly; use build_file_path() instead.
+  @param[in]    data_dir        destination data directory
+  @param[in]    file_desc       file metadata from donor
+  @param[out]   file_path       computed destination path
+  @return error code (0 on success) */
+  int build_file_path_unsafe(const char *data_dir,
+                             const Clone_File_Meta *file_desc,
+                             std::string &file_path);
+
   /** Get wait information string based on wait type.
   @param[in]    wait_type       wait type
   @return wait information string. */

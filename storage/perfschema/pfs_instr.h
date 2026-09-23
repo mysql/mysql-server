@@ -59,6 +59,7 @@ class THD;
 #include "my_compiler.h"
 #include "my_hostname.h" /* HOSTNAME_LENGTH */
 #include "sql/mdl.h"
+#include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_con_slice.h"
 #include "storage/perfschema/pfs_events_stages.h"
@@ -108,8 +109,8 @@ struct PFS_mutex : public PSI_mutex {
   /** Container page. */
   PFS_opaque_container_page *m_page;
 
-  /** Mutex identity, typically a @c pthread_mutex_t. */
-  const void *m_identity;
+  /** Mutex identity. */
+  pfs_identity m_identity;
   /** Mutex class. */
   PFS_mutex_class *m_class;
   /** Instrument statistics. */
@@ -134,8 +135,8 @@ struct PFS_rwlock : public PSI_rwlock {
   /** Container page. */
   PFS_opaque_container_page *m_page;
 
-  /** RWLock identity, typically a @c pthread_rwlock_t. */
-  const void *m_identity;
+  /** RWLock identity. */
+  pfs_identity m_identity;
   /** RWLock class. */
   PFS_rwlock_class *m_class;
   /** Instrument statistics. */
@@ -167,8 +168,8 @@ struct PFS_cond : public PSI_cond {
   /** Container page. */
   PFS_opaque_container_page *m_page;
 
-  /** Condition identity, typically a @c pthread_cond_t. */
-  const void *m_identity;
+  /** Condition identity. */
+  pfs_identity m_identity;
   /** Condition class. */
   PFS_cond_class *m_class;
   /** Condition instance usage statistics. */
@@ -179,8 +180,8 @@ struct PFS_cond : public PSI_cond {
 struct PFS_ALIGNED PFS_file : public PFS_instr {
   uint32 get_version() { return m_lock.get_version(); }
 
-  /** File identity */
-  const void *m_identity;
+  /** File identity. */
+  pfs_identity m_identity;
   /** File name. */
   PFS_file_name m_file_name;
   /** File class. */
@@ -266,8 +267,8 @@ struct PFS_ALIGNED PFS_table {
   ulonglong m_owner_event_id;
   /** Table share. */
   PFS_table_share *m_share;
-  /** Table identity, typically a handler. */
-  const void *m_identity;
+  /** Table identity. */
+  pfs_identity m_identity;
   /** Table statistics. */
   PFS_table_stat m_table_stat;
   /** Current internal lock. */
@@ -296,8 +297,8 @@ struct PFS_socket : public PSI_socket {
 
   uint32 get_version() { return m_lock.get_version(); }
 
-  /** Socket identity, typically int */
-  const void *m_identity;
+  /** Socket identity. */
+  pfs_identity m_identity;
   /** Owning thread, if applicable */
   PFS_thread *m_thread_owner;
   /** Socket file descriptor */
@@ -319,7 +320,7 @@ struct PFS_ALIGNED PFS_metadata_lock : public PFS_instr {
   uint32 get_version() { return m_lock.get_version(); }
 
   /** Lock identity. */
-  const void *m_identity;
+  pfs_identity m_identity;
   MDL_key m_mdl_key;
   opaque_mdl_type m_mdl_type;
   opaque_mdl_duration m_mdl_duration;

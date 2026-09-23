@@ -280,7 +280,7 @@ int table_metadata_locks::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_object.set_nullable_field(f->field_index(), f);
           break;
         case 4: /* OBJECT_INSTANCE */
-          set_field_ulonglong(f, (intptr)m_row.m_identity);
+          set_field_ulonglong(f, m_row.m_identity);
           break;
         case 5: /* LOCK_TYPE */
           set_field_mdl_type(f, m_row.m_mdl_type);

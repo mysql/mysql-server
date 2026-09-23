@@ -1,0 +1,6 @@
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-max-transactions-limit':.*value .* adjusted to 0 found]
+SET SESSION thread_pool_max_transactions_limit = -1;
+ERROR HY000: Variable 'thread_pool_max_transactions_limit' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL thread_pool_max_transactions_limit = -1;
+ERROR 42000: Variable 'thread_pool_max_transactions_limit' can't be set to the value of '-1'

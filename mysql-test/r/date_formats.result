@@ -697,3 +697,12 @@ STR_TO_DATE('0000-00-00','%Y-%m-%d')
 NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '0000-00-00' for function str_to_date
+#
+# Bug#39135197: failing Item_func_str_to_temporal::eval_datetime
+#
+SELECT STR_TO_DATE(IFNULL(PERIOD_ADD('*(+(', 0xa0),
+BIT_OR(OCT(18446744073709551616))), '%i%m%T%V%U');
+ERROR HY000: Incorrect arguments to period_add
+SELECT (ST_SIMPLIFY(PERIOD_DIFF(15898334837425003442, -9223372036854775807),
+10) <> CURRENT_TIMESTAMP);
+ERROR HY000: Incorrect arguments to period_diff

@@ -1,0 +1,118 @@
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.to_lock (col1 BIGINT) ENGINE = InnoDB;
+INSERT INTO mysqltest.to_lock
+VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(11);
+CREATE TABLE mysqltest.book_keeping (
+worker_id  INTEGER,
+session_id INTEGER,
+worker_type ENUM('first','second') DEFAULT NULL,
+task_size ENUM('small','medium','big') DEFAULT 'small',
+task_transaction BOOLEAN DEFAULT 0,
+task_prepared BOOLEAN DEFAULT 0,
+high_priority_connection BOOLEAN DEFAULT 0,
+counter    BIGINT,
+mysql_errno INTEGER,
+PRIMARY KEY(worker_id))
+ENGINE = MEMORY;
+CREATE TABLE mysqltest.start_statistics (
+WHAT ENUM('before','after') NOT NULL,
+QUERIES_EXECUTED BIGINT(20) UNSIGNED,
+QUERIES_QUEUED BIGINT(20) UNSIGNED,
+PRIO_KICKUPS BIGINT(20) UNSIGNED,
+STALLED_QUERIES_EXECUTED BIGINT(20) UNSIGNED,
+BECOME_CONSUMER_THREAD BIGINT(20) UNSIGNED,
+BECOME_RESERVE_THREAD BIGINT(20) UNSIGNED,
+BECOME_WAITING_THREAD BIGINT(20) UNSIGNED,
+WAKE_THREAD_STALL_CHECKER BIGINT(20) UNSIGNED,
+SLEEP_WAITS BIGINT(20) UNSIGNED,
+DISK_IO_WAITS BIGINT(20) UNSIGNED,
+ROW_LOCK_WAITS BIGINT(20) UNSIGNED,
+GLOBAL_LOCK_WAITS BIGINT(20) UNSIGNED,
+META_DATA_LOCK_WAITS BIGINT(20) UNSIGNED,
+TABLE_LOCK_WAITS BIGINT(20) UNSIGNED,
+USER_LOCK_WAITS BIGINT(20) UNSIGNED,
+BINLOG_WAITS BIGINT(20) UNSIGNED,
+GROUP_COMMIT_WAITS BIGINT(20) UNSIGNED,
+FSYNC_WAITS BIGINT(20) UNSIGNED,
+PRIMARY KEY(WHAT))
+ENGINE = MEMORY;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE mysqltest.statistics
+LIKE mysqltest.start_statistics;
+ALTER TABLE mysqltest.statistics
+DROP COLUMN WHAT,
+ADD COLUMN prio_kickup_timer BIGINT,
+ADD COLUMN first_counter BIGINT,
+ADD COLUMN second_counter BIGINT;
+SET @@SESSION.lock_wait_timeout = 10;
+LOCK TABLES mysqltest.to_lock WRITE;
+INSERT INTO mysqltest.to_lock VALUES(1);
+KILL QUERY <id>;
+ERROR 70100: Query execution was interrupted
+UNLOCK TABLES;
+SET @first_high_priority_connection = 1, @second_high_priority_connection = 0;
+SET @first_size =               'small', @second_size =               'small';
+SET @first_transaction =              0, @second_transaction =              0;
+SET @first_prepared =                 0, @second_prepared =                 0;
+SELECT COUNT(*),worker_type,high_priority_connection,task_size,task_transaction,task_prepared
+FROM mysqltest.book_keeping
+GROUP BY worker_type;
+COUNT(*)	worker_type	high_priority_connection	task_size	task_transaction	task_prepared
+5	first	1	small	0	0
+5	second	0	small	0	0
+SELECT AVG(first_counter), AVG(second_counter),
+AVG(PRIO_KICKUPS),  AVG(BECOME_WAITING_THREAD)
+INTO @first_counter_0, @second_counter_0,
+@PRIO_KICKUPS_0, @BECOME_WAITING_THREAD_0
+FROM mysqltest.statistics
+WHERE prio_kickup_timer = 0
+GROUP BY prio_kickup_timer;
+SELECT AVG(first_counter), AVG(second_counter),
+AVG(PRIO_KICKUPS),  AVG(BECOME_WAITING_THREAD)
+INTO @first_counter_1, @second_counter_1,
+@PRIO_KICKUPS_1, @BECOME_WAITING_THREAD_1
+FROM mysqltest.statistics
+WHERE prio_kickup_timer = 1
+GROUP BY prio_kickup_timer;
+SELECT AVG(first_counter), AVG(second_counter),
+AVG(PRIO_KICKUPS),  AVG(BECOME_WAITING_THREAD)
+INTO @first_counter_512, @second_counter_512,
+@PRIO_KICKUPS_512, @BECOME_WAITING_THREAD_512
+FROM mysqltest.statistics
+WHERE prio_kickup_timer = 512
+GROUP BY prio_kickup_timer;
+SELECT AVG(first_counter), AVG(second_counter),
+AVG(PRIO_KICKUPS),  AVG(BECOME_WAITING_THREAD)
+INTO @first_counter_4096, @second_counter_4096,
+@PRIO_KICKUPS_4096, @BECOME_WAITING_THREAD_4096
+FROM mysqltest.statistics
+WHERE prio_kickup_timer = 4096
+GROUP BY prio_kickup_timer;
+# Printing of result sets is disabled.
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATS;
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATE;
+SELECT * FROM information_schema.TP_THREAD_STATE;
+SELECT * FROM performance_schema.tp_thread_group_stats;
+SELECT * FROM performance_schema.tp_thread_group_state;
+SELECT * FROM performance_schema.tp_thread_state;
+DROP DATABASE mysqltest;
+SET @@GLOBAL.THREAD_POOL_PRIO_KICKUP_TIMER = <initial_value>;

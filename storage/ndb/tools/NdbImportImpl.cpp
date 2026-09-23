@@ -845,8 +845,13 @@ void NdbImportImpl::Team::do_run() {
 void NdbImportImpl::Team::run_worker(Worker *w) {
   log_debug(1, "run_worker: " << *w);
   w->lock();
-  w->m_state = WorkerState::State_run;
-  w->signal();
+  if (w->m_state == WorkerState::State_wait) {
+    w->m_state = WorkerState::State_run;
+    w->signal();
+  } else {
+    assert(w->m_state == WorkerState::State_stop ||
+           w->m_state == WorkerState::State_stopped);
+  }
   w->unlock();
 }
 
@@ -1021,9 +1026,9 @@ void NdbImportImpl::Worker::do_start() {
     m_state = WorkerState::State_stop;
   }
   m_seed = (unsigned)(NdbHost_GetProcessId() ^ m_workerno);
+  lock();
   while (m_state != WorkerState::State_stopped) {
     log_debug(2, "slice: " << m_slice);
-    lock();
     m_idle = false;
     switch (m_state) {
       case WorkerState::State_null:
@@ -1076,7 +1081,9 @@ void NdbImportImpl::Worker::do_start() {
     } else {
       NdbSleep_MilliSleep(opt.m_checkloop);
     }
+    lock();
   }
+  unlock();
   log_debug(1, "stopped");
 }
 

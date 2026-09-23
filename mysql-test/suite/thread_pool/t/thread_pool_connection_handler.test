@@ -1,0 +1,82 @@
+--source include/have_debug.inc
+--source include/have_thread_pool.inc
+
+--echo # Need to start with just one connection. Otherwise the check against
+--echo # max_connections = 3 will fail earlier than expected. With thread pool
+--echo # connections are established asynchronously by a connection handler
+--echo # thread so it may take a while for the connection_count variable to
+--echo # be decremented when connection creation fails.
+let $status_var= Threads_connected;
+let $status_var_value= 1;
+--source include/wait_for_status_var.inc
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+# Save global variables that are going to be used in this connection.
+SET @old_debug= @@GLOBAL.debug;
+SET @orig_max_connections= @@global.max_connections;
+--enable_connect_log
+
+# Make 3 connects and issue SELECT 1 and then disconnect each of three
+# connections.
+connect (con1, localhost, root,,mysql);
+SELECT 1;
+connect (con2, localhost, root,,mysql);
+SELECT 1;
+connect (con3, localhost, root,,mysql);
+SELECT 1;
+
+disconnect con3;
+--source include/wait_until_disconnected.inc
+
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connection default;
+# Test various error conditions.
+
+# Test ER_CON_COUNT_ERROR.
+set global max_connections= 3;
+connect (con1, localhost, root,,mysql);
+connect (con2, localhost, root,,mysql);
+connect (con3, localhost, root,,mysql);
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_CON_COUNT_ERROR
+connect (con4, localhost, root,,mysql);
+
+connection con3;
+disconnect con3;
+--source include/wait_until_disconnected.inc
+
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connection default;
+
+# Test resource allocation failure like out of memory.
+SET GLOBAL debug= '+d,simulate_resource_failure';
+SHOW VARIABLES like 'DEBUG';
+call mtr.add_suppression("Failed to allocate thd");
+call mtr.add_suppression("Out of memory");
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+connect (con1, localhost, root,,mysql);
+
+connection default;
+let $status_var= Threads_connected;
+let $status_var_value= 1;
+--source include/wait_for_status_var.inc
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+SET GLOBAL debug= @old_debug;
+SET GLOBAL max_connections= @orig_max_connections;

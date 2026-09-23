@@ -30,7 +30,7 @@
 #include <memory>
 
 #include "classic_connection_base.h"
-#include "processor.h"
+#include "processors/base/processor.h"
 
 class MysqlRoutingClassicConnection : public MysqlRoutingClassicConnectionBase {
  private:

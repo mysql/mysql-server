@@ -1,0 +1,11 @@
+# Test to check basic properties of a loaded thread pool plugin.
+
+--source include/have_thread_pool.inc
+
+SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME = 'THREAD_POOL';
+
+--error ER_PLUGIN_NO_UNINSTALL
+UNINSTALL PLUGIN thread_pool;
+

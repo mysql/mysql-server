@@ -113,7 +113,7 @@ StartTransactionParser::parse() {
         if (!accept(',')) break;
       } while (true);
 
-      if (accept(END_OF_INPUT)) {
+      if (accept_end_of_stmt()) {
         return ret_type{
             std::in_place,
             StartTransaction{access_mode, with_consistent_snapshot}};
@@ -130,7 +130,7 @@ StartTransactionParser::parse() {
 
   if (accept(BEGIN_SYM)) {
     if (accept(WORK_SYM)) {
-      if (accept(END_OF_INPUT)) {
+      if (accept_end_of_stmt()) {
         return ret_type{std::in_place, StartTransaction{}};
       }
 
@@ -140,7 +140,7 @@ StartTransactionParser::parse() {
           to_string(token()));
     }
 
-    if (accept(END_OF_INPUT)) {
+    if (accept_end_of_stmt()) {
       return ret_type{std::in_place, StartTransaction{}};
     }
     return stdx::unexpected(
@@ -151,6 +151,12 @@ StartTransactionParser::parse() {
 
   // not matched.
   return {};
+}
+
+bool StartTransactionParser::accept_end_of_stmt() {
+  if (accept(END_OF_INPUT)) return true;
+
+  return accept(';') && accept(END_OF_INPUT);
 }
 
 stdx::expected<std::variant<std::monostate, StartTransaction::AccessMode, bool>,

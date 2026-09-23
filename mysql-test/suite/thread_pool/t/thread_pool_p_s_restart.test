@@ -1,0 +1,90 @@
+# This test is added to test WL#11547.
+#
+# As this WL updates DD tables with PERFORMANCE_SCHEMA table plugin's
+# metadata, the following test cases make sure if server restarts does
+# proper updates to DD tables.
+#
+# Case1: Check if tp_thread_state exists.
+#
+# Case2: Restart server without the thread_pool plugin,
+# plugin and check if it is removed.
+#
+# Case3: Restart server with the thread_pool plugin,
+# plugin and check if it is added again.
+#
+
+--source include/big_test.inc
+--source include/have_thread_pool.inc
+
+--echo # Case 1:
+--echo # Start the server with the thread_pool plugin.
+--echo # Check the performance_schema tables are visible.
+
+--sorted_result
+SELECT TABLE_SCHEMA, TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'tp_%' or TABLE_NAME LIKE 'TP_%';
+
+show create table performance_schema.tp_thread_state;
+show create table performance_schema.tp_thread_group_state;
+show create table performance_schema.tp_thread_group_stats;
+show create table performance_schema.tp_connections;
+
+select count(*) != 0 as with_data from performance_schema.tp_thread_state;
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_state;
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_stats;
+select count(*) != 0 as with_data from performance_schema.tp_connections;
+
+--echo # Case 2:
+--echo # Restart the server without the thread_pool plugin.
+--echo # Check the performance_schema tables are removed.
+
+--replace_result $TP_THREAD_STATE_PLUGIN_OPT TP_THREAD_STATE_PLUGIN_OPT .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$TP_THREAD_GROUP_STATE_PLUGIN_OPT $TP_THREAD_GROUP_STATE_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+
+## This is currently broken,
+## I_S still has the metadata for performance_schema.tp_% tables,
+## even when they do not exist.
+
+--sorted_result
+SELECT TABLE_SCHEMA, TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'tp_%' or TABLE_NAME LIKE 'TP_%';
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.tp_thread_state;
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.tp_thread_group_state;
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.tp_thread_group_stats;
+
+--error ER_NO_SUCH_TABLE
+select count(*) != 0 as with_data from performance_schema.tp_thread_state;
+--error ER_NO_SUCH_TABLE
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_state;
+--error ER_NO_SUCH_TABLE
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_stats;
+
+--echo # Case 3:
+--echo # Restart the server with the thread_pool plugin.
+--echo # Check the performance_schema tables are added.
+
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD
+--source include/restart_mysqld.inc
+
+--sorted_result
+SELECT TABLE_SCHEMA, TABLE_NAME
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME LIKE 'tp_%' or TABLE_NAME LIKE 'TP_%';
+
+show create table performance_schema.tp_thread_state;
+show create table performance_schema.tp_thread_group_state;
+show create table performance_schema.tp_thread_group_stats;
+show create table performance_schema.tp_connections;
+
+select count(*) != 0 as with_data from performance_schema.tp_thread_state;
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_state;
+select count(*) != 0 as with_data from performance_schema.tp_thread_group_stats;
+select count(*) != 0 as with_data from performance_schema.tp_connections;

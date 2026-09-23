@@ -1,0 +1,162 @@
+SET @default_val =                    0;
+SET @min_val     =                    0;
+SET @max_val     =                    1;
+SET @some_val    =                    1;
+SELECT @min_val < @some_val AND @some_val < @max_val
+AND @some_val <> @default_val AS "Expect 1";
+Expect 1
+0
+CREATE USER low_priv@localhost;
+GRANT USAGE ON test.* TO low_priv@localhost;
+SET @default_val = <default_val>;
+SET @some_val = <some_val>;
+#---------------------BS_DYNVARS_102_01----------------------#
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @default_val AS "Expect 1";
+Expect 1
+1
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+Expect 1
+1
+SELECT @@thread_pool_high_priority_connection         = @default_val AS "Expect 1";
+Expect 1
+1
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @default_val AS "Expect 1";
+Expect 1
+1
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+Expect 1
+1
+SELECT @@thread_pool_high_priority_connection         = @default_val AS "Expect 1";
+Expect 1
+1
+#---------------------BS_DYNVARS_102_02----------------------#
+SET @initial_val = @@GLOBAL.thread_pool_high_priority_connection;
+SET @@GLOBAL.thread_pool_high_priority_connection = @some_val;
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @some_val AS "Expect 1";
+Expect 1
+1
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+Expect 1
+1
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @some_val AS "Expect 1";
+Expect 1
+1
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+Expect 1
+1
+SET @@GLOBAL.thread_pool_high_priority_connection = @default_val;
+SET @@SESSION.thread_pool_high_priority_connection = @some_val;
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @default_val AS "Expect 1";
+Expect 1
+1
+SELECT @@SESSION.thread_pool_high_priority_connection = @some_val AS "Expect 1";
+Expect 1
+1
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = @default_val;
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+Expect 1
+1
+SET @@GLOBAL.thread_pool_high_priority_connection = @some_val;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @default_val AS "Expect 1";
+Expect 1
+1
+SET @@SESSION.thread_pool_high_priority_connection = @some_val;
+SELECT @@SESSION.thread_pool_high_priority_connection = @some_val AS "Expect 1";
+Expect 1
+1
+SET @@GLOBAL.thread_pool_high_priority_connection = @some_val;
+SELECT @@GLOBAL.thread_pool_high_priority_connection = @@SESSION.thread_pool_high_priority_connection
+AS "Expect 1";
+Expect 1
+1
+DROP USER low_priv@localhost;
+#---------------------BS_DYNVARS_102_03----------------------#
+SET @@thread_pool_high_priority_connection = @min_val;
+SELECT @@thread_pool_high_priority_connection = @min_val AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = @max_val;
+SELECT @@thread_pool_high_priority_connection = @max_val AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = TRUE;
+SELECT @@thread_pool_high_priority_connection = 1 AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = FALSE;
+SELECT @@thread_pool_high_priority_connection = 0 AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = 0;
+SELECT @@thread_pool_high_priority_connection = 0 AS "Expect 1";
+Expect 1
+1
+#---------------------BS_DYNVARS_102_04----------------------#
+SET @@thread_pool_high_priority_connection = @some_val;
+SET @@thread_pool_high_priority_connection = @max_val + 1;
+ERROR 42000: Variable 'thread_pool_high_priority_connection' can't be set to the value of '2'
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = @min_val - 1;
+ERROR 42000: Variable 'thread_pool_high_priority_connection' can't be set to the value of '-1'
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = -1;
+ERROR 42000: Variable 'thread_pool_high_priority_connection' can't be set to the value of '-1'
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = 0.1;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = 10E-1;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+Expect 1
+1
+SET @@SESSION.thread_pool_high_priority_connection = ON;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+Expect 1
+1
+SET @@SESSION.thread_pool_high_priority_connection = OFF;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+Expect 1
+1
+SET @@thread_pool_high_priority_connection = TRUEX;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SET @@thread_pool_high_priority_connection = XTRUE;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SET @@thread_pool_high_priority_connection = FALSEX;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SET @@thread_pool_high_priority_connection = XFALSE;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SET @@thread_pool_high_priority_connection = ' ';
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SET @@thread_pool_high_priority_connection = " ";
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SET @@thread_pool_high_priority_connection = '1.1';
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+SET @@thread_pool_high_priority_connection = NULL;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_high_priority_connection'
+#---------------------BS_DYNVARS_102_05----------------------#
+SELECT @@GLOBAL.thread_pool_high_priority_connection = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'thread_pool_high_priority_connection';
+Expect 1
+1
+SELECT @@SESSION.thread_pool_high_priority_connection = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME = 'thread_pool_high_priority_connection';
+Expect 1
+1
+SET @@GLOBAL.thread_pool_high_priority_connection = @initial_val;

@@ -60,6 +60,23 @@ TEST_F(MemberVersionTest, AssertPatchVersion) {
   ASSERT_EQ(6, (int)this->version->get_patch_version());
 }
 
+TEST_F(MemberVersionTest, AssertVersionString) {
+  ASSERT_EQ("8.0.1", Member_version(0x080001).get_version_string());
+  ASSERT_EQ("8.0.15", Member_version(0x080015).get_version_string());
+  ASSERT_EQ("8.4.1", Member_version(0x080401).get_version_string());
+  ASSERT_EQ("8.4.15", Member_version(0x080415).get_version_string());
+  ASSERT_EQ("9.7.1", Member_version(0x090701).get_version_string());
+  ASSERT_EQ("9.7.15", Member_version(0x090715).get_version_string());
+  ASSERT_EQ("26.7.1", Member_version(0x260701).get_version_string());
+  ASSERT_EQ("26.7.15", Member_version(0x260715).get_version_string());
+  ASSERT_EQ("26.10.1", Member_version(0x261001).get_version_string());
+  ASSERT_EQ("26.10.15", Member_version(0x261015).get_version_string());
+  ASSERT_EQ("27.7.1", Member_version(0x270701).get_version_string());
+  ASSERT_EQ("27.7.15", Member_version(0x270715).get_version_string());
+  ASSERT_EQ("27.10.1", Member_version(0x271001).get_version_string());
+  ASSERT_EQ("27.10.15", Member_version(0x271015).get_version_string());
+}
+
 TEST_F(MemberVersionTest, AssertEqualsOperator) {
   Member_version const another_version(0x010206);  // version: 1.2.6
 

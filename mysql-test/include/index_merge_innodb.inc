@@ -95,3 +95,34 @@ WHERE c1 IN
 AND t1.d1 IS NULL;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#36584358: Wrong result with index_merge_union=off
+--echo #
+
+CREATE TABLE t1 (
+ f1 INTEGER,
+ f2 INTEGER,
+ KEY (f1 DESC,f2 DESC),
+ KEY (f2 DESC,f1)
+);
+INSERT INTO t1 VALUES (1,NULL),(2,NULL),(3,NULL),
+(NULL,NULL),(NULL,NULL),(NULL,NULL);
+ANALYZE TABLE t1;
+
+let query = SELECT f1 FROM t1 WHERE f1 OR f2;
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+SET @optimizer_switch_saved = @@optimizer_switch;
+SET optimizer_switch="index_merge_union=off";
+
+# It would return wrong result earlier.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+SET optimizer_switch="index_merge_union=on";
+SET @@optimizer_switch = @optimizer_switch_saved;
+
+
+DROP TABLE t1;

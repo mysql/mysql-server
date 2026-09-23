@@ -1,0 +1,17 @@
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+SET GLOBAL DEBUG = '+d,clone_send_invalid_data_file_index';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+ERROR HY000: Clone received unexpected response from Donor : Wrong Clone RPC: Invalid Data File Index.
+SELECT STATE, ERROR_NO > 0 AS error_set,
+LOCATE('Invalid Data File Index', ERROR_MESSAGE) > 0
+AS has_invalid_index
+FROM performance_schema.clone_status;
+STATE	error_set	has_invalid_index
+Failed	1	1
+SET GLOBAL DEBUG = '-d,clone_send_invalid_data_file_index';
+SET GLOBAL clone_max_concurrency = DEFAULT;
+SET GLOBAL clone_autotune_concurrency = DEFAULT;
+UNINSTALL PLUGIN clone;

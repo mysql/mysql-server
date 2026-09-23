@@ -1,0 +1,8 @@
+SET @initial_debug_sync = @@DEBUG_SYNC;
+SET @kill_target_id = <target_id_A_1_to_be_killed>;
+SET SESSION debug="+d,info,enter,sleep_after_connection_killed";
+SET DEBUG_SYNC='sleep_after_cleanup_started WAIT_FOR kill_flag EXECUTE 3';
+SET DEBUG_SYNC='handle_failed_connection_cleanup_started SIGNAL kill_flag EXECUTE 3';
+SELECT SLEEP(3);
+KILL @kill_target_id;
+SET DEBUG_SYNC='RESET';

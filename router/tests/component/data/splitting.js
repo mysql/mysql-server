@@ -322,7 +322,8 @@ var status_vars = {
         };
       }
     } else if ([
-                 "START TRANSACTION;", "START TRANSACTION", "BEGIN"
+                 "START TRANSACTION;", "START TRANSACTION", "BEGIN", "BEGIN;",
+                 "BEGIN WORK", "BEGIN WORK;"
                ].indexOf(stmt) !== -1) {
       mysqld.global.transaction_count++;
 
@@ -393,7 +394,7 @@ var status_vars = {
           ]
         }
       };
-    } else if (stmt === "COMMIT") {
+    } else if (stmt === "COMMIT" || stmt === "COMMIT;") {
       next_trx_is_read_only = true;
       in_transaction = false;
 
@@ -415,7 +416,7 @@ var status_vars = {
           ]
         }
       };
-    } else if (stmt === "ROLLBACK") {
+    } else if (stmt === "ROLLBACK" || stmt === "ROLLBACK;") {
       next_trx_is_read_only = true;
       in_transaction = false;
 

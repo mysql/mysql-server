@@ -2421,13 +2421,21 @@ void PT_with_clause::print(const THD *thd, String *str,
   size_t len1 = str->length();
   str->append("with ");
   if (m_recursive) str->append("recursive ");
-  size_t len2 = str->length(), len3 = len2;
+  size_t len2 = str->length();
+  size_t len3 = len2;
   for (auto el : m_list->elements()) {
+    size_t len_before = str->length();
+    size_t len3_before = len3;
     if (str->length() != len3) {
       str->append(", ");
       len3 = str->length();
     }
     el->print(thd, str, query_type);
+    if (str->length() == len3) {
+      // CTE was skipped (unused/merged) - roll back the separator too
+      str->length(len_before);
+      len3 = len3_before;
+    }
   }
   if (str->length() == len2)
     str->length(len1);  // don't print an empty WITH clause

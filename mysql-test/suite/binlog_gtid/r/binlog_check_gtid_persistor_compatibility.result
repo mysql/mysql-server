@@ -1,13 +1,14 @@
 
-# 1. Set debug points which save GTID in version 1 and cause
-#    a crash before GTID is persisted in table.
+# 1. Set debug points which save GTID in version 1 and disable
+#    clone GTID flushing during setup.
 
-# Adding debug point 'crash_before_gtid_table_persistor_save' to @@GLOBAL.debug
+# Adding debug point 'gtid_persist_flush_disable' to @@GLOBAL.debug
 # Adding debug point 'gtid_persistor_use_gtid_version_one' to @@GLOBAL.debug
 
-# 2. Execute queries, restart server after crash
+# 2. Execute setup query, set crash debug point, restart server after crash
 
 CREATE TABLE t (a INT);
+# Adding debug point 'crash_before_gtid_table_persistor_save' to @@SESSION.debug
 FLUSH LOGS;
 ERROR HY000: Lost connection to MySQL server during query
 

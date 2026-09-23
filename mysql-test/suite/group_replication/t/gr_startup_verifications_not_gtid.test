@@ -37,6 +37,7 @@ if (!`select count(*) from information_schema.plugins where PLUGIN_NAME like 'gr
 --echo # Test if gtid_mode with the wrong value will fail.
 --echo #
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

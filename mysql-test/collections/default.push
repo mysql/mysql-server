@@ -26,3 +26,7 @@ perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --timer --testcase-t
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
 
 perl mysql-test-run.pl --force --timer --comment=classic_hashing --vardir=var-classic_hashing  --suite=classic_hashing  --no-skip --big-test
+
+# Thread Pool Plugin
+perl mysql-test-run.pl --debug-server --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+

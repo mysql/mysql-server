@@ -34,6 +34,8 @@
 #ifndef MYSQL_BINLOG_EVENT_STATEMENT_EVENTS_H
 #define MYSQL_BINLOG_EVENT_STATEMENT_EVENTS_H
 
+#include <cstddef>
+
 #include "mysql/binlog/event/control_events.h"
 #include "mysql/udf_registration_types.h"
 
@@ -47,6 +49,16 @@ namespace mysql::binlog::event {
   range.
 */
 const uint64_t INVALID_XID = 0xffffffffffffffffULL;
+
+/// Validates DECIMAL user variable metadata and payload length.
+/// @param val Encoded user variable payload, starting with precision and scale.
+/// @param val_len Length of the encoded payload in bytes.
+/// @param max_precision Maximum allowed DECIMAL precision for the caller.
+/// @param max_scale Maximum allowed DECIMAL scale for the caller.
+/// @retval true The metadata is well-formed for the given payload.
+/// @retval false The metadata is incomplete, out of range, or inconsistent.
+bool is_user_var_decimal_metadata_valid(const char *val, std::size_t val_len,
+                                        int max_precision, int max_scale);
 
 /**
   @class Query_event

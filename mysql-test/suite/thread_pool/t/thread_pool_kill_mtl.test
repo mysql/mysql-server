@@ -1,0 +1,46 @@
+--source include/have_thread_pool.inc
+--source ../inc/admcon.inc
+
+CALL mtr.add_suppression("The default or user configured value thread_pool_query_threads_per_group.2. exceeds transaction threads limit per group .1.");
+
+--enable_connect_log
+--echo #
+--echo # Bug#34019954: KILL CONNECTION does not work correctly with
+--echo # thread_pool_max_transactions_limit
+--echo #
+
+CREATE TABLE t1(i INT);
+--echo # With MTL=1 we need to create two long-running transactions to block
+--echo # additional transactions/queries
+connect(con1,localhost,root,,,,,);
+let $victim_id = `SELECT CONNECTION_ID()`;
+
+connect(con2,localhost,root,,,,);
+BEGIN WORK;
+INSERT INTO t1 VALUES (2);
+
+connection admcon;
+--disable_query_log
+eval SET @victim_id = $victim_id;
+--enable_query_log
+
+KILL CONNECTION @victim_id;
+
+let $wait_condition = SELECT COUNT(*) = 0 FROM performance_schema.processlist WHERE ID = @victim_id;
+--source include/wait_condition.inc
+SELECT * FROM performance_schema.processlist WHERE ID = @victim_id;
+
+connection con2;
+COMMIT WORK;
+
+--disable_connect_log
+
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+connection admcon;
+disconnect admcon;
+--source include/wait_until_disconnected.inc
+
+connection default;
+DROP TABLE t1;

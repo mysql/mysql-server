@@ -2241,6 +2241,16 @@ class Gtid_set {
   };
 
  public:
+  /// Bit layout of the encoded n_sids + format header used by Gtid_set.
+  static constexpr uint64_t k_gtid_format_byte_mask = 0xffULL;
+  static constexpr uint64_t k_gtid_format_high_shift = 56;
+  static constexpr uint64_t k_gtid_format_low_shift = 8;
+  static constexpr uint64_t k_gtid_format_high_mask =
+      k_gtid_format_byte_mask << k_gtid_format_high_shift;
+  static constexpr uint64_t k_gtid_format_low_mask = k_gtid_format_byte_mask;
+  static constexpr uint64_t k_tagged_n_sids_mask =
+      ~(k_gtid_format_high_mask | k_gtid_format_low_mask);
+
   /// @brief Encodes this Gtid_set as a binary string.
   /// @param buf Buffer to write into
   /// @param skip_tagged_gtids When true, tagged GTIDS will be filtered out
@@ -2744,6 +2754,14 @@ class Owned_gtids {
     If thd_id!=0, returns true when gtid is owned by that thread.
   */
   bool is_owned_by(const Gtid &gtid, const my_thread_id thd_id) const;
+
+  /**
+    Returns true iff the given GTID is owned by exactly the given thread ID.
+
+    Unlike is_owned_by(), this does not treat thd_id==0 as a special
+    "unowned" query.
+  */
+  bool has_owner(const Gtid &gtid, const my_thread_id thd_id) const;
 
  private:
   /// Represents one owned GTID.

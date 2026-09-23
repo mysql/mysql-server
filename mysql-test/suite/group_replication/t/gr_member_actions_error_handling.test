@@ -60,6 +60,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_force_error_on_mysql_disable_super_read
 SET @@GLOBAL.DEBUG='+d,group_replication_force_action_error_handling_critical';
 
 SET GLOBAL group_replication_bootstrap_group= 1;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 SET GLOBAL group_replication_bootstrap_group= 0;
 

@@ -1,0 +1,116 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Assign Code Owners
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    branches: [trunk]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: assign-codeowners-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  assign:
+    if: ${{ !github.event.pull_request.draft && contains(github.event.pull_request.labels.*.name, 'OCA Verified') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Request review from code owners
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const codeownersRef = pr.base.sha;
+            const path = '.github/CODEOWNERS';
+
+            const response = await github.rest.repos.getContent({
+              ...context.repo,
+              path,
+              ref: codeownersRef,
+            });
+            if (Array.isArray(response.data) || response.data.type !== 'file' || !response.data.content) {
+              throw new Error(`${path} at ${codeownersRef} is not a readable file`);
+            }
+
+            const codeowners = Buffer.from(response.data.content, 'base64').toString('utf8');
+            const defaultLine = codeowners
+              .split(/\r?\n/)
+              .map((line) => line.replace(/\s+#.*$/, '').trim())
+              .find((line) => line && !line.startsWith('#') && line.split(/\s+/)[0] === '*');
+            if (!defaultLine) {
+              throw new Error(`No wildcard owner rule found in ${path} at ${codeownersRef}`);
+            }
+
+            const owners = [...new Set(
+              defaultLine
+                .split(/\s+/)
+                .slice(1)
+                .filter((owner) => owner.startsWith('@'))
+                .map((owner) => owner.slice(1))
+                .filter(Boolean),
+            )];
+            if (owners.length === 0) {
+              throw new Error(`Wildcard rule in ${path} has no GitHub user owners`);
+            }
+
+            const current = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pr.number,
+            });
+            const author = pr.user.login.toLowerCase();
+            const existing = new Set(
+              current.data.requested_reviewers.map((reviewer) => reviewer.login.toLowerCase()),
+            );
+            const eligible = owners.filter((owner) => owner.toLowerCase() !== author);
+            if (eligible.length === 0) {
+              throw new Error('No eligible code owners remain after excluding the pull request author');
+            }
+
+            const reviewers = eligible.filter((owner) => !existing.has(owner.toLowerCase()));
+            let reviewRequestSucceeded = reviewers.length === 0;
+            if (reviewers.length > 0) {
+              try {
+                await github.rest.pulls.requestReviewers({
+                  ...context.repo,
+                  pull_number: pr.number,
+                  reviewers,
+                });
+                reviewRequestSucceeded = true;
+              } catch (error) {
+                // Forks can retain upstream owners that are not collaborators.
+                // Keep the automation informational in that case.
+                if (error.status !== 422) throw error;
+                core.warning(`Could not request reviews: ${error.message}`);
+              }
+            }
+
+            if (!reviewRequestSucceeded) {
+              core.info('Skipping the review-request label because no reviewer was assigned.');
+              return;
+            }
+
+            const label = {
+              name: 'Review Requested',
+              color: '1D76DB',
+              description: 'Review requested from code owners',
+            };
+            try {
+              await github.rest.issues.getLabel({ ...context.repo, name: label.name });
+              await github.rest.issues.updateLabel({ ...context.repo, ...label });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.issues.createLabel({ ...context.repo, ...label });
+            }
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: pr.number,
+              labels: [label.name],
+            });
+
+            const assigned = reviewers.length > 0 ? reviewers : eligible;
+            core.info(`Review requested from ${assigned.map((owner) => `@${owner}`).join(', ')}.`);

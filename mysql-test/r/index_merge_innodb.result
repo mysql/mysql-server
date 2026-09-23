@@ -2378,3 +2378,42 @@ WHERE t2.c1 = 'f'
 AND t1.d1 IS NULL;
 c1
 DROP TABLE t1, t2;
+#
+# Bug#36584358: Wrong result with index_merge_union=off
+#
+CREATE TABLE t1 (
+f1 INTEGER,
+f2 INTEGER,
+KEY (f1 DESC,f2 DESC),
+KEY (f2 DESC,f1)
+);
+INSERT INTO t1 VALUES (1,NULL),(2,NULL),(3,NULL),
+(NULL,NULL),(NULL,NULL),(NULL,NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE f1 OR f2;
+EXPLAIN
+-> Filter: ((0 <> t1.f1) or (0 <> t1.f2))  (cost=0.85 rows=5.83)
+    -> Covering index scan on t1 using f1  (cost=0.85 rows=6)
+
+SELECT f1 FROM t1 WHERE f1 OR f2;
+f1
+3
+2
+1
+SET @optimizer_switch_saved = @@optimizer_switch;
+SET optimizer_switch="index_merge_union=off";
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE f1 OR f2;
+EXPLAIN
+-> Filter: ((0 <> t1.f1) or (0 <> t1.f2))  (cost=0.85 rows=5.83)
+    -> Covering index scan on t1 using f1  (cost=0.85 rows=6)
+
+SELECT f1 FROM t1 WHERE f1 OR f2;
+f1
+3
+2
+1
+SET optimizer_switch="index_merge_union=on";
+SET @@optimizer_switch = @optimizer_switch_saved;
+DROP TABLE t1;

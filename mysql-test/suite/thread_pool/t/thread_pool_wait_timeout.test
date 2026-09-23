@@ -1,0 +1,202 @@
+-- source include/have_thread_pool.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+SET @@global.log_error_verbosity= 3;
+
+--echo # Bug#13699303 - Thread Pool Plugin Ignores Timeout
+--echo # This test was taken from mtr main.wait_timeout and
+--echo # modified to test the same feature in thread pool
+
+if(`SELECT @@global.thread_pool_size < 2`)
+{
+     --die @@global.thread_pool_size must be >= 2, please check <testcase>-master.opt
+}
+
+#
+# Bug#8731 wait_timeout does not work on Mac OS X
+#
+
+let $start_value= `SELECT @@global.wait_timeout`;
+SET @@global.wait_timeout= 2;
+--echo disconnect default;
+disconnect default;
+
+# Connect with another connection and reset counters
+--disable_query_log
+connect (wait_con,localhost,root,,test,,);
+--echo connection wait_con;
+connection wait_con;
+SET SESSION wait_timeout=100;
+let $retries=300;
+SET @aborted_clients= 0;
+--enable_query_log
+
+# Disable reconnect and do the query
+connect (default,localhost,root,,test,,);
+--echo connection default;
+connection default;
+SELECT 1;
+
+# Switch to wait_con and wait until server has aborted the connection
+--disable_query_log
+--echo connection wait_con;
+connection wait_con;
+while (!`select @aborted_clients`)
+{
+  sleep 0.1;
+  let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
+  eval SET @aborted_clients= SUBSTRING('$aborted_clients', 16)+0;
+
+  dec $retries;
+  if (!$retries)
+  {
+    die Failed to detect that client has been aborted;
+  }
+}
+--enable_query_log
+# The server has disconnected, add small sleep to make sure
+# the disconnect has reached client
+let $wait_condition= SELECT COUNT(*)=2 FROM information_schema.processlist;
+--source include/wait_condition.inc
+--echo connection default;
+connection default;
+# When the connection is closed in this way, the error code should
+# be consistent see Bug#2845 for an explanation
+# depending on platform/client, either errno 2006 or 2013 can occur below
+--error 2006,2013
+SELECT 2;
+connect;
+SELECT 3;
+# Disconnect so that we will not be confused by a future abort from this
+# connection.
+--echo disconnection default;
+disconnect default;
+
+#
+# Do the same test as above on a TCP connection
+# (which we get by specifying an ip adress)
+
+# Connect with another connection and reset counters
+--disable_query_log
+--echo connection wait_con;
+connection wait_con;
+FLUSH STATUS; # Reset counters
+let $retries=300;
+SET @aborted_clients= 0;
+--enable_query_log
+
+--echo connection con1;
+connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+SELECT 1;
+
+# Switch to wait_con and wait until server has aborted the connection
+--disable_query_log
+--echo connection wait_con;
+connection wait_con;
+while (!`select @aborted_clients`)
+{
+  sleep 0.1;
+  let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
+  eval SET @aborted_clients= SUBSTRING('$aborted_clients', 16)+0;
+
+  dec $retries;
+  if (!$retries)
+  {
+    die Failed to detect that client has been aborted;
+  }
+}
+--enable_query_log
+# The server has disconnected, add small sleep to make sure
+# the disconnect has reached client
+let $wait_condition= SELECT COUNT(*)=2 FROM information_schema.processlist;
+--source include/wait_condition.inc
+disconnect wait_con;
+
+--echo connection con1;
+connection con1;
+# When the connection is closed in this way, the error code should
+# be consistent see Bug#2845 for an explanation
+# depending on platform/client, either errno 2006 or 2013 can occur below
+--error 2006,2013
+SELECT 2;
+connect;
+SELECT 3;
+--replace_result $start_value <start_value>
+eval SET @@global.wait_timeout= $start_value;
+--echo disconnection con1;
+disconnect con1;
+
+
+# The last connect is to keep tools checking the current test happy.
+connect (default,localhost,root,,test,,);
+
+--echo #
+--echo # Bug#54790: Use of non-blocking mode for sockets limits performance
+--echo #
+
+--echo #
+--echo # Test UNIX domain sockets timeout.
+--echo #
+
+--echo # Open con1 and set a timeout.
+connect(con1,localhost,root,,);
+
+LET $ID= `SELECT connection_id()`;
+SET @@SESSION.wait_timeout = 2;
+
+--echo # Wait for con1 to be disconnected.
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE ID = $ID;
+--source include/wait_condition.inc
+
+--echo # Check that con1 has been disconnected.
+connection con1;
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+SELECT 1;
+
+disconnect con1;
+connection default;
+
+--echo #
+--echo # Test TCP/IP sockets timeout.
+--echo #
+
+--echo # Open con1 and set a timeout.
+connect(con1,127.0.0.1,root,,);
+
+LET $ID= `SELECT connection_id()`;
+SET @@SESSION.wait_timeout = 2;
+
+--echo # Wait for con1 to be disconnected.
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE ID = $ID;
+--source include/wait_condition.inc
+
+--echo # Check that con1 has been disconnected.
+connection con1;
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+SELECT 1;
+
+disconnect con1;
+connection default;
+
+#
+# Bug #28940167 WAIT_TIMEOUT ERROR NOT CLEAR AND NOT SENT TO CLIENT BEFORE CLOSING CONNECTION
+#
+--echo # Must find the pattern of error:
+--echo # ER_NET_WAIT_ERROR
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN='wait_timeout' period of .* seconds was exceeded for .*\. The idle time since last command was too long\.
+source include/search_pattern.inc;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

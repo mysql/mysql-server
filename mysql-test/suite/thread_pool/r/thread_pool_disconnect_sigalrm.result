@@ -1,0 +1,16 @@
+CREATE TABLE t1(i INT);
+# Force the connection thread to terminate after processing this
+# connection. This makes the original thread id in Vio::thread_id
+# invalid.
+SET GLOBAL DEBUG="+d,terminate_connect_thread";
+BEGIN WORK;
+INSERT INTO t1 VALUES (0),(1),(2);
+SELECT TP_GROUP_ID, CONNECT_THREAD_COUNT FROM
+performance_schema.tp_thread_group_state WHERE TP_GROUP_ID = 0;
+TP_GROUP_ID	CONNECT_THREAD_COUNT
+0	0
+SET GLOBAL DEBUG="-d,terminate_connect_thread";
+# Kill connection
+KILL <CONNECTION-ID> ;
+# Cleanup
+DROP TABLE t1;

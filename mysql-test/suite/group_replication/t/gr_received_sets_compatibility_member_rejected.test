@@ -178,6 +178,7 @@ LOCK TABLE t1 READ;
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
 --send
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 
 --let $rpl_connection_name= server_2

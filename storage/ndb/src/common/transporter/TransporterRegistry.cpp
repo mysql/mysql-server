@@ -105,6 +105,10 @@ ndb_sockaddr TransporterRegistry::get_connect_address(TrpId trpId) const {
   return allTransporters[trpId]->m_connect_address;
 }
 
+bool TransporterRegistry::trpIdIsValid(TrpId id) const {
+  return (allTransporters[id] != nullptr);
+}
+
 Uint64 TransporterRegistry::get_bytes_sent(TrpId trpId) const {
   return allTransporters[trpId]->m_bytes_sent;
 }

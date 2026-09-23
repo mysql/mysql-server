@@ -23,8 +23,6 @@ SET @@GLOBAL.group_replication_view_change_uuid = 'c0dec0de-c0de-c0de-c0de-c0dec
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/stop_group_replication.inc
 
 ############################################################

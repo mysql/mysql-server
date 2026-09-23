@@ -664,3 +664,12 @@ INSERT INTO t1 VALUES ("1");
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x;
 SELECT * FROM t1 AS a JOIN t1 AS b ON a.x = REVERSE(1);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#38940484	MDLs released incorrectly when reading histograms
+--echo #
+CREATE TABLE t1 (i INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON i;
+FLUSH TABLES;
+SELECT * FROM t1;
+DROP TABLE t1;

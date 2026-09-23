@@ -719,7 +719,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> CPU_SYM 353
 %token  CREATE 354                        /* SQL-2003-R */
 %token  CROSS 355                         /* SQL-2003-R */
-%token<lexer.keyword> CUBE_SYM 356        /* SQL-2003-R */
+%token  CUBE_SYM 356                      /* SQL-2003-R */
 %token  CURDATE 357                       /* MYSQL-FUNC */
 %token<lexer.keyword> CURRENT_SYM 358           /* SQL-2003-R */
 %token  CURRENT_USER 359                  /* SQL-2003-R */
@@ -1449,12 +1449,12 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %token<lexer.keyword> PARALLEL_SYM       1208      /* MYSQL */
 %token<lexer.keyword> S3_SYM             1209      /* MYSQL */
-%token<lexer.keyword> QUALIFY_SYM        1210      /* MYSQL */
+%token  QUALIFY_SYM                      1210      /* MYSQL */
 
 %token<lexer.keyword> AUTO_SYM                   1211   /* MYSQL */
 %token<lexer.keyword> MANUAL_SYM                 1212   /* MYSQL */
 %token<lexer.keyword> BERNOULLI_SYM              1213  /* SQL-2016-N */
-%token<lexer.keyword> TABLESAMPLE_SYM            1214  /* SQL-2016-R */
+%token  TABLESAMPLE_SYM                          1214  /* SQL-2016-R */
 
 %token<lexer.keyword> VECTOR_SYM      1215     /* MYSQL */
 %token<lexer.keyword> PARAMETERS_SYM  1216     /* MYSQL */
@@ -1477,12 +1477,12 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> ALLOW_MISSING_FILES_SYM    1229     /* MYSQL */
 %token<lexer.keyword> AUTO_REFRESH_SYM           1230     /* MYSQL */
 %token<lexer.keyword> AUTO_REFRESH_SOURCE_SYM    1231     /* MYSQL */
-%token<lexer.keyword> VERIFY_KEY_CONSTRAINTS_SYM      1232     /* MYSQL */
-%token<lexer.keyword> STRICT_LOAD_SYM 1233     /* MYSQL */
-%token<lexer.keyword> EXTERNAL_FORMAT_SYM  1234     /* MySQL */
+%token<lexer.keyword> VERIFY_KEY_CONSTRAINTS_SYM 1232     /* MYSQL */
+%token<lexer.keyword> STRICT_LOAD_SYM            1233     /* MYSQL */
+%token<lexer.keyword> EXTERNAL_FORMAT_SYM        1234     /* MySQL */
 
-%token<lexer.keyword> EXTERNAL_SYM    1235     /* MYSQL */
-%token<lexer.keyword> MATERIALIZED_SYM      1236     /* MYSQL */
+%token  EXTERNAL_SYM                             1235     /* SQL-2023-R */
+%token<lexer.keyword> MATERIALIZED_SYM           1236     /* MYSQL */
 
 %token<lexer.keyword> GUIDED_SYM      1237     /* MYSQL */
 %token<lexer.keyword> SETS_SYM        1238   /* SQL-1999-N */
@@ -16263,6 +16263,7 @@ ident_keywords_unambiguous:
         | LOGS_SYM
         | LOG_SYM
         | NETWORK_NAMESPACE_SYM
+        | MANUAL_SYM
         | MASTER_SYM
         | MASKING_SYM
         | MATERIALIZED_SYM
@@ -16320,6 +16321,7 @@ ident_keywords_unambiguous:
         | OWNER_SYM
         | PACK_KEYS_SYM
         | PAGE_SYM
+        | PARALLEL_SYM
         | PARSER_SYM
         | PARSE_TREE_SYM
         | PARTIAL

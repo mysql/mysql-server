@@ -180,6 +180,7 @@ usr/lib/mysql/plugin/semisync_replica.so
 usr/lib/mysql/plugin/libpluginmecab.so
 usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/connection_control.so
+usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/component_connection_control.so
 usr/lib/mysql/plugin/component_keyring_file.so
 usr/lib/mysql/plugin/component_replication_applier_metrics.so

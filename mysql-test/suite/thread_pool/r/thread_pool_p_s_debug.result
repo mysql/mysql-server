@@ -1,0 +1,7 @@
+SET GLOBAL DEBUG="+d,filesort_force_sort_row_ids";
+# Disabling query log since the output is not stable, and not relevant
+# get coverage of the get_position/set_position member functions.
+SELECT * FROM performance_schema.tp_thread_group_state ORDER BY TP_GROUP_ID DESC;
+SELECT * FROM performance_schema.tp_thread_group_stats ORDER BY TP_GROUP_ID DESC;
+SELECT * FROM performance_schema.tp_thread_state ORDER BY TP_GROUP_ID DESC;
+SET GLOBAL DEBUG="-d,filesort_force_sort_row_ids";

@@ -1,0 +1,115 @@
+--source include/elide_costs.inc
+
+# Keep estimated rows in EXPLAIN ANALYZE output, but elide volatile costs,
+# timings, and actual row counts.
+let $elide_costs_time_and_actual = /[(]cost=[0-9.e+-]+ rows/(rows/;
+let $elide_costs_time_and_actual = $elide_costs_time_and_actual / *[(]actual time=[0-9.e+-]+[.][.][0-9.e+-]+ rows=[0-9.e+-]+ loops=[0-9]+[)]//;
+
+--echo #
+--echo # Bug 36061036 - Explain plan shows dynamic range,
+--echo # but bug causes no chance to use for LEFT JOIN
+--echo #
+
+SET @old_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch = 'hypergraph_optimizer=off';
+
+CREATE TABLE digits (d TINYINT PRIMARY KEY);
+INSERT INTO digits VALUES
+  (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
+CREATE TABLE seq_0_to_999 AS
+SELECT ones.d + 10 * tens.d + 100 * hundreds.d AS n
+FROM digits AS ones
+CROSS JOIN digits AS tens
+CROSS JOIN digits AS hundreds;
+
+CREATE TABLE t2 (
+  id INT NOT NULL,
+  value VARCHAR(32) NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_value (value)
+);
+
+INSERT INTO t2
+SELECT n + 1, CONCAT('name', LPAD(n + 1, 5, '0'))
+FROM seq_0_to_999
+WHERE n < 923
+ORDER BY n;
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  status CHAR(2) NOT NULL,
+  name VARCHAR(32) NOT NULL,
+  sequence INT NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_name (name)
+);
+
+INSERT INTO t1
+SELECT n + 1,
+       CASE MOD(n, 4)
+         WHEN 0 THEN 'NG'
+         WHEN 1 THEN 'FA'
+         WHEN 2 THEN 'IT'
+         ELSE 'OK'
+       END,
+       CONCAT('name', LPAD(MOD(n, 923) + 1, 5, '0')),
+       MOD(n * 7, 923) + 1
+FROM (
+  SELECT n FROM seq_0_to_999
+  UNION ALL
+  SELECT n + 1000 FROM seq_0_to_999 WHERE n < 285
+) AS generated_rows
+ORDER BY n;
+
+INSERT INTO t1 VALUES (2000, 'NG', 'not-in-t2', 2000);
+
+ANALYZE TABLE t1, t2;
+
+let $query =
+SELECT COUNT(0)
+FROM t1
+JOIN t2
+  ON t2.value = t1.name
+  OR t2.id = t1.sequence
+WHERE t1.status IN ('NG', 'FA', 'IT');
+eval $query;
+# The bug is about the execution access path, not query result correctness:
+# EXPLAIN ANALYZE must show that dynamic range is used at execution time.
+--replace_regex $elide_costs_time_and_actual
+eval EXPLAIN ANALYZE $query;
+
+let $query =
+SELECT COUNT(0)
+FROM t1
+LEFT JOIN t2
+  ON t2.value = t1.name
+  OR t2.id = t1.sequence
+WHERE t1.status IN ('NG', 'FA', 'IT');
+eval $query;
+
+# Guard the LEFT JOIN semantics separately from the access-path assertion:
+# the unmatched row must still be preserved.
+let $query =
+SELECT SUM(t2.id IS NULL) AS unmatched_rows
+FROM t1
+LEFT JOIN t2
+  ON t2.value = t1.name
+  OR t2.id = t1.sequence
+WHERE t1.status IN ('NG', 'FA', 'IT');
+eval $query;
+
+let $query =
+SELECT COUNT(0)
+FROM t1
+LEFT JOIN t2
+  ON t2.value = t1.name
+  OR t2.id = t1.sequence
+WHERE t1.status IN ('NG', 'FA', 'IT');
+# The LEFT JOIN regression assertion is the stable access path text below,
+# especially "Index range scan ... (re-planned for each iteration)".
+--replace_regex $elide_costs_time_and_actual
+eval EXPLAIN ANALYZE $query;
+
+DROP TABLE t1, t2, seq_0_to_999, digits;
+SET optimizer_switch = @old_optimizer_switch;

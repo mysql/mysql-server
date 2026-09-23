@@ -2046,7 +2046,7 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
   ulint comp;
   ulint i;
   /* maximum possible storage size of a record */
-  ulint rec_max_size;
+  size_t rec_max_size;
 
   if (dict_index_is_ibuf(index)) {
     /* cannot estimate accurately */
@@ -2079,7 +2079,7 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
   }
 
   /* Compute the maximum possible record size. */
-  for (i = 0; i < dict_index_get_n_unique_in_tree(index); i++) {
+  for (i = 0; i < dict_index_get_n_unique_in_tree_nonleaf(index); i++) {
     const dict_field_t *field = index->get_field(i);
     get_field_max_size(index->table, index, field, rec_max_size);
   }
@@ -2298,7 +2298,7 @@ bool dict_index_validate_max_rec_size(const dict_table_t *table,
     of the B-tree) and a node pointer field. When we have processed the unique
     columns, rec_max_size equals the size of the node pointer record minus the
     node pointer column. */
-    if (i + 1 == dict_index_get_n_unique_in_tree(index) &&
+    if (i + 1 == dict_index_get_n_unique_in_tree_nonleaf(index) &&
         rec_max_size + REC_NODE_PTR_SIZE >= page_ptr_max) {
       return (true);
     }

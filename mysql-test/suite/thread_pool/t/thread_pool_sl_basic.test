@@ -1,0 +1,200 @@
+#### plugin/thread_pool/tests/mtr/t/thread_pool_sl_basic.test #################
+#                                                                             #
+# Variable Name: thread_pool_stall_limit                                      #
+# Scope:         Global                                                       #
+# Access Type:   Dynamic                                                      #
+# Data Type:     Integer                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2010-12-15                                                   #
+# Author :       Mikael Ronström, Matthias Leich                              #
+#                                                                             #
+# Description:   Test Cases of dynamic System Variable                        #
+#                thread_pool_stall_limit that checks the behavior of          #
+#                this variable in the following ways                          #
+#                * Value Check                                                #
+#                * Scope Check                                                #
+#                                                                             #
+###############################################################################
+
+--source include/have_thread_pool.inc
+
+##################################################################
+# Build some prereqisites                                        #
+##################################################################
+SET @default_val =                   6;
+let $default_val=`SELECT @default_val`;
+SET @min_val     =                   4;
+SET @max_val     =                 600;
+SET @some_val    =                 100;
+let $some_val=      `SELECT @some_val`;
+SELECT @min_val < @some_val AND @some_val < @max_val
+   AND @some_val <> @default_val AS "Expect 1";
+CREATE USER low_priv@localhost;
+GRANT USAGE ON test.* TO low_priv@localhost;
+--connect (low_priv,localhost,low_priv,,test)
+let $id_list= `SELECT CONNECTION_ID()`;
+--replace_result $default_val <default_val>
+eval SET @default_val = $default_val;
+--replace_result $some_val <some_val>
+eval SET @some_val = $some_val;
+--connection default
+
+
+--echo #---------------------BS_DYNVARS_103_01----------------------#
+##################################################################
+# Check the default value                                        #
+##################################################################
+SELECT @@GLOBAL.thread_pool_stall_limit = @default_val AS "Expect 1";
+
+# @@thread_pool_stall_limit must equal the value of @@GLOBAL.thread_pool_stall_limit
+SELECT @@thread_pool_stall_limit = @@GLOBAL.thread_pool_stall_limit AS "Expect 1";
+
+# There is no SESSION variable with this name
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.thread_pool_stall_limit;
+
+# There is no LOCAL variable with this name
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.thread_pool_stall_limit;
+
+--connection low_priv
+SELECT @@GLOBAL.thread_pool_stall_limit = @default_val AS "Expect 1";
+--connection default
+
+
+--echo #---------------------BS_DYNVARS_103_02----------------------#
+####################################################################
+# Check if a value can be set                                      #
+####################################################################
+SET @initial_val = @@GLOBAL.thread_pool_stall_limit;
+
+# The value can be set.
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
+
+# The new value must be visible.
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+# @@thread_pool_stall_limit must equal the value of @@GLOBAL.thread_pool_stall_limit
+SELECT @@thread_pool_stall_limit = @@GLOBAL.thread_pool_stall_limit AS "Expect 1";
+
+# Setting the value via use of @@thread_pool_stall_limit is not supported
+--error ER_GLOBAL_VARIABLE
+SET @@thread_pool_stall_limit = @some_val;
+
+# SET @@GLOBAL.... requires the SUPER privilege
+--connection low_priv
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
+--connection default
+--disconnect low_priv
+DROP USER low_priv@localhost;
+
+
+--echo #---------------------BS_DYNVARS_103_03----------------------#
+####################################################################
+# Change the value of thread_pool_stall_limit to legal value       #
+####################################################################
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
+SET @@GLOBAL.thread_pool_stall_limit = @min_val;
+SELECT @@GLOBAL.thread_pool_stall_limit = @min_val AS "Expect 1";
+
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
+SET @@GLOBAL.thread_pool_stall_limit = @max_val;
+SELECT @@GLOBAL.thread_pool_stall_limit = @max_val AS "Expect 1";
+
+
+--echo #---------------------BS_DYNVARS_103_04----------------------#
+####################################################################
+# Change the value of thread_pool_stall_limit to illegal value     #
+####################################################################
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
+
+let $val= `SELECT @min_val - 1`;
+--replace_result $val <@min_val_-_1>
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = @min_val - 1;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = 0;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+let $val= `SELECT @max_val + 1`;
+--replace_result $val <@max_val_+_1>
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = @max_val + 1;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = -1;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+# From the manual:
+#    However, the values TRUE and FALSE are merely aliases for 1 and 0.
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = TRUE;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = FALSE;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = 3.14159;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = 2.4E-2;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = ON;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = OFF;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = 7a;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = a7;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = 'GARBAGE';
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = '13a';
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = '';
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = "";
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.thread_pool_stall_limit = NULL;
+SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+
+
+--echo #---------------------BS_DYNVARS_103_05----------------------#
+############################################################################
+# Check if the value in GLOBAL and SESSION Table matches value in variable #
+############################################################################
+--disable_warnings
+SELECT @@GLOBAL.thread_pool_stall_limit = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'thread_pool_stall_limit';
+
+SELECT @@GLOBAL.thread_pool_stall_limit = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME = 'thread_pool_stall_limit';
+--enable_warnings
+
+
+# Cleanup
+SET @@GLOBAL.thread_pool_stall_limit = @initial_val;
+# The user low_priv was disconnected long time ago. Take care that he
+# has really disappeared from the processlist
+--source ../inc/wait_until_disappeared.inc
+

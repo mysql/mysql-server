@@ -3854,6 +3854,12 @@ bool Item_func_timestamp_diff::resolve_type(THD *thd) {
   return false;
 }
 
+bool Item_func_timestamp_diff::eq_specific(const Item *item) const {
+  const Item_func_timestamp_diff *other =
+      down_cast<const Item_func_timestamp_diff *>(item);
+  return int_type == other->int_type;
+}
+
 longlong Item_func_timestamp_diff::val_int() {
   Datetime_val dt1, dt2;
   longlong seconds;
@@ -4189,11 +4195,19 @@ bool Item_func_str_to_temporal::eval_datetime(Datetime_val *dt,
   // Add flags mandated by the class to the passed flags
   flags |= eval_flags();
 
-  String *val = args[0]->val_str(&val_string);
-  String *format = args[1]->val_str(&format_str);
-  if (args[0]->null_value || args[1]->null_value) goto null_date;
-
   null_value = false;
+
+  String *val = args[0]->val_str(&val_string);
+  if (val == nullptr) {
+    null_value = args[0]->null_value;
+    return true;
+  }
+  String *format = args[1]->val_str(&format_str);
+  if (format == nullptr) {
+    null_value = args[1]->null_value;
+    return true;
+  }
+
   set_zero_time(dt, MYSQL_TIMESTAMP_NONE);
   date_time_format.format.str = format->ptr();
   date_time_format.format.length = format->length();

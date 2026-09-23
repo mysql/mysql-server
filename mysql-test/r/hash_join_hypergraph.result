@@ -1926,7 +1926,7 @@ SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 1;
 SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
 WHERE event_name LIKE '%hash_join%';
 COUNT_STAR > 0
-1
+0
 # This should spill to disk since we have sorting.
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 ORDER BY t1.col1 LIMIT 1;
@@ -4897,3 +4897,105 @@ SET SESSION OPTIMIZER_TRACE="enabled=off";
 DROP TABLE t1;
 UNINSTALL PLUGIN mock;
 SET @@session.secondary_engine_cost_threshold = @old_threshold;
+#
+# Bug#36684053: Hash join spills to disk unnecessarily with LIMIT
+#
+CREATE TABLE t1 (col1 INT, pad CHAR(50) DEFAULT 'x');
+INSERT INTO t1 (col1) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+CREATE TABLE t2 SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 128;
+SET SESSION OPTIMIZER_TRACE='enabled=on';
+# LIMIT without ORDER BY: early termination is possible, so the
+# optimizer considers both spill and no-spill hash join plans.
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 3;
+SELECT trace LIKE '%allow_spill_to_disk=false%' AS no_spill_proposed
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+no_spill_proposed
+1
+# No LIMIT: all rows must be produced, so only the spill plan is
+# considered (no-spill would scan the probe side multiple times).
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+SELECT trace LIKE '%allow_spill_to_disk=false%' AS no_spill_proposed
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+no_spill_proposed
+0
+# STRAIGHT_JOIN with LIMIT: executes as JoinType::INNER, so the
+# no-spill plan is also proposed.
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.col1 = t2.col1 LIMIT 3;
+SELECT trace LIKE '%allow_spill_to_disk=false%' AS no_spill_proposed
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+no_spill_proposed
+1
+# LEFT JOIN with LIMIT: IN_MEMORY_WITH_HASH_TABLE_REFILL writes a
+# probe-row-saving file for non-INNER joins, which the no-spill cost
+# model does not account for, so the no-spill plan is not proposed.
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 LIMIT 3;
+SELECT trace LIKE '%allow_spill_to_disk=false%' AS no_spill_proposed
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+no_spill_proposed
+0
+# UNION DISTINCT with outer LIMIT: each branch must produce its full
+# result before deduplication, so the outer LIMIT does not enable
+# early termination of the join and the no-spill plan is not proposed.
+(SELECT t1.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1)
+UNION DISTINCT
+(SELECT col1 FROM t2) LIMIT 3;
+SELECT trace LIKE '%allow_spill_to_disk=false%' AS no_spill_proposed
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+no_spill_proposed
+0
+SET SESSION OPTIMIZER_TRACE='enabled=off';
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1, t2;
+CREATE TABLE t3 (col1 INT, pad CHAR(200) DEFAULT 'x');
+INSERT INTO t3 (col1)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<1000)
+SELECT n FROM seq;
+CREATE TABLE t4 SELECT * FROM t3;
+ANALYZE TABLE t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+SET join_buffer_size = 1024;
+# The chosen no-spill plan is annotated in EXPLAIN output.
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t4 WHERE t3.col1 = t4.col1 LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)  (rows=3)
+    -> Inner hash join (t3.col1 = t4.col1) (no spill to disk)  (rows=100000)
+        -> Table scan on t3  (rows=1000)
+        -> Hash
+            -> Table scan on t4  (rows=1000)
+
+# Same overflow, but LIMIT close to the full result size: the no-spill
+# plan would re-scan the probe side many times to produce that many rows,
+# so the spill plan is chosen (no annotation in EXPLAIN).
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t4 WHERE t3.col1 = t4.col1 LIMIT 900;
+EXPLAIN
+-> Limit: 900 row(s)  (rows=900)
+    -> Inner hash join (t3.col1 = t4.col1)  (rows=100000)
+        -> Table scan on t3  (rows=1000)
+        -> Hash
+            -> Table scan on t4  (rows=1000)
+
+# Moderate overflow (k of a few): a small LIMIT still favors no-spill.
+SET join_buffer_size = 65536;
+EXPLAIN FORMAT=TREE SELECT * FROM t3, t4 WHERE t3.col1 = t4.col1 LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)  (rows=3)
+    -> Inner hash join (t3.col1 = t4.col1) (no spill to disk)  (rows=100000)
+        -> Table scan on t3  (rows=1000)
+        -> Hash
+            -> Table scan on t4  (rows=1000)
+
+SET join_buffer_size = 1024;
+FLUSH STATUS;
+SELECT * FROM t3, t4 WHERE t3.col1 = t4.col1 LIMIT 3;
+FLUSH STATUS;
+SELECT * FROM t3, t4 WHERE t3.col1 = t4.col1;
+include/assert.inc [LIMIT query reads less than half the rows of the full spilling join]
+SET join_buffer_size = DEFAULT;
+DROP TABLE t3, t4;

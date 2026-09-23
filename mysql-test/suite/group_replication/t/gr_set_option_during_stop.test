@@ -109,7 +109,9 @@ while ( $option_id <= $gr_options_that_can_be_change_count )
 {
   --let $option_name= `SELECT name FROM gr_options_that_can_be_change WHERE id=$option_id`
   --eval SET @value= @@GLOBAL.$option_name
+  --disable_warnings
   --eval SET @@GLOBAL.$option_name= @value
+  --enable_warnings
   --inc $option_id
 }
 

@@ -26,7 +26,9 @@
 #ifndef ROUTER_SRC_REST_MRS_TESTS_HELPER_SET_HTTP_COMPONENT_H_
 #define ROUTER_SRC_REST_MRS_TESTS_HELPER_SET_HTTP_COMPONENT_H_
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "mysqlrouter/component/http_server_component.h"
 
@@ -47,6 +49,13 @@ class SetHttpComponent {
     void remove_route(const void *handler) override;
     void init(HttpServerCtxtPtr srv) override;
     bool is_ssl_configured() override;
+    void set_max_http_connections(std::optional<uint64_t> value) override;
+    uint64_t get_effective_max_http_connections() override;
+    void set_max_request_body_size(std::optional<uint64_t> value) override;
+    uint64_t get_effective_max_request_body_size() override;
+    void set_max_response_body_size(std::optional<uint64_t> value) override;
+    uint64_t get_effective_max_response_body_size() override;
+    void clear_overrides() override;
 
     HttpServerComponent *other_;
   };

@@ -135,7 +135,7 @@ bool page_zip_is_too_big(const dict_index_t *index, const dtuple_t *entry) {
   modification log. */
   ulint free_space_zip =
       page_zip_empty_size(index->n_fields, page_size.physical());
-  ulint n_uniq = dict_index_get_n_unique_in_tree(index);
+  const auto n_uniq = dict_index_get_n_unique_in_tree_nonleaf(index);
 
   ut_ad(dict_table_is_comp(index->table));
   ut_ad(page_size.is_compressed());

@@ -67,6 +67,7 @@ SET @@GLOBAL.DEBUG='+d,force_error_on_start_failover_channels';
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --source include/gr_set_bootstrap_group.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 
 --let $group_replication_member_state = ERROR

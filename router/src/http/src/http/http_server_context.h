@@ -27,8 +27,10 @@
 #define MYSQLROUTER_SERVER_CONTEXT_INCLUDED
 
 #include <cassert>
+#include <cstdint>
 #include <list>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <type_traits>
 #include <vector>
@@ -50,10 +52,15 @@ class HTTP_SERVER_LIB_EXPORT HttpServerContext {
  public:
   HttpServerContext(net::io_context *context, IoThreads *io_threads,
                     TlsServerContext &&tls_context, const std::string &host,
-                    const uint16_t port);
+                    const uint16_t port, uint64_t max_http_connections,
+                    uint64_t max_request_body_size,
+                    uint64_t max_response_body_size);
 
   HttpServerContext(net::io_context *context, IoThreads *io_threads,
-                    const std::string &host, const uint16_t port);
+                    const std::string &host, const uint16_t port,
+                    uint64_t max_http_connections,
+                    uint64_t max_request_body_size,
+                    uint64_t max_response_body_size);
 
   void start();
   void stop();
@@ -68,6 +75,13 @@ class HTTP_SERVER_LIB_EXPORT HttpServerContext {
   void remove_route(const void *handler_id);
 
   bool is_ssl_configured();
+  void set_max_http_connections(std::optional<uint64_t> value);
+  uint64_t get_effective_max_http_connections() const;
+  void set_max_request_body_size(std::optional<uint64_t> value);
+  uint64_t get_effective_max_request_body_size() const;
+  void set_max_response_body_size(std::optional<uint64_t> value);
+  uint64_t get_effective_max_response_body_size() const;
+  void clear_overrides();
 
   HttpRequestRouter &request_router();
 
@@ -77,11 +91,9 @@ class HTTP_SERVER_LIB_EXPORT HttpServerContext {
   std::string host_;
   uint16_t port_;
   bool ssl_{false};
-  server::Bind bind{context_, host_, port_};
-  server::Server http;
-
- private:
+  server::Bind bind_{context_, host_, port_};
   HttpRequestRouter request_router_;
+  server::Server http_;
 };
 
 }  // namespace http

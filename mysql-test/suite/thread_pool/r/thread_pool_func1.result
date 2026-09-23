@@ -1,0 +1,3 @@
+# Reveal that Sorting of new connections into the thread groups is done round robin.
+#    Any preceding disconnect of a session has to have no impact on this.
+# Success

@@ -68,6 +68,9 @@ class StartTransactionParser : public SqlParser {
       std::variant<std::monostate, StartTransaction::AccessMode, bool>,
       std::string>
   transaction_characteristics();
+
+ private:
+  bool accept_end_of_stmt();
 };
 
 #endif

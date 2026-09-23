@@ -67,9 +67,8 @@ struct Cursor {
   /** Copy the row data, by default only the pointers are copied.
   @param[in] thread_id          Scan thread ID.
   @param[in,out] row            Row to copy.
-  @return DB_SUCCESS or error code. */
-  [[nodiscard]] virtual dberr_t copy_row(size_t thread_id,
-                                         Row &row) noexcept = 0;
+  */
+  virtual void copy_row(size_t thread_id, Row &row) noexcept = 0;
 
   /** Setup the primary key sort data structures.
   @param[in] n_uniq             Number of columns to make they unique key.

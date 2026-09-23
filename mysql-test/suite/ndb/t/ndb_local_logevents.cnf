@@ -1,4 +1,4 @@
 !include ../my.cnf
 [cluster_config.1]
-HeartbeatIntervalDbDb=10
+HeartbeatIntervalDbDb=100
 StopOnError=0

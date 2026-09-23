@@ -1,0 +1,140 @@
+# Usage of this routine:
+#-----------------------
+# 1. The caller scripts establishes a WRITE LOCK on mysqltest.to_lock
+# 2. The caller scripts starts mysqltest interpreting this script into the background.
+# 3. The execution of this script stops at the SELECT within the loop because
+#    it needs a lock on mysqltest.to_lock.
+# 4. The caller waits till at least our current session
+#    - is visible within information_schema processlist at all
+#    - seems to wait for the MDL lock
+# 5. The caller scripts executes UNLOCK TABLES.
+# 6. Sooner or later our current session becomes active and it
+#    runs loops.
+# 7. After some time the caller scripts establishes a WRITE LOCK on mysqltest.to_lock
+# 8. Our session stops at the SELECT within the loop because
+#    it needs a lock on mysqltest.to_lock.
+# 9. The caller script kills the current query (waiting for the MDL lock).
+# 10. Our session gets ER_QUERY_INTERRUPTED for the SELECT and leaves the loop.
+# 11. Our session writes it's runtime conditions (system variables) and the
+#     loop execution counter @aux into mysqltest.book_keeping
+#
+#
+
+--disable_query_log
+--disable_result_log
+if($DEBUG)
+{
+   --enable_query_log
+   --enable_result_log
+}
+
+
+# Set mysqltest as default database. This allows to identify worker sessions like
+# current one within the processlist.
+USE mysqltest;
+
+# Ensure that all worker sessions start with the same deterministic value for autocommit.
+# This value will be changed later.
+SET SESSION autocommit = 1;
+
+# Set @@SESSION.lock_wait_timeout to a rather small value in order to reduce the risk
+# that we end up with long life processes in case something goes wrong.
+SET @@SESSION.lock_wait_timeout = 30;
+
+# Show that I am here.
+SELECT MIN(worker_id) INTO @worker_id FROM mysqltest.book_keeping WHERE session_id IS NULL;
+UPDATE mysqltest.book_keeping SET session_id = CONNECTION_ID() WHERE worker_id = @worker_id;
+
+# Determine the required value for high_priority_connection and set it.
+let $high_priority_connection= `SELECT high_priority_connection FROM mysqltest.book_keeping
+                                WHERE worker_id = @worker_id`;
+eval SET @@session.thread_pool_high_priority_connection = $high_priority_connection;
+
+# Determine the required task settings
+let $task_size= `SELECT task_size FROM mysqltest.book_keeping WHERE worker_id = @worker_id`;
+let $task_transaction= `SELECT task_transaction FROM mysqltest.book_keeping WHERE worker_id = @worker_id`;
+let $task_prepared= `SELECT task_prepared FROM mysqltest.book_keeping WHERE worker_id = @worker_id`;
+--echo # Task: Size: $task_size - Use of transaction: $task_transaction - Use of prepared statement: $task_prepared
+
+# Initialize the counter variable
+SET @aux = 0;
+
+let $statement= WRONG TASK SIZE VALUE;
+if($task_size == 'small')
+{
+   # My notebook: 10 workers -> 200 rounds per 1 second and one worker
+   let $statement= SELECT COUNT(*), @aux + 1 INTO @throw_away, @aux
+                   FROM mysqltest.to_lock C1
+                   WHERE C1.col1 <> 1 ;
+}
+if($task_size == 'medium')
+{
+   # My notebook: 10 workers -> 60 rounds per 1 second and one worker
+   let $statement= SELECT COUNT(*), @aux + 1 INTO @throw_away, @aux
+                   FROM mysqltest.to_lock C1, mysqltest.to_lock C2, mysqltest.to_lock C3
+                   WHERE C1.col1 <> 1 AND C2.col1 <> 2 AND C3.col1 <> 3;
+}
+if($task_size == 'big')
+{
+   let $statement= SELECT COUNT(*), @aux + 1 INTO @throw_away, @aux
+                   FROM mysqltest.to_lock C1, mysqltest.to_lock C2, mysqltest.to_lock C3, mysqltest.to_lock C4
+                   WHERE C1.col1 <> 1 AND C2.col1 <> 2 AND C3.col1 <> 3 AND C4.col1 <> 4;
+}
+if($task_size == 'huge')
+{
+   let $statement= SELECT COUNT(*), @aux + 1 INTO @throw_away, @aux
+                   FROM mysqltest.to_lock C1, mysqltest.to_lock C2, mysqltest.to_lock C3, mysqltest.to_lock C4, mysqltest.to_lock C5
+                   WHERE C1.col1 <> 1 AND C2.col1 <> 2 AND C3.col1 <> 3 AND C4.col1 <> 4 AND C5.col1 <> 5;
+}
+
+if($task_transaction)
+{
+   SET SESSION autocommit = 0;
+}
+
+if($task_prepared)
+{
+   eval PREPARE stmt FROM '$statement';
+   let $statement= EXECUTE stmt;
+}
+
+let $cnt= 1;
+let $my_errno= 0;
+while(!$my_errno)
+{
+   --error 0, ER_LOCK_WAIT_TIMEOUT, ER_QUERY_INTERRUPTED
+   eval $statement;
+   let $my_errno= $mysql_errno;
+
+   # Without this COMMIT our session with transaction will hold a share lock
+   # on mysqltest.to_lock. Than the connection locker will fail to stop the race.
+   # (It gets ERROR 1205 on LOCK TABLES mysqltest.to_lock WRITE and all workers
+   # run endless. Of course this COMMIT is a slight overhead compared to the
+   # loops which do not have an open transaction.
+   if($cnt == 10)
+   {
+      COMMIT;
+      let $cnt= 0;
+   }
+   --inc $cnt
+}
+
+SET @@session.thread_pool_high_priority_connection = 0;
+
+if($task_prepared)
+{
+   DEALLOCATE PREPARE stmt;
+}
+
+if($task_transaction)
+{
+   SET SESSION autocommit = 1;
+}
+
+# Update the entry with my results
+eval
+UPDATE mysqltest.book_keeping
+SET counter = @aux,
+    mysql_errno = $my_errno
+WHERE worker_id = @worker_id;
+

@@ -226,6 +226,15 @@ void set_auto_increment_handler_values();
 
 static void check_deprecated_variables() {
   MYSQL_THD thd = lv.plugin_is_auto_starting_on_install ? nullptr : current_thd;
+  if (static_cast<enum_transport_protocol>(ov.communication_stack_var) !=
+      MYSQL_PROTOCOL) {
+    push_deprecated_warn(thd, "group_replication_communication_stack=XCOM",
+                         "group_replication_communication_stack=MYSQL");
+  }
+  if (ov.ip_allowlist_var != nullptr &&
+      strcmp(ov.ip_allowlist_var, "AUTOMATIC")) {
+    push_deprecated_warn_no_replacement(thd, "group_replication_ip_allowlist");
+  }
   if (ov.view_change_uuid_var != nullptr &&
       strcmp(ov.view_change_uuid_var, "AUTOMATIC")) {
     push_deprecated_warn_no_replacement(thd,
@@ -3589,6 +3598,8 @@ static int check_ip_allowlist_preconditions(MYSQL_THD thd, SYS_VAR *var,
   const char *str;
   int length = sizeof(buff);
 
+  push_deprecated_warn_no_replacement(thd, "group_replication_ip_allowlist");
+
   Checkable_rwlock::Guard g(*lv.plugin_running_lock,
                             Checkable_rwlock::TRY_READ_LOCK);
   if (!plugin_running_lock_is_rdlocked(g)) return 1;
@@ -5290,6 +5301,17 @@ static MYSQL_SYSVAR_STR(
     nullptr,                /* update func*/
     "AUTOMATIC");           /* default*/
 
+static void update_communication_stack(MYSQL_THD thd, SYS_VAR *, void *var_ptr,
+                                       const void *save_ptr) {
+  const ulong val = *static_cast<const long *>(save_ptr);
+  *static_cast<ulong *>(var_ptr) = val;
+
+  if (static_cast<enum_transport_protocol>(val) == XCOM_PROTOCOL) {
+    push_deprecated_warn(thd, "group_replication_communication_stack=XCOM",
+                         "group_replication_communication_stack=MYSQL");
+  }
+}
+
 static MYSQL_SYSVAR_ENUM(
     communication_stack,                                   /* name */
     ov.communication_stack_var,                            /* var */
@@ -5298,7 +5320,7 @@ static MYSQL_SYSVAR_ENUM(
     "use : Legacy XCom or MySQL.This option only takes effect after a group "
     "replication restart. Default: XCom",
     nullptr,                                 /* check func. */
-    nullptr,                                 /* update func. */
+    update_communication_stack,              /* update func. */
     XCOM_PROTOCOL,                           /* default */
     &ov.communication_stack_values_typelib_t /* type lib */
 );

@@ -1,0 +1,130 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: MTR
+on:
+  pull_request_target:
+    branches: [trunk]
+    paths-ignore: ["Docs/**", "**/*.md"]
+
+permissions: {}
+
+concurrency:
+  group: mtr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Run MTR's normal default test selection on every PR.
+jobs:
+  mtr:
+    runs-on: ubuntu-latest
+    # A full default MTR selection needs substantially more time than the
+    # retired smoke check. 360 minutes is GitHub-hosted runners' job maximum.
+    timeout-minutes: 360
+    needs: []
+    permissions:
+      contents: read
+    steps:
+      - name: Check out PR merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          fetch-depth: 2
+          persist-credentials: false
+          path: source
+      - name: Check out trusted CI scripts
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+          path: trusted
+      - name: Verify PR merge commit
+        working-directory: source
+        env:
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD^1)" = "$EXPECTED_BASE"
+          test "$(git rev-parse HEAD^2)" = "$EXPECTED_HEAD"
+      - name: Install toolchain
+        working-directory: source
+        run: ../trusted/scripts/ci/bootstrap.sh
+      # A target workflow may restore trunk caches but must never save PR data.
+      - name: Restore Boost cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/mysql-boost
+          key: boost-${{ hashFiles('source/cmake/boost.cmake') }}
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-gcc-${{ github.event.pull_request.head.sha }}
+          restore-keys: ccache-gcc-
+      - name: Build
+        working-directory: source
+        run: ../trusted/scripts/ci/build.sh debug
+      - name: Run MTR
+        working-directory: source
+        run: ../trusted/scripts/ci/mtr.sh
+      - name: Publish test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mtr-logs-${{ github.run_id }}
+          path: source/build/mysql-test/var/log/
+          retention-days: 5
+
+  report:
+    name: Label MTR result
+    if: ${{ always() && !cancelled() }}
+    needs: mtr
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - name: Update MTR result label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const passed = '${{ needs.mtr.result }}' === 'success';
+            const labels = [
+              { name: 'MTR Passed', color: '0E8A16', description: 'MTR suite passed' },
+              { name: 'MTR Failed', color: 'D93F0B', description: 'MTR suite failed' },
+            ];
+
+            for (const label of labels) {
+              try {
+                await github.rest.issues.getLabel({ ...context.repo, name: label.name });
+                await github.rest.issues.updateLabel({ ...context.repo, ...label });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ ...context.repo, ...label });
+              }
+            }
+
+            const selected = passed ? labels[0] : labels[1];
+            const opposite = passed ? labels[1] : labels[0];
+            try {
+              await github.rest.issues.removeLabel({
+                ...context.repo,
+                issue_number: context.payload.pull_request.number,
+                name: opposite.name,
+              });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: [selected.name],
+            });
+            await github.rest.repos.createCommitStatus({
+              ...context.repo,
+              sha: context.payload.pull_request.head.sha,
+              state: passed ? 'success' : 'failure',
+              context: 'MTR',
+              description: passed ? 'MySQL Test Run passed' : 'MySQL Test Run failed',
+              target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+            });
+            core.info(`Set PR #${context.payload.pull_request.number} to ${selected.name}.`);

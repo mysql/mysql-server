@@ -180,7 +180,7 @@ search:
 
   lf_hash_search_unpin(pins);
 
-  pfs = global_host_container.allocate(&dirty_state);
+  pfs = global_host_container.allocate(&dirty_state, nullptr);
   if (pfs != nullptr) {
     pfs->m_key = key;
 

@@ -271,7 +271,7 @@ int table_socket_instances::read_row_values(TABLE *table, unsigned char *buf,
                                     m_row.m_event_name_length);
           break;
         case 1: /* OBJECT_INSTANCE_BEGIN */
-          set_field_ulonglong(f, (intptr)m_row.m_identity);
+          set_field_ulonglong(f, m_row.m_identity);
           break;
         case 2: /* THREAD_ID */
           if (m_row.m_thread_id_set) {

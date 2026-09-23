@@ -147,9 +147,14 @@ void Metrics_handler::add_message_sent(const Gcs_message &message) {
   */
   if (local_member_info->get_gcs_member_id() == message.get_origin()) {
     uint64_t message_sent_timestamp = 0;
-    const Plugin_gcs_message::enum_cargo_type plugin_message_type =
-        Plugin_gcs_message::get_cargo_type(
-            message.get_message_data().get_payload());
+    Plugin_gcs_message::enum_cargo_type plugin_message_type =
+        Plugin_gcs_message::CT_UNKNOWN;
+    if (Plugin_gcs_message::get_cargo_type(
+            message.get_message_data().get_payload(),
+            message.get_message_data().get_payload_length(),
+            &plugin_message_type)) {
+      return;
+    }
     Metrics_handler::enum_message_type metrics_message_type =
         Metrics_handler::enum_message_type::CONTROL;
 
@@ -237,6 +242,16 @@ void Metrics_handler::add_message_sent(const Gcs_message &message) {
         assert(false);
         return;
         /* purecov: end */
+    }
+
+    /*
+     Malformed or truncated messages may prevent safe timestamp extraction.
+     Skip metrics accounting rather than feeding invalid values into the
+     roundtrip calculation and assertions below.
+    */
+    if (message_sent_timestamp == 0 ||
+        message_received_timestamp <= message_sent_timestamp) {
+      return;
     }
 
     add_message_sent_internal(

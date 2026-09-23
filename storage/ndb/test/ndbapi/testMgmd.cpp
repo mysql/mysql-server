@@ -1434,6 +1434,48 @@ int runTestUnresolvedHosts2(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+int runTestSkipNodeidCheck(NDBT_Context *ctx, NDBT_Step *step) {
+  NDBT_Workingdir wd("test_mgmd");
+  BaseString cf_ini = path(wd.path(), "config.ini", nullptr);
+
+  Properties config = ConfigFactory::create();
+  Properties api;
+  api.put("NodeId", 4);
+  api.put("HostName", "www.mysql.com");
+  config.put("mysqld", 4, &api);
+
+  CHECK(ConfigFactory::write_config_ini(config, cf_ini.c_str()));
+
+  /* Use error insert 904 to mix "localhost" with actual hostnames in config */
+  Mgmd mgmd(1);
+  CHECK(mgmd.start_from_config_ini(wd.path(), "--skip-nodeid-address-check",
+                                   "--error-insert=904", nullptr));
+  CHECK(mgmd.connect(config, 2, 5));     // Connect to management node
+  CHECK(mgmd.wait_confirmed_config(5));  // Wait for configuration
+
+  BaseString mgmd_conn_str = mgmd.connectstring(config);
+  Ndbd ndbd(2);
+  ndbd.start(wd.path(), mgmd_conn_str);  // Start the data node
+  {
+    NdbMgmHandle handle = mgmd.handle();
+    CHECK(ndbd.wait_started(handle));
+  }
+
+  /* Open an MGM API connection from localhost and request node id 4.  The id
+     is configured for www.mysql.com, but with --skip-nodeid-address-check
+     it should be granted.
+  */
+  NdbMgmHandle handle = ndb_mgm_create_handle();
+  BaseString conn_str("nodeid=4,");
+  conn_str.append(mgmd_conn_str);
+  unsigned int ver = ndbGetOwnVersion();
+  CHECK(ndb_mgm_set_connectstring(handle, conn_str.c_str()) == 0);
+  CHECK(ndb_mgm_connect(handle, 1, 5, 0) == 0);
+  CHECK(ndb_mgm_alloc_nodeid(handle, ver, NDB_MGM_NODE_TYPE_API, 0) == 4);
+
+  return NDBT_OK;
+}
+
 int runTestMgmdwithoutnodeid(NDBT_Context *ctx, NDBT_Step *step) {
   NDBT_Workingdir wd("test_mgmd");
   Vector<BaseString> search_list;
@@ -1656,12 +1698,26 @@ int runTestMyCnf(NDBT_Context *ctx, NDBT_Step *step) {
 }
 
 int runTestSshKeySigning(NDBT_Context *ctx, NDBT_Step *step) {
-  /* Skip this test in PB2 environments, where "ssh localhost"
-     does not necessarily work.
-  */
-  if (getenv("PB2WORKDIR")) {
-    printf("Skipping test SshKeySigning\n");
-    return NDBT_OK;
+  /* Skip this test where "ssh localhost" can not be run without user
+   * interaction. */
+  {
+    NdbProcess::Args args;
+    auto exe = "ssh";
+    args.add("-q");
+    args.add("-oBatchMode=yes");
+    args.add("localhost");
+    args.add("exit");
+    auto proc = NdbProcess::create(
+        "Probe if `ssh localhost` need user interaction", exe, nullptr, args);
+    int ret;
+    bool r = proc->wait(ret, 1000);
+    if (!r) proc->stop();
+    if (r && ret == 255) {
+      printf(
+          "Skipping test SshKeySigning since `ssh localhost` may need user "
+          "interaction.\n");
+      return NDBT_SKIPPED;
+    }
   }
 
   NDBT_Workingdir wd("test_mgmd");  // temporary working directory
@@ -2240,6 +2296,10 @@ TESTCASE("MultiMGMDDisconnection",
 }
 TESTCASE("MyCnf", "Test reading config from my.cnf") {
   INITIALIZER(runTestMyCnf);
+}
+
+TESTCASE("SkipNodeIdCheck", "Test mgmd with --skip-nodeid-address-check") {
+  INITIALIZER(runTestSkipNodeidCheck);
 }
 
 #if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL

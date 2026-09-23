@@ -42,6 +42,7 @@ SET GLOBAL debug= 'd,double_unique_handler';
 
 # This start command will error out due to the double occurrence
 # of a singleton handler (applier initialization error).
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 
@@ -64,6 +65,7 @@ SET @@GLOBAL.DEBUG= 'd,applier_thd_timeout';
 STOP GROUP_REPLICATION;
 
 #The start command will fail as the applier is still running
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 

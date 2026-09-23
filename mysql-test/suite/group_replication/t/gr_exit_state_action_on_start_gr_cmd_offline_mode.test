@@ -62,6 +62,7 @@ SET @super_read_only_saved = @@GLOBAL.super_read_only;
 --enable_query_log
 # We expect a config error since this server's version is different from the
 # group
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

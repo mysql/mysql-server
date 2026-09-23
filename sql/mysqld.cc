@@ -9286,16 +9286,16 @@ Manifest_file_option_parser_helper::Manifest_file_option_parser_helper(
 
   /* Backup mysql_real_data_home */
   memcpy(save_datadir_, mysql_real_data_home, mysql_real_data_home_size);
+  memset(mysql_real_data_home, 0, mysql_real_data_home_size);
   /* Copy the string ensuring it is always 0 terminated */
-  strncpy(mysql_real_data_home, local_datadir_buffer,
+  strmake(mysql_real_data_home, local_datadir_buffer,
           mysql_real_data_home_size - 1);
-  mysql_real_data_home[mysql_real_data_home_size - 1] = 0;
 
   /* Backup opt_plugin_dir */
   memcpy(save_plugindir_, opt_plugin_dir, opt_plugin_dir_size);
+  memset(opt_plugin_dir, 0, opt_plugin_dir_size);
   /* Copy the string ensuring it is always 0 terminated */
-  strncpy(opt_plugin_dir, local_plugindir_buffer, opt_plugin_dir_size - 1);
-  opt_plugin_dir[opt_plugin_dir_size - 1] = 0;
+  strmake(opt_plugin_dir, local_plugindir_buffer, opt_plugin_dir_size - 1);
 
   valid_ = true;
 }

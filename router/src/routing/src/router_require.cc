@@ -34,8 +34,8 @@
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
 
-#include "classic_query_sender.h"
 #include "mysql/harness/logging/logging.h"
+#include "processors/senders/classic_query_sender.h"
 
 IMPORT_LOG_FUNCTIONS()
 

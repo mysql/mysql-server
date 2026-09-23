@@ -1660,6 +1660,13 @@ static unique_ptr<Json_object> SetObjectMembers(
       if (extra_condition->size() > 0)
         error |= obj->add_alias("extra_condition", std::move(extra_condition));
 
+      if (thd->lex->using_hypergraph_optimizer() &&
+          !path->hash_join().allow_spill_to_disk) {
+        description.append(" (no spill to disk)");
+        error |=
+            AddMemberToObject<Json_boolean>(obj, "allow_spill_to_disk", false);
+      }
+
       error |= AddMemberToObject<Json_string>(obj, "access_type", "join");
       error |= AddMemberToObject<Json_string>(obj, "join_type", json_join_type);
       error |= AddMemberToObject<Json_string>(obj, "join_algorithm", "hash");

@@ -1832,3 +1832,25 @@ SHOW variables LIKE 'character_set_client';
 Variable_name	Value
 character_set_client	latin1
 SET NAMES DEFAULT;
+#
+# Bug#33073320: DIGEST USER FUNCTIONS POLLUTE CURRENT THD
+#
+SELECT statement_digest_text(
+"UPDATE `t0009` SET `c0002` = json_merge_patch("
+"conv(8955667655109960103, "
+"  COUNT(aes_encrypt(0x14dc2daf, from_unixtime(1536999166))) "
+"  OVER(), "
+"  st_hausdorffdistance("
+"    LINESTRING(POINT(17, 125), POINT(253,35)), "
+"    asin(`c0002`))), "
+"CHARSET(1), ROW_COUNT()) "
+"WHERE `c0003` XOR from_unixtime(1536999166) LIMIT 10");
+statement_digest_text(
+"UPDATE `t0009` SET `c0002` = json_merge_patch("
+"conv(8955667655109960103, "
+"  COUNT(aes_encrypt(0x14dc2daf, from_unixtime(1536999166))) "
+"  OVER(), "
+"  st_hausdorffdistance("
+"    LINESTRING(POINT(17, 125), POINT(253,35)), "
+" 
+UPDATE `t0009` SET `c0002` = `json_merge_patch` ( `conv` ( ? , COUNT ( `aes_encrypt` ( ? , `from_unixtime` (?) ) ) OVER ( ) , `st_hausdorffdistance` ( LINESTRING ( POINT (...) , POINT (...) ) , `asin` ( `c0002` ) ) ) , CHARSET (?) , ROW_COUNT ( ) ) WHERE `c0003` XOR `from_unixtime` (?) LIMIT ?

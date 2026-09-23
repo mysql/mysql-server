@@ -82,7 +82,7 @@ Request RestClient::request_sync(http::base::method::key_type method,
 
   io_context_.restart();
 
-  // TRACE forbids a request-body
+  // TRACE forbids a request-body.
   if (!request_body.empty()) {
     if (method == http::base::method::Trace) {
       throw std::logic_error("TRACE can't have request-body");
@@ -104,7 +104,7 @@ Request RestClient::request_sync(http::base::method::key_type method,
   }
 
   // ask the server to close the connection after this request
-  if (!use_http2_) {
+  if (!use_http2_ && request_connection_close_) {
     req.get_output_headers().add("connection", "close");
   }
   req.get_output_headers().add("host", uri.get_host().c_str());

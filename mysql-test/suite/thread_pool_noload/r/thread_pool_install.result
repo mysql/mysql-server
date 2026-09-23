@@ -1,0 +1,8 @@
+
+Dynamic loading of thread_pool plugin should fail
+INSTALL PLUGIN thread_pool SONAME 'thread_pool.<plugin_extension>';
+ERROR HY000: Plugin 'thread_pool' is marked as not dynamically installable. You have to stop the server to install it.
+SELECT PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME = 'THREAD_POOL';
+PLUGIN_STATUS

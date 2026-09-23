@@ -45,3 +45,7 @@ perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-time
 
 # Connection Control plugin
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60     --comment=connection_control-big  --vardir=var-connection_control-big --suite=connection_control --no-skip
+
+# Thread Pool Plugin
+perl mysql-test-run.pl --timer --big-test --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+

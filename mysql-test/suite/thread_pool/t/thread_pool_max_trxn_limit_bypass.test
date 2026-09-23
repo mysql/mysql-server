@@ -1,0 +1,139 @@
+--source include/not_windows.inc
+--source include/have_thread_pool.inc
+
+# Purpose: Check that it is possible to bypass the max_transactions_limit when
+# connecting on the admin interface, or connect as a user which has been
+# granted the dynamic privilege TP_CONNECTION_ADMIN
+# To do this the -master.opt sets both thread_pool_size and
+# max_transactions_limit to 1, so that we have one ordinary thread group which 
+# can run at most one transaction, and the admin thread group.
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");
+--enable_query_log
+
+# Back up so that we can restore the global state
+SET @prev_txn_limit = @@global.thread_pool_max_transactions_limit;
+
+--echo # The mtr default connection was established before root got TP_CONNECTION_ADMIN, so it
+--echo # is supposed to be in thread group 0. There should be no connections in the admin
+--echo # thread group (1)
+SELECT TP_GROUP_ID, CONNECTION_COUNT FROM performance_schema.tp_thread_group_state;
+
+CREATE TABLE t1 (i INT);
+
+CREATE USER u1;
+--echo # Grant the user u1 the privilege SERVICE_CONNECTION_ADMIN
+--echo # so that u1 is able to connect on the admin interface.
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO u1;
+
+--echo # Grant the TP-provided dynamic privilege TP_CONNECTION_ADMIN to root
+--echo # so that root can bypass max_transactions_limit. Granting to root since
+--echo # the user bypassing max_transactions_limit typically need to perform
+--echo # cleanup actions which require special privileges.
+GRANT TP_CONNECTION_ADMIN ON *.* TO root@localhost;
+
+--enable_connect_log
+
+--echo # Check that u1 can connect and an uncommitted transaction
+--echo # blocks normal connections
+connect(u1_con1,localhost,u1,,,,,);
+SELECT CURRENT_USER();
+BEGIN WORK;
+INSERT INTO t1 VALUES (10),(20),(30);
+
+--echo # Create another connection with u1 which is unable to complete a
+--echo # select, and needs to use --send
+connect(u1_con2,localhost,u1,,,,,);
+--send SELECT * FROM t1
+
+--echo # New connection with root. Should not
+--echo # be blocked since root has TP_CONNECTION_ADMIN
+--echo # and should end up in admin thread group.
+connect(con_r1,localhost,root,,,,,);
+
+--echo # u1_con1 and u1_con2 should end up in thread group 0 (non-admin), and con_r1 ends up in the admin group.
+--echo # so there should now be 3 connections in group 0, and 1 in group 1.
+SELECT TP_GROUP_ID, CONNECTION_COUNT FROM performance_schema.tp_thread_group_state;
+
+SELECT * FROM t1;
+--echo # Terminate one of the existing connections
+--let $victim = `SELECT min(PROCESSLIST_ID) FROM performance_schema.threads WHERE PROCESSLIST_USER = 'u1'`
+--replace_regex /KILL .+/KILL <id>/
+--eval KILL $victim
+--echo # Increase max_transactions_limit
+SET GLOBAL thread_pool_max_transactions_limit = 4;
+
+--disconnect con_r1
+--source include/wait_until_disconnected.inc
+
+--echo # Complete the blocked SELECT on u1_con2
+connection u1_con2;
+--echo # Reaping SELECT
+--reap
+
+--echo # Check that the var change is visible
+SELECT @@thread_pool_max_transactions_limit;
+
+--echo # Disconnect the killed connection
+connection u1_con1;
+--disconnect u1_con1
+--source include/wait_until_disconnected.inc
+
+connection default;
+SET GLOBAL thread_pool_max_transactions_limit = 1;
+REVOKE TP_CONNECTION_ADMIN ON *.* FROM root@localhost;
+GRANT SELECT ON performance_schema.* TO u1;
+
+--echo # Check that connection on admin interface can bypass max_transactions_limit
+--echo # Start single transaction on ordinary connection. This will prevent further transactions
+--echo # from being started since thread_pool_max_transactions_limit=1
+connect(ordinary_con,localhost,u1,,,,,);
+SELECT CURRENT_USER();
+
+BEGIN WORK;
+INSERT INTO t1 VALUES (100),(200),(300);
+
+--echo # Check that the user u1 can establish connection to admin interface since
+--echo # this user has the privilege SERVICE_CONNECTION_ADMIN
+connect(admin_con_u1,127.0.0.1,u1,,,$MASTER_ADMINPORT,,);
+SELECT CURRENT_USER();
+
+--echo # default, u1_con2 and ordinary con should give 3 connection in group 0.
+--echo # admin_con_u1 replaces con_r1 to give 1 connection in group 1.
+SELECT TP_GROUP_ID, CONNECTION_COUNT FROM performance_schema.tp_thread_group_state;
+--disconnect admin_con_u1
+--source include/wait_until_disconnected.inc
+
+--echo # Check that root can establish connection to admin interface even
+--echo # without TP_CONNECTION_ADMIN
+connect(admin_con_r,127.0.0.1,root,,,$MASTER_ADMINPORT,,);
+SELECT CURRENT_USER();
+
+SELECT * FROM t1;
+--echo # Terminate one of the existing connections
+--let $victim = `SELECT min(PROCESSLIST_ID) FROM performance_schema.threads WHERE PROCESSLIST_USER = 'u1'`
+--replace_regex /KILL .+/KILL <id>/
+--eval KILL $victim
+--echo # Increase max_transactions_limit
+SET GLOBAL thread_pool_max_transactions_limit = 4;
+
+--disconnect admin_con_r
+--source include/wait_until_disconnected.inc
+
+connection ordinary_con;
+ROLLBACK WORK;
+--disconnect ordinary_con
+--source include/wait_until_disconnected.inc
+
+connection default;
+--echo # Check that the var change is visible
+SELECT @@thread_pool_max_transactions_limit;
+
+--echo # Cleaning up 
+SET GLOBAL thread_pool_max_transactions_limit = @prev_txn_limit;
+REVOKE TP_CONNECTION_ADMIN ON *.* FROM root@localhost;
+DROP USER u1;
+DROP TABLE t1;

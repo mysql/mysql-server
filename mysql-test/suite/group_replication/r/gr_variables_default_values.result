@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server1]
 SET @@GLOBAL.group_replication_ip_allowlist= "AUTOMATIC";
+Warnings:
+Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.
 include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
@@ -138,6 +140,8 @@ include/assert.inc [Default group_replication_preemptive_garbage_collection_rows
 #
 # Clean up
 #
+Warnings:
+Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

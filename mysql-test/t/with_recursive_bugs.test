@@ -324,3 +324,101 @@ DELIMITER ;$$
 CALL cte_bug();
 
 DROP PROCEDURE cte_bug;
+
+--echo #
+--echo # Bug#35536775: CTE view serialization trailing comma
+--echo #
+--echo # When a view references a WITH clause and some CTEs are unused
+--echo # (merged away), PT_with_clause::print must not produce a trailing
+--echo # comma or omit separators between the remaining CTEs.
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo #
+--echo # Case 1: Single unused CTE at the end - no trailing comma
+--echo #
+CREATE VIEW v1 AS
+  WITH cte1 AS (SELECT a FROM t1),
+       cte2 AS (SELECT 1)
+  SELECT * FROM cte1;
+
+SHOW CREATE VIEW v1;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v1';
+
+--echo # The view definition must parse back without errors
+DROP VIEW v1;
+CREATE VIEW v1 AS
+  WITH cte1 AS (SELECT a FROM t1),
+       cte2 AS (SELECT 1)
+  SELECT * FROM cte1;
+SELECT * FROM v1;
+
+DROP VIEW v1;
+
+--echo #
+--echo # Case 2: Unused CTE in the middle - separator between printed CTEs
+--echo #
+    CREATE VIEW v2 AS
+      WITH cte1 AS (SELECT a FROM t1),
+           cte2 AS (SELECT 999),
+           cte3 AS (SELECT a + 10 AS b FROM t1)
+      SELECT * FROM cte1, cte3;
+
+SHOW CREATE VIEW v2;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v2';
+
+--echo # The view definition must parse back without errors
+--sorted_result
+SELECT * FROM v2;
+
+DROP VIEW v2;
+
+--echo #
+--echo # Case 3: Multiple unused CTEs in a row
+--echo #
+CREATE VIEW v3 AS
+  WITH cte1 AS (SELECT a FROM t1),
+       cte2 AS (SELECT 100),
+       cte3 AS (SELECT 200),
+       cte4 AS (SELECT a * 2 AS c FROM t1)
+  SELECT * FROM cte1, cte4;
+
+SHOW CREATE VIEW v3;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v3';
+--sorted_result
+SELECT * FROM v3;
+
+DROP VIEW v3;
+
+--echo #
+--echo # Case 4: All CTEs unused - WITH clause should be stripped entirely
+--echo #
+CREATE VIEW v4 AS
+  WITH cte1 AS (SELECT 1),
+       cte2 AS (SELECT 2)
+  SELECT a FROM t1;
+
+SHOW CREATE VIEW v4;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v4';
+SELECT * FROM v4;
+
+DROP VIEW v4;
+
+--echo #
+--echo # Case 5: First CTE unused, rest used
+--echo #
+CREATE VIEW v5 AS
+  WITH cte1 AS (SELECT 999),
+       cte2 AS (SELECT a FROM t1)
+  SELECT * FROM cte2;
+
+SHOW CREATE VIEW v5;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v5';
+SELECT * FROM v5;
+
+DROP VIEW v5;
+
+# Cleanup
+DROP TABLE t1;

@@ -6582,6 +6582,88 @@ static bool_t should_poll_cache(pax_op op) {
   return TRUE;
 }
 
+/**
+ * Check if any data chunk in the application data list has the given cargo
+ * type.
+ *
+ * @param data the application data list
+ * @param cargo the cargo type to look for within the application data body
+ *
+ * @return TRUE if at least one data chunk has the given cargo type, FALSE
+ *         otherwise.
+ */
+static bool_t has_app_data_with_cargo_type(app_data_ptr data,
+                                           cargo_type cargo) {
+  while (data != nullptr) {
+    if (data->body.c_t == cargo) return TRUE;
+    data = data->next;
+  }
+  return FALSE;
+}
+
+/**
+ * Check whether a cargo type is allowed on an external XCom client connection.
+ *
+ * This path must continue to support XCom client/control requests, including
+ * membership configuration requests used by the XCOM communication stack. Cargo
+ * that belongs to application delivery, transaction/view handling, reset, or
+ * termination is rejected before it reaches process_client_msg().
+ *
+ * @param cargo the cargo type to check
+ *
+ * @return TRUE if the cargo type is allowed, FALSE otherwise.
+ */
+static bool_t is_allowed_external_client_cargo_type(cargo_type cargo) {
+  switch (cargo) {
+    case add_node_type:
+    case disable_arbitrator:
+    case enable_arbitrator:
+    case force_config_type:
+    case get_event_horizon_type:
+    case get_leaders_type:
+    case get_synode_app_data_type:
+    case remove_node_type:
+    case set_cache_limit:
+    case set_event_horizon_type:
+    case set_leaders_type:
+    case set_max_leaders:
+    case unified_boot_type:
+      return TRUE;
+    case abort_trans:
+    case app_type:
+    case begin_trans:
+    case convert_into_local_server_type:
+    case exit_type:
+    case prepared_trans:
+    case remove_reset_type:
+    case reset_type:
+    case view_msg:
+    case x_terminate_and_exit:
+    case xcom_boot_type:
+    case xcom_set_group:
+      return FALSE;
+  }
+  return FALSE;
+}
+
+/**
+ * Check if the application data list contains cargo not allowed on an external
+ * XCom client connection.
+ *
+ * @param data the application data list
+ *
+ * @return TRUE if at least one data chunk is not allowed, FALSE otherwise.
+ */
+static bool_t has_disallowed_external_client_cargo_type(app_data_ptr data) {
+  if (has_app_data_with_cargo_type(data, app_type)) return TRUE;
+
+  while (data != nullptr) {
+    if (!is_allowed_external_client_cargo_type(data->body.c_t)) return TRUE;
+    data = data->next;
+  }
+  return FALSE;
+}
+
 int acceptor_learner_task(task_arg arg) {
   DECL_ENV
   connection_descriptor *rfd;
@@ -6693,6 +6775,24 @@ again:
       TERMINATE;
     }
     /* purecov: end */
+
+    /*
+      XCom client messages may carry external XCom client/control requests.
+      The local-server conversion request is handled above and must remain
+      allowed. After that, only cargo types that are part of the external XCom
+      client/control protocol may continue through this task. Application,
+      transaction, view, or otherwise unsupported cargo must not enter through
+      this external connection path.
+    */
+    if (ep->p->op == client_msg &&
+        has_disallowed_external_client_cargo_type(ep->p->a)) {
+      G_WARNING(
+          "Rejecting unsupported data received through an external XCom "
+          "client connection.");
+      delete_pax_msg(ep->p);
+      ep->p = nullptr;
+      TERMINATE;
+    }
 
     /*
       Getting a pointer to the server needs to be done after we have

@@ -28,6 +28,7 @@
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("It is not allowed to run single primary mode with 'group_replication_enforce_update_everywhere_checks' enabled.");
 SET SESSION sql_log_bin= 1;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

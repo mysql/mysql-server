@@ -2235,11 +2235,22 @@ static void buf_pool_resize() {
                     "Disabling adaptive hash index.");
 
   /* disable AHI if needed */
-  const bool btr_search_was_enabled = btr_search_disable();
-
-  if (btr_search_was_enabled) {
+  if (btr_search_disable()) {
     ib::info(ER_IB_MSG_60) << "disabled adaptive hash index.";
   }
+
+#ifdef UNIV_DEBUG
+  {
+    bool should_wait = true;
+
+    while (should_wait) {
+      should_wait = false;
+      DBUG_EXECUTE_IF(
+          "ib_buf_pool_resize_after_disable_ahi", should_wait = true;
+          std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+    }
+  }
+#endif /* UNIV_DEBUG */
 
   /* set withdraw target */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -2651,8 +2662,7 @@ withdraw_retry:
   }
 
   /* enable AHI if needed */
-  if (btr_search_was_enabled) {
-    btr_search_enable();
+  if (btr_search_enable()) {
     ib::info(ER_IB_MSG_70) << "Re-enabled adaptive hash index.";
   }
 

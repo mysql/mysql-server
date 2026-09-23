@@ -100,6 +100,7 @@ SET SESSION sql_log_bin=1;
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX ONCE
 --eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 --eval SET PERSIST group_replication_ssl_mode= "$_group_replication_ssl_mode"
 
@@ -133,6 +134,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 --let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
 SET GLOBAL group_replication_clone_threshold= 1;
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 
 --source include/wait_until_disconnected.inc

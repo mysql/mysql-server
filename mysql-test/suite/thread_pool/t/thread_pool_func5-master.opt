@@ -1,0 +1,4 @@
+--thread-pool-size=2
+--thread-pool-max-unused-threads=1
+--thread-pool-query-threads-per-group=1
+--thread-pool_stall_limit=300

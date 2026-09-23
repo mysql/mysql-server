@@ -117,19 +117,64 @@ TEST_P(StartTransactionTest, works) {
 
 const StartTransactionParam test_stmts[] = {
     {"begin", StartTransaction()},
+    {"begin;", StartTransaction()},
+    {"begin; -- trailing comment", StartTransaction()},
+    {"begin; # trailing comment", StartTransaction()},
+    {"begin; /* trailing comment */", StartTransaction()},
     {"begin work", StartTransaction()},
+    {"begin work;", StartTransaction()},
+    {"begin work; -- trailing comment", StartTransaction()},
+    {"begin work; # trailing comment", StartTransaction()},
+    {"begin work; /* trailing comment */", StartTransaction()},
 
-    {"start transaction", StartTransaction()},  //
+    {"start transaction", StartTransaction()},                          //
+    {"start transaction;", StartTransaction()},                         //
+    {"start transaction; -- trailing comment", StartTransaction()},     //
+    {"start transaction; # trailing comment", StartTransaction()},      //
+    {"start transaction; /* trailing comment */", StartTransaction()},  //
     {"start transaction with consistent snapshot",
+     StartTransaction(std::nullopt, true)},  //
+    {"start transaction with consistent snapshot;",
+     StartTransaction(std::nullopt, true)},  //
+    {"start transaction with consistent snapshot; -- trailing comment",
+     StartTransaction(std::nullopt, true)},  //
+    {"start transaction with consistent snapshot; # trailing comment",
+     StartTransaction(std::nullopt, true)},  //
+    {"start transaction with consistent snapshot; /* trailing comment */",
      StartTransaction(std::nullopt, true)},  //
     {"start transaction with consistent snapshot, with consistent snapshot",
      StartTransaction(std::nullopt, true)},  // duplicated snapshot is ok
     {"start transaction with consistent snapshot, read only",
      StartTransaction(StartTransaction::AccessMode::ReadOnly, true)},  //
+    {"start transaction with consistent snapshot, read only;",
+     StartTransaction(StartTransaction::AccessMode::ReadOnly, true)},  //
     {"start transaction read only, with consistent snapshot",
+     StartTransaction(StartTransaction::AccessMode::ReadOnly, true)},  //
+    {"start transaction read only, with consistent snapshot;",
      StartTransaction(StartTransaction::AccessMode::ReadOnly, true)},  //
     {"start transaction read write",
      StartTransaction(StartTransaction::AccessMode::ReadWrite, false)},  //
+    {"start transaction read write;",
+     StartTransaction(StartTransaction::AccessMode::ReadWrite, false)},  //
+    {"start transaction read write; -- trailing comment",
+     StartTransaction(StartTransaction::AccessMode::ReadWrite, false)},  //
+    {"start transaction read write; # trailing comment",
+     StartTransaction(StartTransaction::AccessMode::ReadWrite, false)},  //
+    {"start transaction read write; /* trailing comment */",
+     StartTransaction(StartTransaction::AccessMode::ReadWrite, false)},  //
+
+    {"begin; ,",
+     stdx::unexpected("You have an error in your SQL syntax; after BEGIN only "
+                      "[WORK] is expected. Unexpected input near ,")},
+    {"begin work; ,",
+     stdx::unexpected("You have an error in your SQL syntax; after BEGIN WORK "
+                      "no further input is expected. Unexpected input near ,")},
+    {"start transaction; ,",
+     stdx::unexpected(
+         "You have an error in your SQL syntax; unexpected input near ,")},  //
+    {"start transaction read write; ,",
+     stdx::unexpected(
+         "You have an error in your SQL syntax; unexpected input near ,")},  //
 
     {"begin ,",
      stdx::unexpected("You have an error in your SQL syntax; after BEGIN only "

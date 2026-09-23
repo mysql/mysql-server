@@ -362,6 +362,453 @@ TEST_F(XcomStagesTest, ReceiveFragmentFromSenderNotInGroup) {
 }
 
 /**
+ Verify that malformed split metadata is not accepted as a complete message.
+ */
+TEST_F(XcomStagesTest, RejectMalformedFragmentIndex) {
+  /*
+   Configure the pipeline with fragmentation.
+   Gcs_message_stage_lz4_v2::DEFAULT_THRESHOLD is not a bug, it is to force two
+   fragments using LARGE_PAYLOAD_LEN.
+  */
+  pipeline.register_stage<Gcs_message_stage_split_v2>(
+      true, Gcs_message_stage_lz4_v2::DEFAULT_THRESHOLD);
+  // clang-format off
+  bool error = pipeline.register_pipeline({
+    {Gcs_protocol_version::V2, {Stage_code::ST_SPLIT_V2}}
+  });
+  // clang-format on
+  pipeline.set_version(Gcs_protocol_version::V2);
+  ASSERT_FALSE(error);
+
+  Gcs_xcom_nodes nodes;
+  Gcs_xcom_node_information node("127.0.0.1:8080", Gcs_xcom_uuid::create_uuid(),
+                                 0, true);
+  nodes.add_node(node);
+  Gcs_message_stage &split_stage = pipeline.get_stage(Stage_code::ST_SPLIT_V2);
+  split_stage.update_members_information(node.get_member_id(), nodes);
+
+  constexpr unsigned long long payload_size = LARGE_PAYLOAD_LEN;
+
+  unsigned char control[payload_size];
+  std::memset(control, 0x61, payload_size);
+
+  Gcs_message_data msg_data(0, payload_size);
+  msg_data.append_to_payload(control, payload_size);
+
+  std::vector<Gcs_packet> packets_out;
+  std::tie(error, packets_out) =
+      pipeline.process_outgoing(msg_data, Cargo_type::CT_USER_DATA);
+  ASSERT_FALSE(error);
+  ASSERT_EQ(packets_out.size(), 2);
+
+  Gcs_packet::buffer_ptr buffer;
+  unsigned long long buffer_size;
+  std::tie(buffer, buffer_size) = packets_out.at(1).serialize();
+  auto malformed_fragment = Gcs_packet::make_incoming_packet(
+      std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+
+  auto &malformed_header = static_cast<Gcs_split_header_v2 &>(
+      malformed_fragment.get_current_stage_header());
+  ASSERT_EQ(malformed_header.get_message_part_id(), 0U);
+  ASSERT_EQ(malformed_header.get_num_messages(), 2U);
+  malformed_header.set_message_part_id(malformed_header.get_num_messages());
+
+  Gcs_pipeline_incoming_result error_code;
+  Gcs_packet packet_in;
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(malformed_fragment));
+  ASSERT_NE(error_code, Gcs_pipeline_incoming_result::OK_PACKET);
+
+  std::tie(buffer, buffer_size) = packets_out.at(0).serialize();
+  auto final_fragment = Gcs_packet::make_incoming_packet(
+      std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(final_fragment));
+  ASSERT_NE(error_code, Gcs_pipeline_incoming_result::OK_PACKET);
+}
+
+/**
+ Verify that split metadata with an impossible fragment count is rejected.
+ */
+TEST_F(XcomStagesTest, RejectFragmentCountOutsidePayloadBounds) {
+  /*
+   Configure the pipeline with fragmentation.
+   Gcs_message_stage_lz4_v2::DEFAULT_THRESHOLD is not a bug, it is to force two
+   fragments using LARGE_PAYLOAD_LEN.
+  */
+  pipeline.register_stage<Gcs_message_stage_split_v2>(
+      true, Gcs_message_stage_lz4_v2::DEFAULT_THRESHOLD);
+  // clang-format off
+  bool error = pipeline.register_pipeline({
+    {Gcs_protocol_version::V2, {Stage_code::ST_SPLIT_V2}}
+  });
+  // clang-format on
+  pipeline.set_version(Gcs_protocol_version::V2);
+  ASSERT_FALSE(error);
+
+  Gcs_xcom_nodes nodes;
+  Gcs_xcom_node_information node("127.0.0.1:8080", Gcs_xcom_uuid::create_uuid(),
+                                 0, true);
+  nodes.add_node(node);
+  Gcs_message_stage &split_stage = pipeline.get_stage(Stage_code::ST_SPLIT_V2);
+  split_stage.update_members_information(node.get_member_id(), nodes);
+
+  constexpr unsigned long long payload_size = LARGE_PAYLOAD_LEN;
+
+  unsigned char control[payload_size];
+  std::memset(control, 0x61, payload_size);
+
+  Gcs_message_data msg_data(0, payload_size);
+  msg_data.append_to_payload(control, payload_size);
+
+  std::vector<Gcs_packet> packets_out;
+  std::tie(error, packets_out) =
+      pipeline.process_outgoing(msg_data, Cargo_type::CT_USER_DATA);
+  ASSERT_FALSE(error);
+  ASSERT_EQ(packets_out.size(), 2);
+
+  Gcs_packet::buffer_ptr buffer;
+  unsigned long long buffer_size;
+  std::tie(buffer, buffer_size) = packets_out.at(1).serialize();
+  auto malformed_fragment = Gcs_packet::make_incoming_packet(
+      std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+
+  auto &malformed_header = static_cast<Gcs_split_header_v2 &>(
+      malformed_fragment.get_current_stage_header());
+  ASSERT_EQ(malformed_header.get_message_part_id(), 0U);
+  ASSERT_EQ(malformed_header.get_num_messages(), 2U);
+  malformed_header.set_num_messages(malformed_header.get_num_messages() + 1);
+
+  Gcs_pipeline_incoming_result error_code;
+  Gcs_packet packet_in;
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(malformed_fragment));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::ERROR);
+}
+
+/**
+ Verify that malformed split counts are rejected without poisoning later
+ reassembly for the same message stream.
+ */
+TEST_F(XcomStagesTest, RejectMalformedFragmentCount) {
+  /*
+   Configure the pipeline with fragmentation.
+   Gcs_message_stage_lz4_v2::DEFAULT_THRESHOLD is not a bug, it is to force two
+   fragments using LARGE_PAYLOAD_LEN.
+  */
+  pipeline.register_stage<Gcs_message_stage_split_v2>(
+      true, Gcs_message_stage_lz4_v2::DEFAULT_THRESHOLD);
+  // clang-format off
+  bool error = pipeline.register_pipeline({
+    {Gcs_protocol_version::V2, {Stage_code::ST_SPLIT_V2}}
+  });
+  // clang-format on
+  pipeline.set_version(Gcs_protocol_version::V2);
+  ASSERT_FALSE(error);
+
+  Gcs_xcom_nodes nodes;
+  Gcs_xcom_node_information node("127.0.0.1:8080", Gcs_xcom_uuid::create_uuid(),
+                                 0, true);
+  nodes.add_node(node);
+  Gcs_message_stage &split_stage = pipeline.get_stage(Stage_code::ST_SPLIT_V2);
+  split_stage.update_members_information(node.get_member_id(), nodes);
+
+  constexpr unsigned long long payload_size = LARGE_PAYLOAD_LEN;
+
+  unsigned char control[payload_size];
+  std::memset(control, 0x61, payload_size);
+
+  Gcs_message_data msg_data(0, payload_size);
+  msg_data.append_to_payload(control, payload_size);
+
+  std::vector<Gcs_packet> packets_out;
+  std::tie(error, packets_out) =
+      pipeline.process_outgoing(msg_data, Cargo_type::CT_USER_DATA);
+  ASSERT_FALSE(error);
+  ASSERT_EQ(packets_out.size(), 2);
+
+  Gcs_packet::buffer_ptr buffer;
+  unsigned long long buffer_size;
+  std::tie(buffer, buffer_size) = packets_out.at(1).serialize();
+  std::vector<unsigned char> first_fragment_bytes(buffer.get(),
+                                                  buffer.get() + buffer_size);
+
+  auto make_fragment = [&](std::vector<unsigned char> const &bytes) {
+    Gcs_packet::buffer_ptr fragment_buffer(
+        static_cast<unsigned char *>(std::malloc(bytes.size())),
+        Gcs_packet_buffer_deleter());
+    EXPECT_NE(fragment_buffer.get(), nullptr);
+    if (fragment_buffer.get() == nullptr) return Gcs_packet();
+    std::memcpy(fragment_buffer.get(), bytes.data(), bytes.size());
+    return Gcs_packet::make_incoming_packet(std::move(fragment_buffer),
+                                            bytes.size(), null_synode,
+                                            null_synode, pipeline);
+  };
+
+  auto malformed_fragment = make_fragment(first_fragment_bytes);
+  auto &malformed_header = static_cast<Gcs_split_header_v2 &>(
+      malformed_fragment.get_current_stage_header());
+  ASSERT_EQ(malformed_header.get_message_part_id(), 0U);
+  ASSERT_EQ(malformed_header.get_num_messages(), 2U);
+  malformed_header.set_num_messages(3U);
+
+  Gcs_pipeline_incoming_result error_code;
+  Gcs_packet packet_in;
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(malformed_fragment));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::ERROR);
+
+  std::tie(buffer, buffer_size) = packets_out.at(0).serialize();
+  std::vector<unsigned char> last_fragment_bytes(buffer.get(),
+                                                 buffer.get() + buffer_size);
+  auto last_fragment = make_fragment(last_fragment_bytes);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(last_fragment));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::OK_NO_PACKET);
+
+  auto first_fragment = make_fragment(first_fragment_bytes);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(first_fragment));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::OK_PACKET);
+}
+
+/**
+ Verify that a single split fragment with an inflated whole payload length is
+ rejected before reassembly allocation.
+ */
+TEST_F(XcomStagesTest, RejectMalformedSingleFragmentWholePayloadLength) {
+  constexpr unsigned long long fragment_threshold =
+      Gcs_message_stage_lz4_v2::DEFAULT_THRESHOLD;
+
+  pipeline.register_stage<Gcs_message_stage_split_v2>(true, fragment_threshold);
+  // clang-format off
+  bool error = pipeline.register_pipeline({
+    {Gcs_protocol_version::V2, {Stage_code::ST_SPLIT_V2}}
+  });
+  // clang-format on
+  pipeline.set_version(Gcs_protocol_version::V2);
+  ASSERT_FALSE(error);
+
+  Gcs_xcom_nodes nodes;
+  Gcs_xcom_node_information node("127.0.0.1:8080", Gcs_xcom_uuid::create_uuid(),
+                                 0, true);
+  nodes.add_node(node);
+  Gcs_message_stage &split_stage = pipeline.get_stage(Stage_code::ST_SPLIT_V2);
+  split_stage.update_members_information(node.get_member_id(), nodes);
+
+  Gcs_message_data msg_data(0, fragment_threshold);
+  auto const payload_size =
+      fragment_threshold - msg_data.get_encode_header_size();
+
+  std::vector<unsigned char> control(payload_size, 0x61);
+  msg_data.append_to_payload(control.data(), payload_size);
+
+  std::vector<Gcs_packet> packets_out;
+  std::tie(error, packets_out) =
+      pipeline.process_outgoing(msg_data, Cargo_type::CT_USER_DATA);
+  ASSERT_FALSE(error);
+  ASSERT_EQ(packets_out.size(), 1U);
+
+  Gcs_packet::buffer_ptr buffer;
+  unsigned long long buffer_size;
+  std::tie(buffer, buffer_size) = packets_out.at(0).serialize();
+  auto malformed_fragment = Gcs_packet::make_incoming_packet(
+      std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+
+  auto &malformed_header = static_cast<Gcs_split_header_v2 &>(
+      malformed_fragment.get_current_stage_header());
+  ASSERT_EQ(malformed_header.get_message_part_id(), 0U);
+  ASSERT_EQ(malformed_header.get_num_messages(), 1U);
+  malformed_fragment.get_current_dynamic_header().set_payload_length(
+      malformed_fragment.get_payload_length() + 1);
+
+  Gcs_pipeline_incoming_result error_code;
+  Gcs_packet packet_in;
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(malformed_fragment));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::ERROR);
+}
+
+/**
+ Verify that a fragment with an implausibly short reassembly payload length is
+ rejected.
+ */
+TEST_F(XcomStagesTest, RejectShortReassemblyPayloadLength) {
+  constexpr unsigned long long fragment_threshold =
+      Gcs_message_stage_lz4_v2::DEFAULT_THRESHOLD / 2;
+
+  /*
+   Configure the pipeline with fragmentation. The threshold is chosen to force
+   three fragments using LARGE_PAYLOAD_LEN.
+  */
+  pipeline.register_stage<Gcs_message_stage_split_v2>(true, fragment_threshold);
+  // clang-format off
+  bool error = pipeline.register_pipeline({
+    {Gcs_protocol_version::V2, {Stage_code::ST_SPLIT_V2}}
+  });
+  // clang-format on
+  pipeline.set_version(Gcs_protocol_version::V2);
+  ASSERT_FALSE(error);
+
+  Gcs_xcom_nodes nodes;
+  Gcs_xcom_node_information node("127.0.0.1:8080", Gcs_xcom_uuid::create_uuid(),
+                                 0, true);
+  nodes.add_node(node);
+  Gcs_message_stage &split_stage = pipeline.get_stage(Stage_code::ST_SPLIT_V2);
+  split_stage.update_members_information(node.get_member_id(), nodes);
+
+  constexpr unsigned long long payload_size = LARGE_PAYLOAD_LEN;
+
+  unsigned char control[payload_size];
+  std::memset(control, 0x61, payload_size);
+
+  Gcs_message_data msg_data(0, payload_size);
+  msg_data.append_to_payload(control, payload_size);
+
+  std::vector<Gcs_packet> packets_out;
+  std::tie(error, packets_out) =
+      pipeline.process_outgoing(msg_data, Cargo_type::CT_USER_DATA);
+  ASSERT_FALSE(error);
+  ASSERT_EQ(packets_out.size(), 3);
+
+  auto make_fragment_with_short_reassembly_payload_length =
+      [&](std::size_t packet_index) {
+        Gcs_packet::buffer_ptr buffer;
+        unsigned long long buffer_size;
+        std::tie(buffer, buffer_size) =
+            packets_out.at(packet_index).serialize();
+        auto fragment = Gcs_packet::make_incoming_packet(
+            std::move(buffer), buffer_size, null_synode, null_synode, pipeline);
+
+        auto &fragment_header = static_cast<Gcs_split_header_v2 &>(
+            fragment.get_current_stage_header());
+        EXPECT_LT(fragment_header.get_message_part_id(),
+                  fragment_header.get_num_messages());
+        fragment.get_current_dynamic_header().set_payload_length(
+            fragment_threshold + 1);
+
+        return fragment;
+      };
+
+  Gcs_pipeline_incoming_result error_code;
+  Gcs_packet packet_in;
+
+  auto fragment_0 = make_fragment_with_short_reassembly_payload_length(2);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(fragment_0));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::ERROR);
+}
+
+/**
+ Verify that a fragment set with inconsistent size sum is not reassembled.
+ */
+TEST_F(XcomStagesTest, RejectMalformedFragmentSizeSum) {
+  constexpr unsigned long long fragment_threshold =
+      Gcs_message_stage_lz4_v2::DEFAULT_THRESHOLD / 2;
+
+  /*
+   Configure the pipeline with fragmentation. The threshold is chosen to force
+   three fragments using LARGE_PAYLOAD_LEN.
+  */
+  pipeline.register_stage<Gcs_message_stage_split_v2>(true, fragment_threshold);
+  // clang-format off
+  bool error = pipeline.register_pipeline({
+    {Gcs_protocol_version::V2, {Stage_code::ST_SPLIT_V2}}
+  });
+  // clang-format on
+  pipeline.set_version(Gcs_protocol_version::V2);
+  ASSERT_FALSE(error);
+
+  Gcs_xcom_nodes nodes;
+  Gcs_xcom_node_information node("127.0.0.1:8080", Gcs_xcom_uuid::create_uuid(),
+                                 0, true);
+  nodes.add_node(node);
+  Gcs_message_stage &split_stage = pipeline.get_stage(Stage_code::ST_SPLIT_V2);
+  split_stage.update_members_information(node.get_member_id(), nodes);
+
+  constexpr unsigned long long payload_size = LARGE_PAYLOAD_LEN;
+
+  unsigned char control[payload_size];
+  std::memset(control, 0x61, payload_size);
+
+  Gcs_message_data msg_data(0, payload_size);
+  msg_data.append_to_payload(control, payload_size);
+
+  std::vector<Gcs_packet> packets_out;
+  std::tie(error, packets_out) =
+      pipeline.process_outgoing(msg_data, Cargo_type::CT_USER_DATA);
+  ASSERT_FALSE(error);
+  ASSERT_EQ(packets_out.size(), 3);
+
+  std::vector<std::vector<unsigned char>> serialized_fragments;
+  serialized_fragments.reserve(packets_out.size());
+  for (auto &packet : packets_out) {
+    Gcs_packet::buffer_ptr buffer;
+    unsigned long long buffer_size;
+    std::tie(buffer, buffer_size) = packet.serialize();
+    serialized_fragments.emplace_back(buffer.get(), buffer.get() + buffer_size);
+  }
+
+  auto make_fragment = [&](std::size_t packet_index) {
+    auto const &bytes = serialized_fragments.at(packet_index);
+    Gcs_packet::buffer_ptr buffer(
+        static_cast<unsigned char *>(std::malloc(bytes.size())),
+        Gcs_packet_buffer_deleter());
+    EXPECT_NE(buffer.get(), nullptr);
+    if (buffer.get() == nullptr) return Gcs_packet();
+    std::memcpy(buffer.get(), bytes.data(), bytes.size());
+    return Gcs_packet::make_incoming_packet(std::move(buffer), bytes.size(),
+                                            null_synode, null_synode, pipeline);
+  };
+
+  auto make_fragment_with_bad_size_sum = [&](std::size_t packet_index) {
+    auto fragment = make_fragment(packet_index);
+
+    auto &fragment_header =
+        static_cast<Gcs_split_header_v2 &>(fragment.get_current_stage_header());
+    EXPECT_LT(fragment_header.get_message_part_id(),
+              fragment_header.get_num_messages());
+    fragment.get_current_dynamic_header().set_payload_length(
+        2 * fragment_threshold + 1);
+
+    return fragment;
+  };
+
+  Gcs_pipeline_incoming_result error_code;
+  Gcs_packet packet_in;
+
+  auto fragment_0 = make_fragment_with_bad_size_sum(2);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(fragment_0));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::OK_NO_PACKET);
+
+  auto fragment_2 = make_fragment_with_bad_size_sum(1);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(fragment_2));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::OK_NO_PACKET);
+
+  auto fragment_1 = make_fragment_with_bad_size_sum(0);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(fragment_1));
+  ASSERT_NE(error_code, Gcs_pipeline_incoming_result::OK_PACKET);
+
+  fragment_0 = make_fragment(2);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(fragment_0));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::OK_NO_PACKET);
+
+  fragment_2 = make_fragment(1);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(fragment_2));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::OK_NO_PACKET);
+
+  fragment_1 = make_fragment(0);
+  std::tie(error_code, packet_in) =
+      pipeline.process_incoming(std::move(fragment_1));
+  ASSERT_EQ(error_code, Gcs_pipeline_incoming_result::OK_PACKET);
+}
+
+/**
  Create a message with a content whose size is greater than the compression
  threshold and make it go through the compression stage and check that
  the content is really compressed.

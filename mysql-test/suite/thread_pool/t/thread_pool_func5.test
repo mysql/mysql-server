@@ -1,0 +1,127 @@
+--source include/have_thread_pool.inc
+
+# This test relies on correct setting of thread_pool related variables.
+if(`SELECT @@global.thread_pool_size <> 2 OR @@global.thread_pool_max_unused_threads <> 1`)
+{
+   --die @@global.thread_pool_size must be 2 and @@global.thread-pool_max_unused_threads must be 1, please check <testcase>-master.opt
+}
+
+# When we come here we do so in the main connection which is already
+# started for us. We want to test what happens when we get this connection
+# into a long running query, or blocked for a long time and there is a limit
+# to how many threads we can have in a thread group. We run this test with a
+# two thread groups since it does only require tests that are local to one
+# thread group, we use the other thread group to check the state of the
+# thread group under test.
+#
+# We start by spawning up two more connections. Since we only allow one
+# unused thread, this should result in one thread being exited, We check
+# this through a check of the tp_thread_group_state table to see if we have
+# the correct amount of threads in the group.
+#
+# Next we issue a blocking query in one of connections. This means that we
+# now have one query being allocated to run a query, next we start yet another
+# blocking query, in this state the thread group should have no active
+# queries but have two threads in the blocked state. We now attempt to make
+# one more connection.
+
+# After WL#7158 implemented a named pipe used to establish default connecion.
+# Since this tests relies on the fact that default connection based on
+# TCP/IP the default connection is reopened.
+--disconnect default
+--connect (default, localhost, root,,)
+
+--connect (con_check1, localhost, root,,)
+let $id_list= `SELECT CONNECTION_ID()`;
+--connection default
+SELECT CONNECTIONS_STARTED INTO @connection_started_0
+FROM performance_schema.tp_thread_group_stats WHERE TP_GROUP_ID = 0;
+--connect (con_test1,  localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+# Determine the TP_GROUP_ID of con_test1.
+--connection default
+let $tp_group_id= `SELECT IF(CONNECTIONS_STARTED = @connection_started_0 + 1, 0, 1)
+FROM performance_schema.tp_thread_group_stats WHERE TP_GROUP_ID = 0`;
+--connect (con_dummy, localhost, root,,)
+--disconnect con_dummy
+--connect (con_test2,  localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+--connect (con_dummy, localhost, root,,)
+--disconnect con_dummy
+--connect (con_test3,  localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+
+# Now we create an extra thread by running a blocked query quickly followed
+# by another similar query on another connection in the same thread group.
+--connection con_test1
+send SELECT SLEEP(3);
+--connection con_test2
+send SELECT SLEEP(3);
+--connection con_test1
+reap;
+--connection con_test2
+reap;
+
+# Check that we have now an extra thread and that this is a consumer thread.
+--connection con_check1
+--replace_result $tp_group_id <tp_group_id>
+eval SET @TP_GROUP_ID = $tp_group_id;
+# RESERVE_THREADS must be 0 all time.
+SELECT RESERVE_THREADS = 0 AS "Expect 1" FROM performance_schema.tp_thread_group_state
+WHERE TP_GROUP_ID = @TP_GROUP_ID;
+# Only assert max number of threads in the system based on the conditions of the test.
+# There can no more than 9 threads in the pool including connect threads.
+let $wait_condition= SELECT COUNT(*) <= 9 FROM performance_schema.tp_thread_state;
+--source include/wait_condition.inc
+SELECT THREAD_COUNT = 3 AND CONSUMER_THREADS = 2 AND RESERVE_THREADS = 0 AND CONNECT_THREAD_COUNT = 1 AS "Expect 1"
+FROM performance_schema.tp_thread_group_state
+WHERE TP_GROUP_ID = @TP_GROUP_ID;
+
+# Now we create yet another extra thread by running a blocked query quickly
+# followed by another similar query on another connection in the same thread
+# group and finally one more. When the last query is finished the thread
+# should be assigned to reserve thread, but according to our configuration
+# this thread should be stopped. We should see thus 0 reserve threads but
+# we should also see one more thread created compared to last check.
+
+--connection con_test1
+--send SELECT SLEEP(3)
+--connection con_test2
+--send SELECT SLEEP(3)
+--connection con_test3
+--send SELECT SLEEP(3)
+--connection con_test1
+--reap
+--connection con_test2
+--reap
+--connection con_test3
+--reap
+
+# Now check that the test had the desired outcome.
+--connection con_check1
+# RESERVE_THREADS must be 0 all time.
+SELECT RESERVE_THREADS = 0 AS "Expect 1" FROM performance_schema.tp_thread_group_state
+WHERE TP_GROUP_ID = @TP_GROUP_ID;
+# There can be no more than 9 threads in the system including connect threads.
+# SELECT TP_GROUP_ID, COUNT(*) FROM performance_schema.tp_thread_state
+# GROUP BY TP_GROUP_ID ORDER BY TP_GROUP_ID;
+let $wait_condition= SELECT COUNT(*) <= 9 FROM performance_schema.tp_thread_state;
+--source include/wait_condition.inc
+SELECT THREAD_COUNT = 3 AND CONSUMER_THREADS = 2 AND RESERVE_THREADS = 0 AND CONNECT_THREAD_COUNT = 1 AS "Expect 1"
+FROM performance_schema.tp_thread_group_state
+WHERE TP_GROUP_ID = @TP_GROUP_ID;
+# Cleanup
+--connection default
+--disconnect con_check1
+--disconnect con_test1
+--disconnect con_test2
+--disconnect con_test3
+--source ../inc/wait_until_disappeared.inc
+
+# Add suppression for the message that says
+# thread_pool_query_threads_per_group(1) is not recommended when used with
+# HIGH_CONCURRENCY_ALGORITHM
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

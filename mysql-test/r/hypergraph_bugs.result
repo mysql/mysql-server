@@ -1772,6 +1772,19 @@ EXPLAIN
 
 DROP TABLE t1;
 #
+# Bug#39501528: Crash evaluating a ROLLUP aggregate from a constant
+#               HAVING subquery during filter initialization
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT HEX(-31378)
+GROUP BY ROLLUP((SELECT /*+ BKA() */ 1))
+HAVING (SELECT 338 FROM t1 WHERE AVG(26) LIMIT 1);
+HEX(-31378)
+FFFFFFFFFFFF856E
+FFFFFFFFFFFF856E
+DROP TABLE t1;
+#
 # Bug#36099491: Assertion secondary_engine_cost_hook != nullptr
 #               failed with hypergraph_optimizer
 #
@@ -2913,7 +2926,7 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE A(col_int INT);
 INSERT INTO A VALUES (1), (2), (3), (4), (5);
-SELECT  /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=on') */
+SELECT
 PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
 FROM A;
 PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
@@ -3212,3 +3225,378 @@ NOT EXISTS (SELECT t2.f1
 FROM t1 AS t3 )));
 1
 DROP TABLE t1;
+#
+# Bug#36448705 Wrong results for ref access with decimal-to-int truncation
+#
+# Decimal value gets truncated to integer 0 during index key construction,
+# and the optimizer incorrectly removes the post-filter predicate.
+#
+CREATE TABLE t0 (
+c2 SMALLINT UNSIGNED NOT NULL,
+UNIQUE KEY i0 (c2)
+);
+INSERT INTO t0 VALUES (0),(1);
+# With UNIQUE KEY - should return empty set
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+c2
+# Verify with explicit decimal comparison
+SELECT t0.c2 FROM t0 WHERE t0.c2 = 0.335691025520639;
+c2
+# Verify correct result with table scan (no index hint)
+SELECT t0.c2 FROM t0 IGNORE INDEX (i0) WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+c2
+# Non-unique key variant
+ALTER TABLE t0 DROP KEY i0, ADD KEY i0 (c2);
+SET SESSION optimizer_switch="hypergraph_optimizer=off";
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+c2
+SET SESSION optimizer_switch="hypergraph_optimizer=on";
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+c2
+DROP TABLE t0;
+#
+# Bug#36957877 Building rarely used index on derived table is inefficient
+#
+CREATE TABLE t0 (a INT PRIMARY KEY, b INT, c INT, d INT);
+INSERT INTO t0
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<999)
+SELECT n, n%100, n%100, n%100 FROM qn;
+ANALYZE TABLE t0;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+SELECT SUM(b) v1, c v2, d v3 FROM t0 GROUP BY c, d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+EXPLAIN
+-> Table scan on <union temporary>  (rows=64)
+    -> Union materialize with deduplication  (rows=64)
+        -> Filter: (cte1.v2 = 5)  (rows=32)
+            -> Table scan on cte1  (rows=320)
+                -> Materialize CTE cte1 if needed  (rows=320)
+                    -> Group aggregate: sum(t0.b)  (rows=320)
+                        -> Sort: t0.c, t0.d  (rows=1000)
+                            -> Index scan on t0 using PRIMARY  (rows=1000)
+        -> Filter: (cte1.v1 = 4)  (rows=32)
+            -> Table scan on cte1  (rows=320)
+                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=320)
+
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+SELECT SUM(x1.b + x2.b) v1, x1.d v2
+FROM t0 x1 JOIN t0 x2 ON x1.c = x2.c
+GROUP BY x1.d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+EXPLAIN
+-> Table scan on <union temporary>  (rows=6.32)
+    -> Union materialize with deduplication  (rows=6.32)
+        -> Filter: (cte1.v2 = 5)  (rows=3.16)
+            -> Table scan on cte1  (rows=31.6)
+                -> Materialize CTE cte1 if needed  (rows=31.6)
+                    -> Table scan on <temporary>  (rows=31.6)
+                        -> Aggregate using temporary table  (rows=31.6)
+                            -> Inner hash join (x1.c = x2.c)  (rows=100000)
+                                -> Index scan on x1 using PRIMARY  (rows=1000)
+                                -> Hash
+                                    -> Index scan on x2 using PRIMARY  (rows=1000)
+        -> Filter: (cte1.v1 = 4)  (rows=3.16)
+            -> Table scan on cte1  (rows=31.6)
+                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=31.6)
+
+DROP TABLE t0;
+#
+# Bug 36720017 - Hypergraph optimizer uses slow full deduplication
+#                in DISTINCT + LIMIT queries
+#
+CREATE TABLE t(x INT, y INT);
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6,6), (7,7);
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1) (actual rows=1 loops=1)
+    -> Table scan on <temporary>  (rows=1) (actual rows=1 loops=1)
+        -> Temporary table with deduplication  (rows=1) (actual rows=1 loops=1)
+            -> Limit table size: 1 unique row(s)
+                -> Inner hash join (t1.x = t2.x)  (rows=314) (actual rows=1 loops=1)
+                    -> Table scan on t1  (rows=56) (actual rows=1 loops=1)
+                    -> Hash
+                        -> Table scan on t2  (rows=56) (actual rows=56 loops=1)
+
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_BIG_RESULT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1) (actual rows=1 loops=1)
+    -> Sort with duplicate removal: t1.x, limit input to 1 row(s) per chunk  (rows=1) (actual rows=1 loops=1)
+        -> Inner hash join (t1.x = t2.x)  (rows=314) (actual rows=448 loops=1)
+            -> Table scan on t1  (rows=56) (actual rows=56 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=56) (actual rows=56 loops=1)
+
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 3 OFFSET 2;
+EXPLAIN
+-> Limit/Offset: 3/2 row(s)  (rows=3) (actual rows=3 loops=1)
+    -> Table scan on <temporary>  (rows=5) (actual rows=5 loops=1)
+        -> Temporary table with deduplication  (rows=5) (actual rows=5 loops=1)
+            -> Limit table size: 5 unique row(s)
+                -> Inner hash join (t1.x = t2.x)  (rows=314) (actual rows=33 loops=1)
+                    -> Table scan on t1  (rows=56) (actual rows=5 loops=1)
+                    -> Hash
+                        -> Table scan on t2  (rows=56) (actual rows=56 loops=1)
+
+DELETE FROM t WHERE x <> 1;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_CALC_FOUND_ROWS DISTINCT x
+FROM t AS t1
+LIMIT 5 OFFSET 15;
+EXPLAIN
+-> Limit/Offset: 5/15 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (rows=0) (actual rows=0 loops=1)
+    -> Sort with duplicate removal: t1.x  (rows=2.83) (actual rows=1 loops=1)
+        -> Table scan on t1  (rows=8) (actual rows=8 loops=1)
+
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+SELECT FOUND_ROWS() AS total_distinct_x;
+total_distinct_x
+1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2
+WHERE t1.x = t2.x
+ORDER BY t1.y LIMIT 5 OFFSET 10;
+EXPLAIN
+-> Limit/Offset: 5/10 row(s)  (rows=0) (actual rows=0 loops=1)
+    -> Sort with duplicate removal: t1.y, t1.x  (rows=2.53) (actual rows=1 loops=1)
+        -> Inner hash join (t1.x = t2.x)  (rows=6.4) (actual rows=64 loops=1)
+            -> Table scan on t1  (rows=8) (actual rows=8 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=8) (actual rows=8 loops=1)
+
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT * FROM (
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 5
+) s ORDER BY s.x;
+EXPLAIN
+-> Sort: s.x  (rows=2.53) (actual rows=1 loops=1)
+    -> Table scan on s  (rows=2.53) (actual rows=1 loops=1)
+        -> Materialize  (rows=2.53) (actual rows=1 loops=1)
+            -> Limit: 5 row(s)  (rows=2.53) (actual rows=1 loops=1)
+                -> Sort with duplicate removal: t1.x, limit input to 5 row(s) per chunk  (rows=2.53) (actual rows=1 loops=1)
+                    -> Inner hash join (t1.x = t2.x)  (rows=6.4) (actual rows=64 loops=1)
+                        -> Table scan on t1  (rows=8) (actual rows=8 loops=1)
+                        -> Hash
+                            -> Table scan on t2  (rows=8) (actual rows=8 loops=1)
+
+DROP TABLE t;
+#
+# Bug#37152269 - REDUNDANT FILTER PATHS ON BETWEEN RANGE SCANS IN HYPERGRAPH
+#
+CREATE TABLE t1 (
+f1 int NOT NULL, f2 int NOT NULL,
+f3 int DEFAULT NULL,
+PRIMARY KEY (f1,f2), KEY f3 (f3));
+INSERT INTO t1 (f1, f2, f3) VALUES
+(1, 1, 1), (1, 2, 3), (2, 2, 3),
+(3, 2, 3), (4, 2, 3), (5, 2, 3), (6, 2, 3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f3 = 3 AND f1 BETWEEN 2 AND 4;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using f3 over (f3 = 3 AND 2 <= f1 <= 4)  (rows=3)
+
+SELECT COUNT(*) FROM t1
+WHERE f3 = 3 AND f1 BETWEEN 2 AND 4;
+COUNT(*)
+3
+SET @low = 2;
+SET @high = 4;
+PREPARE stmt FROM
+'EXPLAIN FORMAT = TREE SELECT COUNT(*) FROM t1
+ WHERE f3 = 3 AND f1 BETWEEN ? AND ?';
+EXECUTE stmt USING @low, @high;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using f3 over (f3 = 3 AND 2 <= f1 <= 4)  (rows=3)
+
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM
+'SELECT COUNT(*) FROM t1
+ WHERE f3 = 3 AND f1 BETWEEN ? AND ?';
+EXECUTE stmt USING @low, @high;
+COUNT(*)
+3
+DEALLOCATE PREPARE stmt;
+INSERT INTO t1 VALUES (100, 1, NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND 4;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using PRIMARY over (2 <= f1 <= 4)  (rows=3)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND 4;
+COUNT(*)
+3
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND f2;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t1.f1 between 2 and t1.f2)  (rows=0.889)
+        -> Covering index scan on t1 using PRIMARY  (rows=8)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND f2;
+COUNT(*)
+1
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND (1+3);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using PRIMARY over (2 <= f1 <= 4)  (rows=3)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND (1+3);
+COUNT(*)
+3
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 100 AND f2;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t1.f1 not between 100 and t1.f2)  (rows=7.11)
+        -> Covering index scan on t1 using PRIMARY  (rows=8)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 100 AND f2;
+COUNT(*)
+8
+INSERT INTO t1 (f1, f2, f3)
+WITH RECURSIVE seq(n) AS (
+SELECT 7 UNION ALL SELECT n + 1 FROM seq WHERE n < 1000)
+SELECT n, 1, NULL FROM seq WHERE n <> 100;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 2 AND 999;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using PRIMARY over (f1 < 2) OR (999 < f1)  (rows=3)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 2 AND 999;
+COUNT(*)
+3
+DROP TABLE t1;
+#
+# Bug#36578540 Sorting on function with side effects results in
+# more function calls
+#
+CREATE TABLE t1 (x INT);
+CREATE TABLE t2 (x INT);
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE FUNCTION f1(p INT) RETURNS INT DETERMINISTIC MODIFIES SQL DATA
+BEGIN
+INSERT INTO t1 VALUES (p);
+RETURN p + 1;
+END|
+SELECT f1(x) AS f FROM t2 ORDER BY f;
+f
+2
+3
+4
+SELECT COUNT(*) AS should_be_3 FROM t1;
+should_be_3
+3
+SELECT * FROM t1 ORDER BY x;
+x
+1
+2
+3
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+CREATE TABLE t3 (x INT);
+INSERT INTO t3 VALUES (1), (2), (3), (4), (5);
+EXPLAIN FORMAT=TREE SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+EXPLAIN
+-> Sort: r  (rows=5)
+    -> Stream results  (rows=5)
+        -> Table scan on t3  (rows=5)
+
+SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+x	r
+2	0.15164413689788817
+4	0.3925059534539524
+5	0.6540667979550239
+1	0.6629110161800972
+3	0.7694876666827943
+DROP TABLE t3;
+CREATE TABLE t4 (x INT, y INT);
+INSERT INTO t4 VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0);
+UPDATE t4 SET y = 1 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_5 FROM t4 WHERE y = 1;
+should_be_5
+5
+DELETE FROM t4 ORDER BY RAND() LIMIT 2;
+SELECT COUNT(*) AS should_be_3 FROM t4;
+should_be_3
+3
+DELETE FROM t4 WHERE x > 0 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_0 FROM t4;
+should_be_0
+0
+DROP TABLE t4;
+CREATE TABLE t5 (a INT);
+INSERT INTO t5 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t6 (id INT PRIMARY KEY, y DOUBLE);
+INSERT INTO t6 VALUES (1, 0);
+EXPLAIN FORMAT=TREE
+DELETE FROM t6 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+EXPLAIN
+-> Delete from t6 (immediate)  (rows=1)
+    -> Filter: (t6.y > (select #2))  (rows=1)
+        -> Index scan on t6 using PRIMARY  (rows=1)
+        -> Select #2 (subquery in condition; uncacheable)
+            -> Sort: r, limit input to 1 row(s) per chunk  (rows=1)
+                -> Stream results  (rows=5)
+                    -> Table scan on t5  (rows=5)
+
+EXPLAIN FORMAT=TREE
+UPDATE t6 SET y = 1 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+EXPLAIN
+-> Update t6 (immediate)  (rows=1)
+    -> Filter: (t6.y > (select #2))  (rows=1)
+        -> Index scan on t6 using PRIMARY  (rows=1)
+        -> Select #2 (subquery in condition; uncacheable)
+            -> Sort: r, limit input to 1 row(s) per chunk  (rows=1)
+                -> Stream results  (rows=5)
+                    -> Table scan on t5  (rows=5)
+
+DROP TABLE t5, t6;

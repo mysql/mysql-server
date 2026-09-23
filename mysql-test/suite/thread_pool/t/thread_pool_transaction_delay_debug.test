@@ -1,0 +1,213 @@
+--source include/have_thread_pool.inc
+--source include/have_debug.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
+--let $saved_transaction_delay = `SELECT @@GLOBAL.thread_pool_transaction_delay`
+
+--echo # Setup
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+CREATE USER ctrlu;
+GRANT ALL on *.* TO ctrlu;
+--let $user = ctrlu
+--source include/show_grants.inc
+
+--echo ## Show behavior when thread_pool_transaction_delay=0
+
+--enable_connect_log
+connect(ctrl, localhost, ctrlu, ,,);
+--echo # In autocommit mode each statement should consider transaction_delay
+--echo # and find it to be zero.
+SET GLOBAL DEBUG = '+d,tdzero';
+connection default;
+SELECT * FROM t1;
+
+--echo # Likewise for BEGIN WORK.
+BEGIN WORK;
+
+connection ctrl;
+--echo # But for the following statement in the transaction started by
+--echo # BEGIN WORK, transaction_delay should not be available.
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+
+connection default;
+SELECT * FROM t1;
+COMMIT WORK;
+
+connection ctrl;
+--echo # BEGIN should see tdzero
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdzero";
+
+connection default;
+BEGIN;
+
+connection ctrl;
+--echo # SELECT 1 after BEGIN sees tdna, like other statements.
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+
+connection default;
+SELECT 1;
+SELECT * FROM t1;
+COMMIT;
+
+connection ctrl;
+--echo # When autocommit is turned off, the next statement is the first in a
+--echo # transaction, and should consider transaction_delay and find it to be
+--echo # zero.
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdzero";
+
+connection default;
+SET AUTOCOMMIT = OFF;
+SELECT * FROM t1;
+
+connection ctrl;
+--echo # The next statement is now part of the same transaction, and
+--echo # transaction_delay should not be available.
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+
+connection default;
+SELECT * FROM t1;
+COMMIT;
+
+connection ctrl;
+--echo # The next statement after commit is the first in a transactions and
+--echo # should find transaction_delay to be zero. 
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdzero";
+
+connection default;
+SELECT * FROM t1;
+
+connection ctrl;
+--echo # The next statement is now part of the same transaction, and
+--echo # transaction_delay should not be available.
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+
+connection default;
+SELECT * FROM t1;
+COMMIT;
+
+connection ctrl;
+--echo # First SELECT 1 in transaction should see tdzero
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdzero";
+
+connection default;
+SELECT 1;
+
+--echo # Additional SELECT 1's still see tdzero because
+--echo # a table has not been opened so we are still not
+--echo # in an active multi-statement transaction.
+
+connection default;
+SELECT 1;
+SELECT 1;
+SELECT * FROM t1;
+
+connection ctrl;
+--echo # Only after the first table SELECT do we see tdna
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+
+connection default;
+SELECT 1;
+COMMIT;
+
+connection ctrl;
+--echo # Unset debug for admin statements.
+SET GLOBAL DEBUG = "-d,tdna";
+
+connection default;
+--echo # Restore default autocommit value.
+SET AUTOCOMMIT = ON;
+
+--echo ## Show behavior when tranaction delay is non-zero (on).
+SET GLOBAL thread_pool_transaction_delay=1;
+
+connection ctrl;
+--echo # Statement in autocommit mode should find transaction_delay to be on.
+SET GLOBAL DEBUG = "+d,tdon";
+
+connection default;
+SELECT * FROM t1;
+
+--echo # Likewise for BEGIN WORK
+BEGIN WORK;
+
+connection ctrl;
+--echo # But for next statement in transaction started by BEGIN WORK,
+--echo # transaction_delay should not be available
+SET GLOBAL DEBUG = "-d,tdon";
+SET GLOBAL DEBUG = "+d,tdna";
+
+connection default;
+SELECT * FROM t1;
+COMMIT WORK;
+
+connection ctrl;
+--echo # When autocommit is turned off, the next statement is the first in 
+--echo # a transaction and should find transaction_delay to be on.
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdon";
+
+connection default;
+SET AUTOCOMMIT = OFF;
+
+SELECT * FROM t1;
+
+connection ctrl;
+--echo # But for the next statement in the same transaction transaction_delay
+--echo # should not be available.
+SET GLOBAL DEBUG = "-d,tdon";
+SET GLOBAL DEBUG = "+d,tdna";
+
+connection default;
+SELECT * FROM t1;
+COMMIT;
+
+connection ctrl;
+--echo # The next statement after commit is the first in a transactions and
+--echo # should find transaction_delay to be on. This remains true until a table
+--echo # has been opened and the transaction becomes active multi-statement.
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdon";
+
+connection default;
+SELECT 1;
+SELECT 1;
+SELECT * FROM t1;
+
+connection ctrl;
+--echo # But for the next statement in the same transaction transaction_delay
+--echo # should not be available.
+SET GLOBAL DEBUG = "-d,tdon";
+SET GLOBAL DEBUG = "+d,tdna";
+
+connection default;
+SELECT 1;
+SELECT 1;
+SELECT * FROM t1;
+COMMIT;
+
+connection ctrl;
+SET GLOBAL DEBUG = "-d,tdna";
+disconnect ctrl;
+--source include/wait_until_disconnected.inc
+
+connection default;
+SET GLOBAL DEBUG = "";
+DROP USER ctrlu;
+DROP TABLE t1;
+--eval SET GLOBAL thread_pool_transaction_delay = $saved_transaction_delay
+

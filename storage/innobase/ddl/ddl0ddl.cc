@@ -503,16 +503,16 @@ void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept {
   }
 }
 
-dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
-                   size_t type) noexcept {
+dberr_t Row::build(ddl::Context &ctx, mem_heap_t *heap) noexcept {
+  const dict_index_t *index = ctx.index();
   ut_ad(rec_offs_any_null_extern(index, m_rec, m_offsets) == nullptr);
 
   /* Build a row based on the clustered index. */
 
   auto col_table = ctx.m_vec_index_build ? ctx.m_old_table : ctx.m_new_table;
-  m_ptr = row_build_w_add_vcol(type, index, m_rec, m_offsets, col_table,
-                               m_add_cols, ctx.m_add_v, ctx.m_col_map, &m_ext,
-                               heap);
+  m_ptr = row_build_w_add_vcol(ROW_COPY_POINTERS, index, m_rec, m_offsets,
+                               col_table, m_add_cols, ctx.m_add_v,
+                               ctx.m_col_map, &m_ext, heap);
 
   if (!ctx.check_null_constraints(m_ptr)) {
     ctx.m_trx->error_key_num = SERVER_CLUSTER_INDEX_ID;
@@ -534,6 +534,12 @@ dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
   }
 
   return DB_SUCCESS;
+}
+
+void Row::deep_copy(mem_heap_t *heap) noexcept {
+  for (size_t i = 0; i < m_ptr->n_fields; ++i) {
+    dfield_dup(&m_ptr->fields[i], heap);
+  }
 }
 
 dberr_t Cursor::finish(dberr_t err) noexcept {

@@ -72,7 +72,9 @@ class Btree_load : private ut::Non_copyable {
   };
 
  public:
-  using Page_loaders = std::vector<Page_load *, ut::allocator<Page_load *>>;
+  using Page_loader_ptr = ut::unique_ptr<Page_load>;
+  using Page_loaders =
+      std::vector<Page_loader_ptr, ut::allocator<Page_loader_ptr>>;
 
   /** Constructor
   @param[in]    index                     B-tree index.

@@ -29,6 +29,8 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --source include/have_gtid_mode_off.inc
+--source include/skip_config_rpl_gtid_only.inc
+--let $use_gtids= 0
 
 # This test needs at least 2 applier workers
 --let $option_name = replica_parallel_workers
@@ -45,7 +47,9 @@
 if($gtid_mode_on == 1){
     --let $rpl_gtid_mode= OFF
     --let $rpl_set_enforce_gtid_consistency= 0
+    --let $include_silent= 1
     --source include/rpl/set_gtid_mode.inc
+    --let $include_silent= 0
 }
 
 --source include/rpl/connection_replica.inc
@@ -186,11 +190,13 @@ UNLOCK TABLES;
 --source include/rpl/connection_source.inc
 
 #Setting GTID_MODE to original state
+--let $include_silent= 1
 if ($gtid_mode_on == 0) {
   --let $rpl_gtid_mode = 0
   --let $rpl_set_enforce_gtid_consistency = 0
 }
 --source include/rpl/set_gtid_mode.inc
+--let $include_silent= 0
 
 DROP TABLE t1, t2;
 --source include/rpl/deinit.inc

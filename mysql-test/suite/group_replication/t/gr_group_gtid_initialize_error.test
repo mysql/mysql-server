@@ -32,6 +32,7 @@ SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,gr_server_gtid_executed_extraction_error';
 
 # The start GR will error out here due to the error injection.
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 

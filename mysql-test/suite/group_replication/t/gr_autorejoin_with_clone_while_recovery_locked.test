@@ -102,6 +102,7 @@ SET sql_log_bin=1;
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX ONCE
 --eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 --enable_query_log
 

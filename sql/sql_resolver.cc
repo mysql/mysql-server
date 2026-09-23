@@ -5624,14 +5624,14 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
 
   // Locate place of this subquery (SELECT list or WHERE clause):
   Item **root = nullptr;
-  size_t root_field_no = 0;
+  size_t root_field_index = 0;
 
   for (size_t i = 0; i < fields.size(); i++) {
     root = &fields[i];
     if (!(*root)->hidden && (*root)->has_subquery() &&
         (*root)->walk(&Item::contains_item, enum_walk::PREFIX,
                       pointer_cast<uchar *>(&subq_pred))) {
-      root_field_no = i;
+      root_field_index = i;
       break;
     }
     root = nullptr;
@@ -5648,7 +5648,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
 
   if (root != &m_where_cond) {
     for (size_t i = 0; i < fields.size(); i++) {
-      if (i > root_field_no && fields[i]->has_wf() &&
+      if (i > root_field_index && fields[i]->has_wf() &&
           fields[i]->has_subquery()) {
         /*
           There is an anomaly in fields which make it impossible to transform
@@ -6353,8 +6353,14 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   if (replace_subcondition(thd, root, subq_pred, condition, false)) return true;
 
   if (root != &m_where_cond) {
-    if (base_ref_items[root_field_no] != *root) {
-      base_ref_items[root_field_no] = *root;
+    // root_field_index indexes 'fields' (hidden items first), but
+    // base_ref_items is laid out visible-first (see
+    // Query_block::add_hidden_item()).
+    const size_t hidden_field_count = CountHiddenFields(fields);
+    assert(root_field_index >= hidden_field_count);
+    const size_t base_ref_items_index = root_field_index - hidden_field_count;
+    if (base_ref_items[base_ref_items_index] != *root) {
+      base_ref_items[base_ref_items_index] = *root;
     }
     if (is_grouped()) {
       replace_order_item(group_list.first, old_expr,
@@ -6623,6 +6629,7 @@ bool Query_block::replace_item_in_expression(Item **expr, bool was_hidden,
       Item_field *f = down_cast<Item_field *>(new_item);
       Item_field *cpy = new (parent_lex->thd->mem_root) Item_field(f->field);
       if (cpy == nullptr) return true;
+      cpy->increment_ref_count();
       *expr = cpy;
     }
 

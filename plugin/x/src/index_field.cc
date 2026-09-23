@@ -30,6 +30,7 @@
 #include <limits>
 
 #include "plugin/x/src/helper/generate_hash.h"
+#include "plugin/x/src/helper/sql_literal_escaping.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_regex.h"
@@ -106,6 +107,7 @@ bool Index_field::is_column_exists(iface::Sql_session *sql_session,
                                    const std::string &table_name,
                                    ngs::Error_code *error) const {
   Query_string_builder qb;
+  qb.set_no_backslash_escapes(is_no_backslash_escapes(sql_session));
   qb.put("SHOW COLUMNS FROM ")
       .quote_identifier(schema_name)
       .dot()

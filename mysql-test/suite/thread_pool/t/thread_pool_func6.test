@@ -1,0 +1,130 @@
+# Test for revealing issues around
+# Bug#38896 pool-of-threads feature not tolarent to increasing
+#           max_connections at runtime
+# Attention: The bug was found on a totally different implementation.
+#
+# Author:
+# 2011-05-23 mleich develop tests for WL#5136 New Thread pool design
+#
+
+--source include/have_thread_pool.inc
+
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+let $saved_max_connections = `SELECT @@global.max_connections`;
+
+CREATE USER mysqltest_u1@localhost;
+GRANT USAGE ON test.* TO mysqltest_u1@localhost;
+SET GLOBAL max_connections = 3;
+
+--echo # -----------------------------------------------------------------------
+--echo # Should have success
+--connection default
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+let $con_user_name= mysqltest_u1;
+let $num= 1;
+let $con_name= con$num;
+let $wait_timeout= 4;
+--source include/connect2.inc
+let $id_list= `SELECT CONNECTION_ID()`;
+--echo # -----------------------------------------------------------------------
+--echo # Should have success
+--connection default
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+inc $num;
+let $con_name= con$num;
+let $wait_timeout= 4;
+--source include/connect2.inc
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+--echo # -----------------------------------------------------------------------
+--echo # No success for attempt to exceed max_connections with non root user
+--connection default
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+let $con_name= con_too_much;
+let $wait_timeout= 4;
+--source include/connect2.inc
+--connection default
+SET GLOBAL max_connections = 4;
+--echo # -----------------------------------------------------------------------
+--echo # Should have success
+--connection default
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+inc $num;
+let $con_name= con$num;
+let $wait_timeout= 4;
+--source include/connect2.inc
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+--echo # -----------------------------------------------------------------------
+--echo # No success for attempt to exceed max_connections with non root user
+--connection default
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+let $con_name= con_too_much;
+let $wait_timeout= 4;
+--source include/connect2.inc
+--echo # -----------------------------------------------------------------------
+--echo # Success for attempt to exceed max_connections with root by 1
+--connection default
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+inc $num;
+let $con_user_name= root;
+let $con_name= con$num;
+let $wait_timeout= 4;
+--source include/connect2.inc
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+--echo # -----------------------------------------------------------------------
+--echo # No success for attempt to exceed max_connections with root by 2
+--echo # Should not have success
+--connection default
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+let $con_name= con_too_much;
+let $wait_timeout= 4;
+--source include/connect2.inc
+--echo # -----------------------------------------------------------------------
+--echo # Cut down the max_connections and show that the existing connections
+--echo # stay operable.
+SET GLOBAL max_connections = 1;
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+let $run= $num;
+while($run)
+{
+   --connection con$run
+   eval SELECT 'Here is con$run' AS my_col;
+   dec $run;
+}
+--echo # -----------------------------------------------------------------------
+--echo # No success for attempt, lowered max_connections limit gets honoured
+--connection default
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+let $con_name= con_too_much;
+let $wait_timeout= 4;
+--source include/connect2.inc
+
+
+--echo # -----------------------------------------------------------------------
+# Cleanup
+--connection default
+--replace_result $saved_max_connections <initial_max_connections>
+eval SET GLOBAL max_connections = $saved_max_connections;
+let $run= $num;
+while($run)
+{
+   --disconnect con$run
+   dec $run;
+}
+DROP USER mysqltest_u1@localhost;
+--source ../inc/wait_until_disappeared.inc
+

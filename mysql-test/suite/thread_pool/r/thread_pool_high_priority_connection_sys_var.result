@@ -1,0 +1,11 @@
+#
+#
+# Bug 16310373 - THREAD_POOL_HIGH_PRIORITY_CONNECTION IS NOT
+# RECOGNIZED A CONFIGURATION OPTION
+#
+#
+SELECT @@GLOBAL.thread_pool_high_priority_connection;
+@@GLOBAL.thread_pool_high_priority_connection
+1
+1 Expected
+# End of test

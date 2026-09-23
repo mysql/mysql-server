@@ -1,0 +1,23 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Triage Hygiene
+on:
+  schedule: [{ cron: "0 6 * * 1-5" }]   # weekday mornings
+permissions: { issues: write, pull-requests: write }
+
+# PR-only hygiene: only PRs explicitly waiting on the author for information
+# are eligible. The matching issue label is exempted so this scheduled action
+# never marks or closes issues.
+# Eligible PRs become stale after 16 inactive days and close 14 days later
+# (30 inactive days in total).
+jobs:
+  stale:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/stale@v9
+        with:
+          only-labels: "needs-info"
+          exempt-issue-labels: "needs-info"
+          days-before-pr-stale: 16
+          days-before-pr-close: 14
+          stale-pr-message: "Marking as stale: waiting on requested changes. Push or comment to keep it open."
+          exempt-pr-labels: "good first issue,help wanted,under-review"

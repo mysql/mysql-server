@@ -63,6 +63,7 @@ INSERT INTO t1 VALUES (3);
 --let $number_of_reps= 5
 
 while($number_of_reps > 0) {
+  --disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
   start group_replication;
   stop group_replication;
 

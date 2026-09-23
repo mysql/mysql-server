@@ -1,0 +1,96 @@
+####### plugin/thread_pool/tests/mtr/t/thread_pool_size_basic.test #####
+#                                                                      #
+# Variable Name: thread_pool_size                                      #
+# Scope:         Global                                                #
+# Access Type:   Static                                                #
+# Data Type:     Integer                                               #
+#                                                                      #
+#                                                                      #
+# Creation Date: 2010-01-18                                            #
+# Author :       Mikael Ronstrom, Matthias Leich                       #
+#                                                                      #
+# Description:   Test Cases of static System Variable thread_pool_size #
+#                that checks the behavior of this variable in the      #
+#                following ways                                        #
+#                * Value Check                                         #
+#                * Scope Check                                         #
+#                                                                      #
+########################################################################
+
+--source include/have_thread_pool.inc
+
+##################################################################
+# Build some prereqisites                                        #
+##################################################################
+SET @default_val = 16;
+let $default_val=`SELECT @default_val`;
+CREATE USER low_priv@localhost;
+GRANT USAGE ON test.* TO low_priv@localhost;
+--connect (low_priv,localhost,low_priv,,test)
+let $id_list= `SELECT CONNECTION_ID()`;
+--replace_result $default_val <default_val>
+eval SET @default_val = $default_val;
+--connection default
+
+
+--echo #---------------------BS_STVARS_051_01----------------------#
+####################################################################
+# Check the default value                                          #
+####################################################################
+SELECT @@GLOBAL.thread_pool_size = @default_val AS "Expect 1";
+
+--connection low_priv
+SELECT @@GLOBAL.thread_pool_size = @default_val AS "Expect 1";
+
+--connection default
+--disconnect low_priv
+DROP USER low_priv@localhost;
+
+
+--echo #---------------------BS_STVARS_051_02----------------------#
+####################################################################
+# Check if Value can be set                                        #
+####################################################################
+# Expected error ER_INCORRECT_GLOBAL_LOCAL_VAR, variable is read only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.thread_pool_size = 0;
+SELECT @@GLOBAL.thread_pool_size = @default_val AS "Expect 1";
+
+
+--echo #---------------------BS_STVARS_051_03----------------------#
+#########################################################################
+# Check if the value in GLOBAL/SESSION Table matches value in variable  #
+#########################################################################
+--disable_warnings
+SELECT @@GLOBAL.thread_pool_size = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'thread_pool_size';
+SELECT @@GLOBAL.thread_pool_size = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME = 'thread_pool_size';
+--enable_warnings
+
+
+--echo #---------------------BS_STVARS_051_04----------------------#
+##############################################################################
+# Check if accessing variable with and without GLOBAL point to same variable #
+##############################################################################
+SELECT @@thread_pool_size = @@GLOBAL.thread_pool_size AS "Expect 1";
+
+
+--echo #---------------------BS_STVARS_051_05----------------------#
+##############################################################################
+# Check if there exist variables with similar names                          #
+##############################################################################
+# There is no such session Variable
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.thread_pool_size);
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT thread_pool_size = @@SESSION.thread_pool_size;
+
+
+# Cleanup
+# The user low_priv was disconnected long time ago. Take care that he
+# has really disappeared from the processlist
+--source ../inc/wait_until_disappeared.inc

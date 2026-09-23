@@ -291,9 +291,9 @@ void PFS_data_lock_container::add_lock_row(
     const char *table_name, size_t table_name_length,
     const char *partition_name, size_t partition_name_length,
     const char *sub_partition_name, size_t sub_partition_name_length,
-    const char *index_name, size_t index_name_length, const void *identity,
-    const char *lock_mode, const char *lock_type, const char *lock_status,
-    const char *lock_data) {
+    const char *index_name, size_t index_name_length,
+    const void * /* identity */, const char *lock_mode, const char *lock_type,
+    const char *lock_status, const char *lock_data) {
   row_data_lock row;
 
   row.m_engine = engine;
@@ -324,7 +324,8 @@ void PFS_data_lock_container::add_lock_row(
     row.m_index_row.m_index_name.reset();
   }
 
-  row.m_identity = identity;
+  // Not used, see (ENGINE, ENGINE_LOCK_ID)
+  row.m_identity = 0;
   row.m_lock_mode = lock_mode;
   row.m_lock_type = lock_type;
   row.m_lock_status = lock_status;
@@ -443,10 +444,10 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
     const char *requesting_engine_lock_id,
     size_t requesting_engine_lock_id_length,
     ulonglong requesting_transaction_id, ulonglong requesting_thread_id,
-    ulonglong requesting_event_id, const void *requesting_identity,
+    ulonglong requesting_event_id, const void * /* requesting_identity */,
     const char *blocking_engine_lock_id, size_t blocking_engine_lock_id_length,
     ulonglong blocking_transaction_id, ulonglong blocking_thread_id,
-    ulonglong blocking_event_id, const void *blocking_identity) {
+    ulonglong blocking_event_id, const void * /* blocking_identity */) {
   row_data_lock_wait row;
 
   row.m_engine = engine;
@@ -458,12 +459,14 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
   row.m_requesting_transaction_id = requesting_transaction_id;
   row.m_requesting_thread_id = requesting_thread_id;
   row.m_requesting_event_id = requesting_event_id;
-  row.m_requesting_identity = requesting_identity;
+  // Not used, see (ENGINE, REQUESTING_ENGINE_LOCK_ID)
+  row.m_requesting_identity = 0;
 
   row.m_blocking_transaction_id = blocking_transaction_id;
   row.m_blocking_thread_id = blocking_thread_id;
   row.m_blocking_event_id = blocking_event_id;
-  row.m_blocking_identity = blocking_identity;
+  // Not used, see (ENGINE, BLOCKING_ENGINE_LOCK_ID)
+  row.m_blocking_identity = 0;
 
   m_rows.push_back(row);
 }

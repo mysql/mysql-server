@@ -3339,9 +3339,8 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                           "cause": "cost"
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 0,
                       "chosen": false,
-                      "cause": "cost"
+                      "cause": "not all disjuncts are candidates for index merge"
                     }
                   ] /* analyzing_index_merge_union */
                 } /* range_analysis */

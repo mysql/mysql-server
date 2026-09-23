@@ -536,3 +536,16 @@ INSERT INTO t1 VALUES
 SELECT ts1, ts2, GREATEST(ts1, ts2) AS f FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#39280411: Assertion 'dt->time_type = MYSQL_TIMESTAMP_DATETIME ||
+--echo #               dt->time_type = MYSQL_TIMESTAMP_DATETIME_TZ' failed
+--echo #
+
+CREATE TABLE t (c3 TIMESTAMP(3));
+INSERT INTO t VALUES(NOW());
+
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE t SET c3 = JSON_REPLACE('{"abcca":"c"}' , '$', '2016-12-03');
+
+DROP TABLE t;

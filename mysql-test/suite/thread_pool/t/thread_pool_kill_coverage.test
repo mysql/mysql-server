@@ -1,0 +1,170 @@
+# This test is a brute force attempt to increase the coverage for thread_pool
+# code by excessive observation of thread_pool related information_schema tables
+# during worker sessions with different settings regarding priorization
+# - doing their connect
+# - getting their query killed
+# - being killed
+# The thread_pool code lines covered cannot be strict deterministic because the
+# hardware used for testing and any existing parallel load on the testing box
+# have an impact.
+# June 2011: This test
+# - covered ~ six additional code lines in thread_pool.cc
+# - revealed two server bugs
+#
+# Author: mleich 2011-06-03
+#
+
+# Debug sync facility is required.
+--source include/have_debug_sync.inc
+
+# Debug facility is required.
+--source include/have_debug.inc
+
+--source include/have_thread_pool.inc
+
+if(`SELECT @@global.thread_pool_size <> 2`)
+{
+   --die @@global.thread_pool_size must be = 2, please check <testcase>-master.opt
+}
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+--disconnect default
+--connect (default, localhost, root,,)
+# default is in thread_group A
+let $default_id= `SELECT CONNECTION_ID()`;
+SET @save_lock_wait_timeout = @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout= 10;
+SET @@SESSION.thread_pool_high_priority_connection = 1;
+# Attention:
+# 1. This is not a storage engine related test!
+# 2. A transactional storage engine is not required.
+#    There is neither
+#    - a rollback of transactions
+#    nor
+#    - a rollback of modifications in tables done by statements which just failed
+#    required.
+# 3. The fastest storage engine is the best for this test because it allows to
+#    maximize the number of observation loops.
+CREATE TABLE t1 (col1 BIGINT) ENGINE = MEMORY;
+LOCK TABLE t1 WRITE;
+
+--connect (dummy, localhost, root,,)
+let $id_list= `SELECT CONNECTION_ID()`;
+# dummy is in thread_group B
+--disconnect dummy
+
+--connect (observer, localhost, root,,)
+# observer is in thread_group A
+let $observer_id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $observer_id;
+SET @@SESSION.thread_pool_high_priority_connection = 1;
+CREATE TEMPORARY TABLE my_tp_thread_group_stats LIKE performance_schema.tp_thread_group_stats;
+ALTER TABLE my_tp_thread_group_stats ENGINE = MEMORY;
+ALTER TABLE my_tp_thread_group_stats ADD PRIMARY KEY pk (TP_GROUP_ID);
+CREATE TEMPORARY TABLE my_tp_thread_group_state LIKE performance_schema.tp_thread_group_state;
+ALTER TABLE my_tp_thread_group_state ENGINE = MEMORY;
+ALTER TABLE my_tp_thread_group_state ADD PRIMARY KEY pk (TP_GROUP_ID);
+CREATE TEMPORARY TABLE my_tp_thread_state        LIKE performance_schema.tp_thread_state;
+ALTER TABLE my_tp_thread_state       ENGINE = MEMORY;
+ALTER TABLE my_tp_thread_state ADD PRIMARY KEY pk (TP_GROUP_ID,TP_THREAD_NUMBER);
+delimiter |;
+CREATE PROCEDURE tp_table_watch ()
+BEGIN
+   LOOP
+      # We run here no plain SELECTs because this would cause that the
+      # PROCEDURE would generate result sets.
+      REPLACE INTO my_tp_thread_group_stats SELECT * FROM performance_schema.tp_thread_group_stats;
+      REPLACE INTO my_tp_thread_group_state SELECT * FROM performance_schema.tp_thread_group_state;
+      REPLACE INTO my_tp_thread_state       SELECT * FROM performance_schema.tp_thread_state;
+   END LOOP;
+END|
+delimiter ;|
+
+send CALL tp_table_watch;
+
+# 1. The worker is in thread_group B,  default and observer in thread_group A.
+#    The values of thread_pool_high_priority_connection and thread_pool_prio_kickup_timer
+#    shouldn't have an impact on worker's activity.
+--connect (worker, localhost, root,,)
+# worker is in thread_group B
+let $worker_id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $worker_id;
+--connection default
+--source ../inc/kill_coverage.inc
+--disconnect worker
+
+# 2. The worker, default and observer (generates a high load) are all in thread_group A.
+#    worker has no high_priority_connection and the value of thread_pool_prio_kickup_timer
+#    should cause that the priorization of its session comes rather late.
+SET @save_thread_pool_prio_kickup_timer = @@global.thread_pool_prio_kickup_timer;
+SET @@global.thread_pool_prio_kickup_timer = 3000;
+--connect (worker, localhost, root,,)
+# worker is in thread_group A
+let $worker_id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $worker_id;
+SET @@SESSION.thread_pool_high_priority_connection = 0;
+--connection default
+--source ../inc/kill_coverage.inc
+--disconnect worker
+
+--connect (dummy, localhost, root,,)
+# dummy is in thread_group B
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+--disconnect dummy
+
+# 3. The worker, default and observer (generates a high load) are all in thread_group A.
+#    worker has a high_priority_connection and should get priorization rather immediate.
+--connect (worker, localhost, root,,)
+# worker is in thread_group A
+let $worker_id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $worker_id;
+SET @@session.thread_pool_high_priority_connection = 1;
+--connection default
+--source ../inc/kill_coverage.inc
+--disconnect worker
+
+# 4. We also do not need the observer any more.
+# 4.1 Check the state of the observer session.
+#     This session is or (unexpected) is no more running the PROCEDURE tp_table_watch.
+#     In case some of the statements within the LOOP failed - which should never happen -
+#     than the execution of the PROCEDURE aborts and gets some SQL code != 0.
+#     Consequence: When looking into processlist the observer session is no more busy
+#                  and info IS NULL.
+let $wait_timeout= 5;
+let $wait_condition=  SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = $observer_id AND info IS NOT NULL;
+--source include/wait_condition.inc
+if (!$success)
+{
+   --echo # ERROR: The session of the observer is in an unexpected state.
+   --echo # It is expected that INFO IS NOT NULL.
+   eval SELECT * FROM information_schema.processlist
+   WHERE id = $observer_id;
+   --echo # One reason for INFO IS NULL could be that the execution of the PROCEDURE
+   --echo # tp_table_watch aborted because one of its statements failed.
+   --connection observer
+   --disable_abort_on_error
+   --reap
+   SELECT * FROM my_tp_thread_group_stats;
+   SELECT * FROM my_tp_thread_group_state;
+   SELECT * FROM my_tp_thread_state;
+   --echo # abort
+   exit;
+}
+# 4.2 Kill the observer session too.
+--replace_result $observer_id <observer_id>
+eval KILL $observer_id;
+
+
+# Cleanup
+UNLOCK TABLES;
+SET @@global.thread_pool_prio_kickup_timer = @save_thread_pool_prio_kickup_timer;
+DROP TABLE t1;
+DROP PROCEDURE tp_table_watch;
+SET @@global.lock_wait_timeout = @save_lock_wait_timeout;
+# Wait till all connections disappeared from processlist.
+--source ../inc/wait_until_disappeared.inc
+

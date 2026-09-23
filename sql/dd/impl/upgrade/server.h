@@ -1,3 +1,4 @@
+#pragma once
 /* Copyright (c) 2019, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -21,11 +22,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef DD_UPGRADE_IMPL__SERVER_H_INCLUDED
-#define DD_UPGRADE_IMPL__SERVER_H_INCLUDED
-
 #include <stdint.h>
-#include <stdio.h>
 
 #include <set>
 
@@ -199,14 +196,14 @@ bool invalid_triggers(THD *thd, const char *schema_name,
 /**
   Validate a dd::Routine object.
 
-  @param[in]  thd        Thread handle.
-  @param[in]  schema     Schema in which the routine belongs.
-  @param[in]  routine    Routine to be validated.
+  @param[in]  thd         Thread handle.
+  @param[in]  schema_name Schema in which the routine belongs.
+  @param[in]  routine     Routine to be validated.
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
-bool invalid_routine(THD *thd, const dd::Schema &schema,
+bool invalid_routine(THD *thd, const dd::String_type &schema_name,
                      const dd::Routine &routine);
 
 /**
@@ -225,6 +222,4 @@ bool invalid_routine(THD *thd, const dd::Schema &schema,
 bool build_event_sp(const THD *thd, const char *name, size_t name_len,
                     const char *body, size_t body_len, dd::String_type *sp_sql);
 }  // namespace upgrade
-
 }  // namespace dd
-#endif  // DD_UPGRADE_IMPL__SERVER_H_INCLUDED

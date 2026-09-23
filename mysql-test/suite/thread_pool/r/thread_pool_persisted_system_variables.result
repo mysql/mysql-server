@@ -1,0 +1,68 @@
+#################################################################
+# Test 1:
+# Verify that thread pool successfully loads with
+# thread_pool_dedicated_listeners=ON and
+# thread_pool_max_transactions_limit=0, when the variables are
+# set through SET PERSIST.
+#################################################################
+SET PERSIST_ONLY thread_pool_dedicated_listeners=ON;
+SET PERSIST_ONLY thread_pool_max_transactions_limit=0;
+# Restart mysqld server with default options.
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension>
+# Verify that the server restarted successfully, but with the
+# adjusted value of thread_pool_dedicated_listeners=OFF.
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [the server is automatically disabling thread_pool_dedicated_listeners found]
+RESET PERSIST thread_pool_dedicated_listeners;
+# Restart mysqld server with default options.
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension>
+#################################################################
+# Test 2:
+# Verify that thread pool loads successfully with
+# thread_pool_dedicated_listeners=ON and
+# thread_pool_max_transactions_limit=8.
+#################################################################
+SET PERSIST_ONLY thread_pool_dedicated_listeners=ON;
+SET PERSIST_ONLY thread_pool_max_transactions_limit=8;
+# Restart mysqld server with default options.
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension>
+#################################################################
+# Test 3:
+# Verify that thread pool starts with
+# thread_pool_max_transactions_limit=4 and
+# thread_pool_query_threads_per_group=8.
+# Check for warnings about incompatibility and automatic settings.
+#################################################################
+SET PERSIST_ONLY thread_pool_max_transactions_limit=4;
+SET PERSIST_ONLY thread_pool_query_threads_per_group=8;
+# Restart mysqld server with default options.
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension>
+include/assert_grep.inc [Found an appropriate warning about incompatibility]
+include/assert_grep.inc [Found an appropriate warning about automatic setting of thread_pool_query_threads_per_group]
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.8. exceeds transaction threads limit per group .2.");;
+#################################################################
+# Test 4:
+# Verify that thread_pool_max_transactions_limit and
+# thread_pool_query_threads_per_group are persisted in the
+# static section of mysqld-auto.cnf.
+#################################################################
+SET PERSIST_ONLY thread_pool_size=2;
+SET PERSIST_ONLY thread_pool_query_threads_per_group=2;
+SET PERSIST_ONLY thread_pool_max_transactions_limit=4;
+SET PERSIST_ONLY thread_pool_dedicated_listeners=OFF;
+CREATE TABLE my_table (
+id INT AUTO_INCREMENT PRIMARY KEY,
+data JSON
+);
+INSERT INTO my_table (data) VALUES (CAST(LOAD_FILE('MYSQLD_DATADIR/mysqld-auto.cnf') AS CHAR CHARACTER SET utf8mb4));;
+SELECT JSON_UNQUOTE(jt.key_name) AS key_name FROM my_table,
+JSON_TABLE(
+JSON_KEYS(data, '$.mysql_static_variables'),
+'$[*]' COLUMNS (key_name VARCHAR(100) PATH '$')
+) AS jt;
+key_name
+thread_pool_size
+thread_pool_dedicated_listeners
+thread_pool_max_transactions_limit
+thread_pool_query_threads_per_group
+DROP TABLE my_table;

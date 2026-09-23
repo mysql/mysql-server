@@ -1,0 +1,64 @@
+#
+# BUG#39157211: InnoDB: SET PERSIST innodb_adaptive_hash_index = "ON" stores "OFF" value in the mysqld-auto.cnf file
+#
+
+--source include/have_debug.inc
+
+# Setup
+--let $MYSQL_DATA_DIR = `SELECT @@datadir`
+
+--disable_query_log
+SET @old_debug = @@global.debug;
+SET @old_innodb_adaptive_hash_index = @@global.innodb_adaptive_hash_index;
+SET @old_innodb_buffer_pool_size = @@global.innodb_buffer_pool_size;
+SET @new_innodb_buffer_pool_size = 2 * @old_innodb_buffer_pool_size;
+--enable_query_log
+
+--disable_warnings
+RESET PERSIST IF EXISTS innodb_adaptive_hash_index;
+--enable_warnings
+
+--echo # Reproduce the transient OFF state during buffer pool resize
+SET GLOBAL debug = '+d,ib_buf_pool_resize_after_disable_ahi';
+SET GLOBAL innodb_adaptive_hash_index = ON;
+SET GLOBAL innodb_buffer_pool_size = @new_innodb_buffer_pool_size;
+
+--let $wait_timeout = 60
+--let $wait_condition = SELECT variable_value = 2 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status_code'
+--source include/wait_condition.inc
+
+--echo # Verify resize has already disabled AHI
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_match = disabled adaptive hash index
+--let $assert_select = disabled adaptive hash index
+--let $assert_text = mysqld.err shows AHI was disabled by buffer pool resize
+--source include/assert_grep.inc
+
+--echo # Persist the user-requested value while resize still keeps AHI disabled
+SET PERSIST innodb_adaptive_hash_index = ON;
+
+--echo # Verify the fixed persisted result
+--let $assert_file = $MYSQL_DATA_DIR/mysqld-auto.cnf
+--let $assert_match = "innodb_adaptive_hash_index": \{"Value": "ON"
+--let $assert_select = "mysql_dynamic_variables": \{"innodb_adaptive_hash_index"
+--let $assert_text = mysqld-auto.cnf persists innodb_adaptive_hash_index=ON
+--source include/assert_grep.inc
+
+# Cleanup
+SET GLOBAL debug = '-d,ib_buf_pool_resize_after_disable_ahi';
+
+--let $wait_timeout = 60
+--let $wait_condition = SELECT SUBSTR(variable_value, 1, 9) = 'Completed' FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status'
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
+SET GLOBAL innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+
+--let $wait_timeout = 60
+--let $wait_condition = SELECT SUBSTR(variable_value, 1, 9) = 'Completed' FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status'
+--source include/wait_condition.inc
+
+RESET PERSIST IF EXISTS innodb_adaptive_hash_index;
+SET GLOBAL debug = @old_debug;
+
+--remove_file $MYSQL_DATA_DIR/mysqld-auto.cnf

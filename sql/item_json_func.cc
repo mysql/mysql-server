@@ -1098,23 +1098,23 @@ String *Item_json_func::val_str(String *) {
 }
 
 static bool get_date_from_json(Item_func *item, Date_val *date,
-                               my_time_flags_t) {
+                               my_time_flags_t flags) {
   Json_wrapper wr;
   if (item->val_json(&wr)) return true;
   if (item->null_value) return true;
+  flags |= DatetimeConversionFlags(current_thd);
   return wr.coerce_date(JsonCoercionWarnHandler{item->func_name()},
-                        JsonCoercionDeprecatedDefaultHandler{}, date,
-                        DatetimeConversionFlags(current_thd));
+                        JsonCoercionDeprecatedDefaultHandler{}, date, flags);
 }
 
 static bool get_datetime_from_json(Item_func *item, Datetime_val *dt,
-                                   my_time_flags_t) {
+                                   my_time_flags_t flags) {
   Json_wrapper wr;
   if (item->val_json(&wr)) return true;
   if (item->null_value) return true;
+  flags |= DatetimeConversionFlags(current_thd);
   return wr.coerce_datetime(JsonCoercionWarnHandler{item->func_name()},
-                            JsonCoercionDeprecatedDefaultHandler{}, dt,
-                            DatetimeConversionFlags(current_thd));
+                            JsonCoercionDeprecatedDefaultHandler{}, dt, flags);
 }
 
 bool Item_json_func::val_date(Date_val *date, my_time_flags_t flags) {
@@ -4963,7 +4963,7 @@ bool Item_func_json_value::val_date(Date_val *date, my_time_flags_t flags) {
     case ITEM_CAST_YEAR:
       return extract_date_value(date);
     case ITEM_CAST_DATETIME:
-      return extract_date_value(date);
+      return get_date_from_datetime(date, flags);
     case ITEM_CAST_TIME:
       return get_date_from_time(date);
     case ITEM_CAST_CHAR:

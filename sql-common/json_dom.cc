@@ -3006,12 +3006,12 @@ bool Json_wrapper::coerce_datetime(
     case enum_json_type::J_TIMESTAMP:
       set_zero_time(dt, MYSQL_TIMESTAMP_DATETIME);
       get_datetime(dt);
-      return false;
+      break;
     case enum_json_type::J_DATE: {
       Date_val date;
       get_date(&date);
       *dt = Datetime_val(date);
-      return false;
+      break;
     }
     case enum_json_type::J_STRING: {
       MYSQL_TIME_STATUS status;
@@ -3027,7 +3027,8 @@ bool Json_wrapper::coerce_datetime(
       error_handler("DATETIME/TIMESTAMP", ER_INVALID_JSON_VALUE_FOR_CAST);
       return true;
   }
-  return false;
+  int warnings = 0;
+  return check_date(*dt, non_zero_date(*dt), flags, &warnings);
 }
 
 bool Json_wrapper::coerce_time(

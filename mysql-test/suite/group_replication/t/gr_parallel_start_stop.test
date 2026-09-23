@@ -46,6 +46,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_wait_on_start';
 
 SET DEBUG_SYNC='now wait_for signal.start_waiting';
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_COMMAND_FAILURE
 START GROUP_REPLICATION;
 
@@ -55,6 +56,7 @@ SET DEBUG_SYNC='now signal signal.start_continue';
 
 --let $rpl_connection_name= server2
 --source include/connection.inc
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --reap
 
 --let $group_replication_member_state = ONLINE
@@ -72,6 +74,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 
 SET DEBUG_SYNC='now wait_for signal.stopping_before_leave_the_group';
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_COMMAND_FAILURE
 START GROUP_REPLICATION;
 

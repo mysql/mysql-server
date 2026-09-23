@@ -1,0 +1,256 @@
+--source include/have_ndb.inc
+
+#
+# Test ha_ndbcluster behaviour with
+# intermittent connection loss +
+# DDL
+# 
+
+call mtr.add_suppression("cluster disconnect An incident event has been written");
+
+# In this test suite :
+# Server1 uses main API connection
+# id 49, secondary 32, 63
+# Server 2 uses main API connection
+# id 16, secondary 48, 127
+
+connect (server1a,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (server1b,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (server1c,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+--echo Determine which nodeid each connection uses
+
+create table t1 (a int) engine=ndb;
+
+--connection server1a
+--let $server_nodeid=query_get_value("select variable_value as v from performance_schema.session_status where variable_name='Ndb_cluster_node_id'", v, 1)
+# --eval select "server1a is $server_nodeid"
+
+if ($server_nodeid == 49)
+{
+  --let $main_conn=server1a
+}
+if ($server_nodeid == 32)
+{
+  --let $conn2=server1a
+}
+if ($server_nodeid == 63)
+{
+  --let $conn3=server1a
+}
+
+--connection server1b
+--let $server_nodeid=query_get_value("select variable_value as v from performance_schema.session_status where variable_name='Ndb_cluster_node_id'", v, 1)
+# --eval select "server1b is $server_nodeid"
+
+if ($server_nodeid == 49)
+{
+  --let $main_conn=server1b
+}
+if ($server_nodeid == 32)
+{
+  --let $conn2=server1b
+}
+if ($server_nodeid == 63)
+{
+  --let $conn3=server1b
+}
+
+--connection server1c
+--let $server_nodeid=query_get_value("select variable_value as v from performance_schema.session_status where variable_name='Ndb_cluster_node_id'", v, 1)
+# --eval select "server1c is $server_nodeid"
+
+if ($server_nodeid == 49)
+{
+  --let $main_conn=server1c
+}
+if ($server_nodeid == 32)
+{
+  --let $conn2=server1c
+}
+if ($server_nodeid == 63)
+{
+  --let $conn3=server1c
+}
+
+#--echo Main conn is $main_conn
+#--echo Second conn is $conn2
+#--echo Third conn is $conn3
+
+--echo Test 1 : Show main connection activity unaffected
+--echo by failures of secondary connections
+--connection $main_conn
+
+--let $iter=10
+while($iter)
+{
+  --echo Bounce non-main connections
+  --exec $NDB_MGM -e"ALL DUMP 900 32"
+  --exec $NDB_MGM -e"ALL DUMP 900 63"
+
+  --echo Show query successful
+  select * from t1 LIMIT 1;
+
+  --echo Show dml successful
+  insert into t1 values (1);
+
+  --echo Show DDL successful
+  create table test.t2 (a int primary key) engine=ndb;
+  drop table test.t2;
+
+  --sleep 0.5
+  --dec $iter
+}
+
+--echo Test 2 : Show secondary conn2
+--echo unaffected by failure of secondary
+--echo conn3
+
+--echo Connection 2 (nodeid 32)
+--connection $conn2
+--source include/ndb_not_readonly.inc
+
+--let $iter=10
+while($iter)
+{
+  --echo Bounce other connection (3 / 63)
+  --exec $NDB_MGM -e"ALL DUMP 900 63"
+
+  --echo Show query successful
+  select * from t1 LIMIT 1;
+
+  --echo Show dml successful
+  insert into t1 values (1);
+
+  --echo Show DDL successful
+  create table test.t2 (a int primary key) engine=ndb;
+  drop table test.t2;
+
+  --sleep 0.5
+  --dec $iter
+}
+
+--echo Test 3 : Show secondary conn3
+--echo unaffected by failure of secondary
+--echo conn2
+
+--echo Connection 3 (nodeid 63)
+--connection $conn3
+--source include/ndb_not_readonly.inc
+
+--let $iter=10
+while($iter)
+{
+  --echo Bounce other connection (2 / 32)
+  --exec $NDB_MGM -e"ALL DUMP 900 32"
+
+  --echo Show query successful
+  select * from t1 LIMIT 1;
+
+  --echo Show dml successful
+  insert into t1 values (1);
+
+  --echo Show DDL successful
+  create table test.t2 (a int primary key) engine=ndb;
+  drop table test.t2;
+
+  --sleep 0.5
+  --dec $iter
+}
+
+
+--echo Test 4 : Show main connection
+--echo failure affects all connections
+--echo but not in a permanent way
+
+--connection $main_conn
+--echo Main : Main
+
+--echo Bounce main connection (1 / 49)
+--exec $NDB_MGM -e"ALL DUMP 900 49"
+
+--echo Show query fails
+--let $query=select * from t1 LIMIT 1;
+--source include/wait_for_query_to_fail.inc
+--error 1296,1297
+select * from t1 LIMIT 1;
+
+--echo Show dml fails
+--error 1296,1297
+insert into t1 values (1);
+
+--echo Show DDL fails
+--error 1296,1297
+create table test.t2 (a int primary key) engine=ndb;
+
+--source include/ndb_not_readonly.inc
+
+--connection $conn2
+--echo Main : 2
+
+--echo Bounce main connection (1 / 49)
+--exec $NDB_MGM -e"ALL DUMP 900 49"
+
+--echo Query will fail during BI reinit
+--let $query=select * from t1 LIMIT 1;
+--source include/wait_for_query_to_fail.inc
+--error 1296,1297
+select * from t1 LIMIT 1;
+
+--echo DML will fail during BI reinit
+--error 1296,1297
+insert into t1 values (1);
+
+--echo Show DDL fails
+--error 1296,1297
+create table test.t2 (a int primary key) engine=ndb;
+
+--connection $main_conn
+--source include/ndb_not_readonly.inc
+
+--connection $conn3
+--echo Main : 3
+
+--echo Bounce main connection (1 / 49)
+--exec $NDB_MGM -e"ALL DUMP 900 49"
+
+--echo Query will fail during BI reinit
+--let $query=select * from t1 LIMIT 1;
+--source include/wait_for_query_to_fail.inc
+--error 1296,1297
+select * from t1 LIMIT 1;
+
+--echo DML will fail during BI reinit
+--error 1296,1297
+insert into t1 values (1);
+
+--echo Show DDL fails
+--error 1296,1297
+create table test.t2 (a int primary key) engine=ndb;
+
+--connection $main_conn
+--source include/ndb_not_readonly.inc
+
+--echo Show all working again
+--echo Main
+--connection $main_conn
+  select * from t1 LIMIT 1;
+  insert into t1 values (1);
+  create table test.t2 (a int primary key) engine=ndb;
+  drop table test.t2;
+
+--echo Conn 2
+--connection $conn2
+  select * from t1 LIMIT 1;
+  insert into t1 values (1);
+  create table test.t2 (a int primary key) engine=ndb;
+  drop table test.t2;
+
+--echo Conn 3
+--connection $conn3
+  select * from t1 LIMIT 1;
+  insert into t1 values (1);
+  create table test.t2 (a int primary key) engine=ndb;
+  drop table test.t2;
+  
+drop table t1;

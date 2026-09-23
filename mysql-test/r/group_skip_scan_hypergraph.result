@@ -3636,8 +3636,7 @@ EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 199
 GROUP BY a;
 EXPLAIN
 -> Group aggregate: max(t1.b)  (rows=1)
-    -> Filter: (t1.b between 0 and 1999.5)  (rows=2)
-        -> Covering index range scan on t1 using a over (a = 1 AND 0 <= b < 2000)  (rows=2)
+    -> Covering index range scan on t1 using a over (a = 1 AND 0 <= b < 2000)  (rows=2)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
 GROUP BY a;

@@ -3,6 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+include/rpl/sync_to_replica.inc
 #
 # Lock replica for backup
 #
@@ -14,6 +17,7 @@ LOCK INSTANCE FOR BACKUP;
 #
 [connection master]
 FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (1);
 #
 # Check that relay logs have not been purged on replica
 #
@@ -34,6 +38,7 @@ UNLOCK INSTANCE;
 #
 [connection master]
 FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (2);
 #
 # Check relay logs have been purged on replica
 #
@@ -46,4 +51,6 @@ call mtr.add_suppression("Could not purge binary logs since another session is e
 # Cleanup
 #
 [connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
 include/rpl/deinit.inc

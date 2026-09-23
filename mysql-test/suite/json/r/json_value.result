@@ -101,50 +101,40 @@ def					col2	253	256	16	Y	0	31	255
 def					col3	253	256	18	Y	0	31	255
 col1	col2	col3
 utf8mb4_0900_bin	utf8mb4_0900_bin	utf8mb4_0900_ai_ci
-SELECT JSON_VALUE('{"data": "2019-01-01"}', '$.data' RETURNING DATE);
+SELECT JSON_VALUE('{"data": "2019-01-01"}', '$.data' RETURNING DATE) AS d;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					JSON_VALUE('{"data": "2019-01-01"}', '$.data' RETURNING DATE)	10	40	10	Y	0	0	255
-JSON_VALUE('{"data": "2019-01-01"}', '$.data' RETURNING DATE)
+def					d	10	10	10	Y	128	0	63
+d
 2019-01-01
 SELECT JSON_VALUE(JSON_OBJECT('data', CAST( DATE'2019-01-01' AS JSON)),
-'$.data' RETURNING DATE);
+'$.data' RETURNING DATE) AS d;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					JSON_VALUE(JSON_OBJECT('data', CAST( DATE'2019-01-01' AS JSON)),
-'$.data' RETURNING DATE)	10	40	10	Y	0	0	255
-JSON_VALUE(JSON_OBJECT('data', CAST( DATE'2019-01-01' AS JSON)),
-'$.data' RETURNING DATE)
+def					d	10	10	10	Y	128	0	63
+d
 2019-01-01
-SELECT JSON_VALUE('{"data": "11:11:11"}', '$.data' RETURNING TIME);
+SELECT JSON_VALUE('{"data": "11:11:11"}', '$.data' RETURNING TIME) AS t;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					JSON_VALUE('{"data": "11:11:11"}', '$.data' RETURNING TIME)	11	40	8	Y	0	0	255
-JSON_VALUE('{"data": "11:11:11"}', '$.data' RETURNING TIME)
+def					t	11	10	8	Y	128	0	63
+t
 11:11:11
 SELECT JSON_VALUE(JSON_OBJECT('data', CAST( TIME'11:11:11' AS JSON)),
-'$.data' RETURNING TIME);
+'$.data' RETURNING TIME) AS t;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					JSON_VALUE(JSON_OBJECT('data', CAST( TIME'11:11:11' AS JSON)),
-'$.data' RETURNING TIME)	11	40	8	Y	0	0	255
-JSON_VALUE(JSON_OBJECT('data', CAST( TIME'11:11:11' AS JSON)),
-'$.data' RETURNING TIME)
+def					t	11	10	8	Y	128	0	63
+t
 11:11:11
 SELECT JSON_VALUE('{"data": "2019-01-01 11:11:11"}',
-'$.data' RETURNING DATETIME);
+'$.data' RETURNING DATETIME) AS dt;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					JSON_VALUE('{"data": "2019-01-01 11:11:11"}',
-'$.data' RETURNING DATETIME)	12	76	19	Y	0	0	255
-JSON_VALUE('{"data": "2019-01-01 11:11:11"}',
-'$.data' RETURNING DATETIME)
+def					dt	12	19	19	Y	128	0	63
+dt
 2019-01-01 11:11:11
 SELECT JSON_VALUE(
 JSON_OBJECT('data', CAST(TIMESTAMP'2019-01-01 11:11:11' AS JSON)),
-'$.data' RETURNING DATETIME);
+'$.data' RETURNING DATETIME) AS dt;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					JSON_VALUE(
-JSON_OBJECT('data', CAST(TIMESTAMP'2019-01-01 11:11:11' AS JSON)),
-'$.data' RETURNING DATETIME)	12	76	19	Y	0	0	255
-JSON_VALUE(
-JSON_OBJECT('data', CAST(TIMESTAMP'2019-01-01 11:11:11' AS JSON)),
-'$.data' RETURNING DATETIME)
+def					dt	12	19	19	Y	128	0	63
+dt
 2019-01-01 11:11:11
 SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING CHAR(10));
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr

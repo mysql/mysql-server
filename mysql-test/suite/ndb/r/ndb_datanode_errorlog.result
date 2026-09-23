@@ -1,0 +1,377 @@
+Test robustness of data node error log generation code
+Clean up before starting
+--------------------------------------------------
+Test behaviour of problems with next crash id file
+--------------------------------------------------
+Create a normal set of files to start with id 1
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Show next crash id file content
+1
+ndb_1_error.log
+ndb_1_trace.log.1
+ndb_1_trace.log.1_t1
+ndb_1_trace.log.1_t10
+ndb_1_trace.log.1_t2
+ndb_1_trace.log.1_t3
+ndb_1_trace.log.1_t4
+ndb_1_trace.log.1_t5
+ndb_1_trace.log.1_t6
+ndb_1_trace.log.1_t7
+ndb_1_trace.log.1_t8
+ndb_1_trace.log.1_t9
+ndb_1_trace.log.next
+
+-------------------
+Test : Unwriteable next file
+Show file content
+1
+ndb_1_trace.log.next
+
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Show file content
+Expect next file unchanged, error + trace files 1 written
+1
+ndb_1_error.log
+ndb_1_trace.log.1
+ndb_1_trace.log.1_t1
+ndb_1_trace.log.1_t10
+ndb_1_trace.log.1_t2
+ndb_1_trace.log.1_t3
+ndb_1_trace.log.1_t4
+ndb_1_trace.log.1_t5
+ndb_1_trace.log.1_t6
+ndb_1_trace.log.1_t7
+ndb_1_trace.log.1_t8
+ndb_1_trace.log.1_t9
+ndb_1_trace.log.next
+-------------------
+Test : Unreadable next file
+
+ndb_1_trace.log.next
+
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Show file content
+Expect next file unchanged, error and trace files 1 written 
+1
+ndb_1_error.log
+ndb_1_trace.log.1
+ndb_1_trace.log.1_t1
+ndb_1_trace.log.1_t10
+ndb_1_trace.log.1_t2
+ndb_1_trace.log.1_t3
+ndb_1_trace.log.1_t4
+ndb_1_trace.log.1_t5
+ndb_1_trace.log.1_t6
+ndb_1_trace.log.1_t7
+ndb_1_trace.log.1_t8
+ndb_1_trace.log.1_t9
+ndb_1_trace.log.next
+-------------------
+Test : Zero length next file
+Show content
+
+ndb_1_trace.log.next
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Show file content
+Expect next file defaults to 2, error + trace files 2 written
+2
+ndb_1_error.log
+ndb_1_trace.log.2
+ndb_1_trace.log.2_t1
+ndb_1_trace.log.2_t10
+ndb_1_trace.log.2_t2
+ndb_1_trace.log.2_t3
+ndb_1_trace.log.2_t4
+ndb_1_trace.log.2_t5
+ndb_1_trace.log.2_t6
+ndb_1_trace.log.2_t7
+ndb_1_trace.log.2_t8
+ndb_1_trace.log.2_t9
+ndb_1_trace.log.next
+-------------------
+Test : Junk in next file
+Show junk content
+ILLEGIBLE JUNK
+
+ndb_1_trace.log.next
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Show file content
+Expect next file defaults to 2, error + trace files 2 written
+2
+ndb_1_error.log
+ndb_1_trace.log.2
+ndb_1_trace.log.2_t1
+ndb_1_trace.log.2_t10
+ndb_1_trace.log.2_t2
+ndb_1_trace.log.2_t3
+ndb_1_trace.log.2_t4
+ndb_1_trace.log.2_t5
+ndb_1_trace.log.2_t6
+ndb_1_trace.log.2_t7
+ndb_1_trace.log.2_t8
+ndb_1_trace.log.2_t9
+ndb_1_trace.log.next
+Cleanup
+----------------------------------------------
+Test behaviour of problems with error log file
+----------------------------------------------
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+
+ndb_1_error.log
+ndb_1_trace.log.1
+ndb_1_trace.log.1_t1
+ndb_1_trace.log.1_t10
+ndb_1_trace.log.1_t2
+ndb_1_trace.log.1_t3
+ndb_1_trace.log.1_t4
+ndb_1_trace.log.1_t5
+ndb_1_trace.log.1_t6
+ndb_1_trace.log.1_t7
+ndb_1_trace.log.1_t8
+ndb_1_trace.log.1_t9
+ndb_1_trace.log.next
+
+-------------------
+Test : Unwriteable error log
+ndb_1_error.log
+ndb_1_trace.log.next
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Expect trace files 2 written
+
+ndb_1_error.log
+ndb_1_trace.log.2
+ndb_1_trace.log.2_t1
+ndb_1_trace.log.2_t10
+ndb_1_trace.log.2_t2
+ndb_1_trace.log.2_t3
+ndb_1_trace.log.2_t4
+ndb_1_trace.log.2_t5
+ndb_1_trace.log.2_t6
+ndb_1_trace.log.2_t7
+ndb_1_trace.log.2_t8
+ndb_1_trace.log.2_t9
+ndb_1_trace.log.next
+
+-------------------
+Test : Unreadable error log
+ndb_1_error.log
+ndb_1_trace.log.next
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Expect  trace files 3 written
+
+ndb_1_error.log
+ndb_1_trace.log.3
+ndb_1_trace.log.3_t1
+ndb_1_trace.log.3_t10
+ndb_1_trace.log.3_t2
+ndb_1_trace.log.3_t3
+ndb_1_trace.log.3_t4
+ndb_1_trace.log.3_t5
+ndb_1_trace.log.3_t6
+ndb_1_trace.log.3_t7
+ndb_1_trace.log.3_t8
+ndb_1_trace.log.3_t9
+ndb_1_trace.log.next
+
+-------------------
+Test : Zero length error log file
+ndb_1_error.log
+ndb_1_trace.log.next
+Show content
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Show content
+Expect error log written, error log copy empty, trace files 1 written
+include/assert_grep.inc [Check that error log is written]
+
+ndb_1_error.log
+ndb_1_error.log.bak
+ndb_1_trace.log.1
+ndb_1_trace.log.1_t1
+ndb_1_trace.log.1_t10
+ndb_1_trace.log.1_t2
+ndb_1_trace.log.1_t3
+ndb_1_trace.log.1_t4
+ndb_1_trace.log.1_t5
+ndb_1_trace.log.1_t6
+ndb_1_trace.log.1_t7
+ndb_1_trace.log.1_t8
+ndb_1_trace.log.1_t9
+ndb_1_trace.log.next
+-------------------
+Test : Junk in error log file
+ndb_1_error.log
+ndb_1_trace.log.next
+Show junk content
+ILLEGIBLE JUNK
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Show file content
+Expect error log written, error log copy has hunk, trace files 2 written
+include/assert_grep.inc [Check that error log is written]
+ILLEGIBLE JUNK
+
+ndb_1_error.log
+ndb_1_error.log.bak
+ndb_1_trace.log.2
+ndb_1_trace.log.2_t1
+ndb_1_trace.log.2_t10
+ndb_1_trace.log.2_t2
+ndb_1_trace.log.2_t3
+ndb_1_trace.log.2_t4
+ndb_1_trace.log.2_t5
+ndb_1_trace.log.2_t6
+ndb_1_trace.log.2_t7
+ndb_1_trace.log.2_t8
+ndb_1_trace.log.2_t9
+ndb_1_trace.log.next
+-----------------------------------------------
+Test behaviour of problems with trace log files
+-----------------------------------------------
+Clean up before starting
+Expect next crash will write trace logs 1
+Create some files with those names already
+that cannot be overwritten due to permissions
+Test that files that can be written are
+written.
+Show state before
+ndb_1_trace.log.1
+ndb_1_trace.log.1_t3
+Generate an error-insert crash
+Sending dump signal with data:
+0x00000a2a 0x00000001 
+
+
+Wait for the node to stop
+Node 1: NOT_STARTED
+Database node 1 is being started.
+
+Wait for the node to start
+Node 1: STARTED
+Node 2: STARTED
+Show state after
+Expect error log and trace files 1 written
+Bad trace files still contain JUNK
+ndb_1_error.log
+ndb_1_trace.log.1
+ndb_1_trace.log.1_t1
+ndb_1_trace.log.1_t10
+ndb_1_trace.log.1_t2
+ndb_1_trace.log.1_t3
+ndb_1_trace.log.1_t4
+ndb_1_trace.log.1_t5
+ndb_1_trace.log.1_t6
+ndb_1_trace.log.1_t7
+ndb_1_trace.log.1_t8
+ndb_1_trace.log.1_t9
+ndb_1_trace.log.next
+JUNK
+JUNK

@@ -136,8 +136,10 @@ void btr_search_sys_free();
 /** Disable the adaptive hash search system and empty the index.
 @returns true if the AHI system was enabled and became disabled. */
 bool btr_search_disable();
-/** Enable the adaptive hash search system. */
-void btr_search_enable();
+/** Enable the adaptive hash search system if buffer pool resize is not in
+progress and the AHI sysvar is ON.
+@returns true if enable was actually performed. */
+bool btr_search_enable();
 
 /** Creates and initializes a search info struct.
 @param[in]      heap            heap where created.

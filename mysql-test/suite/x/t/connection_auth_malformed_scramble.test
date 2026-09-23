@@ -1,0 +1,66 @@
+## Test malformed challenge-response payloads.
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+call mtr.add_suppression("Access denied for user .*");
+
+--echo
+--echo
+--echo ## I. Test malformed challenge-response payloads:
+--echo ## * MYSQL41 payload with '*' prefix and invalid length
+--echo ## * MYSQL41 payload with expected length and no '*' prefix
+--echo ## * SHA256_MEMORY payload with invalid length
+--echo #
+--echo # 1. Verify MYSQL41 with '*' prefix and invalid length.
+--echo # 2. Verify MYSQL41 with expected length and no '*' prefix.
+--echo # 3. Verify SHA256_MEMORY with invalid length.
+--echo
+--echo
+
+--write_file $MYSQL_TMP_DIR/auth_malformed_scramble.xpl
+-->import connection.macro
+
+newsession auth	-;
+quiet;
+callmacro Verify_its_xprotocol_connection;
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+noquiet;
+
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH%"
+}
+
+recvtype Mysqlx.Session.AuthenticateContinue be-quiet;
+echo Mysqlx.Session.AuthenticateContinue {...};
+
+Mysqlx.Session.AuthenticateContinue {
+    auth_data: "\0%USER%\0%SCRAMBLE%"
+}
+
+recvtype Mysqlx.Error severity ERROR;
+closesession abort;
+EOF
+
+--source ../include/create_mysql_accounts_for_xplugin_tests.inc
+
+--echo
+--echo # Fill SHA256_MEMORY password cache.
+exec $MYSQLXTEST -u xuser_cache2 -p cache2 --ssl-mode=required --execute "select 1";
+
+--let $MYSQLXTEST=$MYSQLXTEST -ux_root --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256'
+
+--echo
+--echo # 1. MYSQL41 with '*' prefix and invalid length.
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_malformed_scramble.xpl -v%AUTH%=MYSQL41 -v%USER%=xuser_native -v%SCRAMBLE%=* 2>&1;
+
+--echo
+--echo # 2. MYSQL41 with expected length and no '*' prefix.
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_malformed_scramble.xpl -v%AUTH%=MYSQL41 -v%USER%=xuser_native -v%SCRAMBLE%=A0000000000000000000000000000000000000000 2>&1;
+
+--echo
+--echo # 3. SHA256_MEMORY with invalid length.
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_malformed_scramble.xpl -v%AUTH%=SHA256_MEMORY -v%USER%=xuser_cache2 -v%SCRAMBLE%=A 2>&1;
+
+--source ../include/xplugin_cleanup.inc
+--source ../include/remove_mysql_accounts_for_xplugin_tests.inc

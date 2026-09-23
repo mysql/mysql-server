@@ -1008,8 +1008,7 @@ Btree_load::~Btree_load() noexcept {
 
 void Btree_load::release() noexcept {
   ut_ad(m_n_recs > 0);
-  auto page_loader = m_page_loaders[0];
-  page_loader->release();
+  m_page_loaders[0]->release();
 }
 
 void Btree_load::latch() noexcept {
@@ -1017,8 +1016,7 @@ void Btree_load::latch() noexcept {
     /* Nothing to latch. */
     return;
   }
-  auto page_loader = m_page_loaders[0];
-  page_loader->latch();
+  m_page_loaders[0]->latch();
 }
 
 dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
@@ -1033,19 +1031,21 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
   IF_ENABLED("ddl_btree_build_oom", return DB_OUT_OF_MEMORY;)
 
   /* Create a sibling page_loader. */
-  auto sibling_page_loader =
-      ut::new_withkey<Page_load>(UT_NEW_THIS_FILE_PSI_KEY, m_index, m_trx_id,
-                                 FIL_NULL, level, m_flush_observer);
-
-  if (sibling_page_loader == nullptr) {
+  ut::unique_ptr<Page_load> sibling_page_loader_ptr;
+  try {
+    sibling_page_loader_ptr =
+        ut::make_unique<Page_load>(UT_NEW_THIS_FILE_PSI_KEY, m_index, m_trx_id,
+                                   FIL_NULL, level, m_flush_observer);
+  } catch (const std::bad_alloc &) {
     return DB_OUT_OF_MEMORY;
   }
+
+  auto *sibling_page_loader = sibling_page_loader_ptr.get();
 
   {
     auto err = sibling_page_loader->init();
 
     if (err != DB_SUCCESS) {
-      ut::delete_(sibling_page_loader);
       return err;
     }
   }
@@ -1057,7 +1057,6 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
     if (err != DB_SUCCESS) {
       sibling_page_loader->finish();
       sibling_page_loader->rollback();
-      ut::delete_(sibling_page_loader);
       return err;
     }
   }
@@ -1065,10 +1064,7 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
   /* Set new page bulk to page_loaders. */
   ut_a(sibling_page_loader->get_level() <= m_root_level);
 
-  m_page_loaders[level] = sibling_page_loader;
-
-  ut::delete_(page_loader);
-
+  m_page_loaders[level] = std::move(sibling_page_loader_ptr);
   page_loader = sibling_page_loader;
 
   /* Important: log_free_check whether we need a checkpoint. */
@@ -1088,7 +1084,7 @@ dberr_t Btree_load::insert(Page_load *page_loader, dtuple_t *tuple,
   if (big_rec != nullptr) {
     ut_a(m_index->is_clustered());
     ut_a(page_loader->get_level() == 0);
-    ut_a(page_loader == m_page_loaders[0]);
+    ut_a(page_loader == m_page_loaders[0].get());
   }
   auto err = page_loader->insert(tuple, big_rec, rec_size);
   return err;
@@ -1100,22 +1096,22 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
 
   /* Check if we need to create a Page_load for the level. */
   if (level + 1 > m_page_loaders.size()) {
-    auto page_loader =
-        ut::new_withkey<Page_load>(UT_NEW_THIS_FILE_PSI_KEY, m_index, m_trx_id,
-                                   FIL_NULL, level, m_flush_observer);
-
-    if (page_loader == nullptr) {
+    ut::unique_ptr<Page_load> page_loader;
+    try {
+      page_loader = ut::make_unique<Page_load>(UT_NEW_THIS_FILE_PSI_KEY,
+                                               m_index, m_trx_id, FIL_NULL,
+                                               level, m_flush_observer);
+    } catch (const std::bad_alloc &) {
       return DB_OUT_OF_MEMORY;
     }
 
     err = page_loader->init();
 
     if (err != DB_SUCCESS) {
-      ut::delete_(page_loader);
       return err;
     }
 
-    m_page_loaders.push_back(page_loader);
+    m_page_loaders.push_back(std::move(page_loader));
 
     ut_a(level + 1 == m_page_loaders.size());
 
@@ -1124,13 +1120,13 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
     is_left_most = true;
 
     if (level > 0) {
-      page_loader->release();
+      m_page_loaders[level]->release();
     }
   }
 
   ut_a(m_page_loaders.size() > level);
 
-  auto page_loader = m_page_loaders[level];
+  auto page_loader = m_page_loaders[level].get();
   if (level > 0) {
     page_loader->latch();
   }
@@ -1204,7 +1200,7 @@ dberr_t Btree_load::finalize_page_loads(dberr_t err,
 
   /* Finish all page bulks */
   for (size_t level = 0; level <= m_root_level; level++) {
-    auto page_loader = m_page_loaders[level];
+    auto page_loader = m_page_loaders[level].get();
     if (level > 0) {
       page_loader->latch();
     }
@@ -1219,10 +1215,9 @@ dberr_t Btree_load::finalize_page_loads(dberr_t err,
     if (err != DB_SUCCESS) {
       page_loader->rollback();
     }
-
-    ut::delete_(page_loader);
   }
 
+  m_page_loaders.clear();
   return err;
 }
 

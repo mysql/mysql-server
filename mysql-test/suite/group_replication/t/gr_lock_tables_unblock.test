@@ -54,6 +54,7 @@ LOCK TABLE t1 WRITE;
 UNLOCK TABLES;
 
 --connection server1
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --reap
 
 --let $group_replication_member_state= ONLINE

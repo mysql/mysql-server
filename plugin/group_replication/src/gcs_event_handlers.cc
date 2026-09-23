@@ -82,9 +82,15 @@ void Plugin_gcs_events_handler::on_message_received(
     const Gcs_message &message) const {
   metrics_handler->add_message_sent(message);
 
-  const Plugin_gcs_message::enum_cargo_type message_type =
-      Plugin_gcs_message::get_cargo_type(
-          message.get_message_data().get_payload());
+  Plugin_gcs_message::enum_cargo_type message_type =
+      Plugin_gcs_message::CT_UNKNOWN;
+  if (Plugin_gcs_message::get_cargo_type(
+          message.get_message_data().get_payload(),
+          message.get_message_data().get_payload_length(), &message_type)) {
+    leave_on_malformed_message("Malformed group replication message header");
+    notify_and_reset_ctx(m_notification_ctx);
+    return;
+  }
 
   const std::string message_origin = message.get_origin().get_member_id();
   Plugin_gcs_message *processed_message = nullptr;
@@ -132,6 +138,14 @@ void Plugin_gcs_events_handler::on_message_received(
       processed_message =
           new Recovery_message(message.get_message_data().get_payload(),
                                message.get_message_data().get_payload_length());
+      if (processed_message->has_error()) {
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_DECODING_FAILED,
+                     "Recovery_message",
+                     processed_message->get_error()->get_message());
+        leave_on_malformed_message("Malformed recovery message payload");
+        delete processed_message;
+        break;
+      }
       if (!pre_process_message(processed_message, message_origin))
         handle_recovery_message(processed_message);
       delete processed_message;
@@ -141,6 +155,11 @@ void Plugin_gcs_events_handler::on_message_received(
       processed_message = new Single_primary_message(
           message.get_message_data().get_payload(),
           message.get_message_data().get_payload_length());
+      if (processed_message->has_error()) {
+        leave_on_malformed_message("Malformed single primary message payload");
+        delete processed_message;
+        break;
+      }
       if (!pre_process_message(processed_message, message_origin))
         handle_single_primary_message(processed_message);
       delete processed_message;
@@ -154,6 +173,12 @@ void Plugin_gcs_events_handler::on_message_received(
       processed_message = new Group_validation_message(
           message.get_message_data().get_payload(),
           message.get_message_data().get_payload_length());
+      if (processed_message->has_error()) {
+        leave_on_malformed_message(
+            "Malformed group validation message payload");
+        delete processed_message;
+        break;
+      }
       pre_process_message(processed_message, message_origin);
       delete processed_message;
       break;
@@ -183,6 +208,32 @@ bool Plugin_gcs_events_handler::pre_process_message(
   return (error || skip_message);
 }
 
+void Plugin_gcs_events_handler::leave_on_malformed_message(
+    const char *error_message) const {
+  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG, error_message);
+  leave_group_on_failure::mask leave_actions;
+  leave_actions.set(leave_group_on_failure::CLEAN_GROUP_MEMBERSHIP, true);
+  leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
+  leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+  leave_group_on_failure::leave(leave_actions, 0, &m_notification_ctx,
+                                error_message);
+}
+
+bool Plugin_gcs_events_handler::get_first_payload_item_or_leave(
+    const Gcs_message &message, const char *error_message,
+    const unsigned char **payload_item_data,
+    size_t *payload_item_length) const {
+  if (!Plugin_gcs_message::get_first_payload_item_raw_data(
+          message.get_message_data().get_payload(),
+          message.get_message_data().get_payload_length(), payload_item_data,
+          payload_item_length)) {
+    return false;
+  }
+
+  leave_on_malformed_message(error_message);
+  return true;
+}
+
 void Plugin_gcs_events_handler::handle_transactional_message(
     const Gcs_message &message) const {
   const Group_member_info::Group_member_status member_status =
@@ -197,8 +248,11 @@ void Plugin_gcs_events_handler::handle_transactional_message(
 
     const unsigned char *payload_data = nullptr;
     size_t payload_size = 0;
-    Plugin_gcs_message::get_first_payload_item_raw_data(
-        message.get_message_data().get_payload(), &payload_data, &payload_size);
+    if (get_first_payload_item_or_leave(message,
+                                        "Malformed transaction message payload",
+                                        &payload_data, &payload_size)) {
+      return;
+    }
 
     this->applier_module->handle(payload_data, static_cast<ulong>(payload_size),
                                  GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
@@ -222,15 +276,24 @@ void Plugin_gcs_events_handler::handle_transactional_with_guarantee_message(
           ->increment_transactions_delivered_during_recovery();
     }
 
-    const unsigned char *payload_data = nullptr;
-    size_t payload_size = 0;
-    Plugin_gcs_message::get_first_payload_item_raw_data(
-        message.get_message_data().get_payload(), &payload_data, &payload_size);
-
+    bool decode_error = false;
     enum_group_replication_consistency_level consistency_level =
         Transaction_with_guarantee_message::decode_and_get_consistency_level(
             message.get_message_data().get_payload(),
-            message.get_message_data().get_payload_length());
+            message.get_message_data().get_payload_length(), &decode_error);
+    if (decode_error) {
+      leave_on_malformed_message(
+          "Malformed transaction consistency level in transaction message");
+      return;
+    }
+
+    const unsigned char *payload_data = nullptr;
+    size_t payload_size = 0;
+    if (get_first_payload_item_or_leave(
+            message, "Malformed transaction with guarantee message payload",
+            &payload_data, &payload_size)) {
+      return;
+    }
 
     // Get ONLINE members that did receive this message.
     std::list<Gcs_member_identifier> *online_members =
@@ -260,7 +323,7 @@ void Plugin_gcs_events_handler::handle_transaction_prepared_message(
       message.get_message_data().get_payload(),
       message.get_message_data().get_payload_length());
 
-  if (transaction_prepared_message.is_valid() == false) {
+  if (transaction_prepared_message.has_error()) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_DECODING_FAILED,
                  "Transaction_prepared_message",
                  transaction_prepared_message.get_error()->get_message());
@@ -293,6 +356,11 @@ void Plugin_gcs_events_handler::handle_sync_before_execution_message(
   Sync_before_execution_message sync_before_execution_message(
       message.get_message_data().get_payload(),
       message.get_message_data().get_payload_length());
+  if (sync_before_execution_message.has_error()) {
+    leave_on_malformed_message(
+        "Malformed sync before execution message payload");
+    return;
+  }
 
   Sync_before_execution_action_packet *sync_before_execution_action =
       new Sync_before_execution_action_packet(
@@ -314,8 +382,11 @@ void Plugin_gcs_events_handler::handle_certifier_message(
 
   const unsigned char *payload_data = nullptr;
   size_t payload_size = 0;
-  Plugin_gcs_message::get_first_payload_item_raw_data(
-      message.get_message_data().get_payload(), &payload_data, &payload_size);
+  if (get_first_payload_item_or_leave(message,
+                                      "Malformed certification message payload",
+                                      &payload_data, &payload_size)) {
+    return;
+  }
 
   if (certifier->handle_certifier_data(payload_data,
                                        static_cast<ulong>(payload_size),
@@ -467,21 +538,23 @@ void Plugin_gcs_events_handler::handle_group_action_message(
     return;                                             /* purecov: inspected */
   }
 
-  Group_action_message::enum_action_message_type action_message_type =
-      Group_action_message::get_action_type(
-          message.get_message_data().get_payload());
+  Group_action_message *group_action_message =
+      new Group_action_message(message.get_message_data().get_payload(),
+                               message.get_message_data().get_payload_length());
+  if (group_action_message->has_error()) {
+    leave_on_malformed_message("Malformed group action message payload");
+    delete group_action_message;
+    return;
+  }
 
-  Group_action_message *group_action_message = nullptr;
-  switch (action_message_type) {
+  switch (group_action_message->get_group_action_message_type()) {
     case Group_action_message::ACTION_MULTI_PRIMARY_MESSAGE:
     case Group_action_message::ACTION_PRIMARY_ELECTION_MESSAGE:
     case Group_action_message::ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE:
-      group_action_message = new Group_action_message(
-          message.get_message_data().get_payload(),
-          message.get_message_data().get_payload_length());
       break;
     default:
-      break; /* purecov: inspected */
+      delete group_action_message;
+      return;
   }
 
   if (!pre_process_message(group_action_message,
@@ -1456,6 +1529,21 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
     // Process data provided by member.
     Group_member_info_list *member_infos =
         group_member_mgr->decode(data, length);
+    if (member_infos == nullptr) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
+                   "Malformed group member information in exchanged data");
+
+      std::set<Group_member_info *,
+               Group_member_info_pointer_comparator>::iterator
+          temporary_states_it;
+      for (temporary_states_it = temporary_states->begin();
+           temporary_states_it != temporary_states->end();
+           temporary_states_it++) {
+        delete (*temporary_states_it);
+      }
+      temporary_states->clear();
+      return 1;
+    }
 
     // This construct is here in order to deallocate memory of duplicates
     Group_member_info_list_iterator member_infos_it;

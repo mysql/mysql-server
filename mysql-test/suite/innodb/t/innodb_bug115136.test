@@ -1,0 +1,48 @@
+set @ori_parallel_read_threads = @@innodb_parallel_read_threads;
+set @ori_ddl_threads = @@innodb_ddl_threads;
+set @ori_ddl_buffer_size = @@innodb_ddl_buffer_size;
+
+create table a(a int, b int, primary key(a));
+set innodb_parallel_read_threads = 16;
+set innodb_ddl_threads = 16;
+
+delimiter $$;
+CREATE PROCEDURE insert_into_tables(IN num INTEGER)
+     BEGIN
+     declare x INT;
+     set x = 1;
+     while x < num do
+        INSERT INTO `a` (`a`, `b`) VALUES (x, x);
+        set x = x + 1;
+     end  while;
+end$$
+delimiter ;$$
+
+call insert_into_tables(10000);
+
+# Mofidy ddl buffer size
+set innodb_ddl_buffer_size = 65536;
+
+alter table a add column `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, ADD KEY (`id`);
+
+# Max(id) should be same with max(a) and max(b)
+select max(a), max(b), max(id) from a;
+select b from a where b not in (select id from a);
+
+
+# Mofidy ddl buffer size
+set innodb_ddl_buffer_size = 104857600;
+
+alter table a drop column id, drop index id;
+
+alter table a add column `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, ADD KEY (`id`);
+
+# Max(id) should be same with max(a) and max(b)
+select max(a), max(b), max(id) from a;
+select b from a where b not in (select id from a);
+
+drop table a;
+drop PROCEDURE insert_into_tables;
+set innodb_parallel_read_threads = @ori_parallel_read_threads;
+set innodb_ddl_threads = @ori_ddl_threads;
+set innodb_ddl_buffer_size = @ori_ddl_buffer_size;

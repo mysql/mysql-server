@@ -117,6 +117,34 @@ class READ_INFO;
 using std::max;
 using std::min;
 
+/*
+  Temporary NULL values must outlive temporary nullability so that NOT NULL
+  constraints can inspect them, but must not leak past the current row or
+  statement.
+*/
+class Load_data_tmp_null_guard {
+ public:
+  explicit Load_data_tmp_null_guard(TABLE *table) : m_table(table) {}
+
+  ~Load_data_tmp_null_guard() {
+    for (Field **field = m_table->field; *field; ++field) {
+      (*field)->reset_tmp_nullable();
+      (*field)->reset_tmp_null();
+    }
+  }
+
+  void set_tmp_nullable(Field *field) { field->set_tmp_nullable(); }
+
+  void reset_tmp_nullable() {
+    for (Field **field = m_table->field; *field; ++field) {
+      (*field)->reset_tmp_nullable();
+    }
+  }
+
+ private:
+  TABLE *const m_table;
+};
+
 class XML_TAG {
  public:
   int level;
@@ -1595,27 +1623,6 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
   return read_info.error;
 }
 
-class Field_tmp_nullability_guard {
- public:
-  explicit Field_tmp_nullability_guard(Item *item) : m_field(nullptr) {
-    if (item->type() == Item::FIELD_ITEM) {
-      m_field = ((Item_field *)item)->field;
-      /*
-        Enable temporary nullability for items that corresponds
-        to table fields.
-      */
-      m_field->set_tmp_nullable();
-    }
-  }
-
-  ~Field_tmp_nullability_guard() {
-    if (m_field) m_field->reset_tmp_nullable();
-  }
-
- private:
-  Field *m_field;
-};
-
 /**
   Read rows in delimiter-separated formats.
 
@@ -1648,6 +1655,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
     }
 
     restore_record(table, s->default_values);
+    Load_data_tmp_null_guard row_tmp_null_guard(table);
     /*
       Check whether default values of the fields not specified in column list
       are correct or not.
@@ -1680,13 +1688,16 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 
       real_item = item->real_item();
 
-      Field_tmp_nullability_guard fld_tmp_nullability_guard(real_item);
+      Field *field = nullptr;
+      if (real_item->type() == Item::FIELD_ITEM) {
+        field = down_cast<Item_field *>(real_item)->field;
+        row_tmp_null_guard.set_tmp_nullable(field);
+      }
 
       if ((!read_info.enclosed && (enclosed_length && length == 4 &&
                                    !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
           (length == 1 && read_info.found_null)) {
-        if (real_item->type() == Item::FIELD_ITEM) {
-          Field *field = ((Item_field *)real_item)->field;
+        if (field != nullptr) {
           if (field->reset())  // Set to 0
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0), field->field_name,
@@ -1712,8 +1723,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
         continue;
       }
 
-      if (real_item->type() == Item::FIELD_ITEM) {
-        Field *field = ((Item_field *)real_item)->field;
+      if (field != nullptr) {
         field->set_notnull();
         read_info.row_end[0] = 0;  // Safe to change end marker
         if (field == table->next_number_field)
@@ -1725,6 +1735,8 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
             ->set_value((char *)pos, length, read_info.read_charset);
       }
     }
+
+    row_tmp_null_guard.reset_tmp_nullable();
 
     if (thd->is_error()) read_info.error = true;
 

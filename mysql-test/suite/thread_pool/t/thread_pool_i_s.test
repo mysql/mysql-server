@@ -1,0 +1,169 @@
+# Check
+# - the following "pool of threads" related tables
+#      information_schema.TP_THREAD_GROUP_STATS
+#      information_schema.TP_THREAD_STATE
+#      information_schema.TP_THREAD_GROUP_STATE
+#   their layout, how the show up within other information_schema tables,
+#   permissions to query their content
+# - how the "pool of threads" plugin shows up in
+#   information_schema.plugins
+# and similar stuff which does not depend on history of current test etc..
+#
+# Notes:
+#    1. The feature "pool of threads" needs to be enabled for getting these
+#       tables within the database information_schema.
+#    2. This test is not intended to show how the content of these tables
+#       changes depending on
+#       - activity of sessions within the server.
+#       - the current setting of "pool of threads" related variables
+#
+# Author:
+# 2010-11-02 mleich develop tests for WL#5136 New Thread pool design
+#
+
+--source include/have_thread_pool.inc
+
+SET @saved_deprecated_i_s_usage_count = (SELECT VARIABLE_VALUE
+FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Deprecated_thread_pool_i_s_usage_count');
+
+SET @admin_thread_groups = 1;
+
+--echo # 1. "pool of threads" functionality and its information_schema tables
+--echo #    are provided as plugin.
+--replace_result .so .<extension> .dll .<extension>
+SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY,
+       PLUGIN_AUTHOR, PLUGIN_LICENSE
+FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME IN
+      ('thread_pool','TP_THREAD_STATE','TP_THREAD_GROUP_STATE','TP_THREAD_GROUP_STATS');
+
+--echo # 2. Show the layout of the "pool of threads" tables.
+SHOW CREATE TABLE information_schema.TP_THREAD_GROUP_STATS;
+SHOW CREATE TABLE information_schema.TP_THREAD_GROUP_STATE;
+SHOW CREATE TABLE information_schema.TP_THREAD_STATE;
+
+--echo # 3. Show the columns of these tables how they are reported within
+--echo #    information_schema.columns.
+SELECT TABLE_NAME, COLUMN_NAME,COLUMN_DEFAULT,IS_NULLABLE,DATA_TYPE,
+       CHARACTER_MAXIMUM_LENGTH,CHARACTER_OCTET_LENGTH,NUMERIC_PRECISION,
+       NUMERIC_SCALE,CHARACTER_SET_NAME,COLLATION_NAME,COLUMN_TYPE,EXTRA,
+       PRIVILEGES,COLUMN_COMMENT
+FROM information_schema.columns
+WHERE table_schema = 'information_schema'
+  AND table_name IN
+        ('TP_THREAD_GROUP_STATS','TP_THREAD_GROUP_STATE','TP_THREAD_STATE')
+ORDER BY table_name,column_name;
+
+--echo # 4. All these tables contain a column named TP_GROUP_ID and
+--echo #    these columns must be of the same type.
+let $part=
+SELECT COLUMN_DEFAULT,IS_NULLABLE,DATA_TYPE,NUMERIC_PRECISION,NUMERIC_SCALE,
+       COLUMN_TYPE,EXTRA,PRIVILEGES
+FROM information_schema.columns
+WHERE table_schema = 'information_schema' AND column_name = 'TP_GROUP_ID';
+eval
+SELECT COUNT(*) AS "Expect 1" FROM
+( $part AND table_name = 'TP_THREAD_GROUP_STATS'
+  UNION DISTINCT
+  $part AND table_name = 'TP_THREAD_GROUP_STATE'
+  UNION DISTINCT
+  $part AND table_name = 'TP_THREAD_STATE') AS A;
+
+--echo # 5. It must be impossible to alter the layout of these tables or
+--echo #    or to modify their content.
+let $table= information_schema.TP_THREAD_GROUP_STATS;
+--error ER_DBACCESS_DENIED_ERROR
+eval DELETE FROM $table;
+--error ER_DBACCESS_DENIED_ERROR
+eval ALTER TABLE $table ADD COLUMN garbage VARCHAR(20);
+let $table= information_schema.TP_THREAD_GROUP_STATE;
+--error ER_DBACCESS_DENIED_ERROR
+eval DELETE FROM $table;
+--error ER_DBACCESS_DENIED_ERROR
+eval ALTER TABLE $table ADD COLUMN garbage VARCHAR(20);
+let $table= information_schema.TP_THREAD_STATE;
+--error ER_DBACCESS_DENIED_ERROR
+eval DELETE FROM $table;
+--error ER_DBACCESS_DENIED_ERROR
+eval ALTER TABLE $table ADD COLUMN garbage VARCHAR(20);
+
+--echo # 6. It must be possible to SELECT on these tables.
+--echo #    The printing of results is partially suppressed.
+--echo #    A high privileged user should see the same like a low
+--echo #    privileged user. Example:
+--echo #    There must be @@global.thread_pool_size distinct TP_GROUP_ID
+--echo #    values per table.
+# Note: This sub test is focused on that a low privileged user should see
+#       the same table content like a high privileged user.
+#       In order to have a test which does not suffer from the highly
+#       dynamic (dependency on current variables, testcase history, maybe
+#       environment on the testing box etc.) content within these tables
+#       we are forced to
+#       - suppress the printing of result sets
+#       - use tricks like
+#         COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size etc.
+#       In short words: We exploit thread_pool_size.but it is not in focus.
+CREATE USER low_privilege@localhost;
+GRANT USAGE ON test.* TO low_privilege@localhost;
+--echo # Establish connection (low_privilege,localhost,low_privilege,,test)
+--connect (low_privilege,localhost,low_privilege,,test)
+let $id_list= `SELECT CONNECTION_ID()`;
+--disable_result_log
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATS;
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATE;
+SELECT * FROM information_schema.TP_THREAD_STATE;
+--enable_result_log
+SET @admin_thread_groups = 1;
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'TP_THREAD_GROUP_STATS' AS "Table"
+FROM information_schema.TP_THREAD_GROUP_STATS
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'TP_THREAD_GROUP_STATE'
+FROM information_schema.TP_THREAD_GROUP_STATE
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'TP_THREAD_STATE'
+FROM information_schema.TP_THREAD_STATE;
+
+--echo # Switch to connection default
+--connection default
+--disable_result_log
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATS;
+SELECT * FROM information_schema.TP_THREAD_GROUP_STATE;
+SELECT * FROM information_schema.TP_THREAD_STATE;
+--enable_result_log
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'TP_THREAD_GROUP_STATS' AS "Table"
+FROM information_schema.TP_THREAD_GROUP_STATS
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'TP_THREAD_GROUP_STATE'
+FROM information_schema.TP_THREAD_GROUP_STATE
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'TP_THREAD_STATE'
+FROM information_schema.TP_THREAD_STATE;
+
+# Cleanup
+--disconnect low_privilege
+--source ../inc/wait_until_disappeared.inc
+DROP USER low_privilege@localhost;
+
+--echo #
+--echo # Bug#34020058 - Extend PFS.tp_thread_state table to include PFS thread_id and TP thread type
+--echo #
+--echo # PFS thread id and thread type of each thread should be listed.
+SELECT TP_GROUP_ID, WAIT_TYPE, TP_THREAD_TYPE FROM information_schema.TP_THREAD_STATE WHERE TP_GROUP_ID = 0
+         AND TP_THREAD_TYPE = 'CONNECTION_HANDLER_WORKER_THREAD';
+SELECT TP_GROUP_ID, WAIT_TYPE, TP_THREAD_TYPE FROM information_schema.TP_THREAD_STATE WHERE TP_GROUP_ID = 0
+         AND TP_THREAD_TYPE = 'QUERY_WORKER_THREAD' LIMIT 1;
+
+
+--echo #
+--echo # Bug#36359860: No deprecation warning when accessing TP I_S tables
+--echo #
+--echo # Show increase in I_S usage counter from running this test
+SELECT VARIABLE_VALUE - @saved_deprecated_i_s_usage_count AS EXPECT_14
+FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Deprecated_thread_pool_i_s_usage_count';
+

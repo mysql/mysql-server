@@ -1069,3 +1069,18 @@ SELECT c0 IN (1, - (NULL > 1.0E0)) FROM t1;
 c0 IN (1, - (NULL > 1.0E0))
 NULL
 DROP TABLE t1;
+#
+# Bug#39444505: A negated 'IS TRUE' guard can still match a DECIMAL row
+#               for which the guarded predicate is true.
+#
+CREATE TABLE t2(c0 DECIMAL(10,0) UNIQUE);
+INSERT INTO t2(c0) VALUES(0.010117779858519138), (NULL);
+Warnings:
+Note	1265	Data truncated for column 'c0' at row 1
+SELECT c0
+FROM t2
+WHERE NOT ((c0 BETWEEN c0 AND c0) IS TRUE) AND
+c0 <> IFNULL(-2022419930, c0)
+ORDER BY c0 IS NULL, c0;
+c0
+DROP TABLE t2;

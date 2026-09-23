@@ -1,0 +1,25 @@
+# Check general connect,disconnect,KILL related functionality without
+# pool of threads plugin loaded. The file with expected results from
+# this test is the reference for the test variants thread_pool_func3b
+# and thread_pool_func3c which run with pool of threads plugin loaded.
+#
+# Autor: 2010-12 mleich
+#
+
+# We add this suppression here because the test thread_pool_func3b.test and
+# thread_pool_func3c.test compare their result files with this file.
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");
+
+--disable_query_log
+--disable_result_log
+--error 0, ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@global.thread_pool_algorithm;
+--enable_query_log
+--enable_result_log
+if(!$mysql_errno)
+{
+   --die The thread pool plugin must be not loaded, please check the <testcase>-master.opt
+}
+
+let $connections_to_add= 5;
+--source ../../thread_pool/inc/check_connect_kill.inc

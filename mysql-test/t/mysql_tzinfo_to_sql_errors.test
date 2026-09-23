@@ -1,0 +1,85 @@
+#------------------------------------------------------------------------------
+# Validate mysql_tzinfo_to_sql error handling for:
+# 1) files that are not zoneinfo files
+# 2) malformed zoneinfo files
+#------------------------------------------------------------------------------
+--source include/not_windows.inc
+
+--echo # Bug#36624161: Contribution: mysql_tzinfo_to_sql: suppress expected warnings
+
+let $non_zoneinfo_file= non_zoneinfo.txt;
+let $short_non_zoneinfo_file= short_non_zoneinfo.bin;
+let $broken_zoneinfo_file= broken_zoneinfo.tzif;
+let $non_zoneinfo_dir= non_zoneinfo_dir;
+let $short_non_zoneinfo_dir= short_non_zoneinfo_dir;
+let $broken_zoneinfo_dir= broken_zoneinfo_dir;
+let $stderr_file= mysql_tzinfo_to_sql_errors.stderr;
+
+--write_file $non_zoneinfo_file
+this is not a zoneinfo file
+EOF
+
+--write_file $short_non_zoneinfo_file
+T
+EOF
+
+--write_file $broken_zoneinfo_file
+TZif
+EOF
+
+--echo # Non-zoneinfo file (regular mode).
+--error 1
+--exec $MYSQL_TZINFO_TO_SQL $non_zoneinfo_file invalid_name 2>$stderr_file
+--cat_file $stderr_file
+
+--echo # Malformed zoneinfo file (regular mode).
+--error 1
+--exec $MYSQL_TZINFO_TO_SQL $broken_zoneinfo_file broken_name 2>$stderr_file
+--cat_file $stderr_file
+
+--echo # Short non-zoneinfo file (regular mode).
+--error 1
+--exec $MYSQL_TZINFO_TO_SQL $short_non_zoneinfo_file short_name 2>$stderr_file
+--cat_file $stderr_file
+
+--echo # Non-zoneinfo file (--leap mode).
+--error 1
+--exec $MYSQL_TZINFO_TO_SQL --leap $non_zoneinfo_file 2>$stderr_file
+--cat_file $stderr_file
+
+--echo # Malformed zoneinfo file (--leap mode).
+--error 1
+--exec $MYSQL_TZINFO_TO_SQL --leap $broken_zoneinfo_file 2>$stderr_file
+--cat_file $stderr_file
+
+--exec mkdir -p $non_zoneinfo_dir
+--copy_file $non_zoneinfo_file $non_zoneinfo_dir/non_zoneinfo.txt
+
+--echo # Directory mode: non-zoneinfo file is skipped silently.
+--exec $MYSQL_TZINFO_TO_SQL $non_zoneinfo_dir 1>/dev/null 2>$stderr_file
+--cat_file $stderr_file
+
+--exec mkdir -p $short_non_zoneinfo_dir
+--copy_file $short_non_zoneinfo_file $short_non_zoneinfo_dir/short_non_zoneinfo.bin
+
+--echo # Directory mode: short non-zoneinfo file is skipped silently.
+--exec $MYSQL_TZINFO_TO_SQL $short_non_zoneinfo_dir 1>/dev/null 2>$stderr_file
+--cat_file $stderr_file
+
+--exec mkdir -p $broken_zoneinfo_dir
+--copy_file $broken_zoneinfo_file $broken_zoneinfo_dir/broken_zoneinfo.tzif
+
+--echo # Directory mode: malformed zoneinfo file warning.
+--exec $MYSQL_TZINFO_TO_SQL $broken_zoneinfo_dir 1>/dev/null 2>$stderr_file
+--cat_file $stderr_file
+
+--remove_file $stderr_file
+--remove_file $non_zoneinfo_file
+--remove_file $short_non_zoneinfo_file
+--remove_file $broken_zoneinfo_file
+--remove_files_wildcard $non_zoneinfo_dir *
+--remove_files_wildcard $short_non_zoneinfo_dir *
+--remove_files_wildcard $broken_zoneinfo_dir *
+--rmdir $non_zoneinfo_dir
+--rmdir $short_non_zoneinfo_dir
+--rmdir $broken_zoneinfo_dir

@@ -28,6 +28,7 @@
 #include <algorithm>
 
 #include "my_sys.h"  // escape_string_for_mysql  NOLINT(build/include_subdir)
+#include "plugin/x/src/helper/sql_literal_escaping.h"
 #include "plugin/x/src/ngs/error_code.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
@@ -52,7 +53,16 @@ class Sql_search_tags {
         m_matching_chars_comment(0),
         m_matching_chars_line_comment1(0),
         m_matching_chars_line_comment2(0),
-        m_escape_chars(0) {}
+        m_escape_chars(0),
+        m_no_backslash_escapes(false) {}
+
+  explicit Sql_search_tags(bool no_backslash_escapes)
+      : m_state(Block_none),
+        m_matching_chars_comment(0),
+        m_matching_chars_line_comment1(0),
+        m_matching_chars_line_comment2(0),
+        m_escape_chars(0),
+        m_no_backslash_escapes(no_backslash_escapes) {}
 
   bool should_ignore_block(const char character, const Block_enum try_block,
                            const char character_begin, const char character_end,
@@ -134,7 +144,7 @@ class Sql_search_tags {
   }
 
   bool should_be_ignored(const char character) {
-    const bool escape_sequence = true;
+    const bool escape_sequence = !m_no_backslash_escapes;
 
     if (should_ignore_block(character, Block_string_quoted, '\'', '\'',
                             escape_sequence))
@@ -175,10 +185,15 @@ class Sql_search_tags {
   uint8_t m_matching_chars_line_comment1;
   uint8_t m_matching_chars_line_comment2;
   uint8_t m_escape_chars;
+  bool m_no_backslash_escapes;
 };
 
-Query_formatter::Query_formatter(ngs::PFS_string &query, CHARSET_INFO &charset)
-    : m_query(query), m_charset(charset), m_last_tag_position(0) {}
+Query_formatter::Query_formatter(ngs::PFS_string &query, CHARSET_INFO &charset,
+                                 bool no_backslash_escapes)
+    : m_query(query),
+      m_charset(charset),
+      m_last_tag_position(0),
+      m_no_backslash_escapes(no_backslash_escapes) {}
 
 Query_formatter &Query_formatter::operator%(const char *value) {
   validate_next_tag();
@@ -215,8 +230,9 @@ Query_formatter &Query_formatter::operator%(
 }
 
 void Query_formatter::validate_next_tag() {
-  ngs::PFS_string::iterator const i = std::find_if(
-      m_query.begin() + m_last_tag_position, m_query.end(), Sql_search_tags());
+  ngs::PFS_string::iterator const i =
+      std::find_if(m_query.begin() + m_last_tag_position, m_query.end(),
+                   Sql_search_tags(m_no_backslash_escapes));
 
   if (m_query.end() == i) {
     throw ngs::Error_code(ER_X_CMD_NUM_ARGUMENTS, "Too many arguments");
@@ -230,8 +246,12 @@ void Query_formatter::put_value_and_escape(const char *value,
   const std::size_t length_maximum = 2 * length + 1 + 2;
   std::string value_escaped(length_maximum, '\0');
 
-  std::size_t const length_escaped = escape_string_for_mysql(
-      &m_charset, &value_escaped[1], length_maximum, value, length);
+  std::size_t const length_escaped =
+      m_no_backslash_escapes
+          ? escape_sql_quote(&m_charset, &value_escaped[1], length_maximum,
+                             value, length, '\'')
+          : escape_string_for_mysql(&m_charset, &value_escaped[1],
+                                    length_maximum, value, length);
   value_escaped[0] = value_escaped[1 + length_escaped] = '\'';
 
   value_escaped.resize(length_escaped + 2);
@@ -264,7 +284,8 @@ void Query_formatter::put_value(const char *value, const std::size_t length) {
 }
 
 std::size_t Query_formatter::count_tags() const {
-  return std::count_if(m_query.begin(), m_query.end(), Sql_search_tags());
+  return std::count_if(m_query.begin(), m_query.end(),
+                       Sql_search_tags(m_no_backslash_escapes));
 }
 
 }  // namespace xpl

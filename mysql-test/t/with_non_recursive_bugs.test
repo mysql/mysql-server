@@ -1082,3 +1082,62 @@ WITH cte1 AS (SELECT * FROM t1 UNION SELECT * FROM t1),
      cte2 AS (SELECT COUNT(*) FROM cte1) SELECT * from cte1,cte2;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#39321676: WHERE equality condition fails to match existing row
+--echo #
+
+CREATE TABLE parent (
+  uuid CHAR(36) NOT NULL PRIMARY KEY
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+CREATE TABLE child (
+  uuid CHAR(36) NOT NULL PRIMARY KEY,
+  id VARCHAR(255) NOT NULL,
+  version INT NOT NULL,
+  parent_uuid CHAR(36) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+  FOREIGN KEY (parent_uuid) REFERENCES parent (uuid)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+CREATE TABLE sub_child(
+  uuid CHAR(36) NOT NULL PRIMARY KEY,
+  child_uuid CHAR(36) NOT NULL,
+  FOREIGN KEY (child_uuid) REFERENCES child (uuid)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+INSERT INTO parent VALUES
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+
+INSERT INTO child VALUES
+(UUID(), "A", 1, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', CURRENT_TIMESTAMP());
+
+INSERT INTO sub_child
+SELECT UUID(), c.uuid
+FROM child c;
+
+WITH ranked_children AS
+ (SELECT c.uuid AS child_uuid,
+         c.parent_uuid,
+         c.created_at,
+         ROW_NUMBER() OVER (PARTITION BY c.id ORDER BY c.version DESC) AS rn
+  FROM child AS c
+  GROUP BY c.uuid
+ )
+SELECT p.uuid
+FROM parent AS p JOIN ranked_children AS all_rc
+     ON p.uuid = all_rc.parent_uuid AND all_rc.rn = 1
+     JOIN sub_child AS all_sc
+     ON all_sc.child_uuid = all_rc.child_uuid
+     JOIN ranked_children AS rc
+     ON rc.child_uuid = (select rc2.child_uuid
+                         from ranked_children AS rc2
+                         where p.uuid = rc2.parent_uuid and rc2.rn = 1
+                         order by rc2.created_at desc
+                         limit 1
+                        )
+     JOIN sub_child AS sc ON sc.child_uuid = rc.child_uuid
+WHERE p.uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+GROUP BY p.uuid;
+
+DROP TABLE parent, child, sub_child;

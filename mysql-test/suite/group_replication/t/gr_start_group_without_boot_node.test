@@ -51,6 +51,7 @@ SET SESSION sql_log_bin= 1;
 --echo ############################################################
 --echo # 3. Start the node and expect it to fail
 --echo ############################################################
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

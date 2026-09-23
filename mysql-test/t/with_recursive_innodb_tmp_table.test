@@ -68,6 +68,73 @@ set @@tmp_table_size=30000,@@max_heap_table_size=30000;
 set @@tmp_table_size=60000,@@max_heap_table_size=60000;
 --source include/with_recursive_wl9248.inc
 
---echo # cleanup
 drop table t1;
+
+--echo #
+--echo # Bug 37308710 - const access after MEMORY to InnoDB temp-table overflow
+--echo #
+
+create table t1 (
+  id int primary key,
+  col1 varchar(32),
+  key index_col1(col1)
+);
+
+create table t2 (
+  id int primary key,
+  col1 varchar(32)
+);
+
+delimiter //;
+create procedure insert_bug_37308710_data()
+begin
+  declare num int;
+  set num = 1;
+  while num < 100 do
+    insert into t1 values (num, lpad(num, 32, '0'));
+    insert into t2 values (num, lpad(num, 32, '0'));
+    set num = num + 1;
+  end while;
+end//
+delimiter ;//
+
+call insert_bug_37308710_data();
+
+set @old_internal_tmp_mem_storage_engine =
+  @@session.internal_tmp_mem_storage_engine;
+set session internal_tmp_mem_storage_engine = 'memory';
+set @old_tmp_table_size = @@tmp_table_size;
+set @@tmp_table_size = 102400;
+
+let $query =
+select count(distinct d.col1)
+from (
+  select t1.col1
+  from t1
+  union
+  select t1.col1
+  from t1
+) d
+join t2 on d.col1 = t2.col1
+where t2.id = 1;
+
+flush status;
+eval explain $query;
+eval $query;
+show status like 'Created_tmp_disk_tables';
+
+set @@tmp_table_size = 1024;
+
+flush status;
+eval explain $query;
+eval $query;
+show status like 'Created_tmp_disk_tables';
+
+set session internal_tmp_mem_storage_engine =
+  @old_internal_tmp_mem_storage_engine;
+set @@tmp_table_size = @old_tmp_table_size;
+drop procedure insert_bug_37308710_data;
+drop table t1, t2;
+
+--echo # cleanup
 set session internal_tmp_mem_storage_engine=default;

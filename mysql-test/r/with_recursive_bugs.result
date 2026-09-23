@@ -338,3 +338,130 @@ count
 1
 1
 DROP PROCEDURE cte_bug;
+#
+# Bug#35536775: CTE view serialization trailing comma
+#
+# When a view references a WITH clause and some CTEs are unused
+# (merged away), PT_with_clause::print must not produce a trailing
+# comma or omit separators between the remaining CTEs.
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+#
+# Case 1: Single unused CTE at the end - no trailing comma
+#
+CREATE VIEW v1 AS
+WITH cte1 AS (SELECT a FROM t1),
+cte2 AS (SELECT 1)
+SELECT * FROM cte1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `cte1` as (select `t1`.`a` AS `a` from `t1`) select `cte1`.`a` AS `a` from `cte1`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v1';
+VIEW_DEFINITION
+with `cte1` as (select `test`.`t1`.`a` AS `a` from `test`.`t1`) select `cte1`.`a` AS `a` from `cte1`
+# The view definition must parse back without errors
+DROP VIEW v1;
+CREATE VIEW v1 AS
+WITH cte1 AS (SELECT a FROM t1),
+cte2 AS (SELECT 1)
+SELECT * FROM cte1;
+SELECT * FROM v1;
+a
+1
+2
+3
+DROP VIEW v1;
+#
+# Case 2: Unused CTE in the middle - separator between printed CTEs
+#
+CREATE VIEW v2 AS
+WITH cte1 AS (SELECT a FROM t1),
+cte2 AS (SELECT 999),
+cte3 AS (SELECT a + 10 AS b FROM t1)
+SELECT * FROM cte1, cte3;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS with `cte1` as (select `t1`.`a` AS `a` from `t1`), `cte3` as (select (`t1`.`a` + 10) AS `b` from `t1`) select `cte1`.`a` AS `a`,`cte3`.`b` AS `b` from (`cte1` join `cte3`)	utf8mb4	utf8mb4_0900_ai_ci
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v2';
+VIEW_DEFINITION
+with `cte1` as (select `test`.`t1`.`a` AS `a` from `test`.`t1`), `cte3` as (select (`test`.`t1`.`a` + 10) AS `b` from `test`.`t1`) select `cte1`.`a` AS `a`,`cte3`.`b` AS `b` from `cte1` join `cte3`
+# The view definition must parse back without errors
+SELECT * FROM v2;
+a	b
+1	11
+1	12
+1	13
+2	11
+2	12
+2	13
+3	11
+3	12
+3	13
+DROP VIEW v2;
+#
+# Case 3: Multiple unused CTEs in a row
+#
+CREATE VIEW v3 AS
+WITH cte1 AS (SELECT a FROM t1),
+cte2 AS (SELECT 100),
+cte3 AS (SELECT 200),
+cte4 AS (SELECT a * 2 AS c FROM t1)
+SELECT * FROM cte1, cte4;
+SHOW CREATE VIEW v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS with `cte1` as (select `t1`.`a` AS `a` from `t1`), `cte4` as (select (`t1`.`a` * 2) AS `c` from `t1`) select `cte1`.`a` AS `a`,`cte4`.`c` AS `c` from (`cte1` join `cte4`)	utf8mb4	utf8mb4_0900_ai_ci
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v3';
+VIEW_DEFINITION
+with `cte1` as (select `test`.`t1`.`a` AS `a` from `test`.`t1`), `cte4` as (select (`test`.`t1`.`a` * 2) AS `c` from `test`.`t1`) select `cte1`.`a` AS `a`,`cte4`.`c` AS `c` from `cte1` join `cte4`
+SELECT * FROM v3;
+a	c
+1	2
+1	4
+1	6
+2	2
+2	4
+2	6
+3	2
+3	4
+3	6
+DROP VIEW v3;
+#
+# Case 4: All CTEs unused - WITH clause should be stripped entirely
+#
+CREATE VIEW v4 AS
+WITH cte1 AS (SELECT 1),
+cte2 AS (SELECT 2)
+SELECT a FROM t1;
+SHOW CREATE VIEW v4;
+View	Create View	character_set_client	collation_connection
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `t1`.`a` AS `a` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v4';
+VIEW_DEFINITION
+select `test`.`t1`.`a` AS `a` from `test`.`t1`
+SELECT * FROM v4;
+a
+1
+2
+3
+DROP VIEW v4;
+#
+# Case 5: First CTE unused, rest used
+#
+CREATE VIEW v5 AS
+WITH cte1 AS (SELECT 999),
+cte2 AS (SELECT a FROM t1)
+SELECT * FROM cte2;
+SHOW CREATE VIEW v5;
+View	Create View	character_set_client	collation_connection
+v5	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v5` AS with `cte2` as (select `t1`.`a` AS `a` from `t1`) select `cte2`.`a` AS `a` from `cte2`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'v5';
+VIEW_DEFINITION
+with `cte2` as (select `test`.`t1`.`a` AS `a` from `test`.`t1`) select `cte2`.`a` AS `a` from `cte2`
+SELECT * FROM v5;
+a
+1
+2
+3
+DROP VIEW v5;
+DROP TABLE t1;

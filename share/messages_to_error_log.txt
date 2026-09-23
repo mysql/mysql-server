@@ -12375,6 +12375,9 @@ ER_AUDIT_LOG_JSON_INVALID_FILTER_CANNOT_BE_USED
 ER_WARN_AUDIT_LOG_FILTER_RECOVERY_LOGGING_DISABLED_LOG
   eng "The '%s' variable is set to LOG_NOTHING_IF_INVALID_FILTER_DETECTED, meaning audit events will not be logged if the filter is invalid. Consider changing this variable to LOG_ALL_IF_INVALID_FILTER_DETECTED to ensure that all events are logged, even when the filter is invalid."
 
+ER_SERVER_UPGRADE_CHECK_STATUS_MESSAGE
+  eng "%s"
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #

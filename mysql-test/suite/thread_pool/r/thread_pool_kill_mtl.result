@@ -1,0 +1,21 @@
+GRANT TP_CONNECTION_ADMIN ON *.* TO root@localhost;
+REVOKE TP_CONNECTION_ADMIN ON *.* FROM root@localhost;
+CALL mtr.add_suppression("The default or user configured value thread_pool_query_threads_per_group.2. exceeds transaction threads limit per group .1.");
+#
+# Bug#34019954: KILL CONNECTION does not work correctly with
+# thread_pool_max_transactions_limit
+#
+CREATE TABLE t1(i INT);
+# With MTL=1 we need to create two long-running transactions to block
+# additional transactions/queries
+connect con1,localhost,root,,,,,;
+connect con2,localhost,root,,,,;
+BEGIN WORK;
+INSERT INTO t1 VALUES (2);
+connection admcon;
+KILL CONNECTION @victim_id;
+SELECT * FROM performance_schema.processlist WHERE ID = @victim_id;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+connection con2;
+COMMIT WORK;
+DROP TABLE t1;

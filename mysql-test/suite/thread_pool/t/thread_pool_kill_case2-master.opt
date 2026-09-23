@@ -1,0 +1,2 @@
+--thread_pool_size=2
+--thread_pool_stall_limit=100

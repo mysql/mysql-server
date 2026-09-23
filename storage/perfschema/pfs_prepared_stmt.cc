@@ -71,19 +71,19 @@ void reset_prepared_stmt_instances() {
 }
 
 PFS_prepared_stmt *create_prepared_stmt(
-    void *identity, PFS_thread *thread, PFS_program *pfs_program,
+    void * /* identity */, PFS_thread *thread, PFS_program *pfs_program,
     PFS_events_statements *pfs_stmt, uint stmt_id, const char *stmt_name,
     uint stmt_name_length, const char *sqltext, uint sqltext_length) {
   pfs_dirty_state dirty_state;
+  pfs_identity id;
 
   /* Create a new record in prepared stmt stat array. */
   PFS_prepared_stmt *pfs =
-      global_prepared_stmt_container.allocate(&dirty_state);
+      global_prepared_stmt_container.allocate(&dirty_state, &id);
   if (pfs != nullptr) {
+    pfs->m_identity = id;
     /* Reset the stats. */
     pfs->reset_data();
-    /* Do the assignments. */
-    pfs->m_identity = identity;
     /* Set query text if available, else it will be set later. */
     if (sqltext_length > 0) {
       strncpy(pfs->m_sqltext, sqltext, sqltext_length);

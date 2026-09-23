@@ -1,0 +1,2 @@
+--thread-pool-size=5
+--thread_pool_query_threads_per_group=1

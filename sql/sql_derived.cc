@@ -813,9 +813,14 @@ Item *resolve_expression(THD *thd, Item *item, Query_block *query_block) {
   placed.
 
   @param thd            Current thread
-  @param item           Item for which clone is requested
-  @param derived_table  derived table to which the item belongs to.
-
+  @param item           Expression for which clone is requested
+  @param derived_table  derived table to which the expression belongs to.
+                        When set, we are cloning expressions
+                        from derived table which replace the columns
+                        in the pushed where condition.
+                        If not set, we are cloning the original
+                        where condition which needs to be pushed
+                        down(SET operations).
   @returns
   Cloned object for the item.
 */
@@ -831,11 +836,14 @@ Item *Query_block::clone_expression(THD *thd, Item *item,
   // original expression. Assign it to the corresponding field in the cloned
   // expression.
   if (copy_field_info(thd, item, cloned_item)) return nullptr;
-  // A boolean expression to be cloned comes from a WHERE condition,
-  // which treats UNKNOWN the same as FALSE, thus the cloned expression
-  // should have the same property. apply_is_true() is ignored for
-  // non-boolean expressions
-  cloned_item->apply_is_true();
+  // In case of a set operation, we first clone the entire WHERE condition.
+  // A boolean expression in a WHERE clause has an implicit IS TRUE clause
+  // appended to it, which must be preserved for cloned conditions.
+  // If "derived_table" is not set, we are cloning the original WHERE
+  // condition for set operations.
+  if (derived_table == nullptr) {
+    cloned_item->apply_is_true();
+  }
   return resolve_expression(thd, cloned_item, this);
 }
 
@@ -1126,7 +1134,6 @@ bool Condition_pushdown::make_cond_for_derived() {
           derived_query_expression->outer_query_block()->clone_expression(
               thd, orig_cond_to_push, /*derived_table=*/nullptr);
       if (m_cond_to_push == nullptr) return true;
-      m_cond_to_push->apply_is_true();
     }
     m_query_block = qb;
 

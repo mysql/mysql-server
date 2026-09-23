@@ -1,0 +1,296 @@
+#
+# Bug#38700622: Optimizer doesn't simplify ORDER BY when
+#               field IS NULL
+#
+CREATE TABLE t1 (
+f1 INT PRIMARY KEY AUTO_INCREMENT,
+f2 INT NOT NULL,
+f3 DATETIME DEFAULT NULL,
+f4 VARCHAR(50),
+f5 VARCHAR(20),
+f6 TINYINT,
+f7 VARCHAR(100),
+KEY k1 (f2, f3, f4, f5, f6, f7)
+) ENGINE=InnoDB;
+INSERT INTO t1 (f2, f3, f4, f5, f6, f7) VALUES
+(100, NULL, 'User1', 'Active', 0, 'Item A'),
+(100, NULL, 'User1', 'Active', 0, 'Item B'),
+(100, NULL, 'User1', 'Active', 0, 'Item C'),
+(100, NULL, 'User1', 'Pending', 0, 'Item D'),
+(100, '2024-01-01 10:00:00', 'User1', 'Active', 0, 'Item E'),
+(200, NULL, 'User2', 'Active', 1, 'Item F'),
+(200, NULL, 'User3', 'Pending', 0, 'Item G');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+#
+# Test 1: Basic IS NULL with ORDER BY over f2, f3, f7.
+#         Should avoid sorting on f3.
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND f3 IS NULL
+ORDER BY f2, f3, f7;
+EXPLAIN
+-> Sort: t1.f7  (cost=0.713 rows=4)
+    -> Filter: (t1.f3 is null)  (cost=0.713 rows=4)
+        -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL)  (cost=0.713 rows=4)
+
+SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND f3 IS NULL
+ORDER BY f2, f3, f7;
+f1	f2	f3	f7
+1	100	NULL	Item A
+2	100	NULL	Item B
+3	100	NULL	Item C
+4	100	NULL	Item D
+#
+# Test 2: Compound index with IS NULL - No external sort.
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3, f4, f5, f6, f7
+FROM t1
+WHERE f2 = 100 AND f3 IS NULL AND f4 = 'User1'
+      AND f5 = 'Active' AND f6 = 0 AND f7 >= 'Item B'
+ORDER BY f2, f3, f4, f5, f6, f7 ASC
+LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (cost=0.681 rows=2)
+    -> Filter: ((t1.f6 = 0) and (t1.f5 = 'Active') and (t1.f4 = 'User1') and (t1.f2 = 100) and (t1.f3 is null) and (t1.f7 >= 'Item B'))  (cost=0.681 rows=2)
+        -> Covering index range scan on t1 using k1 over (f2 = 100 AND f3 = NULL AND f4 = 'User1' AND f5 = 'Active' AND f6 = 0 AND 'Item B' <= f7)  (cost=0.681 rows=2)
+
+SELECT f1, f2, f3, f4, f5, f6, f7
+FROM t1
+WHERE f2 = 100 AND f3 IS NULL AND f4 = 'User1'
+      AND f5 = 'Active' AND f6 = 0 AND f7 >= 'Item B'
+ORDER BY f2, f3, f4, f5, f6, f7 ASC
+LIMIT 10;
+f1	f2	f3	f4	f5	f6	f7
+2	100	NULL	User1	Active	0	Item B
+3	100	NULL	User1	Active	0	Item C
+#
+# Test 3: Mix of equality and IS NULL with all intermediate
+#         fields constant. No external sort.
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3, f4, f5, f6, f7
+FROM t1
+WHERE f2 = 100 AND f3 IS NULL AND f4 = 'User1'
+      AND f5 = 'Active' AND f6 = 0
+ORDER BY f2, f3, f4, f5, f6, f7;
+EXPLAIN
+-> Filter: (t1.f3 is null)  (cost=0.592 rows=3)
+    -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL, f4 = 'User1', f5 = 'Active', f6 = 0)  (cost=0.592 rows=3)
+
+SELECT f1, f2, f3, f4, f5, f6, f7
+FROM t1
+WHERE f2 = 100 AND f3 IS NULL AND f4 = 'User1'
+      AND f5 = 'Active' AND f6 = 0
+ORDER BY f2, f3, f4, f5, f6, f7;
+f1	f2	f3	f4	f5	f6	f7
+1	100	NULL	User1	Active	0	Item A
+2	100	NULL	User1	Active	0	Item B
+3	100	NULL	User1	Active	0	Item C
+#
+# Test 4: IS NOT NULL should NOT be treated as constant.
+#         Sorting needed.
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3, f7 FROM t1
+WHERE f3 IS NOT NULL ORDER BY f3, f7;
+EXPLAIN
+-> Sort: t1.f3, t1.f7  (cost=0.95 rows=7)
+    -> Filter: (t1.f3 is not null)  (cost=0.95 rows=7)
+        -> Covering index scan on t1 using k1  (cost=0.95 rows=7)
+
+SELECT f1, f2, f3, f7 FROM t1
+WHERE f3 IS NOT NULL ORDER BY f3, f7;
+f1	f2	f3	f7
+5	100	2024-01-01 10:00:00	Item E
+#
+# Test 5: Record optimizer trace marker for constant
+#         ORDER BY fields. For hypergraph it would
+#         be absent.
+#
+SET optimizer_trace="enabled=on";
+SELECT f1, f2, f3, f7 FROM t1
+WHERE f3 IS NULL
+ORDER BY f2, f3, f7 LIMIT 2;
+f1	f2	f3	f7
+1	100	NULL	Item A
+2	100	NULL	Item B
+SELECT IF(
+LOCATE('"equals_constant_in_where": true', TRACE) > 0,
+'TRACE: equals_constant_in_where present',
+'TRACE: equals_constant_in_where absent'
+) AS trace_check
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace_check
+TRACE: equals_constant_in_where present
+SET optimizer_trace="enabled=off";
+#
+# Test 6: OR with IS NULL - field should NOT be treated
+#         as constant. So sorting is needed.
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND (f3 IS NULL OR f3 > '2024-01-01')
+ORDER BY f3, f7;
+EXPLAIN
+-> Sort: t1.f3, t1.f7  (cost=1.34 rows=5)
+    -> Filter: ((t1.f2 = 100) and ((t1.f3 is null) or (t1.f3 > TIMESTAMP'2024-01-01 00:00:00')))  (cost=1.34 rows=5)
+        -> Covering index range scan on t1 using k1 over (f2 = 100 AND f3 = NULL) OR (f2 = 100 AND '2024-01-01 00:00:00' < f3)  (cost=1.34 rows=5)
+
+SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND (f3 IS NULL OR f3 > '2024-01-01')
+ORDER BY f3, f7;
+f1	f2	f3	f7
+1	100	NULL	Item A
+2	100	NULL	Item B
+3	100	NULL	Item C
+4	100	NULL	Item D
+5	100	2024-01-01 10:00:00	Item E
+#
+# Test 7: OR with multiple IS NULL - same field.
+#         Will be treated as constant. Sorting will be
+#         only on "f7".
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND (f3 IS NULL OR f3 IS NULL)
+ORDER BY f2, f3, f7;
+EXPLAIN
+-> Sort: t1.f7  (cost=0.713 rows=4)
+    -> Filter: ((t1.f3 is null) or (t1.f3 is null))  (cost=0.713 rows=4)
+        -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL)  (cost=0.713 rows=4)
+
+SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND (f3 IS NULL OR f3 IS NULL)
+ORDER BY f2, f3, f7;
+f1	f2	f3	f7
+1	100	NULL	Item A
+2	100	NULL	Item B
+3	100	NULL	Item C
+4	100	NULL	Item D
+#
+# Test 8: OR with <=> NULL and IS NULL on the same field.
+#         Tradiitonal optimizer treats f3 as constant;
+#         hypergraph keeps f3 in the sort (Bug#39567745).
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND (f3 <=> NULL OR f3 IS NULL)
+ORDER BY f2, f3, f7;
+EXPLAIN
+-> Sort: t1.f7  (cost=0.713 rows=4)
+    -> Filter: ((t1.f3 <=> NULL) or (t1.f3 is null))  (cost=0.713 rows=4)
+        -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL)  (cost=0.713 rows=4)
+
+SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND (f3 <=> NULL OR f3 IS NULL)
+ORDER BY f2, f3, f7;
+f1	f2	f3	f7
+1	100	NULL	Item A
+2	100	NULL	Item B
+3	100	NULL	Item C
+4	100	NULL	Item D
+EXPLAIN FORMAT=tree SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND (f3 IS NULL OR f3 <=> NULL)
+ORDER BY f2, f3, f7;
+EXPLAIN
+-> Sort: t1.f7  (cost=0.713 rows=4)
+    -> Filter: ((t1.f3 is null) or (t1.f3 <=> NULL))  (cost=0.713 rows=4)
+        -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL)  (cost=0.713 rows=4)
+
+SELECT f1, f2, f3, f7 FROM t1
+WHERE f2 = 100 AND (f3 IS NULL OR f3 <=> NULL)
+ORDER BY f2, f3, f7;
+f1	f2	f3	f7
+1	100	NULL	Item A
+2	100	NULL	Item B
+3	100	NULL	Item C
+4	100	NULL	Item D
+#
+# Test 9: Verify IS NULL works with DESC ordering
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3, f4, f5, f6, f7
+FROM t1
+WHERE f2 = 100 AND f3 IS NULL AND f4 = 'User1'
+      AND f5 = 'Active' AND f6 = 0
+ORDER BY f2, f3, f4, f5, f6, f7 DESC;
+EXPLAIN
+-> Filter: (t1.f3 is null)  (cost=0.592 rows=3)
+    -> Covering index lookup on t1 using k1 (f2 = 100, f3 = NULL, f4 = 'User1', f5 = 'Active', f6 = 0) (reverse)  (cost=0.592 rows=3)
+
+SELECT f1, f2, f3, f4, f5, f6, f7
+FROM t1
+WHERE f2 = 100 AND f3 IS NULL AND f4 = 'User1'
+      AND f5 = 'Active' AND f6 = 0
+ORDER BY f2, f3, f4, f5, f6, f7 DESC;
+f1	f2	f3	f4	f5	f6	f7
+3	100	NULL	User1	Active	0	Item C
+2	100	NULL	User1	Active	0	Item B
+1	100	NULL	User1	Active	0	Item A
+#
+# Test 10: Verify NULL ordering semantics with ASC
+#
+CREATE TABLE t2 (
+f1 INT PRIMARY KEY AUTO_INCREMENT,
+f2 INT,
+f3 VARCHAR(10),
+KEY k1 (f2, f3)
+);
+INSERT INTO t2 (f2, f3) VALUES
+(NULL, 'null1'),
+(NULL, 'null2'),
+(5, 'five'),
+(10, 'ten'),
+(NULL, 'null3'),
+(1, 'one');
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SELECT f1, f2, f3 FROM t2 ORDER BY f2 ASC, f3 ASC;
+f1	f2	f3
+1	NULL	null1
+2	NULL	null2
+5	NULL	null3
+6	1	one
+3	5	five
+4	10	ten
+#
+# Test 11: Verify NULL ordering semantics with DESC
+#
+SELECT f1, f2, f3 FROM t2 ORDER BY f2 DESC, f3 ASC;
+f1	f2	f3
+4	10	ten
+3	5	five
+6	1	one
+1	NULL	null1
+2	NULL	null2
+5	NULL	null3
+#
+# Test 12: Verify optimization works with DESC and preserves NULL ordering
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3 FROM t2
+WHERE f2 IS NULL ORDER BY f2 DESC, f3 ASC;
+EXPLAIN
+-> Filter: (t2.f2 is null)  (cost=0.553 rows=3)
+    -> Covering index lookup on t2 using k1 (f2 = NULL)  (cost=0.553 rows=3)
+
+SELECT f1, f2, f3 FROM t2
+WHERE f2 IS NULL ORDER BY f2 DESC, f3 ASC;
+f1	f2	f3
+1	NULL	null1
+2	NULL	null2
+5	NULL	null3
+#
+# Test 13: Mixed ASC/DESC with IS NULL constraint
+#
+EXPLAIN FORMAT=tree SELECT f1, f2, f3 FROM t2
+WHERE f2 IS NULL ORDER BY f2 ASC, f3 DESC;
+EXPLAIN
+-> Filter: (t2.f2 is null)  (cost=0.553 rows=3)
+    -> Covering index lookup on t2 using k1 (f2 = NULL) (reverse)  (cost=0.553 rows=3)
+
+SELECT f1, f2, f3 FROM t2
+WHERE f2 IS NULL ORDER BY f2 ASC, f3 DESC;
+f1	f2	f3
+5	NULL	null3
+2	NULL	null2
+1	NULL	null1
+DROP TABLE t2;
+DROP TABLE t1;

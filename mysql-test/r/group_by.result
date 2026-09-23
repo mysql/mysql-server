@@ -5107,3 +5107,15 @@ DROP TABLE t;
 SELECT 1
 GROUP BY GROUPING SETS((ST_LONGFROMGEOHASH(ST_GEOHASH(POINT(79, 146), 107))));
 ERROR 22003: latitude value is out of range in 'st_geohash'
+#
+# Bug#39269995: Failure with update_item_cache_if_changed()
+#
+SELECT INET_NTOA(0xebc0345def74e1f6715ab1f55f1a4a3e99f9)
+GROUP BY (@c :=JSON_REMOVE(CONCAT_WS('', '$.', 'ab'), 'BB*(e&'));
+ERROR 22032: Invalid JSON text in argument 1 to function json_remove: "Invalid value." at position 0.
+CREATE TABLE t (a INTEGER);
+SELECT (SELECT PI() FROM t)
+GROUP BY (@b:= MULTIPOINT(POINT(25698,-4724), POINT(1215,-15494))),
+ST_POINTFROMGEOHASH(ST_GEOHASH(POINT(1,2), 129), 0);
+ERROR 22003: max geohash length value is out of range in 'st_geohash'
+DROP TABLE t;

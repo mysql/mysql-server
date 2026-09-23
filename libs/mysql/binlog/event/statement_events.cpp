@@ -23,9 +23,32 @@
 
 #include "mysql/binlog/event/statement_events.h"
 #include <algorithm>  // std::min() for Windows
+#include "decimal.h"
 #include "mysql/binlog/event/event_reader_macros.h"
 
 namespace mysql::binlog::event {
+
+namespace {
+
+constexpr int k_max_user_var_decimal_precision = 65;
+constexpr int k_max_user_var_decimal_scale = 30;
+
+}  // namespace
+
+bool is_user_var_decimal_metadata_valid(const char *val, std::size_t val_len,
+                                        int max_precision, int max_scale) {
+  if (val_len < 2) return false;
+
+  const auto precision = static_cast<unsigned char>(val[0]);
+  const auto scale = static_cast<unsigned char>(val[1]);
+
+  // DECIMAL(M,D): reject precision beyond the caller limit, scale beyond
+  // the caller scale limit, or scale greater than precision.
+  if (precision > max_precision || scale > max_scale || scale > precision)
+    return false;
+
+  return decimal_bin_size(precision, scale) <= static_cast<int>(val_len) - 2;
+}
 
 /******************************************************************************
                      Query_event methods
@@ -443,9 +466,10 @@ User_var_event::User_var_event(const char *buf,
     READER_TRY_SET(charset_number, read<uint32_t>);
     READER_TRY_SET(val_len, read<uint32_t>);
     val = const_cast<char *>(READER_CALL(ptr, val_len));
-    // val[0] is precision and val[1] is scale so precision >= scale for decimal
     if (type == DECIMAL_RESULT) {
-      if (val[0] < val[1])
+      if (!is_user_var_decimal_metadata_valid(val, val_len,
+                                              k_max_user_var_decimal_precision,
+                                              k_max_user_var_decimal_scale))
         READER_THROW(
             "Invalid User value found while deserializing User_var_event");
     }

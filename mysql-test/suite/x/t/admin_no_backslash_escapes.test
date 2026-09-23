@@ -15,6 +15,9 @@
 -->stmtadmin create_collection	{"schema":"xtest", "name":"bar"}
 -->recvresult
 
+-->stmtadmin create_collection	{"schema":"xtest", "name":"b'ar"}
+-->recvresult
+
 -->stmtadmin create_collection_index	{"schema":"xtest", "collection":"bar", "name": "foo", "unique": true, "constraint":{"member": "$.foo", "type": "int","required": false}}
 -->recvresult
 
@@ -31,6 +34,27 @@ SET SQL_MODE='%MODES%';
 -->recvtovar %RESULT% type
 -->echo Verify ["list_objects" returns "bar" as a COLLECTION]
 -->assert_eq COLLECTION	%RESULT%
+
+-->stmtadmin list_objects	{"schema":"xtest","pattern":"b'ar"}
+-->recvtovar %RESULT% name
+-->echo Verify ["list_objects" accepts patterns with quotes]
+-->assert_eq b'ar	%RESULT%
+
+-->echo Verify ["create_collection" reuse_existing accepts collection names with quotes]
+-->stmtadmin create_collection	{"schema":"xtest", "name":"b'ar", "options":{"reuse_existing":true}}
+-->recvresult be-quiet
+
+-->echo Verify ["get_collection_options" accepts collection names with quotes]
+-->stmtadmin get_collection_options	{"schema":"xtest", "name":"b'ar", "options":["validation"]}
+-->recvresult be-quiet
+
+-->echo Verify ["create_collection_index" accepts collection and index names with quotes]
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"b'ar", "name":"f'oo", "unique":false, "fields":{"field":"$.quoted", "type":"TEXT(20)", "required":false}}
+-->recvresult be-quiet
+
+-->echo Verify ["drop_collection_index" accepts collection and index names with quotes]
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"b'ar", "name":"f'oo"}
+-->recvresult be-quiet
 
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"bar", "name": "foo"}
 -->recvresult

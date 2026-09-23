@@ -43,22 +43,22 @@ SELECT COLLATION(JSON_VALUE('{"x": "y"}', '$.x')) AS col1,
        COLLATION(JSON_VALUE('{"x": "y"}',
                             '$.x' RETURNING CHAR(10) CHARSET utf8mb4)) AS col3;
 
-SELECT JSON_VALUE('{"data": "2019-01-01"}', '$.data' RETURNING DATE);
+SELECT JSON_VALUE('{"data": "2019-01-01"}', '$.data' RETURNING DATE) AS d;
 SELECT JSON_VALUE(JSON_OBJECT('data', CAST( DATE'2019-01-01' AS JSON)),
-  '$.data' RETURNING DATE);
+  '$.data' RETURNING DATE) AS d;
 
 # PS protocol gives different metadata for the "Max length" column for
 # TIME and DATETIME.
 --disable_ps_protocol
-SELECT JSON_VALUE('{"data": "11:11:11"}', '$.data' RETURNING TIME);
+SELECT JSON_VALUE('{"data": "11:11:11"}', '$.data' RETURNING TIME) AS t;
 SELECT JSON_VALUE(JSON_OBJECT('data', CAST( TIME'11:11:11' AS JSON)),
-  '$.data' RETURNING TIME);
+  '$.data' RETURNING TIME) AS t;
 
 SELECT JSON_VALUE('{"data": "2019-01-01 11:11:11"}',
-  '$.data' RETURNING DATETIME);
+  '$.data' RETURNING DATETIME) AS dt;
 SELECT JSON_VALUE(
   JSON_OBJECT('data', CAST(TIMESTAMP'2019-01-01 11:11:11' AS JSON)),
-  '$.data' RETURNING DATETIME);
+  '$.data' RETURNING DATETIME) AS dt;
 --enable_ps_protocol
 
 SELECT JSON_VALUE('{"data": 123.45}', '$.data' RETURNING CHAR(10));

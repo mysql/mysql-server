@@ -48,23 +48,40 @@ uint Group_validation_message::get_member_weight() const {
 }
 
 void Group_validation_message::decode_payload(const unsigned char *buffer,
-                                              const unsigned char *) {
+                                              const unsigned char *end) {
   DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
 
   uint16 group_validation_message_type_aux = 0;
-  decode_payload_item_int2(&slider, &payload_item_type,
-                           &group_validation_message_type_aux);
+  if (decode_payload_item_int2(&slider, &payload_item_type, end,
+                               &group_validation_message_type_aux) ||
+      payload_item_type != PIT_VALIDATION_TYPE) {
+    set_error("gr::Group_validation_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   group_validation_message_type =
       (enum_validation_message_type)group_validation_message_type_aux;
 
   unsigned char has_channels_aux = '0';
-  decode_payload_item_char(&slider, &payload_item_type, &has_channels_aux);
+  if (decode_payload_item_char(&slider, &payload_item_type, end,
+                               &has_channels_aux) ||
+      payload_item_type != PIT_VALIDATION_CHANNEL) {
+    set_error("gr::Group_validation_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   has_channels = has_channels_aux == '1';
 
   uint16 member_weight_aux = 0;
-  decode_payload_item_int2(&slider, &payload_item_type, &member_weight_aux);
+  if (decode_payload_item_int2(&slider, &payload_item_type, end,
+                               &member_weight_aux) ||
+      payload_item_type != PIT_MEMBER_WEIGHT) {
+    set_error("gr::Group_validation_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   member_weight = (uint)member_weight_aux;
 }
 

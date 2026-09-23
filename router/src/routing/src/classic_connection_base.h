@@ -46,7 +46,7 @@
 #include "mysqlrouter/classic_protocol_session_track.h"
 #include "mysqlrouter/classic_protocol_state.h"
 #include "mysqlrouter/connection_pool.h"
-#include "processor.h"
+#include "processors/base/processor.h"
 #include "sql_exec_context.h"
 #include "trace_span.h"
 #include "tracer.h"

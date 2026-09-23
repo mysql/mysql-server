@@ -1,0 +1,19 @@
+## Check X Plugin authentication with NO_BACKSLASH_ESCAPES.
+
+--source include/xplugin_preamble.inc
+
+CREATE USER 'quote''user'@'localhost'
+  IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
+GRANT ALL ON *.* TO 'quote''user'@'localhost';
+
+SET @old_global_sql_mode = @@GLOBAL.sql_mode;
+SET @@GLOBAL.sql_mode = 'NO_BACKSLASH_ESCAPES';
+
+--echo Connection with quoted user name under NO_BACKSLASH_ESCAPES
+--exec $MYSQLXTEST -u"quote'user" --password='auth_string' --sql="SELECT CURRENT_USER() AS account" 2>&1
+
+SET @@GLOBAL.sql_mode = @old_global_sql_mode;
+DROP USER 'quote''user'@'localhost';
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc

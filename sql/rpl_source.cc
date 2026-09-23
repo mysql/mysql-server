@@ -84,6 +84,42 @@ bool opt_sporadic_binlog_dump_fail = false;
 malloc_unordered_map<uint32, unique_ptr_my_free<REPLICA_INFO>> slave_list{
     key_memory_REPLICA_INFO};
 
+#ifndef NDEBUG
+static std::unique_ptr<uchar[]> build_debug_com_binlog_dump_gtid_encoding(
+    size_t *buffer_size, uint32 *declared_data_size) {
+  constexpr uint32 kDeclaredDataSize = 32;
+  constexpr uint64 kEncodedIntervalCount = UINT64_C(1) << 60;
+  constexpr size_t kMaterializedIntervals = 4 * 1000 * 1000;
+  constexpr size_t kBytesPerInterval = 2 * sizeof(uint64);
+
+  *declared_data_size = kDeclaredDataSize;
+  *buffer_size = kDeclaredDataSize + kMaterializedIntervals * kBytesPerInterval;
+
+  auto buffer = std::make_unique<uchar[]>(*buffer_size);
+  uchar *ptr = buffer.get();
+
+  int8store(ptr, 1ULL);
+  ptr += 8;
+
+  memset(ptr, 0x11, 16);
+  ptr += 16;
+
+  int8store(ptr, kEncodedIntervalCount);
+  ptr += 8;
+
+  for (size_t i = 0; i < kMaterializedIntervals; i++) {
+    const ulonglong start = static_cast<ulonglong>(2 * i + 1);
+    const ulonglong end = start + 1;
+    int8store(ptr, start);
+    ptr += 8;
+    int8store(ptr, end);
+    ptr += 8;
+  }
+
+  return buffer;
+}
+#endif
+
 resource_blocker::Resource &get_dump_thread_resource() {
   static resource_blocker::Resource dump_thread_resource;
   return dump_thread_resource;
@@ -987,6 +1023,9 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
   Tsid_map tsid_map(
       nullptr /*no tsid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&tsid_map);
+#ifndef NDEBUG
+  std::unique_ptr<uchar[]> debug_gtid_encoding;
+#endif
 
   assert(!thd->status_var_aggregated);
   thd->status_var.com_other++;
@@ -1015,6 +1054,14 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
                       thd->server_id));
   READ_INT(data_size, 4);
   CHECK_PACKET_SIZE(data_size);
+  DBUG_EXECUTE_IF("simulate_large_com_binlog_dump_gtid_encoding", {
+    size_t debug_buffer_size = 0;
+    uint32 debug_declared_data_size = 0;
+    debug_gtid_encoding = build_debug_com_binlog_dump_gtid_encoding(
+        &debug_buffer_size, &debug_declared_data_size);
+    packet_position = debug_gtid_encoding.get();
+    data_size = debug_declared_data_size;
+  });
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
       RETURN_STATUS_OK)
     return true;

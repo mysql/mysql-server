@@ -444,6 +444,7 @@ struct Builder {
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t check_duplicates(Thread_ctxs &dupcheck) noexcept;
 
+ public:
   /** Cleanup DDL after error in online build
   Note: To be called if DDL must cleanup due to error in online build. Pages
   which are buffer-fixed (in Page_load::release) until the next iteration, must

@@ -483,7 +483,19 @@ void row_upd_rec_in_place(
 
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_ad(!index->table->skip_alter_undo);
-  ut_d(update->validate_for_index(index));
+
+#ifdef UNIV_DEBUG
+  /* For compact-format rows, and for versioned ROW_FORMAT=REDUNDANT rows,
+  index metadata is still needed to interpret field layout correctly.
+  For ROW_FORMAT=REDUNDANT rows without versioning, the record itself
+  contains enough information to interpret the layout, so the in-place
+  update code below does not need `index` to be fully shaped like `update`.
+  In recovery this corresponds to the dummy-index case with n_def == 0, so
+  skip validate_for_index() only there. */
+  if (index->n_def || rec_offs_comp(offsets) || rec_old_is_versioned(rec)) {
+    ut_d(update->validate_for_index(index));
+  }
+#endif /* UNIV_DEBUG */
 
   if (rec_offs_comp(offsets)) {
     /* Keep the INSTANT/VERSION bit of prepared physical record */

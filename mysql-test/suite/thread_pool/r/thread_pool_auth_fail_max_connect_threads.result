@@ -1,0 +1,8 @@
+CREATE USER tp_user1@localhost IDENTIFIED BY 'pass1';
+GRANT SELECT ON *.* TO tp_user1@localhost;
+# Adding debug point 'simulate_max_connect_threads_per_group' to @@GLOBAL.debug
+# Adding debug point 'sleep_before_handling_connection' to @@GLOBAL.debug
+# Removing debug point 'simulate_max_connect_threads_per_group' from @@GLOBAL.debug
+# Removing debug point 'sleep_before_handling_connection' from @@GLOBAL.debug
+# restart
+DROP USER tp_user1@localhost;

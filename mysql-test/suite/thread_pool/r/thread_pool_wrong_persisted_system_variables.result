@@ -1,0 +1,20 @@
+SET PERSIST_ONLY thread_pool_algorithm = 1234;
+SET PERSIST_ONLY thread_pool_dedicated_listeners = -1;
+SET PERSIST_ONLY thread_pool_max_transactions_limit = 1100000;
+SET PERSIST_ONLY thread_pool_query_threads_per_group = 0;
+SET PERSIST_ONLY thread_pool_size = 0;
+#
+# Restart mysqld server
+#
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension>
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-algorithm':.*value .* adjusted to 1 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-dedicated-listeners': boolean value .* was not recognized. Set to OFF found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-max-transactions-limit':.*value .* adjusted to 1000000 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-query-threads-per-group':.*value .* adjusted to 1 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-size':.*value .* adjusted to 1 found]
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

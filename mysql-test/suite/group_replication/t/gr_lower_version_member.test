@@ -51,6 +51,7 @@ SET session sql_log_bin=1;
 SET GLOBAL group_replication_group_name= "6f6932e0-03d9-11e5-b939-0800200c9a66";
 
 # The start will fail as the node is declared incompatible with the group
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

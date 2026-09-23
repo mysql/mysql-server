@@ -1,6 +1,6 @@
 Licensing Information User Manual
 
-MySQL 9.7.0 Community
+MySQL 9.7.2 Community
      __________________________________________________________________
 
 Introduction
@@ -8,18 +8,18 @@ Introduction
    This License Information User Manual contains Oracle's product license
    and other licensing information, including licensing information for
    third-party software which may be included in this distribution of
-   MySQL 9.7.0 Community.
+   MySQL 9.7.2 Community.
 
-   Last updated: February 2026
+   Last updated: June 2026
 
 Licensing Information
 
-   This release of MySQL 9.7.0 Community is brought to you by the MySQL
+   This release of MySQL 9.7.2 Community is brought to you by the MySQL
    team at Oracle. This software is released under version 2 of the GNU
    General Public License (GPLv2), as set forth below, with the following
    additional permissions:
 
-   This distribution of MySQL 9.7.0 Community is designed to work with
+   This distribution of MySQL 9.7.2 Community is designed to work with
    certain software (including but not limited to OpenSSL) that is
    licensed under separate terms, as designated in a particular file or
    component or in the license documentation. Without limiting your rights
@@ -3523,6 +3523,168 @@ the Oracle program might not operate properly or at all without it.
 
 See Apache License v2.0, January 2004 in the
 'Standard Licenses' section.
+
+   ======================================================================
+   ======================================================================
+
+OpenTelemetry C++
+
+You may be receiving a copy of the opentelemetry-cpp library with
+this MySQL product. The terms of the Oracle license do NOT apply
+to the opentelemetry-cpp library; it is licensed under the following
+license, separately from the Oracle programs you receive.
+If you do not wish to install this program, you may delete its files
+but the Oracle program might not operate properly or at all without it.
+
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+LICENSE:
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+A copy of the Apache License v2.0, January 2004 license can be found
+in the 'Standard Licenses' section.
+
+
+4th Party Dependencies
+======================
+opentelemetry-proto
+-------------------
+// Copyright 2019, OpenTelemetry Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+Some files include
+// Copyright 2020, OpenTelemetry Authors
+(same license header)
+
+A copy of the Apache License v2.0, January 2004 license can be found
+in the 'Standard Licenses' section.
+
+================================================================================
+==
+
+protobuf
+--------
+COPYRIGHT AND PERMISSION NOTICE
+
+Copyright (c) 1996 - 2024, Daniel Stenberg, <daniel@haxx.se>, and many
+contributors, see the THANKS file.
+
+All rights reserved.
+
+Permission to use, copy, modify, and distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright
+notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS. IN
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+Except as contained in this notice, the name of a copyright holder shall not
+be used in advertising or otherwise to promote the sale, use or other dealings
+in this Software without prior written authorization of the copyright holder.
+
+Protobuf dependency - abseil-cpp
+--------------------------------
+=== Header in source files:
+// Copyright 2017 The Abseil Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// This header file contains C++11 versions of standard <utility> header
+// abstractions available within C++14 and C++17, and are designed to be drop-in
+// replacement for code compliant with C++14 and C++17.
+
+=== License File
+                                 Apache License
+                           Version 2.0, January 2004
+                        https://www.apache.org/licenses/
+
+A copy of the Apache License v2.0, January 2004 license can be found
+in the 'Standard Licenses' section.
+================================================================================
+==
+
+json (nlohmann)
+----
+
+MIT License
+
+Copyright (c) 2013-2022 Niels Lohmann
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+==
+
+curl
+----
+COPYRIGHT AND PERMISSION NOTICE
+
+Copyright (c) 1996 - 2024, Daniel Stenberg, <daniel@haxx.se>, and many
+contributors, see the THANKS file.
+
+All rights reserved.
+
+Permission to use, copy, modify, and distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright
+notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS. IN
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+Except as contained in this notice, the name of a copyright holder shall not
+be used in advertising or otherwise to promote the sale, use or other dealings
+in this Software without prior written authorization of the copyright holder.
 
    ======================================================================
    ======================================================================

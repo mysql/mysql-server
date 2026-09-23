@@ -1,0 +1,148 @@
+# === Purpose ===
+# This test verifies that the thread_pool plugin automatically corrects
+# thread_pool_query_threads_per_group if the user has specified more
+# thread_pool_query_threads than thread_pool_max_transactions_limit
+# per thread group.
+#
+# === Test ===
+# 1. Start Thread Pool with thread_pool_max_transactions_limit set to a
+#    value so that thread_pool_max_transactions_limit per thread group
+#    is less than thread_pool_query_threads_per_group.
+# 2. Ensure that the thread_pool_query_threads_per_group is
+#    automatically adjusted to be equal to
+#    thread_pool_max_transactions_limit per thread group and the server
+#    is started successfully.
+# 3. Check that the warning about incompatibility is written to
+#    the error log.
+# 4. Restart the server in such a way that the auto-corrected value is 1
+#    and verify that additional warning is written to the error log.
+# === References ===
+# WL#16621: Change Thread Pool Plugin configuration defaults.
+
+--echo #
+--echo # CASE 1 : Auto-corrected thread_pool_query_threads_per_group
+--echo #          value is not 1
+--echo #
+
+# Assert that the server is started with the correct thread_pool settings
+--assert (`SELECT @@global.thread_pool_size = 2`)
+--assert (`SELECT @@global.thread_pool_max_transactions_limit = 4`)
+--assert (`SELECT @@global.thread_pool_query_threads_per_group = 2`)
+
+# Assert that the warning has been written to the error log
+--let $warning_text= thread_pool_query_threads_per_group.4. exceeds transaction threads limit per group .2.
+--let $assert_text= Found an appropriate warning about incompatibility
+--let $assert_select= $warning_text
+--let $assert_count= 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+# Assert that the warning about automatic adjustment has been written to the error log
+--let $assert_text= Found an appropriate warning about automatic setting of thread_pool_query_threads_per_group
+--let $assert_select= the server is automatically setting thread_pool_query_threads_per_group to 2
+--let $assert_count= 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+# When the auto-corrected value of thread_pool_query_threads_per_group
+# is 1, we log an additional warning that "query_threads=1 is not
+# recommended with high_concurrency_algorithm". As in this case the
+# auto-corrected value is 2, we assert that this warning has not been
+# written to the error log.
+
+--let $assert_text= Did not find the warning that says query_threads=1 is not recommended
+--let $assert_select= Please note that the auto-corrected value thread_pool_query_threads_per_group.* is not recommended when used with HIGH_CONCURRENCY_ALGORITHM.
+--let $assert_count= 0
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+# Add suppression for the warning that is expected to be generated
+--eval CALL mtr.add_suppression("$warning_text");
+
+--echo #
+--echo # CASE 2 : Auto-corrected thread_pool_query_threads_per_group
+--echo #          value is 1 when using LOW_CONCURRENCY_ALGORITHM
+--echo #
+
+# Restart mysqld server so that thread_pool_max_transactions_limit per group is 1
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD --thread_pool_size=2 --thread_pool_max_transactions_limit=2 --thread-pool-algorithm=0
+--source include/restart_mysqld.inc
+
+# Assert that the server is started with the correct thread_pool settings
+--assert (`SELECT @@global.thread_pool_size = 2`)
+--assert (`SELECT @@global.thread_pool_max_transactions_limit = 2`)
+--assert (`SELECT @@global.thread_pool_query_threads_per_group = 1`)
+--assert (`SELECT @@global.thread_pool_algorithm = 0`)
+
+# Assert that the warning has been written to the error log
+--let $warning_text= thread_pool_query_threads_per_group.4. exceeds transaction threads limit per group .1.
+--let $assert_text= Found an appropriate warning about incompatibility
+--let $assert_select= $warning_text
+--let $assert_count= 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+--let $assert_text= Found an appropriate warning about automatic setting of thread_pool_query_threads_per_group
+--let $assert_select= the server is automatically setting thread_pool_query_threads_per_group to 1
+--let $assert_count= 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+# When the auto-corrected value of thread_pool_query_threads_per_group
+# is 1, we log an additional warning that "query_threads=1 is not
+# recommended with high_concurrency_algorithm". As in this case the
+# auto-corrected value is 1 but still algorithm=0, we assert that
+# warning has not been written to the error log.
+--let $assert_text= Did not find the warning that says query_threads=1 is not recommended
+--let $assert_select= Please note that the auto-corrected value thread_pool_query_threads_per_group.* is not recommended when used with HIGH_CONCURRENCY_ALGORITHM.
+--let $assert_count= 0
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+--echo #
+--echo # CASE 3 : Auto-corrected thread_pool_query_threads_per_group
+--echo #          value is 1 when using HIGH_CONCURRENCY_ALGORITHM
+--echo #
+
+# Restart mysqld server so that thread_pool_max_transactions_limit per group is 1
+--replace_result $ONLY_THREADPOOL_PLUGIN_OPT ONLY_THREADPOOL_PLUGIN_LOAD .so .<extension> .dll .<extension>
+--let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD --thread_pool_size=2 --thread_pool_max_transactions_limit=2
+--source include/restart_mysqld.inc
+
+# Assert that the server is started with the correct thread_pool settings
+--assert (`SELECT @@global.thread_pool_size = 2`)
+--assert (`SELECT @@global.thread_pool_max_transactions_limit = 2`)
+--assert (`SELECT @@global.thread_pool_query_threads_per_group = 1`)
+--assert (`SELECT @@global.thread_pool_algorithm = 1`)
+
+# Assert that the warning has been written to the error log
+# Note the count is 2 as this warning is already logged by the previous scenario.
+--let $warning_text= thread_pool_query_threads_per_group.4. exceeds transaction threads limit per group .1.
+--let $assert_text= Found an appropriate warning about incompatibility
+--let $assert_select= $warning_text
+--let $assert_count= 2
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+# Note the count is 2 as this warning is already logged by the previous scenario.
+--let $assert_text= Found an appropriate warning about automatic setting of thread_pool_query_threads_per_group
+--let $assert_select= the server is automatically setting thread_pool_query_threads_per_group to 1
+--let $assert_count= 2
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+# When the auto-corrected value of thread_pool_query_threads_per_group
+# is 1, we log an additional warning that "query_threads=1 is not
+# recommended with high_concurrency_algorithm". As in this case the
+# auto-corrected value is 1, we assert that this warning has been
+# written to the error log.
+# Note that the count is 1 as this warning is logged only once
+--let $assert_text= Found the warning about query_threads=1 is recommended
+--let $assert_select= Please note that the auto-corrected value thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM.
+--let $assert_count= 1
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc
+
+# Add suppression for the warning that is expected to be generated
+--eval CALL mtr.add_suppression("$warning_text");

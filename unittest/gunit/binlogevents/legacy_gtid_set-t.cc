@@ -20,8 +20,24 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+#include <array>
+
 #include <gtest/gtest.h>
 #include "sql/rpl_gtid.h"
+#include "unittest/gunit/test_utils.h"
+
+namespace {
+
+void encode_tagged_n_sids(uchar *buf, uint64_t n_sids) {
+  constexpr auto format = mysql::gtid::Gtid_format::tagged;
+  const uint64_t format_bits =
+      static_cast<uint64_t>(mysql::utils::to_underlying(format));
+  int8store(buf, (format_bits << Gtid_set::k_gtid_format_high_shift) |
+                     (n_sids << Gtid_set::k_gtid_format_low_shift) |
+                     format_bits);
+}
+
+}  // namespace
 
 class GtidSetTest : public ::testing::Test {
  public:
@@ -597,4 +613,41 @@ TEST_F(GtidSetTest, GtidSetParsingTestFormat) {
     EXPECT_TRUE(gtid_set.equals(
         (gtid_sets_expected.at(gtid_set_verification.at(id++)).get())));
   }
+}
+
+TEST_F(GtidSetTest, GtidSetRejectsMalformedTaggedTsidEncoding) {
+  std::array<uchar, 32> buf{};
+
+  encode_tagged_n_sids(buf.data(), 1);
+  buf[24] = 10;
+
+  Tsid_map tsid_map(nullptr);
+  Gtid_set gtid_set(&tsid_map);
+  size_t actual_length = 0;
+
+  my_testing::Server_initializer::set_expected_error(
+      ER_MALFORMED_GTID_SET_ENCODING);
+  EXPECT_EQ(RETURN_STATUS_REPORTED_ERROR,
+            gtid_set.add_gtid_encoding(buf.data(), buf.size(), &actual_length));
+  my_testing::Server_initializer::set_expected_error(0);
+}
+
+TEST_F(GtidSetTest, GtidSetRejectsTaggedEncodingWithoutIntervalCount) {
+  std::array<uchar, 40> buf{};
+  mysql::gtid::Tsid tsid;
+
+  ASSERT_GT(tsid.from_cstring("d3a98502-756b-4b08-bdd2-a3d3938ba90f"), 0U);
+
+  encode_tagged_n_sids(buf.data(), 1);
+  const size_t tsid_bytes =
+      tsid.encode_tsid(buf.data() + 8, mysql::gtid::Gtid_format::tagged);
+
+  Tsid_map tsid_map(nullptr);
+  Gtid_set gtid_set(&tsid_map);
+
+  my_testing::Server_initializer::set_expected_error(
+      ER_MALFORMED_GTID_SET_ENCODING);
+  EXPECT_EQ(RETURN_STATUS_REPORTED_ERROR,
+            gtid_set.add_gtid_encoding(buf.data(), 8 + tsid_bytes + 7));
+  my_testing::Server_initializer::set_expected_error(0);
 }

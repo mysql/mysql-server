@@ -120,8 +120,8 @@ class Fake_TABLE : public TABLE {
   // make room for up to 8 keyparts per index
   KEY_PART_INFO m_key_part_infos[max_keys][8];
 
-  uchar m_record[MAX_FIELD_WIDTH * MAX_TABLE_COLUMNS];
-  uchar m_null_flags[(MAX_TABLE_COLUMNS + 7) / 8];
+  vector<uchar> m_record = vector<uchar>(MAX_FIELD_WIDTH * MAX_TABLE_COLUMNS);
+  vector<uchar> m_null_flags = vector<uchar>((MAX_TABLE_COLUMNS + 7) / 8);
 
   Fake_TABLE_SHARE table_share;
   // Storage space for the handler's handlerton
@@ -131,7 +131,7 @@ class Fake_TABLE : public TABLE {
   MY_BITMAP read_set_struct;
   BitSetBuffer read_set_buf;
   BitSetBuffer tmp_set_buf;
-  Field *m_field_array[MAX_TABLE_COLUMNS]{};
+  vector<Field *> m_field_array = vector<Field *>(MAX_TABLE_COLUMNS);
 
   // Counter for creating unique index id's. See create_index().
   int highest_index_id;
@@ -162,10 +162,8 @@ class Fake_TABLE : public TABLE {
     pos_in_table_list->set_tableno(highest_table_id);
     highest_table_id = (highest_table_id + 1) % MAX_TABLES;
     key_info = &m_keys[0];
-    record[0] = &m_record[0];
-    memset(record[0], 0, sizeof(m_record));
-    null_flags = m_null_flags;
-    memset(null_flags, 0, sizeof(m_null_flags));
+    record[0] = m_record.data();
+    null_flags = m_null_flags.data();
     s->null_bytes = (s->fields + 7) / 8;
     for (int i = 0; i < max_keys; i++)
       key_info[i].key_part = m_key_part_infos[i];
@@ -173,7 +171,7 @@ class Fake_TABLE : public TABLE {
 
     set_handler(&mock_handler);
     mock_handler.change_table_ptr(this, &table_share);
-    field = m_field_array;
+    field = m_field_array.data();
 
     // Set some reasonable default statistics.
     file->stats.block_size = 16384;
@@ -244,7 +242,7 @@ class Fake_TABLE : public TABLE {
   Fake_TABLE(std::initializer_list<int> column_values, bool are_nullable = true)
       : table_share(column_values.size()),
         mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
-    field = m_field_array;
+    field = m_field_array.data();
     initialize();
     for (size_t i = 0; i < column_values.size(); ++i) {
       std::stringstream s;

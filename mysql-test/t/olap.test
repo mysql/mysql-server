@@ -1606,3 +1606,28 @@ WHERE (3,4)  IN ( SELECT SQ1_alias1 . pk AS SQ1_field1,
                   GROUP BY GROUPING SETS ( ( SQ1_field1 ) ) );
 
 DROP TABLE t;
+--echo #
+--echo # Bug 35722845 - Cannot find column on derived table with given
+--echo # names and ROLLUP
+--echo #
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (1), (2);
+
+SELECT s
+FROM (
+  SELECT SUM(a)
+  FROM t
+  GROUP BY a WITH ROLLUP
+) AS dt (s)
+ORDER BY s;
+
+SELECT S
+FROM (
+  SELECT SUM(a) AS s
+  FROM t
+  GROUP BY a WITH ROLLUP
+) AS dt (S)
+ORDER BY S;
+
+DROP TABLE t;
+

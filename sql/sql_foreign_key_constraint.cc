@@ -1001,6 +1001,7 @@ static bool on_delete_on_update_restrict_or_no_action(
  *         operation.
  *
  * @param thd                 Thread Handle.
+ * @param table_p             TABLE instance of a parent table.
  * @param table_c             TABLE instance of a child table.
  * @param fk_c                Foreign key information.
  * @param dml_type            DML operation type.
@@ -1012,7 +1013,7 @@ static bool on_delete_on_update_restrict_or_no_action(
  * @return true               On error.
  * @return false              On success.
  */
-static bool on_delete_cascade(THD *thd, TABLE *table_c,
+static bool on_delete_cascade(THD *thd, const TABLE *table_p, TABLE *table_c,
                               TABLE_SHARE_FOREIGN_KEY_INFO *fk_c,
                               enum_fk_dml_type dml_type, uchar *key_value,
                               int key_len, Foreign_key_chain *chain,
@@ -1026,6 +1027,14 @@ static bool on_delete_cascade(THD *thd, TABLE *table_c,
                       fk_c->fk_name.str));
 
     do {
+      if (table_p->s == table_c->s && is_self_fk_value_same(table_c, fk_c)) {
+        // With same PK and FK value, record is deleted twice, once during
+        // cascade execution and again during the main statement execution.
+        // This results in replica failure with HA_ERR_KEY_NOT_FOUND
+        // Don't delete same record twice, skip here, so that main statement
+        // with PK value deletes the record later.
+        continue;
+      }
       if (is_cascade_triggers_enabled(thd) &&
           process_before_triggers(thd, table_c, fk_c, TRG_EVENT_DELETE,
                                   false)) {
@@ -1493,9 +1502,10 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
 
   if (!(error = table_c->file->ha_index_read_map(table_c->record[0], key_value,
                                                  key_map, HA_READ_KEY_EXACT))) {
-    // In case of self-referencing, if PK and FK value are same, skip adding to
-    // chain so that it does not affect cascade depth check.
-    if (table_p->s == table_c->s && !is_self_fk_value_same(table_c, fk_c)) {
+    // Non-self FK is already added earlier in check_child_fk_ref().
+    // For self-referencing FK, add only when child row exists so depth
+    // accounting stays aligned with InnoDB, including same PK/FK cases.
+    if (table_p->s == table_c->s) {
       chain->add_foreign_key(table_c->s->db.str, fk_c->fk_name.str);
       fk_added_to_chain = true;
     }
@@ -1527,8 +1537,8 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
 
     if (on_delete_on_update_restrict_or_no_action(thd, table_c, fk_c,
                                                   dml_type) ||
-        on_delete_cascade(thd, table_c, fk_c, dml_type, key_value, key_len,
-                          chain, &error) ||
+        on_delete_cascade(thd, table_p, table_c, fk_c, dml_type, key_value,
+                          key_len, chain, &error) ||
         on_update_cascade(thd, table_p, table_c, fk_c, key_info_p,
                           parent_key_idx, key_info_c, child_key_idx, dml_type,
                           key_value, key_len, chain, &error) ||

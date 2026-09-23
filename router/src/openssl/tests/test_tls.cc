@@ -25,6 +25,7 @@
 
 #include <gmock/gmock.h>
 
+#include <chrono>
 #include <csignal>
 #include <cstring>  // memset
 #include <ctime>    // time_t
@@ -33,6 +34,9 @@
 #include <memory>
 #include <random>
 #include <string>
+
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 #include "helpers/router_test_helpers.h"
 #include "my_macros.h"
@@ -529,6 +533,130 @@ TYPED_TEST(SyncStreamTest, transfer_from_sequence) {
   ASSERT_THAT(io_client.get_received_data(),
               ::testing::ElementsAreArray(transmitted_by_server));
 }
+
+// NOTE: These tests intentionally depend on OpenSSL internal, non-public
+// symbols:
+//   - ssl3_send_alert
+//   - ssl3_dispatch_alert
+//
+// They are for local debugging/reproduction only (e.g. alert-sequencing
+// scenarios) and are NOT suitable for CI regression coverage. Reason: internal
+// symbols are not part of OpenSSL's stable API/ABI and may be hidden, renamed,
+// or removed depending on OpenSSL version/build options/platform, which makes
+// the tests non-portable and potentially flaky in automated pipelines.
+#ifdef MYSQL_ROUTER_ENABLE_OPENSSL_INTERNAL_ALERT_TESTS
+
+static bool is_want_error(int ssl_err) {
+  return ssl_err == SSL_ERROR_WANT_READ || ssl_err == SSL_ERROR_WANT_WRITE;
+}
+
+struct ssl_connection_st;
+extern "C" int ssl3_send_alert(struct ssl_connection_st *s, int level,
+                               int desc);
+extern "C" int ssl3_dispatch_alert(SSL *s);
+
+class ReconfigureSendCancelClose {
+ public:
+  template <typename T>
+  void operator()(net::tls::TlsStream<T> *stream) const {
+    auto *ssl = stream->native_ssl_handle();
+    if (ssl == nullptr) return;
+
+    auto dispatch_alert = [&]() {
+      for (int i = 0; i < 16; ++i) {
+        ERR_clear_error();
+        int dr = ssl3_dispatch_alert(ssl);
+        if (dr == 1) {
+          return;
+        }
+
+        const int dec = SSL_get_error(ssl, dr);
+        if (!is_want_error(dec)) return;
+      }
+    };
+
+    ERR_clear_error();
+    ssl3_send_alert(reinterpret_cast<ssl_connection_st *>(ssl), SSL3_AL_WARNING,
+                    SSL_AD_USER_CANCELLED);
+    dispatch_alert();
+
+    ERR_clear_error();
+    ssl3_send_alert(reinterpret_cast<ssl_connection_st *>(ssl), SSL3_AL_WARNING,
+                    SSL_AD_CLOSE_NOTIFY);
+    dispatch_alert();
+
+    // Alerts alone may not produce a terminal read error in this async harness.
+    // Close transport explicitly to force ActionExpectDisconnect completion.
+    //    (void)stream->close();
+  }
+};
+
+template <typename T>
+class StreamInternalTest : public StreamTest<T> {
+ public:
+};
+
+using StreamInternalTestTypes = ::testing::Types<
+#ifndef _WIN32
+    ConnectedTlsLocalStreams,
+#endif  // _WIN32
+    ConnectedTlsTcpStreams>;
+
+TYPED_TEST_SUITE(StreamInternalTest, StreamInternalTestTypes);
+
+TYPED_TEST(StreamInternalTest, trigger_sequence_if_cancel_close_notify) {
+  using TestClient =
+      AsyncClient<typename TestFixture::TestStream, ReconfigureSendCancelClose>;
+
+  const VectorOfBytes send_by_server = generate_vector(k_bytes_small);
+  const VectorOfBytes send_by_client = generate_vector(k_bytes_small);
+
+  TestClient io_server{&this->context_,
+                       &this->async_io_running_,
+                       this->objectStreamServer_.get(),
+                       &send_by_server,
+                       {ActionRead(k_bytes_small), ActionExpectDisconnect()}};
+  TestClient io_client{&this->context_,
+                       &this->async_io_running_,
+                       this->objectStreamClient_.get(),
+                       &send_by_client,
+                       {ActionWrite(k_bytes_small), ActionReconfigure(),
+                        ActionExpectDisconnect()}};
+
+  std::atomic<bool> io_finished{false};
+  std::atomic<bool> watchdog_fired{false};
+  const auto k_watchdog_timeout = std::chrono::seconds(20);
+
+  std::thread watchdog_thread([&]() {
+    const auto wd_start = std::chrono::steady_clock::now();
+    while (!io_finished.load()) {
+      if (std::chrono::steady_clock::now() - wd_start > k_watchdog_timeout) {
+        watchdog_fired = true;
+        this->context_.stop();
+        io_server.stop();
+        io_client.stop();
+        return;
+      }
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+  });
+
+  try {
+    TestFixture::process_start_io_context();
+  } catch (...) {
+  }
+  io_finished = true;
+
+  watchdog_thread.join();
+
+  if (watchdog_fired.load()) {
+    ADD_FAILURE() << "io_context did not exit within " << k_watchdog_timeout
+                  << "; watch-dog forced stop";
+  }
+}
+
+#endif  // MYSQL_ROUTER_ENABLE_OPENSSL_INTERNAL_ALERT_TESTS
 
 int main(int argc, char *argv[]) {
   using namespace mysql_harness;

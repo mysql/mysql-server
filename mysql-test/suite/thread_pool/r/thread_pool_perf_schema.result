@@ -1,0 +1,7 @@
+CREATE USER tp_user1;
+GRANT ALL ON *.* TO tp_user1;
+USE performance_schema;
+SELECT thread_id INTO @con1_id FROM threads WHERE processlist_user IN ('tp_user1');
+SELECT * FROM status_by_thread WHERE thread_id = @con1_id;
+SELECT * FROM variables_by_thread WHERE thread_id = @con1_id;
+DROP USER tp_user1;

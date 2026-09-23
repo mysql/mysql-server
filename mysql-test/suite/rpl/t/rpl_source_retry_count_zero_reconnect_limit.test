@@ -1,0 +1,63 @@
+# ==== PURPOSE ====
+#
+# This test verifies that SOURCE_RETRY_COUNT=0 allows unlimited reconnect
+# attempts.
+#
+# ==== IMPLEMENTATION ====
+#
+# The test starts a receiver with SOURCE_RETRY_COUNT=0 and injects two failed
+# binlog dump reconnect attempts before allowing the next retry to succeed.
+#
+# A value of 0 is documented as infinite retry count, so transient reconnect
+# failures in this path should not stop replication.
+#
+# Test steps:
+#
+# 1. Configure SOURCE_CONNECT_RETRY=1 and SOURCE_RETRY_COUNT=0.
+# 2. Inject two failed binlog dump reconnects.
+# 3. Start replication.
+# 4. Write an event on source.
+# 5. Wait for the replica to synchronize.
+#
+# Test pass conditions:
+#
+# - Replication does not stop after two reconnect attempts.
+# - The receiver catches up with source events.
+#
+# ==== REFERENCES ====
+#
+# BUG#39086875: Lost connection while registering replica on source stops
+#               receiver thread
+
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+
+--disable_query_log
+call mtr.add_suppression(".*Failed on request_dump\\(\\) for channel.*");
+call mtr.add_suppression(".*Source command COM_BINLOG_DUMP failed*");
+--enable_query_log
+
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= 1, SOURCE_RETRY_COUNT= 0;
+
+--let $debug_point= simulate_reconnect_after_failed_binlog_dump_twice
+--source include/add_debug_point.inc
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t_retry_zero (id INT PRIMARY KEY);
+INSERT INTO t_retry_zero VALUES (1);
+--source include/rpl/sync_to_replica.inc
+
+# Cleanup
+--let $debug_point= simulate_reconnect_after_failed_binlog_dump_twice
+--source include/remove_debug_point.inc
+--source include/rpl/connection_source.inc
+DROP TABLE t_retry_zero;
+
+--source include/rpl/deinit.inc

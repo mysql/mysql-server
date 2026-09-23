@@ -532,3 +532,148 @@ select * from v1;
 v3
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#37727982: FORCE INDEX does not skip records_in_range() for
+#               IS NOT NULL
+#
+CREATE TABLE t1 (c1 INT, KEY (c1));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (NULL), (NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET SESSION DEBUG="+d,crash_records_in_range";
+SELECT * FROM t1 FORCE INDEX(c1) WHERE c1 > 0;
+c1
+1
+2
+3
+4
+5
+6
+7
+8
+SELECT * FROM t1 FORCE INDEX(c1) WHERE c1 IS NOT NULL;
+c1
+1
+2
+3
+4
+5
+6
+7
+8
+SET SESSION DEBUG="-d,crash_records_in_range";
+DROP TABLE t1;
+#
+# Bug#37751691 (Bug#117791): FORCE INDEX does not skip records_in_range()
+#                            for 'x IS NULL'
+#
+CREATE TABLE t1 (c1 INT, UNIQUE KEY (c1));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (NULL), (NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+set debug='+d,crash_records_in_range';
+EXPLAIN SELECT * FROM t1 FORCE INDEX(c1) WHERE c1 IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` FORCE INDEX (`c1`) where (`test`.`t1`.`c1` is null)
+set debug='-d,crash_records_in_range';
+DROP TABLE t1;
+# Verify that, for non-unique indexes, when index dives are skipped
+# due to eq_range_index_dive_limit, records_in_range() is also skipped
+# for an IS NULL range.
+SET @save_eq_range_index_dive_limit=@@SESSION.eq_range_index_dive_limit;
+SET SESSION eq_range_index_dive_limit=3;
+CREATE TABLE t1 (c1 INT, KEY(c1));
+INSERT INTO t1 VALUES
+(NULL), (NULL), (NULL), (NULL), (NULL),
+(NULL), (NULL), (NULL), (NULL), (NULL),
+(NULL), (NULL), (NULL), (NULL), (NULL),
+(NULL), (NULL), (NULL), (NULL), (NULL),
+(1), (2), (3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref_or_null	c1	c1	5	const	21	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` is null) or (`test`.`t1`.`c1` = 1))
+EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1, 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	22	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` is null) or (`test`.`t1`.`c1` in (1,2)))
+set debug='+d,crash_records_in_range';
+EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1, 2, 3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	20	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` is null) or (`test`.`t1`.`c1` in (1,2,3)))
+set debug='-d,crash_records_in_range';
+# For unique indexes, the index dive limit currently does not apply
+# if there is an IS NULL condition. (See Bug#39586297 / Bug#120729)
+ALTER TABLE t1 DROP INDEX c1, ADD UNIQUE INDEX c1u(c1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1, 2, 3, 4);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	c1u	c1u	5	NULL	23	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` is null) or (`test`.`t1`.`c1` in (1,2,3,4)))
+DROP TABLE t1;
+SET SESSION eq_range_index_dive_limit=@save_eq_range_index_dive_limit;
+#
+# Verify that index statistics are checked for the right index.
+#
+SET @save_eq_range_index_dive_limit=@@SESSION.eq_range_index_dive_limit;
+SET SESSION eq_range_index_dive_limit=2;
+CREATE TABLE t1 (
+a INT,
+c1 INT,
+c2 INT,
+KEY a(a),
+KEY c1_c2(c1, c2)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0,1,1), (0,2,2), (0,3,3), (0,4,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 IGNORE INDEX(a)
+WHERE (c1 = 1 AND c2 = 1) OR (c1 = 2 AND c2 = 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c1_c2	c1_c2	10	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` IGNORE INDEX (`a`) where (((`test`.`t1`.`c2` = 1) and (`test`.`t1`.`c1` = 1)) or ((`test`.`t1`.`c2` = 2) and (`test`.`t1`.`c1` = 2)))
+DROP TABLE t1;
+SET SESSION eq_range_index_dive_limit=@save_eq_range_index_dive_limit;
+#
+# Equality ranges without records_per_key must use records_in_range()
+#
+SET @save_eq_range_index_dive_limit=@@SESSION.eq_range_index_dive_limit;
+SET SESSION eq_range_index_dive_limit=1;
+CREATE TABLE t1 (
+c1 INT,
+KEY i1 USING HASH (c1)
+) ENGINE=MEMORY;
+INSERT INTO t1 VALUES
+(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),
+(1),(1),(1),(1),(1),(1),(1),(1),(1),(1),
+(2),
+(3),(4),(5),(6),(7),(8),(9),(10),(11),(12);
+EXPLAIN SELECT * FROM t1 WHERE c1 IN (1, 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i1	i1	5	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` in (1,2))
+ALTER TABLE t1 DROP INDEX i1, ADD INDEX i2 USING BTREE (c1);
+EXPLAIN SELECT * FROM t1 WHERE c1 IN (1, 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i2	i2	5	NULL	25	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` in (1,2))
+DROP TABLE t1;
+SET SESSION eq_range_index_dive_limit=@save_eq_range_index_dive_limit;

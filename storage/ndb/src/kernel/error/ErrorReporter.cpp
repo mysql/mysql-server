@@ -52,6 +52,15 @@
  */
 #define MESSAGE_LENGTH 999
 #define OLD_MESSAGE_LENGTH 499
+/* Cursor text at beginning of error log is 69 bytes */
+#define CURSOR_TEXT_SIZE 69
+/* Next-offset value goes at offset 40 */
+#define CURSOR_VALUE_OFFSET 40
+#define CURSOR_INITIAL_VALUE                   \
+  "Current byte-offset of file-pointer is: 69" \
+  "                        \n\n\n"
+
+static_assert(std::size(CURSOR_INITIAL_VALUE) == CURSOR_TEXT_SIZE + 1);
 
 static int WriteMessage(int thrdMessageID, const char *thrdProblemData,
                         const char *thrdObjRef, NdbShutdownType &nst);
@@ -269,11 +278,125 @@ void ErrorReporter::handleError(int messageID, const char *problemData,
   exit(1);  // kill warning
 }
 
+unsigned wrapNextOffset(unsigned offset) {
+  const unsigned maxOffset =
+      CURSOR_TEXT_SIZE +
+      (globalEmulatorData.theConfiguration->maxNoOfErrorLogs() *
+       MESSAGE_LENGTH);
+
+  /* In case of upgrade from 500 -> 999 message length,
+   * check if an odd number of messages have been written
+   * from the start of the file. If so, increase the offset
+   * by the length of 1 message (of old length) to simulate
+   * even number of messages being written previously.
+   * This will ensure clean overwriting of messages of
+   * new length when the error log loops back to the
+   * beginning of the file.
+   */
+  if (unlikely(((offset - CURSOR_TEXT_SIZE) / OLD_MESSAGE_LENGTH) % 2 == 1)) {
+    /* Adjust the offset by the length (old) of 1
+     * message.
+     */
+    offset += OLD_MESSAGE_LENGTH;
+  }
+
+  if (offset > (maxOffset - MESSAGE_LENGTH)) {
+    offset = CURSOR_TEXT_SIZE;
+  }
+
+  return offset;
+}
+
+int writeErrorLog(const char *theMessage) {
+  FILE *stream;
+  char *theErrorFileName = (char *)NdbConfig_ErrorFileName(globalData.ownId);
+  NdbAutoPtr<char> tmp_aptr1(theErrorFileName);
+
+  // Open existing file if exists + read next entry offset
+  stream = fopen(theErrorFileName, "r+");
+  if (stream != nullptr) {
+    unsigned messageOffset = 0;
+
+    // Read the next position from the file
+    if (fseek(stream, CURSOR_VALUE_OFFSET, SEEK_SET) == 0) {
+      if (fscanf(stream, "%u", &messageOffset) == 1) {
+        /* Check for wrap/upgrade */
+        messageOffset = wrapNextOffset(messageOffset);
+
+        // Seek to next position
+        if (fseek(stream, messageOffset, SEEK_SET) != 0) {
+          messageOffset = 0;
+        }
+      }
+    }
+
+    if (messageOffset == 0) {
+      // Problem reading offset from existing file
+      fclose(stream);
+      stream = nullptr;
+
+      char *theErrorFileCopyName =
+          NdbConfig_ErrorFileCopyName(globalData.ownId);
+      NdbAutoPtr<char> tmp_aptr2(theErrorFileCopyName);
+
+      g_eventLogger->error(
+          "Unable to read next message offset from error log file: %s",
+          theErrorFileName);
+      g_eventLogger->error("Renaming error log to attempt to recover : %s",
+                           theErrorFileCopyName);
+
+      if (rename(theErrorFileName, theErrorFileCopyName) != 0) {
+        g_eventLogger->error("Unable to rename error log file");
+        g_eventLogger->error("%s", theMessage);
+        return -1;
+      }
+    }
+  }
+
+  if (stream == NULL) { /* If existing file could not be opened. */
+    // Create a new file
+    stream = fopen(theErrorFileName, "w");
+    if (stream == NULL) {
+      g_eventLogger->error("Unable to read or write error log file: %s",
+                           theErrorFileName);
+      g_eventLogger->error("%s", theMessage);
+      return -1;
+    }
+
+    // Write default cursor text initially
+    fprintf(stream, "%s", CURSOR_INITIAL_VALUE);
+  }
+
+  /* Write the error message */
+  fprintf(stream, "%s", theMessage);
+  fflush(stream);
+
+  /* ...and finally, at the beginning of the file,
+     store the position where to
+     start writing the next message. */
+  {
+    unsigned nextMessageOffset = ftell(stream);
+
+    nextMessageOffset = wrapNextOffset(nextMessageOffset);
+
+    /* Overwrite whole cursor with initial value */
+    fseek(stream, 0, SEEK_SET);
+    fprintf(stream, "%s", CURSOR_INITIAL_VALUE);
+
+    /* Overwrite nextmessage offset */
+    fseek(stream, CURSOR_VALUE_OFFSET, SEEK_SET);
+    fprintf(stream, "%u", nextMessageOffset);
+
+    fflush(stream);
+  }
+
+  fclose(stream);
+
+  return 0;
+}
+
 int WriteMessage(int thrdMessageID, const char *thrdProblemData,
                  const char *thrdObjRef, NdbShutdownType &nst) {
-  FILE *stream;
-  unsigned offset;
-  unsigned long maxOffset;  // Maximum size of file.
   char theMessage[MESSAGE_LENGTH];
   Uint32 thrdTheEmulatedJamIndex;
   const JamEvent *thrdTheEmulatedJam;
@@ -310,102 +433,13 @@ int WriteMessage(int thrdMessageID, const char *thrdProblemData,
                                                ErrorReporter::get_trace_no());
   NdbAutoPtr<char> tmp_aptr1(theTraceFileName);
 
-  // The first 69 bytes is info about the current offset
-  Uint32 noMsg = globalEmulatorData.theConfiguration->maxNoOfErrorLogs();
+  /* Construct error message in buffer */
+  ErrorReporter::formatMessage(thr_no, threadCount, thrdMessageID,
+                               thrdProblemData, thrdObjRef, theTraceFileName,
+                               theMessage);
 
-  maxOffset = (69 + (noMsg * MESSAGE_LENGTH));
-
-  char *theErrorFileName = (char *)NdbConfig_ErrorFileName(globalData.ownId);
-  NdbAutoPtr<char> tmp_aptr2(theErrorFileName);
-
-  stream = fopen(theErrorFileName, "r+");
-  if (stream == NULL) { /* If the file could not be opened. */
-
-    // Create a new file, and skip the first 69 bytes,
-    // which are info about the current offset
-    stream = fopen(theErrorFileName, "w");
-    if (stream == NULL) {
-      g_eventLogger->info("Unable to open error log file: %s",
-                          theErrorFileName);
-      return -1;
-    }
-    fprintf(stream, "%s%u%s", "Current byte-offset of file-pointer is: ", 69,
-            "                        \n\n\n");
-
-    // ...and write the error-message...
-    ErrorReporter::formatMessage(thr_no, threadCount, thrdMessageID,
-                                 thrdProblemData, thrdObjRef, theTraceFileName,
-                                 theMessage);
-    fprintf(stream, "%s", theMessage);
-    fflush(stream);
-
-    /* ...and finally, at the beginning of the file,
-       store the position where to
-       start writing the next message. */
-    offset = ftell(stream);
-    // If we have not reached the maximum number of messages...
-    if (offset <= (maxOffset - MESSAGE_LENGTH)) {
-      fseek(stream, 40, SEEK_SET);
-      // ...set the current offset...
-      fprintf(stream, "%d", offset);
-    } else {
-      fseek(stream, 40, SEEK_SET);
-      // ...otherwise, start over from the beginning.
-      fprintf(stream, "%u%s", 69, "             ");
-    }
-  } else {
-    // Go to the latest position in the file...
-    fseek(stream, 40, SEEK_SET);
-    if (fscanf(stream, "%u", &offset) != 1) {
-      abort();
-    }
-
-    /* In case of upgrade from 500 -> 999 message length,
-     * check if an odd number of messages have been written
-     * from the start of the file. If so, increase the offset
-     * by the length of 1 message (of old length) to simulate
-     * even number of messages being written previously.
-     * This will ensure clean overwriting of messages of
-     * new length when the error log loops back to the
-     * beginning of the file.
-     */
-    bool oddNoOfMessages = false;
-    if (((offset - 69) / OLD_MESSAGE_LENGTH) % 2 == 1) oddNoOfMessages = true;
-    if (oddNoOfMessages) {
-      /* Adjust the offset by the length (old) of 1
-       * message. Also check if the maximum number of
-       * messages has been reached.
-       */
-      offset = offset + 499;
-      if (offset > (maxOffset - MESSAGE_LENGTH)) offset = 69;
-    }
-    fseek(stream, offset, SEEK_SET);
-
-    // ...and write the error-message there...
-    ErrorReporter::formatMessage(thr_no, threadCount, thrdMessageID,
-                                 thrdProblemData, thrdObjRef, theTraceFileName,
-                                 theMessage);
-    fprintf(stream, "%s", theMessage);
-    fflush(stream);
-
-    /* ...and finally, at the beginning of the file,
-       store the position where to
-       start writing the next message. */
-    offset = ftell(stream);
-
-    // If we have not reached the maximum number of messages...
-    if (offset <= (maxOffset - MESSAGE_LENGTH)) {
-      fseek(stream, 40, SEEK_SET);
-      // ...set the current offset...
-      fprintf(stream, "%d", offset);
-    } else {
-      fseek(stream, 40, SEEK_SET);
-      // ...otherwise, start over from the beginning.
-      fprintf(stream, "%u%s", 69, "             ");
-    }
-  }
-  fflush(stream);
-  fclose(stream);
+  /* Write to error log */
+  writeErrorLog(theMessage);
 
 #ifdef ERROR_INSERT
   if (globalEmulatorData.theConfiguration->getShutdownHandlingFault() ==
@@ -447,16 +481,21 @@ int WriteMessage(int thrdMessageID, const char *thrdProblemData,
       if (i > 0) sprintf(traceFileEnd, "_t%u", i);
       FILE *jamStream = fopen(theTraceFileName, "w");
 
-      //  ...and "dump the jam" there.
-      bool ok = globalScheduler.traceDumpGetJam(i, thrdTheEmulatedJam,
-                                                thrdTheEmulatedJamIndex);
-      if (ok && thrdTheEmulatedJam != 0) {
-        dumpJam(jamStream, thrdTheEmulatedJamIndex, thrdTheEmulatedJam);
+      if (jamStream != nullptr) {
+        //  ...and "dump the jam" there.
+        bool ok = globalScheduler.traceDumpGetJam(i, thrdTheEmulatedJam,
+                                                  thrdTheEmulatedJamIndex);
+        if (ok && thrdTheEmulatedJam != 0) {
+          dumpJam(jamStream, thrdTheEmulatedJamIndex, thrdTheEmulatedJam);
+        }
+
+        globalScheduler.dumpSignalMemory(i, jamStream);
+
+        fclose(jamStream);
+      } else {
+        g_eventLogger->error("Could not open tracefile to write : %s",
+                             theTraceFileName);
       }
-
-      globalScheduler.dumpSignalMemory(i, jamStream);
-
-      fclose(jamStream);
     }
   }
 

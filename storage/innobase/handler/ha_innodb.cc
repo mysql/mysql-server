@@ -3380,7 +3380,8 @@ class Validate_files {
         m_n_moved(),
         m_n_missing(),
         m_n_deleted(),
-        m_n_errors() {}
+        m_n_errors(),
+        m_dirs_in_datadir() {}
 
   /** Validate the discovered tablespaces against the DD and attempt to open
   any DD tablespace not already open using a Parallel For Loop (par_for).
@@ -3442,6 +3443,9 @@ class Validate_files {
 
   /** Number of threads that failed. */
   std::atomic_size_t m_n_errors;
+
+  /** Full paths for dirs directly under datadir (symlinks resolved) */
+  Dirs_in_datadir m_dirs_in_datadir;
 };
 
 void Validate_files::check(const Const_iter &begin, const Const_iter &end,
@@ -3625,8 +3629,8 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     Windows and POSIX. */
     Fil_path::normalize(dd_path);
     Fil_state state = Fil_state::MATCHES;
-    state = fil_tablespace_path_equals(space_id, space_name, fsp_flags, dd_path,
-                                       &new_path);
+    state = fil_tablespace_path_equals(space_id, space_name, fsp_flags,
+                                       m_dirs_in_datadir, dd_path, &new_path);
 
     if (state == Fil_state::COMPARE_ERROR) {
       ++m_n_errors;
@@ -3792,6 +3796,9 @@ dberr_t Validate_files::validate(const DD_tablespaces &tablespaces) {
   if (!srv_validate_tablespace_paths && !recv_needed_recovery &&
       ibuf_is_empty()) {
     ib::info(ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED);
+  } else {
+    /* Required for validating tablespace paths */
+    m_dirs_in_datadir = Dirs_in_datadir::make();
   }
 
   using std::placeholders::_1;
@@ -21177,8 +21184,10 @@ static void innodb_adaptive_hash_index_update(
                       from check function */
 {
   if (*(bool *)save) {
+    srv_btr_search_enabled = true;
     btr_search_enable();
   } else {
+    srv_btr_search_enabled = false;
     btr_search_disable();
   }
 }

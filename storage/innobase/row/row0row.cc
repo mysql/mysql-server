@@ -337,7 +337,8 @@ addition of new virtual columns.
                                 consulted instead
 @param[in]      add_cols        default values of added columns, or NULL
 @param[in]      add_v           new virtual columns added
-                                along with new indexes
+                                along with new indexes. In case add_cols is
+                                not NULL, this is ignored and should be NULL.
 @param[in]      col_map         mapping of old column
                                 numbers to new ones, or NULL
 @param[in]      ext             cache of externally stored column
@@ -352,6 +353,13 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
                                       const dict_add_v_col_t *add_v,
                                       const ulint *col_map, row_ext_t **ext,
                                       mem_heap_t *heap) {
+  /* This function ignores add_v in case add_cols is not null, so specifying
+  both is a bug. Currently, ha_innobase::check_if_supported_inplace_alter()
+  returns HA_ALTER_INPLACE_NOT_SUPPORTED when single ALTER statement tries to
+  add a virtual column and a column with a default value, so this holds. This
+  assert is here to remind us to reimplement row_build_low if we ever start
+  permitting such combination in check_if_supported_inplace_alter(). */
+  ut_ad(!add_v || !add_cols);
   const byte *copy;
   dtuple_t *row;
   ulint n_ext_cols;

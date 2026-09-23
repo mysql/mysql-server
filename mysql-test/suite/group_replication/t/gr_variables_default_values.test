@@ -160,6 +160,7 @@ SET @@GLOBAL.group_replication_recovery_tls_version= default;
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= default;
 SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
 SET @@GLOBAL.group_replication_view_change_uuid= default;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 SET @@GLOBAL.group_replication_communication_stack = default;
 SET @@GLOBAL.group_replication_paxos_single_leader = default;
 SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold = default;
@@ -450,6 +451,7 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
 --eval SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "$saved_gr_advertise_recovery_endpoints"
 --eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --eval SET @@GLOBAL.group_replication_communication_stack= "$saved_gr_communication_stack"
 --eval SET @@GLOBAL.group_replication_paxos_single_leader= $saved_gr_paxos_single_leader
 --eval SET @@GLOBAL.group_replication_preemptive_garbage_collection= $saved_group_replication_preemptive_garbage_collection

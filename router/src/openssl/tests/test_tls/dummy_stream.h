@@ -32,17 +32,22 @@ class Dummy_stream {
  public:
   using native_handle_type = std::nullptr_t;
   using protocol_type = std::nullptr_t;
+  using endpoint_type = std::nullptr_t;
+  using shutdown_type = int;
 
   Dummy_stream(net::io_context &context) : context_{context} {}
 
   Dummy_stream(Dummy_stream &&another) : context_{another.context_} {}
 
   template <typename Buffer, typename Handler>
-  void async_send(const Buffer &buffer, Handler &&handler) {}
+  void async_send(const Buffer &buffer [[maybe_unused]],
+                  Handler &&handler [[maybe_unused]]) {}
 
   template <typename Buffer, typename Handler>
-  void async_receive(const Buffer &buffer, Handler &&handler) {}
+  void async_receive(const Buffer &buffer [[maybe_unused]],
+                     Handler &&handler [[maybe_unused]]) {}
 
+  std::error_code shutdown([[maybe_unused]] shutdown_type sd) { return {}; }
   std::error_code close() { return {}; }
 
  private:

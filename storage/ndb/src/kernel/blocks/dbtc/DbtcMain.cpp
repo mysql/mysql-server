@@ -1364,7 +1364,14 @@ void Dbtc::execAPI_FAILREQ(Signal *signal) {
 
   capiFailRef = signal->theData[1];
   arrGuard(apiNodeId, MAX_NODES);
+
+  // Must not already be handling failure
+  ndbrequire(capiConnectClosing[apiNodeId] == 0);
+
+  // Offset ref count by one to delay CONF until all
+  // handling complete
   capiConnectClosing[apiNodeId] = 1;
+
   handleFailedApiNode(signal, apiNodeId, (UintR)0);
 }
 
@@ -1383,6 +1390,8 @@ void Dbtc::set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed,
                               ApiConnectRecord *const regApiPtr) {
   if (apiNodeFailed) {
     jam();
+    /* Must be in API failure handling state */
+    ndbrequire(capiConnectClosing[TapiFailedNode] > 0);
     capiConnectClosing[TapiFailedNode]++;
     regApiPtr->apiFailState = ApiConnectRecord::AFS_API_FAILED;
   } else {
@@ -1621,6 +1630,9 @@ void Dbtc::removeMarkerForFailedAPI(Signal *signal, NodeId nodeId,
       /**
        * Done with iteration
        */
+      /* Must be in API failure handling state */
+      ndbrequire(capiConnectClosing[nodeId] > 0);
+      /* Remove offset added in execAPIFAILREQ to cover handling */
       capiConnectClosing[nodeId]--;
       if (capiConnectClosing[nodeId] == 0) {
         jam();
@@ -1715,6 +1727,8 @@ void Dbtc::handleApiFailState(Signal *signal, UintR TapiConnectptr) {
   TlocalApiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
   releaseApiCon(signal, TapiConnectptr);
   if (apiFailState == ApiConnectRecord::AFS_API_FAILED) {
+    /* Must be in API failure handling state */
+    ndbrequire(capiConnectClosing[TfailedApiNode] > 0);
     capiConnectClosing[TfailedApiNode]--;
     if (capiConnectClosing[TfailedApiNode] == 0) {
       jam();
@@ -1799,6 +1813,11 @@ void Dbtc::execTCSEIZEREQ(Signal *signal) {
       }    // if
     }
   }
+
+  // API must not still be undergoing failure handling
+  ndbrequire(local || capiConnectClosing[senderNodeId] == 0);
+  // Requestor must be local data node or API.
+  ndbrequire(local || getNodeInfo(senderNodeId).getType() == NODE_TYPE_API);
 
   if (ERROR_INSERTED(8078) || ERROR_INSERTED(8079)) {
     /* Clear testing of API_FAILREQ behaviour */
@@ -13117,7 +13136,8 @@ void Dbtc::sendDihGetNodesLab(Signal *signal, ScanRecordPtr scanptr,
      * one signal to ensure we keep the rules of not executing
      * for more than 5-10 microseconds per signal.
      */
-    if (fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS || ERROR_INSERTED(8120)) {
+    if (fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS || ERROR_INSERTED(8120) ||
+        (ERROR_INSERTED(8128) && fragCnt >= 1)) {
       jam();
       signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
       signal->theData[1] = apiConnectptr.i;
@@ -13134,6 +13154,15 @@ void Dbtc::sendDihGetNodesLab(Signal *signal, ScanRecordPtr scanptr,
         sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
         return;
       }
+      if (ERROR_INSERTED(8128)) {
+        jam();
+        g_eventLogger->info("TC %u : Delaying scan start %p", instance(),
+                            scanP);
+        /* Slow down gathering of locations */
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
+        return;
+      }
+
       sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
       return;
     }
@@ -13617,7 +13646,8 @@ void Dbtc::sendFragScansLab(Signal *signal, ScanRecordPtr scanptr,
            * If we are about to produce more, we have to continue later.
            */
           if ((cntLocSignals > 4) || (ERROR_INSERTED(8121)) ||
-              (ERROR_INSERTED(8122) && fragCnt >= 1)) {
+              (ERROR_INSERTED(8122) && fragCnt >= 1) ||
+              (ERROR_INSERTED(8128) && fragCnt >= 1)) {
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
             signal->theData[1] = apiConnectptr.i;
@@ -13633,6 +13663,14 @@ void Dbtc::sendFragScansLab(Signal *signal, ScanRecordPtr scanptr,
               signal->theData[0] = 900;
               signal->theData[1] = refToNode(apiConnectptr.p->ndbapiBlockref);
               sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
+              return;
+            }
+            if (ERROR_INSERTED(8128)) {
+              jam();
+              g_eventLogger->info("TC %u : Delaying scan send %p", instance(),
+                                  scanptr.p);
+              /* Slow down signal sending */
+              sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
               return;
             }
 
@@ -14522,6 +14560,21 @@ bool Dbtc::sendScanFragReq(Signal *signal, ScanRecordPtr scanptr,
     sections.m_cnt = 2;  // and sometimes keyinfo
   }
 
+  {
+    HostRecordPtr host_ptr;
+    host_ptr.i = nodeId;
+    ptrCheckGuard(host_ptr, chostFilesize, hostRecord);
+    if (unlikely(host_ptr.p->hostStatus != HS_ALIVE)) {
+      jam();
+      /* Node has failed since DIH suggested it to scan
+       * whole scan will fail
+       */
+      sections.clear();
+      scanError(signal, scanptr, ZSCAN_LQH_ERROR);
+      return false;
+    }
+  }
+
   if (ScanFragReq::getMultiFragFlag(scanP->scanRequestInfo)) {
     jam();
     /**
@@ -14636,11 +14689,6 @@ bool Dbtc::sendScanFragReq(Signal *signal, ScanRecordPtr scanptr,
 
   // Encode variable part
   ndbassert(ScanFragReq::getCorrFactorFlag(requestInfo) == 0);
-
-  HostRecordPtr host_ptr;
-  host_ptr.i = nodeId;
-  ptrCheckGuard(host_ptr, chostFilesize, hostRecord);
-  ndbrequire(host_ptr.p->hostStatus == HS_ALIVE);
 
   {
     jamDebug();

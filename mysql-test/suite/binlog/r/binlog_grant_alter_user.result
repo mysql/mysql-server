@@ -1455,7 +1455,7 @@ slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFI
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' PASSWORD EXPIRE
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user5'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'

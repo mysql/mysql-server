@@ -97,6 +97,7 @@ while ($transactions <= $max_transactions)
   while ($i <= $rpl_num_server)
   {
     --connection server$i
+    --disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
     # verify that there should not be any error
     --error 0
     --reap

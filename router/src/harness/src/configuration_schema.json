@@ -166,6 +166,9 @@
                 "ssl_cipher": { "type": "string" },
                 "ssl_curves": { "type": "string" },
                 "bind_address": { "type": "string" },
+                "max_http_connections": { "type": "number" },
+                "max_request_body_size": { "type": "number" },
+                "max_response_body_size": { "type": "number" },
                 "require_realm": { "type": "string" },
                 "ssl_dh_params": { "type": "string" },
                 "static_folder": { "type": "string" }

@@ -1154,8 +1154,9 @@ static void replace_space_name_in_file_name(dd::Tablespace_file *dd_file,
 @param[in,out]  name    name to convert */
 static void to_lower(std::string &name) { innobase_casedn_str(name.data()); }
 
-dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
-                                                        std::string path) {
+dberr_t dd_update_table_and_partitions_after_dir_change(
+    dd::Object_id object_id, std::string path,
+    const Dirs_in_datadir &dirs_in_datadir) {
   THD *thd = current_thd;
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -1200,10 +1201,11 @@ dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
     ut_o(return DB_ERROR);
   }
 
-  std::string dd_table_name{dd_table->table().name()};
-  Fil_path fpath{path};
+  const auto pos = path.find_last_of(Fil_path::SEPARATOR);
+  ut_ad(pos != std::string::npos);
+  path.resize(pos);
 
-  bool set_true = !MySQL_datadir_path.is_ancestor(fpath);
+  bool set_true = !dirs_in_datadir.contains(path);
   if (!dd_table_is_partitioned(*dd_table)) {
     /* Set the DATA DIRECTORY FLAG to true for dd table if ibd file is moved to
     directory other than default data dir. Remove the flag if moved from

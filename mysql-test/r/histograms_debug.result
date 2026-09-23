@@ -899,3 +899,14 @@ SELECT * FROM t1 AS a JOIN t1 AS b ON a.x = REVERSE(1);
 x	x
 1	1
 DROP TABLE t1;
+#
+# Bug#38940484	MDLs released incorrectly when reading histograms
+#
+CREATE TABLE t1 (i INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON i;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'i'.
+FLUSH TABLES;
+SELECT * FROM t1;
+i
+DROP TABLE t1;

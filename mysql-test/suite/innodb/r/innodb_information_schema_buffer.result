@@ -67,10 +67,10 @@ SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
 WHERE TABLE_NAME like "%infoschema_buffer_test%";
 TABLE_NAME	INDEX_NAME	NUMBER_RECORDS	DATA_SIZE	PAGE_STATE	PAGE_TYPE
-SELECT space, is_stale FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
-WHERE space = {space_id} GROUP BY space, is_stale;;
-space	is_stale
-{space_id}	YES
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
+WHERE space = {space_id} AND is_stale = 'NO';
+count(*)
+0
 # Emptying InnoDB buffer pool: begin
 # Buffer pool size: 25165824 bytes
 # Creating and dropping a table with size: 50331648 bytes

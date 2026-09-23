@@ -1,0 +1,17 @@
+CREATE USER 'quote''user'@'localhost'
+  IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
+GRANT ALL ON *.* TO 'quote''user'@'localhost';
+SET @old_global_sql_mode = @@GLOBAL.sql_mode;
+SET @@GLOBAL.sql_mode = 'NO_BACKSLASH_ESCAPES';
+Connection with quoted user name under NO_BACKSLASH_ESCAPES
+RUN SELECT CURRENT_USER() AS account
+
+account
+quote'user@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET @@GLOBAL.sql_mode = @old_global_sql_mode;
+DROP USER 'quote''user'@'localhost';

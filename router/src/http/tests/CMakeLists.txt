@@ -158,6 +158,11 @@ add_googletest_file(test_client.cc
   LIB_DEPENDS http_client
   )
 
+add_googletest_file(test_server_limits.cc
+  MODULE http
+  LIB_DEPENDS http_server_lib
+  )
+
 IF(LIBFUZZER_COMPILE_FLAGS)
   ## http_auth_backend
   MYSQL_ADD_EXECUTABLE(routertest_fuzz_http_auth_backend

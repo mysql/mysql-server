@@ -223,6 +223,9 @@
     },
     "http_server": {
         "bind_address": "0.0.0.0",
+        "max_http_connections": 1024,
+        "max_request_body_size": 16777216,
+        "max_response_body_size": 16777216,
         "port": 8443,
         "require_realm": "",
         "ssl": true,

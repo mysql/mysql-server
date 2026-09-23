@@ -94,6 +94,7 @@ SET PERSIST group_replication_single_primary_mode= ON;
 --eval SET PERSIST  group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST  group_replication_local_address= "$_group_replication_local_address2"
 --eval SET PERSIST  group_replication_group_seeds= "$_group_replication_group_seeds2"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --eval SET PERSIST  group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_start_on_boot= ON;
@@ -112,6 +113,7 @@ SET GLOBAL group_replication_clone_threshold= 1;
 
 SET @@GLOBAL.DEBUG='+d,gr_clone_process_before_execution';
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 
 SET DEBUG_SYNC = 'now WAIT_FOR signal.gr_clone_thd_paused';

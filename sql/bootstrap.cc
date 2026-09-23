@@ -46,6 +46,7 @@
 #include "scope_guard.h"  // create_scope_guard
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bootstrap_impl.h"
+#include "sql/dd/impl/utils.h"  // dd::execute_query
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/log.h"
 #include "sql/mysqld.h"              // key_file_init
@@ -154,6 +155,7 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
     const Disable_binlog_guard disable_binlog(thd);
     const Disable_sql_log_bin_guard disable_sql_log_bin(thd);
 
+    std::ignore = dd::execute_query(thd, "SET @is_mysql_encrypted = 'N'");
     Compiled_in_command_iterator comp_iter;
     rc = process_iterator(thd, &comp_iter, true);
 

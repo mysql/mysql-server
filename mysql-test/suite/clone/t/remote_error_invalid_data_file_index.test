@@ -1,0 +1,36 @@
+# Test remote clone error for an invalid data file index descriptor
+--source include/have_debug.inc
+--source include/have_innodb_max_16k.inc
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+
+--replace_result $HOST HOST $PORT PORT
+--eval SET GLOBAL clone_valid_donor_list = '$HOST:$PORT'
+
+SET GLOBAL DEBUG = '+d,clone_send_invalid_data_file_index';
+
+--replace_result $CLONE_DATADIR CLONE_DATADIR $HOST HOST $PORT PORT $USER USER
+--error ER_CLONE_PROTOCOL
+--eval CLONE INSTANCE FROM $USER@$HOST:$PORT IDENTIFIED BY '' DATA DIRECTORY = '$CLONE_DATADIR'
+
+SELECT STATE, ERROR_NO > 0 AS error_set,
+       LOCATE('Invalid Data File Index', ERROR_MESSAGE) > 0
+       AS has_invalid_index
+FROM performance_schema.clone_status;
+
+SET GLOBAL DEBUG = '-d,clone_send_invalid_data_file_index';
+SET GLOBAL clone_max_concurrency = DEFAULT;
+SET GLOBAL clone_autotune_concurrency = DEFAULT;
+
+UNINSTALL PLUGIN clone;
+
+--force-rmdir $CLONE_DATADIR

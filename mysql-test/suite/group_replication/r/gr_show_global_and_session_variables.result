@@ -100,6 +100,8 @@ ERROR HY000: Variable 'group_replication_preemptive_garbage_collection' is a GLO
 SET @@SESSION.group_replication_preemptive_garbage_collection_rows_threshold= 100000;
 ERROR HY000: Variable 'group_replication_preemptive_garbage_collection_rows_threshold' is a GLOBAL variable and should be set with SET GLOBAL
 Warnings:
+Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.
+Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 # Test#3: Verify group replication related variables at SESSION scope.
@@ -108,8 +110,6 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 
 # Test#4: Verify GLOBAL and SESSION variables
 include/start_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
 SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 include/assert.inc [Verify GLOBAL value of group_replication_auto_increment_increment]
@@ -292,6 +292,8 @@ include/assert.inc [Verify SESSION value of group_replication_preemptive_garbage
 
 # Clean up
 include/stop_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

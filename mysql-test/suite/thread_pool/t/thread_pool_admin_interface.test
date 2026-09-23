@@ -1,0 +1,3 @@
+--source include/have_thread_pool.inc
+--source include/admin_interface.inc
+

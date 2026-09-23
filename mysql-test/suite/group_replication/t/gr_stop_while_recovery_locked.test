@@ -69,6 +69,7 @@ FLUSH TABLES WITH READ LOCK;
 --echo # 4. Starting server2 will fail, recovery module fail to stop, as it is
 --echo #    blocked
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING
 START GROUP_REPLICATION;
 

@@ -444,3 +444,177 @@ DROP TABLE t;
 SELECT REVERSE(IFNULL(DENSE_RANK() OVER(),
                       CONVERT('abc' USING utf32))) AS c;
 
+--echo #
+--echo # Bug#39347654: IFNULL function does not handle NULL
+--echo #
+
+CREATE TABLE Services
+ (Id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  Name VARCHAR(150),
+  DurationInMinutes INT UNSIGNED,
+  BreakInMinutes INT UNSIGNED,
+  Unit SMALLINT UNSIGNED,
+  Volume DECIMAL(9, 3),
+  HasComposition BOOL NOT NULL DEFAULT 0,
+  PRIMARY KEY (Id)
+);
+INSERT INTO Services VALUES
+ (2,'Name1',0,0,NULL,NULL,0), (15,'Name2',0,0,NULL,NULL,0),
+ (19,'Name3',0,0,NULL,NULL,0), (27,'Name4',0,0,NULL,NULL,0),
+ (126,'Name5',0,0,NULL,NULL,1), (127,'Name6',0,0,NULL,NULL,1),
+ (162,'Name7',NULL,NULL,1,100.000,0);
+
+CREATE TABLE ServicesComposition
+ (ServiceId INT UNSIGNED NOT NULL,
+  CompServicePosition SMALLINT UNSIGNED NOT NULL,
+  CompServiceId INT UNSIGNED NOT NULL,
+  CompServiceCount DECIMAL(9, 3) NOT NULL,
+  PRIMARY KEY (ServiceId, CompServiceId),
+  INDEX IX_ServicesComposition_CompServiceId (CompServiceId)
+);
+INSERT INTO ServicesComposition VALUES
+ (126,1,19,1.000), (126,2,27,1.000), (126,3,162,1.000), (127,1,15,1.000),
+ (127,2,126,1.000);
+
+CREATE TABLE OrderServices
+ (Id BINARY(16) NOT NULL,
+  OrderId BINARY(16) NOT NULL,
+  Position SMALLINT UNSIGNED NOT NULL,
+  ServiceId INT UNSIGNED NOT NULL,
+  INDEX IX_OrderServices_ServiceId (ServiceId),
+  PRIMARY KEY (Id),
+  INDEX IX_OrderServices_OrderId (OrderId, Position),
+  DurationInMinutesNorm MEDIUMINT UNSIGNED NULL,
+  BreakAfterInMinutesNorm MEDIUMINT UNSIGNED NULL,
+  DurationInMinutes MEDIUMINT UNSIGNED NULL,
+  Unit SMALLINT UNSIGNED,
+  Volume DECIMAL(9, 3),
+  UnitPriceWithVat DECIMAL(14, 4) NOT NULL
+);
+INSERT INTO OrderServices VALUES
+ (0x019E0EAFFA6A79F984E62B28024912D2,0x019E0EB00A8779C1B2BB2382A6AB05F3,1,126,
+  0,    0,  40,NULL,  NULL,    5.1971),
+ (0x019E0EAFFA6A7BEE9BB9998299F0ACB2,0x019E0EB00A8779C1B2BB2382A6AB05F3,0, 2,
+  0,    0,   0,NULL,  NULL,   -5.0112),
+ (0x019E0EAFFA6E76AB9A38509D7E797ECF,0x019E0EB00A8779C1B2BB2382A6AB05F3,3,162,
+  NULL,NULL,NULL,   4,50.000,    0.9900),
+ (0x019E0EAFFA6E7820AC9967347FDDC632,0x019E0EB00A8779C1B2BB2382A6AB05F3,4,162,
+  NULL,NULL,NULL,   4,50.000,    5.1781),
+ (0x019E0EAFFA6E78F1AADAC571E0001124,0x019E0EB00A8779C1B2BB2382A6AB05F3,2,126,
+  0,   0,  35,NULL,  NULL,    9.9900);
+
+CREATE TABLE OrderServiceComposition
+ (OrderServiceId BINARY(16) NOT NULL,
+  OrderId BINARY(16) NOT NULL,
+  Position SMALLINT UNSIGNED NOT NULL,
+  INDEX IX_OrderServiceComposition_OrderId (OrderId),
+  ServiceId INT UNSIGNED NOT NULL,
+  INDEX IX_OrderServiceComposition_ServiceId (ServiceId),
+  PRIMARY KEY (OrderServiceId, ServiceId),
+  DurationInMinutesNorm MEDIUMINT UNSIGNED,
+  BreakAfterInMinutesNorm MEDIUMINT UNSIGNED,
+  DurationInMinutes MEDIUMINT UNSIGNED,
+  UnitNorm SMALLINT UNSIGNED,
+  VolumeNorm DECIMAL(9, 3),
+  Unit SMALLINT UNSIGNED NULL,
+  Volume DECIMAL(9, 3),
+  QuantityNorm DECIMAL(9, 3) NOT NULL,
+  Quantity DECIMAL(9, 3) NOT NULL,
+  QuantityTotal DECIMAL(9, 3) NOT NULL
+);
+INSERT INTO OrderServiceComposition VALUES
+ (0x019E0EAFFA6A79F984E62B28024912D2,0x019E0EB00A8779C1B2BB2382A6AB05F3,0,19,5,
+  0,5,NULL,NULL,NULL,NULL,0.000,2.000,0.000),
+ (0x019E0EAFFA6A79F984E62B28024912D2,0x019E0EB00A8779C1B2BB2382A6AB05F3,0,162,
+  NULL,NULL,NULL,5,50.000,5,50.000,0.000,1.500,0.000),
+ (0x019E0EAFFA6E78F1AADAC571E0001124,0x019E0EB00A8779C1B2BB2382A6AB05F3,0,19,5,
+  0,5,NULL,NULL,NULL,NULL,0.000,2.000,0.000),
+ (0x019E0EAFFA6E78F1AADAC571E0001124,0x019E0EB00A8779C1B2BB2382A6AB05F3,0,27,0,
+  0,0,NULL,NULL,NULL,NULL,0.000,1.000,0.000);
+
+WITH normComposition AS
+ (SELECT os.Id AS OrderServiceId, sc.CompServiceId AS ServiceId,
+         s.DurationInMinutes AS DurationInMinutesNorm,
+         IFNULL(s.BreakInMinutes, IF(s.Unit IS NULL, 0, NULL))
+           AS BreakAfterInMinutesNorm,
+         s.Unit AS UnitNorm, s.Volume AS VolumeNorm,
+         sc.CompServiceCount AS QuantityNorm,
+         sc.CompServicePosition, s.Name AS ServiceName, s.HasComposition
+  FROM OrderServices os INNER JOIN ServicesComposition sc
+       ON os.ServiceId = sc.ServiceId
+       INNER JOIN Services s
+       ON sc.CompServiceId = s.Id
+  WHERE os.OrderId = uuid_to_bin('019e0eb0-0a87-79c1-b2bb-2382a6ab05f3') AND
+        os.UnitPriceWithVat >= 0 AND os.ServiceId >= 10
+ ),
+     savedComposition AS
+ (SELECT osc.OrderServiceId, osc.ServiceId, osc.DurationInMinutes, osc.Unit,
+         osc.Volume, osc.Quantity, osc.QuantityTotal, osc.Position,
+         s.DurationInMinutes AS DurationInMinutesNorm,
+         IFNULL(s.BreakInMinutes, IF(s.Unit IS NULL, 0, NULL))
+           AS BreakAfterInMinutesNorm,
+         s.Unit AS UnitNorm, s.Volume AS VolumeNorm, s.Name AS ServiceName,
+         s.HasComposition
+  FROM OrderServiceComposition osc INNER JOIN Services s
+       ON osc.ServiceId = s.Id
+  WHERE osc.OrderId = uuid_to_bin('019e0eb0-0a87-79c1-b2bb-2382a6ab05f3')
+ ),
+     fullJoin AS
+ (SELECT s.OrderServiceId, s.ServiceId, s.DurationInMinutes, s.Unit, s.Volume,
+         s.Quantity, s.QuantityTotal, s.DurationInMinutesNorm,
+         s.BreakAfterInMinutesNorm, s.UnitNorm, s.VolumeNorm, n.QuantityNorm,
+         s.Position, n.CompServicePosition, s.ServiceName, s.HasComposition
+  FROM savedComposition s LEFT JOIN normComposition n
+       ON s.OrderServiceId = n.OrderServiceId AND s.ServiceId = n.ServiceId
+  UNION ALL
+  SELECT n.OrderServiceId, n.ServiceId, s.DurationInMinutes, s.Unit, s.Volume,
+         s.Quantity, s.QuantityTotal, n.DurationInMinutesNorm,
+         n.BreakAfterInMinutesNorm, n.UnitNorm, n.VolumeNorm, n.QuantityNorm,
+         s.Position, n.CompServicePosition, n.ServiceName, n.HasComposition
+  FROM savedComposition s RIGHT JOIN normComposition n
+       ON s.OrderServiceId = n.OrderServiceId AND s.ServiceId = n.ServiceId
+  WHERE s.OrderServiceId IS NULL
+ )
+SELECT bin_to_uuid(t.OrderServiceId),
+       ROW_NUMBER() OVER
+        (PARTITION BY t.OrderServiceId
+        ORDER BY IFNULL(t.CompServicePosition, 999999), t.Position) AS Position,
+       -- All values below must be equal
+       IFNULL(t.Volume, t.VolumeNorm) AS Value_IfNull,
+       COALESCE(t.Volume, t.VolumeNorm) AS Value_Coalesce,
+       IF(t.Volume IS NULL, t.VolumeNorm, t.Volume) AS Value_If
+FROM fullJoin t
+WHERE t.OrderServiceId = uuid_to_bin('019e0eaf-fa6e-78f1-aada-c571e0001124');
+
+DROP TABLE OrderServiceComposition, OrderServices, ServicesComposition;
+DROP TABLE Services;
+
+--echo #
+--echo # Bug#39279682: Assertion 'dt->time_type = MYSQL_TIMESTAMP_DATETIME ||
+--echo #               dt->time_type = MYSQL_TIMESTAMP_DATETIME_TZ' failed
+--echo #
+
+CREATE TABLE t (a TIMESTAMP, b DATETIME, c DATE, d TIME);
+INSERT INTO t VALUES
+  (CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_DATE, CURRENT_TIME);
+
+SELECT COUNT(*) FROM t WHERE COALESCE(a, b);
+SELECT COUNT(*) FROM t WHERE COALESCE(b, a);
+SELECT COUNT(*) FROM t WHERE COALESCE(a, c);
+SELECT COUNT(*) FROM t WHERE COALESCE(c, a);
+SELECT COUNT(*) FROM t WHERE COALESCE(a, d);
+SELECT COUNT(*) FROM t WHERE COALESCE(d, a);
+SELECT COUNT(*) FROM t WHERE COALESCE(b, c);
+SELECT COUNT(*) FROM t WHERE COALESCE(c, b);
+SELECT COUNT(*) FROM t WHERE COALESCE(b, d);
+SELECT COUNT(*) FROM t WHERE COALESCE(d, b);
+SELECT COUNT(*) FROM t WHERE COALESCE(c, d);
+SELECT COUNT(*) FROM t WHERE COALESCE(d, c);
+SELECT COUNT(*) FROM t WHERE COALESCE(a, b, c);
+SELECT COUNT(*) FROM t WHERE COALESCE(a, b, d);
+SELECT COUNT(*) FROM t WHERE COALESCE(a, c, d);
+SELECT COUNT(*) FROM t WHERE COALESCE(b, c, d);
+SELECT COUNT(*) FROM t WHERE COALESCE(a, b, c, d);
+SELECT COUNT(*) FROM t WHERE COALESCE(d, c, b, a);
+
+DROP TABLE t;

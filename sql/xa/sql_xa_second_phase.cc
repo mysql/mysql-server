@@ -117,6 +117,11 @@ void Sql_cmd_xa_second_phase::setup_thd_context(THD *thd) {
   auto thd_xs = thd->get_transaction()->xid_state();
   auto detached_xs = this->m_detached_trx_context->xid_state();
 
+  // Detached XA second phase reaches commit_owned_gtids() before the THD is
+  // attached to the XA state. Mark GTID persistence as handled by the storage
+  // engine first so detached XA does not take the server-layer save path.
+  thd->set_gtid_persisted_by_se();
+
   std::tie(this->m_gtid_error, this->m_need_clear_owned_gtid) =
       commit_owned_gtids(thd, true);
   if (this->m_gtid_error) my_error(ER_XA_RBROLLBACK, MYF(0));
@@ -146,6 +151,7 @@ bool Sql_cmd_xa_second_phase::enter_commit_order(THD *thd) {
 
     gtid_state_commit_or_rollback(thd, /* needs_to */ true,
                                   /* do_commit */ false);
+    thd->reset_gtid_persisted_by_se();
     thd->mdl_context.rollback_to_savepoint(this->m_mdl_savepoint);
     thd_xs->unset_binlogged();
     return (this->m_result = true);
@@ -177,6 +183,7 @@ void Sql_cmd_xa_second_phase::cleanup_context(THD *thd) const {
 
   gtid_state_commit_or_rollback(thd, this->m_need_clear_owned_gtid,
                                 !this->m_result);
+  thd->reset_gtid_persisted_by_se();
 }
 
 void Sql_cmd_xa_second_phase::dispose() {

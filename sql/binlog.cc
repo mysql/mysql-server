@@ -7503,8 +7503,12 @@ int MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   DBUG_EXECUTE_IF("crash_after_flush_engine_log", DBUG_SUICIDE(););
   CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_write_binlog");
   assign_automatic_gtids_to_flush_group(first_seen);
-  /* Flush thread caches to binary log. */
+  // Flush thread caches to binary log.
   for (THD *head = first_seen; head; head = head->next_to_commit) {
+    // signal_done() owns the final transition to false. After the special
+    // commit-order/binlog leader handoff, binlog queue members must still be
+    // pending before they enter the remaining group commit stages.
+    assert(head->tx_commit_pending);
     Thd_backup_and_restore switch_thd(current_thd, head);
     const auto [error, flushed_bytes] = flush_thread_caches(head);
     total_bytes += flushed_bytes;
@@ -7660,6 +7664,11 @@ bool MYSQL_BIN_LOG::change_stage(THD *thd [[maybe_unused]],
   */
   if (!Commit_stage_manager::get_instance().enroll_for(
           stage, queue, leave_mutex, enter_mutex)) {
+    // enroll_for() returns false when this THD became a follower and was
+    // signaled by the stage leader. Callers interpret this as "my transaction
+    // was processed by the leader" and leave ordered_commit() through
+    // finish_commit().
+    assert(!thd->tx_commit_pending);
     assert(!thd_get_cache_mngr(thd)->dbug_any_finalized());
     return true;
   }

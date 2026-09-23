@@ -353,6 +353,9 @@ class Parallel_reader {
   /** @return the configured max threads size. */
   [[nodiscard]] size_t max_threads() const { return m_max_threads; }
 
+  /** @return true iff this reader runs worker() on the caller's thread. */
+  [[nodiscard]] bool is_sync() const noexcept { return m_sync; }
+
   /** @return true if in error state. */
   [[nodiscard]] bool is_error_set() const {
     return m_err.load(std::memory_order_relaxed) != DB_SUCCESS;

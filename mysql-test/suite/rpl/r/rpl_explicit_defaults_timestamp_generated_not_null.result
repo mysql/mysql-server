@@ -1,0 +1,42 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+[connection master]
+SET @@SESSION.explicit_defaults_for_timestamp = OFF;
+Warnings:
+Warning	1287	'explicit_defaults_for_timestamp' is deprecated and will be removed in a future release.
+CREATE TABLE `t` (
+`id_col` int NOT NULL AUTO_INCREMENT,
+`datetime_col` datetime(6) DEFAULT NULL,
+`timestamp_col2` timestamp(6) GENERATED ALWAYS AS (`datetime_col`) STORED NOT NULL, PRIMARY KEY (`id_col`)
+);
+insert ignore into t(datetime_col) values(NULL);
+Warnings:
+Warning	1048	Column 'timestamp_col2' cannot be null
+
+SELECT * FROM t;
+id_col	1
+datetime_col	NULL
+timestamp_col2	0000-00-00 00:00:00.000000
+include/rpl/sync_to_replica.inc
+
+SELECT * FROM t;
+id_col	1
+datetime_col	NULL
+timestamp_col2	0000-00-00 00:00:00.000000
+include/rpl/stop_replica.inc
+DROP TABLE t;
+RESET BINARY LOGS AND GTIDS;
+
+SELECT * FROM t;
+id_col	1
+datetime_col	NULL
+timestamp_col2	0000-00-00 00:00:00.000000
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

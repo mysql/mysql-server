@@ -30,6 +30,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <future>
 #include <memory>  // shared_ptr
 #include <mutex>
@@ -85,30 +86,43 @@ using mysql_harness::StringOption;
 
 class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
  public:
-  std::string static_basedir;
-  std::string srv_address;
-  std::string require_realm;
-  std::string ssl_cert;
-  std::string ssl_key;
-  std::string ssl_cipher;
-  std::string ssl_dh_params;
-  std::string ssl_curves;
-  bool with_ssl;
-  uint16_t srv_port;
+  std::string static_basedir_;
+  std::string srv_address_;
+  std::string require_realm_;
+  std::string ssl_cert_;
+  std::string ssl_key_;
+  std::string ssl_cipher_;
+  std::string ssl_dh_params_;
+  std::string ssl_curves_;
+  bool with_ssl_;
+  uint16_t srv_port_;
+  uint64_t max_http_connections_;
+  uint64_t max_request_body_size_;
+  uint64_t max_response_body_size_;
 
   explicit HttpServerPluginConfig(const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section) {
-    GET_OPTION_CHECKED(static_basedir, section, "static_folder",
+    GET_OPTION_CHECKED(static_basedir_, section, "static_folder",
                        StringOption{});
-    GET_OPTION_CHECKED(srv_address, section, "bind_address", StringOption{});
-    GET_OPTION_CHECKED(require_realm, section, "require_realm", StringOption{});
-    GET_OPTION_CHECKED(ssl_cert, section, "ssl_cert", StringOption{});
-    GET_OPTION_CHECKED(ssl_key, section, "ssl_key", StringOption{});
-    GET_OPTION_CHECKED(ssl_cipher, section, "ssl_cipher", StringOption{});
-    GET_OPTION_CHECKED(ssl_dh_params, section, "ssl_dh_param", StringOption{});
-    GET_OPTION_CHECKED(ssl_curves, section, "ssl_curves", StringOption{});
-    GET_OPTION_CHECKED(with_ssl, section, "ssl", IntOption<bool>{});
-    GET_OPTION_CHECKED(srv_port, section, "port", IntOption<uint16_t>{});
+    GET_OPTION_CHECKED(srv_address_, section, "bind_address", StringOption{});
+    GET_OPTION_CHECKED(require_realm_, section, "require_realm",
+                       StringOption{});
+    GET_OPTION_CHECKED(ssl_cert_, section, "ssl_cert", StringOption{});
+    GET_OPTION_CHECKED(ssl_key_, section, "ssl_key", StringOption{});
+    GET_OPTION_CHECKED(ssl_cipher_, section, "ssl_cipher", StringOption{});
+    GET_OPTION_CHECKED(ssl_dh_params_, section, "ssl_dh_param", StringOption{});
+    GET_OPTION_CHECKED(ssl_curves_, section, "ssl_curves", StringOption{});
+    GET_OPTION_CHECKED(with_ssl_, section, "ssl", IntOption<bool>{});
+    GET_OPTION_CHECKED(srv_port_, section, "port", IntOption<uint16_t>{});
+    GET_OPTION_CHECKED(
+        max_http_connections_, section, "max_http_connections",
+        (IntOption<uint64_t>{1, http::server::kMaxHttpConnectionsUpperBound}));
+    GET_OPTION_CHECKED(
+        max_request_body_size_, section, "max_request_body_size",
+        (IntOption<uint64_t>{0, http::server::kMaxBodySizeUpperBound}));
+    GET_OPTION_CHECKED(
+        max_response_body_size_, section, "max_response_body_size",
+        (IntOption<uint64_t>{0, http::server::kMaxBodySizeUpperBound}));
   }
 
   std::string get_default_ciphers() const {
@@ -118,6 +132,12 @@ class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
   std::string get_default(std::string_view option) const override {
     const std::map<std::string_view, std::string> defaults{
         {"bind_address", kDefaultBindAddress},
+        {"max_http_connections",
+         std::to_string(http::server::kDefaultMaxHttpConnections)},
+        {"max_request_body_size",
+         std::to_string(http::server::kDefaultMaxRequestBodySize)},
+        {"max_response_body_size",
+         std::to_string(http::server::kDefaultMaxResponseBodySize)},
         {"port", std::to_string(kDefaultHttpPort)},
         {"ssl", std::to_string(kDefaultSsl)},
         {"ssl_cipher", get_default_ciphers()},
@@ -151,24 +171,24 @@ class HttpServerFactory {
  public:
   static std::shared_ptr<http::HttpServerContext> create(
       const HttpServerPluginConfig &config) {
-    if (config.with_ssl) {
+    if (config.with_ssl_) {
       // init the TLS Server context according to our config-values
       TlsServerContext tls_ctx;
 
       {
         const auto res =
-            tls_ctx.load_key_and_cert(config.ssl_key, config.ssl_cert);
+            tls_ctx.load_key_and_cert(config.ssl_key_, config.ssl_cert_);
         if (!res) {
           throw std::system_error(
-              res.error(), "using SSL private key file '" + config.ssl_key +
-                               "' or SSL certificate file '" + config.ssl_cert +
-                               "' failed");
+              res.error(), "using SSL private key file '" + config.ssl_key_ +
+                               "' or SSL certificate file '" +
+                               config.ssl_cert_ + "' failed");
         }
       }
 
-      if (!config.ssl_curves.empty()) {
+      if (!config.ssl_curves_.empty()) {
         if (tls_ctx.has_set_curves_list()) {
-          const auto res = tls_ctx.curves_list(config.ssl_curves);
+          const auto res = tls_ctx.curves_list(config.ssl_curves_);
           if (!res) {
             throw std::system_error(res.error(), "using ssl-curves failed");
           }
@@ -180,14 +200,14 @@ class HttpServerFactory {
       }
 
       {
-        const auto res = tls_ctx.init_tmp_dh(config.ssl_dh_params);
+        const auto res = tls_ctx.init_tmp_dh(config.ssl_dh_params_);
         if (!res) {
           throw std::system_error(res.error(), "setting ssl_dh_params failed");
         }
       }
 
-      if (!config.ssl_cipher.empty()) {
-        const auto res = tls_ctx.cipher_list(config.ssl_cipher);
+      if (!config.ssl_cipher_.empty()) {
+        const auto res = tls_ctx.cipher_list(config.ssl_cipher_);
         if (!res) {
           throw std::system_error(res.error(), "using ssl-cipher list failed");
         }
@@ -196,14 +216,17 @@ class HttpServerFactory {
       auto &io = IoComponent::get_instance();
       return std::make_shared<http::HttpServerContext>(
           &io.io_context(), &io.io_threads(), std::move(tls_ctx),
-          config.srv_address.c_str(), config.srv_port);
+          config.srv_address_.c_str(), config.srv_port_,
+          config.max_http_connections_, config.max_request_body_size_,
+          config.max_response_body_size_);
     }
 
     auto &io = IoComponent::get_instance();
 
     return std::make_shared<http::HttpServerContext>(
-        &io.io_context(), &io.io_threads(), config.srv_address.c_str(),
-        config.srv_port);
+        &io.io_context(), &io.io_threads(), config.srv_address_.c_str(),
+        config.srv_port_, config.max_http_connections_,
+        config.max_request_body_size_, config.max_response_body_size_);
   }
 };
 
@@ -241,17 +264,17 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 
       const HttpServerPluginConfig config{section};
 
-      if (config.with_ssl &&
-          (config.ssl_cert.empty() || config.ssl_key.empty())) {
+      if (config.with_ssl_ &&
+          (config.ssl_cert_.empty() || config.ssl_key_.empty())) {
         throw std::invalid_argument(
             "if ssl=1 is set, ssl_cert and ssl_key must be set too.");
       }
 
-      if (!config.require_realm.empty() &&
-          (known_realms.find(config.require_realm) == known_realms.end())) {
+      if (!config.require_realm_.empty() &&
+          (known_realms.find(config.require_realm_) == known_realms.end())) {
         throw std::invalid_argument(
             "unknown authentication realm for [http_server] '" + section->key +
-            "': " + config.require_realm +
+            "': " + config.require_realm_ +
             ", known realm(s): " + mysql_harness::join(known_realms, ","));
       }
 
@@ -261,22 +284,22 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       http_servers.emplace(section->name, HttpServerFactory::create(config));
 
       log_info(
-          "listening on %s%s", (config.with_ssl ? "https://" : "http://"),
-          mysql_harness::TcpDestination(config.srv_address, config.srv_port)
+          "listening on %s%s", (config.with_ssl_ ? "https://" : "http://"),
+          mysql_harness::TcpDestination(config.srv_address_, config.srv_port_)
               .str()
               .c_str());
 
       auto srv = http_servers.at(section->name);
 
       // forward the global require-realm to the request-router
-      srv->request_router().require_realm(config.require_realm);
+      srv->request_router().require_realm(config.require_realm_);
 
       HttpServerComponent::get_instance().init(srv);
 
-      if (!config.static_basedir.empty()) {
+      if (!config.static_basedir_.empty()) {
         srv->add_regex_route("", "",
                              std::make_unique<HttpStaticFolderHandler>(
-                                 config.static_basedir, config.require_realm));
+                                 config.static_basedir_, config.require_realm_));
       }
     }
   } catch (const std::invalid_argument &exc) {
@@ -370,20 +393,32 @@ class HttpServerConfigExposer : public mysql_harness::SectionConfigExposer {
         plugin_config_(plugin_config) {}
 
   void expose() override {
-    expose_option("static_folder", plugin_config_.static_basedir, "");
-    expose_option("bind_address", plugin_config_.srv_address,
+    expose_option("static_folder", plugin_config_.static_basedir_, "");
+    expose_option("bind_address", plugin_config_.srv_address_,
                   kDefaultBindAddress);
-    expose_option("require_realm", plugin_config_.require_realm, "");
-    expose_option("ssl_cert", plugin_config_.ssl_cert, "");
-    expose_option("ssl_key", plugin_config_.ssl_key, "");
-    expose_option("ssl_cipher", plugin_config_.ssl_cipher,
+    expose_option("require_realm", plugin_config_.require_realm_, "");
+    expose_option("ssl_cert", plugin_config_.ssl_cert_, "");
+    expose_option("ssl_key", plugin_config_.ssl_key_, "");
+    expose_option("ssl_cipher", plugin_config_.ssl_cipher_,
                   plugin_config_.get_default_ciphers());
-    expose_option("ssl_dh_params", plugin_config_.ssl_dh_params, "");
-    expose_option("ssl_curves", plugin_config_.ssl_curves, "");
-    expose_option("ssl", plugin_config_.with_ssl,
+    expose_option("ssl_dh_params", plugin_config_.ssl_dh_params_, "");
+    expose_option("ssl_curves", plugin_config_.ssl_curves_, "");
+    expose_option("ssl", plugin_config_.with_ssl_,
                   (kHttpPluginDefaultSslBootstrap == 1));
-    expose_option("port", plugin_config_.srv_port,
+    expose_option("port", plugin_config_.srv_port_,
                   kHttpPluginDefaultPortBootstrap);
+    expose_option(
+        "max_http_connections",
+        static_cast<int64_t>(plugin_config_.max_http_connections_),
+        static_cast<int64_t>(http::server::kDefaultMaxHttpConnections));
+    expose_option(
+        "max_request_body_size",
+        static_cast<int64_t>(plugin_config_.max_request_body_size_),
+        static_cast<int64_t>(http::server::kDefaultMaxRequestBodySize));
+    expose_option(
+        "max_response_body_size",
+        static_cast<int64_t>(plugin_config_.max_response_body_size_),
+        static_cast<int64_t>(http::server::kDefaultMaxResponseBodySize));
   }
 
  private:

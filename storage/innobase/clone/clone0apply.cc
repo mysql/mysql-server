@@ -320,9 +320,9 @@ int Clone_Snapshot::handle_existing_file(bool replace, bool undo_file,
   return err;
 }
 
-int Clone_Snapshot::build_file_path(const char *data_dir,
-                                    const Clone_File_Meta *file_meta,
-                                    std::string &built_path) {
+int Clone_Snapshot::build_file_path_unsafe(const char *data_dir,
+                                           const Clone_File_Meta *file_meta,
+                                           std::string &built_path) {
   std::string source;
 
   bool redo_file = (m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY);
@@ -401,6 +401,26 @@ int Clone_Snapshot::build_file_path(const char *data_dir,
   }
 
   built_path.append(source);
+  return 0;
+}
+
+int Clone_Snapshot::build_file_path(const char *data_dir,
+                                    const Clone_File_Meta *file_meta,
+                                    std::string &built_path) {
+  const auto err = build_file_path_unsafe(data_dir, file_meta, built_path);
+
+  if (err != 0) {
+    return err;
+  }
+  /* the only permited "unknown" paths are the destination data_dir, and redo
+  log dir, but in case data_dir is specified we put redo logs in it anyway.*/
+  if (!fil_path_is_known(built_path) &&
+      !Fil_path(data_dir != nullptr ? data_dir : srv_log_group_home_dir, true)
+           .is_ancestor(built_path)) {
+    my_error(ER_WRONG_VALUE, MYF(0), "file path", built_path.c_str());
+    return ER_WRONG_VALUE;
+  }
+
   return 0;
 }
 
@@ -1396,6 +1416,11 @@ int Clone_Handle::receive_data(Clone_Task *task, uint64_t offset,
   auto snapshot = m_clone_task_manager.get_snapshot();
 
   auto file_ctx = snapshot->get_file_ctx_by_index(task->m_current_file_index);
+  if (file_ctx == nullptr) {
+    int err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0), "Wrong Clone RPC: Invalid Data File Index");
+    return err;
+  }
   auto file_meta = file_ctx->get_file_meta();
 
   std::string file_name;
@@ -1539,6 +1564,13 @@ int Clone_Handle::apply_data(Clone_Task *task, Ha_clone_cbk *callback) {
       return (err);
     }
     task->m_current_file_index = data_desc.m_file_index;
+  }
+
+  auto snapshot = m_clone_task_manager.get_snapshot();
+  if (snapshot->get_file_ctx_by_index(task->m_current_file_index) == nullptr) {
+    int err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0), "Wrong Clone RPC: Invalid Data File Index");
+    return err;
   }
 
   /* Receive data from callback and apply. */

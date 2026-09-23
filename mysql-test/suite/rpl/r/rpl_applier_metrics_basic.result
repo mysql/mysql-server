@@ -46,7 +46,7 @@ include/assert_eventually.inc [Eventually, coordinator increases WAITS_FOR_WORK_
 include/assert_eventually.inc [Eventually, coordinator increaess WAITS_FOR_WORK_FROM_SOURCE_SUM_TIME]
 include/assert.inc [WAITS_FOR_AVAILABLE_WORKER_COUNT should remain 0 (because there are more workers than transactions)]
 include/assert.inc [WAITS_FOR_AVAILABLE_WORKER_SUM_TIME should remain 0 (because there are more workers than transactions)]
-include/assert.inc [There were no "real" waits on dependencies, so WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT is 1]
+include/assert.inc [WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT is incremented]
 # Nothing to assert for WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME: there was a wait, so it is likely nonzero, but there is no guarantee
 include/assert.inc [There are no waits for memory on worker queues]
 include/assert.inc [There are no waits on full queues]

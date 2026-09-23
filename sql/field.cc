@@ -5075,6 +5075,7 @@ type_conversion_status Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   assert(ltime->time_type == MYSQL_TIMESTAMP_DATETIME ||
          ltime->time_type == MYSQL_TIMESTAMP_DATETIME_TZ ||
+         ltime->time_type == MYSQL_TIMESTAMP_DATE ||
          ltime->time_type == MYSQL_TIMESTAMP_ERROR ||
          ltime->time_type == MYSQL_TIMESTAMP_NONE);
   type_conversion_status error;
@@ -5095,6 +5096,7 @@ type_conversion_status Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
         error = store_internal_adjust_frac(ltime, &warnings);
       }
       break;
+    case MYSQL_TIMESTAMP_DATE:
     case MYSQL_TIMESTAMP_NONE:
     case MYSQL_TIMESTAMP_ERROR:
     default:
@@ -5871,7 +5873,15 @@ bool Field_date::val_date(Date_val *date, my_time_flags_t flags) const {
 }
 
 bool Field_date::val_datetime(Datetime_val *dt, my_time_flags_t flags) const {
-  return get_internal_check_zero(dt, flags) || check_fuzzy_date(*dt, flags);
+  if (get_internal_check_zero(dt, flags)) {
+    return true;
+  }
+  if (check_fuzzy_date(*dt, flags)) {
+    return true;
+  }
+  date_to_datetime(dt);
+
+  return false;
 }
 
 int Field_date::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
@@ -8072,27 +8082,27 @@ bool Field_json::unpack_diff(const uchar **from) {
   return false;
 }
 
-bool Field_json::val_datetime(Datetime_val *dt, my_time_flags_t) const {
+bool Field_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   Json_wrapper wr;
   const bool result =
       val_json(&wr) ||
       wr.coerce_datetime(JsonCoercionWarnHandler{field_name},
-                         JsonCoercionDeprecatedDefaultHandler{}, dt);
+                         JsonCoercionDeprecatedDefaultHandler{}, dt, flags);
   if (result) {
     set_zero_time(dt, MYSQL_TIMESTAMP_DATETIME);
   }
   return result;
 }
 
-bool Field_json::val_date(Date_val *date, my_time_flags_t) const {
+bool Field_json::val_date(Date_val *date, my_time_flags_t flags) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   Json_wrapper wr;
   const bool result =
       val_json(&wr) ||
       wr.coerce_date(JsonCoercionWarnHandler{field_name},
-                     JsonCoercionDeprecatedDefaultHandler{}, date);
+                     JsonCoercionDeprecatedDefaultHandler{}, date, flags);
   if (result) {
     date->set_zero();
   }

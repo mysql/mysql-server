@@ -1,0 +1,45 @@
+# Make sure it's more than one minute since the previous throttled warning, in case the test is repeated.
+SELECT SLEEP(60 - IFNULL(TIMESTAMPDIFF(SECOND, MAX(logged), NOW()), 60))
+FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-015510';
+SLEEP(60 - IFNULL(TIMESTAMPDIFF(SECOND, MAX(logged), NOW()), 60))
+0
+# New connection should cause errors to be emitted because a THD will not be allocated.
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL DEBUG = "+d, simulate_resource_failure, emit_throttled_msg";
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+# Verify errors emitted once.
+include/assert.inc [Throttled error codes should be emitted only once]
+# More than nine additional new connections should cause throttling.
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+# Verify errors now emitted ten times.
+include/assert.inc [Throttled error codes should be emitted ten times]
+# A new connection should have the errors throttled.
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+# Verify errors still emitted only ten times.
+include/assert.inc [Throttled error codes should still be emitted only ten times]
+# Wait until throttling interval passed.
+# A new connection should cause errors to be emitted again.
+connect(localhost,root,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR HY000: Lost connection to MySQL server at 'reading initial communication packet', system error: NUM
+# Verify errors are now emitted 11 times.
+include/assert.inc [Throttled error codes should now be emitted eleven times]
+SET GLOBAL DEBUG = "-d, simulate_resource_failure, emit_throttled_msg";

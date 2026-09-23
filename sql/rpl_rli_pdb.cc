@@ -1090,6 +1090,13 @@ size_t Slave_committed_queue::find_lwm(Slave_job_group **arg_g,
 void Slave_committed_queue::free_dynamic_items() {
   for (size_t i = entry; i < avail; i++) {
     Slave_job_group *ptr_g = &m_Q[i % capacity];
+    if (ptr_g->new_fd_event) {
+      assert(ptr_g->new_fd_event->atomic_usage_counter > 0);
+      if (--ptr_g->new_fd_event->atomic_usage_counter == 0) {
+        delete ptr_g->new_fd_event;
+      }
+      ptr_g->new_fd_event = nullptr;
+    }
     if (ptr_g->group_relay_log_name) {
       my_free(ptr_g->group_relay_log_name);
     }
@@ -1552,7 +1559,11 @@ bool Slave_worker::read_and_apply_events(my_off_t start_relay_pos,
         // additional context needed, before re-executing (just like in
         // the main loop before exec_relay_log_event)
         if (rli->current_mts_submode->set_multi_threaded_applier_context(*rli,
-                                                                         *ev)) {
+                                                                         *ev) ||
+            DBUG_EVALUATE_IF("error_on_set_mta_context_trx_retry", true,
+                             false)) {
+          delete ev;
+          ev = nullptr;
           return true;
         }
 

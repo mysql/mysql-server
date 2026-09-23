@@ -1,4 +1,4 @@
-SET @debug_saved = @@global.debug;
+SET @debug_saved = @@debug;
 
 START TRANSACTION;
 
@@ -29,13 +29,13 @@ a	b
 
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 START TRANSACTION;
-SET @@global.debug = '+d,use_attachable_trx';
+SET @@debug = '+d,use_attachable_trx';
 SELECT * FROM t1;
 a	b
 1	aaa
 2	bbb
 3	ccc
-SET @@global.debug = '-d,use_attachable_trx';
+SET @@debug = '-d,use_attachable_trx';
 
 # [default connection]
 
@@ -69,13 +69,13 @@ a	b
 3	ccc
 
 # SELECT in the inner transaction sees the changes.
-SET @@global.debug = '+d,use_attachable_trx';
+SET @@debug = '+d,use_attachable_trx';
 SELECT * FROM t1;
 a	b
 1	aaa
 2	zzz
 3	ccc
-SET @@global.debug = '-d,use_attachable_trx';
+SET @@debug = '-d,use_attachable_trx';
 
 # COMMIT the outer transaction.
 COMMIT;
@@ -111,13 +111,13 @@ a	b
 3	ccc
 
 # Do anything in the inner transaction.
-SET @@global.debug = '+d,use_attachable_trx';
+SET @@debug = '+d,use_attachable_trx';
 SELECT * FROM t1;
 a	b
 1	aaa
 2	zzz
 3	ccc
-SET @@global.debug = '-d,use_attachable_trx';
+SET @@debug = '-d,use_attachable_trx';
 
 # Just make sure the changes are still there.
 SELECT * FROM t1;
@@ -142,4 +142,4 @@ COMMIT;
 # Cleanup.
 DROP TABLE t1;
 
-SET @@global.debug = @debug_saved;
+SET @@debug = @debug_saved;

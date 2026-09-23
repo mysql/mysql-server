@@ -162,12 +162,13 @@ INSERT INTO t1 (a) VALUES(1);
 --let $assert_cond = [SELECT WAITS_FOR_AVAILABLE_WORKER_SUM_TIME $from_ch] = 0
 --source include/assert.inc
 
-# The first transaction in a channel always causes a dependency check.
-# The second transaction, in this case, executes on source only after the first
-# one completes on replica, so it will not check dependencies. Hence we expect
-# the counter to be exactly 1.
---let $assert_text = There were no "real" waits on dependencies, so WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT is 1
---let $assert_cond = [SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT $from_ch] = 1
+# The first transaction in a channel always causes a dependency check. Depending
+# on coordinator and worker timing, the second transaction may observe another
+# dependency scheduling wait even though this test does not intentionally block
+# on one. Exact dependency-wait accounting is covered by
+# rpl_applier_metrics_waits.
+--let $assert_text = WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT is incremented
+--let $assert_cond = [SELECT WAITS_COMMIT_SCHEDULE_DEPENDENCY_COUNT $from_ch] >= 1
 --source include/assert.inc
 
 --echo # Nothing to assert for WAITS_COMMIT_SCHEDULE_DEPENDENCY_SUM_TIME: there was a wait, so it is likely nonzero, but there is no guarantee

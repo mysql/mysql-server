@@ -517,13 +517,6 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
     if (is_eq_range_pred) {
       range->range_flag = EQ_RANGE;
       /*
-        Use statistics instead of index dives for estimates of rows in
-        this range if the user requested it
-      */
-      if (param->use_index_statistics)
-        range->range_flag |= SKIP_RECORDS_IN_RANGE;
-
-      /*
         An equality range is a unique range (0 or 1 rows in the range)
         if the index is unique (1) and all keyparts are used (2).
         Note that keys which are extended with PK parts have no
@@ -559,6 +552,17 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
 
   seq->range_count++;
   seq->max_key_part = max<uint>(seq->max_key_part, key_tree->part);
+
+  /*
+    Use statistics instead of index dives for estimates of rows in
+    this range if the user has requested it (use_index_statistics) and
+    the range is suitable for index statistics.
+   */
+  int keyparts_used = 0;
+  if (param->use_index_statistics &&
+      can_use_index_statistics(param->table, seq->real_keyno, range->range_flag,
+                               range->start_key.keypart_map, &keyparts_used))
+    range->range_flag |= SKIP_RECORDS_IN_RANGE;
 
   if (seq->skip_records_in_range) range->range_flag |= SKIP_RECORDS_IN_RANGE;
 

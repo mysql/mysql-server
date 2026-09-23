@@ -62,6 +62,40 @@ bool SetHttpComponent::HttpWrapperHttpServerComponent::is_ssl_configured() {
   return other_->is_ssl_configured();
 }
 
+void SetHttpComponent::HttpWrapperHttpServerComponent::set_max_http_connections(
+    std::optional<uint64_t> value) {
+  other_->set_max_http_connections(value);
+}
+
+uint64_t SetHttpComponent::HttpWrapperHttpServerComponent::
+    get_effective_max_http_connections() {
+  return other_->get_effective_max_http_connections();
+}
+
+void SetHttpComponent::HttpWrapperHttpServerComponent::
+    set_max_request_body_size(std::optional<uint64_t> value) {
+  other_->set_max_request_body_size(value);
+}
+
+uint64_t SetHttpComponent::HttpWrapperHttpServerComponent::
+    get_effective_max_request_body_size() {
+  return other_->get_effective_max_request_body_size();
+}
+
+void SetHttpComponent::HttpWrapperHttpServerComponent::
+    set_max_response_body_size(std::optional<uint64_t> value) {
+  other_->set_max_response_body_size(value);
+}
+
+uint64_t SetHttpComponent::HttpWrapperHttpServerComponent::
+    get_effective_max_response_body_size() {
+  return other_->get_effective_max_response_body_size();
+}
+
+void SetHttpComponent::HttpWrapperHttpServerComponent::clear_overrides() {
+  other_->clear_overrides();
+}
+
 SetHttpComponent::SetHttpComponent(HttpServerComponent *component) {
   auto wrapper = std::make_unique<HttpWrapperHttpServerComponent>(component);
   HttpServerComponent::set_instance(std::move(wrapper));

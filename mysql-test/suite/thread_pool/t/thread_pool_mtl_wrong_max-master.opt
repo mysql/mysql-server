@@ -1,0 +1,4 @@
+# Set thread pool to a small value to avoid creating too many threads.
+--thread-pool-size=1
+--thread-pool-max-transactions-limit=1100000
+--force-restart

@@ -1262,6 +1262,7 @@ bool Dbtup::execTUPKEYREQ(Signal *signal, void *_lqhOpPtrP,
   setup_fixed_tuple_ref_opt(&req_struct);
   setup_fixed_part(&req_struct, regOperPtr, regTabPtr);
   tuple_ptr = req_struct.m_tuple_ptr;
+  ndbassert(!(tuple_ptr->m_header_bits & Tuple_header::FREE));
 
   if (prepareActiveOpList(operPtr, &req_struct)) {
     m_base_header_bits = tuple_ptr->m_header_bits;
@@ -1577,9 +1578,6 @@ bool Dbtup::execTUPKEYREQ(Signal *signal, void *_lqhOpPtrP,
 
 void Dbtup::setup_fixed_part(KeyReqStruct *req_struct, Operationrec *regOperPtr,
                              Tablerec *regTabPtr) {
-  ndbassert(regOperPtr->op_type == ZINSERT ||
-            (!(req_struct->m_tuple_ptr->m_header_bits & Tuple_header::FREE)));
-
   Uint32 descr_start = regTabPtr->tabDescriptor;
   TableDescriptor *loc_tab_descriptor = tableDescriptor;
   Uint32 num_attr = regTabPtr->m_no_of_attributes;

@@ -89,6 +89,7 @@ SET GLOBAL group_replication_recovery_retry_count= 2;
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX ONCE
 --eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_start_on_boot= ON;
@@ -146,6 +147,7 @@ SET @@GLOBAL.group_replication_advertise_recovery_endpoints = "DEFAULT";
 
 --source include/stop_group_replication.inc
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 
 --source include/wait_until_disconnected.inc

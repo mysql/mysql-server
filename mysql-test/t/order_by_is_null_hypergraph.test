@@ -1,0 +1,5 @@
+--source include/have_hypergraph.inc
+
+--source include/order_by_is_null.inc
+
+--source include/disable_hypergraph.inc

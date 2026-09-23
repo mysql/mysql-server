@@ -4324,10 +4324,8 @@ INSERT INTO t1 VALUES (NULL, 1);
 INSERT INTO t1 VALUES (NULL, 2);
 EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 EXPLAIN
--> Table scan on <temporary>  (rows=1)
-    -> Temporary table with deduplication  (rows=1)
-        -> Filter: (t1.f1 is null)  (rows=1)
-            -> Covering index skip scan for grouping on t1 using f1 over (f1 = NULL)  (rows=1)
+-> Filter: (t1.f1 is null)  (rows=1)
+    -> Covering index skip scan for grouping on t1 using f1 over (f1 = NULL)  (rows=1)
 
 SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 MIN(f2)

@@ -2889,6 +2889,13 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     thd_proc_info(thd, (!strcmp(save_proc_info, "Copying to tmp table")
                             ? "Copying to tmp table on disk"
                             : save_proc_info));
+
+  /*
+    Reading from the in-memory table clears wtable's not-started state, so reset
+    it here.
+  */
+  wtable->set_not_started();
+
   return false;
 
 err_after_open:

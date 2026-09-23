@@ -973,3 +973,69 @@ CREATE TABLE ibstd_03 (
 --remove_file $file
 
 DROP TABLE ibstd_03;
+
+--echo #
+--echo # Bug 38939847 - After an error occurs when importing data containing
+--echo # NULL fields, insert can not be executed normally.
+--echo #
+
+SET @old_sql_mode = @@sql_mode;
+SET sql_mode = CONCAT(
+  'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,',
+  'NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO');
+
+CREATE TABLE t2 (
+  id INT NOT NULL,
+  a CHAR(20) NOT NULL DEFAULT '',
+  b CHAR(20) NOT NULL DEFAULT '',
+  c JSON NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--let $file=$MYSQLTEST_VARDIR/tmp/bug38939847
+--exec printf '1\003"101"\003NULL\003"{\"adf\":3}"\n' > $file
+
+--let $query= LOAD DATA INFILE '$file' INTO TABLE t2
+--let $query= $query FIELDS TERMINATED BY 0x03 OPTIONALLY ENCLOSED BY '"'
+--let $query= $query (id, a, b, c)
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_WARN_NULL_TO_NOTNULL
+--eval $query
+
+INSERT INTO t2 VALUES (501, 'abc', 'bb', '{"abc":2}');
+
+SELECT * FROM t2 ORDER BY id;
+
+DROP TABLE t2;
+--remove_file $file
+
+--echo #
+--echo # Temporary NULL state must not leak between LOAD DATA rows.
+--echo #
+
+SET sql_mode = '';
+
+CREATE TABLE t3 (
+  id INT NOT NULL,
+  b CHAR(20) NOT NULL DEFAULT '',
+  PRIMARY KEY (id)
+);
+
+--let $file=$MYSQLTEST_VARDIR/tmp/bug38939847_rows
+--exec printf '1\003NULL\n' > $file
+--exec printf '2\n' >> $file
+--exec printf '3\003"ok"\n' >> $file
+
+--let $query= LOAD DATA INFILE '$file' INTO TABLE t3
+--let $query= $query FIELDS TERMINATED BY 0x03 OPTIONALLY ENCLOSED BY '"'
+--let $query= $query (id, b)
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval $query
+
+SELECT @@warning_count;
+SELECT id, b, b = '' AS b_is_default FROM t3 ORDER BY id;
+
+DROP TABLE t3;
+--remove_file $file
+
+SET sql_mode = @old_sql_mode;

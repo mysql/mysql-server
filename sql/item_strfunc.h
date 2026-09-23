@@ -1270,7 +1270,7 @@ class Item_func_uncompressed_length final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     if (reject_vector_args()) return true;
-    max_length = 10;
+    max_length = MY_INT32_NUM_DECIMAL_DIGITS;
     return false;
   }
   longlong val_int() override;

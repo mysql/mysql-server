@@ -182,7 +182,7 @@ int insert_setup_actor(const PFS_user_name *user, const PFS_host_name *host,
   PFS_setup_actor *pfs;
   pfs_dirty_state dirty_state;
 
-  pfs = global_setup_actor_container.allocate(&dirty_state);
+  pfs = global_setup_actor_container.allocate(&dirty_state, nullptr);
   if (pfs != nullptr) {
     set_setup_actor_key(&pfs->m_key, user, host, role);
     pfs->m_enabled = enabled;

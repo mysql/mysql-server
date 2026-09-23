@@ -4055,4 +4055,114 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5` from `test`.`t2` USE INDEX (`idx2`) left join `test`.`t1` USE INDEX (`idx1`) on(((`test`.`t1`.`f3` = 20) and (`test`.`t1`.`f2` = `test`.`t2`.`f2`) and (`test`.`t1`.`f4` > 10) and (`test`.`t1`.`f5` > 20))) where true
 DROP TABLES t1,t2;
+#
+# Bug#35749693: Incorrect multiple equality optimization causes
+#               performance degradation
+#
+CREATE TABLE t1(a INT, b INT, c VARCHAR(100));
+CREATE TABLE t2(a INT, b INT, c VARCHAR(100));
+INSERT INTO t1 VALUES (1,1,'x'),(-1,-1,'y'),(NULL,0,'z');
+INSERT INTO t2 VALUES (1,10,'p'),(-5,20,'q'),(2,30,'r');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a > 0;
+EXPLAIN
+-> Left hash join (t2.a = t1.a)
+    -> Table scan on t1
+    -> Hash
+        -> Filter: (t2.a > 0)
+            -> Table scan on t2
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a > 0;
+a	b	c	a	b	c
+-1	-1	y	NULL	NULL	NULL
+1	1	x	1	10	p
+NULL	0	z	NULL	NULL	NULL
+#
+# Same bug, bare boolean field: t2.a used directly as the predicate.
+# make_condition() wraps non-boolean predicates in Item_func_ne(0, x)
+# at parse time, so the remap above sees a FUNC_ITEM and handles it.
+#
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a;
+EXPLAIN
+-> Left hash join (t2.a = t1.a)
+    -> Table scan on t1
+    -> Hash
+        -> Filter: (0 <> t2.a)
+            -> Table scan on t2
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a;
+a	b	c	a	b	c
+-1	-1	y	NULL	NULL	NULL
+1	1	x	1	10	p
+NULL	0	z	NULL	NULL	NULL
+#
+# Converse: user writes the predicate on the OUTER column (t1.a > 0).
+# Within the ON scope t1.a = t2.a holds, so remapping to t2.a > 0 would
+# be valid, but replace_equal_field() records the multi-equality on a
+# field only when it actually substitutes it; t1.a is already the head
+# of the equality so no substitution happens and the predicate stays as
+# an extra condition. Kept here to verify results remain correct.
+#
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t1.a > 0;
+EXPLAIN
+-> Left hash join (t2.a = t1.a), extra conditions: (t1.a > 0)
+    -> Table scan on t1
+    -> Hash
+        -> Table scan on t2
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t1.a > 0;
+a	b	c	a	b	c
+-1	-1	y	NULL	NULL	NULL
+1	1	x	1	10	p
+NULL	0	z	NULL	NULL	NULL
+#
+# 3-table case: t1 LEFT JOIN (t2 JOIN t3) — predicate on t3 column
+#
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES (1,100),(-1,200);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.a = t3.a)
+ON t1.a = t2.a AND t3.a > 0;
+EXPLAIN
+-> Left hash join (t3.a = t1.a), (t2.a = t1.a)
+    -> Table scan on t1
+    -> Hash
+        -> Filter: (t3.a > 0)
+            -> Inner hash join (no condition)
+                -> Table scan on t2
+                -> Hash
+                    -> Table scan on t3
+
+DROP TABLE t3;
+#
+# Correctness guard: equality nested under OR in the ON clause.
+# The remapping must NOT touch a condition that already references the
+# build side; otherwise the equality (t1.b = t2.b) could be rewritten to
+# (t2.b = t2.b) via its own disjunct-level multiple equality.
+#
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 LEFT JOIN t2
+ON t1.a = t2.a AND (t1.b = t2.b OR t2.c IS NULL);
+EXPLAIN
+-> Left hash join (t2.a = t1.a), extra conditions: ((t2.b = t1.b) or (t2.c is null))
+    -> Table scan on t1
+    -> Hash
+        -> Table scan on t2
+
+SELECT * FROM t1 LEFT JOIN t2
+ON t1.a = t2.a AND (t1.b = t2.b OR t2.c IS NULL);
+a	b	c	a	b	c
+-1	-1	y	NULL	NULL	NULL
+1	1	x	NULL	NULL	NULL
+NULL	0	z	NULL	NULL	NULL
+DROP TABLE t1, t2;
 set optimizer_switch=default;

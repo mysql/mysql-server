@@ -87,6 +87,13 @@ class Message_service_handler {
   bool notify_message_service_recv(Group_service_message *service_message);
 
  private:
+  /**
+    Leave the group due to a message service failure.
+
+    @param[in] leave_error_msg  message used for the exit state action path
+  */
+  void leave_on_message_service_error(const char *leave_error_msg);
+
   /** Thread was terminated */
   bool m_aborted;
   /** The current phase */

@@ -840,7 +840,16 @@ class Thd_parse_modifier {
         m_cs(thd->variables.character_set_client) {
     thd->m_digest = &m_digest_state;
     m_digest_state.reset(token_buffer, get_max_digest_length());
-    m_arena.set_query_arena(*thd);
+
+    // We want to swap m_arena and m_thd's Query_arena.
+    // We do this by placing m_thd's Query_arena in tmp and giving m_arena to
+    // m_thd.
+    // Then we put tmp back into m_arena until Thd_parse_modifier goes
+    // out of scope.
+    Query_arena tmp;
+    thd->swap_query_arena(m_arena, &tmp);
+    m_arena.set_query_arena(tmp);
+
     thd->lex = &m_lex;
     lex_start(thd);
   }
@@ -848,6 +857,12 @@ class Thd_parse_modifier {
   ~Thd_parse_modifier() {
     lex_end(&m_lex);
     m_thd->lex = m_backed_up_lex;
+    m_thd->free_items();
+    // No need to swap here as we have freed items created by parsing above
+    // and the mem_root used for parsing will be freed when Thd_parse_modifier
+    // goes out of scope. All that is needed is to give the THD back its
+    // regular Query_arena (with mem_root and item list containing those Items
+    // that were allocated before Thd_parse_modifier was created).
     m_thd->set_query_arena(m_arena);
     m_thd->m_parser_state = m_saved_parser_state;
     m_thd->m_digest = m_saved_digest;
@@ -1416,18 +1431,19 @@ String *Item_func_insert::val_str(String *str) {
   if ((start < 1) || (start > orig_len))
     return res;  // Wrong param; skip insert
 
-  --start;  // Internal start from '0'
+  --start;  // Internal start from character number '0'
 
   if ((length < 0) || (length > orig_len)) length = orig_len;
 
-  /* start and length are now sufficiently valid to pass to charpos function */
+  // start and length are now sufficiently valid to pass to charpos function
   start = res->charpos(static_cast<size_t>(start));
   length =
       res->charpos(static_cast<size_t>(length), static_cast<size_t>(start));
 
-  /* Re-testing with corrected params */
-  if (start > orig_len)
-    return res; /* purecov: inspected */  // Wrong param; skip insert
+  // start and length are now byte positions, check that start is within string
+  if (start >= orig_len) {  // After original string, skip the insertion
+    return res;
+  }
   if (length > orig_len - start) length = orig_len - start;
 
   if (static_cast<ulonglong>(orig_len - length + res2->length()) >

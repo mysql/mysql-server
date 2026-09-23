@@ -1217,6 +1217,10 @@ int Clone_Handle::send_data(Clone_Task *task, const Clone_file_ctx *file_ctx,
   data_desc.m_file_offset = offset;
   data_desc.m_file_size = file_meta->m_file_size;
 
+  /* Send an invalid file index. */
+  DBUG_EXECUTE_IF("clone_send_invalid_data_file_index",
+                  { data_desc.m_file_index = UINT32_MAX; };);
+
   /* Adjust file size to extend automatically while copying page 0. */
   if (new_file_size > data_desc.m_file_size) {
     ut_ad(snapshot->get_state() == CLONE_SNAPSHOT_PAGE_COPY);

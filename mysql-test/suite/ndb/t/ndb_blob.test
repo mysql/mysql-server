@@ -706,6 +706,56 @@ set autocommit=0;
 
 drop table t1;
 
+# Test autocommit + join + blobs roundtrips
+
+set autocommit=1;
+create table t1 (a int primary key, b text) engine=ndb;
+create table t2 like t1;
+create table t3 like t1;
+
+insert into t1 values (1, repeat('Blah', 1000));
+insert into t2 select * from t1;
+insert into t3 select * from t1;
+
+# Warmup
+select t1.a, length(t1.b), length(t2.b), length(t3.b) from  t1 inner join t2 on t1.a = t2.a  inner join t3 on t1.a = t3.a where t1.a=1;
+
+# Timing
+--disable_result_log
+select @start_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+
+--echo 3 way join
+select t1.a, length(t1.b), length(t2.b), length(t3.b) from  t1 inner join t2 on t1.a = t2.a  inner join t3 on t1.a = t3.a where t1.a=1;
+
+select @end_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+
+--enable_result_log
+
+--echo Total round trips with parts
+select @end_count-@start_count as round_trips;
+
+update t1 set b=left(b,100);
+update t2 set b=left(b,100);
+update t3 set b=left(b,100);
+
+# Timing
+--disable_result_log
+select @start_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+
+--echo 3 way join
+select t1.a, length(t1.b), length(t2.b), length(t3.b) from  t1 inner join t2 on t1.a = t2.a  inner join t3 on t1.a = t3.a where t1.a=1;
+
+select @end_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+
+--enable_result_log
+
+--echo Total round trips without parts
+select @end_count-@start_count as round_trips;
+
+drop table t1, t2, t3;
+
+set autocommit=0;
+
 --echo 5.6 tests
 
 # Bug#16749788 

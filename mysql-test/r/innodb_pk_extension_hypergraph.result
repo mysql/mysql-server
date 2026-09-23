@@ -97,7 +97,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Filter: ((t1.pk_1 between 3 and 5) and (t1.f1 = TIMESTAMP'2000-01-03 00:00:00'))  (rows=6)
+    -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
         -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
 FLUSH STATUS;
@@ -115,7 +115,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 EXPLAIN
--> Filter: ((t1.pk_1 between 3 and 5) and (t1.f1 = TIMESTAMP'2000-01-03 00:00:00'))  (rows=6)
+-> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
     -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
 FLUSH STATUS;
@@ -161,7 +161,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 EXPLAIN
 -> Aggregate: min(t1.pk_1)  (rows=1)
-    -> Filter: ((t1.pk_1 between 3 and 5) and (t1.f1 = TIMESTAMP'2000-01-03 00:00:00'))  (rows=6)
+    -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
         -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
 FLUSH STATUS;
@@ -198,7 +198,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 EXPLAIN
 -> Aggregate: max(t1.pk_1)  (rows=1)
-    -> Filter: ((t1.pk_1 between 3 and 5) and (t1.f1 = TIMESTAMP'2000-01-03 00:00:00'))  (rows=6)
+    -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
         -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
 FLUSH STATUS;
@@ -220,8 +220,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE f2 BETWEEN 13 AND 14 GROUP BY f2;
 EXPLAIN
 -> Group aggregate: min(t1.pk_1)  (rows=45)
-    -> Filter: (t1.f2 between 13 and 14)  (rows=96)
-        -> Covering index range scan on t1 using k2 over (13 <= f2 <= 14)  (rows=96)
+    -> Covering index range scan on t1 using k2 over (13 <= f2 <= 14)  (rows=96)
 
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f2 BETWEEN 13 AND 14 GROUP BY f2;
@@ -319,7 +318,7 @@ EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-
 ORDER BY pk_2 DESC LIMIT 5;
 EXPLAIN
 -> Sort: t1.pk_2 DESC, limit input to 5 row(s) per chunk  (rows=5)
-    -> Filter: ((t1.pk_1 between 3 and 5) and (t1.f1 = TIMESTAMP'2000-01-03 00:00:00'))  (rows=6)
+    -> Filter: (t1.f1 = TIMESTAMP'2000-01-03 00:00:00')  (rows=6)
         -> Index range scan on t1 using PRIMARY over (3 <= pk_1 <= 5)  (rows=30)
 
 FLUSH STATUS;
@@ -575,8 +574,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Filter: (t1.pk_1 between 3 and 5)  (rows=6)
-        -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
+    -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
@@ -593,8 +591,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 EXPLAIN
--> Filter: (t1.pk_1 between 3 and 5)  (rows=6)
-    -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
+-> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
 FLUSH STATUS;
 SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
@@ -639,8 +636,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 EXPLAIN
 -> Aggregate: min(t1.pk_1)  (rows=1)
-    -> Filter: (t1.pk_1 between 3 and 5)  (rows=6)
-        -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
+    -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
@@ -676,8 +672,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 EXPLAIN
 -> Aggregate: max(t1.pk_1)  (rows=1)
-    -> Filter: (t1.pk_1 between 3 and 5)  (rows=6)
-        -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
+    -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
@@ -793,8 +788,7 @@ EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-
 ORDER BY pk_2 DESC LIMIT 5;
 EXPLAIN
 -> Sort: t1.pk_2 DESC, limit input to 5 row(s) per chunk  (rows=5)
-    -> Filter: (t1.pk_1 between 3 and 5)  (rows=6)
-        -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
+    -> Covering index range scan on t1 using k1 over (f1 = '2000-01-03 00:00:00' AND 3 <= pk_1 <= 5)  (rows=6)
 
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03'

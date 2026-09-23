@@ -79,6 +79,7 @@ SET PERSIST group_replication_start_on_boot= ON;
 --let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
 SET GLOBAL group_replication_clone_threshold= 1;
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.2.expect

@@ -106,6 +106,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # set group_replication_group_name command is failing as the previous start
 # process may still be running so can't use
 # start_and_bootstrap_group_replication.inc.
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 
 --let $group_replication_member_state= ONLINE

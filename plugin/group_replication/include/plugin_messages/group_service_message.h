@@ -142,9 +142,10 @@ class Group_service_message : public Plugin_gcs_message {
     Group service message decoding method
 
     @param[in] buffer the received data
+    @param[in] end    the end of the buffer
   */
   void decode_payload(const unsigned char *buffer,
-                      const unsigned char *) override;
+                      const unsigned char *end) override;
 
  private:
   /**The message identifier*/

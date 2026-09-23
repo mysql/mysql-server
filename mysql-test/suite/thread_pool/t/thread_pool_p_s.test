@@ -1,0 +1,309 @@
+# Check
+# - the following "pool of threads" related tables
+#      performance_schema.tp_thread_group_stats
+#      performance_schema.tp_thread_state
+#      performance_schema.tp_thread_group_state
+#   their layout, how the show up within other information_schema tables,
+#   permissions to query their content
+# - how the "pool of threads" plugin shows up in
+#   information_schema.plugins
+# and similar stuff which does not depend on history of current test etc..
+#
+# Notes:
+#    1. The feature "pool of threads" needs to be enabled for getting these
+#       tables within the database information_schema.
+#    2. This test is not intended to show how the content of these tables
+#       changes depending on
+#       - activity of sessions within the server.
+#       - the current setting of "pool of threads" related variables
+#
+# Author:
+# 2010-11-02 mleich develop tests for WL#5136 New Thread pool design
+# 2018-06-07 malff created and adapted thread_pool_p_s from thread_pool_i_s
+#
+
+--source include/have_thread_pool.inc
+--source include/reopen_default_connection_as_tcpip.inc
+
+SET @admin_thread_groups = 1;
+
+--echo # 2. Show the layout of the "pool of threads" tables.
+SHOW CREATE TABLE performance_schema.tp_thread_group_stats;
+SHOW CREATE TABLE performance_schema.tp_thread_group_state;
+SHOW CREATE TABLE performance_schema.tp_thread_state;
+
+# Test indexes
+
+explain select TP_GROUP_ID from performance_schema.tp_thread_group_stats
+  where TP_GROUP_ID=1;
+select TP_GROUP_ID from performance_schema.tp_thread_group_stats
+  where TP_GROUP_ID=1;
+
+explain select TP_GROUP_ID from performance_schema.tp_thread_group_state
+  where TP_GROUP_ID=1;
+select TP_GROUP_ID from performance_schema.tp_thread_group_state
+  where TP_GROUP_ID=1;
+
+explain select TP_GROUP_ID, TP_THREAD_NUMBER from performance_schema.tp_thread_state
+  where TP_GROUP_ID=1;
+--disable_result_log
+select TP_GROUP_ID, TP_THREAD_NUMBER from performance_schema.tp_thread_state
+  where TP_GROUP_ID=1;
+--enable_result_log
+
+explain select TP_GROUP_ID, TP_THREAD_NUMBER from performance_schema.tp_thread_state
+  where TP_GROUP_ID=1 AND TP_THREAD_NUMBER=1;
+--disable_result_log
+select TP_GROUP_ID, TP_THREAD_NUMBER from performance_schema.tp_thread_state
+  where TP_GROUP_ID=1 AND TP_THREAD_NUMBER=1;
+--enable_result_log
+
+--echo # 3. Show the columns of these tables how they are reported within
+--echo #    information_schema.columns.
+SELECT TABLE_NAME, COLUMN_NAME,COLUMN_DEFAULT,IS_NULLABLE,DATA_TYPE,
+       CHARACTER_MAXIMUM_LENGTH,CHARACTER_OCTET_LENGTH,NUMERIC_PRECISION,
+       NUMERIC_SCALE,CHARACTER_SET_NAME,COLLATION_NAME,COLUMN_TYPE,EXTRA,
+       PRIVILEGES,COLUMN_COMMENT
+FROM information_schema.columns
+WHERE table_schema = 'performance_schema'
+  AND table_name IN
+        ('tp_thread_group_stats','tp_thread_group_state','tp_thread_state')
+ORDER BY table_name,column_name;
+
+--echo # 4. All these tables contain a column named TP_GROUP_ID and
+--echo #    these columns must be of the same type.
+let $part=
+SELECT COLUMN_DEFAULT,IS_NULLABLE,DATA_TYPE,NUMERIC_PRECISION,NUMERIC_SCALE,
+       COLUMN_TYPE,EXTRA,PRIVILEGES
+FROM information_schema.columns
+WHERE table_schema = 'performance_schema' AND column_name = 'TP_GROUP_ID';
+eval
+SELECT COUNT(*) AS "Expect 1" FROM
+( $part AND table_name = 'tp_thread_group_stats'
+  UNION DISTINCT
+  $part AND table_name = 'tp_thread_group_state'
+  UNION DISTINCT
+  $part AND table_name = 'tp_thread_state') AS A;
+
+--echo # 5. It must be impossible to alter the layout of these tables or
+--echo #    or to modify their content.
+let $table= performance_schema.tp_thread_group_stats;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval DELETE FROM $table;
+--error ER_DBACCESS_DENIED_ERROR
+eval ALTER TABLE $table ADD COLUMN garbage VARCHAR(20);
+let $table= performance_schema.tp_thread_group_state;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval DELETE FROM $table;
+--error ER_DBACCESS_DENIED_ERROR
+eval ALTER TABLE $table ADD COLUMN garbage VARCHAR(20);
+let $table= performance_schema.tp_thread_state;
+--error ER_TABLEACCESS_DENIED_ERROR
+eval DELETE FROM $table;
+--error ER_DBACCESS_DENIED_ERROR
+eval ALTER TABLE $table ADD COLUMN garbage VARCHAR(20);
+
+--echo # 6. It must be possible to SELECT on these tables.
+--echo #    The printing of results is partially suppressed.
+--echo #    A high privileged user should see the same like a low
+--echo #    privileged user. Example:
+--echo #    There must be @@global.thread_pool_size distinct TP_GROUP_ID
+--echo #    values per table.
+# Note: This sub test is focused on that a low privileged user should see
+#       the same table content like a high privileged user.
+#       In order to have a test which does not suffer from the highly
+#       dynamic (dependency on current variables, testcase history, maybe
+#       environment on the testing box etc.) content within these tables
+#       we are forced to
+#       - suppress the printing of result sets
+#       - use tricks like
+#         COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size etc.
+#       In short words: We exploit thread_pool_size.but it is not in focus.
+CREATE USER low_privilege@localhost;
+GRANT USAGE ON test.* TO low_privilege@localhost;
+GRANT SELECT ON performance_schema.* TO low_privilege@localhost;
+FLUSH PRIVILEGES;
+--echo # Establish connection (low_privilege,localhost,low_privilege,,test)
+--connect (low_privilege,localhost,low_privilege,,test)
+let $id_list= `SELECT CONNECTION_ID()`;
+--disable_result_log
+SELECT * FROM performance_schema.tp_thread_group_stats;
+SELECT * FROM performance_schema.tp_thread_group_state;
+SELECT * FROM performance_schema.tp_thread_state;
+--enable_result_log
+SET @admin_thread_groups = 1;
+
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'tp_thread_group_stats' AS "Table"
+FROM performance_schema.tp_thread_group_stats
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'tp_thread_group_state'
+FROM performance_schema.tp_thread_group_state
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'tp_thread_state'
+FROM performance_schema.tp_thread_state;
+
+--echo # Switch to connection default
+--connection default
+--disable_result_log
+SELECT * FROM performance_schema.tp_thread_group_stats;
+SELECT * FROM performance_schema.tp_thread_group_state;
+SELECT * FROM performance_schema.tp_thread_state;
+--enable_result_log
+
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'tp_thread_group_stats' AS "Table"
+FROM performance_schema.tp_thread_group_stats
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'tp_thread_group_state'
+FROM performance_schema.tp_thread_group_state
+UNION ALL
+SELECT COUNT(DISTINCT TP_GROUP_ID) = @@global.thread_pool_size + @admin_thread_groups AS "Expect 1",
+       'tp_thread_state'
+FROM performance_schema.tp_thread_state;
+
+# Cleanup
+--disconnect low_privilege
+--source ../inc/wait_until_disappeared.inc
+DROP USER low_privilege@localhost;
+
+--echo #
+--echo # BUG#32194617 - THREAD POOL'S P_S TABLES DON'T SUPPORT USING HASH FOR INDEXES, MY-013129
+--echo #
+SELECT COUNT(*) AS EXPECT_0 FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-013129';
+
+--echo #
+--echo # Bug#34020058 - Extend PFS.tp_thread_state table to include PFS thread_id and TP thread type
+--echo #
+--echo # PFS thread id and thread type of each thread should be listed.
+
+SELECT TP_GROUP_ID, WAIT_TYPE, TP_THREAD_TYPE FROM performance_schema.tp_thread_state WHERE TP_GROUP_ID = 0
+         AND TP_THREAD_TYPE = 'CONNECTION_HANDLER_WORKER_THREAD';
+
+SELECT TP_GROUP_ID, WAIT_TYPE, TP_THREAD_TYPE FROM performance_schema.tp_thread_state WHERE TP_GROUP_ID = 0
+         AND TP_THREAD_TYPE = 'QUERY_WORKER_THREAD' LIMIT 1;
+
+
+--echo #
+--echo # Wl#15515: Add TP connection information to PFS
+--echo #
+
+SHOW CREATE TABLE performance_schema.tp_connections;
+
+--echo # Show only those columns which have stable values
+SELECT ACTIVE_FLAG, KILLED_STATE, CLEANUP_STATE, CONNECT_HANDLER_INDEX, TYPE
+FROM performance_schema.tp_connections ORDER BY CONNECTION_ID;
+
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+connect(con3,localhost,root,,);
+connect(con4,localhost,root,,);
+connect(con5,localhost,root,,);
+
+--echo # After adding some additional connections
+SELECT
+KILLED_STATE, CLEANUP_STATE, CONNECT_HANDLER_INDEX, TYPE
+FROM performance_schema.tp_connections ORDER BY CONNECTION_ID;
+
+--echo # Join with tp_thread_state, to show the processing thread (if any)
+SELECT
+c.KILLED_STATE, c.CLEANUP_STATE,
+c.CONNECT_HANDLER_INDEX, c.TYPE, t.STATE
+FROM performance_schema.tp_connections c, performance_schema.tp_thread_state t
+WHERE c.TP_GROUP_ID = t.TP_GROUP_ID AND
+      c.TP_PROCESSING_THREAD_NUMBER = t.TP_THREAD_NUMBER AND
+      c.CONNECTION_ID = CONNECTION_ID();
+
+--echo # Join with P_S.threads on PROCESSLIST_ID. This joins each connection with
+--echo # their tp_one_connection "fake" entry in P_S.threads, not the actual tp_worker_thread
+--echo # executing on behalf of the connection.
+SELECT
+c.KILLED_STATE, c.CLEANUP_STATE,
+c.CONNECT_HANDLER_INDEX, c.TYPE, t.NAME, t.TYPE, t.PROCESSLIST_USER, t.PROCESSLIST_DB
+FROM performance_schema.tp_connections c, performance_schema.threads t
+WHERE c.CONNECTION_ID = t.PROCESSLIST_ID ORDER BY c.STATE;
+
+--echo # Get info about current connection and its current worker thread (if it has one).
+SELECT
+c.KILLED_STATE, c.CLEANUP_STATE,
+c.CONNECT_HANDLER_INDEX, c.TYPE
+FROM
+performance_schema.tp_connections c,
+performance_schema.tp_thread_state t
+WHERE c.CONNECTION_ID = CONNECTION_ID() AND
+c.TP_GROUP_ID = t.TP_GROUP_ID AND
+c.TP_PROCESSING_THREAD_NUMBER = t.TP_THREAD_NUMBER;
+
+--echo # Get info about the tp_worker_thread for the current connection by joining with
+--echo # tp_thread_state and P_S.threads
+SELECT
+c.KILLED_STATE, c.CLEANUP_STATE,
+c.CONNECT_HANDLER_INDEX, c.TYPE, t.STATE,
+pt.NAME, pt.TYPE
+FROM
+performance_schema.tp_connections c,
+performance_schema.tp_thread_state t,
+performance_schema.threads pt
+WHERE
+c.CONNECTION_ID = CONNECTION_ID() AND
+c.TP_GROUP_ID = t.TP_GROUP_ID AND
+c.TP_PROCESSING_THREAD_NUMBER = t.TP_THREAD_NUMBER AND
+t.THREAD_ID = pt.THREAD_ID;
+
+
+--echo #
+--echo # Bug#36296830: TP PFS Table tp_connections does not report connections
+--echo # in the admin group
+--echo #
+
+GRANT TP_CONNECTION_ADMIN ON *.* TO root@localhost;
+connect(admcon,localhost,root,,);
+
+SET @conn_id = CONNECTION_ID();
+eval SELECT COUNT(*) = 1 AS AS_EXPECTED FROM performance_schema.tp_connections WHERE CONNECTION_ID = @conn_id;
+
+--echo # Cleanup
+disconnect admcon;
+--source include/wait_until_disconnected.inc
+
+connection con5;
+disconnect con5;
+--source include/wait_until_disconnected.inc
+
+connection con4;
+disconnect con4;
+--source include/wait_until_disconnected.inc
+
+connection con3;
+disconnect con3;
+--source include/wait_until_disconnected.inc
+
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connection default;
+REVOKE TP_CONNECTION_ADMIN ON *.* FROM root@localhost;
+
+--echo #
+--echo # Bug#24796018: THREAD_ID IS EMPTY IN P*_SCHEMA.SOCKET_INSTANCES WHEN
+--echo # THREAD_POOL IS INSTALLED
+--echo #
+--echo # Verify that it is possible to join socket_instances with threads on
+--echo # THREAD_ID
+SELECT si.EVENT_NAME, t.NAME, t.PROCESSLIST_INFO
+FROM performance_schema.socket_instances si JOIN performance_schema.threads t
+ON si.THREAD_ID = t.THREAD_ID
+WHERE t.NAME = 'thread/thread_pool/tp_one_connection';
+
+# Add suppression for the message that says
+# thread_pool_query_threads_per_group(1) is not recommended when used with
+# HIGH_CONCURRENCY_ALGORITHM
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

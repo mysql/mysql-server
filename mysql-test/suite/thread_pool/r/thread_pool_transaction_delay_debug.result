@@ -1,0 +1,233 @@
+# Setup
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE USER ctrlu;
+GRANT ALL on *.* TO ctrlu;
+SHOW GRANTS FOR ctrlu;
+Grants for ctrlu@%
+GRANT <ALL_STATIC_PRIVILEGES> ON *.* TO `ctrlu`@`%`
+GRANT <ALL_DYNAMIC_PRIVILEGES> ON *.* TO `ctrlu`@`%`
+## Show behavior when thread_pool_transaction_delay=0
+connect ctrl, localhost, ctrlu, ,,;
+# In autocommit mode each statement should consider transaction_delay
+# and find it to be zero.
+SET GLOBAL DEBUG = '+d,tdzero';
+connection default;
+SELECT * FROM t1;
+i
+1
+2
+3
+# Likewise for BEGIN WORK.
+BEGIN WORK;
+connection ctrl;
+# But for the following statement in the transaction started by
+# BEGIN WORK, transaction_delay should not be available.
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+connection default;
+SELECT * FROM t1;
+i
+1
+2
+3
+COMMIT WORK;
+connection ctrl;
+# BEGIN should see tdzero
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdzero";
+connection default;
+BEGIN;
+connection ctrl;
+# SELECT 1 after BEGIN sees tdna, like other statements.
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+connection default;
+SELECT 1;
+1
+1
+SELECT * FROM t1;
+i
+1
+2
+3
+COMMIT;
+connection ctrl;
+# When autocommit is turned off, the next statement is the first in a
+# transaction, and should consider transaction_delay and find it to be
+# zero.
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdzero";
+connection default;
+SET AUTOCOMMIT = OFF;
+SELECT * FROM t1;
+i
+1
+2
+3
+connection ctrl;
+# The next statement is now part of the same transaction, and
+# transaction_delay should not be available.
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+connection default;
+SELECT * FROM t1;
+i
+1
+2
+3
+COMMIT;
+connection ctrl;
+# The next statement after commit is the first in a transactions and
+# should find transaction_delay to be zero. 
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdzero";
+connection default;
+SELECT * FROM t1;
+i
+1
+2
+3
+connection ctrl;
+# The next statement is now part of the same transaction, and
+# transaction_delay should not be available.
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+connection default;
+SELECT * FROM t1;
+i
+1
+2
+3
+COMMIT;
+connection ctrl;
+# First SELECT 1 in transaction should see tdzero
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdzero";
+connection default;
+SELECT 1;
+1
+1
+# Additional SELECT 1's still see tdzero because
+# a table has not been opened so we are still not
+# in an active multi-statement transaction.
+connection default;
+SELECT 1;
+1
+1
+SELECT 1;
+1
+1
+SELECT * FROM t1;
+i
+1
+2
+3
+connection ctrl;
+# Only after the first table SELECT do we see tdna
+SET GLOBAL DEBUG = "-d,tdzero";
+SET GLOBAL DEBUG = "+d,tdna";
+connection default;
+SELECT 1;
+1
+1
+COMMIT;
+connection ctrl;
+# Unset debug for admin statements.
+SET GLOBAL DEBUG = "-d,tdna";
+connection default;
+# Restore default autocommit value.
+SET AUTOCOMMIT = ON;
+## Show behavior when tranaction delay is non-zero (on).
+SET GLOBAL thread_pool_transaction_delay=1;
+connection ctrl;
+# Statement in autocommit mode should find transaction_delay to be on.
+SET GLOBAL DEBUG = "+d,tdon";
+connection default;
+SELECT * FROM t1;
+i
+1
+2
+3
+# Likewise for BEGIN WORK
+BEGIN WORK;
+connection ctrl;
+# But for next statement in transaction started by BEGIN WORK,
+# transaction_delay should not be available
+SET GLOBAL DEBUG = "-d,tdon";
+SET GLOBAL DEBUG = "+d,tdna";
+connection default;
+SELECT * FROM t1;
+i
+1
+2
+3
+COMMIT WORK;
+connection ctrl;
+# When autocommit is turned off, the next statement is the first in 
+# a transaction and should find transaction_delay to be on.
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdon";
+connection default;
+SET AUTOCOMMIT = OFF;
+SELECT * FROM t1;
+i
+1
+2
+3
+connection ctrl;
+# But for the next statement in the same transaction transaction_delay
+# should not be available.
+SET GLOBAL DEBUG = "-d,tdon";
+SET GLOBAL DEBUG = "+d,tdna";
+connection default;
+SELECT * FROM t1;
+i
+1
+2
+3
+COMMIT;
+connection ctrl;
+# The next statement after commit is the first in a transactions and
+# should find transaction_delay to be on. This remains true until a table
+# has been opened and the transaction becomes active multi-statement.
+SET GLOBAL DEBUG = "-d,tdna";
+SET GLOBAL DEBUG = "+d,tdon";
+connection default;
+SELECT 1;
+1
+1
+SELECT 1;
+1
+1
+SELECT * FROM t1;
+i
+1
+2
+3
+connection ctrl;
+# But for the next statement in the same transaction transaction_delay
+# should not be available.
+SET GLOBAL DEBUG = "-d,tdon";
+SET GLOBAL DEBUG = "+d,tdna";
+connection default;
+SELECT 1;
+1
+1
+SELECT 1;
+1
+1
+SELECT * FROM t1;
+i
+1
+2
+3
+COMMIT;
+connection ctrl;
+SET GLOBAL DEBUG = "-d,tdna";
+disconnect ctrl;
+connection default;
+SET GLOBAL DEBUG = "";
+DROP USER ctrlu;
+DROP TABLE t1;
+SET GLOBAL thread_pool_transaction_delay = 0;

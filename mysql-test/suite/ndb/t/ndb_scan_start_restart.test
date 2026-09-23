@@ -1,0 +1,7 @@
+--source include/have_ndb.inc
+
+let NDBAPITEST_NAME=testScan;
+let NDBAPITEST_ARGS=-nScanStartRestart T1;
+let NDBAPITEST_CLEANUP_QUERY=DROP DATABASE TEST_DB;
+
+--source suite/ndb/include/run_ndbapitest.inc

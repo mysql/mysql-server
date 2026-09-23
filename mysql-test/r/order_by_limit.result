@@ -796,3 +796,84 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2
 SET @@GLOBAL.DEBUG= '-d,prefer_ordering_index_check';
 SET optimizer_switch = DEFAULT;
 drop table t0, t1, t2;
+#
+# Bug#38564020: Optimizer with reverse index range scan
+#               gives incorrect query result
+#
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER, f3 INTEGER, PRIMARY KEY(f1), KEY key1(f2));
+INSERT INTO t1 VALUES (10,1,2), (20,1,2), (30,1,3),(40,1,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (cost=2.06 rows=1)
+    -> Index range scan on t1 using key1 over (f2 = 1) (reverse), with index condition: ((t1.f2 >= 1) and (t1.f2 <= 1))  (cost=2.06 rows=4)
+
+SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 1;
+f1	f2	f3
+40	1	4
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=2.06 rows=2)
+    -> Index range scan on t1 using key1 over (f2 = 1) (reverse), with index condition: ((t1.f2 >= 1) and (t1.f2 <= 1))  (cost=2.06 rows=4)
+
+SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 2;
+f1	f2	f3
+40	1	4
+30	1	3
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 4;
+EXPLAIN
+-> Limit: 4 row(s)  (cost=2.06 rows=4)
+    -> Index range scan on t1 using key1 over (f2 = 1) (reverse), with index condition: ((t1.f2 >= 1) and (t1.f2 <= 1))  (cost=2.06 rows=4)
+
+SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 4;
+f1	f2	f3
+40	1	4
+30	1	3
+20	1	2
+10	1	2
+DROP TABLE t1;
+#
+# Bug#38406661: Sort optimization fails as primary key info in
+#               secondary index is not considered after
+#               hint-enforced secondary index
+CREATE TABLE t1 (
+pk_1 INT,
+pk_2 INT,
+f1 DATETIME,
+PRIMARY KEY(pk_1, pk_2),
+KEY k1(f1)
+);
+INSERT INTO t1 VALUES
+(1,1,'2000-01-01'), (1,2,'2000-01-02'), (1,3,'2000-01-03'),
+(1,4,'2000-01-04'), (1,5,'2000-01-05'), (2,1,'2000-01-01'),
+(2,2,'2000-01-02'), (2,3,'2000-01-03'), (2,4,'2000-01-04'),
+(2,5,'2000-01-05'), (3,1,'2000-01-01'), (3,2,'2000-01-02'),
+(3,3,'2000-01-03'), (3,4,'2000-01-04'), (3,5,'2000-01-05');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+no index hint, should use covering index lookup on k1 in reverse and no Sort
+EXPLAIN FORMAT=tree SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
+             ORDER BY pk_2 DESC LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s)  (rows=1)
+    -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00', pk_1 = 3) (reverse)  (rows=1)
+
+SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
+             ORDER BY pk_2 DESC LIMIT 5;
+f1	pk_1	pk_2
+2000-01-03 00:00:00	3	3
+With index hint on k1, should still avoid Sort and use reverse index order
+EXPLAIN FORMAT=tree SELECT /*+ INDEX(t1 k1) */ f1, pk_1, pk_2 FROM t1
+WHERE pk_1 = 3 AND f1 = '2000-01-03' ORDER BY pk_2 DESC LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s)  (rows=1)
+    -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00', pk_1 = 3) (reverse)  (rows=1)
+
+SELECT /*+ INDEX(t1 k1) */ f1, pk_1, pk_2 FROM t1
+WHERE pk_1 = 3 AND f1 = '2000-01-03' ORDER BY pk_2 DESC LIMIT 5;
+f1	pk_1	pk_2
+2000-01-03 00:00:00	3	3
+DROP TABLE t1;

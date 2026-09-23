@@ -1,0 +1,20 @@
+#
+#
+# BUG 14081240 - THREAD POOL BASED CONNECTIONS CAUSE  
+#                CAUSE ABORTED_CLIENTS TO BE INCREMENTED. 
+#
+#
+connect con1, localhost, root,,;
+connect con2, localhost, root,,;
+connect con3, localhost, root,,;
+connection default;
+disconnect con1;
+disconnect con2;
+# Abort con3 via KILL.
+SET @connection_id= ID;
+KILL @connection_id;
+# Wait for connection to be killed before getting Aborted_clients.
+# Aborted_clients value must be 1.
+SHOW GLOBAL STATUS LIKE "Aborted_clients";
+Variable_name	Value
+Aborted_clients	1

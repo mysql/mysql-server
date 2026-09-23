@@ -130,10 +130,18 @@ class Sync_point {
   @return true if was enabled. */
   static bool enabled(const std::string &target) noexcept;
 
+  /** Clone sync points from another THD to the current THD.
+  @param[in] thd                Source server connection/session context. */
+  static void clone_from(const THD *thd) noexcept;
+
   /** Clear the named target.
   @param[in] thd                Server connection/session context.
   @param[in] target             Check if target is enabled. */
   static void erase(const THD *thd, const std::string &target) noexcept;
+
+  /** Clear all targets for the THD.
+  @param[in] thd                Server connection/session context. */
+  static void erase(const THD *thd) noexcept;
 
  private:
   using Targets = std::vector<std::string, ut::allocator<std::string>>;

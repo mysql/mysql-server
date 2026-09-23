@@ -849,4 +849,16 @@ col1
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table t1;
+#
+# Bug#39505077: Assertion `receiver.HasSecondaryEngineCostHook()' failed
+#
+CREATE TABLE t(a INT PRIMARY KEY);
+INSERT INTO t VALUES (1);
+SELECT 1 AS x
+FROM t USE INDEX FOR GROUP BY()
+GROUP BY ROLLUP(1);
+x
+1
+NULL
+DROP TABLE t;
 drop table tb1;

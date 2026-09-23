@@ -36,6 +36,7 @@
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/ranges.h"
+#include "mysqlrouter/client_error_code.h"
 #include "rest_api_testutils.h"
 #include "router/src/routing/tests/mysql_client.h"
 #include "router_component_test.h"
@@ -56,6 +57,9 @@ using namespace std::chrono_literals;
 static constexpr const std::chrono::seconds kIdleTimeout(1);
 
 static constexpr const std::string_view kErRouterTrace("4600");
+// Mock server fallback error for statements without a dedicated JS rule.
+// In these tests, this code proves Router forwarded the statement to backend.
+static constexpr const int kMockServerUnhandledStatementError = 1273;
 
 std::ostream &operator<<(std::ostream &os, MysqlError e) {
   os << e.sql_state() << " (" << e.value() << ") " << e.message();
@@ -471,6 +475,10 @@ class RoutingSplittingTest : public RoutingSplittingTestBase {
   }
 };
 
+class RoutingSplittingBeginSemicolonTest
+    : public RoutingSplittingTest,
+      public ::testing::WithParamInterface<std::string> {};
+
 TEST_F(RoutingSplittingTest, default_access_mode_is_auto) {
   RecordProperty("Worklog", "12794");
   RecordProperty("RequirementId", "FR1");
@@ -626,7 +634,9 @@ TEST_F(RoutingSplittingTest, instance_local_stmt_is_forbidden) {
     auto query_res = cli.query(stmt);
     ASSERT_ERROR(query_res);
     // Statement not allowed if access_mode is 'auto'
-    EXPECT_EQ(query_res.error().value(), 4501) << query_res.error();
+    EXPECT_EQ(query_res.error().value(),
+              ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING)
+        << query_res.error();
   }
 }
 
@@ -1035,6 +1045,64 @@ TEST_F(RoutingSplittingTest, start_transaction_to_primary) {
   SCOPED_TRACE("COMMIT               // to primary");
   ASSERT_NO_ERROR(cli.query("COMMIT"));
 }
+
+TEST_F(RoutingSplittingTest, start_transaction_semicolon_to_primary) {
+  // ndx=0 is the PRIMARY.
+  const auto expected_port = std::to_string(nodes_[0].classic_port);
+
+  SCOPED_TRACE("// connect");
+  MysqlClient cli;
+
+  cli.username("foo");
+  cli.password("bar");
+
+  ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_port_));
+
+  SCOPED_TRACE("START TRANSACTION;   // to any");
+  ASSERT_NO_ERROR(cli.query("START TRANSACTION;"));
+
+  SCOPED_TRACE("select @@port        // to primary");
+  {
+    auto query_res = query_one_result(cli, "select @@port");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre(expected_port)));
+  }
+
+  SCOPED_TRACE("COMMIT;              // to primary");
+  ASSERT_NO_ERROR(cli.query("COMMIT;"));
+}
+
+TEST_P(RoutingSplittingBeginSemicolonTest, begin_semicolon_to_primary) {
+  // ndx=0 is the PRIMARY.
+  const auto expected_port = std::to_string(nodes_[0].classic_port);
+
+  const auto stmt = GetParam();
+
+  SCOPED_TRACE(stmt);
+  SCOPED_TRACE("// connect");
+  MysqlClient cli;
+
+  cli.username("foo");
+  cli.password("bar");
+
+  ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_port_));
+
+  SCOPED_TRACE(std::string(stmt) + " // to any");
+  ASSERT_NO_ERROR(cli.query(stmt));
+
+  SCOPED_TRACE("select @@port        // to primary");
+  {
+    auto query_res = query_one_result(cli, "select @@port");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre(expected_port)));
+  }
+
+  SCOPED_TRACE("COMMIT;              // to primary");
+  ASSERT_NO_ERROR(cli.query("COMMIT;"));
+}
+
+INSTANTIATE_TEST_SUITE_P(BeginStatements, RoutingSplittingBeginSemicolonTest,
+                         ::testing::Values("BEGIN;", "BEGIN WORK;"));
 
 TEST_F(RoutingSplittingTest, xa_start_to_primary) {
   RecordProperty("Worklog", "12794");
@@ -2191,15 +2259,14 @@ TEST_F(RoutingSplittingTest, multi_statements_are_forbidden) {
       auto query_res = cli.query("DO 1; DO 2");
       ASSERT_ERROR(query_res);
       EXPECT_EQ(query_res.error().value(),
-                4501);  // multi-statements are forbidden.
+                ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING);
     }
 
     {
       auto query_res =
           cli.query("CREATE PROCEDURE testing.foo () BEGIN DO 1; DO 2; END");
       ASSERT_ERROR(query_res);
-      EXPECT_EQ(query_res.error().value(),
-                1273);  // syntax error (from mock-server)
+      EXPECT_EQ(query_res.error().value(), kMockServerUnhandledStatementError);
     }
 
     {
@@ -2207,23 +2274,35 @@ TEST_F(RoutingSplittingTest, multi_statements_are_forbidden) {
           "CREATE PROCEDURE testing.foo () BEGIN IF 1 THEN DO 1; DO 2; END IF; "
           "END");
       ASSERT_ERROR(query_res);
-      EXPECT_EQ(query_res.error().value(),
-                1273);  // syntax error (from mock-server)
+      EXPECT_EQ(query_res.error().value(), kMockServerUnhandledStatementError);
     }
 
     {
       auto query_res = cli.query("BEGIN; DO 1; DO 2; COMMIT");
       ASSERT_ERROR(query_res);
       EXPECT_EQ(query_res.error().value(),
-                4501);  // multi-statements are forbidden.
+                ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING);
+    }
+
+    {
+      auto query_res = cli.query("START TRANSACTION; DO 1");
+      ASSERT_ERROR(query_res);
+      EXPECT_EQ(query_res.error().value(),
+                ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING);
+    }
+
+    {
+      auto query_res = cli.query("BEGIN; DO 1");
+      ASSERT_ERROR(query_res);
+      EXPECT_EQ(query_res.error().value(),
+                ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING);
     }
 
     // trailing comma is ok.
     {
       auto query_res = cli.query("DO 2;");
       ASSERT_ERROR(query_res);
-      EXPECT_EQ(query_res.error().value(),
-                1273);  // syntax error (from mock-server)
+      EXPECT_EQ(query_res.error().value(), kMockServerUnhandledStatementError);
     }
   }
 }

@@ -705,8 +705,8 @@ class basic_endpoint {
   /**
    * construct from address and port-number.
    */
-  constexpr basic_endpoint(const ip::address &addr,
-                           port_type port_num) noexcept {
+  constexpr basic_endpoint(const ip::address &addr, port_type port_num) noexcept
+      : data_{} {
     if (addr.is_v4()) {
       data_.v4.sin_family = protocol_type::v4().family();
       data_.v4.sin_port = host_to_network(port_num);

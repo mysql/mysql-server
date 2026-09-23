@@ -1,0 +1,206 @@
+##### plugin/thread_pool/tests/mtr/t/thread_pool_hpc_basic.test ########
+#                                                                      #
+# Variable Name: thread_pool_high_priority_connection                  #
+# Scope:         Global and session                                    #
+# Access Type:   Dynamic                                               #
+# Data Type:     Integer                                               #
+#                                                                      #
+#                                                                      #
+# Creation Date: 2010-12-13                                            #
+# Author :       Matthias Leich                                        #
+#                                                                      #
+# Description:   Test Cases of dynamic System Variable                 #
+#                   thread_pool_high_priority_connection               #
+#                that checks the behavior of this variable in the      #
+#                following ways                                        #
+#                * Value Check                                         #
+#                * Scope Check                                         #
+#                                                                      #
+########################################################################
+
+--source include/have_thread_pool.inc
+
+##################################################################
+# Build some prereqisites                                        #
+##################################################################
+# We go here with the usual @default_val, @min_val, ... architecture
+# though thread_pool_high_priority_connection is in the moment
+# a on/off switch. The reason is that the variable might become
+# a switch with more than two states in future.
+SET @default_val =                    0;
+let $default_val= `SELECT @default_val`;
+SET @min_val     =                    0;
+SET @max_val     =                    1;
+SET @some_val    =                    1;
+let $some_val=`SELECT @some_val`;
+SELECT @min_val < @some_val AND @some_val < @max_val
+   AND @some_val <> @default_val AS "Expect 1";
+CREATE USER low_priv@localhost;
+GRANT USAGE ON test.* TO low_priv@localhost;
+--connect (low_priv,localhost,low_priv,,test)
+let $id_list= `SELECT CONNECTION_ID()`;
+--replace_result $default_val <default_val>
+eval SET @default_val = $default_val;
+--replace_result $some_val <some_val>
+--eval SET @some_val = $some_val
+--connection default
+
+
+--echo #---------------------BS_DYNVARS_102_01----------------------#
+##################################################################
+# Check the default value                                        #
+##################################################################
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @default_val AS "Expect 1";
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+SELECT @@thread_pool_high_priority_connection         = @default_val AS "Expect 1";
+
+--connection low_priv
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @default_val AS "Expect 1";
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+SELECT @@thread_pool_high_priority_connection         = @default_val AS "Expect 1";
+--connection default
+
+
+--echo #---------------------BS_DYNVARS_102_02----------------------#
+######################################################################
+# Check if a value can be set + relation GLOBAL vs. SESSION variable #
+######################################################################
+SET @initial_val = @@GLOBAL.thread_pool_high_priority_connection;
+
+# The value of the global variable can be set.
+SET @@GLOBAL.thread_pool_high_priority_connection = @some_val;
+# The new value of the global variable must be visible and there must
+# be no impact on the current value of the session variable.
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @some_val AS "Expect 1";
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+--connection low_priv
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @some_val AS "Expect 1";
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+--connection default
+
+SET @@GLOBAL.thread_pool_high_priority_connection = @default_val;
+
+# The value of the session variable can be set.
+SET @@SESSION.thread_pool_high_priority_connection = @some_val;
+# The new value of the session variable must be visible and there must
+# be no impact on the current value of the global variable or other sessions.
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @default_val AS "Expect 1";
+SELECT @@SESSION.thread_pool_high_priority_connection = @some_val AS "Expect 1";
+# There must be no impact on the session variable of another session
+--connection low_priv
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+--connection default
+# @@thread_pool_high_priority_connection affects the session variable
+SET @@thread_pool_high_priority_connection = @default_val;
+SELECT @@SESSION.thread_pool_high_priority_connection = @default_val AS "Expect 1";
+
+--connection low_priv
+# SET @@GLOBAL.... requires the SUPER privilege
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@GLOBAL.thread_pool_high_priority_connection = @some_val;
+SELECT @@GLOBAL.thread_pool_high_priority_connection  = @default_val AS "Expect 1";
+SET @@SESSION.thread_pool_high_priority_connection = @some_val;
+SELECT @@SESSION.thread_pool_high_priority_connection = @some_val AS "Expect 1";
+--connection default
+--disconnect low_priv
+
+SET @@GLOBAL.thread_pool_high_priority_connection = @some_val;
+
+# The default value for @@SESSION.thread_pool_high_priority_connection of a new
+# started session is the current value of @@GLOBAL.thread_pool_high_priority_connection
+--connect (low_priv,localhost,low_priv,,test)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list , $id;
+SELECT @@GLOBAL.thread_pool_high_priority_connection = @@SESSION.thread_pool_high_priority_connection
+AS "Expect 1";
+--connection default
+--disconnect low_priv
+DROP USER low_priv@localhost;
+
+
+--echo #---------------------BS_DYNVARS_102_03----------------------#
+####################################################################
+# Check various legal values                                       #
+####################################################################
+SET @@thread_pool_high_priority_connection = @min_val;
+SELECT @@thread_pool_high_priority_connection = @min_val AS "Expect 1";
+SET @@thread_pool_high_priority_connection = @max_val;
+SELECT @@thread_pool_high_priority_connection = @max_val AS "Expect 1";
+
+SET @@thread_pool_high_priority_connection = TRUE;
+SELECT @@thread_pool_high_priority_connection = 1 AS "Expect 1";
+SET @@thread_pool_high_priority_connection = FALSE;
+SELECT @@thread_pool_high_priority_connection = 0 AS "Expect 1";
+
+SET @@thread_pool_high_priority_connection = 0;
+SELECT @@thread_pool_high_priority_connection = 0 AS "Expect 1";
+
+
+--echo #---------------------BS_DYNVARS_102_04----------------------#
+#############################################################################
+# Change the value of thread_pool_high_priority_connection to invalid value #
+#############################################################################
+SET @@thread_pool_high_priority_connection = @some_val;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@thread_pool_high_priority_connection = @max_val + 1;
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@thread_pool_high_priority_connection = @min_val - 1;
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@thread_pool_high_priority_connection = -1;
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = 0.1;
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = 10E-1;
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.thread_pool_high_priority_connection = ON;
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.thread_pool_high_priority_connection = OFF;
+SELECT @@thread_pool_high_priority_connection = @some_val AS "Expect 1";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = TRUEX;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = XTRUE;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = FALSEX;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = XFALSE;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = ' ';
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = " ";
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = '1.1';
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@thread_pool_high_priority_connection = NULL;
+
+--echo #---------------------BS_DYNVARS_102_05----------------------#
+########################################################################
+# Check if the value in GLOBAL/SESSION Table matches value in variable #
+########################################################################
+--disable_warnings
+SELECT @@GLOBAL.thread_pool_high_priority_connection = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'thread_pool_high_priority_connection';
+
+SELECT @@SESSION.thread_pool_high_priority_connection = VARIABLE_VALUE AS "Expect 1"
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME = 'thread_pool_high_priority_connection';
+--enable_warnings
+
+
+# Cleanup
+SET @@GLOBAL.thread_pool_high_priority_connection = @initial_val;
+# The user low_priv was disconnected long time ago. Take care that he
+# has really disappeared from the processlist
+--source ../inc/wait_until_disappeared.inc
+

@@ -3432,3 +3432,68 @@ c1	c2
 UPDATE t1 SET c2=3 WHERE c1=1;
 DROP TABLE t1;
 SET sql_mode=default;
+#
+# Bug#35373634: JOIN a table with trigger report unexpected WARNINGS
+#
+CREATE TABLE s1 (
+id   bigint NOT NULL AUTO_INCREMENT,
+s_id int    NOT NULL,
+p_id bigint NOT NULL,
+PRIMARY KEY (id)
+);
+CREATE TABLE t1 (i int);
+INSERT INTO s1 (p_id, s_id) VALUES (1, 1), (1, 1);
+INSERT INTO t1 VALUES (1);
+# Any trigger on s1 (even one that never fires for UPDATE) is enough
+# to engage the trigger nullability code path.
+CREATE TRIGGER trg_s1 BEFORE INSERT ON s1 FOR EACH ROW
+IF 1 THEN SET @sum = @sum + 1; END IF;|
+#
+# Part 1: non-strict mode -> spurious warnings
+#
+SET sql_mode = '';
+# Statement 1: legitimately stores NULL -> 2 expected warnings
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, NULL, p_id) WHERE t.i = 1;
+Warnings:
+Warning	1048	Column 'p_id' cannot be null
+Warning	1048	Column 'p_id' cannot be null
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1048	Column 'p_id' cannot be null
+Warning	1048	Column 'p_id' cannot be null
+# Statement 2: stores valid value 3 -> must produce NO warnings
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, 3, p_id) WHERE t.i = 1;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT id, s_id, p_id FROM s1 ORDER BY id;
+id	s_id	p_id
+1	1	3
+2	1	3
+# Statement 3: stores valid value 4 -> must produce NO warnings
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, 4, p_id) WHERE t.i = 1;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT id, s_id, p_id FROM s1 ORDER BY id;
+id	s_id	p_id
+1	1	4
+2	1	4
+#
+# Part 2: strict mode -> spurious errors (all subsequent updates blocked)
+#
+SET sql_mode = 'STRICT_TRANS_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+# Statement 4: stores NULL -> expected ERROR 1048
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, NULL, p_id) WHERE t.i = 1;
+ERROR 23000: Column 'p_id' cannot be null
+# Statement 5: stores valid value 5 -> must succeed, p_id becomes 5
+UPDATE t1 t JOIN s1 s ON s.s_id = t.i SET p_id = IF(1=1, 5, p_id) WHERE t.i = 1;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT id, s_id, p_id FROM s1 ORDER BY id;
+id	s_id	p_id
+1	1	5
+2	1	5
+# Cleanup
+DROP TABLE s1, t1;
+SET sql_mode = default;

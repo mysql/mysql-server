@@ -120,6 +120,32 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   */
   bool pre_process_message(Plugin_gcs_message *plugin_message,
                            const std::string &message_origin) const;
+
+  /**
+    Logs and leaves the group after receiving a malformed message.
+
+    @param[in] error_message the error message to log and report
+  */
+  void leave_on_malformed_message(const char *error_message) const;
+
+  /**
+    Gets the first payload item raw data, or leaves the group if the message is
+    malformed.
+
+    @param[in]  message             the message received from GCS
+    @param[in]  error_message       the error message to log and report
+    @param[out] payload_item_data   the data
+    @param[out] payload_item_length the length of the data
+
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
+  */
+  bool get_first_payload_item_or_leave(const Gcs_message &message,
+                                       const char *error_message,
+                                       const unsigned char **payload_item_data,
+                                       size_t *payload_item_length) const;
+
   /*
    Methods to act upon members after a on_view_change(...) is called
    */

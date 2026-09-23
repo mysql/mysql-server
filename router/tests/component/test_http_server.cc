@@ -23,6 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <fstream>
+#include <map>
 #include <string_view>
 #include <system_error>
 #include <thread>
@@ -34,7 +36,9 @@
 #include "dim.h"
 #include "gtest_testname.h"
 #include "http/base/uri.h"
+#include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/utility/string.h"
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
@@ -416,6 +420,118 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      false,
      "",
      "option port",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
+    {"max_http_connections-zero",
+     "WL17288::TS-1",
+     localhost_ipv4,
+     {
+         {"max_http_connections", "0"},
+     },
+     false,
+     "",
+     "option max_http_connections",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
+    {"max_http_connections-non-int",
+     "WL17288::TS-2",
+     localhost_ipv4,
+     {
+         {"max_http_connections", "abc"},
+     },
+     false,
+     "",
+     "option max_http_connections",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
+    {"max_http_connections-out-of-range",
+     "WL17288::TS-3",
+     localhost_ipv4,
+     {
+         {"max_http_connections", "100001"},
+     },
+     false,
+     "",
+     "option max_http_connections",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
+    {"max_request_body_size-negative",
+     "WL17288::TS-4",
+     localhost_ipv4,
+     {
+         {"max_request_body_size", "-1"},
+     },
+     false,
+     "",
+     "option max_request_body_size",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
+    {"max_request_body_size-out-of-range",
+     "WL17288::TS-5",
+     localhost_ipv4,
+     {
+         {"max_request_body_size", "2147483649"},
+     },
+     false,
+     "",
+     "option max_request_body_size",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
+    {"max_response_body_size-negative",
+     "WL17288::TS-6",
+     localhost_ipv4,
+     {
+         {"max_response_body_size", "-1"},
+     },
+     false,
+     "",
+     "option max_response_body_size",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
+    {"max_response_body_size-non-int",
+     "WL17288::TS-7",
+     localhost_ipv4,
+     {
+         {"max_response_body_size", "abc"},
+     },
+     false,
+     "",
+     "option max_response_body_size",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
+    {"max_response_body_size-out-of-range",
+     "WL17288::TS-8",
+     localhost_ipv4,
+     {
+         {"max_response_body_size", "2147483649"},
+     },
+     false,
+     "",
+     "option max_response_body_size",
      HttpMethod::Get,
      "/",
      "",
@@ -1908,6 +2024,349 @@ INSTANTIATE_TEST_SUITE_P(
           info.param.test_name +
           (info.param.check_at_runtime ? "_works" : "_fails"));
     });
+
+class HttpServerLimitsRuntimeTest : public HttpServerTestBase {
+ public:
+  HttpServerLimitsRuntimeTest()
+      : http_port_{port_pool_.get_next_available()}, conf_dir_{} {}
+
+ protected:
+  uint16_t http_port_;
+  std::string http_hostname_ = "127.0.0.1";
+  TempDirectory conf_dir_;
+};
+
+static std::string send_raw_http_request(const std::string &http_host,
+                                         const uint16_t http_port,
+                                         const std::string &http_request) {
+  static_cast<void>(http_host);
+  net::io_context io_ctx;
+  net::ip::tcp::socket sock(io_ctx);
+
+  auto connect_res = sock.connect(
+      net::ip::tcp::endpoint(net::ip::address_v4::loopback(), http_port));
+  if (!connect_res) {
+    return {};
+  }
+
+  auto write_res = net::write(sock, net::buffer(http_request));
+  if (!write_res) {
+    return {};
+  }
+
+  std::string read_buf;
+  auto read_res = net::read(sock, net::dynamic_buffer(read_buf));
+  if (!read_res && read_res.error() != net::stream_errc::eof) {
+    return {};
+  }
+
+  return read_buf;
+}
+
+TEST_F(HttpServerLimitsRuntimeTest, MaxHttpConnectionsRejectsExcessConnection) {
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"max_http_connections", "1"}}))};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  // Avoid check_port_ready(): it opens a TCP connection and can briefly consume
+  // the single allowed connection before the test request reaches Router.
+
+  IOContext io_ctx;
+  RestClient first_client(io_ctx, http_hostname_, http_port_, {}, {});
+  first_client.set_request_connection_close(false);
+
+  auto first_req = first_client.request_sync(HttpMethod::Get, "/");
+  ASSERT_TRUE(first_req);
+  EXPECT_EQ(first_req.get_response_code(), HttpStatusCode::NotFound);
+
+  RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+  auto req = rest_client.request_sync(HttpMethod::Get, "/");
+  EXPECT_FALSE(req);
+  EXPECT_THAT(http_server.get_logfile_content(),
+              ::testing::ContainsRegex("rejected connection due to "
+                                       "max_http_connections"));
+}
+
+TEST_F(
+    HttpServerLimitsRuntimeTest,
+    SuppressedMaxHttpConnectionRejectionSummaryFlushesWithoutLaterRejection) {
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"max_http_connections", "1"}}))};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  // Avoid check_port_ready(): it opens a TCP connection and can briefly consume
+  // the single allowed connection before the test request reaches Router.
+
+  IOContext io_ctx;
+  RestClient first_client(io_ctx, http_hostname_, http_port_, {}, {});
+  first_client.set_request_connection_close(false);
+
+  auto first_req = first_client.request_sync(HttpMethod::Get, "/");
+  ASSERT_TRUE(first_req);
+  EXPECT_EQ(first_req.get_response_code(), HttpStatusCode::NotFound);
+
+  for (int i = 0; i < 3; ++i) {
+    RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+    auto req = rest_client.request_sync(HttpMethod::Get, "/");
+    EXPECT_FALSE(req);
+  }
+
+  EXPECT_TRUE(
+      wait_log_contains(http_server, "suppressed 2 similar messages", 7s))
+      << http_server.get_logfile_content();
+}
+
+TEST_F(HttpServerLimitsRuntimeTest,
+       MaxHttpConnectionsFromDefaultSectionRejectsExcessConnection) {
+  auto default_section = get_DEFAULT_defaults();
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)}}),
+      &default_section, "mysqlrouter.conf", "max_http_connections = 1\n")};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  // Avoid check_port_ready(): it opens a TCP connection and can briefly consume
+  // the single allowed connection before the test request reaches Router.
+
+  IOContext io_ctx;
+  RestClient first_client(io_ctx, http_hostname_, http_port_, {}, {});
+  first_client.set_request_connection_close(false);
+
+  auto first_req = first_client.request_sync(HttpMethod::Get, "/");
+  ASSERT_TRUE(first_req);
+  EXPECT_EQ(first_req.get_response_code(), HttpStatusCode::NotFound);
+
+  RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+  auto req = rest_client.request_sync(HttpMethod::Get, "/");
+  EXPECT_FALSE(req);
+  EXPECT_THAT(http_server.get_logfile_content(),
+              ::testing::ContainsRegex("rejected connection due to "
+                                       "max_http_connections"));
+}
+
+TEST_F(HttpServerLimitsRuntimeTest,
+       DefaultMaxConnectionsDoesNotLimitHttpServer) {
+  auto default_section = get_DEFAULT_defaults();
+  default_section["unknown_config_option"] = "warning";
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)}}),
+      &default_section, "mysqlrouter.conf", "max_connections = 1\n")};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
+
+  IOContext io_ctx;
+  RestClient first_client(io_ctx, http_hostname_, http_port_, {}, {});
+  first_client.set_request_connection_close(false);
+
+  auto first_req = first_client.request_sync(HttpMethod::Get, "/");
+  ASSERT_TRUE(first_req);
+  EXPECT_EQ(first_req.get_response_code(), HttpStatusCode::NotFound);
+
+  RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+  auto req = rest_client.request_sync(HttpMethod::Get, "/");
+  ASSERT_TRUE(req);
+  EXPECT_EQ(req.get_response_code(), HttpStatusCode::NotFound);
+}
+
+TEST_F(HttpServerLimitsRuntimeTest, OversizedBodyReturns413) {
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"max_request_body_size", "8"}}))};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
+
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+  rest_client.set_request_connection_close(false);
+
+  auto oversized_req = rest_client.request_sync(HttpMethod::Post, "/upload",
+                                                std::string(16, 'a'),
+                                                "application/octet-stream");
+  ASSERT_TRUE(oversized_req);
+  EXPECT_EQ(oversized_req.get_response_code(), HttpStatusCode::PayloadTooLarge);
+
+  RestClient next_request_client(io_ctx, http_hostname_, http_port_, {}, {});
+  auto get_req = next_request_client.request_sync(HttpMethod::Get, "/");
+  ASSERT_TRUE(get_req);
+  EXPECT_NE(get_req.get_response_code(), HttpStatusCode::PayloadTooLarge);
+}
+
+TEST_F(HttpServerLimitsRuntimeTest,
+       RequestWithContentLengthAndTransferEncodingReturns400) {
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"max_request_body_size", "32"}}))};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
+
+  const auto response = send_raw_http_request(
+      http_hostname_, http_port_,
+      "POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+      "Transfer-Encoding: chunked\r\nContent-Length: 4\r\n"
+      "Connection: close\r\n\r\n4\r\nabcd\r\n"
+      "0\r\n\r\n");
+  EXPECT_THAT(response, ::testing::StartsWith("HTTP/1.1 400 Bad Request"));
+  EXPECT_THAT(http_server.get_logfile_content(),
+              ::testing::ContainsRegex(
+                  "rejected request due to invalid request body headers: both "
+                  "Content-Length and Transfer-Encoding are present"));
+}
+
+TEST_F(HttpServerLimitsRuntimeTest, RequestWithInvalidContentLengthReturns400) {
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"max_request_body_size", "32"}}))};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
+
+  const auto response =
+      send_raw_http_request(http_hostname_, http_port_,
+                            "POST /upload HTTP/1.1\r\nHost: "
+                            "127.0.0.1\r\nContent-Length: abc\r\n"
+                            "Connection: close\r\n\r\n");
+  EXPECT_THAT(response, ::testing::StartsWith("HTTP/1.1 400 Bad Request"));
+  EXPECT_THAT(http_server.get_logfile_content(),
+              ::testing::ContainsRegex(
+                  "rejected request due to invalid request body headers: "
+                  "invalid Content-Length"));
+}
+
+TEST_F(HttpServerLimitsRuntimeTest, MaxRequestBodySizeZeroRejectsBody) {
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"max_request_body_size", "0"}}))};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
+
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+  auto req = rest_client.request_sync(HttpMethod::Post, "/upload", "x",
+                                      "application/octet-stream");
+  ASSERT_TRUE(req);
+  EXPECT_EQ(req.get_response_code(), HttpStatusCode::PayloadTooLarge);
+}
+
+TEST_F(HttpServerLimitsRuntimeTest, OversizedResponseReturns500WithoutBody) {
+  TempDirectory static_dir;
+  const auto large_file =
+      mysql_harness::Path(static_dir.name()).join("large.txt");
+  std::ofstream ofs{large_file.str()};
+  ASSERT_TRUE(ofs.good());
+  ofs << std::string(16, 'x');
+  ofs.close();
+
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"static_folder", static_dir.name()},
+                          {"max_response_body_size", "8"}}))};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
+
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+  auto req = rest_client.request_sync(HttpMethod::Get, "/large.txt");
+  ASSERT_TRUE(req);
+  EXPECT_EQ(req.get_response_code(), HttpStatusCode::InternalError);
+  EXPECT_TRUE(req.get_input_body().empty());
+  EXPECT_THAT(http_server.get_logfile_content(),
+              ::testing::ContainsRegex("rejected response due to "
+                                       "max_response_body_size"));
+}
+
+TEST_F(HttpServerLimitsRuntimeTest,
+       MaxResponseBodySizeFromHttpServerOverridesDefaultSection) {
+  TempDirectory static_dir;
+  const auto large_file =
+      mysql_harness::Path(static_dir.name()).join("large.txt");
+  std::ofstream ofs{large_file.str()};
+  ASSERT_TRUE(ofs.good());
+  ofs << std::string(16, 'x');
+  ofs.close();
+
+  auto default_section = get_DEFAULT_defaults();
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"static_folder", static_dir.name()},
+                          {"max_response_body_size", "32"}}),
+      &default_section, "mysqlrouter.conf", "max_response_body_size = 8\n")};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
+
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+  auto req = rest_client.request_sync(HttpMethod::Get, "/large.txt");
+  ASSERT_TRUE(req);
+  EXPECT_EQ(req.get_response_code(), HttpStatusCode::Ok);
+  EXPECT_EQ(req.get_input_body(), std::string(16, 'x'));
+}
 
 int main(int argc, char *argv[]) {
   TlsLibraryContext tls_lib_ctx;

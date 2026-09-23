@@ -1744,3 +1744,208 @@ DROP TABLE p_t2;
 DROP TABLE p_t1;
 
 DROP VIEW p_dv1;
+
+
+--echo #
+--echo # Bug#39566804: FK constraints may be violated when update deletes from
+--echo # nested child base table.
+--echo #
+
+CREATE TABLE course (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(75) NOT NULL,
+  address VARCHAR(75) NOT NULL,
+  address2 VARCHAR(75) DEFAULT NULL,
+  city VARCHAR(50) NOT NULL,
+  state VARCHAR(2) NOT NULL,
+  zip VARCHAR(10) NOT NULL,
+  phone VARCHAR(14) NOT NULL,
+  abbrev VARCHAR(6) DEFAULT NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE hole_group (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(75) NOT NULL,
+  sort_order INT NOT NULL DEFAULT '0',
+  slope DECIMAL(10,2) NOT NULL DEFAULT '113.00',
+  rating DECIMAL(10,2) NOT NULL DEFAULT '72.00',
+  course_id INT UNSIGNED DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY holegroup_course_id_index (course_id),
+  KEY holegroup_sort_order_index (sort_order),
+  CONSTRAINT holegroup_course_id_fk FOREIGN KEY (course_id) REFERENCES course (id)
+);
+
+CREATE TABLE hole (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  number INT NOT NULL DEFAULT '0',
+  handicap INT NOT NULL DEFAULT '0',
+  par INT NOT NULL DEFAULT '0',
+  hole_group_id INT UNSIGNED DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY hole_hole_group_id_index (hole_group_id),
+  KEY hole_number_index (number),
+  CONSTRAINT hole_holegroup_id_fk FOREIGN KEY (hole_group_id) REFERENCES hole_group (id)
+);
+
+CREATE
+ALGORITHM=UNDEFINED SQL SECURITY INVOKER
+JSON RELATIONAL DUALITY VIEW course_dv AS
+SELECT JSON_DUALITY_OBJECT(
+  WITH (INSERT,UPDATE,DELETE)
+  '_id': course.id,
+  'name': course.name,
+  'address': course.address,
+  'address2': course.address2,
+  'city': course.city,
+  'state': course.state,
+  'zip': course.zip,
+  'phone': course.phone,
+  'abbrev': course.abbrev,
+  'holeGroups':(
+    SELECT JSON_ARRAYAGG(
+      JSON_DUALITY_OBJECT(
+        WITH (INSERT,UPDATE,DELETE)
+        'id': hole_group.id,
+        'name': hole_group.name,
+        'sort_order': hole_group.sort_order,
+        'slope': hole_group.slope,
+        'rating': hole_group.rating,
+        'course_id': hole_group.course_id,
+        'holes':(
+          SELECT JSON_ARRAYAGG(
+            JSON_DUALITY_OBJECT(
+              WITH (INSERT,UPDATE,DELETE)
+              'id': hole.id,
+              'number': hole.number,
+              'handicap': hole.handicap,
+              'par': hole.par,
+              'hole_group_id': hole.hole_group_id))
+          FROM hole WHERE (hole.hole_group_id = hole_group.id))))
+    FROM hole_group WHERE (hole_group.course_id = course.id))) AS Name_exp_1
+FROM course;
+
+
+INSERT INTO course_dv
+VALUES (
+  '{
+    "name": "Rock Harbor Golf Course - Boulder Course",
+    "address": "365 Rock Harbor Drive",
+    "address2": null,
+    "city": "Winchester",
+    "state": "VA",
+    "zip": "22602",
+    "phone": "(540) 722-7111",
+    "abbrev": "RHB",
+    "holeGroups": [
+      {
+        "name": "Front Nine",
+        "sort_order": 1,
+        "slope": 136.00,
+        "rating": 35.15,
+        "holes": [
+          { "number": 1, "handicap": 15, "par": 4 },
+          { "number": 2, "handicap": 5, "par": 3 },
+          { "number": 3, "handicap": 7, "par": 4 },
+          { "number": 4, "handicap": 17, "par": 5 },
+          { "number": 5, "handicap": 13, "par": 3 },
+          { "number": 6, "handicap": 1, "par": 5 },
+          { "number": 7, "handicap": 9, "par": 4 },
+          { "number": 8, "handicap": 3, "par": 3 },
+          { "number": 9, "handicap": 11, "par": 5 }
+        ]
+      },
+      {
+        "name": "Back Nine",
+        "sort_order": 2,
+        "slope": 136.00,
+        "rating": 35.15,
+        "holes": [
+          { "number": 10, "handicap": 4, "par": 5 },
+          { "number": 11, "handicap": 18, "par": 3 },
+          { "number": 12, "handicap": 16, "par": 4 },
+          { "number": 13, "handicap": 14, "par": 3 },
+          { "number": 14, "handicap": 8, "par": 4 },
+          { "number": 15, "handicap": 2, "par": 4 },
+          { "number": 16, "handicap": 6, "par": 5 },
+          { "number": 17, "handicap": 12, "par": 3 },
+          { "number": 18, "handicap": 10, "par": 5 }
+        ]
+      }
+    ]
+  }'
+);
+
+SELECT * FROM course_dv;
+SELECT * FROM course;
+SELECT * FROM hole_group;
+SELECT * FROM hole;
+
+--echo # Note that only the base table course is actually being updated here.
+--echo # None of the hole_groups or holes in the new value actually exists,
+--echo # so all existing rows in hole_group and hole will be deleted and
+--echo # the hole_groups and holes from the new value will be inserted.
+UPDATE course_dv
+SET data = '{
+  "_id": 1,
+  "name": "Rock Harbor Golf Course - Boulder Course",
+  "address": "365 Rock Harbor Drive",
+  "address2": null,
+  "city": "Winchester",
+  "state": "VA",
+  "zip": "22602",
+  "phone": "(540) 722-7111",
+  "abbrev": "RHB",
+  "holeGroups": [
+    {
+      "id": 13,
+      "name": "First Nine",
+      "sort_order": 1,
+      "slope": 136.00,
+      "rating": 35.15,
+      "course_id": 1,
+      "holes": [
+        { "id": 109, "number": 1, "handicap": 15, "par": 4, "hole_group_id": 13 },
+        { "id": 110, "number": 2, "handicap": 5, "par": 3, "hole_group_id": 13 },
+        { "id": 111, "number": 3, "handicap": 7, "par": 4, "hole_group_id": 13 },
+        { "id": 112, "number": 4, "handicap": 17, "par": 5, "hole_group_id": 13 },
+        { "id": 113, "number": 5, "handicap": 13, "par": 3, "hole_group_id": 13 },
+        { "id": 114, "number": 6, "handicap": 1, "par": 5, "hole_group_id": 13 },
+        { "id": 115, "number": 7, "handicap": 9, "par": 4, "hole_group_id": 13 },
+        { "id": 116, "number": 8, "handicap": 3, "par": 3, "hole_group_id": 13 },
+        { "id": 117, "number": 9, "handicap": 11, "par": 5, "hole_group_id": 13 }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Second Nine",
+      "sort_order": 2,
+      "slope": 136.00,
+      "rating": 35.15,
+      "course_id": 1,
+      "holes": [
+        { "id": 118, "number": 10, "handicap": 4, "par": 5, "hole_group_id": 14 },
+        { "id": 119, "number": 11, "handicap": 18, "par": 3, "hole_group_id": 14 },
+        { "id": 120, "number": 12, "handicap": 16, "par": 4, "hole_group_id": 14 },
+        { "id": 121, "number": 13, "handicap": 14, "par": 3, "hole_group_id": 14 },
+        { "id": 122, "number": 14, "handicap": 8, "par": 4, "hole_group_id": 14 },
+        { "id": 123, "number": 15, "handicap": 2, "par": 4, "hole_group_id": 14 },
+        { "id": 124, "number": 16, "handicap": 6, "par": 5, "hole_group_id": 14 },
+        { "id": 125, "number": 17, "handicap": 12, "par": 3, "hole_group_id": 14 },
+        { "id": 126, "number": 18, "handicap": 10, "par": 4, "hole_group_id": 14 }
+      ]
+    }
+  ]
+}'
+WHERE JSON_VALUE(data, '$._id') = 1;
+
+SELECT * FROM course_dv;
+SELECT * FROM course;
+SELECT * FROM hole_group;
+SELECT * FROM hole;
+
+DROP VIEW course_dv;
+DROP TABLE hole;
+DROP TABLE hole_group;
+DROP TABLE course;

@@ -90,6 +90,7 @@ usr/lib/mysql/plugin/debug/rewriter.so
 usr/lib/mysql/plugin/debug/semisync_source.so
 usr/lib/mysql/plugin/debug/semisync_replica.so
 usr/lib/mysql/plugin/debug/telemetry_client.so
+usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/component_audit_api_message_emit.so
 usr/lib/mysql/plugin/debug/component_keyring_file.so
@@ -234,7 +235,6 @@ usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
 usr/lib/mysql/plugin/debug/data_masking.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
 usr/lib/mysql/plugin/debug/keyring_hashicorp.so
-usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/debug/component_keyring_hashicorp.so

@@ -208,9 +208,8 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                           "cause": "cost"
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 2.92872,
                       "chosen": false,
-                      "cause": "cost"
+                      "cause": "not all disjuncts are candidates for index merge"
                     }
                   ] /* analyzing_index_merge_union */
                 } /* range_analysis */

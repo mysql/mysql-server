@@ -1,0 +1,9 @@
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.4096. exceeds transaction threads limit per group");
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-query-threads-per-group':.*value .* adjusted to 4096 found]
+SET SESSION thread_pool_query_threads_per_group = 4097;
+ERROR HY000: Variable 'thread_pool_query_threads_per_group' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL thread_pool_query_threads_per_group = 4096;
+ERROR HY000: Query threads count(4096) exceeds transaction threads limit(32) per group. Please use query threads count per group smaller or equal to max transaction threads limit per group
+SET GLOBAL thread_pool_query_threads_per_group = 4097;
+ERROR 42000: Variable 'thread_pool_query_threads_per_group' can't be set to the value of '4097'

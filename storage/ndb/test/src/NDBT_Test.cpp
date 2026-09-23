@@ -396,7 +396,10 @@ NDBT_Finalizer::NDBT_Finalizer(NDBT_TestCase *ptest, const char *pname,
 
 NDBT_TestCase::NDBT_TestCase(NDBT_TestSuite *psuite, const char *pname,
                              const char *pcomment)
-    : _name(pname), _comment(pcomment), suite(psuite) {
+    : _name(pname),
+      _comment(pcomment),
+      suite(psuite),
+      _restarter(opt_ndb_connectstring) {
   require(suite != NULL);
 
   m_all_tables = false;
@@ -1249,8 +1252,8 @@ int NDBT_TestSuite::report(const char *_tcname) {
   if (numTestsFail > 0 || numTestsExecuted == 0) {
     result = NDBT_FAILED;
   } else {
-    if (numTestsSkipped > 0) {
-      /* Any skipped tests summarise run to 'skipped' */
+    if (numTestsOk == 0 && numTestsSkipped > 0) {
+      /* Any skipped tests and no ok summarise run to 'skipped' */
       result = NDBT_SKIPPED;
     } else {
       result = NDBT_OK;
@@ -1301,8 +1304,8 @@ int NDBT_TestSuite::reportAllTables(const char *_testname) {
     if (numTestsFail > 0) {
       result = NDBT_FAILED;
     } else {
-      if (numTestsSkipped > 0) {
-        /* Any skipped tests summarise run to 'skipped' */
+      if (numTestsOk == 0 && numTestsSkipped > 0) {
+        /* Any skipped tests and no ok summarise run to 'skipped' */
         result = NDBT_SKIPPED;
       } else {
         result = NDBT_OK;

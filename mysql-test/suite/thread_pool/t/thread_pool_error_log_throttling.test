@@ -1,0 +1,136 @@
+--source include/have_thread_pool.inc
+--source include/have_debug.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+CALL mtr.add_suppression("Thread pool failed to allocate.*");
+CALL mtr.add_suppression("socketpair\\(\\) failed with errno.*");
+CALL mtr.add_suppression("tp_client_low_level_init\\(\\) failed");
+CALL mtr.add_suppression("tp_client_low_level_arm\\(\\) failed.*");
+CALL mtr.add_suppression("Can't create pool thread.*");
+CALL mtr.add_suppression("tp_client_low_level_init\\(\\) for wait context failed to allocate memory");
+CALL mtr.add_suppression("epoll_create\\(\\) failed with.*");
+CALL mtr.add_suppression("Thread pool epoll_wait\\(\\) error.*");
+CALL mtr.add_suppression("Thread pool poll_wait\\(\\) error.*");
+CALL mtr.add_suppression("Out of memory; check if mysqld or some other process uses all available memory");
+--enable_query_log
+
+--echo # Make sure it's more than one minute since the previous throttled warning, in case the test is repeated.
+SELECT SLEEP(60 - IFNULL(TIMESTAMPDIFF(SECOND, MAX(logged), NOW()), 60))
+  FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-015510';
+
+--echo # New connection should cause errors to be emitted because a THD will not be allocated.
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL DEBUG = "+d, simulate_resource_failure, emit_throttled_msg";
+
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con1,localhost,root,,,,,)
+
+# Wait for an error to show up in the error log.
+--connection default
+let $wait_condition = SELECT count(*) > 0 FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-015510' AND logged > @now_var;
+let $wait_timeout = 15;
+--source include/wait_condition.inc
+
+--echo # Verify errors emitted once.
+let $count = `SELECT count(*) FROM performance_schema.error_log WHERE
+  ERROR_CODE IN
+    ('MY-015510', 'MY-015511', 'MY-015512', 'MY-015513', 'MY-015514',
+     'MY-015515', 'MY-015516', 'MY-015517', 'MY-015518', 'MY-015519')
+  AND logged > @now_var`;
+let $assert_text = Throttled error codes should be emitted only once;
+let $assert_cond = "$count" = "10";
+--source include/assert.inc
+
+--echo # More than nine additional new connections should cause throttling.
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con2,localhost,root,,,,,)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con3,localhost,root,,,,,)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con4,localhost,root,,,,,)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con5,localhost,root,,,,,)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con6,localhost,root,,,,,)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con7,localhost,root,,,,,)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con8,localhost,root,,,,,)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con9,localhost,root,,,,,)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con10,localhost,root,,,,,)
+
+--sleep 5
+
+--echo # Verify errors now emitted ten times.
+--connection default
+let $count = `SELECT count(*) FROM performance_schema.error_log WHERE
+  ERROR_CODE IN
+    ('MY-015510', 'MY-015511', 'MY-015512', 'MY-015513', 'MY-015514',
+     'MY-015515', 'MY-015516', 'MY-015517', 'MY-015518', 'MY-015519')
+  AND logged > @now_var`;
+let $assert_text = Throttled error codes should be emitted ten times;
+let $assert_cond = "$count" = "100";
+--source include/assert.inc
+
+--echo # A new connection should have the errors throttled.
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con11,localhost,root,,,,,)
+
+--echo # Verify errors still emitted only ten times.
+--connection default
+let $count = `SELECT count(*) FROM performance_schema.error_log WHERE
+  ERROR_CODE IN
+    ('MY-015510', 'MY-015511', 'MY-015512', 'MY-015513', 'MY-015514',
+     'MY-015515', 'MY-015516', 'MY-015517', 'MY-015518', 'MY-015519')
+  AND logged > @now_var`;
+let $assert_text = Throttled error codes should still be emitted only ten times;
+let $assert_cond = "$count" = "100";
+--source include/assert.inc
+
+--echo # Wait until throttling interval passed.
+--sleep 65
+
+--echo # A new connection should cause errors to be emitted again.
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--replace_regex /system error: [0-9]+/system error: NUM/
+--error CR_SERVER_LOST
+--connect(con12,localhost,root,,,,,)
+
+--echo # Verify errors are now emitted 11 times.
+--connection default
+let $count = `SELECT count(*) FROM performance_schema.error_log WHERE
+  ERROR_CODE IN
+    ('MY-015510', 'MY-015511', 'MY-015512', 'MY-015513', 'MY-015514',
+     'MY-015515', 'MY-015516', 'MY-015517', 'MY-015518', 'MY-015519')
+  AND logged > @now_var`;
+let $assert_text = Throttled error codes should now be emitted eleven times;
+let $assert_cond = "$count" = "110";
+--source include/assert.inc
+
+SET GLOBAL DEBUG = "-d, simulate_resource_failure, emit_throttled_msg";

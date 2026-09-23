@@ -795,6 +795,15 @@ latin2_general_ci	4
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
 collation(replace(_latin2'abcd',_latin2'b',_latin2'B'))	coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'))
 latin2_general_ci	4
+select collation(greatest(date'2010-01-01', date'2011-01-01'));
+collation(greatest(date'2010-01-01', date'2011-01-01'))
+binary
+select collation(least(date'2010-01-01', date'2011-01-01'));
+collation(least(date'2010-01-01', date'2011-01-01'))
+binary
+select collation(coalesce(null, date'2010-01-01', date'2011-01-01'));
+collation(coalesce(null, date'2010-01-01', date'2011-01-01'))
+binary
 create table t1 charset latin1
 select
 bin(130),
@@ -6249,7 +6258,7 @@ ST_ASBINARY(- ROW_COUNT(), 'axis-order=srid-defined')
 );
 ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geomcollfromwkb.
 #
-# Bug39056621: Function find_in_set returns wrong result
+# Bug#39056621: Function find_in_set returns wrong result
 #
 SET collation_connection = 'utf8mb4_0900_ai_ci';
 SELECT FIND_IN_SET('ắ', 'a');
@@ -6259,3 +6268,161 @@ SELECT FIND_IN_SET('ắ', 'a,b,c');
 FIND_IN_SET('ắ', 'a,b,c')
 1
 SET collation_connection = default;
+#
+# Bug#36289412: Fix offset check for insert position overflow
+#
+SET names utf8mb4;
+SELECT INSERT('A', 2, 1, 'a');
+INSERT('A', 2, 1, 'a')
+A
+SELECT INSERT('Å', 2, 1, 'a');
+INSERT('Å', 2, 1, 'a')
+Å
+SET names DEFAULT;
+#
+# Bug#39392429: AVG(ASCII()) result truncated to 99.9999 with
+#               SQL_BUFFER_RESULT due to incorrect decimal precision
+#
+CREATE TABLE users (
+id INT PRIMARY KEY,
+username VARCHAR(50) NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO users (id, username) VALUES
+(1, 'alice'), (2, 'bob'), (3, 'charlie'), (4, 'diana'),
+(5, 'edward'), (6, 'fiona'), (7, 'george'), (8, 'hannah'),
+(9, 'ivan'), (10, 'julia'), (11, 'kevin'), (12, 'lisa'),
+(13, 'mike'), (14, 'nancy'), (15, 'oscar');
+SELECT SQL_BUFFER_RESULT id, AVG(ASCII(username)) AS avg_val
+FROM users
+GROUP BY id;
+id	avg_val
+1	97.0000
+2	98.0000
+3	99.0000
+4	100.0000
+5	101.0000
+6	102.0000
+7	103.0000
+8	104.0000
+9	105.0000
+10	106.0000
+11	107.0000
+12	108.0000
+13	109.0000
+14	110.0000
+15	111.0000
+SELECT SQL_BUFFER_RESULT id, AVG(LENGTH(username)) AS avg_val
+FROM users
+GROUP BY id;
+id	avg_val
+1	5.0000
+2	3.0000
+3	7.0000
+4	5.0000
+5	6.0000
+6	5.0000
+7	6.0000
+8	6.0000
+9	4.0000
+10	5.0000
+11	5.0000
+12	4.0000
+13	4.0000
+14	5.0000
+15	5.0000
+SELECT SQL_BUFFER_RESULT id, AVG(CHAR_LENGTH(username)) AS avg_val
+FROM users
+GROUP BY id;
+id	avg_val
+1	5.0000
+2	3.0000
+3	7.0000
+4	5.0000
+5	6.0000
+6	5.0000
+7	6.0000
+8	6.0000
+9	4.0000
+10	5.0000
+11	5.0000
+12	4.0000
+13	4.0000
+14	5.0000
+15	5.0000
+SELECT SQL_BUFFER_RESULT id, AVG(BIT_LENGTH(username)) AS avg_val
+FROM users
+GROUP BY id;
+id	avg_val
+1	40.0000
+2	24.0000
+3	56.0000
+4	40.0000
+5	48.0000
+6	40.0000
+7	48.0000
+8	48.0000
+9	32.0000
+10	40.0000
+11	40.0000
+12	32.0000
+13	32.0000
+14	40.0000
+15	40.0000
+SELECT SQL_BUFFER_RESULT id, AVG(INSTR(username, 'i')) AS avg_val
+FROM users
+GROUP BY id;
+id	avg_val
+1	3.0000
+2	0.0000
+3	6.0000
+4	2.0000
+5	0.0000
+6	2.0000
+7	0.0000
+8	0.0000
+9	1.0000
+10	4.0000
+11	4.0000
+12	2.0000
+13	2.0000
+14	0.0000
+15	0.0000
+SELECT SQL_BUFFER_RESULT id, AVG(FIELD(username, 'alice', 'ivan')) AS avg_val
+FROM users
+GROUP BY id;
+id	avg_val
+1	1.0000
+2	0.0000
+3	0.0000
+4	0.0000
+5	0.0000
+6	0.0000
+7	0.0000
+8	0.0000
+9	2.0000
+10	0.0000
+11	0.0000
+12	0.0000
+13	0.0000
+14	0.0000
+15	0.0000
+SELECT SQL_BUFFER_RESULT id, AVG(FIND_IN_SET(username, 'alice,ivan')) AS avg_val
+FROM users
+GROUP BY id;
+id	avg_val
+1	1.0000
+2	0.0000
+3	0.0000
+4	0.0000
+5	0.0000
+6	0.0000
+7	0.0000
+8	0.0000
+9	2.0000
+10	0.0000
+11	0.0000
+12	0.0000
+13	0.0000
+14	0.0000
+15	0.0000
+DROP TABLE users;

@@ -3390,6 +3390,18 @@ MDL_lock_guard::~MDL_lock_guard() {
 
 bool MDL_lock_guard::is_locked() { return this->m_request.ticket != nullptr; }
 
+static bool is_client_binlog_statement(Relay_log_info const *rli,
+                                       THD const *thd [[maybe_unused]]) {
+  assert(rli != nullptr);
+  assert(thd != nullptr);
+  assert(rli->info_thd == thd);
+
+  const bool belongs_to_client = rli->belongs_to_client();
+  assert(!belongs_to_client || thd->rli_fake == rli);
+
+  return belongs_to_client;
+}
+
 Applier_security_context_guard::Applier_security_context_guard(
     Relay_log_info const *rli, THD const *thd)
     : m_target{rli},
@@ -3398,16 +3410,10 @@ Applier_security_context_guard::Applier_security_context_guard(
       m_previous{nullptr},
       m_privilege_checks_none{
           this->m_target->get_privilege_checks_username().length() == 0 &&
-          (this->m_thd->lex == nullptr ||
-           this->m_thd->lex->binlog_stmt_arg.length == 0 ||
-           this->m_thd->lex->binlog_stmt_arg.length >= 2048 ||
-           this->m_thd->lex->binlog_stmt_arg.str == nullptr)} {
+          !is_client_binlog_statement(this->m_target, this->m_thd)} {
   DBUG_TRACE;
 
-  if (this->m_thd->lex != nullptr &&
-      this->m_thd->lex->binlog_stmt_arg.length != 0 &&
-      this->m_thd->lex->binlog_stmt_arg.length < 2048 &&
-      this->m_thd->lex->binlog_stmt_arg.str != nullptr) {
+  if (is_client_binlog_statement(this->m_target, this->m_thd)) {
     Security_context *standing_ctx = this->m_thd->security_context();
     if (standing_ctx != nullptr &&
         (standing_ctx->check_access(SUPER_ACL) ||

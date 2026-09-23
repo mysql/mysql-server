@@ -1,0 +1,25 @@
+#
+# CASE 1 : Auto-corrected thread_pool_query_threads_per_group
+#          value is not 1
+#
+include/assert_grep.inc [Found an appropriate warning about incompatibility]
+include/assert_grep.inc [Found an appropriate warning about automatic setting of thread_pool_query_threads_per_group]
+include/assert_grep.inc [Did not find the warning that says query_threads=1 is not recommended]
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.4. exceeds transaction threads limit per group .2.");;
+#
+# CASE 2 : Auto-corrected thread_pool_query_threads_per_group
+#          value is 1 when using LOW_CONCURRENCY_ALGORITHM
+#
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension> --thread_pool_size=2 --thread_pool_max_transactions_limit=2 --thread-pool-algorithm=0
+include/assert_grep.inc [Found an appropriate warning about incompatibility]
+include/assert_grep.inc [Found an appropriate warning about automatic setting of thread_pool_query_threads_per_group]
+include/assert_grep.inc [Did not find the warning that says query_threads=1 is not recommended]
+#
+# CASE 3 : Auto-corrected thread_pool_query_threads_per_group
+#          value is 1 when using HIGH_CONCURRENCY_ALGORITHM
+#
+# restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension> --thread_pool_size=2 --thread_pool_max_transactions_limit=2
+include/assert_grep.inc [Found an appropriate warning about incompatibility]
+include/assert_grep.inc [Found an appropriate warning about automatic setting of thread_pool_query_threads_per_group]
+include/assert_grep.inc [Found the warning about query_threads=1 is recommended]
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.4. exceeds transaction threads limit per group .1.");;

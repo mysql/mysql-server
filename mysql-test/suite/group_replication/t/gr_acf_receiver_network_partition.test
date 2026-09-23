@@ -22,7 +22,8 @@
 #   7. Resume server2.
 #   8. server1 will update group B membership.
 #   9. server2 will also update group B membership.
-#  10. Clean up.
+#  10. Disable failover channels auto-start before cleanup.
+#  11. Clean up.
 ###############################################################################
 --source include/linux.inc
 --source include/big_test.inc
@@ -289,7 +290,32 @@ SET SESSION sql_log_bin= 1;
 
 --echo
 --echo ############################################################
---echo # 10. Clean up.
+--echo # 10. Disable failover channels auto-start before cleanup.
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+--let $member_actions_version= `SELECT version FROM performance_schema.replication_group_configuration_version WHERE name='replication_group_member_actions'`
+SELECT group_replication_disable_member_action("mysql_start_failover_channels_if_primary", "AFTER_PRIMARY_ELECTION");
+--inc $member_actions_version
+
+--let $assert_text= The action mysql_start_failover_channels_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version WHERE name="replication_group_member_actions" AND version=$member_actions_version;
+--source include/wait_condition.inc
+
+--let $assert_text= The action mysql_start_failover_channels_if_primary must be disabled on server2
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 11. Clean up.
 --let $rpl_connection_name= server1
 --source include/connection.inc
 --source include/stop_group_replication.inc

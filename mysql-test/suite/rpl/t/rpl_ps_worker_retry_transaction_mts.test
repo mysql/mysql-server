@@ -15,4 +15,6 @@
 #
 # WL#9131 Add RETRIES field to replication_applier_status_by_worker P_S table
 
+--source include/not_rpl_gtid_only.inc
+
 --source common/rpl/ps_table_worker_retry.inc

@@ -1,0 +1,4 @@
+# Set thread pool to a small value to avoid creating too many threads.
+--thread-pool-size=1
+--thread_pool-longrun-trx-limit=900000000
+--force-restart

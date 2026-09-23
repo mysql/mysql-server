@@ -112,6 +112,7 @@ while ($_rpl_server)
   --eval SET GLOBAL group_replication_local_address= "$_group_replication_local_address"
   --eval SET GLOBAL group_replication_group_seeds= "$_group_replication_group_seeds"
   --eval SET GLOBAL group_replication_bootstrap_group= $_group_replication_bootstrap_group
+  --disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT ONCE
   --eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
 
   if (!$skip_recovery_configuration)

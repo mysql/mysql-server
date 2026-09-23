@@ -23,8 +23,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -49,6 +51,13 @@ class HTTP_SERVER_LIB_EXPORT HttpServerComponentImpl
   void remove_route(const void *handler) override;
 
   bool is_ssl_configured() override;
+  void set_max_http_connections(std::optional<uint64_t> value) override;
+  uint64_t get_effective_max_http_connections() override;
+  void set_max_request_body_size(std::optional<uint64_t> value) override;
+  uint64_t get_effective_max_request_body_size() override;
+  void set_max_response_body_size(std::optional<uint64_t> value) override;
+  uint64_t get_effective_max_response_body_size() override;
+  void clear_overrides() override;
 
  private:
   // disable copy, as we are a single-instance
@@ -168,6 +177,68 @@ bool HttpServerComponentImpl::is_ssl_configured() {
   }
 
   return false;
+}
+
+void HttpServerComponentImpl::set_max_http_connections(
+    std::optional<uint64_t> value) {
+  std::lock_guard<std::mutex> lock(rh_mu);
+
+  if (auto srv = srv_.lock()) {
+    srv->set_max_http_connections(value);
+  }
+}
+
+uint64_t HttpServerComponentImpl::get_effective_max_http_connections() {
+  std::lock_guard<std::mutex> lock(rh_mu);
+  if (auto srv = srv_.lock()) {
+    return srv->get_effective_max_http_connections();
+  }
+
+  return http::server::kDefaultMaxHttpConnections;
+}
+
+void HttpServerComponentImpl::set_max_request_body_size(
+    std::optional<uint64_t> value) {
+  std::lock_guard<std::mutex> lock(rh_mu);
+
+  if (auto srv = srv_.lock()) {
+    srv->set_max_request_body_size(value);
+  }
+}
+
+uint64_t HttpServerComponentImpl::get_effective_max_request_body_size() {
+  std::lock_guard<std::mutex> lock(rh_mu);
+  if (auto srv = srv_.lock()) {
+    return srv->get_effective_max_request_body_size();
+  }
+
+  return http::server::kDefaultMaxRequestBodySize;
+}
+
+void HttpServerComponentImpl::set_max_response_body_size(
+    std::optional<uint64_t> value) {
+  std::lock_guard<std::mutex> lock(rh_mu);
+
+  if (auto srv = srv_.lock()) {
+    srv->set_max_response_body_size(value);
+  }
+}
+
+uint64_t HttpServerComponentImpl::get_effective_max_response_body_size() {
+  std::lock_guard<std::mutex> lock(rh_mu);
+  if (auto srv = srv_.lock()) {
+    return srv->get_effective_max_response_body_size();
+  }
+
+  return http::server::kDefaultMaxResponseBodySize;
+}
+
+void HttpServerComponentImpl::clear_overrides() {
+  std::lock_guard<std::mutex> lock(rh_mu);
+
+  if (auto srv = srv_.lock()) {
+    srv->clear_overrides();
+  }
 }
 
 }  // namespace impl

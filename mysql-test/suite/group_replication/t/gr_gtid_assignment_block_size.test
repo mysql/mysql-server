@@ -111,6 +111,7 @@ SET GLOBAL group_replication_gtid_assignment_block_size= 1000;
 --enable_query_log
 
 SET GLOBAL group_replication_gtid_assignment_block_size= 2;
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

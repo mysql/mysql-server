@@ -2276,3 +2276,45 @@ ceil
 SELECT SEC_TO_TIME(-00.0000004584) AS tv;
 tv
 00:00:00.000000
+#
+# Bug#34499767: TIMESTAMPDIFF function does not work as expected on where
+#
+CREATE TABLE t
+(id int NOT NULL,
+dt datetime,
+PRIMARY KEY (id)
+);
+INSERT INTO t(id, dt) VALUES (1, '2022-08-03 10:37:33');
+SELECT TIMESTAMPDIFF(DAY, dt, '2022-08-16 04:30:58')    AS day_diff,
+TIMESTAMPDIFF(MINUTE, dt, '2022-08-16 04:30:58') AS min_diff
+FROM t
+WHERE id = 1 AND
+TIMESTAMPDIFF(DAY, dt, '2022-08-16 04:30:58') = 12 AND
+TIMESTAMPDIFF(MINUTE, dt,'2022-08-16 04:30:58') = 18353;
+day_diff	min_diff
+12	18353
+DROP TABLE t;
+#
+# Bug#39649755: IN (DATE/TIME constant list) wrongly TRUE for
+#               non-temporal string
+#
+SELECT 'abc' IN (DATE'2024-02-29', DATE'2026-06-25') AS d,
+'abc' IN (TIME'01:00:00', TIME'02:00:00') AS t,
+'abc' IN (TIMESTAMP'2024-02-29 01:00:00',
+TIMESTAMP'2026-06-25 02:00:00') AS dt;
+d	t	dt
+0	0	0
+Warnings:
+Warning	1292	Truncated incorrect date value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Incorrect datetime value: 'abc' for column 'abc' at row 1
+CREATE TABLE s (id INT, v VARCHAR(20));
+INSERT INTO s VALUES (1,'abc'), (2,'2024-02-29'), (3,'xyz'),(4,'2026-06-25');
+SELECT id, v FROM s WHERE v IN (DATE'2024-02-29', DATE'2026-06-25');
+id	v
+2	2024-02-29
+4	2026-06-25
+Warnings:
+Warning	1292	Truncated incorrect date value: 'abc'
+Warning	1292	Truncated incorrect date value: 'xyz'
+DROP TABLE s;

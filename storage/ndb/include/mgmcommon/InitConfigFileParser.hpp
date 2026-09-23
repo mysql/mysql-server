@@ -50,6 +50,8 @@ class InitConfigFileParser {
    */
   InitConfigFileParser();
 
+  void insertError(int err);
+
   /**
    *   Reads the initial configuration file, checks syntax and semantic
    *   and stores internally the values of all parameters.

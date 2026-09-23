@@ -26,6 +26,7 @@
 #ifndef ROUTER_SRC_INCLUDE_MYSQLROUTER_JIT_EXECUTOR_VALUE_H_
 #define ROUTER_SRC_INCLUDE_MYSQLROUTER_JIT_EXECUTOR_VALUE_H_
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <stdexcept>

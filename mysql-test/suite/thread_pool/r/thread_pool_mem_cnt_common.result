@@ -1,0 +1,131 @@
+
+# Check variables for min/default values.
+SET SESSION connection_memory_limit = 1024 * 1024;
+Warnings:
+Warning	1292	Truncated incorrect connection_memory_limit value: '1048576'
+SET SESSION connection_memory_limit = 1024 * 1024 * 2;
+SET GLOBAL global_connection_memory_limit = 1024 * 1024;
+Warnings:
+Warning	1292	Truncated incorrect global_connection_memory_limit value: '1048576'
+SET GLOBAL global_connection_memory_limit = 1024 * 1024 * 16;
+SET SESSION connection_memory_chunk_size = 1024 * 1024;
+SET SESSION connection_memory_chunk_size = 1024 * 1024 * 16;
+SHOW VARIABLES like '%connection_memory%';
+Variable_name	Value
+connection_memory_chunk_size	16777216
+connection_memory_limit	2097152
+connection_memory_status_limit	18446744073709551615
+global_connection_memory_limit	16777216
+global_connection_memory_status_limit	18446744073709551615
+global_connection_memory_tracking	ON
+SET SESSION connection_memory_limit = default;
+SET SESSION connection_memory_chunk_size = default;
+SET GLOBAL global_connection_memory_limit = default;
+
+# Check access rights for
+# connection_memory_limit, global_connection_memory_limit vars
+CREATE USER 'user1'@localhost;
+GRANT USAGE ON *.* TO 'user1'@localhost;
+GRANT RELOAD ON *.* TO 'user1'@localhost;
+GRANT SELECT,DROP ON performance_schema.* TO 'user1'@localhost;
+# Connection con1
+SET SESSION connection_memory_limit = 1024 * 1024 * 2;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET global global_connection_memory_limit = 1024 * 1024 * 16;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION connection_memory_chunk_size = 1024 * 1024;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION global_connection_memory_tracking = false;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+# Connection default
+CREATE TABLE t1 (f1 LONGTEXT , f2  INTEGER);
+INSERT INTO t1 VALUES 
+(REPEAT('a', 1024), 0), (REPEAT('b', 1024), 1),
+(REPEAT('c', 1024), 2), (REPEAT('d', 1024), 3),
+(REPEAT('e', 1024), 4), (REPEAT('f', 1024), 5);
+INSERT INTO t1 SELECT f1, f2 + 6 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 12 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 24 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 48 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 96 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 192 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 384 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 768 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 1536 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 3072 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 6144 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 12288 FROM t1;
+SELECT SUM(LENGTH(f1)) FROM t1;
+SUM(LENGTH(f1))
+25165824
+SET GLOBAL connection_memory_limit = 1024 * 1024 * 2;
+SET GLOBAL group_concat_max_len= 167108864;
+SET GLOBAL connection_memory_chunk_size = 1024 * 1024;
+#
+# Testing OOM for connection_memory_limit variable.
+#
+
+# Testing sql memory key allocation
+TRUNCATE TABLE performance_schema.events_waits_summary_by_account_by_event_name;
+SELECT LENGTH(GROUP_CONCAT(f1 ORDER BY f2)) FROM t1;
+ERROR HY000: Connection closed. Connection memory limit 2097152 bytes exceeded. Consumed SOME bytes.
+SELECT COUNT_STAR > 0 FROM performance_schema.events_waits_summary_by_account_by_event_name
+WHERE USER = 'user1' AND EVENT_NAME LIKE 'wait/synch/mutex/sql/LOCK_global_conn_mem_limit';
+COUNT_STAR > 0
+1
+SELECT PRIO, SUBSYSTEM, DATA FROM performance_schema.error_log
+ORDER BY LOGGED DESC LIMIT 1;
+PRIO	SUBSYSTEM	DATA
+Error	Server	Connection closed. Connection memory limit 2097152 bytes exceeded. Consumed SOME bytes.
+
+# Testing temptable memory key allocation
+TRUNCATE TABLE performance_schema.events_waits_summary_by_account_by_event_name;
+SET @@tmp_table_size = 32 * 1024 * 1024;
+SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
+ERROR HY000: Connection closed. Connection memory limit 2097152 bytes exceeded. Consumed SOME bytes.
+SELECT COUNT_STAR > 0 FROM performance_schema.events_waits_summary_by_account_by_event_name
+WHERE USER = 'user1' AND EVENT_NAME LIKE 'wait/synch/mutex/sql/LOCK_global_conn_mem_limit';
+COUNT_STAR > 0
+1
+SELECT PRIO, SUBSYSTEM, DATA FROM performance_schema.error_log
+ORDER BY LOGGED DESC LIMIT 1;
+PRIO	SUBSYSTEM	DATA
+Error	Server	Connection closed. Connection memory limit 2097152 bytes exceeded. Consumed SOME bytes.
+#
+# Testing OOM for global_connection_memory_limit variable.
+#
+SET GLOBAL global_connection_memory_limit = 1024 * 1024 * 16;
+SET GLOBAL connection_memory_limit = default;
+
+# Testing sql memory key allocation
+TRUNCATE TABLE performance_schema.events_waits_summary_by_account_by_event_name;
+SELECT LENGTH(GROUP_CONCAT(f1 ORDER BY f2)) FROM t1;
+ERROR HY000: Connection closed. Global connection memory limit 16777216 bytes exceeded. Consumed SOME bytes.
+SELECT COUNT_STAR > 0 FROM performance_schema.events_waits_summary_by_account_by_event_name
+WHERE USER = 'user1' AND EVENT_NAME LIKE 'wait/synch/mutex/sql/LOCK_global_conn_mem_limit';
+COUNT_STAR > 0
+1
+SELECT PRIO, SUBSYSTEM, DATA FROM performance_schema.error_log
+ORDER BY LOGGED DESC LIMIT 1;
+PRIO	SUBSYSTEM	DATA
+Error	Server	Connection closed. Global connection memory limit 16777216 bytes exceeded. Consumed SOME bytes.
+
+# Testing temptable memory key allocation
+TRUNCATE TABLE performance_schema.events_waits_summary_by_account_by_event_name;
+SET @@tmp_table_size = 32 * 1024 * 1024;
+SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
+ERROR HY000: Connection closed. Global connection memory limit 16777216 bytes exceeded. Consumed SOME bytes.
+SELECT COUNT_STAR > 0 FROM performance_schema.events_waits_summary_by_account_by_event_name
+WHERE USER = 'user1' AND EVENT_NAME LIKE 'wait/synch/mutex/sql/LOCK_global_conn_mem_limit';
+COUNT_STAR > 0
+1
+SELECT PRIO, SUBSYSTEM, DATA FROM performance_schema.error_log
+ORDER BY LOGGED DESC LIMIT 1;
+PRIO	SUBSYSTEM	DATA
+Error	Server	Connection closed. Global connection memory limit 16777216 bytes exceeded. Consumed SOME bytes.
+SET @@tmp_table_size = default;
+SET GLOBAL connection_memory_chunk_size = default;
+SET GLOBAL global_connection_memory_limit = default;
+SET GLOBAL group_concat_max_len= default;
+DROP USER 'user1'@localhost;
+DROP TABLE t1;

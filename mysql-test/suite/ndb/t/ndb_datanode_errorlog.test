@@ -1,0 +1,407 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+
+--echo Test robustness of data node error log generation code
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+let $DN1_DATADIR=$MYSQLD_DATADIR/../../ndbd.1;
+let $DN1_NEXT=$DN1_DATADIR/ndb_1_trace.log.next;
+let $DN1_ERRORLOG=$DN1_DATADIR/ndb_1_error.log;
+let $DN1_TRACEBASE=$DN1_DATADIR/ndb_1_trace.log;
+let $DN1_ERRORLOG_COPY=$DN1_ERRORLOG.bak;
+
+--echo Clean up before starting
+--remove_files_wildcard $DN1_DATADIR ndb_1_error*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace*
+
+--echo --------------------------------------------------
+--echo Test behaviour of problems with next crash id file
+--echo --------------------------------------------------
+
+--echo Create a normal set of files to start with id 1
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--echo Show next crash id file content
+--cat_file $DN1_NEXT
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+--echo
+
+
+--echo -------------------
+--echo Test : Unwriteable next file
+#        r
+--chmod 0400 $DN1_NEXT
+
+# Remove files except next file
+--remove_files_wildcard $DN1_DATADIR ndb_1_error*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.1*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.2*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.3*
+
+--echo Show file content
+--cat_file $DN1_NEXT
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+--echo
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--echo Show file content
+--echo Expect next file unchanged, error + trace files 1 written
+--chmod 0600 $DN1_NEXT
+--cat_file $DN1_NEXT
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+
+--echo -------------------
+--echo Test : Unreadable next file
+--chmod 0000 $DN1_NEXT
+
+# Remove files except next file
+--remove_files_wildcard $DN1_DATADIR ndb_1_error*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.1*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.2*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.3*
+
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+--echo
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--echo Show file content
+--echo Expect next file unchanged, error and trace files 1 written 
+--chmod 0600 $DN1_NEXT
+--cat_file $DN1_NEXT
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+
+
+--echo -------------------
+--echo Test : Zero length next file
+--remove_file $DN1_NEXT
+--write_file $DN1_NEXT
+EOF
+
+# Remove files except next file
+--remove_files_wildcard $DN1_DATADIR ndb_1_error*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.1*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.2*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.3*
+
+--echo Show content
+--cat_file $DN1_NEXT
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--echo Show file content
+--echo Expect next file defaults to 2, error + trace files 2 written
+--cat_file $DN1_NEXT
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+
+--echo -------------------
+--echo Test : Junk in next file
+--remove_file $DN1_NEXT
+--write_file $DN1_NEXT
+ILLEGIBLE JUNK
+EOF
+
+# Remove files except next file
+--remove_files_wildcard $DN1_DATADIR ndb_1_error*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.1*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.2*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.3*
+
+--echo Show junk content
+--cat_file $DN1_NEXT
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--echo Show file content
+--echo Expect next file defaults to 2, error + trace files 2 written
+--cat_file $DN1_NEXT
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+
+
+--echo Cleanup
+--remove_files_wildcard $DN1_DATADIR ndb_1_error*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace*
+
+--echo ----------------------------------------------
+--echo Test behaviour of problems with error log file
+--echo ----------------------------------------------
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+--echo
+
+
+--echo -------------------
+--echo Test : Unwriteable error log
+#        r
+--chmod 0400 $DN1_ERRORLOG
+
+# Remove trace files
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.1*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.2*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.3*
+
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--chmod 0600 $DN1_ERRORLOG
+
+--echo Expect trace files 2 written
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+--echo
+
+--echo -------------------
+--echo Test : Unreadable error log
+--chmod 0000 $DN1_ERRORLOG
+
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.1*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.2*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.3*
+
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--chmod 0600 $DN1_ERRORLOG
+
+--echo Expect  trace files 3 written
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+--echo
+
+--echo -------------------
+--echo Test : Zero length error log file
+--remove_file $DN1_ERRORLOG
+--write_file $DN1_ERRORLOG
+EOF
+
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.1*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.2*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.3*
+
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--echo Show content
+--cat_file $DN1_ERRORLOG
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--echo Show content
+--echo Expect error log written, error log copy empty, trace files 1 written
+--let $assert_text=Check that error log is written
+--let $assert_file=$DN1_ERRORLOG
+--let $assert_select=Current byte-offset of
+--let $assert_count=1
+--source include/assert_grep.inc
+--cat_file $DN1_ERRORLOG_COPY
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--remove_file $DN1_ERRORLOG_COPY
+
+--echo -------------------
+--echo Test : Junk in error log file
+--remove_file $DN1_ERRORLOG
+--write_file $DN1_ERRORLOG
+ILLEGIBLE JUNK
+EOF
+
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.1*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.2*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace.log.3*
+
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--echo Show junk content
+--cat_file $DN1_ERRORLOG
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--echo Show file content
+--echo Expect error log written, error log copy has hunk, trace files 2 written
+--let $assert_text=Check that error log is written
+--let $assert_file=$DN1_ERRORLOG
+--let $assert_select=Current byte-offset of
+--let $assert_count=1
+--source include/assert_grep.inc
+--cat_file $DN1_ERRORLOG_COPY
+--echo
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--remove_file $DN1_ERRORLOG_COPY
+
+
+--echo -----------------------------------------------
+--echo Test behaviour of problems with trace log files
+--echo -----------------------------------------------
+
+--echo Clean up before starting
+--remove_files_wildcard $DN1_DATADIR ndb_1_error*
+--remove_files_wildcard $DN1_DATADIR ndb_1_trace*
+
+--echo Expect next crash will write trace logs 1
+--echo Create some files with those names already
+--echo that cannot be overwritten due to permissions
+--echo Test that files that can be written are
+--echo written.
+
+
+let $BADTRACE1=$DN1_TRACEBASE.1;
+let $BADTRACE2=$DN1_TRACEBASE.1_t3;
+
+--write_file $BADTRACE1
+JUNK
+EOF
+#        r
+--chmod 0400 $BADTRACE1
+
+--write_file $BADTRACE2
+JUNK
+EOF
+--chmod 0400 $BADTRACE2
+
+--echo Show state before
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--echo Generate an error-insert crash
+--exec $NDB_MGM -e "1 DUMP 2602 1"
+--exec $NDB_MGM --execute "1 ERROR 9999"
+
+--echo Wait for the node to stop
+--exec $NDB_WAITER --not-started -w1
+--exec $NDB_MGM -e "1 START"
+--echo Wait for the node to start
+--exec $NDB_WAITER
+
+--echo Show state after
+--echo Expect error log and trace files 1 written
+--echo Bad trace files still contain JUNK
+
+--list_files $DN1_DATADIR ndb_1_error*
+--list_files $DN1_DATADIR ndb_1_trace*
+
+--cat_file $BADTRACE1
+--cat_file $BADTRACE2
+
+--chmod 0600 $BADTRACE1
+--chmod 0600 $BADTRACE2
+

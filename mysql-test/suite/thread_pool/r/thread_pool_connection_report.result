@@ -1,0 +1,123 @@
+# Setting this means a single connection report
+# will be emitted whenever thread_pool_connection_report_interval
+# is set (to a legal value).
+SET GLOBAL DEBUG = "+d,tp_force_connection_report";
+# The illegal value 1 in -master.opt is ignored replaced with 0 (OFF)
+SELECT @@GLOBAL.thread_pool_connection_report_interval;
+@@GLOBAL.thread_pool_connection_report_interval
+120
+SET GLOBAL thread_pool_connection_report_interval = 59;
+ERROR 42000: Variable 'thread_pool_connection_report_interval' can't be set to the value of '59'
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 65;
+# This will trigger a connection report, but the result depends on the current state of the server
+# so we don't show the results here.
+SET GLOBAL thread_pool_connection_report_interval = 601;
+ERROR 42000: Variable 'thread_pool_connection_report_interval' can't be set to the value of '601'
+# Turning logging off is allowed
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+# Expect 1 active usr connection here
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+SUBSTRING(DATA, 105)
+Init: 0, 0, 0, 0, 0. Usr: 1(+0), 1, 0, 0, 0, 0. Adm: 0(+0), 0, 0, 0, 0, 0.
+# Result 1
+CREATE USER u1;
+# Grant the user u1 the privilege SERVICE_CONNECTION_ADMIN
+# so that u1 is able to connect on the admin interface.
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO u1;
+# Grant the TP-provided dynamic privilege TP_CONNECTION_ADMIN to root
+# so that new connection from root end up in the admin thread group.
+GRANT TP_CONNECTION_ADMIN ON *.* TO root@localhost;
+# New connection with root should end up in admin thread group.
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+# Check that the user u1 can establish connection to admin interface since
+# this user has the privilege SERVICE_CONNECTION_ADMIN
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@%
+# Verify that failed connections are not counted in connection report.
+ERROR 28000: Access denied for user 'dummy'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'dummy'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'dummy'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'dummy'@'localhost' (using password: NO)
+CREATE TABLE t1(i INT);
+# Force connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+# Expect usr connection active and two new admin connections, both active
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+SUBSTRING(DATA, 105)
+Init: 6, 0, 0, 4, 2. Usr: 1(+0), 1, 0, 0, 0, 0. Adm: 2(+2), 2, 2, 0, 2, 0.
+# Result 2
+CREATE TABLE t2(i INT);
+INSERT INTO t2 VALUES (0), (1), (2);
+# Force connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+# Expect 1 active usr connection and two admin connections, one of which is active
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+SUBSTRING(DATA, 105)
+Init: 0, 0, 0, 0, 0. Usr: 1(+0), 1, 0, 0, 0, 0. Adm: 2(+0), 1, 0, 0, 0, 0.
+# Result 3
+SELECT * FROM t1;
+i
+# Wait until only the default connection is listed as active
+SELECT * FROM performance_schema.tp_connections WHERE ACTIVE_FLAG = 1 AND
+(SELECT COUNT(*) > 1 FROM performance_schema.tp_connections WHERE ACTIVE_FLAG = 1);
+CONNECTION_ID	TP_GROUP_ID	TP_PROCESSING_THREAD_NUMBER	THREAD_ID	STATE	ACTIVE_FLAG	KILLED_STATE	CLEANUP_STATE	TIME_OF_LAST_EVENT_COMPLETION	TIME_OF_EXPIRY	TIME_OF_ADD	TIME_OF_POP	TIME_OF_ARM	CONNECT_HANDLER_INDEX	TYPE	DIRECT_QUERY_EVENTS	QUEUED_QUERY_EVENTS	TIME_OF_EVENT_ARRIVAL	MANAGEMENT_TIME
+# Force connection report which we do not report, to allow active counts
+# to stablilize
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+# Force stable connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+# Expect 1 active usr connection and two admin connections, none of
+# which are active
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+SUBSTRING(DATA, 105)
+Init: 0, 0, 0, 0, 0. Usr: 1(+0), 1, 0, 0, 0, 0. Adm: 2(+0), 0, 0, 0, 0, 0.
+# Result 4
+# Force connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+# Expect 1 active usr connection and two closed admin connections
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+SUBSTRING(DATA, 105)
+Init: 0, 0, 0, 0, 0. Usr: 1(+0), 1, 0, 0, 0, 0. Adm: 0(-2), 0, 0, 2, 0, 2.
+# Result 5
+# Connect u1 to the admin port successfully
+# Connect u1 to the user port successfully
+# Connect u1 to the admin port with bad pwd
+# Connect u1 to the user port with bad pwd
+SET GLOBAL DEBUG = "+d,sleep_before_auth";
+# Connect u1 to the admin port, sleep in authentication
+# Connect u1 to the user port, sleep in authentication
+SET GLOBAL DEBUG = "-d,sleep_before_auth";
+SET GLOBAL DEBUG = "+d,sleep_before_handling_connection_nolock";
+# Connect u1 to the admin port, sleep before draining queue
+# Connect u1 to the user port, sleep before draining queue
+SET GLOBAL DEBUG = "-d,sleep_before_handling_connection_nolock";
+# Force connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+# This should leave us: Init: 8, 2, 2, 2, 2.
+SELECT SUBSTRING(DATA, 105, 20) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+SUBSTRING(DATA, 105, 20)
+Init: 8, 2, 2, 2, 2.
+DROP TABLE t2;
+DROP TABLE t1;
+DROP USER u1;
+REVOKE TP_CONNECTION_ADMIN ON *.* FROM root@localhost;
+SET GLOBAL DEBUG = "-d,tp_force_connection_report";
+# Set back to what test started with
+SET GLOBAL thread_pool_connection_report_interval = 120;

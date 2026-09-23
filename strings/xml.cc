@@ -414,8 +414,26 @@ int my_xml_parse(MY_XML_PARSER *p, const char *str, size_t len) {
       }
 
       if (lex == MY_XML_SLASH) {
-        if (MY_XML_OK != my_xml_leave(p, nullptr, 0)) return MY_XML_ERROR;
-        lex = my_xml_scan(p, &a);
+        /*
+          Slashes are valid before the terminating '?' in a processing
+          instruction, but not as a self-closing marker for <! ... >.
+        */
+        if (question) {
+          const char *slash_end = p->cur;
+          lex = my_xml_scan(p, &a);
+          if (lex != MY_XML_QUESTION) {
+            p->cur = slash_end;
+            sprintf(p->errstr, "%s unexpected ('?' wanted)",
+                    lex2str(MY_XML_SLASH));
+            return MY_XML_ERROR;
+          }
+        } else if (exclam) {
+          sprintf(p->errstr, "%s unexpected ('>' wanted)", lex2str(lex));
+          return MY_XML_ERROR;
+        } else {
+          if (MY_XML_OK != my_xml_leave(p, nullptr, 0)) return MY_XML_ERROR;
+          lex = my_xml_scan(p, &a);
+        }
       }
 
     gt:

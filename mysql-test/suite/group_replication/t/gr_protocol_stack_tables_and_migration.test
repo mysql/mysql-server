@@ -83,6 +83,7 @@ while ($_rpl_server)
 --echo #    accordingly
 --echo # 5. Start and bootstrap the group with server 1
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 SET GLOBAL group_replication_communication_stack= MySQL;
 --let $server_address_1= localhost:$SERVER_MYPORT_1
 --disable_query_log
@@ -95,6 +96,7 @@ SET GLOBAL group_replication_communication_stack= MySQL;
 --echo #    accordingly
 --echo # 7. Start server 2.
 --connection server2
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 SET GLOBAL group_replication_communication_stack= MySQL;
 --let $server_address_2= localhost:$SERVER_MYPORT_2
 --disable_query_log
@@ -129,6 +131,7 @@ while ($_rpl_server)
 --echo #     group_replication_communication_stack
 --echo # 10. Stop server 1
 --connection server1
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 SET GLOBAL group_replication_communication_stack= XCOM;
 
 --let $server_uuid= `SELECT @@server_uuid`
@@ -147,6 +150,7 @@ SET GLOBAL group_replication_communication_stack= XCOM;
 --echo #     group_replication_communication_stack
 --echo # 12. Stop server 2
 --connection server2
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 SET GLOBAL group_replication_communication_stack= XCOM;
 
 --let $server_uuid= `SELECT @@server_uuid`
@@ -162,6 +166,7 @@ SET GLOBAL group_replication_communication_stack= XCOM;
 
 --echo # 13. Bootstrap the group with server 1.
 --connection server1
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 SET GLOBAL group_replication_communication_stack= XCOM;
 --let $server_address_1= localhost:$SERVER_GR_PORT_1
 --disable_query_log
@@ -172,6 +177,7 @@ SET GLOBAL group_replication_communication_stack= XCOM;
 
 --echo # 14. Join Server 2.
 --connection server2
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 SET GLOBAL group_replication_communication_stack= XCOM;
 --let $server_address_2= localhost:$SERVER_GR_PORT_2
 --disable_query_log
@@ -184,6 +190,7 @@ SET GLOBAL group_replication_communication_stack= XCOM;
 
 --connection server2
 --disable_query_log
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --eval SET GLOBAL group_replication_communication_stack= "$communication_stack_save_2"
 --eval SET GLOBAL group_replication_local_address= "$local_addr_save_2"
 --eval SET GLOBAL group_replication_group_seeds= "$seeds_save_2"
@@ -191,6 +198,7 @@ SET GLOBAL group_replication_communication_stack= XCOM;
 
 --connection server1
 --disable_query_log
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --eval SET GLOBAL group_replication_communication_stack= "$communication_stack_save_1"
 --eval SET GLOBAL group_replication_local_address= "$local_addr_save_1"
 --eval SET GLOBAL group_replication_group_seeds= "$seeds_save_1"

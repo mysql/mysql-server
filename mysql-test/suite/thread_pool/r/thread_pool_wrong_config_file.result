@@ -1,0 +1,21 @@
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-algorithm':.*value .* adjusted to 1 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-longrun-trx-limit':.*value .* adjusted to 86400000 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-max-active-query-threads':.*value .* adjusted to 512 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-max-transactions-limit':.*value .* adjusted to 1000000 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-max-unused-threads':.*value .* adjusted to 4096 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-prio-kickup-timer':.*value .* adjusted to 4294967295 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-query-threads-per-group':.*value .* adjusted to 1 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-size':.*value .* adjusted to 1 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-stall-limit':.*value .* adjusted to 600 found]
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-transaction-delay':.*value .* adjusted to 0 found]
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

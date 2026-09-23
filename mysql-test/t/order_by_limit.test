@@ -1,4 +1,5 @@
 --source include/have_debug_sync.inc
+--source include/elide_costs.inc
 
 --echo #
 --echo # WL#6986 : Make switching of index due to order by limit cost based
@@ -624,3 +625,71 @@ SET DEBUG_SYNC= "now SIGNAL signal.prefer_ordering_index_check_continue";
 SET @@GLOBAL.DEBUG= '-d,prefer_ordering_index_check';
 SET optimizer_switch = DEFAULT;
 drop table t0, t1, t2;
+
+--echo #
+--echo # Bug#38564020: Optimizer with reverse index range scan
+--echo #               gives incorrect query result
+--echo #
+
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER, f3 INTEGER, PRIMARY KEY(f1), KEY key1(f2));
+INSERT INTO t1 VALUES (10,1,2), (20,1,2), (30,1,3),(40,1,4);
+ANALYZE TABLE t1;
+
+let $query =
+SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 1;
+--skip_if_hypergraph  # No filters on top of range scan
+--eval EXPLAIN FORMAT=tree $query
+--eval $query
+
+let $query =
+SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 2;
+--skip_if_hypergraph  # No filters on top of range scan
+--eval EXPLAIN FORMAT=tree $query
+--eval $query
+
+let $query =
+SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 4;
+--skip_if_hypergraph  # No filters on top of range scan
+--eval EXPLAIN FORMAT=tree $query
+--eval $query
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#38406661: Sort optimization fails as primary key info in
+--echo #               secondary index is not considered after
+--echo #               hint-enforced secondary index
+
+
+CREATE TABLE t1 (
+  pk_1 INT,
+  pk_2 INT,
+  f1 DATETIME,
+  PRIMARY KEY(pk_1, pk_2),
+  KEY k1(f1)
+);
+
+INSERT INTO t1 VALUES
+(1,1,'2000-01-01'), (1,2,'2000-01-02'), (1,3,'2000-01-03'),
+(1,4,'2000-01-04'), (1,5,'2000-01-05'), (2,1,'2000-01-01'),
+(2,2,'2000-01-02'), (2,3,'2000-01-03'), (2,4,'2000-01-04'),
+(2,5,'2000-01-05'), (3,1,'2000-01-01'), (3,2,'2000-01-02'),
+(3,3,'2000-01-03'), (3,4,'2000-01-04'), (3,5,'2000-01-05');
+
+ANALYZE TABLE t1;
+
+--echo no index hint, should use covering index lookup on k1 in reverse and no Sort
+let $query = SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
+             ORDER BY pk_2 DESC LIMIT 5;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+--echo With index hint on k1, should still avoid Sort and use reverse index order
+let $query = SELECT /*+ INDEX(t1 k1) */ f1, pk_1, pk_2 FROM t1
+             WHERE pk_1 = 3 AND f1 = '2000-01-03' ORDER BY pk_2 DESC LIMIT 5;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;

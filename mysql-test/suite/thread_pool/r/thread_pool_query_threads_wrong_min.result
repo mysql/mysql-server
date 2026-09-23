@@ -1,0 +1,7 @@
+# Check for expected content in mysqld.1.err
+include/assert_grep.inc [option 'thread-pool-query-threads-per-group':.*value .* adjusted to 1 found]
+SET SESSION thread_pool_query_threads_per_group = 0;
+ERROR HY000: Variable 'thread_pool_query_threads_per_group' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL thread_pool_query_threads_per_group = 0;
+ERROR 42000: Variable 'thread_pool_query_threads_per_group' can't be set to the value of '0'
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

@@ -65,6 +65,8 @@ SET SESSION innodb_interpreter = @cmd;
 SET SESSION innodb_interpreter = 'corrupt_ondisk_page0 test/t1';
 SET SESSION innodb_interpreter = 'destroy';
 
+SET GLOBAL innodb_log_flush_now = ON;
+
 --replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
 --source include/kill_and_restart_mysqld.inc
 

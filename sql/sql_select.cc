@@ -3977,25 +3977,52 @@ bool check_field_is_const(Item *cond, const Item *order_item,
   }
   if (cond->type() != Item::FUNC_ITEM) return false;
   Item_func *const func = down_cast<Item_func *>(cond);
-  if (func->functype() != Item_func::EQUAL_FUNC &&
-      func->functype() != Item_func::EQ_FUNC)
-    return false;
-  Item_func_comparison *comp = down_cast<Item_func_comparison *>(func);
-  Item *left = comp->arguments()[0];
-  Item *right = comp->arguments()[1];
-  if (equal(left, order_item, order_field)) {
-    if (equality_determines_uniqueness(comp, left, right)) {
-      if (*const_item != nullptr) return right->eq(*const_item);
-      *const_item = right;
+  if (func->functype() == Item_func::EQUAL_FUNC ||
+      func->functype() == Item_func::EQ_FUNC) {
+    Item_func_comparison *comp = down_cast<Item_func_comparison *>(func);
+    Item *left = comp->arguments()[0];
+    Item *right = comp->arguments()[1];
+    Item *candidate_const = nullptr;
+
+    if (equal(left, order_item, order_field)) {
+      if (equality_determines_uniqueness(comp, left, right))
+        candidate_const = right;
+    } else if (equal(right, order_item, order_field)) {
+      if (equality_determines_uniqueness(comp, right, left))
+        candidate_const = left;
+    }
+
+    if (candidate_const != nullptr) {
+      if (*const_item != nullptr) {
+        // "f = const OR f IS NULL" is not a single constant. NULL constants
+        // are compatible with IS NULL, e.g. "f <=> NULL OR f IS NULL".
+        if (is_function_of_type(*const_item, Item_func::ISNULL_FUNC)) {
+          if (candidate_const->type() == Item::NULL_ITEM) return true;
+          return false;
+        }
+        return candidate_const->eq(*const_item);
+      }
+      *const_item = candidate_const;
       return true;
     }
-  } else if (equal(right, order_item, order_field)) {
-    if (equality_determines_uniqueness(comp, right, left)) {
-      if (*const_item != nullptr) return left->eq(*const_item);
-      *const_item = left;
+  } else if (func->functype() == Item_func::ISNULL_FUNC) {
+    const Item *arg = func->arguments()[0];
+    if (!equal(arg, order_item, order_field)) return false;
+    // "field IS NULL" determines a unique constant value for the field.
+    // Record the IS NULL function itself as a sentinel to keep OR-level
+    // consistency checks simple.
+    if (*const_item == nullptr) {
+      *const_item = cond;
       return true;
     }
+    // const_item may already hold Item_null from prior constant folding;
+    // treat it as compatible with IS NULL.
+    if ((*const_item)->type() == Item::NULL_ITEM) return true;
+    if (is_function_of_type(*const_item, Item_func::ISNULL_FUNC))
+      return equal(down_cast<const Item_func *>(*const_item)->arguments()[0],
+                   order_item, order_field);
   }
+
   return false;
 }
 

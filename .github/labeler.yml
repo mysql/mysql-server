@@ -1,0 +1,55 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+# Area auto-labels, driven by the paths a PR touches. Keeps triage cheap and
+# routes reviews to the right owners (see CODEOWNERS).
+#
+# Format note: actions/labeler@v5 requires the `changed-files` /
+# `any-glob-to-any-file` structure below. The older flat "label: [globs]"
+# layout (v4) is NOT compatible with v5 and fails to parse.
+
+"innodb":
+  - changed-files:
+      - any-glob-to-any-file: ["storage/innobase/**"]
+
+"optimizer":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "sql/join_optimizer/**"
+          - "sql/sql_optimizer*"
+          - "sql/range_optimizer/**"
+
+"replication":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "sql/rpl_*"
+          - "libbinlogevents/**"
+          - "plugin/group_replication/**"
+
+"client":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "client/**"
+          - "libmysql/**"
+
+"pluggable":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "plugin/**"
+          - "components/**"
+
+"build":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "cmake/**"
+          - "CMakeLists.txt"
+          - "scripts/ci/**"
+          - ".github/**"
+
+"tests":
+  - changed-files:
+      - any-glob-to-any-file: ["mysql-test/**"]
+
+"docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"

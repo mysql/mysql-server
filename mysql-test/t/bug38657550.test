@@ -1,0 +1,61 @@
+
+--echo #
+--echo # Bug#38657550 Use-after-free of TABLE::read_set in DynamicRangeIterator
+--echo #
+--source ../include/elide_costs.inc
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  col1 INT,
+  col2 INT,
+  col3 INT,
+  KEY index_col2(col2),
+  KEY index_col3(col3),
+  KEY index_c123(col1, col2, col3)
+);
+
+DELIMITER //;
+CREATE PROCEDURE insert_data_t1()
+BEGIN
+  DECLARE num INT;
+  SET num = 1;
+  WHILE num <= 3955 DO
+    INSERT INTO t1 VALUES (num, num / 150, 0, num);
+  SET num = num + 1;
+  END WHILE;
+END//
+DELIMITER ;//
+
+CALL insert_data_t1();
+ANALYZE TABLE t1;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN
+SELECT
+  CASE 1
+    WHEN EXISTS (
+      SELECT 1
+      FROM t1
+      WHERE t1.col1 = 1
+        AND t1.col2 = d.col2 - 10
+        AND t1.col3 <= 100
+    ) THEN 2
+  END
+FROM t1 d;
+
+--disable_result_log
+SELECT
+  CASE 1
+    WHEN EXISTS (
+      SELECT 1
+      FROM t1
+      WHERE t1.col1 = 1
+        AND t1.col2 = d.col2 - 10
+        AND t1.col3 <= 100
+    ) THEN 2
+  END
+FROM t1 d;
+--enable_result_log
+
+DROP TABLE t1;
+DROP PROCEDURE insert_data_t1;

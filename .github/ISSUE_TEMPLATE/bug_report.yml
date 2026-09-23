@@ -1,0 +1,35 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Bug report
+description: Report incorrect or unexpected server behavior
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security vulnerabilities must **not** be filed here. Report them through
+        <https://www.oracle.com/corporate/security-practices/assurance/vulnerability/>.
+  - type: input
+    id: version
+    attributes:
+      label: MySQL version / commit
+      placeholder: "9.x trunk @ <sha>, or 8.4.x"
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal SQL or MTR case if possible.
+      placeholder: |
+        CREATE TABLE t (...);
+        ...
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual result
+    validations: { required: true }
+  - type: input
+    id: platform
+    attributes:
+      label: Platform / compiler
+      placeholder: "Ubuntu 24.04, gcc 13"

@@ -46,7 +46,14 @@ void printErrorAndFlags(Uint32 used_flags);
 
 #define JAM_FILE_ID 381
 
+#define NDBFS_CLEAR_REQUEST_ERROR(req) \
+  ((req)->clear_error(__LINE__, __FILE__, __func__))
+#define NDBFS_SET_REQUEST_ERROR(req, code) \
+  ((req)->safe_set_error((code), __LINE__, __FILE__, __func__))
+
 const int ERR_ReadUnderflow = 1000;
+// Set ERR_Unknown same as FsOpenReq::fsErrUnknown and NDBD_EXIT_AFS_UNKNOWN
+const int ERR_Unknown = 2813;
 
 class AsyncFile;
 class AsyncIoThread;
@@ -121,11 +128,8 @@ class Request {
     const char *file;
     const char *func;
   } error;
-  void set_error(int code, int line, const char *file, const char *func) {
-    error = {code, line, file, func};
-  }
-#define NDBFS_SET_REQUEST_ERROR(req, code) \
-  ((req)->set_error((code), __LINE__, __FILE__, __func__))
+  void safe_set_error(int code, int line, const char *file, const char *func);
+  void clear_error(int line, const char *file, const char *func);
   void set(BlockReference userReference, Uint32 userPointer,
            Uint16 filePointer);
   BlockReference theUserReference;
@@ -152,6 +156,16 @@ class Request {
 };
 
 NdbOut &operator<<(NdbOut &, const Request &);
+
+inline void Request::safe_set_error(int code, int line, const char *file,
+                                    const char *func) {
+  if (code == 0) code = ERR_Unknown;
+  error = {code, line, file, func};
+}
+
+inline void Request::clear_error(int line, const char *file, const char *func) {
+  error = {0, line, file, func};
+}
 
 inline void Request::set(BlockReference userReference, Uint32 userPointer,
                          Uint16 filePointer) {

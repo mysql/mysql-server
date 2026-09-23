@@ -1666,6 +1666,18 @@ bool Item::get_date_from_time(Date_val *date) {
   return false;
 }
 
+bool Item::get_date_from_datetime(Date_val *date, my_time_flags_t flags) {
+  Datetime_val dt;
+  if (val_datetime(&dt, flags)) {
+    assert(null_value || current_thd->is_error());
+    return true;
+  }
+  datetime_to_date(&dt);
+  *date = Date_val(dt);
+
+  return false;
+}
+
 bool Item::get_datetime_from_time(Datetime_val *dt) {
   Time_val time;
   if (val_time(&time)) {
@@ -7900,16 +7912,18 @@ my_decimal *Item_json::val_decimal(my_decimal *buf) {
   return m_value->coerce_decimal(JsonCoercionWarnHandler{item_name.ptr()}, buf);
 }
 
-bool Item_json::val_date(Date_val *date, my_time_flags_t) {
+bool Item_json::val_date(Date_val *date, my_time_flags_t flags) {
+  flags |= DatetimeConversionFlags(current_thd);
   return m_value->coerce_date(JsonCoercionWarnHandler{item_name.ptr()},
                               JsonCoercionDeprecatedDefaultHandler{}, date,
-                              DatetimeConversionFlags(current_thd));
+                              flags);
 }
 
-bool Item_json::val_datetime(Datetime_val *dt, my_time_flags_t) {
+bool Item_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
+  flags |= DatetimeConversionFlags(current_thd);
   return m_value->coerce_datetime(JsonCoercionWarnHandler{item_name.ptr()},
                                   JsonCoercionDeprecatedDefaultHandler{}, dt,
-                                  DatetimeConversionFlags(current_thd));
+                                  flags);
 }
 
 bool Item_json::val_time(Time_val *time) {
@@ -9234,6 +9248,55 @@ bool Item_view_ref::fix_fields(THD *thd, Item **reference) {
     first_inner_table = m_table_ref->any_outer_leaf_table();
   }
   return false;
+}
+
+/**
+  Return the set of tables this view column logically depends on.
+
+  For a view/derived-table column that has been merged, the
+  underlying expression may itself be another view reference or
+  an arbitrary expression. In most cases, the dependency set is
+  simply the `used_tables()` of the referenced expression
+
+  There are two important refinements:
+
+  - If the view column (or its underlying field) is an outer
+    reference, we report OUTER_REF_TABLE_BIT so the optimizer can
+    treat it as referring to an outer query block.
+
+  - If the referenced expression is constant for the duration of
+    execution but the view/derived table is on the inner side of an
+    outer join (indicated by `first_inner_table`), the value may
+    still depend on whether the inner table has been null-complemented
+    (via `has_null_row()`). In this case we ensure the inner table’s
+    map is included, so the expression is not treated as an
+    unconditional constant during optimization.
+*/
+table_map Item_view_ref::used_tables() const {
+  // If this view column itself is an outer reference, report it as such.
+  if (depended_from != nullptr) return OUTER_REF_TABLE_BIT;
+  Item *inner_item = ref_item();
+  table_map inner_map = inner_item->used_tables();
+  // Note that we do not use const_for_execution() function so
+  // as to avoid multiple and recursive calls to used_tables, as this could
+  // create a problem when views are created using other views.
+  if (!(inner_map & ~INNER_TABLE_BIT) && first_inner_table != nullptr) {
+    if (inner_item->type() == Item::FIELD_ITEM) {
+      const Item_field *field = down_cast<const Item_field *>(inner_item);
+      // Const table elimination has converted field to a const value.
+      // Nevertheless, we cannot handle it as a true const value in other parts
+      // of the code, and thus have to report it as if it were original,
+      // ie. an outer reference or a regular table field.
+      return field->depended_from != nullptr ? OUTER_REF_TABLE_BIT
+                                             : field->m_table_ref->map();
+    }
+    // Constant value on inner side of outer join wrapped in one or more
+    // Item_view_ref levels) depends on the inner table.
+    return first_inner_table->map();
+  }
+  // In all other cases, used tables are exactly those of the underlying
+  // expression referenced by this view column.
+  return inner_map;
 }
 
 /**
@@ -10804,28 +10867,28 @@ my_decimal *Item_cache_json::val_decimal(my_decimal *decimal_value) {
                            decimal_value);
 }
 
-bool Item_cache_json::val_date(Date_val *date, my_time_flags_t) {
+bool Item_cache_json::val_date(Date_val *date, my_time_flags_t flags) {
   Json_wrapper wr;
 
   if (val_json(&wr)) return true;
 
   if (null_value) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return wr.coerce_date(JsonCoercionWarnHandler{whence(cached_field)},
-                        JsonCoercionDeprecatedDefaultHandler{}, date,
-                        DatetimeConversionFlags(current_thd));
+                        JsonCoercionDeprecatedDefaultHandler{}, date, flags);
 }
 
-bool Item_cache_json::val_datetime(Datetime_val *dt, my_time_flags_t) {
+bool Item_cache_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
   Json_wrapper wr;
 
   if (val_json(&wr)) return true;
 
   if (null_value) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return wr.coerce_datetime(JsonCoercionWarnHandler{whence(cached_field)},
-                            JsonCoercionDeprecatedDefaultHandler{}, dt,
-                            DatetimeConversionFlags(current_thd));
+                            JsonCoercionDeprecatedDefaultHandler{}, dt, flags);
 }
 
 bool Item_cache_json::val_time(Time_val *time) {

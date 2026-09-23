@@ -1,0 +1,208 @@
+--source include/have_thread_pool.inc
+--source include/have_debug.inc
+
+let $have_connection_report_interval = `SHOW VARIABLES LIKE 'thread_pool_connection_report_interval'`;
+if (!$have_connection_report_interval) {
+    --skip "Test needs thread_pool_connection_report_interval"
+}
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
+--echo # Setting this means a single connection report
+--echo # will be emitted whenever thread_pool_connection_report_interval
+--echo # is set (to a legal value).
+SET GLOBAL DEBUG = "+d,tp_force_connection_report";
+
+--echo # The illegal value 1 in -master.opt is ignored replaced with 0 (OFF)
+SELECT @@GLOBAL.thread_pool_connection_report_interval;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL thread_pool_connection_report_interval = 59;
+
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 65;
+let $wait_condition=SELECT count(*) = 1 FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+
+--source include/wait_condition.inc
+--echo # This will trigger a connection report, but the result depends on the current state of the server
+--echo # so we don't show the results here.
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL thread_pool_connection_report_interval = 601;
+
+--echo # Turning logging off is allowed
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+let $wait_condition=SELECT count(*) = 1 FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--source include/wait_condition.inc
+
+--echo # Expect 1 active usr connection here
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--echo # Result 1
+
+CREATE USER u1;
+--echo # Grant the user u1 the privilege SERVICE_CONNECTION_ADMIN
+--echo # so that u1 is able to connect on the admin interface.
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO u1;
+
+--echo # Grant the TP-provided dynamic privilege TP_CONNECTION_ADMIN to root
+--echo # so that new connection from root end up in the admin thread group.
+GRANT TP_CONNECTION_ADMIN ON *.* TO root@localhost;
+
+--echo # New connection with root should end up in admin thread group.
+connect(con_r1,localhost,root,,,,,);
+SELECT CURRENT_USER();
+
+--echo # Check that the user u1 can establish connection to admin interface since
+--echo # this user has the privilege SERVICE_CONNECTION_ADMIN
+connect(admin_con_u1,127.0.0.1,u1,,,$MASTER_ADMINPORT,,);
+SELECT CURRENT_USER();
+
+--echo # Verify that failed connections are not counted in connection report.
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(bad_con,localhost,dummy,,,,,);
+
+--error ER_ACCESS_DENIED_ERROR
+connect(bad_con,localhost,dummy,,,,,);
+
+--error ER_ACCESS_DENIED_ERROR
+connect(bad_con,localhost,dummy,,,,,);
+
+--error ER_ACCESS_DENIED_ERROR
+connect(bad_con,localhost,dummy,,,,,);
+--enable_query_log
+
+connection default;
+CREATE TABLE t1(i INT);
+
+--echo # Force connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+let $wait_condition=SELECT count(*) = 1 FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--source include/wait_condition.inc
+--echo # Expect usr connection active and two new admin connections, both active
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--echo # Result 2
+
+connection con_r1;
+CREATE TABLE t2(i INT);
+INSERT INTO t2 VALUES (0), (1), (2);
+
+connection default;
+--echo # Force connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+let $wait_condition=SELECT count(*) = 1 FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--source include/wait_condition.inc
+--echo # Expect 1 active usr connection and two admin connections, one of which is active
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--echo # Result 3
+
+connection admin_con_u1;
+SELECT * FROM t1;
+
+connection default;
+
+--echo # Wait until only the default connection is listed as active
+let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.tp_connections WHERE ACTIVE_FLAG = 1;
+--source include/wait_condition.inc
+SELECT * FROM performance_schema.tp_connections WHERE ACTIVE_FLAG = 1 AND
+(SELECT COUNT(*) > 1 FROM performance_schema.tp_connections WHERE ACTIVE_FLAG = 1);
+
+--echo # Force connection report which we do not report, to allow active counts
+--echo # to stablilize
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+let $wait_condition=SELECT count(*) = 1 FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--source include/wait_condition.inc
+--echo # Force stable connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+let $wait_condition=SELECT count(*) = 1 FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--source include/wait_condition.inc
+--echo # Expect 1 active usr connection and two admin connections, none of
+--echo # which are active
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--echo # Result 4
+
+connection con_r1;
+--disconnect con_r1
+--source include/wait_until_disconnected.inc
+
+connection admin_con_u1;
+--disconnect admin_con_u1
+--source include/wait_until_disconnected.inc
+
+connection default;
+--echo # Force connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+let $wait_condition=SELECT count(*) = 1 FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--source include/wait_condition.inc
+--echo # Expect 1 active usr connection and two closed admin connections
+SELECT SUBSTRING(DATA, 105) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+
+--echo # Result 5
+--echo # Connect u1 to the admin port successfully
+--exec $MYSQL --commands -u u1 -h 127.0.0.1 -P $MASTER_ADMINPORT -e "quit"
+--echo # Connect u1 to the user port successfully
+--exec $MYSQL --commands -u u1 -h 127.0.0.1 -P $MASTER_MYPORT -e "quit"
+
+--echo # Connect u1 to the admin port with bad pwd
+--error 1
+--exec $MYSQL --commands -u u1 -pbad -h 127.0.0.1 -P $MASTER_ADMINPORT -e "quit"
+--echo # Connect u1 to the user port with bad pwd
+--error 1
+--exec $MYSQL --commands -u u1 -pbad -h 127.0.0.1 -P $MASTER_MYPORT -e "quit"
+
+SET GLOBAL DEBUG = "+d,sleep_before_auth";
+--echo # Connect u1 to the admin port, sleep in authentication
+--exec_in_background $MYSQL --commands -u u1 -h 127.0.0.1 -P $MASTER_ADMINPORT -e "quit"
+--echo # Connect u1 to the user port, sleep in authentication
+--exec_in_background $MYSQL --commands -u u1 -h 127.0.0.1 -P $MASTER_MYPORT -e "quit"
+--sleep 2
+SET GLOBAL DEBUG = "-d,sleep_before_auth";
+
+SET GLOBAL DEBUG = "+d,sleep_before_handling_connection_nolock";
+--echo # Connect u1 to the admin port, sleep before draining queue
+--exec_in_background $MYSQL --commands -u u1 -h 127.0.0.1 -P $MASTER_ADMINPORT -e "quit"
+--echo # Connect u1 to the user port, sleep before draining queue
+--exec_in_background $MYSQL --commands -u u1 -h 127.0.0.1 -P $MASTER_MYPORT -e "quit"
+--sleep 2
+SET GLOBAL DEBUG = "-d,sleep_before_handling_connection_nolock";
+
+--echo # Force connection report
+SELECT NOW(6) INTO @now_var;
+SET GLOBAL thread_pool_connection_report_interval = 0;
+let $wait_condition=SELECT count(*) = 1 FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+--source include/wait_condition.inc
+--echo # This should leave us: Init: 8, 2, 2, 2, 2.
+SELECT SUBSTRING(DATA, 105, 20) FROM performance_schema.error_log
+WHERE error_code = 'MY-015509' AND logged > @now_var;
+
+DROP TABLE t2;
+DROP TABLE t1;
+DROP USER u1;
+REVOKE TP_CONNECTION_ADMIN ON *.* FROM root@localhost;
+
+SET GLOBAL DEBUG = "-d,tp_force_connection_report";
+
+--echo # Set back to what test started with
+SET GLOBAL thread_pool_connection_report_interval = 120;

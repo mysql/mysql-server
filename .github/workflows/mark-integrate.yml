@@ -1,0 +1,89 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+name: Mark Integrate
+
+on:
+  # Review events load workflow YAML from the PR merge ref. Reconcile reviews
+  # once daily from the default branch so only the merged workflow runs.
+  schedule:
+    - cron: "0 6 * * *"
+
+permissions: {}
+
+concurrency:
+  group: mark-integrate-scheduled
+  cancel-in-progress: true
+
+jobs:
+  integrate:
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Reconcile integrate label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = {
+              name: 'integrate',
+              color: '5319E7',
+              description: 'Approved patch ready for integration',
+            };
+
+            try {
+              await github.rest.issues.getLabel({ ...context.repo, name: label.name });
+              await github.rest.issues.updateLabel({ ...context.repo, ...label });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.issues.createLabel({ ...context.repo, ...label });
+            }
+
+            const prs = await github.paginate(github.rest.pulls.list, {
+              ...context.repo,
+              state: 'open',
+              base: 'trunk',
+              per_page: 100,
+            });
+
+            for (const pr of prs) {
+              if (pr.base.ref !== 'trunk') continue;
+
+              const reviews = await github.paginate(github.rest.pulls.listReviews, {
+                ...context.repo,
+                pull_number: pr.number,
+                per_page: 100,
+              });
+              const meaningfulStates = new Set(['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED']);
+              const latestStates = new Map();
+
+              for (const review of reviews) {
+                const login = review.user?.login;
+                if (login && meaningfulStates.has(review.state)) {
+                  latestStates.set(login, review.state);
+                }
+              }
+
+              const approvers = [...latestStates.entries()]
+                .filter(([, state]) => state === 'APPROVED')
+                .map(([login]) => login);
+
+              if (approvers.length > 0) {
+                await github.rest.issues.addLabels({
+                  ...context.repo,
+                  issue_number: pr.number,
+                  labels: [label.name],
+                });
+                core.info(`Marked PR #${pr.number} as integrate; active approvals: ${approvers.join(', ')}.`);
+              } else {
+                try {
+                  await github.rest.issues.removeLabel({
+                    ...context.repo,
+                    issue_number: pr.number,
+                    name: label.name,
+                  });
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                }
+                core.info(`Removed integrate from PR #${pr.number}; no active approvals remain.`);
+              }
+            }

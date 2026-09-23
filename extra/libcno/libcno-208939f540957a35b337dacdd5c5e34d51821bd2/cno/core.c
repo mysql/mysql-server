@@ -533,7 +533,7 @@ static int cno_h2_on_end_headers(struct cno_connection_t *c,
                                  struct cno_stream_t *s,
                                  struct cno_frame_t *f) {
   struct cno_header_t headers[CNO_MAX_HEADERS];
-  struct cno_message_t m = {0, {0}, {0}, headers, CNO_MAX_HEADERS};
+  struct cno_message_t m = {0, {0}, {0}, headers, CNO_MAX_HEADERS, 0, 0};
   if (cno_hpack_decode(&c->decoder, f->payload, headers, &m.headers_len))
     // XXX cno_h2_goaway does not necessarily keep the old error on success...
     return cno_h2_goaway(c, CNO_RST_COMPRESSION_ERROR), CNO_ERROR_UP();
@@ -1049,7 +1049,7 @@ static int cno_when_h1_head(struct cno_connection_t *c) {
   }
 
   struct cno_header_t headers[CNO_MAX_HEADERS + 2];  // + :scheme and :authority
-  struct cno_message_t m = {0, {0}, {0}, headers, CNO_MAX_HEADERS};
+  struct cno_message_t m = {0, {0}, {0}, headers, CNO_MAX_HEADERS, 0, 0};
   struct phr_header headers_phr[CNO_MAX_HEADERS];
 
   int minor = 0;
@@ -1114,14 +1114,18 @@ static int cno_when_h1_head(struct cno_connection_t *c) {
       upgrade = 1;
     } else if (cno_buffer_eq(it->name,
                              CNO_BUFFER_CONST_STRING("content-length"))) {
+      m.has_content_length = 1;
       if (s->reading_chunked) continue;
       if (s->remaining_payload)
-        return CNO_ERROR(PROTOCOL, "multiple content-lengths");
+        return CNO_ERROR_WITH_DETAIL(PROTOCOL, MULTIPLE_CONTENT_LENGTHS,
+                                     "multiple content-lengths");
       if ((s->remaining_payload = cno_parse_uint(it->value)) == (uint64_t)-1)
-        return CNO_ERROR(PROTOCOL, "invalid content-length");
+        return CNO_ERROR_WITH_DETAIL(PROTOCOL, INVALID_CONTENT_LENGTH,
+                                     "invalid content-length");
       closeDelimited = 0;
     } else if (cno_buffer_eq(it->name,
                              CNO_BUFFER_CONST_STRING("transfer-encoding"))) {
+      m.has_transfer_encoding = 1;
       if (cno_buffer_eq(it->value, CNO_BUFFER_CONST_STRING("identity")))
         continue;  // (This value is probably not actually allowed.)
       // Any non-identity transfer-encoding requires chunked (which should also

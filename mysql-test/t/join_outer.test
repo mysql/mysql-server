@@ -2818,3 +2818,81 @@ EXPLAIN
 SELECT * FROM t2 USE INDEX(idx2) LEFT JOIN t1 USE INDEX(idx1) ON t1.f2=t2.f2 AND t1.f3 = 20 and t1.f4 > 10 and t1.f5>20;
 
 DROP TABLES t1,t2;
+
+--echo #
+--echo # Bug#35749693: Incorrect multiple equality optimization causes
+--echo #               performance degradation
+--echo #
+
+CREATE TABLE t1(a INT, b INT, c VARCHAR(100));
+CREATE TABLE t2(a INT, b INT, c VARCHAR(100));
+INSERT INTO t1 VALUES (1,1,'x'),(-1,-1,'y'),(NULL,0,'z');
+INSERT INTO t2 VALUES (1,10,'p'),(-5,20,'q'),(2,30,'r');
+ANALYZE TABLE t1, t2;
+
+# Bug: predicate appears as "extra conditions: (t1.a > 0)" on the join node
+# instead of "Filter: (t2.a > 0)" on the build side.
+--skip_if_hypergraph  # plan-shape assertion is old-optimizer specific
+--replace_regex /  \(cost=[0-9.]+ rows=[0-9.]+\)//
+EXPLAIN FORMAT=TREE
+  SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a > 0;
+# Correctness sanity check (results must not change after fix):
+--sorted_result
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a > 0;
+
+--echo #
+--echo # Same bug, bare boolean field: t2.a used directly as the predicate.
+--echo # make_condition() wraps non-boolean predicates in Item_func_ne(0, x)
+--echo # at parse time, so the remap above sees a FUNC_ITEM and handles it.
+--echo #
+--skip_if_hypergraph  # plan-shape assertion is old-optimizer specific
+--replace_regex /  \(cost=[0-9.]+ rows=[0-9.]+\)//
+EXPLAIN FORMAT=TREE
+  SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a;
+--sorted_result
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t2.a;
+
+--echo #
+--echo # Converse: user writes the predicate on the OUTER column (t1.a > 0).
+--echo # Within the ON scope t1.a = t2.a holds, so remapping to t2.a > 0 would
+--echo # be valid, but replace_equal_field() records the multi-equality on a
+--echo # field only when it actually substitutes it; t1.a is already the head
+--echo # of the equality so no substitution happens and the predicate stays as
+--echo # an extra condition. Kept here to verify results remain correct.
+--echo #
+--skip_if_hypergraph  # plan-shape assertion is old-optimizer specific
+--replace_regex /  \(cost=[0-9.]+ rows=[0-9.]+\)//
+EXPLAIN FORMAT=TREE
+  SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t1.a > 0;
+--sorted_result
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t1.a > 0;
+
+--echo #
+--echo # 3-table case: t1 LEFT JOIN (t2 JOIN t3) — predicate on t3 column
+--echo #
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES (1,100),(-1,200);
+ANALYZE TABLE t3;
+--skip_if_hypergraph  # plan-shape assertion is old-optimizer specific
+--replace_regex /  \(cost=[0-9.]+ rows=[0-9.]+\)//
+EXPLAIN FORMAT=TREE
+  SELECT * FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.a = t3.a)
+  ON t1.a = t2.a AND t3.a > 0;
+DROP TABLE t3;
+
+--echo #
+--echo # Correctness guard: equality nested under OR in the ON clause.
+--echo # The remapping must NOT touch a condition that already references the
+--echo # build side; otherwise the equality (t1.b = t2.b) could be rewritten to
+--echo # (t2.b = t2.b) via its own disjunct-level multiple equality.
+--echo #
+--skip_if_hypergraph  # plan-shape assertion is old-optimizer specific
+--replace_regex /  \(cost=[0-9.]+ rows=[0-9.]+\)//
+EXPLAIN FORMAT=TREE
+  SELECT * FROM t1 LEFT JOIN t2
+  ON t1.a = t2.a AND (t1.b = t2.b OR t2.c IS NULL);
+--sorted_result
+SELECT * FROM t1 LEFT JOIN t2
+  ON t1.a = t2.a AND (t1.b = t2.b OR t2.c IS NULL);
+
+DROP TABLE t1, t2;

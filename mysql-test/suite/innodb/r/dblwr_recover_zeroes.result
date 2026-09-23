@@ -47,6 +47,7 @@ SELECT @@session.innodb_interpreter_output INTO @space_file_name;
 SET SESSION innodb_interpreter = 'find_tablespace_physical_page_size test/t1';
 SELECT @@session.innodb_interpreter_output INTO @space_page_size;
 SET SESSION innodb_interpreter = 'destroy';
+SET GLOBAL innodb_log_flush_now = ON;
 # Kill the server
 # Corrupt the root page of table t1 in the user tablespace.
 # restart: PLUGIN_DIR_OPT

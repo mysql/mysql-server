@@ -122,3 +122,127 @@ eval $query1;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#37727982: FORCE INDEX does not skip records_in_range() for
+--echo #               IS NOT NULL
+--echo #
+
+CREATE TABLE t1 (c1 INT, KEY (c1));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (NULL), (NULL);
+ANALYZE TABLE t1;
+
+SET SESSION DEBUG="+d,crash_records_in_range";
+SELECT * FROM t1 FORCE INDEX(c1) WHERE c1 > 0;
+SELECT * FROM t1 FORCE INDEX(c1) WHERE c1 IS NOT NULL;
+SET SESSION DEBUG="-d,crash_records_in_range";
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#37751691 (Bug#117791): FORCE INDEX does not skip records_in_range()
+--echo #                            for 'x IS NULL'
+--echo #
+
+CREATE TABLE t1 (c1 INT, UNIQUE KEY (c1));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (NULL), (NULL);
+ANALYZE TABLE t1;
+
+set debug='+d,crash_records_in_range';
+
+EXPLAIN SELECT * FROM t1 FORCE INDEX(c1) WHERE c1 IS NULL;
+
+set debug='-d,crash_records_in_range';
+
+DROP TABLE t1;
+
+--echo # Verify that, for non-unique indexes, when index dives are skipped
+--echo # due to eq_range_index_dive_limit, records_in_range() is also skipped
+--echo # for an IS NULL range.
+
+SET @save_eq_range_index_dive_limit=@@SESSION.eq_range_index_dive_limit;
+SET SESSION eq_range_index_dive_limit=3;
+
+CREATE TABLE t1 (c1 INT, KEY(c1));
+
+INSERT INTO t1 VALUES
+  (NULL), (NULL), (NULL), (NULL), (NULL),
+  (NULL), (NULL), (NULL), (NULL), (NULL),
+  (NULL), (NULL), (NULL), (NULL), (NULL),
+  (NULL), (NULL), (NULL), (NULL), (NULL),
+  (1), (2), (3);
+
+ANALYZE TABLE t1;
+
+# With index dives, estimate is exact
+EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1);
+EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1, 2);
+
+# IS NULL is included in the range count, so this should not use index dives
+set debug='+d,crash_records_in_range';
+EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1, 2, 3);
+set debug='-d,crash_records_in_range';
+
+--echo # For unique indexes, the index dive limit currently does not apply
+--echo # if there is an IS NULL condition. (See Bug#39586297 / Bug#120729)
+ALTER TABLE t1 DROP INDEX c1, ADD UNIQUE INDEX c1u(c1);
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE c1 IS NULL OR c1 IN (1, 2, 3, 4);
+
+DROP TABLE t1;
+SET SESSION eq_range_index_dive_limit=@save_eq_range_index_dive_limit;
+
+--echo #
+--echo # Verify that index statistics are checked for the right index.
+--echo #
+
+SET @save_eq_range_index_dive_limit=@@SESSION.eq_range_index_dive_limit;
+SET SESSION eq_range_index_dive_limit=2;
+
+CREATE TABLE t1 (
+  a INT,
+  c1 INT,
+  c2 INT,
+  KEY a(a),
+  KEY c1_c2(c1, c2)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (0,1,1), (0,2,2), (0,3,3), (0,4,4);
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT * FROM t1 IGNORE INDEX(a)
+WHERE (c1 = 1 AND c2 = 1) OR (c1 = 2 AND c2 = 2);
+
+DROP TABLE t1;
+SET SESSION eq_range_index_dive_limit=@save_eq_range_index_dive_limit;
+
+--echo #
+--echo # Equality ranges without records_per_key must use records_in_range()
+--echo #
+
+# MEMORY BTREE indexes support records_in_range(), but do not provide
+# records_per_key statistics.  This verifies that eq_range_index_dive_limit
+# does not skip index dives when the needed index statistics are unavailable.
+SET @save_eq_range_index_dive_limit=@@SESSION.eq_range_index_dive_limit;
+SET SESSION eq_range_index_dive_limit=1;
+
+CREATE TABLE t1 (
+  c1 INT,
+  KEY i1 USING HASH (c1)
+) ENGINE=MEMORY;
+
+INSERT INTO t1 VALUES
+  (1),(1),(1),(1),(1),(1),(1),(1),(1),(1),
+  (1),(1),(1),(1),(1),(1),(1),(1),(1),(1),
+  (2),
+  (3),(4),(5),(6),(7),(8),(9),(10),(11),(12);
+
+EXPLAIN SELECT * FROM t1 WHERE c1 IN (1, 2);
+
+ALTER TABLE t1 DROP INDEX i1, ADD INDEX i2 USING BTREE (c1);
+
+EXPLAIN SELECT * FROM t1 WHERE c1 IN (1, 2);
+
+DROP TABLE t1;
+SET SESSION eq_range_index_dive_limit=@save_eq_range_index_dive_limit;

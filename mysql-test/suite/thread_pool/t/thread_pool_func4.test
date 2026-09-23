@@ -1,0 +1,415 @@
+# Check that the sophisticated priorization system of "Pool of threads" works
+# like intended.
+#
+# The priorization system should
+# - maximize the general system throughput by favouring sessions which run a
+#   transaction which has already modified some transactional table
+# - allow the user to favour some session by appropriate setting of some
+#   system variables like for example "thread_pool_high_priority_connection"
+# - treat all sessions
+#   - belonging to the same thread_pool group and
+#   - having similar properties (value of high_priority_connection, use of
+#     transactions or not, size of SELECT etc.) sufficient fair
+#
+# Author:
+# 2010-12-01 mleich develop tests for WL#5136 New Thread pool design
+#
+
+# Set $DEBUG to 1 when you want to debug the current test.
+# There will be a difference between current and expected results
+# because the actual content of interesting performance_schema tables
+# gets printed at various places.
+let $DEBUG= 0;
+#
+# Set $BENCH to 1 when you
+# - want to get rather stable statistics
+# - do not care much about total runtime
+#   Please do not forget to assign rather big timeouts.
+# testcase-timeout (15) suite-timeout (300)
+let $BENCH= 0;
+
+# This test uses parallel clients which connect to the server.
+# Such a functionality is not supported by the mebedded server.
+# This test is not adjusted to the properties of runs with valgrind.
+--source include/not_valgrind.inc
+# This test isn't working properly on Windows
+# --source include/not_windows.inc
+
+--source include/have_thread_pool.inc
+# Check that thread_pool_size is 2
+if(`SELECT @@global.thread_pool_size <> 2`)
+{
+   --die @@global.thread_pool_size must be 2, please check <testcase>-master.opt
+}
+
+let $THREAD_POOL_PRIO_KICKUP_TIMER = `SELECT @@GLOBAL.THREAD_POOL_PRIO_KICKUP_TIMER`;
+
+# Prepare prerequisites
+#######################
+# 1. All auxiliary stuff will be created within this database.
+#    This makes the cleanup easier.
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+CREATE DATABASE mysqltest;
+# 2. mysqltest.to_lock is used for
+#    - blocking/unblocking the worker session activity
+#    - within their queries.
+#    We cannot use any storage engine here. The reason is the following:
+#    Statements of ongoing transactions get sorted into the high priority
+#    queue in case (found by experimenting) a transactional table is
+#    involved.
+CREATE TABLE mysqltest.to_lock (col1 BIGINT) ENGINE = InnoDB;
+INSERT INTO mysqltest.to_lock
+VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(11);
+# 3. mysqltest.book_keeping holds data for the current run and is used for
+#    - telling the worker sessions what they should do
+#    - bookkeeping - worker sessions present here their results
+#    This table does not need to be transactional.
+CREATE TABLE mysqltest.book_keeping (
+worker_id  INTEGER,
+session_id INTEGER,
+worker_type ENUM('first','second') DEFAULT NULL,
+task_size ENUM('small','medium','big') DEFAULT 'small',
+task_transaction BOOLEAN DEFAULT 0,
+task_prepared BOOLEAN DEFAULT 0,
+high_priority_connection BOOLEAN DEFAULT 0,
+counter    BIGINT,
+mysql_errno INTEGER,
+PRIMARY KEY(worker_id))
+ENGINE = MEMORY;
+# 4. mysqltest.start_statistics is used for collecting the data from
+#    performance_schema.tp_thread_group_stats.
+#    This table does not need to be transactional.
+CREATE TABLE mysqltest.start_statistics (
+WHAT ENUM('before','after') NOT NULL,
+QUERIES_EXECUTED BIGINT(20) UNSIGNED,
+QUERIES_QUEUED BIGINT(20) UNSIGNED,
+PRIO_KICKUPS BIGINT(20) UNSIGNED,
+STALLED_QUERIES_EXECUTED BIGINT(20) UNSIGNED,
+BECOME_CONSUMER_THREAD BIGINT(20) UNSIGNED,
+BECOME_RESERVE_THREAD BIGINT(20) UNSIGNED,
+BECOME_WAITING_THREAD BIGINT(20) UNSIGNED,
+WAKE_THREAD_STALL_CHECKER BIGINT(20) UNSIGNED,
+SLEEP_WAITS BIGINT(20) UNSIGNED,
+DISK_IO_WAITS BIGINT(20) UNSIGNED,
+ROW_LOCK_WAITS BIGINT(20) UNSIGNED,
+GLOBAL_LOCK_WAITS BIGINT(20) UNSIGNED,
+META_DATA_LOCK_WAITS BIGINT(20) UNSIGNED,
+TABLE_LOCK_WAITS BIGINT(20) UNSIGNED,
+USER_LOCK_WAITS BIGINT(20) UNSIGNED,
+BINLOG_WAITS BIGINT(20) UNSIGNED,
+GROUP_COMMIT_WAITS BIGINT(20) UNSIGNED,
+FSYNC_WAITS BIGINT(20) UNSIGNED,
+PRIMARY KEY(WHAT))
+ENGINE = MEMORY;
+let $statistics_column_list=
+QUERIES_EXECUTED,QUERIES_QUEUED,PRIO_KICKUPS,STALLED_QUERIES_EXECUTED,
+BECOME_CONSUMER_THREAD,BECOME_RESERVE_THREAD,BECOME_WAITING_THREAD,
+WAKE_THREAD_STALL_CHECKER,SLEEP_WAITS,DISK_IO_WAITS,ROW_LOCK_WAITS,
+GLOBAL_LOCK_WAITS,META_DATA_LOCK_WAITS,TABLE_LOCK_WAITS,USER_LOCK_WAITS,
+BINLOG_WAITS,GROUP_COMMIT_WAITS,FSYNC_WAITS;
+# 5. mysqltest.statistics is used for collecting the data for all runs
+#    This table does not need to be transactional.
+CREATE TABLE mysqltest.statistics
+LIKE mysqltest.start_statistics;
+ALTER TABLE mysqltest.statistics
+DROP COLUMN WHAT,
+ADD COLUMN prio_kickup_timer BIGINT,
+ADD COLUMN first_counter BIGINT,
+ADD COLUMN second_counter BIGINT;
+# 6. Observer and signaling session have to reside within the same thread_group.
+#    All worker sessions have to reside within the other thread_group.
+# 6.1 Ensure that our observer session (default) has a predictable thread_group.
+--disconnect default
+--connect (default, localhost, root,,)
+# Our next important session (connection locker should be within the same
+# thread_group like default. Therefore we make here a dummy connect.
+--connect (dummy, localhost, root,,)
+let $id_list= `SELECT CONNECTION_ID()`;
+--disconnect dummy
+# 6.2 The session (locker) does nothing else than locking or unlocking mysqltest.to_lock
+--connect (locker, localhost, root,,)
+let $id= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $id;
+SET @@SESSION.lock_wait_timeout = 10;
+# 7. We need the numeric value for ER_QUERY_INTERRUPTED. Unfortunately this value
+#    might change in future. Just figure it out.
+LOCK TABLES mysqltest.to_lock WRITE;
+--connection default
+let $id= `SELECT CONNECTION_ID()`;
+--send
+INSERT INTO mysqltest.to_lock VALUES(1);
+--connection locker
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info  = "INSERT INTO mysqltest.to_lock VALUES(1)";
+--source include/wait_condition.inc
+--replace_result $id <id>
+eval KILL QUERY $id;
+--connection default
+--disable_abort_on_error
+--reap
+let $ER_QUERY_INTERRUPTED= $mysql_errno;
+--enable_abort_on_error
+--connection locker
+UNLOCK TABLES;
+--connection default
+
+# Assign the work
+#################
+# rounds_for_stats - number of test repetitions per set of different
+#    prio_kickup_timer values to be tested
+#    A smaller number decrease the overall runtime but
+#    - the average values become less reliable
+#    - we get an increased likelihood that this causes that expected relations
+#      between average values are not met
+# worker_count - number of connections within the thread group where the
+#    concurrency and priorization experiment happen
+#    - A value below 2 does not make sense at all
+#    - 10 was quite usable
+# prio_kickup_timer_boost - How to compute the new prio_kickup_timer value based
+#    on the current one.
+#        new prio_kickup_timer value
+#        = old prio_kickup_timer value <prio_kickup_timer_boost>
+#    The computation of a new value and its use in experimenting stops as
+#    soon as thread_pool_prio_kickup_timer > $run_time * 1000 is true.
+#    Examples for $prio_kickup_timer_boost
+#       * 8  -> Not too big set of tests, but maybe too big gaps between values.
+#       * 2  -> A bit bigger set of tests, but maybe too big gaps between
+#               when we reach the big numbers.
+#       + 10 -> ....
+#    In case of $BENCH == 0 we must generate and test the values 512 and 4096
+#    for prio_kickup_timer.
+# runtime - How long one run for measurement of counters should las in seconds.
+#    - Higher values lead to more reliable average values though more
+#      runs with shorter runtime are better for statistics.
+#    - A runtime which isn't significant bigger than the time needed for
+# size - means the runtime of the SELECT executed within the loop by the worker
+#        connections
+#    The runtime of the SELECT under concurrent load must be sufficient small
+#    because we cannot half completed SELECTs.
+#
+# Distribution of "first" and "second" class workers.
+#    let $first= worker_id = 1;          #   1 versus $worker_count - 1
+#    causes quite strong fluctuations and does not look very useful.
+let $first= MOD(worker_id,2) = 1; # 1/2 versus 1/2
+
+
+# Thinkable setting which can be used with $BENCH == 1.
+# Please do not forget that these settings will be overwritten in case of
+# $BENCH == 0.
+let $rounds_for_stats= 10;
+let $worker_count= 10;
+let $prio_kickup_timer_boost= * 2;
+let $run_time= 30;
+
+# Settings for $BENCH == 0 which imply
+# - limited overall runtime
+# - coarse grained results
+# - coarse grained rough checks
+# The goal is therefore limited to
+#    Show that the priorization system seems to work like described.
+if (!$BENCH)
+{
+   let $rounds_for_stats= 2;
+   let $worker_count= 10;
+   let $prio_kickup_timer_boost= * 8;
+   let $run_time= 10;
+}
+
+# Thinkable scenarios to check.
+# Please enable whatever you want but please be aware that in case of $BENC == 0
+# these settings will be overwritten.
+#===============================================================================
+# Priorization via high_priority_connection
+# SET @first_high_priority_connection = 1, @second_high_priority_connection = 0;
+# SET @first_size =               'small', @second_size =               'small';
+# SET @first_transaction =              0, @second_transaction =              0;
+# SET @first_prepared =                 0, @second_prepared =                 0;
+#------------------------------------
+# Priorization of open transactions in general
+# SET @first_high_priority_connection = 0, @second_high_priority_connection = 0;
+# SET @first_size =               'small', @second_size =               'small';
+# SET @first_transaction =              1, @second_transaction =              0;
+# SET @first_prepared =                 0, @second_prepared =                 0;
+#------------------------------------
+# Priorization via high_priority_connection in combination with prepared statements
+# SET @first_high_priority_connection = 1, @second_high_priority_connection = 0;
+# SET @first_size =               'small', @second_size =               'small';
+# SET @first_transaction =              0, @second_transaction =              0;
+# SET @first_prepared =                 1, @second_prepared =                 1;
+#------------------------------------
+# Priorization via high_priority_connection, no impact of thread_pool_stall_limit
+# SET GLOBAL thread_pool_stall_limit = 600;
+# SET @first_high_priority_connection = 1, @second_high_priority_connection = 0;
+# SET @first_size =               'small', @second_size =               'small';
+# SET @first_transaction =              0, @second_transaction =              0;
+# SET @first_prepared =                 0, @second_prepared =                 0;
+
+if (!$BENCH)
+{
+   SET @first_high_priority_connection = 1, @second_high_priority_connection = 0;
+   SET @first_size =               'small', @second_size =               'small';
+   SET @first_transaction =              0, @second_transaction =              0;
+   SET @first_prepared =                 0, @second_prepared =                 0;
+}
+if(`SELECT @first_high_priority_connection IS NULL OR @second_high_priority_connection IS NULL
+   OR @first_size                          IS NULL OR @second_size                     IS NULL
+   OR @first_transaction                   IS NULL OR @second_transaction              IS NULL
+   OR @first_prepared                      IS NULL OR @second_prepared                 IS NULL
+   <> 0`)
+{
+   --echo # ERROR: None of the @variables must be NULL
+   SELECT @first_high_priority_connection , @second_high_priority_connection ,
+          @first_size                     , @second_size                     ,
+          @first_transaction              , @second_transaction              ,
+          @first_prepared                 , @second_prepared                 ;
+   --echo #        Please assign a value
+   --echo #        abort
+   exit;
+}
+
+--disable_query_log
+while($rounds_for_stats)
+{
+   SET @@GLOBAL.thread_pool_prio_kickup_timer = 0;
+   --source ../inc/func4.inc
+
+   SET @@GLOBAL.thread_pool_prio_kickup_timer = 1;
+   let $loop= 1;
+   while($loop)
+   {
+      --source ../inc/func4.inc
+
+      eval SET @@GLOBAL.thread_pool_prio_kickup_timer
+      = @@GLOBAL.thread_pool_prio_kickup_timer $prio_kickup_timer_boost;
+
+      if(`SELECT @@GLOBAL.thread_pool_prio_kickup_timer > $run_time * 1000`)
+      {
+         let $loop= 0;
+      }
+   }
+   dec $rounds_for_stats;
+}
+--enable_query_log
+
+#
+--source include/turn_off_only_full_group_by.inc
+--enable_result_log
+--sorted_result
+SELECT COUNT(*),worker_type,high_priority_connection,task_size,task_transaction,task_prepared
+FROM mysqltest.book_keeping
+GROUP BY worker_type;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
+if($BENCH)
+{
+   let $outfile1= $MYSQLTEST_VARDIR/tmp/thread_pool_func4.out;
+   let $outfile2= $MYSQL_TEST_DIR/thread_pool_func4.out;
+   --replace_result $outfile1 <outfile1>
+   --disable_query_log
+   eval SELECT prio_kickup_timer, AVG(first_counter), AVG(second_counter),
+       AVG(QUERIES_EXECUTED),AVG(QUERIES_QUEUED),AVG(PRIO_KICKUPS),AVG(STALLED_QUERIES_EXECUTED),
+       AVG(BECOME_CONSUMER_THREAD),AVG(BECOME_RESERVE_THREAD),AVG(BECOME_WAITING_THREAD),
+       AVG(WAKE_THREAD_STALL_CHECKER),AVG(SLEEP_WAITS),AVG(DISK_IO_WAITS),AVG(ROW_LOCK_WAITS),
+       AVG(GLOBAL_LOCK_WAITS),AVG(META_DATA_LOCK_WAITS),AVG(TABLE_LOCK_WAITS),AVG(USER_LOCK_WAITS),
+       AVG(BINLOG_WAITS),AVG(GROUP_COMMIT_WAITS),AVG(FSYNC_WAITS)
+   INTO OUTFILE '$outfile1'
+   FROM mysqltest.statistics
+   GROUP BY prio_kickup_timer;
+   --enable_query_log
+   # Copy the the benchmark results to a safe place
+   --copy_file $outfile1 $outfile2
+--echo values in thread_pool_func4.out are averages per GROUP BY prio_kickup_timer
+--echo prio_kickup_timer,first_counter,second_counter,QUERIES_EXECUTED,QUERIES_QUEUED,PRIO_KICKUPS,STALLED_QUERIES_EXECUTED,BECOME_CONSUMER_THREAD,BECOME_RESERVE_THREAD,BECOME_WAITING_THREAD,WAKE_THREAD_STALL_CHECKER,SLEEP_WAITS,DISK_IO_WAITS,ROW_LOCK_WAITS,GLOBAL_LOCK_WAITS,META_DATA_LOCK_WAITS,TABLE_LOCK_WAITS,USER_LOCK_WAITS,BINLOG_WAITS,GROUP_COMMIT_WAITS,FSYNC_WAITS
+}
+
+SELECT AVG(first_counter), AVG(second_counter),
+       AVG(PRIO_KICKUPS),  AVG(BECOME_WAITING_THREAD)
+       INTO @first_counter_0, @second_counter_0,
+            @PRIO_KICKUPS_0, @BECOME_WAITING_THREAD_0
+FROM mysqltest.statistics
+WHERE prio_kickup_timer = 0
+GROUP BY prio_kickup_timer;
+SELECT AVG(first_counter), AVG(second_counter),
+       AVG(PRIO_KICKUPS),  AVG(BECOME_WAITING_THREAD)
+       INTO @first_counter_1, @second_counter_1,
+            @PRIO_KICKUPS_1, @BECOME_WAITING_THREAD_1
+FROM mysqltest.statistics
+WHERE prio_kickup_timer = 1
+GROUP BY prio_kickup_timer;
+SELECT AVG(first_counter), AVG(second_counter),
+       AVG(PRIO_KICKUPS),  AVG(BECOME_WAITING_THREAD)
+       INTO @first_counter_512, @second_counter_512,
+            @PRIO_KICKUPS_512, @BECOME_WAITING_THREAD_512
+FROM mysqltest.statistics
+WHERE prio_kickup_timer = 512
+GROUP BY prio_kickup_timer;
+SELECT AVG(first_counter), AVG(second_counter),
+       AVG(PRIO_KICKUPS),  AVG(BECOME_WAITING_THREAD)
+       INTO @first_counter_4096, @second_counter_4096,
+            @PRIO_KICKUPS_4096, @BECOME_WAITING_THREAD_4096
+FROM mysqltest.statistics
+WHERE prio_kickup_timer = 4096
+GROUP BY prio_kickup_timer;
+
+# The rough check
+if(`SELECT @first_counter_1     > @first_counter_0
+   AND @BECOME_WAITING_THREAD_1 > @BECOME_WAITING_THREAD_0
+   AND @second_counter_512      > @second_counter_4096
+   AND @second_counter_1        > @second_counter_512
+   AND @second_counter_0        > @second_counter_1
+   and @PRIO_KICKUPS_0          = 1
+   AND @PRIO_KICKUPS_1          > @PRIO_KICKUPS_512
+   AND @PRIO_KICKUPS_512        > @PRIO_KICKUPS_4096
+   <> 1`)
+{
+   --echo # The results do not follow the expections.
+   --echo # The might be caused by
+   --echo # - too small values for $rounds_for_stats or $run_time
+   --echo # or
+   --echo # - modifications within server which cause quite strong
+   --echo #   changes of the runtime required for the SELECts
+   --echo # or
+   --echo # - a new bug in thread pooling around priorization
+   SELECT @first_counter_0, '<' AS "Expect" , @first_counter_1;
+   SELECT @second_counter_0, '>' AS "Expect", @second_counter_1, '>' AS "Expect", @second_counter_512, '>' AS "Expect", @second_counter_4096;
+   SELECT @PRIO_KICKUPS_0, '= 0' AS "Expect", @PRIO_KICKUPS_1, '>' AS "Expect", @PRIO_KICKUPS_512, '>' AS "Expect", @PRIO_KICKUPS_4096;
+}
+
+if($DEBUG)
+{
+   # Show how strong the fluctuations are.
+   SELECT prio_kickup_timer, AVG(first_counter), MIN(first_counter), MAX(first_counter)
+   FROM mysqltest.statistics
+   GROUP BY prio_kickup_timer;
+   SELECT prio_kickup_timer, AVG(second_counter), MIN(second_counter), MAX(second_counter)
+   FROM mysqltest.statistics
+   GROUP BY prio_kickup_timer;
+   # Dump everything for getting an overview
+   SELECT * FROM mysqltest.statistics
+   ORDER BY prio_kickup_timer;
+}
+
+# The next statements do not serve the purpose of the current test
+# but they increase the code coverage in thread_pool.cc.
+--source ../inc/coverage.inc
+
+# Cleanup
+--connection default
+--disconnect locker
+--source ../inc/wait_until_disappeared.inc
+
+DROP DATABASE mysqltest;
+--replace_result $THREAD_POOL_PRIO_KICKUP_TIMER <initial_value>
+eval SET @@GLOBAL.THREAD_POOL_PRIO_KICKUP_TIMER = $THREAD_POOL_PRIO_KICKUP_TIMER;
+
+if ($BENCH)
+{
+--error 0,1
+--remove_file $outfile1
+--error 0,1
+--remove_file $outfile2
+}

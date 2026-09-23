@@ -1,0 +1,110 @@
+CREATE USER mysqltest_u1@localhost;
+GRANT USAGE ON test.* TO mysqltest_u1@localhost;
+SET GLOBAL max_connections = 3;
+# -----------------------------------------------------------------------
+# Should have success
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# -- Establishing connection 'con1' (user: mysqltest_u1)...
+# -- Connection 'con1' has been established.
+# -----------------------------------------------------------------------
+# Should have success
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# -- Establishing connection 'con2' (user: mysqltest_u1)...
+# -- Connection 'con2' has been established.
+# -----------------------------------------------------------------------
+# No success for attempt to exceed max_connections with non root user
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+-1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# -- Establishing connection 'con_too_much' (user: mysqltest_u1)...
+# -- Error: can not establish connection 'con_too_much'.
+SET GLOBAL max_connections = 4;
+# -----------------------------------------------------------------------
+# Should have success
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# -- Establishing connection 'con3' (user: mysqltest_u1)...
+# -- Connection 'con3' has been established.
+# -----------------------------------------------------------------------
+# No success for attempt to exceed max_connections with non root user
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+-1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# -- Establishing connection 'con_too_much' (user: mysqltest_u1)...
+# -- Error: can not establish connection 'con_too_much'.
+# -----------------------------------------------------------------------
+# Success for attempt to exceed max_connections with root by 1
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+-1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# -- Establishing connection 'con4' (user: root)...
+# -- Connection 'con4' has been established.
+# -----------------------------------------------------------------------
+# No success for attempt to exceed max_connections with root by 2
+# Should not have success
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+-2
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# -- Establishing connection 'con_too_much' (user: root)...
+# -- Error: can not establish connection 'con_too_much'.
+# -----------------------------------------------------------------------
+# Cut down the max_connections and show that the existing connections
+# stay operable.
+SET GLOBAL max_connections = 1;
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+-5
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+SELECT 'Here is con4' AS my_col;
+my_col
+Here is con4
+SELECT 'Here is con3' AS my_col;
+my_col
+Here is con3
+SELECT 'Here is con2' AS my_col;
+my_col
+Here is con2
+SELECT 'Here is con1' AS my_col;
+my_col
+Here is con1
+# -----------------------------------------------------------------------
+# No success for attempt, lowered max_connections limit gets honoured
+SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+FROM information_schema.processlist;
+CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)
+-5
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+# -- Establishing connection 'con_too_much' (user: root)...
+# -- Error: can not establish connection 'con_too_much'.
+# -----------------------------------------------------------------------
+SET GLOBAL max_connections = <initial_max_connections>;
+DROP USER mysqltest_u1@localhost;

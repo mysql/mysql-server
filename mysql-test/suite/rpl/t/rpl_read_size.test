@@ -36,9 +36,17 @@ while ($case < 2)
   # Avoid reading relay log file while receiving events
   --source include/rpl/stop_applier.inc
 
+  # Reset PFS rows left by previous tests or previous cases in this test.
+  --disable_query_log
+  TRUNCATE TABLE performance_schema.file_summary_by_instance;
+  --enable_query_log
+
+  # Measure the file this replica is currently reading.
+  --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
+
   # Move to the next relay log. This will ensure that the count_read
   # variable will only contains the read done by belows INSERT query.
-   --let $count_read_start= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' ORDER BY file_name, count_read, 2)
+  --let $count_read_start= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' AND file_name LIKE '%$relay_log_file', count_read, 1)
   --source include/rpl/connection_source.inc
 
   --let $counter= 0
@@ -60,7 +68,7 @@ while ($case < 2)
   --let $ignore_gtids_on_sync=1
   --source include/rpl/sync_with_recieved.inc
 
-  --let $count_read_end= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' ORDER BY file_name, count_read, 2)
+  --let $count_read_end= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' AND file_name LIKE '%$relay_log_file', count_read, 1)
 
   --let $rpl_read_size_value= `SELECT @@GLOBAL.rpl_read_size`
   --let $relay_log_pos= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)

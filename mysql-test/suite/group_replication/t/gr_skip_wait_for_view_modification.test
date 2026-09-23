@@ -38,6 +38,7 @@ call mtr.add_suppression("The member has failed to gracefully leave the group*.*
 SET SESSION sql_log_bin= 1;
 
 SET @@GLOBAL.DEBUG='+d,group_replication_force_view_modification_timeout';
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

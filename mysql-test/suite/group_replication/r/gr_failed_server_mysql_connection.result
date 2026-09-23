@@ -57,6 +57,8 @@ START GROUP_REPLICATION;;
 #
 #######
 [connection server2]
+Warnings:
+Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.
 #
 # 7. Clean-up
 #

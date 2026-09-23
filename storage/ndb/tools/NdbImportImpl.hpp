@@ -245,6 +245,11 @@ class NdbImportImpl : public NdbImport {
     };
   };
 
+  /*
+   * The worker state will always evolve from null to stopped in order as
+   * defined below, some states may be skipped by going directly to stop or
+   * stopped.
+   */
   struct WorkerState {
     enum State {
       State_null = 0,

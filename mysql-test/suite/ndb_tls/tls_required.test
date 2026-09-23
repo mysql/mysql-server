@@ -32,6 +32,9 @@
 SELECT node_id, remote_node_id, encrypted from ndbinfo.transporters
 WHERE status = 'CONNECTED' ORDER BY node_id, remote_node_id;
 
+# Check cardinality of ndb$certificates. Expect 16 rows.
+SELECT COUNT(*) FROM ndbinfo.ndb$certificates;
+
 # Manage some data
 Use test;
 CREATE TABLE t (i int primary key not null, j int) engine = ndb;

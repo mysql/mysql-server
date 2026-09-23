@@ -339,7 +339,7 @@ int copy_file(const char src[], const char dst[]) {
   r = dst_xfrm.create(dst_file, g_compress, dst_pwd_key, dst_pwd_key_len,
                       g_encrypt_kdf_iter_count, g_encrypt_cipher,
                       -1 /* key count */, g_encrypt_block_size, file_block_size,
-                      file_size, true);
+                      file_size, true, true);
   if (r != 0) {
     fprintf(stderr, "Error: Can not initialize file %s.\n", dst);
     src_xfrm.close(true);

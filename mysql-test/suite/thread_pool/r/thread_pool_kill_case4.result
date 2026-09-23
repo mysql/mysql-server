@@ -1,0 +1,17 @@
+SET @initial_debug_sync = @@DEBUG_SYNC;
+SET @kill_target_id_1 = <target_id_A_1_to_be_killed>;
+SET @kill_target_id_2 = <target_id_A_2_to_be_killed>;
+SET DEBUG_SYNC='before_handle_failed_connection SIGNAL kill_before_check EXECUTE 3';
+SET DEBUG_SYNC='after_deactivate WAIT_FOR kill_before_check EXECUTE 3';
+SELECT SLEEP(0.1);
+SLEEP(0.1)
+0
+KILL @kill_target_id_1;
+SET DEBUG_SYNC='handled_failed_connection_before_close SIGNAL kill_after_check EXECUTE 3';
+SET DEBUG_SYNC='after_deactivate WAIT_FOR kill_after_check EXECUTE 3';
+SELECT SLEEP(0.1);
+SLEEP(0.1)
+0
+KILL @kill_target_id_2;
+SET DEBUG_SYNC='RESET';
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

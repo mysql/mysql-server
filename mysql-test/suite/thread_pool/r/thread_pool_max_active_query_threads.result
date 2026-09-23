@@ -1,0 +1,37 @@
+#
+# WL#12915: Thread Pool Optimizations
+#
+#
+# If threads in thread group stalled,
+# then create new threads so the thread group is not blocked.
+SET @old_active_query_threads = @@global.thread_pool_max_active_query_threads;
+SET @@global.thread_pool_max_active_query_threads=2;
+Warnings:
+Warning	1681	'Plugin variable thread_pool_max_actuve_query_threads' is deprecated and will be removed in a future release.
+SELECT @@global.thread_pool_max_active_query_threads;
+@@global.thread_pool_max_active_query_threads
+2
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1);
+# perform write lock on table t1
+LOCK TABLES t1 WRITE;
+# from con1, select query stalled due to write lock on t1
+SELECT * FROM t1;
+# from con2, select query stalled due to write lock on t1
+SELECT * FROM t1;
+# con3 will create new threads
+CREATE TABLE t2(c1 INT);
+INSERT INTO t2 VALUES(1);
+SELECT * FROM t2;
+c1
+1
+DROP TABLE t2;
+UNLOCK TABLES;
+c1
+1
+c1
+1
+DROP TABLE t1;
+SET @@global.thread_pool_max_active_query_threads= @old_active_query_threads;
+Warnings:
+Warning	1681	'Plugin variable thread_pool_max_actuve_query_threads' is deprecated and will be removed in a future release.

@@ -11,6 +11,8 @@
 # Check if the DBLWR recovery works correctly for a page
 # that is compressed and encrypted.
 create table t1 (f1 int primary key, f2 blob) COMPRESSION='lz4' ENCRYPTION='Y';
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
 START TRANSACTION;
 INSERT INTO t1 VALUES(1, repeat('#',12));
 INSERT INTO t1 VALUES(2, repeat('+',12));

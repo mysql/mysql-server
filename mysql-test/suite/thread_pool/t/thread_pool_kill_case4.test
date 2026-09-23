@@ -1,0 +1,170 @@
+--source include/have_debug_sync.inc
+--source include/have_thread_pool.inc
+
+# The test hangs endless when using "cursor-protocol".
+if(`SELECT $CURSOR_PROTOCOL > 0`)
+{
+   --skip Test requires: cursor-protocol disabled
+}
+
+SET @initial_debug_sync = @@DEBUG_SYNC;
+
+# The test case must be executed with thread_pool_size = 2.
+if(`SELECT @@global.thread_pool_size <> 2`)
+{
+   --die @@global.thread_pool_size must be 2, please check <testcase>-master.opt
+}
+
+# The test case must be executed with thread_pool_query_threads_per_group = 1.
+if(`SELECT @@global.thread_pool_query_threads_per_group <> 1`)
+{
+   --die @@global.thread_pool_query_threads_per_group must be 1, please check <testcase>-master.opt
+}
+
+# The connections are named <letter>_<number> to indicate they are belonging to
+# thread group <letter> and <number> within this group.
+let $connection= conn_A_1_to_be_killed;
+--connect ($connection, localhost, root,,)
+let $target_id_A_1_to_be_killed= `SELECT CONNECTION_ID()`;
+let $id_list= $target_id_A_1_to_be_killed;
+
+let $connection= conn_B_1;
+--connect ($connection, localhost, root,,)
+let $target_id_B_1= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $target_id_B_1;
+--replace_result $target_id_A_1_to_be_killed <target_id_A_1_to_be_killed>
+eval SET @kill_target_id_1 = $target_id_A_1_to_be_killed;
+
+let $connection= conn_A_2_to_be_killed;
+--connect ($connection, localhost, root,,)
+let $target_id_A_2_to_be_killed= `SELECT CONNECTION_ID()`;
+let $id_list= $id_list, $target_id_A_2_to_be_killed;
+
+--connection conn_B_1
+--replace_result $target_id_A_2_to_be_killed <target_id_A_2_to_be_killed>
+eval SET @kill_target_id_2 = $target_id_A_2_to_be_killed;
+
+--connection conn_A_1_to_be_killed
+# We need to prepare two synch points, the first will be activated by the "USE test"
+# query and the second by the following KILL command.
+SET DEBUG_SYNC='before_handle_failed_connection SIGNAL kill_before_check EXECUTE 3';
+# The following query will not activate the sync and be blocked by it since we own
+# the waiter thread while executing it.
+SET DEBUG_SYNC='after_deactivate WAIT_FOR kill_before_check EXECUTE 3';
+# This query is long enough to get rid of waiter thread to another thread before
+# we come to block point, so this query will be blocked.
+# The important thing is to have some SLEEP at all and not the size of the sleep.
+SELECT SLEEP(0.1);
+
+--connection conn_B_1
+# We need to wait until the query has been blocked first, then we proceed.
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @kill_target_id_1 AND command = 'Sleep' AND info is NULL;
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: The connection @kill_target_id_1 must show
+   --echo #        command = 'Sleep' AND info is NULL
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id_1;
+   sleep 30;
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id_1;
+   --echo # abort
+   exit;
+}
+KILL @kill_target_id_1;
+
+# The state of the killed connection reported within information_schema.processlist runs usual
+# through one or more phases before the connection disappears from the processlist.
+# The current debug settings cause that the killed connection "freezes" within the phase where
+# command = 'Killed'.
+#    SELECT * FROM information_schema.processlist;
+#    ID ... COMMAND  TIME  STATE      INFO
+#    5  ... Sleep      31             NULL
+#    4  ... Query       0  executing  SELECT * FROM information_schema.processlist
+#    3  ... Killed     31             NULL
+#    2  ... Sleep      31             NULL
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @kill_target_id_1 AND command = 'Killed';
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: The connection @kill_target_id_1 must show
+   --echo #        command = 'Killed'.
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id_1;
+   sleep 30;
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id_1;
+   --echo # abort
+   exit;
+}
+
+--connection conn_A_2_to_be_killed
+# We need to prepare two synch points, the first will be activated by the "USE test" query
+# and the second by the following KILL command.
+SET DEBUG_SYNC='handled_failed_connection_before_close SIGNAL kill_after_check EXECUTE 3';
+# The following query will not activate the sync and be blocked by it
+# since we own the waiter thread while executing it
+SET DEBUG_SYNC='after_deactivate WAIT_FOR kill_after_check EXECUTE 3';
+# This query will activate the sleep callback to thd_wait_begin which will ensure that the
+# waiting_thread is set to NULL if set before.
+# The important thing is to have some SLEEP at all and not the size of the sleep.
+SELECT SLEEP(0.1);
+
+--connection conn_B_1
+# We need to wait until the query has been blocked first, then we proceed.
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @kill_target_id_2 AND command = 'Sleep'
+AND info is NULL;
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: The connection @kill_target_id_2 must show
+   --echo #        command = 'Sleep' AND info is NULL
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id_2;
+   sleep 30;
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id_2;
+   --echo # abort
+   exit;
+}
+KILL @kill_target_id_2;
+
+let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.processlist
+WHERE id = @kill_target_id_2;
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: KILL @kill_target_id_2 did not work well
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id_2;
+   sleep 30;
+   SELECT * FROM information_schema.processlist WHERE id = @kill_target_id_2;
+   --echo # abort
+   exit;
+}
+
+# Cleanup
+#--------------------------------------------------------------------------------
+# We have manipulated DEBUG_SYNC therefore we must reset it to the initial value.
+#    Attention: SET DEBUG_SYNC = <initial value> is not allowed.
+--connection default
+SET DEBUG_SYNC='RESET';
+# Stability tests revealed that the reset is asynchronous.
+# Therefore we poll till we have the initial setting again
+let $wait_condition= SELECT @@DEBUG_SYNC = @initial_debug_sync;
+--source include/wait_condition.inc
+if(!$success)
+{
+   --echo # ERROR: SET DEBUG_SYNC='RESET' did not work well
+   --echo #        curent value is @@DEBUG_SYNC, expected value is @initial_debug_sync
+   SELECT @@DEBUG_SYNC, @initial_debug_sync;
+   sleep 30;
+   SELECT @@DEBUG_SYNC, @initial_debug_sync;
+   --echo # abort
+   exit;
+}
+--disconnect conn_B_1
+# Take care that all disconnected session disappeared from processlist
+--source ../inc/wait_until_disappeared.inc
+
+# Add suppression for the message that says
+# thread_pool_query_threads_per_group(1) is not recommended when used with
+# HIGH_CONCURRENCY_ALGORITHM
+CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

@@ -87,6 +87,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 --echo ##     does not match.
 --echo
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

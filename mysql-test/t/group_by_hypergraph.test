@@ -532,6 +532,16 @@ SELECT sql_small_result 1 col1 FROM t1 GROUP BY @a := id LIMIT 1;
 SELECT * FROM (SELECT sql_small_result 1 col1 FROM t1 GROUP BY @a := id) s LIMIT 1;
 drop table t1;
 
+--echo #
+--echo # Bug#39505077: Assertion `receiver.HasSecondaryEngineCostHook()' failed
+--echo #
+CREATE TABLE t(a INT PRIMARY KEY);
+INSERT INTO t VALUES (1);
+SELECT 1 AS x
+FROM t USE INDEX FOR GROUP BY()
+GROUP BY ROLLUP(1);
+DROP TABLE t;
+
 #cleanup
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table tb1;

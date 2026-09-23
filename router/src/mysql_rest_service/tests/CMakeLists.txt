@@ -73,6 +73,7 @@ ADD_TEST_FILE(test_plugin.cc
     ./test_mrs_http_header_accept.cc
     ./test_mrs_http_session_manager.cc
     ./test_mrs_json_template.cc
+    ./test_oauth2_handler.cc
     ./test_mrs_query_entries_db_object.cc
     ./test_mrs_user_cache.cc
     ./test_mrs_route_manager.cc

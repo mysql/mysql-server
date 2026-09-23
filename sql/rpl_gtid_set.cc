@@ -1352,10 +1352,13 @@ using namespace mysql::gtid;
 void encode_nsids_format(uchar *buf, uint64_t n_sids, Gtid_format gtid_format) {
   uint64_t format_encoded =
       static_cast<uint64_t>(mysql::utils::to_underlying(gtid_format));
-  uint64_t format_shifted = format_encoded << 56;
+  uint64_t format_shifted = format_encoded
+                            << Gtid_set::k_gtid_format_high_shift;
   uint64_t n_sids_encoded = n_sids | format_shifted;
   if (gtid_format == Gtid_format::tagged) {
-    n_sids_encoded = format_shifted | (n_sids << 8) | format_encoded;
+    n_sids_encoded = format_shifted |
+                     (n_sids << Gtid_set::k_gtid_format_low_shift) |
+                     format_encoded;
   }
   int8store(buf, n_sids_encoded);
 }
@@ -1363,16 +1366,16 @@ void encode_nsids_format(uchar *buf, uint64_t n_sids, Gtid_format gtid_format) {
 std::tuple<mysql::utils::Return_status, uint64_t, Gtid_format>
 decode_nsids_format(const uchar *buf) {
   uint64_t n_sids_encoded = uint8korr(buf);
-  uint64_t format_mask = static_cast<uint64_t>(0xff) << 56;
-  uint64_t n_sids_mask = ~format_mask;
-  uint8_t format_encoded =
-      static_cast<uint8_t>((n_sids_encoded & format_mask) >> 56);
+  uint64_t n_sids_mask = ~Gtid_set::k_gtid_format_high_mask;
+  uint8_t format_encoded = static_cast<uint8_t>(
+      (n_sids_encoded & Gtid_set::k_gtid_format_high_mask) >>
+      Gtid_set::k_gtid_format_high_shift);
   uint64_t n_sids = n_sids_encoded & n_sids_mask;
   auto [gtid_format, conversion_code] =
       mysql::utils::to_enumeration<Gtid_format>(format_encoded);
   if (gtid_format == Gtid_format::tagged) {
-    n_sids_mask = static_cast<uint64_t>(0x00ffffffffffff00ULL);
-    n_sids = (n_sids_encoded & n_sids_mask) >> 8;
+    n_sids = (n_sids_encoded & Gtid_set::k_tagged_n_sids_mask) >>
+             Gtid_set::k_gtid_format_low_shift;
   }
   return std::make_tuple(conversion_code, n_sids, gtid_format);
 }
@@ -1440,12 +1443,16 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
                                                size_t length,
                                                size_t *actual_length) {
   DBUG_TRACE;
+  constexpr size_t k_encoded_integer_length = sizeof(uint64);
+  constexpr size_t k_encoded_interval_length = 2 * k_encoded_integer_length;
+
   if (tsid_lock != nullptr) tsid_lock->assert_some_wrlock();
   size_t pos = 0;
   Free_intervals_lock lock(this);
   // read number of TSIDs
-  if (length < 8) {
-    DBUG_PRINT("error", ("(length=%lu) < 8", (ulong)length));
+  if (length < k_encoded_integer_length) {
+    DBUG_PRINT("error",
+               ("(length=%lu) < %zu", (ulong)length, k_encoded_integer_length));
     return report_gtid_encoding_error();
   }
   auto [decoding_code, n_sids, gtid_format] = decode_nsids_format(encoded);
@@ -1453,20 +1460,36 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
     DBUG_PRINT("error", ("unknown or corrupted GTID set encoding format"));
     return report_gtid_encoding_error();
   }
-  pos += 8;
+  pos += k_encoded_integer_length;
   // iterate over TSIDs
   for (uint sid_counter = 0; sid_counter < n_sids; sid_counter++) {
     // read TSID and number of intervals
-    if (length - pos < 16 + 8) {
-      DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 16 + 8. "
-                           "[n_sids=%" PRIu64 " i=%u]",
-                           (ulong)length, (ulong)pos, n_sids, sid_counter));
+    if (length - pos < mysql::gtid::Uuid::BYTE_LENGTH) {
+      DBUG_PRINT("error",
+                 ("(length=%lu) - (pos=%lu) < %zu. "
+                  "[n_sids=%" PRIu64 " i=%u]",
+                  (ulong)length, (ulong)pos, mysql::gtid::Uuid::BYTE_LENGTH,
+                  n_sids, sid_counter));
       return report_gtid_encoding_error();
     }
     Tsid tsid;
-    pos += tsid.decode_tsid(encoded + pos, length - pos, gtid_format);
+    const size_t tsid_bytes =
+        tsid.decode_tsid(encoded + pos, length - pos, gtid_format);
+    if (tsid_bytes == 0) {
+      DBUG_PRINT("error", ("unable to decode tsid. [n_sids=%" PRIu64 " i=%u]",
+                           n_sids, sid_counter));
+      return report_gtid_encoding_error();
+    }
+    pos += tsid_bytes;
+    if (length - pos < k_encoded_integer_length) {
+      DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < %zu. "
+                           "[n_sids=%" PRIu64 " i=%u]",
+                           (ulong)length, (ulong)pos, k_encoded_integer_length,
+                           n_sids, sid_counter));
+      return report_gtid_encoding_error();
+    }
     uint64 n_intervals = uint8korr(encoded + pos);
-    pos += 8;
+    pos += k_encoded_integer_length;
     rpl_sidno sidno = tsid_map->add_tsid(tsid);
     if (sidno < 0) {
       DBUG_PRINT("error", ("sidno=%d", sidno));
@@ -1474,21 +1497,22 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
     }
     PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));
     // iterate over intervals
-    if (length - pos < 2 * 8 * n_intervals) {
-      DBUG_PRINT(
-          "error",
-          ("(length=%lu) - (pos=%lu) < 2 * 8 * (n_intervals=%" PRIu64 ")",
-           (ulong)length, (ulong)pos, n_intervals));
+    const uint64 max_intervals =
+        static_cast<uint64>((length - pos) / k_encoded_interval_length);
+    if (n_intervals > max_intervals) {
+      DBUG_PRINT("error",
+                 ("(n_intervals=%" PRIu64 ") > (max_intervals=%" PRIu64 ")",
+                  n_intervals, max_intervals));
       return report_gtid_encoding_error();
     }
     Interval_iterator ivit(this, sidno);
     rpl_gno last = 0;
-    for (uint i = 0; i < n_intervals; i++) {
+    for (uint64 i = 0; i < n_intervals; i++) {
       // read one interval
       rpl_gno start = sint8korr(encoded + pos);
-      pos += 8;
+      pos += k_encoded_integer_length;
       rpl_gno end = sint8korr(encoded + pos);
-      pos += 8;
+      pos += k_encoded_integer_length;
       if (start <= last || end <= start) {
         DBUG_PRINT("error", ("last=%" PRId64 " start=%" PRId64 " end=%" PRId64,
                              last, start, end));

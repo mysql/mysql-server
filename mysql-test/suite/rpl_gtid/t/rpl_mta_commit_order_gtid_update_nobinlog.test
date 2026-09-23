@@ -1,0 +1,167 @@
+#
+# ==== PURPOSE ====
+#
+# This test checks a writable replica that applies transactions with
+# log_replica_updates disabled while user sessions commit local transactions on
+# the same server. The applied transactions use the commit-order path, while
+# the local transactions use binlog group commit. These two paths must not race
+# while updating GTID state.
+#
+# ==== IMPLEMENTATION ====
+#
+# This scenario requires applier workers with preserved commit order, disabled
+# log_replica_updates, local read-write user sessions on the same server,
+# statement-format checksum writes, and concurrent GTID reads. The test uses
+# circular GTID replication only to make each server receive replicated
+# transactions and also run local user transactions. The important concurrency
+# is between COMMIT_ORDER_FLUSH_STAGE and BINLOG_FLUSH_STAGE.
+#
+# Test steps:
+#
+# 1. Start two GTID-enabled servers in circular replication with
+#    log_replica_updates disabled.
+# 2. Increase the thread cache used by the concurrent client workload.
+# 3. Create generic write and checksum tables.
+# 4. Run bounded mysqlslap clients that do local writes on both servers.
+# 5. Run statement-format checksum writes and GTID reads concurrently.
+# 6. Wait for the workload and replication to drain.
+# 7. Stop replication and clean local test objects without logging cleanup DDL.
+#
+# Test pass conditions:
+#
+# - The workload completes without a server error or hang.
+# - Both appliers synchronize after the concurrent workload and deinitialize
+#   without applier errors.
+#
+# ==== REFERENCES ====
+#
+# BUG#39259437: Commit-order GTID state update race
+#
+
+--source include/not_valgrind.inc
+--source include/have_binlog_format_row.inc
+--source include/not_rpl_gtid_only.inc
+
+--let $rpl_topology= 1->2->1
+--source include/rpl/init.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+
+--echo # Configure thread cache for the concurrent workload.
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--disable_query_log
+--let $server_1_thread_cache_size= `SELECT @@GLOBAL.thread_cache_size`
+--enable_query_log
+SET GLOBAL thread_cache_size=32;
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--disable_query_log
+--let $server_2_thread_cache_size= `SELECT @@GLOBAL.thread_cache_size`
+--enable_query_log
+SET GLOBAL thread_cache_size=32;
+
+--echo # Create generic write targets and a statement-format checksum table.
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+CREATE TABLE source_writes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  pad VARCHAR(64)
+) ENGINE=InnoDB;
+CREATE TABLE replica_writes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  pad VARCHAR(64)
+) ENGINE=InnoDB;
+CREATE DATABASE checksum_test;
+CREATE TABLE checksum_test.table_checksums (
+  table_name VARCHAR(64) NOT NULL,
+  chunk INT NOT NULL,
+  row_count INT,
+  row_crc VARCHAR(40),
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (table_name, chunk)
+) ENGINE=InnoDB;
+--source include/rpl/sync.inc
+
+--echo # Run bounded local writes and GTID/checksum readers.
+--let $iterations= 100
+
+--exec_in_background $MYSQL_SLAP --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1 --number-of-queries=1 --iterations=$iterations --query="INSERT INTO source_writes(pad) VALUES (REPEAT('a', 32))" --create-schema=test --concurrency=4 --silent 2>&1
+
+--exec_in_background $MYSQL_SLAP --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_2 --number-of-queries=1 --iterations=$iterations --query="INSERT INTO replica_writes(pad) VALUES (REPEAT('b', 32))" --create-schema=test --concurrency=4 --silent 2>&1
+
+--exec_in_background $MYSQL_SLAP --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1 --number-of-queries=1 --iterations=$iterations --delimiter=";" --query="SET SESSION binlog_format=STATEMENT; REPLACE INTO checksum_test.table_checksums(table_name,chunk,row_count,row_crc) SELECT 'source_writes',MOD(CONNECTION_ID(),16),COUNT(*),COALESCE(LOWER(CONV(BIT_XOR(CAST(CRC32(CONCAT_WS('#',id,pad)) AS UNSIGNED)),10,16)),'0') FROM test.source_writes WHERE id <= 128" --create-schema=test --concurrency=2 --silent 2>&1
+
+--exec_in_background $MYSQL_SLAP --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_2 --number-of-queries=1 --iterations=$iterations --delimiter=";" --query="SET SESSION binlog_format=STATEMENT; REPLACE INTO checksum_test.table_checksums(table_name,chunk,row_count,row_crc) SELECT 'replica_writes',MOD(CONNECTION_ID(),16),COUNT(*),COALESCE(LOWER(CONV(BIT_XOR(CAST(CRC32(CONCAT_WS('#',id,pad)) AS UNSIGNED)),10,16)),'0') FROM test.replica_writes WHERE id <= 128" --create-schema=test --concurrency=2 --silent 2>&1
+
+--exec_in_background $MYSQL_SLAP --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_2 --number-of-queries=1 --iterations=$iterations --query="SELECT @@GLOBAL.gtid_executed" --create-schema=test --concurrency=4 --silent 2>&1
+
+--echo # Wait for mysqlslap client sessions to finish.
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--let $wait_condition= SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER = 'root' AND DB = 'test' AND ID <> CONNECTION_ID() AND COMMAND NOT IN ('Sleep', 'Daemon', 'Killed')
+--let $wait_timeout= 300
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--let $wait_condition= SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER = 'root' AND DB = 'test' AND ID <> CONNECTION_ID() AND COMMAND NOT IN ('Sleep', 'Daemon', 'Killed')
+--let $wait_timeout= 300
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--let $wait_condition= SELECT COUNT(*) = 400 FROM source_writes
+--let $wait_timeout= 300
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--let $wait_condition= SELECT COUNT(*) = 400 FROM replica_writes
+--let $wait_timeout= 300
+--source include/wait_condition.inc
+
+--source include/rpl/sync.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--disable_query_log
+--eval SET GLOBAL thread_cache_size=$server_1_thread_cache_size
+--enable_query_log
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--disable_query_log
+--eval SET GLOBAL thread_cache_size=$server_2_thread_cache_size
+--enable_query_log
+
+--echo # Stop replication before local cleanup.
+--source include/rpl/stop_all_replicas.inc
+
+--echo # Clean local test objects without replicating cleanup DDL.
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--source include/rpl/disable_binlog.inc
+DROP TABLE source_writes;
+DROP TABLE replica_writes;
+DROP DATABASE checksum_test;
+--source include/rpl/restore_binlog.inc
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--source include/rpl/disable_binlog.inc
+DROP TABLE source_writes;
+DROP TABLE replica_writes;
+DROP DATABASE checksum_test;
+--source include/rpl/restore_binlog.inc
+
+--let $rpl_skip_sync= 1
+--let $rpl_skip_stop_slave= 1
+--source include/rpl/deinit.inc

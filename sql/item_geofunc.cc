@@ -3119,7 +3119,6 @@ double Item_func_latlongfromgeohash::val_real() {
 
   String buf;
   String *input_value = args[0]->val_str_ascii(&buf);
-  assert(input_value != nullptr || args[0]->null_value);
 
   if ((null_value = (input_value == nullptr || args[0]->null_value)))
     return 0.0;

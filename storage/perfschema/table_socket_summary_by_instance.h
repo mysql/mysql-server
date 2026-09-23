@@ -55,7 +55,7 @@ struct row_socket_summary_by_instance {
   PFS_event_name_row m_event_name;
 
   /** Column OBJECT_INSTANCE_BEGIN */
-  const void *m_identity;
+  pfs_identity m_identity;
 
   /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER and NUMBER_OF_BYTES for each
    * operation. */

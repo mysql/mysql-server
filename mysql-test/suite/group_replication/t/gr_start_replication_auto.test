@@ -30,6 +30,7 @@ SELECT @@group_replication_group_name;
 SELECT @@group_replication_group_name;
 SELECT @@group_replication_start_on_boot;
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_RUNNING
 START GROUP_REPLICATION;
 

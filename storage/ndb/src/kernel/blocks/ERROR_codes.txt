@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 962
+Next QMGR 963
 Next NDBCNTR 1030
 Next NDBFS 2002
 Next DBACC 3007
@@ -32,7 +32,7 @@ Next DBDIH 7251
 Next DBTC 8128
 Next TRPMAN 9007
 Next CMVMI 9993              Note: CMVMI grows downwards
-Next BACKUP 10061
+Next BACKUP 10062
 Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13063
@@ -674,6 +674,7 @@ Backup Stuff:
 10057: Delay BACKUP_FRAGMENT_REQ in participant node
 10058: In a participant node abort BACKUP_FRAGMENT_REQ by
        sending execBACKUP_FRAGMENT_REF to master
+10061: Enable error insert 10030 (Backup log buffer o/flow) during scanning
 11001: Send UTIL_SEQUENCE_REF (in master)
 
 5028:  Crash when receiving LQHKEYREQ (in non-master)

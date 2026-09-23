@@ -32,7 +32,8 @@ Clone Plugin: Client implementation
 #include "plugin/clone/include/clone_os.h"
 
 #include "my_byteorder.h"
-#include "my_systime.h"  // my_sleep()
+#include "my_systime.h"      // my_sleep()
+#include "sql/sql_plugin.h"  // For check_valid_path() only.
 #include "sql/sql_thd_internal_api.h"
 #include "sql_string.h"
 
@@ -1011,6 +1012,10 @@ bool Client::plugin_is_loadable(std::string &so_name) {
     return false;
   }
 
+  if (check_valid_path(so_name.c_str(), so_name.length())) {
+    return false;
+  }
+
   std::string path(configs[0].second);
   path.append("/");
   path.append(so_name);
@@ -1253,6 +1258,10 @@ int Client::add_plugin_with_so(const uchar *packet, size_t length) {
   auto err = extract_key_value(packet, length, plugin);
 
   if (err == 0) {
+    DBUG_EXECUTE_IF("clone_inject_invalid_donor_plugin_so", {
+      plugin.first.assign("clone_path_traversal");
+      plugin.second.assign("../clone_path_traversal.so");
+    });
     m_parameters.m_plugins_with_so.push_back(plugin);
   }
   return (err);
@@ -1792,16 +1801,24 @@ int Client::set_locators(const uchar *buffer, size_t length) {
 int Client::set_descriptor(const uchar *buffer, size_t length) {
   int err = 0;
 
+  if (length == 0) {
+    return ER_CLONE_PROTOCOL;
+  }
   /* Get Storage Engine */
   auto db_type = static_cast<enum legacy_db_type>(*buffer);
   ++buffer;
   length--;
 
+  if (length == 0) {
+    return ER_CLONE_PROTOCOL;
+  }
   /* Get Locator Index */
   auto loc_index = *buffer;
   ++buffer;
   length--;
-
+  if (loc_index >= m_share->m_storage_vec.size()) {
+    return ER_CLONE_PROTOCOL;
+  }
   auto *loc = &m_share->m_storage_vec[loc_index];
   auto *hton = loc->m_hton;
 

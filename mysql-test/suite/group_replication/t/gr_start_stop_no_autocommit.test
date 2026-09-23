@@ -50,6 +50,7 @@ SET @@GLOBAL.super_read_only= 1;
 SET @saved_autocommit = @@SESSION.autocommit;
 SET @@SESSION.autocommit = 0;
 
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 START GROUP_REPLICATION;
 COMMIT;
 

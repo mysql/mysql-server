@@ -659,7 +659,7 @@ static const char* helpTextDebug =
 "SHOW PROPERTIES                       Print config properties object\n"
 "<id> LOGLEVEL {<category>=<level>}+   Set log level\n"
 #ifdef ERROR_INSERT
-"<id> ERROR <errorNo>                  Inject error into NDB node\n"
+"<id> ERROR <errorNo> [<extraNo>]      Inject error into NDB node\n"
 #endif
 "<id> LOG [BLOCK = {ALL|<block>+}]     Set logging on in & out signals\n"
 "<id> TESTON                           Start signal logging\n"
@@ -2732,18 +2732,29 @@ int CommandInterpreter::executeError(int processId, const char *parameters,
   Vector<BaseString> args;
   split_args(parameters, args);
 
-  if (args.size() >= 2) {
+  if (args.size() >= 3) {
     ndbout << "ERROR: Too many arguments." << endl;
     return -1;
   }
 
   int errorNo;
   if (!convert(args[0].c_str(), errorNo)) {
-    ndbout << "ERROR: Expected an integer." << endl;
+    ndbout << "ERROR: Expected an integer for error value '" << args[0] << "'"
+           << endl;
     return -1;
   }
 
-  return ndb_mgm_insert_error(m_mgmsrv, processId, errorNo, nullptr);
+  if (args.size() == 1)
+    return ndb_mgm_insert_error(m_mgmsrv, processId, errorNo, nullptr);
+
+  int extraNo;
+  if (!convert(args[1].c_str(), extraNo)) {
+    ndbout << "ERROR: Expected an integer for extra value '" << args[1] << "'"
+           << endl;
+    return -1;
+  }
+
+  return ndb_mgm_insert_error2(m_mgmsrv, processId, errorNo, extraNo, nullptr);
 }
 
 //*****************************************************************************

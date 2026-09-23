@@ -203,7 +203,7 @@ int insert_setup_object(enum_object_type object_type,
   PFS_setup_object *pfs;
   pfs_dirty_state dirty_state;
 
-  pfs = global_setup_object_container.allocate(&dirty_state);
+  pfs = global_setup_object_container.allocate(&dirty_state, nullptr);
   if (pfs != nullptr) {
     set_setup_object_key(&pfs->m_key, object_type, schema, object);
     pfs->m_enabled = enabled;
