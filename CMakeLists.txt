@@ -2539,6 +2539,13 @@ ELSE()
   ADD_SUBDIRECTORY(router/src/harness/include)
 ENDIF()
 
+IF(TARGET component_mysql_rest_service)
+  # Both MRS targets exist here, with or without the Router product.
+  MYSQL_INSTALL_TARGET(mysqlrouter_mrs_client
+    DESTINATION ${INSTALL_BINDIR}
+    COMPONENT Test)
+ENDIF()
+
 IF(WITHOUT_SERVER OR NOT WITH_ROUTER)
   # In case we switch from ON to OFF, we do not want mtr to pick up any
   # obsolete executables.

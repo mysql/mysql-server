@@ -177,10 +177,4 @@ ADD_DEPENDENCIES(${MRS_COMPONENT_TARGET} GenError)
 
 IF(NOT WITH_ROUTER)
   ADD_DEPENDENCIES(${MRS_COMPONENT_TARGET} mysqlrouter_mrs_client)
-
-  # Router's excluded directory is not installed by the parent project.
-  # Install the MRS test client here.
-  MYSQL_INSTALL_TARGET(mysqlrouter_mrs_client
-    DESTINATION ${INSTALL_BINDIR}
-    COMPONENT Test)
 ENDIF()
