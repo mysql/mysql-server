@@ -1,0 +1,112 @@
+# ==== Purpose ====
+#
+# Guards against a scope gap in the fix for Bug#39254896 ("check event_type
+# validity on receiver thread", commit 03e181d5808) regressing.
+#
+# That fix added is_fd_event_saved_in_context_usable_with_event_type(),
+# which rejects any incoming event whose numeric event_type exceeds the
+# receiver's cached format description event's number_of_event_types. If
+# that check is ever applied unconditionally to every event type again -
+# instead of skipping the ones listed by
+# queue_event_uses_direct_construction() (ROTATE_EVENT,
+# HEARTBEAT_LOG_EVENT, HEARTBEAT_LOG_EVENT_V2, TRANSACTION_PAYLOAD_EVENT,
+# GTID_LOG_EVENT, ANONYMOUS_GTID_LOG_EVENT), which never consult
+# fde->post_header_len to decode themselves and so have no real dependency
+# on the FDE describing their own type number - a completely ordinary and
+# necessary Heartbeat_log_event_v2 would get wrongly rejected as a
+# corrupt/unrecognized event whenever the receiver's cached format
+# description event is older/narrower than the currently running source.
+#
+# This test simulates "the cached FDE is narrower than the source" with the
+# same debug injection point the original fix's own test
+# (rpl_queue_event_unknown_event_type.test) uses, but arranges for the very
+# first event evaluated under the injection to be a heartbeat rather than
+# an ordinary DML/GTID event - to isolate the false positive on a benign
+# event type from the (correct) true positive on a genuinely unknown one.
+#
+# ==== Requirements ====
+#
+# R1. A Heartbeat_log_event_v2 is accepted by the receiver thread even
+#     though the cached format description event describes fewer event
+#     types than HEARTBEAT_LOG_EVENT_V2, because heartbeat decoding never
+#     uses post_header_len and so is unaffected by the FDE's declared
+#     number_of_event_types.
+#
+# is_fd_event_saved_in_context_usable_with_event_type() is scoped to skip
+# queue_event_uses_direct_construction() event types, so this no longer
+# reproduces the bug; it guards against the check regressing back to being
+# applied unconditionally.
+#
+# ==== References ====
+#
+# Bug#39254896 mysql/mysql-server@b037bceecd3
+#
+
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Verify: a stale/narrow cached FDE does not cause a live Heartbeat
+--echo # event to be rejected, since heartbeat decoding does not use
+--echo # post_header_len.
+--echo #
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+
+--echo # Send heartbeats quickly so the test does not depend on the default
+--echo # (much longer) heartbeat period.
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.1;
+
+--source include/rpl/start_replica.inc
+
+--echo # Let the channel settle into steady state and exchange at least one
+--echo # real heartbeat before injecting anything, so the very next event
+--echo # the injection sees is a heartbeat, not a startup event such as
+--echo # Previous_gtids_log_event.
+--let $status_col= count_received_heartbeats
+--let $table= replication_connection_status
+--let $status_col_value= 0
+--let $status_col_comparsion= >
+--source include/wait_for_pfs_status.inc
+
+--echo # Make the cached format description event describe fewer event
+--echo # types than HEARTBEAT_LOG_EVENT_V2 - simulating a source connection
+--echo # whose cached FDE predates that event type.
+SET GLOBAL DEBUG='+d,queue_event_unknown_event_type_by_fd_event';
+
+--echo # R1: the receiver keeps accepting heartbeats even though the cached
+--echo # FDE describes fewer event types than HEARTBEAT_LOG_EVENT_V2.
+--let $_hb_count_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1)
+--let $status_col= count_received_heartbeats
+--let $table= replication_connection_status
+--let $status_col_value= $_hb_count_before
+--let $status_col_comparsion= >
+--let $status_timeout= 100
+--let $status_fail_query= SHOW REPLICA STATUS
+--source include/wait_for_pfs_status.inc
+
+--let $assert_text= IO thread is still running after receiving a heartbeat under the shrunk FDE
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status]" = "ON"
+--source include/assert.inc
+
+--echo # Cleanup: drop the injection.
+SET GLOBAL DEBUG='';
+
+--echo # Sanity: ordinary replication still works once the injection is gone.
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+SELECT * FROM t1;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc
