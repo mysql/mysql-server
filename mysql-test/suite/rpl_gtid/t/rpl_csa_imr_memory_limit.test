@@ -1,0 +1,151 @@
+# ==== Purpose ====
+#
+# Memory-limit back-pressure on a CSA (Change Stream Applier) channel with the
+# in-memory relay log (IMR) enabled: the hard per-channel memory limit
+# (IN_MEMORY_RELAYLOG_LIMIT) bounds the bytes held by memory-path transactions.
+# When the queue fills, the receiver (IO thread) blocks on enqueue instead of
+# exceeding the limit, and no data is lost once the applier drains the queue.
+#
+# ==== Requirements ====
+#
+# R1. The bytes held by memory-path transactions never exceed
+#     IN_MEMORY_RELAYLOG_LIMIT. (FR12, FR13)
+# R2. When the queue is full, the receiver cannot buffer the whole workload:
+#     back-pressure holds it below the full set of source transactions while
+#     the applier is paused. (FR13)
+# R3. Committing a transaction frees its reserved memory; once the applier
+#     drains the queue, all data applies with no loss and the memory usage
+#     returns to 0. (FR14, NFR1)
+#
+# ==== Implementation ====
+#
+#   1. Set up CSA replication (applier stopped), enable IMR at the 32 MiB limit
+#      floor with an 8 MiB spill threshold (so ~1 MiB transactions stay on the
+#      memory path), and start.
+#   2. Pause the applier and run a workload larger than the memory limit.
+#   3. The receiver fills the queue toward the limit and blocks: assert the
+#      usage stays within the limit and fewer than the whole workload is queued.
+#   4. Resume the applier: the queue drains, the receiver unblocks, all data
+#      applies (no loss), and the memory usage returns to 0.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+# Memory accounting is driven by the transaction's on-the-wire byte length. With
+# binlog transaction compression on, the highly compressible test payload would
+# not fill the limit, so this back-pressure test requires compression off.
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR at the 32 MiB limit floor with an 8 MiB spill threshold
+--echo #    (transactions below 8 MiB stay on the memory path) and start.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_LIMIT = 33554432,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Pause the applier and run a workload larger than the memory limit.
+--echo #    40 x ~1 MiB memory-path transactions (~40 MiB) exceed the 32 MiB
+--echo #    limit, so the receiver cannot hold them all at once.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+--let $trx_count= 40
+--disable_query_log
+--let $i= 1
+while ($i <= $trx_count)
+{
+  --eval INSERT INTO t1 (data) VALUES (REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+
+--echo
+--echo # 3. The receiver fills the queue toward the limit and blocks (applier
+--echo #    paused). Usage stays within the limit; not all transactions fit.
+--echo
+
+--source include/rpl/connection_replica.inc
+
+# Poll until the queue is saturated near the limit. The receiver blocks in
+# admission with the applier paused, so the usage rises and then holds steady;
+# the SELECT uses unquoted operands for a numeric (not string) comparison.
+--let $limit= 33554432
+--let $watermark= 25165824
+--let $space= 0
+--let $iter= 0
+while (`SELECT $space < $watermark`)
+{
+  --sleep 0.2
+  --let $space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+  --inc $iter
+  if ($iter > 150)
+  {
+    --die Timed out waiting for the in-memory queue to saturate near the limit
+  }
+}
+
+# R1: the memory usage never exceeds the configured hard limit.
+--let $assert_text= In_Memory_Relay_Log_Space stays within IN_MEMORY_RELAYLOG_LIMIT while the queue is saturated
+--let $assert_cond= $space <= $limit
+--source include/assert.inc
+
+# R2: back-pressure held the receiver below the full workload -- fewer than
+# $trx_count transactions are queued while the applier is paused.
+--let $qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= Back-pressure kept fewer than the whole workload queued while the applier was paused
+--let $assert_cond= $qlen < $trx_count
+--source include/assert.inc
+
+--echo
+--echo # 4. Resume the applier: the queue drains, the receiver unblocks, all
+--echo #    data applies with no loss, and the memory usage returns to 0.
+--echo
+
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $count= `SELECT COUNT(*) FROM t1`
+--let $assert_text= All 40 transactions were applied on the replica
+--let $assert_cond= $count = 40
+--source include/assert.inc
+
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

@@ -1496,6 +1496,9 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> APPLIER_VERSION_SYM            1243     /* MYSQL */
 %token<lexer.keyword> APPLIER_WORKER_COUNT_SYM       1244     /* MYSQL */
 %token<lexer.keyword> APPLIER_EVENT_MEMORY_LIMIT_SYM 1245     /* MYSQL */
+%token<lexer.keyword> IN_MEMORY_RELAYLOG_ENABLED_SYM 1246     /* MYSQL */
+%token<lexer.keyword> IN_MEMORY_RELAYLOG_LIMIT_SYM   1247     /* MYSQL */
+%token<lexer.keyword> IN_MEMORY_RELAYLOG_SPILL_THRESHOLD_SYM 1248 /* MYSQL */
 
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
@@ -3215,6 +3218,15 @@ source_def:
           {
             Lex->mi.applier_event_memory_limit = $3;
           }
+        | IN_MEMORY_RELAYLOG_ENABLED_SYM EQ in_memory_relaylog_def
+        | IN_MEMORY_RELAYLOG_LIMIT_SYM EQ ulong_num
+          {
+            Lex->mi.in_memory_relaylog_limit = $3;
+          }
+        | IN_MEMORY_RELAYLOG_SPILL_THRESHOLD_SYM EQ ulong_num
+          {
+            Lex->mi.in_memory_relaylog_spill_threshold = $3;
+          }
         | source_file_def
         ;
 
@@ -3261,6 +3273,17 @@ table_primary_key_check_def:
         | GENERATE_SYM
           {
             Lex->mi.require_table_primary_key_check= LEX_SOURCE_INFO::LEX_MI_PK_CHECK_GENERATE;
+          }
+        ;
+
+in_memory_relaylog_def:
+          ON_SYM
+          {
+            Lex->mi.in_memory_relaylog = LEX_SOURCE_INFO::LEX_MI_IMR_ENABLE;
+          }
+        | OFF_SYM
+          {
+            Lex->mi.in_memory_relaylog = LEX_SOURCE_INFO::LEX_MI_IMR_DISABLE;
           }
         ;
 
@@ -16271,6 +16294,9 @@ ident_keywords_unambiguous:
         | INSTANCE_SYM
         | INVISIBLE_SYM
         | INVOKER_SYM
+        | IN_MEMORY_RELAYLOG_ENABLED_SYM
+        | IN_MEMORY_RELAYLOG_LIMIT_SYM
+        | IN_MEMORY_RELAYLOG_SPILL_THRESHOLD_SYM
         | IO_SYM
         | IPC_SYM
         | ISOLATION

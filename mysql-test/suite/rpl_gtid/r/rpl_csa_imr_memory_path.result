@@ -1,0 +1,57 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Enable the in-memory relay log on the CSA channel and start.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/assert.inc [The channel reports the in-memory relay log as enabled]
+include/rpl/start_replica.inc
+
+# 2. A mixed DML/DDL workload replicates correctly through the memory path.
+
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, v INT);
+INSERT INTO t1 VALUES (1, 'one'), (2, 'two'), (3, 'three');
+BEGIN;
+INSERT INTO t2 (v) VALUES (10), (20), (30);
+UPDATE t1 SET b = 'ONE' WHERE a = 1;
+COMMIT;
+DELETE FROM t1 WHERE a = 3;
+ALTER TABLE t1 ADD COLUMN c INT DEFAULT 0;
+UPDATE t2 SET v = v + 1;
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+
+# 3. The queue memory drains to 0 once everything is applied.
+#    (Bytes are released at commit; empty envelopes may linger unswept
+#    behind an idle coordinator, so In_Memory_Relay_Log_Space -- not
+#    In_Memory_Queue_Length -- is the reliable "all committed" signal.)
+
+[connection slave]
+include/rpl/wait_for_replica_status.inc [In_Memory_Relay_Log_Space]
+
+# 4. With the applier stopped, received transactions make the metrics
+#    non-zero; restarting the applier drains them and the data matches.
+
+[connection slave]
+include/rpl/stop_applier.inc
+[connection master]
+include/rpl/sync_to_replica_received.inc
+include/assert.inc [In_Memory_Queue_Length grew by exactly 20 queued transactions while the applier was stopped]
+include/assert.inc [In_Memory_Relay_Log_Space is non-zero while transactions are queued]
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_replica_status.inc [In_Memory_Relay_Log_Space]
+[connection master]
+DROP TABLE t1, t2;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

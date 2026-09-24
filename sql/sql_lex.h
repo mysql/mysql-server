@@ -463,6 +463,17 @@ struct LEX_SOURCE_INFO {
 
   const char *assign_gtids_to_anonymous_transactions_manual_uuid{nullptr};
 
+  /*
+    Tri-state option for IN_MEMORY_RELAYLOG, following the LEX_MI_* pattern:
+    unchanged when the option is absent from the statement (leaving the
+    persisted selection untouched), disable for OFF, enable for ON.
+  */
+  enum {
+    LEX_MI_IMR_UNCHANGED = 0,
+    LEX_MI_IMR_DISABLE,
+    LEX_MI_IMR_ENABLE
+  } in_memory_relaylog;
+
   struct Applier_version {
     static constexpr uint unspecified{0};  ///< use previous or default
     static constexpr uint mta{1};          ///< use Multi-threaded applier
@@ -481,6 +492,19 @@ struct LEX_SOURCE_INFO {
   /// The maximum amout of memory that can be used by the channel to keep
   /// binlog events
   ulong applier_event_memory_limit{applier_event_memory_limit_unspecified};
+  /// constant - unspecified IN_MEMORY_RELAYLOG_LIMIT option
+  static constexpr int in_memory_relaylog_limit_unspecified{0};
+  /// Hard per-channel memory bound (bytes) for the in-memory relay-log queue,
+  /// set via IN_MEMORY_RELAYLOG_LIMIT. Unspecified leaves the persisted value
+  /// untouched.
+  ulong in_memory_relaylog_limit{in_memory_relaylog_limit_unspecified};
+  /// constant - unspecified IN_MEMORY_RELAYLOG_SPILL_THRESHOLD option
+  static constexpr int in_memory_relaylog_spill_threshold_unspecified{0};
+  /// Per-channel size (bytes) above which a transaction is routed to the spill
+  /// path, set via IN_MEMORY_RELAYLOG_SPILL_THRESHOLD. Unspecified leaves the
+  /// persisted value untouched.
+  ulong in_memory_relaylog_spill_threshold{
+      in_memory_relaylog_spill_threshold_unspecified};
 
   /// Initializes everything to zero/NULL/empty.
   void initialize();

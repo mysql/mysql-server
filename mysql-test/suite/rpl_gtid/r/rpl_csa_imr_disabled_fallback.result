@@ -1,0 +1,58 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. CSA channel with IMR OFF (the default) uses the classic relay-log
+#    path: relay logs on disk, IMR SHOW REPLICA STATUS columns zero.
+
+[connection slave]
+include/assert.inc [IMR is OFF by default on the CSA channel]
+include/assert.inc [In_Memory_Relay_Log_Space is 0 while IMR is OFF]
+include/assert.inc [In_Memory_Queue_Length is 0 while IMR is OFF]
+
+# 2. Apply a workload with IMR OFF and verify data equality.
+
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'off-a'), (2, 'off-b'), (3, 'off-c');
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+# Classic path: relay logs are present on disk while IMR is OFF.
+[connection slave]
+include/assert.inc [Relay_Log_Space is greater than 0 (classic relay logs in use)]
+
+# 3. Toggle IMR ON (replication stopped for the change), apply, verify.
+
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/rpl/start_replica.inc
+include/assert.inc [IMR is ON after the toggle]
+[connection master]
+INSERT INTO t1 VALUES (4, 'on-a'), (5, 'on-b'), (6, 'on-c');
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 4. Toggle IMR back OFF, apply, verify equality and the restored classic
+#    path with zeroed IMR columns (non-destructive fallback).
+
+[connection slave]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (7, 'off2-a'), (8, 'off2-b'), (9, 'off2-c');
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+[connection slave]
+include/assert.inc [In_Memory_Relay_Log_Space is 0 again after falling back to OFF]
+include/assert.inc [In_Memory_Queue_Length is 0 again after falling back to OFF]
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

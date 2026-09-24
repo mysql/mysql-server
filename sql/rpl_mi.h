@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <memory>
 
 #include "compression.h"  // COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE
 #include "my_inttypes.h"
@@ -49,6 +50,11 @@ class Rpl_info_handler;
 class Server_ids;
 class THD;
 struct MYSQL;
+
+namespace mysql::csa {
+class Trx_envelope_queue;
+class Streaming_event_sink;
+}  // namespace mysql::csa
 
 #define DEFAULT_CONNECT_RETRY 60
 
@@ -305,6 +311,49 @@ class Master_info : public Rpl_info {
   MYSQL *mysql;
   uint32 file_id; /* for 3.23 load data infile */
   Relay_log_info *rli;
+
+  /// Per-channel in-memory relay-log queue, owned by this Master_info for the
+  /// whole period the in-memory path is selected. nullptr when the in-memory
+  /// path is not selected for this channel (classic relay-log path). Created
+  /// with `mi` when the selection is turned on (CHANGE REPLICATION SOURCE TO
+  /// IN_MEMORY_RELAYLOG = ON, or mi/rli init at server start when the persisted
+  /// selection is ON); reused across receiver/applier sessions (resume() at
+  /// start, reset() after a full stop); destroyed when the selection is turned
+  /// off or with `mi` (RESET REPLICA ALL / channel drop / shutdown). The IO/SQL
+  /// threads attach/detach but never create or destroy it. See
+  /// reconcile_in_memory_relaylog_queue().
+  mysql::csa::Trx_envelope_queue *m_trx_queue{nullptr};
+
+  /// Non-owning handle to the Streaming_event_sink of the transaction the IO
+  /// thread is currently queueing. Resolved once from m_trx_queue->enqueue()'s
+  /// returned envelope at the GTID event; used directly to append body events
+  /// and to seal at the terminal event; cleared at seal / truncation / stop.
+  /// Only ever touched by the IO thread, so it needs no lock. Always nullptr
+  /// outside an open transaction group.
+  mysql::csa::Streaming_event_sink *m_current_sink{nullptr};
+
+  /// @return whether this channel uses the in-memory relay-log path.
+  bool is_in_memory_relaylog() const { return m_trx_queue != nullptr; }
+
+  /// Create or destroy m_trx_queue so it matches the channel's persisted
+  /// in-memory relay-log selection (rli->is_in_memory_relaylog() on a
+  /// CSA-enabled channel). Idempotent. MUST be called only while both
+  /// replication threads are stopped and no thread is attached to the queue:
+  /// at CHANGE REPLICATION SOURCE apply (under the both-threads-stopped guard)
+  /// and during mi/rli init before any thread attaches. The IO/SQL threads
+  /// never call this.
+  ///
+  /// - selection ON + CSA and no queue yet: create an empty queue with the
+  ///   fixed per-channel bounds (IN_MEMORY_RELAYLOG_LIMIT /
+  ///   IN_MEMORY_RELAYLOG_SPILL_THRESHOLD).
+  /// - selection OFF or channel not CSA and a queue exists: destroy the (idle,
+  ///   empty) queue.
+  ///
+  /// The queue's bounds are fixed compile-time constants (not derived from the
+  /// applier event memory limit and not user-tunable yet), so there is no
+  /// rebuild-on-bound-change path.
+  void reconcile_in_memory_relaylog_queue();
+
   uint port;
   uint connect_retry;
   /*
@@ -651,17 +700,20 @@ class Master_info : public Rpl_info {
     Locks:
     All access is protected by Relay_log::LOCK_log.
   */
-  Format_description_log_event *mi_description_event;
+  std::shared_ptr<Format_description_log_event> mi_description_event;
 
  public:
   Format_description_log_event *get_mi_description_event() {
     mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
-    return mi_description_event;
+    return mi_description_event.get();
   }
   void set_mi_description_event(Format_description_log_event *fdle) {
     mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
-    delete mi_description_event;
-    mi_description_event = fdle;
+    mi_description_event.reset(fdle);
+  }
+  std::shared_ptr<Format_description_log_event> get_mi_description_event_shared() {
+    mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
+    return mi_description_event;
   }
 
   bool set_info_search_keys(Rpl_info_handler *to) override;

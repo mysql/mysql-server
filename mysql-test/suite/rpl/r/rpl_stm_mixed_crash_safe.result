@@ -28,6 +28,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Applier_version` int unsigned NOT NULL DEFAULT '1' COMMENT 'Version of the applier used (either 1 or 2)',
   `Applier_worker_count` int unsigned NOT NULL DEFAULT '0' COMMENT 'Number of worker threads utilized by the applier',
   `Applier_event_memory_limit` int unsigned NOT NULL DEFAULT '1073741824' COMMENT 'The maximum amount of memory applier channel may use to cache binlog events',
+  `In_memory_relaylog` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Indicates whether the channel uses the in-memory relay log instead of writing relay log files to disk.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
@@ -71,6 +72,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Applier_version` int unsigned NOT NULL DEFAULT '1' COMMENT 'Version of the applier used (either 1 or 2)',
   `Applier_worker_count` int unsigned NOT NULL DEFAULT '0' COMMENT 'Number of worker threads utilized by the applier',
   `Applier_event_memory_limit` int unsigned NOT NULL DEFAULT '1073741824' COMMENT 'The maximum amount of memory applier channel may use to cache binlog events',
+  `In_memory_relaylog` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Indicates whether the channel uses the in-memory relay log instead of writing relay log files to disk.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;

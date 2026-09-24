@@ -28,6 +28,7 @@
 #include "mysql/psi/mysql_file.h"  // mysql_file_close
 #include "sql/changestreams/apply/resource/statistics_map.h"
 #include "sql/changestreams/apply/service/csa_service.h"
+#include "sql/changestreams/apply/storage/in_memory/queued_transaction_reader.h"  // Queued_transaction_reader
 #include "sql/mysqld.h"  // slave_trans_retries
 #include "sql/rpl_mi.h"  // Master_info
 
@@ -41,6 +42,18 @@ Sync_transaction_provider::Sync_transaction_provider(
     : m_rli(rli),
       m_reader(new Transaction_provider::Common_reader_type(
           instance_id, rli, max_read_event_bytes, max_read_payload_bytes)),
+      m_stat_monitor(scheduler::Statistics_monitor::get(instance_id)) {}
+
+// In-memory relay-log overload: the provider drains transactions from the
+// channel's Trx_envelope_queue via a Queued_transaction_reader instead of
+// reading the on-disk relay log. Selected by Csa_service::run for in-memory
+// channels; the classic (bytes-bounded) overload above is used otherwise.
+Sync_transaction_provider::Sync_transaction_provider(int instance_id,
+                                                     Relay_log_info *rli,
+                                                     Trx_envelope_queue *queue)
+    : m_rli(rli),
+      m_reader(
+          std::make_shared<Queued_transaction_reader>(instance_id, rli, queue)),
       m_stat_monitor(scheduler::Statistics_monitor::get(instance_id)) {}
 
 void Sync_transaction_provider::start() {}

@@ -1,0 +1,211 @@
+# ==== Purpose ====
+#
+# Verify the STOP/START thread lifecycle of a CSA channel that uses the
+# in-memory relay log (IMR), at the observable level (data equality plus the
+# SHOW REPLICA STATUS queue metrics). Covers the three STOP shapes and a normal
+# server restart:
+#
+#   (a) STOP REPLICA SQL_THREAD  (receiver keeps running)
+#   (b) STOP REPLICA IO_THREAD   (applier keeps running)
+#   (c) STOP REPLICA             (both threads)
+#   (d) normal server restart
+#
+# ==== Requirements ====
+#
+# R1. On STOP REPLICA SQL_THREAD with the receiver running, the in-memory queue
+#     retains the uncommitted transactions (In_Memory_Queue_Length > 0); on
+#     START REPLICA SQL_THREAD they are re-dispatched and applied.
+# R2. On STOP REPLICA IO_THREAD with the applier running, the applier keeps
+#     applying the already-received transactions; START REPLICA IO_THREAD
+#     resumes reception.
+# R3. On a full STOP REPLICA the queue is reset (In_Memory_Queue_Length = 0);
+#     START REPLICA re-fetches by GTID auto-positioning and stays consistent.
+# R4. After a normal server restart the queue starts empty
+#     (In_Memory_Queue_Length = 0) and replication resumes consistently.
+# R5. In every case the replica data matches the source.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with IMR enabled and start it; seed a baseline.
+#   2. STOP SQL_THREAD: receive while stopped (queue retained), then start and
+#      re-apply (R1, R5).
+#   3. STOP IO_THREAD: applier drains what it has, then resume the receiver
+#      (R2, R5).
+#   4. STOP REPLICA (both): queue is reset, then restart and re-fetch (R3, R5).
+#   5. Normal server restart: queue starts empty, then resume (R4, R5).
+#   6. Cleanup.
+#
+# Note: a committed transaction is swept from the queue only on the
+# coordinator's next read iteration or on a full stop, so a live drain can
+# leave the most recent transaction lingering. In_Memory_Queue_Length is
+# therefore asserted to be 0 only where it is deterministic (after a full STOP
+# REPLICA and after a restart); elsewhere correctness is asserted with
+# diff_tables.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+--source include/have_binlog_format_row.inc
+
+--echo
+--echo # 1. Set up a CSA channel with the in-memory relay log enabled.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 2. STOP REPLICA SQL_THREAD: the receiver keeps running and the queue
+--echo #    retains the uncommitted transactions; START re-dispatches them.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+--disable_query_log
+--let $i= 4
+while ($i <= 33)
+{
+  --eval INSERT INTO t1 VALUES ($i)
+  --inc $i
+}
+--enable_query_log
+
+# Wait for the receiver to fetch everything into the in-memory queue.
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--let $queue_len= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= Uncommitted transactions are retained in the in-memory queue while the applier is stopped
+--let $assert_cond= $queue_len > 0
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 3. STOP REPLICA IO_THREAD: the applier keeps running and applies the
+--echo #    already-received transactions; START IO_THREAD resumes reception.
+--echo
+
+--source include/rpl/connection_source.inc
+--disable_query_log
+--let $i= 34
+while ($i <= 43)
+{
+  --eval INSERT INTO t1 VALUES ($i)
+  --inc $i
+}
+--enable_query_log
+# Ensure the receiver has fetched everything before it is stopped.
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_receiver.inc
+
+# The applier is still running; assert so and let it drain the queue.
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= The applier keeps running after STOP REPLICA IO_THREAD
+--let $assert_cond= "$sql_running" = "Yes"
+--source include/assert.inc
+
+# Everything already received is applied even though the receiver is stopped.
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (44), (45), (46);
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 4. STOP REPLICA (both): the queue is reset; START REPLICA re-fetches by
+--echo #    GTID auto-positioning and stays consistent.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+
+--let $queue_len= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= A full STOP REPLICA resets the in-memory queue to empty
+--let $assert_cond= $queue_len = 0
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (47), (48), (49);
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 5. Normal server restart: the queue starts empty and replication
+--echo #    resumes consistently.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+
+--let $rpl_server_number= 2
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+--let $queue_len= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= The in-memory queue starts empty after a server restart
+--let $assert_cond= $queue_len = 0
+--source include/assert.inc
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (50), (51), (52);
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 6. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

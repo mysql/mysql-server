@@ -11067,6 +11067,15 @@ ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY
 ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK
   eng "The UPDATE column tag is not supported for a primary key projection at JSON path '%s'."
 
+ER_CRST_IN_MEMORY_RELAYLOG_ONLY_FOR_CSA
+  eng "The in-memory relay log is only available on a CSA-enabled channel."
+
+ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION
+  eng "The in-memory relay log is incompatible with %s and cannot be used while it is active."
+
+ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG
+  eng "Invalid in-memory relay log configuration: %s"
+
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #

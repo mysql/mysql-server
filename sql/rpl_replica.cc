@@ -110,6 +110,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auto_thd.h"
 #include "sql/binlog.h"
+#include "sql/binlog/global.h"
 #include "sql/binlog_reader.h"
 #include "sql/clone_handler.h"  // is_provisioning
 #include "sql/current_thd.h"
@@ -149,6 +150,7 @@
 #include "sql/rpl_rli_pdb.h"  // Slave_worker
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/rpl_utility.h"
+#include "sql/set_var.h"          // System_variable_tracker
 #include "sql/sql_backup_lock.h"  // is_instance_backup_locked
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
@@ -174,6 +176,8 @@
 #include "scope_guard.h"
 
 #include "sql/changestreams/apply/service/csa_service.h"
+#include "sql/changestreams/apply/storage/in_memory/queued_transaction_writer.h"
+#include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"  // Trx_envelope_queue::Scope
 
 struct mysql_cond_t;
 struct mysql_mutex_t;
@@ -302,6 +306,7 @@ enum enum_slave_apply_event_and_update_pos_retval {
 };
 
 static int process_io_rotate(Master_info *mi, Rotate_log_event *rev);
+static void imr_on_truncate(Master_info *mi);
 
 /// @brief Checks whether relay log space will be exceeded after queueing
 /// additional 'queued_size' bytes. If yes, function will
@@ -1436,6 +1441,16 @@ end:
   if (!init_error && mi->rli->is_relay_log_recovery &&
       mi->rli->mts_recovery_group_cnt)
     init_error = fill_mts_gaps_and_recover(mi);
+
+  // With mi/rli metadata now loaded and before any replication thread attaches,
+  // create the per-channel in-memory relay-log queue if this channel selects
+  // the in-memory path (persisted selection ON on a CSA channel). This runs on
+  // every init path (server start, START REPLICA, CHANGE REPLICATION SOURCE)
+  // and is idempotent: a queue that already matches the selection is left
+  // untouched, so it never disturbs an already-running peer thread.
+  if (!init_error && mi->rli->inited)
+    mi->reconcile_in_memory_relaylog_queue();
+
   return init_error;
 }
 
@@ -1759,6 +1774,40 @@ static void set_thd_in_use_temporary_tables(Relay_log_info *rli) {
   }
 }
 
+/**
+  Reset the volatile receiver state owned by an in-memory relay-log channel.
+
+  This operation is the replication-level counterpart to the queue's
+  metadata-independent reset(). The caller must have stopped and joined both
+  queue roles, so no receiver, coordinator, or worker can observe the state
+  while it is cleared. The cleanup order mirrors
+  Relay_log_info::purge_relay_logs(): reset the parser, clear receiver
+  monitoring under Master_info::data_lock, then clear the retrieved GTID set
+  and its TSID map under the RLI TSID write lock. The queue and current sink are
+  reset only after that receiver metadata is clean.
+
+  @param mi The stopped in-memory channel whose volatile state is reset.
+*/
+static void reset_in_memory_received_state(Master_info *mi) {
+  assert(mi != nullptr);
+  assert(mi->is_in_memory_relaylog());
+  assert(mi->m_trx_queue->is_stopped());
+
+  mi->transaction_parser.reset();
+
+  mysql_mutex_lock(&mi->data_lock);
+  mi->clear_gtid_monitoring_info();
+  mysql_mutex_unlock(&mi->data_lock);
+
+  Relay_log_info *rli = mi->rli;
+  rli->get_tsid_lock()->wrlock();
+  (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear_set_and_tsid_map();
+  rli->get_tsid_lock()->unlock();
+
+  mi->m_trx_queue->reset();
+  mi->m_current_sink = nullptr;
+}
+
 int terminate_slave_threads(Master_info *mi, int thread_mask,
                             ulong stop_wait_timeout, bool need_lock_term) {
   DBUG_TRACE;
@@ -1778,6 +1827,10 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
   if (thread_mask & (REPLICA_SQL | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating SQL thread"));
     mi->rli->abort_slave = true;
+    // Wake a coordinator parked in dispatch_next() so it observes the stop and
+    // exits; scoped to the applier so a still-running receiver is undisturbed.
+    if (mi->is_in_memory_relaylog())
+      mi->m_trx_queue->stop(mysql::csa::Trx_envelope_queue::Scope::APPLIER);
     if (mi->rli->is_csa_enabled()) {
       get_csa_service().stop(mi->get_channel(), force_all);
     }
@@ -1795,6 +1848,9 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
       }
       return error;
     }
+
+    if (mi->is_in_memory_relaylog())
+      mi->m_trx_queue->sweep_committed(true);
 
     DBUG_PRINT("info", ("Flushing applier metadata."));
     if (current_thd)
@@ -1829,6 +1885,10 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
   if (thread_mask & (REPLICA_IO | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating IO thread"));
     mi->abort_slave = true;
+    // Wake a receiver parked in acquire_admission() so it observes the stop and
+    // exits; scoped to the receiver so a still-running applier is undisturbed.
+    if (mi->is_in_memory_relaylog())
+      mi->m_trx_queue->stop(mysql::csa::Trx_envelope_queue::Scope::RECEIVER);
     DBUG_EXECUTE_IF("pause_after_queue_event",
                     { rpl_replica_debug_point(DBUG_RPL_S_PAUSE_QUEUE_EV); });
     /*
@@ -1905,6 +1965,16 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
 
     mysql_mutex_unlock(log_lock);
   }
+
+  // In-memory relay log: once both roles have stopped -- a full stop, or the
+  // last running role stopping -- atomically discard the volatile queue and
+  // its receiver bookkeeping. is_stopped() is false after a single-thread stop
+  // (the other role stays armed), so both the queue and Retrieved_Gtid_Set stay
+  // live for that role. Safe here: the terminated thread(s) have joined, so
+  // when is_stopped() holds nothing is attached and no worker holds a job.
+  if (mi->is_in_memory_relaylog() && mi->m_trx_queue->is_stopped())
+    reset_in_memory_received_state(mi);
+
   return 0;
 }
 
@@ -2162,10 +2232,17 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     lock_cond_sql = &mi->rli->run_lock;
   }
 
-  if (thread_mask & REPLICA_IO)
+  if (thread_mask & REPLICA_IO) {
+    // Arm the receiver role on the mi-owned queue before creating the IO
+    // thread, so its first enqueue is admitted (the queue rests stopped). Done
+    // on the caller (START command) thread under the channel start/stop
+    // serialization; the IO thread never creates the queue.
+    if (mi->is_in_memory_relaylog())
+      mi->m_trx_queue->resume(mysql::csa::Trx_envelope_queue::Scope::RECEIVER);
     is_error = start_slave_thread(key_thread_replica_io, handle_slave_io,
                                   lock_io, lock_cond_io, cond_io,
                                   &mi->slave_running, &mi->slave_run_id, mi);
+  }
 
   if (!is_error && (thread_mask & (REPLICA_IO | SLAVE_MONITOR)) &&
       mi->is_source_connection_auto_failover() &&
@@ -2189,10 +2266,17 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
         my_error(ER_MTA_RECOVERY_FAILURE, MYF(0));
       }
     }
-    if (!is_error)
+    if (!is_error) {
+      // Arm the applier role before creating the SQL (coordinator) thread, so
+      // dispatch_next() serves it (the queue rests stopped). Caller-thread,
+      // under the channel start/stop serialization; the SQL thread never
+      // creates the queue.
+      if (mi->is_in_memory_relaylog())
+        mi->m_trx_queue->resume(mysql::csa::Trx_envelope_queue::Scope::APPLIER);
       is_error = start_slave_thread(
           key_thread_replica_sql, handle_slave_sql, lock_sql, lock_cond_sql,
           cond_sql, &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
+    }
     if (is_error)
       terminate_slave_threads(mi, thread_mask & (REPLICA_IO | SLAVE_MONITOR),
                               rpl_stop_replica_timeout, need_lock_slave);
@@ -3501,6 +3585,17 @@ static void show_slave_status_metadata(mem_root_deque<Item *> *field_list,
                                             sizeof(ulong), MYSQL_TYPE_LONG));
   field_list->push_back(
       new Item_empty_string("Network_Namespace", NAME_LEN + 1));
+  // Bytes currently held by the channel's in-memory relay-log queue (0 for a
+  // classic channel). Appended at the END so no existing column's position
+  // shifts. Its value is stored at the matching trailing position in
+  // show_slave_status_send_data().
+  field_list->push_back(
+      new Item_return_int("In_Memory_Relay_Log_Space", 10, MYSQL_TYPE_LONGLONG));
+  // Number of transactions currently owned by the channel's in-memory relay-
+  // log queue (0 for a classic channel). Keep this and the matching row value
+  // at the END so no existing column's position shifts.
+  field_list->push_back(
+      new Item_return_int("In_Memory_Queue_Length", 10, MYSQL_TYPE_LONGLONG));
 }
 
 /**
@@ -3779,6 +3874,18 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->get_public_key ? 1 : 0);
 
   protocol->store(mi->network_namespace_str(), &my_charset_bin);
+
+  // In_Memory_Relay_Log_Space: bytes in use by the in-memory relay-log queue for
+  // this channel (0 for a classic channel). Kept at the SAME trailing position
+  // as the In_Memory_Relay_Log_Space field added to the field list.
+  protocol->store(static_cast<ulonglong>(
+      mi->is_in_memory_relaylog() ? mi->m_trx_queue->bytes_used() : 0));
+
+  // In_Memory_Queue_Length: queue-owned transactions for this channel,
+  // including dispatched and committed-but-not-yet-swept entries (0 for a
+  // classic channel). Keep this at the matching trailing metadata position.
+  protocol->store(static_cast<ulonglong>(
+      mi->is_in_memory_relaylog() ? mi->m_trx_queue->queue_length() : 0));
 
   rpl_filter->unlock();
   mysql_mutex_unlock(&mi->rli->err_lock);
@@ -6023,6 +6130,21 @@ extern "C" void *handle_slave_io(void *arg) {
            llstr(mi->get_master_log_pos(), llbuff));
     /* At this point the I/O thread will not try to reconnect anymore. */
     mi->atomic_is_stopping = true;
+    /*
+      In-memory relay log: the receiver is stopping for good with a transaction
+      group possibly still open (mi->m_current_sink != nullptr) -- a large
+      transaction only partially received when the thread was killed/stopped.
+      Nothing else will ever seal that sink now, so a worker parked in
+      Event_set_fetchable_memory::wait_next() would block forever, and a
+      subsequent STOP REPLICA SQL_THREAD could not join it. Truncate the open
+      group here so the sink reports end-of-stream: the applier takes its
+      is_truncated() branch, rolls back the partial transaction, and the whole
+      transaction is re-fetched from the source on the next START (its GTID is
+      in neither the Retrieved_Gtid_Set nor gtid_executed). No-op when no group
+      is open; truncate_transaction() is self-synchronized and nulls the sink.
+      Classic relay-log channels (m_current_sink always null) are unaffected.
+    */
+    if (mi->is_in_memory_relaylog()) imr_on_truncate(mi);
     (void)RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
     /*
       Pause the IO thread and wait for 'continue_to_stop_io_thread'
@@ -7847,6 +7969,119 @@ static bool is_fd_event_saved_in_context_usable_with_event_type(
 }
 
 /**
+  In-memory relay log receiver adapter: open a transaction group at the GTID
+  event.
+
+  Thin Master_info / QUEUE_EVENT_RESULT wrapper over the Master_info-free
+  mechanism (mysql::csa::open_transaction). Reads the declared transaction byte
+  length from the GTID event and admits the group into the channel's
+  Trx_envelope_queue, publishing the opened group's sink through
+  mi->m_current_sink.
+
+  @param mi      The Master_info object for this in-memory channel.
+  @param gtid_ev The GTID event that opens the transaction group.
+
+  @retval QUEUE_EVENT_OK            the group was opened; mi->m_current_sink is
+                                    non-null.
+  @retval QUEUE_EVENT_ERROR_QUEUING a stop was requested while blocked in
+                                    admission; mi->m_current_sink left null.
+*/
+static QUEUE_EVENT_RESULT imr_on_gtid_event(Master_info *mi,
+                                            const Gtid_log_event &gtid_ev) {
+  const std::size_t trx_length =
+      static_cast<std::size_t>(gtid_ev.get_trx_length());
+  if (mysql::csa::open_transaction(*mi->m_trx_queue, mi->m_current_sink,
+                                   mi->get_mi_description_event_shared(),
+                                   trx_length, /*is_trx=*/true)) {
+    return QUEUE_EVENT_ERROR_QUEUING;  // stop while blocked; m_current_sink null
+  }
+  return QUEUE_EVENT_OK;
+}
+
+/**
+  In-memory relay log receiver adapter: append one received event's bytes to
+  the open group (body or terminal event).
+
+  Thin Master_info / QUEUE_EVENT_RESULT wrapper over the Master_info-free
+  mechanism (mysql::csa::append_transaction_event). The terminal event seals the
+  group and clears mi->m_current_sink.
+
+  @param mi          The Master_info object for this in-memory channel.
+  @param buf         The transient event bytes (copied in by the mechanism).
+  @param len         Number of bytes at @p buf.
+  @param is_terminal Whether this event terminates (seals) the group.
+
+  @retval QUEUE_EVENT_OK            the event was appended.
+  @retval QUEUE_EVENT_ERROR_QUEUING no group was open (defensive).
+*/
+static QUEUE_EVENT_RESULT imr_on_body_event(Master_info *mi, const char *buf,
+                                            ulong len, bool is_terminal) {
+  if (mysql::csa::append_transaction_event(mi->m_current_sink, buf, len,
+                                           is_terminal)) {
+    return QUEUE_EVENT_ERROR_QUEUING;  // no open group (defensive)
+  }
+  return QUEUE_EVENT_OK;
+}
+
+/**
+  In-memory relay log receiver adapter: truncate the open group on an
+  incomplete transaction (rotate / error / stop mid-transaction).
+
+  Thin Master_info wrapper over the Master_info-free mechanism
+  (mysql::csa::truncate_transaction). Marks the open group's stream truncated
+  and clears mi->m_current_sink; a no-op when nothing is open.
+
+  @param mi The Master_info object for this in-memory channel.
+*/
+static void imr_on_truncate(Master_info *mi) {
+  mysql::csa::truncate_transaction(mi->m_current_sink);
+}
+
+/**
+  Complete receiver bookkeeping after a transaction has been successfully
+  appended to and sealed in the in-memory relay log.
+
+  The caller must be queue_event() at a terminal transaction boundary, while
+  holding Master_info::data_lock. This mirrors the completion bookkeeping in
+  MYSQL_BIN_LOG::after_write_to_relay_log() without affecting the classic
+  relay-log path.
+
+  @param mi The Master_info object for this in-memory channel.
+*/
+static void after_write_to_in_memory_relay_log(Master_info *mi) {
+  assert(mi != nullptr);
+  assert(mi->is_in_memory_relaylog());
+  assert(mi->transaction_parser.is_not_inside_transaction());
+  mysql_mutex_assert_owner(&mi->data_lock);
+
+  const Gtid *last_gtid_queued = mi->get_queueing_trx_gtid();
+  if (!last_gtid_queued->is_empty()) {
+    mi->rli->get_tsid_lock()->rdlock();
+    DBUG_SIGNAL_WAIT_FOR(current_thd, "updating_received_transaction_set",
+                         "reached_updating_received_transaction_set",
+                         "continue_updating_received_transaction_set");
+    mi->rli->add_logged_gtid(last_gtid_queued->sidno,
+                             last_gtid_queued->gno);
+    mi->rli->get_tsid_lock()->unlock();
+  }
+
+  if (mi->is_queueing_trx()) {
+    mi->finished_queueing();
+
+    Trx_monitoring_info processing;
+    Trx_monitoring_info last;
+    mi->get_gtid_monitoring_info()->copy_info_to(&processing, &last);
+
+    binlog::global_context.monitoring_context()
+        .transaction_compression()
+        .update(binlog::monitoring::log_type::RELAY, last.compression_type,
+                last.gtid, last.end_time, last.compressed_bytes,
+                last.uncompressed_bytes,
+                mi->rli->get_gtid_set()->get_tsid_map());
+  }
+}
+
+/**
   Store an event received from the master connection into the relay
   log.
 
@@ -7907,6 +8142,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   ulonglong compressed_transaction_bytes = 0;
   ulonglong uncompressed_transaction_bytes = 0;
   auto compression_type = mysql::binlog::event::compression::type::NONE;
+  bool in_memory_transaction_completed = false;
   Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
 
   assert(checksum_alg == mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF ||
@@ -8175,6 +8411,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         Now the I/O thread has just changed its mi->get_master_log_name(), so
         incrementing mi->get_master_log_pos() is nonsense.
       */
+      if (mi->is_in_memory_relaylog()) imr_on_truncate(mi);
       inc_pos = 0;
       break;
     }
@@ -8329,6 +8566,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       inc_pos = event_len;
       mi->m_queueing_transaction_size = gtid_ev.get_trx_length();
       mi->m_queueing_transaction_gtid_event_size = gtid_ev.get_event_length();
+      if (mi->is_in_memory_relaylog() &&
+          imr_on_gtid_event(mi, gtid_ev) != QUEUE_EVENT_OK)
+        goto err;
     } break;
 
     case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT: {
@@ -8385,6 +8625,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       mi->m_queueing_transaction_size = anon_gtid_ev.get_trx_length();
       mi->m_queueing_transaction_gtid_event_size =
           anon_gtid_ev.get_event_length();
+      if (mi->is_in_memory_relaylog() &&
+          imr_on_gtid_event(mi, anon_gtid_ev) != QUEUE_EVENT_OK)
+        goto err;
     }
       [[fallthrough]];
     default:
@@ -8481,8 +8724,33 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   } else {
     bool is_error = false;
     DBUG_EXECUTE_IF("simulate_truncated_relay_log_event", { event_len -= 5; });
-    /* write the event to the relay log */
-    if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0)) {
+    /* In-memory relay log: stream the event into the per-channel queue's sink
+       instead of writing it to the relay-log file. A transaction group is open
+       iff m_current_sink != nullptr (set at the GTID event by imr_on_gtid_event
+       in the switch above). Inter-group events (Format_description / heartbeat /
+       rotate) that reach here with no open group are simply not appended (there
+       is no relay file to write, and the FDE was already installed on
+       Master_info in its switch case). is_terminal is the transaction-boundary
+       the parser computed when the event was fed at the top of queue_event.
+       Classic channels (m_trx_queue == nullptr) take the existing write_buffer
+       path, byte-for-byte unchanged. */
+    bool queued_ok;
+    if (mi->is_in_memory_relaylog()) {
+      if (mi->m_current_sink != nullptr) {
+        const bool is_terminal =
+            mi->transaction_parser.is_not_inside_transaction();
+        queued_ok =
+            (imr_on_body_event(mi, buf, event_len, is_terminal) ==
+             QUEUE_EVENT_OK);
+        in_memory_transaction_completed = queued_ok && is_terminal;
+      } else {
+        queued_ok = true;  // inter-group event: nothing to append in memory
+      }
+    } else {
+      /* write the event to the relay log */
+      queued_ok = (rli->relay_log.write_buffer(buf, event_len, mi) == 0);
+    }
+    if (likely(queued_ok)) {
       DBUG_SIGNAL_WAIT_FOR(current_thd,
                            "pause_on_queue_event_after_write_buffer",
                            "receiver_reached_pause_on_queue_event",
@@ -8529,6 +8797,15 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
             mysql::binlog::event::compression::type::NONE,
             compressed_transaction_bytes, uncompressed_transaction_bytes);
       }
+
+      /*
+        The classic relay-log path performs this bookkeeping from
+        after_write_to_relay_log() once the terminal event has been flushed.
+        The in-memory path bypasses that callback, so mirror it only after the
+        terminal event was appended successfully and sealed the stream.
+      */
+      if (mi->is_in_memory_relaylog() && in_memory_transaction_completed)
+        after_write_to_in_memory_relay_log(mi);
     } else {
       /*
         We failed to write the event and didn't updated slave positions.
@@ -8537,6 +8814,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         restarting the I/O thread without GTID auto positing the parser
         would assume the failed event as queued.
       */
+      if (mi->is_in_memory_relaylog()) imr_on_truncate(mi);
       mi->transaction_parser.rollback();
       is_error = true;
     }
@@ -9786,7 +10064,12 @@ static bool have_change_replication_source_execute_option(
       lex_mi->applier_worker_count !=
           LEX_SOURCE_INFO::applier_worker_count_unspecified ||
       lex_mi->applier_event_memory_limit !=
-          LEX_SOURCE_INFO::applier_event_memory_limit_unspecified)
+          LEX_SOURCE_INFO::applier_event_memory_limit_unspecified ||
+      lex_mi->in_memory_relaylog != LEX_SOURCE_INFO::LEX_MI_IMR_UNCHANGED ||
+      lex_mi->in_memory_relaylog_limit !=
+          LEX_SOURCE_INFO::in_memory_relaylog_limit_unspecified ||
+      lex_mi->in_memory_relaylog_spill_threshold !=
+          LEX_SOURCE_INFO::in_memory_relaylog_spill_threshold_unspecified)
     have_execute_option = true;
 
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos)
@@ -9819,7 +10102,12 @@ static bool have_change_replication_source_applier_and_receive_option(
       lex_mi->auto_position != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->m_source_connection_auto_failover !=
           LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->m_gtid_only != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
+      lex_mi->m_gtid_only != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->in_memory_relaylog != LEX_SOURCE_INFO::LEX_MI_IMR_UNCHANGED ||
+      lex_mi->in_memory_relaylog_limit !=
+          LEX_SOURCE_INFO::in_memory_relaylog_limit_unspecified ||
+      lex_mi->in_memory_relaylog_spill_threshold !=
+          LEX_SOURCE_INFO::in_memory_relaylog_spill_threshold_unspecified)
     have_applier_receive_option = true;
 
   return have_applier_receive_option;
@@ -10186,6 +10474,106 @@ static bool change_execute_options(THD *thd, LEX_SOURCE_INFO *lex_mi,
     }
     mi->rli->set_applier_event_memory_limit(lex_mi->applier_event_memory_limit);
   }
+  if (lex_mi->in_memory_relaylog != LEX_SOURCE_INFO::LEX_MI_IMR_UNCHANGED) {
+    const bool enable =
+        (lex_mi->in_memory_relaylog == LEX_SOURCE_INFO::LEX_MI_IMR_ENABLE);
+    // The in-memory relay log is a CSA-only receiver feature. This CSA gate
+    // also covers Group Replication channels, which are never CSA-enabled.
+    if (enable && !mi->rli->is_csa_enabled()) {
+      my_error(ER_CRST_IN_MEMORY_RELAYLOG_ONLY_FOR_CSA, MYF(0));
+      return true;
+    }
+    mi->rli->set_in_memory_relaylog(enable);
+  }
+  {
+    const bool limit_specified =
+        lex_mi->in_memory_relaylog_limit !=
+        LEX_SOURCE_INFO::in_memory_relaylog_limit_unspecified;
+    const bool spill_threshold_specified =
+        lex_mi->in_memory_relaylog_spill_threshold !=
+        LEX_SOURCE_INFO::in_memory_relaylog_spill_threshold_unspecified;
+
+    if (limit_specified || spill_threshold_specified) {
+      // The in-memory relay-log bounds are CSA-only receiver settings, gated
+      // the same way as the enablement selection (this also covers Group
+      // Replication channels, which are never CSA-enabled).
+      if (!mi->rli->is_csa_enabled()) {
+        my_error(ER_CRST_IN_MEMORY_RELAYLOG_ONLY_FOR_CSA, MYF(0));
+        return true;
+      }
+
+      // Accepted ranges (bytes):
+      //   IN_MEMORY_RELAYLOG_LIMIT           : [32 MiB, 4 GiB]
+      //   IN_MEMORY_RELAYLOG_SPILL_THRESHOLD : [8 MiB, IN_MEMORY_RELAYLOG_LIMIT)
+      // The limit/threshold ordering is validated against the effective
+      // (post-statement) bounds, so an option given on its own is still checked
+      // against the currently persisted value of its peer: raising the limit
+      // must keep it above the current threshold, and vice versa.
+      constexpr unsigned long long kLimitMin = 32ULL * 1024 * 1024;
+      constexpr unsigned long long kLimitMax = 4ULL * 1024 * 1024 * 1024;
+      constexpr unsigned long long kSpillThresholdMin = 8ULL * 1024 * 1024;
+
+      const unsigned long long effective_limit =
+          limit_specified
+              ? static_cast<unsigned long long>(
+                    lex_mi->in_memory_relaylog_limit)
+              : static_cast<unsigned long long>(
+                    mi->rli->get_in_memory_relaylog_limit());
+      const unsigned long long effective_spill_threshold =
+          spill_threshold_specified
+              ? static_cast<unsigned long long>(
+                    lex_mi->in_memory_relaylog_spill_threshold)
+              : static_cast<unsigned long long>(
+                    mi->rli->get_in_memory_relaylog_spill_threshold());
+
+      char reason[256];
+      if (limit_specified &&
+          (effective_limit < kLimitMin || effective_limit > kLimitMax)) {
+        snprintf(reason, sizeof(reason),
+                 "IN_MEMORY_RELAYLOG_LIMIT (%llu bytes) must be between %llu "
+                 "and %llu bytes",
+                 effective_limit, kLimitMin, kLimitMax);
+        my_error(ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG, MYF(0), reason);
+        return true;
+      }
+      if (spill_threshold_specified &&
+          effective_spill_threshold < kSpillThresholdMin) {
+        snprintf(reason, sizeof(reason),
+                 "IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (%llu bytes) must be at "
+                 "least %llu bytes",
+                 effective_spill_threshold, kSpillThresholdMin);
+        my_error(ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG, MYF(0), reason);
+        return true;
+      }
+      // The limit must stay strictly greater than the spill threshold,
+      // whichever of the two the statement changes.
+      if (effective_spill_threshold >= effective_limit) {
+        snprintf(reason, sizeof(reason),
+                 "IN_MEMORY_RELAYLOG_LIMIT (%llu bytes) must be greater than "
+                 "IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (%llu bytes)",
+                 effective_limit, effective_spill_threshold);
+        my_error(ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG, MYF(0), reason);
+        return true;
+      }
+
+      // All checks passed: apply the specified bound(s).
+      if (limit_specified) {
+        mi->rli->set_in_memory_relaylog_limit(lex_mi->in_memory_relaylog_limit);
+      }
+      if (spill_threshold_specified) {
+        mi->rli->set_in_memory_relaylog_spill_threshold(
+            lex_mi->in_memory_relaylog_spill_threshold);
+      }
+    }
+  }
+
+  // Create/destroy/rebuild the per-channel in-memory relay-log queue to match
+  // the (possibly just-changed) selection and memory bounds. This CHANGE
+  // REPLICATION SOURCE runs with both replication threads stopped, so no thread
+  // is attached to the queue. reconcile() rebuilds the queue when the persisted
+  // bounds (IN_MEMORY_RELAYLOG_LIMIT / IN_MEMORY_RELAYLOG_SPILL_THRESHOLD)
+  // differ from the live queue's bounds.
+  mi->reconcile_in_memory_relaylog_queue();
 
   return false;
 }
@@ -11718,6 +12106,34 @@ static void check_replica_configuration_restrictions() {
 }
 
 /**
+  Whether semi-synchronous replication is enabled on this replica, read from the
+  plugin-provided global system variable @c rpl_semi_sync_replica_enabled.
+
+  The value is looked up by name through the system-variable infrastructure so
+  the server does not need to link against the semisync plugin. When the plugin
+  is not installed the variable is absent; @c Suppress_not_found_error::YES makes
+  the lookup return an empty optional, which we map to @c false (treat as OFF and
+  proceed). Reads the global value under @c LOCK_global_system_variables, the
+  same guard the generic @@sysvar reader uses.
+
+  @param thd  the START REPLICA command session (must be non-null).
+  @return true if semisync is installed and enabled, false otherwise.
+*/
+static bool is_semisync_replica_enabled(THD *thd) {
+  const auto reader = [thd](const System_variable_tracker &,
+                            sys_var *var) -> bool {
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    const bool enabled =
+        *reinterpret_cast<const bool *>(var->value_ptr(thd, OPT_GLOBAL, {}));
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    return enabled;
+  };
+  return System_variable_tracker::make_tracker("rpl_semi_sync_replica_enabled")
+      .access_system_variable<bool>(thd, reader, Suppress_not_found_error::YES)
+      .value_or(false);
+}
+
+/**
   Checks the current replica configuration when starting a replication thread
   If some incompatibility is found an error is thrown.
 
@@ -11728,6 +12144,19 @@ static void check_replica_configuration_restrictions() {
 */
 static bool check_replica_configuration_errors(Master_info *mi,
                                                int thread_mask) {
+  // The in-memory relay log is incompatible with semi-synchronous replication.
+  // Only the receiver (IO thread) connects to the source and acknowledges, so
+  // the gate applies to an IO-thread start on an in-memory channel. This is a
+  // start-time (not CHANGE-time) check because semisync is a plugin whose
+  // enablement is not known when CHANGE REPLICATION SOURCE runs. Leaves the
+  // queue intact -- it gates running the receiver, not the queue's existence.
+  if ((thread_mask & REPLICA_IO) && mi->is_in_memory_relaylog() &&
+      current_thd != nullptr && is_semisync_replica_enabled(current_thd)) {
+    my_error(ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION, MYF(0),
+             "semi-synchronous replication");
+    return true;
+  }
+
   if (global_gtid_mode.get() != Gtid_mode::ON) {
     if (mi->is_auto_position() && (thread_mask & REPLICA_IO) &&
         global_gtid_mode.get() == Gtid_mode::OFF) {

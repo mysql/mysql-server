@@ -229,10 +229,17 @@ bool Csa_service::run(Relay_log_info *rli) {
   assert(new_scheduler);
 
   Transaction_provider_sptr provider;
-  // create a relay log reader
-  provider.reset(new Sync_transaction_provider(
-      channel_instance_id, rli, tune::provider_max_read_event_bytes,
-      tune::provider_max_read_payload_bytes));
+  if (rli->mi != nullptr && rli->mi->is_in_memory_relaylog()) {
+    // In-memory relay log: the provider drains transactions from the channel's
+    // queue via a Queued_transaction_reader instead of the on-disk relay log.
+    provider.reset(new Sync_transaction_provider(channel_instance_id, rli,
+                                                 rli->mi->m_trx_queue));
+  } else {
+    // Classic path: read consecutive events from the on-disk relay log.
+    provider.reset(new Sync_transaction_provider(
+        channel_instance_id, rli, tune::provider_max_read_event_bytes,
+        tune::provider_max_read_payload_bytes));
+  }
   if (!provider) {
     rli->report(ERROR_LEVEL, ER_SERVER_OUT_OF_RESOURCES, "%s",
                 ER_THD(rli->info_thd, ER_SERVER_OUT_OF_RESOURCES));
