@@ -70,6 +70,8 @@ void *xcom_thread_main(void *cp);
 
 synode_no incr_synode(synode_no synode);
 
+bool_t reservation_is_stale(synode_no msgno);
+
 synode_no decr_synode(synode_no synode);
 
 char *dbg_pax_msg(pax_msg const *p);
