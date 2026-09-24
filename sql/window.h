@@ -1445,6 +1445,10 @@ class Window {
   /// Common function for all types of resetting
   void reset_execution_state(Reset_level level);
 
+  /// Return true if the single row of a degenerate no-windowing execution
+  /// is inside this window's frame.
+  bool single_row_is_in_frame();
+
  public:
   /**
     Reset the execution state for all window functions defined on this window.

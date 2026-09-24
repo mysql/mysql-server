@@ -604,8 +604,7 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
       aggr_query_block->inner_sum_func_list = nullptr;
     else {
       Item_sum *prev;
-      for (prev = this; prev->next_sum != this; prev = prev->next_sum)
-        ;
+      for (prev = this; prev->next_sum != this; prev = prev->next_sum);
       prev->next_sum = next_sum;
       next_sum = nullptr;
 
@@ -981,7 +980,7 @@ bool Item_sum::reset_wf_state(uchar *arg) {
 }
 
 bool Item_sum::wf_common_init() {
-  if (m_window->do_copy_null()) {
+  if (framing() && m_window->do_copy_null()) {
     assert(m_window->needs_buffering());
     null_value = is_nullable();
     return true;
