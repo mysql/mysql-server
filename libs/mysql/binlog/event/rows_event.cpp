@@ -407,8 +407,12 @@ Table_map_event::Optional_metadata_fields::Optional_metadata_fields(
 
 Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
     : Binary_log_event(&buf, fde),
+      m_type(ENUM_END_EVENT),
       m_table_id(0),
+      m_flags(0),
       m_width(0),
+      n_bits_len(0),
+      var_header_len(0),
       columns_before_image(0),
       columns_after_image(0),
       row(0) {

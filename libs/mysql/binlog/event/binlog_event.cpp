@@ -232,7 +232,12 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 }
 
 Log_event_header::Log_event_header(Event_reader &reader)
-    : data_written(0), log_pos(0), m_is_valid(false) {
+    : type_code(ENUM_END_EVENT),
+      unmasked_server_id(0),
+      data_written(0),
+      log_pos(0),
+      flags(0),
+      m_is_valid(false) {
   BAPI_ENTER("Log_event_header::Log_event_header(Event_reader &)");
 
   /*
