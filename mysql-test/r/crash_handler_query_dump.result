@@ -1,0 +1,40 @@
+# Crash handler: query dumped as complete, self-describing chunk lines
+#
+call mtr.add_suppression("mysqld got signal");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+#
+# Take down the server started by mtr and start our own, logging to
+# LOG_FILE, so the crash dump is captured there.
+#
+# Reconnect to our own server.
+#
+# Synthesize an in-thread crash while a >3-chunk statement is in
+# flight.  The whole statement text (including the padding comment)
+# is thd->query() and is what the crash handler dumps.  The padding
+# is distinctive and ends with a marker so the final chunk is
+# identifiable.
+SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd END_OF_MARKER */;
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Restart mysqld after the crash, reusing LOG_FILE, then reconnect.
+# restart: --log-error=LOG_FILE --log-error-verbosity=1
+#
+# Reconnect to our own server.
+#
+# The query dump must appear as offset-labelled chunk lines.
+# (1) First chunk at offset 0 carries the start of the statement.
+include/assert_grep.inc [Query dump starts with a "+0:" chunk line in the new format.]
+# (2) Second chunk at offset 132 (proves the statement is chunked).
+include/assert_grep.inc [Query dump has a "+132:" chunk line.]
+# (3) Third chunk at offset 264.
+include/assert_grep.inc [Query dump has a "+264:" chunk line.]
+# (4) The end marker appears in the final chunk line, so the dump
+#     reaches the end of the statement.
+include/assert_grep.inc [Query dump ends with the end marker in a final chunk line.]
+# (5) The "Connection ID (thread ID)" line follows the dump.
+include/assert_grep.inc [Connection ID line is present after the query dump.]
+# (6) The old unterminated "Query (<addr>): " prefix is gone.
+include/assert_grep.inc [The old single-prefix query format is absent.]
+#
+# Clean up: force a restart onto a fresh default error log (so
+# check-warnings does not scan the crash log) and remove LOG_FILE.

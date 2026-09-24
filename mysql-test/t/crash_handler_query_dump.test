@@ -1,0 +1,153 @@
+# Copyright (c) 2026, Amazon.com, Inc. or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is designed to work with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have either included with
+# the program or referenced in the documentation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+--echo # Crash handler: query dumped as complete, self-describing chunk lines
+--echo #
+
+# When a thread receives a fatal signal, print_fatal_signal() dumps the
+# statement the crashing thread was executing.  It is now emitted as a
+# sequence of complete, newline-terminated lines, one write(2) each:
+#
+#   Query (<addr>) +<offset>: <up to 132 bytes of the statement>
+#
+# followed by "Connection ID (thread ID): <n>".  This test synthesizes an
+# in-thread crash while a long statement is in flight and asserts that the
+# dump appears in the chunked form (proving the old unterminated
+# "Query (<addr>): " prefix is gone and that a statement longer than one
+# 132-byte chunk is split across several offset-labelled lines that can be
+# reassembled).
+#
+# We crash via 'SET @@session.debug=d,crash_now' (a failed assert() ->
+# abort() -> SIGABRT -> handle_fatal_signal), the same mechanism used by
+# log_backtrace_debug.test.  crash_now reaches the signal handler; do NOT
+# use crash_now_safe / DBUG_SUICIDE, which sends SIGKILL and bypasses it.
+
+# Guards mirror the crash-test precedent (log_backtrace_debug.test,
+# suite/test_services/t/test_mysql_signal_handler.test): the self-crash
+# option only exists in debug builds; abort()/signal semantics are POSIX;
+# and under ASAN/UBSAN the fatal-signal handling differs.
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--source include/not_windows.inc
+--source include/not_asan.inc
+--source include/not_ubsan.inc
+--source include/have_debug.inc
+
+# The crash lines land in our private error log (below), but after the
+# restart mtr's error log becomes that same file, so suppress the expected
+# crash warnings for check-warnings.
+call mtr.add_suppression("mysqld got signal");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+
+# Crash output goes to this private error log so that greps cannot match
+# lines produced by earlier tests (or by earlier --repeat iterations).
+--let LOG_FILE= $MYSQLTEST_VARDIR/tmp/crash_handler_query_dump.err
+
+--echo #
+--echo # Take down the server started by mtr and start our own, logging to
+--echo # LOG_FILE, so the crash dump is captured there.
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+--exec echo "wait" > $_expect_file_name
+--shutdown_server
+--exec_in_background $MYSQLD_CMD --port $MASTER_MYPORT --log-error=$LOG_FILE --log-error-verbosity=1
+
+--echo #
+--echo # Reconnect to our own server.
+--let $wait_counter=3000
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # Synthesize an in-thread crash while a >3-chunk statement is in
+--echo # flight.  The whole statement text (including the padding comment)
+--echo # is thd->query() and is what the crash handler dumps.  The padding
+--echo # is distinctive and ends with a marker so the final chunk is
+--echo # identifiable.
+--let $pad= 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd
+
+--source include/expect_crash.inc
+--error 2013
+--eval SET @@session.debug='d,crash_now' /* $pad END_OF_MARKER */
+
+--echo #
+--echo # Restart mysqld after the crash, reusing LOG_FILE, then reconnect.
+--let $restart_parameters= restart: --log-error=$LOG_FILE --log-error-verbosity=1
+--replace_result $LOG_FILE LOG_FILE
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Reconnect to our own server.
+--let $wait_counter=3000
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # The query dump must appear as offset-labelled chunk lines.
+
+--echo # (1) First chunk at offset 0 carries the start of the statement.
+--let $assert_file= $LOG_FILE
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+0: SET 
+--let $assert_text= Query dump starts with a "+0:" chunk line in the new format.
+--source include/assert_grep.inc
+
+--echo # (2) Second chunk at offset 132 (proves the statement is chunked).
+--let $assert_file= $LOG_FILE
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+132: 
+--let $assert_text= Query dump has a "+132:" chunk line.
+--source include/assert_grep.inc
+
+--echo # (3) Third chunk at offset 264.
+--let $assert_file= $LOG_FILE
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+264: 
+--let $assert_text= Query dump has a "+264:" chunk line.
+--source include/assert_grep.inc
+
+--echo # (4) The end marker appears in the final chunk line, so the dump
+--echo #     reaches the end of the statement.
+--let $assert_file= $LOG_FILE
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+[0-9]+: .*END_OF_MARKER \*/
+--let $assert_text= Query dump ends with the end marker in a final chunk line.
+--source include/assert_grep.inc
+
+--echo # (5) The "Connection ID (thread ID)" line follows the dump.
+--let $assert_file= $LOG_FILE
+--let $assert_count= 1
+--let $assert_select= ^Connection ID .thread ID.: [0-9]+
+--let $assert_text= Connection ID line is present after the query dump.
+--source include/assert_grep.inc
+
+--echo # (6) The old unterminated "Query (<addr>): " prefix is gone.
+--let $assert_file= $LOG_FILE
+--let $assert_count= 0
+--let $assert_select= ^Query \([0-9a-f]+\): 
+--let $assert_text= The old single-prefix query format is absent.
+--source include/assert_grep.inc
+
+--echo #
+--echo # Clean up: force a restart onto a fresh default error log (so
+--echo # check-warnings does not scan the crash log) and remove LOG_FILE.
+--source include/force_restart.inc
+--remove_file $LOG_FILE
