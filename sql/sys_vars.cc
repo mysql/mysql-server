@@ -1283,8 +1283,64 @@ static Sys_var_bool Sys_partial_revokes(
     ON_CHECK(check_partial_revokes), ON_UPDATE(partial_revokes_update), nullptr,
     sys_var::PARSE_EARLY);
 
+static void warn_binlog_large_transaction_optimization_threshold_adjusted(
+    THD *thd, ulonglong previous_threshold, ulonglong adjusted_threshold) {
+  LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_THRESHOLD_ADJUSTED, previous_threshold,
+         adjusted_threshold);
+  if (thd != nullptr)
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING,
+        ER_BINLOG_BOLT_THRESHOLD_ADJUSTED_SQL_WARNING,
+        ER_THD(thd, ER_BINLOG_BOLT_THRESHOLD_ADJUSTED_SQL_WARNING),
+        previous_threshold, adjusted_threshold);
+}
+
+/*
+  The threshold must not be smaller than binlog_cache_size: a transaction only
+  qualifies large transaction optimization once its cache has spilled,
+  which happens at binlog_cache_size, so a lower threshold would never
+  be the deciding limit.
+*/
+static bool adjust_binlog_large_transaction_optimization_threshold(THD *thd) {
+  if (opt_binlog_large_transaction_optimization_threshold == 0 ||
+      opt_binlog_large_transaction_optimization_threshold >=
+          static_cast<ulonglong>(binlog_cache_size))
+    return false;
+
+  const ulonglong previous_threshold =
+      opt_binlog_large_transaction_optimization_threshold;
+  opt_binlog_large_transaction_optimization_threshold = binlog_cache_size;
+  if (opt_binlog_large_transaction_optimization_enabled)
+    warn_binlog_large_transaction_optimization_threshold_adjusted(
+        thd, previous_threshold,
+        opt_binlog_large_transaction_optimization_threshold);
+  return true;
+}
+
+static bool check_binlog_large_transaction_optimization_threshold(
+    sys_var *, THD *thd, set_var *var) {
+  if (var->save_result.ulonglong_value >=
+      static_cast<ulonglong>(binlog_cache_size))
+    return false;
+
+  const ulonglong requested_threshold = var->save_result.ulonglong_value;
+  var->save_result.ulonglong_value = binlog_cache_size;
+  if (opt_binlog_large_transaction_optimization_enabled)
+    warn_binlog_large_transaction_optimization_threshold_adjusted(
+        thd, requested_threshold, var->save_result.ulonglong_value);
+  return false;
+}
+
+static bool fix_binlog_large_transaction_optimization_enabled(sys_var *,
+                                                              THD *thd,
+                                                              enum_var_type) {
+  adjust_binlog_large_transaction_optimization_threshold(thd);
+  return false;
+}
+
 static bool fix_binlog_cache_size(sys_var *, THD *thd, enum_var_type) {
   check_binlog_cache_size(thd);
+  adjust_binlog_large_transaction_optimization_threshold(thd);
   return false;
 }
 
@@ -1314,6 +1370,38 @@ static Sys_var_ulong Sys_binlog_stmt_cache_size(
     VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_binlog_stmt_cache_size));
+
+static Sys_var_bool Sys_binlog_large_transaction_optimization_enabled(
+    "binlog_large_transaction_optimization_enabled",
+    "Enables the large transaction optimization, which keeps "
+    "large-transaction commit latency low, avoids stalling concurrent "
+    "commits, and keeps binary log crash recovery fast regardless of "
+    "transaction size. When ON (the default), a transaction whose spilled "
+    "size exceeds binlog_large_transaction_optimization_threshold is "
+    "committed by promoting its temporary file into the binary log "
+    "sequence. When OFF, all transactions commit through the standard "
+    "code path.",
+    GLOBAL_VAR(opt_binlog_large_transaction_optimization_enabled),
+    CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr),
+    ON_UPDATE(fix_binlog_large_transaction_optimization_enabled));
+
+static Sys_var_ulonglong Sys_binlog_large_transaction_optimization_threshold(
+    "binlog_large_transaction_optimization_threshold",
+    "The spilled size in bytes above which a transaction qualifies for the "
+    "large transaction optimization. Has no effect while "
+    "binlog_large_transaction_optimization_enabled is OFF.",
+    GLOBAL_VAR(opt_binlog_large_transaction_optimization_threshold),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(10 * 1024 * 1024, ULLONG_MAX),
+    DEFAULT(128 * 1024 * 1024), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_binlog_large_transaction_optimization_threshold),
+    ON_UPDATE(nullptr));
+
+void update_binlog_large_transaction_optimization_threshold() {
+  if (adjust_binlog_large_transaction_optimization_threshold(nullptr))
+    Sys_binlog_large_transaction_optimization_threshold.update_default(
+        opt_binlog_large_transaction_optimization_threshold);
+}
 
 static Sys_var_int32 Sys_binlog_max_flush_queue_time(
     "binlog_max_flush_queue_time",

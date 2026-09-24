@@ -54,6 +54,11 @@ int Binlog_tc_log::prepare(MYSQL_BIN_LOG *binlog, THD *thd, bool all) {
     right before flushing them to binary log during binlog group
     commit flush stage. Reset to HA_REGULAR_DURABILITY at the
     beginning of parsing next command.
+
+    This holds for every transaction, including one that goes on to commit
+    through the binlog large transaction optimization (BOLT). BOLT bypasses the
+    group-commit flush stage, it repays the same debt itself: see the
+    ha_flush_logs(true) call in MYSQL_BIN_LOG::commit_large_transaction().
   */
   thd->durability_property = HA_IGNORE_DURABILITY;
 

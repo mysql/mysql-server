@@ -1,0 +1,42 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+Warnings:
+Note	1051	Unknown table 'test.t1'
+Warnings:
+Note	1051	Unknown table 'test.t2'
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE t2 (id INT PRIMARY KEY) ENGINE=InnoDB;
+[connection slave]
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+include/rpl/start_receiver.inc
+[connection master]
+# Commit the BOLT transaction, record its end position, then add a marker.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+INSERT INTO t2 VALUES (1);
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+START REPLICA SQL_THREAD UNTIL SOURCE_LOG_FILE='SOURCE_LOG_FILE', SOURCE_LOG_POS=SOURCE_LOG_POS;;
+include/rpl/wait_for_applier_to_stop.inc
+include/assert.inc [START REPLICA UNTIL applies every BOLT transaction row.]
+include/assert.inc [START REPLICA UNTIL stops before the later marker transaction.]
+include/assert.inc [The replica SQL applier promotes the transaction once before stopping.]
+include/assert.inc [Replica-local promotion opens a new active binary log before stopping.]
+include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
+include/rpl/start_applier.inc
+[connection master]
+DROP TABLE t2;
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/deinit.inc

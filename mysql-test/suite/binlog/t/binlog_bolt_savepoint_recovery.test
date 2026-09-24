@@ -1,0 +1,150 @@
+# === Purpose ===
+# Verify crash recovery of a file promoted after a savepoint rollback. That is
+# the only path where the physical spill file was trimmed by my_chsize, so
+# recovery depends on the terminating_event_offset recorded by finalize()
+# landing exactly at the trimmed end.
+#
+# === Requirements ===
+# R1. A crash after the main-index update rolls a post-rollback promoted
+#     transaction forward, and the promoted file's own header still points at a
+#     decodable terminating event.
+# R2. A crash after the promote rename, before the main-index update, rolls a
+#     post-rollback promoted transaction back and leaves no extra binary log
+#     and no spill file behind.
+#
+# === Implementation ===
+# 1. Enable BOLT with a 10 MiB threshold and a clean test table.
+# 2. In each case, spill above the threshold, take a savepoint, write more,
+#    roll back to the savepoint while staying above the threshold, then crash
+#    at the boundary under test during COMMIT.
+# 3. Restart and verify the 2PC decision, the row contents, and that nothing
+#    was orphaned.
+#
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_max_binlog_size = query_get_value(SELECT @@GLOBAL.max_binlog_size, @@GLOBAL.max_binlog_size, 1)
+--let $save_sync_binlog = query_get_value(SELECT @@GLOBAL.sync_binlog, @@GLOBAL.sync_binlog, 1)
+
+# Setup
+--let $BOLT_RESTART = restart:
+--let $BOLT_RESTART = $BOLT_RESTART --binlog-large-transaction-optimization-enabled=ON
+--let $BOLT_RESTART = $BOLT_RESTART --binlog-large-transaction-optimization-threshold=10M
+--let $BOLT_RESTART = $BOLT_RESTART --max-binlog-size=1G
+--let $BOLT_RESTART = $BOLT_RESTART --sync-binlog=1
+# REPEAT() payloads compress to almost nothing, so a compressed cache would
+# never reach the threshold and the transaction would never be promoted.
+--let $BOLT_RESTART = $BOLT_RESTART --binlog-transaction-compression=OFF
+
+--disable_query_log
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+
+############################################################################
+# Case 1: Savepoint rollback, still above the threshold, then crash after the
+#         main-index update.
+# Expected behavior: rollforward. The kept rows are present, the rolled-back
+#         row is absent, and the promoted file validates.
+############################################################################
+--echo # Post-main-index-update crash after a savepoint rollback rolls forward.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_main_index_update";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SAVEPOINT sp_after_threshold;
+INSERT INTO t1 VALUES (4, REPEAT('d', 5000000));
+ROLLBACK TO SAVEPOINT sp_after_threshold;
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--let $assert_text = A post-main-index-update crash commits the kept rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = The rolled-back row is not recovered.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id = 4, count, 1] = 0
+--source include/assert.inc
+--let $assert_text = The last kept row survived the chsize trim intact.
+--let $assert_cond = [SELECT LENGTH(data) AS len FROM t1 WHERE id = 3, len, 1] = 4000000
+--source include/assert.inc
+
+# The promoted file was trimmed by my_chsize before promotion, so its recorded
+# terminating-event offset has to still land on a decodable event. The shared
+# validator decodes the file with --verify-binlog-checksum and cross-checks the
+# recorded offset and type against the raw event-header byte, which is the
+# off-by-one check this scenario exists for.
+--let $bolt_header_file = query_get_value(SHOW BINARY LOGS, Log_name, 2)
+--source ../inc/validate_bolt_header.inc
+--list_files $BOLT_TEMP_DIR
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+
+############################################################################
+# Case 2: Savepoint rollback, still above the threshold, then crash after the
+#         promote rename but before the main-index update.
+# Expected behavior: rollback, and nothing left over.
+############################################################################
+--echo # Post-promote-rename crash after a savepoint rollback rolls back.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+SET SESSION DEBUG="+d,crash_bolt_after_promote_rename";
+BEGIN;
+INSERT INTO t1 VALUES (11, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (12, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (13, REPEAT('c', 4000000));
+SAVEPOINT sp_after_threshold;
+INSERT INTO t1 VALUES (14, REPEAT('d', 5000000));
+ROLLBACK TO SAVEPOINT sp_after_threshold;
+--error 2013
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "$BOLT_RESTART" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--let $assert_text = A post-promote-rename crash rolls back all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+# The renamed file never reached the main index, so startup recovery deleted it
+# from the data directory using the purge-index record. Its name is then reused
+# by the binary log the restart opens, so the deletion cannot be checked by
+# name; assert instead that exactly two binary logs exist -- the one that was
+# active before the transaction, and the one the restart opened -- so no third,
+# orphaned file was indexed.
+--let $bolt_third_log = query_get_value(SHOW BINARY LOGS, Log_name, 3)
+--let $assert_text = Recovery left no third, orphaned binary log.
+--let $assert_cond = "$bolt_third_log" = "No such row"
+--source include/assert.inc
+--list_files $BOLT_TEMP_DIR
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL max_binlog_size = $save_max_binlog_size
+--eval SET GLOBAL sync_binlog = $save_sync_binlog
+--enable_query_log

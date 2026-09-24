@@ -293,6 +293,8 @@ extern const char *server_build_id_ptr;
 #endif
 extern const double log_10[309];
 extern ulong binlog_cache_use, binlog_cache_disk_use;
+extern std::atomic<ulong> binlog_large_transaction_optimization_count;
+extern std::atomic<ulong> binlog_large_transaction_optimization_missed_count;
 extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
 extern ulong aborted_threads;
 extern ulong delayed_insert_timeout;
@@ -323,6 +325,8 @@ extern ulonglong max_binlog_cache_size, max_binlog_stmt_cache_size;
 extern int32 opt_binlog_max_flush_queue_time;
 extern long opt_binlog_group_commit_sync_delay;
 extern ulong opt_binlog_group_commit_sync_no_delay_count;
+extern bool opt_binlog_large_transaction_optimization_enabled;
+extern ulonglong opt_binlog_large_transaction_optimization_threshold;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong replica_max_allowed_packet;
 extern ulong binlog_row_event_max_size;

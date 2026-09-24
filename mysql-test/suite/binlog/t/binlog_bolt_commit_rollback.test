@@ -1,0 +1,668 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify BOLT safely discards rolled-back spill files and handles normal, XA,
+# and DDL transaction endings without leaving stale promotion state.
+#
+# === Requirements ===
+# R1. A rolled-back spilled transaction leaves no temporary file or binlog.
+# R2. Retrying the same four-insert transaction commits as one promoted binlog.
+# R2b. Two promotions back to back on one session each open their own binary
+#      log with a valid header.
+# R3. XA PREPARE resolves correctly through both XA COMMIT and XA ROLLBACK.
+# R4. XA COMMIT ONE PHASE and the implicit commit before DDL are promoted.
+# R5. A killed query after spill can roll back and retry on the same session.
+# R6. Disconnecting with an active spill discards it; a new session can retry.
+# R7. A statement error after spill leaves the transaction rollback-safe.
+# R8. A promoted file larger than max_binlog_size immediately rotates.
+# R9. Five simultaneously spilled transactions leave the active binlog usable
+#     for a small transaction and promote only the three that commit.
+# R10. The same five-spill boundary handles XA one-phase and prepared branches
+#      with the correct commit and rollback decisions.
+# R11. Every promoted file has a checksummed Previous_gtids, LTH, GTID prefix
+#      with the GTID dependency clock reset for its new binary log.
+#
+# === Implementation ===
+# The source uses a 1 MiB cache and a 10 MiB BOLT threshold. Four 4 MB rows
+# are used because four REPEAT('abcdefghijklmnop', 1000) values are only 64 KB,
+# below BOLT's required promotion threshold. The killed-query case uses a user
+# lock and PROCESSLIST polling rather than timing assumptions. The concurrent
+# cases use five independent sessions with non-overlapping primary-key ranges.
+# Each promoted file is decoded with checksum verification before its header
+# ordering and logical timestamps are asserted. Transaction compression is
+# disabled because BOLT and size-triggered rotation require an uncompressed
+# promoted file.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_max_binlog_size = query_get_value(SELECT @@GLOBAL.max_binlog_size, @@GLOBAL.max_binlog_size, 1)
+
+# Setup
+--disable_query_log
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_query_log
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL max_binlog_size = 1073741824;
+CREATE TABLE t1 (x INT PRIMARY KEY AUTO_INCREMENT, y LONGTEXT) ENGINE=InnoDB;
+
+############################################################################
+# Case 1: Roll back a spilled transaction, then retry and commit.
+############################################################################
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # Rollback removes the spill file and leaves the active binlog unchanged.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+--exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
+ROLLBACK;
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = Rollback leaves the BOLT promotion count unchanged.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = Rollback keeps the active binary log unchanged.
+--let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = Rollback removes all transaction rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+--echo # Retry the same transaction and promote a new active binary log.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+--exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
+COMMIT;
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_header_file = $binlog_file_after
+--source ../inc/validate_bolt_header.inc
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = Retry promotes one new active binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = Retry changes the active binary log file.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = Retry commits the four rows exactly once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+
+############################################################################
+# Case 2: Two promotions back to back on the same session.
+#
+# A promoted commit resets its cache with the spilled file preserved, since
+# that file is now a binary log. This checks the cache is reusable afterwards:
+# a stale descriptor, reservation size or terminating-event offset carried into
+# the second transaction would corrupt its header while leaving the rows
+# intact, so both promoted files are validated.
+#
+# It is also the only case where a promotion's predecessor is itself a promoted
+# file, which the second promotion names itself after and chains its Rotate
+# event to.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # The first of two consecutive promotions on one session.
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+--enable_result_log
+--enable_query_log
+--let $bolt_first_promoted = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_header_file = $bolt_first_promoted
+--source ../inc/validate_bolt_header.inc
+
+--echo # The second promotion, whose predecessor is itself a promoted file.
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+--enable_result_log
+--enable_query_log
+--let $bolt_second_promoted = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_header_file = $bolt_second_promoted
+--source ../inc/validate_bolt_header.inc
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = Two consecutive transactions promote twice.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 2
+--source include/assert.inc
+--let $assert_text = Neither consecutive promotion is a missed optimization.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = The first promotion leaves the original active binary log.
+--let $assert_cond = "$bolt_first_promoted" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = The second promotion opens a file of its own.
+--let $assert_cond = "$bolt_second_promoted" != "$bolt_first_promoted"
+--source include/assert.inc
+--let $assert_text = Both consecutive promotions commit all eight rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 8
+--source include/assert.inc
+--let $assert_text = Both consecutive promotions preserve every payload in full.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(y)) AS payload FROM t1, payload, 1] = 32000000
+--source include/assert.inc
+
+############################################################################
+# Case 3: XA PREPARE followed by XA COMMIT.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--echo # XA PREPARE promotes the large transaction; XA COMMIT makes it visible.
+XA START 'bolt_prepare_commit';
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_prepare_commit';
+XA PREPARE 'bolt_prepare_commit';
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+--let $bolt_count_after_prepare = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = XA PREPARE promotes one large transaction.
+--let $assert_cond = $bolt_count_after_prepare = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = XA PREPARE keeps its rows invisible until resolution.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+XA COMMIT 'bolt_prepare_commit';
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = XA COMMIT does not promote the prepared transaction again.
+--let $assert_cond = $bolt_count_after = $bolt_count_after_prepare
+--source include/assert.inc
+--let $assert_text = XA COMMIT commits all prepared rows exactly once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+
+############################################################################
+# Case 4: XA PREPARE followed by XA ROLLBACK.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--echo # XA ROLLBACK resolves a promoted prepared transaction without committing rows.
+XA START 'bolt_prepare_rollback';
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_prepare_rollback';
+XA PREPARE 'bolt_prepare_rollback';
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+--let $bolt_count_after_prepare = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = XA PREPARE before rollback promotes one large transaction.
+--let $assert_cond = $bolt_count_after_prepare = $bolt_count_before + 1
+--source include/assert.inc
+XA ROLLBACK 'bolt_prepare_rollback';
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = XA ROLLBACK does not promote the prepared transaction again.
+--let $assert_cond = $bolt_count_after = $bolt_count_after_prepare
+--source include/assert.inc
+--let $assert_text = XA ROLLBACK removes all prepared rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+############################################################################
+# Case 5: XA COMMIT ONE PHASE.
+############################################################################
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--echo # XA COMMIT ONE PHASE promotes and commits a large transaction once.
+XA START 'bolt_one_phase';
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_one_phase';
+XA COMMIT 'bolt_one_phase' ONE PHASE;
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = XA COMMIT ONE PHASE promotes one large transaction.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = XA COMMIT ONE PHASE commits all rows exactly once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+
+############################################################################
+# Case 6: Large DML transaction followed by DDL.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+DROP TABLE IF EXISTS t2;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--echo # DDL implicitly commits and promotes the preceding large row transaction.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+CREATE TABLE t2 (id INT PRIMARY KEY) ENGINE=InnoDB;
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = The implicit pre-DDL commit promotes the large row transaction.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = DDL commits all preceding large transaction rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+--let $assert_text = DDL completes after the promoted transaction.
+--let $ddl_table_exists = query_get_value(SELECT COUNT(*) AS count FROM information_schema.tables WHERE table_schema = 'test' AND table_name = 't2', count, 1)
+--let $assert_cond = $ddl_table_exists = 1
+--source include/assert.inc
+
+############################################################################
+# Case 7: KILL QUERY after spill, rollback, and same-session retry.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+connect (kill_blocker, localhost, root,,);
+connect (kill_victim, localhost, root,,);
+connection kill_blocker;
+--disable_query_log
+--disable_result_log
+SELECT GET_LOCK('bolt_kill_query_lock', 0);
+--enable_result_log
+--enable_query_log
+connection kill_victim;
+--let $victim_id = query_get_value(SELECT CONNECTION_ID() AS id, id, 1)
+--echo # KILL QUERY after spill leaves the same session able to roll back and retry.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+--exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
+send INSERT INTO t1 (y) VALUES (CONCAT(REPEAT('abcdefghijklmnop', 250000), IF(GET_LOCK('bolt_kill_query_lock', 100), '', '')));
+connection kill_blocker;
+--let $wait_condition = SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE ID = $victim_id AND STATE = 'User lock';
+--source include/wait_condition_or_abort.inc
+--replace_result $victim_id ID
+--eval KILL QUERY $victim_id
+connection kill_victim;
+--error ER_QUERY_INTERRUPTED
+reap;
+ROLLBACK;
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = KILL QUERY followed by rollback does not promote a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = KILL QUERY followed by rollback removes all transaction rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = The same killed-query session promotes on its retry.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = The same killed-query session commits all retry rows once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+connection kill_blocker;
+--disable_query_log
+--disable_result_log
+SELECT RELEASE_LOCK('bolt_kill_query_lock');
+--enable_result_log
+--enable_query_log
+connection kill_victim;
+disconnect kill_victim;
+connection kill_blocker;
+disconnect kill_blocker;
+connection default;
+
+############################################################################
+# Case 8: Disconnect with an active spill, then retry from a new session.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--source include/count_sessions.inc
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+connect (spill_client, localhost, root,,);
+connection spill_client;
+--echo # Disconnecting a session with a spill removes the temporary file.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+--exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
+disconnect spill_client;
+connection default;
+--source include/wait_until_count_sessions.inc
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = Disconnecting an active spill does not promote a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = Disconnecting an active spill rolls back all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+connect (spill_retry, localhost, root,,);
+connection spill_retry;
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+connection default;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = A new session promotes the disconnected transaction's retry.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = A new session commits all retry rows once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+connection spill_retry;
+disconnect spill_retry;
+connection default;
+--source include/wait_until_count_sessions.inc
+
+############################################################################
+# Case 9: Statement error after spill, followed by rollback.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A duplicate-key error preserves the spill until explicit rollback.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+--exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
+--error ER_DUP_ENTRY
+INSERT INTO t1 (x, y) VALUES (1, REPEAT('abcdefghijklmnop', 250000));
+--exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
+ROLLBACK;
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = A statement error followed by rollback does not promote a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A statement error followed by rollback keeps the active binary log unchanged.
+--let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A statement error followed by rollback removes all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+############################################################################
+# Case 10: A promoted file larger than max_binlog_size rotates immediately.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+SET GLOBAL max_binlog_size = 4096;
+--echo # A promoted oversized file becomes binary-log history and opens a fresh active file.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+SET GLOBAL max_binlog_size = 1073741824;
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+--exec test -e $MYSQLD_DATADIR/binlog.000002
+--exec test -e $MYSQLD_DATADIR/binlog.000003
+--let $bolt_header_file = query_get_value(SHOW BINARY LOGS, Log_name, 2)
+--source ../inc/validate_bolt_header.inc
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = The oversized transaction is promoted once before rotation.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = Immediate max-binlog-size rotation opens a fresh active binary log.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = Immediate max-binlog-size rotation keeps all promoted rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+SHOW BINARY LOGS;
+
+############################################################################
+# Case 11: Five spilled transactions with regular commit and rollback.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+--source include/count_sessions.inc
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+connect (promote_one, localhost, root,,);
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (101, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (102, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (103, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (104, REPEAT('abcdefghijklmnop', 250000));
+connect (promote_two, localhost, root,,);
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (201, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (202, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (203, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (204, REPEAT('abcdefghijklmnop', 250000));
+connect (promote_three, localhost, root,,);
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (301, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (302, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (303, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (304, REPEAT('abcdefghijklmnop', 250000));
+connect (promote_four, localhost, root,,);
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (401, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (402, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (403, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (404, REPEAT('abcdefghijklmnop', 250000));
+connect (promote_five, localhost, root,,);
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (501, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (502, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (503, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (504, REPEAT('abcdefghijklmnop', 250000));
+connection default;
+--let $binlog_file_before_small = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # Five waiting spills do not prevent a small transaction using the active binlog.
+INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
+--let $binlog_file_after_small = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec ls $BOLT_TEMP_DIR/bolt_* | wc -l | grep -E '^[[:space:]]*5[[:space:]]*$' > /dev/null
+--let $assert_text = The small transaction stays in the existing active binary log.
+--let $assert_cond = "$binlog_file_after_small" = "$binlog_file_before_small"
+--source include/assert.inc
+--let $assert_text = Five waiting large transactions leave five temporary files.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--source include/assert.inc
+connection promote_one;
+COMMIT;
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+connection promote_three;
+COMMIT;
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+connection promote_five;
+COMMIT;
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+connection promote_two;
+ROLLBACK;
+connection promote_four;
+ROLLBACK;
+connection default;
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = Three committed spills produce exactly three BOLT promotions.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 3
+--source include/assert.inc
+--let $assert_text = Three committed spills create three new binary log files.
+--let $assert_cond = "$binlog_file_after" = "binlog.000004"
+--source include/assert.inc
+--let $assert_text = Only the three committed large transactions and small transaction persist.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 13
+--source include/assert.inc
+--let $assert_text = The committed transaction ranges are preserved exactly.
+--let $assert_cond = [SELECT SUM(x) AS id_sum FROM t1, id_sum, 1] = 3631
+--source include/assert.inc
+
+############################################################################
+# Case 12: Five spilled XA branches with one-phase and prepared resolution.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+connection promote_one;
+XA START 'bolt_concurrent_one_phase_1';
+INSERT INTO t1 (x, y) VALUES (101, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (102, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (103, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (104, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_one_phase_1';
+connection promote_two;
+XA START 'bolt_concurrent_one_phase_2';
+INSERT INTO t1 (x, y) VALUES (201, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (202, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (203, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (204, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_one_phase_2';
+connection promote_three;
+XA START 'bolt_concurrent_one_phase_3';
+INSERT INTO t1 (x, y) VALUES (301, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (302, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (303, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (304, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_one_phase_3';
+connection promote_four;
+XA START 'bolt_concurrent_prepare_1';
+INSERT INTO t1 (x, y) VALUES (401, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (402, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (403, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (404, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_prepare_1';
+connection promote_five;
+XA START 'bolt_concurrent_prepare_2';
+INSERT INTO t1 (x, y) VALUES (501, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (502, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (503, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (504, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_prepare_2';
+connection default;
+--let $binlog_file_before_small = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # Five waiting XA branches leave the active binlog available for a small transaction.
+INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
+--let $binlog_file_after_small = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec ls $BOLT_TEMP_DIR/bolt_* | wc -l | grep -E '^[[:space:]]*5[[:space:]]*$' > /dev/null
+--let $assert_text = The small transaction stays in the existing active binary log with XA spills pending.
+--let $assert_cond = "$binlog_file_after_small" = "$binlog_file_before_small"
+--source include/assert.inc
+connection promote_one;
+XA ROLLBACK 'bolt_concurrent_one_phase_1';
+connection promote_two;
+XA ROLLBACK 'bolt_concurrent_one_phase_2';
+connection promote_three;
+XA COMMIT 'bolt_concurrent_one_phase_3' ONE PHASE;
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+connection promote_four;
+XA PREPARE 'bolt_concurrent_prepare_1';
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+XA ROLLBACK 'bolt_concurrent_prepare_1';
+connection promote_five;
+XA PREPARE 'bolt_concurrent_prepare_2';
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+XA COMMIT 'bolt_concurrent_prepare_2';
+connection default;
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = One XA one-phase commit and two XA PREPARE paths produce three promotions.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 3
+--source include/assert.inc
+--let $assert_text = The XA commit decisions create exactly three new binary log files.
+--let $assert_cond = "$binlog_file_after" = "binlog.000004"
+--source include/assert.inc
+--let $assert_text = Only the committed XA branches and small transaction persist.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 9
+--source include/assert.inc
+--let $assert_text = The committed XA transaction ranges are preserved exactly.
+--let $assert_cond = [SELECT SUM(x) AS id_sum FROM t1, id_sum, 1] = 3221
+--source include/assert.inc
+connection promote_one;
+disconnect promote_one;
+connection promote_two;
+disconnect promote_two;
+connection promote_three;
+disconnect promote_three;
+connection promote_four;
+disconnect promote_four;
+connection promote_five;
+disconnect promote_five;
+connection default;
+--source include/wait_until_count_sessions.inc
+
+# Cleanup
+DROP TABLE t2;
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL max_binlog_size = $save_max_binlog_size
+--enable_query_log

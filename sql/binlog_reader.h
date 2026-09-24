@@ -396,6 +396,9 @@ class IBasic_binlog_file_reader {
   /// The return value is static memory that is never deallocated.
   virtual const char *get_error_str() const = 0;
 
+  /// Return whether checksum verification is enabled.
+  virtual bool is_checksum_verification_enabled() const = 0;
+
   /// Return the current position in bytes, relative to the beginning
   /// of the file.
   virtual my_off_t position() const = 0;
@@ -529,6 +532,9 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
   }
 
   bool is_open() const { return m_ifile.is_open(); }
+  bool is_checksum_verification_enabled() const override {
+    return m_verify_checksum;
+  }
   my_off_t position() const override { return m_ifile.position(); }
   bool seek(my_off_t pos) override { return m_ifile.seek(pos); }
 

@@ -431,6 +431,13 @@ struct IO_CACHE /* Used when caching files */
   void *arg{nullptr};       /* for use by pre/post_read */
   char *file_name{nullptr}; /* if used with 'open_cached_file' */
   char *dir{nullptr}, *prefix{nullptr};
+  /*
+    With 'open_cached_file': create the lazily created temporary file as a
+    named file in the filesystem namespace instead of an anonymous file
+    unlinked at creation. Its name is then recorded in file_name, and closing
+    the cache deletes the file.
+  */
+  bool named_file{false};
   File file{-1};                               /* file descriptor */
   PSI_file_key file_key{PSI_NOT_INSTRUMENTED}; /* instrumented file key */
 

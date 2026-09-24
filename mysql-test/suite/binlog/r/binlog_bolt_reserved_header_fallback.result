@@ -1,0 +1,26 @@
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# A promotable large transaction promotes when the reserved region fits.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+include/assert.inc [A fitting reserved region promotes a binary log.]
+include/assert.inc [A fitting reserved region does not increment the missed counter.]
+include/assert.inc [The promoted commit opens its promoted binary log.]
+include/assert.inc [The promoted transaction commits all rows.]
+# A reserved region too small for the header events uses the standard path.
+SET @old_debug = @@SESSION.debug;
+SET SESSION debug = "+d,force_large_trx_reserved_header_fallback";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+SET SESSION debug = @old_debug;
+include/assert.inc [A reserved region too small does not promote a binary log.]
+include/assert.inc [A reserved region too small increments the missed counter once.]
+include/assert.inc [A reserved-header fallback stays in the active binary log.]
+include/assert.inc [A reserved-header fallback commits all rows.]
+include/assert_grep.inc [The fallback transaction is present in the active binary log.]
+DROP TABLE t1;

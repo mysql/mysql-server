@@ -1,0 +1,30 @@
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression("An incident event has been written to the binary log");
+CALL mtr.add_suppression("An error occurred during flush stage of the commit");
+CALL mtr.add_suppression("Binary logging not possible");
+CALL mtr.add_suppression("Hence turning logging off for the whole duration");
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# A transaction with a logging incident uses the standard commit path.
+SET SESSION debug = "+d,binlog_inject_incident";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,binlog_inject_incident";
+include/assert.inc [An incident does not promote a binary log.]
+include/assert.inc [An incident increments the missed counter once.]
+include/assert.inc [An incident fallback force-rotates to a new active binary log.]
+include/assert.inc [An incident fallback commits all rows.]
+include/assert.inc [An incident fallback preserves the full payload.]
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+# A session spills a large transaction and holds it open.
+# Another session's spill-sync failure turns logging off and closes the log.
+# The held transaction commits through the standard path.
+COMMIT;
+include/assert.inc [A closed binary log does not promote.]
+include/assert.inc [A closed binary log increments the missed counter once.]
+include/assert.inc [A closed-log fallback still commits all rows.]
+include/assert.inc [A closed-log fallback preserves the full payload.]
+# restart
+DROP TABLE t1;

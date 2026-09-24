@@ -123,6 +123,8 @@ bool Log_sanitizer::process_one_log(Type_reader &reader,
   this->m_is_malformed = false;
 
   while (istream >> ev) {
+    if (!this->validate_large_trx_terminal_event(*ev)) break;
+
     bool is_source_event = !ev->is_relay_log_event() ||
                            (ev->server_id && ::server_id != ev->server_id);
     switch (ev->get_type_code()) {
@@ -137,6 +139,18 @@ bool Log_sanitizer::process_one_log(Type_reader &reader,
       case mysql::binlog::event::XA_PREPARE_LOG_EVENT: {
         this->process_xa_prepare_event(
             dynamic_cast<XA_prepare_log_event &>(*ev));
+        break;
+      }
+      case mysql::binlog::event::LARGE_TRANSACTION_HEADER_EVENT: {
+        // The header's offset refers to the source's binary log, so it is only
+        // actionable during binary-log recovery. Relay-log recovery must skip
+        // it: a header relayed from the source does not carry
+        // LOG_EVENT_RELAY_LOG_F, so is_relay_log_recovery() (not the event
+        // flag) is the correct discriminator.
+        if (!this->is_relay_log_recovery()) {
+          this->process_large_trx_header_event(
+              dynamic_cast<Large_transaction_header_log_event &>(*ev), reader);
+        }
         break;
       }
       case mysql::binlog::event::ROTATE_EVENT: {

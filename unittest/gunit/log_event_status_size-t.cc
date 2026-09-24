@@ -75,8 +75,13 @@ class LogEventStatusSizeTest : public ::testing::Test {
     Query_log_event qe(srv.thd(), query.c_str(), query.length(), using_trans,
                        immediate, suppress_use, error, ignore_command);
 
+    /* The cache creates its temporary file in #binlog_temp_files,
+       prepared at server startup; create it here. */
+    ASSERT_FALSE(binlog_temp_files_dir.init("./gunit_binlog"));
+
     Binlog_cache_storage os;
-    os.open(50000, 90000);  // random values, bigger than maximal packet size
+    // random values, bigger than maximal packet size
+    os.open(50000, 90000, kBinlogTempFileReservedBytes);
 
     // set qe values to simulate maximal size of the status variables
     // artificial data

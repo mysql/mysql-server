@@ -1,0 +1,232 @@
+Warnings:
+Note	1051	Unknown table 'test.t1'
+Warnings:
+Note	1051	Unknown table 'test.t2'
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL max_binlog_size = 1073741824;
+CREATE TABLE t1 (x INT PRIMARY KEY AUTO_INCREMENT, y LONGTEXT) ENGINE=InnoDB;
+# Rollback removes the spill file and leaves the active binlog unchanged.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+ROLLBACK;
+include/assert.inc [Rollback leaves the BOLT promotion count unchanged.]
+include/assert.inc [Rollback keeps the active binary log unchanged.]
+include/assert.inc [Rollback removes all transaction rows.]
+# Retry the same transaction and promote a new active binary log.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+include/assert.inc [Retry promotes one new active binary log.]
+include/assert.inc [Retry changes the active binary log file.]
+include/assert.inc [Retry commits the four rows exactly once.]
+# The first of two consecutive promotions on one session.
+# The second promotion, whose predecessor is itself a promoted file.
+include/assert.inc [Two consecutive transactions promote twice.]
+include/assert.inc [Neither consecutive promotion is a missed optimization.]
+include/assert.inc [The first promotion leaves the original active binary log.]
+include/assert.inc [The second promotion opens a file of its own.]
+include/assert.inc [Both consecutive promotions commit all eight rows.]
+include/assert.inc [Both consecutive promotions preserve every payload in full.]
+# XA PREPARE promotes the large transaction; XA COMMIT makes it visible.
+XA START 'bolt_prepare_commit';
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_prepare_commit';
+XA PREPARE 'bolt_prepare_commit';
+include/assert.inc [XA PREPARE promotes one large transaction.]
+include/assert.inc [XA PREPARE keeps its rows invisible until resolution.]
+XA COMMIT 'bolt_prepare_commit';
+include/assert.inc [XA COMMIT does not promote the prepared transaction again.]
+include/assert.inc [XA COMMIT commits all prepared rows exactly once.]
+# XA ROLLBACK resolves a promoted prepared transaction without committing rows.
+XA START 'bolt_prepare_rollback';
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_prepare_rollback';
+XA PREPARE 'bolt_prepare_rollback';
+include/assert.inc [XA PREPARE before rollback promotes one large transaction.]
+XA ROLLBACK 'bolt_prepare_rollback';
+include/assert.inc [XA ROLLBACK does not promote the prepared transaction again.]
+include/assert.inc [XA ROLLBACK removes all prepared rows.]
+# XA COMMIT ONE PHASE promotes and commits a large transaction once.
+XA START 'bolt_one_phase';
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_one_phase';
+XA COMMIT 'bolt_one_phase' ONE PHASE;
+include/assert.inc [XA COMMIT ONE PHASE promotes one large transaction.]
+include/assert.inc [XA COMMIT ONE PHASE commits all rows exactly once.]
+Warnings:
+Note	1051	Unknown table 'test.t2'
+# DDL implicitly commits and promotes the preceding large row transaction.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+CREATE TABLE t2 (id INT PRIMARY KEY) ENGINE=InnoDB;
+include/assert.inc [The implicit pre-DDL commit promotes the large row transaction.]
+include/assert.inc [DDL commits all preceding large transaction rows.]
+include/assert.inc [DDL completes after the promoted transaction.]
+# KILL QUERY after spill leaves the same session able to roll back and retry.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (CONCAT(REPEAT('abcdefghijklmnop', 250000), IF(GET_LOCK('bolt_kill_query_lock', 100), '', '')));
+KILL QUERY ID;
+ERROR 70100: Query execution was interrupted
+ROLLBACK;
+include/assert.inc [KILL QUERY followed by rollback does not promote a binary log.]
+include/assert.inc [KILL QUERY followed by rollback removes all transaction rows.]
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+include/assert.inc [The same killed-query session promotes on its retry.]
+include/assert.inc [The same killed-query session commits all retry rows once.]
+# Disconnecting a session with a spill removes the temporary file.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+include/assert.inc [Disconnecting an active spill does not promote a binary log.]
+include/assert.inc [Disconnecting an active spill rolls back all rows.]
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+include/assert.inc [A new session promotes the disconnected transaction's retry.]
+include/assert.inc [A new session commits all retry rows once.]
+# A duplicate-key error preserves the spill until explicit rollback.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (1, REPEAT('abcdefghijklmnop', 250000));
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+ROLLBACK;
+include/assert.inc [A statement error followed by rollback does not promote a binary log.]
+include/assert.inc [A statement error followed by rollback keeps the active binary log unchanged.]
+include/assert.inc [A statement error followed by rollback removes all rows.]
+SET GLOBAL max_binlog_size = 4096;
+# A promoted oversized file becomes binary-log history and opens a fresh active file.
+BEGIN;
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
+COMMIT;
+SET GLOBAL max_binlog_size = 1073741824;
+include/assert.inc [The oversized transaction is promoted once before rotation.]
+include/assert.inc [Immediate max-binlog-size rotation opens a fresh active binary log.]
+include/assert.inc [Immediate max-binlog-size rotation keeps all promoted rows.]
+SHOW BINARY LOGS;
+Log_name	File_size	Encrypted
+binlog.000001	203	No
+binlog.000002	16066082	No
+binlog.000003	199	No
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (101, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (102, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (103, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (104, REPEAT('abcdefghijklmnop', 250000));
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (201, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (202, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (203, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (204, REPEAT('abcdefghijklmnop', 250000));
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (301, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (302, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (303, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (304, REPEAT('abcdefghijklmnop', 250000));
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (401, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (402, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (403, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (404, REPEAT('abcdefghijklmnop', 250000));
+BEGIN;
+INSERT INTO t1 (x, y) VALUES (501, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (502, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (503, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (504, REPEAT('abcdefghijklmnop', 250000));
+# Five waiting spills do not prevent a small transaction using the active binlog.
+INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
+include/assert.inc [The small transaction stays in the existing active binary log.]
+include/assert.inc [Five waiting large transactions leave five temporary files.]
+COMMIT;
+COMMIT;
+COMMIT;
+ROLLBACK;
+ROLLBACK;
+include/assert.inc [Three committed spills produce exactly three BOLT promotions.]
+include/assert.inc [Three committed spills create three new binary log files.]
+include/assert.inc [Only the three committed large transactions and small transaction persist.]
+include/assert.inc [The committed transaction ranges are preserved exactly.]
+XA START 'bolt_concurrent_one_phase_1';
+INSERT INTO t1 (x, y) VALUES (101, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (102, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (103, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (104, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_one_phase_1';
+XA START 'bolt_concurrent_one_phase_2';
+INSERT INTO t1 (x, y) VALUES (201, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (202, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (203, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (204, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_one_phase_2';
+XA START 'bolt_concurrent_one_phase_3';
+INSERT INTO t1 (x, y) VALUES (301, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (302, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (303, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (304, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_one_phase_3';
+XA START 'bolt_concurrent_prepare_1';
+INSERT INTO t1 (x, y) VALUES (401, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (402, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (403, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (404, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_prepare_1';
+XA START 'bolt_concurrent_prepare_2';
+INSERT INTO t1 (x, y) VALUES (501, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (502, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (503, REPEAT('abcdefghijklmnop', 250000));
+INSERT INTO t1 (x, y) VALUES (504, REPEAT('abcdefghijklmnop', 250000));
+XA END 'bolt_concurrent_prepare_2';
+# Five waiting XA branches leave the active binlog available for a small transaction.
+INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
+include/assert.inc [The small transaction stays in the existing active binary log with XA spills pending.]
+XA ROLLBACK 'bolt_concurrent_one_phase_1';
+XA ROLLBACK 'bolt_concurrent_one_phase_2';
+XA COMMIT 'bolt_concurrent_one_phase_3' ONE PHASE;
+XA PREPARE 'bolt_concurrent_prepare_1';
+XA ROLLBACK 'bolt_concurrent_prepare_1';
+XA PREPARE 'bolt_concurrent_prepare_2';
+XA COMMIT 'bolt_concurrent_prepare_2';
+include/assert.inc [One XA one-phase commit and two XA PREPARE paths produce three promotions.]
+include/assert.inc [The XA commit decisions create exactly three new binary log files.]
+include/assert.inc [Only the committed XA branches and small transaction persist.]
+include/assert.inc [The committed XA transaction ranges are preserved exactly.]
+DROP TABLE t2;
+DROP TABLE t1;
