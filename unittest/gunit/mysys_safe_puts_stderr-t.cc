@@ -59,8 +59,6 @@ namespace mysys_safe_puts_stderr_unittest {
 
 /* Must match MY_SAFE_PUTS_CHUNK in mysys/stacktrace.cc. */
 constexpr size_t kChunk = 132;
-/* Must match MY_SAFE_PUTS_INVALID in mysys/stacktrace.cc. */
-const char kInvalid[] = "<is an invalid pointer>";
 /* Size of the line buffer used by mysys/stacktrace.cc. */
 constexpr size_t kMaxLine = 256;
 
@@ -246,6 +244,12 @@ TEST_F(SafePutsStderrTest, StopsAtNul) {
   EXPECT_EQ(in2.substr(0, 150), join(lines2));
 }
 
+#ifdef __linux__
+/* These cases rely on the Linux /proc-based ptr_sane() range check; on other
+   platforms ptr_sane() trusts the pointer and the dereference would fault. */
+/* Only used by the Linux-only cases below. */
+/* Must match MY_SAFE_PUTS_INVALID in mysys/stacktrace.cc. */
+const char kInvalid[] = "<is an invalid pointer>";
 /* 7. An entirely invalid pointer yields exactly one diagnostic line. */
 TEST_F(SafePutsStderrTest, InvalidPointer) {
   const char *in = reinterpret_cast<const char *>(16);
@@ -255,7 +259,6 @@ TEST_F(SafePutsStderrTest, InvalidPointer) {
   EXPECT_EQ(kInvalid, lines[0].payload);
 }
 
-#ifdef __linux__
 /* 8. A string running off the end of mapped memory: the readable part is
       printed, followed by the diagnostic at the offset where reading
       failed. */
