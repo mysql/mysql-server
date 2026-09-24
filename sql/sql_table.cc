@@ -7580,8 +7580,7 @@ static bool prepare_key(
     Create_field *sql_field;
     while ((sql_field = it++) &&
            my_strcasecmp(system_charset_info, first_col->get_field_name(),
-                         sql_field->field_name))
-      ;
+                         sql_field->field_name));
     if (!sql_field) {
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0),
                first_col->get_field_name());
@@ -19204,8 +19203,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
              mysql_rename_table(
                  thd, old_db_type, alter_ctx.db, backup_name, alter_ctx.db,
                  backup_name, *schema, alter_ctx.db, alter_ctx.alias,
-                 FN_FROM_IS_TMP | NO_FK_CHECKS | NO_FK_RENAME | NO_CC_RENAME))
-        ;
+                 FN_FROM_IS_TMP | NO_FK_CHECKS | NO_FK_RENAME | NO_CC_RENAME));
     }
     goto err_with_mdl;
   }
@@ -20916,9 +20914,10 @@ static bool is_any_check_constraints_evaluation_required(
             continue;
 
           // Check if data type is changed.
-          if (!my_strcasecmp(system_charset_info, itm_fld->field_name,
+          if (fld.change &&
+              !my_strcasecmp(system_charset_info, itm_fld->field_name,
                              fld.field_name) &&
-              (itm_fld->data_type() != fld.sql_type))
+              (itm_fld->data_type() != real_type_to_type(fld.sql_type)))
             return true;
         }
 
