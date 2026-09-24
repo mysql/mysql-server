@@ -621,6 +621,14 @@ static void trx_rollback_active(trx_t *trx) /*!< in/out: transaction */
   que_run_threads(thr);
   ut_a(roll_node->undo_thr != nullptr);
 
+  while (DBUG_EVALUATE_IF("wait_in_recv_rollback",
+                          trx == trx_roll_crash_recv_trx, false)) {
+    if (srv_shutdown_state.load() >= SRV_SHUTDOWN_RECOVERY_ROLLBACK) {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
   que_run_threads(roll_node->undo_thr);
 
   trx_rollback_finish(thr_get_trx(roll_node->undo_thr));
@@ -722,10 +730,12 @@ void trx_rollback_or_clean_recovered(
                                 " of uncommitted transactions";
   }
 
-  /* Note: For XA recovered transactions, we rely on MySQL to
-  do rollback. They will be in TRX_STATE_PREPARED state. If the server
-  is shutdown and they are still lingering in trx_sys_t::trx_list
-  then the shutdown will hang. */
+  /* Recovered external XA transactions remain in TRX_STATE_PREPARED until
+  the server decides their outcome. Internal prepared transactions selected
+  for rollback by binlog recovery are changed to TRX_STATE_ACTIVE through
+  recover_rollback_by_xid and are rolled back by this thread. If prepared
+  transactions still linger in trx_sys_t::trx_list at shutdown, shutdown will
+  hang. */
 
   /* Loop over the transaction list as long as there are
   recovered transactions to clean up or recover. */

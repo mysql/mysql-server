@@ -1,0 +1,91 @@
+CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0, 1);
+#
+# 1. Prepared DML transactions without binlog XIDs are rolled back.
+#
+SET debug_sync = "after_flush_engine_log SIGNAL prepared1 WAIT_FOR continue";
+INSERT INTO t1 VALUES (1, 1);
+SET debug_sync = "now WAIT_FOR prepared1";
+# Kill the server
+# restart: --debug=d,wait_in_recv_rollback
+# Expect (0, 1), (1, 1)
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM t1 ORDER BY id;
+id	data
+0	1
+1	1
+DROP TABLE t1;
+# Kill the server
+# restart
+# Expect (0, 1)
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM t1 ORDER BY id;
+id	data
+0	1
+INSERT INTO t1 VALUES (1, 1);
+UPDATE t1 SET data = data + 1 WHERE id = 0;
+# Expect (0, 2), (1, 1)
+SELECT * FROM t1 ORDER BY id;
+id	data
+0	2
+1	1
+#
+# 2. Recovered prepared transactions survive a crash after handoff.
+#
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS (
+SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 256
+)
+SELECT n + 1, 1 FROM seq;
+SET debug_sync = "after_flush_engine_log SIGNAL prepared2 WAIT_FOR continue";
+UPDATE t1 SET data = 10;
+SET debug_sync = "now WAIT_FOR prepared2";
+# Kill the server
+# restart: --debug=d,wait_in_recv_rollback
+SELECT COUNT(*) FROM information_schema.innodb_trx
+WHERE trx_state = "ROLLING BACK";
+COUNT(*)
+1
+# Kill the server
+# restart
+#
+# 3. Crash before the async rollback undo-state change.
+#
+SET debug_sync = "after_flush_engine_log SIGNAL prepared3 WAIT_FOR continue";
+UPDATE t1 SET data = data + 1 WHERE id = 0;
+SET debug_sync = "now WAIT_FOR prepared3";
+# Kill the server
+# restart_abort: --debug=d,crash_before_recover_rollback_undo_state_change
+# restart
+SELECT data FROM t1 WHERE id = 0;
+data
+2
+UPDATE t1 SET data = data + 1 WHERE id = 0;
+SELECT data FROM t1 WHERE id = 0;
+data
+3
+#
+# 4. Recovered prepared DDL transactions are rolled back synchronously.
+#
+START TRANSACTION;
+UPDATE t1 SET data = data + 1 WHERE id = 0;
+SET debug_sync = "after_flush_engine_log SIGNAL prepared4 WAIT_FOR continue";
+CREATE TABLE t_ddl (id INT PRIMARY KEY) ENGINE = InnoDB;
+SET debug_sync = "now WAIT_FOR prepared4";
+# Kill the server
+# restart: --debug=d,wait_in_recv_rollback
+SELECT COUNT(*) FROM information_schema.innodb_trx
+WHERE trx_state = "ROLLING BACK";
+COUNT(*)
+1
+SELECT COUNT(*) FROM information_schema.innodb_trx;
+COUNT(*)
+1
+SET GLOBAL debug = "-d,wait_in_recv_rollback";
+SELECT COUNT(*) FROM information_schema.tables
+WHERE table_schema = DATABASE() AND table_name = 't_ddl';
+COUNT(*)
+0
+CREATE TABLE t_ddl (id INT PRIMARY KEY) ENGINE = InnoDB;
+DROP TABLE t_ddl;
+DROP TABLE t1;

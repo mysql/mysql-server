@@ -1,0 +1,221 @@
+################################################################################
+# Test asynchronous rollback of recovered prepared transactions during binlog
+# crash recovery.
+#
+# Scenario 1 creates an internal XA prepared DML transaction, flushes its
+# prepared record to the engine log, and crashes before its XID reaches the
+# binlog. Recovery should mark it for rollback, return startup quickly, and
+# hold shared metadata locks until background rollback finishes. Concurrent DDL
+# must wait, and the table must be left with only committed rows.
+#
+# Scenario 2 creates another internal XA prepared DML transaction. After binlog
+# recovery durably hands it off to the background rollback thread, the server
+# crashes again. The next restart should recover the transaction as active and
+# finish rolling it back.
+#
+# Scenario 3 crashes during binlog recovery before the prepared transaction's
+# async rollback undo-state change begins. The next restart should still
+# recover cleanly and roll back the transaction.
+#
+# Scenario 4 creates a prepared atomic DDL transaction whose XID is absent from
+# the binlog, plus an active DML transaction as a positive control. Recovery
+# should roll back the DDL synchronously while the DML proves that asynchronous
+# rollback is paused.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0, 1);
+
+--echo #
+--echo # 1. Prepared DML transactions without binlog XIDs are rolled back.
+--echo #
+
+# Stop a transaction after the prepared record is flushed to the engine log and
+# before the XID is written to the binlog. Binlog recovery must roll it back.
+--connect(con1, localhost, root,,)
+SET debug_sync = "after_flush_engine_log SIGNAL prepared1 WAIT_FOR continue";
+--send INSERT INTO t1 VALUES (1, 1)
+
+--connection default
+SET debug_sync = "now WAIT_FOR prepared1";
+--source include/kill_mysqld.inc
+
+# The pending client commands never complete because the server is killed.
+--disconnect con1
+
+# Pause before the recovery rollback thread applies undo. This keeps the
+# transaction and its shared MDL alive while the test verifies that DDL waits.
+--let $restart_parameters= restart: --debug=d,wait_in_recv_rollback
+--source include/start_mysqld.inc
+
+# Startup has completed while the recovered transaction is still rolling back.
+# READ UNCOMMITTED should expose its inserted row until undo resumes.
+--echo # Expect (0, 1), (1, 1)
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM t1 ORDER BY id;
+
+# The recovery rollback thread must acquire shared MDL before startup
+# continues. DROP TABLE must wait while the rollback is paused.
+--connect(con_ddl, localhost, root,,)
+--send DROP TABLE t1
+
+--connection default
+--let $wait_condition= SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE = "Waiting for table metadata lock" AND INFO = "DROP TABLE t1"
+--source include/wait_condition.inc
+
+# Stop the server before the pending DROP can run, then complete recovery
+# normally. The pending client command never completes because of the stop.
+--source include/kill_mysqld.inc
+--disconnect con_ddl
+
+--let $restart_parameters= restart
+--source include/start_mysqld.inc
+
+# Startup should complete while InnoDB finishes the rollback in the background.
+--let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.innodb_trx
+--source include/wait_condition.inc
+
+# The prepared transaction should be gone: the insert of id=1 is absent.
+--echo # Expect (0, 1)
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM t1 ORDER BY id;
+
+# Reusing the same key and row verifies that no lingering prepared transaction
+# still owns locks or data changes from the crashed transactions.
+INSERT INTO t1 VALUES (1, 1);
+UPDATE t1 SET data = data + 1 WHERE id = 0;
+
+--echo # Expect (0, 2), (1, 1)
+SELECT * FROM t1 ORDER BY id;
+
+--echo #
+--echo # 2. Recovered prepared transactions survive a crash after handoff.
+--echo #
+
+# Add enough rows for the recovery rollback thread to be observable while the
+# wait_in_recv_rollback debug hook pauses before applying undo.
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS (
+  SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 256
+)
+SELECT n + 1, 1 FROM seq;
+
+# Stop a large transaction after its prepared record reaches the engine log but
+# before its XID reaches the binlog.
+--connect(con2, localhost, root,,)
+SET debug_sync = "after_flush_engine_log SIGNAL prepared2 WAIT_FOR continue";
+--send UPDATE t1 SET data = 10
+
+--connection default
+SET debug_sync = "now WAIT_FOR prepared2";
+--source include/kill_mysqld.inc
+--disconnect con2
+
+# The server should become available even though the recovered transaction is
+# still rolling back in the background.
+--let $restart_parameters= restart: --debug=d,wait_in_recv_rollback
+--source include/start_mysqld.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.innodb_trx WHERE trx_state = "ROLLING BACK"
+--source include/wait_condition.inc
+SELECT COUNT(*) FROM information_schema.innodb_trx
+WHERE trx_state = "ROLLING BACK";
+
+# Binlog recovery has persisted the prepared-to-active handoff. Kill while the
+# recovery rollback thread is paused; the next restart must recover the
+# transaction as active and complete its rollback.
+--source include/kill_mysqld.inc
+
+--let $restart_parameters= restart
+--source include/start_mysqld.inc
+
+--let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.innodb_trx
+--source include/wait_condition.inc
+
+--echo #
+--echo # 3. Crash before the async rollback undo-state change.
+--echo #
+
+# Prepare another DML transaction whose XID is missing from the binlog. The
+# recovery callback will be invoked on restart to change it back to ACTIVE.
+--connect(con3, localhost, root,,)
+SET debug_sync = "after_flush_engine_log SIGNAL prepared3 WAIT_FOR continue";
+--send UPDATE t1 SET data = data + 1 WHERE id = 0
+
+--connection default
+SET debug_sync = "now WAIT_FOR prepared3";
+--source include/kill_mysqld.inc
+--disconnect con3
+
+# Crash before modifying either undo log. The next startup must find the
+# transaction still prepared and retry the rollback decision safely.
+--let $restart_parameters= --debug=d,crash_before_recover_rollback_undo_state_change
+--source include/start_mysqld_expecting_crash.inc
+
+--let $restart_parameters= restart
+--source include/start_mysqld.inc
+
+# The crashed prepared update should eventually be rolled back.
+--let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.innodb_trx
+--source include/wait_condition.inc
+
+# id=0 should still have the value committed before scenario 3. Updating it
+# again verifies that no recovered transaction still blocks the row.
+SELECT data FROM t1 WHERE id = 0;
+UPDATE t1 SET data = data + 1 WHERE id = 0;
+SELECT data FROM t1 WHERE id = 0;
+
+--echo #
+--echo # 4. Recovered prepared DDL transactions are rolled back synchronously.
+--echo #
+
+# Stop an atomic DDL transaction after its prepared record reaches the engine
+# log but before its XID reaches the binlog.
+# First leave a DML transaction active with a known undo record. Crash recovery
+# must roll it back in the background, making it a positive control for the
+# wait_in_recv_rollback pause.
+--connect(con4_dml, localhost, root,,)
+START TRANSACTION;
+UPDATE t1 SET data = data + 1 WHERE id = 0;
+
+--connect(con4, localhost, root,,)
+SET debug_sync = "after_flush_engine_log SIGNAL prepared4 WAIT_FOR continue";
+--send CREATE TABLE t_ddl (id INT PRIMARY KEY) ENGINE = InnoDB
+
+--connection default
+SET debug_sync = "now WAIT_FOR prepared4";
+--source include/kill_mysqld.inc
+--disconnect con4
+--disconnect con4_dml
+
+# Pause background recovery rollback before it applies undo. The DML transaction
+# above confirms that the pause is active; if the DDL is incorrectly handed off
+# asynchronously, a second recovered transaction will be visible even if its
+# undo log is empty.
+--let $restart_parameters= restart: --debug=d,wait_in_recv_rollback
+--source include/start_mysqld.inc
+
+# Exactly one rolling-back transaction proves that the DML positive control is
+# paused and that the DDL transaction was already rolled back synchronously.
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.innodb_trx WHERE trx_state = "ROLLING BACK"
+--source include/wait_condition.inc
+SELECT COUNT(*) FROM information_schema.innodb_trx
+WHERE trx_state = "ROLLING BACK";
+SELECT COUNT(*) FROM information_schema.innodb_trx;
+
+# The DDL fallback leaves no table behind. Reusing its name also checks DD
+# cleanup after the synchronous rollback.
+SET GLOBAL debug = "-d,wait_in_recv_rollback";
+--let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.innodb_trx
+--source include/wait_condition.inc
+SELECT COUNT(*) FROM information_schema.tables
+WHERE table_schema = DATABASE() AND table_name = 't_ddl';
+CREATE TABLE t_ddl (id INT PRIMARY KEY) ENGINE = InnoDB;
+DROP TABLE t_ddl;
+
+DROP TABLE t1;
