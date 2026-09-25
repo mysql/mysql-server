@@ -5827,10 +5827,11 @@ bool Item_func_in::resolve_type(THD *thd) {
         values and perform comparison using integer type, if possible.
         TODO: Enhance this code to work with all integer types.
       */
-      bool consts_are_integer = true;
+      bool consts_are_integer = false;
       if (thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
           thd->lex->sql_command != SQLCOM_SHOW_CREATE &&
           args[0]->real_item()->type() == FIELD_ITEM) {
+        consts_are_integer = true;
         Item_field *field = down_cast<Item_field *>(args[0]->real_item());
         for (Item **arg = args + 1; arg != arg_end; arg++) {
           bool converted;
