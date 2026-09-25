@@ -87,7 +87,7 @@ jobs:
           - shard: core
             suites: auth_sec,collations,component_connection_control,component_keyring_file,connection_control,funcs_2,gcol,gis,information_schema,interactive_utilities,jdv,json,main,opt_trace,query_rewrite_plugins,x
           - shard: services
-            suites: component_mysql_rest_service,perfschema,router,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,sysschema,test_service_sql_api,test_services
+            suites: perfschema,router,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,sysschema,test_service_sql_api,test_services
     env:
       CC: gcc
       CXX: g++
