@@ -1,0 +1,97 @@
+# Crash-recovery rollback of an interrupted BLOB UPDATE on a
+# ROW_FORMAT=COMPRESSED table frees the OLD, still-referenced LOB.
+#
+# lob::purge() (lob0purge.cc) dispatches on the page type of the page that the
+# LOB reference points at, and only one of the three branches ignores the
+# is_rollback flag:
+#
+#   FIL_PAGE_TYPE_LOB_FIRST         -> lob::rollback()
+#   FIL_PAGE_TYPE_ZLOB_FIRST        -> z_purge() -> z_rollback()
+#   FIL_PAGE_TYPE_ZBLOB/ZBLOB2/BLOB -> Deleter::destroy()   <-- ignores it
+#
+# For a compressed table a LOB of <= Z_CHUNK_SIZE (128K) is stored in the old
+# single-z-stream format, i.e. on FIL_PAGE_TYPE_ZBLOB pages -- see
+# ref_t::use_single_z_stream().  While btr_store_big_rec_extern_fields() stores
+# a NEW value for that field, the record's reference still holds the OLD LOB's
+# page number and only gains BTR_EXTERN_BEING_MODIFIED_FLAG: the Being_modified
+# constructor in lob0lob.cc resets page_no only for OPCODE_INSERT_UPDATE, not
+# for OPCODE_UPDATE.  That state is redo logged by the
+# page_zip_write_blob_ptr() in the same constructor and made durable by the
+# ctx.check_redolog() right after it.
+#
+# Crash in that window and recovery rollback reaches
+# BtrContext::free_updated_extern_fields() -> lob::purge(rollback = true),
+# which destroys the OLD LOB, and btr_cur_pessimistic_update() then restores
+# the record to point at the pages it has just freed.  The row now references
+# free pages: the read below trips the ut_ad() in buf_page_get_gen(), and once
+# those pages have been handed to another row the value itself is gone.
+#
+# What matters is the format of the OLD value, because that is what lob::purge()
+# dispatches on.  The new value only has to be large enough to be stored
+# externally; whether it ends up as a ZBLOB or a ZLOB is immaterial, the crash
+# window opens before that choice is made.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c LONGBLOB)
+  ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8 ENGINE=InnoDB;
+
+# 80000 <= Z_CHUNK_SIZE (128K)  =>  old format, FIL_PAGE_TYPE_ZBLOB pages.
+INSERT INTO t1 VALUES (1, REPEAT('a', 80000));
+SELECT id, LENGTH(c) FROM t1;
+
+--connect (con1, localhost, root,,)
+# blob_write_middle fires in BtrContext::check_redolog_normal() right after
+# commit_btr_mtr().  The first hit is the ctx.check_redolog() that immediately
+# follows the Being_modified guard, i.e. exactly when the record on disk
+# carries the OLD LOB page number plus BTR_EXTERN_BEING_MODIFIED_FLAG and not
+# one byte of the new LOB has been written yet.
+SET DEBUG_SYNC = 'blob_write_middle SIGNAL lob_half_written WAIT_FOR go_never';
+--send UPDATE t1 SET c = REPEAT('b', 4000000)
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR lob_half_written';
+
+--source include/kill_and_restart_mysqld.inc
+
+--connection con1
+--error CR_SERVER_LOST
+--reap
+--disconnect con1
+
+--connection default
+
+# Recovery has rolled the UPDATE back.  The row is back to its old value and
+# still references the old LOB.  Those pages are on the free list now, but they
+# still hold the data, so this read alone cannot show the damage.
+SELECT id, LENGTH(c) FROM t1;
+
+# Hand the freed LOB pages out to other rows.
+--disable_query_log
+let $i = 60;
+while ($i)
+{
+  eval INSERT INTO t1 VALUES (100 + $i, REPEAT('c', 80000));
+  dec $i;
+}
+--enable_query_log
+
+# Without the fix the LOB pages of row 1 have been handed to another row, so the
+# value read back is no longer the one that was inserted.
+--let $lob_intact = `SELECT c = REPEAT('a', 80000) FROM t1 WHERE id = 1`
+--let $assert_text = row 1 must still own its original LOB after recovery
+--let $assert_cond = $lob_intact = 1
+--source include/assert.inc
+
+# Deleting the row makes purge free the LOB a second time; without the fix this
+# aborts on "InnoDB is trying to free page ... though it is already marked as
+# free in the tablespace", or on ut_a(page_type == FIL_PAGE_TYPE_LOB_FIRST) in
+# lob0purge.cc.
+DELETE FROM t1 WHERE id = 1;
+
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';

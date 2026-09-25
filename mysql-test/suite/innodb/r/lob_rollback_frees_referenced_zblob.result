@@ -1,0 +1,18 @@
+CREATE TABLE t1 (id INT PRIMARY KEY, c LONGBLOB)
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8 ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, REPEAT('a', 80000));
+SELECT id, LENGTH(c) FROM t1;
+id	LENGTH(c)
+1	80000
+SET DEBUG_SYNC = 'blob_write_middle SIGNAL lob_half_written WAIT_FOR go_never';
+UPDATE t1 SET c = REPEAT('b', 4000000);
+SET DEBUG_SYNC = 'now WAIT_FOR lob_half_written';
+# Kill and restart
+ERROR HY000: Lost connection to MySQL server during query
+SELECT id, LENGTH(c) FROM t1;
+id	LENGTH(c)
+1	80000
+include/assert.inc [row 1 must still own its original LOB after recovery]
+DELETE FROM t1 WHERE id = 1;
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
