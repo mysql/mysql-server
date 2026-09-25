@@ -78,7 +78,8 @@
 
 #if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_PTHREAD_SET_SCHEDPARAM)
 static int g_min_prio = 0;
-static int g_max_prio = 0;
+/* Set from get_max_prio(); kept as the counterpart of g_min_prio. */
+static int g_max_prio [[maybe_unused]] = 0;
 static bool get_prio_first = true;
 #endif
 

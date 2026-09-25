@@ -120,7 +120,6 @@ static SHOW_VAR show_var_filter_rules_decompile[] = {
 #include <string_with_len.h>
 
 static bool inited = false;
-static int opened = 0;
 
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
@@ -1571,8 +1570,6 @@ DEFINE_METHOD(log_service_error, log_service_imp::open,
 
   *instance = nullptr;
 
-  opened++;
-
   return LOG_SERVICE_SUCCESS;
 }
 
@@ -1591,8 +1588,6 @@ DEFINE_METHOD(log_service_error, log_service_imp::close, (void **instance)) {
   if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
-
-  opened--;
 
   return LOG_SERVICE_SUCCESS;
 }
@@ -1645,7 +1640,6 @@ mysql_service_status_t log_filter_exit() {
     log_bf->filter_ruleset_free(&log_filter_dragnet_rules);
 
     inited = false;
-    opened = 0;
     log_error_filter_rules = nullptr;
 
     return false;
