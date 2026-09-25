@@ -20988,10 +20988,10 @@ static void innodb_adaptive_hash_index_update(
 {
   if (*(bool *)save) {
     srv_btr_search_enabled = true;
-    btr_search_enable();
+    btr_search_enable(true);
   } else {
     srv_btr_search_enabled = false;
-    btr_search_disable();
+    btr_search_disable(true);
   }
 }
 

@@ -1591,7 +1591,12 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
   buf_pool_set_sizes();
   buf_LRU_old_ratio_update(100 * 3 / 8, false);
 
-  btr_search_sys_create(buf_pool_get_curr_size() / sizeof(void *) / 64);
+  /* Request one cell per AHI partition until AHI is enabled; ut::find_prime()
+  rounds this up to 103 cells (~824 bytes) per partition. */
+  const ulint ahi_hash_size =
+      srv_btr_search_enabled ? buf_pool_get_curr_size() / sizeof(void *) / 64
+                             : btr_ahi_parts;
+  btr_search_sys_create(ahi_hash_size);
 
   buf_stat_per_index = ut::new_withkey<buf_stat_per_index_t>(
       ut::make_psi_memory_key(mem_key_buf_stat_per_index_t));
@@ -2230,8 +2235,10 @@ static void buf_pool_resize() {
   buf_resize_status(BUF_POOL_RESIZE_DISABLE_AHI,
                     "Disabling adaptive hash index.");
 
-  /* disable AHI if needed */
-  if (btr_search_disable()) {
+  /* Keep full-sized AHI hash tables during buffer pool resize. If AHI was
+  enabled, they can be reused or resized once before AHI is re-enabled. */
+  const bool btr_search_was_enabled = btr_search_disable(false);
+  if (btr_search_was_enabled) {
     ib::info(ER_IB_MSG_60) << "disabled adaptive hash index.";
   }
 
@@ -2636,14 +2643,16 @@ withdraw_retry:
     srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
     lock_sys_resize(srv_lock_table_size);
 
-    /* normalize btr_search_sys */
-    btr_search_sys_resize(buf_pool_get_curr_size() / sizeof(void *) / 64);
+    /* Resize the hash tables only when AHI was enabled. */
+    if (btr_search_was_enabled) {
+      btr_search_sys_resize(buf_pool_get_curr_size() / sizeof(void *) / 64);
+
+      ib::info(ER_IB_MSG_68) << "Resized hash tables at lock_sys,"
+                                " adaptive hash index, dictionary.";
+    }
 
     /* normalize dict_sys */
     dict_resize();
-
-    ib::info(ER_IB_MSG_68) << "Resized hash tables at lock_sys,"
-                              " adaptive hash index, dictionary.";
   }
 
   /* normalize ibuf->max_size */
@@ -2658,7 +2667,7 @@ withdraw_retry:
   }
 
   /* enable AHI if needed */
-  if (btr_search_enable()) {
+  if (btr_search_enable(!btr_search_was_enabled)) {
     ib::info(ER_IB_MSG_70) << "Re-enabled adaptive hash index.";
   }
 

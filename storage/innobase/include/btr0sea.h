@@ -134,12 +134,16 @@ void btr_search_sys_resize(ulint hash_size);
 void btr_search_sys_free();
 
 /** Disable the adaptive hash search system and empty the index.
+@param[in]      minimize_hash_tables    whether to replace the full-sized hash
+                                        tables with minimal ones
 @returns true if the AHI system was enabled and became disabled. */
-bool btr_search_disable();
+bool btr_search_disable(bool minimize_hash_tables);
 /** Enable the adaptive hash search system if buffer pool resize is not in
 progress and the AHI sysvar is ON.
+@param[in]      restore_hash_tables     whether to restore the hash tables to
+                                        their normal size before enabling AHI
 @returns true if enable was actually performed. */
-bool btr_search_enable();
+bool btr_search_enable(bool restore_hash_tables);
 
 /** Creates and initializes a search info struct.
 @param[in]      heap            heap where created.

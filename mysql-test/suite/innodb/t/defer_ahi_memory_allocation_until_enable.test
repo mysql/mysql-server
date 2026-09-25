@@ -1,0 +1,224 @@
+################################################################################
+# Verify that AHI hash tables use their minimal size while AHI is disabled and
+# are allocated at their normal size only when AHI is enabled. Check the exact
+# per-partition hash table size after startup, AHI state changes, and buffer pool
+# resize operations performed with AHI enabled and disabled.
+################################################################################
+
+--source include/have_innodb_max_16k.inc
+--source include/have_debug.inc
+
+--disable_query_log
+SET @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
+--enable_query_log
+
+--echo #
+--echo # AHI starts disabled with minimal hash tables.
+--echo #
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+# ut::find_prime() rounds the requested one cell per partition up to 103 cells.
+--let $assert_text=AHI hash tables are minimal at startup when AHI is disabled
+--let $assert_cond=$AHI_SIZE_VALUE = 103
+--source include/assert.inc
+
+--echo #
+--echo # Prepare a multi-page table while AHI remains disabled.
+--echo #
+CREATE TABLE t1 (
+  id INT PRIMARY KEY
+);
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1) + id FROM t1;
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1) + id FROM t1;
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1) + id FROM t1;
+INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1) + id FROM t1;
+
+CREATE TABLE t2 (
+  id INT PRIMARY KEY,
+  c1 CHAR(250) NOT NULL DEFAULT 'a',
+  c2 CHAR(250) NOT NULL DEFAULT 'a',
+  c3 CHAR(250) NOT NULL DEFAULT 'a',
+  c4 CHAR(250) NOT NULL DEFAULT 'a',
+  c5 CHAR(250) NOT NULL DEFAULT 'a',
+  c6 CHAR(250) NOT NULL DEFAULT 'a',
+  c7 CHAR(250) NOT NULL DEFAULT 'a',
+  c8 CHAR(250) NOT NULL DEFAULT 'a',
+  c9 CHAR(250) NOT NULL DEFAULT 'a'
+);
+INSERT INTO t2 (id) SELECT id FROM t1;
+
+--echo #
+--echo # Enabling AHI allocates full-sized hash tables.
+--echo #
+SET GLOBAL innodb_adaptive_hash_index = ON;
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables expand when AHI is enabled
+--let $assert_cond=$AHI_SIZE_VALUE = 6329
+--source include/assert.inc
+
+--echo #
+--echo # Enabling AHI again leaves the full-sized hash tables unchanged.
+--echo #
+SET GLOBAL innodb_adaptive_hash_index = ON;
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables remain full-sized after repeated enable
+--let $assert_cond=$AHI_SIZE_VALUE = 6329
+--source include/assert.inc
+
+--echo #
+--echo # Restored hash tables accept entries and serve point lookups.
+--echo #
+--disable_query_log
+--disable_result_log
+--let $i=0
+while ($i < 3000) {
+  SELECT id FROM t2 WHERE id = 8;
+  --inc $i
+}
+--enable_result_log
+--enable_query_log
+SELECT id FROM t2 WHERE id = 8;
+
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=Restored AHI hash tables contain hash entries
+--let $assert_cond=$AHI_NODE_HEAP_USED = 1
+--source include/assert.inc
+
+--echo #
+--echo # Disabling a populated AHI releases its node heaps and hash buckets.
+--echo #
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=Disabling the populated AHI releases all hash node heaps
+--let $assert_cond=$AHI_NODE_HEAP_USED = 0
+--source include/assert.inc
+--let $assert_text=Disabling the populated AHI minimizes its hash tables
+--let $assert_cond=$AHI_SIZE_VALUE = 103
+--source include/assert.inc
+
+--echo #
+--echo # Re-enabling AHI after the functional cycle restores its hash tables.
+--echo #
+SET GLOBAL innodb_adaptive_hash_index = ON;
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables expand after the functional test cycle
+--let $assert_cond=$AHI_SIZE_VALUE = 6329
+--source include/assert.inc
+
+--echo #
+--echo # Resizing the buffer pool while AHI is enabled resizes the hash tables.
+--echo #
+SET GLOBAL innodb_buffer_pool_size =
+  @@innodb_buffer_pool_size * 2 + @@innodb_buffer_pool_chunk_size;
+
+--let $wait_timeout=60
+--let $wait_condition=SELECT SUBSTR(variable_value, 1, 9) = 'Completed' FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status'
+--source include/wait_condition.inc
+
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables resize with the buffer pool when AHI is enabled
+--let $assert_cond=$AHI_SIZE_VALUE = 18787
+--source include/assert.inc
+
+--echo #
+--echo # Disabling AHI releases the hash table buckets.
+--echo #
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables shrink when AHI is disabled
+--let $assert_cond=$AHI_SIZE_VALUE = 103
+--source include/assert.inc
+
+--echo #
+--echo # Disabling AHI again leaves the minimal hash tables unchanged.
+--echo #
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables remain minimal after repeated disable
+--let $assert_cond=$AHI_SIZE_VALUE = 103
+--source include/assert.inc
+
+--echo #
+--echo # Repeated AHI state assignments do not report resize failures.
+--echo #
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select=btr_search_sys_resize failed because
+--let $assert_count=0
+--let $assert_text=Repeated AHI state assignments do not report resize failures
+--source include/assert_grep.inc
+
+--echo #
+--echo # Resizing the buffer pool while AHI is disabled keeps minimal tables.
+--echo #
+SET GLOBAL innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+
+--let $wait_timeout=60
+--let $wait_condition=SELECT SUBSTR(variable_value, 1, 9) = 'Completed' FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status'
+--source include/wait_condition.inc
+
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables remain minimal after buffer pool resize
+--let $assert_cond=$AHI_SIZE_VALUE = 103
+--source include/assert.inc
+
+--echo #
+--echo # Enabling AHI during buffer pool resize restores the hash tables after resize.
+--echo #
+SET GLOBAL debug = '+d,ib_buf_pool_resize_after_disable_ahi';
+SET GLOBAL innodb_buffer_pool_size =
+  @@innodb_buffer_pool_size * 2 + @@innodb_buffer_pool_chunk_size;
+
+--let $wait_timeout=60
+--let $wait_condition=SELECT variable_value = 2 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status_code'
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_adaptive_hash_index = ON;
+--let $assert_text=AHI is requested to be enabled during buffer pool resize
+--let $assert_cond=@@global.innodb_adaptive_hash_index = 1
+--source include/assert.inc
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables remain minimal while buffer pool resize is in progress
+--let $assert_cond=$AHI_SIZE_VALUE = 103
+--source include/assert.inc
+
+SET GLOBAL debug = '-d,ib_buf_pool_resize_after_disable_ahi';
+--let $wait_timeout=60
+--let $wait_condition=SELECT SUBSTR(variable_value, 1, 9) = 'Completed' FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status'
+--source include/wait_condition.inc
+
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables are restored after buffer pool resize completes
+--let $assert_cond=$AHI_SIZE_VALUE = 18787
+--source include/assert.inc
+
+--echo #
+--echo # Disabling AHI during buffer pool resize minimizes the hash tables after resize.
+--echo #
+SET GLOBAL debug = '+d,ib_buf_pool_resize_after_disable_ahi';
+SET GLOBAL innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+
+--let $wait_timeout=60
+--let $wait_condition=SELECT variable_value = 2 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status_code'
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+--let $assert_text=AHI is requested to be disabled during buffer pool resize
+--let $assert_cond=@@global.innodb_adaptive_hash_index = 0
+--source include/assert.inc
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables remain full-sized while buffer pool resize is in progress
+--let $assert_cond=$AHI_SIZE_VALUE = 18787
+--source include/assert.inc
+
+SET GLOBAL debug = '-d,ib_buf_pool_resize_after_disable_ahi';
+--let $wait_timeout=60
+--let $wait_condition=SELECT SUBSTR(variable_value, 1, 9) = 'Completed' FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status'
+--source include/wait_condition.inc
+
+--source suite/innodb/include/get_ahi_hash_table_status.inc
+--let $assert_text=AHI hash tables are minimized after buffer pool resize completes
+--let $assert_cond=$AHI_SIZE_VALUE = 103
+--source include/assert.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
