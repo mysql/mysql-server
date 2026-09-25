@@ -135,9 +135,9 @@ col1	col2	col3	col4	SUBSTR(col5,1,10)	col6
 RUN CREATE TABLE t1 ( col1 INT , col2 DOUBLE(7,4), col3 DECIMAL(7,4) , col4 VARCHAR(20) , col5 BLOB ) 
 While executing CREATE TABLE t1 ( col1 INT , col2 DOUBLE(7,4), col3 DECIMAL(7,4) , col4 VARCHAR(20) , col5 BLOB ) :
 Got expected error: Table 't1' already exists (code 1050)
-RUN CREATE TABLE t1 ( col1 INVALID_DATA_TYPE , col2 JSON) 
-While executing CREATE TABLE t1 ( col1 INVALID_DATA_TYPE , col2 JSON) :
-Got expected error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID_DATA_TYPE , col2 JSON)' at line 1 (code 1064)
+RUN CREATE TABLE t1 ( col1 INVALID_DATA_TYPE INTENDED, col2 JSON) 
+While executing CREATE TABLE t1 ( col1 INVALID_DATA_TYPE INTENDED, col2 JSON) :
+Got expected error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTENDED, col2 JSON)' at line 1 (code 1064)
 RUN CREATE TABLE t1_ ( col1 INT NULL PRIMARY KEY , col2 JSON) 
 While executing CREATE TABLE t1_ ( col1 INT NULL PRIMARY KEY , col2 JSON) :
 Got expected error: All parts of a PRIMARY KEY must be NOT NULL; if you need NULL in a key, use UNIQUE instead (code 1171)

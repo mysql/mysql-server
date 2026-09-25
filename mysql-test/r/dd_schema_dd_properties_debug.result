@@ -3315,13 +3315,83 @@ triggers=
        table_id=32
        trx_id=0
        space_id=1
-view_routine_usage=
+types=
   col0=table_id=33
   col1=table_id=33
   col2=table_id=33
   col3=table_id=33
   col4=table_id=33
   col5=table_id=33
+  col6=table_id=33
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=4
+      elem1=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem2=def=last_altered TIMESTAMP NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=3
+      elem3=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
+            lbl=FIELD_NAME
+            pos=2
+      elem4=def=schema_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_ID
+            pos=1
+    foreign_keys=
+      elem0=def=FOREIGN KEY (schema_id) REFERENCES schemata(id)
+            lbl=FK_SCHEMA_ID
+            pos=0
+    indexes=
+      elem0=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY (schema_id, name)
+            lbl=INDEX_UK_SCHEMA_ID_NAME
+            pos=1
+    name=types
+    options=
+      elem0=def=DEFAULT CHARSET=utf8mb3
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8mb3_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=33
+  idx0=id=99
+       root=104
+       space_id=4294967294
+       table_id=33
+       trx_id=0
+  idx1=id=100
+       root=105
+       space_id=4294967294
+       table_id=33
+       trx_id=0
+       space_id=1
+view_routine_usage=
+  col0=table_id=34
+  col1=table_id=34
+  col2=table_id=34
+  col3=table_id=34
+  col4=table_id=34
+  col5=table_id=34
   data=
   def=
     fields=
@@ -3368,25 +3438,25 @@ view_routine_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=33
-  idx0=id=99
-       root=104
+  id=34
+  idx0=id=101
+       root=106
        space_id=4294967294
-       table_id=33
+       table_id=34
        trx_id=0
-  idx1=id=100
-       root=105
+  idx1=id=102
+       root=107
        space_id=4294967294
-       table_id=33
+       table_id=34
        trx_id=0
        space_id=1
 view_table_usage=
-  col0=table_id=34
-  col1=table_id=34
-  col2=table_id=34
-  col3=table_id=34
-  col4=table_id=34
-  col5=table_id=34
+  col0=table_id=35
+  col1=table_id=35
+  col2=table_id=35
+  col3=table_id=35
+  col4=table_id=35
+  col5=table_id=35
   data=
   def=
     fields=
@@ -3433,15 +3503,15 @@ view_table_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=34
-  idx0=id=101
-       root=106
+  id=35
+  idx0=id=103
+       root=108
        space_id=4294967294
-       table_id=34
+       table_id=35
        trx_id=0
-  idx1=id=102
-       root=107
+  idx1=id=104
+       root=109
        space_id=4294967294
-       table_id=34
+       table_id=35
        trx_id=0
        space_id=1

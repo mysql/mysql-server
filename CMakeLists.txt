@@ -126,6 +126,9 @@ IF(DEFINED CMAKE_BUILD_TYPE)
 ENDIF()
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
+
+OPTION(WITH_EXPERIMENTAL_UDT "With experimental user defined types" ON)
+
 OPTION(CHECK_ERRMSG_FORMAT "Check printf format for English error messages" OFF)
 
 OPTION(DISABLE_ALL_PSI "DISABLE all calls to the PSI interface" OFF)

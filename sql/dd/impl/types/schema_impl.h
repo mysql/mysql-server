@@ -201,6 +201,8 @@ class Schema_impl : public Entity_object_impl, public Schema {
 
   View *create_system_view(THD *thd) const override;
 
+  UDT_Type *create_udt_type(THD *thd) const override;
+
  public:
   void debug_print(String_type &outb) const override {
     char outbuf[1024];

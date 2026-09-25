@@ -329,6 +329,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
     INNODB_DD_TABLE("tablespace_files", 2),
     INNODB_DD_TABLE("tablespaces", 2),
     INNODB_DD_TABLE("triggers", 7),
+    INNODB_DD_TABLE("types", 2),
     INNODB_DD_TABLE("view_routine_usage", 2),
     INNODB_DD_TABLE("view_table_usage", 2)};
 

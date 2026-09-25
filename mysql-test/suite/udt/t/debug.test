@@ -1,0 +1,17 @@
+
+CREATE TYPE test.complex_number AS BINARY(16);
+
+INSTALL COMPONENT "file://component_udt_example";
+
+--enable_metadata
+SELECT "Hi there" as my_string;
+
+SELECT complex_number_from_string("12+24i") as my_complex;
+
+SELECT complex_number_to_string(complex_number_from_string("24+48i")) as my_string;
+--disable_metadata
+
+DROP TYPE test.complex_number;
+
+UNINSTALL COMPONENT "file://component_udt_example";
+

@@ -307,6 +307,16 @@ enum class enum_alter_user_attribute {
 #define TL_OPTION_IGNORE_LEAVES 0x02
 #define TL_OPTION_ALIAS 0x04
 
+class Type_ident {
+ public:
+  LEX_CSTRING db;
+  LEX_CSTRING type;
+
+  Type_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &type_arg)
+      : db(db_arg), type(type_arg) {}
+  Type_ident(const LEX_CSTRING &type_arg) : type(type_arg) { db = NULL_CSTR; }
+};
+
 /* Structure for db & table in sql_yacc */
 class Table_function;
 
