@@ -849,6 +849,16 @@ The following options may be given as the first argument:
  Maximum amount of memory available to the parser
  --partial-revokes   Access of database objects can be restricted, even if
  user has global privileges granted.
+ --partial-subject-match 
+ If set to FALSE (the default), an account created with
+ REQUIRE SUBJECT requires the presented client
+ certificate's subject to match the specified value
+ exactly. When set to TRUE, the match is relaxed so that
+ the account connects successfully as long as every
+ attribute listed in the REQUIRE SUBJECT value is present
+ in the certificate's subject (subset match). This allows
+ verifying only a subset of the subject, for example the
+ Common Name, e.g. REQUIRE SUBJECT '/CN=myclient'.
  --password-history=# 
  The number of old passwords to check in the history. Set
  to 0 (the default) to turn the checks off
@@ -1888,6 +1898,7 @@ optimizer-trace-max-mem-size 1048576
 optimizer-trace-offset -1
 parser-max-mem-size 18446744073709551615
 partial-revokes ####
+partial-subject-match FALSE
 password-history 0
 password-require-current FALSE
 password-reuse-interval 0

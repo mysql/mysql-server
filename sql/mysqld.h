@@ -222,6 +222,7 @@ extern bool opt_log_slow_admin_statements, opt_log_slow_replica_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool trust_function_creators;
 extern bool check_proxy_users, sha256_password_proxy_users;
+extern bool partial_subject_match;
 #ifdef _WIN32
 extern const char *shared_memory_base_name;
 #endif

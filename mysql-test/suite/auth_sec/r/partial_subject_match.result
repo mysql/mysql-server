@@ -1,0 +1,37 @@
+CREATE USER cn_only@'%' REQUIRE SUBJECT '/CN=Client';
+CREATE USER cn_wrong@'%' REQUIRE SUBJECT '/CN=Wrong';
+CREATE USER full_subj@'%' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client';
+CREATE USER multi_ok@'%' REQUIRE SUBJECT '/O=Oracle/CN=Client';
+CREATE USER wrong_val@'%' REQUIRE SUBJECT '/O=Wrong';
+CREATE USER reorder@'%' REQUIRE SUBJECT '/CN=Client/O=Oracle';
+#
+# ---- partial_subject_match = OFF (exact match, default) ----
+#
+SET GLOBAL partial_subject_match = OFF;
+# Exact full subject matches -> connection succeeds
+result
+CONNECT_OK
+# CN-only subset does NOT match in exact mode -> connection rejected
+#
+# ---- partial_subject_match = ON (subset match) ----
+#
+SET GLOBAL partial_subject_match = ON;
+# CN-only subset now matches -> connection succeeds
+result
+CONNECT_OK
+# Exact full subject still matches -> connection succeeds
+result
+CONNECT_OK
+# Multiple-attribute subset (all present with matching values) -> success
+result
+CONNECT_OK
+# Attribute order is irrelevant for the subset match -> success
+result
+CONNECT_OK
+# Attribute present but with a different value -> connection rejected
+# A subset with the wrong CN never matches -> connection rejected
+#
+# Cleanup
+#
+SET GLOBAL partial_subject_match = DEFAULT;
+DROP USER cn_only@'%', cn_wrong@'%', full_subj@'%', multi_ok@'%', wrong_val@'%', reorder@'%';

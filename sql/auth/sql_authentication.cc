@@ -2468,6 +2468,78 @@ static bool read_client_connect_attrs(THD *thd, char **ptr,
   return false;
 }
 
+/**
+  Check whether every attribute listed in a required X509 subject is present,
+  with a matching value, in the subject of the presented certificate (subset
+  match).
+
+  @p required is the value supplied to REQUIRE SUBJECT, in the
+  X509_NAME_oneline() representation, e.g. "/CN=myclient" or
+  "/O=MyCorp/CN=myclient". It is parsed into its "attribute=value" components
+  (delimited by '/'); each attribute name is resolved to an ASN.1 object
+  identifier and looked up, by value, in the structured subject name of the
+  certificate. The match succeeds only if every requested attribute is found
+  with a matching value; the certificate may carry additional attributes that
+  were not requested. This lets an account require only a subset of the
+  subject, for example just the Common Name via REQUIRE SUBJECT '/CN=myclient'.
+
+  The certificate side is compared through the structured X509_NAME rather than
+  its X509_NAME_oneline() string, which avoids the ambiguity of that legacy
+  representation when an attribute value itself contains '/' or '='. (The
+  required string is still split on '/'; a required value must therefore not
+  contain '/'.)
+
+  @param required     Required subject attributes (from REQUIRE SUBJECT).
+  @param actual_name  Subject name of the presented client certificate.
+
+  @retval true   Every required attribute is present with a matching value.
+  @retval false  A required attribute is missing, has a different value, is
+                 malformed, or names an unrecognised attribute type.
+*/
+static bool x509_subject_is_subset(const char *required,
+                                   X509_NAME *actual_name) {
+  for (const char *p = required; *p;) {
+    if (*p == '/') {
+      ++p;
+      continue;
+    }
+    // One "attribute=value" component, terminated by '/' or end of string.
+    const char *comp_start = p;
+    while (*p && *p != '/') ++p;
+    const char *comp_end = p;
+
+    // Split the component at the first '='.
+    const char *eq = comp_start;
+    while (eq < comp_end && *eq != '=') ++eq;
+    if (eq == comp_end) return false;  // malformed: no '=' in the component
+
+    const std::string attr(comp_start, eq - comp_start);
+    const std::string value(eq + 1, comp_end - (eq + 1));
+
+    const int nid = OBJ_txt2nid(attr.c_str());
+    if (nid == NID_undef) return false;  // unrecognised attribute type
+
+    // Look for an entry of this type whose value matches.
+    bool found = false;
+    for (int idx = X509_NAME_get_index_by_NID(actual_name, nid, -1);
+         idx >= 0 && !found;
+         idx = X509_NAME_get_index_by_NID(actual_name, nid, idx)) {
+      X509_NAME_ENTRY *entry = X509_NAME_get_entry(actual_name, idx);
+      ASN1_STRING *data = X509_NAME_ENTRY_get_data(entry);
+      unsigned char *utf8 = nullptr;
+      const int len = ASN1_STRING_to_UTF8(&utf8, data);
+      if (len >= 0) {
+        if (static_cast<size_t>(len) == value.length() &&
+            memcmp(utf8, value.data(), len) == 0)
+          found = true;
+        OPENSSL_free(utf8);
+      }
+    }
+    if (!found) return false;
+  }
+  return true;
+}
+
 static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
   Vio *vio = thd->get_protocol_classic()->get_vio();
   SSL *ssl = (SSL *)vio->ssl_arg;
@@ -2538,7 +2610,19 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
             const_cast<X509_NAME *>(X509_get_subject_name(cert)), nullptr, 0);
         DBUG_PRINT("info", ("comparing subjects: '%s' and '%s'",
                             acl_user->x509_subject, ptr));
-        if (strcmp(acl_user->x509_subject, ptr)) {
+        /*
+          By default the required subject must match the certificate subject
+          exactly. When partial_subject_match is enabled the check is relaxed
+          to a subset match, so that specifying only a subset of the subject
+          attributes (for example REQUIRE SUBJECT '/CN=myclient') succeeds as
+          long as those attributes are present in the certificate subject.
+        */
+        const bool subject_mismatch =
+            partial_subject_match
+                ? !x509_subject_is_subset(acl_user->x509_subject,
+                                          X509_get_subject_name(cert))
+                : (strcmp(acl_user->x509_subject, ptr) != 0);
+        if (subject_mismatch) {
           LogErr(INFORMATION_LEVEL, ER_X509_SUBJECT_MISMATCH,
                  acl_user->x509_subject, ptr);
           OPENSSL_free(ptr);
