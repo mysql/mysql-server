@@ -90,6 +90,10 @@ struct mysql_event_tracking_connection_data {
         - 5 Shared memory
   */
   int connection_type;
+  /** Client TCP port number. */
+  unsigned int port;
+  /** TLS version used for this connection. */
+  mysql_cstring_with_length tls_version;
 };
 
 #endif  // !COMPONENTS_SERVICES_DEFS_EVENT_TRACKING_CONNECTION_DEFS_H
