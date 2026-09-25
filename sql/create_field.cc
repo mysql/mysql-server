@@ -617,6 +617,9 @@ bool Create_field::init_from_type_descriptor(THD *thd,
             fd->m_default_val_expr, fd->m_fld_masking_policy, fd->m_srid,
             fd->m_hidden, fd->m_is_array);
 
+fprintf(stderr, "Create_field::init_from_type_descriptor() name %s, charset %s\n",
+ field_name_arg, charset ? charset->csname : "none");
+
   m_type_is_resolved = true;
   m_type_ident = td->m_type_ident;
 

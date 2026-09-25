@@ -380,15 +380,18 @@ static void convert_type_descriptor(const mysql_type_descriptor_t *from,
   // FIXME: how/if to expose charset from component
   if (from->mysql_type == MYSQL_FIELD_TYPE_BLOB) {
     to->m_charset = &my_charset_bin;
+    to->m_has_explicit_collation = false;
   } else if (from->mysql_type == MYSQL_FIELD_TYPE_VARCHAR) {
     to->m_charset = &my_charset_utf8mb4_0900_ai_ci;
+    to->m_has_explicit_collation = true;
   } else if (from->mysql_type == MYSQL_FIELD_TYPE_STRING) {
     to->m_charset = &my_charset_utf8mb4_0900_ai_ci;
+    to->m_has_explicit_collation = true;
   } else {
     to->m_charset = from->charset;
+    to->m_has_explicit_collation = false;
   }
 
-  to->m_has_explicit_collation = from->has_explicit_collation;
   // to->m_geo_type = from->mysql_type;
   // to->m_internal_list = from->mysql_type;
   // to->m_type_ident = from->type_ident;
@@ -399,7 +402,8 @@ Item_udt_func::Item_udt_func(const POS &pos, udt_function_record *udt_function,
     : Item_func(pos, opt_list), m_udt_function(udt_function) {}
 
 bool Item_udt_func::do_itemize(Parse_context *pc, Item **res) {
-  fprintf(stderr, "Item_udt_func::do_itemize()\n");
+  fprintf(stderr, "Item_udt_func::do_itemize(%p)\n", this);
+
   if (super::do_itemize(pc, res)) {
     return true;
   }
@@ -407,27 +411,77 @@ bool Item_udt_func::do_itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool Item_udt_func::resolve_type_inner(THD *thd) {
-  fprintf(stderr, "Item_udt_func::resolve_type_inner()\n");
+bool Item_udt_func::fix_fields(THD *thd, Item **ref) {
+  fprintf(stderr, "Item_udt_func::fix_fields(%p)\n", this);
 
-  const mysql_type_descriptor_t *td = m_udt_function->fd->return_type;
-  auto td2 = static_cast<enum_field_types>(td->mysql_type);
+  result_field = create_result_field(thd);
 
-  // FIXME: see Item_func_sp::resolve_type()
-  set_data_type(td2);
-
-  // FIXME: Create Field for return type
-  m_return_field = create_result_field(thd);
-
-  if (m_return_field == nullptr) {
+  if (result_field == nullptr) {
     return true;
   }
+
+  return super::fix_fields(thd, ref);
+}
+
+bool Item_udt_func::resolve_type_inner(THD *thd) {
+  fprintf(stderr, "Item_udt_func::resolve_type_inner(%p)\n", this);
+
+  return false;
+}
+
+bool Item_udt_func::propagate_type(THD *thd, const Type_properties &type) {
+  fprintf(stderr, "Item_udt_func::propagate_type(%p)\n", this);
+  return super::propagate_type(thd, type);
+}
+
+bool Item_udt_func::resolve_type(THD *thd) {
+  fprintf(stderr, "Item_udt_func::resolve_type(%p)\n", this);
+
+  assert(result_field);
+
+  switch(result_field->type()) {
+    case MYSQL_TYPE_VARCHAR:
+      // set_data_type_string(result_field->field_length, result_field->charset());
+      set_data_type_string(20, result_field->charset());
+      break;
+    case MYSQL_TYPE_BLOB:
+      set_data_type_blob(result_field->type(), result_field->field_length);
+      break;
+    default:
+      set_data_type(result_field->type());
+      decimals = result_field->decimals();
+      collation.set(result_field->charset());
+      max_length = result_field->field_length;
+      unsigned_flag = result_field->is_flag_set(UNSIGNED_FLAG);
+      break;
+  }
+
+  set_nullable(true);
+
+  const CHARSET_INFO *cs = result_field->charset();
+  const char *csname = cs ? cs->csname : "none";
+
+  fprintf(stderr, "Item_udt_func::resolve_type(%p)\n", this);
+  fprintf(stderr, " - (f) type: %d\n", result_field->type());
+  fprintf(stderr, " - (f) decimals: %d\n", result_field->decimals());
+  fprintf(stderr, " - (f) max_length: %d\n", result_field->field_length);
+  fprintf(stderr, " - (f) csname: %s\n", csname);
+  fprintf(stderr, " - (f) binary: %s\n", result_field->binary() ? "yes" : "no");
+
+  cs = collation.collation;
+  csname = cs ? cs->csname : "none";
+
+  fprintf(stderr, " - (i) type: %d\n", type());
+  fprintf(stderr, " - (i) decimals: %d\n", decimals);
+  fprintf(stderr, " - (i) max_length: %d\n", max_length);
+  fprintf(stderr, " - (i) csname: %s\n", csname);
 
   return false;
 }
 
 // See sp_head::create_result_field()
 Field *Item_udt_func::create_result_field(THD *thd) {
+  fprintf(stderr, "Item_udt_func::create_result_field(%p)\n", this);
   bool rc;
 
   // Forge dummy table
@@ -440,7 +494,7 @@ Field *Item_udt_func::create_result_field(THD *thd) {
   convert_type_descriptor(td, &td2);
 
   FieldDescriptor fd;
-  const char *field_name = "dummy";
+  const char *field_name = m_udt_function->fd->name;
   rc = m_return_field_def.init_from_type_descriptor(thd, field_name, &td2, &fd);
 
   if (rc) {
@@ -468,6 +522,12 @@ Field *Item_udt_func::create_result_field(THD *thd) {
   field->init(&m_table);
 
   assert(field->pack_length() == m_return_field_def.pack_length());
+
+  const CHARSET_INFO *cs = field->charset();
+  const char *csname = cs ? cs->csname : "none";
+
+  fprintf(stderr, "Item_udt_func::create_result_field(%p) field %s, csname = %s, flag = %d\n",
+    this, field_name, csname, field->all_flags());
 
   return field;
 }
@@ -531,8 +591,8 @@ type_conversion_status Item_udt_func::save_in_field_inner(
 
 bool Item_udt_func::execute() {
   fprintf(stderr, "Item_udt_func::execute()\n");
-  assert(m_return_field != nullptr);
-  return evaluate_to_field(m_return_field);
+  assert(result_field != nullptr);
+  return evaluate_to_field(result_field);
 }
 
 bool Item_udt_func::evaluate_to_field(Field *field) {
@@ -602,9 +662,13 @@ String *Item_udt_func::val_str(String *str) {
     return nullptr;
   }
 
-  String *result = m_return_field->val_str(str);
-  fprintf(stderr, "Item_udt_func::val_str() end with value %s\n",
-          result == nullptr ? "NULL" : result->c_ptr());
+  String *result = result_field->val_str(str);
+  if (result != nullptr) {
+  fprintf(stderr, "Item_udt_func::val_str() end with value %s, length %ld, csname %s\n",
+          result->c_ptr(),
+          result->length(),
+          result->charset()->csname);
+  }
   return result;
 }
 

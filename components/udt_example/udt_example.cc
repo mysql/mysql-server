@@ -46,7 +46,7 @@ const char *component_name = "udt_example";
 struct mysql_type_descriptor_t VARCHAR_TYPE_DESCRIPTOR = {
     MYSQL_FIELD_TYPE_VARCHAR,  // mysql_type
     0,                         // type_flags
-    80,                        // length
+    20,                        // length
     0,                         // decimals
     nullptr,                   // charset
     false,                     // has_explicit_collation

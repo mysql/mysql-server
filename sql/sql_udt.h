@@ -45,7 +45,13 @@ class Item_udt_func : public Item_func {
 
   bool do_itemize(Parse_context *pc, Item **res) override;
 
+  bool fix_fields(THD *, Item **ref) override;
+
   bool resolve_type_inner(THD *thd) override;
+
+  bool propagate_type(THD *thd, const Type_properties &type) override;
+
+  bool resolve_type(THD *thd) override;
 
   double val_real() override;
   longlong val_int() override;
@@ -74,7 +80,7 @@ class Item_udt_func : public Item_func {
 
   Create_field m_return_field_def;
 
-  Field *m_return_field{nullptr};
+  // Field *m_return_field{nullptr};
 };
 
 void udt_init_globals();
