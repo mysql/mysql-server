@@ -24,6 +24,7 @@
 #ifndef SQL_DELETE_INCLUDED
 #define SQL_DELETE_INCLUDED
 
+#include "my_base.h"  // ha_rows
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
 #include "sql/sql_cmd_dml.h"  // Sql_cmd_dml
@@ -37,8 +38,11 @@ class SQL_I_List;
 
 class Sql_cmd_delete final : public Sql_cmd_dml {
  public:
-  Sql_cmd_delete(bool multitable_arg, SQL_I_List<Table_ref> *delete_tables_arg)
-      : multitable(multitable_arg), delete_tables(delete_tables_arg) {}
+  Sql_cmd_delete(bool multitable_arg, SQL_I_List<Table_ref> *delete_tables_arg,
+                 bool returning_arg = false)
+      : multitable(multitable_arg), delete_tables(delete_tables_arg) {
+    m_returning = returning_arg;
+  }
 
   enum_sql_command sql_command_code() const override {
     return multitable ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE;
@@ -58,6 +62,31 @@ class Sql_cmd_delete final : public Sql_cmd_dml {
 
  private:
   bool delete_from_single_table(THD *thd);
+
+  /**
+    Send the column definitions of the RETURNING result set to the client.
+    Must be called before the first row is sent.
+
+    @param thd thread handler
+
+    @returns false if success, true if error
+  */
+  bool send_returning_metadata(THD *thd);
+
+  /**
+    Report successful completion of the statement to the client: end-of-file
+    terminating the RETURNING result set, or an OK packet for a plain DELETE.
+
+    @param thd           thread handler
+    @param deleted_rows  number of deleted rows
+    @param send_metadata send the RETURNING column definitions first. Needed
+                         when the statement completes without having sent any
+                         row, so that the client sees an empty result set.
+
+    @returns false if success, true if error
+  */
+  bool send_delete_completed(THD *thd, ha_rows deleted_rows,
+                             bool send_metadata);
 
   bool multitable;
   /**

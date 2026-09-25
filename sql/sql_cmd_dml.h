@@ -103,13 +103,18 @@ class Sql_cmd_dml : public Sql_cmd {
   /// Signal that DML statement can have dynamic parameters
   bool are_dynamic_parameters_allowed() const final { return true; }
 
+  /// @return true if statement has a RETURNING clause, and thus produces a
+  /// result set instead of an OK packet
+  bool has_returning() const { return m_returning; }
+
  protected:
   Sql_cmd_dml()
       : Sql_cmd(),
         lex(nullptr),
         result(nullptr),
         m_empty_query(false),
-        m_lazy_result(false) {}
+        m_lazy_result(false),
+        m_returning(false) {}
 
   /// @return true if query is guaranteed to return no data
   /**
@@ -223,6 +228,7 @@ class Sql_cmd_dml : public Sql_cmd {
   Query_result *result;  ///< Pointer to object for handling of the result
   bool m_empty_query;    ///< True if query will produce no rows
   bool m_lazy_result;    ///< True: prepare query result on next execution
+  bool m_returning;      ///< True if statement has a RETURNING clause
 };
 
 #endif /* SQL_CMD_DML_INCLUDED */
