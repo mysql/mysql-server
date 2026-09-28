@@ -1,0 +1,59 @@
+--echo #
+--echo # Bug#120911 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120911 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120911;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (c0 DOUBLE,c1 TINYINT);
+INSERT INTO t0 (c0,c1) VALUES (2.1498754579837528e+29,69),(6.072842930493321e+29,126),(NULL,0),(0,0),(NULL,0),(0,NULL),(0,0),(3.939572903036893e+29,119),(0,NULL),(8.41717808718879e+29,88),(4.585345453702677e+29,17),(0,NULL),(0,0),(0,0),(NULL,NULL),(4.550116764513005e+29,112),(-6.0833392788278086e+29,15);
+CREATE VIEW v0 AS SELECT SIGN(c1) AS vc_0,SUM(c0) AS vc_1 FROM t0 GROUP BY vc_0 HAVING COUNT(DISTINCT c0)>=0;
+SET SESSION optimizer_switch='derived_condition_pushdown=on';
+--sorted_result
+SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND vc_0<>0;
+PREPARE regression_stmt FROM 'SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND vc_0<>0;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT * FROM v0 WHERE vc_0<>0 AND vc_1=2.363159231809063e+30;
+--sorted_result
+SELECT * FROM v0 WHERE NOT NOT (vc_1=2.363159231809063e+30 AND vc_0<>0);
+--sorted_result
+SELECT * FROM v0 WHERE NOT (NOT (vc_1=2.363159231809063e+30) OR NOT (vc_0<>0));
+--sorted_result
+SELECT * FROM v0 WHERE CASE WHEN (vc_1=2.363159231809063e+30 AND vc_0<>0) THEN (vc_1=2.363159231809063e+30 AND vc_0<>0) ELSE (vc_1=2.363159231809063e+30 AND vc_0<>0) END;
+--sorted_result
+SELECT * FROM v0 WHERE (((vc_1=2.363159231809063e+30 AND vc_0<>0) OR NOT (vc_1=2.363159231809063e+30 AND vc_0<>0)) OR (vc_1=2.363159231809063e+30 AND vc_0<>0) IS NULL) AND (vc_1=2.363159231809063e+30 AND vc_0<>0);
+--sorted_result
+SELECT * FROM v0 WHERE (((vc_1=2.363159231809063e+30 AND vc_0<>0) AND NOT (vc_1=2.363159231809063e+30 AND vc_0<>0)) AND (vc_1=2.363159231809063e+30 AND vc_0<>0) IS NOT NULL) OR (vc_1=2.363159231809063e+30 AND vc_0<>0);
+--sorted_result
+SELECT * FROM v0 WHERE NOT (NOT (vc_1=2.363159231809063e+30 AND vc_0<>0));
+--sorted_result
+SELECT q.vc_0, q.vc_1 FROM (SELECT vc_0, vc_1, vc_1=2.363159231809063e+30 AND vc_0<>0 AS keep_row FROM v0) AS q WHERE q.keep_row;
+--sorted_result
+SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND vc_0<>0 AND vc_0 IS NOT NULL UNION ALL SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND vc_0<>0 AND vc_0 IS NULL;
+--sorted_result
+SELECT d.vc_0, d.vc_1 FROM (SELECT SIGN(c1) AS vc_0, SUM(c0) AS vc_1 FROM t0 GROUP BY vc_0 HAVING COUNT(DISTINCT c0)>=0) AS d WHERE d.vc_1=2.363159231809063e+30 AND d.vc_0<>0;
+--sorted_result
+SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND CASE WHEN vc_0<>0 THEN vc_0<>0 ELSE vc_0<>0 END;
+USE test;
+DROP DATABASE bug_120911;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
