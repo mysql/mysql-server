@@ -618,3 +618,76 @@ SELECT COUNT(*) FROM t WHERE COALESCE(a, b, c, d);
 SELECT COUNT(*) FROM t WHERE COALESCE(d, c, b, a);
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#120854: Wrong result with COALESCE(YEAR, 0), arithmetic and
+--echo # window function in VIEW/CTE
+--echo #
+CREATE TABLE t0 (c2 YEAR);
+INSERT INTO t0 VALUES (2075);
+CREATE VIEW v0 AS SELECT COALESCE(c2, 0) AS vc FROM t0;
+SELECT vc / 2 AS r, COUNT(*) OVER () AS cnt FROM v0;
+PREPARE ps FROM
+  'SELECT vc / 2 AS r, COUNT(*) OVER () AS cnt FROM v0';
+EXECUTE ps;
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+SELECT vc / 2 AS r, COUNT(1) OVER () AS cnt FROM v0;
+SELECT vc / 2 AS r, (SELECT COUNT(*) FROM v0) AS cnt FROM v0;
+SELECT vc / 2 AS r, COUNT(*) OVER () AS cnt
+FROM (SELECT COALESCE(c2, 0) AS vc FROM t0) AS d;
+SELECT vc / 2 AS r, COUNT(CASE WHEN 1 = 1 THEN 1 END) OVER () AS cnt
+FROM v0;
+WITH d AS (SELECT COALESCE(c2, 0) AS vc FROM t0)
+SELECT vc / 2 AS r, COUNT(*) OVER () AS cnt FROM d;
+SELECT vc / 2 AS r, COUNT(vc) OVER () AS cnt FROM v0;
+WITH d AS (SELECT vc FROM v0)
+SELECT d.vc / 2 AS r, COUNT(*) OVER () AS cnt FROM d;
+SELECT d.vc / 2 AS r, COUNT(*) OVER () AS cnt
+FROM (SELECT COALESCE(c2, 0) AS vc FROM t0) AS d;
+DROP VIEW v0;
+DROP TABLE t0;
+--echo # Unsigned integer operands must retain all digits in signed results.
+CREATE TABLE t0 (c2 TINYINT UNSIGNED);
+INSERT INTO t0 VALUES (255);
+CREATE VIEW v0 AS SELECT COALESCE(c2, 0) AS vc FROM t0;
+SELECT vc / 2 AS r, COUNT(*) OVER () AS cnt FROM v0;
+DROP VIEW v0;
+DROP TABLE t0;
+CREATE TABLE t1 (
+  id INT, y YEAR, t TINYINT UNSIGNED, s SMALLINT UNSIGNED,
+  m MEDIUMINT UNSIGNED, i INT UNSIGNED, b BIGINT UNSIGNED, k BIT(8)
+);
+INSERT INTO t1 VALUES
+  (1, 2155, 255, 65535, 16777215, 4294967295, 18446744073709551615, 255),
+  (2, 0, 0, 0, 0, 0, 0, 0),
+  (3, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+CREATE VIEW v1 AS
+SELECT id, COALESCE(y, -1) AS y, COALESCE(t, -1) AS t,
+       COALESCE(s, -1) AS s, COALESCE(m, -1) AS m,
+       COALESCE(i, -1) AS i, COALESCE(b, -1) AS b, COALESCE(k, -1) AS k
+FROM t1;
+SELECT y / 2 AS y, t / 2 AS t, s / 2 AS s, m / 2 AS m,
+       i / 2 AS i, b / 2 AS b, k / 2 AS k, COUNT(*) OVER () AS cnt
+FROM v1 ORDER BY id;
+PREPARE ps FROM
+  'SELECT y / 2 AS y, t / 2 AS t, s / 2 AS s, m / 2 AS m,
+          i / 2 AS i, b / 2 AS b, k / 2 AS k, COUNT(*) OVER () AS cnt
+   FROM v1 ORDER BY id';
+EXECUTE ps;
+EXECUTE ps;
+DELETE FROM t1 WHERE id = 1;
+EXECUTE ps;
+DELETE FROM t1;
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+DROP VIEW v1;
+--echo # Cover other mixed-sign expressions, operand order and wider operands.
+INSERT INTO t1 (id, t) VALUES (1, 255), (2, NULL);
+SELECT COALESCE(t, -1) / 2 AS c, IFNULL(t, -1) / 2 AS n,
+       IF(t IS NULL, -1, t) / 2 AS f,
+       (CASE WHEN t IS NULL THEN -1 ELSE t END) / 2 AS e,
+       COALESCE(NULLIF(id, id), t, -1) / 2 AS r,
+       COALESCE(t, -10000) / 2 AS w, COUNT(*) OVER () AS cnt
+FROM t1 ORDER BY id;
+DROP TABLE t1;

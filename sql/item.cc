@@ -673,10 +673,16 @@ bool Item::aggregate_type(const char *name, Item **items, uint count) {
   if (mixed_signs && is_integer_type(new_type)) {
     bool bump_range = false;
     new_unsigned = false;
-    for (uint i = 0; i < count; i++)
+    for (uint i = 0; i < count; i++) {
       bump_range |= (items[i]->unsigned_flag &&
                      (items[i]->data_type() == new_type ||
                       items[i]->data_type() == MYSQL_TYPE_BIT));
+      // Retain all unsigned digits when the result becomes signed, since
+      // decimal_precision() reserves one character for the sign.
+      if (items[i]->unsigned_flag && new_length == items[i]->max_length) {
+        new_length++;
+      }
+    }
     if (bump_range) {
       switch (new_type) {
         case MYSQL_TYPE_TINY:
