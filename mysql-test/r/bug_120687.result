@@ -1,0 +1,111 @@
+#
+# Bug#120687 Regression coverage
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120687 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120687;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (j JSON,KEY idate((CAST(j->'$[*]' AS DATE ARRAY))),KEY idt((CAST(j->'$[*]' AS DATETIME ARRAY))));
+INSERT INTO t VALUES ('["2001-01-01 12:34:56"]'),('["2001-01-02 00:00:00"]');
+SELECT COUNT(*) AS cnt FROM t WHERE '2001-01-01 00:00:00' MEMBER OF (j->'$[*]');
+cnt
+0
+PREPARE regression_stmt FROM 'SELECT COUNT(*) AS cnt FROM t WHERE ''2001-01-01 00:00:00'' MEMBER OF (j->''$[*]'');';
+EXECUTE regression_stmt;
+cnt
+0
+EXECUTE regression_stmt;
+cnt
+0
+DEALLOCATE PREPARE regression_stmt;
+SELECT COUNT(*) AS cnt FROM t WHERE NOT NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]'));
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE NOT (NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) OR NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')));
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE NOT (NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) AND NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')));
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE CASE WHEN ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) THEN ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) ELSE ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) END;
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE ((('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) OR NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]'))) OR ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) IS NULL) AND ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]'));
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE ((('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) AND NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]'))) AND ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) IS NOT NULL) OR ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]'));
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE NOT (NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')));
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE (((('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) OR NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]'))) OR ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) IS NULL) AND ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')));
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE (('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) AND ((('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) OR NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]'))) OR ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) IS NULL));
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE (('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) OR ((('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) AND NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]'))) AND ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) IS NOT NULL));
+cnt
+0
+SELECT COUNT(*) AS cnt FROM t WHERE (((('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) AND NOT ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]'))) AND ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')) IS NOT NULL) OR ('2001-01-01 00:00:00' MEMBER OF (j->'$[*]')));
+cnt
+0
+USE test;
+DROP DATABASE bug_120687;
+CREATE DATABASE bug_120687 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120687;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (id INT PRIMARY KEY,j JSON,KEY kd((CAST(j AS DATE ARRAY))));
+INSERT INTO t VALUES (1,'["2001-01-01"]'),(2,'["2001-01-01 12:34:56"]'),(3,'[]'),(4,NULL);
+SELECT id FROM t WHERE NULL MEMBER OF(j);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t WHERE NULL MEMBER OF(j);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t WHERE '2001-01-01' MEMBER OF(j);
+id
+1
+PREPARE regression_stmt FROM 'SELECT id FROM t WHERE ''2001-01-01'' MEMBER OF(j);';
+EXECUTE regression_stmt;
+id
+1
+EXECUTE regression_stmt;
+id
+1
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t WHERE '2001-01-01 12:34:56' MEMBER OF(j);
+id
+2
+PREPARE regression_stmt FROM 'SELECT id FROM t WHERE ''2001-01-01 12:34:56'' MEMBER OF(j);';
+EXECUTE regression_stmt;
+id
+2
+EXECUTE regression_stmt;
+id
+2
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120687;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
