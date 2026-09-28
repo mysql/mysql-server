@@ -3115,7 +3115,10 @@ type_conversion_status Field_new_decimal::store(
         errmsg.ptr(), field_name, da->current_row_for_condition());
     if (err == E_DEC_BAD_NUM) return store_value(&decimal_value);
     // Ensure that we always store something for virtual generated columns.
-    if (is_virtual_gcol()) (void)store_value(&decimal_value);
+    if (is_virtual_gcol() ||
+        (err == E_DEC_TRUNCATED &&
+         thd->check_for_truncated_fields == CHECK_FIELD_IGNORE))
+      (void)store_value(&decimal_value);
     return decimal_err_to_type_conv_status(err);
   }
 

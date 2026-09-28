@@ -1,0 +1,125 @@
+--echo #
+--echo # Bug#120994 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120994 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120994;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (c DECIMAL UNIQUE);
+CREATE TABLE t1 (c TEXT);
+INSERT INTO t0 VALUES (0);
+INSERT INTO t1 VALUES ('0a');
+--sorted_result
+SELECT 1 FROM t1 JOIN t0 ON t1.c = t0.c;
+PREPARE regression_stmt FROM 'SELECT 1 FROM t1 JOIN t0 ON t1.c = t0.c;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT 1 FROM t0 JOIN t1 ON t1.c = t0.c;
+--sorted_result
+SELECT 1 FROM t1 JOIN t0 ON NOT NOT (t1.c = t0.c);
+--sorted_result
+SELECT 1 FROM t1 WHERE EXISTS (SELECT 1 FROM t0 WHERE t1.c = t0.c);
+--sorted_result
+SELECT 1 FROM t1 JOIN (SELECT c FROM t0) AS derived_t0 ON t1.c = derived_t0.c;
+--sorted_result
+SELECT 1 FROM (SELECT t1.c = t0.c AS matches FROM t1 CROSS JOIN t0) AS pairs WHERE pairs.matches;
+--sorted_result
+SELECT 1 FROM t1 CROSS JOIN t0 WHERE t1.c = t0.c;
+--sorted_result
+SELECT 1 FROM t1 JOIN t0 ON CASE WHEN t1.c = t0.c THEN t1.c = t0.c ELSE t1.c = t0.c END;
+--sorted_result
+SELECT 1 FROM t1 JOIN t0 ON ((t1.c = t0.c OR NOT (t1.c = t0.c)) OR (t1.c = t0.c) IS NULL) AND (t1.c = t0.c);
+USE test;
+DROP DATABASE bug_120994;
+CREATE DATABASE bug_120994 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120994;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (c1 decimal(10,0) DEFAULT NULL,UNIQUE KEY i0(c1)) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO t0(c1) VALUES (8),(NULL);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE (COALESCE(NULL,'8h')) IN (t0.c1);
+PREPARE regression_stmt FROM 'SELECT t0.c1 FROM t0 WHERE (COALESCE(NULL,''8h'')) IN (t0.c1);';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE NOT (NOT ((COALESCE(NULL,'8h')) IN (t0.c1)));
+--sorted_result
+SELECT t0.c1 FROM t0 FORCE INDEX (i0) WHERE (COALESCE(NULL,'8h')) IN (t0.c1);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (t0.c1 = t0.c1);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (t0.c1 IS NULL OR t0.c1 IS NOT NULL);
+--sorted_result
+SELECT t0.c1 FROM t0 IGNORE INDEX (i0) WHERE (COALESCE(NULL,'8h')) IN (t0.c1);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (t0.c1 <=> t0.c1);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (t0.c1 IS NOT NULL OR t0.c1 IS NULL);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (t0.c1 IS NOT NULL);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (((COALESCE(NULL,'8h')) IN (t0.c1)) IS TRUE);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND NOT (t0.c1 IS NULL);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND NOT (((COALESCE(NULL,'8h')) IN (t0.c1)) IS NOT TRUE);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (t0.c1 IS NULL IS FALSE);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE CASE WHEN ((COALESCE(NULL,'8h')) IN (t0.c1)) THEN ((COALESCE(NULL,'8h')) IN (t0.c1)) ELSE ((COALESCE(NULL,'8h')) IN (t0.c1)) END;
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (t0.c1 IS NOT NULL IS TRUE);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE (((COALESCE(NULL,'8h')) IN (t0.c1)) OR NOT ((COALESCE(NULL,'8h')) IN (t0.c1)) OR (((COALESCE(NULL,'8h')) IN (t0.c1)) IS NULL)) AND ((COALESCE(NULL,'8h')) IN (t0.c1));
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (t0.c1 IS NULL IS NOT TRUE);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((((COALESCE(NULL,'8h')) IN (t0.c1)) AND NOT ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (((COALESCE(NULL,'8h')) IN (t0.c1)) IS NOT NULL)) OR ((COALESCE(NULL,'8h')) IN (t0.c1)));
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (t0.c1 <=> t0.c1) AND (t0.c1 IS NOT NULL);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (CASE WHEN t0.c1 IS NULL THEN FALSE ELSE TRUE END);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE ((COALESCE(NULL,'8h')) IN (t0.c1)) AND (CASE WHEN t0.c1 IS NOT NULL THEN TRUE ELSE FALSE END);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE COALESCE(NULL,'8h') IN (t0.c1);
+--sorted_result
+SELECT d.c1 FROM (SELECT t0.c1 FROM t0) AS d WHERE (COALESCE(NULL,'8h')) IN (d.c1);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE EXISTS (SELECT 1 WHERE (COALESCE(NULL,'8h')) IN (t0.c1));
+--sorted_result
+SELECT d.c1 FROM (SELECT t0.c1, (COALESCE(NULL,'8h') IN (t0.c1)) AS keep_row FROM t0) AS d WHERE d.keep_row;
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE CASE WHEN (COALESCE(NULL,'8h')) IN (t0.c1) THEN (COALESCE(NULL,'8h')) IN (t0.c1) ELSE (COALESCE(NULL,'8h')) IN (t0.c1) END;
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE (COALESCE(NULL,'8h') IN (t0.c1)) AND (t0.c1 IS NULL) UNION ALL SELECT t0.c1 FROM t0 WHERE (COALESCE(NULL,'8h') IN (t0.c1)) AND NOT (t0.c1 IS NULL) UNION ALL SELECT t0.c1 FROM t0 WHERE (COALESCE(NULL,'8h') IN (t0.c1)) AND ((t0.c1 IS NULL) IS NULL);
+--sorted_result
+SELECT t0.c1 FROM t0 WHERE (((COALESCE(NULL,'8h') IN (t0.c1)) OR NOT (COALESCE(NULL,'8h') IN (t0.c1)) OR (COALESCE(NULL,'8h') IN (t0.c1)) IS NULL) AND (COALESCE(NULL,'8h') IN (t0.c1)));
+USE test;
+DROP DATABASE bug_120994;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
