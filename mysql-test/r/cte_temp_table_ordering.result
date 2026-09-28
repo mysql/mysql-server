@@ -1,0 +1,963 @@
+#
+# Bug#120923 Wrong result with CTE, UNION ALL, GROUP BY, and COUNT()
+#
+CREATE TABLE a (b INT);
+# Original input and equivalent view
+INSERT INTO a VALUES (1), (NULL);
+WITH cte AS (
+SELECT b AS c FROM a UNION ALL SELECT b FROM a
+)
+SELECT c FROM cte WHERE c = 0
+UNION
+SELECT COUNT(c) FROM cte GROUP BY c;
+c
+0
+2
+PREPARE stmt FROM
+'WITH cte AS (
+  SELECT b AS c FROM a UNION ALL SELECT b FROM a
+)
+SELECT c FROM cte WHERE c = 0
+UNION
+SELECT COUNT(c) FROM cte GROUP BY c';
+EXECUTE stmt;
+c
+0
+2
+EXECUTE stmt;
+c
+0
+2
+CREATE VIEW v0 AS SELECT b AS c FROM a UNION ALL SELECT b FROM a;
+SELECT c FROM v0 WHERE c = 0
+UNION
+SELECT COUNT(c) FROM v0 GROUP BY c;
+c
+0
+2
+DROP VIEW v0;
+# Duplicate, distinct and NULL values
+TRUNCATE TABLE a;
+INSERT INTO a VALUES (1), (1), (2), (NULL), (0);
+WITH cte AS (
+SELECT b AS c FROM a UNION ALL SELECT b FROM a
+)
+SELECT c FROM cte WHERE c = 0
+UNION
+SELECT COUNT(c) FROM cte GROUP BY c;
+c
+0
+2
+4
+EXECUTE stmt;
+c
+0
+2
+4
+EXECUTE stmt;
+c
+0
+2
+4
+# Only NULL values
+TRUNCATE TABLE a;
+INSERT INTO a VALUES (NULL), (NULL);
+WITH cte AS (
+SELECT b AS c FROM a UNION ALL SELECT b FROM a
+)
+SELECT c FROM cte WHERE c = 0
+UNION
+SELECT COUNT(c) FROM cte GROUP BY c;
+c
+0
+EXECUTE stmt;
+c
+0
+EXECUTE stmt;
+c
+0
+# Empty input
+TRUNCATE TABLE a;
+WITH cte AS (
+SELECT b AS c FROM a UNION ALL SELECT b FROM a
+)
+SELECT c FROM cte WHERE c = 0
+UNION
+SELECT COUNT(c) FROM cte GROUP BY c;
+c
+EXECUTE stmt;
+c
+EXECUTE stmt;
+c
+DEALLOCATE PREPARE stmt;
+#
+# Shared CTE ORDER BY with LIMIT must retain the required sort
+#
+TRUNCATE TABLE a;
+INSERT INTO a VALUES (1), (2), (0);
+ANALYZE TABLE a;
+# ASC ordering and repeated prepared execution
+WITH cte AS (
+SELECT b FROM a UNION ALL SELECT b FROM a
+)
+SELECT b FROM cte WHERE b = 0
+UNION
+(SELECT b FROM cte ORDER BY b ASC LIMIT 1);
+b
+0
+PREPARE stmt FROM
+'WITH cte AS (
+  SELECT b FROM a UNION ALL SELECT b FROM a
+)
+SELECT b FROM cte WHERE b = 0
+UNION
+(SELECT b FROM cte ORDER BY b ASC LIMIT 1)';
+EXECUTE stmt;
+b
+0
+EXECUTE stmt;
+b
+0
+DEALLOCATE PREPARE stmt;
+# DESC ordering and repeated prepared execution
+WITH cte AS (
+SELECT b FROM a UNION ALL SELECT b FROM a
+)
+SELECT b FROM cte WHERE b = 2
+UNION
+(SELECT b FROM cte ORDER BY b DESC LIMIT 1);
+b
+2
+PREPARE stmt FROM
+'WITH cte AS (
+  SELECT b FROM a UNION ALL SELECT b FROM a
+)
+SELECT b FROM cte WHERE b = 2
+UNION
+(SELECT b FROM cte ORDER BY b DESC LIMIT 1)';
+EXECUTE stmt;
+b
+2
+EXECUTE stmt;
+b
+2
+DEALLOCATE PREPARE stmt;
+#
+# DISTINCT with ordered LIMIT must preserve sort feasibility
+#
+INSERT INTO a VALUES (NULL);
+# ASC distinct values from a duplicated, shared CTE
+WITH cte AS (
+SELECT b FROM a UNION ALL SELECT b FROM a
+)
+SELECT DISTINCT b FROM cte
+WHERE EXISTS (SELECT 1 FROM cte AS seed WHERE seed.b = 0)
+ORDER BY b ASC LIMIT 2;
+b
+NULL
+0
+# DESC distinct values from a duplicated, shared CTE
+WITH cte AS (
+SELECT b FROM a UNION ALL SELECT b FROM a
+)
+SELECT DISTINCT b FROM cte
+WHERE EXISTS (SELECT 1 FROM cte AS seed WHERE seed.b = 0)
+ORDER BY b DESC LIMIT 2;
+b
+2
+1
+DROP TABLE a;
+#
+# Bug#120842 Wrong result with CTE, DISTINCT, NULL vs empty string,
+# GROUP_CONCAT() and UNION
+#
+CREATE TABLE t0 (c0 CHAR(1), c3 INT);
+# Original input and equivalent view
+INSERT INTO t0 VALUES ('', 1), ('', 0), (NULL, 1);
+WITH cte AS (
+SELECT DISTINCT c0 AS vc_0, c3 AS vc_1 FROM t0
+)
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM cte
+WHERE vc_1 = 0 GROUP BY gk0
+UNION
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM cte
+WHERE vc_1 > 0 OR vc_0 = '' GROUP BY gk0;
+gk0	gc
+0	0
+1	1,1
+PREPARE stmt FROM
+'WITH cte AS (
+  SELECT DISTINCT c0 AS vc_0, c3 AS vc_1 FROM t0
+)
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM cte
+WHERE vc_1 = 0 GROUP BY gk0
+UNION
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM cte
+WHERE vc_1 > 0 OR vc_0 = '''' GROUP BY gk0';
+EXECUTE stmt;
+gk0	gc
+0	0
+1	1,1
+EXECUTE stmt;
+gk0	gc
+0	0
+1	1,1
+CREATE VIEW v0 AS SELECT DISTINCT c0 AS vc_0, c3 AS vc_1 FROM t0;
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM v0
+WHERE vc_1 = 0 GROUP BY gk0
+UNION
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM v0
+WHERE vc_1 > 0 OR vc_0 = '' GROUP BY gk0;
+gk0	gc
+0	0
+1	1,1
+DROP VIEW v0;
+# Duplicate, NULL and empty-string values
+TRUNCATE TABLE t0;
+INSERT INTO t0 VALUES
+('x', 2), ('', 1), ('', 0), (NULL, 2), (NULL, 1), ('', NULL), ('', 0);
+WITH cte AS (
+SELECT DISTINCT c0 AS vc_0, c3 AS vc_1 FROM t0
+)
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM cte
+WHERE vc_1 = 0 GROUP BY gk0
+UNION
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM cte
+WHERE vc_1 > 0 OR vc_0 = '' GROUP BY gk0;
+gk0	gc
+0	0
+1	1,1
+2	2,2
+NULL	NULL
+EXECUTE stmt;
+gk0	gc
+0	0
+1	1,1
+2	2,2
+NULL	NULL
+EXECUTE stmt;
+gk0	gc
+0	0
+1	1,1
+2	2,2
+NULL	NULL
+# Empty input
+TRUNCATE TABLE t0;
+WITH cte AS (
+SELECT DISTINCT c0 AS vc_0, c3 AS vc_1 FROM t0
+)
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM cte
+WHERE vc_1 = 0 GROUP BY gk0
+UNION
+SELECT vc_1 AS gk0, GROUP_CONCAT(vc_1) AS gc FROM cte
+WHERE vc_1 > 0 OR vc_0 = '' GROUP BY gk0;
+gk0	gc
+EXECUTE stmt;
+gk0	gc
+EXECUTE stmt;
+gk0	gc
+DEALLOCATE PREPARE stmt;
+DROP TABLE t0;
+#
+# Bug#120845 Wrong result with CTE, nested STDDEV_POP(),
+# GROUP BY and UNION
+#
+CREATE TABLE a (d INT, e INT);
+# Original input and equivalent view
+INSERT INTO a VALUES (0, 0), (NULL, NULL), (3, 0);
+WITH cte AS (
+SELECT d AS f, STDDEV_POP(e) AS g FROM a GROUP BY f
+)
+SELECT g, f FROM cte WHERE g = 0
+UNION
+SELECT g, STDDEV_POP(f) FROM cte GROUP BY g;
+g	f
+0	0
+0	1.5
+0	3
+NULL	NULL
+PREPARE stmt FROM
+'WITH cte AS (
+  SELECT d AS f, STDDEV_POP(e) AS g FROM a GROUP BY f
+)
+SELECT g, f FROM cte WHERE g = 0
+UNION
+SELECT g, STDDEV_POP(f) FROM cte GROUP BY g';
+EXECUTE stmt;
+g	f
+0	0
+0	1.5
+0	3
+NULL	NULL
+EXECUTE stmt;
+g	f
+0	0
+0	1.5
+0	3
+NULL	NULL
+CREATE VIEW v0 AS
+SELECT d AS f, STDDEV_POP(e) AS g FROM a GROUP BY f;
+SELECT g, f FROM v0 WHERE g = 0
+UNION
+SELECT g, STDDEV_POP(f) FROM v0 GROUP BY g;
+g	f
+0	0
+0	1.5
+0	3
+NULL	NULL
+DROP VIEW v0;
+# Grouping followed by ordering an aggregate in a UNION arm
+WITH cte AS (
+SELECT d AS f, STDDEV_POP(e) AS g FROM a GROUP BY f
+)
+SELECT g, f FROM cte WHERE g = 0
+UNION
+(SELECT g, STDDEV_POP(f) FROM cte GROUP BY g
+ORDER BY STDDEV_POP(f) LIMIT 100);
+g	f
+0	0
+0	1.5
+0	3
+NULL	NULL
+# Nonzero inner population standard deviation
+TRUNCATE TABLE a;
+INSERT INTO a VALUES (0, 0), (0, 2), (3, 0), (NULL, NULL);
+WITH cte AS (
+SELECT d AS f, STDDEV_POP(e) AS g FROM a GROUP BY f
+)
+SELECT g, f FROM cte WHERE g = 0
+UNION
+SELECT g, STDDEV_POP(f) FROM cte GROUP BY g;
+g	f
+0	0
+0	3
+1	0
+NULL	NULL
+EXECUTE stmt;
+g	f
+0	0
+0	3
+1	0
+NULL	NULL
+EXECUTE stmt;
+g	f
+0	0
+0	3
+1	0
+NULL	NULL
+# Only NULL values
+TRUNCATE TABLE a;
+INSERT INTO a VALUES (NULL, NULL), (NULL, NULL);
+WITH cte AS (
+SELECT d AS f, STDDEV_POP(e) AS g FROM a GROUP BY f
+)
+SELECT g, f FROM cte WHERE g = 0
+UNION
+SELECT g, STDDEV_POP(f) FROM cte GROUP BY g;
+g	f
+NULL	NULL
+EXECUTE stmt;
+g	f
+NULL	NULL
+EXECUTE stmt;
+g	f
+NULL	NULL
+# Empty input
+TRUNCATE TABLE a;
+WITH cte AS (
+SELECT d AS f, STDDEV_POP(e) AS g FROM a GROUP BY f
+)
+SELECT g, f FROM cte WHERE g = 0
+UNION
+SELECT g, STDDEV_POP(f) FROM cte GROUP BY g;
+g	f
+EXECUTE stmt;
+g	f
+EXECUTE stmt;
+g	f
+DEALLOCATE PREPARE stmt;
+DROP TABLE a;
+#
+# Materialized INTERSECT views must retain the required sort
+#
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES
+(1, 7), (1, 2), (1, 9), (1, 1), (2, 8), (2, 3), (2, 6);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2);
+CREATE TABLE t3 (b INT PRIMARY KEY);
+INSERT INTO t3 VALUES (1), (2), (3), (6), (7), (8), (9);
+CREATE ALGORITHM=TEMPTABLE VIEW v AS
+SELECT a, b FROM t1
+INTERSECT
+SELECT a, b FROM t1;
+SELECT v.b
+FROM t2
+JOIN v ON v.a = t2.a
+JOIN t3 ON t3.b = v.b
+WHERE t2.a = 1
+GROUP BY v.b
+ORDER BY v.b
+LIMIT 2;
+b
+1
+2
+DROP VIEW v;
+DROP TABLE t1, t2, t3;
+#
+# Unsupported composite-key reverse ranges must retain filesort
+#
+CREATE TABLE t1 (b INT NOT NULL, c INT NOT NULL);
+INSERT INTO t1
+WITH RECURSIVE n(b) AS (
+SELECT 0
+UNION ALL
+SELECT b + 1 FROM n WHERE b < 799
+)
+SELECT b, b FROM n;
+CREATE TABLE t2 (id INT PRIMARY KEY, k INT NOT NULL);
+INSERT INTO t2 VALUES (1, 195), (2, 196), (3, 197), (4, 220);
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b IN (10,20,30,40,50,60,70,80,90,100,
+110,120,130,140,150,160,170,180,190,200)
+AND c >= t2.k
+ORDER BY b DESC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_bc ON seed_bc.b = 0 AND seed_bc.c = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	200
+2	200
+3	200
+4	NULL
+# Multiple matching rows in the composite-key reverse range
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES (1, 5), (2, 55), (3, 195), (4, 220);
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b IN (10,20,30,40,50,60,70,80,90,100,
+110,120,130,140,150,160,170,180,190,200)
+AND c >= t2.k
+ORDER BY b DESC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_bc ON seed_bc.b = 0 AND seed_bc.c = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	200
+2	200
+3	200
+4	NULL
+#
+# Supported full-key ranges must retain their selected order
+#
+# ASC range replaces dynamic range optimization
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b IN (10,20,30,40,50,60,70,80,90,100,
+110,120,130,140,150,160,170,180,190,200)
+AND c >= t2.k
+ORDER BY b ASC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	10
+2	60
+3	200
+4	NULL
+# DESC range replaces dynamic range optimization
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b IN (10,20,30,40,50,60,70,80,90,100,
+110,120,130,140,150,160,170,180,190,200)
+AND c >= t2.k
+ORDER BY b DESC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	200
+2	200
+3	200
+4	NULL
+#
+# Unsupported strict lower bound uses table scan and filesort
+#
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b > 195
+AND b < 210
+AND c >= t2.k
+ORDER BY b ASC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	196
+2	196
+3	196
+4	NULL
+# Unsupported missing lower bound also uses table scan and filesort
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b < 210
+AND c >= t2.k
+ORDER BY b ASC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	5
+2	55
+3	195
+4	NULL
+# Supported inclusive lower bound retains its ordered range
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b >= 196
+AND b < 210
+AND c >= t2.k
+ORDER BY b ASC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	196
+2	196
+3	196
+4	NULL
+#
+# Ref access on c must retain filesort for ordering on b
+#
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES (1, 196), (2, 197), (3, 209), (4, 220);
+# Strict lower bound
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b > 195 AND b < 210
+AND c = t2.k
+ORDER BY b ASC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	196
+2	197
+3	209
+4	NULL
+PREPARE ref_stmt FROM
+'WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+       (SELECT b
+        FROM cte
+        WHERE b > 195 AND b < 210
+          AND c = t2.k
+        ORDER BY b ASC
+        LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+  ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id';
+EXECUTE ref_stmt;
+id	picked
+1	196
+2	197
+3	209
+4	NULL
+EXECUTE ref_stmt;
+id	picked
+1	196
+2	197
+3	209
+4	NULL
+DEALLOCATE PREPARE ref_stmt;
+# Missing lower bound
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b < 210
+AND c = t2.k
+ORDER BY b ASC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	196
+2	197
+3	209
+4	NULL
+# Inclusive lower bound
+WITH cte AS (SELECT b, c FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b >= 196 AND b < 210
+AND c = t2.k
+ORDER BY b ASC
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+ORDER BY t2.id;
+id	picked
+1	196
+2	197
+3	209
+4	NULL
+#
+# Range access on c must survive a rejected ordering range on b
+#
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 0;
+UPDATE t1 SET d = b;
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES (1, 5), (2, 55), (3, 195), (4, 220);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+WITH cte AS (SELECT b, c, d FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b < 210 AND c >= 10 AND d >= t2.k
+ORDER BY b
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+JOIN cte AS seed_d ON seed_d.d = 0
+ORDER BY t2.id;
+id	picked
+1	10
+2	55
+3	195
+4	NULL
+PREPARE range_stmt FROM
+'WITH cte AS (SELECT b, c, d FROM t1 LIMIT 100000)
+SELECT t2.id,
+       (SELECT b
+        FROM cte
+        WHERE b < 210 AND c >= 10 AND d >= t2.k
+        ORDER BY b
+        LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+  ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+JOIN cte AS seed_d ON seed_d.d = 0
+ORDER BY t2.id';
+EXECUTE range_stmt;
+id	picked
+1	10
+2	55
+3	195
+4	NULL
+EXECUTE range_stmt;
+id	picked
+1	10
+2	55
+3	195
+4	NULL
+DEALLOCATE PREPARE range_stmt;
+EXPLAIN FORMAT=JSON INTO @ordering_plan
+WITH cte AS (SELECT b, c, d FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE b < 210 AND c >= 10 AND d >= t2.k
+ORDER BY b
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT b FROM cte WHERE b = 1 LIMIT 1)
+JOIN cte AS seed_b ON seed_b.b = 0
+JOIN cte AS seed_c ON seed_c.c = 0
+JOIN cte AS seed_d ON seed_d.d = 0
+ORDER BY t2.id;
+Warnings:
+Note	1276	Field or reference 'test.t2.k' of SELECT #2 was resolved in SELECT #1
+SELECT JSON_SEARCH(@ordering_plan, 'one',
+'Index range scan on cte%over (10 <= c)',
+NULL, '$**.operation') IS NOT NULL AS range_on_c,
+JSON_SEARCH(@ordering_plan, 'one', 'Sort: cte.b%',
+NULL, '$**.operation') IS NOT NULL AS retains_sort;
+range_on_c	retains_sort
+1	1
+#
+# A composite equality prefix supplies a supported range start
+#
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES (1, 0), (2, 7), (3, 8), (4, 9);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+WITH cte AS (SELECT b AS a, c AS b, d FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE a = 7 AND b < 9 AND d >= t2.k
+ORDER BY b
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT a FROM cte WHERE a = 1 LIMIT 1)
+JOIN cte AS seed_ab ON seed_ab.a = 0 AND seed_ab.b = 0
+JOIN cte AS seed_d ON seed_d.d = 0
+ORDER BY t2.id;
+id	picked
+1	7
+2	7
+3	NULL
+4	NULL
+WITH cte AS (SELECT b AS a, c AS b, d FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE a IN (7, 8) AND b < 9 AND d >= t2.k
+ORDER BY b
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT a FROM cte WHERE a = 1 LIMIT 1)
+JOIN cte AS seed_ab ON seed_ab.a = 0 AND seed_ab.b = 0
+JOIN cte AS seed_d ON seed_d.d = 0
+ORDER BY t2.id;
+id	picked
+1	7
+2	7
+3	8
+4	NULL
+PREPARE prefix_stmt FROM
+'WITH cte AS (SELECT b AS a, c AS b, d FROM t1 LIMIT 100000)
+SELECT t2.id,
+       (SELECT b
+        FROM cte
+        WHERE a IN (7, 8) AND b < 9 AND d >= t2.k
+        ORDER BY b
+        LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+  ON lookup.id = (SELECT a FROM cte WHERE a = 1 LIMIT 1)
+JOIN cte AS seed_ab ON seed_ab.a = 0 AND seed_ab.b = 0
+JOIN cte AS seed_d ON seed_d.d = 0
+ORDER BY t2.id';
+EXECUTE prefix_stmt;
+id	picked
+1	7
+2	7
+3	8
+4	NULL
+EXECUTE prefix_stmt;
+id	picked
+1	7
+2	7
+3	8
+4	NULL
+DEALLOCATE PREPARE prefix_stmt;
+EXPLAIN FORMAT=JSON INTO @ordering_plan
+WITH cte AS (SELECT b AS a, c AS b, d FROM t1 LIMIT 100000)
+SELECT t2.id,
+(SELECT b
+FROM cte
+WHERE a IN (7, 8) AND b < 9 AND d >= t2.k
+ORDER BY b
+LIMIT 1) AS picked
+FROM t2
+JOIN t2 AS lookup
+ON lookup.id = (SELECT a FROM cte WHERE a = 1 LIMIT 1)
+JOIN cte AS seed_ab ON seed_ab.a = 0 AND seed_ab.b = 0
+JOIN cte AS seed_d ON seed_d.d = 0
+ORDER BY t2.id;
+Warnings:
+Note	1276	Field or reference 'test.t2.k' of SELECT #2 was resolved in SELECT #1
+SELECT JSON_SEARCH(@ordering_plan, 'one',
+'Index range scan on cte%over (a = 7 AND b < 9)%',
+NULL, '$**.operation') IS NOT NULL AS prefix_range;
+prefix_range
+1
+DROP TABLE t1, t2;
+#
+# Late ref-to-range conversion must validate reverse TempTable access
+#
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL);
+INSERT INTO t1
+WITH RECURSIVE n(i) AS (
+SELECT 0
+UNION ALL
+SELECT i + 1 FROM n WHERE i < 799
+)
+SELECT i DIV 100, MOD(i, 100), i FROM n;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+WHERE a = 7 AND b >= 2
+ORDER BY b DESC LIMIT 1) AS picked,
+(SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+(SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab;
+picked	seed_a	seed_ab
+99	0	0
+PREPARE late_range_stmt FROM
+'WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+        WHERE a = 7 AND b >= 2
+        ORDER BY b DESC LIMIT 1) AS picked,
+       (SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+       (SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab';
+EXECUTE late_range_stmt;
+picked	seed_a	seed_ab
+99	0	0
+EXECUTE late_range_stmt;
+picked	seed_a	seed_ab
+99	0	0
+DEALLOCATE PREPARE late_range_stmt;
+WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+WHERE a = 7 AND b >= 2 AND b < 90
+ORDER BY b DESC LIMIT 1) AS picked,
+(SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+(SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab;
+picked	seed_a	seed_ab
+89	0	0
+WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+WHERE a = 7 AND b >= 100
+ORDER BY b DESC LIMIT 1) AS picked,
+(SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+(SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab;
+picked	seed_a	seed_ab
+NULL	0	0
+WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+WHERE a = 7 AND b > 2
+ORDER BY b DESC LIMIT 1) AS picked,
+(SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+(SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab;
+picked	seed_a	seed_ab
+99	0	0
+WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+WHERE a = 7 AND b IN (2, 9, 99)
+ORDER BY b DESC LIMIT 1) AS picked,
+(SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+(SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab;
+picked	seed_a	seed_ab
+99	0	0
+WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+WHERE a = 7 AND b >= 2
+ORDER BY b ASC LIMIT 1) AS picked,
+(SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+(SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab;
+picked	seed_a	seed_ab
+2	0	0
+SET @save_late_optimizer_trace = @@optimizer_trace;
+SET @save_late_trace_memory = @@optimizer_trace_max_mem_size;
+SET optimizer_trace_max_mem_size = 1000000;
+SET optimizer_trace = 'enabled=on';
+EXPLAIN FORMAT=JSON INTO @late_range_plan
+WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+WHERE a = 7 AND b >= 2
+ORDER BY b DESC LIMIT 1) AS picked,
+(SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+(SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab;
+SELECT JSON_SEARCH(TRACE, 'one', 'unsupported TempTable reverse range',
+NULL, '$**.cause') IS NOT NULL AS rejected_late_range
+FROM information_schema.optimizer_trace;
+rejected_late_range
+1
+SELECT JSON_SEARCH(@late_range_plan, 'one',
+'Index lookup on cte% (a = 7) (reverse)',
+NULL, '$**.operation') IS NOT NULL AS keeps_reverse_ref;
+keeps_reverse_ref
+1
+SET optimizer_trace = @save_late_optimizer_trace;
+SET optimizer_trace_max_mem_size = @save_late_trace_memory;
+EXPLAIN FORMAT=JSON INTO @late_range_plan
+WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+WHERE a = 7 AND b IN (2, 9, 99)
+ORDER BY b DESC LIMIT 1) AS picked,
+(SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+(SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab;
+SELECT JSON_SEARCH(@late_range_plan, 'one',
+'Index range scan on cte% (reverse)',
+NULL, '$**.operation') IS NOT NULL AS supported_reverse_range;
+supported_reverse_range
+1
+EXPLAIN FORMAT=JSON INTO @late_range_plan
+WITH cte AS (SELECT a, b, c FROM t1 LIMIT 100000)
+SELECT (SELECT b FROM cte
+WHERE a = 7 AND b >= 2
+ORDER BY b ASC LIMIT 1) AS picked,
+(SELECT a FROM cte WHERE a = 0 LIMIT 1) AS seed_a,
+(SELECT a FROM cte WHERE a = 0 AND b = 0 LIMIT 1) AS seed_ab;
+SELECT JSON_SEARCH(@late_range_plan, 'one',
+'Index range scan on cte%over (a = 7 AND 2 <= b)',
+NULL, '$**.operation') IS NOT NULL AS supported_forward_range;
+supported_forward_range
+1
+DROP TABLE t1;
