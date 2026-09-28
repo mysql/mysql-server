@@ -673,10 +673,15 @@ bool Item::aggregate_type(const char *name, Item **items, uint count) {
   if (mixed_signs && is_integer_type(new_type)) {
     bool bump_range = false;
     new_unsigned = false;
-    for (uint i = 0; i < count; i++)
+    for (uint i = 0; i < count; i++) {
       bump_range |= (items[i]->unsigned_flag &&
                      (items[i]->data_type() == new_type ||
                       items[i]->data_type() == MYSQL_TYPE_BIT));
+      // A YEAR has four unsigned digits. Retain all four when the result is
+      // signed, since decimal_precision() reserves one character for its sign.
+      if (items[i]->data_type() == MYSQL_TYPE_YEAR)
+        new_length = max<uint32>(new_length, items[i]->max_length + 1);
+    }
     if (bump_range) {
       switch (new_type) {
         case MYSQL_TYPE_TINY:
