@@ -99,7 +99,7 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t wanted_length,
 
   m_allocated_size += length;
 
-  // Make the default block size 50% larger next time.
+  // Grow the default block size by 50% for the next allocation.
   // This ensures O(1) total mallocs (assuming Clear() is not called).
   if (!MEM_ROOT_SINGLE_CHUNKS) {
     m_block_size += m_block_size / 2;
