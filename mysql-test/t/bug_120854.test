@@ -1,0 +1,53 @@
+--echo #
+--echo # Bug#120854 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120854 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120854;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (c2 YEAR);
+INSERT INTO t0 VALUES (2075);
+CREATE VIEW v0 AS SELECT COALESCE(c2,0) AS vc FROM t0;
+CREATE TEMPORARY TABLE tmp AS SELECT COALESCE(c2,0) AS vc FROM t0;
+--sorted_result
+SELECT vc/2 AS r,COUNT(*) OVER () AS cnt FROM v0;
+PREPARE regression_stmt FROM 'SELECT vc/2 AS r,COUNT(*) OVER () AS cnt FROM v0;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT vc/2 AS r, COUNT(1) OVER () AS cnt FROM v0;
+--sorted_result
+SELECT vc/2 AS r, (SELECT COUNT(*) FROM v0) AS cnt FROM v0;
+--sorted_result
+SELECT vc/2 AS r, COUNT(*) OVER () AS cnt FROM (SELECT COALESCE(c2,0) AS vc FROM t0) AS d;
+--sorted_result
+SELECT vc/2 AS r, COUNT(CASE WHEN 1=1 THEN 1 END) OVER () AS cnt FROM v0;
+--sorted_result
+WITH d AS (SELECT COALESCE(c2,0) AS vc FROM t0) SELECT vc/2 AS r, COUNT(*) OVER () AS cnt FROM d;
+--sorted_result
+SELECT vc/2 AS r, COUNT(vc) OVER () AS cnt FROM v0;
+--sorted_result
+WITH d AS (SELECT vc FROM v0) SELECT d.vc/2 AS r, COUNT(*) OVER () AS cnt FROM d;
+--sorted_result
+SELECT d.vc/2 AS r, COUNT(*) OVER () AS cnt FROM (SELECT COALESCE(c2,0) AS vc FROM t0) AS d;
+USE test;
+DROP DATABASE bug_120854;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
