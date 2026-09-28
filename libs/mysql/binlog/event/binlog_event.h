@@ -691,22 +691,22 @@ class Log_event_header {
     Event type extracted from the header. In the server, it is decoded
     by read_log_event(), but adding here for complete decoding.
   */
-  Log_event_type type_code;
+  Log_event_type type_code{ENUM_END_EVENT};
 
   /*
     The server id read from the Binlog.
   */
-  unsigned int unmasked_server_id;
+  unsigned int unmasked_server_id{0};
 
   /* Length of an event, which will be written by write() function */
-  size_t data_written;
+  size_t data_written{0};
 
   /*
     The offset in the log where this event originally appeared (it is
     preserved in relay logs, making SHOW REPLICA STATUS able to print
     coordinates of the event in the master's binlog).
   */
-  unsigned long long log_pos;
+  unsigned long long log_pos{0};
 
   /*
     16 or less flags depending on the version of the binary log.
@@ -714,7 +714,7 @@ class Log_event_header {
     LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
     LOG_EVENT_SUPPRESS_USE_F for notes.
   */
-  uint16_t flags;
+  uint16_t flags{0};
 
   /**
     The following type definition is to be used whenever data is placed
@@ -724,12 +724,7 @@ class Log_event_header {
   typedef unsigned char Byte;
 
   explicit Log_event_header(Log_event_type type_code_arg = ENUM_END_EVENT)
-      : type_code(type_code_arg),
-        unmasked_server_id(0),
-        data_written(0),
-        log_pos(0),
-        flags(0),
-        m_is_valid(true) {
+      : type_code(type_code_arg), m_is_valid(true) {
     when.tv_sec = 0;
     when.tv_usec = 0;
   }

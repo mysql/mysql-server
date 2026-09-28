@@ -921,10 +921,7 @@ class Rows_event : public Binary_log_event {
       : Binary_log_event(type_arg),
         m_type(type_arg),
         m_table_id(0),
-        m_flags(0),
         m_width(0),
-        n_bits_len(0),
-        var_header_len(0),
         columns_before_image(0),
         columns_after_image(0),
         row(0) {}
@@ -957,16 +954,16 @@ class Rows_event : public Binary_log_event {
   // Maximum number of columns.
   static constexpr const int max_fields{4096};
 
-  Log_event_type m_type; /** Actual event type */
+  Log_event_type m_type{ENUM_END_EVENT}; /** Actual event type */
 
   /** Post header content */
   Table_id m_table_id;
-  uint16_t m_flags; /** Flags for row-level events */
+  uint16_t m_flags{0}; /** Flags for row-level events */
 
   /* Body of the event */
-  unsigned long m_width; /** The width of the columns bitmap */
-  uint32_t n_bits_len;   /** value determined by (m_width + 7) / 8 */
-  uint16_t var_header_len;
+  unsigned long m_width;  /** The width of the columns bitmap */
+  uint32_t n_bits_len{0}; /** value determined by (m_width + 7) / 8 */
+  uint16_t var_header_len{0};
 
   std::vector<uint8_t> columns_before_image;
   std::vector<uint8_t> columns_after_image;
