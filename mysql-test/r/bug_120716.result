@@ -1,0 +1,74 @@
+#
+# Bug#120716 Regression coverage
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120716 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120716;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE s (id BIGINT NOT NULL PRIMARY KEY) ENGINE=MEMORY;
+CREATE TABLE l (id BIGINT NOT NULL PRIMARY KEY) ENGINE=MEMORY;
+CREATE TABLE r (id BIGINT NOT NULL PRIMARY KEY) ENGINE=MEMORY;
+CREATE TABLE l_inn (id BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE r_inn (id BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM (SELECT l.id FROM l LEFT JOIN r ON l.id=r.id) AS dt;
+v
+NULL
+PREPARE regression_stmt FROM 'SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM (SELECT l.id FROM l LEFT JOIN r ON l.id=r.id) AS dt;';
+EXECUTE regression_stmt;
+v
+NULL
+EXECUTE regression_stmt;
+v
+NULL
+DEALLOCATE PREPARE regression_stmt;
+SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM l LEFT JOIN r ON l.id=r.id;
+v
+NULL
+SELECT MIN(EXISTS(SELECT 1 LIMIT 0)) AS v FROM (SELECT l.id FROM l LEFT JOIN r ON l.id=r.id) AS dt;
+v
+NULL
+SELECT MAX(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM (SELECT l.id FROM l LEFT JOIN r ON l.id=r.id) AS dt;
+v
+NULL
+SELECT MIN(EXISTS(SELECT 1 WHERE NOT (NOT FALSE))) AS v FROM (SELECT l.id FROM l LEFT JOIN r ON l.id=r.id) AS dt;
+v
+NULL
+SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM (SELECT l.id FROM l USE INDEX (PRIMARY) LEFT JOIN r USE INDEX (PRIMARY) ON l.id=r.id) AS dt;
+v
+NULL
+SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM (SELECT l.id FROM l) AS dt;
+v
+NULL
+SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM l LEFT JOIN r ON l.id = r.id;
+v
+NULL
+SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM (SELECT l.id FROM l LEFT JOIN r ON NOT NOT (l.id = r.id)) AS dt;
+v
+NULL
+SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM (SELECT l.id FROM l FORCE INDEX (PRIMARY) LEFT JOIN r ON l.id = r.id) AS dt;
+v
+NULL
+WITH dt AS (SELECT l.id FROM l LEFT JOIN r ON l.id = r.id) SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM dt;
+v
+NULL
+SELECT MIN(EXISTS(SELECT 1 WHERE FALSE)) AS v FROM (SELECT l.id FROM l LEFT JOIN r FORCE INDEX (PRIMARY) ON l.id = r.id) AS dt;
+v
+NULL
+USE test;
+DROP DATABASE bug_120716;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
