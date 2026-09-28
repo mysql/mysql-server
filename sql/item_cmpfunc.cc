@@ -8096,6 +8096,20 @@ float Item_func_eq::get_filtering_effect(THD *thd, table_map filter_for_table,
   return GetEqualSelectivity(thd, this, *fld, rows_in_table);
 }
 
+String *Item_func_any_value::val_str(String *str) {
+  assert(fixed);
+  if (data_type() != MYSQL_TYPE_FLOAT) return Item_func_coalesce::val_str(str);
+
+  // A FLOAT field uses FLOAT-specific formatting when read from a materialized
+  // table. Keep that representation when a condition is pushed down and its
+  // field reference is replaced by this expression.
+  null_value = false;
+  String *res = eval_string_arg(collation.collation, args[0], str);
+  if (current_thd->is_error()) return error_str();
+  null_value = args[0]->null_value;
+  return res;
+}
+
 bool Item_func_any_value::aggregate_check_group(uchar *arg) {
   Group_check *gc = reinterpret_cast<Group_check *>(arg);
   if (gc->is_stopped(this)) return false;

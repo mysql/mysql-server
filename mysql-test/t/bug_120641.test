@@ -1,0 +1,66 @@
+--echo #
+--echo # Bug#120641 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120641 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120641;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+SET SESSION optimizer_switch='subquery_to_derived=on,derived_merge=on,derived_condition_pushdown=on';
+CREATE TABLE src (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,c FLOAT NULL) ENGINE=InnoDB;
+INSERT INTO src(c) VALUES (790583485);
+CREATE TABLE l (id BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE r (id BIGINT NOT NULL PRIMARY KEY,c FLOAT NULL) ENGINE=InnoDB;
+INSERT INTO l(id) SELECT id FROM src;
+INSERT INTO r(id,c) SELECT id,c FROM src;
+--sorted_result
+SELECT 'split' AS query_type,COUNT(*) AS row_count FROM (SELECT l.id,(SELECT r.c FROM r WHERE r.id=l.id) AS c FROM l) AS s WHERE s.c NOT IN (+(IFNULL(s.c,'-762030035')));
+PREPARE regression_stmt FROM 'SELECT ''split'' AS query_type,COUNT(*) AS row_count FROM (SELECT l.id,(SELECT r.c FROM r WHERE r.id=l.id) AS c FROM l) AS s WHERE s.c NOT IN (+(IFNULL(s.c,''-762030035'')));';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT src.id, src.c FROM src) AS s WHERE s.c NOT IN (+(IFNULL(s.c, '-762030035')));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT l.id, r.c FROM l INNER JOIN r ON r.id = l.id) AS s WHERE s.c NOT IN (+(IFNULL(s.c, '-762030035')));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT l.id, (SELECT r.c FROM r WHERE r.id = l.id) AS c FROM l) AS s WHERE NOT (NOT (s.c NOT IN (+(IFNULL(s.c, '-762030035')))));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(CASE WHEN 1 = 1 THEN 1 END) AS row_count FROM (SELECT l.id, (SELECT r.c FROM r WHERE r.id = l.id) AS c FROM l) AS s WHERE s.c NOT IN (+(IFNULL(s.c, '-762030035')));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT l.id, (SELECT r.c FROM r FORCE INDEX (PRIMARY) WHERE r.id = l.id) AS c FROM l FORCE INDEX (PRIMARY)) AS s WHERE s.c NOT IN (+(IFNULL(s.c, '-762030035')));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT s.id, s.c, s.c NOT IN (+(IFNULL(s.c, '-762030035'))) AS keep_row FROM (SELECT l.id, (SELECT r.c FROM r WHERE r.id = l.id) AS c FROM l) AS s) AS filtered WHERE filtered.keep_row;
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT l.id, r.c AS c FROM l LEFT JOIN r ON r.id = l.id) AS s WHERE s.c NOT IN (+(IFNULL(s.c, '-762030035')));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(1) AS row_count FROM (SELECT l.id, (SELECT r.c FROM r WHERE r.id = l.id) AS c FROM l) AS s WHERE s.c NOT IN (+(IFNULL(s.c, '-762030035')));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT l.id, (SELECT r.c FROM r WHERE r.id = l.id) AS c FROM l) AS s WHERE NOT (s.c IN (+(IFNULL(s.c, '-762030035'))));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT l.id, (SELECT src.c FROM src WHERE src.id = l.id) AS c FROM l) AS s WHERE s.c NOT IN (+(IFNULL(s.c, '-762030035')));
+--sorted_result
+WITH s AS (SELECT l.id, (SELECT r.c FROM r WHERE r.id = l.id) AS c FROM l) SELECT 'split' AS query_type, COUNT(*) AS row_count FROM s WHERE s.c NOT IN (+(IFNULL(s.c, '-762030035')));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT l.id, (SELECT r.c FROM r FORCE INDEX (PRIMARY) WHERE r.id = l.id) AS c FROM l) AS s WHERE s.c NOT IN (+(IFNULL(s.c, '-762030035')));
+--sorted_result
+SELECT 'split' AS query_type, COUNT(*) AS row_count FROM (SELECT s.c, s.c NOT IN (+(IFNULL(s.c, '-762030035'))) AS keep_row FROM (SELECT l.id, (SELECT r.c FROM r WHERE r.id = l.id) AS c FROM l) AS s) AS p WHERE p.keep_row;
+USE test;
+DROP DATABASE bug_120641;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
