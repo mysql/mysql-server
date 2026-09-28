@@ -222,6 +222,19 @@ void hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink) {
   old_link->next_key = newlink;
 }
 
+/* Hash keys are stored in the same byte order as HEAP records. */
+static bool hp_float_zero(const HA_KEYSEG *seg, const uchar *value) {
+  if (seg->type == HA_KEYTYPE_FLOAT) return float4get(value) == 0.0f;
+  if (seg->type == HA_KEYTYPE_DOUBLE) return float8get(value) == 0.0;
+  return false;
+}
+
+static bool hp_hash_key_equal(const HA_KEYSEG *seg, const uchar *a,
+                              const uchar *b) {
+  return memcmp(a, b, seg->length) == 0 ||
+         (hp_float_zero(seg, a) && hp_float_zero(seg, b));
+}
+
 /* Calc hashvalue for a key */
 
 uint64 hp_hashnr(HP_KEYDEF *keydef, const uchar *key) {
@@ -278,6 +291,14 @@ uint64 hp_hashnr(HP_KEYDEF *keydef, const uchar *key) {
       }
       cs->coll->hash_sort(cs, pos + pack_length, length, &nr, &nr2);
       key += pack_length;
+    } else if (seg->type == HA_KEYTYPE_FLOAT ||
+               seg->type == HA_KEYTYPE_DOUBLE) {
+      const bool zero = hp_float_zero(seg, pos);
+      for (; pos < key; pos++) {
+        nr ^= (uint64)((((uint)nr & 63) + nr2) * (zero ? 0 : (uint)*pos)) +
+              (nr << 8);
+        nr2 += 3;
+      }
     } else {
       for (; pos < key; pos++) {
         nr ^= (uint64)((((uint)nr & 63) + nr2) * ((uint)*pos)) + (nr << 8);
@@ -338,6 +359,14 @@ uint64 hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec) {
         length = std::min(length, char_length);
       }
       cs->coll->hash_sort(cs, pos + pack_length, length, &nr, &nr2);
+    } else if (seg->type == HA_KEYTYPE_FLOAT ||
+               seg->type == HA_KEYTYPE_DOUBLE) {
+      const bool zero = hp_float_zero(seg, pos);
+      for (; pos < end; pos++) {
+        nr ^= (uint64)((((uint)nr & 63) + nr2) * (zero ? 0 : (uint)*pos)) +
+              (nr << 8);
+        nr2 += 3;
+      }
     } else {
       for (; pos < end; pos++) {
         nr ^= (uint64)((((uint)nr & 63) + nr2) * ((uint)*pos)) + (nr << 8);
@@ -433,7 +462,7 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2) {
                                 char_length2))
         return 1;
     } else {
-      if (memcmp(rec1 + seg->start, rec2 + seg->start, seg->length) != 0)
+      if (!hp_hash_key_equal(seg, rec1 + seg->start, rec2 + seg->start))
         return 1;
     }
   }
@@ -516,7 +545,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key) {
                                 char_length_key))
         return 1;
     } else {
-      if (memcmp(rec + seg->start, key, seg->length) != 0) return 1;
+      if (!hp_hash_key_equal(seg, rec + seg->start, key)) return 1;
     }
   }
   return 0;

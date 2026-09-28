@@ -1,0 +1,117 @@
+--echo #
+--echo # Bug#120146 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120146 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120146;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+SET SESSION sql_mode='';
+CREATE TABLE t0(c0 FLOAT UNIQUE) ENGINE=HEAP;
+INSERT INTO t0(c0) VALUES (0.6840049395257071);
+REPLACE INTO t0(c0) VALUES (0);
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 WHERE NOT (-("") NOT IN (t0.c0));
+PREPARE regression_stmt FROM 'SELECT t0.c0 AS ref0 FROM t0 WHERE NOT (-("") NOT IN (t0.c0));';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 WHERE NOT (NOT (NOT (-('') NOT IN (t0.c0))));
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 FORCE INDEX (c0) WHERE NOT (-('') NOT IN (t0.c0));
+--sorted_result
+SELECT d.c0 AS ref0 FROM (SELECT t0.c0, NOT (-('') NOT IN (t0.c0)) AS keep_row FROM t0) AS d WHERE d.keep_row;
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 WHERE (SELECT t0.c0 > 0) IS NULL AND NOT (-('') NOT IN (t0.c0)) UNION ALL SELECT t0.c0 AS ref0 FROM t0 WHERE NOT (-('') NOT IN (t0.c0)) AND t0.c0 > 0 UNION ALL SELECT t0.c0 AS ref0 FROM t0 WHERE NOT (-('') NOT IN (t0.c0)) AND NOT (t0.c0 > 0);
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 WHERE CASE WHEN NOT (-('') NOT IN (t0.c0)) THEN NOT (-('') NOT IN (t0.c0)) ELSE NOT (-('') NOT IN (t0.c0)) END;
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 IGNORE INDEX (c0) WHERE NOT (-('') NOT IN (t0.c0));
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 WHERE ((NOT (-('') NOT IN (t0.c0)) OR NOT (NOT (-('') NOT IN (t0.c0)))) OR (NOT (-('') NOT IN (t0.c0))) IS NULL) AND NOT (-('') NOT IN (t0.c0));
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 WHERE -("") IN (t0.c0);
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 WHERE NOT (NOT (NOT (-("") NOT IN (t0.c0))));
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 FORCE INDEX (c0) WHERE NOT (-("") NOT IN (t0.c0));
+--sorted_result
+SELECT d.ref0 AS ref0 FROM (SELECT t0.c0 AS ref0, NOT (-("") NOT IN (t0.c0)) AS keep_row FROM t0) AS d WHERE d.keep_row;
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 WHERE NOT (-("") NOT IN (t0.c0)) AND t0.c0 = 0 UNION ALL SELECT t0.c0 AS ref0 FROM t0 WHERE NOT (-("") NOT IN (t0.c0)) AND NOT (t0.c0 = 0) UNION ALL SELECT t0.c0 AS ref0 FROM t0 WHERE NOT (-("") NOT IN (t0.c0)) AND (t0.c0 = 0) IS NULL;
+--sorted_result
+SELECT t0.c0 AS ref0 FROM t0 WHERE CASE WHEN NOT (-("") NOT IN (t0.c0)) THEN NOT (-("") NOT IN (t0.c0)) ELSE NOT (-("") NOT IN (t0.c0)) END;
+USE test;
+DROP DATABASE bug_120146;
+CREATE DATABASE bug_120146 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120146;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (x FLOAT UNIQUE) ENGINE=MEMORY;
+INSERT INTO t VALUES (0),(-1),(2);
+REPLACE INTO t VALUES (-CAST(0 AS DOUBLE));
+--sorted_result
+SELECT x FROM t WHERE x=-CAST(0 AS DOUBLE);
+PREPARE regression_stmt FROM 'SELECT x FROM t WHERE x=-CAST(0 AS DOUBLE);';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT COUNT(*) FROM t;
+PREPARE regression_stmt FROM 'SELECT COUNT(*) FROM t;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120146;
+CREATE DATABASE bug_120146 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120146;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (x DOUBLE UNIQUE) ENGINE=MEMORY;
+INSERT INTO t VALUES (0),(-1),(2);
+REPLACE INTO t VALUES (-CAST(0 AS DOUBLE));
+--sorted_result
+SELECT x FROM t WHERE x=-CAST(0 AS DOUBLE);
+PREPARE regression_stmt FROM 'SELECT x FROM t WHERE x=-CAST(0 AS DOUBLE);';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT COUNT(*) FROM t;
+PREPARE regression_stmt FROM 'SELECT COUNT(*) FROM t;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120146;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
