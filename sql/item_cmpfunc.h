@@ -1560,6 +1560,7 @@ class Item_func_any_value final : public Item_func_coalesce {
   Item_func_any_value(const POS &pos, Item *a) : Item_func_coalesce(pos, a) {}
   Item_func_any_value(Item *a) : Item_func_coalesce(a) {}
   const char *func_name() const override { return "any_value"; }
+  String *val_str(String *str) override;
   bool aggregate_check_group(uchar *arg) override;
   bool aggregate_check_distinct(uchar *arg) override;
   bool collect_item_field_or_view_ref_processor(uchar *arg) override;
