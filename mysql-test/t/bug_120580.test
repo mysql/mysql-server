@@ -1,0 +1,143 @@
+--echo #
+--echo # Bug#120580 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120580 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120580;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+SET NAMES utf8mb4;
+CREATE TABLE t0 (c0 LONGTEXT,KEY i0(c0(1))) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO t0(c0) VALUES ('꙰dKc%z');
+REPLACE INTO t0(c0) VALUES ('kQ');
+--sorted_result
+SELECT ALL t0.c0 FROM t0 WHERE 'CZ'<=t0.c0;
+PREPARE regression_stmt FROM 'SELECT ALL t0.c0 FROM t0 WHERE ''CZ''<=t0.c0;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT ALL t0.c0 FROM t0 WHERE NOT (NOT ('CZ' <= t0.c0));
+--sorted_result
+SELECT ALL t0.c0 FROM t0 FORCE INDEX (i0) WHERE 'CZ' <= t0.c0;
+--sorted_result
+SELECT ALL d.c0 FROM (SELECT t0.c0 FROM t0) AS d WHERE 'CZ' <= d.c0;
+--sorted_result
+SELECT ALL d.c0 FROM (SELECT t0.c0, 'CZ' <= t0.c0 AS matches_filter FROM t0) AS d WHERE d.matches_filter;
+--sorted_result
+SELECT ALL t0.c0 FROM t0 WHERE 'CZ' <= t0.c0 AND t0.c0 IS NULL UNION ALL SELECT ALL t0.c0 FROM t0 WHERE 'CZ' <= t0.c0 AND NOT (t0.c0 IS NULL) UNION ALL SELECT ALL t0.c0 FROM t0 WHERE 'CZ' <= t0.c0 AND (t0.c0 IS NULL) IS NULL;
+--sorted_result
+SELECT ALL t0.c0 FROM t0 WHERE CASE WHEN 'CZ' <= t0.c0 THEN 'CZ' <= t0.c0 ELSE 'CZ' <= t0.c0 END;
+--sorted_result
+SELECT ALL t0.c0 FROM t0 IGNORE INDEX (i0) WHERE 'CZ' <= t0.c0;
+--sorted_result
+SELECT ALL t0.c0 FROM t0 WHERE ((('CZ' <= t0.c0) OR NOT ('CZ' <= t0.c0)) OR ('CZ' <= t0.c0) IS NULL) AND ('CZ' <= t0.c0);
+--sorted_result
+SELECT ALL t0.c0 FROM t0 WHERE ((('CZ' <= t0.c0) AND NOT ('CZ' <= t0.c0)) AND ('CZ' <= t0.c0) IS NOT NULL) OR ('CZ' <= t0.c0);
+--sorted_result
+SELECT ALL t0.c0 FROM t0 WHERE t0.c0 >= 'CZ';
+--sorted_result
+SELECT ALL t0.c0 FROM t0 WHERE NOT NOT ('CZ' <= t0.c0);
+--sorted_result
+SELECT ALL d.c0 FROM (SELECT t0.c0 AS c0, ('CZ' <= t0.c0) AS p FROM t0) AS d WHERE d.p;
+--sorted_result
+SELECT ALL t0.c0 FROM t0 WHERE 'CZ' <= t0.c0 AND t0.c0 = 'kQ' UNION ALL SELECT ALL t0.c0 FROM t0 WHERE 'CZ' <= t0.c0 AND NOT (t0.c0 = 'kQ') UNION ALL SELECT ALL t0.c0 FROM t0 WHERE 'CZ' <= t0.c0 AND (t0.c0 = 'kQ') IS NULL;
+USE test;
+DROP DATABASE bug_120580;
+CREATE DATABASE bug_120580 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120580;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t_a (id INT,c VARCHAR(64) COLLATE utf8mb4_0900_ai_ci ,KEY k(c(1))) ENGINE=MyISAM;
+INSERT INTO t_a VALUES (1,'A'),(2,'-804207268'),(3,'ٛRIRS/*'),(4,''),(5,NULL);
+CREATE TABLE t_b (id INT,c VARCHAR(64) COLLATE utf8mb4_0900_ai_ci NOT NULL ,KEY k(c(1))) ENGINE=InnoDB;
+INSERT INTO t_b VALUES (1,'A'),(2,'-804207268'),(3,'ٛRIRS/*'),(4,'');
+CREATE TABLE t_c (id INT,c VARCHAR(64) COLLATE utf8mb4_0900_ai_ci ,KEY k(c(1))) ENGINE=InnoDB;
+INSERT INTO t_c VALUES (1,'A'),(2,'-804207268'),(3,'ٛRIRS/*'),(4,''),(5,NULL);
+CREATE TABLE t_d (id INT,c VARCHAR(64) COLLATE utf8mb4_bin ,KEY k(c(1))) ENGINE=InnoDB;
+INSERT INTO t_d VALUES (1,'A'),(2,'-804207268'),(3,'ٛRIRS/*'),(4,''),(5,NULL);
+--sorted_result
+SELECT id FROM t_a FORCE INDEX(k) WHERE c>'-804207268';
+PREPARE regression_stmt FROM 'SELECT id FROM t_a FORCE INDEX(k) WHERE c>''-804207268'';';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT id FROM t_a FORCE INDEX(k) WHERE c>='-804207268';
+PREPARE regression_stmt FROM 'SELECT id FROM t_a FORCE INDEX(k) WHERE c>=''-804207268'';';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT id FROM t_b FORCE INDEX(k) WHERE c>'-804207268';
+PREPARE regression_stmt FROM 'SELECT id FROM t_b FORCE INDEX(k) WHERE c>''-804207268'';';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT id FROM t_b FORCE INDEX(k) WHERE c>='-804207268';
+PREPARE regression_stmt FROM 'SELECT id FROM t_b FORCE INDEX(k) WHERE c>=''-804207268'';';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT id FROM t_c FORCE INDEX(k) WHERE c>'-804207268';
+PREPARE regression_stmt FROM 'SELECT id FROM t_c FORCE INDEX(k) WHERE c>''-804207268'';';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT id FROM t_c FORCE INDEX(k) WHERE c>='-804207268';
+PREPARE regression_stmt FROM 'SELECT id FROM t_c FORCE INDEX(k) WHERE c>=''-804207268'';';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT id FROM t_d FORCE INDEX(k) WHERE c>'-804207268';
+PREPARE regression_stmt FROM 'SELECT id FROM t_d FORCE INDEX(k) WHERE c>''-804207268'';';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT id FROM t_d FORCE INDEX(k) WHERE c>='-804207268';
+PREPARE regression_stmt FROM 'SELECT id FROM t_d FORCE INDEX(k) WHERE c>=''-804207268'';';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120580;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
