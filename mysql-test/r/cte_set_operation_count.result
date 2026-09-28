@@ -1,0 +1,6 @@
+#
+# Bug #121239: Repeated count of a CTE containing set operations
+#
+WITH p AS (SELECT 'A' AS x UNION SELECT 'A' EXCEPT SELECT NULL WHERE FALSE), q AS (SELECT COUNT(*) AS y FROM p) SELECT (SELECT COUNT(*) FROM p) AS direct_count, (SELECT y FROM q) AS count_via_q;
+direct_count	count_via_q
+1	1

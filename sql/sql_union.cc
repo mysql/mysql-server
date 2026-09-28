@@ -249,7 +249,19 @@ bool Query_result_union::reset() {
 void Query_result_union::set_limit(ha_rows limit_rows) {
   if (table != nullptr) {
     assert(!table->s->is_mv_se_materialized);
-    table->m_limit_rows = limit_rows;
+    Common_table_expr *cte = table->pos_in_table_list != nullptr
+                                 ? table->pos_in_table_list->common_table_expr()
+                                 : nullptr;
+    if (cte == nullptr) {
+      table->m_limit_rows = limit_rows;
+    } else {
+      for (Table_ref *table_ref : cte->tmp_tables) {
+        if (table_ref->table != nullptr) {
+          assert(!table_ref->table->s->is_mv_se_materialized);
+          table_ref->table->m_limit_rows = limit_rows;
+        }
+      }
+    }
   }
 }
 

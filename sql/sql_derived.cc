@@ -222,6 +222,14 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, Table_ref *tl) {
   }
   t->hidden_field_count = first->hidden_field_count;
 
+  if (first->set_counter() != nullptr) {
+    assert(first->hash_field != nullptr);
+    t->set_set_op(down_cast<Field_longlong *>(
+                      t->field[first->set_counter()->field_index()]),
+                  first->is_except(), first->is_distinct());
+    t->set_use_hash_map(first->uses_hash_map());
+  }
+
   t->set_not_started();
 
   if (tmp_tables.push_back(tl)) return nullptr; /* purecov: inspected */
