@@ -7,7 +7,7 @@ SET @@session.foreign_key_checks = 1;
 SET @@session.foreign_key_checks = DEFAULT;
 SELECT @@session.foreign_key_checks;
 @@session.foreign_key_checks
-0
+1
 '#---------------------FN_DYNVARS_032_02-------------------------#'
 SET foreign_key_checks = 1;
 SELECT @@foreign_key_checks;

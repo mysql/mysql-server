@@ -7,7 +7,7 @@ SET @@session.unique_checks= 1;
 SET @@session.unique_checks= DEFAULT;
 SELECT @@session.unique_checks;
 @@session.unique_checks
-0
+1
 '#--------------------FN_DYNVARS_005_04-------------------------#'
 SET @@session.unique_checks =1;
 SELECT @@session.unique_checks;
