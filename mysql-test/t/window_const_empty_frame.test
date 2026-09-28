@@ -1,0 +1,13 @@
+--echo #
+--echo # Bug #121179: Empty preceding window frame after constant lookup
+--echo #
+
+CREATE TABLE idxdemo(seq INT, val INT);
+
+INSERT INTO idxdemo VALUES (1,-3);
+
+ALTER TABLE idxdemo ADD UNIQUE INDEX ux_seq (seq);
+
+SELECT SUM(val) OVER (ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS res FROM idxdemo WHERE seq = 1;
+
+DROP TABLE idxdemo;
