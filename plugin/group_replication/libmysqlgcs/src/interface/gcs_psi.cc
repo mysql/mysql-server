@@ -183,7 +183,7 @@ void register_xcom_memory_psi_keys() {
   the value shown in the "CURRENT_NUMBER_OF_BYTES_USED" row of the
   "performance_schema.memory_summary_global_by_event_name" table.
 */
-static uint64_t current_count = 0;
+static uint64_t current_count [[maybe_unused]] = 0;
 
 /**
   Reports to PSI the allocation of 'size' bytes of data.

@@ -63,16 +63,7 @@ static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
-/**
- Handle assigned when loading the plugin.
- Used with the error reporting functions.
-*/
-static MYSQL_PLUGIN plugin_info_ptr;
-
-static int test_plugin_init(MYSQL_PLUGIN plugin_info) {
-  plugin_info_ptr = plugin_info;
-  return 0;
-}
+static int test_plugin_init(MYSQL_PLUGIN) { return 0; }
 
 /**
   dialog test plugin mimicking the ordinary auth mechanism. Used to test the

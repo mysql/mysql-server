@@ -49,18 +49,14 @@ using std::vector;
 static MYSQL *sock = nullptr;
 static bool opt_alldbs = false, opt_check_only_changed = false,
             opt_extended = false, opt_databases = false, opt_fast = false,
-            opt_medium_check = false, opt_quick = false, opt_all_in_1 = false,
-            opt_silent = false, opt_auto_repair = false, ignore_errors = false,
-            opt_frm = false, opt_fix_table_names = false,
-            opt_fix_db_names = false, opt_upgrade = false,
+            opt_medium_check = false, opt_quick = false, opt_silent = false,
+            opt_auto_repair = false, opt_frm = false, opt_upgrade = false,
             opt_write_binlog = true;
-static uint verbose = 0;
 static string opt_skip_database;
 int what_to_do = 0;
 
 void (*DBError)(MYSQL *mysql, const string &when);
 
-static int first_error = 0;
 vector<string> tables4repair, tables4rebuild, alter_table_cmds;
 
 static int process_all_databases();
@@ -362,10 +358,8 @@ namespace Mysql::Tools::Check {
 void mysql_check(MYSQL *connection, int what_to_do, bool opt_alldbs,
                  bool opt_check_only_changed, bool opt_extended,
                  bool opt_databases, bool opt_fast, bool opt_medium_check,
-                 bool opt_quick, bool opt_all_in_1, bool opt_silent,
-                 bool opt_auto_repair, bool ignore_errors, bool opt_frm,
-                 bool opt_fix_table_names, bool opt_fix_db_names,
-                 bool opt_upgrade, bool opt_write_binlog, uint verbose,
+                 bool opt_quick, bool opt_silent, bool opt_auto_repair,
+                 bool opt_frm, bool opt_upgrade, bool opt_write_binlog,
                  std::string opt_skip_database,
                  std::vector<std::string> arguments,
                  void (*dberror)(MYSQL *mysql, const std::string &when)) {
@@ -378,24 +372,16 @@ void mysql_check(MYSQL *connection, int what_to_do, bool opt_alldbs,
   ::opt_fast = opt_fast;
   ::opt_medium_check = opt_medium_check;
   ::opt_quick = opt_quick;
-  ::opt_all_in_1 = opt_all_in_1;
   ::opt_silent = opt_silent;
   ::opt_auto_repair = opt_auto_repair;
-  ::ignore_errors = ignore_errors;
   ::opt_frm = opt_frm;
-  ::opt_fix_table_names = opt_fix_table_names;
-  ::opt_fix_db_names = opt_fix_db_names;
   ::opt_upgrade = opt_upgrade;
   ::opt_write_binlog = opt_write_binlog;
-  ::verbose = verbose;
   ::opt_skip_database = std::move(opt_skip_database);
   ::DBError = dberror;
 
   if (!::opt_write_binlog) {
-    if (disable_binlog()) {
-      first_error = 1;
-      return;
-    }
+    if (disable_binlog()) return;
   }
 
   if (::opt_alldbs) process_all_databases();
@@ -506,26 +492,21 @@ Program *Program::set_what_to_do(int functionality) {
 
 /// @relates Mysql::Tools::Check::Program
 int Program::execute(const vector<string> &positional_options) {
-  Mysql::Tools::Check::mysql_check(
-      this->m_connection,        // connection
-      this->m_what_to_do,        // what_to_do
-      this->m_process_all_dbs,   // opt_alldbs
-      false,                     // opt_check_only_changed
-      false,                     // opt_extended
-      !this->m_process_all_dbs,  // opt_databases
-      false,                     // opt_fast
-      false,                     // opt_medium_check
-      false,                     // opt_quick
-      false,                     // opt_all_in_1
-      false,                     // opt_silent
-      this->m_auto_repair,       // opt_auto_repair
-      this->m_ignore_errors,     // ignore_errors
-      false,                     // opt_frm
-      this->m_fix_table_names,   // opt_fix_table_names
-      this->m_fix_db_names,      // opt_fix_db_names
-      this->m_upgrade,           // opt_upgrade
-      this->m_write_binlog,      // opt_write_binlog
-      this->m_verbose,           // verbose
-      this->m_database_to_skip, positional_options, this->m_error_callback);
+  Mysql::Tools::Check::mysql_check(this->m_connection,       // connection
+                                   this->m_what_to_do,       // what_to_do
+                                   this->m_process_all_dbs,  // opt_alldbs
+                                   false,  // opt_check_only_changed
+                                   false,  // opt_extended
+                                   !this->m_process_all_dbs,  // opt_databases
+                                   false,                     // opt_fast
+                                   false,                 // opt_medium_check
+                                   false,                 // opt_quick
+                                   false,                 // opt_silent
+                                   this->m_auto_repair,   // opt_auto_repair
+                                   false,                 // opt_frm
+                                   this->m_upgrade,       // opt_upgrade
+                                   this->m_write_binlog,  // opt_write_binlog
+                                   this->m_database_to_skip, positional_options,
+                                   this->m_error_callback);
   return 0;
 }

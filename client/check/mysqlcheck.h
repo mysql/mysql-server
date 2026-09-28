@@ -47,12 +47,9 @@ enum operations {
 extern void mysql_check(MYSQL *connection, int what_to_do, bool opt_alldbs,
                         bool opt_check_only_changed, bool opt_extended,
                         bool opt_databases, bool opt_fast,
-                        bool opt_medium_check, bool opt_quick,
-                        bool opt_all_in_1, bool opt_silent,
-                        bool opt_auto_repair, bool ignore_errors, bool opt_frm,
-                        bool opt_fix_table_names, bool opt_fix_db_names,
-                        bool opt_upgrade, bool opt_write_binlog,
-                        unsigned int verbose, std::string opt_skip_database,
+                        bool opt_medium_check, bool opt_quick, bool opt_silent,
+                        bool opt_auto_repair, bool opt_frm, bool opt_upgrade,
+                        bool opt_write_binlog, std::string opt_skip_database,
                         std::vector<std::string> arguments,
                         void (*dberror)(MYSQL *mysql, const std::string &when));
 

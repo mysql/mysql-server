@@ -34,8 +34,6 @@
 #include "m_string.h"
 #include "my_sys.h"
 
-static FILE *dlog_file;
-
 static int ERR1(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
 char ndb_daemon_error[1024];
@@ -234,7 +232,6 @@ static int check_files(const char *pidfile_name, const char *logfile_name,
       return ERR1("Failed to open logfile '%s' for write, errno: %d",
                   logfile_name, errno);
     g_logfd = logfd;
-    dlog_file = fdopen(logfd, "a");
     *logfd_ret = logfd;
   }
 
@@ -307,7 +304,6 @@ static int do_files(const char *pidfile_name,
     dup2(logfd, 1);
     dup2(logfd, 2);
     close(logfd);
-    dlog_file = stdout;
   }
 #endif
 

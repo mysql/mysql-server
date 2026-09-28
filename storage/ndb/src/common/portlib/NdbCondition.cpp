@@ -32,7 +32,7 @@
 
 #include <EventLogger.hpp>
 
-static int init = 0;
+static int init [[maybe_unused]] = 0;
 #ifdef HAVE_CLOCK_GETTIME
 static clockid_t clock_id = CLOCK_REALTIME;
 #endif

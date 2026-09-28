@@ -50,7 +50,7 @@ static int inited = 0;
 static int initres = 0;
 
 static Uint32 ncpu = 0;
-static Uint64 ticks_per_us = 0;
+static Uint64 ticks_per_us [[maybe_unused]] = 0;
 
 static struct ndb_hwinfo *g_ndb_hwinfo = nullptr;
 

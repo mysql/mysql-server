@@ -85,7 +85,7 @@ progress */
 static uint buf_flush_lsn_scan_factor = 3;
 
 /** Target oldest LSN for the requested flush_sync */
-static lsn_t buf_flush_sync_lsn = 0;
+static lsn_t buf_flush_sync_lsn [[maybe_unused]] = 0;
 
 /** lsn that indicates there is need to do sync flush operation,
 0 if there is no need to trigger the sync flush by page cleaners.
