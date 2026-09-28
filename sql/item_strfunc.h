@@ -1123,7 +1123,9 @@ class Item_func_quote : public Item_str_func {
   String tmp_value;
 
  public:
-  Item_func_quote(const POS &pos, Item *a) : Item_str_func(pos, a) {}
+  Item_func_quote(const POS &pos, Item *a) : Item_str_func(pos, a) {
+    null_on_null = false;
+  }
   const char *func_name() const override { return "quote"; }
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
