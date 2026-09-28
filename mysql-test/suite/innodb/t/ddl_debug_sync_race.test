@@ -1,0 +1,172 @@
+####################################################################
+# debug_sync race between the parallel DDL threads.
+#
+# The tasks that drive ddl::Builder are taken off a shared queue by
+# whichever DDL thread is free (ddl::Loader::Task_queue::mt_execute()),
+# so an ALTER that builds several indexes runs their
+# setup_sort()/btree_build()/finalize() concurrently - and every one of
+# those threads executes the builder's sync points on the *same* THD,
+# the connection's, since that is what ddl::Context::thd() returns.
+#
+# debug_sync() is not thread safe; it assumes a sync point is only ever
+# hit by the thread owning the THD. Two DDL threads inside one sync
+# point corrupt thd->debug_sync_control: they race on the activation
+# count, on the removal of the action and on the clearing of the signal
+# they woke up on.
+#
+# Part 1 is the deterministic one: two builders of one ALTER wait in
+# row_log_apply_before at the same time, one of them consumes and
+# clears the signal that releases both, and the other is left waiting
+# for a signal that no longer exists - the ALTER never finishes.
+#
+# Part 2 is a stress: four builders repeatedly meet in the same sync
+# point with a single activation armed. This is the interleaving that
+# kills a debug server outright with
+#
+#   sql/debug_sync.cc: Assertion `action->activation_count' failed
+#
+# in debug_sync_execute(), but the window is only the few instructions
+# between debug_sync() testing the count and debug_sync_execute()
+# decrementing it, so it is not reproduced on every run.
+#
+# Part 3 pins down the *shape* of the fix rather than the crash: the
+# serialization has to be per THD. While one connection is parked
+# inside the sync point, another connection's DDL must still be able to
+# reach it. Serializing all statements against each other deadlocks
+# that, and would hang e.g. innodb.innodb-index-online-purge.
+####################################################################
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,1,1,1,1);
+--disable_query_log
+--let $rows = 10
+while ($rows)
+{
+  INSERT INTO t1 SELECT a + (SELECT MAX(a) FROM t1), b, c, d, e FROM t1;
+  --dec $rows
+}
+--enable_query_log
+
+--connect (ddl1, localhost, root,,)
+# More than one DDL thread is what puts several builders in flight at
+# once; be explicit rather than relying on the default.
+SET SESSION innodb_ddl_threads = 4;
+
+--echo #
+--echo # Part 1: two builders of one ALTER wait in one sync point.
+--echo #
+--echo # EXECUTE 2 lets two of the four builders execute the action. On a
+--echo # server that lets them do so concurrently, both wait for ddl_resume,
+--echo # the first one out clears that signal (the default for WAIT_FOR) and
+--echo # the second one waits for it forever: the ALTER below never returns
+--echo # and both waits below run into their TIMEOUT.
+--echo #
+
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume TIMEOUT 60 EXECUTE 2';
+--send ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE
+
+--connection default
+# One builder at a time: park it, release it, then do the same for the
+# second activation.
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked TIMEOUT 60';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked TIMEOUT 60';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+
+--connection ddl1
+--reap
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+
+--connection default
+SET DEBUG_SYNC = 'RESET';
+
+--echo #
+--echo # Part 2: several builders of one ALTER meet in one sync point.
+--echo #
+
+--let $round = 10
+while ($round)
+{
+  --connection default
+  SET DEBUG_SYNC = 'RESET';
+
+  --connection ddl1
+  SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+  --send ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE
+
+  --connection default
+  # One builder parks here; the other three reach the same sync point
+  # while it does, which is the concurrency being tested.
+  SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+  SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+
+  --connection ddl1
+  --reap
+  ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+
+  --dec $round
+}
+
+--connection default
+SET DEBUG_SYNC = 'RESET';
+
+--echo # The table survived the concurrent builders.
+SELECT COUNT(*) FROM t1;
+
+--echo #
+--echo # Part 3: the serialization must not span connections.
+--echo #
+
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t2 SELECT a, b FROM t1;
+
+--connect (ddl2, localhost, root,,)
+SET SESSION innodb_ddl_threads = 4;
+
+--connection ddl1
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl1_parked WAIT_FOR ddl1_resume';
+--send ALTER TABLE t1 ADD INDEX i1(b), ALGORITHM=INPLACE, LOCK=NONE
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR ddl1_parked';
+
+--connection ddl2
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl2_parked WAIT_FOR ddl2_resume';
+--send ALTER TABLE t2 ADD INDEX j1(b), ALGORITHM=INPLACE, LOCK=NONE
+
+--connection default
+--echo # ddl1 is parked inside row_log_apply_before. ddl2 has to be able to
+--echo # reach the very same sync point; this times out if the two statements
+--echo # are serialized against each other instead of per THD.
+SET DEBUG_SYNC = 'now WAIT_FOR ddl2_parked';
+
+SET DEBUG_SYNC = 'now SIGNAL ddl1_resume';
+SET DEBUG_SYNC = 'now SIGNAL ddl2_resume';
+
+--connection ddl1
+--reap
+
+--connection ddl2
+--reap
+
+--connection default
+--echo # Both statements completed.
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--disconnect ddl1
+--disconnect ddl2
+
+--connection default
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1, t2;
