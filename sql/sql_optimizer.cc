@@ -2609,6 +2609,17 @@ check_reverse_order:
 
   assert(can_skip_sorting);
 
+  // A TempTable table scan cannot use the ordering index: its handler does
+  // not support index_first()/index_last(). A newly constructed range scan
+  // can still provide the order, but only if we actually select it below.
+  if (best_key >= 0 && tab->type() == JT_ALL &&
+      is_temporary_table(tab->table_ref) &&
+      table->s->db_type() == temptable_hton &&
+      (no_changes || tab->range_scan() == save_range_scan)) {
+    can_skip_sorting = false;
+    goto fix_ICP;
+  }
+
   /*
     Update query plan with access pattern for doing
     ordered access according to what we have decided
@@ -2689,7 +2700,8 @@ check_reverse_order:
         */
         table->file->ha_index_or_rnd_end();
         tab->position()->filter_effect = COND_FILTER_STALE;
-      } else if (tab->type() != JT_ALL) {
+      } else if (tab->type() != JT_ALL ||
+                 (tab->range_scan() && tab->range_scan() != save_range_scan)) {
         /*
           We're about to use a quick access to the table.
           We need to change the access method so as the quick access
