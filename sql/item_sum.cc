@@ -2325,8 +2325,11 @@ bool Item_sum_avg::resolve_type(THD *thd) {
   if (hybrid_type == DECIMAL_RESULT) {
     const int precision = min<uint>(
         args[0]->decimal_precision() + prec_increment, DECIMAL_MAX_PRECISION);
-    int scale =
-        min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+    // AVG cannot need fewer integer digits than its argument. When the
+    // precision is capped, use fewer of the extra fractional digits instead.
+    const int scale = min<uint>(
+        min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE),
+        precision - (args[0]->decimal_precision() - args[0]->decimals));
     set_data_type_decimal(precision, scale);
     f_precision =
         min(precision + DECIMAL_LONGLONG_DIGITS, DECIMAL_MAX_PRECISION);
