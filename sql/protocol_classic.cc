@@ -270,7 +270,7 @@
    07 00 00 0b 00 01 00 02    00 00 00                   ...........
    ~~~~~~~~~~~~~
 
-   If the ::SERVER_MORE_RESULTS_EXISTS flag ise set, that indicates more
+   If the ::SERVER_MORE_RESULTS_EXISTS flag is set, that indicates more
    resultsets will follow.
 
    The trailing @ref page_protocol_basic_ok_packet is the response to the
@@ -309,7 +309,7 @@
    A multi-statement is permitting ::COM_QUERY to send more than one query to
    the server, separated by `;` characters.
 
-   The client musst announce that it wants multi-statements by either setting
+   The client must announce that it wants multi-statements by either setting
    the ::CLIENT_MULTI_STATEMENTS capability or by using
    @ref page_protocol_com_set_option
 */
@@ -333,7 +333,7 @@
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>status</td>
-      <td>[0x1A] COM_SET_OPTION</td></tr>
+      <td>[0x1B] COM_SET_OPTION</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>option_operation</td>
       <td>One of ::enum_mysql_set_option</td></tr>
