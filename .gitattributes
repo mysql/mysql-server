@@ -38,3 +38,5 @@
 /internal/meb/meb/mysqloption_list.cpp !filter
 
 *.pdf binary
+
+.github/workflows/*.lock.yml linguist-generated=true
