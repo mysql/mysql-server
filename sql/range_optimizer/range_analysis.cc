@@ -1698,8 +1698,29 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
       break;
     case Item_func::GT_FUNC:
     case Item_func::GE_FUNC:
-      /* Don't use open ranges for partial key_segments */
-      if (!(key_part->flag & HA_PART_KEY_SEG)) {
+      /* Don't use an open range at the stored value for partial key segments.
+       */
+      if ((key_part->flag & HA_PART_KEY_SEG) &&
+          field->charset() == &my_charset_utf8mb4_0900_ai_ci) {
+        /*
+          A prefix of a value can consist entirely of characters that have no
+          primary weight in this collation. The rest of the value can then
+          compare above the bound even though its indexed prefix sorts below
+          the bound. Start at the first non-NULL key instead, and recheck the
+          full comparison after the range scan.
+        */
+        if (!field->is_nullable())
+          tree->root->min_flag = NO_MIN_RANGE;
+        else {
+          if (!(tree->root->min_value = static_cast<uchar *>(
+                    alloc->Alloc(key_part->store_length + 1))))
+            goto end;
+          TRASH(tree->root->min_value, key_part->store_length + 1);
+          memcpy(tree->root->min_value, is_null_string, sizeof(is_null_string));
+          tree->root->min_flag = NEAR_MIN;
+        }
+        *inexact = true;
+      } else if (!(key_part->flag & HA_PART_KEY_SEG)) {
         /*
           Set NEAR_MIN to read values greater than the stored value.
         */
