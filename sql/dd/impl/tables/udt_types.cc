@@ -59,6 +59,45 @@ UDT_Types::UDT_Types() {
                          "name VARCHAR(64) NOT NULL COLLATE " +
                              String_type(name_collation()->m_coll_name));
 
+  // FIXME: revise enum
+  m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",
+                         "data_type ENUM(\n"
+                         "    'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',\n"
+                         "    'MYSQL_TYPE_SHORT',  'MYSQL_TYPE_LONG',\n"
+                         "    'MYSQL_TYPE_FLOAT',  'MYSQL_TYPE_DOUBLE',\n"
+                         "    'MYSQL_TYPE_NULL', 'MYSQL_TYPE_TIMESTAMP',\n"
+                         "    'MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24',\n"
+                         "    'MYSQL_TYPE_DATE',   'MYSQL_TYPE_TIME',\n"
+                         "    'MYSQL_TYPE_DATETIME', 'MYSQL_TYPE_YEAR',\n"
+                         "    'MYSQL_TYPE_NEWDATE', 'MYSQL_TYPE_VARCHAR',\n"
+                         "    'MYSQL_TYPE_BIT', 'MYSQL_TYPE_TIMESTAMP2',\n"
+                         "    'MYSQL_TYPE_DATETIME2', 'MYSQL_TYPE_TIME2',\n"
+                         "    'MYSQL_TYPE_NEWDECIMAL', 'MYSQL_TYPE_ENUM',\n"
+                         "    'MYSQL_TYPE_SET', 'MYSQL_TYPE_TINY_BLOB',\n"
+                         "    'MYSQL_TYPE_MEDIUM_BLOB', "
+                         "'MYSQL_TYPE_LONG_BLOB',\n"
+                         "    'MYSQL_TYPE_BLOB', 'MYSQL_TYPE_VAR_STRING',\n"
+                         "    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',\n"
+                         "    'MYSQL_TYPE_JSON', 'MYSQL_TYPE_VECTOR' \n"
+                         "  ) NOT NULL");
+
+  m_target_def.add_field(FIELD_IS_UNSIGNED, "FIELD_IS_UNSIGNED",
+                         "is_unsigned BOOL");
+  m_target_def.add_field(FIELD_CHAR_LENGTH, "FIELD_CHAR_LENGTH",
+                         "char_length INT UNSIGNED");
+  m_target_def.add_field(FIELD_NUMERIC_PRECISION, "FIELD_NUMERIC_PRECISION",
+                         "numeric_precision INT UNSIGNED");
+  m_target_def.add_field(FIELD_NUMERIC_SCALE, "FIELD_NUMERIC_SCALE",
+                         "numeric_scale INT UNSIGNED");
+  m_target_def.add_field(FIELD_DATETIME_PRECISION, "FIELD_DATETIME_PRECISION",
+                         "datetime_precision INT UNSIGNED");
+  m_target_def.add_field(FIELD_COLLATION_ID, "FIELD_COLLATION_ID",
+                         "collation_id BIGINT UNSIGNED");
+  m_target_def.add_field(FIELD_COLUMN_TYPE_UTF8, "FIELD_COLUMN_TYPE_UTF8",
+                         "column_type_utf8 MEDIUMTEXT NOT NULL");
+  m_target_def.add_field(FIELD_IS_EXPLICIT_COLLATION,
+                         "FIELD_IS_EXPLICIT_COLLATION",
+                         "is_explicit_collation BOOL");
   m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
                          "created TIMESTAMP NOT NULL");
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
@@ -67,10 +106,15 @@ UDT_Types::UDT_Types() {
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY (id)");
   m_target_def.add_index(INDEX_UK_SCHEMA_ID_NAME, "INDEX_UK_SCHEMA_ID_NAME",
                          "UNIQUE KEY (schema_id, name)");
+  m_target_def.add_index(INDEX_K_COLLATION_ID, "INDEX_K_COLLATION_ID",
+                         "KEY(collation_id)");
 
   m_target_def.add_foreign_key(FK_SCHEMA_ID, "FK_SCHEMA_ID",
                                "FOREIGN KEY (schema_id) "
                                "REFERENCES schemata(id)");
+  m_target_def.add_foreign_key(FK_COLLATION_ID, "FK_COLLATIONS_ID",
+                               "FOREIGN KEY (collation_id) "
+                               "REFERENCES collations(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

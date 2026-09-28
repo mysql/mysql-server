@@ -58,15 +58,9 @@ class Object_table;
 
 class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
  public:
-  UDT_Type_impl() : m_created(0), m_last_altered(0) {}
+  UDT_Type_impl();
 
- private:
-  UDT_Type_impl(const UDT_Type_impl &other)
-      : Weak_object(other),
-        Entity_object_impl(other),
-        m_created(other.m_created),
-        m_last_altered(other.m_last_altered),
-        m_schema_id(other.m_schema_id) {}
+  ~UDT_Type_impl() override = default;
 
  public:
   const Object_table &object_table() const override;
@@ -91,6 +85,110 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   Object_id schema_id() const override { return m_schema_id; }
 
   void set_schema_id(Object_id schema_id) override { m_schema_id = schema_id; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // type.
+  /////////////////////////////////////////////////////////////////////////
+
+  enum_column_types type() const override { return m_type; }
+
+  void set_type(enum_column_types type) override { m_type = type; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_unsigned.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_unsigned() const override { return m_is_unsigned; }
+
+  void set_unsigned(bool unsigned_flag) override {
+    m_is_unsigned = unsigned_flag;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // char_length.
+  /////////////////////////////////////////////////////////////////////////
+
+  size_t char_length() const override { return m_char_length; }
+
+  void set_char_length(size_t char_length) override {
+    m_char_length = char_length;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // numeric_precision.
+  /////////////////////////////////////////////////////////////////////////
+
+  uint numeric_precision() const override { return m_numeric_precision; }
+
+  void set_numeric_precision(uint numeric_precision) override {
+    m_numeric_precision = numeric_precision;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // numeric_scale.
+  /////////////////////////////////////////////////////////////////////////
+
+  uint numeric_scale() const override { return m_numeric_scale; }
+
+  void set_numeric_scale(uint numeric_scale) override {
+    m_numeric_scale_null = false;
+    m_numeric_scale = numeric_scale;
+  }
+
+  void set_numeric_scale_null(bool is_null) override {
+    m_numeric_scale_null = is_null;
+  }
+
+  bool is_numeric_scale_null() const override { return m_numeric_scale_null; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // datetime_precision.
+  /////////////////////////////////////////////////////////////////////////
+
+  uint datetime_precision() const override { return m_datetime_precision; }
+
+  void set_datetime_precision(uint datetime_precision) override {
+    m_datetime_precision_null = false;
+    m_datetime_precision = datetime_precision;
+  }
+
+  void set_datetime_precision_null(bool is_null) override {
+    m_datetime_precision_null = is_null;
+  }
+
+  bool is_datetime_precision_null() const override {
+    return m_datetime_precision_null;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // collation.
+  /////////////////////////////////////////////////////////////////////////
+
+  Object_id collation_id() const override { return m_collation_id; }
+
+  void set_collation_id(Object_id collation_id) override {
+    m_collation_id = collation_id;
+  }
+
+  void set_is_explicit_collation(bool is_explicit_collation) override {
+    m_is_explicit_collation = is_explicit_collation;
+  }
+
+  bool is_explicit_collation() const override {
+    return m_is_explicit_collation;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // Column display type
+  /////////////////////////////////////////////////////////////////////////
+
+  const String_type &column_type_utf8() const override {
+    return m_column_type_utf8;
+  }
+
+  void set_column_type_utf8(const String_type &column_type_utf8) override {
+    m_column_type_utf8 = column_type_utf8;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // created
@@ -143,6 +241,21 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
 
  private:
   // Fields
+
+  enum_column_types m_type;
+  bool m_is_unsigned;
+  size_t m_char_length;
+  uint m_numeric_precision;
+  uint m_numeric_scale;
+  bool m_numeric_scale_null;
+  uint m_datetime_precision;
+  uint m_datetime_precision_null;
+
+  String_type m_column_type_utf8;
+
+  Object_id m_collation_id;
+  bool m_is_explicit_collation;
+
   ulonglong m_created;
   ulonglong m_last_altered;
 

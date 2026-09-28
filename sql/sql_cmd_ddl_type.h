@@ -62,6 +62,7 @@ class Sql_cmd_create_type final : public Sql_cmd_ddl_type {
   bool execute(THD *thd) override;
 
  private:
+  // FIXME: or TypeDescriptor + do_contextualize()
   PT_type *m_type;
 };
 

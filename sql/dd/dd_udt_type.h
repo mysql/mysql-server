@@ -29,6 +29,7 @@
 #include <string>
 
 #include "my_inttypes.h"
+#include "sql/create_field.h"
 #include "sql/dd/string_type.h"
 
 class THD;
@@ -47,7 +48,8 @@ bool udt_type_exists(dd::cache::Dictionary_client *client,
                      const char *schema_name, const char *name, bool *exists);
 
 bool create_udt_type(THD *thd, const dd::Schema &sch_obj,
-                     const dd::String_type &type_name);
+                     const dd::String_type &type_name,
+                     const TypeDescriptor &td);
 
 bool drop_udt_type(THD *thd, const dd::UDT_Type &type_def);
 

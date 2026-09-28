@@ -18,7 +18,10 @@ INSERT INTO test.complex_demo SET
 
 UPDATE test.complex_demo SET col_c = complex_number_add(col_a, col_b);
 
+# Prints binary
+--disable_result_log
 SELECT * FROM test.complex_demo;
+--enable_result_log
 
 SELECT complex_number_to_string(col_a) as A,
   complex_number_to_string(col_b) as B,

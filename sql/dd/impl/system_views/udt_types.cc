@@ -33,13 +33,47 @@ const UDT_Types &UDT_Types::instance() {
 UDT_Types::UDT_Types() {
   m_target_def.set_view_name(view_name());
 
+  m_target_def.add_field(FIELD_TYPE_CATALOG, "TYPE_CATALOG",
+                         "cat.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_TYPE_SCHEMA, "TYPE_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_TYPE_NAME, "TYPE_NAME",
                          "typ.name" + m_target_def.fs_name_collation());
 
+  m_target_def.add_field(
+      FIELD_DATA_TYPE, "DATA_TYPE",
+      "SUBSTRING_INDEX(SUBSTRING_INDEX(typ.column_type_utf8, '(', 1),' ', 1)");
+  m_target_def.add_field(
+      FIELD_CHARACTER_MAXIMUM_LENGTH, "CHARACTER_MAXIMUM_LENGTH",
+      "INTERNAL_DD_CHAR_LENGTH(typ.data_type, typ.char_length, coll.name, 0)");
+  m_target_def.add_field(
+      FIELD_CHARACTER_OCTET_LENGTH, "CHARACTER_OCTET_LENGTH",
+      "INTERNAL_DD_CHAR_LENGTH(typ.data_type, typ.char_length, coll.name, 1)");
+  m_target_def.add_field(
+      FIELD_NUMERIC_PRECISION, "NUMERIC_PRECISION",
+      "IF (typ.numeric_precision = 0, NULL, typ.numeric_precision)");
+  m_target_def.add_field(
+      FIELD_NUMERIC_SCALE, "NUMERIC_SCALE",
+      "IF (typ.numeric_scale = 0 && typ.numeric_precision = 0,"
+      "    NULL, typ.numeric_scale)");
+  m_target_def.add_field(FIELD_DATETIME_PRECISION, "DATETIME_PRECISION",
+                         "typ.datetime_precision");
+  m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
+                         "cs.name");
+  m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
+  m_target_def.add_field(FIELD_COLUMN_TYPE, "COLUMN_TYPE",
+                         "typ.column_type_utf8");
+
   m_target_def.add_from("mysql.types typ");
   m_target_def.add_from("JOIN mysql.schemata sch ON typ.schema_id=sch.id");
+  m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
+
+  m_target_def.add_from(
+      "LEFT JOIN mysql.collations coll "
+      "ON typ.collation_id=coll.id");
+  m_target_def.add_from(
+      "LEFT JOIN mysql.character_sets cs "
+      "ON coll.character_set_id= cs.id");
 
   m_target_def.add_where("CAN_ACCESS_DATABASE(sch.name)");
 }

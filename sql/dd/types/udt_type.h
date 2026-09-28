@@ -29,7 +29,8 @@
 
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
-#include "sql/dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 class THD;
 struct MDL_key;
@@ -83,6 +84,70 @@ class UDT_Type : virtual public Entity_object {
 
   virtual Object_id schema_id() const = 0;
   virtual void set_schema_id(Object_id schema_id) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // type.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual enum_column_types type() const = 0;
+  virtual void set_type(enum_column_types type) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_unsigned.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_unsigned() const = 0;
+  virtual void set_unsigned(bool unsigned_flag) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // char_length.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual size_t char_length() const = 0;
+  virtual void set_char_length(size_t char_length) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // numeric_precision.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual uint numeric_precision() const = 0;
+  virtual void set_numeric_precision(uint numeric_precision) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // numeric_scale.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual uint numeric_scale() const = 0;
+  virtual void set_numeric_scale(uint numeric_scale) = 0;
+  virtual void set_numeric_scale_null(bool is_null) = 0;
+  virtual bool is_numeric_scale_null() const = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // datetime_precision.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual uint datetime_precision() const = 0;
+  virtual void set_datetime_precision(uint datetime_precision) = 0;
+  virtual void set_datetime_precision_null(bool is_null) = 0;
+  virtual bool is_datetime_precision_null() const = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // collation.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Object_id collation_id() const = 0;
+  virtual void set_collation_id(Object_id collation_id) = 0;
+
+  virtual void set_is_explicit_collation(bool is_explicit_collation) = 0;
+  virtual bool is_explicit_collation() const = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Column display type.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &column_type_utf8() const = 0;
+
+  virtual void set_column_type_utf8(const String_type &column_type_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // created

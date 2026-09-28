@@ -53,6 +53,15 @@ class UDT_Types : public Entity_object_table_impl {
     FIELD_ID,
     FIELD_SCHEMA_ID,
     FIELD_NAME,
+    FIELD_TYPE,
+    FIELD_IS_UNSIGNED,
+    FIELD_CHAR_LENGTH,
+    FIELD_NUMERIC_PRECISION,
+    FIELD_NUMERIC_SCALE,
+    FIELD_DATETIME_PRECISION,
+    FIELD_COLLATION_ID,
+    FIELD_COLUMN_TYPE_UTF8,
+    FIELD_IS_EXPLICIT_COLLATION,
     FIELD_LAST_ALTERED,
     FIELD_CREATED,
     NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
@@ -61,9 +70,10 @@ class UDT_Types : public Entity_object_table_impl {
   enum enum_indexes {
     INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
     INDEX_UK_SCHEMA_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
+    INDEX_K_COLLATION_ID,
   };
 
-  enum enum_foreign_keys { FK_SCHEMA_ID };
+  enum enum_foreign_keys { FK_SCHEMA_ID, FK_COLLATION_ID };
 
   UDT_Types();
 

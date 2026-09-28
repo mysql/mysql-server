@@ -22,9 +22,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/sql_cmd_ddl_type.h"
+#include "sql/create_field.h"
 #include "sql/dd/cache/dictionary_client.h"  // Dictionary_client
 #include "sql/dd/dd_udt_type.h"
 #include "sql/mysqld.h"  // lower_case_table_names
+#include "sql/parse_tree_column_attrs.h"
 #include "sql/sql_lex.h"
 #include "sql/transaction.h"
 #include "sql/warn_not_implemented.h"
@@ -165,7 +167,15 @@ bool Sql_cmd_create_type::execute(THD *thd) {
     return true;
   }
 
-  if (dd::create_udt_type(thd, *schema, type_name)) {
+  TypeDescriptor td;
+  td.m_type = m_type->type;
+  td.m_type_flags = m_type->get_type_flags();
+  td.m_length = m_type->get_length_as_size_t();
+  td.m_dec = m_type->get_dec_as_size_t();
+  td.m_charset = m_type->get_charset();
+  td.m_has_explicit_collation = false;  // FIXME PT_Type
+
+  if (dd::create_udt_type(thd, *schema, type_name, td)) {
     return true;
   }
 

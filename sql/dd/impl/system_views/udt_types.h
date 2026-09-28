@@ -37,7 +37,22 @@ namespace system_views {
 */
 class UDT_Types : public System_view_impl<System_view_select_definition_impl> {
  public:
-  enum enum_fields { FIELD_TYPE_SCHEMA, FIELD_TYPE_NAME };
+  enum enum_fields {
+    FIELD_TYPE_CATALOG,
+    FIELD_TYPE_SCHEMA,
+    FIELD_TYPE_NAME,
+    FIELD_DATA_TYPE,
+    FIELD_CHARACTER_MAXIMUM_LENGTH,
+    FIELD_CHARACTER_OCTET_LENGTH,
+    FIELD_NUMERIC_PRECISION,
+    FIELD_NUMERIC_SCALE,
+    FIELD_DATETIME_PRECISION,
+    FIELD_CHARACTER_SET_NAME,
+    FIELD_COLLATION_NAME,
+    FIELD_COLUMN_TYPE,
+    FIELD_CREATE_TIME,
+    FIELD_UPDATE_TIME
+  };
 
   UDT_Types();
 

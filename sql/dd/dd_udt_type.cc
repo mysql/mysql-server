@@ -58,6 +58,7 @@
                                                //   set_PS_version_for_table
 #include "sql-common/my_decimal.h"
 #include "sql/create_field.h"
+#include "sql/dd/dd_table.h"
 #include "sql/dd/dd_version.h"  // DD_VERSION
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
@@ -96,9 +97,27 @@ bool udt_type_exists(dd::cache::Dictionary_client *client,
 }
 
 bool create_udt_type(THD *thd, const dd::Schema &sch_obj,
-                     const dd::String_type &type_name) {
+                     const dd::String_type &type_name,
+                     const TypeDescriptor &td) {
   std::unique_ptr<dd::UDT_Type> obj(sch_obj.create_udt_type(thd));
   obj->set_name(type_name);
+  obj->set_type(get_new_field_type(td.m_type));
+  obj->set_unsigned(td.m_type_flags & UNSIGNED_FLAG);
+  obj->set_char_length(td.m_length);
+  obj->set_numeric_precision(0);  // FIXME
+  obj->set_numeric_scale(0);      // FIXME
+  obj->set_numeric_scale_null(false);
+  obj->set_datetime_precision(0);  // FIXME
+  obj->set_datetime_precision_null(false);
+
+  if (td.m_charset != nullptr) {
+    obj->set_collation_id(td.m_charset->number);
+  } else {
+    obj->set_collation_id(0);
+  }
+
+  obj->set_is_explicit_collation(td.m_has_explicit_collation);
+  obj->set_column_type_utf8("FIXME");
   return thd->dd_client()->store(obj.get());
 }
 
