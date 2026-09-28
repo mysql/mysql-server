@@ -82,7 +82,7 @@
 %global add_fido_plugins      1
 %endif
 
-%if 0%{?suse_version} == 1550
+%if 0%{?suse_version} == 1600
 %global dist                  .sl16
 %global sles16                1
 %global add_fido_plugins      1
@@ -569,7 +569,8 @@ This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
 %endif # with_router
 
-%if 0%{?suse_version}
+# RPM on SUSE 16 generates the debuginfo package automatically.
+%if 0%{?sles15}
 %debug_package
 %endif
 
