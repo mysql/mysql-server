@@ -36,6 +36,7 @@
 #include <memory>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "ft_global.h"
 #include "m_string.h"
@@ -2256,6 +2257,131 @@ Table_ref *unique_table(const Table_ref *table, Table_ref *table_list,
   return dup;
 }
 
+/// True if this referential action modifies rows in the referencing table.
+static bool fk_rule_modifies_child(dd::Foreign_key::enum_rule rule) {
+  return rule != dd::Foreign_key::RULE_RESTRICT &&
+         rule != dd::Foreign_key::RULE_NO_ACTION;
+}
+
+/// Find the share of an open table matching the given name, or nullptr.
+/// The list is walked through next_global, so prelocked tables are seen too.
+static const TABLE_SHARE *find_open_table_share(const Table_ref *tables,
+                                                const char *db,
+                                                const char *table_name) {
+  for (const Table_ref *tl = tables; tl != nullptr; tl = tl->next_global) {
+    if (tl->table == nullptr) continue;
+    const TABLE_SHARE *share = tl->table->s;
+    if (my_strcasecmp(table_alias_charset, share->db.str, db) == 0 &&
+        my_strcasecmp(table_alias_charset, share->table_name.str, table_name) ==
+            0)
+      return share;
+  }
+  return nullptr;
+}
+
+/**
+  Test whether modifying rows of the subject table of a multi-table DELETE
+  or UPDATE can, through referential actions, modify rows of another table
+  which the same statement reads.
+
+  Modifying such a table while the join is still scanning gives wrong
+  results: the referential action deletes or updates rows of the other
+  table that the join has not read yet, so the join sees a mix of old and
+  new rows. It also breaks row-based replication, since the row events
+  logged for the statement no longer match what the referential action
+  already did on the replica. Deferring the modification until the join has
+  finished avoids both.
+
+  Every referential action except RESTRICT and NO ACTION modifies rows in
+  the referencing table. The check follows the actions transitively: a
+  delete cascading from t1 into t2 can trigger t2's own referential actions
+  into t3, so t3 being part of the query makes immediate deletes from t1
+  unsafe even when t2 is not in the query. Whether a table's children are
+  affected through their delete rule or their update rule depends on
+  whether the action deletes or updates that table's rows. Tables read by
+  other query blocks of the statement, such as subqueries, count as read
+  too, since their reads are interleaved with the scan the same way.
+
+  @param  table       table to be checked (must be updatable base table)
+  @param  query_block query block of the DELETE or UPDATE statement
+  @param  is_delete   true for DELETE, false for UPDATE
+
+  @retval true  A referential action triggered by modifying @p table can
+                modify rows of a table read by the statement.
+  @retval false No such dependency within the statement.
+*/
+
+bool fk_actions_affect_queried_table(const Table_ref *table,
+                                     const Query_block *query_block,
+                                     bool is_delete) {
+  assert(table->table != nullptr);
+
+  const Table_ref *all_tables = query_block->parent_lex->query_tables;
+  const Table_ref *first_not_own =
+      query_block->parent_lex->first_not_own_table();
+
+  // Depth-first walk over the tables whose rows the statement's referential
+  // actions may modify. The bool tracks whether rows of that table get
+  // deleted (true) or updated (false), which decides whether its children
+  // are affected through their delete rule or their update rule. Since the
+  // two rules can lead to different descendants, a table reached both ways
+  // must be walked once per state, so visited entries are (table, state)
+  // pairs rather than tables.
+  std::vector<std::pair<const TABLE_SHARE *, bool>> pending;
+  std::vector<std::pair<const TABLE_SHARE *, bool>> visited;
+  pending.emplace_back(table->table->s, is_delete);
+  visited.emplace_back(table->table->s, is_delete);
+
+  while (!pending.empty()) {
+    const auto [share, rows_deleted] = pending.back();
+    pending.pop_back();
+
+    for (const TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *fk_p =
+             share->foreign_key_parent;
+         fk_p < share->foreign_key_parent + share->foreign_key_parents;
+         ++fk_p) {
+      const dd::Foreign_key::enum_rule rule =
+          rows_deleted ? fk_p->delete_rule : fk_p->update_rule;
+      if (!fk_rule_modifies_child(rule)) continue;
+
+      // A modified child that the statement reads makes immediate
+      // modification of the subject table unsafe. Walk the complete table
+      // list of the statement, so that tables read by other query blocks
+      // (e.g. subqueries) are seen too, but stop before the tables added by
+      // prelocking, since those are not read by the statement itself.
+      for (const Table_ref *tl = all_tables;
+           tl != nullptr && tl != first_not_own; tl = tl->next_global) {
+        if (tl->table == nullptr) continue;  // View or derived table.
+        const TABLE_SHARE *read_share = tl->table->s;
+        if (my_strcasecmp(table_alias_charset, read_share->db.str,
+                          fk_p->referencing_table_db.str) == 0 &&
+            my_strcasecmp(table_alias_charset, read_share->table_name.str,
+                          fk_p->referencing_table_name.str) == 0)
+          return true;
+      }
+
+      // Follow the chain: the child's own referential actions may modify
+      // further tables. The child is not among the open tables when the
+      // storage engine handles referential actions internally, so that
+      // prelocking did not add it; assume the worst in that case, since the
+      // engine-internal action poses the same hazard.
+      const TABLE_SHARE *child_share =
+          find_open_table_share(all_tables, fk_p->referencing_table_db.str,
+                                fk_p->referencing_table_name.str);
+      if (child_share == nullptr) return true;
+      const std::pair<const TABLE_SHARE *, bool> child_state(
+          child_share, rows_deleted && rule == dd::Foreign_key::RULE_CASCADE);
+      if (std::find(visited.begin(), visited.end(), child_state) ==
+          visited.end()) {
+        visited.push_back(child_state);
+        pending.push_back(child_state);
+      }
+    }
+  }
+
+  return false;
+}
+
 /**
   Issue correct error message in case we found 2 duplicate tables which
   prevent some update operation
@@ -3182,7 +3308,7 @@ bool open_table(THD *thd, Table_ref *table_list, Open_table_context *ot_ctx) {
   } else if (table_list->open_strategy == Table_ref::OPEN_STUB)
     return false;
 
-retry_share : {
+retry_share: {
   Table_cache *tc = table_cache_manager.get_cache(thd);
 
   tc->lock();
