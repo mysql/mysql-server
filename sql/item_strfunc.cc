@@ -1458,7 +1458,8 @@ String *Item_str_conv::val_str(String *str) {
   null_value = false;
   if (multiply == 1) {
     size_t len;
-    if (res->uses_buffer_owned_by(str)) {
+    if (res->uses_buffer_owned_by(str) ||
+        (res != str && res->alloced_length() != 0)) {
       if (tmp_value.copy(*res)) return error_str();
       res = &tmp_value;
     } else

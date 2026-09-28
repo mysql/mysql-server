@@ -1,0 +1,95 @@
+--echo #
+--echo # Bug#121100 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_121100 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_121100;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+SET NAMES utf8mb4;
+CREATE TABLE b (c_chr VARCHAR(255) COLLATE utf8mb4_0900_bin);
+INSERT INTO b VALUES ('a');
+CREATE VIEW t AS SELECT CAST(c_chr AS CHAR(255)) COLLATE utf8mb4_0900_bin AS c_chr FROM b;
+--sorted_result
+SELECT c_chr, HEX(c_chr), UPPER(c_chr), HEX(UPPER(c_chr)), c_chr = UPPER(c_chr) AS eq_upper, c_chr = 'A' AS eq_lit, c_chr <= UPPER(c_chr) AS le_upper, COLLATION(c_chr) FROM t;
+PREPARE regression_stmt FROM 'SELECT c_chr, HEX(c_chr), UPPER(c_chr), HEX(UPPER(c_chr)), c_chr = UPPER(c_chr) AS eq_upper, c_chr = ''A'' AS eq_lit, c_chr <= UPPER(c_chr) AS le_upper, COLLATION(c_chr) FROM t;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT c_chr, HEX(c_chr), UPPER(c_chr), HEX(UPPER(c_chr)), c_chr = UPPER(c_chr) AS eq_upper, NOT (NOT (c_chr = 'A')) AS eq_lit, c_chr <= UPPER(c_chr) AS le_upper, COLLATION(c_chr) FROM t;
+--sorted_result
+SELECT d.c_chr, HEX(d.c_chr), UPPER(d.c_chr), HEX(UPPER(d.c_chr)), d.c_chr = UPPER(d.c_chr) AS eq_upper, d.c_chr = 'A' AS eq_lit, d.c_chr <= UPPER(d.c_chr) AS le_upper, COLLATION(d.c_chr) FROM (SELECT c_chr FROM t) AS d;
+--sorted_result
+SELECT c_chr, HEX(c_chr), UPPER(c_chr), HEX(UPPER(c_chr)), NOT (NOT (c_chr = UPPER(c_chr))) AS eq_upper, c_chr = 'A' AS eq_lit, c_chr <= UPPER(c_chr) AS le_upper, COLLATION(c_chr) FROM t;
+--sorted_result
+SELECT t.c_chr, HEX(t.c_chr), UPPER(t.c_chr), HEX(UPPER(t.c_chr)), t.c_chr = UPPER(t.c_chr) AS eq_upper, t.c_chr = 'A' AS eq_lit, t.c_chr <= UPPER(t.c_chr) AS le_upper, COLLATION(t.c_chr) FROM (SELECT CAST(c_chr AS CHAR(255)) COLLATE utf8mb4_0900_bin AS c_chr FROM b) AS t;
+--sorted_result
+SELECT c_chr, HEX(c_chr), UPPER(c_chr), HEX(UPPER(c_chr)), NOT (c_chr <> UPPER(c_chr)) AS eq_upper, c_chr = 'A' AS eq_lit, c_chr <= UPPER(c_chr) AS le_upper, COLLATION(c_chr) FROM t;
+--sorted_result
+SELECT c_chr, HEX(c_chr), UPPER(c_chr), HEX(UPPER(c_chr)), c_chr = UPPER(c_chr) AS eq_upper, c_chr = 'A' AS eq_lit, NOT (NOT (c_chr <= UPPER(c_chr))) AS le_upper, COLLATION(c_chr) FROM t;
+--sorted_result
+SELECT c_chr, HEX(c_chr), UPPER(c_chr), HEX(UPPER(c_chr)), c_chr = UPPER(c_chr) AS eq_upper, c_chr = 'A' AS eq_lit, c_chr <= UPPER(c_chr) AS le_upper, COLLATION(c_chr) FROM (SELECT c_chr FROM t) AS d;
+--sorted_result
+WITH d AS (SELECT c_chr FROM t) SELECT c_chr, HEX(c_chr), UPPER(c_chr), HEX(UPPER(c_chr)), c_chr = UPPER(c_chr) AS eq_upper, c_chr = 'A' AS eq_lit, c_chr <= UPPER(c_chr) AS le_upper, COLLATION(c_chr) FROM d;
+USE test;
+DROP DATABASE bug_121100;
+CREATE DATABASE bug_121100 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_121100;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+SET NAMES utf8mb4;
+CREATE TABLE c (c2 CHAR(1));
+INSERT INTO c VALUES ('[');
+CREATE VIEW v0 AS SELECT GROUP_CONCAT(JSON_QUOTE(HEX(c2))) AS g FROM c;
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE LOWER(a.g)=a.g;
+PREPARE regression_stmt FROM 'SELECT * FROM v0 AS a JOIN v0 AS b WHERE LOWER(a.g)=a.g;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT a.g, b.g FROM v0 AS b JOIN v0 AS a WHERE LOWER(a.g)=a.g;
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE NOT (NOT (LOWER(a.g)=a.g));
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE CASE WHEN LOWER(a.g)=a.g THEN LOWER(a.g)=a.g ELSE LOWER(a.g)=a.g END;
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE (((LOWER(a.g)=a.g) OR NOT (LOWER(a.g)=a.g)) OR (LOWER(a.g)=a.g) IS NULL) AND (LOWER(a.g)=a.g);
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE (((LOWER(a.g)=a.g) AND NOT (LOWER(a.g)=a.g)) AND (LOWER(a.g)=a.g) IS NOT NULL) OR (LOWER(a.g)=a.g);
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b ON LOWER(a.g) = a.g;
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE NOT (NOT (LOWER(a.g) = a.g));
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE (LOWER(a.g) = a.g) AND (a.g = b.g) UNION ALL SELECT * FROM v0 AS a JOIN v0 AS b WHERE (LOWER(a.g) = a.g) AND NOT (a.g = b.g) UNION ALL SELECT * FROM v0 AS a JOIN v0 AS b WHERE (LOWER(a.g) = a.g) AND (a.g = b.g) IS NULL;
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE CASE WHEN LOWER(a.g) = a.g THEN LOWER(a.g) = a.g ELSE LOWER(a.g) = a.g END;
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE (((LOWER(a.g) = a.g) OR NOT (LOWER(a.g) = a.g)) OR (LOWER(a.g) = a.g) IS NULL) AND (LOWER(a.g) = a.g);
+--sorted_result
+SELECT * FROM v0 AS a JOIN v0 AS b WHERE (((LOWER(a.g) = a.g) AND NOT (LOWER(a.g) = a.g)) AND (LOWER(a.g) = a.g) IS NOT NULL) OR (LOWER(a.g) = a.g);
+USE test;
+DROP DATABASE bug_121100;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
