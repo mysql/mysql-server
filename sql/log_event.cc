@@ -1230,6 +1230,8 @@ uint32 Log_event::write_header_to_memory(uchar *buf) {
   } else {
     DBUG_EXECUTE_IF("inc_event_time_by_1_hour", timestamp = timestamp + 3600;);
     DBUG_EXECUTE_IF("dec_event_time_by_1_hour", timestamp = timestamp - 3600;);
+    DBUG_EXECUTE_IF("sql_delay_dec_master_clock_10s",
+                    timestamp = timestamp - 10;);
   }
 #endif
 

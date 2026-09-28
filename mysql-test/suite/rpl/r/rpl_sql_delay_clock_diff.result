@@ -1,0 +1,26 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+# Adding debug point 'sql_delay_dec_master_clock_10s' to @@GLOBAL.debug
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 5;
+include/rpl/start_replica.inc
+include/assert.inc [Assert that SQL_Delay matches the configured delay]
+[connection master]
+CREATE TABLE t1 (a INT);
+include/rpl/sync_to_replica.inc
+[connection master]
+[connection slave]
+include/assert.inc [The replica must wait at least SOURCE_DELAY seconds (clock_diff_with_master must be accounted for)]
+include/assert.inc [The delay should not be excessively long]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
+include/rpl/start_replica.inc
+[connection master]
+# Removing debug point 'sql_delay_dec_master_clock_10s' from @@GLOBAL.debug
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc
