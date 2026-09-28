@@ -777,7 +777,9 @@ static bool is_key_scan_ror(RANGE_OPT_PARAM *param, uint keynr, uint nparts) {
   for (; (key_part != key_part_end) && (pk_part != pk_part_end);
        ++key_part, ++pk_part) {
     if ((key_part->field != pk_part->field) ||
-        (key_part->length != pk_part->length))
+        (key_part->length != pk_part->length) ||
+        ((key_part->key_part_flag & HA_REVERSE_SORT) !=
+         (pk_part->key_part_flag & HA_REVERSE_SORT)))
       return false;
   }
   return (key_part == key_part_end);
