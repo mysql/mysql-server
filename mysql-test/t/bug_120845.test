@@ -1,0 +1,96 @@
+--echo #
+--echo # Bug#120845 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120845 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120845;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (d INT,e INT);
+INSERT INTO a VALUES (0,0);
+INSERT INTO a VALUES ();
+INSERT INTO a VALUES (3,0);
+CREATE VIEW v0 AS SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f;
+--sorted_result
+WITH cte AS (SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f) SELECT g,f FROM cte WHERE g=0 UNION SELECT g,STDDEV_POP(f) FROM cte GROUP BY g;
+PREPARE regression_stmt FROM 'WITH cte AS (SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f) SELECT g,f FROM cte WHERE g=0 UNION SELECT g,STDDEV_POP(f) FROM cte GROUP BY g;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT g,f FROM v0 WHERE g=0 UNION SELECT g,STDDEV_POP(f) FROM v0 GROUP BY g;
+USE test;
+DROP DATABASE bug_120845;
+CREATE DATABASE bug_120845 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120845;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (d INT,e INT);
+INSERT INTO a VALUES (0,0),(0,2),(3,0),(NULL,NULL);
+CREATE VIEW v0 AS SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f;
+--sorted_result
+WITH cte AS (SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f) SELECT g,f FROM cte WHERE g=0 UNION SELECT g,STDDEV_POP(f) FROM cte GROUP BY g;
+PREPARE regression_stmt FROM 'WITH cte AS (SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f) SELECT g,f FROM cte WHERE g=0 UNION SELECT g,STDDEV_POP(f) FROM cte GROUP BY g;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120845;
+CREATE DATABASE bug_120845 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120845;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (d INT,e INT);
+INSERT INTO a VALUES (NULL,NULL),(NULL,NULL);
+CREATE VIEW v0 AS SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f;
+--sorted_result
+WITH cte AS (SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f) SELECT g,f FROM cte WHERE g=0 UNION SELECT g,STDDEV_POP(f) FROM cte GROUP BY g;
+PREPARE regression_stmt FROM 'WITH cte AS (SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f) SELECT g,f FROM cte WHERE g=0 UNION SELECT g,STDDEV_POP(f) FROM cte GROUP BY g;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120845;
+CREATE DATABASE bug_120845 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120845;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (d INT,e INT);
+CREATE VIEW v0 AS SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f;
+--sorted_result
+WITH cte AS (SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f) SELECT g,f FROM cte WHERE g=0 UNION SELECT g,STDDEV_POP(f) FROM cte GROUP BY g;
+PREPARE regression_stmt FROM 'WITH cte AS (SELECT d AS f,STDDEV_POP(e) AS g FROM a GROUP BY f) SELECT g,f FROM cte WHERE g=0 UNION SELECT g,STDDEV_POP(f) FROM cte GROUP BY g;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120845;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;

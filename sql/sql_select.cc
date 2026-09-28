@@ -4906,10 +4906,18 @@ bool JOIN::make_tmp_tables_info() {
     */
     DBUG_PRINT("info", ("Sorting for order by/group by"));
     ORDER_with_src order_arg = group_list.empty() ? order : group_list;
+    // An ordered index chosen for GROUP BY only orders the rows if the
+    // access method still reads that index. A table scan cannot satisfy
+    // that ordering, even if the earlier index choice is still recorded.
+    const bool group_index_order_lost =
+        qep_tab != nullptr && !group_list.empty() &&
+        m_ordered_index_usage == ORDERED_INDEX_GROUP_BY &&
+        qep_tab[curr_tmp_table].type() == JT_ALL;
     if (qep_tab &&
-        m_ordered_index_usage != (group_list.empty()
-                                      ? ORDERED_INDEX_ORDER_BY
-                                      : ORDERED_INDEX_GROUP_BY) &&
+        (m_ordered_index_usage != (group_list.empty()
+                                       ? ORDERED_INDEX_ORDER_BY
+                                       : ORDERED_INDEX_GROUP_BY) ||
+         group_index_order_lost) &&
         // Windowing will change order, so it's too early to sort here
         !m_windowing_steps) {
       // Sort either first non-const table or the last tmp table
