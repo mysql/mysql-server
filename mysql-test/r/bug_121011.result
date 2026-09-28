@@ -1,0 +1,98 @@
+#
+# Bug#121011 Regression coverage
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_121011 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_121011;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (id INT PRIMARY KEY, c0 INT, c1 INT);
+CREATE TABLE t1 (id INT PRIMARY KEY, c0 INT, c1 INT);
+INSERT INTO t0 VALUES (1,NULL,5),(2,10,5),(3,20,5);
+INSERT INTO t1 VALUES (1,10,100),(2,20,200);
+SET SESSION optimizer_switch='subquery_to_derived=on';
+SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE t1.c0 = t0.c0) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+PREPARE regression_stmt FROM 'SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE t1.c0 = t0.c0) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP;';
+EXECUTE regression_stmt;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+EXECUTE regression_stmt;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+DEALLOCATE PREPARE regression_stmt;
+SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE NOT (t1.c0 <> t0.c0)) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+SELECT t0.c0, (SELECT COUNT(CASE WHEN t1.c0 = t0.c0 THEN 1 ELSE NULL END) FROM t1) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+SELECT d.c0, d.cnt FROM (SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE t1.c0 = t0.c0) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP) AS d;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE NOT NOT (t1.c0 = t0.c0)) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE CASE WHEN t1.c0 = t0.c0 THEN t1.c0 = t0.c0 ELSE t1.c0 = t0.c0 END) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE (((t1.c0 = t0.c0) OR NOT (t1.c0 = t0.c0)) OR (t1.c0 = t0.c0) IS NULL) AND (t1.c0 = t0.c0)) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+SELECT t0.c0, (SELECT COUNT(CASE WHEN TRUE THEN 1 END) FROM t1 WHERE t1.c0 = t0.c0) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+SELECT q.c0, q.cnt FROM (SELECT t0.c0 AS c0, (SELECT COUNT(*) FROM t1 WHERE t1.c0 = t0.c0) AS cnt FROM t0 GROUP BY t0.c0 WITH ROLLUP) AS q;
+c0	cnt
+10	1
+20	1
+NULL	0
+NULL	0
+USE test;
+DROP DATABASE bug_121011;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;

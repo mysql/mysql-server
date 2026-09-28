@@ -8992,6 +8992,15 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
 
     Item *lifted_where = nullptr;
     if (subquery.m_correlation_map != 0) {
+      /*
+        A correlated scalar subquery in the select list must be evaluated
+        against the values of the current rollup level. Transforming it into
+        a derived table would evaluate the correlation before rollup instead.
+      */
+      if (olap == ROLLUP_TYPE &&
+          (subquery.m_locations & Item::Collect_scalar_subquery_info::L_SELECT))
+        continue;
+
       // We have a correlated subquery. Check if we can handle it or not (only
       // applicable for subqueries without set operations)
       if (!subs_query_expression->is_set_operation()) {
