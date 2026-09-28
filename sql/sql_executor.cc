@@ -264,6 +264,8 @@ bool JOIN::create_intermediate_table(
       select_distinct &&
       // GROUP BY is absent or has been done in a previous step
       group_list.empty() &&
+      // A pending HAVING must be evaluated before duplicate elimination.
+      having_cond == nullptr &&
       // We can only do DISTINCT in last window's tmp table step
       (!windowing || (tab->tmp_table_param->m_window &&
                       tab->tmp_table_param->m_window->is_last()));

@@ -1,0 +1,83 @@
+--echo #
+--echo # Bug#121046 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_121046 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_121046;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (id BIGINT, name VARCHAR(255));
+INSERT INTO t VALUES (NULL,'b'),(1,'a');
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) AS e0 FROM t GROUP BY name HAVING MAX(id) <= 100;
+PREPARE regression_stmt FROM 'SELECT DISTINCT CAST(MAX(1) AS SIGNED) AS e0 FROM t GROUP BY name HAVING MAX(id) <= 100;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT DISTINCT CAST(1 AS SIGNED) AS e0 FROM t GROUP BY name HAVING MAX(id) <= 100;
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) AS e0 FROM t GROUP BY name HAVING NOT NOT (MAX(id) <= 100);
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) AS e0 FROM t GROUP BY name HAVING CASE WHEN MAX(id) <= 100 THEN MAX(id) <= 100 ELSE MAX(id) <= 100 END;
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) AS e0 FROM t GROUP BY name HAVING (((MAX(id) <= 100) OR NOT (MAX(id) <= 100)) OR (MAX(id) <= 100) IS NULL) AND (MAX(id) <= 100);
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) AS e0 FROM t GROUP BY name HAVING (((MAX(id) <= 100) AND NOT (MAX(id) <= 100)) AND (MAX(id) <= 100) IS NOT NULL) OR (MAX(id) <= 100);
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) AS e0 FROM t GROUP BY name HAVING NOT ((MAX(id) > 100) OR (MAX(id) <= 100) IS NULL);
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) AS e0 FROM t GROUP BY name HAVING (MAX(id) <= 100) AND (((MAX(id) <= 100) IS NULL) OR ((MAX(id) <= 100) OR NOT (MAX(id) <= 100)));
+USE test;
+DROP DATABASE bug_121046;
+CREATE DATABASE bug_121046 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_121046;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE grouped_values (id BIGINT,name VARCHAR(20));
+INSERT INTO grouped_values VALUES (NULL,'b'),(1,'a'),(200,'c'),(2,'d'),(3,'d');
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) FROM grouped_values  GROUP BY name HAVING MAX(id)<=100;
+PREPARE regression_stmt FROM 'SELECT DISTINCT CAST(MAX(1) AS SIGNED) FROM grouped_values  GROUP BY name HAVING MAX(id)<=100;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) FROM grouped_values  GROUP BY name HAVING MAX(id)<0;
+PREPARE regression_stmt FROM 'SELECT DISTINCT CAST(MAX(1) AS SIGNED) FROM grouped_values  GROUP BY name HAVING MAX(id)<0;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) FROM grouped_values WHERE 0 GROUP BY name HAVING MAX(id)<=100;
+PREPARE regression_stmt FROM 'SELECT DISTINCT CAST(MAX(1) AS SIGNED) FROM grouped_values WHERE 0 GROUP BY name HAVING MAX(id)<=100;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_121046;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
