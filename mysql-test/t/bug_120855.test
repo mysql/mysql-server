@@ -1,0 +1,61 @@
+--echo #
+--echo # Bug#120855 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120855 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120855;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (c0 INT);
+INSERT INTO t0 VALUES (1);
+CREATE VIEW v0 AS SELECT QUOTE(b.c0) AS vc FROM t0 AS a LEFT JOIN t0 AS b ON FALSE;
+CREATE TEMPORARY TABLE tmp AS SELECT QUOTE(b.c0) AS vc FROM t0 AS a LEFT JOIN t0 AS b ON FALSE;
+--sorted_result
+SELECT vc FROM v0 WHERE vc='NULL';
+PREPARE regression_stmt FROM 'SELECT vc FROM v0 WHERE vc=''NULL'';';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT vc FROM tmp WHERE vc='NULL';
+--sorted_result
+SELECT vc FROM v0 WHERE NOT (NOT (vc='NULL'));
+--sorted_result
+SELECT d.vc FROM (SELECT vc, vc='NULL' AS pred FROM v0) AS d WHERE d.pred;
+--sorted_result
+SELECT d.vc FROM (SELECT QUOTE(b.c0) AS vc FROM t0 AS a LEFT JOIN t0 AS b ON FALSE) AS d WHERE d.vc='NULL';
+--sorted_result
+SELECT vc FROM v0 WHERE vc='NULL' AND vc IS NULL UNION ALL SELECT vc FROM v0 WHERE vc='NULL' AND NOT (vc IS NULL) UNION ALL SELECT vc FROM v0 WHERE vc='NULL' AND (vc IS NULL) IS NULL;
+--sorted_result
+SELECT vc FROM v0 WHERE CASE WHEN vc='NULL' THEN vc='NULL' ELSE vc='NULL' END;
+--sorted_result
+SELECT vc FROM v0 WHERE NOT NOT (vc = 'NULL');
+--sorted_result
+SELECT vc FROM (SELECT vc, vc = 'NULL' AS keep_row FROM v0) AS d WHERE keep_row;
+--sorted_result
+SELECT vc FROM (SELECT QUOTE(b.c0) AS vc FROM t0 AS a LEFT JOIN t0 AS b ON FALSE) AS d WHERE vc = 'NULL';
+--sorted_result
+SELECT vc FROM v0 WHERE vc = 'NULL' AND vc IS NULL UNION ALL SELECT vc FROM v0 WHERE vc = 'NULL' AND NOT (vc IS NULL) UNION ALL SELECT vc FROM v0 WHERE vc = 'NULL' AND (vc IS NULL) IS NULL;
+--sorted_result
+SELECT vc FROM v0 WHERE CASE WHEN vc = 'NULL' THEN vc = 'NULL' ELSE vc = 'NULL' END;
+--sorted_result
+SELECT vc FROM v0 WHERE ((vc = 'NULL' OR NOT (vc = 'NULL')) OR (vc = 'NULL') IS NULL) AND vc = 'NULL';
+USE test;
+DROP DATABASE bug_120855;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
