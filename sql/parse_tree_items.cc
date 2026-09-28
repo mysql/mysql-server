@@ -51,6 +51,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"  // append_identifier()
 #include "sql/sql_udf.h"
+#include "sql/sql_udt.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/trigger_def.h"
@@ -285,10 +286,18 @@ bool PTI_function_call_generic_ident_sys::do_itemize(Parse_context *pc,
       *res = Create_udf_func::s_singleton.create(thd, m_pos, udf,
                                                  opt_udf_expr_list);
     } else {
-      builder = find_qualified_function_builder(thd);
-      assert(builder);
-      *res = builder->create_func(thd, m_pos, ident, opt_udf_expr_list);
-      pc->select->n_stored_func_calls++;
+      // Try UDT functions
+
+      auto *udt_function = acquire_udt_function(ident.str);
+      if (udt_function) {
+        *res = Create_udt_func::create(thd, m_pos, udt_function,
+                                       opt_udf_expr_list);
+      } else {
+        builder = find_qualified_function_builder(thd);
+        assert(builder);
+        *res = builder->create_func(thd, m_pos, ident, opt_udf_expr_list);
+        pc->select->n_stored_func_calls++;
+      }
     }
   }
   return *res == nullptr || (*res)->itemize(pc, res);

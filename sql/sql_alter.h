@@ -56,6 +56,7 @@ class String;
 class THD;
 struct CHARSET_INFO;
 class Table_ref;
+class Type_ident;
 
 /**
   Class representing DROP COLUMN, DROP KEY, DROP FOREIGN KEY, DROP CHECK
@@ -511,14 +512,15 @@ class Alter_info {
   Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
 
   bool add_field(THD *thd, const LEX_STRING *field_name,
-                 enum enum_field_types type, const char *length,
-                 const char *decimal, uint type_modifier, Item *default_value,
-                 Item *on_update_value, LEX_CSTRING *comment,
-                 const char *change, List<String> *interval_list,
-                 const CHARSET_INFO *cs, bool has_explicit_collation,
-                 uint uint_geom_type, Value_generator *gcol_info,
-                 Value_generator *default_val_expr, LEX_CSTRING masking_policy,
-                 const char *opt_after, std::optional<gis::srid_t> srid,
+                 const Type_ident *type_ident, enum enum_field_types type,
+                 const char *length, const char *decimal, uint type_modifier,
+                 Item *default_value, Item *on_update_value,
+                 LEX_CSTRING *comment, const char *change,
+                 List<String> *interval_list, const CHARSET_INFO *cs,
+                 bool has_explicit_collation, uint uint_geom_type,
+                 Value_generator *gcol_info, Value_generator *default_val_expr,
+                 LEX_CSTRING masking_policy, const char *opt_after,
+                 std::optional<gis::srid_t> srid,
                  Sql_check_constraint_spec_list *check_cons_list,
                  dd::Column::enum_hidden_type hidden, bool is_array = false);
 

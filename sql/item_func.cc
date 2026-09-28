@@ -8565,6 +8565,8 @@ bool Item_func_sp::init_result_field(THD *thd) {
   m_sp = sp_find_routine(thd, enum_sp_type::FUNCTION, m_name,
                          &thd->sp_func_cache, true);
   if (m_sp == nullptr) {
+    fprintf(stderr, "Item_func_sp::init_result_field() function not found\n");
+
     my_missing_function_error(m_name->m_name, m_name->m_qname.str);
     return true;
   }

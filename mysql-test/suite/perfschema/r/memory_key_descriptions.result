@@ -59,6 +59,7 @@ memory/sql/THD::transactions::mem_root	Transaction context information per sessi
 memory/sql/THD::variables	Per session copy of global dynamic variables.
 memory/sql/tz_storage	Shared time zone data.
 memory/sql/udf_mem	Shared structure of UDFs.
+memory/sql/udt_mem	Shared structure of UDTs.
 memory/sql/user_conn	Objects describing user connections.
 memory/sql/User_level_lock	Per session storage of user level locks.
 memory/sql/XA::recovered_transactions	List infrastructure for recovered XA transactions.

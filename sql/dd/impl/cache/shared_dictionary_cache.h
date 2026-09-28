@@ -37,6 +37,7 @@
 #include "sql/dd/types/spatial_reference_system.h"  // Spatial_reference_system
 #include "sql/dd/types/table.h"                     // IWYU pragma: keep
 #include "sql/dd/types/tablespace.h"                // Tablespace
+#include "sql/dd/types/udt_type.h"                  // UDT_Type
 #include "sql/handler.h"                            // enum_tx_isolation
 
 class THD;
@@ -78,6 +79,8 @@ class Shared_dictionary_cache {
   */
   static const size_t resource_group_capacity = 32;
 
+  static const size_t udt_type_capacity = 256;
+
   Shared_multi_map<Abstract_table> m_abstract_table_map;
   Shared_multi_map<Charset> m_charset_map;
   Shared_multi_map<Collation> m_collation_map;
@@ -88,6 +91,7 @@ class Shared_dictionary_cache {
   Shared_multi_map<Schema> m_schema_map;
   Shared_multi_map<Spatial_reference_system> m_spatial_reference_system_map;
   Shared_multi_map<Tablespace> m_tablespace_map;
+  Shared_multi_map<UDT_Type> m_udt_type_map;
 
   template <typename T>
   struct Type_selector {};  // Dummy type to use for
@@ -127,6 +131,9 @@ class Shared_dictionary_cache {
   Shared_multi_map<Tablespace> *m_map(Type_selector<Tablespace>) {
     return &m_tablespace_map;
   }
+  Shared_multi_map<UDT_Type> *m_map(Type_selector<UDT_Type>) {
+    return &m_udt_type_map;
+  }
 
   const Shared_multi_map<Abstract_table> *m_map(
       Type_selector<Abstract_table>) const {
@@ -151,6 +158,9 @@ class Shared_dictionary_cache {
   }
   const Shared_multi_map<Tablespace> *m_map(Type_selector<Tablespace>) const {
     return &m_tablespace_map;
+  }
+  const Shared_multi_map<UDT_Type> *m_map(Type_selector<UDT_Type>) const {
+    return &m_udt_type_map;
   }
   const Shared_multi_map<Resource_group> *m_map(
       Type_selector<Resource_group>) const {

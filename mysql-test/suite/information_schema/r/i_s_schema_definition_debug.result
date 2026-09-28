@@ -103,8 +103,8 @@ CREATE TABLE test.I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-include/assert.inc [There are 50 system views.]
-include/assert.inc [There are 50 I_S system views in total.]
+include/assert.inc [There are 51 system views.]
+include/assert.inc [There are 51 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################
@@ -1630,6 +1630,20 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   tbl.type != 'VIEW'
   AND CAN_ACCESS_TRIGGER(sch.name, tbl.name)
   AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TYPES AS SELECT 
+  sch.name AS TYPE_SCHEMA,
+  typ.name AS TYPE_NAME FROM 
+  mysql.types typ
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TYPES AS SELECT 
+  sch.name AS TYPE_SCHEMA,
+  typ.name AS TYPE_NAME FROM 
+  mysql.types typ
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.VIEW_ROUTINE_USAGE AS SELECT 
   cat.name AS TABLE_CATALOG,

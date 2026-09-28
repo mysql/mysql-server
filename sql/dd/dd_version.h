@@ -230,10 +230,15 @@
   - WL#16358: Support for 3rd party JavaScript libraries
     > Adds a new entry 'LIBRARY' to the TYPE enum in the mysql.routines
       table, and a new DD type 'Library'.
+
+  261000:
+  ----------------------------------------------------------------------------
+  Changes:
+  - new DD table mysql.types
  */
 namespace dd {
 
-static const uint DD_VERSION = 90200;
+static const uint DD_VERSION = 261000;
 static_assert(DD_VERSION <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
 

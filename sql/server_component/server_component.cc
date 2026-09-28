@@ -57,6 +57,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/mysql_timestamp.h"
 #include "mysql/components/services/table_access_service.h"
 
+#include "mysql/components/services/mysql_user_defined_type.h"
+
 // pfs services
 #include <stddef.h>
 
@@ -136,6 +138,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_sink_perfschema.h"
 #include "table_access_service_impl.h"
+
+#include "mysql_user_defined_type_imp.h"
 
 /* Implementation located in the mysql_server component. */
 extern SERVICE_TYPE(mysql_cond_v1)
@@ -963,6 +967,36 @@ mysql_component_mysql_lock_free_hash_imp::init,
     mysql_component_mysql_lock_free_hash_imp::overhead
     END_SERVICE_IMPLEMENTATION();
 
+// clang-format off
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udt_registration)
+  mysql_udt_registration_imp::register_type,
+  mysql_udt_registration_imp::unregister_type,
+  mysql_udt_registration_imp::register_function,
+  mysql_udt_registration_imp::unregister_function
+END_SERVICE_IMPLEMENTATION();
+// clang-format on
+
+// clang-format off
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udt_value_null)
+  mysql_udt_value_null_imp::set_null,
+  mysql_udt_value_null_imp::get_null
+END_SERVICE_IMPLEMENTATION();
+// clang-format on
+
+// clang-format off
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udt_value_string)
+  mysql_udt_value_string_imp::set_utf8mb4,
+  mysql_udt_value_string_imp::get_utf8mb4
+END_SERVICE_IMPLEMENTATION();
+// clang-format on
+
+// clang-format off
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udt_value_blob)
+  mysql_udt_value_blob_imp::set,
+  mysql_udt_value_blob_imp::get
+END_SERVICE_IMPLEMENTATION();
+// clang-format on
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -1234,6 +1268,13 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_file),
     PROVIDES_SERVICE(mysql_server, mysql_server_attributes),
     PROVIDES_SERVICE(mysql_server, mysql_lock_free_hash),
+
+    // Prototype
+    PROVIDES_SERVICE(mysql_server, udt_registration),
+    PROVIDES_SERVICE(mysql_server, udt_value_null),
+    PROVIDES_SERVICE(mysql_server, udt_value_string),
+    PROVIDES_SERVICE(mysql_server, udt_value_blob),
+
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

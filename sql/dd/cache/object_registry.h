@@ -39,6 +39,7 @@
 #include "sql/dd/types/schema.h"                    // Schema
 #include "sql/dd/types/spatial_reference_system.h"  // Spatial_reference_system
 #include "sql/dd/types/tablespace.h"                // Tablespace
+#include "sql/dd/types/udt_type.h"                  // UDT_Type
 
 namespace dd {
 namespace cache {
@@ -76,6 +77,7 @@ class Object_registry {
   std::unique_ptr<Local_multi_map<Spatial_reference_system>>
       m_spatial_reference_system_map;
   std::unique_ptr<Local_multi_map<Tablespace>> m_tablespace_map;
+  std::unique_ptr<Local_multi_map<UDT_Type>> m_udt_type_map;
 
   // Not inlined because it is big, and because it takes a lot of time
   // for the compiler to instantiate. Defined in dd.cc, along the similar
@@ -182,6 +184,14 @@ class Object_registry {
 
   const Local_multi_map<Tablespace> *m_map(Type_selector<Tablespace>) const {
     return m_tablespace_map.get();
+  }
+
+  Local_multi_map<UDT_Type> *m_map(Type_selector<UDT_Type>) {
+    return create_map_if_needed(&m_udt_type_map);
+  }
+
+  const Local_multi_map<UDT_Type> *m_map(Type_selector<UDT_Type>) const {
+    return m_udt_type_map.get();
   }
 
   /**
@@ -329,6 +339,7 @@ class Object_registry {
     erase<Schema>();
     erase<Spatial_reference_system>();
     erase<Tablespace>();
+    erase<UDT_Type>();
   }
 
   /**

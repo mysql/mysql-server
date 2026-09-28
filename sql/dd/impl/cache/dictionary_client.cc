@@ -91,6 +91,7 @@
 #include "sql/dd/types/table.h"                     // Table
 #include "sql/dd/types/table_stat.h"                // Table_stat
 #include "sql/dd/types/tablespace.h"                // Tablespace
+#include "sql/dd/types/udt_type.h"                  // UDT_Type
 #include "sql/dd/types/view.h"                      // View
 #include "sql/dd/types/view_routine.h"              // View_routine
 #include "sql/dd/types/view_table.h"                // View_table
@@ -141,6 +142,7 @@ template <typename DDT>
 constexpr enum_mdl_type READ_LOCK_MDL_TYPE() {
   return (std::is_same_v<DDT, dd::Schema> ||
           std::is_same_v<DDT, dd::Tablespace> ||
+          std::is_same_v<DDT, dd::UDT_Type> ||
           std::is_same_v<DDT, dd::Resource_group>)
              ? MDL_INTENTION_EXCLUSIVE
              : MDL_SHARED;
@@ -220,6 +222,19 @@ MDL_key make_mdl_key(THD *, const dd::Spatial_reference_system &srs) {
 
 MDL_key make_mdl_key(THD *, const dd::Tablespace &ts) {
   return {MDL_key::TABLESPACE, "", ts.name().c_str()};
+}
+
+MDL_key make_mdl_key(THD *thd, const dd::UDT_Type &udt_type) {
+  return with_schema_of(thd->dd_client(), udt_type, [&](const dd::Schema &s) {
+    MDL_key mdl_key;
+    char schema_name_buf[NAME_LEN + 1];
+    dd::UDT_Type::create_mdl_key(
+        // FIXME.dt: Temporary dd::String_type from const char*
+        dd::Object_table_definition_impl::fs_name_case(s.name(),
+                                                       schema_name_buf),
+        udt_type.name(), &mdl_key);
+    return mdl_key;
+  });
 }
 
 MDL_key make_mdl_key(THD *, const dd::Resource_group &rg) {
@@ -549,6 +564,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser() {
   m_client->release<Routine>(&m_release_registry);
   m_client->release<Spatial_reference_system>(&m_release_registry);
   m_client->release<Resource_group>(&m_release_registry);
+  m_client->release<UDT_Type>(&m_release_registry);
 
 #ifndef NDEBUG
   // Make sure we still have some meta data lock. This is checked to
@@ -2959,6 +2975,25 @@ template bool Dictionary_client::drop(const Tablespace *);
 template bool Dictionary_client::store(Tablespace *);
 template bool Dictionary_client::update(Tablespace *);
 template void Dictionary_client::dump<Tablespace>() const;
+
+template bool Dictionary_client::acquire_uncached(Object_id, UDT_Type **);
+template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
+                                                              UDT_Type **);
+template bool Dictionary_client::acquire_uncached_uncommitted(
+    Object_id, std::unique_ptr<UDT_Type> *);
+template bool Dictionary_client::acquire(Object_id, const UDT_Type **);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          UDT_Type **);
+template bool Dictionary_client::acquire(const String_type &,
+                                         const String_type &,
+                                         const UDT_Type **);
+template bool Dictionary_client::acquire_for_modification(const String_type &,
+                                                          const String_type &,
+                                                          UDT_Type **);
+template void Dictionary_client::remove_uncommitted_objects<UDT_Type>(bool);
+template bool Dictionary_client::drop(const UDT_Type *);
+template bool Dictionary_client::store(UDT_Type *);
+template bool Dictionary_client::update(UDT_Type *);
 
 template bool Dictionary_client::acquire_uncached(Object_id, View **);
 template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,

@@ -84,6 +84,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_cmd_ddl_type.h"
 #include "sql/sql_component.h"  // Sql_cmd_component
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
@@ -2780,10 +2781,10 @@ bool PT_column_def::do_contextualize(Table_ddl_parse_context *pc) {
           : dd::Column::enum_hidden_type::HT_VISIBLE;
 
   return pc->alter_info->add_field(
-      pc->thd, &field_ident, field_def->type, field_def->length, field_def->dec,
-      field_def->type_flags, field_def->default_value,
-      field_def->on_update_value, &field_def->comment, nullptr,
-      field_def->interval_list, field_def->charset,
+      pc->thd, &field_ident, field_def->type_ident, field_def->type,
+      field_def->length, field_def->dec, field_def->type_flags,
+      field_def->default_value, field_def->on_update_value, &field_def->comment,
+      nullptr, field_def->interval_list, field_def->charset,
       field_def->has_explicit_collation, field_def->uint_geom_type,
       field_def->gcol_info, field_def->default_val_info,
       field_def->masking_policy, opt_place, field_def->m_srid,
@@ -3610,14 +3611,15 @@ bool PT_alter_table_change_column::do_contextualize(
           : dd::Column::enum_hidden_type::HT_VISIBLE;
 
   return pc->alter_info->add_field(
-      pc->thd, &m_new_name, m_field_def->type, m_field_def->length,
-      m_field_def->dec, m_field_def->type_flags, m_field_def->default_value,
-      m_field_def->on_update_value, &m_field_def->comment, m_old_name.str,
-      m_field_def->interval_list, m_field_def->charset,
-      m_field_def->has_explicit_collation, m_field_def->uint_geom_type,
-      m_field_def->gcol_info, m_field_def->default_val_info,
-      m_field_def->masking_policy, m_opt_place, m_field_def->m_srid,
-      m_field_def->check_const_spec_list, field_hidden_type);
+      pc->thd, &m_new_name, m_field_def->type_ident, m_field_def->type,
+      m_field_def->length, m_field_def->dec, m_field_def->type_flags,
+      m_field_def->default_value, m_field_def->on_update_value,
+      &m_field_def->comment, m_old_name.str, m_field_def->interval_list,
+      m_field_def->charset, m_field_def->has_explicit_collation,
+      m_field_def->uint_geom_type, m_field_def->gcol_info,
+      m_field_def->default_val_info, m_field_def->masking_policy, m_opt_place,
+      m_field_def->m_srid, m_field_def->check_const_spec_list,
+      field_hidden_type);
 }
 
 bool PT_alter_table_rename::do_contextualize(Table_ddl_parse_context *pc) {
@@ -5867,4 +5869,18 @@ Sql_cmd *PT_install_component::make_cmd(THD *thd) {
   }
 
   return new (thd->mem_root) Sql_cmd_install_component(m_urns, m_set_elements);
+}
+
+// -- BEGIN POC
+
+Sql_cmd *PT_create_type_stmt::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_CREATE_TYPE;
+
+  return new (thd->mem_root) Sql_cmd_create_type(m_type_name, m_type);
+}
+
+Sql_cmd *PT_drop_type_stmt::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_DROP_TYPE;
+
+  return new (thd->mem_root) Sql_cmd_drop_type(m_type_name, m_if_exists);
 }

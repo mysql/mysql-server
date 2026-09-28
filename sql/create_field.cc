@@ -586,6 +586,46 @@ bool Create_field::init(
   return false; /* success */
 }
 
+bool Create_field::init_from_type_descriptor(THD *thd,
+                                             const char *field_name_arg,
+                                             TypeDescriptor *td,
+                                             FieldDescriptor *fd) {
+  bool rc;
+
+  // Should be resolved already.
+  assert(td->m_type != MYSQL_TYPE_INVALID);
+
+  // FIXME: ::init() takes length as a string, really ?
+  const char *param_length = nullptr;
+  // FIXME: ::init() takes dec as a string, really ?
+  const char *param_dec = nullptr;
+  char buffer_length[80];
+  char buffer_dec[80];
+  if (td->m_length > 0) {
+    snprintf(buffer_length, sizeof(buffer_length), "%lu", td->m_length);
+    param_length = buffer_length;
+  }
+  if (td->m_dec > 0) {
+    snprintf(buffer_dec, sizeof(buffer_dec), "%lu", td->m_dec);
+    param_dec = buffer_dec;
+  }
+
+  rc = init(thd, field_name_arg, td->m_type, param_length, param_dec,
+            td->m_type_flags, fd->m_default_value, fd->m_on_update_value,
+            fd->m_comment, fd->m_change, td->m_internal_list, td->m_charset,
+            td->m_has_explicit_collation, td->m_geo_type, fd->m_gcol_info,
+            fd->m_default_val_expr, fd->m_fld_masking_policy, fd->m_srid,
+            fd->m_hidden, fd->m_is_array);
+
+fprintf(stderr, "Create_field::init_from_type_descriptor() name %s, charset %s\n",
+ field_name_arg, charset ? charset->csname : "none");
+
+  m_type_is_resolved = true;
+  m_type_ident = td->m_type_ident;
+
+  return rc;
+}
+
 /**
   Init for a tmp table field. To be extended if need be.
 */

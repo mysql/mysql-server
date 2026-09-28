@@ -147,6 +147,7 @@ class PT_with_list;
 class Parse_tree_root;
 class Query_block;
 class String;
+class Type_ident;
 class Table_ident;
 class sp_condition_value;
 class sp_head;
@@ -517,6 +518,7 @@ union MY_SQL_PARSER_STYPE {
   } lead_lag_info;
   PT_insert_values_list *values_list;
   Parse_tree_root *top_level_node;
+  Type_ident *type_ident;
   Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
