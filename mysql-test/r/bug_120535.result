@@ -1,0 +1,465 @@
+#
+# Bug#120535 Regression coverage
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120535 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120535;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+SET SESSION sql_mode='';
+CREATE TABLE t0 (c0 smallint STORAGE DISK DEFAULT NULL COMMENT 'asdf',KEY i0(c0) USING BTREE);
+INSERT INTO t0(c0) VALUES (1);
+SELECT ALL t0.c0 AS ref0 FROM t0 WHERE (t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL));
+ref0
+PREPARE regression_stmt FROM 'SELECT ALL t0.c0 AS ref0 FROM t0 WHERE (t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'''',NULL));';
+EXECUTE regression_stmt;
+ref0
+EXECUTE regression_stmt;
+ref0
+DEALLOCATE PREPARE regression_stmt;
+SELECT ALL t0.c0 AS ref0 FROM t0 WHERE NOT (NOT ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))));
+ref0
+SELECT ALL t0.c0 AS ref0 FROM t0 FORCE INDEX (i0) WHERE (t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL));
+ref0
+SELECT ALL d.c0 AS ref0 FROM (SELECT t0.c0 AS c0 FROM t0) AS d WHERE (d.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL));
+ref0
+SELECT ALL d.c0 AS ref0 FROM (SELECT t0.c0 AS c0, (t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL)) AS pred FROM t0) AS d WHERE d.pred;
+ref0
+SELECT ALL t0.c0 AS ref0 FROM t0 WHERE ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL)) AND t0.c0 = 1) UNION ALL SELECT ALL t0.c0 AS ref0 FROM t0 WHERE ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL)) AND NOT (t0.c0 = 1)) UNION ALL SELECT ALL t0.c0 AS ref0 FROM t0 WHERE ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL)) AND (t0.c0 = 1) IS NULL);
+ref0
+SELECT ALL t0.c0 AS ref0 FROM t0 WHERE CASE WHEN (t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL)) THEN (t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL)) ELSE (t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL)) END;
+ref0
+SELECT ALL t0.c0 AS ref0 FROM t0 IGNORE INDEX (i0) WHERE (t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL));
+ref0
+SELECT ALL t0.c0 AS ref0 FROM t0 WHERE NOT NOT ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL)));
+ref0
+WITH q AS (SELECT t0.c0 AS c0 FROM t0) SELECT ALL q.c0 AS ref0 FROM q WHERE (q.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL));
+ref0
+SELECT ALL d.c0 AS ref0 FROM (SELECT t0.c0 AS c0, (t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL)) AS keep_row FROM t0) AS d WHERE d.keep_row;
+ref0
+SELECT ALL t0.c0 AS ref0 FROM t0 WHERE ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) AND (t0.c0 = 1) UNION ALL SELECT ALL t0.c0 AS ref0 FROM t0 WHERE ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) AND NOT (t0.c0 = 1) UNION ALL SELECT ALL t0.c0 AS ref0 FROM t0 WHERE ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) AND ((t0.c0 = 1) IS NULL);
+ref0
+SELECT ALL t0.c0 AS ref0 FROM t0 WHERE CASE WHEN ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) THEN ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) ELSE ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) END;
+ref0
+SELECT ALL t0.c0 AS ref0 FROM t0 WHERE ((((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) OR NOT ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) OR (((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) IS NULL)) AND ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))));
+ref0
+SELECT ALL t0.c0 AS ref0 FROM t0 WHERE ((((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) AND NOT ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) AND (((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))) IS NOT NULL)) OR ((t0.c0) IN (COALESCE(0.5995035972593574,"yo?x&I",'',NULL))));
+ref0
+USE test;
+DROP DATABASE bug_120535;
+CREATE DATABASE bug_120535 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120535;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (id INT PRIMARY KEY, i INT, KEY k (i));
+INSERT INTO t VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,0),(7,-2);
+SELECT id FROM t FORCE INDEX (k) WHERE i = CAST(1.5 AS DOUBLE);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX (k) WHERE i = CAST(1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t WHERE i = CAST(1.5 AS DOUBLE);
+id
+SELECT id FROM t FORCE INDEX (k) WHERE i = 1.5e0;
+id
+SELECT id FROM t FORCE INDEX (k) WHERE NOT NOT (i = CAST(1.5 AS DOUBLE));
+id
+SELECT q.id FROM (SELECT id, i = CAST(1.5 AS DOUBLE) AS matches_value FROM t FORCE INDEX (k)) AS q WHERE q.matches_value;
+id
+SELECT id FROM t USE INDEX (k) WHERE i = CAST(1.5 AS DOUBLE);
+id
+SELECT id FROM t FORCE INDEX (k) WHERE CASE WHEN i = CAST(1.5 AS DOUBLE) THEN i = CAST(1.5 AS DOUBLE) ELSE i = CAST(1.5 AS DOUBLE) END;
+id
+SELECT id FROM t IGNORE INDEX (k) WHERE i = CAST(1.5 AS DOUBLE);
+id
+SELECT id FROM t FORCE INDEX (PRIMARY) WHERE i = CAST(1.5 AS DOUBLE);
+id
+SELECT id FROM t FORCE INDEX (k) WHERE i = 1.5E0;
+id
+SELECT d.id FROM (SELECT id, i = CAST(1.5 AS DOUBLE) AS p FROM t FORCE INDEX (k)) AS d WHERE d.p;
+id
+SELECT id FROM t FORCE INDEX (k) WHERE ((i = CAST(1.5 AS DOUBLE) OR NOT (i = CAST(1.5 AS DOUBLE))) OR (i = CAST(1.5 AS DOUBLE)) IS NULL) AND (i = CAST(1.5 AS DOUBLE));
+id
+SELECT id FROM t FORCE INDEX (k) WHERE (((i = CAST(1.5 AS DOUBLE)) AND NOT (i = CAST(1.5 AS DOUBLE))) AND (i = CAST(1.5 AS DOUBLE)) IS NOT NULL) OR (i = CAST(1.5 AS DOUBLE));
+id
+USE test;
+DROP DATABASE bug_120535;
+CREATE DATABASE bug_120535 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120535;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (id INT PRIMARY KEY,i TINYINT,KEY k(i));
+INSERT INTO t VALUES (1,-2),(2,-1),(3,0),(4,1),(5,2),(6,NULL);
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.5 AS DOUBLE);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.0 AS DOUBLE);
+id
+2
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+2
+EXECUTE regression_stmt;
+id
+2
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(0.0 AS DOUBLE);
+id
+3
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(0.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+3
+EXECUTE regression_stmt;
+id
+3
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(1.5 AS DOUBLE);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(2.0 AS DOUBLE);
+id
+5
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(2.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+5
+EXECUTE regression_stmt;
+id
+5
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120535;
+CREATE DATABASE bug_120535 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120535;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (id INT PRIMARY KEY,i SMALLINT,KEY k(i));
+INSERT INTO t VALUES (1,-2),(2,-1),(3,0),(4,1),(5,2),(6,NULL);
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.5 AS DOUBLE);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.0 AS DOUBLE);
+id
+2
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+2
+EXECUTE regression_stmt;
+id
+2
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(0.0 AS DOUBLE);
+id
+3
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(0.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+3
+EXECUTE regression_stmt;
+id
+3
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(1.5 AS DOUBLE);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(2.0 AS DOUBLE);
+id
+5
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(2.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+5
+EXECUTE regression_stmt;
+id
+5
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120535;
+CREATE DATABASE bug_120535 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120535;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (id INT PRIMARY KEY,i INT,KEY k(i));
+INSERT INTO t VALUES (1,-2),(2,-1),(3,0),(4,1),(5,2),(6,NULL);
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.5 AS DOUBLE);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.0 AS DOUBLE);
+id
+2
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+2
+EXECUTE regression_stmt;
+id
+2
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(0.0 AS DOUBLE);
+id
+3
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(0.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+3
+EXECUTE regression_stmt;
+id
+3
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(1.5 AS DOUBLE);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(2.0 AS DOUBLE);
+id
+5
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(2.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+5
+EXECUTE regression_stmt;
+id
+5
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120535;
+CREATE DATABASE bug_120535 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120535;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t (id INT PRIMARY KEY,i BIGINT,KEY k(i));
+INSERT INTO t VALUES (1,-2),(2,-1),(3,0),(4,1),(5,2),(6,NULL);
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.5 AS DOUBLE);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.0 AS DOUBLE);
+id
+2
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(-1.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+2
+EXECUTE regression_stmt;
+id
+2
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(0.0 AS DOUBLE);
+id
+3
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(0.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+3
+EXECUTE regression_stmt;
+id
+3
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(1.5 AS DOUBLE);
+id
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+EXECUTE regression_stmt;
+id
+DEALLOCATE PREPARE regression_stmt;
+SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(2.0 AS DOUBLE);
+id
+5
+PREPARE regression_stmt FROM 'SELECT id FROM t FORCE INDEX(k) WHERE i=CAST(2.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+id
+5
+EXECUTE regression_stmt;
+id
+5
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120535;
+CREATE DATABASE bug_120535 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120535;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE source (vp_rowid BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO source VALUES ();
+CREATE TABLE l (vp_rowid BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE r (vp_rowid BIGINT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO l SELECT vp_rowid FROM source;
+INSERT INTO r SELECT vp_rowid FROM source;
+SELECT MAX(DISTINCT source.vp_rowid) AS ref0 FROM source WHERE LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid);
+ref0
+NULL
+PREPARE regression_stmt FROM 'SELECT MAX(DISTINCT source.vp_rowid) AS ref0 FROM source WHERE LEAST(''Uk]6T'',0.8087354366787728) IN (source.vp_rowid);';
+EXECUTE regression_stmt;
+ref0
+NULL
+EXECUTE regression_stmt;
+ref0
+NULL
+DEALLOCATE PREPARE regression_stmt;
+SELECT MAX(DISTINCT l.vp_rowid) AS ref0 FROM l WHERE LEAST('Uk]6T',0.8087354366787728) IN (l.vp_rowid);
+ref0
+NULL
+SELECT MAX(source.vp_rowid) AS ref0 FROM source WHERE LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid);
+ref0
+NULL
+SELECT MAX(DISTINCT source.vp_rowid) AS ref0 FROM source WHERE LEAST('Uk]6T',0.8087354366787728) = source.vp_rowid;
+ref0
+NULL
+SELECT MAX(DISTINCT source.vp_rowid) AS ref0 FROM source WHERE NOT (NOT (LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid)));
+ref0
+NULL
+SELECT MAX(DISTINCT s.vp_rowid) AS ref0 FROM (SELECT vp_rowid FROM source) AS s WHERE LEAST('Uk]6T',0.8087354366787728) IN (s.vp_rowid);
+ref0
+NULL
+SELECT MAX(DISTINCT source.vp_rowid) AS ref0 FROM source FORCE INDEX (PRIMARY) WHERE LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid);
+ref0
+NULL
+SELECT MAX(DISTINCT source.vp_rowid) AS ref0 FROM source JOIN l ON l.vp_rowid = source.vp_rowid WHERE LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid);
+ref0
+NULL
+SELECT MAX(DISTINCT s.vp_rowid) AS ref0 FROM (SELECT vp_rowid, LEAST('Uk]6T',0.8087354366787728) IN (vp_rowid) AS keep_row FROM source) AS s WHERE s.keep_row;
+ref0
+NULL
+SELECT MAX(DISTINCT source.vp_rowid) AS ref0 FROM source WHERE CASE WHEN LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid) THEN LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid) ELSE LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid) END;
+ref0
+NULL
+SELECT MAX(DISTINCT source.vp_rowid) AS ref0 FROM l AS source WHERE LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid);
+ref0
+NULL
+SELECT MAX(DISTINCT source.vp_rowid) AS ref0 FROM source INNER JOIN l ON l.vp_rowid = source.vp_rowid WHERE LEAST('Uk]6T',0.8087354366787728) IN (source.vp_rowid);
+ref0
+NULL
+USE test;
+DROP DATABASE bug_120535;
+CREATE DATABASE bug_120535 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120535;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE boundary_values (x BIGINT,KEY k(x)) ENGINE=InnoDB;
+INSERT INTO boundary_values VALUES (-2),(-1),(0),(1),(2),(NULL);
+SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(-1.5 AS DOUBLE);
+MIN(x)	MAX(x)
+NULL	NULL
+PREPARE regression_stmt FROM 'SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(-1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+NULL	NULL
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+NULL	NULL
+DEALLOCATE PREPARE regression_stmt;
+SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(-1.0 AS DOUBLE);
+MIN(x)	MAX(x)
+-1	-1
+PREPARE regression_stmt FROM 'SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(-1.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+-1	-1
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+-1	-1
+DEALLOCATE PREPARE regression_stmt;
+SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(0.0 AS DOUBLE);
+MIN(x)	MAX(x)
+0	0
+PREPARE regression_stmt FROM 'SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(0.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+0	0
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+0	0
+DEALLOCATE PREPARE regression_stmt;
+SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(1.5 AS DOUBLE);
+MIN(x)	MAX(x)
+NULL	NULL
+PREPARE regression_stmt FROM 'SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(1.5 AS DOUBLE);';
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+NULL	NULL
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+NULL	NULL
+DEALLOCATE PREPARE regression_stmt;
+SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(2.0 AS DOUBLE);
+MIN(x)	MAX(x)
+2	2
+PREPARE regression_stmt FROM 'SELECT MIN(x),MAX(x) FROM boundary_values FORCE INDEX(k) WHERE x=CAST(2.0 AS DOUBLE);';
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+2	2
+EXECUTE regression_stmt;
+MIN(x)	MAX(x)
+2	2
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120535;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;

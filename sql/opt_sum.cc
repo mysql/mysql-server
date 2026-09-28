@@ -961,6 +961,13 @@ static bool matching_cond(bool max_fl, Index_lookup *ref, KEY *keyinfo,
         return false;
       }
 
+      // Storing a nonintegral value in BIGINT can round it without reporting
+      // truncation. An equality lookup must use the value of the predicate.
+      if (eq_type && part->field->type() == MYSQL_TYPE_LONGLONG &&
+          stored_field_cmp_to_item(part->field->table->in_use, part->field,
+                                   value) != 0)
+        return false;
+
       if (part->null_bit) *key_ptr++ = (uchar)(part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);
     }
