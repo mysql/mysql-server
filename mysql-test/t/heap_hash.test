@@ -361,3 +361,120 @@ eval $query;
 SET eq_range_index_dive_limit = DEFAULT;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#120146: Wrong result due to incorrect const-table pruning for
+--echo # NOT IN on FLOAT UNIQUE column in MEMORY engine
+--echo # FLOAT/DOUBLE signed zeros compare equal but have different bytes.
+--echo # Hashing, uniqueness and same-key iteration must agree.
+--echo #
+
+--echo # Original reproducer, indexed lookup and table-scan reference
+CREATE TABLE t0 (c0 FLOAT UNIQUE) ENGINE=MEMORY;
+INSERT INTO t0 VALUES (1);
+REPLACE INTO t0 VALUES (0);
+SELECT c0 FROM t0 WHERE NOT (-('') NOT IN (c0));
+SELECT c0 FROM t0 FORCE INDEX (c0) WHERE c0=-CAST(0 AS DOUBLE);
+SELECT c0 FROM t0 IGNORE INDEX (c0) WHERE c0=-CAST(0 AS DOUBLE);
+DROP TABLE t0;
+
+--echo # FLOAT unique-key replacement preserves reachability with both signs
+CREATE TABLE t (x FLOAT UNIQUE) ENGINE=MEMORY;
+INSERT INTO t VALUES (0),(-1),(2);
+REPLACE INTO t VALUES (-CAST(0 AS DOUBLE));
+SELECT COUNT(*) FROM t;
+SELECT x FROM t FORCE INDEX (x) WHERE x=CAST(0 AS DOUBLE);
+SELECT x FROM t FORCE INDEX (x) WHERE x=-CAST(0 AS DOUBLE);
+REPLACE INTO t VALUES (CAST(0 AS DOUBLE));
+SELECT COUNT(*) FROM t;
+SELECT x FROM t FORCE INDEX (x) WHERE x=CAST(0 AS DOUBLE);
+SELECT x FROM t FORCE INDEX (x) WHERE x=-CAST(0 AS DOUBLE);
+DROP TABLE t;
+
+--echo # DOUBLE unique-key replacement preserves reachability with both signs
+CREATE TABLE t (x DOUBLE UNIQUE) ENGINE=MEMORY;
+INSERT INTO t VALUES (0),(-1),(2);
+REPLACE INTO t VALUES (-CAST(0 AS DOUBLE));
+SELECT COUNT(*) FROM t;
+SELECT x FROM t FORCE INDEX (x) WHERE x=CAST(0 AS DOUBLE);
+SELECT x FROM t FORCE INDEX (x) WHERE x=-CAST(0 AS DOUBLE);
+REPLACE INTO t VALUES (CAST(0 AS DOUBLE));
+SELECT COUNT(*) FROM t;
+SELECT x FROM t FORCE INDEX (x) WHERE x=CAST(0 AS DOUBLE);
+SELECT x FROM t FORCE INDEX (x) WHERE x=-CAST(0 AS DOUBLE);
+# Repeat a representative indexed lookup through the prepared path.
+PREPARE stmt FROM
+  'SELECT x FROM t FORCE INDEX (x) WHERE x=-CAST(0 AS DOUBLE)';
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t;
+
+# More than 256 rows separate hash buckets that collide in tiny tables.
+# Test both types and index algorithms with the same purpose-labelled cases.
+let $types=2;
+while ($types)
+{
+  let $type=FLOAT;
+  if ($types == 1)
+  {
+    let $type=DOUBLE;
+  }
+  let $indexes=2;
+  while ($indexes)
+  {
+    let $algorithm=HASH;
+    if ($indexes == 1)
+    {
+      let $algorithm=BTREE;
+    }
+    --echo # $type $algorithm nonunique lookup and deletion of mixed zero signs
+    eval CREATE TABLE t (id INT, x $type, KEY k USING $algorithm (x))
+      ENGINE=MEMORY;
+    INSERT INTO t VALUES (1,0),(2,-CAST(0 AS DOUBLE)),(3,0);
+    INSERT INTO t
+      WITH RECURSIVE seq(n) AS
+        (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<256)
+      SELECT n+100,n FROM seq;
+    --sorted_result
+    SELECT id FROM t FORCE INDEX (k) WHERE x=CAST(0 AS DOUBLE);
+    --sorted_result
+    SELECT id FROM t FORCE INDEX (k) WHERE x=-CAST(0 AS DOUBLE);
+    --sorted_result
+    SELECT id FROM t IGNORE INDEX (k) WHERE x=CAST(0 AS DOUBLE);
+    --sorted_result
+    SELECT id FROM t IGNORE INDEX (k) WHERE x=-CAST(0 AS DOUBLE);
+    DELETE FROM t WHERE x=CAST(0 AS DOUBLE);
+    SELECT COUNT(*) AS remaining_zeros FROM t WHERE x=0;
+    SELECT COUNT(*) AS remaining_nonzeros FROM t;
+    INSERT INTO t VALUES (1,0),(2,-CAST(0 AS DOUBLE)),(3,0);
+    DELETE FROM t WHERE x=-CAST(0 AS DOUBLE);
+    SELECT COUNT(*) AS remaining_zeros FROM t WHERE x=0;
+    SELECT COUNT(*) AS remaining_nonzeros FROM t;
+    DROP TABLE t;
+    dec $indexes;
+  }
+
+  --echo # $type composite HASH key: trailing part, NULL and REPLACE
+  eval CREATE TABLE t (id INT, x $type, y INT,
+    UNIQUE KEY k USING HASH (x,y)) ENGINE=MEMORY;
+  INSERT INTO t VALUES
+    (1,0,7),(2,-CAST(0 AS DOUBLE),8),(3,NULL,7),(4,0,NULL);
+  INSERT INTO t
+    WITH RECURSIVE seq(n) AS
+      (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<256)
+    SELECT n+100,n,n FROM seq;
+  SELECT id FROM t FORCE INDEX (k) WHERE x=-CAST(0 AS DOUBLE) AND y=7;
+  SELECT id FROM t FORCE INDEX (k) WHERE x=CAST(0 AS DOUBLE) AND y=8;
+  SELECT id FROM t FORCE INDEX (k) WHERE x=0 AND y=9;
+  SELECT id FROM t FORCE INDEX (k) WHERE x IS NULL AND y=7;
+  SELECT id FROM t FORCE INDEX (k) WHERE x=0 AND y IS NULL;
+  REPLACE INTO t VALUES (11,-CAST(0 AS DOUBLE),7),(12,0,8);
+  SELECT COUNT(*) FROM t;
+  SELECT id FROM t FORCE INDEX (k) WHERE x=CAST(0 AS DOUBLE) AND y=7;
+  SELECT id FROM t FORCE INDEX (k) WHERE x=-CAST(0 AS DOUBLE) AND y=7;
+  SELECT id FROM t FORCE INDEX (k) WHERE x=CAST(0 AS DOUBLE) AND y=8;
+  SELECT id FROM t FORCE INDEX (k) WHERE x=-CAST(0 AS DOUBLE) AND y=8;
+  DROP TABLE t;
+  dec $types;
+}

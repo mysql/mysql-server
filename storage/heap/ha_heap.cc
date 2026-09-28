@@ -584,7 +584,8 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
             seg->type != HA_KEYTYPE_VARTEXT1 &&
             seg->type != HA_KEYTYPE_VARTEXT2 &&
             seg->type != HA_KEYTYPE_VARBINARY1 &&
-            seg->type != HA_KEYTYPE_VARBINARY2)
+            seg->type != HA_KEYTYPE_VARBINARY2 &&
+            seg->type != HA_KEYTYPE_FLOAT && seg->type != HA_KEYTYPE_DOUBLE)
           seg->type = HA_KEYTYPE_BINARY;
       }
       seg->start = (uint)key_part->offset;

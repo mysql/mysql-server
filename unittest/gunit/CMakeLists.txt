@@ -239,6 +239,7 @@ SET(SERVER_TESTS
   handler
   hash
   hash_join
+  heap_hash
   histograms
   histogram_selectivity
   hypergraph_optimizer
