@@ -855,9 +855,10 @@ bool my_like_range_simple(const CHARSET_INFO *cs, const char *ptr,
     }
     if (*ptr == w_many) /* '%' in SQL */
     {
-      /* Calculate length of keys */
-      *min_length = ((cs->state & MY_CS_BINSORT) ? (size_t)(min_str - min_org)
-                                                 : res_length);
+      /* With PAD SPACE, a suffix below space can sort before the prefix. */
+      *min_length = (cs->pad_attribute == NO_PAD)
+                        ? static_cast<size_t>(min_str - min_org)
+                        : res_length;
       *max_length = res_length;
       do {
         *min_str++ = 0;
