@@ -1,0 +1,291 @@
+# === Purpose ===
+# Verify that promotion and the binary-log encryption policy can never
+# disagree. Promotion turns a spilled temporary file into a binary log file,
+# and nothing re-encrypts or decrypts a file that already holds bytes, so a
+# transaction may only be promoted when its spilled file already matches the
+# policy in force at the moment the file joins the binary log index.
+#
+# === Requirements ===
+# R1. A spilled plaintext file is promoted while binlog_encryption is OFF.
+# R2. A spilled plaintext file is not promoted when binlog_encryption is
+#     turned ON after the file spilled, and the fallback names encryption as
+#     the reason.
+# R3. Such a fallback still commits every row, and the events are readable
+#     from the encrypted binary log the fallback wrote them to.
+# R4. Turning binlog_encryption back OFF restores promotion for later
+#     transactions.
+# R5. A file that spilled while binlog_encryption was ON is not promoted after
+#     the policy is turned OFF again.
+#
+# R2 is the case this test was written for. The check used to consult only the
+# spilled file's own encryption state, which is decided when the cache opens
+# its temporary file. A transaction that spilled in plaintext and then saw
+# encryption enabled mid-flight still reported "not encrypted", so its
+# plaintext file was eligible for promotion into a binary log that the policy
+# required to be encrypted. R5 is the opposite direction, which the file-state
+# check already covered, and is included so both directions are pinned.
+#
+# === Implementation ===
+# Each case creates a transaction above the 10 MiB threshold so its cache
+# spills, changes binlog_encryption from a second session at the point of
+# interest, and then commits. Promotion is observed through
+# Binlog_large_transaction_optimization_count and the missed counter, and
+# through whether the active binary log file changed: a promoted transaction
+# opens a new file, a fallback does not.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_component_keyring_file.inc
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_binlog_format = query_get_value(SELECT @@SESSION.binlog_format, @@SESSION.binlog_format, 1)
+--let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+
+--source ../mysql-test/suite/component_keyring_file/inc/setup_component.inc
+
+# The keyring component must be loaded for binlog_encryption to be settable at
+# runtime, but the server starts with encryption OFF so a cache can spill in
+# plaintext first.
+--echo # Restart the server with the keyring available and encryption OFF.
+--let $restart_parameters = restart:--binlog_encryption=OFF $PLUGIN_DIR_OPT
+--source include/restart_mysqld_no_echo.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+connect (encryption_switch, localhost, root,,);
+connection default;
+
+############################################################################
+# Case 1: Plaintext spilled file, encryption OFF throughout.
+# Expected behavior: promote.
+############################################################################
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A plaintext spilled file is promoted while encryption is OFF.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = A plaintext file with encryption OFF promotes a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = A plaintext file with encryption OFF does not increment the missed counter.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = The promoted commit opens a new active binary log.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = The promoted transaction commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+# Positive control for the encryption checks in the later cases: with the policy
+# OFF the promoted file must carry no encryption key ID.
+--let $rpl_log_file = $MYSQLD_DATADIR$binlog_file_after
+--source include/rpl/get_log_encryption_key_id.inc
+--let $assert_text = The promoted binary log is plaintext while encryption is OFF.
+--let $assert_cond = "$rpl_encryption_key_id" = "None"
+--source include/assert.inc
+
+############################################################################
+# Case 2: Plaintext spilled file, encryption turned ON mid-transaction.
+# Expected behavior: fall back.
+#
+# The cache spilled while the policy said OFF, so the file is plaintext and
+# stays plaintext; enabling encryption part way through cannot change that.
+# Promoting it would publish a plaintext binary log under a policy requiring
+# encryption.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_at_begin = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # Enabling encryption mid-transaction prevents promoting a plaintext file.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('e', 4000000));
+# The cache has spilled in plaintext by this point. Enabling encryption now
+# rotates the binary log, so the file the fallback writes into is encrypted
+# while this session's spilled file is not.
+connection encryption_switch;
+SET GLOBAL binlog_encryption = ON;
+connection default;
+INSERT INTO t1 VALUES (3, REPEAT('f', 4000000));
+--let $binlog_file_before_commit = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after_commit = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = Encryption enabled mid-transaction does not promote a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = Encryption enabled mid-transaction increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = The mid-transaction encryption fallback stays in the active binary log.
+--let $assert_cond = "$binlog_file_after_commit" = "$binlog_file_before_commit"
+--source include/assert.inc
+--let $assert_text = The mid-transaction encryption fallback commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = The mid-transaction encryption fallback preserves the full payload.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = 12000000
+--source include/assert.inc
+--exec grep -q "binary log encryption was enabled while the transaction was running" $MYSQLTEST_VARDIR/log/mysqld.1.err
+
+# Confirm the policy really took effect rather than the fallback happening for
+# some unrelated reason: enabling encryption rotates the binary log, and the
+# file the fallback then wrote into must carry an encryption key ID.
+--let $assert_text = Enabling encryption mid-transaction rotates the binary log.
+--let $assert_cond = "$binlog_file_before_commit" != "$binlog_file_at_begin"
+--source include/assert.inc
+--let $rpl_log_file = $MYSQLD_DATADIR$binlog_file_after_commit
+--source include/rpl/get_log_encryption_key_id.inc
+--let $assert_text = The mid-transaction encryption fallback wrote into an encrypted binary log.
+--let $assert_cond = "$rpl_encryption_key_id" != "None"
+--source include/assert.inc
+
+############################################################################
+# Case 3: Encryption turned back OFF.
+# Expected behavior: promote again.
+#
+# Turning the policy off rotates to a plaintext binary log, and a cache that
+# opens afterwards spills in plaintext, so promotion is available again. This
+# guards against the fix latching the fallback on permanently.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connection encryption_switch;
+SET GLOBAL binlog_encryption = OFF;
+connection default;
+# Use a fresh session so its transaction cache opens after the policy change.
+connect (plaintext_again, localhost, root,,);
+connection plaintext_again;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # Turning encryption back OFF restores promotion.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('i', 4000000));
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = Promotion resumes once encryption is turned back OFF.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = The resumed promotion does not increment the missed counter.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = The resumed promotion opens a new active binary log.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = The resumed promotion commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+connection default;
+disconnect plaintext_again;
+connection default;
+
+############################################################################
+# Case 4: Encrypted spilled file, encryption turned OFF mid-transaction.
+# Expected behavior: fall back.
+#
+# The mirror of case 2. The cache spilled while the policy said ON, so the file
+# is encrypted and stays encrypted. Promoting it after the policy went OFF
+# would publish an encrypted binary log file under a policy requiring
+# plaintext.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connection encryption_switch;
+SET GLOBAL binlog_encryption = ON;
+connection default;
+# Fresh session again, so this cache opens while the policy says ON and its
+# spilled file is therefore encrypted.
+connect (encrypted_cache, localhost, root,,);
+connection encrypted_cache;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--echo # An encrypted spilled file is not promoted after encryption is turned OFF.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('j', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('k', 4000000));
+connection encryption_switch;
+SET GLOBAL binlog_encryption = OFF;
+connection encrypted_cache;
+INSERT INTO t1 VALUES (3, REPEAT('l', 4000000));
+--let $binlog_file_before_commit = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after_commit = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = An encrypted file is not promoted after encryption is turned OFF.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = The encrypted-file fallback increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = The encrypted-file fallback stays in the active binary log.
+--let $assert_cond = "$binlog_file_after_commit" = "$binlog_file_before_commit"
+--source include/assert.inc
+--let $assert_text = The encrypted-file fallback commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+connection default;
+disconnect encrypted_cache;
+connection default;
+
+# Cleanup
+connection encryption_switch;
+SET GLOBAL binlog_encryption = OFF;
+connection default;
+disconnect encryption_switch;
+connection default;
+DROP TABLE t1;
+--disable_query_log
+--disable_warnings
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET SESSION binlog_format = $save_binlog_format
+--eval SET SESSION binlog_transaction_compression = $save_compression
+--enable_warnings
+--enable_query_log
+--source ../mysql-test/suite/component_keyring_file/inc/teardown_component.inc

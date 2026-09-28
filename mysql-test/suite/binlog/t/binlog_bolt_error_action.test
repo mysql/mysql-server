@@ -1,0 +1,153 @@
+#
+# === Purpose ===
+# Verify that a failure to make the spilled file durable in the BOLT commit path
+# applies binlog_error_action, as the standard group-commit path does.
+#
+# BOLT publishes one transaction on its own, so there is no group leader to
+# apply the action on its behalf, and finish_commit() by contract reports only
+# CE_COMMIT_ERROR. Without the action being applied here a flush error would be
+# reported to the client as a successful commit.
+#
+# === Requirements ===
+# R1. With binlog_error_action = ABORT_SERVER the failure aborts the server, the
+#     client is told binary logging is not possible, and after the restart the
+#     transaction is in neither the engine nor the binary log.
+# R2. With binlog_error_action = IGNORE_ERROR the failure is reported in the
+#     error log and the transaction still commits in the engine, while nothing
+#     of it reaches the binary log.
+#
+# === Implementation ===
+# Force the failure with the fail_bolt_spill_file_sync debug point on a
+# transaction over the 10M threshold, once per binlog_error_action value, and
+# check the client error, the error log, the rows in the engine and the binary
+# log contents. Each case resets the binary log first so the file at index 1 is
+# the active one.
+#
+# The error log is redirected to its own file because ABORT_SERVER goes through
+# the crash handler, whose backtrace MTR would otherwise flag.
+#
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $save_error_action = query_get_value(SELECT @@GLOBAL.binlog_error_action, @@GLOBAL.binlog_error_action, 1)
+--let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+
+CALL mtr.add_suppression("An error occurred during flush stage of the commit");
+CALL mtr.add_suppression("Binary logging not possible");
+CALL mtr.add_suppression("Hence turning logging off for the whole duration");
+
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+# The payload repeats a single byte, so compression would shrink the cache far
+# below the threshold and the transaction would never spill.
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+############################################################################
+# Case 1: binlog_error_action = ABORT_SERVER.
+# Expected behavior: the server aborts, and the transaction reaches neither
+# the engine nor the binary log.
+#
+# The spilled file is never promoted, so the transaction is in no binary log
+# file and recovery has no reason to roll it forward.
+############################################################################
+--echo # A spill-sync failure with ABORT_SERVER aborts the server.
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+--disable_query_log
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+--let $log_size_before = query_get_value("SHOW BINARY LOGS", File_size, 1)
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG="+d,fail_bolt_spill_file_sync";
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--exec grep -q "An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'." $MYSQLTEST_VARDIR/tmp/binlog_bolt_error_action.err
+--let $assert_text = An aborted spill-sync failure commits no rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--let $log_size_after = query_get_value("SHOW BINARY LOGS", File_size, 1)
+--let $assert_text = An aborted spill-sync failure writes nothing to the binary log.
+--let $assert_cond = $log_size_after = $log_size_before
+--source include/assert.inc
+
+############################################################################
+# Case 2: binlog_error_action = IGNORE_ERROR.
+# Expected behavior: binary logging is turned off for the rest of the server
+# process and the transaction commits in the engine.
+#
+# That binlog/engine divergence is what IGNORE_ERROR means, and is what the
+# standard path does for the same error.
+############################################################################
+--echo # A spill-sync failure with IGNORE_ERROR keeps the commit and stops logging.
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+# Captured before the failure: once logging is off, SHOW BINARY LOGS fails with
+# ER_NO_BINARY_LOGGING.
+--let $bolt_log_file = query_get_value("SHOW BINARY LOGS", Log_name, 1)
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('f', 4000000));
+SET SESSION DEBUG="+d,fail_bolt_spill_file_sync";
+COMMIT;
+SET SESSION DEBUG="-d,fail_bolt_spill_file_sync";
+--enable_result_log
+--enable_query_log
+--let $assert_text = An ignored spill-sync failure still commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--exec grep -q "An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'." $MYSQLTEST_VARDIR/tmp/binlog_bolt_error_action.err
+# Binary logging is off at this point, so restart before reading the log back.
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
+#
+# Assert on the decoded contents, not the file size: turning logging off closes
+# the log with LOG_CLOSE_STOP_EVENT, and only the spilled file's sync was made
+# to fail, so the binary log is healthy and that Stop event grows it by 23
+# bytes.
+#
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_log_file > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = An ignored spill-sync failure writes no row events to the binary log.
+--let $assert_select = Write_rows
+--let $assert_count = 0
+--source include/assert_grep.inc
+--let $assert_text = An ignored spill-sync failure writes no transaction to the binary log.
+--let $assert_select = Xid
+--let $assert_count = 0
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--disable_warnings
+--eval SET GLOBAL binlog_error_action = $save_error_action
+--eval SET SESSION binlog_transaction_compression = $save_compression
+RESET BINARY LOGS AND GTIDS;
+--enable_warnings
+--enable_query_log

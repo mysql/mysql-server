@@ -1,0 +1,101 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify BOLT promotion persists tagged GTIDs in the binary log and GTID
+# execution state.
+#
+# === Requirements ===
+# R1. A qualifying tagged-GTID transaction is promoted into a new active file.
+# R2. Recovery preserves its GTID in the binary log and mysql.gtid_executed.
+# R3. The promoted tagged-GTID file satisfies the shared BOLT structural
+#     validation, including its LTH terminal-event metadata.
+#
+# === Implementation ===
+# 1. Initialize BOLT, GTID state, and a clean test table.
+# 2. Commit a qualifying tagged-GTID transaction and verify file rotation.
+# 3. Restart and verify persisted GTID state.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+
+# Setup
+--disable_query_log
+DROP TABLE IF EXISTS t1;
+--enable_query_log
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+--echo # Commit tagged and untagged transactions before the promoted transaction.
+SET GTID_NEXT = 'AUTOMATIC:prior_large_trx_tag';
+INSERT INTO t1 VALUES (1, 'prior-tagged-transaction');
+SET GTID_NEXT = 'AUTOMATIC';
+INSERT INTO t1 VALUES (2, 'prior-untagged-transaction');
+
+--let $server_uuid = query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+SET GTID_NEXT = 'AUTOMATIC:promoted_large_trx_tag';
+BEGIN;
+INSERT INTO t1 VALUES (3, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (4, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (5, REPEAT('c', 5000000));
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+
+--let $count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = The tagged GTID transaction was promoted.
+--let $assert_cond = $count_after = $count_before + 1
+--source include/assert.inc
+--let $assert_text = The tagged GTID promotion rotates to a new active binary log.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $prior_tag_rows = query_get_value(SELECT COUNT(*) AS count FROM mysql.gtid_executed WHERE source_uuid = "$server_uuid" AND gtid_tag = 'prior_large_trx_tag' AND interval_start = 1 AND interval_end = 1, count, 1)
+--let $assert_text = The prior tagged GTID is persisted before promotion.
+--let $assert_cond = $prior_tag_rows = 1
+--source include/assert.inc
+--let $promoted_tag_executed = `SELECT GTID_SUBSET('$server_uuid:promoted_large_trx_tag:1', @@GLOBAL.GTID_EXECUTED)`
+--let $assert_text = The promoted tagged GTID is recorded in gtid_executed.
+--let $assert_cond = $promoted_tag_executed = 1
+--source include/assert.inc
+
+--echo # The promoted file retains both tag forms.
+--let $promoted_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let $bolt_header_file = $promoted_file
+--source common/binlog/validate_bolt_file.inc
+--let $gtid_output = $MYSQLTEST_VARDIR/tmp/large_trx_tagged_gtids.txt
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/$promoted_file > $gtid_output
+--exec grep -Eq '[0-9a-f-]+:1-2' $gtid_output
+--exec grep -Eq '[0-9a-f-]+:prior_large_trx_tag:1' $gtid_output
+--exec grep -Eq '[0-9a-f-]+:promoted_large_trx_tag:1' $gtid_output
+--remove_file $gtid_output
+
+--echo # Restart and verify both tags survive persisted GTID state reload.
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
+--let $do_not_echo_parameters =
+
+--let $prior_tag_executed = `SELECT GTID_SUBSET('$server_uuid:prior_large_trx_tag:1', @@GLOBAL.GTID_EXECUTED)`
+--let $assert_text = The prior tagged GTID survives restart.
+--let $assert_cond = $prior_tag_executed = 1
+--source include/assert.inc
+--let $promoted_tag_executed = `SELECT GTID_SUBSET('$server_uuid:promoted_large_trx_tag:1', @@GLOBAL.GTID_EXECUTED)`
+--let $assert_text = The promoted tagged GTID survives restart.
+--let $assert_cond = $promoted_tag_executed = 1
+--source include/assert.inc
+--let $persisted_tag_rows = query_get_value(SELECT COUNT(*) AS count FROM mysql.gtid_executed WHERE source_uuid = "$server_uuid" AND (gtid_tag = 'prior_large_trx_tag' OR gtid_tag = 'promoted_large_trx_tag'), count, 1)
+--let $assert_text = Both GTID tags remain in mysql.gtid_executed after restart.
+--let $assert_cond = $persisted_tag_rows = 2
+--source include/assert.inc
+
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--enable_query_log

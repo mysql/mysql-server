@@ -1,0 +1,6 @@
+--binlog-cache-size=1M
+--binlog-large-transaction-optimization-enabled=ON
+--binlog-large-transaction-optimization-threshold=10M
+--max-binlog-size=1G
+--sync-binlog=1
+--binlog-transaction-compression=OFF

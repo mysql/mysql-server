@@ -1,0 +1,94 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify normal PURGE and FLUSH rotation remain safe while a BOLT spill file
+# exists and after that spill is promoted into the main binary-log index.
+#
+# === Requirements ===
+# R1. PURGE and FLUSH do not discard or corrupt an active BOLT spill file.
+# R2. A spill promotes after a concurrent FLUSH creates a new active binlog.
+# R3. A promoted historical file can be purged after a subsequent FLUSH.
+#
+# === Implementation ===
+# Create history, keep a transaction spilled, purge older history and rotate,
+# then commit the spill. Rotate the resulting promoted active file once more
+# and purge it through the normal binary-log lifecycle.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+
+# Setup
+--disable_query_log
+DROP TABLE IF EXISTS t1;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+# Keep one historical file that PURGE can remove while a spill exists.
+FLUSH BINARY LOGS;
+--let $binlog_before_spill = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+
+connect (spill_client, localhost, root,,);
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+--exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
+
+connection default;
+--echo # Purge older history while the qualifying spill file is still open.
+--eval PURGE BINARY LOGS TO '$binlog_before_spill'
+--exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
+
+--echo # Rotate while the qualifying spill file is still open.
+FLUSH BINARY LOGS;
+--let $binlog_after_spill_rotation = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = FLUSH opens a new active binary log while a BOLT spill exists.
+--let $assert_cond = "$binlog_after_spill_rotation" != "$binlog_before_spill"
+--source include/assert.inc
+--exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
+
+connection spill_client;
+COMMIT;
+connection default;
+--exec test ! -e $BOLT_TEMP_DIR/bolt_*
+--let $promoted_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_header_file = $promoted_file
+--source ../inc/validate_bolt_header.inc
+--let $assert_text = The spill promotes after PURGE and FLUSH complete.
+--let $assert_cond = "$promoted_file" != "$binlog_after_spill_rotation"
+--source include/assert.inc
+--let $assert_text = The promoted transaction preserves every row.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+
+--echo # Rotate the promoted active file, then purge it as ordinary history.
+FLUSH BINARY LOGS;
+--let $successor_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = FLUSH rotates the promoted active binary log.
+--let $assert_cond = "$successor_file" != "$promoted_file"
+--source include/assert.inc
+--exec test -e $MYSQLD_DATADIR/$promoted_file
+--eval PURGE BINARY LOGS TO '$successor_file'
+--let $file_does_not_exist = $MYSQLD_DATADIR/$promoted_file
+--source include/file_does_not_exist.inc
+SHOW BINARY LOGS;
+
+connection spill_client;
+disconnect spill_client;
+connection default;
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--enable_query_log

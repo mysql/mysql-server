@@ -1,0 +1,26 @@
+Warnings:
+Note	1051	Unknown table 'test.t1'
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+FLUSH BINARY LOGS;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+# Purge older history while the qualifying spill file is still open.
+PURGE BINARY LOGS TO 'binlog.000002';
+# Rotate while the qualifying spill file is still open.
+FLUSH BINARY LOGS;
+include/assert.inc [FLUSH opens a new active binary log while a BOLT spill exists.]
+COMMIT;
+include/assert.inc [The spill promotes after PURGE and FLUSH complete.]
+include/assert.inc [The promoted transaction preserves every row.]
+# Rotate the promoted active file, then purge it as ordinary history.
+FLUSH BINARY LOGS;
+include/assert.inc [FLUSH rotates the promoted active binary log.]
+PURGE BINARY LOGS TO 'binlog.000005';
+SHOW BINARY LOGS;
+Log_name	File_size	Encrypted
+binlog.000005	199	No
+DROP TABLE t1;

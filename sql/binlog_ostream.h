@@ -25,6 +25,8 @@
 #define BINLOG_OSTREAM_INCLUDED
 
 #include <openssl/evp.h>
+#include <cassert>
+#include "my_io.h"  // FN_REFLEN
 #include "sql/basic_ostream.h"
 #include "sql/rpl_log_encryption.h"
 
@@ -84,11 +86,13 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
      @param[in] prefix  Prefix of the temporary file name
      @param[in] cache_size  Size of the memory buffer.
      @param[in] max_cache_size  Maximum size of the memory buffer
+     @param[in] reserved_bytes  Bytes reserved for header events
+
      @retval false  Success
      @retval true  Error
   */
   bool open(const char *dir, const char *prefix, my_off_t cache_size,
-            my_off_t max_cache_size);
+            my_off_t max_cache_size, my_off_t reserved_bytes);
   void close();
 
   bool write(const unsigned char *buffer, my_off_t length) override;
@@ -97,10 +101,11 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   /* binlog cache doesn't need seek operation. Setting true to return error */
   bool seek(my_off_t offset [[maybe_unused]]) override { return true; }
   /**
-     Reset status and drop all data. It looks like a cache never was used after
-     reset.
+     Reset status and drop all data. When preserve_spilled_file is true, the
+     caller has promoted the spilled file and reset closes the cache without
+     deleting that file.
   */
-  bool reset();
+  bool reset(bool preserve_spilled_file = false);
   /**
      Returns the file name if a temporary file is opened, otherwise nullptr is
      returned.
@@ -135,12 +140,54 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   */
   bool next(unsigned char **buffer, my_off_t *length);
   my_off_t length() const;
+  my_off_t reserved_bytes() const { return m_reserved_bytes; }
   bool flush() override { return false; }
   bool sync() override { return false; }
+  /**
+     Returns true once the cache overflowed into its temporary file.
+  */
+  bool is_spilled() const;
+  /**
+     Returns the spilled temporary file's descriptor (-1 when not
+     spilled). The cache retains ownership until reset.
+  */
+  File spilled_file() const { return m_io_cache.file; }
+  /**
+     Returns true if the cache's events are encrypted. This reflects the
+     temporary file's actual encryption, which is fixed at spill time, and is
+     independent of the current global binlog_encryption setting (which may
+     have changed since the transaction spilled).
+  */
+  bool is_encrypted() const { return m_io_cache.m_encryptor != nullptr; }
+  /**
+     Flushes buffered bytes into the spilled temporary file and syncs the
+     file to disk. The cache must be spilled.
+
+     @retval false  Success
+     @retval true   Error
+  */
+  bool flush_and_sync_spilled_file();
+  /**
+     Selects whether the next lazily-created spill file is a named file (kept
+     in the filesystem namespace, and therefore promotable) or an anonymous
+     file. Set per transaction, before the first spill.
+  */
+  void set_named_file(bool named) { m_io_cache.named_file = named; }
 
  private:
+  /** Rename a newly spilled generic cache file to a managed bolt_ name. */
+  bool rename_spilled_file();
+
   IO_CACHE m_io_cache;
   my_off_t m_max_cache_size = 0;
+  my_off_t m_reserved_bytes = 0;
+  /* True after the lazily-created spill file has a generated bolt_ name. */
+  bool m_spilled_file_is_managed = false;
+  /* The open() arguments, kept for re-opening after reset. */
+  const char *m_dir = nullptr;
+  const char *m_prefix = nullptr;
+  my_off_t m_cache_size = 0;
+  my_off_t m_max_cache_size_arg = 0;
   /**
     Enable IO Cache temporary file encryption.
 
@@ -175,7 +222,8 @@ class Binlog_cache_storage : public Basic_ostream {
  public:
   ~Binlog_cache_storage() override;
 
-  bool open(my_off_t cache_size, my_off_t max_cache_size);
+  bool open(my_off_t cache_size, my_off_t max_cache_size,
+            my_off_t reserved_bytes);
   void close();
 
   bool write(const unsigned char *buffer, my_off_t length) override {
@@ -192,19 +240,37 @@ class Binlog_cache_storage : public Basic_ostream {
   bool truncate(my_off_t offset) { return m_pipeline_head->truncate(offset); }
 
   /**
-     Reset status and drop all data. It looks like a cache was never used
-     after reset.
+     Reset status and drop all data. When preserve_spilled_file is true, the
+     cache closes without deleting a file the binlog large transaction
+     optimization has already promoted.
   */
-  bool reset() { return m_file.reset(); }
+  bool reset(bool preserve_spilled_file = false) {
+    return m_file.reset(preserve_spilled_file);
+  }
   /**
      Returns the count of disk writes
   */
   size_t disk_writes() const { return m_file.disk_writes(); }
   /**
+     Returns the bytes reserved at the beginning of the temp file.
+  */
+  my_off_t reserved_bytes() const { return m_file.reserved_bytes(); }
+  /**
      Returns the name of the temporary file.
   */
   const char *tmp_file_name() const { return m_file.tmp_file_name(); }
-
+  /// @see IO_CACHE_binlog_cache_storage::is_spilled
+  bool is_spilled() const { return m_file.is_spilled(); }
+  /// @see IO_CACHE_binlog_cache_storage::spilled_file
+  File spilled_file() const { return m_file.spilled_file(); }
+  /// @see IO_CACHE_binlog_cache_storage::is_encrypted
+  bool is_encrypted() const { return m_file.is_encrypted(); }
+  /// @see IO_CACHE_binlog_cache_storage::flush_and_sync_spilled_file
+  bool flush_and_sync_spilled_file() {
+    return m_file.flush_and_sync_spilled_file();
+  }
+  /// @see IO_CACHE_binlog_cache_storage::set_named_file
+  void set_named_file(bool named) { m_file.set_named_file(named); }
   /**
      Copy all data to a output stream. This function hides the internal
      implementation of storage detail. So it will not disturb the callers
@@ -301,4 +367,73 @@ class Binlog_encryption_ostream : public Truncatable_ostream {
   std::unique_ptr<Rpl_encryption_header> m_header;
   std::unique_ptr<Stream_cipher> m_encryptor;
 };
+
+// Directory where the temp binlog files (spilled from cache), live.
+// This directory lives in the binlog directory.
+inline constexpr const char *kBinlogTempFilesDirName = "#binlog_temp_files";
+
+// Allocation quantum for the header reservation at the beginning of every
+// binlog temp file.
+inline constexpr my_off_t kBinlogTempFileReservedBytes = 64 * 1024;
+
+// Minimum space left after the Previous_gtids payload in a temp-file header.
+inline constexpr my_off_t kBinlogTempFilePreviousGtidsHeadroomBytes = 32 * 1024;
+
+// Managed large-transaction spill files are named
+// bolt_<server-start time>_<serial> (both hex), which is unique within a
+// server run and lets startup cleanup recognize only files created by this
+// feature.
+inline constexpr char kBinlogTempFilePrefix[] = "bolt_";
+
+/**
+  Returns true if 'name' is a binary log cache spill file, i.e. matches the
+  bolt_<id> pattern that IO_CACHE_binlog_cache_storage gives its spill files.
+
+  A true result does NOT mean the file was, or will be, promoted into the
+  binary log sequence. Every binlog cache spill file uses this name, including
+  transactions that commit through the standard path (below the threshold,
+  encrypted, compressed, and so on). This is purely an ownership check, so that
+  startup cleanup of \#binlog_temp_files only deletes files the binary log cache
+  created.
+
+  Declared here, rather than kept local to binlog_ostream.cc, so a unit test can
+  exercise the whole name space cheaply. Getting this predicate wrong is
+  expensive: a name it wrongly rejects becomes an "unsafe entry" that aborts
+  startup, which is how the missing A-Z range in the original character class
+  behaved, since mkstemp() also produces upper case.
+
+  @param name  Base name of a directory entry, without any directory part.
+
+  @retval true   The binary log cache created this file.
+  @retval false  It did not, so cleanup must leave the file alone.
+*/
+bool is_bolt_temp_file(const char *name);
+
+class Binlog_temp_files_dir {
+ public:
+  /**
+     Init directory at server startup.
+
+     @param log_basename  The log basename; the directory is created in
+                          its directory part
+
+     @retval false  Success.
+     @retval true   Failure; an error has been logged.
+  */
+  bool init(const char *log_basename);
+
+  // @return full path of the directory.
+  const char *path() const {
+    assert(m_initialized);
+    return m_path;
+  }
+
+ private:
+  char m_path[FN_REFLEN];
+  bool m_initialized{false};
+};
+
+// The binary log's temp files directory (#binlog_temp_files).
+extern Binlog_temp_files_dir binlog_temp_files_dir;
+
 #endif  // BINLOG_OSTREAM_INCLUDED

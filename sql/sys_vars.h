@@ -2841,6 +2841,7 @@ class Sys_var_binlog_encryption : public Sys_var_bool {
 
 void update_temptable_max_ram_default();
 void update_parser_max_mem_size();
+void update_binlog_large_transaction_optimization_threshold();
 void update_optimizer_switch();
 
 #endif /* SYS_VARS_H_INCLUDED */

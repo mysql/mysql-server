@@ -1,0 +1,9 @@
+--gtid-mode=ON
+--enforce-gtid-consistency=ON
+--log-replica-updates
+--replica-preserve-commit-order=ON
+--replica-parallel-workers=6
+--replica-transaction-retries=0
+--binlog-transaction-compression=OFF
+--binlog-cache-size=1M
+--max-binlog-size=1G

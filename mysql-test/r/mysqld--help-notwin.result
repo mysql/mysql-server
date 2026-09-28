@@ -187,6 +187,22 @@ The following options may be given as the first argument:
  --binlog-ignore-db=name 
  Exclude updates to the specified database when writing
  the binary log.
+ --binlog-large-transaction-optimization-enabled 
+ Enables the large transaction optimization, which keeps
+ large-transaction commit latency low, avoids stalling
+ concurrent commits, and keeps binary log crash recovery
+ fast regardless of transaction size. When ON (the
+ default), a transaction whose spilled size exceeds
+ binlog_large_transaction_optimization_threshold is
+ committed by promoting its temporary file into the binary
+ log sequence. When OFF, all transactions commit through
+ the standard code path.
+ (Defaults to on; use --skip-binlog-large-transaction-optimization-enabled to disable.)
+ --binlog-large-transaction-optimization-threshold=# 
+ The spilled size in bytes above which a transaction
+ qualifies for the large transaction optimization. Has no
+ effect while
+ binlog_large_transaction_optimization_enabled is OFF.
  --binlog-max-flush-queue-time=# 
  The maximum time that the binary log group commit will
  keep reading transactions before it flush the
@@ -1701,6 +1717,8 @@ binlog-format ROW
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0
 binlog-gtid-simple-recovery TRUE
+binlog-large-transaction-optimization-enabled TRUE
+binlog-large-transaction-optimization-threshold 134217728
 binlog-max-flush-queue-time 0
 binlog-order-commits TRUE
 binlog-rotate-encryption-master-key-at-startup FALSE

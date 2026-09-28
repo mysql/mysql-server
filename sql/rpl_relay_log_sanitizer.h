@@ -80,6 +80,8 @@ class Relay_log_sanitizer : public binlog::Log_sanitizer {
   PSI_memory_key &get_memory_key() const override {
     return key_memory_relaylog_recovery;
   }
+
+  bool is_relay_log_recovery() const override { return true; }
 };
 
 }  // namespace rpl

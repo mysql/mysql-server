@@ -1,0 +1,108 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify a replica filters part of a qualifying source transaction while
+# promoting the retained large ROW subset into its local binary log.
+#
+# === Requirements ===
+# R1. Rows in the allowed database apply and trigger one local BOLT promotion.
+# R2. Rows in the filtered database do not apply.
+#
+# === Implementation ===
+# Synchronize both schemas, stop the replica, configure REPLICATE_IGNORE_DB,
+# then apply one transaction containing large allowed rows and filtered rows.
+
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+--let $rpl_skip_start_slave = 1
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_source.inc
+--let $source_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $source_save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--disable_query_log
+--disable_warnings
+DROP DATABASE IF EXISTS bolt_allowed;
+DROP DATABASE IF EXISTS bolt_filtered;
+--enable_warnings
+--enable_query_log
+CREATE DATABASE bolt_allowed;
+CREATE DATABASE bolt_filtered;
+CREATE TABLE bolt_allowed.t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE bolt_filtered.t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--let $replica_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $replica_save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--eval CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = (bolt_filtered);
+--let $replica_bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $replica_binlog_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source include/rpl/start_receiver.inc
+
+--source include/rpl/connection_source.inc
+--echo # Commit a large allowed subset together with filtered rows.
+BEGIN;
+INSERT INTO bolt_allowed.t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO bolt_allowed.t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO bolt_allowed.t1 VALUES (3, REPEAT('c', 4000000));
+INSERT INTO bolt_filtered.t1 VALUES (1, 'filtered');
+COMMIT;
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $allowed_rows = query_get_value(SELECT COUNT(*) FROM bolt_allowed.t1, COUNT(*), 1)
+--let $allowed_payload = query_get_value(SELECT SUM(OCTET_LENGTH(data)) FROM bolt_allowed.t1, SUM(OCTET_LENGTH(data)), 1)
+--let $filtered_rows = query_get_value(SELECT COUNT(*) FROM bolt_filtered.t1, COUNT(*), 1)
+--let $replica_bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $replica_binlog_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = The allowed database retains every large transaction row.
+--let $assert_cond = $allowed_rows = 3
+--source include/assert.inc
+--let $assert_text = The allowed database preserves the full large payload.
+--let $assert_cond = $allowed_payload = 12000000
+--source include/assert.inc
+--let $assert_text = The filtered database receives no rows from the transaction.
+--let $assert_cond = $filtered_rows = 0
+--source include/assert.inc
+--let $assert_text = The replica promotes the retained qualifying subset once.
+--let $assert_cond = $replica_bolt_after = $replica_bolt_before + 1
+--source include/assert.inc
+--let $assert_text = Replica-local BOLT opens a new active binary log after filtering.
+--let $assert_cond = "$replica_binlog_after" != "$replica_binlog_before"
+--source include/assert.inc
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_header_file = $replica_binlog_after
+--source ../../binlog/inc/validate_bolt_header.inc
+
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+DROP DATABASE bolt_filtered;
+DROP DATABASE bolt_allowed;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $source_save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $source_save_threshold
+--enable_query_log
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $replica_save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $replica_save_threshold
+--enable_query_log
+--let $rpl_skip_sync = 1
+--source include/rpl/deinit.inc

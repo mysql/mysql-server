@@ -794,9 +794,10 @@ MySQL clients support the protocol:
 #include "sql/auth/authentication_policy.h"
 #include "sql/auth/sql_authentication.h"  // init_rsa_keys
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/auto_thd.h"   // Auto_THD
-#include "sql/binlog.h"     // mysql_bin_log
-#include "sql/bootstrap.h"  // bootstrap
+#include "sql/auto_thd.h"        // Auto_THD
+#include "sql/binlog.h"          // mysql_bin_log
+#include "sql/binlog_ostream.h"  // binlog_temp_files_dir
+#include "sql/bootstrap.h"       // bootstrap
 #include "sql/check_stack.h"
 #include "sql/conn_handler/connection_acceptor.h"  // Connection_acceptor
 #include "sql/conn_handler/connection_handler_impl.h"  // Per_thread_connection_handler
@@ -1400,6 +1401,8 @@ ulong binlog_stmt_cache_size = 0;
 int32 opt_binlog_max_flush_queue_time = 0;
 long opt_binlog_group_commit_sync_delay = 0;
 ulong opt_binlog_group_commit_sync_no_delay_count = 0;
+bool opt_binlog_large_transaction_optimization_enabled = true;
+ulonglong opt_binlog_large_transaction_optimization_threshold = 0;
 ulonglong max_binlog_stmt_cache_size = 0;
 ulong refresh_version; /* Increments on each reload */
 std::atomic<query_id_t> atomic_global_query_id{1};
@@ -1412,6 +1415,8 @@ ulong binlog_cache_use = 0, binlog_cache_disk_use = 0;
 ulong binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0;
 ulong max_connections, max_connect_errors;
 ulong rpl_stop_replica_timeout = LONG_TIMEOUT;
+std::atomic<ulong> binlog_large_transaction_optimization_count{0};
+std::atomic<ulong> binlog_large_transaction_optimization_missed_count{0};
 bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
@@ -6849,6 +6854,7 @@ int init_common_variables() {
     }
   }
   update_parser_max_mem_size();
+  update_binlog_large_transaction_optimization_threshold();
   update_optimizer_switch();
   set_server_version();
 
@@ -8386,6 +8392,14 @@ static int init_server_components() {
            default_relaylogfile_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+  /*
+    Initialize the #binlog_temp_files directory for spilled files; if the
+    directory already exists, clear it.
+  */
+  if (opt_bin_log && !is_help_or_validate_option() &&
+      binlog_temp_files_dir.init(log_bin_basename))
+    unireg_abort(MYSQLD_ABORT_EXIT);
 
   if (global_system_variables.binlog_row_value_options != 0) {
     const char *msg = nullptr;
@@ -9964,6 +9978,8 @@ int mysqld_main(int argc, char **argv)
 
     if (mysql_bin_log.write_event_to_binlog_and_sync(&prev_gtids_ev))
       unireg_abort(MYSQLD_ABORT_EXIT);
+    update_binlog_temp_file_previous_gtids_size_estimate(
+        prev_gtids_ev.common_header->data_written);
 
     // run auto purge member function. It will evaluate auto purge controls
     // and configuration, calculate which log files are to be purged, and
@@ -11460,6 +11476,26 @@ static int show_count_hit_query_past_global_conn_mem_status_limit(THD *,
   return 0;
 }
 
+static int show_binlog_large_transaction_optimization_count(THD *,
+                                                            SHOW_VAR *var,
+                                                            char *buf) {
+  var->type = SHOW_LONG;
+  var->value = buf;
+  *((long *)buf) = (long)(binlog_large_transaction_optimization_count.load(
+      std::memory_order_relaxed));
+  return 0;
+}
+
+static int show_binlog_large_transaction_optimization_missed_count(
+    THD *, SHOW_VAR *var, char *buf) {
+  var->type = SHOW_LONG;
+  var->value = buf;
+  *((long *)buf) =
+      (long)(binlog_large_transaction_optimization_missed_count.load(
+          std::memory_order_relaxed));
+  return 0;
+}
+
 static int show_count_hit_query_past_conn_mem_status_limit(THD *, SHOW_VAR *var,
                                                            char *buf) {
   var->type = SHOW_LONG;
@@ -11734,6 +11770,12 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Binlog_cache_use", (char *)&binlog_cache_use, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+    {"Binlog_large_transaction_optimization_count",
+     (char *)&show_binlog_large_transaction_optimization_count, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Binlog_large_transaction_optimization_missed_count",
+     (char *)&show_binlog_large_transaction_optimization_missed_count,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Binlog_stmt_cache_disk_use", (char *)&binlog_stmt_cache_disk_use,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Binlog_stmt_cache_use", (char *)&binlog_stmt_cache_use, SHOW_LONG,

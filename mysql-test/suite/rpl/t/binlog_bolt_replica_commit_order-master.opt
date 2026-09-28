@@ -1,0 +1,5 @@
+--gtid-mode=ON
+--enforce-gtid-consistency=ON
+--binlog-transaction-compression=OFF
+--binlog-cache-size=1M
+--max-binlog-size=1G

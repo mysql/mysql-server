@@ -1,0 +1,325 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify BOLT uses the ordinary binary-log commit path when a spilled,
+# above-threshold transaction cannot safely be promoted, while retaining
+# promotion eligibility with a dynamically sized reserved header.
+#
+# === Requirements ===
+# R1. Large STATEMENT and MIXED transactions do not promote.
+# R2. A checksum change during a transaction prevents promotion, and restoring
+#     it before commit preserves eligibility.
+# R3. A Previous_gtids event larger than 64 KiB expands the reservation and
+#     permits promotion.
+# R4. A row statement touching InnoDB and MyISAM falls back for its
+#     statement-cache transaction while still promoting its InnoDB cache.
+#
+# === Implementation ===
+# Each case spills a transaction above the 10 MiB threshold and checks the two
+# BOLT status counters, the active binary-log filename, and the reason reported
+# in the error log.
+#
+# Every condition here is reachable by configuration, so this file also runs on
+# release builds. The reasons that need a debug symbol are in
+# binlog_bolt_fallback_debug; encryption is in binlog_bolt_encryption.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+--let $save_binlog_format = query_get_value(SELECT @@SESSION.binlog_format, @@SESSION.binlog_format, 1)
+--let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+
+# Setup
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, marker INT) ENGINE=MyISAM;
+
+############################################################################
+# Case 1: Large STATEMENT transaction.
+############################################################################
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A large STATEMENT transaction uses the standard commit path.
+--disable_warnings
+SET SESSION binlog_format = STATEMENT;
+--enable_warnings
+SET @bolt_statement_payload = REPEAT('s', 12000000);
+BEGIN;
+INSERT INTO t1 VALUES (1, @bolt_statement_payload);
+COMMIT;
+SET @bolt_statement_payload = NULL;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = A large STATEMENT transaction does not promote a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A large STATEMENT transaction increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = A large STATEMENT transaction stays in the active binary log.
+--let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A large STATEMENT fallback commits its row.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id = 1, count, 1] = 1
+--source include/assert.inc
+--exec grep -q "transaction contains non-ROW events" $MYSQLTEST_VARDIR/log/mysqld.1.err
+
+############################################################################
+# Case 2: Large MIXED transaction.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A large MIXED transaction with a statement event uses the standard path.
+--disable_warnings
+SET SESSION binlog_format = MIXED;
+--enable_warnings
+SET @bolt_mixed_payload = REPEAT('m', 12000000);
+BEGIN;
+INSERT INTO t1 VALUES (1, @bolt_mixed_payload);
+COMMIT;
+SET @bolt_mixed_payload = NULL;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = A large MIXED transaction does not promote a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A large MIXED transaction increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = A large MIXED transaction stays in the active binary log.
+--let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A large MIXED fallback commits its row.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id = 1, count, 1] = 1
+--source include/assert.inc
+
+############################################################################
+# Case 3: Checksum change after the transaction starts.
+############################################################################
+--disable_query_log
+--disable_warnings
+TRUNCATE t1;
+SET SESSION binlog_format = ROW;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+connect (checksum_change, localhost, root,,);
+connection default;
+--echo # A checksum change during a large transaction uses the standard path.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('c', 5000000));
+connection checksum_change;
+SET GLOBAL binlog_checksum = IF(@@GLOBAL.binlog_checksum = 'CRC32', 'NONE', 'CRC32');
+connection default;
+INSERT INTO t1 VALUES (2, REPEAT('d', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('e', 5000000));
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = A checksum change does not promote a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A checksum change increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = A checksum-change fallback commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+# BINLOG_CHECKSUM_ALG_OFF while binlog_checksum is CRC32.
+--exec grep -q "checksum algorithm does not match binlog_checksum" $MYSQLTEST_VARDIR/log/mysqld.1.err
+connection checksum_change;
+disconnect checksum_change;
+connection default;
+--disable_query_log
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log
+
+############################################################################
+# Case 4: Checksum changes back before commit.
+############################################################################
+--disable_query_log
+--disable_warnings
+TRUNCATE t1;
+SET SESSION binlog_format = ROW;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+connect (checksum_restored, localhost, root,,);
+connection default;
+--echo # Restoring the original checksum before commit preserves promotion.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('r', 5000000));
+connection checksum_restored;
+SET GLOBAL binlog_checksum = IF(@@GLOBAL.binlog_checksum = 'CRC32', 'NONE', 'CRC32');
+--eval SET GLOBAL binlog_checksum = $save_checksum
+connection default;
+INSERT INTO t1 VALUES (2, REPEAT('s', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('t', 5000000));
+--let $binlog_file_before_commit = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after_commit = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = Restoring the checksum before commit promotes the transaction.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = Restoring the checksum before commit does not increment the missed counter.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = The restored-checksum commit opens its promoted binary log.
+--let $assert_cond = "$binlog_file_after_commit" != "$binlog_file_before_commit"
+--source include/assert.inc
+--let $assert_text = The restored-checksum promoted transaction commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+connection checksum_restored;
+disconnect checksum_restored;
+connection default;
+
+############################################################################
+# Case 5: Large Previous_gtids receives a dynamic reservation.
+############################################################################
+--disable_query_log
+--disable_warnings
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+SET SESSION binlog_format = ROW;
+--enable_warnings
+--let $gtid_index = 1
+while ($gtid_index <= 1700)
+{
+  --let $gtid_suffix = `SELECT LPAD(HEX($gtid_index), 12, '0')`
+  --eval SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-$gtid_suffix:1'
+  BEGIN;
+  COMMIT;
+  SET @@SESSION.GTID_NEXT = AUTOMATIC;
+  --inc $gtid_index
+}
+--enable_query_log
+--let $executed_gtid_length = query_get_value(SELECT CHAR_LENGTH(@@GLOBAL.gtid_executed) AS length, length, 1)
+--let $assert_text = The executed GTID set exceeds BOLT's reserved header.
+--let $assert_cond = $executed_gtid_length > 64000
+--source include/assert.inc
+--disable_query_log
+# Publish the serialized Previous_gtids size before opening the BOLT cache.
+FLUSH BINARY LOGS;
+connect (dynamic_header, localhost, root,,);
+connection dynamic_header;
+--disable_warnings
+SET SESSION binlog_format = ROW;
+--enable_warnings
+SET SESSION binlog_transaction_compression = OFF;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A dynamically reserved Previous_gtids header preserves promotion.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('g', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('h', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('i', 5000000));
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = A dynamically reserved Previous_gtids header promotes a binary log.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = A dynamically reserved Previous_gtids header does not increment the missed counter.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = The dynamically reserved-header commit opens its promoted binary log.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A dynamically reserved-header commit commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+connection default;
+disconnect dynamic_header;
+connection default;
+
+############################################################################
+# Case 6: A row statement touches InnoDB and MyISAM.
+############################################################################
+# Permanent transactional/nontransactional changes violate GTID consistency,
+# so restart this isolated test server with GTID enforcement disabled.
+--let $restart_parameters = restart:--gtid-mode=OFF --enforce-gtid-consistency=OFF
+--source include/restart_mysqld_no_echo.inc
+--disable_query_log
+--disable_warnings
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_transaction_compression = OFF;
+RESET BINARY LOGS AND GTIDS;
+TRUNCATE t1;
+TRUNCATE t2;
+SET SESSION binlog_format = ROW;
+--enable_query_log
+INSERT INTO t1 VALUES (1, REPEAT('n', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('o', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('p', 5000000));
+INSERT INTO t2 VALUES (1, 0), (2, 0), (3, 0);
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A mixed InnoDB/MyISAM row statement falls back for its statement cache.
+BEGIN;
+UPDATE t1 JOIN t2 USING (id) SET t1.data = CONCAT(t1.data, 'x'), t2.marker = 1;
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = An InnoDB/MyISAM statement promotes its qualifying InnoDB cache.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = An InnoDB/MyISAM statement increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = An InnoDB/MyISAM statement rotates to the promoted InnoDB binary log.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = An InnoDB/MyISAM fallback commits every InnoDB row.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = An InnoDB/MyISAM fallback updates every MyISAM row.
+--let $assert_cond = [SELECT SUM(marker) AS marker_sum FROM t2, marker_sum, 1] = 3
+--source include/assert.inc
+--exec grep -q "statement cache is nonempty" $MYSQLTEST_VARDIR/log/mysqld.1.err
+
+
+# Cleanup
+DROP TABLE t2;
+DROP TABLE t1;
+--disable_query_log
+--disable_warnings
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--eval SET SESSION binlog_format = $save_binlog_format
+--eval SET SESSION binlog_transaction_compression = $save_compression
+--enable_warnings
+--enable_query_log

@@ -1,0 +1,15 @@
+CALL mtr.add_suppression("An error occurred during flush stage of the commit");
+CALL mtr.add_suppression("Binary logging not possible");
+CALL mtr.add_suppression("Hence turning logging off for the whole duration");
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# A spill-sync failure with ABORT_SERVER aborts the server.
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+include/assert.inc [An aborted spill-sync failure commits no rows.]
+include/assert.inc [An aborted spill-sync failure writes nothing to the binary log.]
+# A spill-sync failure with IGNORE_ERROR keeps the commit and stops logging.
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+include/assert.inc [An ignored spill-sync failure still commits all rows.]
+# restart
+include/assert_grep.inc [An ignored spill-sync failure writes no row events to the binary log.]
+include/assert_grep.inc [An ignored spill-sync failure writes no transaction to the binary log.]
+DROP TABLE t1;

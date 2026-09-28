@@ -153,6 +153,19 @@ bool MYSQL_BIN_LOG::Binlog_ofile::truncate(my_off_t offset) {
   return false;
 }
 
+bool MYSQL_BIN_LOG::Binlog_ofile::position_at(my_off_t offset) {
+  assert(m_pipeline_head != nullptr);
+  /*
+    The caller passes a physical file offset (e.g. the promoted file's size) as
+    the logical position. Those two agree only for an unencrypted file.
+  */
+  if (get_encrypted_header_size() != 0) return true;
+
+  if (m_pipeline_head->seek(offset)) return true;
+  m_position = offset;
+  return false;
+}
+
 bool MYSQL_BIN_LOG::Binlog_ofile::flush() { return m_pipeline_head->flush(); }
 bool MYSQL_BIN_LOG::Binlog_ofile::sync() { return m_pipeline_head->sync(); }
 bool MYSQL_BIN_LOG::Binlog_ofile::flush_and_sync() { return flush() || sync(); }
