@@ -3760,7 +3760,7 @@ bool subselect_hash_sj_engine::setup(
       // It must be the single column, or we wouldn't be here
       assert(tmp_key_parts == 1);
       // Be ready to search for NULL into inner column:
-      ref.null_ref_key = cur_ref_buff;
+      ref.null_ref_key = tmp_table->hash_field ? nullptr : cur_ref_buff;
       mat_table_has_nulls = NEX_UNKNOWN;
     } else {
       ref.null_ref_key = nullptr;
@@ -3989,15 +3989,33 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
     */
     if (mat_table_has_nulls == NEX_UNKNOWN)  // We do not know yet
     {
-      // Search for NULL inside tmp table, and remember the outcome.
-      *ref.null_ref_key = 1;
-      if (!table->file->inited &&
-          table->file->ha_index_init(ref.key, false /* sorted */))
-        return true;
-      if (safe_index_read(table, ref) == 1) return true;
-      *ref.null_ref_key = 0;  // prepare for next searches of non-NULL
-      mat_table_has_nulls =
-          table->has_row() ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
+      if (table->hash_field) {
+        bool has_null = false;
+        if (table->file->inited) table->file->ha_index_or_rnd_end();
+        {
+          TableScanIterator scan(thd, table, /*expected_rows=*/-1.0,
+                                 /*examined_rows=*/nullptr);
+          if (scan.Init()) return true;
+          int read_result;
+          while ((read_result = scan.Read()) == 0) {
+            if (table->visible_field_ptr()[0]->is_null()) {
+              has_null = true;
+              break;
+            }
+          }
+          if (read_result == 1 || thd->is_error()) return true;
+        }
+        mat_table_has_nulls = has_null ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
+      } else {
+        *ref.null_ref_key = 1;
+        if (!table->file->inited &&
+            table->file->ha_index_init(ref.key, false /* sorted */))
+          return true;
+        if (safe_index_read(table, ref) == 1) return true;
+        *ref.null_ref_key = 0;  // prepare for next searches of non-NULL
+        mat_table_has_nulls =
+            table->has_row() ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
+      }
     }
     if (mat_table_has_nulls == NEX_TRUE) {
       /*
