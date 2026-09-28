@@ -1,0 +1,153 @@
+--echo #
+--echo # Bug#120923 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120923 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120923;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b INT);
+INSERT INTO a VALUES (1);
+INSERT INTO a VALUES ();
+CREATE VIEW v0 AS SELECT b AS c FROM a UNION ALL SELECT b FROM a;
+--sorted_result
+WITH CTE AS (SELECT b AS c FROM a UNION ALL SELECT b FROM a) SELECT c FROM CTE WHERE c=0 UNION SELECT COUNT(c) FROM CTE GROUP BY c;
+PREPARE regression_stmt FROM 'WITH CTE AS (SELECT b AS c FROM a UNION ALL SELECT b FROM a) SELECT c FROM CTE WHERE c=0 UNION SELECT COUNT(c) FROM CTE GROUP BY c;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT c FROM v0 WHERE c=0 UNION SELECT COUNT(c) FROM v0 GROUP BY c;
+USE test;
+DROP DATABASE bug_120923;
+CREATE DATABASE bug_120923 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120923;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b INT);
+INSERT INTO a VALUES (1),(1),(2),(NULL),(0);
+CREATE VIEW v0 AS SELECT b AS c FROM a UNION ALL SELECT b FROM a;
+--sorted_result
+WITH CTE AS (SELECT b AS c FROM a UNION ALL SELECT b FROM a) SELECT c FROM CTE WHERE c=0 UNION SELECT COUNT(c) FROM CTE GROUP BY c;
+PREPARE regression_stmt FROM 'WITH CTE AS (SELECT b AS c FROM a UNION ALL SELECT b FROM a) SELECT c FROM CTE WHERE c=0 UNION SELECT COUNT(c) FROM CTE GROUP BY c;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120923;
+CREATE DATABASE bug_120923 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120923;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b INT);
+INSERT INTO a VALUES (NULL),(NULL);
+CREATE VIEW v0 AS SELECT b AS c FROM a UNION ALL SELECT b FROM a;
+--sorted_result
+WITH CTE AS (SELECT b AS c FROM a UNION ALL SELECT b FROM a) SELECT c FROM CTE WHERE c=0 UNION SELECT COUNT(c) FROM CTE GROUP BY c;
+PREPARE regression_stmt FROM 'WITH CTE AS (SELECT b AS c FROM a UNION ALL SELECT b FROM a) SELECT c FROM CTE WHERE c=0 UNION SELECT COUNT(c) FROM CTE GROUP BY c;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120923;
+CREATE DATABASE bug_120923 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120923;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b INT);
+CREATE VIEW v0 AS SELECT b AS c FROM a UNION ALL SELECT b FROM a;
+--sorted_result
+WITH CTE AS (SELECT b AS c FROM a UNION ALL SELECT b FROM a) SELECT c FROM CTE WHERE c=0 UNION SELECT COUNT(c) FROM CTE GROUP BY c;
+PREPARE regression_stmt FROM 'WITH CTE AS (SELECT b AS c FROM a UNION ALL SELECT b FROM a) SELECT c FROM CTE WHERE c=0 UNION SELECT COUNT(c) FROM CTE GROUP BY c;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120923;
+CREATE DATABASE bug_120923 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120923;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (c0 CHAR(1),c3 INT);
+INSERT INTO t0 VALUES ('',1),('',0),(NULL,1);
+CREATE VIEW v0 AS SELECT DISTINCT c0 AS vc_0,c3 AS vc_1 FROM t0;
+--sorted_result
+WITH cte AS (SELECT DISTINCT c0 AS vc_0,c3 AS vc_1 FROM t0) SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1=0 GROUP BY gk0 UNION SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1>0 OR vc_0='' GROUP BY gk0;
+PREPARE regression_stmt FROM 'WITH cte AS (SELECT DISTINCT c0 AS vc_0,c3 AS vc_1 FROM t0) SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1=0 GROUP BY gk0 UNION SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1>0 OR vc_0='''' GROUP BY gk0;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM v0 WHERE vc_1=0 GROUP BY gk0 UNION SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM v0 WHERE vc_1>0 OR vc_0='' GROUP BY gk0;
+USE test;
+DROP DATABASE bug_120923;
+CREATE DATABASE bug_120923 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120923;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (c0 CHAR(1),c3 INT);
+INSERT INTO t0 VALUES ('x',2),('',1),('',0),(NULL,2),(NULL,1),('',NULL),('',0);
+CREATE VIEW v0 AS SELECT DISTINCT c0 AS vc_0,c3 AS vc_1 FROM t0;
+--sorted_result
+WITH cte AS (SELECT DISTINCT c0 AS vc_0,c3 AS vc_1 FROM t0) SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1=0 GROUP BY gk0 UNION SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1>0 OR vc_0='' GROUP BY gk0;
+PREPARE regression_stmt FROM 'WITH cte AS (SELECT DISTINCT c0 AS vc_0,c3 AS vc_1 FROM t0) SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1=0 GROUP BY gk0 UNION SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1>0 OR vc_0='''' GROUP BY gk0;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120923;
+CREATE DATABASE bug_120923 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120923;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (c0 CHAR(1),c3 INT);
+CREATE VIEW v0 AS SELECT DISTINCT c0 AS vc_0,c3 AS vc_1 FROM t0;
+--sorted_result
+WITH cte AS (SELECT DISTINCT c0 AS vc_0,c3 AS vc_1 FROM t0) SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1=0 GROUP BY gk0 UNION SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1>0 OR vc_0='' GROUP BY gk0;
+PREPARE regression_stmt FROM 'WITH cte AS (SELECT DISTINCT c0 AS vc_0,c3 AS vc_1 FROM t0) SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1=0 GROUP BY gk0 UNION SELECT vc_1 AS gk0,GROUP_CONCAT(vc_1) AS gc FROM cte WHERE vc_1>0 OR vc_0='''' GROUP BY gk0;';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120923;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
