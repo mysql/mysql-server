@@ -1,0 +1,24 @@
+--echo #
+--echo # Bug #121018: Preserve EXISTS with LIMIT during derived-table conversion
+--echo #
+
+SET @save_optimizer_switch=@@optimizer_switch;
+
+CREATE TABLE t0 (id INT PRIMARY KEY, c0 INT);
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c0 INT, c1 INT);
+
+INSERT INTO t0 VALUES (1,10),(2,20),(3,30),(4,NULL);
+
+INSERT INTO t1 VALUES (1,10,100),(2,10,200),(3,20,300),(4,20,400),(5,30,500),(6,NULL,600),(7,NULL,700);
+
+SET SESSION optimizer_switch='subquery_to_derived=on';
+
+--sorted_result
+SELECT t0.c0, NOT EXISTS(SELECT 1 FROM t1 WHERE t1.c0 = t0.c0 LIMIT 1) AS nex FROM t0;
+
+DROP TABLE t1;
+
+DROP TABLE t0;
+
+SET optimizer_switch=@save_optimizer_switch;
