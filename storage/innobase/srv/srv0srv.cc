@@ -781,6 +781,12 @@ os_event_t srv_buf_dump_event;
 /** Event to signal the buffer pool resize thread */
 os_event_t srv_buf_resize_event;
 
+#ifdef UNIV_DEBUG
+/** Event to synchronize an AHI enable request with buffer pool resize
+completion in debug tests. */
+os_event_t srv_buf_resize_ahi_enable_event;
+#endif /* UNIV_DEBUG */
+
 /** The buffer pool dump/load file name */
 char *srv_buf_dump_filename;
 
@@ -1178,6 +1184,8 @@ static void srv_init(void) {
 
   srv_buf_resize_event = os_event_create();
 
+  ut_d(srv_buf_resize_ahi_enable_event = os_event_create());
+
   ut_d(srv_master_thread_disabled_event = os_event_create());
 
   /* page_zip_stat_per_index_mutex is acquired from:
@@ -1227,6 +1235,8 @@ void srv_free(void) {
   os_event_destroy(srv_buf_resize_event);
 
 #ifdef UNIV_DEBUG
+  os_event_destroy(srv_buf_resize_ahi_enable_event);
+  srv_buf_resize_ahi_enable_event = nullptr;
   os_event_destroy(srv_master_thread_disabled_event);
   srv_master_thread_disabled_event = nullptr;
 #endif /* UNIV_DEBUG */
