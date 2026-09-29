@@ -48,9 +48,9 @@ For example:
 
 ```sql
   // complex, using a structured type
-  CREATE TYPE `complex`(
-    DOUBLE `real`;
-    DOUBLE `imaginary`;
+  CREATE TYPE `complex` AS (
+    `real` DOUBLE;
+    `imaginary` DOUBLE;
   );
 ```
 
@@ -98,6 +98,8 @@ The GRANT statement is extended to user defined types.
 Privileges that can be granted are:
 
 - ALL PRIVILEGES
+- CREATE
+- DROP
 - USAGE
 
 Type objects can be specified as:
@@ -108,10 +110,18 @@ Type objects can be specified as:
 
 ```sql
   GRANT ALL PRIVILEGES ON TYPE *.* TO ...
+  GRANT CREATE ON TYPE *.* TO ...
+  GRANT DROP ON TYPE *.* TO ...
   GRANT USAGE ON TYPE *.* TO ...
+
   GRANT ALL PRIVILEGES ON TYPE db.* TO ...
+  GRANT CREATE ON TYPE db.* TO ...
+  GRANT DROP ON TYPE db.* TO ...
   GRANT USAGE ON TYPE db.* TO ...
+
   GRANT ALL PRIVILEGES ON TYPE db.type TO ...
+  GRANT CREATE ON TYPE db.type TO ...
+  GRANT DROP ON TYPE db.type TO ...
   GRANT USAGE ON TYPE db.type TO ...
 ```
 
@@ -121,13 +131,118 @@ The revoke statement is extended to match grant
 
 ```sql
   REVOKE ALL PRIVILEGES ON TYPE *.* FROM ...
+  REVOKE CREATE ON TYPE *.* FROM ...
+  REVOKE DROP ON TYPE *.* FROM ...
   REVOKE USAGE ON TYPE *.* FROM ...
+
   REVOKE ALL PRIVILEGES ON TYPE db.* FROM ...
+  REVOKE CREATE ON TYPE db.* FROM ...
+  REVOKE DROP ON TYPE db.* FROM ...
   REVOKE USAGE ON TYPE db.* FROM ...
+
   REVOKE ALL PRIVILEGES ON TYPE db.type FROM ...
+  REVOKE CREATE ON TYPE db.type FROM ...
+  REVOKE DROP ON TYPE db.type FROM ...
   REVOKE USAGE ON TYPE db.type FROM ...
 ```
 
 # Method invocation
 
-TODO
+## Static method invocation
+
+The syntax for expressions is augmented to cover static method invocations.
+
+```sql
+  <simple_expr>:
+    <function_call_static_method>
+    ;
+```
+
+```sql
+  <function_call_static_method>:
+    <type_ident> <::> <ident> ( <opt_expr_list> )
+    ;
+```
+
+Examples:
+
+```sql
+  complex_col = complex::from_string("1+2i");
+```
+
+```sql
+  // 1+2i
+  complex_col = complex::from_cartesian(1.0, 2.0);
+```
+
+```sql
+  // 0+1i
+  complex_col = complex::from_polar(1.0, pi/2);
+```
+
+```sql
+  complex_col = complex::add(col_a, col_b);
+```
+
+## method invocation
+
+The syntax for expressions is augmented to cover instance method invocations.
+
+```sql
+  <simple_expr>:
+    <function_call_method>
+    ;
+```
+
+```sql
+  <function_call_method>:
+    <type_ident> <.> <ident> ( <opt_expr_list> )
+    ;
+```
+
+Examples:
+
+```sql
+  string_col = complex_col.to_string();
+```
+
+```sql
+  double_col = complex_col.`real`();
+```
+
+```sql
+  double_col = complex_col.`imaginary`();
+```
+
+# global function invocation
+
+There is no syntax for a global function, such as:
+
+```sql
+  // Not supported
+  complex_col = complex_from_string("1+2i");
+```
+
+The rationale is to force users to invoke types that belong to a schema,
+to enforce per schema namespaces instead of having naming collisions
+in a global namespace, shared by all types.
+
+```sql
+  // Supported instead
+  CREATE TYPE mysql.complex AS ...;
+
+  use mysql;
+  complex_col = complex::from_string("1.2i");
+  double_col = complex_col.`real`(); // 1.0
+
+  use test;
+  complex_col = mysql.complex::from_string(1+2i");
+  double_col = complex_col.`imaginary`(); // 2.0
+```
+
+This also avoids naming collisions between:
+
+- native functions provided by MySQL
+- global user defined type functions provided by third parties
+
+
