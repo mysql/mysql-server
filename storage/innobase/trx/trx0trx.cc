@@ -853,7 +853,9 @@ void trx_resurrect_locks(bool all) {
       }
       DICT_TF2_FLAG_SET(table, DICT_TF2_RESURRECT_PREPARED);
 
-      /* We don't rollback DDL or XA prepared transaction in background */
+      /* DDL transactions are not rolled back in background. Prepared
+      transactions are scheduled only after TC recovery decides to roll them
+      back. */
       if (trx->ddl_operation || is_prepared) {
         lock_table_ix_resurrect(table, trx);
         ib::info(ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK, ulong(table->id),

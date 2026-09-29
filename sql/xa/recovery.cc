@@ -261,6 +261,9 @@ void recover_one_internal_trx(xarecover_st const &info, handlerton &ht,
     enum xa_status_code exec_status;
     if (DBUG_EVALUATE_IF("xa_recovery_error_reporting", true, false))
       exec_status = ::generate_xa_recovery_error();
+    else if (ht.recover_rollback_by_xid != nullptr)
+      exec_status =
+          ht.recover_rollback_by_xid(&ht, const_cast<XID *>(&xa_trx.id));
     else
       exec_status = ht.rollback_by_xid(&ht, const_cast<XID *>(&xa_trx.id));
 

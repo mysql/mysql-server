@@ -1,0 +1,18 @@
+CREATE TABLE t_empty (id INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE t_nontrans (id INT PRIMARY KEY) ENGINE = MyISAM;
+START TRANSACTION;
+SELECT * FROM t_empty FOR UPDATE;
+id
+INSERT INTO t_nontrans VALUES (1);
+SAVEPOINT empty_undo;
+INSERT INTO t_empty VALUES (1);
+ROLLBACK TO SAVEPOINT empty_undo;
+SET debug_sync = "after_flush_engine_log SIGNAL prepared WAIT_FOR continue";
+COMMIT;
+SET debug_sync = "now WAIT_FOR prepared";
+# Kill the server
+# restart
+SELECT COUNT(*) FROM t_empty;
+COUNT(*)
+0
+DROP TABLE t_empty, t_nontrans;

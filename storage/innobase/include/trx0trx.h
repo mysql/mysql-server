@@ -754,6 +754,9 @@ struct trx_t {
   Recovered XA:
   * NOT_STARTED -> PREPARED -> COMMITTED -> (freed)
 
+  Recovered internal transaction followed by recover_rollback_by_xid:
+  * NOT_STARTED -> PREPARED -> ACTIVE -> COMMITTED -> (freed)
+
   XA (2PC) (shutdown or disconnect before ROLLBACK or COMMIT):
   * NOT_STARTED -> PREPARED -> (freed)
 
@@ -764,8 +767,11 @@ struct trx_t {
 
   XA (2PC) transactions are always treated as non-autocommit.
 
-  Transitions to ACTIVE or NOT_STARTED occur when
-  !in_rw_trx_list (no trx_sys->mutex needed).
+  Transitions to ACTIVE or NOT_STARTED normally occur when
+  !in_rw_trx_list (no trx_sys->mutex needed). During recovery,
+  recover_rollback_by_xid may transition a recovered prepared transaction to
+  ACTIVE while it remains in rw_trx_list; this transition is protected by
+  trx_sys->mutex.
 
   Autocommit non-locking read-only transactions move between states
   without holding any mutex. They are !in_rw_trx_list.
