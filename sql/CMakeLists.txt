@@ -1128,6 +1128,19 @@ SET(RPL_CSA_SOURCES
   changestreams/apply/storage/relay_log/relay_log_deleter.cpp
   changestreams/apply/storage/relay_log/relay_log_adaptive_reader.cpp
   changestreams/apply/storage/relay_log/sync_transaction_provider.cpp
+  changestreams/apply/storage/in_memory/trx_payload.cc
+  changestreams/apply/storage/in_memory/transaction_envelope.cc
+  changestreams/apply/storage/in_memory/trx_envelope_queue.cc
+  changestreams/apply/storage/in_memory/event_set_fetchable_memory.cc
+  changestreams/apply/storage/in_memory/cached_event_memory.cc
+  changestreams/apply/storage/in_memory/spill_file_writer.cc
+  changestreams/apply/storage/in_memory/event_set_fetchable_spill.cc
+  changestreams/apply/storage/in_memory/queued_transaction_reader.cc
+  # TEMPORARY / SPIKE (tasks.md task 12) — do not ship. Standalone,
+  # minimal-state receiver-helper module prototyped for unit-testability;
+  # registered here only so imr_queued_transaction_writer-t can link it via
+  # server_unittest_library. Not wired into queue_event()/rpl_replica.cc.
+  changestreams/apply/storage/in_memory/queued_transaction_writer.cc
   changestreams/apply/resource/applier_channel_monitor.cpp
   changestreams/apply/resource/resource_map.cpp
   changestreams/apply/resource/resource_monitor.cpp

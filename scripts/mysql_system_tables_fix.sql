@@ -1608,3 +1608,6 @@ ALTER TABLE procs_priv
 ALTER TABLE slave_relay_log_info ADD Applier_version INTEGER UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Version of the applier used (either 1 or 2)' AFTER Assign_gtids_to_anonymous_transactions_value;
 ALTER TABLE slave_relay_log_info ADD Applier_worker_count INTEGER UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Number of worker threads utilized by the applier' AFTER Applier_version;
 ALTER TABLE slave_relay_log_info ADD Applier_event_memory_limit INTEGER UNSIGNED NOT NULL DEFAULT 1073741824 COMMENT 'The maximum amount of memory applier channel may use to cache binlog events' AFTER Applier_worker_count;
+ALTER TABLE slave_relay_log_info ADD In_memory_relaylog BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Indicates whether the channel uses the in-memory relay log instead of writing relay log files to disk.' AFTER Applier_event_memory_limit;
+ALTER TABLE slave_relay_log_info ADD In_memory_relaylog_limit BIGINT UNSIGNED NOT NULL DEFAULT 134217728 COMMENT 'The hard memory bound (in bytes) of the in-memory relay-log queue for the channel.' AFTER In_memory_relaylog;
+ALTER TABLE slave_relay_log_info ADD In_memory_relaylog_spill_threshold BIGINT UNSIGNED NOT NULL DEFAULT 16777216 COMMENT 'The transaction size (in bytes) above which the in-memory relay log spills the transaction instead of keeping it in memory.' AFTER In_memory_relaylog_limit;

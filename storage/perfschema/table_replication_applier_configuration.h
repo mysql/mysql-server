@@ -74,6 +74,9 @@ struct st_row_applier_config {
   uint applier_version{cs::apply::Applier_version::unspecified};
   std::size_t applier_worker_count;
   ulong applier_event_memory_limit;
+  enum_rpl_yes_no in_memory_relaylog_enabled{PS_RPL_NO};
+  ulonglong in_memory_relaylog_limit{0};
+  ulonglong in_memory_relaylog_spill_threshold{0};
 };
 
 class PFS_index_rpl_applier_config : public PFS_engine_index {

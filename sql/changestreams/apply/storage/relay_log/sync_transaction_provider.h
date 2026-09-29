@@ -44,6 +44,8 @@
 
 namespace mysql::csa {
 
+class Trx_envelope_queue;
+
 class Sync_transaction_provider;
 using Sync_transaction_provider_sptr =
     std::unique_ptr<Sync_transaction_provider>;
@@ -69,6 +71,17 @@ class Sync_transaction_provider : public Transaction_provider {
   Sync_transaction_provider(int instance_id, Relay_log_info *rli,
                             std::size_t max_read_event_bytes,
                             std::size_t max_read_payload_bytes);
+
+  /// In-memory relay-log overload. Instead of reading the on-disk relay log,
+  /// the provider drains transactions from the channel's queue via a
+  /// Queued_transaction_reader. Selected by Csa_service::run when the channel
+  /// uses the in-memory relay log.
+  /// @param instance_id Instance (channel) id
+  /// @param rli Pointer to relay log info structure
+  /// @param queue The per-channel FIFO of transaction envelopes to drain
+  ///        (non-owning; must outlive this provider)
+  Sync_transaction_provider(int instance_id, Relay_log_info *rli,
+                            Trx_envelope_queue *queue);
 
   /// Starts asynchronous thread that decodes jobs from the stream
   void start() override;

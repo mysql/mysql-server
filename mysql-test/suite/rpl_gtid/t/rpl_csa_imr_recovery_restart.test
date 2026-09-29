@@ -1,0 +1,160 @@
+# ==== Purpose ====
+#
+# Test recovery of an in-memory relay log (IMR) CSA channel across an abrupt
+# replica restart (crash). The in-memory queue is volatile: on a crash /
+# restart its contents are discarded, and any transactions that were received
+# into the queue but not yet applied must be recovered purely by GTID
+# auto-positioning from the durable gtid_executed.
+#
+# ==== Requirements ====
+#
+# R1. Transactions received into the in-memory queue but not yet applied are
+#     lost on an abrupt restart (queue is volatile). After the restart the
+#     queue is rebuilt empty: In_Memory_Queue_Length = 0 and
+#     In_Memory_Relay_Log_Space = 0.
+# R2. On the next START REPLICA the channel auto-positions from gtid_executed
+#     and re-fetches the lost (unapplied) transactions from the source, so the
+#     replica converges to the source with no data loss.
+# R3. Normal IMR replication resumes after recovery.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA replica, enable IMR, and apply a first workload (W1).
+#   2. Stop only the applier (SQL thread); the receiver keeps running.
+#   3. Produce a second workload (W2) on the source and let the receiver queue
+#      it in memory (unapplied). The queue now holds uncommitted envelopes.
+#   4. Abruptly restart (crash) the replica: the volatile queue is discarded.
+#   5. After the restart the queue is rebuilt empty (R1).
+#   6. START REPLICA: auto-positioning re-fetches W2; the replica converges (R2).
+#   7. Apply a third workload (W3) to confirm normal operation resumed (R3).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR on the CSA channel, start replication, apply W1.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--source include/rpl/start_replica.inc
+
+--let $imr_enabled= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration, v, 1)
+--let $assert_text= IMR is ON on the CSA channel
+--let $assert_cond= "$imr_enabled" = "YES"
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'w1-a'), (2, 'w1-b'), (3, 'w1-c');
+
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 2. Stop only the applier; the receiver keeps running.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--echo
+--echo # 3. Produce W2 on the source; the receiver queues it in memory
+--echo #    (unapplied). The in-memory queue now holds uncommitted envelopes.
+--echo
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (4, 'w2-a');
+INSERT INTO t1 VALUES (5, 'w2-b');
+INSERT INTO t1 VALUES (6, 'w2-c');
+
+# Wait for the receiver (IO thread) to fetch W2 into the in-memory queue. The
+# applier is stopped, so these envelopes stay queued and unapplied.
+--let $use_gtids= 1
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= In_Memory_Queue_Length is greater than 0 with W2 received but unapplied
+--let $assert_cond= $imr_qlen > 0
+--source include/assert.inc
+
+--echo
+--echo # 4. Abruptly restart (crash) the replica: the volatile queue is lost.
+--echo
+
+--let $rpl_server_number= 2
+--let $rpl_force_stop= 1
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+
+--echo
+--echo # 5. After the restart the in-memory queue is rebuilt empty (R1).
+--echo
+
+--let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= In_Memory_Queue_Length is 0 after the restart (queue rebuilt empty)
+--let $assert_cond= $imr_qlen = 0
+--source include/assert.inc
+
+--let $imr_space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $assert_text= In_Memory_Relay_Log_Space is 0 after the restart
+--let $assert_cond= $imr_space = 0
+--source include/assert.inc
+
+--echo # IMR is still enabled on the channel after the restart.
+--let $imr_enabled= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration, v, 1)
+--let $assert_text= IMR remains ON after the restart
+--let $assert_cond= "$imr_enabled" = "YES"
+--source include/assert.inc
+
+--echo
+--echo # 6. START REPLICA: auto-positioning re-fetches W2; the replica converges
+--echo #    (R2). W2 was never committed, so it is re-fetched by GTID.
+--echo
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 7. Normal IMR replication resumes: apply W3 and verify (R3).
+--echo
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (7, 'w3-a'), (8, 'w3-b'), (9, 'w3-c');
+
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

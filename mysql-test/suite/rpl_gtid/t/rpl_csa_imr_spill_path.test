@@ -1,0 +1,152 @@
+# ==== Purpose ====
+#
+# Spill-path end-to-end apply on a CSA (Change Stream Applier) channel with the
+# in-memory relay log (IMR) enabled: a transaction larger than
+# IN_MEMORY_RELAYLOG_SPILL_THRESHOLD is stored through the spill path (a private
+# file in a dedicated subdirectory) instead of the memory queue, applies
+# correctly, and its spill file is cleaned up once the transaction commits.
+#
+# ==== Requirements ====
+#
+# R1. A transaction whose size exceeds IN_MEMORY_RELAYLOG_SPILL_THRESHOLD takes
+#     the spill path. (FR15)
+# R2. The spill store is a dedicated "in_memory_relaylog_temp_files"
+#     subdirectory under the channel's relay-log directory, one self-contained
+#     "imr_sp_<id>" file per transaction. (FR17, FR21, FR24)
+# R3. The spill file persists while the transaction is uncommitted and is
+#     deleted once the transaction commits. (FR21)
+# R4. A mixed small (memory-path) + large (spill-path) workload replicates
+#     correctly; the replica data matches the source. (NFR1)
+#
+# ==== Implementation ====
+#
+#   1. Set up CSA replication (applier stopped), enable IMR with the minimum
+#      8 MiB spill threshold, and start.
+#   2. With the applier stopped, run one >threshold transaction: it is received
+#      and written to a spill file that persists while uncommitted (R1, R2, R3).
+#   3. Start the applier; the transaction commits, data matches, and the spill
+#      file is removed (R3, R4).
+#   4. A mixed small (memory) + large (spill) workload replicates correctly and
+#      leaves no spill files behind (R4).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR with the minimum 8 MiB spill threshold and start.
+--echo #    Any transaction larger than 8 MiB takes the spill path; smaller
+--echo #    ones stay on the memory path (default 128 MiB limit).
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+# Derive the spill directory from the channel's relay-log path:
+#   <relay-log dir>/in_memory_relaylog_temp_files
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/in_memory_relaylog_temp_files')`
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. With the applier stopped, a >threshold transaction is received and
+--echo #    written to a spill file that persists while uncommitted.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+# One transaction larger than 8 MiB: 12 rows x ~1 MiB = ~12 MiB > threshold.
+BEGIN;
+--disable_query_log
+--let $i= 1
+while ($i <= 12)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+# The receiver (IO thread) enqueues and writes the spill file; the applier is
+# stopped, so the transaction stays uncommitted and its file is retained.
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--echo # The dedicated spill subdirectory exists.
+--file_exists $spill_dir
+--echo # Exactly one imr_sp_ file is present for the uncommitted spill transaction:
+--replace_regex /imr_sp_[0-9a-f]+/imr_sp_<ID>/
+--list_files $spill_dir imr_sp_*
+
+--echo
+--echo # 3. Start the applier: the transaction commits, data matches, and the
+--echo #    spill file is removed.
+--echo
+
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+# The spill file is deleted when the committed transaction's byte source is
+# released (commit + job teardown), which is asynchronous to the GTID becoming
+# visible, so poll the spill directory until no imr_sp_ file remains.
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 4. A mixed small (memory) + large (spill) workload replicates correctly
+--echo #    and leaves no spill files behind.
+--echo
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (100, 'small-a');
+BEGIN;
+--disable_query_log
+--let $i= 200
+while ($i <= 210)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('y', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+INSERT INTO t1 VALUES (300, 'small-b');
+
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc
