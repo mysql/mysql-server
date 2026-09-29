@@ -108,6 +108,12 @@ DELETE FROM t;
 --eval SET @pfs_errlog_latest = TIMESTAMP '$pfs_errlog_latest'
 --enable_query_log
 
+# Recovery rollback runs in a background thread, so server startup can finish
+# before all progress messages have been emitted. Wait for the final message
+# from this rollback before checking the complete sequence.
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.error_log WHERE ERROR_CODE = '$msgid' AND DATA LIKE '%600 undo records rolled back out of 600 total%' AND LOGGED > @pfs_errlog_latest
+--source include/wait_condition.inc
+
 --replace_result $msgid_full MY-LNGRB1 $msgid MY-LNGRB2
 --replace_regex /transaction \d+/transaction $trxid/ /XID: .*/XID: $XID/
 eval SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA

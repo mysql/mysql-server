@@ -1,0 +1,43 @@
+################################################################################
+# Verify that binlog recovery can asynchronously hand off a prepared InnoDB
+# transaction whose undo logs and modified-table set are empty.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+CREATE TABLE t_empty (id INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE t_nontrans (id INT PRIMARY KEY) ENGINE = MyISAM;
+
+# Register InnoDB before the savepoint. The nontransactional change keeps a
+# statement in the binlog cache, while ROLLBACK TO SAVEPOINT removes every
+# InnoDB undo record without removing InnoDB from the 2PC participant list.
+--connect(con1, localhost, root,,)
+START TRANSACTION;
+SELECT * FROM t_empty FOR UPDATE;
+--disable_warnings
+INSERT INTO t_nontrans VALUES (1);
+SAVEPOINT empty_undo;
+INSERT INTO t_empty VALUES (1);
+ROLLBACK TO SAVEPOINT empty_undo;
+--enable_warnings
+SET debug_sync = "after_flush_engine_log SIGNAL prepared WAIT_FOR continue";
+--send COMMIT
+
+--connection default
+SET debug_sync = "now WAIT_FOR prepared";
+--source include/kill_mysqld.inc
+--disconnect con1
+
+# Recovery must accept an empty mod_tables set and clean up the handed-off
+# transaction without attempting to acquire table MDL for row undo.
+--let $restart_parameters= restart
+--source include/start_mysqld.inc
+--let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.innodb_trx
+--source include/wait_condition.inc
+SELECT COUNT(*) FROM t_empty;
+
+DROP TABLE t_empty, t_nontrans;
