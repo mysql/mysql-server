@@ -20978,7 +20978,7 @@ static int innodb_internal_table_validate(THD *thd, SYS_VAR *, void *save,
 /** Update the system variable innodb_adaptive_hash_index using the "saved"
  value. This function is registered as a callback with MySQL. */
 static void innodb_adaptive_hash_index_update(
-    THD *,            /*!< in: thread handle */
+    THD *thd,         /*!< in: thread handle */
     SYS_VAR *,        /*!< in: pointer to
                                       system variable */
     void *,           /*!< out: where the
@@ -20988,10 +20988,15 @@ static void innodb_adaptive_hash_index_update(
 {
   if (*(bool *)save) {
     srv_btr_search_enabled = true;
+#ifdef UNIV_DEBUG
+    DBUG_EXECUTE_IF("ib_buf_pool_resize_signal_ahi_enable",
+                    os_event_set(srv_buf_resize_ahi_enable_event););
+#endif /* UNIV_DEBUG */
+    DEBUG_SYNC(thd, "innodb_ahi_update_after_set_enabled");
     btr_search_enable();
   } else {
     srv_btr_search_enabled = false;
-    btr_search_disable();
+    btr_search_disable(true);
   }
 }
 
