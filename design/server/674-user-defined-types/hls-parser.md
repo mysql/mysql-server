@@ -186,19 +186,39 @@ Examples:
 
 ## method invocation
 
-The syntax for expressions is augmented to cover instance method invocations.
+The existing syntax for expressions is augmented to cover instance method invocations.
 
 ```sql
   <simple_expr>:
-    <function_call_method>
+    <function_call_generic>
     ;
 ```
 
 ```sql
-  <function_call_method>:
-    <type_ident> <.> <ident> ( <opt_expr_list> )
+  <function_call_generic>:
+      IDENT_sys '(' opt_udf_expr_list ')'
+      {
+         // existing PTI_function_call_generic_ident_sys, unchanged
+      }
+    | ident '.' ident '(' opt_expr_list ')'
+      {
+         // existing PTI_function_call_generic_2d, unchanged
+      }
+    | ident '.' ident '.' ident '(' opt_expr_list ')'
+      {
+         // new PTI_function_call_generic_3d
+      }
     ;
 ```
+
+In the parse tree, PTI_function_call_generic_2d represents both:
+- calls to stored functions schema.name()
+- calls to user defined types methods in the default schema,
+  type.method()
+Stored functions take precedence on name collisions.
+
+In the parse tree, PTI_function_call_generic_3d represents
+a call to a fully qualified type method, schema.type.method().
 
 Examples:
 
@@ -236,7 +256,7 @@ in a global namespace, shared by all types.
   double_col = complex_col.`real`(); // 1.0
 
   use test;
-  complex_col = mysql.complex::from_string(1+2i");
+  complex_col = mysql.complex::from_string("1+2i");
   double_col = complex_col.`imaginary`(); // 2.0
 ```
 
@@ -244,5 +264,4 @@ This also avoids naming collisions between:
 
 - native functions provided by MySQL
 - global user defined type functions provided by third parties
-
 
