@@ -212,13 +212,12 @@ The existing syntax for expressions is augmented to cover instance method invoca
 ```
 
 In the parse tree, PTI_function_call_generic_2d represents both:
-- calls to stored functions schema.name()
-- calls to user defined types methods in the default schema,
-  type.method()
+- calls to stored functions, `schema.function()`
+- calls to user defined types methods on column as object, `column.method()`
 Stored functions take precedence on name collisions.
 
 In the parse tree, PTI_function_call_generic_3d represents
-a call to a fully qualified type method, schema.type.method().
+a call to a type method on a qualified column object, `table.column.method()`.
 
 Examples:
 
@@ -227,11 +226,11 @@ Examples:
 ```
 
 ```sql
-  double_col = complex_col.`real`();
+  double_col = table.complex_col.`real`();
 ```
 
 ```sql
-  double_col = complex_col.`imaginary`();
+  double_col = table.complex_col.`imaginary`();
 ```
 
 # global function invocation
