@@ -103,12 +103,12 @@ to represent which types are used in a routine body.
 ```sql
 CREATE TABLE `mysql`.`routines_body_types` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `schema_id` bigint unsigned NOT NULL,
+  `routine_id` bigint unsigned NOT NULL,
   `type_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `schema_id` (`schema_id`),
+  KEY `routine_id` (`routine_id`),
   KEY `type_id` (`type_id`),
-  CONSTRAINT `routines_body_types_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`),
+  CONSTRAINT `routines_body_types_ibfk_1` FOREIGN KEY (`routine_id`) REFERENCES `routines` (`id`),
   CONSTRAINT `routines_body_types_ibfk_2` FOREIGN KEY (`type_id`) REFERENCES `types` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 ```
