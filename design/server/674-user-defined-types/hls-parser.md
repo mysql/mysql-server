@@ -49,8 +49,8 @@ For example:
 ```sql
   // complex, using a structured type
   CREATE TYPE `complex` AS (
-    `real` DOUBLE;
-    `imaginary` DOUBLE;
+    `real` DOUBLE,
+    `imaginary` DOUBLE
   );
 ```
 
@@ -251,7 +251,7 @@ in a global namespace, shared by all types.
   CREATE TYPE mysql.complex AS ...;
 
   use mysql;
-  complex_col = complex::from_string("1.2i");
+  complex_col = complex::from_string("1+2i");
   double_col = complex_col.`real`(); // 1.0
 
   use test;
