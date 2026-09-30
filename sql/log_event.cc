@@ -2641,6 +2641,19 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
 
           Gtid_log_event *gtid_log_ev = static_cast<Gtid_log_event *>(this);
           rli->started_processing(gtid_log_ev);
+
+          // Set group ts from immediate_commit_timestamp at GTID event time,
+          // eliminating the ts=0 window between starts_group and ends_group.
+          // This prevents SBM from spuriously dropping to 0 when checkpoint
+          // sees an in-progress group whose ts has not been set yet.
+          if (gtid_log_ev->has_commit_timestamps) {
+            Slave_job_group *grp =
+                gaq->get_job_group(gaq->assigned_group_index);
+            if (grp != nullptr) {
+              grp->ts = static_cast<time_t>(
+                  gtid_log_ev->immediate_commit_timestamp / 1000000);
+            }
+          }
         }
 
         if (schedule_next_event(this, rli)) {
@@ -2813,8 +2826,13 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       ret_worker->checkpoint_notified = true;
     }
     ptr_group->checkpoint_seqno = rli->rli_checkpoint_seqno;
-    ptr_group->ts = common_header->when.tv_sec +
-                    (time_t)exec_time;  // Seconds_behind_source related
+    // Only set ts from ends_group event if it was not already set from
+    // immediate_commit_timestamp at GTID event time. This preserves the
+    // commit timestamp precision and avoids overwriting with when+exec_time.
+    if (ptr_group->ts == 0) {
+      ptr_group->ts = common_header->when.tv_sec +
+                      (time_t)exec_time;  // Seconds_behind_source related
+    }
     rli->rli_checkpoint_seqno++;
     /*
       Coordinator should not use the main memroot however its not

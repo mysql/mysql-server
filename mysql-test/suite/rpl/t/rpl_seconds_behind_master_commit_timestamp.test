@@ -1,0 +1,108 @@
+--source include/have_debug.inc
+--source include/rpl/init_source_replica.inc
+
+--connection master
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+
+--connection slave
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+
+--connection slave
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 4;
+
+--connection master
+CREATE TABLE t (a INT PRIMARY KEY, b INT);
+--source include/rpl/sync_to_replica.inc
+
+--echo #
+--echo # Test case 1: Long transaction blocked on replica, SBM must not
+--echo #   include the time the transaction spent executing on source.
+--echo #   immediate_commit_timestamp records commit time, not start time.
+--echo #
+
+--connection slave
+LOCK TABLE t WRITE;
+
+--connection master
+--disable_warnings
+INSERT INTO t(a, b) SELECT 1, SLEEP(10);
+--enable_warnings
+SELECT a, b FROM t WHERE a = 1;
+
+--connection slave
+--let $wait_timeout= 30
+--let $show_statement= SHOW PROCESSLIST
+--let $field= Info
+--let $condition= = 'INSERT INTO t(a, b) SELECT 1, SLEEP(10)'
+--source include/wait_show_condition.inc
+
+--let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
+--let $assert_text= Seconds_Behind_Source must not exceed 9 seconds during blocked long transaction
+--let $assert_cond= $sbm <= 9
+--source include/assert.inc
+
+UNLOCK TABLES;
+--let $wait_timeout= 30
+--let $wait_condition= SELECT COUNT(*) = 1 FROM t WHERE a = 1
+--source include/wait_condition.inc
+
+--echo #
+--echo # Test case 2: MTS checkpoint timing. sbm_block_checkpoint prevents
+--echo #   checkpoint so a completed group stays in GAQ.
+--echo #   sbm_force_checkpoint forces checkpoint on the next QUERY_EVENT.
+--echo #   This verifies the checkpoint path uses immediate_commit_timestamp
+--echo #   and SBM does not spike.
+--echo #
+
+--connection slave
+SET GLOBAL debug= "+d,sbm_block_checkpoint";
+
+--connection master
+INSERT INTO t(a, b) SELECT 2, 0;
+
+--connection slave
+--let $wait_timeout= 30
+--let $wait_condition= SELECT COUNT(*) = 1 FROM t WHERE a = 2
+--source include/wait_condition.inc
+
+LOCK TABLE t WRITE;
+SET GLOBAL debug= "+d,sbm_force_checkpoint";
+
+--connection master
+BEGIN;
+INSERT INTO t(a, b) SELECT 3, 0;
+SELECT SLEEP(10);
+COMMIT;
+
+--connection slave
+--let $wait_timeout= 30
+--let $show_statement= SHOW PROCESSLIST
+--let $field= Info
+--let $condition= = 'INSERT INTO t(a, b) SELECT 3, 0'
+--source include/wait_show_condition.inc
+
+--let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
+--let $assert_text= Seconds_Behind_Source must not exceed 9 seconds during blocked long transaction under MTS
+--let $assert_cond= $sbm <= 9
+--source include/assert.inc
+
+UNLOCK TABLES;
+--let $wait_timeout= 30
+--let $wait_condition= SELECT COUNT(*) = 1 FROM t WHERE a = 3
+--source include/wait_condition.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--connection slave
+--source include/rpl/stop_replica.inc
+SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
+--source include/rpl/start_replica.inc
+
+--connection master
+DROP TABLE t;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

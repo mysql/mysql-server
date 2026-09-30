@@ -1376,6 +1376,21 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
     log).
   */
   ulonglong immediate_commit_timestamp = my_micro_time();
+#ifndef NDEBUG
+  if (DBUG_EVALUATE_IF("inc_event_time_by_1_hour", 1, 0) &&
+      DBUG_EVALUATE_IF("dec_event_time_by_1_hour", 1, 0)) {
+    /**
+      This assertion guarantees that these debug flags are not
+      used at the same time (they would cancel each other).
+    */
+    assert(0);
+  } else {
+    DBUG_EXECUTE_IF("inc_event_time_by_1_hour",
+                    immediate_commit_timestamp += 3600000000;);
+    DBUG_EXECUTE_IF("dec_event_time_by_1_hour",
+                    immediate_commit_timestamp -= 3600000000;);
+  }
+#endif
 
   /*
     When the original_commit_timestamp session variable is set to a value
