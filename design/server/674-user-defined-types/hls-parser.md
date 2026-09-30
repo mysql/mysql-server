@@ -148,6 +148,28 @@ The revoke statement is extended to match grant
 
 # Type definitions
 
+The existing grammar for ENUM is extracted in its own rule:
+
+```bison
+  <enum_type>:
+      ENUM_SYM '(' string_list ')' opt_charset_with_opt_binary
+      {
+        $$= NEW_PTN PT_enum_type(@$, $3, $5.charset, $5.force_binary);
+      }
+    ;
+```
+
+The existing grammar for SET is extracted in its own rule:
+
+```bison
+  <set_type>:
+      SET_SYM '(' string_list ')' opt_charset_with_opt_binary
+      {
+        $$= NEW_PTN PT_set_type(@$, $3, $5.charset, $5.force_binary);
+      }
+    ;
+```
+
 The existing grammar for types:
 
 ```bison
@@ -164,6 +186,8 @@ is renamed to:
     ;
 ```
 
+with rules for ENUM and SET excluded.
+
 A new syntax is added for user defined types:
 
 ```bison
@@ -172,11 +196,14 @@ A new syntax is added for user defined types:
     ;
 ```
 
-Types are generalized to be builtin or user defined types:
+Types are generalized to be builtin, enum or set (as before),
+as well as user defined types:
 
 ```bison
   <type>:
       <builtin_type>
+    | <enum_type>
+    | <set_type>
     | <user_defined_type>
     ;
 ```
