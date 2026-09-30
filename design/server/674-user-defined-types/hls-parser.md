@@ -3,20 +3,20 @@
 
 ## Syntax for basic types
 
-```sql
+```bison
 <create_type_stmt>:
   CREATE TYPE <type_ident> AS <builtin_type>
   ;
 ```
 
-```sql
+```bison
 <type_ident>:
     IDENT_sys
   | IDENT_sys '.' IDENT_sys
   ;
 ```
 
-```sql
+```bison
 <builtin_type>:
   // existing MySQL builtin types
   ;
@@ -38,7 +38,7 @@ This is one of the possible options defined in the SQL spec.
 
 The SQL specification also defines structured types:
 
-```sql
+```bison
 <create_type_stmt>:
   CREATE TYPE <type_ident> AS ( <member_list> )
   ;
@@ -77,7 +77,7 @@ as there is nothing to alter currently.
 
 # DROP TYPE statement
 
-```sql
+```bison
 <drop_type_stmt>:
   DROP TYPE <type_ident>
   ;
@@ -146,19 +146,64 @@ The revoke statement is extended to match grant
   REVOKE USAGE ON TYPE db.type FROM ...
 ```
 
+# Type definitions
+
+The existing grammar for types:
+
+```bison
+  <type>:
+    // all builtin MySQL types
+    ;
+```
+
+is renamed to:
+
+```bison
+  <builtin_type>:
+    // all builtin MySQL types
+    ;
+```
+
+A new syntax is added for user defined types:
+
+```bison
+  <user_defined_type>:
+    <type_ident>
+    ;
+```
+
+Types are generalized to be builtin or user defined types:
+
+```bison
+  <type>:
+      <builtin_type>
+    | <user_defined_type>
+    ;
+```
+
+As a result, every place using a type definition can now support user
+defined types.
+
+This includes:
+
+- column definitions
+- stored routine parameters
+- stored routine result
+- stored routines local variables declarations
+
 # Method invocation
 
 ## Static method invocation
 
 The syntax for expressions is augmented to cover static method invocations.
 
-```sql
+```bison
   <simple_expr>:
     <function_call_static_method>
     ;
 ```
 
-```sql
+```bison
   <function_call_static_method>:
     <type_ident> <::> <ident> ( <opt_expr_list> )
     ;
@@ -188,13 +233,13 @@ Examples:
 
 The existing syntax for expressions is augmented to cover instance method invocations.
 
-```sql
+```bison
   <simple_expr>:
     <function_call_generic>
     ;
 ```
 
-```sql
+```bison
   <function_call_generic>:
       IDENT_sys '(' opt_udf_expr_list ')'
       {

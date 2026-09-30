@@ -65,6 +65,20 @@ CREATE TABLE `mysql`.`types` (
 
 This table stores the type definition provided by the CREATE TYPE statement.
 
+### Table mysql.columns;
+
+This is an existing table.
+
+Add a column:
+
+- `type_id bigint unsigned DEFAULT NULL`
+
+When a column uses a user defined type,
+column `type_id` represents the type used.
+
+Add in KEY definition for `type_id`,
+and a FOREIGN KEY constraint referencing mysql.types.
+
 ### Table mysql.routines;
 
 This is an existing table.
@@ -146,6 +160,19 @@ View INFORMATION_SCHEMA.TYPES joins the following tables:
 - TABLE mysql.schemata, for the schema definitions
 - TABLE mysql.character_sets, for the character sets definitions
 - TABLE mysql.collations, for the collations definitions
+
+### View INFORMATION_SCHEMA.COLUMNS
+
+This is an existing view.
+
+Add columns:
+
+- `TYPE_SCHEMA varchar(64)`
+- `TYPE_NAME varchar(64)`
+
+to represent the user defined type used by a column, if any.
+
+This view now also joins TABLE `mysql`.`types`.
 
 ### View INFORMATION_SCHEMA.ROUTINES
 
