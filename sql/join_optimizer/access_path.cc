@@ -45,6 +45,7 @@
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/bka_iterator.h"
+#include "sql/iterators/cloudsql_vector_iterators.h"
 #include "sql/iterators/composite_iterators.h"
 #include "sql/iterators/delete_rows_iterator.h"
 #include "sql/iterators/hash_join_iterator.h"
@@ -265,6 +266,8 @@ TABLE *GetBasicTable(const AccessPath *path) {
     // Basic access paths (those with no children, at least nominally).
     case AccessPath::TABLE_SCAN:
       return path->table_scan().table;
+    case AccessPath::VECTOR_INDEX_SCAN:
+      return path->vector_index_scan().table;
     case AccessPath::SAMPLE_SCAN:
       return path->sample_scan().table;
     case AccessPath::INDEX_SCAN:
@@ -321,6 +324,8 @@ std::string_view AccessPathTypeName(AccessPath::Type type) {
   switch (type) {
     case AccessPath::TABLE_SCAN:
       return "TABLE_SCAN";
+    case AccessPath::VECTOR_INDEX_SCAN:
+      return "VECTOR_INDEX_SCAN";
     case AccessPath::SAMPLE_SCAN:
       return "SAMPLE_SCAN";
     case AccessPath::INDEX_SCAN:
@@ -369,6 +374,8 @@ std::string_view AccessPathTypeName(AccessPath::Type type) {
       return "MATERIALIZED_TABLE_FUNCTION";
     case AccessPath::UNQUALIFIED_COUNT:
       return "UNQUALIFIED_COUNT";
+    case AccessPath::VECTOR_INDEX_JOIN:
+      return "VECTOR_INDEX_JOIN";
     case AccessPath::NESTED_LOOP_JOIN:
       return "NESTED_LOOP_JOIN";
     case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
@@ -490,6 +497,7 @@ std::span<AccessPath *> CollectSingleRowIndexLookups(THD *thd,
 bool ShouldEnableBatchMode(AccessPath *path) {
   switch (path->type) {
     case AccessPath::TABLE_SCAN:
+    case AccessPath::VECTOR_INDEX_SCAN:
     case AccessPath::INDEX_SCAN:
     case AccessPath::INDEX_DISTANCE_SCAN:
     case AccessPath::REF:
@@ -731,6 +739,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         const auto &param = path->table_scan();
         iterator = NewIterator<TableScanIterator>(
             thd, mem_root, param.table, path->num_output_rows(), examined_rows);
+        break;
+      }
+      case AccessPath::VECTOR_INDEX_SCAN: {
+        const auto &param = path->vector_index_scan();
+        iterator = NewIterator<VectorIndexScanIterator>(
+            thd, mem_root, param.table, examined_rows, param.query_vector,
+            param.query_vector_size, param.search_options, param.results,
+            param.vector_query_status);
         break;
       }
       case AccessPath::INDEX_SCAN: {
@@ -1025,6 +1041,19 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         iterator = NewIterator<NestedLoopIterator>(
             thd, mem_root, std::move(job.children[0]),
             std::move(job.children[1]), param.join_type, param.pfs_batch_mode);
+        break;
+      }
+      case AccessPath::VECTOR_INDEX_JOIN: {
+        const auto &param = path->vector_index_join();
+        if (job.children.is_null()) {
+          SetupJobsForChildren(mem_root, param.outer, param.inner, join,
+                               eligible_for_batch_mode, &job, &todo);
+          continue;
+        }
+
+        iterator = NewIterator<VectorIndexJoinIterator>(
+            thd, mem_root, std::move(job.children[0]),
+            std::move(job.children[1]));
         break;
       }
       case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL: {

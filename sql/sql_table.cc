@@ -446,6 +446,7 @@ handlerton *get_viable_handlerton_for_create(THD *thd, const char *table_name,
            : nullptr});
 }
 
+static bool check_if_vector_key_exists(KEY *start, KEY *end);
 static bool check_if_keyname_exists(const char *name, KEY *start, KEY *end);
 static const char *make_unique_key_name(const char *field_name, KEY *start,
                                         KEY *end);
@@ -5105,6 +5106,10 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       errmsg = "Spatial index on virtual generated column";
       functional_index_error_handler.force_error_code(
           ER_SPATIAL_FUNCTIONAL_INDEX);
+    } else if (key->type == KEYTYPE_VECTOR) {
+      errmsg = "Vector index on virtual generated column";
+      functional_index_error_handler.force_error_code(
+          ER_VECTOR_FEATURE_UNSUPPORTED);
     } else if (key->type == KEYTYPE_PRIMARY) {
       errmsg = "Defining a virtual generated column as primary key";
       functional_index_error_handler.force_error_code(
@@ -5134,8 +5139,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   }
 
-  // VECTOR columns cannot be used as keys
-  if (sql_field->sql_type == MYSQL_TYPE_VECTOR) {
+  // VECTOR columns cannot be used as non-Cloud SQL vector keys
+  if (sql_field->sql_type == MYSQL_TYPE_VECTOR && key->type != KEYTYPE_VECTOR) {
     my_error(ER_NON_SCALAR_USED_AS_KEY, MYF(0), column->get_field_name());
     return true;
   }
@@ -5145,6 +5150,11 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       (*auto_increment)--;  // Field is used
   }
 
+  // Vector indexes can be used only on vector columns.
+  if (key->type == KEYTYPE_VECTOR && !sql_field->is_vector_col()) {
+    my_error(ER_BAD_VECTOR_INDEX_COLUMN, MYF(0), column->get_field_name());
+    return true;
+  }
   /*
     Check for duplicate columns.
   */
@@ -5206,6 +5216,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       case MYSQL_TYPE_STRING:
       case MYSQL_TYPE_VARCHAR:
       case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_VECTOR:
       case MYSQL_TYPE_SET:
         column_length =
             column->get_prefix_length() * sql_field->charset->mbmaxlen;
@@ -5418,7 +5429,9 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   }
 
-  if (key_part_length > file->max_key_part_length(create_info) &&
+  // Skip key length check for VECTOR key type, similar to FULLTEXT key type.
+  if (key->type != KEYTYPE_VECTOR &&
+      key_part_length > file->max_key_part_length(create_info) &&
       key->type != KEYTYPE_FULLTEXT) {
     key_part_length = file->max_key_part_length(create_info);
     if (key->type == KEYTYPE_MULTIPLE) {
@@ -5439,7 +5452,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
                sql_field->field->table->s->table_name.str, key->name.str,
                key_part_length);
       return true;
-    } else {
+    } else if (key->type != KEYTYPE_VECTOR) {
       if (!is_json_pk_on_external_table(file->ht->flags, key->type,
                                         sql_field->sql_type)) {
         my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
@@ -7538,12 +7551,48 @@ static bool prepare_preexisting_foreign_key(
   return false;
 }
 
+/**
+ * Helper method used by prepare_key() to check if a table with
+ * cloudsql vector column can be created or altered.
+ * Steps:
+ * 1. Iterate through the PK columns from primary_key_spec
+ *  2. Identify the Create_field object for the primary key column, we use field
+ *    name comparison
+ * 3. Check if the field type is NOT valid for cloudsql vector.
+ */
+bool is_pk_valid_for_vector_index(List<Create_field> *create_list,
+                                       const Key_spec *primary_key_spec,
+                                       uint *primary_key_length) {
+  *primary_key_length = 0;
+  List_iterator<Create_field> it(*create_list);
+  for (const Key_part_spec *column : primary_key_spec->columns) {
+    Create_field *sql_field;
+    it.rewind();
+    while ((sql_field = it++)) {
+      const enum_field_types field_type = sql_field->sql_type;
+      /* Compare column names */
+      if (!my_strcasecmp(system_charset_info, sql_field->field_name,
+                         column->get_field_name())) {
+        /* Check if valid PK type for cloudsqlvector */
+        if (!is_pk_type_valid_for_csql_vector(field_type, sql_field->charset,
+                                                sql_field->flags)) {
+          return false;
+        }
+        *primary_key_length += sql_field->key_length();
+        break;
+      }
+    }
+  }
+  return true;
+}
+
 static bool prepare_key(
     THD *thd, const char *error_schema_name, const char *error_table_name,
     HA_CREATE_INFO *create_info, List<Create_field> *create_list,
     const Key_spec *key, KEY **key_info_buffer, KEY *key_info,
     KEY_PART_INFO **key_part_info, Mem_root_array<const KEY *> &keys_to_check,
-    uint key_number, const handler *file, int *auto_increment) {
+    uint key_number, const handler *file, int *auto_increment, bool primary_key,
+    bool is_partitioned, const Key_spec *primary_key_spec) {
   DBUG_TRACE;
   assert(create_list);
   assert(key_info->flags == 0);  // No flags should be set yet
@@ -7570,6 +7619,19 @@ static bool prepare_key(
     return true;
   }
 
+  if (key->key_create_info.algorithm == HA_KEY_ALG_KMEANS &&
+      key->type != KEYTYPE_VECTOR) {
+        my_error(ER_VECTOR_FEATURE_UNSUPPORTED, MYF(0),
+                 "TREE algorithm is only supported for VECTOR keys.");
+    return true;
+  }
+  if (key->type == KEYTYPE_VECTOR &&
+      key->key_create_info.m_distance_measure ==
+          distance_measure::DISTANCE_MEASURE_UNSPECIFIED) {
+    my_error(ER_VECTOR_INDEX_OPERATION_ERROR, MYF(0), "Create Index",
+             "Distance measure must be specified for VECTOR keys.");
+    return true;
+  }
   /* Create the key name based on the first column (if not given) */
   if (key->type == KEYTYPE_PRIMARY)
     key_info->name = primary_key_name;
@@ -7600,6 +7662,83 @@ static bool prepare_key(
   if (!key_info->name || check_column_name(to_lex_cstring(key_info->name))) {
     my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key_info->name);
     return true;
+  }
+
+  if (key->type == KEYTYPE_VECTOR) {
+    if (check_if_vector_key_exists(*key_info_buffer, key_info)) {
+      my_error(ER_VECTOR_INDEX_OPERATION_ERROR, MYF(0), "create Index",
+              "Vector key on the table already exists.");
+      return true;
+    }
+    int vector_columns = 0;
+    for (Create_field &it : *create_list) {
+      if (it.is_vector_col()) vector_columns++;
+    }
+    /* Vector indexes are not supported on tables with multiple vector columns */
+    if (vector_columns > 1) {
+      my_error(ER_VECTOR_INDEX_FEATURE_UNSUPPORTED, MYF(0), "vector indexes on tables with multiple vector columns");
+      return true;
+    }
+    /* Vector indexes are not supported on non innodb tables */
+    if (create_info->db_type->db_type != DB_TYPE_INNODB) {
+      my_error(ER_VECTOR_INDEX_FEATURE_UNSUPPORTED, MYF(0), "vector indexes on non innodb tables");
+      return true;
+    }
+    /* Vector indexes are not supported with temporary tables */
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+      my_error(ER_VECTOR_INDEX_FEATURE_UNSUPPORTED, MYF(0), "vector indexes on temporary tables");
+      return true;
+    }
+    /* Tables with vector indexes, but without PK are not supported */
+    if (!primary_key) {
+      my_error(ER_VECTOR_INDEX_FEATURE_UNSUPPORTED, MYF(0), "vector indexes without primary key");
+      return true;
+    }
+    /* Vector indexes are not supported with partitioned tables */
+    if (is_partitioned) {
+      my_error(ER_VECTOR_INDEX_FEATURE_UNSUPPORTED, MYF(0), "vector indexes with partitioned tables");
+      return true;
+    }
+
+    /* Vector columns are not supported with unsupported primary key datatype */
+    uint primary_key_length = 0;
+    bool is_primary_key_type_supported = true;
+    if (primary_key_spec) {
+      is_primary_key_type_supported =
+          is_pk_valid_for_vector_index(
+              create_list, primary_key_spec, &primary_key_length);
+    }
+    if (!is_primary_key_type_supported) {
+      my_error(ER_VECTOR_FEATURE_UNSUPPORTED, MYF(0),
+               "Vector column specified with unsupported primary key datatype");
+      return true;
+    } else if (primary_key_length > VECTOR_MAX_ALLOWED_PRIMARY_KEY_LENGTH) {
+      std::stringstream ss;
+      ss << "Vector column specified with unsupported primary key length: "
+         << primary_key_length;
+      my_error(ER_VECTOR_FEATURE_UNSUPPORTED, MYF(0), ss.str().c_str());
+      return true;
+    }
+    /* Vector columns are not supported with row type non dynamic or
+       default (default is dynamic in 8.0.36+ cases) */
+    if (create_info->row_type != ROW_TYPE_DYNAMIC &&
+        create_info->row_type != ROW_TYPE_DEFAULT) {
+      my_error(ER_VECTOR_FEATURE_UNSUPPORTED, MYF(0),
+               "Vector column is not supported with row type non dynamic");
+      return true;
+    }
+    /* Vector columns are not supported if tablespace is not file per table */
+    Tablespace_type tt;
+    if (create_info->db_type &&
+        !create_info->db_type->get_tablespace_type_by_name(
+            create_info->tablespace, &tt)) {
+      if (tt != Tablespace_type::SPACE_TYPE_IMPLICIT) {
+        my_error(ER_VECTOR_FEATURE_UNSUPPORTED, MYF(0),
+                 "Vector column is not supported when tablespace is not "
+                 "file per table");
+        return true;
+      }
+    }
   }
 
   key_info->comment.length = key->key_create_info.comment.length;
@@ -7663,6 +7802,9 @@ static bool prepare_key(
     case KEYTYPE_UNIQUE:
       key_info->flags |= HA_NOSAME;
       break;
+    case KEYTYPE_VECTOR:
+      key_info->flags |= HA_VECTOR;
+      break;
     default:
       assert(false);
       return true;
@@ -7678,6 +7820,9 @@ static bool prepare_key(
   key_info->usable_key_parts = key_number;
   key_info->is_algorithm_explicit = false;
   key_info->is_visible = key->key_create_info.is_visible;
+  key_info->distance_measure = key->key_create_info.m_distance_measure;
+  key_info->quantizer = key->key_create_info.m_quantizer_option;
+  key_info->m_num_partitions = key->key_create_info.m_num_partitions;
 
   /*
     Make SPATIAL to be RTREE by default
@@ -7693,6 +7838,17 @@ static bool prepare_key(
   } else if (key_info->flags & HA_FULLTEXT) {
     assert(!key->key_create_info.is_algorithm_explicit);
     key_info->algorithm = HA_KEY_ALG_FULLTEXT;
+  } else if (key_info->flags & HA_VECTOR) {
+    if (!key->key_create_info.is_algorithm_explicit) {
+       key_info->algorithm = HA_KEY_ALG_KMEANS;
+    } else {
+       if (key->key_create_info.algorithm != HA_KEY_ALG_KMEANS) {
+        my_error(ER_VECTOR_FEATURE_UNSUPPORTED, MYF(0),
+                 "Only TREE algorithm is supported for VECTOR keys.");
+        return true;
+       }
+       key_info->algorithm = key->key_create_info.algorithm;
+    }
   } else {
     if (key->key_create_info.is_algorithm_explicit) {
       if (key->key_create_info.algorithm != HA_KEY_ALG_RTREE) {
@@ -7758,7 +7914,11 @@ static bool prepare_key(
   }
   key_info->actual_flags = key_info->flags;
 
-  if (key_info->key_length > file->max_key_length() &&
+  /*
+    Skip kip key part length check for VECTOR key type, similar to FULLTEXT.
+  */
+  if (key->type != KEYTYPE_VECTOR &&
+      key_info->key_length > file->max_key_length() &&
       key->type != KEYTYPE_FULLTEXT) {
     my_error(ER_TOO_LONG_KEY, MYF(0), file->max_key_length());
     if (thd->is_error())  // May be silenced - see Bug#20629014
@@ -8540,6 +8700,7 @@ bool mysql_prepare_create_table(
 
   uint key_number = 0;
   bool primary_key = false;
+  const Key_spec *primary_key_spec = nullptr;
 
   // First prepare non-foreign keys so that they are ready when
   // we prepare foreign keys.
@@ -8553,6 +8714,7 @@ bool mysql_prepare_create_table(
         my_error(ER_MULTIPLE_PRI_KEY, MYF(0));
         return true;
       }
+      primary_key_spec = key;
       primary_key = true;
     }
 
@@ -8560,7 +8722,7 @@ bool mysql_prepare_create_table(
       if (prepare_key(thd, error_schema_name, error_table_name, create_info,
                       &alter_info->create_list, key, key_info_buffer, key_info,
                       &key_part_info, keys_to_check, key_number, file,
-                      &auto_increment))
+                      &auto_increment, primary_key, is_partitioned, primary_key_spec))
         return true;
       key_info++;
       key_number++;
@@ -11274,6 +11436,16 @@ end:
 }
 
 /*
+** Check if vector index already exists
+**/
+
+static bool check_if_vector_key_exists(KEY *start, KEY *end) {
+  for (KEY *key = start; key != end; key++)
+    if (key->flags & HA_VECTOR) return true;
+  return false;
+}
+
+/*
 ** Give the key name after the first field with an optional '_#' after
 **/
 
@@ -13540,6 +13712,8 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
     } else {
       if (new_key->flags & HA_SPATIAL) {
         ha_alter_info->handler_flags |= Alter_inplace_info::ADD_SPATIAL_INDEX;
+      } else if (new_key->flags & HA_VECTOR) {
+        ha_alter_info->handler_flags |= Alter_inplace_info::ADD_VECTOR_INDEX;
       } else {
         ha_alter_info->handler_flags |= Alter_inplace_info::ADD_INDEX;
       }
@@ -16148,6 +16322,12 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           key_type = KEYTYPE_UNIQUE;
       } else if (key_info->flags & HA_FULLTEXT)
         key_type = KEYTYPE_FULLTEXT;
+      else if (key_info->flags & HA_VECTOR) {
+        key_type = KEYTYPE_VECTOR;
+        key_create_info.m_distance_measure = key_info->distance_measure;
+        key_create_info.m_quantizer_option = key_info->quantizer;
+        key_create_info.m_num_partitions = key_info->m_num_partitions;
+      }
       else
         key_type = KEYTYPE_MULTIPLE;
 
@@ -17042,6 +17222,24 @@ static bool simple_rename_or_index_change(
       mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
   return error != 0 || reopen_error;
+}
+
+/* Check if ALTER TABLE statement is valid on a cloudsql vector column.
+   For now, only ADD and DROP cloudsql vector columns are supported */
+static bool is_alter_cloudsql_vector_column_valid(Alter_info *alter_info, TABLE *table) {
+  Create_field *create_field;
+  List_iterator<Create_field> list_it(alter_info->create_list);
+
+  while ((create_field = list_it++)) {
+    if (create_field->change != nullptr) {
+      // If the source/target is a cloudsql vector column, error out.
+      if (((create_field->is_vector_col()) ||
+          (create_field->field->is_vector_col()))) {
+        return !table->s->has_vector_key();
+      }
+    }
+  }
+  return true;
 }
 
 /**
@@ -17974,6 +18172,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                            alter_info, table))
     return true;
 
+  if (!is_alter_cloudsql_vector_column_valid(alter_info, table))
+  {
+    my_error(ER_VECTOR_FEATURE_UNSUPPORTED, MYF(0),
+             "ALTER TABLE CHANGE/MODIFY not supported on vector columns with a vector index present.");
+    return true;
+  }
+
   /*
     Check if we are changing the SRID specification on a geometry column that
     has a spatial index. If that is the case, reject the change since allowing
@@ -18548,6 +18753,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   /* ALTER TABLE using copy algorithm. */
+
+  /* If we have vector index, we don't support ALTER TABLE (copy algorithm). */
+  if (table->s->has_vector_key()) {
+    my_error(ER_VECTOR_INDEX_FEATURE_UNSUPPORTED, MYF(0),
+             "ALTER TABLE (copy algorithm)");
+    goto err_new_table_cleanup;
+  }
 
   /* Check if ALTER TABLE is compatible with foreign key definitions. */
   if (fk_check_copy_alter_table(thd, table_list, old_table_def, alter_info))

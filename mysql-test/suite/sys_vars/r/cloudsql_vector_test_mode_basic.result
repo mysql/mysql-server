@@ -1,0 +1,132 @@
+'#---------------------BS_STVARS_035_01----------------------#'
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+COUNT(@@GLOBAL.cloudsql_vector_test_mode)
+1
+1 Expected
+SELECT @@GLOBAL.cloudsql_vector_test_mode;
+@@GLOBAL.cloudsql_vector_test_mode
+0
+'#---------------------BS_STVARS_035_02----------------------#'
+Show that it is read-only variable
+SET @@local.cloudsql_vector_test_mode=ON;
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a read only variable
+Expected error 'Read only variable'
+SET @@session.cloudsql_vector_test_mode=ON;
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.cloudsql_vector_test_mode=ON;
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.cloudsql_vector_test_mode=ON;
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+COUNT(@@GLOBAL.cloudsql_vector_test_mode)
+1
+1 Expected
+'#---------------------BS_STVARS_035_03----------------------#'
+SELECT @@GLOBAL.cloudsql_vector_test_mode = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector_test_mode';
+@@GLOBAL.cloudsql_vector_test_mode = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+COUNT(@@GLOBAL.cloudsql_vector_test_mode)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector_test_mode';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_035_04----------------------#'
+SELECT @@cloudsql_vector_test_mode = @@GLOBAL.cloudsql_vector_test_mode;
+@@cloudsql_vector_test_mode = @@GLOBAL.cloudsql_vector_test_mode
+1
+1 Expected
+'#---------------------BS_STVARS_035_05----------------------#'
+SELECT COUNT(@@cloudsql_vector_test_mode);
+COUNT(@@cloudsql_vector_test_mode)
+1
+1 Expected
+SELECT COUNT(@@local.cloudsql_vector_test_mode);
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.cloudsql_vector_test_mode);
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+COUNT(@@GLOBAL.cloudsql_vector_test_mode)
+1
+1 Expected
+SELECT cloudsql_vector_test_mode;
+ERROR 42S22: Unknown column 'cloudsql_vector_test_mode' in 'field list'
+Expected error 'Unknown column'
+'#---------------------BS_STVARS_035_01----------------------#'
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+COUNT(@@GLOBAL.cloudsql_vector_test_mode)
+1
+1 Expected
+SELECT @@GLOBAL.cloudsql_vector_test_mode;
+@@GLOBAL.cloudsql_vector_test_mode
+0
+'#---------------------BS_STVARS_035_02----------------------#'
+Show that it is read-only variable
+SET @@local.cloudsql_vector_test_mode=ON;
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a read only variable
+Expected error 'Read only variable'
+SET @@session.cloudsql_vector_test_mode=ON;
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.cloudsql_vector_test_mode=ON;
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a read only variable
+Expected error 'Read only variable'
+SET @@GLOBAL.cloudsql_vector_test_mode=ON;
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+COUNT(@@GLOBAL.cloudsql_vector_test_mode)
+1
+1 Expected
+'#---------------------BS_STVARS_035_03----------------------#'
+SELECT @@GLOBAL.cloudsql_vector_test_mode = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector_test_mode';
+@@GLOBAL.cloudsql_vector_test_mode = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+COUNT(@@GLOBAL.cloudsql_vector_test_mode)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector_test_mode';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_035_04----------------------#'
+SELECT @@cloudsql_vector_test_mode = @@GLOBAL.cloudsql_vector_test_mode;
+@@cloudsql_vector_test_mode = @@GLOBAL.cloudsql_vector_test_mode
+1
+1 Expected
+'#---------------------BS_STVARS_035_05----------------------#'
+SELECT COUNT(@@cloudsql_vector_test_mode);
+COUNT(@@cloudsql_vector_test_mode)
+1
+1 Expected
+SELECT COUNT(@@local.cloudsql_vector_test_mode);
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.cloudsql_vector_test_mode);
+ERROR HY000: Variable 'cloudsql_vector_test_mode' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+COUNT(@@GLOBAL.cloudsql_vector_test_mode)
+1
+1 Expected
+SELECT cloudsql_vector_test_mode;
+ERROR 42S22: Unknown column 'cloudsql_vector_test_mode' in 'field list'
+Expected error 'Unknown column'

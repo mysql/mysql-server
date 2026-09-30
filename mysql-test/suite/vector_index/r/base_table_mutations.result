@@ -1,0 +1,218 @@
+use test;
+CREATE TABLE t1 (id int primary key, name VARCHAR(10), emb vector(3) using varbinary);
+INSERT INTO t1 SELECT id, "name", substr(embeddings,1,12) FROM gloveds;
+# create vector index
+CREATE VECTOR INDEX vec_index ON t1(emb) DISTANCE_MEASURE=l2_squared;
+# Test Case 1: Altering the embedding column in base table.
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+0
+Closest KNN Vector: 110864	[1.58730e+00,1.04440e+00,9.85710e-01]
+Closest ANN Vector: 110864	[1.58730e+00,1.04440e+00,9.85710e-01]
+UPDATE t1
+SET emb = string_to_vector('[9, 9, 9]')
+WHERE id = 110001;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+1
+Closest KNN Vector: 110001	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 110001	[9.00000e+00,9.00000e+00,9.00000e+00]
+# Test Case 2: Altering the primary key column in base table.
+UPDATE t1
+SET id = 99999
+WHERE emb = string_to_vector('[9, 9, 9]');
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+2
+Closest KNN Vector: 99999	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 99999	[9.00000e+00,9.00000e+00,9.00000e+00]
+# Test Case 3: Updating embedding column in base table, then rolling back.
+SET autocommit = 0;
+START TRANSACTION;
+UPDATE t1
+SET emb = string_to_vector('[0, 0, 0]')
+WHERE id = 99999;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+3
+Closest KNN Vector: 110864	[1.58730e+00,1.04440e+00,9.85710e-01]
+Closest ANN Vector: 110864	[1.58730e+00,1.04440e+00,9.85710e-01]
+ROLLBACK;
+SET autocommit = 1;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+3
+Closest KNN Vector: 99999	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 99999	[9.00000e+00,9.00000e+00,9.00000e+00]
+# Test Case 4: Altering the primary key column in base table, then rolling back.
+SET autocommit = 0;
+START TRANSACTION;
+UPDATE t1
+SET id = 100000
+WHERE emb = string_to_vector('[9, 9, 9]');
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+4
+Closest KNN Vector: 100000	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 100000	[9.00000e+00,9.00000e+00,9.00000e+00]
+ROLLBACK;
+SET autocommit = 1;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+4
+Closest KNN Vector: 99999	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 99999	[9.00000e+00,9.00000e+00,9.00000e+00]
+# Test Case 5: Altering the embedding and primary key columns in base table.
+UPDATE t1
+SET id = 211111, emb = string_to_vector('[11, 11, 11]')
+WHERE id = 99999;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+5
+Closest KNN Vector: 211111	[1.10000e+01,1.10000e+01,1.10000e+01]
+Closest ANN Vector: 211111	[1.10000e+01,1.10000e+01,1.10000e+01]
+UPDATE t1
+SET id = 99999, emb = string_to_vector('[9, 9, 9]')
+WHERE id = 211111;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+6
+Closest KNN Vector: 99999	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 99999	[9.00000e+00,9.00000e+00,9.00000e+00]
+# Test Case 6: Deleting a row base table, then inserting.
+DELETE FROM t1 WHERE emb = string_to_vector('[9, 9, 9]');
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+7
+Closest KNN Vector: 110864	[1.58730e+00,1.04440e+00,9.85710e-01]
+Closest ANN Vector: 110864	[1.58730e+00,1.04440e+00,9.85710e-01]
+INSERT INTO t1 (id, name, emb) VALUES (59, 'name1', string_to_vector('[9,9,9]'));
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+8
+Closest KNN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+# Test Case 7: Altering the embedding column in base table to NULL vector with rollback.
+SET autocommit = 0;
+START TRANSACTION;
+UPDATE t1
+SET emb = NULL
+WHERE id = 110055;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+9
+Closest KNN Vector: 110055	
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+SELECT id, vector_to_string(emb),
+vector_distance(emb, string_to_vector('[10,10,10]')) dist
+FROM t1 WHERE vector_distance(emb, string_to_vector('[10,10,10]')) IS NOT NULL ORDER BY dist LIMIT 1;
+id	vector_to_string(emb)	dist
+59	[9.00000e+00,9.00000e+00,9.00000e+00]	3
+ROLLBACK;
+SET autocommit = 1;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+9
+Closest KNN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+SELECT id, vector_to_string(emb),
+vector_distance(emb, string_to_vector('[10,10,10]')) dist
+FROM t1 WHERE vector_distance(emb, string_to_vector('[10,10,10]')) IS NOT NULL ORDER BY dist LIMIT 1;
+id	vector_to_string(emb)	dist
+59	[9.00000e+00,9.00000e+00,9.00000e+00]	3
+# Test Case 8: Inserting, altering PK, & deleting NULL vector row with rollback
+INSERT INTO t1 (id, name, emb) VALUES (1001, 'name2', NULL);
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+10
+Closest KNN Vector: 1001	
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+SET autocommit = 0;
+START TRANSACTION;
+UPDATE t1 SET id = 1005 WHERE id = 1001;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+11
+Closest KNN Vector: 1005	
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+DELETE FROM t1 WHERE emb IS NULL;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+12
+Closest KNN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+ROLLBACK;
+SET autocommit = 1;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+12
+Closest KNN Vector: 1001	
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+# Test Case 9: Setting embedding from NULL to non-null to null with rollback
+SET autocommit = 0;
+START TRANSACTION;
+UPDATE t1 SET emb = string_to_vector("[0,0,0]") WHERE id = 1001;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+13
+Closest KNN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+UPDATE t1 SET emb = NULL WHERE id = 1001;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+14
+Closest KNN Vector: 1001	
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+ROLLBACK;
+SET autocommit = 1;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+14
+Closest KNN Vector: 1001	
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+# Test Case 10: Update non-embedding non-PK column (should not cause mutation)
+SELECT name, vector_to_string(emb) FROM t1 WHERE id = 110200;
+name	vector_to_string(emb)
+name	[3.59480e-01,-1.66370e-01,-3.02880e-01]
+UPDATE t1 SET name = "nametest" WHERE id = 110200;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+14
+SELECT name, vector_to_string(emb) FROM t1 WHERE id = 110200;
+name	vector_to_string(emb)
+nametest	[3.59480e-01,-1.66370e-01,-3.02880e-01]
+# Test Case 11: Delete and then insert row in the same transaction
+SET autocommit = 0;
+START TRANSACTION;
+DELETE FROM t1 WHERE id = 59;
+INSERT INTO t1 (id, name, emb) VALUES (59, 'name1', string_to_vector('[9,9,9]'));
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+16
+Closest KNN Vector: 1001	
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+DELETE FROM t1 WHERE emb is NULL;
+DELETE FROM t1 WHERE id = 59;
+INSERT INTO t1 (id, name, emb) VALUES (59, 'name2', string_to_vector('[9,9,9]'));
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+19
+Closest KNN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+DELETE FROM t1 WHERE id = 59;
+INSERT INTO t1 (id, name, emb) VALUES (59, 'name1', string_to_vector('[10,10,10]'));
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+21
+Closest KNN Vector: 59	[1.00000e+01,1.00000e+01,1.00000e+01]
+Closest ANN Vector: 59	[1.00000e+01,1.00000e+01,1.00000e+01]
+ROLLBACK;
+SET autocommit = 1;
+SELECT mutations FROM information_schema.innodb_vector_indexes WHERE INDEX_NAME = 'vec_index';
+mutations
+21
+Closest KNN Vector: 1001	
+Closest ANN Vector: 59	[9.00000e+00,9.00000e+00,9.00000e+00]
+# cleanup
+DROP TABLE gloveds;
+DROP TABLE t1;

@@ -486,6 +486,24 @@ const char *ut_strerr(dberr_t num) {
       return "Row is too big for LOAD BULK DATA operation.";
     case DB_BULK_GCOL_INVALID_DATA:
       return "Data for generated column is invalid";
+    case DB_VEC_ANN_FAILED:
+      return "Vector ANN search failed";
+    case DB_VEC_INDEX_CONFIG_ERROR:
+      return "Vector index: config error";
+    case DB_VEC_INDEX_NOT_ENOUGH_DATA:
+      return "Vector index: Not enough data to train. The number of non-NULL embedding rows must be at least 1000 or the value of num_leaves (if specified), whichever is greater.";
+    case DB_VEC_INDEX_OUT_OF_MEMORY:
+      return "Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size";
+    case DB_VEC_INDEX_TRAIN_FAILED:
+      return "Vector index: training failed";
+    case DB_VEC_INDEX_BUILD_FAILED:
+      return "Vector index: building failed";
+    case DB_VEC_INDEX_PERSIST_FAILED:
+      return "Vector index: persist failed";
+    case DB_VEC_INDEX_LOAD_FAILED:
+      return "Vector index: load in memory failed";
+    case DB_VEC_INDEX_LOAD_TIMEDOUT:
+      return "Vector index: time out while loading into memory";
     case DB_ERROR_UNSET:;
       /* Fall through. */
 

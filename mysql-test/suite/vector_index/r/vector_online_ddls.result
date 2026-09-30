@@ -1,0 +1,196 @@
+Initial Data inserted
+ALTER TABLE t1 ADD COLUMN g POINT SRID 0 DEFAULT (Point(10,20));
+ALTER TABLE t1 MODIFY COLUMN g POINT NOT NULL SRID 0 DEFAULT (Point(10,20));
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+index_name
+vec_index
+ALTER TABLE t1 ADD COLUMN k INT DEFAULT 1, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ADD COLUMN k INT DEFAULT 1, ADD COLUMN m INT DEFAULT NULL, ADD COLUMN t VARCHAR(10) DEFAULT 'ㅎ', ALGORITHM=INSTANT;
+"ANN Verified"
+ALTER TABLE t1 ADD COLUMN m1 INT DEFAULT NULL, ALGORITHM=INPLACE;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 CHANGE k k1 INT, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 CHANGE k k1 INT, ALGORITHM=INSTANT;
+"ANN Verified"
+ALTER TABLE t1 CHANGE k1 k INT, ALGORITHM=INPLACE;
+"ANN Verified"
+ALTER TABLE t1 MODIFY COLUMN k INT FIRST, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN k INT FIRST, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 MODIFY COLUMN j INT FIRST;
+ERROR HY000: Feature not supported with vector columns, ALTER TABLE CHANGE/MODIFY not supported on vector columns with a vector index present.
+ALTER TABLE t1 CHANGE k k BIGINT;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 CHANGE COLUMN t t VARCHAR(63), ALGORITHM=INPLACE;
+"ANN Verified"
+ALTER TABLE t1 CHANGE COLUMN t t VARCHAR(64), ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ALTER COLUMN k DROP DEFAULT, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ALTER COLUMN k SET DEFAULT 2, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ALTER COLUMN k DROP DEFAULT, ALGORITHM=INSTANT;
+ALTER TABLE t1 ALTER COLUMN k SET DEFAULT 2, ALGORITHM=INSTANT;
+"ANN Verified"
+ALTER TABLE t1 ALTER COLUMN m DROP DEFAULT, ALGORITHM=INPLACE;
+ALTER TABLE t1 ALTER COLUMN m SET DEFAULT 2, ALGORITHM=INPLACE;
+"ANN Verified"
+ALTER TABLE t1 AUTO_INCREMENT=1002, ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 AUTO_INCREMENT=1002, ALGORITHM=INPLACE, LOCK=NONE;
+"ANN Verified"
+ALTER TABLE t1 MODIFY COLUMN k INT NULL, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN k INT NULL, ALGORITHM=INPLACE, LOCK=NONE;
+"ANN Verified"
+ALTER TABLE t1 MODIFY COLUMN k INT NOT NULL, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN k INT NOT NULL, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 ADD COLUMN e ENUM('a', 'b', 'c');
+ALTER TABLE t1 MODIFY COLUMN e ENUM('a', 'b', 'c', 'd'), ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 MODIFY COLUMN e ENUM('a', 'b', 'c', 'd'), ALGORITHM=INSTANT;
+"ANN Verified"
+ALTER TABLE t1 MODIFY COLUMN e ENUM('a', 'b', 'c', 'd', 'e'), ALGORITHM=INPLACE;
+"ANN Verified"
+ALTER TABLE t1 DROP COLUMN k, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 DROP COLUMN e, ALGORITHM=INSTANT;
+"ANN Verified"
+ALTER TABLE t1 DROP COLUMN k, ALGORITHM=INPLACE;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+CREATE INDEX m_idx ON t1 (m);
+"ANN Verified"
+ALTER TABLE t1 ADD INDEX j_idx (j), ALGORITHM=COPY;
+ERROR HY000: Non-scalar (e.g., vector) column 'j' cannot be used as key.
+ALTER TABLE t1 ADD INDEX j_idx (j), ALGORITHM=INPLACE;
+ERROR HY000: Non-scalar (e.g., vector) column 'j' cannot be used as key.
+"ANN Verified"
+ALTER TABLE t1 RENAME INDEX m_idx TO m_idx2, ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 RENAME INDEX m_idx TO m_idx2, ALGORITHM=INPLACE, LOCK=NONE;
+"ANN Verified"
+ALTER TABLE t1 DROP INDEX m_idx2, ADD INDEX m_idx2(i, m) USING BTREE, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 DROP INDEX m_idx2, ADD INDEX m_idx2(m) USING BTREE, ALGORITHM=INPLACE;
+"ANN Verified"
+DROP INDEX m_idx2 ON t1;
+"ANN Verified"
+CREATE FULLTEXT INDEX t_idx ON t1(t);
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 ADD SPATIAL INDEX(g), ALGORITHM=COPY, LOCK=SHARED;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ADD SPATIAL INDEX(g), ALGORITHM=INPLACE, LOCK=SHARED;
+"ANN Verified"
+UPDATE t1 SET m = i;
+ALTER TABLE t1 ADD UNIQUE KEY idx (i);
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (m), ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Vector index: vector indexes without primary key is not supported yet.
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (m), ALGORITHM=INPLACE, LOCK=SHARED;
+ERROR HY000: Vector index: vector indexes without primary key is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 DROP PRIMARY KEY, ALGORITHM=COPY;
+ERROR HY000: Vector index: vector indexes without primary key is not supported yet.
+ALTER TABLE t1 ADD COLUMN (n INT GENERATED ALWAYS AS (m + 1) STORED), ALGORITHM = COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+CREATE TABLE t2 (i INT PRIMARY key);
+INSERT INTO t2 SELECT i FROM t1;
+ALTER TABLE t2 ADD COLUMN (n INT GENERATED ALWAYS AS (i + 1) STORED);
+ALTER TABLE t2 ADD COLUMN j VECTOR(3) USING VARBINARY;
+UPDATE t2 JOIN t1 ON t2.i = t1.i SET t2.j = t1.j;
+CREATE VECTOR INDEX vec_index2 ON test.t2(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+ALTER TABLE t2 MODIFY COLUMN n INT GENERATED ALWAYS AS (i + 1) STORED FIRST, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 DROP COLUMN n, ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 DROP COLUMN n, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+ALTER TABLE t2 ADD COLUMN (o INT GENERATED ALWAYS AS (i + 1) VIRTUAL), ALGORITHM=INSTANT;
+"ANN Verified"
+ALTER TABLE t2 ADD COLUMN (p INT GENERATED ALWAYS AS (i + 1) VIRTUAL), ALGORITHM=INPLACE;
+"ANN Verified"
+ALTER TABLE t2 ADD COLUMN (q INT GENERATED ALWAYS AS (i + 1) VIRTUAL), ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 MODIFY COLUMN o INT GENERATED ALWAYS AS (i + 1) VIRTUAL FIRST, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 DROP COLUMN o, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t2 DROP COLUMN p, ALGORITHM=INSTANT;
+"ANN Verified"
+ALTER TABLE t2 DROP COLUMN o, ALGORITHM=INPLACE;
+"ANN Verified"
+ALTER TABLE t1 ADD CONSTRAINT fk_name FOREIGN KEY (i) REFERENCES t2(i), ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+SET foreign_key_checks=OFF;
+ALTER TABLE t1 ADD CONSTRAINT fk_name FOREIGN KEY (i) REFERENCES t2(i), ALGORITHM=INPLACE;
+"ANN Verified"
+ALTER TABLE t1 DROP FOREIGN KEY fk_name, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 DROP FOREIGN KEY fk_name, ALGORITHM=INPLACE;
+"ANN Verified"
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED, ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported with row type non dynamic
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported with row type non dynamic
+"ANN Verified"
+ALTER TABLE t1 KEY_BLOCK_SIZE = 2, ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 KEY_BLOCK_SIZE = 2, ALGORITHM=INPLACE, LOCK=SHARED;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 STATS_PERSISTENT=0, STATS_SAMPLE_PAGES=20, STATS_AUTO_RECALC=1, ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 STATS_PERSISTENT=0, STATS_SAMPLE_PAGES=20, STATS_AUTO_RECALC=1, ALGORITHM=INPLACE, LOCK=NONE;
+"ANN Verified"
+ALTER TABLE t1 CHARACTER SET = 'sjis', ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 CHARACTER SET = 'sjis', ALGORITHM=INPLACE, LOCK=NONE;
+"ANN Verified"
+ALTER TABLE t1 CONVERT TO CHARACTER SET 'binary', ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	error	Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+test.t1	optimize	status	Operation failed
+Warnings:
+Error	9012	Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 FORCE, ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 FORCE, ALGORITHM=INPLACE, LOCK=SHARED;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=COPY, LOCK=NONE;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE, LOCK=SHARED;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+"ANN Verified"
+ALTER TABLE t1 RENAME TO t3, ALGORITHM=COPY;
+ERROR HY000: Vector index: ALTER TABLE (copy algorithm) is not supported yet.
+ALTER TABLE t1 RENAME TO t3, ALGORITHM=INSTANT;
+"ANN Verified"
+ALTER TABLE t3 RENAME TO t1, ALGORITHM=INPLACE;
+"ANN Verified"
+CREATE TABLESPACE test;
+ALTER TABLE t1 TABLESPACE = test;
+ERROR HY000: Feature not supported with vector columns, Vector column is not supported when tablespace is not file per table
+ALTER TABLE t1 DROP COLUMN j;
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+index_name
+vec_index2
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE test;

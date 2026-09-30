@@ -1,0 +1,141 @@
+# Copyright 2026 Google LLC
+
+#
+# vector_index.vector_index_memory_basic
+
+--source include/have_debug.inc
+
+### start the server with debug flag vector_mem_mgmt_test
+
+--let $restart_parameters = "restart: --debug=+d,vector_mem_mgmt_test"
+--source include/restart_mysqld.inc
+
+### prepare the tables
+
+--let $dimensions=2
+--let $rows=1000
+--let $deterministic=1
+--exec include/vector_data_generate.sh t1 $dimensions $rows $deterministic| $MYSQL test 2>&1
+--exec include/vector_data_generate.sh t2 $dimensions $rows $deterministic| $MYSQL test 2>&1
+--exec include/vector_data_generate.sh t3 $dimensions $rows $deterministic| $MYSQL test 2>&1
+--exec include/vector_data_generate.sh t4 $dimensions $rows $deterministic| $MYSQL test 2>&1
+--exec include/vector_data_generate.sh t5 $dimensions $rows $deterministic| $MYSQL test 2>&1
+--exec include/vector_data_generate.sh t6 $dimensions $rows $deterministic| $MYSQL test 2>&1
+--exec include/vector_data_generate.sh t7 $dimensions $rows $deterministic| $MYSQL test 2>&1
+
+
+### test memory regulator
+
+# creating the 1st index
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   training            00                30                    70              none                none
+#   register index      15                00                    85              none                v1
+create vector index v1 on t1(j) distance_measure=cosine;
+
+select index_name, state from information_schema.innodb_vector_indexes;
+
+# creating the 2nd index
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   training            15                30                    55              none                v1
+#   register index      30                00                    70              none                v1,v2
+create vector index v2 on t2(j) distance_measure=cosine;
+
+select index_name, state from information_schema.innodb_vector_indexes;
+
+# creating the 3rd index
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   training            30                30                    40              none                v1,v2
+#   register index      45                00                    55              none                v1,v2,v3
+create vector index v3 on t3(j) distance_measure=cosine;
+
+select index_name, state from information_schema.innodb_vector_indexes;
+
+# creating the 4th index
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   training            45                30                    25              none                v1,v2,v3
+#   register index      60                00                    40              none                v1,v2,v3,v4
+create vector index v4 on t4(j) distance_measure=cosine;
+
+select index_name, state from information_schema.innodb_vector_indexes;
+
+# creating the 5th index
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   training            60                30                    10              none                v1,v2,v3,v4
+#   register index      75                00                    25              none                v1,v2,v3,v4,v5
+create vector index v5 on t5(j) distance_measure=cosine;
+
+select index_name, state from information_schema.innodb_vector_indexes;
+
+# creating the 6th index
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   training            60                30                    90              v1                  v2,v3,v4,v5
+#   register index      75                00                    25              v1                  v2,v3,v4,v5,v6
+create vector index v6 on t6(j) distance_measure=cosine;
+
+select index_name, state from information_schema.innodb_vector_indexes;
+
+# do an ANN to bring back v1
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   reload index        90                00                    10              none                v2,v3,v4,v5,v6,v1
+--replace_column 1 x
+select i from t1 order by approx_distance(j, string_to_vector('[1,1]'), "distance_measure=cosine") limit 1;
+
+# creating the 7th index
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   training            60                30                    90              v2,v3               v4,v5,v6,v1
+#   register index      75                00                    25              v2,v3               v4,v5,v6,v1,v7
+create vector index v7 on t7(j) distance_measure=cosine;
+
+select index_name, state from information_schema.innodb_vector_indexes;
+
+# drop 2 indexes
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   unregister          45                00                    70              v2,v3               v4,v1,v7
+drop index v5 on t5;
+drop index v6 on t6;
+
+select index_name, state from information_schema.innodb_vector_indexes;
+
+# build 1 index
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   building            45                30                    25              v2,v3               v4,v1,v7
+--connect (c1, localhost, root)
+--send create vector index v5 on t5(j) distance_measure=cosine;
+
+--sleep 1
+
+# build another index concurrently
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   building            30                60                    10              v2,v3,v4            v1,v7
+--connect (c2, localhost, root)
+select index_name, state from information_schema.innodb_vector_indexes;
+--send create vector index v6 on t6(j) distance_measure=cosine;
+
+--sleep 1
+
+# immediately query t3 & t4 to bring v3 & v4 back, 1 index has to be deflated
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   reload index        30                60                    10              v2,v1,v7            v3,v4
+--connect (c3, localhost, root)
+--replace_column 1 x
+select i from t3 order by approx_distance(j, string_to_vector('[1,1]'), "distance_measure=cosine") limit 1;
+--replace_column 1 x
+select i from t4 order by approx_distance(j, string_to_vector('[1,1]'), "distance_measure=cosine") limit 1;
+select index_name, state from information_schema.innodb_vector_indexes;
+
+--sleep 10
+
+# now v5 v6 both are built
+#   stage               index_memory      training_memory       free_memory     deflated            lrd
+#   finale              60                0                     40              v2,v1,v7            v3,v4,v5,v6
+select index_name, state from information_schema.innodb_vector_indexes;
+
+### clean up
+
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;

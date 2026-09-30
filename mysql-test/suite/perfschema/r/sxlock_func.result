@@ -26,6 +26,8 @@ wait/synch/sxlock/innodb/rsegs_lock
 wait/synch/sxlock/innodb/trx_i_s_cache_lock
 wait/synch/sxlock/innodb/trx_purge_latch
 wait/synch/sxlock/innodb/undo_spaces_lock
+wait/synch/sxlock/innodb/vector_index
+wait/synch/sxlock/innodb/vector_index_registry
 select name from performance_schema.rwlock_instances
 where name in
 (

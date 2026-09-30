@@ -1,0 +1,31 @@
+use test;
+create table t1 (id int primary key, embeddings vector(4));
+# Insert rows with incompatible dimensions
+insert into t1 values (1, string_to_vector('[1.2, 2.0, -0.8]'));
+ERROR HY000: Provided vector dimensions (3) do not match the defined column dimensions (4).
+insert into t1 values (1, string_to_vector('[1.2]'));
+ERROR HY000: Provided vector dimensions (1) do not match the defined column dimensions (4).
+insert into t1 values (1, string_to_vector('[1.2, 2.0, -0.8, 54]'));
+# Update a row with incompatible dimensions
+update t1 set embeddings = string_to_vector('[1.2, 2.0, -0.8]') where id = 1;
+ERROR HY000: Provided vector dimensions (3) do not match the defined column dimensions (4).
+# Table has compatible dimensions except for the last row
+create table t3(i int primary key, j blob);
+insert into t3 select * from t2;
+insert into t3 values (1001, string_to_vector('[1.2, 2.0]'));
+delete from t2;
+# Insert rows with incompatible dimensions from another table
+insert into t2 select * from t3;
+ERROR HY000: Provided vector dimensions (2) do not match the defined column dimensions (3).
+select vector_to_string(j) from t2 where i in (1000, 999, 998, 997);
+vector_to_string(j)
+# Bulk insert rows with compatible dimensions
+select vector_to_string(j) from t4 where i in (8000, 7999, 7998, 7997);
+vector_to_string(j)
+[7.99700e+03,7.99800e+03,7.99900e+03]
+[7.99800e+03,7.99900e+03,8.00000e+03]
+[7.99900e+03,8.00000e+03,8.00100e+03]
+[8.00000e+03,8.00100e+03,8.00200e+03]
+# Bulk insert rows with incompatible dimensions (one row has one less dimension)
+ERROR 9020 (HY000) at line 2: Provided vector dimensions (2) do not match the defined column dimensions (3).
+drop table t1, t2, t3, t4, t5;

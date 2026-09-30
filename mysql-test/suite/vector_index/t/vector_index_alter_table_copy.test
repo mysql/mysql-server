@@ -1,0 +1,44 @@
+# Copyright 2026 Google LLC
+
+# To test that ALTER TABLE on base table with algorithm copy is blocked
+
+--let $table_name=t1_source
+--source suite/vector_index/include/vector_data.inc
+
+CREATE TABLE t1 (i int AUTO_INCREMENT PRIMARY KEY, j vector(3) USING VARBINARY, k int);
+INSERT INTO t1 (j, k) SELECT j, 9999 from t1_source;
+CREATE VECTOR INDEX vectorIndext1 ON t1(j) DISTANCE_MEASURE=cosine;
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=COPY;
+# Check that the vector index is still working
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.5, 0.5, 0.5]'), 'distance_measure=cosine') LIMIT 1;
+SELECT state FROM information_schema.innodb_vector_indexes WHERE index_name = 'vectorIndext1';
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+ALTER TABLE t1 ADD CONSTRAINT dummy_const CHECK (k > 0);
+# Check that the vector index is still working
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.5, 0.5, 0.5]'), 'distance_measure=cosine') LIMIT 1;
+SELECT state FROM information_schema.innodb_vector_indexes WHERE index_name = 'vectorIndext1';
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+ALTER TABLE t1 MODIFY COLUMN k bigint;
+# Check that the vector index is still working
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.5, 0.5, 0.5]'), 'distance_measure=cosine') LIMIT 1;
+SELECT state FROM information_schema.innodb_vector_indexes WHERE index_name = 'vectorIndext1';
+
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+ALTER TABLE t1 ADD COLUMN (c2 INT GENERATED ALWAYS AS (k + 1) STORED);
+# Check that the vector index is still working
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.5, 0.5, 0.5]'), 'distance_measure=cosine') LIMIT 1;
+SELECT state FROM information_schema.innodb_vector_indexes WHERE index_name = 'vectorIndext1';
+
+ALTER TABLE t1 ADD COLUMN (c2 INT GENERATED ALWAYS AS (k + 1) VIRTUAL);
+--error ER_VECTOR_INDEX_FEATURE_UNSUPPORTED
+ALTER TABLE t1 MODIFY COLUMN c2 INT GENERATED ALWAYS AS (k + 1) VIRTUAL FIRST, ALGORITHM=COPY;
+# Check that the vector index is still working
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.5, 0.5, 0.5]'), 'distance_measure=cosine') LIMIT 1;
+SELECT state FROM information_schema.innodb_vector_indexes WHERE index_name = 'vectorIndext1';
+
+DROP TABLE t1_source;
+DROP TABLE t1;

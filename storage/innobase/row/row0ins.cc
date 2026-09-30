@@ -59,6 +59,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0row.h"
 #include "row0sel.h"
 #include "row0upd.h"
+#include "vector0dd.h"
+#include "vector0index.h"
 #include "trx0rec.h"
 #include "trx0undo.h"
 #include "usr0sess.h"
@@ -3613,7 +3615,7 @@ static inline void row_ins_get_row_from_query_block(
   ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
 
   while (node->index != nullptr) {
-    if (node->index->type != DICT_FTS) {
+    if (node->index->type != DICT_FTS && !dict_index_is_vector(node->index)) {
       err = row_ins_index_entry_step(node, thr);
 
       switch (err) {
@@ -3659,6 +3661,8 @@ que_thr_t *row_ins_step(que_thr_t *thr) /*!< in: query thread */
   sel_node_t *sel_node;
   trx_t *trx;
   dberr_t err;
+
+  std::shared_ptr<ib_vector::VectorPersist> persister = nullptr;
 
   ut_ad(thr);
 
@@ -3749,6 +3753,29 @@ error_handling:
   }
 
   /* DO THE TRIGGER ACTIONS HERE */
+  auto table = static_cast<ins_node_t*>(thr->run_node)->table;
+  if (ib_vector::dict_table_vector_index_is_available(table)) {
+    /* We have just successfully inserted a row into the base table. If a vector
+    index is present, we need to sync the mutation to the vector index. */
+    auto index = ib_vector::dict_table_get_vector_index_ptr(table);
+    std::tie(persister, trx->error_state) = index->sync_mutation(thr);
+
+    /* This call must succeed. */
+    ut_ad(persister);
+    if (!persister || trx->error_state != DB_SUCCESS) {
+      return nullptr;
+    }
+
+    err = persister->persist();
+    /** If vector index load failed, we mark the index as unusable but the DML
+    on base table can still proceed.  In case of failure to load we'd have
+    already marked the index as unusable. */
+    if (err != DB_SUCCESS && err != DB_VEC_INDEX_LOAD_FAILED) {
+      /* Pass on rest of SQL errors to the calling code. */
+      trx->error_state = err;
+      return nullptr;
+    }
+  }
 
   if (node->ins_type == INS_SEARCHED) {
     /* Fetch a row to insert */

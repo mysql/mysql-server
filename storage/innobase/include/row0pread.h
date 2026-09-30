@@ -53,6 +53,7 @@ struct dict_table_t;
 #include "os0event.h"
 #include "page0size.h"
 #include "rem0types.h"
+#include "row0row.h"
 #include "ut0mpmcbq.h"
 
 /** The core idea is to find the left and right paths down the B+Tree.These
@@ -473,6 +474,8 @@ class Parallel_reader {
 
   /** Context information related to each parallel reader thread. */
   std::vector<Thread_ctx *, ut::allocator<Thread_ctx *>> m_thread_ctxs;
+
+  friend class SubTableReader;
 };
 
 /** Parallel reader context. */
@@ -649,6 +652,21 @@ class Parallel_reader::Scan_ctx {
     return m_s_locks.load(std::memory_order_acquire) > 0;
   }
 
+ protected:
+  /** @return the transaction ID of the current record.
+  @param[in]  rec              Record to get the transaction ID of.
+  @param[in]  offsets          Offsets of the record.
+  @return the transaction ID of the current record. */
+  [[nodiscard]] inline virtual trx_id_t get_trx_id(const rec_t *rec,
+                                                   const ulint *offsets) const {
+    auto trx_id_offset = m_config.m_index->trx_id_offset;
+    if (trx_id_offset > 0) {
+      return trx_read_trx_id(rec + trx_id_offset);
+    } else {
+      return row_get_rec_trx_id(rec, m_config.m_index, offsets);
+    }
+  }
+
  private:
   using Config = Parallel_reader::Config;
 
@@ -677,6 +695,7 @@ class Parallel_reader::Scan_ctx {
   std::atomic_size_t m_s_locks{};
 
   friend class Parallel_reader;
+  friend class SubTableReader;
 
   Scan_ctx(Scan_ctx &&) = delete;
   Scan_ctx(const Scan_ctx &) = delete;
@@ -703,6 +722,9 @@ class Parallel_reader::Ctx {
 
   /** The scan ID of the scan context this belongs to. */
   [[nodiscard]] size_t scan_id() const { return m_scan_ctx->id(); }
+
+  /** @return the range of this context */
+  [[nodiscard]] const Scan_ctx::Range& range() const { return m_range; }
 
   /** @return the covering transaction. */
   [[nodiscard]] const trx_t *trx() const { return m_scan_ctx->m_trx; }
@@ -737,6 +759,36 @@ class Parallel_reader::Ctx {
   bool is_rec_visible(const rec_t *&rec, ulint *&offsets, mem_heap_t *&heap,
                       mtr_t *mtr) {
     return m_scan_ctx->check_visibility(rec, offsets, heap, mtr);
+  }
+
+ protected:
+  /** @return the offsets of the current record.
+  @param[in]  rec              Record to get the offsets of.
+  @param[in]  index            Index of the record.
+  @param[in]  offsets          Offsets of the record.
+  @param[in]  heap             Heap to use if offsets need to be built.
+  @return the offsets of the current record. */
+  [[nodiscard]] virtual inline ulint *get_offsets(const rec_t *rec,
+                                                  const dict_index_t *index,
+                                                  ulint *offsets,
+                                                  mem_heap_t *heap) {
+    return rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                           UT_LOCATION_HERE, &heap);
+  }
+
+  /** Compare the current record with the range end tuple.
+  @param[in]  rec              Record to compare.
+  @param[in]  index            Index of the record.
+  @param[in]  offsets          Offsets of the record.
+  @return the comparison result of dtuple and rec
+  @retval 0 if dtuple is equal to rec
+  @retval negative if dtuple is less than rec
+  @retval positive if dtuple is greater than rec */
+  [[nodiscard]] virtual inline int cmp_range_end(const rec_t *rec,
+                                                 const dict_index_t *index,
+                                                 const ulint *offsets) const {
+    ut_ad(m_range.second->m_tuple);
+    return m_range.second->m_tuple->compare(rec, index, offsets);
   }
 
  private:
@@ -799,6 +851,7 @@ class Parallel_reader::Ctx {
   bool m_start{};
 
   friend class Parallel_reader;
+  friend class SubTableReader;
 };
 
 #endif /* !row0par_read_h */

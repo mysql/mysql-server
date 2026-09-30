@@ -1,0 +1,40 @@
+Initial Data inserted
+# create vector index
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=l2_squared;
+INSERT INTO t1 values (1001, string_to_vector('[10,11,12]'));
+#rename should work with active Index
+RENAME TABLE t1 TO t2;
+INSERT INTO t2 values (1002, string_to_vector('[11,12,13]'));
+alter add column should work with active index
+ALTER TABLE t2 ADD COLUMN c_new varchar(25);
+INSERT INTO t2 values (1003, string_to_vector('[10,11,12]'),'new tuple');
+# truncate should not work with active index
+TRUNCATE TABLE t2;
+ERROR HY000: Operation Truncate failed with error, Reason: Truncate is not supported on tables with vector indexes.
+# drop vector index
+DROP INDEX vec_index ON t2;
+RENAME TABLE t2 TO t1;
+# create vector index of different types and check basic DMLs
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=l2_squared;
+START TRANSACTION;
+UPDATE t1 SET i = 1000000 + i;
+ROLLBACK;
+DROP INDEX vec_index ON t1;
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+START TRANSACTION;
+UPDATE t1 SET j = string_to_vector('[9.0, 8.0, 7.0]') WHERE i = 133;
+COMMIT;
+SELECT count(*) FROM t1;
+count(*)
+1003
+# drop vector index
+DROP INDEX vec_index ON t1;
+# Duplicate index name/Second Index on the table not allowed
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=cosine;
+ERROR 42000: Duplicate key name 'vec_index'
+CREATE VECTOR INDEX vec_index1 ON t1(j) DISTANCE_MEASURE=cosine;
+ERROR HY000: Operation create Index failed with error, Reason: Vector key on the table already exists.
+DROP INDEX vec_index ON t1;
+# cleanup
+DROP TABLE t1;

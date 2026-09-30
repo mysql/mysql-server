@@ -1,0 +1,70 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+Initial Data inserted
+# create vector index
+CREATE VECTOR INDEX vec_index_1 ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+UPDATE t1 SET j = string_to_vector("[2.0, 2.0, 2.0]") WHERE i = 1;
+#Test: Replay binary logs to make sure index API works fine
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+DROP INDEX vec_index_1 ON test.t1;
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;
+RESET REPLICA;
+[connection master]
+DROP INDEX vec_index_1 ON test.t1;
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;
+# Replay binlog on master
+[connection slave]
+include/rpl/start_replica.inc
+[connection master]
+SELECT count(*) FROM t1;
+count(*)
+1000
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vec_index_1	test.t1	TREE_SQ	3	L2_SQUARED	Ready	INDEX_READY_TO_USE	10	10	0	1	443
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1.0,2.0,3.0]'), 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+i	vector_to_string(j)
+1	[2.00000e+00,2.00000e+00,2.00000e+00]
+35	[9.68458e-01,9.98815e-01,9.59338e-01]
+628	[9.67916e-01,9.80959e-01,9.30255e-01]
+8	[7.88571e-01,9.28295e-01,9.60178e-01]
+201	[7.29251e-01,9.24692e-01,9.59071e-01]
+EXPLAIN format=tree SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1.0,2.0,3.0]'), 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s)  (...)
+    -> Sort: approx_distance(t1.j,to_vector('[1.0,2.0,3.0]'),'DISTANCE_MEASURE=L2_SQUARED'), limit input to 5 row(s) per chunk  (...)
+        -> Nested loop inner join  (...)
+            -> Vector index scan on t1  (...)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (...)
+
+include/rpl/sync_to_replica.inc
+SELECT count(*) FROM t1;
+count(*)
+1000
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vec_index_1	test.t1	TREE_SQ	3	L2_SQUARED	Ready	INDEX_READY_TO_USE	10	10	0	1	443
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1.0,2.0,3.0]'), 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+i	vector_to_string(j)
+1	[2.00000e+00,2.00000e+00,2.00000e+00]
+35	[9.68458e-01,9.98815e-01,9.59338e-01]
+628	[9.67916e-01,9.80959e-01,9.30255e-01]
+8	[7.88571e-01,9.28295e-01,9.60178e-01]
+201	[7.29251e-01,9.24692e-01,9.59071e-01]
+EXPLAIN format=tree SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1.0,2.0,3.0]'), 'DISTANCE_MEASURE=L2_SQUARED') LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s)  (...)
+    -> Sort: approx_distance(t1.j,to_vector('[1.0,2.0,3.0]'),'DISTANCE_MEASURE=L2_SQUARED'), limit input to 5 row(s) per chunk  (...)
+        -> Nested loop inner join  (...)
+            -> Vector index scan on t1  (...)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (...)
+
+# cleanup
+DROP TABLE t1;
+include/rpl/deinit.inc

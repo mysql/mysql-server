@@ -441,6 +441,20 @@ in the read view of the current transaction.
                                                dict_index_t *index,
                                                size_t n_threads,
                                                bool check_keys, ulint *n_rows);
+
+/**  Scans an clustered index for CHECK TABLE.
+If CHECK TABLE; Checks that the index contains entries in an ascending order,
+unique constraint is not broken, and calculates the number of index entries
+in the read view of the current transaction.
+@param[in]     trx                 the transaction handle
+@param[in]     index               Index to scan.
+@param[in]     n_threads           Maximum threads to use for the scan
+@param[out]    n_rows              Number of entries seen in consistent read.
+@param[in]     strict_error_checks Error out for any corruption if true.
+@return DB_SUCCESS or other error **/
+dberr_t parallel_check_table(
+    trx_t *trx, dict_index_t *index, size_t n_threads, ulint *n_rows);
+
 /** Initialize this module */
 void row_mysql_init(void);
 
@@ -994,6 +1008,10 @@ constexpr uint32_t ROW_READ_DID_SEMI_CONSISTENT = 2;
 /** Wait for the background drop list to become empty. */
 void row_wait_for_background_drop_list_empty();
 #endif /* UNIV_DEBUG */
+/** Updates the table modification counter and calculates new estimates
+for table and index statistics if necessary. */
+void row_update_statistics_if_needed(dict_table_t *table); /*!< in: table */
+
 #endif /* !UNIV_HOTBACKUP */
 
 #endif /* row0mysql.h */

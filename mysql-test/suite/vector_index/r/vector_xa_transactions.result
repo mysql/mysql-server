@@ -1,0 +1,58 @@
+Initial Data inserted
+XA START 'insert_row';
+INSERT INTO t1 VALUES (1001, string_to_vector("[1,2,3]"));
+SELECT COUNT(*) FROM t1 WHERE i=1001;
+COUNT(*)
+1
+XA END 'insert_row';
+XA PREPARE 'insert_row';
+SELECT COUNT(*) FROM t1 WHERE i=1001;
+COUNT(*)
+0
+XA ROLLBACK 'insert_row';
+SELECT COUNT(*) FROM t1 WHERE i=1001;
+COUNT(*)
+0
+XA START 'create_index';
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+XA END 'create_index';
+XA PREPARE 'create_index';
+XA COMMIT 'create_index';
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+index_name
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+index_name
+vec_index
+XA START 'insert_row_and_nearest';
+INSERT INTO t1 VALUES (1001, string_to_vector("[1,2,3]"));
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 3;
+i	vector_to_string(j)
+1001	[1.00000e+00,2.00000e+00,3.00000e+00]
+35	[9.68458e-01,9.98815e-01,9.59338e-01]
+628	[9.67916e-01,9.80959e-01,9.30255e-01]
+XA END 'insert_row_and_nearest';
+XA PREPARE 'insert_row_and_nearest';
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 3;
+i	vector_to_string(j)
+35	[9.68458e-01,9.98815e-01,9.59338e-01]
+628	[9.67916e-01,9.80959e-01,9.30255e-01]
+8	[7.88571e-01,9.28295e-01,9.60178e-01]
+XA COMMIT 'insert_row_and_nearest';
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 3;
+i	vector_to_string(j)
+1001	[1.00000e+00,2.00000e+00,3.00000e+00]
+35	[9.68458e-01,9.98815e-01,9.59338e-01]
+628	[9.67916e-01,9.80959e-01,9.30255e-01]
+XA START 'drop_index';
+DROP INDEX vec_index ON test.t1;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+XA END 'drop_index';
+XA PREPARE 'drop_index';
+XA COMMIT 'drop_index';
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+index_name
+vec_index
+DROP INDEX vec_index ON test.t1;
+DROP TABLE t1;

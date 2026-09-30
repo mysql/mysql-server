@@ -1,0 +1,3 @@
+# Copyright 2026 Google LLC
+
+--initialize --lower_case_table_names=1

@@ -1,0 +1,204 @@
+# Copyright 2026 Google LLC
+
+##### mysql-test\t\cloudsql_vector_test_mode_basic.test ###############
+#                                                                             #
+# Variable Name: cloudsql_vector_test_mode                            #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: boolean                                                          #
+###############################################################################
+
+
+--echo '#---------------------BS_STVARS_035_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+--echo 1 Expected
+
+SELECT @@GLOBAL.cloudsql_vector_test_mode;
+
+
+
+--echo '#---------------------BS_STVARS_035_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+--echo Show that it is read-only variable
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@local.cloudsql_vector_test_mode=ON;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.cloudsql_vector_test_mode=ON;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.cloudsql_vector_test_mode=ON;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.cloudsql_vector_test_mode=ON;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_035_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.cloudsql_vector_test_mode = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector_test_mode';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector_test_mode';
+--enable_warnings
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_035_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@cloudsql_vector_test_mode = @@GLOBAL.cloudsql_vector_test_mode;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_035_05----------------------#'
+################################################################################
+#   Check if cloudsql_vector_test_mode can be accessed with and without @@ sign     #
+################################################################################
+
+SELECT COUNT(@@cloudsql_vector_test_mode);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.cloudsql_vector_test_mode);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.cloudsql_vector_test_mode);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT cloudsql_vector_test_mode;
+--echo Expected error 'Unknown column'
+
+##### mysql-test\t\cloudsql_vector_test_mode_basic.test ###############
+#                                                                             #
+# Variable Name: cloudsql_vector_test_mode                            #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: boolean                                                          #
+###############################################################################
+
+
+--echo '#---------------------BS_STVARS_035_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+--echo 1 Expected
+
+SELECT @@GLOBAL.cloudsql_vector_test_mode;
+
+
+
+--echo '#---------------------BS_STVARS_035_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+--echo Show that it is read-only variable
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@local.cloudsql_vector_test_mode=ON;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.cloudsql_vector_test_mode=ON;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.cloudsql_vector_test_mode=ON;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.cloudsql_vector_test_mode=ON;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_035_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.cloudsql_vector_test_mode = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector_test_mode';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='cloudsql_vector_test_mode';
+--enable_warnings
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_035_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@cloudsql_vector_test_mode = @@GLOBAL.cloudsql_vector_test_mode;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_035_05----------------------#'
+################################################################################
+#   Check if cloudsql_vector_test_mode can be accessed with and without @@ sign     #
+################################################################################
+
+SELECT COUNT(@@cloudsql_vector_test_mode);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.cloudsql_vector_test_mode);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.cloudsql_vector_test_mode);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.cloudsql_vector_test_mode);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT cloudsql_vector_test_mode;
+--echo Expected error 'Unknown column'
+

@@ -99,6 +99,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
+#include "sql/vector_opts.h"
 #include "typelib.h"
 
 extern struct aggregated_stats global_aggregated_stats;
@@ -227,6 +228,9 @@ static enum ha_key_alg dd_get_old_index_algorithm_type(
     case dd::Index::IA_FULLTEXT:
       return HA_KEY_ALG_FULLTEXT;
 
+    case dd::Index::IA_KMEANS:
+      return HA_KEY_ALG_KMEANS;
+
     default:
       assert(!"Should not hit here"); /* purecov: deadcode */
   }
@@ -329,11 +333,15 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
       uint usable_parts = 0;
       keyinfo->name = share->keynames.type_names[key];
 
-      /* Check that fulltext and spatial keys have correct algorithm set. */
+      /* Check that fulltext, spatial and vector keys
+          have correct algorithm set.
+      */
       assert(!(share->key_info[key].flags & HA_FULLTEXT) ||
              share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT);
       assert(!(share->key_info[key].flags & HA_SPATIAL) ||
              share->key_info[key].algorithm == HA_KEY_ALG_RTREE);
+      assert(!(share->key_info[key].flags & HA_VECTOR) ||
+             share->key_info[key].algorithm == HA_KEY_ALG_KMEANS);
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME)) {
         /*
@@ -382,7 +390,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
         }
         if (field->type() == MYSQL_TYPE_BLOB ||
             field->real_type() == MYSQL_TYPE_VARCHAR ||
-            field->type() == MYSQL_TYPE_GEOMETRY) {
+            field->type() == MYSQL_TYPE_GEOMETRY ||
+            field->type() == MYSQL_TYPE_VECTOR) {
           key_part->store_length += HA_KEY_BLOB_LENGTH;
           if (i + 1 <= keyinfo->user_defined_key_parts)
             keyinfo->key_length += HA_KEY_BLOB_LENGTH;
@@ -1367,6 +1376,9 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
     case dd::Index::IT_UNIQUE:
       keyinfo->flags = HA_NOSAME;
       break;
+    case dd::Index::IT_VECTOR:
+      keyinfo->flags = HA_VECTOR;
+      break;
     default:
       assert(0); /* purecov: deadcode */
       keyinfo->flags = 0;
@@ -1447,6 +1459,23 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
     }
 
     keyinfo->flags |= HA_USES_PARSER;
+  }
+
+  // Read distance_measure
+  if (idx_options.exists("gcp_distance_measure")) {
+    LEX_CSTRING distance_measure;
+    if (idx_options.get("gcp_distance_measure",
+                        &distance_measure, &share->mem_root))
+      assert(false);
+    keyinfo->distance_measure = get_distance_measure_enum(distance_measure.str);
+  }
+
+  // Read quantizer
+  if (idx_options.exists("gcp_quantizer")) {
+    LEX_CSTRING quantizer;
+    if (idx_options.get("gcp_quantizer", &quantizer, &share->mem_root))
+      assert(false);
+    keyinfo->quantizer = get_quantizer_enum(quantizer.str);
   }
 
   // Read comment

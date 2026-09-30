@@ -1,0 +1,136 @@
+# Copyright 2026 Google LLC
+
+#
+# sys_vars.innodb_cloudsql_vector_mem_regulation :
+# Test cloudsql_vector_mem_regulation variable
+#
+
+set @start_value = @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Display default value
+select @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Check if value can be set dynamically
+set @@global.innodb_cloudsql_vector_mem_regulation=1;
+
+### Check if the value in global_variables table matches value in variable
+--disable_warnings
+select * from performance_schema.global_variables
+where variable_name ='innodb_cloudsql_vector_mem_regulation' and
+      variable_value = @@innodb_cloudsql_vector_mem_regulation;
+--enable_warnings
+
+### Check if accessing variable with and without global point to same variable
+select @@innodb_cloudsql_vector_mem_regulation = @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Check if local/session variable access does not work
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select count(@@local.innodb_cloudsql_vector_mem_regulation);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select count(@@session.innodb_cloudsql_vector_mem_regulation);
+
+--Error ER_GLOBAL_VARIABLE
+set session innodb_cloudsql_vector_mem_regulation=1;
+--Error ER_GLOBAL_VARIABLE
+set local innodb_cloudsql_vector_mem_regulation=1;
+
+### Check the value type and range
+set global innodb_cloudsql_vector_mem_regulation=ON;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation=1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_cloudsql_vector_mem_regulation=2;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_cloudsql_vector_mem_regulation="abc";
+
+### Check ON & OFF logic
+set global innodb_cloudsql_vector_mem_regulation = 1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation = 1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Check the case when it is set to OFF at startup
+--let $restart_parameters = restart: --innodb_cloudsql_vector_mem_regulation=0
+--source include/restart_mysqld.inc
+
+select @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Check ON & OFF logic
+set global innodb_cloudsql_vector_mem_regulation = 1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+#
+# sys_vars.innodb_cloudsql_vector_mem_regulation :
+# Test cloudsql_vector_mem_regulation variable
+#
+
+set @start_value = @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Display default value
+select @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Check if value can be set dynamically
+set @@global.innodb_cloudsql_vector_mem_regulation=1;
+
+### Check if the value in global_variables table matches value in variable
+--disable_warnings
+select * from performance_schema.global_variables
+where variable_name ='innodb_cloudsql_vector_mem_regulation' and
+      variable_value = @@innodb_cloudsql_vector_mem_regulation;
+--enable_warnings
+
+### Check if accessing variable with and without global point to same variable
+select @@innodb_cloudsql_vector_mem_regulation = @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Check if local/session variable access does not work
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select count(@@local.innodb_cloudsql_vector_mem_regulation);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select count(@@session.innodb_cloudsql_vector_mem_regulation);
+
+--Error ER_GLOBAL_VARIABLE
+set session innodb_cloudsql_vector_mem_regulation=1;
+--Error ER_GLOBAL_VARIABLE
+set local innodb_cloudsql_vector_mem_regulation=1;
+
+### Check the value type and range
+set global innodb_cloudsql_vector_mem_regulation=ON;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation=1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_cloudsql_vector_mem_regulation=2;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_cloudsql_vector_mem_regulation="abc";
+
+### Check ON & OFF logic
+set global innodb_cloudsql_vector_mem_regulation = 1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation = 1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Check the case when it is set to OFF at startup
+--let $restart_parameters = restart: --innodb_cloudsql_vector_mem_regulation=0
+--source include/restart_mysqld.inc
+
+select @@global.innodb_cloudsql_vector_mem_regulation;
+
+### Check ON & OFF logic
+set global innodb_cloudsql_vector_mem_regulation = 1;
+select @@global.innodb_cloudsql_vector_mem_regulation;
+set global innodb_cloudsql_vector_mem_regulation = 0;
+select @@global.innodb_cloudsql_vector_mem_regulation;

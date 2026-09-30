@@ -49,7 +49,8 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
                  const ulint *col_map, size_t add_autoinc,
                  ddl::Sequence &sequence, bool skip_pk_sort, Alter_stage *stage,
                  const dict_add_v_col_t *add_v, TABLE *eval_table,
-                 size_t max_buffer_size, size_t max_threads) noexcept
+                 size_t max_buffer_size, size_t max_threads,
+                 bool vec_index_build) noexcept
     : m_trx(trx),
       m_fts(ddl::fts_parser_threads),
       m_old_table(old_table),
@@ -65,7 +66,8 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
       m_eval_table(eval_table),
       m_skip_pk_sort(skip_pk_sort),
       m_max_buffer_size(max_buffer_size),
-      m_max_threads(max_threads) {
+      m_max_threads(max_threads),
+      m_vec_index_build(vec_index_build) {
   ut_a(max_threads > 0);
 
   ut_a(!m_online ||
@@ -78,6 +80,7 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
 
   1. Online add index: flush dirty pages right before row_log_apply().
   2. Table rebuild: flush dirty pages before row_log_table_apply().
+  3. Vector index build: flush dirty pages of the sub_table
 
   We use bulk load to create all types of indexes except spatial index,
   for which redo logging is enabled. If we create only spatial indexes,
@@ -98,9 +101,19 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
     m_key_numbers.push_back(key_numbers[i]);
   }
 
+  if (m_vec_index_build) {
+    /* There should be two indexes in the sub_table. */
+    ut_a(m_indexes.size() == 2);
+
+    /* We pass the key number of the vector index as the third key number. This
+     * is used internally by the ddl::Context to report error. */
+    m_key_numbers.push_back(key_numbers[2]);
+  }
+
   ut_a(m_trx->mysql_thd != nullptr);
   ut_a(m_add_cols == nullptr || m_col_map != nullptr);
-  ut_a((m_old_table == m_new_table) == (m_col_map == nullptr));
+  ut_a((m_old_table == m_new_table) == (m_col_map == nullptr) ||
+       m_vec_index_build);
 
   trx_start_if_not_started_xa(m_trx, true, UT_LOCATION_HERE);
 
@@ -508,6 +521,13 @@ dberr_t Context::read_init(Cursor *cursor) noexcept {
   ut_a(m_cursor == nullptr);
 
   m_cursor = cursor;
+
+  /* No need to set null checks and setup PK sort if we are doing vector index
+  build. */
+  if (m_vec_index_build) {
+    return DB_SUCCESS;
+  }
+
   setup_nonnull();
 
   return setup_pk_sort(cursor);
