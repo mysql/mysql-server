@@ -2534,18 +2534,53 @@ void row_sel_field_store_in_mysql_format_func(
     const byte *field_end;
     byte *pad;
     case DATA_INT:
-      /* Convert integer data from Innobase to a little-endian
-      format, sign bit restored to normal */
-
-      ptr = dest + len;
-
-      for (;;) {
-        ptr--;
-        *ptr = *data;
-        if (ptr == dest) {
+      /* Convert integer data from Innobase (big-endian) to little-endian,
+      sign bit restored. One swap for the common 2/4/8-byte widths. */
+      switch (len) {
+        case 2: {
+          uint16_t v;
+          memcpy(&v, data, 2);
+#if defined(_MSC_VER)
+          v = _byteswap_ushort(v);
+#else
+          v = __builtin_bswap16(v);
+#endif
+          memcpy(dest, &v, 2);
           break;
         }
-        data++;
+        case 4: {
+          uint32_t v;
+          memcpy(&v, data, 4);
+#if defined(_MSC_VER)
+          v = _byteswap_ulong(v);
+#else
+          v = __builtin_bswap32(v);
+#endif
+          memcpy(dest, &v, 4);
+          break;
+        }
+        case 8: {
+          uint64_t v;
+          memcpy(&v, data, 8);
+#if defined(_MSC_VER)
+          v = _byteswap_uint64(v);
+#else
+          v = __builtin_bswap64(v);
+#endif
+          memcpy(dest, &v, 8);
+          break;
+        }
+        default: {
+          ptr = dest + len;
+          for (;;) {
+            ptr--;
+            *ptr = *data;
+            if (ptr == dest) {
+              break;
+            }
+            data++;
+          }
+        }
       }
 
       if (!templ->is_unsigned) {
@@ -4970,6 +5005,15 @@ rec_loop:
   rec = pcur->get_rec();
 
   ut_ad(page_rec_is_comp(rec) == comp);
+
+  /* Hide the next-record pointer chase, which dominates the loop's latency. */
+  {
+    const rec_t *next_rec = page_rec_get_next_const(rec);
+    if (next_rec != nullptr) {
+      UNIV_PREFETCH_R(next_rec -
+                      (comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES));
+    }
+  }
 
   if (page_rec_is_infimum(rec)) {
     /* The infimum record on a page cannot be in the result set,
