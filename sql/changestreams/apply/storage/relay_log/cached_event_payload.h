@@ -41,6 +41,13 @@ class Cached_event_payload : public IReader_event {
   Cached_event_payload(const Event_payload &payload,
                        std::shared_ptr<Log_event> fde);
 
+  /// @brief Frees the payload buffer if it was not decoded
+  ~Cached_event_payload() override;
+
+  /// Not copyable: the object owns m_data.
+  Cached_event_payload(const Cached_event_payload &) = delete;
+  Cached_event_payload &operator=(const Cached_event_payload &) = delete;
+
   /// @brief Decode function, which decodes payload and returns Log event
   /// smart pointer
   /// @return Log event smart pointer
