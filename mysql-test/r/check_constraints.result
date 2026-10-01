@@ -1259,6 +1259,37 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITH
 ALTER TABLE t1 MODIFY COLUMN f1 INT DEFAULT 20, algorithm=copy;
 ERROR HY000: Check constraint 't1_chk_1' is violated.
 DROP TABLE t1;
+#
+# Bug#121124 - An unrelated CHECK constraint on DATETIME should not
+# prevent an online ENUM extension.
+#
+CREATE TABLE t1 (e ENUM('a','b') NOT NULL, d DATETIME(6),
+CONSTRAINT ck CHECK (d IS NULL));
+ALTER TABLE t1 MODIFY e ENUM('a','b','c') NOT NULL, ALGORITHM=INSTANT;
+ALTER TABLE t1 MODIFY e ENUM('a','b','c','d') NOT NULL, ALGORITHM=INPLACE;
+ALTER TABLE t1 MODIFY d DATETIME(6) DEFAULT NULL, ALGORITHM=INPLACE;
+DROP TABLE t1;
+#
+# An alteration of an ENUM or SET referenced by an enforced CHECK
+# requires CHECK constraint re-evaluation.
+#
+CREATE TABLE t1 (
+e ENUM('a','b'),
+s SET('a','b'),
+CONSTRAINT ck1 CHECK (e IS NULL OR e IN ('a','b')),
+CONSTRAINT ck2 CHECK (s IS NULL OR s IN ('a','b'))
+);
+ALTER TABLE t1 MODIFY e ENUM('a','b'), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY e ENUM('a','x','b'), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY e ENUM('a','b') DEFAULT 'a', ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY e ENUM('a','b','c') DEFAULT 'a', ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY s SET('a','b') DEFAULT 'a', ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+DROP TABLE t1;
 #-----------------------------------------------------------------------
 # Test case to verify check constraint with CHANGE COLUMN syntax.
 #-----------------------------------------------------------------------
