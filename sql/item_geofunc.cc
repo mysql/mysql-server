@@ -4530,7 +4530,7 @@ String *Item_func_spatial_collection::val_str(String *str) {
             goto err;
           break;
         case Geometry::wkb_polygon: {
-          uint32 n_points;
+          uint64_t n_points;
           const char *org_data = data;
 
           if (len < 4) goto err;
