@@ -169,6 +169,10 @@ documentation and the manual for more information.
 %package        server
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
+%if 0%{?sles16}
+Provides:       user(mysql)
+Provides:       group(mysql)
+%endif
 Requires:       coreutils
 Requires:       grep
 Requires:       procps
@@ -532,6 +536,10 @@ trademark of %{mysql_vendor}
 %package  -n   mysql-router-%{product_suffix}
 Summary:       MySQL Router
 Group:         Applications/Databases
+%if 0%{?sles16}
+Provides:      user(mysqlrouter)
+Provides:      group(mysqlrouter)
+%endif
 Provides:      mysql-router = %{version}-%{release}
 Obsoletes:     mysql-router < %{version}-%{release}
 %if 0%{?commercial}
