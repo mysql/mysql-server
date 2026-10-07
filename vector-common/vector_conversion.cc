@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <sys/types.h>
-#include <cerrno>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -83,13 +82,15 @@ bool from_string_to_vector(const CHARSET_INFO *cs, const char *input,
   uint32_t dim = 0;
   char *end = nullptr;
   bool with_success = false;
-  errno = 0;
   for (float fnum = strtof(input, &end); input != end;
        fnum = strtof(input, &end)) {
     input = end;
-    if (errno == ERANGE || dim >= *max_output_dims || std::isnan(fnum) ||
-        std::isinf(fnum)) {
-      errno = 0;
+    /*
+      strtof() also sets ERANGE on underflow, i.e. for valid float32 denormals
+      and for values that round to zero and these should be accepted;
+      overflow is caught by the std::isinf() check.
+    */
+    if (dim >= *max_output_dims || std::isnan(fnum) || std::isinf(fnum)) {
       break;
     }
     memcpy(temp_output.ptr() + dim * sizeof(float), &fnum, sizeof(float));
