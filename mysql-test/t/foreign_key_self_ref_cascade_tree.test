@@ -1,0 +1,66 @@
+# Bug #121443: self-referencing cascades must not underflow the table counter.
+
+if (`SELECT @@GLOBAL.innodb_native_foreign_keys`)
+{
+  --skip Requires SQL-layer foreign key handling
+}
+
+--disable_query_log
+
+--echo # Two sibling branches with children
+CREATE TABLE t (id INT PRIMARY KEY, parent_id INT NULL,
+  CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES t (id)
+  ON DELETE CASCADE) ENGINE=InnoDB;
+INSERT INTO t VALUES (1,NULL),(2,1),(3,1),(4,2),(5,3);
+DELETE FROM t WHERE id=1;
+--let $assert_text=All five rows must be deleted
+--let $assert_cond= COUNT(*) = 0 FROM t
+--source include/assert.inc
+
+--echo # A leaf before two nonempty sibling branches
+INSERT INTO t VALUES (1,NULL),(2,1),(3,1),(5,3),(6,1),(7,6);
+DELETE FROM t WHERE id=1;
+--let $assert_text=All six rows must be deleted
+--let $assert_cond= COUNT(*) = 0 FROM t
+--source include/assert.inc
+
+--echo # Delete a subtree and preserve its parent and unrelated sibling
+INSERT INTO t VALUES (1,NULL),(2,1),(3,2),(4,2),(5,3),(6,4),(7,1);
+DELETE FROM t WHERE id=2;
+--let $assert_text=Exactly the parent and unrelated sibling must remain
+--let $assert_cond= COUNT(*) = 2 AND MIN(id) = 1 AND MAX(id) = 7 FROM t
+--source include/assert.inc
+DELETE FROM t;
+
+--echo # Repeat after rollback on the same connection
+INSERT INTO t VALUES (1,NULL),(2,1),(3,1),(4,2),(5,3);
+START TRANSACTION;
+DELETE FROM t WHERE id=1;
+ROLLBACK;
+--let $assert_text=Rollback must restore all five rows
+--let $assert_cond= COUNT(*) = 5 FROM t
+--source include/assert.inc
+DELETE FROM t WHERE id=1;
+--let $assert_text=Retry after rollback must delete all five rows
+--let $assert_cond= COUNT(*) = 0 FROM t
+--source include/assert.inc
+DROP TABLE t;
+
+--echo # Bug #121443: a self cascade followed by a second table
+CREATE TABLE p (id BIGINT NOT NULL, up BIGINT NULL, PRIMARY KEY (id),
+  CONSTRAINT fk_p_up FOREIGN KEY (up) REFERENCES p (id)
+  ON DELETE CASCADE) ENGINE=InnoDB;
+CREATE TABLE c (id BIGINT NOT NULL, pid BIGINT NULL, PRIMARY KEY (id),
+  CONSTRAINT fk_c_pid FOREIGN KEY (pid) REFERENCES p (id)
+  ON DELETE CASCADE) ENGINE=InnoDB;
+INSERT INTO p (id, up) VALUES (1, NULL), (2, 1), (3, 2);
+INSERT INTO c (id, pid) VALUES (1, 1);
+DELETE FROM p WHERE id = 1;
+--let $assert_text=All parent rows must be deleted
+--let $assert_cond= COUNT(*) = 0 FROM p
+--source include/assert.inc
+--let $assert_text=All child rows must be deleted
+--let $assert_cond= COUNT(*) = 0 FROM c
+--source include/assert.inc
+DROP TABLE c, p;
+--enable_query_log
