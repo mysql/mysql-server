@@ -191,6 +191,6 @@ INSTALL(
   COMPONENT nodejs)
 
 INSTALL(
-  FILES ReadMe jones_deployments.js run-jones-test-suite.js create-test-user.sql
+  FILES ReadMe jones_deployments.js run-jones-test-suite.js
   DESTINATION ${nodejs_install}
   COMPONENT nodejs)

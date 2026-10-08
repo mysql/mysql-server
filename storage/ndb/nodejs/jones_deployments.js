@@ -43,8 +43,8 @@ deployments.mtr = function(properties) {
   properties.mysql_host = "127.0.0.1";
   properties.mysql_port = 13001;
   properties.ndb_connectstring = "localhost:13000";
-  properties.mysql_user = "jstestuser";
-  properties.mysql_password = "jstestpass";
+  properties.mysql_user = process.env["MTR_USER"];
+  properties.mysql_password = process.env["MTR_PASSWORD"];
 };
 
 /* Example of a deployment function defining a production environment.
@@ -52,17 +52,17 @@ deployments.mtr = function(properties) {
      var properties = new jones.ConnectionProperties("mysql", "production");
 */
 deployments.production = function(properties) {
-  properties.mysql_host = "rw.db.prod.mysite.com";
-  properties.mysql_user = "prod_web_user";
-  properties.mysql_password = "secretPassword";
+  properties.mysql_host = process.env["PROD_MYSQL_HOST"] || "CHANGE_ME";
+  properties.mysql_user = process.env["PROD_MYSQL_USER"] || "CHANGE_ME";
+  properties.mysql_password = process.env["PROD_MYSQL_PASSWORD"] || "CHANGE_ME";
   properties.database = "my_app_db";
 };
 
 
 /* Another example of a deployment function; this one might define a
-   connection to a read-only slave server.
+   connection to a read-only replica server.
 */
-deployments.prod_slave = function(properties) {
+deployments.prod_replica = function(properties) {
   deployments.production(properties);
   properties.mysql_host = "ro.db.prod.mysite.com";  // read-only host
 };
