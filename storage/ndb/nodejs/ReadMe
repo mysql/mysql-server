@@ -52,7 +52,11 @@ From the install directory, use mysql-test-run start a MySQL cluster:
 After the "Waiting for server(s) to exit..." message appears, you can begin
 testing.  First create a user:
   cd share/nodejs   # From the install directory
-  ../../bin/mysql -u root -h 127.0.0.1 --port=13001 < create-test-user.sql
+
+  export MTR_USER=jstestuser
+  export MTR_PASSWORD=$(../../bin/mysql -u root -h 127.0.0.1 --port=13001 -N \
+     -e 'CREATE USER jstestuser@localhost IDENTIFIED WITH mysql_native_password BY RANDOM PASSWORD;' \
+     | awk '{print $3}')
 
 Then run the test suite:
   node run-jones-test-suite.js -E mtr
