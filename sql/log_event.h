@@ -3052,6 +3052,21 @@ class Rows_log_event : public virtual mysql::binlog::event::Rows_event,
     @return 0 if the operation terminated successfully, 1 otherwise.
    */
   int update_generated_columns(MY_BITMAP const &fields_to_update);
+
+  /**
+    Checks the before and after images of an UPDATE event for changes to the
+    columns that can affect a unique key.
+
+    @param rli relay log information used to unpack row images
+    @param key_cols bitmap of relevant local table columns
+    @param unique_key_may_change set to true if a relevant value changes
+
+    @return 0 on success, or an error while unpacking the event
+  */
+  int check_update_unique_key_values(const Relay_log_info *rli,
+                                     const MY_BITMAP *key_cols,
+                                     bool *unique_key_may_change);
+
   /*
     This member function is called when deciding the algorithm to be used to
     find the rows to be updated on the slave during row based replication.
@@ -3059,13 +3074,13 @@ class Rows_log_event : public virtual mysql::binlog::event::Rows_event,
     m_key_index with the key index to be used if the algorithm is dependent on
     an index.
    */
-  void decide_row_lookup_algorithm_and_key();
+  void decide_row_lookup_algorithm_and_key(bool unique_key_may_change = false);
 
   /*
     Encapsulates the  operations to be done before applying
     row event for update and delete.
    */
-  int row_operations_scan_and_key_setup();
+  int row_operations_scan_and_key_setup(const Relay_log_info *rli);
 
   /*
    Encapsulates the  operations to be done after applying

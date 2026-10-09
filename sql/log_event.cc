@@ -8397,7 +8397,45 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
   return res;
 }
 
-void Rows_log_event::decide_row_lookup_algorithm_and_key() {
+/**
+  Collects the local columns that can affect any unique constraint.
+
+  A generated key part is represented by the columns in its expression's
+  base_columns_map. Returning true means that the dependencies could not be
+  determined safely and the caller must use the event-order fallback.
+*/
+static bool collect_unique_key_columns(const TABLE *table,
+                                       MY_BITMAP *key_cols) {
+  DBUG_TRACE;
+  bitmap_clear_all(key_cols);
+
+  for (uint key = 0; key < table->s->keys; key++) {
+    const KEY *keyinfo = table->key_info + key;
+    if (!(keyinfo->flags & HA_NOSAME)) continue;
+
+    for (uint i = 0; i < keyinfo->user_defined_key_parts; i++) {
+      const Field *field = keyinfo->key_part[i].field;
+      if (field == nullptr) return true;
+
+      if (field->is_gcol()) {
+        if (field->gcol_info == nullptr ||
+            bitmap_is_clear_all(&field->gcol_info->base_columns_map))
+          return true;
+        bitmap_union(key_cols, &field->gcol_info->base_columns_map);
+        continue;
+      }
+
+      const uint field_index = field->field_index();
+      if (field_index >= key_cols->n_bits) return true;
+      bitmap_set_bit(key_cols, field_index);
+    }
+  }
+
+  return false;
+}
+
+void Rows_log_event::decide_row_lookup_algorithm_and_key(
+    bool unique_key_may_change) {
   DBUG_TRACE;
 
   /*
@@ -8405,6 +8443,10 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
     2. Otherwise, if there is any other index, use index hash scan
     3. Otherwise, use table hash scan.
     4. If the engine does not support hash scans, use table scan.
+    5. If an Update_rows event may transiently violate a unique constraint
+       (an after-image reuses a unique key value that is still held by the
+       before-image of another row), use index scan if possible, or table
+       scan otherwise, so that the rows are applied in event order.
   */
   TABLE *table = this->m_table;
   uint event_type = this->get_general_type_code();
@@ -8424,6 +8466,27 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
     DBUG_PRINT("info",
                ("decide_row_lookup_algorithm_and_key: decided - INDEX_SCAN"));
     this->m_rows_lookup_algorithm = ROW_LOOKUP_INDEX_SCAN;
+    goto end;
+  }
+
+  /*
+    HASH_SCAN applies rows in the order of the lookup key (or of the
+    clustered index), not in the event order. If the table has a unique
+    constraint that the after-image may modify, applying rows out of order
+    can hit a duplicate key error that never happened on the source
+    (unique key rotation). Apply such Update_rows events row by row, in
+    event order, using an index if possible, or a table scan otherwise.
+  */
+  if (event_type == mysql::binlog::event::UPDATE_ROWS_EVENT &&
+      unique_key_may_change) {
+    this->m_key_index = search_key_in_table(
+        table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
+    this->m_rows_lookup_algorithm = (this->m_key_index < MAX_KEY)
+                                        ? ROW_LOOKUP_INDEX_SCAN
+                                        : ROW_LOOKUP_TABLE_SCAN;
+    DBUG_PRINT("info", ("decide_row_lookup_algorithm_and_key: unique key may "
+                        "conflict out of order - %s",
+                        m_key_index < MAX_KEY ? "INDEX_SCAN" : "TABLE_SCAN"));
     goto end;
   }
 
@@ -8495,9 +8558,54 @@ end:
   @ret value error code
              0 success
 */
-int Rows_log_event::row_operations_scan_and_key_setup() {
+int Rows_log_event::row_operations_scan_and_key_setup(
+    const Relay_log_info *rli) {
   int error = 0;
   DBUG_TRACE;
+
+  bool unique_key_may_change = false;
+  /*
+    The check below is only needed when the row lookup would not use a PK or
+    a NOT NULL UNIQUE KEY. Otherwise decide_row_lookup_algorithm_and_key()
+    picks INDEX_SCAN, which applies the rows in event order, and the result
+    of the check would be ignored.
+  */
+  if (get_general_type_code() == mysql::binlog::event::UPDATE_ROWS_EVENT &&
+      search_key_in_table(m_table, &m_local_cols,
+                          (PRI_KEY_FLAG | UNIQUE_KEY_FLAG)) == MAX_KEY) {
+    my_bitmap_map
+        key_cols_buf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
+    MY_BITMAP key_cols;
+    if (bitmap_init(&key_cols, key_cols_buf, m_table->s->fields))
+      return HA_ERR_OUT_OF_MEM;
+
+    /*
+      First use the image bitmap as a cheap filter. For generated key parts,
+      the bitmap contains the base columns that feed the generated value.
+    */
+    const bool unknown_unique_key_columns =
+        collect_unique_key_columns(m_table, &key_cols);
+    if (unknown_unique_key_columns) {
+      unique_key_may_change = true;
+    } else {
+      bitmap_intersect(&key_cols, &m_local_cols_ai);
+      if (!bitmap_is_clear_all(&key_cols)) {
+        /*
+          If a relevant after-image column is absent from the before-image,
+          its value cannot be compared safely. Partial JSON updates are also
+          kept conservative because their after-image needs the JSON diff.
+        */
+        if (!bitmap_is_subset(&key_cols, &m_local_cols) ||
+            get_type_code() ==
+                mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT) {
+          unique_key_may_change = true;
+        } else if ((error = check_update_unique_key_values(
+                        rli, &key_cols, &unique_key_may_change))) {
+          return error;
+        }
+      }
+    }
+  }
 
   /*
      Prepare memory structures for search operations. If
@@ -8507,7 +8615,7 @@ int Rows_log_event::row_operations_scan_and_key_setup() {
      2. using key => decide on key to use and allocate mem structures
      3. using table scan => do nothing
    */
-  decide_row_lookup_algorithm_and_key();
+  decide_row_lookup_algorithm_and_key(unique_key_may_change);
 
   switch (m_rows_lookup_algorithm) {
     case ROW_LOOKUP_HASH_SCAN: {
@@ -8595,7 +8703,7 @@ bool Rows_log_event::is_trx_retryable_upon_engine_error(int error) {
 
   Returns true if different.
 */
-static bool record_compare(TABLE *table, MY_BITMAP *cols) {
+static bool record_compare(TABLE *table, const MY_BITMAP *cols) {
   DBUG_TRACE;
 
   /*
@@ -8699,6 +8807,79 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols) {
   }
 
   return result;
+}
+
+int Rows_log_event::check_update_unique_key_values(
+    const Relay_log_info *rli, const MY_BITMAP *key_cols,
+    bool *unique_key_may_change) {
+  DBUG_TRACE;
+  assert(m_table != nullptr);
+  assert(key_cols != nullptr);
+  assert(unique_key_may_change != nullptr);
+
+  *unique_key_may_change = false;
+  const uchar *saved_m_curr_row = m_curr_row;
+  const uchar *saved_m_curr_row_end = m_curr_row_end;
+
+  /*
+    Field::record buffers contain pointers for BLOB-like fields. These fields
+    need separate storage when the after-image is unpacked below.
+  */
+  std::vector<Field_blob *> key_blob_fields;
+  for (uint field_index = bitmap_get_first_set(key_cols);
+       field_index != MY_BIT_NONE;
+       field_index = bitmap_get_next_set(key_cols, field_index)) {
+    Field *field = m_table->field[field_index];
+    if (field->type() == MYSQL_TYPE_JSON || is_blob(field->type()))
+      key_blob_fields.push_back(down_cast<Field_blob *>(field));
+  }
+
+  while (m_curr_row != m_rows_end) {
+    prepare_record(m_table, &m_local_cols, false);
+    if (int error = unpack_current_row(rli, &m_cols, false /* is BI */)) {
+      m_curr_row = saved_m_curr_row;
+      m_curr_row_end = saved_m_curr_row_end;
+      return error;
+    }
+    store_record(m_table, record[1]);
+
+    /*
+      A record copy only copies BLOB pointers. Keep the BI value alive while
+      unpacking the AI so JSON/BLOB key dependencies can be compared by value.
+    */
+    size_t backed_blob_count = 0;
+    auto restore_blob_values = create_scope_guard([&]() {
+      while (backed_blob_count > 0)
+        key_blob_fields[--backed_blob_count]->restore_blob_backup();
+    });
+    for (Field_blob *field : key_blob_fields) {
+      if (field->backup_blob_field()) {
+        m_curr_row = saved_m_curr_row;
+        m_curr_row_end = saved_m_curr_row_end;
+        return HA_ERR_OUT_OF_MEM;
+      }
+      ++backed_blob_count;
+    }
+
+    m_curr_row = m_curr_row_end;
+    prepare_record(m_table, &m_local_cols, false);
+    if (int error = unpack_current_row(rli, &m_cols_ai, true /*is AI*/)) {
+      m_curr_row = saved_m_curr_row;
+      m_curr_row_end = saved_m_curr_row_end;
+      return error;
+    }
+
+    if (record_compare(m_table, key_cols)) {
+      *unique_key_may_change = true;
+      break;
+    }
+
+    m_curr_row = m_curr_row_end;
+  }
+
+  m_curr_row = saved_m_curr_row;
+  m_curr_row_end = saved_m_curr_row_end;
+  return 0;
 }
 
 void Rows_log_event::do_post_row_operations(Relay_log_info const *rli,
@@ -12550,7 +12731,7 @@ void Delete_rows_log_event::claim_memory_ownership(bool claim) {
 #if defined(MYSQL_SERVER)
 
 int Delete_rows_log_event::do_before_row_operations(
-    const Relay_log_info *const) {
+    const Relay_log_info *const rli) {
   int error = 0;
   DBUG_TRACE;
   /*
@@ -12571,7 +12752,7 @@ int Delete_rows_log_event::do_before_row_operations(
   */
   thd->lex->sql_command = SQLCOM_DELETE;
 
-  error = row_operations_scan_and_key_setup();
+  error = row_operations_scan_and_key_setup(rli);
   return error;
 }
 
@@ -12709,7 +12890,7 @@ void Update_rows_log_event::claim_memory_ownership(bool claim) {
 #if defined(MYSQL_SERVER)
 
 int Update_rows_log_event::do_before_row_operations(
-    const Relay_log_info *const) {
+    const Relay_log_info *const rli) {
   int error = 0;
   DBUG_TRACE;
   /*
@@ -12730,7 +12911,7 @@ int Update_rows_log_event::do_before_row_operations(
    */
   thd->lex->sql_command = SQLCOM_UPDATE;
 
-  error = row_operations_scan_and_key_setup();
+  error = row_operations_scan_and_key_setup(rli);
   return error;
 }
 

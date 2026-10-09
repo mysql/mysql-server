@@ -11,10 +11,18 @@ Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PAR
 CREATE TABLE t1 (a INT UNIQUE KEY, b JSON);
 INSERT INTO t1 VALUES (1, '{ "long string": "long string", "x": 2}');
 CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT, b JSON, KEY k(a));
+INSERT INTO t3 VALUES (1, '{ "long string": "long string", "x": 2}');
 CREATE FUNCTION f () RETURNS INT BEGIN
 UPDATE t1 SET a = 3, b = JSON_SET(b, '$.x', 3);
 UPDATE t1 SET a = 2;
 UPDATE t1 SET a = 4;
+RETURN 1;
+END|
+CREATE FUNCTION f3 () RETURNS INT BEGIN
+UPDATE t3 SET a = 3, b = JSON_SET(b, '$.x', 3);
+UPDATE t3 SET a = 2;
+UPDATE t3 SET a = 4;
 RETURN 1;
 END|
 BEGIN;
@@ -25,10 +33,21 @@ include/diff_tables.inc [master:test.t1, slave:test.t1]
 include/diff_tables.inc [master:test.t2, slave:test.t2]
 SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
 Variable_name	Value
+Slave_rows_last_search_algorithm_used	INDEX_SCAN
+[connection master]
+BEGIN;
+INSERT INTO t2 VALUES (f3());
+COMMIT;
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t3, slave:test.t3]
+SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+Variable_name	Value
 Slave_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 DROP TABLE t1;
 DROP TABLE t2;
+DROP TABLE t3;
 DROP FUNCTION f;
+DROP FUNCTION f3;
 include/rpl/deinit.inc
