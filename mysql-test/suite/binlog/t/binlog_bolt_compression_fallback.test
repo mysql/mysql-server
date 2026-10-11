@@ -23,7 +23,7 @@
 # so the transaction is never a candidate, which exits silently rather than
 # through the compression check.
 #
-# The debug symbol force_large_trx_compression_fallback therefore stands in for
+# The debug symbol force_bolt_compression_fallback therefore stands in for
 # the condition: it records the compression reason and returns no cache, at the
 # same point the real check would. This exercises the reason's message, its
 # counter, and the routing back to the standard commit path, but not the
@@ -80,7 +80,7 @@ COMMIT;
 --let $assert_text = The promoted commit opens its promoted binary log.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
---let $assert_text = The promoted transaction commits all rows.
+--let $assert_text = The BOLT transaction commits all rows.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
 
@@ -100,7 +100,7 @@ FLUSH BINARY LOGS;
 --let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo # A compressed cache uses the standard commit path.
 SET @old_debug = @@SESSION.debug;
-SET SESSION debug = "+d,force_large_trx_compression_fallback";
+SET SESSION debug = "+d,force_bolt_compression_fallback";
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
 INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));

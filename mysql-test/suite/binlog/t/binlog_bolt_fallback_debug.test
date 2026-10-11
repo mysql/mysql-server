@@ -7,7 +7,10 @@
 # === Requirements ===
 # R1. A pending logging incident prevents promotion, so the standard path can
 #     write the incident and force the rotation that goes with it.
-# R2. A binary log closed while the transaction was running prevents promotion,
+# R2. A promotion that fails after the transaction's Gtid event was created
+#     falls back, and the Gtid event written on the standard path still
+#     carries the session's original commit timestamp and server version.
+# R3. A binary log closed while the transaction was running prevents promotion,
 #     because there is no longer a file sequence to promote into.
 #
 # === Implementation ===
@@ -15,7 +18,8 @@
 # debug symbol, and check the two BOLT status counters, the reason reported in
 # the error log, and the committed rows.
 #
-# Neither condition is configurable: the incident producers that survive to
+# None of the conditions is configurable. The failed promotion needs a failed
+# rename of the spilled file. The other two: the incident producers that survive to
 # commit need a cache write failure on a statement that cannot roll back, and
 # closing the log mid-transaction needs a binary log write to fail while
 # binlog_error_action is IGNORE_ERROR.
@@ -34,6 +38,8 @@ CALL mtr.add_suppression("An incident event has been written to the binary log")
 CALL mtr.add_suppression("An error occurred during flush stage of the commit");
 CALL mtr.add_suppression("Binary logging not possible");
 CALL mtr.add_suppression("Hence turning logging off for the whole duration");
+CALL mtr.add_suppression("Could not use .* for logging");
+CALL mtr.add_suppression("Could not open .* for logging");
 
 # Setup
 --disable_query_log
@@ -109,7 +115,69 @@ disconnect incident_session;
 connection default;
 
 ############################################################################
-# Case 2: The binary log was closed while the transaction was running.
+# Case 2: The promotion fails after the Gtid event was created.
+#
+# The rename of the spilled file is forced to fail. By then the promotion has
+# built the transaction's Gtid event, which consumes the session's
+# original_commit_timestamp and original_server_version. The fallback writes
+# the transaction as usual and builds the Gtid event again, so those values
+# must still be there.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connect (late_fallback_session, localhost, root,,);
+connection late_fallback_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--echo # A failed rename of the spilled file falls back to the standard path.
+SET SESSION original_commit_timestamp = 1234567890123456;
+SET SESSION original_server_version = 80000;
+SET SESSION debug = "+d,fail_bolt_promotion_rename";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_promotion_rename";
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = A failed rename does not promote the spilled file.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A failed rename increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = A failed rename commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--exec grep -q "the spilled binary log cache file could not be promoted" $MYSQLTEST_VARDIR/log/mysqld.1.err
+
+--source include/rpl/save_binlog_file_position.inc
+--let $late_fallback_output = $MYSQLTEST_VARDIR/tmp/binlog_bolt_fallback_debug_late.output
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $binlog_fullpath > $late_fallback_output
+--let $assert_text = The Gtid event keeps the session's original commit timestamp.
+--let $assert_file = $late_fallback_output
+--let $assert_select = session.original_commit_timestamp=1234567890123456\*
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = The Gtid event keeps the session's original server version.
+--let $assert_file = $late_fallback_output
+--let $assert_select = session.original_server_version=80000\*
+--let $assert_count = 1
+--source include/assert_grep.inc
+--remove_file $late_fallback_output
+connection default;
+disconnect late_fallback_session;
+
+############################################################################
+# Case 3: The binary log was closed while the transaction was running.
 #
 # binlog_error_action=IGNORE_ERROR turns binary logging off for the rest of the
 # server process, which closes the log and leaves MYSQL_BIN_LOG::name null. A
@@ -148,7 +216,7 @@ INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
 --enable_result_log
 --enable_query_log
 
---echo # Another session's spill-sync failure turns logging off and closes the log.
+--echo # Another session's failed promotion turns logging off and closes the log.
 connection default;
 --disable_query_log
 --disable_result_log
@@ -156,9 +224,9 @@ BEGIN;
 INSERT INTO t1 VALUES (11, REPEAT('d', 5000000));
 INSERT INTO t1 VALUES (12, REPEAT('e', 5000000));
 INSERT INTO t1 VALUES (13, REPEAT('f', 5000000));
-SET SESSION debug = "+d,fail_bolt_spill_file_sync";
+SET SESSION debug = "+d,fail_bolt_promoted_file_reopen";
 COMMIT;
-SET SESSION debug = "-d,fail_bolt_spill_file_sync";
+SET SESSION debug = "-d,fail_bolt_promoted_file_reopen";
 --enable_result_log
 --enable_query_log
 

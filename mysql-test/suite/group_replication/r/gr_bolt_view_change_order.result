@@ -28,7 +28,7 @@ include/assert.inc [R1: the view change is not written while the BOLT transactio
 SET DEBUG_SYNC = 'now SIGNAL bolt_go';
 [connection server1]
 SET DEBUG_SYNC = 'RESET';
-include/assert.inc [R2: the transaction is promoted.]
+include/assert.inc [R2: the transaction's spilled file is promoted.]
 [connection server2]
 Warnings:
 Warning	1681	'group_replication_ip_allowlist' is deprecated and will be removed in a future release.

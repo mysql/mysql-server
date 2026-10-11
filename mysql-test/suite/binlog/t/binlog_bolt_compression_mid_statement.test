@@ -46,7 +46,7 @@ INSERT INTO t1 VALUES (1, REPEAT('a', 6000000)), (compress_on(2), REPEAT('b', 60
 --let $assert_text = R1: compression is ON after the statement.
 --let $assert_cond = @@SESSION.binlog_transaction_compression = 1
 --source include/assert.inc
---let $assert_text = R1: the transaction is promoted.
+--let $assert_text = R1: the transaction's spilled file is promoted.
 --let $assert_cond = $bolt_after = $bolt_before + 1
 --source include/assert.inc
 --let $assert_text = R1: no missed optimization is counted.
@@ -80,7 +80,7 @@ INSERT INTO t1 VALUES (1, REPEAT('a', 6000000)), (compress_on(2), REPEAT('b', 60
 --let $assert_text = R2: the cache stayed in memory.
 --let $assert_cond = $disk_use_after = $disk_use_before
 --source include/assert.inc
---let $assert_text = R2: the transaction is not promoted.
+--let $assert_text = R2: the transaction's spilled file is not promoted.
 --let $assert_cond = $bolt_after = $bolt_before
 --source include/assert.inc
 --let $assert_text = R2: no missed optimization is counted.

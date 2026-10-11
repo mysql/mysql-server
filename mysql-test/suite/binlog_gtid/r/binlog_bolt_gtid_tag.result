@@ -4,7 +4,7 @@ RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
-# Commit tagged and untagged transactions before the promoted transaction.
+# Commit tagged and untagged transactions before the BOLT transaction.
 SET GTID_NEXT = 'AUTOMATIC:prior_large_trx_tag';
 INSERT INTO t1 VALUES (1, 'prior-tagged-transaction');
 SET GTID_NEXT = 'AUTOMATIC';
@@ -16,7 +16,7 @@ INSERT INTO t1 VALUES (4, REPEAT('b', 5000000));
 INSERT INTO t1 VALUES (5, REPEAT('c', 5000000));
 COMMIT;
 SET GTID_NEXT = 'AUTOMATIC';
-include/assert.inc [The tagged GTID transaction was promoted.]
+include/assert.inc [The tagged GTID transaction's spilled file was promoted.]
 include/assert.inc [The tagged GTID promotion rotates to a new active binary log.]
 include/assert.inc [The prior tagged GTID is persisted before promotion.]
 include/assert.inc [The promoted tagged GTID is recorded in gtid_executed.]

@@ -184,7 +184,7 @@ COMMIT;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after_commit = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = Restoring the checksum before commit promotes the transaction.
+--let $assert_text = Restoring the checksum before commit promotes the transaction's spilled file.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
 --let $assert_text = Restoring the checksum before commit does not increment the missed counter.
@@ -193,7 +193,7 @@ COMMIT;
 --let $assert_text = The restored-checksum commit opens its promoted binary log.
 --let $assert_cond = "$binlog_file_after_commit" != "$binlog_file_before_commit"
 --source include/assert.inc
---let $assert_text = The restored-checksum promoted transaction commits all rows.
+--let $assert_text = The restored-checksum BOLT transaction commits all rows.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
 connection checksum_restored;

@@ -107,11 +107,11 @@ flowchart TD
   A13 -. "`No: Chart C`" .-> X1
   A13 -- "`Yes`" --> A14["`Any promotion blocker? Non-empty statement cache, incident, SBR events, encryption, compression`"]
   A14 -. "`Yes: Chart C`" .-> X1
-  A14 -- "`None`" --> A15["`Make the temp file durable`"]
-  A15 --> A17["`Under LOCK_log: re-check that encryption is OFF and that the cache's CRC form matches binlog_checksum; write the binlog file header into the reserved space; rename the temp file to the next binlog file name; close the current binlog with a Rotate event, and open the promoted file as the active binlog`"]
+  A14 -- "`None`" --> A15["`Commit through ordered_commit(), entering the flush stage as the leader of its flush group, so this transaction is the first of its group`"]
+  A15 --> A17["`Flush stage, under LOCK_log: re-check that encryption is OFF and that the cache's CRC form matches binlog_checksum; rotate the binary log; the rotation writes the new file's header events, copies them into the reserved space with the Large_transaction_header and Gtid events, makes the temp file durable, and renames it to replace the new file`"]
   A17 -. "`Re-check fails: Chart C`" .-> X1
-  A17 --> A19["`Reset the cache, keeping the renamed file`"]
-  A19 --> A18["`Commit in the storage engine`"]
+  A17 --> A19["`Reset the cache, keeping the renamed file; the rest of the group is written into the promoted file`"]
+  A19 --> A18["`Sync and commit stages of ordered_commit(), with their hooks`"]
   A18 --> A20["`Rotate if the promoted binlog exceeds max_binlog_size`"]
 ```
 
@@ -122,7 +122,7 @@ flowchart TD
 3. Events that fit in memory: serialized in the standard form into the IO_CACHE buffer. `Binlog_cache_storage::write()` (changed) checks each write with `write_would_spill()` (new).
 4. The first spill: `Binlog_cache_storage::write()` calls `rewrite_into_binlog_file_format()` (new), which creates the binlog-file-format representation (`Checksummed_binlog_cache_representation::create_from_standard_format()`, new): it opens a named file with the reserved header region at the front, copies the in-memory bytes into it through `Event_format_converter` (new), and replaces the standard-form representation. The converter rewrites each event's header (real `log_pos`, `event_len` + 4) and appends the CRC32 footer; it keeps its state between writes, so the rest of the interrupted event goes through it too.
 5. Later events: `write_event()` sets `log_pos` and `checksum_alg` before serializing, and the existing event serializer writes the CRC. `add_logical_length()` (new) keeps the logical length up to date.
-6. Commit: `finalize()` writes the terminating event and records its offset. `get_cache_for_large_trx_commit()` checks that the transaction is a promotion candidate with no blocker. `MYSQL_BIN_LOG::commit_large_transaction()` makes the file durable (`flush_and_sync_spilled_file()`), and `promote_spilled_file()`, under `LOCK_log`, re-checks encryption and the checksum algorithm (`physical_checksum_alg()`), writes the binary log header events into the reserved region, and renames the file into the binary log sequence.
+6. Commit: `finalize()` writes the terminating event and records its offset. `get_cache_for_large_trx_commit()` checks that the transaction is a promotion candidate with no blocker; `MYSQL_BIN_LOG::commit()` marks the cache for promotion, and the transaction commits through `ordered_commit()`, as the first transaction of its flush group. In the flush stage, `rotate_and_promote_spilled_file()` rotates the binary log, and the rotation opens the spilled file as the new binary log file (`promote_spilled_file()`): it copies the new file's header events into the reserved region, adds the Large_transaction_header and Gtid events, makes the file durable and renames it to replace the new file.
 7. Reset: `Binlog_cache_storage::reset()` (changed) keeps the promoted file, drops the rewrite plan, and replaces the representation with a new standard-form one.
 
 ### 3.2 Small transaction, never spilled

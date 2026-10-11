@@ -372,8 +372,6 @@ TRUNCATE t1;
 #
 # This is past every 2PC boundary: the promoted file is in the index and the
 # engines are committed, so the crash only proves nothing later can undo it.
-# The crash point is gated on used_bolt_promotion, so reaching it is itself
-# evidence the optimized path ran.
 ############################################################################
 --echo # Post-binlog-commit crash commits exactly once.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

@@ -390,6 +390,29 @@ class Binlog_group_commit_ctx {
   /// the max size has not been reached.
   void set_force_rotate() { m_force_rotate = true; }
 
+  /// This session's flag: whether this session must lead its flush group.
+  /// MYSQL_BIN_LOG::commit() sets the flag for a BOLT session, because the
+  /// promotion of the session's spilled file rotates the binary log in the
+  /// flush stage, before any other member of the group is written.
+  /// Commit_stage_manager::append_to() reads the flag. The flag is cleared
+  /// by reset().
+  void set_must_lead_flush_group(bool value) {
+    m_must_lead_flush_group = value;
+  }
+  bool must_lead_flush_group() const { return m_must_lead_flush_group; }
+
+  /// This session's flag: whether this BOLT session has been made the
+  /// leader of the next flush group. The leader of the current flush group
+  /// sets the flag after it fetches the flush queue and appends this BOLT
+  /// session to the emptied queue. The leader sets it while holding the
+  /// flush queue lock. This BOLT session reads the flag while it waits in
+  /// Commit_stage_manager::append_to(), and clears it when it wakes up. The
+  /// flag is also cleared by reset().
+  void set_assigned_flush_leader(bool value) {
+    m_assigned_flush_leader = value;
+  }
+  bool is_assigned_flush_leader() const { return m_assigned_flush_leader; }
+
   /// Aggregate the rotate requests over all sessions in queue
   ///
   /// @return The first element states whether any session
@@ -402,6 +425,10 @@ class Binlog_group_commit_ctx {
   bool m_max_size_exceeded{false};
   /// Whether session requests forced rotate
   bool m_force_rotate{false};
+  /// @see set_must_lead_flush_group()
+  bool m_must_lead_flush_group{false};
+  /// @see set_assigned_flush_leader()
+  bool m_assigned_flush_leader{false};
 };
 
 /*

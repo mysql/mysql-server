@@ -36,7 +36,7 @@ During query processing, the server generates the query's binlog events and writ
 The current implementation of binlog cache is layered: `binlog_cache_data` (event buffer) -> `Binlog_cache_storage` (byte-container facade) -> `IO_CACHE_binlog_cache_storage` (mysys-backed implementation over one `IO_CACHE`). BOLT changes three things in this path:
 
 - **Where the binlog spill file lives.** While the physical file is still created lazily on the first spill by the existing `IO_CACHE`, it is created in this predefined temp directory (`Binlog_cache_storage::open` passes `binlog_temp_files_dir.path()`) rather than the general temp dir. This holds whether or not the BOLT knob is on. Every other `IO_CACHE` user (for example filesort and internal temporary tables) is unchanged and still spills anonymously into `--tmpdir`.
-- **A reserved region at the front.** Opening the cache also shifts its write start position past a reserved header region at the front of the file (`IO_CACHE_binlog_cache_storage::open`). Every binlog cache reserves the region even when the BOLT knob is off. A cache that is never promoted simply leaves the region empty and never copies it into the binary log, so it is invisible in the output.
+- **A reserved region at the front.** Opening the cache also shifts its write start position past a reserved header region at the front of the file (`IO_CACHE_binlog_cache_storage::open`). Every binlog cache reserves the region even when the BOLT knob is off. A cache whose spilled file is never promoted simply leaves the region empty and never copies it into the binary log, so it is invisible in the output.
 
   - Why is the region reserved unconditionally, rather than by checking the knob at cache initialization: the cache is initialized once per session and reset between transactions. If the decision on whether to reserve space at init were based on the BOLT knob, we would need to ensure that reset checks the same value that init checked. Since the knob is a dynamic global that can change at any time, gating on it would effectively fix the knob per connection: enabling the optimization at runtime would have no effect on existing sessions until they reconnect.
 
@@ -112,78 +112,83 @@ This gives three cases:
 
 #### Durability policy
 
-In the standard commit code path, every transaction prepares with `HA_IGNORE_DURABILITY`, so the engine writes its prepare record to its own log (for example InnoDB's redo log) without persisting it during prepare. That debt is repaid once per group in the standard commit path's binlog flush stage, which calls `ha_flush_logs(true)` before any cache reaches the binary log.
+In the standard commit code path, every transaction prepares with `HA_IGNORE_DURABILITY`, so the engine writes its prepare record to its own log (for example InnoDB's redo log) without persisting it during prepare. That debt is repaid once per group in the binlog flush stage, which calls `ha_flush_logs(true)` before any cache reaches the binary log.
 
-BOLT bypasses that group flush stage, so it repays the same debt itself, with an unconditional `ha_flush_logs(true)` in `commit_large_transaction()`, before the promotion.
+A BOLT transaction commits through the same group commit, and its file is promoted in the flush stage, after that call, so the same flush covers it.
 
-Unlike the standard path, BOLT takes this flush with no binlog lock (no `LOCK_log` and no queue lock) held. No lock is needed as the flush and the promotion happen in the same thread, so this transaction's prepare record is on disk before the transaction reaches the binary log.
-
-The durability property is deliberately not chosen per transaction during prepare, because it is not yet known at that point whether the transaction will be promoted. During prepare, the terminal event has not been appended, so the cache is short of its final size, and a transaction just below the threshold at that point can still cross it and be promoted.
+The durability property is deliberately not chosen per transaction during prepare, because it is not yet known at that point whether the transaction's spilled file will be promoted. During prepare, the terminal event has not been appended, so the cache is short of its final size, and a transaction just below the threshold at that point can still cross it and have its spilled file promoted.
 
 ### Commit code path
 
 ```
-              COMMIT: get_cache_for_large_trx_commit()
+     COMMIT: get_cache_for_large_trx_commit()
                           |
-          +---------------+-----------------+
-          |                                 |
-   spilled, > threshold,                otherwise
-   and eligible (6 checks)                  |
-          |                                 v
-          v                          ordered_commit()
-   commit_large_transaction()        (standard group commit:
-          |                           copy cache into active
-          |                           binlog)
-          v                                 ^
-   header fits and                          |
-   GTIDs persisted?  ------- No ------------+
-          |                              (fallback)
-         Yes
-          |
-          v
-   Promote: sync body, write header into reserved region,
-   register in purge index, rename into binlog sequence,
-   Rotate event on old file, add to main index
-          |
-          v
-   Engine commit (finish_commit);
-   rotate if > max_binlog_size
+          +---------------+----------------+
+          |                                |
+   candidate, no blocker               otherwise
+   (6 checks)                              |
+          |                                |
+   sync the spilled file; mark the         |
+   cache for promotion; the session        |
+   must lead its flush group               |
+          |                                |
+          v                                v
+                    ordered_commit()
+   flush stage, the BOLT transaction first in its group:
+     rotate_and_promote_spilled_file()
+       encryption, checksum, log open?  -- no --> written as usual,
+          | yes                                  in the active file
+       new_file_impl(promotion): wait for prepared XIDs,
+         persist GTIDs, Rotate event into N, close N
+         open_binlog(N+1): write N+1's header events, then
+           promote_spilled_file():
+             copy N+1's header into the reserved region,
+             add the Large_transaction_header and Gtid events,
+             sync, rename the spilled file to replace N+1, reopen it
+             (a failure before the rename keeps the fresh N+1,
+              and the transaction is written into it)
+           add N+1 to the index, publish its header end
+     the rest of the group is written into N+1
+   sync stage, commit stage, hooks: as for any group
 ```
 
-When `get_cache_for_large_trx_commit()` returns a cache (§2.4), `commit_large_transaction()` promotes it using the optimization commit code path. It performs the HLD's 13 commit steps; steps 6 to 10 reuse MySQL's existing crash-safe rotation (register in the purge index -> rename -> Rotate event -> add to the main index -> clear the purge index), so BOLT does not reimplement rotation. The mapping to code:
+When `get_cache_for_large_trx_commit()` returns a cache (§2.4), `MYSQL_BIN_LOG::commit()` marks it for promotion and the transaction commits through `ordered_commit()`, like any other. The promotion is a binary log rotation in the flush stage that opens the spilled file as the new binary log file N+1, so BOLT reuses the existing rotation: GTID persistence, the Rotate event, the purge index, the main index, the dependency tracker reset. Commit order (replica preserve-commit-order), the binlog group commit tickets of Group Replication, and the `after_flush`, `after_sync` and `after_commit` hooks all come from `ordered_commit()`.
+
+First in its flush group. A rotation needs every transaction prepared in the old file to be committed in the engines first (`wait_for_prep_xids()`), because crash recovery scans only the last binary log. Members of the same flush group written before the BOLT transaction would be prepared in N and committed later by the same leader, so the BOLT transaction must be the first transaction of its group. It is always made the leader of its flush group (`Commit_stage_manager::append_to()`, `Binlog_group_commit_ctx::must_lead_flush_group()`). If the flush queue is empty, it enrolls as the leader. Otherwise it waits in a first-in, first-out candidate list, and the leader that fetches the current flush queue appends the first candidate to the emptied queue, under the flush queue lock, as the leader of the next group (`Commit_stage_manager::assign_next_flush_leader()`). Transactions that arrive after it join its group behind it, in the binary log after it. The flush stage lets only the group's first transaction promote its spilled file (`set_flushing_group_leader()`).
+
+The mapping to code:
 
 ```
-// sql/binlog/large_trx_commit.cc  commit_large_transaction()
-// (comment numbers = the HLD's 13 commit steps)
-flush_and_sync_spilled_file();                      // 1   make the body durable
-init_thd_variables(...);
-LOCK_log; wait_for_prep_xids(); LOCK_commit;        // 2   acquire locks
-generate_new_name(new_name, name);                  // 3   next binlog file name
-persist_gtids_on_rotate(..., &keep_current_binlog); //     read-only table -> fallback
-write_promoted_binlog_header(..., &fits);           // 4,5 write header, sync temp file
-  if (!fits) goto fallback_to_ordered_commit;
-open_purge_index_file / register_create_index_entry
-  / sync_purge_index_file;                          // 6   record file in purge index
-my_rename(temp_file_name, new_name);
-  mysql_file_sync(spilled_file());                  // 7   promote (rename) + sync
-Rotate_log_event r(...); write_event_to_binlog(&r);
-  m_binlog_file->flush_and_sync();                  // 8   chain old file -> new file
-open_binlog(..., promoted_file_is_renamed = true);  // 9,10 add to index, clear purge index
-binlog_large_transaction_optimization_count++;      //     success counter (under LOCK_log)
-unlock LOCK_log;                                    // 11  release log lock
-cache_data->reset(true /*preserve_spilled_file*/);
-finish_commit(thd);                                 // 12  commit in the engine
-unlock LOCK_commit;
-if (rotate_if_needed()) ...;                        // 13  rotate if > max_binlog_size
+// MYSQL_BIN_LOG::commit()
+get_cache_for_large_trx_commit(cache_mngr);   // candidate and blockers (§2.4)
+flush_and_sync_spilled_file();                // the body, outside LOCK_log
+cache->request_spilled_file_promotion();
+binlog_group_commit_ctx().set_must_lead_flush_group(true);
+ordered_commit(thd, all, skip_commit);
+
+// flush stage: binlog_cache_data::flush(), first transaction of the group
+rotate_and_promote_spilled_file(thd, this, &promoted);
+  // checks before the rotation: log open, encryption, checksum algorithm
+  new_file_impl(false, nullptr, &promotion);  // the standard rotation
+    open_binlog(..., &promotion);
+      // after N+1's header events, before N+1 is added to the index:
+      promote_spilled_file(&promotion);
+        // recheck encryption and checksum under LOCK_log
+        // read N+1's header events; check the reserved region fits
+        m_dependency_tracker.rotate(); step(); // logical timestamps restart
+        // write header copy + Large_transaction_header + Gtid, sync
+        my_rename(temp_file_name, log_file_name);  // point of no return
+        reopen_promoted_binlog_file();         // m_binlog_file at its end
+      add_log_to_index(); close_purge_index_file();
+      atomic_binlog_end_pos = header end;      // the rest after after_flush
+reset(true /*preserve_spilled_file*/);         // the cache keeps the file
 ```
 
-Three parts are new or worth calling out:
-
-Header + LTH sizing (step 4). `write_promoted_binlog_header()` serializes magic + FDE + Previous_gtids, then sizes the `Large_transaction_header_event`'s padding so the following `Gtid_log_event` ends exactly at reserved_bytes, where the first spilled event was placed. If the GTID state grew since spill and the header no longer fits, it sets \*fits = false and BOLT takes a clean fallback (§2.4).
+Header + LTH sizing. The reserved region holds a copy of N+1's header events (magic, Format_description, Previous_gtids) as `open_binlog()` wrote them, then the `Large_transaction_header_event`, whose padding is sized so the following `Gtid_log_event` ends exactly at reserved_bytes, where the first spilled event was placed. If the GTID state grew since the spill and the header no longer fits, the transaction is written into the fresh N+1 (§2.4).
 
 GTID + dependency reset. A promoted file starts a new binary log file, so the dependency tracker is rotated before the transaction's logical timestamps are generated. This makes the transaction a parallelization barrier (serialization point) for the replica's parallel applier.
 
-Locking. `LOCK_log` is held from step 2 to 11 and `LOCK_commit` through the engine commit, which is the same locks the standard group-commit flush/commit stages use, so no standard commit, other promotion, or rotation can interleave. `LOCK_log` is released before the engine commit (step 11 before 12) so the next transaction's flush can overlap this one's engine commit, exactly as the standard pipeline does.
+Crash safety. `open_binlog()` registers N+1 in the purge index before it writes N+1's header, so until N+1 is in the main index, a crash leaves either file owned by the purge index and removed at startup, and the prepared transaction is rolled back. After the main-index update, recovery finds the transaction in N+1 and commits it.
 
 #### Fallback
 
@@ -200,18 +205,21 @@ First a basic gate decides whether the transaction is a candidate: the knob is o
 - it is not compressed,
 - `binlog_checksum` did not change during the transaction.
 
-Check 2. After promotion has started (inside `commit_large_transaction`), two late conditions can still force a fallback:
+Check 2. In the flush stage (`rotate_and_promote_spilled_file()`), before the rotation, under `LOCK_log`: the binary log is open, `binlog_encryption` is OFF, and the cache's checksum algorithm is `binlog_checksum`. A transaction that fails these is written into the active file as usual.
 
-- `gtid_persistence`: persisting the outgoing log's GTIDs to `mysql.gtid_executed` fails because that table is read-only, and
-- `reserved_header_space`: the header events no longer fit the reserved region.
+Check 3. During the rotation (`promote_spilled_file()`), later conditions can still force a fallback:
 
-Both jump to `fallback_to_ordered_commit`, which cleanly re-runs the standard commit path; nothing irreversible has happened at either point.
+- `gtid_persistence`: persisting the outgoing log's GTIDs to `mysql.gtid_executed` fails because that table is read-only; the rotation keeps the current binary log, and the transaction is written into it,
+- `reserved_header_space`: the header events no longer fit the reserved region, and
+- `promotion_failed`: an I/O error before the rename (reading N+1's header, writing the header, the rename itself). A failure to sync the spilled file is detected earlier, in `MYSQL_BIN_LOG::commit()`, which syncs it before the transaction enters `ordered_commit()`; the transaction is then written into the active file, with the same reason.
+
+For the last two, the rotation has opened the fresh N+1, and the transaction is written into it as on the standard path. Nothing irreversible has happened at any of these points.
 
 #### Fallback vs. failure
 
-All of the above are clean fallbacks: the transaction still commits, just through the standard path. Only genuine I/O errors after the promotion's point of no return fail the transaction; those are handled by `handle_binlog_flush_or_sync_error` per `binlog_error_action` (abort the server, or disable binary logging and let the commit proceed in the engine).
+All of the above are clean fallbacks: the transaction still commits, just through the standard path. Only failures after the rename, the point of no return, fail the transaction; they are rotation errors (`open_binlog()` removes N+1 and `new_file_impl()` applies `binlog_error_action`: abort the server, or disable binary logging and let the commit proceed in the engine).
 
-A fallback re-enters the standard commit path (`MYSQL_BIN_LOG::ordered_commit`), which copies the spilled cache out of the temp file and into the active binary log (`do_write_cache` -> `Binlog_cache_storage::copy_to`). As each event is copied, the writer overrides its `log_pos` for the new position, and the `Gtid_log_event`'s transaction length is recomputed for the destination's checksum setting by `set_trx_length_by_cache_size()` (-> `adjust_trx_length_to_checksum_changes()`). Those are the same functions the normal path, and BOLT's own header write, already use, so there is no BOLT-specific fallback handling. The reserved region at the front of the temp file is skipped by the read cursor, and the temp file is released when the cache is reset.
+A fallback writes the transaction into the binary log through the standard flush (`write_transaction()` → `do_write_cache` → `Binlog_cache_storage::copy_to`), which copies the spilled cache out of the temp file in the standard form. The binary log writer sets each event's `log_pos` for its new position and adds the checksum, and the `Gtid_log_event`'s transaction length is recomputed for the destination's checksum setting by `set_trx_length_by_cache_size()`. The reserved region at the front of the temp file is skipped by the read cursor, and the temp file is released when the cache is reset.
 
 ### Recovery code path
 
@@ -251,37 +259,19 @@ The same validate-then-seek optimization is applied at both places recovery read
 
 ### Savepoint handling
 
-BOLT adds no new savepoint logic; it reuses MySQL's existing `ROLLBACK TO SAVEPOINT` handling (`binlog_savepoint_rollback`). If the transaction has touched a non transactional table, the server writes a `ROLLBACK TO SAVEPOINT` event into the cache as it does today; otherwise, it truncates the cache back to the savepoint position (`restore_savepoint`). The only BOLT specific detail is that the truncation is reserved region aware: the storage layer shifts the requested offset past the reserved header bytes (`IO_CACHE_binlog_cache_storage::truncate`), and when the spilled file is later synced (`flush_and_sync_spilled_file`), any stale bytes past the new logical end are cut with `my_chsize`, so a promoted file still ends exactly at its terminating event. Whether the (possibly shrunk) transaction is promoted is decided normally at commit, by comparing its spilled size against the threshold.
+BOLT adds no new savepoint logic; it reuses MySQL's existing `ROLLBACK TO SAVEPOINT` handling (`binlog_savepoint_rollback`). If the transaction has touched a non transactional table, the server writes a `ROLLBACK TO SAVEPOINT` event into the cache as it does today; otherwise, it truncates the cache back to the savepoint position (`restore_savepoint`). The only BOLT specific detail is that the truncation is reserved region aware: the storage layer shifts the requested offset past the reserved header bytes (`IO_CACHE_binlog_cache_storage::truncate`), and when the spilled file is later synced (`flush_and_sync_spilled_file`), any stale bytes past the new logical end are cut with `my_chsize`, so a promoted file still ends exactly at its terminating event. Whether the spilled file of the (possibly shrunk) transaction is promoted is decided normally at commit, by comparing its spilled size against the threshold.
 
 ### Refactoring / modularization
 
-The BOLT commit path shares a lot with the existing group-commit path (THD commit-state setup, GTID-event field derivation) and with the existing binlog cache. Rather than duplicate that logic, and to keep the new code self-contained, the shared and BOLT-specific pieces were split into dedicated files:
-
-- `transaction_commit_helper.{h,cc}` holds two pieces that the code both commit paths use: `init_thd_variables()` and `Transaction_gtid_header`.
-
-  - `init_thd_variables()` sets up the THD's commit state (commit error, \`next_to_commit\` linkage, and in debug builds the preempt flag).
-  - \`Transaction_gtid_header\` collects the six values that a transaction's \`Gtid_log_event\` is built from: \`last_committed\`, \`sequence_number\`, the original and immediate commit timestamps, and the original and immediate server versions, which are derived from the THD and the dependency tracker.
-
-<!-- -->
-
-- `large_trx_commit.{h,cc}` holds the BOLT-only eligibility and promotion entry points (`get_cache_for_large_trx_commit`, `commit_large_transaction`, `write_promoted_binlog_header`).
+- `MYSQL_BIN_LOG::create_gtid_event()` in `binlog.cc` builds a transaction's `Gtid_log_event` from the THD and the dependency tracker (its logical timestamps, commit timestamps and server versions). Both `write_transaction()` and the promotion use it.
+- `large_trx_commit.{h,cc}` holds the BOLT-only eligibility and promotion code (`get_cache_for_large_trx_commit`, `rotate_and_promote_spilled_file`, `promote_spilled_file`).
 - `cache_data.h` holds `binlog_cache_data` and the cache manager, moved out of `binlog.cc` so the separate `large_trx_commit.cc` translation unit can use them.
 
 ## Section 3: Feature compatibility
 
 ### Semi-sync replication (compatible)
 
-BOLT works with semi synchronous replication: the optimized commit path invokes the same replication hooks as `ordered_commit()`, so a promoted transaction is acknowledged by a replica like any other. Three semi sync hooks sit on the BOLT commit path: `after_flush`, `after_sync`, and `after_commit`.
-
-- `after_flush`**:** runs inside `promote_spilled_file()`, as the second to last step of the promotion, immediately before the binary log end position is published. This differs slightly from `ordered_commit()`: in `promote_spilled_file`, `after_flush` is not strictly called after the flush stage, but rather after the file has already been promoted, which means it has already been synced. The hook is placed here because:
-
-  - It must run after `open_binlog()` has made the promoted file the active binary log. The hook needs to report the binlog file that contains the transaction, and it reports it through the `log_file_name` variable, which is the server's current binary log, so we must run the hook after the promoted file becomes the active one.
-  - It must run before the end position is published, as in the standard commit path.
-- `after_sync`**:** runs after the `after_flush` observer and before the transaction is committed, with `LOCK_log` released and `LOCK_commit` still held. This is the same lock state and the same relative position as in `ordered_commit()`.
-- `after_commit`**:** runs inside `finish_commit()`, under `LOCK_commit`. The standard path releases `LOCK_commit` and acquires `LOCK_after_commit` before running this hook, so BOLT holds the commit lock longer for this hook. This was chosen deliberately, for two reasons:
-
-  - It only extends the lock hold time; it does not introduce any deadlock. The semi sync plugin acquires no server side binlog mutex, so nothing in the acknowledgement path can deadlock against the commit lock. The wait is also bounded: it is a timed wait against `rpl_semi_sync_source_timeout`.
-  - The extra hold time only materializes when `rpl_semi_sync_source_wait_point` is AFTER_COMMIT, which is the non default setting.
+BOLT works with semi synchronous replication: a transaction whose spilled file is promoted commits through `ordered_commit()`, which runs `after_flush`, `after_sync` and `after_commit` at their standard places, with the transaction's position in the promoted file (the end of the file, set by the flush stage). The rotation that promotes the file publishes only the end of the file's header events, under the binlog-index lock as for any new file; the transaction is published by the flush stage after the `after_flush` hook, so a dump thread cannot send it before the hook registered it.
 
 ### Group replication (incompatible)
 
@@ -297,7 +287,7 @@ There is no inherent challenge in adding BOLT support for Group Replication, but
 
 ### Encryption (incompatible)
 
-BOLT does not work with encryption. A large transaction is promoted only when neither its spilled file is encryption nor the `binlog_encryption` is set to ON:
+BOLT does not work with encryption. A large transaction's spilled file is promoted only when neither its spilled file is encryption nor the `binlog_encryption` is set to ON:
 
 | No. | **spilled file** | `binlog_encryption` | **outcome** |
 | --- | --- | --- | --- |
@@ -317,18 +307,20 @@ Large_trx_fallback_reason large_trx_commit_blocker() {
 }
 ```
 
-The second check is in `promote_spilled_file`, which rechecks the system variable again after we acquire `LOCK_log`:
+The second check is in the flush stage, under `LOCK_log`, before the rotation (`rotate_and_promote_spilled_file()`), and again inside the rotation (`promote_spilled_file()`):
 
 ```cpp
-MYSQL_BIN_LOG::Promote_outcome MYSQL_BIN_LOG::promote_spilled_file() {
-  if (rpl_encryption.is_enabled())
-    return fallback_outcome(Large_trx_fallback_reason::kEncryption);
+int MYSQL_BIN_LOG::rotate_and_promote_spilled_file(...) {
+  ...
+  } else if (rpl_encryption.is_enabled()) {
+    promotion.fallback_reason = Large_trx_fallback_reason::kEncryption;
+  ...
 }
 ```
 
 `binlog_encryption` is a dynamic variable, so it can change between `get_cache_for_large_trx_commit` and the actual promotion of the temp file. Rechecking under `LOCK_log` guarantees the correctness of the encryption check, regardless of whether `Rpl_encryption::enable` or BOLT acquires `LOCK_log` first.
 
-If `Rpl_encryption::enable` acquires `LOCK_log` first, then BOLT is blocked in `commit_large_transaction` before it tries to promote the temp file. By the time BOLT acquires `LOCK_log`, `Rpl_encryption::enable` has completed and `Rpl_encryption::is_enabled` returns true, so BOLT sees that encryption is enabled and falls back to the standard commit code path.
+If `Rpl_encryption::enable` acquires `LOCK_log` first, then the BOLT transaction's flush leader is blocked before it tries to promote the temp file. By the time BOLT acquires `LOCK_log`, `Rpl_encryption::enable` has completed and `Rpl_encryption::is_enabled` returns true, so BOLT sees that encryption is enabled and falls back to the standard commit code path.
 
 If BOLT acquires `LOCK_log` first, there are two sub cases:
 

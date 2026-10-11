@@ -3,6 +3,8 @@ CALL mtr.add_suppression("An incident event has been written to the binary log")
 CALL mtr.add_suppression("An error occurred during flush stage of the commit");
 CALL mtr.add_suppression("Binary logging not possible");
 CALL mtr.add_suppression("Hence turning logging off for the whole duration");
+CALL mtr.add_suppression("Could not use .* for logging");
+CALL mtr.add_suppression("Could not open .* for logging");
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 # A transaction with a logging incident uses the standard commit path.
 SET SESSION debug = "+d,binlog_inject_incident";
@@ -17,9 +19,25 @@ include/assert.inc [An incident increments the missed counter once.]
 include/assert.inc [An incident fallback force-rotates to a new active binary log.]
 include/assert.inc [An incident fallback commits all rows.]
 include/assert.inc [An incident fallback preserves the full payload.]
+# A failed rename of the spilled file falls back to the standard path.
+SET SESSION original_commit_timestamp = 1234567890123456;
+SET SESSION original_server_version = 80000;
+SET SESSION debug = "+d,fail_bolt_promotion_rename";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_promotion_rename";
+include/assert.inc [A failed rename does not promote the spilled file.]
+include/assert.inc [A failed rename increments the missed counter once.]
+include/assert.inc [A failed rename commits all rows.]
+include/rpl/save_binlog_file_position.inc
+include/assert_grep.inc [The Gtid event keeps the session's original commit timestamp.]
+include/assert_grep.inc [The Gtid event keeps the session's original server version.]
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 # A session spills a large transaction and holds it open.
-# Another session's spill-sync failure turns logging off and closes the log.
+# Another session's failed promotion turns logging off and closes the log.
 # The held transaction commits through the standard path.
 COMMIT;
 include/assert.inc [A closed binary log does not promote.]

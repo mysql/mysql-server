@@ -127,6 +127,7 @@ void binlog_cache_data::reset(bool preserve_spilled_file) {
   m_large_trx_optimization_latched = false;
   m_large_trx_last_event_length = 0;
   m_large_trx_ineligible_reason = Large_trx_fallback_reason::kNone;
+  m_spilled_file_promotion_requested = false;
   m_large_trx_optimization_enabled = false;
   m_large_trx_optimization_threshold = 0;
   m_terminating_event_offset = 0;

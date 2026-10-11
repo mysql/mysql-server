@@ -8,10 +8,10 @@ COMMIT;
 include/assert.inc [An uncompressed cache promotes a binary log.]
 include/assert.inc [An uncompressed cache does not increment the missed counter.]
 include/assert.inc [The promoted commit opens its promoted binary log.]
-include/assert.inc [The promoted transaction commits all rows.]
+include/assert.inc [The BOLT transaction commits all rows.]
 # A compressed cache uses the standard commit path.
 SET @old_debug = @@SESSION.debug;
-SET SESSION debug = "+d,force_large_trx_compression_fallback";
+SET SESSION debug = "+d,force_bolt_compression_fallback";
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
 INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));

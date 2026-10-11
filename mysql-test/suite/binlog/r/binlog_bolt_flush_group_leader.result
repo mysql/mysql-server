@@ -1,0 +1,22 @@
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# R1: a small transaction leads a flush group and pauses before it is fetched.
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_flush_stage SIGNAL small_enrolled WAIT_FOR small_go';
+INSERT INTO t1 VALUES (1, 'small');
+SET DEBUG_SYNC = 'now WAIT_FOR small_enrolled';
+BEGIN;
+SET DEBUG_SYNC = 'bgc_flush_leader_candidate_waiting SIGNAL big_waiting';
+COMMIT;
+SET DEBUG_SYNC = 'now WAIT_FOR big_waiting';
+include/assert.inc [R1: nothing is promoted yet.]
+SET DEBUG_SYNC = 'now SIGNAL small_go';
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+# R2: the large transaction led its own group and was promoted.
+include/assert.inc [R2: the large transaction's spilled file is promoted.]
+include/assert.inc [R2: the promotion opened a new binary log file.]
+include/assert.inc [R2: the small transaction is in the previous binary log file.]
+# R3: every row is committed and the binary logs verify.
+include/assert.inc [R3: every row is committed.]
+DROP TABLE t1;

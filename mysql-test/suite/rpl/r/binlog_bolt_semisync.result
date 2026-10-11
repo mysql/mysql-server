@@ -17,7 +17,7 @@ include/rpl/install_semisync_replica.inc
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 include/rpl/sync_to_replica.inc
 [connection master]
-# A promoted transaction is acknowledged at the AFTER_SYNC wait point.
+# A BOLT transaction is acknowledged at the AFTER_SYNC wait point.
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
 INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
@@ -35,7 +35,7 @@ include/assert.inc [The replica receives the full AFTER_SYNC payload.]
 include/rpl/sync_to_replica.inc
 [connection master]
 SET GLOBAL rpl_semi_sync_source_wait_point = AFTER_COMMIT;
-# A promoted transaction is acknowledged at the AFTER_COMMIT wait point.
+# A BOLT transaction is acknowledged at the AFTER_COMMIT wait point.
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('d', 4000000));
 INSERT INTO t1 VALUES (2, REPEAT('e', 4000000));
@@ -59,7 +59,7 @@ include/assert.inc [Semisync is still enabled on the replica.]
 include/rpl/sync_to_replica.inc
 [connection master]
 [connection master]
-# The after_sync hook runs before the promoted transaction is visible.
+# The after_sync hook runs before the BOLT transaction is visible.
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('g', 4000000));
 INSERT INTO t1 VALUES (2, REPEAT('h', 4000000));
@@ -67,12 +67,12 @@ INSERT INTO t1 VALUES (3, REPEAT('i', 4000000));
 SET DEBUG_SYNC = 'after_call_after_sync_observer SIGNAL bolt_in_after_sync WAIT_FOR bolt_observer_done';
 COMMIT;
 SET DEBUG_SYNC = 'now WAIT_FOR bolt_in_after_sync';
-include/assert.inc [The promoted transaction is not yet committed while the after_sync hook runs.]
+include/assert.inc [The BOLT transaction is not yet committed while the after_sync hook runs.]
 SET DEBUG_SYNC = 'now SIGNAL bolt_observer_done';
 [connection master]
 SET DEBUG_SYNC = 'RESET';
 include/assert.inc [The after_sync ordering case took the BOLT commit path.]
-include/assert.inc [The promoted transaction is committed once the hook returns.]
+include/assert.inc [The BOLT transaction is committed once the hook returns.]
 [connection master]
 include/rpl/sync_to_replica.inc
 [connection master]

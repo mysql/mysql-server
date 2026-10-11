@@ -203,7 +203,7 @@ class Checksummed_binlog_cache_representation final
         source.copy_logical_to(*to_binlog_file_format, &ostream_error);
     if (source.truncate(source.logical_length()) || copy_failed) return nullptr;
 
-    DBUG_EXECUTE_IF("bolt_fail_cache_conversion", { return nullptr; });
+    DBUG_EXECUTE_IF("fail_bolt_cache_conversion", { return nullptr; });
 
     rewritten->m_logical_length = source.logical_length();
 

@@ -4,12 +4,12 @@
 /**
   @file
 
-  The binlog large transaction optimization's commit path: a transaction
-  whose spilled binlog cache exceeds
-  binlog_large_transaction_optimization_threshold commits by promoting
-  its temporary file into the binary log sequence as the next binary log
-  file (MYSQL_BIN_LOG::commit_large_transaction), instead of copying
-  the cache into the active binary log.
+  The commit path of the binlog large transaction optimization. When a
+  transaction's binlog cache has spilled to a file larger than
+  binlog_large_transaction_optimization_threshold, the cache is not copied
+  into the binary log. Instead, the binary log is rotated in the flush stage,
+  and the spilled file becomes the new binary log file (see
+  MYSQL_BIN_LOG::rotate_and_promote_spilled_file()).
 */
 
 #include "my_inttypes.h"  // my_off_t
@@ -35,6 +35,37 @@ enum class Large_trx_fallback_reason {
   kGroupReplication,
   kLogClosed,
   kRewriteFailed,
+  kPromotionFailed,
+};
+
+/**
+  Information about the promotion of a large transaction's spilled binlog
+  cache file, passed through the rotation that promotes it (see
+  MYSQL_BIN_LOG::promote_spilled_file()).
+*/
+struct Spilled_file_promotion {
+  /** In: the session committing the transaction. */
+  THD *thd{nullptr};
+  /** In: the transaction's cache, whose spilled file is promoted. */
+  binlog_cache_data *cache_data{nullptr};
+  /** Out: set when the file was promoted. */
+  bool promoted{false};
+  /** Out, when promoted: the end of the header events copied from the new
+      file. */
+  my_off_t header_end{0};
+  /** Out: why the transaction falls back, when its spilled file was not
+   * promoted. */
+  Large_trx_fallback_reason fallback_reason{Large_trx_fallback_reason::kNone};
+};
+
+/** The outcome of MYSQL_BIN_LOG::rotate_and_promote_spilled_file(). */
+enum class Spilled_file_promotion_result {
+  /** The spilled file became the new binary log file. */
+  kPromoted,
+  /** The transaction falls back and is written as on the standard path. */
+  kFellBack,
+  /** The rotation failed. The flush stage handles it as a flush error. */
+  kRotationError,
 };
 
 /**
@@ -68,10 +99,10 @@ void record_large_trx_fallback(Large_trx_fallback_reason reason);
   boundary arithmetic.
 
   They are declared here, rather than kept local to
-  write_promoted_binlog_header(), so a unit test can exercise the boundary. No
-  MTR test can: the region is sized from the serialized Previous_gtids estimate
-  at spill time, so no configuration makes it too small while leaving the
-  transaction otherwise promotable.
+  MYSQL_BIN_LOG::promote_spilled_file(), so a unit test can exercise the
+  boundary. No MTR test can: the region is sized from the serialized
+  Previous_gtids estimate at spill time, so no configuration makes it too small
+  while leaving the transaction otherwise promotable.
 
   @param checksum_len  BINLOG_CHECKSUM_LEN when the cache carries per-event
                        checksums, otherwise 0.
@@ -92,7 +123,7 @@ my_off_t large_trx_header_event_min_length(my_off_t checksum_len);
   @param checksum_len   As for large_trx_header_event_min_length().
   @param reserved       The reserved region's size.
 
-  @retval true   The header events fit and the transaction may be promoted.
+  @retval true   The header events fit and the spilled file may be promoted.
   @retval false  They do not, so the transaction falls back with
                  Large_trx_fallback_reason::kReservedHeaderSpace.
 */

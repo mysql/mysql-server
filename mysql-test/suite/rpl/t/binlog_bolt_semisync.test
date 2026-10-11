@@ -7,12 +7,12 @@
 # confirmed it, and the loss would be silent: nothing else reports it.
 #
 # === Requirements ===
-# R1. A promoted transaction is acknowledged by the replica before the source
+# R1. A BOLT transaction is acknowledged by the replica before the source
 #     returns, at the default AFTER_SYNC wait point.
 # R2. The same holds at the AFTER_COMMIT wait point.
 # R3. Semisync is still active after promotions, so the transactions above were
 #     not counted by a source that had silently switched semisync off.
-# R4. A promoted transaction is applied in full on the replica.
+# R4. A BOLT transaction is applied in full on the replica.
 # R5. The after_flush hook runs before the promoted file's end position is
 #     published, so a dump thread cannot read the transaction's events before
 #     the source has registered that it owes an acknowledgement for them.
@@ -81,7 +81,7 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 # Case 1: Promotion at the AFTER_SYNC wait point (the default).
 ############################################################################
 --source include/rpl/connection_source.inc
---echo # A promoted transaction is acknowledged at the AFTER_SYNC wait point.
+--echo # A BOLT transaction is acknowledged at the AFTER_SYNC wait point.
 --let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --source include/rpl/save_semisync_yesno_tx.inc
@@ -129,7 +129,7 @@ TRUNCATE t1;
 
 --source include/rpl/connection_source.inc
 SET GLOBAL rpl_semi_sync_source_wait_point = AFTER_COMMIT;
---echo # A promoted transaction is acknowledged at the AFTER_COMMIT wait point.
+--echo # A BOLT transaction is acknowledged at the AFTER_COMMIT wait point.
 --let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --source include/rpl/save_semisync_yesno_tx.inc
@@ -201,7 +201,7 @@ TRUNCATE t1;
 connect (bolt_observer, localhost, root,,);
 --source include/rpl/connection_source.inc
 
---echo # The after_sync hook runs before the promoted transaction is visible.
+--echo # The after_sync hook runs before the BOLT transaction is visible.
 # Only the COMMIT blocks, so only it needs to be sent asynchronously.
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('g', 4000000));
@@ -214,7 +214,7 @@ connection bolt_observer;
 SET DEBUG_SYNC = 'now WAIT_FOR bolt_in_after_sync';
 # The committing session has been through the after_sync hook, so the replica
 # has acknowledged, but finish_commit() has not run yet, so nothing is visible.
---let $assert_text = The promoted transaction is not yet committed while the after_sync hook runs.
+--let $assert_text = The BOLT transaction is not yet committed while the after_sync hook runs.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
 SET DEBUG_SYNC = 'now SIGNAL bolt_observer_done';
@@ -226,7 +226,7 @@ SET DEBUG_SYNC = 'RESET';
 --let $assert_text = The after_sync ordering case took the BOLT commit path.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
---let $assert_text = The promoted transaction is committed once the hook returns.
+--let $assert_text = The BOLT transaction is committed once the hook returns.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = $bolt_rows
 --source include/assert.inc
 

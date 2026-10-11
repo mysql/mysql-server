@@ -9,7 +9,7 @@
 #     transaction forward, and the promoted file's own header still points at a
 #     decodable terminating event.
 # R2. A crash after the promote rename, before the main-index update, rolls a
-#     post-rollback promoted transaction back and leaves no extra binary log
+#     post-rollback BOLT transaction back and leaves no extra binary log
 #     and no spill file behind.
 #
 # === Implementation ===

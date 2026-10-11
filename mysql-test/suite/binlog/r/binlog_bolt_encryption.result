@@ -16,7 +16,7 @@ COMMIT;
 include/assert.inc [A plaintext file with encryption OFF promotes a binary log.]
 include/assert.inc [A plaintext file with encryption OFF does not increment the missed counter.]
 include/assert.inc [The promoted commit opens a new active binary log.]
-include/assert.inc [The promoted transaction commits all rows.]
+include/assert.inc [The BOLT transaction commits all rows.]
 include/assert.inc [The promoted binary log is plaintext while encryption is OFF.]
 # Enabling encryption mid-transaction prevents promoting a plaintext file.
 BEGIN;

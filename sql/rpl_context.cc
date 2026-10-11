@@ -272,6 +272,8 @@ void Binlog_group_commit_ctx::reset() {
   this->m_has_waited = false;
   m_max_size_exceeded = false;
   m_force_rotate = false;
+  m_must_lead_flush_group = false;
+  m_assigned_flush_leader = false;
 }
 
 std::string Binlog_group_commit_ctx::to_string() const {

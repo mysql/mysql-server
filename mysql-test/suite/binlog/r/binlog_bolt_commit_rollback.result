@@ -35,7 +35,7 @@ include/assert.inc [The first promotion leaves the original active binary log.]
 include/assert.inc [The second promotion opens a file of its own.]
 include/assert.inc [Both consecutive promotions commit all eight rows.]
 include/assert.inc [Both consecutive promotions preserve every payload in full.]
-# XA PREPARE promotes the large transaction; XA COMMIT makes it visible.
+# XA PREPARE promotes the large transaction's spilled file; XA COMMIT makes it visible.
 XA START 'bolt_prepare_commit';
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
@@ -81,7 +81,7 @@ INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 CREATE TABLE t2 (id INT PRIMARY KEY) ENGINE=InnoDB;
 include/assert.inc [The implicit pre-DDL commit promotes the large row transaction.]
 include/assert.inc [DDL commits all preceding large transaction rows.]
-include/assert.inc [DDL completes after the promoted transaction.]
+include/assert.inc [DDL completes after the BOLT transaction.]
 # KILL QUERY after spill leaves the same session able to roll back and retry.
 BEGIN;
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
@@ -138,7 +138,7 @@ INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 COMMIT;
 SET GLOBAL max_binlog_size = 1073741824;
-include/assert.inc [The oversized transaction is promoted once before rotation.]
+include/assert.inc [The oversized transaction's spilled file is promoted once before rotation.]
 include/assert.inc [Immediate max-binlog-size rotation opens a fresh active binary log.]
 include/assert.inc [Immediate max-binlog-size rotation keeps all promoted rows.]
 SHOW BINARY LOGS;

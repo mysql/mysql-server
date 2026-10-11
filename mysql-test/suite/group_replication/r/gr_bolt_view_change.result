@@ -17,7 +17,7 @@ SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
-include/assert.inc [R1: the transaction is promoted on server1.]
+include/assert.inc [R1: the transaction's spilled file is promoted on server1.]
 # R2: server2 joins (view change), then BOLT and ordinary commits.
 [connection server2]
 include/start_group_replication.inc

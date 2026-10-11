@@ -10,7 +10,7 @@
 #
 # === Requirements ===
 # R1. While the BOLT transaction is paused, the view change is not written.
-# R2. The BOLT transaction is promoted, and the view change is not written
+# R2. The BOLT transaction's spilled file is promoted, and the view change is not written
 #     into the binary log file that was active before it.
 # R3. The joining member comes ONLINE and has the transaction.
 #
@@ -89,7 +89,7 @@ SET DEBUG_SYNC = 'now SIGNAL bolt_go';
 --reap
 SET DEBUG_SYNC = 'RESET';
 --let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $assert_text = R2: the transaction is promoted.
+--let $assert_text = R2: the transaction's spilled file is promoted.
 --let $assert_cond = $bolt_after = $bolt_before + 1
 --source include/assert.inc
 

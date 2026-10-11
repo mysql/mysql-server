@@ -53,7 +53,7 @@ INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
 COMMIT;
 --enable_query_log
 --let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $assert_text = R1: the transaction is promoted on server1.
+--let $assert_text = R1: the transaction's spilled file is promoted on server1.
 --let $assert_cond = $bolt_after = $bolt_before + 1
 --source include/assert.inc
 

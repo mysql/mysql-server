@@ -14,7 +14,7 @@
 #     exactly that statement's events: the transaction is still promoted, its
 #     file validates, and only the other rows are retained.
 # R4. With binlog_checksum=NONE the cache is rewritten too (real log_pos,
-#     no footer), so the transaction is promoted and its file
+#     no footer), so the transaction's spilled file is promoted and its file
 #     validates and is readable.
 #
 --source include/have_log_bin.inc
@@ -48,7 +48,7 @@ INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
 COMMIT;
 --let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
---let $assert_text = R1: the transaction is not promoted.
+--let $assert_text = R1: the transaction's spilled file is not promoted.
 --let $assert_cond = $bolt_after = $bolt_before
 --source include/assert.inc
 --let $assert_text = R1: the transaction is counted as a missed optimization.
@@ -73,7 +73,7 @@ INSERT INTO t1 VALUES (12, REPEAT('e', 4000000));
 INSERT INTO t1 VALUES (13, REPEAT('f', 4000000));
 COMMIT;
 --let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $assert_text = R2: the latched transaction is promoted.
+--let $assert_text = R2: the latched transaction's spilled file is promoted.
 --let $assert_cond = $bolt_after = $bolt_before + 1
 --source include/assert.inc
 --let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
@@ -92,7 +92,7 @@ INSERT INTO t1 VALUES (24, REPEAT('i', 4000000));
 INSERT INTO t1 VALUES (25, REPEAT('j', 4000000));
 COMMIT;
 --let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $assert_text = R3: the transaction is promoted.
+--let $assert_text = R3: the transaction's spilled file is promoted.
 --let $assert_cond = $bolt_after = $bolt_before + 1
 --source include/assert.inc
 --let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
@@ -114,7 +114,7 @@ INSERT INTO t1 VALUES (43, REPEAT('m', 4000000));
 COMMIT;
 INSERT INTO t1 VALUES (44, 'small');
 --let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $assert_text = R4: the transaction is promoted with binlog_checksum=NONE.
+--let $assert_text = R4: the transaction's spilled file is promoted with binlog_checksum=NONE.
 --let $assert_cond = $bolt_after = $bolt_before + 1
 --source include/assert.inc
 --let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)

@@ -9,7 +9,7 @@
 # matching physical offset in O(1). Every case below ends with the same
 # checks (inc/bolt_savepoint_check.inc):
 #   - t1 holds exactly the expected rows, each with its own payload;
-#   - the transaction was promoted (or not) as expected, and the
+#   - the transaction's spilled file was promoted (or not) as expected, and the
 #     missed-optimization counter moved as expected;
 #   - the active binary log verifies its checksums and inserts exactly the
 #     expected rows of t1 (so the binlog matches the engine);
@@ -27,7 +27,7 @@
 #      transaction cache still truncates normally at ROLLBACK TO. Checks:
 #      - the statement-level commit does not evaluate the still-open
 #        transaction cache for BOLT (no missed optimization, no warning);
-#      - the transaction is promoted with exactly its three retained rows;
+#      - the transaction's spilled file is promoted with exactly its three retained rows;
 #      - the MyISAM row is kept and logged once, in the earlier binary log.
 #
 --source include/have_log_bin.inc

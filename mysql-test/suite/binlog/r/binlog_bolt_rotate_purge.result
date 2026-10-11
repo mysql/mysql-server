@@ -15,7 +15,7 @@ FLUSH BINARY LOGS;
 include/assert.inc [FLUSH opens a new active binary log while a BOLT spill exists.]
 COMMIT;
 include/assert.inc [The spill promotes after PURGE and FLUSH complete.]
-include/assert.inc [The promoted transaction preserves every row.]
+include/assert.inc [The BOLT transaction preserves every row.]
 # Rotate the promoted active file, then purge it as ordinary history.
 FLUSH BINARY LOGS;
 include/assert.inc [FLUSH rotates the promoted active binary log.]

@@ -18,7 +18,7 @@
 #     order even when the larger ones commit through the BOLT path.
 # R2. At least one transaction really did take the BOLT path on the replica, so
 #     that R1 is not vacuously satisfied.
-# R3. The promoted transactions keep their full contents.
+# R3. The BOLT transactions keep their full contents.
 #
 # === Implementation ===
 # GTID mode is ON, so every transaction the replica applies keeps the GTID it
@@ -31,10 +31,10 @@
 # All of the replica's binary logs are read, not just the current one: promotion
 # *is* a rotation, since the spilled file becomes the next binary log file, so a
 # run with promotions spreads the transactions over several files and the newest
-# file holds only the last promoted transaction.
+# file holds only the last BOLT transaction.
 #
 # The source keeps BOLT disabled, so its transactions are ordinary and are not
-# marked as parallelization barriers -- a promoted transaction sets that flag,
+# marked as parallelization barriers -- a BOLT transaction sets that flag,
 # which would serialize the appliers and hide the very interleaving this test
 # needs. The replica enables BOLT with a low threshold, so the large
 # transactions are promoted locally, on the applier, which is the path under
@@ -58,7 +58,7 @@
 --let $source_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
 --let $source_uuid = query_get_value(SELECT @@GLOBAL.server_uuid AS uuid, uuid, 1)
 
-# The source must NOT promote: a promoted transaction is written as a
+# The source must NOT promote: a BOLT transaction is written as a
 # parallelization barrier, which would stop the replica applying neighbouring
 # transactions concurrently.
 SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
@@ -75,7 +75,7 @@ SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 --let $replica_bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 
 --echo #
---echo # Verify the replica logs promoted transactions in source order
+--echo # Verify the replica logs BOLT transactions in source order
 --echo #
 --source include/rpl/connection_source.inc
 # Give the following transactions the same commit parent so the replica may
@@ -126,7 +126,7 @@ UNLOCK TABLES;
 --let $assert_text = R3: every row arrived on the replica.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 6
 --source include/assert.inc
---let $assert_text = R3: the promoted transactions kept their full payload.
+--let $assert_text = R3: the BOLT transactions kept their full payload.
 --let $assert_cond = [SELECT SUM(OCTET_LENGTH(payload)) AS total FROM t1, total, 1] = 36000000
 --source include/assert.inc
 

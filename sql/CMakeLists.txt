@@ -1146,7 +1146,6 @@ SET(BINLOG_SOURCE
   binlog/thd_backup_and_restore.cc
   binlog/global.cc
   binlog/large_trx_commit.cc
-  binlog/transaction_commit_helper.cc
   binlog/log_sanitizer.cc
   binlog/recovery.cc
   binlog/group_commit/bgc_ticket_manager.cc

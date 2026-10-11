@@ -102,7 +102,6 @@
 #include "sql/binlog/recovery.h"          // binlog::Binlog_recovery
 #include "sql/binlog/services/iterator/file_storage.h"
 #include "sql/binlog/thd_backup_and_restore.h"
-#include "sql/binlog/transaction_commit_helper.h"
 #include "sql/binlog_ostream.h"
 #include "sql/binlog_reader.h"
 #include "sql/create_field.h"
@@ -730,10 +729,9 @@ int binlog_cache_data::write_event(Log_event *ev) {
     if (ev->is_sbr_logging_format()) flags.with_sbr = true;
     if (ev->is_rbr_logging_format()) flags.with_rbr = true;
     /* With respect to empty transactions */
-    const bool ends_group = ev->ends_group();
     if (ev->starts_group()) flags.with_start = true;
-    if (ends_group) flags.with_end = true;
-    if (!ev->starts_group() && !ends_group) flags.with_content = true;
+    if (ev->ends_group()) flags.with_end = true;
+    if (!ev->starts_group() && !ev->ends_group()) flags.with_content = true;
     m_event_counter++;
     DBUG_PRINT("debug",
                ("event_counter= %lu", static_cast<ulong>(m_event_counter)));
@@ -800,6 +798,116 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen) {
   return error;
 }
 
+Gtid_log_event MYSQL_BIN_LOG::create_gtid_event(THD *thd,
+                                                binlog_cache_data *cache_data,
+                                                bool parallelization_barrier) {
+  int64 sequence_number, last_committed;
+  /* Generate logical timestamps for MTS */
+  m_dependency_tracker.get_dependency(thd, parallelization_barrier,
+                                      sequence_number, last_committed);
+
+  /*
+    In case both the transaction cache and the statement cache are
+    non-empty, both will be flushed in sequence and logged as
+    different transactions. Then the second transaction must only
+    be executed after the first one has committed. Therefore, we
+    need to set last_committed for the second transaction equal to
+    last_committed for the first transaction. This is done in
+    binlog_cache_data::flush. binlog_cache_data::flush uses the
+    condition trn_ctx->last_committed==SEQ_UNINIT to detect this
+    situation, hence the need to set it here.
+  */
+  thd->get_transaction()->last_committed = SEQ_UNINIT;
+
+  /*
+    For delayed replication and also for the purpose of lag monitoring,
+    we assume that the commit timestamp of the transaction is the time of
+    executing this code (the time of writing the Gtid_log_event to the binary
+    log).
+  */
+  ulonglong immediate_commit_timestamp = my_micro_time();
+
+  /*
+    When the original_commit_timestamp session variable is set to a value
+    other than UNDEFINED_COMMIT_TIMESTAMP, it means that either the timestamp
+    is known ( > 0 ) or the timestamp is not known ( == 0 ).
+  */
+  ulonglong original_commit_timestamp =
+      thd->variables.original_commit_timestamp;
+  /*
+    When original_commit_timestamp == UNDEFINED_COMMIT_TIMESTAMP, we assume
+    that:
+    a) it is not known if this thread is a slave applier ( = 0 );
+    b) this is a new transaction ( = immediate_commit_timestamp);
+  */
+  if (original_commit_timestamp == UNDEFINED_COMMIT_TIMESTAMP) {
+    /*
+      When applying a transaction using replication, assume that the
+      original commit timestamp is not known (the transaction wasn't
+      originated on the current server).
+    */
+    if (thd->slave_thread || thd->is_binlog_applier()) {
+      original_commit_timestamp = 0;
+    } else
+    /* Assume that this transaction is original from this server */
+    {
+      DBUG_EXECUTE_IF("rpl_invalid_gtid_timestamp",
+                      // add one our to the commit timestamps
+                      immediate_commit_timestamp += 3600000000;);
+      original_commit_timestamp = immediate_commit_timestamp;
+    }
+  } else {
+    // Clear the session variable to have cleared states for next transaction.
+    thd->variables.original_commit_timestamp = UNDEFINED_COMMIT_TIMESTAMP;
+  }
+
+  uint32_t trx_immediate_server_version =
+      do_server_version_int(::server_version);
+  // Clear the session variable to have cleared states for next transaction.
+  thd->variables.immediate_server_version = UNDEFINED_SERVER_VERSION;
+  DBUG_EXECUTE_IF("fixed_server_version",
+                  trx_immediate_server_version = 888888;);
+  DBUG_EXECUTE_IF("gr_fixed_server_version",
+                  trx_immediate_server_version = 777777;);
+
+  /*
+    When the original_server_version session variable is set to a value
+    other than UNDEFINED_SERVER_VERSION, it means that either the
+    server version is known or the server_version is not known
+    (UNKNOWN_SERVER_VERSION).
+  */
+  uint32_t trx_original_server_version = thd->variables.original_server_version;
+
+  /*
+    When original_server_version == UNDEFINED_SERVER_VERSION, we assume
+    that:
+    a) it is not known if this thread is a slave applier ( = 0 );
+    b) this is a new transaction ( = ::server_version);
+  */
+  if (trx_original_server_version == UNDEFINED_SERVER_VERSION) {
+    /*
+      When applying a transaction using replication, assume that the
+      original server version is not known (the transaction wasn't
+      originated on the current server).
+    */
+    if (thd->slave_thread || thd->is_binlog_applier()) {
+      trx_original_server_version = UNKNOWN_SERVER_VERSION;
+    } else
+    /* Assume that this transaction is original from this server */
+    {
+      trx_original_server_version = trx_immediate_server_version;
+    }
+  } else {
+    // Clear the session variable to have cleared states for next transaction.
+    thd->variables.original_server_version = UNDEFINED_SERVER_VERSION;
+  }
+  return Gtid_log_event(thd, cache_data->is_trx_cache(), last_committed,
+                        sequence_number, cache_data->may_have_sbr_stmts(),
+                        original_commit_timestamp, immediate_commit_timestamp,
+                        trx_original_server_version,
+                        trx_immediate_server_version);
+}
+
 /**
   Write the Gtid_log_event to the binary log (prior to writing the
   statement or transaction cache).
@@ -826,15 +934,8 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
   assert(thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS ||
          thd->owned_gtid.sidno > 0);
 
-  Transaction_gtid_header metadata{thd, parallelization_barrier,
-                                   &m_dependency_tracker};
-
-  Gtid_log_event gtid_event(
-      thd, cache_data->is_trx_cache(), metadata.last_committed(),
-      metadata.sequence_number(), cache_data->may_have_sbr_stmts(),
-      metadata.original_commit_timestamp(),
-      metadata.immediate_commit_timestamp(), metadata.original_server_version(),
-      metadata.immediate_server_version());
+  Gtid_log_event gtid_event =
+      create_gtid_event(thd, cache_data, parallelization_barrier);
 
   // Set the transaction length, based on cache info
   gtid_event.set_trx_length_by_cache_size(
@@ -1547,6 +1648,37 @@ int binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid,
     Transaction_ctx *trn_ctx = thd->get_transaction();
 
     DBUG_PRINT("debug", ("bytes_in_cache: %llu", bytes_in_cache));
+
+    /*
+      A large transaction marked for promotion, when it leads its flush
+      group, is not copied into the binary log: a rotation turns its spilled
+      file into the new binary log file. If the promotion falls back, the
+      transaction is copied below as usual.
+    */
+    if (m_spilled_file_promotion_requested &&
+        !mysql_bin_log.is_flushing_group_leader()) {
+      /* Not the leader of its flush group. This is not expected, because a
+         BOLT session is always made the leader of its group. The
+         transaction is written as usual. */
+      record_large_trx_fallback(Large_trx_fallback_reason::kPromotionFailed);
+    } else if (m_spilled_file_promotion_requested &&
+               thd->commit_error != THD::CE_FLUSH_ERROR &&
+               thd->commit_error != THD::CE_FLUSH_GNO_EXHAUSTED_ERROR) {
+      switch (mysql_bin_log.rotate_and_promote_spilled_file(thd, this)) {
+        case Spilled_file_promotion_result::kRotationError:
+          thd->commit_error = THD::CE_FLUSH_ERROR;
+          reset();
+          return 1;
+        case Spilled_file_promotion_result::kPromoted:
+          if (flags.with_xid) *wrote_xid = true;
+          if (bytes_written)
+            *bytes_written = mysql_bin_log.get_binlog_file()->position();
+          reset(true /*preserve_spilled_file*/);
+          return 0;
+        case Spilled_file_promotion_result::kFellBack:
+          break;
+      }
+    }
 
     trn_ctx->sequence_number = mysql_bin_log.m_dependency_tracker.step();
 
@@ -2949,22 +3081,14 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
   @param new_index_number    The binary log file index number to start from
                              after the RESET BINARY LOGS AND GTIDS command is
                              called.
-  @param mode                kOpenExisting when the file already exists on disk
-                             with its contents in place (a promoted spill file):
-                             it is opened for append (positioned at its end)
-                             rather than created fresh, and no new file header
-                             or encryption header is written. kCreateNew for a
-                             normal, newly created log file.
 
   @return true if error, false otherwise.
 */
 
 bool MYSQL_BIN_LOG::open(PSI_file_key log_file_key, const char *log_name,
-                         const char *new_name, uint32 new_index_number,
-                         Binlog_file_mode mode) {
+                         const char *new_name, uint32 new_index_number) {
   DBUG_TRACE;
   bool ret = false;
-  const bool existing = (mode == Binlog_file_mode::kOpenExisting);
 
   write_error = false;
   myf flags = MY_WME | MY_NABP | MY_WAIT_IF_FULL;
@@ -2990,19 +3114,7 @@ bool MYSQL_BIN_LOG::open(PSI_file_key log_file_key, const char *log_name,
   */
   if (!is_relay_log) mysql_mutex_lock(&LOCK_sync);
 
-  ret = m_binlog_file->open(log_file_key, log_file_name, flags, existing);
-
-  /*
-    A promoted binary log file already contains its header events and the
-    transaction; position at its end, so subsequent transactions append.
-  */
-  if (!ret && existing) {
-    MY_STAT info;
-    if (mysql_file_stat(log_file_key, log_file_name, &info, MYF(MY_WME)) ==
-            nullptr ||
-        m_binlog_file->position_at(info.st_size))
-      ret = true;
-  }
+  ret = m_binlog_file->open(log_file_key, log_file_name, flags);
 
   if (!is_relay_log) mysql_mutex_unlock(&LOCK_sync);
 
@@ -4043,33 +4155,15 @@ bool MYSQL_BIN_LOG::open_binlog(
     const char *log_name, const char *new_name, ulong max_size_arg,
     bool null_created_arg, bool need_lock_index, bool need_tsid_lock,
     Format_description_log_event *extra_description_event,
-    uint32 new_index_number, const char *promoted_log_name) {
+    uint32 new_index_number, Spilled_file_promotion *promotion) {
   // lock_index must be acquired *before* tsid_lock.
   assert(need_tsid_lock || !need_lock_index);
-  /*
-    Only commit_large_transaction() supplies a promoted file name, and it
-    operates on the binary log. Rejected at runtime rather than asserted,
-    because publishing a spilled transaction file into the relay log sequence
-    would not be locally detectable.
-  */
-  if (promoted_log_name != nullptr && is_relay_log) {
-    if (m_binlog_index_monitor.is_inited_purge_index_file()) {
-      (void)purge_index_entry(nullptr, nullptr, need_lock_index);
-      m_binlog_index_monitor.close_purge_index_file();
-    }
-    LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_RELAY_LOG_PROMOTION, promoted_log_name);
-    return true;
-  }
   DBUG_TRACE;
   DBUG_PRINT("enter", ("base filename: %s", log_name));
 
   mysql_mutex_assert_owner(get_log_lock());
 
   if (init_and_set_log_file_name(log_name, new_name, new_index_number)) {
-    if (promoted_log_name != nullptr) {
-      (void)purge_index_entry(nullptr, nullptr, need_lock_index);
-      m_binlog_index_monitor.close_purge_index_file();
-    }
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_GENERATE_NEW_FILE_NAME);
     return true;
   }
@@ -4078,15 +4172,10 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
 
-  /*
-    For a promoted file, promote_spilled_file() creates the record in the purge
-    index file before it renames the temporary file.
-  */
-  if (promoted_log_name == nullptr &&
-      (m_binlog_index_monitor.open_purge_index_file(true) ||
-       m_binlog_index_monitor.register_create_index_entry(log_file_name) ||
-       m_binlog_index_monitor.sync_purge_index_file() ||
-       DBUG_EVALUATE_IF("fault_injection_registering_index", 1, 0))) {
+  if (m_binlog_index_monitor.open_purge_index_file(true) ||
+      m_binlog_index_monitor.register_create_index_entry(log_file_name) ||
+      m_binlog_index_monitor.sync_purge_index_file() ||
+      DBUG_EVALUATE_IF("fault_injection_registering_index", 1, 0)) {
     /**
       @todo: although this was introduced to appease valgrind
       when injecting emulated faults using fault_injection_registering_index
@@ -4102,21 +4191,14 @@ bool MYSQL_BIN_LOG::open_binlog(
     LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_SYNC_INDEX_FILE_IN_OPEN);
     return true;
   }
-  assert(promoted_log_name == nullptr ||
-         m_binlog_index_monitor.is_inited_purge_index_file());
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index",
                   DBUG_SUICIDE(););
 
   write_error = false;
 
-  /* open the main log file. */
-  if (open(m_key_file_log, log_name, new_name, new_index_number,
-           promoted_log_name != nullptr ? Binlog_file_mode::kOpenExisting
-                                        : Binlog_file_mode::kCreateNew)) {
-    if (m_binlog_index_monitor.is_inited_purge_index_file())
-      (void)purge_index_entry(nullptr, nullptr, need_lock_index);
+  /* open the main log file */
+  if (open(m_key_file_log, log_name, new_name, new_index_number)) {
     m_binlog_index_monitor.close_purge_index_file();
-    if (promoted_log_name != nullptr) my_delete(log_file_name, MYF(0));
     return true; /* all warnings issued */
   }
 
@@ -4125,16 +4207,6 @@ bool MYSQL_BIN_LOG::open_binlog(
   bool write_file_name_to_index_file = false;
 
   Format_description_log_event s;
-
-  /*
-    A promoted binary log file already carries its header events (magic,
-    Format_description, Previous_gtids, Large_transaction_header, Gtid);
-    skip writing them and just register the file in the index.
-  */
-  if (promoted_log_name != nullptr) {
-    write_file_name_to_index_file = true;
-    goto promoted_add_to_index;
-  }
 
   if (m_binlog_file->is_empty()) {
     /*
@@ -4290,7 +4362,26 @@ bool MYSQL_BIN_LOG::open_binlog(
     bytes_written += extra_description_event->common_header->data_written;
   }
 
-promoted_add_to_index:
+  /*
+    When open_binlog() is called by the rotation that promotes a large
+    transaction's spilled file (promotion is not nullptr),
+    promote_spilled_file() copies the header events written above into the
+    front of the transaction's spilled binlog cache file, then renames the
+    spilled file to replace the new binary log file.
+
+    The new file's name was recorded in the purge index above, and is added
+    to the binary log index only below. If the server crashes in between,
+    startup deletes the file at that name through the purge index, whether
+    it is still the file created above or already the renamed spilled file.
+    A spilled file that was not renamed yet is removed by the cleanup of the
+    temp files directory. Either way no indexed binary log file holds the
+    large transaction's XID, so recovery rolls it back.
+  */
+  if (promotion != nullptr) {
+    assert(!is_relay_log);
+    if (promote_spilled_file(promotion)) goto err;
+  }
+
   if (m_binlog_file->flush_and_sync()) goto err;
 
   if (write_file_name_to_index_file) {
@@ -4317,27 +4408,40 @@ promoted_add_to_index:
     }
 
     DBUG_EXECUTE_IF("crash_create_after_update_index", DBUG_SUICIDE(););
-    if (promoted_log_name != nullptr)
-      DBUG_EXECUTE_IF("crash_bolt_after_main_index_update", DBUG_SUICIDE(););
+    DBUG_EXECUTE_IF("crash_bolt_after_main_index_update", {
+      if (promotion != nullptr && promotion->promoted) DBUG_SUICIDE();
+    });
   }
 
   atomic_log_state = LOG_OPENED;
   /*
     At every rotate memorize the last transaction counter state to use it as
-    offset at logging the transaction logical timestamps. For a promoted
-    file the tracker was rotated before its Gtid event was written.
+    offset at logging the transaction logical timestamps. When a spilled
+    file is promoted, its transaction's Gtid event was generated after the
+    tracker was rotated.
   */
-  if (promoted_log_name == nullptr) m_dependency_tracker.rotate();
+  if (promotion == nullptr || !promotion->promoted)
+    m_dependency_tracker.rotate();
 
   m_binlog_index_monitor.close_purge_index_file();
-  if (promoted_log_name != nullptr)
-    DBUG_EXECUTE_IF("crash_bolt_after_purge_index_remove", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_bolt_after_purge_index_remove", {
+    if (promotion != nullptr && promotion->promoted) DBUG_SUICIDE();
+  });
 
   /*
-    BOLT promotion defers this to promote_spilled_file(), which calls it after
-    the after_flush hook.
+    A promoted file holds the transaction already: publish only its header
+    events here, replacing the previous file's end position, as
+    update_binlog_end_pos() does for a fresh file. The flush stage publishes
+    the rest after the after_flush hook, as for any transaction.
   */
-  if (promoted_log_name == nullptr) update_binlog_end_pos();
+  if (promotion != nullptr && promotion->promoted) {
+    lock_binlog_end_pos();
+    atomic_binlog_end_pos = promotion->header_end;
+    signal_update();
+    unlock_binlog_end_pos();
+  } else {
+    update_binlog_end_pos();
+  }
   return false;
 
 err:
@@ -4353,8 +4457,6 @@ err:
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_USE_FOR_LOGGING,
            (new_name) ? new_name : name, errno);
     close(LOG_CLOSE_INDEX, false, need_lock_index);
-    /* Undo the promotion rename before the caller relinquishes ownership. */
-    if (promoted_log_name != nullptr) my_delete(log_file_name, MYF(0));
   }
   return true;
 }
@@ -4979,37 +5081,6 @@ int MYSQL_BIN_LOG::new_file_without_locking(
   return new_file_impl(false /*need_lock_log=false*/, extra_description_event);
 }
 
-std::pair<int, bool> MYSQL_BIN_LOG::persist_gtids_on_rotate(
-    Gtid_persist_thd thd_mode) {
-  mysql_mutex_assert_owner(&LOCK_log);
-  m_binlog_index_monitor.assert_owner();
-
-  bool keep_current_binlog = false;
-  const bool use_client_thd_for_debug_readonly =
-      DBUG_EVALUATE_IF("gtid_executed_readonly", true, false);
-  THD *saved_current_thd = nullptr;
-  /*
-    Nulling current_thd is the mechanism that forces a dedicated THD: the
-    gtid_executed persister creates one when it finds none (see
-    Gtid_table_access_context::init).
-  */
-  if (thd_mode == Gtid_persist_thd::kDedicated &&
-      !use_client_thd_for_debug_readonly) {
-    saved_current_thd = current_thd;
-    current_thd = nullptr;
-  }
-
-  const int error = gtid_state->save_gtids_of_last_binlog_into_table();
-  if (saved_current_thd != nullptr) saved_current_thd->store_globals();
-
-  if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN) {
-    keep_current_binlog =
-        m_binlog_file->get_real_file_size() < static_cast<my_off_t>(max_size) &&
-        !DBUG_EVALUATE_IF("simulate_max_binlog_size", true, false);
-  }
-  return {error, keep_current_binlog};
-}
-
 /**
   Start writing to a new log file or reopen the old file.
 
@@ -5026,7 +5097,8 @@ std::pair<int, bool> MYSQL_BIN_LOG::persist_gtids_on_rotate(
   @note The new file name is stored last in the index file
 */
 int MYSQL_BIN_LOG::new_file_impl(
-    bool need_lock_log, Format_description_log_event *extra_description_event) {
+    bool need_lock_log, Format_description_log_event *extra_description_event,
+    Spilled_file_promotion *promotion) {
   int error = 0;
   bool close_on_error = false;
   char new_name[FN_REFLEN], *new_name_ptr = nullptr, *old_name;
@@ -5069,16 +5141,37 @@ int MYSQL_BIN_LOG::new_file_impl(
 
   if (!is_relay_log) {
     /*
-      Save the last binlog's GTID set before rotation.
+      When this rotation promotes a large transaction's spilled file, the
+      rotation runs on that transaction's THD in the middle of its commit.
+      Saving the GTIDs commits a write to mysql.gtid_executed on the current
+      THD, which would commit the large transaction too early. With
+      current_thd set to nullptr, the GTID table code uses its own THD
+      instead.
     */
-    const auto [persist_error, keep_current_binlog] =
-        persist_gtids_on_rotate(Gtid_persist_thd::kCurrent);
-    error = persist_error;
-    if (error != 0) {
+    THD *const large_trx_thd =
+        promotion != nullptr &&
+                /* The debug point raises its error on current_thd. */
+                !DBUG_EVALUATE_IF("gtid_executed_readonly", true, false)
+            ? current_thd
+            : nullptr;
+    if (large_trx_thd != nullptr) current_thd = nullptr;
+    /* Save set of GTIDs of the last binlog into table on binlog rotation */
+    error = gtid_state->save_gtids_of_last_binlog_into_table();
+    if (large_trx_thd != nullptr) large_trx_thd->store_globals();
+    if (error) {
       if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN) {
-        close_on_error = !keep_current_binlog;
+        close_on_error =
+            m_binlog_file->get_real_file_size() >=
+                static_cast<my_off_t>(max_size) ||
+            DBUG_EVALUATE_IF("simulate_max_binlog_size", true, false);
 
-        if (keep_current_binlog) {
+        /* The current binary log stays in use: the large transaction is
+           written into it as on the standard commit path. */
+        if (!close_on_error && promotion != nullptr)
+          promotion->fallback_reason =
+              Large_trx_fallback_reason::kGtidPersistence;
+
+        if (!close_on_error) {
           LogErr(ERROR_LEVEL, ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY,
                  "Current binlog file was flushed to disk and will be kept in "
                  "use.");
@@ -5193,10 +5286,10 @@ int MYSQL_BIN_LOG::new_file_impl(
   if (!error) {
     /* reopen the binary log file. */
     file_to_open = new_name_ptr;
-    error = open_binlog(old_name, new_name_ptr, max_size,
-                        true /*null_created_arg=true*/,
-                        false /*need_lock_index=false*/,
-                        true /*need_tsid_lock=true*/, extra_description_event);
+    error = open_binlog(
+        old_name, new_name_ptr, max_size, true /*null_created_arg=true*/,
+        false /*need_lock_index=false*/, true /*need_tsid_lock=true*/,
+        extra_description_event, 0 /*new_index_number*/, promotion);
   }
 
   /* handle reopening errors */
@@ -6404,7 +6497,9 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all) {
   DBUG_TRACE;
   DBUG_EXECUTE_IF("crash_before_tc_prepare", DBUG_SUICIDE(););
   const int error = m_tc_log_processing->prepare(this, thd, all);
-  if (!error) DBUG_EXECUTE_IF("crash_after_tc_prepare", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_after_tc_prepare", {
+    if (!error) DBUG_SUICIDE();
+  });
   return error;
 }
 
@@ -6677,21 +6772,39 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       return RESULT_ABORTED;
     }
 
-    binlog_cache_data *cache_to_promote =
-        trx_stuff_logged ? get_cache_for_large_trx_commit(cache_mngr) : nullptr;
-    const bool used_bolt_promotion = cache_to_promote != nullptr;
+    /*
+      A large transaction whose spilled file can be promoted into the binary
+      log sequence: mark it, and make it the leader of its flush group, since
+      the promotion rotates the binary log in the flush stage.
+    */
+    if (binlog_cache_data *large_trx_cache =
+            trx_stuff_logged ? get_cache_for_large_trx_commit(cache_mngr)
+                             : nullptr) {
+      /*
+        The spilled file is complete: it is made durable here, before the
+        flush stage, so that LOCK_log is not held while it is synced. A closed
+        binary log is not flushed at all by ordered_commit().
+      */
+      if (!is_open()) {
+        record_large_trx_fallback(Large_trx_fallback_reason::kLogClosed);
+      } else if (large_trx_cache->get_cache()->flush_and_sync_spilled_file() ||
+                 DBUG_EVALUATE_IF("fail_bolt_spill_file_sync", true, false)) {
+        record_large_trx_fallback(Large_trx_fallback_reason::kPromotionFailed);
+      } else {
+        large_trx_cache->request_spilled_file_promotion();
+        thd->rpl_thd_ctx.binlog_group_commit_ctx().set_must_lead_flush_group(
+            true);
+      }
+    }
     if (DBUG_EVALUATE_IF("simulate_xa_commit_log_inconsistency", true, false) ||
-        (used_bolt_promotion
-             ? commit_large_transaction(thd, all, skip_commit, cache_to_promote)
-             : ordered_commit(thd, all, skip_commit))) {
+        ordered_commit(thd, all, skip_commit)) {
       thd_get_cache_mngr(thd)->reset();
       if (thd->get_stmt_da()->is_ok())
         thd->get_stmt_da()->reset_diagnostics_area();
       return RESULT_INCONSISTENT;
     }
 
-    if (used_bolt_promotion)
-      DBUG_EXECUTE_IF("crash_bolt_after_binlog_commit", DBUG_SUICIDE(););
+    DBUG_EXECUTE_IF("crash_bolt_after_binlog_commit", DBUG_SUICIDE(););
 
     DBUG_EXECUTE_IF("ensure_binlog_cache_is_reset", {
       /* Assert that binlog cache is reset at commit time. */
@@ -6760,6 +6873,41 @@ std::pair<int, my_off_t> MYSQL_BIN_LOG::flush_thread_caches(THD *thd) {
 void MYSQL_BIN_LOG::reset_thread_caches(THD *thd) {
   binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
   return cache_mngr->reset();
+}
+
+void MYSQL_BIN_LOG::init_thd_variables(THD *thd, bool all, bool skip_commit) {
+  /*
+    These values are used while committing a transaction, so clear
+    everything.
+
+    Notes:
+
+    - It would be good if we could keep transaction coordinator
+      log-specific data out of the THD structure, but that is not the
+      case right now.
+
+    - Everything in the transaction structure is reset when calling
+      ha_commit_low since that calls Transaction_ctx::cleanup.
+  */
+  thd->tx_commit_pending = true;
+  thd->commit_error = THD::CE_NONE;
+  thd->next_to_commit = nullptr;
+  thd->durability_property = HA_IGNORE_DURABILITY;
+  thd->get_transaction()->m_flags.real_commit = all;
+  thd->get_transaction()->m_flags.xid_written = false;
+  thd->get_transaction()->m_flags.commit_low = !skip_commit;
+  thd->get_transaction()->m_flags.run_hooks = !skip_commit;
+#ifndef NDEBUG
+  /*
+     The group commit Leader may have to wait for follower whose transaction
+     is not ready to be preempted. Initially the status is pessimistic.
+     Preemption guarding logics is necessary only when !NDEBUG is set.
+     It won't be required for the dbug-off case as long as the follower won't
+     execute any thread-specific write access code in this method, which is
+     the case as of current.
+  */
+  thd->get_transaction()->m_flags.ready_preempt = false;
+#endif
 }
 
 /**
@@ -7174,6 +7322,13 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     }
   }
 
+#ifndef NDEBUG
+  /* Lets a test pause a large transaction that will lead its flush group,
+     before it enrolls in the flush stage. */
+  if (thd->rpl_thd_ctx.binlog_group_commit_ctx().must_lead_flush_group())
+    DEBUG_SYNC(thd, "bolt_before_promotion_lock_log");
+#endif
+
   /*
     Stage #1: flushing transactions to binary log
 
@@ -7354,6 +7509,7 @@ commit_stage:
       Gtid_set, and adding and removing intervals requires a mutex,
       which would reduce performance.
     */
+    DBUG_EXECUTE_IF("crash_bolt_before_engine_commit", DBUG_SUICIDE(););
     process_commit_stage_queue(thd, commit_queue);
 
     /**
@@ -7429,11 +7585,15 @@ commit_stage:
     DEBUG_SYNC(thd, "ready_to_do_rotation");
     bool check_purge = false;
     mysql_mutex_lock(get_log_lock());
+    DBUG_EXECUTE_IF("crash_bolt_before_max_size_rotate", DBUG_SUICIDE(););
     /*
       If rotate fails then depends on binlog_error_action variable
       appropriate action will be taken inside rotate call.
     */
     int error = rotate(force_rotate, &check_purge);
+    DBUG_EXECUTE_IF("crash_bolt_after_max_size_rotate", {
+      if (!error) DBUG_SUICIDE();
+    });
     mysql_mutex_unlock(get_log_lock());
 
     if (error)

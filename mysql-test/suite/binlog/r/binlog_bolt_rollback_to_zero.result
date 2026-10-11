@@ -11,7 +11,7 @@ SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
 BEGIN;
 INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
 COMMIT;
-include/assert.inc [R1: with the knob OFF, the next large transaction is not promoted.]
+include/assert.inc [R1: with the knob OFF, the next large transaction's spilled file is not promoted.]
 TRUNCATE t1;
 # R2: knob OFF for the rolled-back transaction, ON for the next one.
 SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
@@ -23,7 +23,7 @@ SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 BEGIN;
 INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
 COMMIT;
-include/assert.inc [R2: with the knob ON, the next large transaction is promoted.]
+include/assert.inc [R2: with the knob ON, the next large transaction's spilled file is promoted.]
 TRUNCATE t1;
 # R3: as R1, but the emptied transaction ends with ROLLBACK.
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
@@ -35,7 +35,7 @@ SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
 BEGIN;
 INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
 COMMIT;
-include/assert.inc [R3: with the knob OFF, the next large transaction is not promoted.]
+include/assert.inc [R3: with the knob OFF, the next large transaction's spilled file is not promoted.]
 TRUNCATE t1;
 # R4: the transaction continues after the rollback to 0 and is promoted.
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
@@ -44,6 +44,6 @@ INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (2, REPEAT('a', 2000000)), (1, 
 ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
 COMMIT;
-include/assert.inc [R4: the transaction is promoted.]
+include/assert.inc [R4: the transaction's spilled file is promoted.]
 include/assert.inc [R4: only the rows of the second statement are retained.]
 DROP TABLE t1;

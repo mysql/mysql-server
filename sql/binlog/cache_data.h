@@ -162,6 +162,20 @@ class binlog_cache_data {
   }
 
   /**
+    Marks the transaction's spilled file for promotion: the transaction's
+    binary log content is committed by promoting its spilled file in the flush
+    stage (see
+    MYSQL_BIN_LOG::rotate_and_promote_spilled_file()). Set by
+    MYSQL_BIN_LOG::commit(); cleared by reset().
+  */
+  void request_spilled_file_promotion() {
+    m_spilled_file_promotion_requested = true;
+  }
+  bool is_spilled_file_promotion_requested() const {
+    return m_spilled_file_promotion_requested;
+  }
+
+  /**
     Returns where the transaction's terminating event begins in a promoted
     binary log file, so recovery can seek to it. Recorded by finalize(),
     together with the event's type.
@@ -286,6 +300,8 @@ class binlog_cache_data {
   /** @see large_trx_ineligible_reason() */
   Large_trx_fallback_reason m_large_trx_ineligible_reason =
       Large_trx_fallback_reason::kNone;
+  /** @see request_spilled_file_promotion() */
+  bool m_spilled_file_promotion_requested = false;
 
   /**
     Offset of the transaction's terminating event in a promoted binary log

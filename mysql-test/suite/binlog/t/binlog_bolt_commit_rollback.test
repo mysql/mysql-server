@@ -181,7 +181,7 @@ COMMIT;
 TRUNCATE t1;
 --enable_query_log
 --let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---echo # XA PREPARE promotes the large transaction; XA COMMIT makes it visible.
+--echo # XA PREPARE promotes the large transaction's spilled file; XA COMMIT makes it visible.
 XA START 'bolt_prepare_commit';
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
@@ -283,7 +283,7 @@ CREATE TABLE t2 (id INT PRIMARY KEY) ENGINE=InnoDB;
 --let $assert_text = DDL commits all preceding large transaction rows.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
 --source include/assert.inc
---let $assert_text = DDL completes after the promoted transaction.
+--let $assert_text = DDL completes after the BOLT transaction.
 --let $ddl_table_exists = query_get_value(SELECT COUNT(*) AS count FROM information_schema.tables WHERE table_schema = 'test' AND table_name = 't2', count, 1)
 --let $assert_cond = $ddl_table_exists = 1
 --source include/assert.inc
@@ -464,7 +464,7 @@ SET GLOBAL max_binlog_size = 1073741824;
 --source ../inc/validate_bolt_header.inc
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $assert_text = The oversized transaction is promoted once before rotation.
+--let $assert_text = The oversized transaction's spilled file is promoted once before rotation.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
 --let $assert_text = Immediate max-binlog-size rotation opens a fresh active binary log.

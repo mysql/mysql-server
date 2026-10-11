@@ -11,7 +11,7 @@ include/rpl/sync_to_replica.inc
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 #
-# Verify the replica logs promoted transactions in source order
+# Verify the replica logs BOLT transactions in source order
 #
 [connection master]
 SET @save_debug = @@GLOBAL.debug;
@@ -25,7 +25,7 @@ UNLOCK TABLES;
 include/rpl/sync_with_saved.inc
 include/assert.inc [R2: the replica applier promoted at least one transaction, so the order check is meaningful.]
 include/assert.inc [R3: every row arrived on the replica.]
-include/assert.inc [R3: the promoted transactions kept their full payload.]
+include/assert.inc [R3: the BOLT transactions kept their full payload.]
 GTID sequence numbers in replica binlog order: 1 2 3 4 5 6 7
 [connection master]
 SET GLOBAL debug = @save_debug;

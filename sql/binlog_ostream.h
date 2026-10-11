@@ -90,7 +90,6 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
      @param[in] cache_size  Size of the memory buffer.
      @param[in] max_cache_size  Maximum size of the memory buffer
      @param[in] reserved_bytes  Bytes reserved for header events
-
      @retval false  Success
      @retval true  Error
   */

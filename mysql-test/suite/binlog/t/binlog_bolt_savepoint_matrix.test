@@ -7,7 +7,7 @@
 # matching physical offset in O(1). Every case below ends with the same
 # checks (inc/bolt_savepoint_check.inc):
 #   - t1 holds exactly the expected rows, each with its own payload;
-#   - the transaction was promoted (or not) as expected, and the
+#   - the transaction's spilled file was promoted (or not) as expected, and the
 #     missed-optimization counter moved as expected;
 #   - the active binary log verifies its checksums and inserts exactly the
 #     expected rows of t1 (so the binlog matches the engine);

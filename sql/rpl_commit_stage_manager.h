@@ -25,6 +25,7 @@
 #define RPL_COMMIT_STAGE_MANAGER
 
 #include <atomic>
+#include <deque>
 #include <utility>
 
 #include "my_dbug.h"
@@ -446,6 +447,32 @@ class Commit_stage_manager {
      signalled to wake up from commit order flush queue leader later.
   */
   mysql_cond_t m_stage_cond_leader;
+
+  /**
+     Signalled when the leader that fetched the binlog flush queue has made a
+     waiting large transaction session the next leader (see
+     assign_next_flush_leader()). The sessions in m_flush_leader_candidates
+     wait on it. The wait releases the flush queue lock until they wake up.
+  */
+  mysql_cond_t m_stage_cond_flush_queue_fetched;
+
+  /**
+     BOLT sessions waiting to lead the next flush group, oldest first. A
+     session that commits through BOLT must be the first of its flush group,
+     because the promotion of its spilled file rotates the binary log. When
+     the flush queue is not empty, the session waits here. Protected by the
+     flush queue lock.
+  */
+  std::deque<THD *> m_flush_leader_candidates;
+
+  /**
+     Called by the flush group leader right after it fetches the binlog flush
+     queue, with the flush queue lock held. When BOLT sessions wait in
+     m_flush_leader_candidates, the leader appends the oldest BOLT session
+     to the emptied queue and wakes it up. That session then leads the next
+     flush group.
+  */
+  void assign_next_flush_leader();
 
   /**
      Condition variable to indicate that the binlog threads can wake up

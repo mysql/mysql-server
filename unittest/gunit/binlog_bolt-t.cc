@@ -138,7 +138,7 @@ class BoltHeaderArithmeticTest : public ::testing::Test {
   /**
     The region is filled exactly when the prefix, the padded
     Large_transaction_header event and the Gtid event add up to its size. This
-    is the invariant write_promoted_binlog_header() asserts after serializing
+    is the invariant promote_spilled_file() asserts after serializing
     them, expressed as arithmetic.
   */
   static my_off_t region_used(my_off_t reserved, my_off_t gtid_event_length,

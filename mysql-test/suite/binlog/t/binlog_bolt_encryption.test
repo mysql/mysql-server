@@ -30,7 +30,7 @@
 # spills, changes binlog_encryption from a second session at the point of
 # interest, and then commits. Promotion is observed through
 # Binlog_large_transaction_optimization_count and the missed counter, and
-# through whether the active binary log file changed: a promoted transaction
+# through whether the active binary log file changed: a BOLT transaction
 # opens a new file, a fallback does not.
 #
 --source include/have_log_bin.inc
@@ -95,7 +95,7 @@ COMMIT;
 --let $assert_text = The promoted commit opens a new active binary log.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
---let $assert_text = The promoted transaction commits all rows.
+--let $assert_text = The BOLT transaction commits all rows.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
 # Positive control for the encryption checks in the later cases: with the policy
