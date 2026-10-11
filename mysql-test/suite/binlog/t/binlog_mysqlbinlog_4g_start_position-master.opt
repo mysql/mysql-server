@@ -1,1 +1,2 @@
 --max-allowed-packet=1073741824
+--binlog-large-transaction-optimization-enabled=OFF

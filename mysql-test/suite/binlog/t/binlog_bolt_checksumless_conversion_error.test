@@ -1,0 +1,74 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# When the rewrite of the transaction cache into the binary log file format
+# fails at its first spill, the transaction falls back to the standard commit
+# path: the cache stays in the standard form and spills as without the
+# optimization, and no statement fails.
+#
+# === Requirements ===
+# R1. The statement that spills the cache succeeds although the rewrite fails.
+# R2. The transaction commits through the standard path: it is not promoted,
+#     and it is counted as a missed optimization (it ends above the
+#     threshold), with the rewrite failure as the reason.
+# R3. The binary log verifies and every row is retained.
+# R4. No bolt_ temp file is left.
+#
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+--disable_query_log
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because the binary log cache could not be rewritten');
+--enable_query_log
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000));
+SET SESSION debug = '+d,bolt_fail_cache_conversion';
+--echo # R1: the spilling statement succeeds.
+INSERT INTO t1 VALUES (2, REPEAT('b', 6000000));
+SET SESSION debug = '-d,bolt_fail_cache_conversion';
+INSERT INTO t1 VALUES (3, REPEAT('c', 6000000));
+COMMIT;
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+
+--let $assert_text = R2: the transaction is not promoted.
+--let $assert_cond = $bolt_after = $bolt_before
+--source include/assert.inc
+--let $assert_text = R2: it is counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Could not optimize large transaction execution in the binary log because the binary log cache could not be rewritten into the binary log file format
+--let $assert_count = 1
+--let $assert_text = R2: the rewrite failure is the reason in the error log.
+--source include/assert_grep.inc
+
+--echo # R3: the binary log is valid and every row exists.
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null
+--let $assert_text = R3: every row is retained.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "1,2,3"
+--source include/assert.inc
+
+--let $temp_inc = $MYSQLTEST_VARDIR/tmp/bolt_conversion_error_temp_files.inc
+--exec ls "$MYSQLD_DATADIR/#binlog_temp_files" | grep -c '^bolt_' | xargs printf -- '--let \044temp_files = %s\n' > $temp_inc
+--source $temp_inc
+--remove_file $temp_inc
+--let $assert_text = R4: no bolt_ temp file is left.
+--let $assert_cond = $temp_files = 0
+--source include/assert.inc
+
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log

@@ -1,0 +1,74 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Exploratory regression test for the checksumless cache: after a transaction
+# cache has been converted to the checksummed (promotable) representation, a
+# ROLLBACK TO SAVEPOINT at offset 0 resets the transaction's BOLT latch. If the
+# knob or binlog_checksum changes before the next event, that event must still
+# be stored consistently with the cache's physical representation, so that the
+# logical copy into the binary log is well formed.
+#
+# A rollback to offset 0 is reached through the implicit statement savepoint of
+# the transaction's first statement: the statement spills (and converts) the
+# cache, then fails on a duplicate key, so the statement is rolled back.
+#
+# === Requirements ===
+# R1. Knob turned OFF between the rollback and the next event: the transaction
+#     commits, the active binary log verifies, and the row is retained.
+# R2. binlog_checksum changed to NONE between the rollback and the next event:
+#     same expectations.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--connect (con_admin, localhost, root,,)
+--connection default
+
+--echo # R1: knob turned OFF after the converted cache is rolled back to 0.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (5, REPEAT('a', 2000000)), (1, 'dup');
+--connection con_admin
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--connection default
+INSERT INTO t1 VALUES (2, REPEAT('b', 1000));
+COMMIT;
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null
+--let $assert_text = R1: only the post-rollback row is retained.
+--let $assert_cond = [SELECT COUNT(*) AS c FROM t1 WHERE id = 2, c, 1] = 1 AND [SELECT COUNT(*) AS c FROM t1, c, 1] = 1
+--source include/assert.inc
+TRUNCATE t1;
+
+--echo # R2: binlog_checksum changed to NONE after the rollback to 0.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (3, REPEAT('c', 2000000)), (6, REPEAT('c', 2000000)), (3, 'dup');
+--connection con_admin
+SET GLOBAL binlog_checksum = NONE;
+--connection default
+INSERT INTO t1 VALUES (4, REPEAT('d', 1000));
+COMMIT;
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$binlog_file > /dev/null
+--let $assert_text = R2: only the post-rollback row is retained.
+--let $assert_cond = [SELECT COUNT(*) AS c FROM t1 WHERE id = 4, c, 1] = 1 AND [SELECT COUNT(*) AS c FROM t1, c, 1] = 1
+--source include/assert.inc
+
+# Cleanup
+--disconnect con_admin
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log

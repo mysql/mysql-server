@@ -1156,6 +1156,7 @@ SET(BINLOG_SOURCE
   binlog/monitoring/context.cc
   binlog/decompressing_event_object_istream.cc
   binlog/services/iterator/file_storage.cc
+  binlog/cache_representation.cc
   binlog.cc
   binlog_index.cc
   binlog_istream.cc

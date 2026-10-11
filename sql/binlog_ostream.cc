@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <ranges>
 #include <string>
 #include <string_view>
@@ -97,9 +98,8 @@ bool IO_CACHE_binlog_cache_storage::open(const char *dir, const char *prefix,
 
   /*
     Default to an anonymous spill file. Whether it is instead a named file that
-    can be promoted into the binary log sequence is decided per transaction from
-    binlog_large_transaction_optimization_enabled, at transaction start, via
-    set_named_file().
+    can be promoted into the binary log sequence is decided by the caller via
+    set_named_file(): only the cache rewritten at the first spill is named.
     A named file is kept in the filesystem namespace (promotable, and cleaned
     up at server startup if left behind); an anonymous file is unlinked at
     creation and is never visible. So when the binlog large transaction
@@ -375,6 +375,12 @@ my_off_t IO_CACHE_binlog_cache_storage::length() const {
   return m_io_cache.end_of_file - m_reserved_bytes;
 }
 
+bool IO_CACHE_binlog_cache_storage::write_would_spill(my_off_t length) const {
+  if (is_spilled() || m_io_cache.type != WRITE_CACHE) return false;
+  return length >
+         static_cast<my_off_t>(m_io_cache.write_end - m_io_cache.write_pos);
+}
+
 bool IO_CACHE_binlog_cache_storage::enable_encryption() {
   /* Return earlier if already enabled */
   if (m_io_cache.m_encryptor != nullptr && m_io_cache.m_decryptor != nullptr)
@@ -427,21 +433,176 @@ bool IO_CACHE_binlog_cache_storage::setup_ciphers_password() {
   return false;
 }
 
-bool Binlog_cache_storage::open(my_off_t cache_size, my_off_t max_cache_size,
-                                my_off_t reserved_bytes) {
-  if (m_file.open(binlog_temp_files_dir.path(), kBinlogTempFilePrefix,
-                  cache_size, max_cache_size, reserved_bytes))
-    return true;
-  m_pipeline_head = &m_file;
+bool Binlog_cache_storage::create_checksumless_representation() {
+  // Anonymous spill file, no reserved header region (the standard form).
+  auto representation = binlog::create_checksumless_cache_representation(
+      m_dir, m_prefix, m_cache_size, m_max_cache_size);
+  if (representation == nullptr) return true;
+  m_representation = std::move(representation);
   return false;
 }
 
-void Binlog_cache_storage::close() {
-  m_pipeline_head = nullptr;
-  m_file.close();
+bool Binlog_cache_storage::open(my_off_t cache_size, my_off_t max_cache_size) {
+  m_dir = binlog_temp_files_dir.path();
+  m_prefix = kBinlogTempFilePrefix;
+  m_cache_size = cache_size;
+  m_max_cache_size = max_cache_size;
+  return create_checksumless_representation();
 }
 
+void Binlog_cache_storage::close() { m_representation.reset(); }
+
 Binlog_cache_storage::~Binlog_cache_storage() { close(); }
+
+bool Binlog_cache_storage::write(const unsigned char *buffer, my_off_t length) {
+  assert(m_representation != nullptr);
+
+  if (m_large_trx_rewrite_planned &&
+      m_representation->write_would_spill(length)) {
+    m_large_trx_rewrite_planned = false;
+    // If the rewrite fails, the cache stays in the standard form and this
+    // write spills as without the optimization; an error the rewrite
+    // reported must not fail the statement.
+    THD *thd = current_thd;
+    const bool had_error = thd != nullptr && thd->is_error();
+    if (rewrite_into_binlog_file_format(m_large_trx_planned_checksum_alg,
+                                        m_large_trx_planned_reserved_bytes)) {
+      m_large_trx_rewrite_failed = true;
+      if (thd != nullptr && !had_error && thd->is_error()) thd->clear_error();
+    }
+  }
+  return m_representation->write(buffer, length);
+}
+
+bool Binlog_cache_storage::truncate(my_off_t offset) {
+  assert(m_representation != nullptr);
+  return m_representation->truncate(offset);
+}
+
+bool Binlog_cache_storage::truncate_at_event_boundary(
+    my_off_t offset, size_t events_before_offset) {
+  assert(m_representation != nullptr);
+  return m_representation->truncate_at_event_boundary(offset,
+                                                      events_before_offset);
+}
+
+bool Binlog_cache_storage::reset(bool preserve_spilled_file) {
+  assert(m_representation != nullptr);
+  m_large_trx_rewrite_planned = false;
+  m_large_trx_rewrite_failed = false;
+  // A rewritten cache goes back to the standard form even if its reset
+  // failed. That is safe for a promoted file: a failed reset has already
+  // closed it and released its name, so destroying it does not delete it.
+  const bool was_rewritten = is_large_trx_rewritten();
+  bool error = m_representation->reset(preserve_spilled_file);
+  if (was_rewritten && create_checksumless_representation()) error = true;
+  return error;
+}
+
+size_t Binlog_cache_storage::disk_writes() const {
+  assert(m_representation != nullptr);
+  return m_representation->disk_writes();
+}
+
+my_off_t Binlog_cache_storage::reserved_bytes() const {
+  assert(m_representation != nullptr);
+  return m_representation->reserved_bytes();
+}
+
+const char *Binlog_cache_storage::tmp_file_name() const {
+  assert(m_representation != nullptr);
+  return m_representation->tmp_file_name();
+}
+
+bool Binlog_cache_storage::is_spilled() const {
+  assert(m_representation != nullptr);
+  return m_representation->is_spilled();
+}
+
+File Binlog_cache_storage::spilled_file() const {
+  assert(m_representation != nullptr);
+  return m_representation->spilled_file();
+}
+
+bool Binlog_cache_storage::is_encrypted() const {
+  assert(m_representation != nullptr);
+  return m_representation->is_encrypted();
+}
+
+bool Binlog_cache_storage::flush_and_sync_spilled_file() {
+  assert(m_representation != nullptr);
+  return m_representation->flush_and_sync_spilled_file();
+}
+
+bool Binlog_cache_storage::is_large_trx_rewritten() const {
+  assert(m_representation != nullptr);
+  return m_representation->is_large_trx_rewritten();
+}
+
+void Binlog_cache_storage::plan_large_trx_rewrite(
+    mysql::binlog::event::enum_binlog_checksum_alg checksum_alg,
+    my_off_t reserved_bytes) {
+  assert(m_representation != nullptr);
+  assert(!m_representation->is_large_trx_rewritten());
+  m_large_trx_rewrite_planned = true;
+  m_large_trx_planned_checksum_alg = checksum_alg;
+  m_large_trx_planned_reserved_bytes = reserved_bytes;
+}
+
+mysql::binlog::event::enum_binlog_checksum_alg
+Binlog_cache_storage::physical_checksum_alg() const {
+  assert(m_representation != nullptr);
+  return m_representation->physical_checksum_alg();
+}
+
+void Binlog_cache_storage::add_logical_length(my_off_t logical_event_length) {
+  assert(m_representation != nullptr);
+  m_representation->add_logical_length(logical_event_length);
+}
+
+bool Binlog_cache_storage::rewrite_into_binlog_file_format(
+    mysql::binlog::event::enum_binlog_checksum_alg checksum_alg,
+    my_off_t reserved_bytes) {
+  DBUG_TRACE;
+  assert(m_representation != nullptr);
+
+  /*
+    The rewritten cache is always a named bolt_ file with the reserved header
+    region. The cache is rewritten at most once per transaction, always from
+    the standard form, at its first spill (write()).
+  */
+  if (m_representation->is_large_trx_rewritten()) {
+    assert(m_representation->physical_checksum_alg() ==
+           (binlog::is_checksum_alg_in_use(checksum_alg)
+                ? checksum_alg
+                : mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF));
+    return false;
+  }
+  auto rewritten = binlog::create_checksummed_cache_representation(
+      *m_representation, checksum_alg, m_dir, m_prefix, m_cache_size,
+      m_max_cache_size, reserved_bytes);
+  if (rewritten == nullptr) return true;
+  m_representation = std::move(rewritten);
+  return false;
+}
+
+bool Binlog_cache_storage::copy_to(Basic_ostream *ostream,
+                                   bool *ostream_error) {
+  DBUG_TRACE;
+  assert(m_representation != nullptr);
+  assert(ostream != nullptr);
+  return m_representation->copy_logical_to(*ostream, ostream_error);
+}
+
+my_off_t Binlog_cache_storage::length() const {
+  assert(m_representation != nullptr);
+  return m_representation->logical_length();
+}
+
+my_off_t Binlog_cache_storage::physical_length() const {
+  assert(m_representation != nullptr);
+  return m_representation->physical_length();
+}
 
 Binlog_encryption_ostream::~Binlog_encryption_ostream() { close(); }
 

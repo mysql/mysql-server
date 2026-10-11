@@ -1,0 +1,114 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# binlog_transaction_compression cannot be changed inside a multi-statement
+# transaction, but a stored function can change it in the middle of an
+# autocommit statement, after the transaction's first event. Eligibility for
+# the optimization is evaluated only at the first event, so the transaction is
+# eligible, with compression ON at commit.
+#
+# === Requirements ===
+# R1. Compression turned ON after the cache was rewritten (the cache spilled
+#     before the change): the cache is not compressed and the temp file is
+#     promoted; the binary log verifies and holds every row.
+# R2. Compression turned ON while the cache is still in memory: the cache is
+#     compressed and commits through the standard path, without being
+#     promoted or counted as a missed optimization; the binary log verifies,
+#     holds a compressed payload and every row, and no bolt_ temp file is
+#     left.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+--let $save_cache_size = query_get_value(SELECT @@GLOBAL.binlog_cache_size, @@GLOBAL.binlog_cache_size, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--delimiter |
+CREATE FUNCTION compress_on(v INT) RETURNS INT DETERMINISTIC
+BEGIN
+  SET SESSION binlog_transaction_compression = ON;
+  RETURN v;
+END|
+--delimiter ;
+
+--echo # R1: compression turned ON after the cache was rewritten.
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+INSERT INTO t1 VALUES (1, REPEAT('a', 6000000)), (compress_on(2), REPEAT('b', 6000000));
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = R1: compression is ON after the statement.
+--let $assert_cond = @@SESSION.binlog_transaction_compression = 1
+--source include/assert.inc
+--let $assert_text = R1: the transaction is promoted.
+--let $assert_cond = $bolt_after = $bolt_before + 1
+--source include/assert.inc
+--let $assert_text = R1: no missed optimization is counted.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = R1: both rows are retained.
+--let $assert_cond = [SELECT COUNT(*) FROM t1] = 2
+--source include/assert.inc
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null
+--let $assert_text = R1: the promoted file holds no compressed payload.
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.binary_log_transaction_compression_stats WHERE LOG_TYPE = "BINARY" AND COMPRESSION_TYPE <> "NONE"] = 0
+--source include/assert.inc
+SET SESSION binlog_transaction_compression = OFF;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE performance_schema.binary_log_transaction_compression_stats;
+
+--echo # R2: compression turned ON while the cache is still in memory.
+# A new session picks up a buffer large enough to hold the whole transaction.
+# The threshold may not be below binlog_cache_size, so raise it first.
+SET GLOBAL binlog_large_transaction_optimization_threshold = 128 * 1024 * 1024;
+SET GLOBAL binlog_cache_size = 64 * 1024 * 1024;
+--connect (con_big, localhost, root,,)
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $disk_use_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_cache_disk_use', Value, 1)
+INSERT INTO t1 VALUES (1, REPEAT('a', 6000000)), (compress_on(2), REPEAT('b', 6000000));
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $disk_use_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_cache_disk_use', Value, 1)
+--let $assert_text = R2: the cache stayed in memory.
+--let $assert_cond = $disk_use_after = $disk_use_before
+--source include/assert.inc
+--let $assert_text = R2: the transaction is not promoted.
+--let $assert_cond = $bolt_after = $bolt_before
+--source include/assert.inc
+--let $assert_text = R2: no missed optimization is counted.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = R2: the transaction is compressed.
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.binary_log_transaction_compression_stats WHERE LOG_TYPE = "BINARY" AND COMPRESSION_TYPE <> "NONE"] = 1
+--source include/assert.inc
+--let $assert_text = R2: both rows are retained.
+--let $assert_cond = [SELECT COUNT(*) FROM t1] = 2
+--source include/assert.inc
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null
+--let $temp_inc = $MYSQLTEST_VARDIR/tmp/bolt_mid_statement_temp_files.inc
+--exec ls "$MYSQLD_DATADIR/#binlog_temp_files" | grep -c '^bolt_' | xargs printf -- '--let \044temp_files = %s\n' > $temp_inc
+--source $temp_inc
+--remove_file $temp_inc
+--let $assert_text = R2: no bolt_ temp file is left.
+--let $assert_cond = $temp_files = 0
+--source include/assert.inc
+--disconnect con_big
+--connection default
+
+# Cleanup
+DROP FUNCTION compress_on;
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_cache_size = $save_cache_size
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log

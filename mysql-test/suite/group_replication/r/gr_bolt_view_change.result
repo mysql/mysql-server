@@ -1,0 +1,55 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/save_sysvars.inc [ "GLOBAL.binlog_checksum", "GLOBAL.binlog_large_transaction_optimization_enabled", "GLOBAL.binlog_large_transaction_optimization_threshold" ]
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+[connection server2]
+include/save_sysvars.inc [ "GLOBAL.binlog_checksum", "GLOBAL.binlog_large_transaction_optimization_enabled", "GLOBAL.binlog_large_transaction_optimization_threshold" ]
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+# R1: BOLT transaction on a single-member group.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+include/assert.inc [R1: the transaction is promoted on server1.]
+# R2: server2 joins (view change), then BOLT and ordinary commits.
+[connection server2]
+include/start_group_replication.inc
+[connection server1]
+INSERT INTO t1 VALUES (10, 'small');
+INSERT INTO t1 VALUES (14, 'small');
+include/assert.inc [R2: the transaction after the join is promoted on server1.]
+include/rpl/sync.inc
+[connection server2]
+INSERT INTO t1 VALUES (24, 'small');
+include/rpl/sync.inc
+# R3: server2 leaves (view change), then more commits on server1.
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+INSERT INTO t1 VALUES (34, 'small');
+include/assert.inc [R3: the transaction after the leave is promoted on server1.]
+# R4: server2 rejoins and catches up; data matches.
+[connection server2]
+include/start_group_replication.inc
+include/rpl/sync.inc
+[connection server1]
+include/assert.inc [R4: server1 and server2 have identical data.]
+[connection server2]
+include/assert.inc [R4: server2 has every row.]
+[connection server1]
+DROP TABLE t1;
+include/rpl/sync.inc
+[connection server2]
+include/stop_group_replication.inc
+include/restore_sysvars.inc
+[connection server1]
+include/stop_group_replication.inc
+include/restore_sysvars.inc
+include/group_replication_end.inc

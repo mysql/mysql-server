@@ -1,0 +1,6 @@
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [Group Replication accepts a large BOLT transaction with checksummed binlog enabled.]
+include/assert.inc [Group Replication preserves the large transaction payload.]
+include/assert.inc [BOLT promotes the large Group Replication transaction after observer serialization.]
+include/stop_group_replication.inc
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";

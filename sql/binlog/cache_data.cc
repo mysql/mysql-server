@@ -6,36 +6,50 @@
 */
 
 #include "sql/binlog/cache_data.h"
-#include "sql/rpl_group_replication.h"  // is_group_replication_running
+#include "sql/binlog.h"              // get_binlog_temp_file_reserved_bytes
+#include "sql/mysqld.h"              // opt_binlog_large_transaction_*
+#include "sql/rpl_log_encryption.h"  // rpl_encryption
+#include "sql/sql_class.h"           // THD
 
 /*
   binlog_cache_data
 */
 
-void binlog_cache_data::latch_large_trx_optimization() {
-  if (!m_large_trx_optimization_latched) {
-    /*
-      The binlog large transaction optimization is unavailable while Group
-      Replication is running. This check is folded in here, rather than
-      reported as a fallback reason, because Group Replication status must be
-      known before the first event is serialized.
-    */
-    m_large_trx_optimization_enabled =
-        opt_binlog_large_transaction_optimization_enabled &&
-        !is_group_replication_running();
-    m_large_trx_optimization_threshold =
-        opt_binlog_large_transaction_optimization_threshold;
-    m_large_trx_optimization_latched = true;
-    /*
-      Give the spill file a bolt_* format name only when the
-      optimization is enabled for this transaction, so a disabled knob leaves
-      no bolt_* files. This uses the same knob value captured here for
-      the promotion decision, so naming and eligibility always agree. The
-      reserved header region is applied regardless (see
-      IO_CACHE_binlog_cache_storage::open); only the naming is gated.
-    */
-    m_cache.set_named_file(m_large_trx_optimization_enabled);
-  }
+Large_trx_fallback_reason binlog_cache_data::large_trx_latch_blocker(
+    THD *thd, const Log_event *first_event) {
+  /*
+    Same order as the commit-time blockers (large_trx_commit_blocker()).
+    may_have_sbr_stmts() is true until the first row event, so only the first
+    event itself is checked for statement format here; statements logged
+    later are caught at commit.
+  */
+  if (m_cache_mngr.has_incident()) return Large_trx_fallback_reason::kIncident;
+  if (first_event->is_sbr_logging_format())
+    return Large_trx_fallback_reason::kNonRowFormat;
+  if (rpl_encryption.is_enabled())
+    return Large_trx_fallback_reason::kEncryption;
+  if (thd != nullptr && thd->variables.binlog_trx_compression)
+    return Large_trx_fallback_reason::kCompression;
+  return Large_trx_fallback_reason::kNone;
+}
+
+void binlog_cache_data::latch_large_trx_optimization(
+    THD *thd, const Log_event *first_event) {
+  assert(is_trx_cache());
+  assert(!m_large_trx_optimization_latched);
+  m_large_trx_optimization_latched = true;
+  m_large_trx_optimization_threshold =
+      opt_binlog_large_transaction_optimization_threshold;
+  if (!opt_binlog_large_transaction_optimization_enabled) return;
+
+  m_large_trx_ineligible_reason = large_trx_latch_blocker(thd, first_event);
+  if (m_large_trx_ineligible_reason != Large_trx_fallback_reason::kNone) return;
+
+  m_cache.plan_large_trx_rewrite(
+      static_cast<mysql::binlog::event::enum_binlog_checksum_alg>(
+          binlog_checksum_options),
+      get_binlog_temp_file_reserved_bytes());
+  m_large_trx_optimization_enabled = true;
 }
 
 void binlog_cache_data::cache_state_checkpoint(my_off_t pos_to_checkpoint) {
@@ -75,9 +89,10 @@ void binlog_cache_data::cache_state_rollback(my_off_t pos_to_rollback) {
     flags.with_content = false;
     m_event_counter = 0;
     m_large_trx_optimization_latched = false;
+    m_large_trx_last_event_length = 0;
+    m_large_trx_ineligible_reason = Large_trx_fallback_reason::kNone;
     m_large_trx_optimization_enabled = false;
     m_large_trx_optimization_threshold = 0;
-    m_checksum_alg_in_cache = mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF;
     m_terminating_event_offset = 0;
     m_terminating_event_type = mysql::binlog::event::UNKNOWN_EVENT;
   }
@@ -109,8 +124,9 @@ void binlog_cache_data::reset(bool preserve_spilled_file) {
   */
   cache_state_map.clear();
   m_event_counter = 0;
-  m_checksum_alg_in_cache = mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF;
   m_large_trx_optimization_latched = false;
+  m_large_trx_last_event_length = 0;
+  m_large_trx_ineligible_reason = Large_trx_fallback_reason::kNone;
   m_large_trx_optimization_enabled = false;
   m_large_trx_optimization_threshold = 0;
   m_terminating_event_offset = 0;
@@ -145,8 +161,35 @@ void binlog_cache_data::truncate(my_off_t pos) {
   DBUG_PRINT("info", ("truncating to position %lu", (ulong)pos));
   remove_pending_event();
 
-  // TODO: check the return value.
-  (void)m_cache.truncate(pos);
+  /*
+    Every truncation target is a checkpoint (savepoint or statement start),
+    so cache_state_map knows how many events precede it, which lets a
+    rewritten cache truncate in O(1). Offset 0 has no map entry and no
+    preceding events. Anything else uses the scanning truncate.
+
+    The truncation can fail, for example on a read error while scanning. A
+    failed truncation would leave rolled-back events in the cache, so it
+    records an incident: the transaction then commits through the standard
+    path, which writes an incident event and rotates, instead of logging
+    changes the engine rolled back.
+  */
+  bool error = false;
+  if (pos == 0) {
+    if (m_cache.is_large_trx_rewritten() || m_cache.is_spilled()) {
+      error = m_cache.reset(false /*preserve_spilled_file*/);
+    } else {
+      m_cache.clear_large_trx_rewrite_plan();
+      error = m_cache.truncate_at_event_boundary(0, 0);
+    }
+  } else if (auto it = cache_state_map.find(pos); it != cache_state_map.end()) {
+    error = m_cache.truncate_at_event_boundary(pos, it->second.event_counter);
+  } else {
+    error = m_cache.truncate(pos);
+  }
+  if (error)
+    set_incident(
+        "The binary log cache could not be truncated on rollback; the "
+        "transaction's binary log content may include rolled-back changes.");
 }
 
 int binlog_cache_data::flush_pending_event(THD *thd) {

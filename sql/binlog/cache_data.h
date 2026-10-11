@@ -11,6 +11,7 @@
 #include "mysql/binlog/event/binlog_event.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
+#include "sql/binlog/large_trx_commit.h"  // Large_trx_fallback_reason
 #include "sql/binlog_ostream.h"
 #include "sql/debug_sync.h"
 #include "sql/log_event.h"
@@ -121,50 +122,22 @@ class binlog_cache_data {
   bool is_trx_cache() const { return flags.transactional; }
 
   /**
-    Returns the checksum algorithm the events of this cache are
-    serialized with, recorded at the transaction's first event (see
-    write_event).
+    Returns true when the cache's physical representation carries event
+    checksum footers, i.e. it was rewritten with CRC32.
 
-    @return The algorithm, or BINLOG_CHECKSUM_ALG_UNDEF when no checksum is
-            written into this cache.
-  */
-  mysql::binlog::event::enum_binlog_checksum_alg checksum_alg_in_cache() const {
-    return m_checksum_alg_in_cache;
-  }
-
-  /**
-    Returns true when the events in this cache carry a checksum
-    (see write_event).
-
-    @retval true   The events carry their own checksum.
+    @retval true   The physical events carry their own checksum.
     @retval false  They do not, so a checksum is added when the cache is
                    copied into the binary log.
   */
   bool is_checksum_computed() const {
-    return m_checksum_alg_in_cache !=
-               mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF &&
-           m_checksum_alg_in_cache !=
-               mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
+    return m_cache.physical_events_have_checksum();
   }
 
   /**
-    Captures the large transaction optimization's settings for the whole
-    transaction, on the first event written to the cache.
-
-    Called on every write but effective only once, so a change to
-    binlog_large_transaction_optimization_enabled or
-    binlog_large_transaction_optimization_threshold mid-transaction
-    cannot change how that transaction commits.
-
-    The captured values are read back through large_trx_optimization_enabled()
-    and large_trx_optimization_threshold().
-  */
-  void latch_large_trx_optimization();
-
-  /**
     @return Whether this transaction may use the binlog large transaction
-            optimization, as captured by latch_large_trx_optimization() at the
-            transaction's first event.
+            optimization: it was eligible at its first event, so its cache
+            is rewritten into binlog file form at its first spill (see
+            latch_large_trx_optimization()).
   */
   bool large_trx_optimization_enabled() const {
     return m_large_trx_optimization_enabled;
@@ -172,11 +145,20 @@ class binlog_cache_data {
 
   /**
     @return The spilled size, in bytes, above which this transaction is a
-            promotion candidate, as captured by latch_large_trx_optimization()
-            at the transaction's first event.
+            promotion candidate, as latched by
+            latch_large_trx_optimization().
   */
   ulonglong large_trx_optimization_threshold() const {
     return m_large_trx_optimization_threshold;
+  }
+
+  /**
+    @return Why the transaction was not eligible at its first event, with the
+            knob ON; kNone if it was eligible or the knob was OFF (see
+            latch_large_trx_optimization()).
+  */
+  Large_trx_fallback_reason large_trx_ineligible_reason() const {
+    return m_large_trx_ineligible_reason;
   }
 
   /**
@@ -288,36 +270,22 @@ class binlog_cache_data {
   size_t m_event_counter = 0;
 
   /**
-    Checksum algorithm the events of this cache are serialized with,
-    recorded at the transaction's first event (see write_event). Stays
-    BINLOG_CHECKSUM_ALG_UNDEF while no checksum is written into this cache,
-    which is the case for the statement cache and whenever the large
-    transaction optimization is disabled.
-  */
-  mysql::binlog::event::enum_binlog_checksum_alg m_checksum_alg_in_cache =
-      mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF;
-
-  /**
-    Whether the capture has happened, so that only the transaction's first
-    event decides and later events leave the values alone.
+    Whether the knob and threshold have been latched for this transaction.
+    Cleared by reset() and by a rollback to offset 0.
   */
   bool m_large_trx_optimization_latched = false;
-  /**
-    Whether this transaction may use the large transaction optimization: the
-    value of binlog_large_transaction_optimization_enabled at the transaction's
-    first event.
-
-    Group Replication check is folded in here rather than
-    reported as a fallback reason, because it must be known before the first
-    event is serialized.
-  */
+  /** @see large_trx_optimization_enabled() */
   bool m_large_trx_optimization_enabled = false;
-  /**
-    Value of binlog_large_transaction_optimization_threshold at the
-    transaction's first event, in bytes. Compared against the spilled size at
-    commit.
-  */
+  /** @see large_trx_optimization_threshold() */
   ulonglong m_large_trx_optimization_threshold = 0;
+  /**
+    Logical length of the last event written, used to locate the terminating
+    event after a rewrite triggered by that event.
+  */
+  my_off_t m_large_trx_last_event_length = 0;
+  /** @see large_trx_ineligible_reason() */
+  Large_trx_fallback_reason m_large_trx_ineligible_reason =
+      Large_trx_fallback_reason::kNone;
 
   /**
     Offset of the transaction's terminating event in a promoted binary log
@@ -439,6 +407,46 @@ class binlog_cache_data {
     written.
    */
   Rows_log_event *m_pending;
+
+  /**
+    Evaluate whether this transaction is eligible for the binlog large
+    transaction optimization (BOLT) and, if it is, set the cache up to be
+    rewritten into binlog file form at its first spill. Called once per
+    transaction by write_event(), before the transaction cache's first event
+    is serialized (and again after a rollback to offset 0).
+
+    It captures:
+    - the knob and the threshold, so later changes to them do not affect
+      this transaction;
+    - whether the transaction is eligible: the knob is ON, there is no
+      pending incident, the first event is not in statement format,
+      binlog_encryption is OFF and binlog_transaction_compression is OFF;
+    - if the knob is ON but the transaction is not eligible, why not;
+    - if it is eligible, binlog_checksum and the reserved header size, given
+      to the cache storage for the rewrite (not stored here).
+
+    The results are used:
+    - at the first spill, by Binlog_cache_storage::write(), which rewrites the
+      cache with that checksum algorithm and reserved size;
+    - at commit, by is_large_trx_commit_candidate() (eligibility and
+      threshold) and get_cache_for_large_trx_commit(), which counts the
+      reason as a missed optimization if the transaction ends above the
+      threshold.
+
+    @param thd          The session writing the event.
+    @param first_event  The transaction cache's first event.
+  */
+  void latch_large_trx_optimization(THD *thd, const Log_event *first_event);
+
+  /**
+    @param thd          The session writing the event.
+    @param first_event  The transaction cache's first event.
+
+    @return The first condition that makes the transaction ineligible, or
+            kNone.
+  */
+  Large_trx_fallback_reason large_trx_latch_blocker(
+      THD *thd, const Log_event *first_event);
 
   /**
     This function computes binlog cache and disk usage.

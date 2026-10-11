@@ -1,0 +1,149 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify that transactions committed through the BOLT path take part in the
+# binary log group commit ticket protocol Group Replication relies on across
+# view changes. Group Replication assigns every certified transaction a
+# ticket, and a view change pushes a new ticket that waits for every session
+# of the previous one. A BOLT commit that never processes its ticket would
+# block every commit after the next view change.
+#
+# === Requirements ===
+# R1. A BOLT transaction on a single-member group is promoted.
+# R2. A member can join after it (view change), and both BOLT and ordinary
+#     transactions on either member then commit and replicate.
+# R3. A member can leave after further BOLT commits (view change), and the
+#     remaining member keeps committing BOLT and ordinary transactions.
+# R4. All members end with identical data.
+#
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 2
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--let $sysvars_to_save = [ "GLOBAL.binlog_checksum", "GLOBAL.binlog_large_transaction_optimization_enabled", "GLOBAL.binlog_large_transaction_optimization_threshold" ]
+--source include/save_sysvars.inc
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/save_sysvars.inc
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+
+--echo # R1: BOLT transaction on a single-member group.
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--disable_query_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+--enable_query_log
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R1: the transaction is promoted on server1.
+--let $assert_cond = $bolt_after = $bolt_before + 1
+--source include/assert.inc
+
+--echo # R2: server2 joins (view change), then BOLT and ordinary commits.
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+INSERT INTO t1 VALUES (10, 'small');
+--disable_query_log
+BEGIN;
+INSERT INTO t1 VALUES (11, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (12, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (13, REPEAT('f', 4000000));
+COMMIT;
+--enable_query_log
+INSERT INTO t1 VALUES (14, 'small');
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R2: the transaction after the join is promoted on server1.
+--let $assert_cond = $bolt_after = $bolt_before + 1
+--source include/assert.inc
+--source include/rpl/sync.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--disable_query_log
+BEGIN;
+INSERT INTO t1 VALUES (21, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (22, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (23, REPEAT('i', 4000000));
+COMMIT;
+--enable_query_log
+INSERT INTO t1 VALUES (24, 'small');
+--source include/rpl/sync.inc
+
+--echo # R3: server2 leaves (view change), then more commits on server1.
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--disable_query_log
+BEGIN;
+INSERT INTO t1 VALUES (31, REPEAT('j', 4000000));
+INSERT INTO t1 VALUES (32, REPEAT('k', 4000000));
+INSERT INTO t1 VALUES (33, REPEAT('l', 4000000));
+COMMIT;
+--enable_query_log
+INSERT INTO t1 VALUES (34, 'small');
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R3: the transaction after the leave is promoted on server1.
+--let $assert_cond = $bolt_after = $bolt_before + 1
+--source include/assert.inc
+
+--echo # R4: server2 rejoins and catches up; data matches.
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/start_group_replication.inc
+--source include/rpl/sync.inc
+# diff_tables.inc sorts by the LONGBLOB column and runs out of sort memory,
+# so compare a per-row digest instead.
+--let $server2_digest = `SELECT SUM(CRC32(CONCAT(id, ':', data))) FROM t1`
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--let $server1_digest = `SELECT SUM(CRC32(CONCAT(id, ':', data))) FROM t1`
+--let $assert_text = R4: server1 and server2 have identical data.
+--let $assert_cond = "$server1_digest" = "$server2_digest"
+--source include/assert.inc
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--let $assert_text = R4: server2 has every row.
+--let $assert_cond = [SELECT COUNT(*) AS c FROM t1, c, 1] = 16
+--source include/assert.inc
+
+# Cleanup
+--let $rpl_connection_name= server1
+--source include/connection.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/stop_group_replication.inc
+--source include/restore_sysvars.inc
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--source include/stop_group_replication.inc
+--source include/restore_sysvars.inc
+--source include/group_replication_end.inc

@@ -1,0 +1,116 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# When the first statement of a transaction fails, the transaction cache is
+# rolled back to offset 0. The cache must then be exactly as at the start of a
+# transaction. If the transaction ends with that empty cache, COMMIT and
+# ROLLBACK do not reset it, so any BOLT state left in it (rewrite plan,
+# latched knob and threshold, rewritten bolt_ file) would be inherited by the
+# next transaction.
+#
+# The first statement spills (and, with the knob ON, rewrites) the cache, then
+# fails on a duplicate key on its last row.
+#
+# === Requirements ===
+# R1. Decision "yes" must not leak: after a rolled-back-to-0 transaction that
+#     rewrote its cache, the knob is turned OFF; the next large transaction is
+#     not promoted.
+# R2. Decision "no" must not leak: after a rolled-back-to-0 transaction that
+#     latched the knob OFF, the knob is turned ON; the next large transaction
+#     is promoted.
+# R3. The same holds when the emptied transaction ends with ROLLBACK.
+# R4. A transaction that continues after the rollback to 0 still works: its
+#     later events latch the knob again and can be promoted, and the binary
+#     log verifies.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+--echo # R1: knob ON for the rolled-back transaction, OFF for the next one.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (2, REPEAT('a', 2000000)), (1, 'dup');
+COMMIT;
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--let $promoted_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
+COMMIT;
+--let $promoted_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R1: with the knob OFF, the next large transaction is not promoted.
+--let $assert_cond = $promoted_after = $promoted_before
+--source include/assert.inc
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null
+TRUNCATE t1;
+
+--echo # R2: knob OFF for the rolled-back transaction, ON for the next one.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (2, REPEAT('a', 2000000)), (1, 'dup');
+COMMIT;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+--let $promoted_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
+COMMIT;
+--let $promoted_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R2: with the knob ON, the next large transaction is promoted.
+--let $assert_cond = $promoted_after = $promoted_before + 1
+--source include/assert.inc
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null
+TRUNCATE t1;
+
+--echo # R3: as R1, but the emptied transaction ends with ROLLBACK.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (2, REPEAT('a', 2000000)), (1, 'dup');
+ROLLBACK;
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--let $promoted_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
+COMMIT;
+--let $promoted_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R3: with the knob OFF, the next large transaction is not promoted.
+--let $assert_cond = $promoted_after = $promoted_before
+--source include/assert.inc
+TRUNCATE t1;
+
+--echo # R4: the transaction continues after the rollback to 0 and is promoted.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+--let $promoted_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (2, REPEAT('a', 2000000)), (1, 'dup');
+INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
+COMMIT;
+--let $promoted_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R4: the transaction is promoted.
+--let $assert_cond = $promoted_after = $promoted_before + 1
+--source include/assert.inc
+--let $assert_text = R4: only the rows of the second statement are retained.
+--let $assert_cond = [SELECT COUNT(*) AS c FROM t1, c, 1] = 2 AND [SELECT COUNT(*) AS c FROM t1 WHERE id >= 10, c, 1] = 2
+--source include/assert.inc
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log

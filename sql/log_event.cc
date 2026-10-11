@@ -1155,10 +1155,9 @@ bool Log_event::need_checksum() {
          ((common_footer->checksum_alg ==
                static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
            /*
-              Cached events may carry the algorithm recorded at their first
-              event write to the transaction cache when the binlog large
-              transaction optimization is enabled. A recorded algorithm may
-              differ from the server's binlog_checksum_options.
+              Events of a cache rewritten into binlog file form carry the
+              algorithm read at the transaction's first event, which
+              binlog_checksum_options may no longer match.
            */
            event_cache_type != Log_event::EVENT_NO_CACHE ||
            /*

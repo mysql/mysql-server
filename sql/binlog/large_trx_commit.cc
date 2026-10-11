@@ -22,14 +22,15 @@
 #include "sql/binlog/cache_data.h"    // binlog_cache_data
 #include "sql/binlog_ostream.h"
 #include "sql/current_thd.h"
-#include "sql/derror.h"   // ER_THD
-#include "sql/handler.h"  // ha_flush_logs
+#include "sql/debug_sync.h"  // DEBUG_SYNC
+#include "sql/derror.h"      // ER_THD
+#include "sql/handler.h"     // ha_flush_logs
 #include "sql/log_event.h"
 #include "sql/mysqld.h"
-#include "sql/rpl_group_replication.h"  // is_group_replication_running
-#include "sql/rpl_gtid.h"               // gtid_state
-#include "sql/rpl_handler.h"            // RUN_HOOK
-#include "sql/rpl_log_encryption.h"     // rpl_encryption
+#include "sql/rpl_commit_stage_manager.h"          // Commit_stage_manager
+#include "sql/rpl_gtid.h"                          // gtid_state
+#include "sql/rpl_handler.h"                       // RUN_HOOK
+#include "sql/rpl_log_encryption.h"                // rpl_encryption
 #include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
 #include "sql/rpl_trx_tracking.h"  // Transaction_dependency_tracker
 #include "sql/sql_class.h"
@@ -53,7 +54,7 @@ namespace {
   literals so .data() is NUL-terminated for the %s in
   ER_BINLOG_BOLT_LARGE_TRX_FALLBACK.
 */
-constexpr std::array<std::string_view, 11> kFallbackDetails{
+constexpr std::array<std::string_view, 12> kFallbackDetails{
     // kNone (never logged, record_large_trx_fallback() rejects it)
     "no fallback",
     // kStatementCache
@@ -77,23 +78,27 @@ constexpr std::array<std::string_view, 11> kFallbackDetails{
     "Group Replication started while the transaction was open",
     // kLogClosed
     "the binary log was closed while the transaction was running",
+    // kRewriteFailed
+    "the binary log cache could not be rewritten into the binary log file "
+    "format",
 };
 
-static_assert(kFallbackDetails.size() ==
-                  static_cast<size_t>(Large_trx_fallback_reason::kLogClosed) +
-                      1,
-              "add a message when adding a fallback reason");
+static_assert(
+    kFallbackDetails.size() ==
+        static_cast<size_t>(Large_trx_fallback_reason::kRewriteFailed) + 1,
+    "add a message when adding a fallback reason");
 
 /**
   Assess whether this transaction can use the optimized commit path.
-  The BOLT knob and threshold are captured at the
-  transaction's first event, so a mid-transaction change to either is ignored.
 
   @param cache_mngr  The session's binlog cache manager.
 
-  @retval true   The transaction is a promotion candidate: BOLT was enabled at
-                 its first event, its transaction cache spilled, and the
-                 spilled size exceeds the captured threshold.
+  @retval true   The transaction is a promotion candidate: it was eligible at
+                 its first event (see
+                 binlog_cache_data::latch_large_trx_optimization()), its
+                 cache was rewritten into binlog file form at the first spill,
+                 and the spilled size exceeds the threshold captured at the
+                 first event.
   @retval false  It is not, so it commits through the standard path without
                  being counted as a missed optimization.
 */
@@ -101,12 +106,25 @@ bool is_large_trx_commit_candidate(binlog_cache_mngr *cache_mngr) {
   binlog_cache_data *trx_cache = &cache_mngr->trx_cache;
   return trx_cache->large_trx_optimization_enabled() &&
          trx_cache->get_cache()->is_spilled() &&
+         trx_cache->get_cache()->is_large_trx_rewritten() &&
          /*
            Only a named spilled file can be promoted.
          */
          trx_cache->get_cache()->tmp_file_name() != nullptr &&
          trx_cache->get_byte_position() >
              trx_cache->large_trx_optimization_threshold();
+}
+
+/**
+  Whether the transaction cache's physical bytes are using the same
+  checksum algorithm as binlog_checksum_options.
+*/
+bool large_trx_cache_checksum_matches_binlog(binlog_cache_data *trx_cache) {
+  const auto active_checksum =
+      static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
+  if (active_checksum == mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF)
+    return !trx_cache->get_cache()->physical_events_have_checksum();
+  return trx_cache->get_cache()->physical_checksum_alg() == active_checksum;
 }
 
 /**
@@ -144,18 +162,6 @@ Large_trx_fallback_reason large_trx_commit_blocker(
   if (trx_cache->get_compression_type() !=
       mysql::binlog::event::compression::NONE)
     return Large_trx_fallback_reason::kCompression;
-  if (trx_cache->checksum_alg_in_cache() !=
-      static_cast<enum_binlog_checksum_alg>(binlog_checksum_options))
-    return Large_trx_fallback_reason::kChecksumMismatch;
-  /*
-    Reached only when Group Replication started after this transaction's first
-    event. Falling back prevents the local promotion, but it does not make the
-    transaction safe for Group Replication to send: its cached events already
-    carry checksums, and the before_commit observer copies the cache exactly
-    as it is into the message it broadcasts, so those checksums travel with it.
-  */
-  if (is_group_replication_running())
-    return Large_trx_fallback_reason::kGroupReplication;
   return Large_trx_fallback_reason::kNone;
 }
 
@@ -179,7 +185,20 @@ binlog_cache_data *get_cache_for_large_trx_commit(
     never a candidate, so it is not a missed optimization and nothing is
     recorded here, unlike the checks below.
   */
-  if (!is_large_trx_commit_candidate(cache_mngr)) return nullptr;
+  if (!is_large_trx_commit_candidate(cache_mngr)) {
+    binlog_cache_data *trx_cache = &cache_mngr->trx_cache;
+    const Large_trx_fallback_reason reason =
+        trx_cache->get_cache()->large_trx_rewrite_failed()
+            ? Large_trx_fallback_reason::kRewriteFailed
+            : trx_cache->large_trx_ineligible_reason();
+    // Only a transaction whose cache spilled could have been promoted.
+    if (reason != Large_trx_fallback_reason::kNone &&
+        trx_cache->get_cache()->is_spilled() &&
+        trx_cache->get_byte_position() >
+            trx_cache->large_trx_optimization_threshold())
+      record_large_trx_fallback(reason);
+    return nullptr;
+  }
 
   DBUG_EXECUTE_IF("force_large_trx_compression_fallback", {
     record_large_trx_fallback(Large_trx_fallback_reason::kCompression);
@@ -230,9 +249,9 @@ std::pair<bool, bool> MYSQL_BIN_LOG::write_promoted_binlog_header(
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_log);
 
+  assert(cache_data->get_cache()->is_large_trx_rewritten());
   const enum_binlog_checksum_alg checksum_alg =
-      cache_data->checksum_alg_in_cache();
-  assert(checksum_alg != mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF);
+      cache_data->get_cache()->physical_checksum_alg();
   const my_off_t checksum_len =
       checksum_alg != mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF
           ? BINLOG_CHECKSUM_LEN
@@ -321,7 +340,7 @@ std::pair<bool, bool> MYSQL_BIN_LOG::write_promoted_binlog_header(
       metadata.immediate_commit_timestamp(), metadata.original_server_version(),
       metadata.immediate_server_version());
   gtid_event.set_trx_length_by_cache_size(
-      cache_data->get_byte_position(), checksum_len != 0,
+      cache_data->get_cache()->physical_length(), checksum_len != 0,
       cache_data->is_checksum_computed(), cache_data->get_event_counter());
 
   /*
@@ -379,6 +398,9 @@ MYSQL_BIN_LOG::Promote_outcome MYSQL_BIN_LOG::promote_spilled_file(
   */
   if (rpl_encryption.is_enabled())
     return fallback_outcome(Large_trx_fallback_reason::kEncryption);
+
+  if (!large_trx_cache_checksum_matches_binlog(cache_data))
+    return fallback_outcome(Large_trx_fallback_reason::kChecksumMismatch);
 
   /*
     Another session may have turned binary logging off since this transaction
@@ -560,6 +582,7 @@ int MYSQL_BIN_LOG::commit_large_transaction(THD *thd, bool all,
     thd->commit_error = THD::CE_FLUSH_ERROR;
     cache_data->reset();
     handle_binlog_flush_or_sync_error(thd, true /*need_lock_log*/, nullptr);
+    Commit_stage_manager::get_instance().finish_session_ticket(thd);
     return finish_commit(thd);
   }
 
@@ -589,6 +612,20 @@ int MYSQL_BIN_LOG::commit_large_transaction(THD *thd, bool all,
     if (Commit_order_manager::wait(thd)) return thd->commit_error;
   }
 
+  /*
+    Wait for this session's binlog group commit ticket, but count the
+    session as processed only once its place in the binary log is fixed:
+    after the promotion, while LOCK_log is still held, or, on fallback, when
+    ordered_commit() enqueues it for the flush stage. Counting it earlier
+    would let a later ticket (a Group Replication view change) take LOCK_log
+    first and be written before this transaction.
+  */
+  thd->rpl_thd_ctx.binlog_group_commit_ctx().assign_ticket();
+  Commit_stage_manager::get_instance().wait_for_ticket_turn(
+      thd, false /*update_ticket_manager*/);
+
+  DEBUG_SYNC(thd, "bolt_before_promotion_lock_log");
+
   /* Critical section */
   mysql_mutex_lock(&LOCK_log);
   wait_for_prep_xids();
@@ -598,6 +635,8 @@ int MYSQL_BIN_LOG::commit_large_transaction(THD *thd, bool all,
 
   switch (outcome.result) {
     case Promote_result::kPromoted:
+      // The promoted file is in the binary log: count the ticket's session.
+      Commit_stage_manager::get_instance().update_session_ticket_state(thd);
       /*
         In BOLT we let the next worker in the commit order proceed only after
         the promotion has succeeded, rather than at enqueue time as the
@@ -638,6 +677,7 @@ int MYSQL_BIN_LOG::commit_large_transaction(THD *thd, bool all,
           */
         (void)finish_commit(thd);
         mysql_mutex_unlock(&LOCK_commit);
+        thd->rpl_thd_ctx.binlog_group_commit_ctx().reset();
 
         /*
           Handled only after both locks are released, as the ordered_commit
@@ -670,6 +710,8 @@ int MYSQL_BIN_LOG::commit_large_transaction(THD *thd, bool all,
       return ordered_commit(thd, all, skip_commit);
 
     case Promote_result::kError:
+      // Count the ticket's session, so later tickets are not blocked.
+      Commit_stage_manager::get_instance().update_session_ticket_state(thd);
       if (thd->commit_error == THD::CE_NONE)
         thd->commit_error = THD::CE_FLUSH_ERROR;
       cache_data->reset(outcome.file_renamed /*preserve_spilled_file*/);
@@ -693,6 +735,7 @@ int MYSQL_BIN_LOG::commit_large_transaction(THD *thd, bool all,
               : nullptr);
       mysql_mutex_unlock(&LOCK_commit);
       mysql_mutex_unlock(&LOCK_log);
+      thd->rpl_thd_ctx.binlog_group_commit_ctx().reset();
       return finish_commit(thd);
   }
 

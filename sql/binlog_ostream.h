@@ -26,8 +26,11 @@
 
 #include <openssl/evp.h>
 #include <cassert>
+#include <memory>
+#include <string>
 #include "my_io.h"  // FN_REFLEN
 #include "sql/basic_ostream.h"
+#include "sql/binlog/cache_representation.h"
 #include "sql/rpl_log_encryption.h"
 
 // True if binlog cache is reset.
@@ -174,6 +177,15 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   */
   void set_named_file(bool named) { m_io_cache.named_file = named; }
 
+  /**
+    True if writing length bytes would make the cache spill for the first
+    time: it has not spilled and length is more than the free part of the
+    in-memory buffer. my_b_write() copies without flushing as long as the
+    data fits up to write_end, so filling the buffer exactly does not spill.
+    Only a transaction that planned a rewrite into binlog file form calls it.
+  */
+  bool write_would_spill(my_off_t length) const;
+
  private:
   /** Rename a newly spilled generic cache file to a managed bolt_ name. */
   bool rename_spilled_file();
@@ -222,61 +234,101 @@ class Binlog_cache_storage : public Basic_ostream {
  public:
   ~Binlog_cache_storage() override;
 
-  bool open(my_off_t cache_size, my_off_t max_cache_size,
-            my_off_t reserved_bytes);
+  bool open(my_off_t cache_size, my_off_t max_cache_size);
   void close();
 
-  bool write(const unsigned char *buffer, my_off_t length) override {
-    assert(m_pipeline_head != nullptr);
-    return m_pipeline_head->write(buffer, length);
-  }
+  /**
+    Write to the cache. When a rewrite is planned and this write would make
+    the cache spill, the cache is first rewritten into binlog file form; if
+    the rewrite fails, the write spills in the standard form.
+
+    @param buffer  The bytes.
+    @param length  Their number.
+
+    @retval false  Success.
+    @retval true   Error.
+  */
+  bool write(const unsigned char *buffer, my_off_t length) override;
   /**
      Truncates some data at the end of the binlog cache.
 
-     @param[in] offset  Where the binlog cache will be truncated to.
+     @param[in] offset  Where the binlog cache will be truncated to, as a
+                        logical (checksum-free) offset.
      @retval false  Success
      @retval true  Error
   */
-  bool truncate(my_off_t offset) { return m_pipeline_head->truncate(offset); }
+  bool truncate(my_off_t offset);
+  /** @see binlog::Binlog_cache_representation::truncate_at_event_boundary */
+  bool truncate_at_event_boundary(my_off_t offset, size_t events_before_offset);
 
   /**
      Reset status and drop all data. When preserve_spilled_file is true, the
      cache closes without deleting a file the binlog large transaction
      optimization has already promoted.
   */
-  bool reset(bool preserve_spilled_file = false) {
-    return m_file.reset(preserve_spilled_file);
-  }
+  bool reset(bool preserve_spilled_file = false);
   /**
      Returns the count of disk writes
   */
-  size_t disk_writes() const { return m_file.disk_writes(); }
+  size_t disk_writes() const;
   /**
      Returns the bytes reserved at the beginning of the temp file.
   */
-  my_off_t reserved_bytes() const { return m_file.reserved_bytes(); }
+  my_off_t reserved_bytes() const;
   /**
      Returns the name of the temporary file.
   */
-  const char *tmp_file_name() const { return m_file.tmp_file_name(); }
-  /// @see IO_CACHE_binlog_cache_storage::is_spilled
-  bool is_spilled() const { return m_file.is_spilled(); }
-  /// @see IO_CACHE_binlog_cache_storage::spilled_file
-  File spilled_file() const { return m_file.spilled_file(); }
-  /// @see IO_CACHE_binlog_cache_storage::is_encrypted
-  bool is_encrypted() const { return m_file.is_encrypted(); }
-  /// @see IO_CACHE_binlog_cache_storage::flush_and_sync_spilled_file
-  bool flush_and_sync_spilled_file() {
-    return m_file.flush_and_sync_spilled_file();
-  }
-  /// @see IO_CACHE_binlog_cache_storage::set_named_file
-  void set_named_file(bool named) { m_file.set_named_file(named); }
+  const char *tmp_file_name() const;
+  /** @see IO_CACHE_binlog_cache_storage::is_spilled */
+  bool is_spilled() const;
+  /** @see IO_CACHE_binlog_cache_storage::spilled_file */
+  File spilled_file() const;
+  /** @see IO_CACHE_binlog_cache_storage::is_encrypted */
+  bool is_encrypted() const;
+  /** @see IO_CACHE_binlog_cache_storage::flush_and_sync_spilled_file */
+  bool flush_and_sync_spilled_file();
+  /** True if the cache was rewritten into binlog file form. */
+  bool is_large_trx_rewritten() const;
   /**
-     Copy all data to a output stream. This function hides the internal
-     implementation of storage detail. So it will not disturb the callers
-     if the implementation of Binlog_cache_storage is changed. If we add
-     a pipeline stream in this class, then we need to change the implementation
-     of this function. But callers are not affected.
+    Plan the rewrite into binlog file form: write() runs it before the first
+    write that would make the cache spill.
+
+    @param checksum_alg    binlog_checksum when the plan is made.
+    @param reserved_bytes  The header region of the bolt_ temp file.
+  */
+  void plan_large_trx_rewrite(
+      mysql::binlog::event::enum_binlog_checksum_alg checksum_alg,
+      my_off_t reserved_bytes);
+  /** Drop the plan made by plan_large_trx_rewrite(), if any. */
+  void clear_large_trx_rewrite_plan() { m_large_trx_rewrite_planned = false; }
+  /**
+    True if the planned rewrite was tried and failed. The cache then stays
+    in the standard form and spills as without the optimization. Cleared by
+    reset().
+  */
+  bool large_trx_rewrite_failed() const { return m_large_trx_rewrite_failed; }
+  /** Footer bytes per event in the physical form (4 with CRC32, else 0). */
+  my_off_t footer_length() const {
+    return physical_events_have_checksum() ? BINLOG_CHECKSUM_LEN : 0;
+  }
+  /**
+     Returns the checksum algorithm used by the cache's physical event bytes.
+  */
+  mysql::binlog::event::enum_binlog_checksum_alg physical_checksum_alg() const;
+  /**
+     Returns true if the cache's physical event bytes include checksum footers.
+  */
+  bool physical_events_have_checksum() const {
+    return binlog::is_checksum_alg_in_use(physical_checksum_alg());
+  }
+  /**
+     Add the logical size of one event written in binlog file format. The
+     logical size excludes the checksum footer.
+  */
+  void add_logical_length(my_off_t logical_event_length);
+  /**
+     Copy the cache contents to an output stream in the standard form (no
+     checksum footers, log_pos 0), whatever form the cache stores them in.
 
      @param[out] ostream Where the data will be copied into
      @param[out] ostream_error It will be set to true if an error happens on
@@ -285,23 +337,60 @@ class Binlog_cache_storage : public Basic_ostream {
      @retval false  Success
      @retval true  Error happens in either the istream or ostream.
   */
-  bool copy_to(Basic_ostream *ostream, bool *ostream_error = nullptr) {
-    DBUG_TRACE;
-    return stream_copy(&m_file, ostream, ostream_error);
-  }
+  bool copy_to(Basic_ostream *ostream, bool *ostream_error = nullptr);
 
   /**
-     Returns data length.
+     Returns logical data length.
   */
-  my_off_t length() const { return m_file.length(); }
+  my_off_t length() const;
+  /**
+     Returns physical data length.
+  */
+  my_off_t physical_length() const;
   /**
      Returns true if binlog cache is empty.
   */
   bool is_empty() const { return length() == 0; }
 
  private:
-  Truncatable_ostream *m_pipeline_head = nullptr;
-  IO_CACHE_binlog_cache_storage m_file;
+  /**
+    Replace the representation with a new one in the standard form.
+
+    @retval false  Success.
+    @retval true   Error.
+  */
+  [[nodiscard]] bool create_checksumless_representation();
+  /**
+    Rewrite the cache, in the standard form, into binlog file form (see
+    binlog::create_checksummed_cache_representation()).
+
+    @param checksum_alg    binlog_checksum for the rewritten events.
+    @param reserved_bytes  The header region of the bolt_ temp file.
+
+    @retval false  Success.
+    @retval true   Error: the cache stays in the standard form.
+  */
+  bool rewrite_into_binlog_file_format(
+      mysql::binlog::event::enum_binlog_checksum_alg checksum_alg,
+      my_off_t reserved_bytes);
+
+  /** The cache's bytes, in the standard or the binlog file form. */
+  std::unique_ptr<binlog::Binlog_cache_representation> m_representation;
+  /** @see plan_large_trx_rewrite() */
+  bool m_large_trx_rewrite_planned = false;
+  /** @see large_trx_rewrite_failed() */
+  bool m_large_trx_rewrite_failed = false;
+  /** The checksum algorithm of the planned rewrite. */
+  mysql::binlog::event::enum_binlog_checksum_alg
+      m_large_trx_planned_checksum_alg =
+          mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
+  /** The reserved header region of the planned rewrite. */
+  my_off_t m_large_trx_planned_reserved_bytes = 0;
+  /* The open() arguments, kept for creating replacement representations. */
+  const char *m_dir = nullptr;
+  const char *m_prefix = nullptr;
+  my_off_t m_cache_size = 0;
+  my_off_t m_max_cache_size = 0;
 };
 
 /**

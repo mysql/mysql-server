@@ -34,6 +34,7 @@ enum class Large_trx_fallback_reason {
   kIncident,
   kGroupReplication,
   kLogClosed,
+  kRewriteFailed,
 };
 
 /**

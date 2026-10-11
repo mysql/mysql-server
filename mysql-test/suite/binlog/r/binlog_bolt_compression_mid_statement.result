@@ -1,0 +1,30 @@
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE FUNCTION compress_on(v INT) RETURNS INT DETERMINISTIC
+BEGIN
+SET SESSION binlog_transaction_compression = ON;
+RETURN v;
+END|
+# R1: compression turned ON after the cache was rewritten.
+INSERT INTO t1 VALUES (1, REPEAT('a', 6000000)), (compress_on(2), REPEAT('b', 6000000));
+include/assert.inc [R1: compression is ON after the statement.]
+include/assert.inc [R1: the transaction is promoted.]
+include/assert.inc [R1: no missed optimization is counted.]
+include/assert.inc [R1: both rows are retained.]
+include/assert.inc [R1: the promoted file holds no compressed payload.]
+SET SESSION binlog_transaction_compression = OFF;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE performance_schema.binary_log_transaction_compression_stats;
+# R2: compression turned ON while the cache is still in memory.
+SET GLOBAL binlog_large_transaction_optimization_threshold = 128 * 1024 * 1024;
+SET GLOBAL binlog_cache_size = 64 * 1024 * 1024;
+INSERT INTO t1 VALUES (1, REPEAT('a', 6000000)), (compress_on(2), REPEAT('b', 6000000));
+include/assert.inc [R2: the cache stayed in memory.]
+include/assert.inc [R2: the transaction is not promoted.]
+include/assert.inc [R2: no missed optimization is counted.]
+include/assert.inc [R2: the transaction is compressed.]
+include/assert.inc [R2: both rows are retained.]
+include/assert.inc [R2: no bolt_ temp file is left.]
+DROP FUNCTION compress_on;
+DROP TABLE t1;

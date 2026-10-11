@@ -1,0 +1,605 @@
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE PROCEDURE ins(IN i INT, IN len INT)
+BEGIN
+INSERT INTO t1 VALUES (i, REPEAT(CHAR(64 + MOD(i, 26)), len));
+END|
+# C1: two savepoints, ROLLBACK TO the second
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s1;
+CALL ins(4, 4000000);
+SAVEPOINT s2;
+CALL ins(5, 4000000);
+ROLLBACK TO SAVEPOINT s2;
+COMMIT;
+include/assert.inc [C1: two savepoints, ROLLBACK TO the second: t1 holds exactly the expected rows]
+include/assert.inc [C1: two savepoints, ROLLBACK TO the second: every retained row has its own payload]
+include/assert.inc [C1: two savepoints, ROLLBACK TO the second: promoted 1 time(s)]
+include/assert.inc [C1: two savepoints, ROLLBACK TO the second: missed optimizations +0]
+include/assert.inc [C1: two savepoints, ROLLBACK TO the second: the binary log inserts 4 row(s) into t1]
+include/assert.inc [C1: two savepoints, ROLLBACK TO the second: no bolt_ temp file is left over]
+# C2: two savepoints, ROLLBACK TO the first
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s1;
+CALL ins(4, 4000000);
+SAVEPOINT s2;
+CALL ins(5, 4000000);
+ROLLBACK TO SAVEPOINT s1;
+COMMIT;
+include/assert.inc [C2: two savepoints, ROLLBACK TO the first: t1 holds exactly the expected rows]
+include/assert.inc [C2: two savepoints, ROLLBACK TO the first: every retained row has its own payload]
+include/assert.inc [C2: two savepoints, ROLLBACK TO the first: promoted 1 time(s)]
+include/assert.inc [C2: two savepoints, ROLLBACK TO the first: missed optimizations +0]
+include/assert.inc [C2: two savepoints, ROLLBACK TO the first: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C2: two savepoints, ROLLBACK TO the first: no bolt_ temp file is left over]
+# C3: ROLLBACK TO the second, then to the first
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s1;
+CALL ins(4, 4000000);
+SAVEPOINT s2;
+CALL ins(5, 4000000);
+ROLLBACK TO SAVEPOINT s2;
+ROLLBACK TO SAVEPOINT s1;
+COMMIT;
+include/assert.inc [C3: ROLLBACK TO the second, then to the first: t1 holds exactly the expected rows]
+include/assert.inc [C3: ROLLBACK TO the second, then to the first: every retained row has its own payload]
+include/assert.inc [C3: ROLLBACK TO the second, then to the first: promoted 1 time(s)]
+include/assert.inc [C3: ROLLBACK TO the second, then to the first: missed optimizations +0]
+include/assert.inc [C3: ROLLBACK TO the second, then to the first: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C3: ROLLBACK TO the second, then to the first: no bolt_ temp file is left over]
+# C4: ROLLBACK TO the same savepoint twice
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s1;
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s1;
+CALL ins(5, 4000000);
+ROLLBACK TO SAVEPOINT s1;
+CALL ins(6, 100);
+COMMIT;
+include/assert.inc [C4: ROLLBACK TO the same savepoint twice: t1 holds exactly the expected rows]
+include/assert.inc [C4: ROLLBACK TO the same savepoint twice: every retained row has its own payload]
+include/assert.inc [C4: ROLLBACK TO the same savepoint twice: promoted 1 time(s)]
+include/assert.inc [C4: ROLLBACK TO the same savepoint twice: missed optimizations +0]
+include/assert.inc [C4: ROLLBACK TO the same savepoint twice: the binary log inserts 4 row(s) into t1]
+include/assert.inc [C4: ROLLBACK TO the same savepoint twice: no bolt_ temp file is left over]
+# C5: ROLLBACK TO the first destroys the second
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s1;
+CALL ins(4, 4000000);
+SAVEPOINT s2;
+ROLLBACK TO SAVEPOINT s1;
+ROLLBACK TO SAVEPOINT s2;
+ERROR 42000: SAVEPOINT s2 does not exist
+COMMIT;
+include/assert.inc [C5: ROLLBACK TO the first destroys the second: t1 holds exactly the expected rows]
+include/assert.inc [C5: ROLLBACK TO the first destroys the second: every retained row has its own payload]
+include/assert.inc [C5: ROLLBACK TO the first destroys the second: promoted 1 time(s)]
+include/assert.inc [C5: ROLLBACK TO the first destroys the second: missed optimizations +0]
+include/assert.inc [C5: ROLLBACK TO the first destroys the second: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C5: ROLLBACK TO the first destroys the second: no bolt_ temp file is left over]
+# C6: START TRANSACTION; SELECT; SAVEPOINT; INSERT; ROLLBACK TO; COMMIT
+START TRANSACTION;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+SAVEPOINT sv;
+CALL ins(1, 4000000);
+ROLLBACK TO SAVEPOINT sv;
+COMMIT;
+include/assert.inc [C6: START TRANSACTION; SELECT; SAVEPOINT; INSERT; ROLLBACK TO; COMMIT: t1 holds exactly the expected rows]
+include/assert.inc [C6: START TRANSACTION; SELECT; SAVEPOINT; INSERT; ROLLBACK TO; COMMIT: every retained row has its own payload]
+include/assert.inc [C6: START TRANSACTION; SELECT; SAVEPOINT; INSERT; ROLLBACK TO; COMMIT: promoted 0 time(s)]
+include/assert.inc [C6: START TRANSACTION; SELECT; SAVEPOINT; INSERT; ROLLBACK TO; COMMIT: missed optimizations +0]
+include/assert.inc [C6: START TRANSACTION; SELECT; SAVEPOINT; INSERT; ROLLBACK TO; COMMIT: the binary log inserts 0 row(s) into t1]
+include/assert.inc [C6: START TRANSACTION; SELECT; SAVEPOINT; INSERT; ROLLBACK TO; COMMIT: no bolt_ temp file is left over]
+# C7: as C6, with a small INSERT after the ROLLBACK TO
+START TRANSACTION;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+SAVEPOINT sv;
+CALL ins(1, 4000000);
+ROLLBACK TO SAVEPOINT sv;
+CALL ins(2, 100);
+COMMIT;
+include/assert.inc [C7: as C6, with a small INSERT after the ROLLBACK TO: t1 holds exactly the expected rows]
+include/assert.inc [C7: as C6, with a small INSERT after the ROLLBACK TO: every retained row has its own payload]
+include/assert.inc [C7: as C6, with a small INSERT after the ROLLBACK TO: promoted 0 time(s)]
+include/assert.inc [C7: as C6, with a small INSERT after the ROLLBACK TO: missed optimizations +0]
+include/assert.inc [C7: as C6, with a small INSERT after the ROLLBACK TO: the binary log inserts 1 row(s) into t1]
+include/assert.inc [C7: as C6, with a small INSERT after the ROLLBACK TO: no bolt_ temp file is left over]
+# C8: START TRANSACTION; INSERT; SAVEPOINT; ROLLBACK TO; ROLLBACK
+START TRANSACTION;
+CALL ins(1, 4000000);
+SAVEPOINT sv;
+ROLLBACK TO SAVEPOINT sv;
+ROLLBACK;
+include/assert.inc [C8: START TRANSACTION; INSERT; SAVEPOINT; ROLLBACK TO; ROLLBACK: t1 holds exactly the expected rows]
+include/assert.inc [C8: START TRANSACTION; INSERT; SAVEPOINT; ROLLBACK TO; ROLLBACK: every retained row has its own payload]
+include/assert.inc [C8: START TRANSACTION; INSERT; SAVEPOINT; ROLLBACK TO; ROLLBACK: promoted 0 time(s)]
+include/assert.inc [C8: START TRANSACTION; INSERT; SAVEPOINT; ROLLBACK TO; ROLLBACK: missed optimizations +0]
+include/assert.inc [C8: START TRANSACTION; INSERT; SAVEPOINT; ROLLBACK TO; ROLLBACK: the binary log inserts 0 row(s) into t1]
+include/assert.inc [C8: START TRANSACTION; INSERT; SAVEPOINT; ROLLBACK TO; ROLLBACK: no bolt_ temp file is left over]
+# C9: large transaction, SAVEPOINT, INSERT, ROLLBACK TO, ROLLBACK
+START TRANSACTION;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT sv;
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT sv;
+ROLLBACK;
+include/assert.inc [C9: large transaction, SAVEPOINT, INSERT, ROLLBACK TO, ROLLBACK: t1 holds exactly the expected rows]
+include/assert.inc [C9: large transaction, SAVEPOINT, INSERT, ROLLBACK TO, ROLLBACK: every retained row has its own payload]
+include/assert.inc [C9: large transaction, SAVEPOINT, INSERT, ROLLBACK TO, ROLLBACK: promoted 0 time(s)]
+include/assert.inc [C9: large transaction, SAVEPOINT, INSERT, ROLLBACK TO, ROLLBACK: missed optimizations +0]
+include/assert.inc [C9: large transaction, SAVEPOINT, INSERT, ROLLBACK TO, ROLLBACK: the binary log inserts 0 row(s) into t1]
+include/assert.inc [C9: large transaction, SAVEPOINT, INSERT, ROLLBACK TO, ROLLBACK: no bolt_ temp file is left over]
+# C10: savepoint before the first spill, rollback after the rewrite
+BEGIN;
+CALL ins(1, 100);
+SAVEPOINT s;
+CALL ins(2, 4000000);
+ROLLBACK TO SAVEPOINT s;
+CALL ins(3, 4000000);
+CALL ins(4, 4000000);
+CALL ins(5, 4000000);
+COMMIT;
+include/assert.inc [C10: savepoint before the first spill, rollback after the rewrite: t1 holds exactly the expected rows]
+include/assert.inc [C10: savepoint before the first spill, rollback after the rewrite: every retained row has its own payload]
+include/assert.inc [C10: savepoint before the first spill, rollback after the rewrite: promoted 1 time(s)]
+include/assert.inc [C10: savepoint before the first spill, rollback after the rewrite: missed optimizations +0]
+include/assert.inc [C10: savepoint before the first spill, rollback after the rewrite: the binary log inserts 4 row(s) into t1]
+include/assert.inc [C10: savepoint before the first spill, rollback after the rewrite: no bolt_ temp file is left over]
+# C11: rollback after the rewrite drops below the threshold
+BEGIN;
+CALL ins(1, 2000000);
+SAVEPOINT s;
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+include/assert.inc [C11: rollback after the rewrite drops below the threshold: t1 holds exactly the expected rows]
+include/assert.inc [C11: rollback after the rewrite drops below the threshold: every retained row has its own payload]
+include/assert.inc [C11: rollback after the rewrite drops below the threshold: promoted 0 time(s)]
+include/assert.inc [C11: rollback after the rewrite drops below the threshold: missed optimizations +0]
+include/assert.inc [C11: rollback after the rewrite drops below the threshold: the binary log inserts 1 row(s) into t1]
+include/assert.inc [C11: rollback after the rewrite drops below the threshold: no bolt_ temp file is left over]
+# C12: rollback right back to the savepoint, no more events
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s;
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+include/assert.inc [C12: rollback right back to the savepoint, no more events: t1 holds exactly the expected rows]
+include/assert.inc [C12: rollback right back to the savepoint, no more events: every retained row has its own payload]
+include/assert.inc [C12: rollback right back to the savepoint, no more events: promoted 1 time(s)]
+include/assert.inc [C12: rollback right back to the savepoint, no more events: missed optimizations +0]
+include/assert.inc [C12: rollback right back to the savepoint, no more events: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C12: rollback right back to the savepoint, no more events: no bolt_ temp file is left over]
+# C13: RELEASE SAVEPOINT, then COMMIT
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+SAVEPOINT s;
+CALL ins(3, 4000000);
+RELEASE SAVEPOINT s;
+CALL ins(4, 100);
+COMMIT;
+include/assert.inc [C13: RELEASE SAVEPOINT, then COMMIT: t1 holds exactly the expected rows]
+include/assert.inc [C13: RELEASE SAVEPOINT, then COMMIT: every retained row has its own payload]
+include/assert.inc [C13: RELEASE SAVEPOINT, then COMMIT: promoted 1 time(s)]
+include/assert.inc [C13: RELEASE SAVEPOINT, then COMMIT: missed optimizations +0]
+include/assert.inc [C13: RELEASE SAVEPOINT, then COMMIT: the binary log inserts 4 row(s) into t1]
+include/assert.inc [C13: RELEASE SAVEPOINT, then COMMIT: no bolt_ temp file is left over]
+# C14: RELEASE SAVEPOINT, then ROLLBACK TO it
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+SAVEPOINT s;
+CALL ins(3, 4000000);
+RELEASE SAVEPOINT s;
+ROLLBACK TO SAVEPOINT s;
+ERROR 42000: SAVEPOINT s does not exist
+COMMIT;
+include/assert.inc [C14: RELEASE SAVEPOINT, then ROLLBACK TO it: t1 holds exactly the expected rows]
+include/assert.inc [C14: RELEASE SAVEPOINT, then ROLLBACK TO it: every retained row has its own payload]
+include/assert.inc [C14: RELEASE SAVEPOINT, then ROLLBACK TO it: promoted 1 time(s)]
+include/assert.inc [C14: RELEASE SAVEPOINT, then ROLLBACK TO it: missed optimizations +0]
+include/assert.inc [C14: RELEASE SAVEPOINT, then ROLLBACK TO it: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C14: RELEASE SAVEPOINT, then ROLLBACK TO it: no bolt_ temp file is left over]
+# C15: the same savepoint name set twice
+BEGIN;
+CALL ins(1, 4000000);
+SAVEPOINT a;
+CALL ins(2, 4000000);
+SAVEPOINT a;
+CALL ins(3, 4000000);
+ROLLBACK TO SAVEPOINT a;
+CALL ins(4, 4000000);
+COMMIT;
+include/assert.inc [C15: the same savepoint name set twice: t1 holds exactly the expected rows]
+include/assert.inc [C15: the same savepoint name set twice: every retained row has its own payload]
+include/assert.inc [C15: the same savepoint name set twice: promoted 1 time(s)]
+include/assert.inc [C15: the same savepoint name set twice: missed optimizations +0]
+include/assert.inc [C15: the same savepoint name set twice: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C15: the same savepoint name set twice: no bolt_ temp file is left over]
+# C16: ten savepoints across the spill, ROLLBACK TO the sixth
+BEGIN;
+SAVEPOINT s1;
+CALL ins(1, 2500000);
+SAVEPOINT s2;
+CALL ins(2, 2500000);
+SAVEPOINT s3;
+CALL ins(3, 2500000);
+SAVEPOINT s4;
+CALL ins(4, 2500000);
+SAVEPOINT s5;
+CALL ins(5, 2500000);
+SAVEPOINT s6;
+CALL ins(6, 2500000);
+SAVEPOINT s7;
+CALL ins(7, 2500000);
+SAVEPOINT s8;
+CALL ins(8, 2500000);
+SAVEPOINT s9;
+CALL ins(9, 2500000);
+SAVEPOINT s10;
+CALL ins(10, 2500000);
+ROLLBACK TO SAVEPOINT s6;
+COMMIT;
+include/assert.inc [C16: ten savepoints across the spill, ROLLBACK TO the sixth: t1 holds exactly the expected rows]
+include/assert.inc [C16: ten savepoints across the spill, ROLLBACK TO the sixth: every retained row has its own payload]
+include/assert.inc [C16: ten savepoints across the spill, ROLLBACK TO the sixth: promoted 1 time(s)]
+include/assert.inc [C16: ten savepoints across the spill, ROLLBACK TO the sixth: missed optimizations +0]
+include/assert.inc [C16: ten savepoints across the spill, ROLLBACK TO the sixth: the binary log inserts 5 row(s) into t1]
+include/assert.inc [C16: ten savepoints across the spill, ROLLBACK TO the sixth: no bolt_ temp file is left over]
+# C17: ROLLBACK TO, then a failing statement
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s;
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s;
+INSERT INTO t1 VALUES (5, REPEAT(CHAR(69), 4000000)), (6, REPEAT(CHAR(70), 4000000)), (1, 'dup');
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+CALL ins(7, 100);
+COMMIT;
+include/assert.inc [C17: ROLLBACK TO, then a failing statement: t1 holds exactly the expected rows]
+include/assert.inc [C17: ROLLBACK TO, then a failing statement: every retained row has its own payload]
+include/assert.inc [C17: ROLLBACK TO, then a failing statement: promoted 1 time(s)]
+include/assert.inc [C17: ROLLBACK TO, then a failing statement: missed optimizations +0]
+include/assert.inc [C17: ROLLBACK TO, then a failing statement: the binary log inserts 4 row(s) into t1]
+include/assert.inc [C17: ROLLBACK TO, then a failing statement: no bolt_ temp file is left over]
+# C18: failing first statement, then savepoints
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT(CHAR(65), 4000000)), (2, REPEAT(CHAR(66), 4000000)), (1, 'dup');
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SAVEPOINT s;
+CALL ins(3, 4000000);
+CALL ins(4, 4000000);
+CALL ins(5, 4000000);
+ROLLBACK TO SAVEPOINT s;
+CALL ins(6, 4000000);
+CALL ins(7, 4000000);
+CALL ins(8, 4000000);
+COMMIT;
+include/assert.inc [C18: failing first statement, then savepoints: t1 holds exactly the expected rows]
+include/assert.inc [C18: failing first statement, then savepoints: every retained row has its own payload]
+include/assert.inc [C18: failing first statement, then savepoints: promoted 1 time(s)]
+include/assert.inc [C18: failing first statement, then savepoints: missed optimizations +0]
+include/assert.inc [C18: failing first statement, then savepoints: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C18: failing first statement, then savepoints: no bolt_ temp file is left over]
+# C19: SAVEPOINT as the very first statement
+START TRANSACTION;
+SAVEPOINT s;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+ROLLBACK TO SAVEPOINT s;
+CALL ins(4, 4000000);
+CALL ins(5, 4000000);
+CALL ins(6, 4000000);
+COMMIT;
+include/assert.inc [C19: SAVEPOINT as the very first statement: t1 holds exactly the expected rows]
+include/assert.inc [C19: SAVEPOINT as the very first statement: every retained row has its own payload]
+include/assert.inc [C19: SAVEPOINT as the very first statement: promoted 1 time(s)]
+include/assert.inc [C19: SAVEPOINT as the very first statement: missed optimizations +0]
+include/assert.inc [C19: SAVEPOINT as the very first statement: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C19: SAVEPOINT as the very first statement: no bolt_ temp file is left over]
+# C20: knob turned OFF between SAVEPOINT and ROLLBACK TO
+BEGIN;
+CALL ins(1, 4000000);
+SAVEPOINT s;
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+ROLLBACK TO SAVEPOINT s;
+CALL ins(4, 4000000);
+CALL ins(5, 4000000);
+COMMIT;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+include/assert.inc [C20: knob turned OFF between SAVEPOINT and ROLLBACK TO: t1 holds exactly the expected rows]
+include/assert.inc [C20: knob turned OFF between SAVEPOINT and ROLLBACK TO: every retained row has its own payload]
+include/assert.inc [C20: knob turned OFF between SAVEPOINT and ROLLBACK TO: promoted 1 time(s)]
+include/assert.inc [C20: knob turned OFF between SAVEPOINT and ROLLBACK TO: missed optimizations +0]
+include/assert.inc [C20: knob turned OFF between SAVEPOINT and ROLLBACK TO: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C20: knob turned OFF between SAVEPOINT and ROLLBACK TO: no bolt_ temp file is left over]
+# C21: binlog_checksum changed after the ROLLBACK TO
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s;
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s;
+SET GLOBAL binlog_checksum = NONE;
+COMMIT;
+include/assert.inc [C21: binlog_checksum changed after the ROLLBACK TO: t1 holds exactly the expected rows]
+include/assert.inc [C21: binlog_checksum changed after the ROLLBACK TO: every retained row has its own payload]
+include/assert.inc [C21: binlog_checksum changed after the ROLLBACK TO: promoted 0 time(s)]
+include/assert.inc [C21: binlog_checksum changed after the ROLLBACK TO: missed optimizations +1]
+include/assert.inc [C21: binlog_checksum changed after the ROLLBACK TO: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C21: binlog_checksum changed after the ROLLBACK TO: no bolt_ temp file is left over]
+# C22: binlog_checksum=NONE, ROLLBACK TO on a footerless cache
+BEGIN;
+CALL ins(1, 4000000);
+SAVEPOINT s1;
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s2;
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s2;
+CALL ins(5, 4000000);
+COMMIT;
+include/assert.inc [C22: binlog_checksum=NONE, ROLLBACK TO on a footerless cache: t1 holds exactly the expected rows]
+include/assert.inc [C22: binlog_checksum=NONE, ROLLBACK TO on a footerless cache: every retained row has its own payload]
+include/assert.inc [C22: binlog_checksum=NONE, ROLLBACK TO on a footerless cache: promoted 1 time(s)]
+include/assert.inc [C22: binlog_checksum=NONE, ROLLBACK TO on a footerless cache: missed optimizations +0]
+include/assert.inc [C22: binlog_checksum=NONE, ROLLBACK TO on a footerless cache: the binary log inserts 4 row(s) into t1]
+include/assert.inc [C22: binlog_checksum=NONE, ROLLBACK TO on a footerless cache: no bolt_ temp file is left over]
+SET GLOBAL binlog_checksum = CRC32;
+# C23: autocommit=0 transaction with a savepoint
+SET autocommit = 0;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s;
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+SET autocommit = 1;
+include/assert.inc [C23: autocommit=0 transaction with a savepoint: t1 holds exactly the expected rows]
+include/assert.inc [C23: autocommit=0 transaction with a savepoint: every retained row has its own payload]
+include/assert.inc [C23: autocommit=0 transaction with a savepoint: promoted 1 time(s)]
+include/assert.inc [C23: autocommit=0 transaction with a savepoint: missed optimizations +0]
+include/assert.inc [C23: autocommit=0 transaction with a savepoint: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C23: autocommit=0 transaction with a savepoint: no bolt_ temp file is left over]
+# C25: back-to-back transactions after a savepoint transaction
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s;
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+CALL ins(5, 100);
+BEGIN;
+CALL ins(6, 2000000);
+SAVEPOINT s;
+CALL ins(7, 100);
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+BEGIN;
+CALL ins(8, 4000000);
+CALL ins(9, 4000000);
+CALL ins(10, 4000000);
+COMMIT;
+include/assert.inc [C25: back-to-back transactions after a savepoint transaction: t1 holds exactly the expected rows]
+include/assert.inc [C25: back-to-back transactions after a savepoint transaction: every retained row has its own payload]
+include/assert.inc [C25: back-to-back transactions after a savepoint transaction: promoted 2 time(s)]
+include/assert.inc [C25: back-to-back transactions after a savepoint transaction: missed optimizations +0]
+include/assert.inc [C25: back-to-back transactions after a savepoint transaction: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C25: back-to-back transactions after a savepoint transaction: no bolt_ temp file is left over]
+# C26: knob OFF for the whole transaction
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+BEGIN;
+CALL ins(1, 100);
+SAVEPOINT s;
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s;
+CALL ins(5, 4000000);
+COMMIT;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+include/assert.inc [C26: knob OFF for the whole transaction: t1 holds exactly the expected rows]
+include/assert.inc [C26: knob OFF for the whole transaction: every retained row has its own payload]
+include/assert.inc [C26: knob OFF for the whole transaction: promoted 0 time(s)]
+include/assert.inc [C26: knob OFF for the whole transaction: missed optimizations +0]
+include/assert.inc [C26: knob OFF for the whole transaction: the binary log inserts 2 row(s) into t1]
+include/assert.inc [C26: knob OFF for the whole transaction: no bolt_ temp file is left over]
+# C27: XA transaction with a savepoint
+XA START 'bolt_sp';
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s;
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s;
+XA END 'bolt_sp';
+XA PREPARE 'bolt_sp';
+XA COMMIT 'bolt_sp';
+include/assert.inc [C27: XA transaction with a savepoint: t1 holds exactly the expected rows]
+include/assert.inc [C27: XA transaction with a savepoint: every retained row has its own payload]
+include/assert.inc [C27: XA transaction with a savepoint: promoted 1 time(s)]
+include/assert.inc [C27: XA transaction with a savepoint: missed optimizations +0]
+include/assert.inc [C27: XA transaction with a savepoint: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C27: XA transaction with a savepoint: no bolt_ temp file is left over]
+# C28: SAVEPOINT / ROLLBACK TO inside a stored procedure
+CREATE PROCEDURE sp_in_proc(IN len INT)
+BEGIN
+CALL ins(1, len);
+CALL ins(2, len);
+CALL ins(3, len);
+SAVEPOINT p;
+CALL ins(4, len);
+ROLLBACK TO SAVEPOINT p;
+END|
+FLUSH BINARY LOGS;
+BEGIN;
+CALL sp_in_proc(4000000);
+COMMIT;
+DROP PROCEDURE sp_in_proc;
+include/assert.inc [C28: SAVEPOINT / ROLLBACK TO inside a stored procedure: t1 holds exactly the expected rows]
+include/assert.inc [C28: SAVEPOINT / ROLLBACK TO inside a stored procedure: every retained row has its own payload]
+include/assert.inc [C28: SAVEPOINT / ROLLBACK TO inside a stored procedure: promoted 1 time(s)]
+include/assert.inc [C28: SAVEPOINT / ROLLBACK TO inside a stored procedure: missed optimizations +0]
+include/assert.inc [C28: SAVEPOINT / ROLLBACK TO inside a stored procedure: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C28: SAVEPOINT / ROLLBACK TO inside a stored procedure: no bolt_ temp file is left over]
+# C29: DDL after a savepoint commits the transaction implicitly
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s;
+CALL ins(4, 4000000);
+CREATE TABLE t3 (a INT);
+ROLLBACK TO SAVEPOINT s;
+ERROR 42000: SAVEPOINT s does not exist
+include/assert.inc [C29: DDL after a savepoint commits the transaction implicitly: t1 holds exactly the expected rows]
+include/assert.inc [C29: DDL after a savepoint commits the transaction implicitly: every retained row has its own payload]
+include/assert.inc [C29: DDL after a savepoint commits the transaction implicitly: promoted 1 time(s)]
+include/assert.inc [C29: DDL after a savepoint commits the transaction implicitly: missed optimizations +0]
+include/assert.inc [C29: DDL after a savepoint commits the transaction implicitly: the binary log inserts 4 row(s) into t1]
+include/assert.inc [C29: DDL after a savepoint commits the transaction implicitly: no bolt_ temp file is left over]
+DROP TABLE t3;
+# C30: savepoint and rollback in memory, then the transaction spills
+BEGIN;
+CALL ins(1, 100);
+SAVEPOINT s;
+CALL ins(2, 100);
+ROLLBACK TO SAVEPOINT s;
+CALL ins(3, 4000000);
+CALL ins(4, 4000000);
+CALL ins(5, 4000000);
+COMMIT;
+include/assert.inc [C30: savepoint and rollback in memory, then the transaction spills: t1 holds exactly the expected rows]
+include/assert.inc [C30: savepoint and rollback in memory, then the transaction spills: every retained row has its own payload]
+include/assert.inc [C30: savepoint and rollback in memory, then the transaction spills: promoted 1 time(s)]
+include/assert.inc [C30: savepoint and rollback in memory, then the transaction spills: missed optimizations +0]
+include/assert.inc [C30: savepoint and rollback in memory, then the transaction spills: the binary log inserts 4 row(s) into t1]
+include/assert.inc [C30: savepoint and rollback in memory, then the transaction spills: no bolt_ temp file is left over]
+# C31: twenty SAVEPOINT / ROLLBACK TO rounds on a rewritten cache
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT r;
+CALL ins(100 + 1, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 2, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 3, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 4, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 5, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 6, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 7, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 8, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 9, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 10, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 11, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 12, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 13, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 14, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 15, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 16, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 17, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 18, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 19, 2000000);
+ROLLBACK TO SAVEPOINT r;
+SAVEPOINT r;
+CALL ins(100 + 20, 2000000);
+ROLLBACK TO SAVEPOINT r;
+COMMIT;
+include/assert.inc [C31: twenty SAVEPOINT / ROLLBACK TO rounds on a rewritten cache: t1 holds exactly the expected rows]
+include/assert.inc [C31: twenty SAVEPOINT / ROLLBACK TO rounds on a rewritten cache: every retained row has its own payload]
+include/assert.inc [C31: twenty SAVEPOINT / ROLLBACK TO rounds on a rewritten cache: promoted 1 time(s)]
+include/assert.inc [C31: twenty SAVEPOINT / ROLLBACK TO rounds on a rewritten cache: missed optimizations +0]
+include/assert.inc [C31: twenty SAVEPOINT / ROLLBACK TO rounds on a rewritten cache: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C31: twenty SAVEPOINT / ROLLBACK TO rounds on a rewritten cache: no bolt_ temp file is left over]
+# C32: compression ON at the first event, then ROLLBACK TO
+SET SESSION binlog_transaction_compression = ON;
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s;
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+SET SESSION binlog_transaction_compression = OFF;
+include/assert.inc [C32: compression ON at the first event, then ROLLBACK TO: t1 holds exactly the expected rows]
+include/assert.inc [C32: compression ON at the first event, then ROLLBACK TO: every retained row has its own payload]
+include/assert.inc [C32: compression ON at the first event, then ROLLBACK TO: promoted 0 time(s)]
+include/assert.inc [C32: compression ON at the first event, then ROLLBACK TO: missed optimizations +0]
+include/assert.inc [C32: compression ON at the first event, then ROLLBACK TO: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C32: compression ON at the first event, then ROLLBACK TO: no bolt_ temp file is left over]
+DROP PROCEDURE ins;
+DROP TABLE t1;

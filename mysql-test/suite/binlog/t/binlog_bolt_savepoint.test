@@ -2,7 +2,8 @@
 #
 # === Purpose ===
 # Verify a savepoint rollback uses the final transaction-cache size to choose
-# either ordinary active-binlog copying or BOLT promotion.
+# either ordinary active-binlog copying or BOLT promotion, while preserving
+# logical savepoint offsets when checksums are enabled.
 #
 # === Requirements ===
 # R1. A spilled cache truncated below binlog_cache_size commits normally.
@@ -13,11 +14,16 @@
 #     candidate that fell back. Neither counter moves.
 # R5. A promoted file whose spilled cache was trimmed by a savepoint rollback
 #     is structurally valid.
+# R6. With CRC32 checksums, savepoint rollback remains based on logical cache
+#     offsets even if the physical/promotable representation carries checksum
+#     bytes.
 #
 # === Implementation ===
 # Configure a 1 MiB cache and a 10 MiB BOLT threshold. Each case spills the
 # transaction cache, rolls back to a savepoint, commits, and checks the final
 # active binary-log filename, both BOLT status counters, and the retained rows.
+# CRC32 is forced explicitly, and the copied/promoted binlog streams are
+# decoded with checksum verification.
 #
 # Both counters are asserted everywhere. The filename alone would not be enough:
 # the non-promoting cases expect it unchanged, which is also what a server with
@@ -26,10 +32,13 @@
 #
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
 
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
 --let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
 --let $save_max_binlog_size = query_get_value(SELECT @@GLOBAL.max_binlog_size, @@GLOBAL.max_binlog_size, 1)
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+--let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
 
 # The shared promoted-file validator resolves $bolt_header_file against this.
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
@@ -38,10 +47,12 @@
 --disable_query_log
 DROP TABLE IF EXISTS t1;
 --enable_query_log
+SET GLOBAL binlog_checksum = CRC32;
 RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 SET GLOBAL max_binlog_size = 1073741824;
+SET SESSION binlog_transaction_compression = OFF;
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 
 ############################################################################
@@ -76,6 +87,7 @@ COMMIT;
 --let $assert_text = Savepoint rollback discards the post-savepoint row.
 --let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 1
 --source include/assert.inc
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file_after > /dev/null
 --disable_query_log
 TRUNCATE t1;
 --enable_query_log
@@ -112,6 +124,7 @@ COMMIT;
 --let $assert_text = Savepoint rollback discards the above-cache post-savepoint row.
 --let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 11
 --source include/assert.inc
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file_after > /dev/null
 --disable_query_log
 TRUNCATE t1;
 --enable_query_log
@@ -249,4 +262,6 @@ DROP TABLE t1;
 --eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
 --eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
 --eval SET GLOBAL max_binlog_size = $save_max_binlog_size
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--eval SET SESSION binlog_transaction_compression = $save_compression
 --enable_query_log

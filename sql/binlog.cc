@@ -487,33 +487,12 @@ static int binlog_dummy_recover(handlerton *, XA_recover_txn *, uint,
 class Binlog_event_writer : public Basic_ostream {
   MYSQL_BIN_LOG::Binlog_ofile *m_binlog_file;
   bool have_checksum;
-  /*
-    Checksum algorithm the incoming cache events were serialized with, captured
-    once at the transaction's first event. Used to detect each event's stale
-    checksum (stale because log_pos changes on copy) so it can be skipped and
-    recomputed for the binlog. UNDEF means the events carry no checksum (e.g.
-    events written directly rather than from a cache).
-  */
-  enum_binlog_checksum_alg m_checksum_trx_start =
-      mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF;
-
-  /**
-    Returns true when the events streaming in carry a checksum.
-  */
-  bool is_checksum_computed() const {
-    return m_checksum_trx_start !=
-               mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF &&
-           m_checksum_trx_start !=
-               mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
-  }
   ha_checksum initial_checksum;
   ha_checksum checksum;
   uint32 end_log_pos;
   uchar header[LOG_EVENT_HEADER_LEN];
   my_off_t header_len = 0;
   uint32 event_len = 0;
-  /* Stale checksum bytes of the finished event left to skip. */
-  uint32 skip_len = 0;
 
  public:
   /**
@@ -535,50 +514,31 @@ class Binlog_event_writer : public Basic_ostream {
   }
 
   void update_header() {
-    /* Length of the incoming event, its stale checksum included when
-       it carries one. */
-    uint32 event_len_incoming = uint4korr(header + EVENT_LEN_OFFSET);
+    event_len = uint4korr(header + EVENT_LEN_OFFSET);
 
-    /* Length the event will have in the binlog file. */
-    uint32 event_len_on_disk = event_len_incoming;
-    if (have_checksum && !is_checksum_computed())
-      event_len_on_disk += BINLOG_CHECKSUM_LEN;
-    else if (!have_checksum && is_checksum_computed())
-      event_len_on_disk -= BINLOG_CHECKSUM_LEN;
+    // Increase end_log_pos
+    end_log_pos += event_len;
 
-    end_log_pos += event_len_on_disk;
+    // Update event length if it has checksum
+    if (have_checksum) {
+      int4store(header + EVENT_LEN_OFFSET, event_len + BINLOG_CHECKSUM_LEN);
+      end_log_pos += BINLOG_CHECKSUM_LEN;
+    }
 
-    int4store(header + EVENT_LEN_OFFSET, event_len_on_disk);
+    // Store end_log_pos
     int4store(header + LOG_POS_OFFSET, end_log_pos);
     // update the checksum
     if (have_checksum) checksum = my_checksum(checksum, header, header_len);
-
-    /* The event's bytes to copy; the stale checksum is not copied, it
-       is skipped after them (see skip_len). */
-    event_len = event_len_incoming;
-    /*
-      write() later reduces this by the header it has emitted, so require room
-      for the header as well as the checksum: the smallest checksummed event is
-      a bare header followed by its checksum.
-    */
-    if (is_checksum_computed() &&
-        event_len >= LOG_EVENT_HEADER_LEN + BINLOG_CHECKSUM_LEN)
-      event_len -= BINLOG_CHECKSUM_LEN;
   }
 
   /**
     Finish the event just copied: write the checksum computed over its
-    rewritten header and body, then arrange for the stale checksum it
-    carried in the cache to be skipped.
+    rewritten header and body.
 
     @retval false  Success
     @retval true   Error
   */
-  bool finish_event() {
-    if (have_checksum && write_checksum()) return true;
-    if (is_checksum_computed()) skip_len = BINLOG_CHECKSUM_LEN;
-    return false;
-  }
+  bool finish_event() { return have_checksum && write_checksum(); }
 
   /**
     Write the computed checksum after the event, and restart the
@@ -599,15 +559,6 @@ class Binlog_event_writer : public Basic_ostream {
     DBUG_TRACE;
 
     while (length > 0) {
-      /* Skip the previous event's stale checksum */
-      if (skip_len > 0) {
-        uint32 skip = std::min<uint32>(skip_len, length);
-        buffer += skip;
-        length -= skip;
-        skip_len -= skip;
-        continue;
-      }
-
       /* Write event header into binlog */
       if (event_len == 0) {
         /* data in the buf may be smaller than header size.*/
@@ -642,8 +593,7 @@ class Binlog_event_writer : public Basic_ostream {
         length -= write_bytes;
         buffer += write_bytes;
 
-        // The whole event is copied: write its checksum, skip its
-        // stale one.
+        // The whole event is copied, now add the checksum
         if (event_len == 0 && finish_event()) return true;
       }
     }
@@ -653,16 +603,6 @@ class Binlog_event_writer : public Basic_ostream {
     Returns true if per event checksum is enabled.
   */
   bool is_checksum_enabled() { return have_checksum; }
-
-  /**
-    Tell the writer which checksum algorithm the events about to
-    stream in were serialized with at their transaction's start. Set
-    before copying a cache (the Gtid event written before the cache
-    carries no checksum).
-  */
-  void set_checksum_trx_start(enum_binlog_checksum_alg alg) {
-    m_checksum_trx_start = alg;
-  }
 };
 
 /*
@@ -713,7 +653,6 @@ int binlog_cache_data::write_event(Log_event *ev) {
   DBUG_TRACE;
 
   if (ev != nullptr) {
-    if (is_trx_cache()) latch_large_trx_optimization();
     DBUG_EXECUTE_IF("binlog_inject_incident", {
       // Set the incident status only once per session. Without this limitation,
       // it usually gets sets first for the transaction cache and then, when
@@ -728,42 +667,25 @@ int binlog_cache_data::write_event(Log_event *ev) {
     DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
                     { DBUG_SET("+d,simulate_file_write_error"); });
 
+    if (is_trx_cache() && !m_large_trx_optimization_latched)
+      latch_large_trx_optimization(ev->thd != nullptr ? ev->thd : current_thd,
+                                   ev);
     /*
-      Set the event's log_pos assuming this cache becomes the start of a new
-      binlog file: offset = reserved header region + bytes written so far.
-      - Small / non-bolt-promoted transaction: at commit the cache is copied
-      into the active binlog, and Binlog_event_writer overwrites log_pos with
-      the real destination offset.
-      - Large / bolt-promoted transaction: the spilled file becomes the next
-      binlog file with this transaction at its start, so this log_pos is already
-        correct and is used as is.
+      Choose the form the event is serialized in, before it is serialized:
+      - standard form: no footer, log_pos 0, as the standard commit path caches
+        events; Binlog_event_writer sets both when the cache is copied into the
+        binary log;
+      - binlog file form (a rewritten cache): log_pos is the event's real end
+        offset in the future binlog file, and the footer algorithm is the one
+        the cache was rewritten with.
     */
-    ev->common_header->log_pos = m_cache.reserved_bytes() + m_cache.length();
-
-    /*
-      One checksum algorithm for the whole transaction, captured at its first
-      event, so a mid-transaction binlog_checksum change cannot mix algorithms
-      within one cache. Compressible transactions record
-      BINLOG_CHECKSUM_ALG_OFF, because events inside a compressed payload carry
-      no checksum.
-
-      Only compute the checksum when writing to the cache when the binlog large
-      transaction optimization is enabled and this is the transaction cache
-      (m_large_trx_optimization_enabled is false for the statement cache).
-      The latch is per cache, so a transaction using both gets a checksummed
-      transaction cache and an unchecksummed statement cache. That is safe
-      because each cache is copied by its own Binlog_event_writer, which
-      knows whether to strip a stale checksum.
-    */
-    if (m_large_trx_optimization_enabled) {
-      if (m_checksum_alg_in_cache ==
-          mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF)
-        m_checksum_alg_in_cache =
-            (ev->thd != nullptr && ev->thd->variables.binlog_trx_compression)
-                ? mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF
-                : static_cast<enum_binlog_checksum_alg>(
-                      binlog_checksum_options);
-      ev->common_footer->checksum_alg = m_checksum_alg_in_cache;
+    const bool in_binlog_file_format = m_cache.is_large_trx_rewritten();
+    if (in_binlog_file_format) {
+      ev->common_header->log_pos =
+          m_cache.reserved_bytes() + m_cache.physical_length();
+      ev->common_footer->checksum_alg = m_cache.physical_checksum_alg();
+    } else {
+      ev->common_header->log_pos = 0;
     }
 
     if (binary_event_serialize(ev, &m_cache)) {
@@ -781,6 +703,23 @@ int binlog_cache_data::write_event(Log_event *ev) {
       });
       return 1;
     }
+
+    /*
+      Keep the cache's logical length up to date. Only the length of an event
+      in binlog file format is added here, without its footer. Events in
+      standard format need nothing here: a standard-format cache's logical
+      length is the bytes it stores, the rewrite carries that length over, and
+      Checksummed_binlog_cache_representation::write() adds the rest of the
+      event during which the rewrite ran.
+    */
+    my_off_t logical_event_length = ev->common_header->data_written;
+    if (in_binlog_file_format) {
+      assert(logical_event_length >= m_cache.footer_length());
+      logical_event_length -= m_cache.footer_length();
+      m_cache.add_logical_length(logical_event_length);
+    }
+    m_large_trx_last_event_length = logical_event_length;
+
     if (ev->get_type_code() == mysql::binlog::event::XID_EVENT ||
         ev->get_type_code() == mysql::binlog::event::XA_PREPARE_LOG_EVENT)
       flags.with_xid = true;
@@ -791,9 +730,10 @@ int binlog_cache_data::write_event(Log_event *ev) {
     if (ev->is_sbr_logging_format()) flags.with_sbr = true;
     if (ev->is_rbr_logging_format()) flags.with_rbr = true;
     /* With respect to empty transactions */
+    const bool ends_group = ev->ends_group();
     if (ev->starts_group()) flags.with_start = true;
-    if (ev->ends_group()) flags.with_end = true;
-    if (!ev->starts_group() && !ev->ends_group()) flags.with_content = true;
+    if (ends_group) flags.with_end = true;
+    if (!ev->starts_group() && !ends_group) flags.with_content = true;
     m_event_counter++;
     DBUG_PRINT("debug",
                ("event_counter= %lu", static_cast<ulong>(m_event_counter)));
@@ -899,7 +839,8 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
   // Set the transaction length, based on cache info
   gtid_event.set_trx_length_by_cache_size(
       cache_data->get_byte_position(), writer->is_checksum_enabled(),
-      cache_data->is_checksum_computed(), cache_data->get_event_counter());
+      false /* the logical cache copy carries no checksum */,
+      cache_data->get_event_counter());
 
   DBUG_PRINT("debug", ("cache_data->get_byte_position()= %llu",
                        cache_data->get_byte_position()));
@@ -914,9 +855,6 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
   bool ret = DBUG_EVALUATE_IF("simulate_write_trans_without_gtid", false,
                               gtid_event.write(writer));
   if (ret) goto end;
-
-  /* The Gtid event above carried no checksum; the cache's events may. */
-  writer->set_checksum_trx_start(cache_data->checksum_alg_in_cache());
 
   /*
     finally write the transaction data, if it was not compressed
@@ -1274,13 +1212,12 @@ class Binlog_cache_compressor {
       return false;
     }
     /*
-      Do not compress events that carry a checksum: events
-      inside a payload must not have one. This only happens when
-      binlog_transaction_compression was enabled after the
-      transaction's first event (see binlog_cache_data::write_event).
+      Do not compress a cache that was rewritten into binlog file form at its
+      first spill (it was chosen for promotion).
     */
-    if (m_cache.is_checksum_computed()) {
-      DBUG_PRINT("info", ("fallback to uncompressed: events have checksum"));
+    if (m_cache.get_cache()->is_large_trx_rewritten()) {
+      DBUG_PRINT("info", ("fallback to uncompressed: cache rewritten for the "
+                          "binlog large transaction optimization"));
       return false;
     }
     // nothing can stop us now!
@@ -1379,6 +1316,14 @@ class Binlog_cache_compressor {
   /// @return true on error, false on success.
   [[nodiscard]] bool overwrite_cache_with_payload_event(
       Transaction_payload_log_event &tple) {
+    /*
+      A compressed cache is never promoted, so drop the BOLT rewrite plan. It
+      can still be set when compression was turned on after the
+      transaction's first event (for example by a stored function in an
+      autocommit statement); writing the payload event below must not
+      rewrite the cache.
+    */
+    m_cache_storage.clear_large_trx_rewrite_plan();
     // Truncate cache file
     if (m_cache_storage.truncate(0)) {
       DBUG_PRINT("info", ("fail: m_cache_storage.truncate failed"));
@@ -1451,11 +1396,15 @@ int binlog_cache_data::finalize(THD *thd, Log_event *end_event) {
       statements (e.g. CREATE TABLE) finalize with end_event == nullptr and
       record no terminating metadata.
     */
+    if (int error = write_event(end_event)) return error;
     if (end_event != nullptr) {
-      m_terminating_event_offset = m_cache.reserved_bytes() + m_cache.length();
+      // Start of the terminating event = end of the file data (reserved
+      // region + stored bytes) - the event's stored size (logical + footer).
+      m_terminating_event_offset =
+          m_cache.reserved_bytes() + m_cache.physical_length() -
+          (m_large_trx_last_event_length + m_cache.footer_length());
       m_terminating_event_type = end_event->get_type_code();
     }
-    if (int error = write_event(end_event)) return error;
     if (int error = this->compress(thd)) return error;
     DBUG_PRINT("debug", ("flags.finalized: %s", YESNO(flags.finalized)));
     flags.finalized = true;
@@ -1561,8 +1510,7 @@ void update_binlog_temp_file_previous_gtids_size_estimate(
 }
 
 bool binlog_cache_data::open(my_off_t cache_size, my_off_t max_cache_size) {
-  return m_cache.open(cache_size, max_cache_size,
-                      get_binlog_temp_file_reserved_bytes());
+  return m_cache.open(cache_size, max_cache_size);
 }
 
 /**
@@ -6730,7 +6678,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
     }
 
     binlog_cache_data *cache_to_promote =
-        get_cache_for_large_trx_commit(cache_mngr);
+        trx_stuff_logged ? get_cache_for_large_trx_commit(cache_mngr) : nullptr;
     const bool used_bolt_promotion = cache_to_promote != nullptr;
     if (DBUG_EVALUATE_IF("simulate_xa_commit_log_inconsistency", true, false) ||
         (used_bolt_promotion

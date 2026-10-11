@@ -65,7 +65,7 @@ BEGIN;
 UPDATE t1 JOIN t2 USING (id) SET t1.data = CONCAT(t1.data, 'x'), t2.marker = 1;
 COMMIT;
 include/assert.inc [An InnoDB/MyISAM statement promotes its qualifying InnoDB cache.]
-include/assert.inc [An InnoDB/MyISAM statement increments the missed counter once.]
+include/assert.inc [An InnoDB/MyISAM statement does not count as a missed optimization.]
 include/assert.inc [An InnoDB/MyISAM statement rotates to the promoted InnoDB binary log.]
 include/assert.inc [An InnoDB/MyISAM fallback commits every InnoDB row.]
 include/assert.inc [An InnoDB/MyISAM fallback updates every MyISAM row.]

@@ -15,15 +15,13 @@
 # R5. The fallback reports the compression reason in the error log.
 #
 # === Implementation ===
-# The condition cannot be reached by configuration alone. Enabling
-# binlog_transaction_compression makes the cache record
-# BINLOG_CHECKSUM_ALG_OFF, which lets Binlog_cache_compressor proceed and
-# rewrite the cache as a single compressed payload event during finalize().
-# That happens before the promotion decision, so the cache is then usually
-# below the threshold and the transaction is never a candidate at all, which
-# exits silently rather than through the compression check. Reaching the check
-# would require a payload that compresses just enough to set a compression type
-# yet stays above 10 MiB afterwards.
+# The condition cannot be reached by configuration alone. With
+# binlog_transaction_compression ON at the transaction's first event, the
+# transaction is not eligible for the optimization, so its cache is never
+# rewritten, and Binlog_cache_compressor rewrites it as a single compressed
+# payload event during finalize(). That happens before the promotion decision,
+# so the transaction is never a candidate, which exits silently rather than
+# through the compression check.
 #
 # The debug symbol force_large_trx_compression_fallback therefore stands in for
 # the condition: it records the compression reason and returns no cache, at the

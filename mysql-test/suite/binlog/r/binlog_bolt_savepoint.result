@@ -1,9 +1,11 @@
 Warnings:
 Note	1051	Unknown table 'test.t1'
+SET GLOBAL binlog_checksum = CRC32;
 RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 SET GLOBAL max_binlog_size = 1073741824;
+SET SESSION binlog_transaction_compression = OFF;
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 # Savepoint rollback below binlog_cache_size keeps the active binlog.
 BEGIN;
