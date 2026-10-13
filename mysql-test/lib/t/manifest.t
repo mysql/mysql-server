@@ -31,7 +31,7 @@ use lib "lib";
 use Fcntl ();
 use File::Temp qw(tempdir);
 use POSIX ();
-use Test::More tests => 185;
+use Test::More tests => 232;
 
 BEGIN { use_ok("My::Manifest"); }
 
@@ -418,6 +418,213 @@ SKIP: {
 }
 
 # ======================================================================
+# TEST 6f: Pre-existing manifest with NO "components" mention -> silent
+#           fall-through to caller-supplied default, restore works
+# ======================================================================
+{
+  my $dir      = tempdir(CLEANUP => 1);
+  my $mf       = "$dir/mysqld.my";
+  my $original = '{ "read_local_manifest": true, "version": 1 }';
+  manifest_reset();
+
+  spew($mf, $original);
+  manifest_create($mf, $stub_content);
+
+  # The stub should be the caller-supplied default (no merge manifest),
+  # because the pre-existing file had no components to preserve.
+  is(slurp($mf), $stub_content,
+     "T6f: no-components manifest falls through to default stub");
+  ok(-e "$mf.mtr_saved", "T6f: backup still created");
+  is(slurp("$mf.mtr_saved"), $original,
+     "T6f: backup holds original content");
+
+  manifest_restore($mf, $stub_content);
+  ok(-e $mf, "T6f: manifest restored");
+  is(slurp($mf), $original,
+     "T6f: original no-components manifest byte-identical after restore");
+}
+
+# ======================================================================
+# TEST 7: Pre-existing manifest mentions "components" but value is an
+#          array (the server's schema requires a string) -> dies loudly,
+#          original manifest intact
+# ======================================================================
+{
+  my $dir      = tempdir(CLEANUP => 1);
+  my $mf       = "$dir/mysqld.my";
+  my $original = '{ "components": ["file://x"] }';
+  manifest_reset();
+
+  spew($mf, $original);
+
+  my $died = 0;
+  eval {
+    manifest_create($mf, $stub_content);
+  };
+  if ($@) {
+    $died = 1;
+    like($@, qr/could not be parsed/,
+         "T7: dies with 'could not be parsed' message");
+    like($@, qr/\Q.mtr_saved\E/,
+         "T7: error message names the preserved file");
+  }
+
+  ok($died, "T7: manifest_create dies on unparseable components");
+
+  # The original was moved to .mtr_saved before the die fired, so
+  # the manifest at the original path is gone but the backup is safe.
+  ok(!-e $mf,
+     "T7: original moved away (not truncated with stub)");
+  ok(-e "$mf.mtr_saved", "T7: backup exists (created before guard)");
+  is(slurp("$mf.mtr_saved"), $original,
+     "T7: backup holds the original content");
+}
+
+# ======================================================================
+# TEST 7a: The saved manifest is decoded as JSON; only the top-level
+#          "components" member is merged and the value is re-encoded.
+# ======================================================================
+{
+  # $merge_case->($original) — install $original, run
+  # manifest_create, and return (stub or undef, error or '', the
+  # content left at the path or in the backup).
+  # Restores so each case leaves the directory clean.
+  my $merge_case = sub {
+    my ($original) = @_;
+    my $dir = tempdir(CLEANUP => 1);
+    my $mf  = "$dir/mysqld.my";
+    manifest_reset();
+    spew($mf, $original);
+    my $stub = eval { manifest_create($mf, $stub_content); slurp($mf) };
+    my $err  = $@;
+    manifest_restore($mf, $stub_content) unless $err;
+    my $restored = -e $mf ? slurp($mf) : slurp("$mf.mtr_saved");
+    manifest_reset();
+    return ($stub, $err, $restored);
+  };
+  my $merge_of = sub {
+    '{ "components": "' . $_[0] . '", "merge_local_manifest": true }';
+  };
+
+  # Nested "components" inside another object is ignored; the
+  # top-level member is the one merged.
+  my $nested = '{ "metadata": { "components": "file://other" }, '
+             . '"components": "file://component_keyring_file" }';
+  my ($stub, $err, $restored) = $merge_case->($nested);
+  is($err, '', "T7a: nested + top-level components accepted");
+  is($stub, $merge_of->('file://component_keyring_file'),
+     "T7a: top-level components merged, nested one ignored");
+  is($restored, $nested, "T7a: original restored byte-identical");
+
+  # Nested-only: no top-level member, so the plain stub is used.
+  ($stub, $err) =
+    $merge_case->('{ "metadata": { "components": "file://other" } }');
+  is($err, '', "T7a: nested-only components accepted");
+  is($stub, $stub_content, "T7a: nested-only components not merged");
+
+  # An escaped key is the same member once decoded.
+  ($stub, $err) =
+    $merge_case->('{ "\u0063omponents": "file://component_keyring_file" }');
+  is($err, '', "T7a: escaped key accepted");
+  is($stub, $merge_of->('file://component_keyring_file'),
+     "T7a: escaped \"components\" key recognised");
+
+  # The value is re-encoded: escapes are normalised, quotes kept escaped.
+  ($stub, $err) = $merge_case->('{ "components": "file:\/\/a\"b" }');
+  is($stub, $merge_of->('file://a\"b'),
+     "T7a: components value re-encoded as a JSON string");
+
+  # A non-string value is rejected (the schema requires a string).
+  ($stub, $err) = $merge_case->('{ "components": 42 }');
+  like($err, qr/could not be parsed/, "T7a: numeric components dies");
+
+  # Malformed JSON that mentions "components" dies rather than
+  # dropping a component list; the backup is kept.
+  my $bad = '{ "components": "file://x", }';
+  ($stub, $err, $restored) = $merge_case->($bad);
+  like($err, qr/could not be parsed/,
+       "T7a: malformed JSON mentioning components dies");
+  is($restored, $bad, "T7a: malformed backup kept byte-identical");
+
+  # Malformed JSON with no "components" mention: plain stub.
+  ($stub, $err) = $merge_case->('{ "read_local_manifest": true, ');
+  is($err, '', "T7a: malformed JSON without components accepted");
+  is($stub, $stub_content, "T7a: malformed JSON without components "
+                         . "uses the plain stub");
+
+  # read_local_manifest precedence: the server applies it before
+  # reading "components", so a true value keeps the plain stub.
+  my $both = '{ "components": "file://component_keyring_file", '
+           . '"read_local_manifest": true }';
+  ($stub, $err, $restored) = $merge_case->($both);
+  is($err, '', "T7a: components + read_local true accepted");
+  is($stub, $stub_content,
+     "T7a: components + read_local true uses the plain stub");
+  is($restored, $both,
+     "T7a: components + read_local true restored byte-identical");
+
+  ($stub, $err) =
+    $merge_case->('{ "components": "file://component_keyring_file" }');
+  is($err, '', "T7a: components only accepted");
+  is($stub, $merge_of->('file://component_keyring_file'),
+     "T7a: components only uses the merge stub");
+
+  ($stub, $err) = $merge_case->('{ "read_local_manifest": true }');
+  is($err, '', "T7a: read_local only accepted");
+  is($stub, $stub_content, "T7a: read_local only uses the plain stub");
+
+  ($stub, $err) = $merge_case->(
+    '{ "components": "file://component_keyring_file", '
+    . '"read_local_manifest": false }');
+  is($err, '', "T7a: components + read_local false accepted");
+  is($stub, $merge_of->('file://component_keyring_file'),
+     "T7a: components + read_local false uses the merge stub");
+
+  ($stub, $err) = $merge_case->(
+    '{ "components": ["file://x"], "read_local_manifest": true }');
+  is($err, '', "T7a: non-string components + read_local true no die");
+  is($stub, $stub_content,
+     "T7a: non-string components + read_local true uses the plain stub");
+
+  # Repeated keys the stub depends on: the server (RapidJSON) selects
+  # the first occurrence, JSON::PP the last, so refuse rather than
+  # guess.  The backup is kept.
+  my $dup = '{ "components": "file://component_keyring_file", '
+          . '"components": "" }';
+  ($stub, $err, $restored) = $merge_case->($dup);
+  like($err, qr/duplicate key "components"; refusing to derive a stub/,
+       "T7a: duplicate components dies");
+  is($restored, $dup, "T7a: duplicate-key backup kept byte-identical");
+
+  ($stub, $err) = $merge_case->(
+    '{ "read_local_manifest": false, "components": "file://x", '
+    . '"read_local_manifest": true }');
+  like($err, qr/duplicate key "read_local_manifest"/,
+       "T7a: duplicate read_local_manifest dies");
+
+  ($stub, $err) = $merge_case->(
+    '{ "components": "file://x", "\u0063omponents": "file://y" }');
+  like($err, qr/duplicate key "components"/,
+       "T7a: duplicate via escaped key spelling dies");
+
+  # Repeats nested in another object, or of keys the stub does not
+  # read, do not affect the derivation and are accepted.
+  ($stub, $err) = $merge_case->(
+    '{ "metadata": { "components": "a", "components": "b" }, '
+    . '"components": "file://component_keyring_file" }');
+  is($err, '', "T7a: nested duplicate accepted");
+  is($stub, $merge_of->('file://component_keyring_file'),
+     "T7a: nested duplicate ignored, top-level components merged");
+
+  ($stub, $err) = $merge_case->(
+    '{ "note": "[{\"x\": 1}]", "note": 2, '
+    . '"components": "file://component_keyring_file" }');
+  is($err, '', "T7a: duplicate unrelated key accepted");
+  is($stub, $merge_of->('file://component_keyring_file'),
+     "T7a: duplicate unrelated key uses the merge stub");
+}
+
+# ======================================================================
 # TEST 7b: Mode preservation — a read-only manifest (0444) keeps its
 #          mode across backup and restore; inode preserved by rename
 # ======================================================================
@@ -532,6 +739,40 @@ SKIP: {
      "T8b: backup untouched after die");
   ok(!-e "$mf.mtr_stub",
      "T8b: no stub marker written");
+}
+
+# ======================================================================
+# TEST 8b2: crash recovery when the merge stub is on disk — backup
+#           holds a components manifest and <path> holds the MERGE stub
+#           that manifest_create derived before the crash.
+#           manifest_create must adopt (no die), rewrite the merge stub;
+#           restore yields the original backup content.
+# ======================================================================
+{
+  my $dir       = tempdir(CLEANUP => 1);
+  my $mf        = "$dir/mysqld.my";
+  my $comp_orig = '{ "components": "file://component_keyring_file" }';
+  my $merge_stub =
+    '{ "components": "file://component_keyring_file", "merge_local_manifest": true }';
+  manifest_reset();
+
+  # Simulate a crash: backup holds the original components manifest,
+  # <path> holds the merge stub that the previous manifest_create wrote.
+  spew("$mf.mtr_saved", $comp_orig);
+  spew($mf, $merge_stub);
+
+  # Must NOT die with 'different content'.
+  manifest_create($mf, $stub_content);
+  is(slurp("$mf.mtr_saved"), $comp_orig,
+     "T8b2: backup adopted (not clobbered)");
+  is(slurp($mf), $merge_stub,
+     "T8b2: merge stub rewritten");
+
+  manifest_restore($mf, $stub_content);
+  is(slurp($mf), $comp_orig,
+     "T8b2: original components manifest restored from backup");
+  ok(!-e "$mf.mtr_saved",
+     "T8b2: backup removed after restore");
 }
 
 # ======================================================================

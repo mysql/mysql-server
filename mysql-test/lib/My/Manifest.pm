@@ -61,6 +61,8 @@ use strict;
 use warnings;
 use Carp;
 use Fcntl qw(:flock O_RDWR O_CREAT);
+use B ();
+use JSON::PP ();
 
 use base qw(Exporter);
 our @EXPORT = qw(manifest_create manifest_restore manifest_reset
@@ -150,6 +152,105 @@ sub _write_file {
   close($fh) or die "Could not write manifest file $path: $!";
 }
 
+# _top_level_keys($text) — the member names of the top-level object in
+# $text, in document order with repeats kept, each still JSON-encoded
+# (quotes and escapes included).  $text must already have decoded as a
+# JSON object; strings are skipped whole, so brackets and colons inside
+# them do not count, and only names at depth 1 are collected.
+sub _top_level_keys {
+  my ($text) = @_;
+  my @keys;
+  my $depth = 0;
+  while ($text =~ /("(?:[^"\\]++|\\.)*+")|([{\[])|([}\]])/gs) {
+    if (defined $1) {
+      my $string = $1;
+      push @keys, $string if $depth == 1 && $text =~ /\G\s*:/gc;
+    } elsif (defined $2) {
+      $depth++;
+    } else {
+      $depth--;
+    }
+  }
+  return @keys;
+}
+
+# _merge_stub_for($backup_path, $plain_stub) — derive the stub that
+# manifest_create writes for the preserved manifest at $backup_path:
+# the merge stub when the backup's top-level object has a "components"
+# member, otherwise $plain_stub unchanged.
+#
+# A backup whose top-level "read_local_manifest" is true always gets
+# $plain_stub: the server applies read_local_manifest before reading
+# "components", so that deployment's global components were never
+# loaded and must not be merged (nor validated) here.
+#
+# The backup is decoded with JSON::PP (core Perl) so that only the
+# top-level member the server's Manifest_reader uses is selected: a
+# "components" key nested inside another object is ignored, and an
+# escaped key such as "\u0063omponents" is recognised.  The value is
+# re-encoded when the merge stub is written.
+#
+# Dies when a top-level "components" member is not a string (the
+# server's manifest schema requires a string), and when the backup is
+# not valid JSON but mentions "components" — a component list is never
+# silently dropped.  A backup that is not valid JSON and does not
+# mention "components" has nothing the server could load, so the plain
+# stub is used and the backup is preserved byte-for-byte as before.
+#
+# Also dies when the top-level object repeats "components" or
+# "read_local_manifest": JSON::PP keeps the last occurrence while the
+# server's RapidJSON lookup selects the first, so either choice here
+# could differ from what the server loads.
+sub _merge_stub_for {
+  my ($backup_path, $plain_stub) = @_;
+  my $saved_content = do {
+    open(my $fh, '<', $backup_path)
+      or die "Could not read preserved manifest $backup_path: $!";
+    binmode $fh;
+    local $/;
+    <$fh>;
+  };
+  my $unparseable =
+    "Preserved manifest $backup_path contains a "
+    . "\"components\" key whose value could not be parsed; "
+    . "refusing to silently drop it.\n";
+
+  my $json = JSON::PP->new->utf8;
+  my $doc = eval { $json->decode($saved_content) };
+  if (!defined $doc || ref($doc) ne 'HASH') {
+    die $unparseable if $saved_content =~ /"components"/;
+    return $plain_stub;  # not a JSON object; nothing to merge
+  }
+  # Refuse repeated keys the stub depends on (compared once decoded,
+  # so an escaped spelling of a key counts as the same key).
+  my $key_json = JSON::PP->new->utf8->allow_nonref;
+  my %seen;
+  for my $key (map { $key_json->decode($_) } _top_level_keys($saved_content)) {
+    next unless $key eq 'components' || $key eq 'read_local_manifest';
+    die "Manifest $backup_path has a duplicate key \"$key\"; "
+      . "refusing to derive a stub.\n"
+      if $seen{$key}++;
+  }
+  # The server honours read_local_manifest first and ignores global
+  # "components"; keep the redirect stub in that case.
+  return $plain_stub
+    if exists $doc->{read_local_manifest}
+    && JSON::PP::is_bool($doc->{read_local_manifest})
+    && $doc->{read_local_manifest};
+  return $plain_stub unless exists $doc->{components};
+
+  my $value = $doc->{components};
+  # A JSON string decodes to a plain scalar with a string value
+  # (POK); numbers, booleans, null, arrays and objects are rejected.
+  die $unparseable
+    unless defined $value && !ref($value)
+    && (B::svref_2object(\$value)->FLAGS & B::SVf_POK());
+
+  my $components_value = $json->allow_nonref->encode($value);
+  return
+    "{ \"components\": $components_value, \"merge_local_manifest\": true }";
+}
+
 # ---- public API -------------------------------------------------------
 
 # manifest_create($manifest_file_path, $config_content)
@@ -176,13 +277,23 @@ sub manifest_create {
     # holds the real manifest.  Adopt it only when the file at <path>
     # is absent or is MTR's own stub (left by the crashed run); never
     # silently prefer either candidate when both hold real content.
+    # After a crash the file may hold the plain stub OR the merge stub
+    # that manifest_create derived from the backup's components, so
+    # both forms count as MTR-owned.
     if (-e $manifest_file_path &&
         !_content_matches($manifest_file_path, $config_content)) {
-      die "Both $manifest_file_path and its backup $backup exist with "
-        . "different content (a previous run was interrupted and a new "
-        . "manifest was installed since).  Refusing to guess which one "
-        . "is current; reconcile them and remove $backup before "
-        . "re-running.\n";
+      # Not the plain stub — check the merge stub derived from the backup.
+      my $merge = eval { _merge_stub_for($backup, $config_content) };
+      # A backup that cannot be read or parsed is its own error, not a
+      # content conflict; report it as such.
+      die $@ if $@;
+      if (!_content_matches($manifest_file_path, $merge)) {
+        die "Both $manifest_file_path and its backup $backup exist with "
+          . "different content (a previous run was interrupted and a new "
+          . "manifest was installed since).  Refusing to guess which one "
+          . "is current; reconcile them and remove $backup before "
+          . "re-running.\n";
+      }
     }
     $preserved_manifest = $backup;
     # Remove a stale marker if present.
@@ -192,6 +303,9 @@ sub manifest_create {
     # started.  Whatever content is here now was written after MTR took
     # over (a leftover stub, an interrupted test, or someone who
     # overwrote the leftover).
+    # Note: a merge stub can never appear here — merge stubs are only
+    # written when a backup exists, and in this branch there is no
+    # backup.  Only the plain stub can be a leftover stub.
     if (_content_matches($manifest_file_path, $config_content)) {
       # Leftover MTR stub — just re-use the path; unlink on restore.
       $manifest_stub_created = 1;
@@ -222,6 +336,15 @@ sub manifest_create {
     $manifest_stub_created = 1;
   }
 
+  # Build a merge manifest that keeps the pre-existing components
+  # loaded alongside MTR's local-manifest components.
+  #
+  # Skip merge when the file is a leftover MTR stub (no backup):
+  # $manifest_stub_created is set, $preserved_manifest is undef.
+  if (defined $preserved_manifest) {
+    $config_content = _merge_stub_for($preserved_manifest, $config_content);
+  }
+
   # Drop the marker BEFORE writing the stub so that a crash between
   # the two leaves marker-without-stub (harmless: next run sees no
   # manifest and overwrites the marker).
@@ -241,6 +364,8 @@ sub manifest_create {
 # always runs to completion.  Three states:
 #   1. $preserved_manifest set & file exists -> rename backup over manifest;
 #      clear state only on success so the END-block can retry.
+#      (The rename overwrites the path regardless, so neither the plain
+#      stub nor the merge stub requires special handling here.)
 #   2. $manifest_stub_created true           -> unlink the MTR-written stub
 #                                               only if it still holds MTR's
 #                                               own text; a manifest changed
@@ -252,6 +377,9 @@ sub manifest_create {
 #                                               when the stub is handled.
 #                                               Clear state only when
 #                                               everything succeeded.
+#                                               (A merge stub can never exist
+#                                               without a backup, so this
+#                                               branch sees only plain stubs.)
 #   3. Neither                               -> true no-op (second call).
 sub manifest_restore {
   my ($manifest_file_path, $config_content) = @_;

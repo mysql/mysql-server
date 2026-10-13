@@ -127,6 +127,7 @@ SET(TESTS
   key
   like_range
   m_string
+  manifest
   mdl
   mem_root_array
   mem_root_deque
