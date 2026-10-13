@@ -175,6 +175,17 @@ ulonglong my_timer_cycles() {
     __asm __volatile__("stckf %0" : "=Q"(result) : : "cc");
     return result;
   }
+#elif defined(__GNUC__) && defined(__riscv) && __riscv_xlen == 64
+  {
+    /*
+      The cycle CSR (rdcycle) is not readable from user mode on Linux,
+      so use the time CSR instead. Like cntvct_el0 on aarch64 it is not
+      a cycle count but a fixed frequency counter.
+    */
+    ulonglong result;
+    __asm __volatile__("rdtime %0" : "=r"(result));
+    return result;
+  }
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   /* gethrtime may appear as either cycle or nanosecond counter */
   return (ulonglong)gethrtime();
@@ -506,6 +517,8 @@ void my_timer_init(MY_TIMER_INFO *mti) {
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_AARCH64;
 #elif defined(__GNUC__) && defined(__s390x__)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_S390X;
+#elif defined(__GNUC__) && defined(__riscv) && __riscv_xlen == 64
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_RISCV64;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   mti->cycles.routine = MY_TIMER_ROUTINE_GETHRTIME;
 #else
