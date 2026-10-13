@@ -24,9 +24,11 @@
 #ifndef MANIFEST_INCLUDED
 #define MANIFEST_INCLUDED
 
+#include <algorithm>
 #include <fstream> /* std::ifstream */
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "scope_guard.h"
 
@@ -37,7 +39,14 @@
 
 namespace manifest {
 
-std::string manifest_version_1_0 =
+/**
+  Separator between component URNs in a manifest "components" string.
+  Used when joining and splitting — a single source of truth so
+  the merge side and the consumer always agree.
+*/
+inline constexpr const char *kComponentSeparator = ",";
+
+inline std::string manifest_version_1_0 =
     "{"
     "  \"title\": \"Manifest validator version 1.0\","
     "  \"description\": \"Expected schema for version 1.0\","
@@ -46,6 +55,11 @@ std::string manifest_version_1_0 =
     "    \"read_local_manifest\": {"
     "      \"description\": \"Flag to indicate that manifest information is in "
     "data directory\","
+    "      \"type\": \"boolean\""
+    "     },"
+    "    \"merge_local_manifest\": {"
+    "      \"description\": \"Flag to indicate that components from the local "
+    "(instance-path) manifest should be merged with the global list\","
     "      \"type\": \"boolean\""
     "     },"
     "    \"components\": {"
@@ -140,6 +154,14 @@ class Manifest_reader final {
     return read_local_manifest;
   }
 
+  bool merge_local_manifest() const {
+    bool merge_local_manifest = false;
+    if (get_element<bool>("merge_local_manifest", merge_local_manifest) ==
+        false)
+      return false;
+    return merge_local_manifest;
+  }
+
   bool components(std::string &components_string) const {
     return get_element<std::string>("components", components_string);
   }
@@ -181,6 +203,94 @@ class Manifest_reader final {
   /** RO flag */
   bool ro_;
 };
+
+/**
+  Merge a global and a local component list using kComponentSeparator.
+  Either side may be empty; no trailing separator is produced.
+  A URN present in both lists is kept once (global position); loading
+  the same component twice would fail.
+
+  Empty tokens produced by consecutive separators (',,') are tolerated
+  and skipped, exactly as Deployed_components::get_next_component does.
+
+  @param global  Component URN list from the global manifest
+  @param local   Component URN list from the instance-path manifest
+
+  @returns The de-duplicated merged string, or whichever side is
+           non-empty, or empty if both are empty.
+*/
+inline std::string merge_component_lists(const std::string &global,
+                                         const std::string &local) {
+  /* Split a separator-delimited string, skipping empty tokens. */
+  auto split = [](const std::string &s) -> std::vector<std::string> {
+    std::vector<std::string> tokens;
+    const std::string sep(kComponentSeparator);
+    std::string::size_type start = 0;
+    std::string::size_type pos;
+    while ((pos = s.find(sep, start)) != std::string::npos) {
+      if (pos != start) tokens.push_back(s.substr(start, pos - start));
+      start = pos + sep.size();
+    }
+    if (start < s.size()) tokens.push_back(s.substr(start));
+    return tokens;
+  };
+
+  std::vector<std::string> result;
+
+  /* Add global tokens, skipping duplicates within global itself. */
+  for (const auto &tok : split(global)) {
+    if (std::find(result.begin(), result.end(), tok) == result.end())
+      result.push_back(tok);
+  }
+
+  /* Append local tokens that are not already present (exact match). */
+  for (const auto &tok : split(local)) {
+    if (std::find(result.begin(), result.end(), tok) == result.end())
+      result.push_back(tok);
+  }
+
+  /* Join with the separator — no trailing separator. */
+  std::string merged;
+  for (size_t i = 0; i < result.size(); ++i) {
+    if (i > 0) merged += kComponentSeparator;
+    merged += result[i];
+  }
+  return merged;
+}
+
+/**
+  Apply merge_local_manifest: fold the instance-path manifest's
+  components into the list read from the global manifest.
+
+  The result always passes through merge_component_lists, so the global
+  list is de-duplicated even when there is nothing to merge: no local
+  manifest, a zero-byte one, or an instance path that resolves to the
+  global manifest itself (which is not merged into itself).
+
+  A local manifest that cannot be opened is treated as absent, as
+  Manifest_reader does elsewhere; a local manifest that opens but has
+  no readable "components" is an error.
+
+  @param global_reader  Reader for the global manifest
+  @param local_reader   Reader for the instance-path manifest
+  @param [in,out] components  Global component list; the merged list
+                              on success
+
+  @retval true  components holds the merged list
+  @retval false local manifest opened but its "components" unreadable;
+                components is unchanged
+*/
+inline bool merge_local_components(const Manifest_reader &global_reader,
+                                   const Manifest_reader &local_reader,
+                                   std::string &components) {
+  std::string local_components;
+  if (local_reader.manifest_file() != global_reader.manifest_file() &&
+      !local_reader.empty() &&
+      local_reader.components(local_components) == false)
+    return false;
+  components = merge_component_lists(components, local_components);
+  return true;
+}
 
 }  // namespace manifest
 

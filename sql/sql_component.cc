@@ -239,7 +239,7 @@ Deployed_components::~Deployed_components() {
 
 void Deployed_components::get_next_component(std::string &components_list,
                                              std::string &one_component) {
-  std::string component_separator(",");
+  const std::string component_separator(manifest::kComponentSeparator);
   one_component.clear();
   if (components_list.find(component_separator) != std::string::npos) {
     one_component = component_separator;
@@ -318,6 +318,39 @@ bool Deployed_components::load() {
     last_error_.assign(
         "Could not parse 'components' attribute from manifest file.");
     return false;
+  }
+
+  /*
+    merge_local_manifest: the global manifest carries both a "components"
+    list and the flag "merge_local_manifest": true.  We have already
+    collected the global components above; now open the instance-path
+    manifest and append its components so that both sets are loaded.
+    read_local_manifest (checked earlier) discards the global reader
+    entirely, so the two keys are mutually exclusive in practice —
+    but no in-tree config combines them, and the silent-discard has
+    no test coverage.
+  */
+  if (current_reader->merge_local_manifest() == true) {
+    std::unique_ptr<Manifest_reader> local_reader =
+        std::make_unique<Manifest_reader>(program_name_, instance_path_);
+
+    if (local_reader->manifest_file() != current_reader->manifest_file() &&
+        !local_reader->empty() && local_reader->ro() == false) {
+      LogErr(WARNING_LEVEL, ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_NOT_RO,
+             local_reader->manifest_file().c_str());
+    }
+
+    /*
+      Also de-duplicates the global list when no local manifest is
+      merged, so a repeated global URN never reaches the loader.
+    */
+    if (manifest::merge_local_components(*current_reader, *local_reader,
+                                         components_) == false) {
+      last_error_.assign(
+          "Could not parse 'components' attribute from local manifest "
+          "file.");
+      return false;
+    }
   }
 
   std::vector<const char *> urns;
