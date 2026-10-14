@@ -47,11 +47,19 @@ struct mysql_type_descriptor_t {
   bool has_explicit_collation{false};
   mysql_type_ident_t *type_ident{nullptr};
   // FIXME: m_geo_type
-  // FIXME: m_internal_list
 };
 
 struct mysql_function_descriptor_t {
   const char *name;
+  mysql_type_descriptor_t *return_type{nullptr};
+  size_t argument_count{0};
+  mysql_type_descriptor_t **argument_type_array{nullptr};
+};
+
+struct mysql_method_descriptor_t {
+  mysql_type_ident_t *type_ident{nullptr};
+  const char *name{nullptr};
+  bool is_static{false};
   mysql_type_descriptor_t *return_type{nullptr};
   size_t argument_count{0};
   mysql_type_descriptor_t **argument_type_array{nullptr};
@@ -66,5 +74,9 @@ typedef int (*eval_function_t)(UDT_value_out *result, size_t argument_count,
 typedef int (*register_function_t)(mysql_function_descriptor_t *fd,
                                    eval_function_t impl);
 typedef int (*unregister_function_t)(mysql_function_descriptor_t *fd);
+
+typedef int (*register_method_t)(mysql_method_descriptor_t *md,
+                                   eval_function_t impl);
+typedef int (*unregister_method_t)(mysql_method_descriptor_t *md);
 
 #endif /* COMPONENTS_SERVICES_BITS_MYSQL_USER_DEFINED_TYPE_BITS_H */

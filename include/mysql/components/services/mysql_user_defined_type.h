@@ -38,6 +38,11 @@ DECLARE_METHOD(int, register_function,
 
 DECLARE_METHOD(int, unregister_function, (mysql_function_descriptor_t * fd));
 
+DECLARE_METHOD(int, register_method,
+               (mysql_method_descriptor_t * md, eval_function_t impl));
+
+DECLARE_METHOD(int, unregister_method, (mysql_method_descriptor_t * md));
+
 END_SERVICE_DEFINITION(udt_registration)
 
 //-------------------------------------------------------------------

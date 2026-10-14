@@ -1499,6 +1499,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> APPLIER_WORKER_COUNT_SYM       1244     /* MYSQL */
 %token<lexer.keyword> APPLIER_EVENT_MEMORY_LIMIT_SYM 1245     /* MYSQL */
 
+%token DOUBLE_COLON_SYM 1246 /* OPERATOR */
+
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
   list ident_keywords_unambiguous lest they become reserved keywords.
@@ -1563,6 +1565,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
         LEX_HOSTNAME ULONGLONG_NUM select_alias ident opt_ident ident_or_text
         role_ident role_ident_or_text
+        grant_ident
+        grant_schema_ident
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal DOLLAR_QUOTED_STRING_SYM
         NCHAR_STRING
         BIN_NUM TEXT_STRING_filesystem ident_or_empty
@@ -1680,6 +1684,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         function_call_keyword
         function_call_nonkeyword
         function_call_generic
+        function_call_static_method
         function_call_conflict
         signal_allowed_expr
         simple_target_specification
@@ -1776,11 +1781,13 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <lexer.keyword> ident_keyword label_keyword role_keyword
         lvalue_keyword
+        grant_ident_keyword
         ident_keywords_unambiguous
         ident_keywords_ambiguous_1_roles_and_labels
         ident_keywords_ambiguous_2_labels
         ident_keywords_ambiguous_3_roles
         ident_keywords_ambiguous_4_system_variables
+        ident_keywords_ambiguous_5_grant_ident
 
 %type <lex_user> user_ident_or_text user create_user alter_user user_func role
 
@@ -2230,6 +2237,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %type <int_type> int_type
 
 %type <type> spatial_type broken_type builtin_type user_defined_type
+       enum_type set_type
 
 %type <numeric_type> real_type numeric_type
 
@@ -7244,6 +7252,20 @@ opt_stored_attribute:
         | STORED_SYM  { $$= Virtual_or_stored::STORED; }
         ;
 
+enum_type:
+          ENUM_SYM '(' string_list ')' opt_charset_with_opt_binary
+          {
+            $$= NEW_PTN PT_enum_type(@$, $3, $5.charset, $5.force_binary);
+          }
+        ;
+
+set_type:
+          SET_SYM '(' string_list ')' opt_charset_with_opt_binary
+          {
+            $$= NEW_PTN PT_set_type(@$, $3, $5.charset, $5.force_binary);
+          }
+        ;
+
 builtin_type:
           int_type opt_field_length field_options
           {
@@ -7416,14 +7438,6 @@ builtin_type:
             $$= NEW_PTN PT_blob_type(@$, Blob_type::LONG, $2.charset,
                                      $2.force_binary);
           }
-        | ENUM_SYM '(' string_list ')' opt_charset_with_opt_binary
-          {
-            $$= NEW_PTN PT_enum_type(@$, $3, $5.charset, $5.force_binary);
-          }
-        | SET_SYM '(' string_list ')' opt_charset_with_opt_binary
-          {
-            $$= NEW_PTN PT_set_type(@$, $3, $5.charset, $5.force_binary);
-          }
         | LONG_SYM opt_charset_with_opt_binary
           {
             $$= NEW_PTN PT_blob_type(@$, Blob_type::MEDIUM, $2.charset,
@@ -7457,6 +7471,14 @@ broken_type:
             $$ = $1;
           }
         | user_defined_type
+          {
+            $$ = $1;
+          }
+        | enum_type
+          {
+            $$ = $1;
+          }
+        | set_type
           {
             $$ = $1;
           }
@@ -10796,6 +10818,7 @@ simple_expr:
         | function_call_keyword
         | function_call_nonkeyword
         | function_call_generic
+        | function_call_static_method
         | function_call_conflict
         | simple_expr COLLATE_SYM ident_or_text %prec NEG
           {
@@ -11482,6 +11505,21 @@ function_call_generic:
         | ident '.' ident '(' opt_expr_list ')'
           {
             $$= NEW_PTN PTI_function_call_generic_2d(@$, $1, $3, $5);
+          }
+        | ident '.' ident '.' ident '(' opt_expr_list ')'
+          {
+            $$= NEW_PTN PTI_function_call_generic_3d(@$, $1, $3, $5, $7);
+          }
+        ;
+
+function_call_static_method:
+          ident DOUBLE_COLON_SYM ident '(' opt_expr_list ')'
+          {
+            $$= NEW_PTN PTI_function_call_static_method(@$, $1, $3, $5);
+          }
+        | ident '.' ident DOUBLE_COLON_SYM ident '(' opt_expr_list ')'
+          {
+            $$= NEW_PTN PTI_function_call_static_method(@$, $1, $3, $5, $7);
           }
         ;
 
@@ -16009,6 +16047,17 @@ role_ident:
           }
         ;
 
+grant_ident:
+          IDENT_sys
+        | grant_ident_keyword
+          {
+            $$.str= YYTHD->strmake($1.str, $1.length);
+            if ($$.str == nullptr)
+              MYSQL_YYABORT;
+            $$.length= $1.length;
+          }
+        ;
+
 label_ident:
           IDENT_sys    { $$=to_lex_cstring($1); }
         | label_keyword
@@ -16097,6 +16146,18 @@ schema:
         ;
 
 /*
+  Same as schema, except the TYPE keyword is forbidden.
+*/
+grant_schema_ident:
+          grant_ident
+          {
+            $$ = $1;
+            if (check_and_convert_db_name(&$$, false) != Ident_name_check::OK)
+              MYSQL_YYABORT;
+          }
+        ;
+
+/*
   Non-reserved keywords are allowed as unquoted identifiers in general.
 
   OTOH, in a few particular cases statement-specific rules are used
@@ -16117,6 +16178,7 @@ ident_keyword:
         | ident_keywords_ambiguous_2_labels
         | ident_keywords_ambiguous_3_roles
         | ident_keywords_ambiguous_4_system_variables
+        | ident_keywords_ambiguous_5_grant_ident
         ;
 
 /*
@@ -16185,6 +16247,7 @@ label_keyword:
           ident_keywords_unambiguous
         | ident_keywords_ambiguous_3_roles
         | ident_keywords_ambiguous_4_system_variables
+        | ident_keywords_ambiguous_5_grant_ident
         ;
 
 /*
@@ -16614,7 +16677,7 @@ ident_keywords_unambiguous:
         | TRANSACTION_SYM
         | TRIGGERS_SYM
         | TYPES_SYM
-        | TYPE_SYM
+        // | TYPE_SYM
         | UNBOUNDED_SYM
         | UNCOMMITTED_SYM
         | UNDEFINED_SYM
@@ -16663,6 +16726,7 @@ role_keyword:
           ident_keywords_unambiguous
         | ident_keywords_ambiguous_2_labels
         | ident_keywords_ambiguous_4_system_variables
+        | ident_keywords_ambiguous_5_grant_ident
         ;
 
 /*
@@ -16678,6 +16742,7 @@ lvalue_keyword:
         | ident_keywords_ambiguous_1_roles_and_labels
         | ident_keywords_ambiguous_2_labels
         | ident_keywords_ambiguous_3_roles
+        | ident_keywords_ambiguous_5_grant_ident
         ;
 
 /*
@@ -16691,6 +16756,34 @@ ident_keywords_ambiguous_4_system_variables:
         | PERSIST_SYM
         | PERSIST_ONLY_SYM
         | SESSION_SYM
+        ;
+
+/*
+  These non-reserved keywords cannot be used as unquoted unprefixed
+  schema name of object name in GRANT/REVOKE statements.
+
+  GRANT ... ON TYPE ... -> ambiguous:
+  Does TYPE means user defined type, as in "ON TYPE foo.bar" ?
+  Does TYPE means a schema name, as in "ON TYPE.*" ?
+  Does TYPE means an object name, as in "ON TYPE" ?
+
+*/
+ident_keywords_ambiguous_5_grant_ident:
+          TYPE_SYM
+        ;
+
+
+/*
+  Not allowed:
+
+    ident_keywords_ambiguous_5_grant_ident
+*/
+grant_ident_keyword:
+          ident_keywords_unambiguous
+        | ident_keywords_ambiguous_1_roles_and_labels
+        | ident_keywords_ambiguous_2_labels
+        | ident_keywords_ambiguous_3_roles
+        | ident_keywords_ambiguous_4_system_variables
         ;
 
 /*
@@ -17320,7 +17413,7 @@ revoke:
             auto *tmp= NEW_PTN PT_revoke_roles(@$, $3, $5);
             MAKE_CMD(tmp);
           }
-        | REVOKE if_exists role_or_privilege_list ON_SYM opt_acl_type grant_ident FROM user_list opt_ignore_unknown_user
+        | REVOKE if_exists role_or_privilege_list ON_SYM opt_acl_type grant_object FROM user_list opt_ignore_unknown_user
           {
             LEX *lex= Lex;
             lex->grant_if_exists = $2;
@@ -17344,7 +17437,7 @@ revoke:
             Lex->all_privileges= 1;
             Lex->grant= GLOBAL_ACLS;
           }
-          ON_SYM opt_acl_type grant_ident FROM user_list opt_ignore_unknown_user
+          ON_SYM opt_acl_type grant_object FROM user_list opt_ignore_unknown_user
           {
             LEX *lex= Lex;
             lex->sql_command= (lex->grant == (GLOBAL_ACLS & ~GRANT_ACL)) ?
@@ -17387,7 +17480,7 @@ grant:
             auto *tmp= NEW_PTN PT_grant_roles(@$, $2, $4, $5);
             MAKE_CMD(tmp);
           }
-        | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_ident TO_SYM user_list
+        | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_object TO_SYM user_list
           grant_options opt_grant_as
           {
             LEX *lex= Lex;
@@ -17409,7 +17502,7 @@ grant:
             Lex->all_privileges= 1;
             Lex->grant= GLOBAL_ACLS;
           }
-          ON_SYM opt_acl_type grant_ident TO_SYM user_list grant_options opt_grant_as
+          ON_SYM opt_acl_type grant_object TO_SYM user_list grant_options opt_grant_as
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
@@ -17438,6 +17531,7 @@ grant:
 opt_acl_type:
           %empty        { $$= Acl_type::TABLE; }
         | TABLE_SYM     { $$= Acl_type::TABLE; }
+        | TYPE_SYM      { $$= Acl_type::TYPE; }
         | FUNCTION_SYM  { $$= Acl_type::FUNCTION; }
         | PROCEDURE_SYM { $$= Acl_type::PROCEDURE; }
         | LIBRARY_SYM   { $$= Acl_type::LIBRARY; }
@@ -17602,7 +17696,7 @@ require_list_element:
           }
         ;
 
-grant_ident:
+grant_object:
           '*'
           {
             LEX *lex= Lex;
@@ -17617,7 +17711,7 @@ grant_ident:
               MYSQL_YYABORT;
             }
           }
-        | schema '.' '*'
+        | grant_schema_ident '.' '*'
           {
             LEX *lex= Lex;
             lex->current_query_block()->db = $1.str;
@@ -17641,7 +17735,7 @@ grant_ident:
               MYSQL_YYABORT;
             }
           }
-        | ident
+        | grant_ident
           {
             auto tmp = NEW_PTN Table_ident(to_lex_cstring($1));
             if (tmp == nullptr)
@@ -17653,7 +17747,7 @@ grant_ident:
             if (lex->grant == GLOBAL_ACLS)
               lex->grant =  TABLE_OP_ACLS;
           }
-        | schema '.' ident
+        | grant_schema_ident '.' ident
           {
             auto schema_name = YYCLIENT_NO_SCHEMA ? LEX_CSTRING{}
                                                   : to_lex_cstring($1.str);

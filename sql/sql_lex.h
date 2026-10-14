@@ -263,13 +263,15 @@ inline uint to_uint(enum_sp_type val) { return static_cast<uint>(val); }
 #define TYPE_ENUM_TRIGGER 3
 #define TYPE_ENUM_PROXY 4
 #define TYPE_ENUM_LIBRARY 5
-#define TYPE_ENUM_INVALID 6
+#define TYPE_ENUM_UDT 6
+#define TYPE_ENUM_INVALID 7
 
 enum class Acl_type {
   TABLE = 0,
   FUNCTION = TYPE_ENUM_FUNCTION,
   PROCEDURE = TYPE_ENUM_PROCEDURE,
   LIBRARY = TYPE_ENUM_LIBRARY,
+  TYPE = TYPE_ENUM_UDT,
   INVALID_TYPE = TYPE_ENUM_INVALID
 };
 

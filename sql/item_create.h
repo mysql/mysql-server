@@ -157,6 +157,42 @@ class Create_qfunc : public Create_func {
   ~Create_qfunc() override = default;
 };
 
+class Create_3d_func {
+ public:
+  /**
+    The builder create method, for unqualified types.
+    This builder will use the current database for the database name.
+    @param thd The current thread
+    @param pos The parser position
+    @param type_name The type name
+    @param method_name The method name
+    @param item_list The list of arguments to the function, can be NULL
+    @return An item representing the parsed function call
+  */
+  Item *create(THD *thd, const POS &pos, LEX_STRING type_name,
+               LEX_STRING method_name, PT_item_list *item_list);
+
+  /**
+    The builder create method, for qualified functions.
+    @param thd The current thread
+    @param pos The parser position
+    @param db The database name or NULL_STR to use the default db name
+    @param name The function name
+    @param use_explicit_name Should the function be represented as 'db.name'?
+    @param item_list The list of arguments to the function, can be NULL
+    @return An item representing the parsed function call
+  */
+  virtual Item *create(THD *thd, const POS &pos, LEX_STRING db_name,
+                       LEX_STRING type_name, LEX_STRING method_name,
+                       bool use_explicit_name, PT_item_list *item_list) = 0;
+
+ protected:
+  /** Constructor. */
+  Create_3d_func() = default;
+  /** Destructor. */
+  virtual ~Create_3d_func() = default;
+};
+
 /**
   Find the native function builder associated with a given function name.
 
@@ -171,6 +207,8 @@ extern Create_func *find_native_function_builder(const LEX_STRING &name);
   @return A function builder for qualified functions
 */
 extern Create_qfunc *find_qualified_function_builder(THD *thd);
+
+extern Create_3d_func *find_static_method_builder(THD *thd);
 
 /**
   Function builder for User Defined Functions.

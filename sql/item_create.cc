@@ -1155,6 +1155,26 @@ Item *Create_qfunc::create_func(THD *thd, const POS &pos, LEX_STRING name,
   return create(thd, pos, NULL_STR, name, false, item_list);
 }
 
+class Create_static_func : public Create_3d_func {
+ public:
+  Item *create(THD *thd, const POS &pos, LEX_STRING db_name,
+               LEX_STRING type_name, LEX_STRING method_name,
+               bool use_explicit_name, PT_item_list *item_list) override;
+
+  static Create_static_func s_singleton;
+
+ protected:
+  /** Constructor. */
+  Create_static_func() = default;
+  /** Destructor. */
+  ~Create_static_func() override = default;
+};
+
+Item *Create_3d_func::create(THD *thd, const POS &pos, LEX_STRING type_name,
+                             LEX_STRING method_name, PT_item_list *item_list) {
+  return create(thd, pos, NULL_STR, type_name, method_name, false, item_list);
+}
+
 Create_udf_func Create_udf_func::s_singleton;
 
 Item *Create_udf_func::create_func(THD *thd, const POS &pos, LEX_STRING name,
@@ -1210,6 +1230,15 @@ Item *Create_sp_func::create(THD *thd, const POS &pos, LEX_STRING db,
                              PT_item_list *item_list) {
   return new (thd->mem_root)
       Item_func_sp(pos, db, name, use_explicit_name, item_list);
+}
+
+Create_static_func Create_static_func::s_singleton;
+
+Item *Create_static_func::create(THD *thd, const POS &pos, LEX_STRING db_name,
+                                 LEX_STRING type_name, LEX_STRING method_name,
+                                 bool use_explicit_name,
+                                 PT_item_list *item_list) {
+  return nullptr;
 }
 
 /**
@@ -1819,6 +1848,10 @@ Create_func *find_native_function_builder(const LEX_STRING &lex_name) {
 
 Create_qfunc *find_qualified_function_builder(THD *) {
   return &Create_sp_func::s_singleton;
+}
+
+Create_3d_func *find_static_function_builder(THD *) {
+  return &Create_static_func::s_singleton;
 }
 
 Item *create_func_cast(THD *thd, const POS &pos, Item *a,

@@ -206,6 +206,15 @@ struct mysql_function_descriptor_t ADD = {
     &ADD_ARGS[0]                      // argument_type_array
 };
 
+struct mysql_method_descriptor_t ADD_METHOD = {
+    &COMPLEX_NUMBER_TYPE_NAME,        // type_ident
+    "add",                            // name
+    true,                             // is_static
+    &COMPLEX_NUMBER_TYPE_DESCRIPTOR,  // return_type
+    2,                                // arguments
+    &ADD_ARGS[0]                      // argument_type_array
+};
+
 static int complex_number_add(UDT_value_out *result, size_t argument_count,
                               UDT_value_in **argument_value_array) {
   fprintf(stderr, "complex_number_add()\n");
@@ -266,9 +275,12 @@ static mysql_service_status_t udt_example_init() {
   log_info("%s: Starting ...", component_name);
 
   udt_srv->register_type(&COMPLEX_NUMBER_TYPE_DESCRIPTOR, nullptr);
+
   udt_srv->register_function(&ADD, complex_number_add);
   udt_srv->register_function(&FROM_STRING, complex_number_from_string);
   udt_srv->register_function(&TO_STRING, complex_number_to_string);
+
+  udt_srv->register_method(&ADD_METHOD, complex_number_add);
 
   log_info("%s: Started.", component_name);
   return 0;
@@ -277,9 +289,12 @@ static mysql_service_status_t udt_example_init() {
 static mysql_service_status_t udt_example_deinit() {
   log_info("%s: Stopping ...", component_name);
 
+  udt_srv->unregister_method(&ADD_METHOD);
+
   udt_srv->unregister_function(&ADD);
   udt_srv->unregister_function(&FROM_STRING);
   udt_srv->unregister_function(&TO_STRING);
+
   udt_srv->unregister_type(&COMPLEX_NUMBER_TYPE_DESCRIPTOR);
 
   log_info("%s: Stopped.", component_name);

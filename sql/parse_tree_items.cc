@@ -58,6 +58,8 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
+#include "sql/warn_not_implemented.h"
+
 /**
   Apply a truth test to given expression. Either the expression can implement
   it itself, or we create an Item node to implement it by wrapping the
@@ -341,6 +343,49 @@ bool PTI_function_call_generic_2d::do_itemize(Parse_context *pc, Item **res) {
   assert(builder);
   *res = builder->create(pc->thd, m_pos, db, func, true, opt_expr_list);
   return *res == nullptr || (*res)->itemize(pc, res);
+}
+
+void PTI_function_call_generic_3d::add_json_info(Json_object *obj) {
+  String full_str;
+
+  append_identifier_with_backtick(&full_str, table.str, table.length);
+  full_str.append('.');
+  append_identifier_with_backtick(&full_str, column.str, column.length);
+  full_str.append('.');
+  append_identifier_with_backtick(&full_str, method.str, method.length);
+  obj->add_alias("method_name", create_dom_ptr<Json_string>(full_str.ptr(),
+                                                            full_str.length()));
+}
+
+bool PTI_function_call_generic_3d::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
+
+  WARN_NOT_IMPLEMENTED(current_thd, "PTI_function_call_generic_3d::do_itemize()");
+
+  return true;
+}
+
+void PTI_function_call_static_method::add_json_info(Json_object *obj) {
+  String full_str;
+
+  if (db.length > 0) {
+    append_identifier_with_backtick(&full_str, db.str, db.length);
+    full_str.append('.');
+  }
+  append_identifier_with_backtick(&full_str, type.str, type.length);
+  full_str.append("::");
+  append_identifier_with_backtick(&full_str, method.str, method.length);
+  obj->add_alias("method_name", create_dom_ptr<Json_string>(full_str.ptr(),
+                                                            full_str.length()));
+}
+
+bool PTI_function_call_static_method::do_itemize(Parse_context *pc,
+                                                 Item **res) {
+  if (super::do_itemize(pc, res)) return true;
+
+  WARN_NOT_IMPLEMENTED(current_thd, "PTI_function_call_static_method::do_itemize()");
+
+  return false;
 }
 
 bool PTI_text_literal_nchar_string::do_itemize(Parse_context *pc, Item **res) {

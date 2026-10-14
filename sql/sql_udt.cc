@@ -76,6 +76,12 @@ struct udt_function_record {
   ulonglong ref_count;
 };
 
+struct udt_method_record {
+  mysql_method_descriptor_t *md;
+  eval_function_t impl;
+  ulonglong ref_count;
+};
+
 static bool initialized = false;
 static mysql_rwlock_t THR_LOCK_udt;
 static MEM_ROOT MEM_ROOT_udt;
@@ -84,6 +90,8 @@ static collation_unordered_map<std::string, udt_type_record *> *udt_type_hash{
     nullptr};
 static collation_unordered_map<std::string, udt_function_record *>
     *udt_function_hash{nullptr};
+static collation_unordered_map<std::string, udt_method_record *>
+    *udt_method_hash{nullptr};
 
 static PSI_rwlock_key key_rwlock_THR_LOCK_udt;
 
@@ -127,10 +135,19 @@ void udt_init_globals() {
   udt_function_hash =
       new collation_unordered_map<std::string, udt_function_record *>(
           system_charset_info, key_memory_udt_mem);
+
+  udt_method_hash =
+      new collation_unordered_map<std::string, udt_method_record *>(
+          system_charset_info, key_memory_udt_mem);
 }
 
 void udt_deinit_globals() {
   DBUG_TRACE;
+
+  if (udt_method_hash != nullptr) {
+    delete udt_method_hash;
+    udt_method_hash = nullptr;
+  }
 
   if (udt_function_hash != nullptr) {
     delete udt_function_hash;
@@ -175,6 +192,53 @@ void release_udt_function(udt_function_record *record) {
 
   const auto it = udt_function_hash->find(key);
   if (it != udt_function_hash->end()) {
+    auto hash_record = it->second;
+    hash_record->ref_count--;
+    assert(hash_record == record);
+  }
+
+  mysql_rwlock_unlock(&THR_LOCK_udt);
+}
+
+std::string build_udt_method_key(const char *schema_name, const char *type_name, const char *method_name) {
+  std::string key = schema_name;
+  key.append("/");
+  key.append(type_name);
+  key.append("/");
+  key.append(method_name);
+  return key;
+}
+
+udt_method_record *acquire_udt_method(const char *schema_name, const char *type_name, const char *method_name) {
+  udt_method_record *record = nullptr;
+  std::string key = build_udt_method_key(schema_name, type_name, method_name);
+
+  mysql_rwlock_wrlock(&THR_LOCK_udt);
+
+  const auto it = udt_method_hash->find(key);
+  if (it != udt_method_hash->end()) {
+    record = it->second;
+    record->ref_count++;
+  }
+
+  mysql_rwlock_unlock(&THR_LOCK_udt);
+
+  fprintf(stderr, "acquire_udt_method() key %s record %p\n", key.c_str(),
+          record);
+
+  return record;
+}
+
+void release_udt_method(udt_method_record *record) {
+  const char* schema_name = record->md->type_ident->schema;
+  const char* type_name = record->md->type_ident->object;
+  const char* method_name = record->md->name;
+  std::string key = build_udt_method_key(schema_name, type_name, method_name);
+
+  mysql_rwlock_wrlock(&THR_LOCK_udt);
+
+  const auto it = udt_method_hash->find(key);
+  if (it != udt_method_hash->end()) {
     auto hash_record = it->second;
     hash_record->ref_count--;
     assert(hash_record == record);
@@ -279,6 +343,7 @@ DEFINE_METHOD(int, mysql_udt_registration_imp::register_function,
           impl);
 
   int rc = 0;
+  std::string key = fd->name;
   udt_function_record *record;
 
   record =
@@ -286,8 +351,6 @@ DEFINE_METHOD(int, mysql_udt_registration_imp::register_function,
   record->fd = fd;
   record->impl = impl;
   record->ref_count = 0;
-
-  std::string key = record->fd->name;
 
   mysql_rwlock_wrlock(&THR_LOCK_udt);
 
@@ -307,6 +370,56 @@ DEFINE_METHOD(int, mysql_udt_registration_imp::unregister_function,
   fprintf(stderr, "mysql_udt_registration_imp::unregister_function() %p\n", fd);
 
   std::string key = fd->name;
+
+  mysql_rwlock_wrlock(&THR_LOCK_udt);
+
+  // FIXME: lifecycle, may be in use
+  udt_function_hash->erase(key);
+
+  mysql_rwlock_unlock(&THR_LOCK_udt);
+
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_udt_registration_imp::register_method,
+              (mysql_method_descriptor_t * md, eval_function_t impl)) {
+  fprintf(stderr, "mysql_udt_registration_imp::register_method() %p %p\n", md,
+          impl);
+
+  int rc = 0;
+  const char* schema_name = md->type_ident->schema;
+  const char* type_name = md->type_ident->object;
+  const char* method_name = md->name;
+  std::string key = build_udt_method_key(schema_name, type_name, method_name);
+  udt_method_record *record;
+
+  record =
+      (udt_method_record *)MEM_ROOT_udt.Alloc(sizeof(udt_method_record));
+  record->md = md;
+  record->impl = impl;
+  record->ref_count = 0;
+
+  mysql_rwlock_wrlock(&THR_LOCK_udt);
+
+  auto res = udt_method_hash->emplace(key, record);
+
+  if (!res.second) {
+    rc = 1;  // Duplicate
+  }
+
+  mysql_rwlock_unlock(&THR_LOCK_udt);
+
+  return rc;
+}
+
+DEFINE_METHOD(int, mysql_udt_registration_imp::unregister_method,
+              (mysql_method_descriptor_t * md)) {
+  fprintf(stderr, "mysql_udt_registration_imp::unregister_method() %p\n", md);
+
+  const char* schema_name = md->type_ident->schema;
+  const char* type_name = md->type_ident->object;
+  const char* method_name = md->name;
+  std::string key = build_udt_method_key(schema_name, type_name, method_name);
 
   mysql_rwlock_wrlock(&THR_LOCK_udt);
 
@@ -423,7 +536,7 @@ bool Item_udt_func::fix_fields(THD *thd, Item **ref) {
   return super::fix_fields(thd, ref);
 }
 
-bool Item_udt_func::resolve_type_inner(THD *thd) {
+bool Item_udt_func::resolve_type_inner(THD * /* thd */) {
   fprintf(stderr, "Item_udt_func::resolve_type_inner(%p)\n", this);
 
   return false;
@@ -434,7 +547,7 @@ bool Item_udt_func::propagate_type(THD *thd, const Type_properties &type) {
   return super::propagate_type(thd, type);
 }
 
-bool Item_udt_func::resolve_type(THD *thd) {
+bool Item_udt_func::resolve_type(THD * /* thd */) {
   fprintf(stderr, "Item_udt_func::resolve_type(%p)\n", this);
 
   assert(result_field);

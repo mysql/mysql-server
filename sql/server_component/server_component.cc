@@ -972,7 +972,9 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udt_registration)
   mysql_udt_registration_imp::register_type,
   mysql_udt_registration_imp::unregister_type,
   mysql_udt_registration_imp::register_function,
-  mysql_udt_registration_imp::unregister_function
+  mysql_udt_registration_imp::unregister_function,
+  mysql_udt_registration_imp::register_method,
+  mysql_udt_registration_imp::unregister_method
 END_SERVICE_IMPLEMENTATION();
 // clang-format on
 

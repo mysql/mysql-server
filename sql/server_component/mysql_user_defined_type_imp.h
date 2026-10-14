@@ -41,6 +41,13 @@ class mysql_udt_registration_imp {
 
   static DEFINE_METHOD(int, unregister_function,
                        (mysql_function_descriptor_t * fd));
+
+  static DEFINE_METHOD(int, register_method,
+                       (mysql_method_descriptor_t * md,
+                        eval_function_t impl));
+
+  static DEFINE_METHOD(int, unregister_method,
+                       (mysql_method_descriptor_t * md));
 };
 
 class mysql_udt_value_null_imp {
