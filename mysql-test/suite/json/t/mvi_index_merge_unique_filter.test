@@ -1,0 +1,102 @@
+#
+# Multi-valued index (MVI) combined with index merge.
+#
+# The row-id based duplicate filter of a multi-valued index (handler::m_unique)
+# is attached to the handler by the MVI scan that enabled it and is not
+# destroyed when that scan ends. All sub-scans of an index merge share the
+# same handler, so a scan on another index in the same index merge (e.g. the
+# clustered primary key) used to run the MVI deduplication as well, against a
+# temporary table whose index had already been closed by ha_index_end().
+#
+# Before the fix this crashed the server:
+#  - debug builds: assertion "inited == INDEX" in handler::ha_index_read_map()
+#    (reached from Unique_on_insert::unique_add() / check_unique_fields())
+#  - release builds: SIGSEGV in InnoDB (row_search_no_mvcc() on a null record)
+#
+# The filter is only triggered when the index merge is "sort_union" (MVI and
+# the clustered primary key scanned separately) and the primary key sub-scan
+# returns a row. It requires ref_length to exceed CONVERT_IF_BIGGER_TO_BLOB
+# (512), which is why the primary key below is a varchar(128) utf8mb4.
+#
+--source include/elide_costs.inc
+
+CREATE TABLE t1 (
+  k varchar(128) COLLATE utf8mb4_bin NOT NULL,
+  j json DEFAULT NULL,
+  PRIMARY KEY (k),
+  KEY mvi ((CAST(JSON_EXTRACT(j, _utf8mb4'$') AS UNSIGNED ARRAY)))
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('proj_a','[2001]'),('proj_b','[3001]'),('test','[1001]');
+
+--echo #
+--echo # MVI sub-scan + clustered primary key sub-scan in one index merge:
+--echo # the primary key sub-scan returns a row (used to crash).
+--echo #
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+SELECT * FROM t1 WHERE JSON_CONTAINS(j->'$', '[999999999]') OR k = 'test';
+SELECT * FROM t1 WHERE 999999999 MEMBER OF (j->'$') OR k = 'test';
+
+--echo #
+--echo # Variations of the same plan: primary key sub-scan without a match,
+--echo # IN list, both sub-scans matching the same row, only MVI matching.
+--echo #
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'no_such_key';
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k IN ('test','proj_a');
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[1001]') OR k = 'test';
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'no_such_key';
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'proj_a';
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[1001,2001,3001]') OR
+                      k IN ('proj_a','proj_b','test');
+
+--echo #
+--echo # The same queries with the multi-valued index condition alone (the MVI
+--echo # row filter is still required and must keep working).
+--echo #
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]');
+SELECT * FROM t1 WHERE 2001 MEMBER OF (j->'$');
+
+--echo #
+--echo # The same index merge plan is run again inside a subquery, i.e. the MVI
+--echo # scan (and its row filter) is initialized more than once.
+--echo #
+SELECT * FROM t1 WHERE k IN
+  (SELECT k FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test');
+SELECT * FROM t1 WHERE k IN
+  (SELECT k FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'no_such_key');
+
+--echo #
+--echo # The same queries with the hypergraph optimizer, which also supports
+--echo # index merge.
+--echo #
+--source include/have_hypergraph.inc
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+SELECT * FROM t1 WHERE 999999999 MEMBER OF (j->'$') OR k = 'test';
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'proj_a';
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'no_such_key';
+--source include/disable_hypergraph.inc
+
+--echo #
+--echo # Short row id (<= 512 bytes): the plan is the same, but the duplicate
+--echo # filter uses the non-hash path. The result must be correct.
+--echo #
+CREATE TABLE t2 (
+  k varchar(32) COLLATE utf8mb4_bin NOT NULL,
+  j json DEFAULT NULL,
+  PRIMARY KEY (k),
+  KEY mvi ((CAST(JSON_EXTRACT(j, _utf8mb4'$') AS UNSIGNED ARRAY)))
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES ('proj_a','[2001]'),('proj_b','[3001]'),('test','[1001]');
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE
+SELECT * FROM t2 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+SELECT * FROM t2 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+SELECT * FROM t2 WHERE JSON_OVERLAPS(j->'$', '[1001]') OR k = 'test';
+SELECT * FROM t2 WHERE 999999999 MEMBER OF (j->'$') OR k = 'test';
+
+DROP TABLE t1, t2;

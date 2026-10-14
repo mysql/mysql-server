@@ -970,6 +970,11 @@ err:
 
 bool Unique_on_insert::unique_add(void *ptr) {
   THD *thd = current_thd;
+  // check_unique_fields() only looks up an index when the temporary table has
+  // a hash field (i.e. when the row id is longer than
+  // CONVERT_IF_BIGGER_TO_BLOB); make sure its index is inited in that case.
+  assert(m_table->hash_field == nullptr ||
+         m_table->file->inited == handler::INDEX);
   Field *key = *m_table->visible_field_ptr();
   if (key->store((const char *)ptr, m_size, &my_charset_bin) != TYPE_OK)
     return true; /* purecov: inspected */

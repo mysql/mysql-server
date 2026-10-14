@@ -4977,6 +4977,23 @@ class handler {
   /* Filter row ids to weed out duplicates when multi-valued index is used */
   Unique_on_insert *m_unique;
 
+  /**
+    Whether the multi-valued index unique record filter applies to the index
+    scan that is currently in progress.
+
+    The filter (m_unique) is attached to the handler by the multi-valued index
+    scan that enabled it and may outlive that scan: handler::ha_index_end()
+    only resets the filter (and thus closes the index of its temporary table)
+    without destroying it, and an index merge reuses the same handler for a
+    scan on another index (e.g. the clustered primary key) afterwards. The
+    filter must therefore be applied only while the handler actually scans a
+    multi-valued index.
+
+    @retval true  the MVI row filter is active for the current index scan
+    @retval false the current index scan must not be filtered
+  */
+  bool mvi_unique_filter_active() const;
+
  public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
       : table_share(share_arg),

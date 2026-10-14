@@ -3410,7 +3410,8 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   // (m_unique != nullptr in case of multi-value index read)
   // In case of range scan, duplicate records are filtered in
   // multi_range_read_next()
-  if (!result && !mrr_have_range && m_unique != nullptr && filter_dup_records())
+  if (!result && !mrr_have_range && mvi_unique_filter_active() &&
+      filter_dup_records())
     result = HA_ERR_KEY_NOT_FOUND;
 
   table->set_row_status_from_handler(result);
@@ -3436,7 +3437,8 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   }
   // Add record to duplicate records filter for multi-value index read.
   // (m_unique != nullptr in case of multi-value index read)
-  if (!result && !mrr_have_range && m_unique != nullptr) filter_dup_records();
+  if (!result && !mrr_have_range && mvi_unique_filter_active())
+    filter_dup_records();
   table->set_row_status_from_handler(result);
   return result;
 }
@@ -3507,7 +3509,8 @@ int handler::ha_index_next(uchar *buf) {
   // (m_unique != nullptr in case of multi-value index read)
   // In case of range scan, duplicate records are filtered in
   // multi_range_read_next()
-  if (!result && !mrr_have_range && m_unique != nullptr && filter_dup_records())
+  if (!result && !mrr_have_range && mvi_unique_filter_active() &&
+      filter_dup_records())
     result = HA_ERR_KEY_NOT_FOUND;
 
   table->set_row_status_from_handler(result);
@@ -3549,7 +3552,8 @@ int handler::ha_index_prev(uchar *buf) {
   }
   // Filter duplicate records from multi-valued index read.
   // (m_unique != nullptr in case of multi-valued index read)
-  if (!result && !mrr_have_range && m_unique != nullptr && filter_dup_records())
+  if (!result && !mrr_have_range && mvi_unique_filter_active() &&
+      filter_dup_records())
     result = HA_ERR_KEY_NOT_FOUND;
 
   table->set_row_status_from_handler(result);
@@ -3587,7 +3591,8 @@ int handler::ha_index_first(uchar *buf) {
   // (m_unique != nullptr in case of multi-value index read)
   // In case of range scan, duplicate records are filtered in
   // multi_range_read_next()
-  if (!result && !mrr_have_range && m_unique != nullptr && filter_dup_records())
+  if (!result && !mrr_have_range && mvi_unique_filter_active() &&
+      filter_dup_records())
     result = HA_ERR_KEY_NOT_FOUND;
 
   table->set_row_status_from_handler(result);
@@ -3661,7 +3666,7 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen) {
   // In case of range scan, duplicate records are filtered in
   // multi_range_read_next()
 
-  if (!result && !mrr_have_range && m_unique != nullptr &&
+  if (!result && !mrr_have_range && mvi_unique_filter_active() &&
       filter_dup_records()) {
     result = HA_ERR_KEY_NOT_FOUND;
   }
@@ -6673,9 +6678,10 @@ int handler::multi_range_read_next(char **range_info) {
           mrr_cur_range.range_flag & EQ_RANGE, mrr_is_output_sorted);
       if (result != HA_ERR_END_OF_FILE) break;
     }
-  } while (((result == HA_ERR_END_OF_FILE) ||
-            (m_unique && (dup_found = filter_dup_records()))) &&
-           !range_res);
+  } while (
+      ((result == HA_ERR_END_OF_FILE) ||
+       (mvi_unique_filter_active() && (dup_found = filter_dup_records()))) &&
+      !range_res);
 
   *range_info = mrr_cur_range.ptr;
   /*
@@ -8699,8 +8705,13 @@ bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
   return res;
 }
 
+bool handler::mvi_unique_filter_active() const {
+  return m_unique != nullptr && active_index != MAX_KEY &&
+         (table->key_info[active_index].flags & HA_MULTI_VALUED_KEY);
+}
+
 bool handler::filter_dup_records() {
-  assert(inited == INDEX && m_unique);
+  assert(inited == INDEX && mvi_unique_filter_active());
   position(table->record[0]);
   return m_unique->unique_add(ref);
 }

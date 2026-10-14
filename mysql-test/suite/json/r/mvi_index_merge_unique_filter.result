@@ -1,0 +1,132 @@
+CREATE TABLE t1 (
+k varchar(128) COLLATE utf8mb4_bin NOT NULL,
+j json DEFAULT NULL,
+PRIMARY KEY (k),
+KEY mvi ((CAST(JSON_EXTRACT(j, _utf8mb4'$') AS UNSIGNED ARRAY)))
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('proj_a','[2001]'),('proj_b','[3001]'),('test','[1001]');
+#
+# MVI sub-scan + clustered primary key sub-scan in one index merge:
+# the primary key sub-scan returns a row (used to crash).
+#
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+EXPLAIN
+-> Filter: (json_overlaps(cast(json_extract(j,_utf8mb4'$') as unsigned array),json'[999999999]') or (t1.k = 'test'))  (...)
+    -> Sort-deduplicate by row ID  (...)
+        -> Index range scan on t1 using mvi over (999999999 MEMBER OF (json_extract(j,_utf8mb4'$')))  (...)
+        -> Clustered primary key (scanned separately)
+            -> Index range scan on t1 using PRIMARY over (k = 'test')  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`k` AS `k`,`test`.`t1`.`j` AS `j` from `test`.`t1` where (json_overlaps(cast(json_extract(`j`,_utf8mb4'$') as unsigned array),json'[999999999]') or (`test`.`t1`.`k` = 'test'))
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+k	j
+test	[1001]
+SELECT * FROM t1 WHERE JSON_CONTAINS(j->'$', '[999999999]') OR k = 'test';
+k	j
+test	[1001]
+SELECT * FROM t1 WHERE 999999999 MEMBER OF (j->'$') OR k = 'test';
+k	j
+test	[1001]
+#
+# Variations of the same plan: primary key sub-scan without a match,
+# IN list, both sub-scans matching the same row, only MVI matching.
+#
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'no_such_key';
+k	j
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k IN ('test','proj_a');
+k	j
+proj_a	[2001]
+test	[1001]
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[1001]') OR k = 'test';
+k	j
+test	[1001]
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'no_such_key';
+k	j
+proj_a	[2001]
+proj_b	[3001]
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'proj_a';
+k	j
+proj_a	[2001]
+proj_b	[3001]
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[1001,2001,3001]') OR
+k IN ('proj_a','proj_b','test');
+k	j
+proj_a	[2001]
+proj_b	[3001]
+test	[1001]
+#
+# The same queries with the multi-valued index condition alone (the MVI
+# row filter is still required and must keep working).
+#
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]');
+k	j
+proj_b	[3001]
+proj_a	[2001]
+SELECT * FROM t1 WHERE 2001 MEMBER OF (j->'$');
+k	j
+proj_a	[2001]
+#
+# The same index merge plan is run again inside a subquery, i.e. the MVI
+# scan (and its row filter) is initialized more than once.
+#
+SELECT * FROM t1 WHERE k IN
+(SELECT k FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test');
+k	j
+test	[1001]
+SELECT * FROM t1 WHERE k IN
+(SELECT k FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'no_such_key');
+k	j
+proj_a	[2001]
+proj_b	[3001]
+#
+# The same queries with the hypergraph optimizer, which also supports
+# index merge.
+#
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+k	j
+test	[1001]
+SELECT * FROM t1 WHERE 999999999 MEMBER OF (j->'$') OR k = 'test';
+k	j
+test	[1001]
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'proj_a';
+k	j
+proj_a	[2001]
+proj_b	[3001]
+SELECT * FROM t1 WHERE JSON_OVERLAPS(j->'$', '[2001,3001]') OR k = 'no_such_key';
+k	j
+proj_a	[2001]
+proj_b	[3001]
+#
+# Short row id (<= 512 bytes): the plan is the same, but the duplicate
+# filter uses the non-hash path. The result must be correct.
+#
+CREATE TABLE t2 (
+k varchar(32) COLLATE utf8mb4_bin NOT NULL,
+j json DEFAULT NULL,
+PRIMARY KEY (k),
+KEY mvi ((CAST(JSON_EXTRACT(j, _utf8mb4'$') AS UNSIGNED ARRAY)))
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ('proj_a','[2001]'),('proj_b','[3001]'),('test','[1001]');
+EXPLAIN FORMAT=TREE
+SELECT * FROM t2 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+EXPLAIN
+-> Filter: (json_overlaps(cast(json_extract(j,_utf8mb4'$') as unsigned array),json'[999999999]') or (t2.k = 'test'))  (...)
+    -> Sort-deduplicate by row ID  (...)
+        -> Index range scan on t2 using mvi over (999999999 MEMBER OF (json_extract(j,_utf8mb4'$')))  (...)
+        -> Clustered primary key (scanned separately)
+            -> Index range scan on t2 using PRIMARY over (k = 'test')  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`k` AS `k`,`test`.`t2`.`j` AS `j` from `test`.`t2` where (json_overlaps(cast(json_extract(`j`,_utf8mb4'$') as unsigned array),json'[999999999]') or (`test`.`t2`.`k` = 'test'))
+SELECT * FROM t2 WHERE JSON_OVERLAPS(j->'$', '[999999999]') OR k = 'test';
+k	j
+test	[1001]
+SELECT * FROM t2 WHERE JSON_OVERLAPS(j->'$', '[1001]') OR k = 'test';
+k	j
+test	[1001]
+SELECT * FROM t2 WHERE 999999999 MEMBER OF (j->'$') OR k = 'test';
+k	j
+test	[1001]
+DROP TABLE t1, t2;
