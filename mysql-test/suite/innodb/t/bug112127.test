@@ -1,0 +1,34 @@
+--echo #
+--echo # Bug#112127 - SHOW ENGINE INNODB STATUS DOESN'T REPORT TOTAL BUFFER POOL BYTES
+--echo #
+
+# "Total large memory allocated" was a constant 0 from 8.0.27 onwards:
+# os_total_large_mem_allocated stopped being maintained when
+# os_mem_alloc_large() was replaced by ut::malloc_large_page*().
+#
+# The counter and the performance schema account for the same allocations, so
+# they have to agree. Keep the event list below in sync with the callers of
+# ut::malloc_large_page*(fallback_to_normal_page_t).
+
+--replace_regex /\n/<EOL>/ /.*Total large memory allocated ([0-9]+).*/\1/
+--let $TOTAL_LARGE_MEM=`SHOW ENGINE INNODB STATUS`
+--replace_regex /InnoDB[[:space:]]*//
+--let $TOTAL_LARGE_MEM_VALUE=`SELECT '$TOTAL_LARGE_MEM'`
+
+--let $PFS_LARGE_MEM_VALUE=`SELECT SUM(CURRENT_NUMBER_OF_BYTES_USED) FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME IN ('memory/innodb/buf_buf_pool', 'memory/innodb/row_log_buf')`
+
+if ($TOTAL_LARGE_MEM_VALUE != $PFS_LARGE_MEM_VALUE)
+{
+  --echo # Total large memory allocated: $TOTAL_LARGE_MEM_VALUE
+  --echo # performance_schema:           $PFS_LARGE_MEM_VALUE
+  --die "Total large memory allocated does not match the performance schema"
+}
+
+--let $BUFFER_POOL_SIZE=`SELECT @@innodb_buffer_pool_size`
+
+if ($TOTAL_LARGE_MEM_VALUE < $BUFFER_POOL_SIZE)
+{
+  --echo # Total large memory allocated: $TOTAL_LARGE_MEM_VALUE
+  --echo # innodb_buffer_pool_size:      $BUFFER_POOL_SIZE
+  --die "Total large memory allocated is below innodb_buffer_pool_size"
+}
