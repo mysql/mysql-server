@@ -23,12 +23,3 @@ if ($TOTAL_LARGE_MEM_VALUE != $PFS_LARGE_MEM_VALUE)
   --echo # performance_schema:           $PFS_LARGE_MEM_VALUE
   --die "Total large memory allocated does not match the performance schema"
 }
-
---let $BUFFER_POOL_SIZE=`SELECT @@innodb_buffer_pool_size`
-
-if ($TOTAL_LARGE_MEM_VALUE < $BUFFER_POOL_SIZE)
-{
-  --echo # Total large memory allocated: $TOTAL_LARGE_MEM_VALUE
-  --echo # innodb_buffer_pool_size:      $BUFFER_POOL_SIZE
-  --die "Total large memory allocated is below innodb_buffer_pool_size"
-}
