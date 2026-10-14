@@ -1378,6 +1378,8 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
   ulonglong immediate_commit_timestamp = my_micro_time();
   DBUG_EXECUTE_IF("sql_delay_dec_master_clock_10s",
                   immediate_commit_timestamp -= 10 * 1000000ULL;);
+  DBUG_EXECUTE_IF("sql_delay_inc_master_clock_10s",
+                  immediate_commit_timestamp += 10 * 1000000ULL;);
 
   /*
     When the original_commit_timestamp session variable is set to a value

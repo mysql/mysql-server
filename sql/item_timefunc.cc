@@ -2106,6 +2106,7 @@ bool Item_func_unix_timestamp::val_timeval(my_timeval *tm) {
     tm->m_tv_sec = current_thd->query_start_in_secs();
     tm->m_tv_usec = 0;
     DBUG_EXECUTE_IF("sql_delay_dec_master_clock_10s", tm->m_tv_sec -= 10;);
+    DBUG_EXECUTE_IF("sql_delay_inc_master_clock_10s", tm->m_tv_sec += 10;);
     // no args: null_value is set in constructor and is always false.
     return false;
   }
