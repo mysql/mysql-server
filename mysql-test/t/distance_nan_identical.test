@@ -1,0 +1,33 @@
+--echo #
+--echo # PS-11584: DISTANCE() with EUCLIDEAN / EUCLIDEAN_SQUARED must raise
+--echo # ER_DATA_OUT_OF_RANGE for NaN/Inf elements even when both vectors are
+--echo # byte-identical: an exactly-zero sum over the other elements must not
+--echo # short-circuit to 0.  The NaN/Inf sits in a 16-lane block, or in the
+--echo # tail after it.
+--echo #
+
+let $metrics = EUCLIDEAN EUCLIDEAN_SQUARED DOT MANHATTAN;
+while ($metrics)
+{
+  let $metric = `SELECT SUBSTRING_INDEX('$metrics', ' ', 1)`;
+  let $metrics = `SELECT TRIM(SUBSTRING('$metrics', LENGTH('$metric') + 1))`;
+  --echo # $metric: NaN, +Inf and -Inf against themselves (1 dim).
+  --error ER_DATA_OUT_OF_RANGE
+  eval SELECT DISTANCE(X'0000C07F', X'0000C07F', "$metric");
+  --error ER_DATA_OUT_OF_RANGE
+  eval SELECT DISTANCE(X'0000807F', X'0000807F', "$metric");
+  --error ER_DATA_OUT_OF_RANGE
+  eval SELECT DISTANCE(X'000080FF', X'000080FF', "$metric");
+  --echo # $metric: [1, 1, 1, 1, NaN] against itself (no 16-lane block).
+  --error ER_DATA_OUT_OF_RANGE
+  eval SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'),
+                       CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'), "$metric");
+  --echo # $metric: [1 x 16, NaN] against itself (NaN in the tail).
+  --error ER_DATA_OUT_OF_RANGE
+  eval SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'),
+                       CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'), "$metric");
+}
+
+--echo # Control: NaN against a different vector.
+--error ER_DATA_OUT_OF_RANGE
+SELECT DISTANCE(X'0000C07F', X'00000000', "EUCLIDEAN");
