@@ -60,6 +60,14 @@ Item *Create_udt_func::create(THD *thd, const POS &pos,
   return item;
 }
 
+Item *Create_udt_method::create(THD *thd, const POS &pos,
+                                udt_method_record *udt_method,
+                                PT_item_list *item_list) {
+  fprintf(stderr, "Create_udt_method::create()\n");
+  Item *item = new (thd->mem_root) Item_udt_method(pos, udt_method, item_list);
+  return item;
+}
+
 //-------------------------------------------------------------------
 // Internal hash
 //-------------------------------------------------------------------
@@ -200,7 +208,8 @@ void release_udt_function(udt_function_record *record) {
   mysql_rwlock_unlock(&THR_LOCK_udt);
 }
 
-std::string build_udt_method_key(const char *schema_name, const char *type_name, const char *method_name) {
+std::string build_udt_method_key(const char *schema_name, const char *type_name,
+                                 const char *method_name) {
   std::string key = schema_name;
   key.append("/");
   key.append(type_name);
@@ -209,7 +218,9 @@ std::string build_udt_method_key(const char *schema_name, const char *type_name,
   return key;
 }
 
-udt_method_record *acquire_udt_method(const char *schema_name, const char *type_name, const char *method_name) {
+udt_method_record *acquire_udt_method(const char *schema_name,
+                                      const char *type_name,
+                                      const char *method_name) {
   udt_method_record *record = nullptr;
   std::string key = build_udt_method_key(schema_name, type_name, method_name);
 
@@ -229,10 +240,14 @@ udt_method_record *acquire_udt_method(const char *schema_name, const char *type_
   return record;
 }
 
+bool is_udt_method_static(udt_method_record *record) {
+  return record->md->is_static;
+}
+
 void release_udt_method(udt_method_record *record) {
-  const char* schema_name = record->md->type_ident->schema;
-  const char* type_name = record->md->type_ident->object;
-  const char* method_name = record->md->name;
+  const char *schema_name = record->md->type_ident->schema;
+  const char *type_name = record->md->type_ident->object;
+  const char *method_name = record->md->name;
   std::string key = build_udt_method_key(schema_name, type_name, method_name);
 
   mysql_rwlock_wrlock(&THR_LOCK_udt);
@@ -387,14 +402,13 @@ DEFINE_METHOD(int, mysql_udt_registration_imp::register_method,
           impl);
 
   int rc = 0;
-  const char* schema_name = md->type_ident->schema;
-  const char* type_name = md->type_ident->object;
-  const char* method_name = md->name;
+  const char *schema_name = md->type_ident->schema;
+  const char *type_name = md->type_ident->object;
+  const char *method_name = md->name;
   std::string key = build_udt_method_key(schema_name, type_name, method_name);
   udt_method_record *record;
 
-  record =
-      (udt_method_record *)MEM_ROOT_udt.Alloc(sizeof(udt_method_record));
+  record = (udt_method_record *)MEM_ROOT_udt.Alloc(sizeof(udt_method_record));
   record->md = md;
   record->impl = impl;
   record->ref_count = 0;
@@ -416,9 +430,9 @@ DEFINE_METHOD(int, mysql_udt_registration_imp::unregister_method,
               (mysql_method_descriptor_t * md)) {
   fprintf(stderr, "mysql_udt_registration_imp::unregister_method() %p\n", md);
 
-  const char* schema_name = md->type_ident->schema;
-  const char* type_name = md->type_ident->object;
-  const char* method_name = md->name;
+  const char *schema_name = md->type_ident->schema;
+  const char *type_name = md->type_ident->object;
+  const char *method_name = md->name;
   std::string key = build_udt_method_key(schema_name, type_name, method_name);
 
   mysql_rwlock_wrlock(&THR_LOCK_udt);
@@ -448,7 +462,8 @@ DEFINE_METHOD(void, mysql_udt_value_null_imp::get_null,
 
 DEFINE_METHOD(void, mysql_udt_value_string_imp::set_utf8mb4,
               (UDT_value_out * f, const char *value, unsigned int length)) {
-  fprintf(stderr, "mysql_udt_value_string_imp::set_utf8mb4(str=%s, len=%d)\n", value, length);
+  fprintf(stderr, "mysql_udt_value_string_imp::set_utf8mb4(str=%s, len=%d)\n",
+          value, length);
   assert(f != nullptr);
   f->set_utf8mb4(value, length);
 }
@@ -510,6 +525,16 @@ static void convert_type_descriptor(const mysql_type_descriptor_t *from,
   // to->m_type_ident = from->type_ident;
 }
 
+void destroy_argument_value_array(size_t count, UDT_value_in **array) {
+  for (size_t i = 0; i < count; i++) {
+    delete array[i];
+  }
+
+  delete[] array;
+}
+
+// =========================================================
+
 Item_udt_func::Item_udt_func(const POS &pos, udt_function_record *udt_function,
                              PT_item_list *opt_list)
     : Item_func(pos, opt_list), m_udt_function(udt_function) {}
@@ -552,9 +577,10 @@ bool Item_udt_func::resolve_type(THD * /* thd */) {
 
   assert(result_field);
 
-  switch(result_field->type()) {
+  switch (result_field->type()) {
     case MYSQL_TYPE_VARCHAR:
-      // set_data_type_string(result_field->field_length, result_field->charset());
+      // set_data_type_string(result_field->field_length,
+      // result_field->charset());
       set_data_type_string(20, result_field->charset());
       break;
     case MYSQL_TYPE_BLOB:
@@ -639,8 +665,10 @@ Field *Item_udt_func::create_result_field(THD *thd) {
   const CHARSET_INFO *cs = field->charset();
   const char *csname = cs ? cs->csname : "none";
 
-  fprintf(stderr, "Item_udt_func::create_result_field(%p) field %s, csname = %s, flag = %d\n",
-    this, field_name, csname, field->all_flags());
+  fprintf(stderr,
+          "Item_udt_func::create_result_field(%p) field %s, csname = %s, flag "
+          "= %d\n",
+          this, field_name, csname, field->all_flags());
 
   return field;
 }
@@ -649,10 +677,10 @@ Field *Item_udt_func::create_result_field(THD *thd) {
  * @param [out] argument_count size of @p argument_value_array.
  * @param [out] argument_value_array Input parameters to the UDT function.
  */
-int build_argument_value_array(Item_udt_func *that,
-                               mysql_function_descriptor_t *fd,
-                               size_t *argument_count,
-                               UDT_value_in ***argument_value_array) {
+int build_function_argument_value_array(Item_udt_func *that,
+                                        mysql_function_descriptor_t *fd,
+                                        size_t *argument_count,
+                                        UDT_value_in ***argument_value_array) {
   size_t count = fd->argument_count;
   size_t actual = that->arg_count;
 
@@ -681,14 +709,6 @@ int build_argument_value_array(Item_udt_func *that,
   *argument_count = count;
   *argument_value_array = array;
   return 0;
-}
-
-void destroy_argument_value_array(size_t count, UDT_value_in **array) {
-  for (size_t i = 0; i < count; i++) {
-    delete array[i];
-  }
-
-  delete[] array;
 }
 
 type_conversion_status Item_udt_func::save_in_field_inner(
@@ -720,8 +740,8 @@ bool Item_udt_func::evaluate_to_field(Field *field) {
   size_t param_count{0};
   UDT_value_in **param_array{nullptr};
 
-  rc = build_argument_value_array(this, m_udt_function->fd, &param_count,
-                                  &param_array);
+  rc = build_function_argument_value_array(this, m_udt_function->fd,
+                                           &param_count, &param_array);
 
   if (rc) {
     return true;
@@ -777,10 +797,10 @@ String *Item_udt_func::val_str(String *str) {
 
   String *result = result_field->val_str(str);
   if (result != nullptr) {
-  fprintf(stderr, "Item_udt_func::val_str() end with value %s, length %ld, csname %s\n",
-          result->c_ptr(),
-          result->length(),
-          result->charset()->csname);
+    fprintf(
+        stderr,
+        "Item_udt_func::val_str() end with value %s, length %ld, csname %s\n",
+        result->c_ptr(), result->length(), result->charset()->csname);
   }
   return result;
 }
@@ -804,4 +824,298 @@ bool Item_udt_func::val_datetime(Datetime_val * /* dt */,
 
 const char *Item_udt_func::func_name() const {
   return m_udt_function->fd->name;
+}
+
+// =========================================================
+
+Item_udt_method::Item_udt_method(const POS &pos, udt_method_record *udt_method,
+                                 PT_item_list *opt_list)
+    : Item_func(pos, opt_list), m_udt_method(udt_method) {}
+
+bool Item_udt_method::do_itemize(Parse_context *pc, Item **res) {
+  fprintf(stderr, "Item_udt_method::do_itemize(%p)\n", this);
+
+  if (super::do_itemize(pc, res)) {
+    return true;
+  }
+
+  return false;
+}
+
+bool Item_udt_method::fix_fields(THD *thd, Item **ref) {
+  fprintf(stderr, "Item_udt_method::fix_fields(%p)\n", this);
+
+  result_field = create_result_field(thd);
+
+  if (result_field == nullptr) {
+    return true;
+  }
+
+  return super::fix_fields(thd, ref);
+}
+
+bool Item_udt_method::resolve_type_inner(THD * /* thd */) {
+  fprintf(stderr, "Item_udt_method::resolve_type_inner(%p)\n", this);
+
+  return false;
+}
+
+bool Item_udt_method::propagate_type(THD *thd, const Type_properties &type) {
+  fprintf(stderr, "Item_udt_method::propagate_type(%p)\n", this);
+  return super::propagate_type(thd, type);
+}
+
+bool Item_udt_method::resolve_type(THD * /* thd */) {
+  fprintf(stderr, "Item_udt_method::resolve_type(%p)\n", this);
+
+  assert(result_field);
+
+  switch (result_field->type()) {
+    case MYSQL_TYPE_VARCHAR:
+      // set_data_type_string(result_field->field_length,
+      // result_field->charset());
+      set_data_type_string(20, result_field->charset());
+      break;
+    case MYSQL_TYPE_BLOB:
+      set_data_type_blob(result_field->type(), result_field->field_length);
+      break;
+    default:
+      set_data_type(result_field->type());
+      decimals = result_field->decimals();
+      collation.set(result_field->charset());
+      max_length = result_field->field_length;
+      unsigned_flag = result_field->is_flag_set(UNSIGNED_FLAG);
+      break;
+  }
+
+  set_nullable(true);
+
+  const CHARSET_INFO *cs = result_field->charset();
+  const char *csname = cs ? cs->csname : "none";
+
+  fprintf(stderr, "Item_udt_method::resolve_type(%p)\n", this);
+  fprintf(stderr, " - (f) type: %d\n", result_field->type());
+  fprintf(stderr, " - (f) decimals: %d\n", result_field->decimals());
+  fprintf(stderr, " - (f) max_length: %d\n", result_field->field_length);
+  fprintf(stderr, " - (f) csname: %s\n", csname);
+  fprintf(stderr, " - (f) binary: %s\n", result_field->binary() ? "yes" : "no");
+
+  cs = collation.collation;
+  csname = cs ? cs->csname : "none";
+
+  fprintf(stderr, " - (i) type: %d\n", type());
+  fprintf(stderr, " - (i) decimals: %d\n", decimals);
+  fprintf(stderr, " - (i) max_length: %d\n", max_length);
+  fprintf(stderr, " - (i) csname: %s\n", csname);
+
+  return false;
+}
+
+// See sp_head::create_result_field()
+Field *Item_udt_method::create_result_field(THD *thd) {
+  fprintf(stderr, "Item_udt_method::create_result_field(%p)\n", this);
+  bool rc;
+
+  // Forge dummy table
+  m_share.db_low_byte_first = true;
+  m_table.s = &m_share;
+
+  // Forge field def
+  mysql_type_descriptor_t *td = m_udt_method->md->return_type;
+  TypeDescriptor td2;
+  convert_type_descriptor(td, &td2);
+
+  FieldDescriptor fd;
+  const char *field_name = m_udt_method->md->name;
+  rc = m_return_field_def.init_from_type_descriptor(thd, field_name, &td2, &fd);
+
+  if (rc) {
+    return nullptr;
+  }
+
+  // Add 1 for null byte.
+  m_table.record[0] =
+      thd->mem_root->ArrayAlloc<uchar>(m_return_field_def.pack_length() + 1);
+  if (m_table.record[0] == nullptr) return nullptr;
+
+  size_t field_length = m_return_field_def.max_display_width_in_bytes();
+
+  assert(m_return_field_def.auto_flags == Field::NONE);
+  Field *field =
+      ::make_field(m_return_field_def, m_table.s, field_name, field_length,
+                   m_table.record[0] + 1, m_table.record[0], 0);
+
+  // Return early, failed to allocate Field on memroot
+  if (field == nullptr) return nullptr;
+
+  field->gcol_info = m_return_field_def.gcol_info;
+  field->m_default_val_expr = m_return_field_def.m_default_val_expr;
+  field->stored_in_db = m_return_field_def.stored_in_db;
+  field->init(&m_table);
+
+  assert(field->pack_length() == m_return_field_def.pack_length());
+
+  const CHARSET_INFO *cs = field->charset();
+  const char *csname = cs ? cs->csname : "none";
+
+  fprintf(
+      stderr,
+      "Item_udt_method::create_result_field(%p) field %s, csname = %s, flag "
+      "= %d\n",
+      this, field_name, csname, field->all_flags());
+
+  return field;
+}
+
+/**
+ * @param [out] argument_count size of @p argument_value_array.
+ * @param [out] argument_value_array Input parameters to the UDT function.
+ */
+int build_method_argument_value_array(Item_udt_method *that,
+                                      mysql_method_descriptor_t *fd,
+                                      size_t *argument_count,
+                                      UDT_value_in ***argument_value_array) {
+  size_t count = fd->argument_count;
+  size_t actual = that->arg_count;
+
+  if (count != actual) {
+    *argument_count = 0;
+    *argument_value_array = nullptr;
+    // TODO: Report an error ?
+    return 1;
+  }
+
+  if (count == 0) {
+    *argument_count = 0;
+    *argument_value_array = nullptr;
+    return 0;
+  }
+
+  UDT_value_in **array = new UDT_value_in *[count];
+  Item *item;
+
+  for (size_t i = 0; i < count; i++) {
+    // FIXME: build proper value
+    item = that->get_arg(i);
+    array[i] = new UDT_value_in(item);
+  }
+
+  *argument_count = count;
+  *argument_value_array = array;
+  return 0;
+}
+
+type_conversion_status Item_udt_method::save_in_field_inner(
+    Field *field, bool /* no_conversions */) {
+  fprintf(stderr, "Item_udt_method::save_in_field_inner() field %s\n",
+          field->field_name);
+
+  evaluate_to_field(field);
+
+  // FIXME
+  return TYPE_ERR_BAD_VALUE;
+}
+
+bool Item_udt_method::execute() {
+  fprintf(stderr, "Item_udt_method::execute()\n");
+  assert(result_field != nullptr);
+  return evaluate_to_field(result_field);
+}
+
+bool Item_udt_method::evaluate_to_field(Field *field) {
+  fprintf(stderr, "Item_udt_method::evaluate_to_field() field %s\n",
+          field->field_name);
+  int rc;
+
+  eval_function_t eval = m_udt_method->impl;
+
+  // Build input value(s)
+
+  size_t param_count{0};
+  UDT_value_in **param_array{nullptr};
+
+  rc = build_method_argument_value_array(this, m_udt_method->md, &param_count,
+                                         &param_array);
+
+  if (rc) {
+    return true;
+  }
+
+  // Build output value
+
+  UDT_value_out result_value(field);
+
+  // Evaluate the function into the value
+
+  fprintf(stderr, "Item_udt_method::evaluate_to_field() field %s before eval\n",
+          field->field_name);
+
+  rc = (*eval)(&result_value, param_count, param_array);
+
+  fprintf(stderr, "Item_udt_method::evaluate_to_field() field %s after eval\n",
+          field->field_name);
+
+  destroy_argument_value_array(param_count, param_array);
+
+  if (rc) {
+    return true;
+  }
+
+  // Capture the result null value
+
+  null_value = field->is_null();
+
+  return false;
+}
+
+double Item_udt_method::val_real() {
+  assert(false);
+  return 0.0;
+}
+
+longlong Item_udt_method::val_int() {
+  assert(false);
+  return 0;
+}
+
+String *Item_udt_method::val_str(String *str) {
+  fprintf(stderr, "Item_udt_method::val_str() begin\n");
+
+  if (execute()) {
+    return error_str();
+  }
+
+  if (null_value) {
+    return nullptr;
+  }
+
+  String *result = result_field->val_str(str);
+  if (result != nullptr) {
+    fprintf(
+        stderr,
+        "Item_udt_method::val_str() end with value %s, length %ld, csname %s\n",
+        result->c_ptr(), result->length(), result->charset()->csname);
+  }
+  return result;
+}
+
+bool Item_udt_method::val_date(Date_val * /* date */,
+                               my_time_flags_t /* flags */) {
+  assert(false);
+  return false;
+}
+
+bool Item_udt_method::val_time(Time_val * /* time */) {
+  assert(false);
+  return false;
+}
+
+bool Item_udt_method::val_datetime(Datetime_val * /* dt */,
+                                   my_time_flags_t /* flags */) {
+  assert(false);
+  return false;
+}
+
+const char *Item_udt_method::func_name() const {
+  return m_udt_method->md->name;
 }

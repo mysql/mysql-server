@@ -86,6 +86,8 @@
 #include "sql_string.h"
 #include "tztime.h"  // convert_time_zone_displacement
 
+#include "sql/sql_udt.h"
+
 /**
   @addtogroup GROUP_PARSER
   @{
@@ -1159,7 +1161,7 @@ class Create_static_func : public Create_3d_func {
  public:
   Item *create(THD *thd, const POS &pos, LEX_STRING db_name,
                LEX_STRING type_name, LEX_STRING method_name,
-               bool use_explicit_name, PT_item_list *item_list) override;
+               PT_item_list *item_list) override;
 
   static Create_static_func s_singleton;
 
@@ -1172,7 +1174,13 @@ class Create_static_func : public Create_3d_func {
 
 Item *Create_3d_func::create(THD *thd, const POS &pos, LEX_STRING type_name,
                              LEX_STRING method_name, PT_item_list *item_list) {
-  return create(thd, pos, NULL_STR, type_name, method_name, false, item_list);
+  LEX_STRING current_db;
+  if (thd->lex->copy_db_to(&current_db.str, &current_db.length)) {
+    my_error(ER_NO_DB_ERROR, MYF(0));
+    return nullptr;
+  }
+
+  return create(thd, pos, current_db, type_name, method_name, item_list);
 }
 
 Create_udf_func Create_udf_func::s_singleton;
@@ -1236,9 +1244,26 @@ Create_static_func Create_static_func::s_singleton;
 
 Item *Create_static_func::create(THD *thd, const POS &pos, LEX_STRING db_name,
                                  LEX_STRING type_name, LEX_STRING method_name,
-                                 bool use_explicit_name,
                                  PT_item_list *item_list) {
-  return nullptr;
+  // TODO: MDL locks ?
+
+  udt_method_record *method;
+  Item *result;
+  method = acquire_udt_method(db_name.str, type_name.str, method_name.str);
+
+  if (method == nullptr) {
+    my_error(ER_NO_SUCH_UDT_METHOD, MYF(0), type_name.str, method_name.str);
+    return nullptr;
+  }
+
+  if (!is_udt_method_static(method)) {
+    my_error(ER_UDT_METHOD_NOT_STATIC, MYF(0), type_name.str, method_name.str);
+    return nullptr;
+  }
+
+  result = Create_udt_method::create(thd, pos, method, item_list);
+
+  return result;
 }
 
 /**

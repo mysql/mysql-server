@@ -360,7 +360,8 @@ void PTI_function_call_generic_3d::add_json_info(Json_object *obj) {
 bool PTI_function_call_generic_3d::do_itemize(Parse_context *pc, Item **res) {
   if (super::do_itemize(pc, res)) return true;
 
-  WARN_NOT_IMPLEMENTED(current_thd, "PTI_function_call_generic_3d::do_itemize()");
+  WARN_NOT_IMPLEMENTED(current_thd,
+                       "PTI_function_call_generic_3d::do_itemize()");
 
   return true;
 }
@@ -383,9 +384,30 @@ bool PTI_function_call_static_method::do_itemize(Parse_context *pc,
                                                  Item **res) {
   if (super::do_itemize(pc, res)) return true;
 
-  WARN_NOT_IMPLEMENTED(current_thd, "PTI_function_call_static_method::do_itemize()");
+  THD *thd = pc->thd;
 
-  return false;
+  if (db.length > 0) {
+    if (sp_check_name(&db)) return true;
+  }
+
+  if (sp_check_name(&type)) return true;
+  if (sp_check_name(&method)) return true;
+
+  Create_3d_func *builder = find_static_function_builder(thd);
+
+  if (db.length > 0) {
+    *res = builder->create(thd, m_pos, db, type, method, opt_expr_list);
+  } else {
+    *res = builder->create(thd, m_pos, type, method, opt_expr_list);
+  }
+
+  if (*res == nullptr) {
+    return true;
+  }
+
+  WARN_NOT_IMPLEMENTED(thd, "PTI_function_call_static_method::do_itemize()");
+
+  return (*res)->itemize(pc, res);
 }
 
 bool PTI_text_literal_nchar_string::do_itemize(Parse_context *pc, Item **res) {

@@ -28,6 +28,7 @@
 #include "sql/item_func.h"
 
 struct udt_function_record;
+struct udt_method_record;
 
 class Create_udt_func {
  public:
@@ -36,6 +37,13 @@ class Create_udt_func {
                       PT_item_list *item_list);
 };
 
+class Create_udt_method {
+ public:
+  static Item *create(THD *thd, const POS &pos, udt_method_record *udt_method,
+                      PT_item_list *item_list);
+};
+
+// POC, first draft. Most likely to abandon.
 class Item_udt_func : public Item_func {
   typedef Item_func super;
 
@@ -83,10 +91,66 @@ class Item_udt_func : public Item_func {
   // Field *m_return_field{nullptr};
 };
 
+// POC, second draft. Most likely to keep.
+class Item_udt_method : public Item_func {
+  typedef Item_func super;
+
+ public:
+  Item_udt_method(const POS &pos, udt_method_record *udt_method,
+                  PT_item_list *opt_list);
+
+  bool do_itemize(Parse_context *pc, Item **res) override;
+
+  bool fix_fields(THD *, Item **ref) override;
+
+  bool resolve_type_inner(THD *thd) override;
+
+  bool propagate_type(THD *thd, const Type_properties &type) override;
+
+  bool resolve_type(THD *thd) override;
+
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *str) override;
+  bool val_date(Date_val *date, my_time_flags_t flags) override;
+  bool val_time(Time_val *time) override;
+  bool val_datetime(Datetime_val *dt, my_time_flags_t flags) override;
+  const char *func_name() const override;
+
+  Field *create_result_field(THD *thd);
+
+ protected:
+  type_conversion_status save_in_field_inner(Field *field,
+                                             bool no_conversions) override;
+
+ private:
+  bool execute();
+  bool init_result_field(THD *thd);
+  bool evaluate_to_field(Field *field);
+
+  udt_method_record *m_udt_method;
+
+  // Fake table to hold the result field.
+  TABLE m_table;
+  TABLE_SHARE m_share;
+
+  Create_field m_return_field_def;
+
+  // Field *m_return_field{nullptr};
+};
+
 void udt_init_globals();
 void udt_deinit_globals();
 
+// POC, first draft. Most likely to abandon.
 udt_function_record *acquire_udt_function(const char *name);
 void release_udt_function(udt_function_record *record);
+
+// POC, second draft. Most likely to keep.
+udt_method_record *acquire_udt_method(const char *schema_name,
+                                      const char *type_name,
+                                      const char *method_name);
+bool is_udt_method_static(udt_method_record *record);
+void release_udt_method(udt_method_record *record);
 
 #endif /* SQL_UDT_INCLUDED */

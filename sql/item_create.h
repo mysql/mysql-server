@@ -178,13 +178,12 @@ class Create_3d_func {
     @param pos The parser position
     @param db The database name or NULL_STR to use the default db name
     @param name The function name
-    @param use_explicit_name Should the function be represented as 'db.name'?
     @param item_list The list of arguments to the function, can be NULL
     @return An item representing the parsed function call
   */
   virtual Item *create(THD *thd, const POS &pos, LEX_STRING db_name,
                        LEX_STRING type_name, LEX_STRING method_name,
-                       bool use_explicit_name, PT_item_list *item_list) = 0;
+                       PT_item_list *item_list) = 0;
 
  protected:
   /** Constructor. */
@@ -200,6 +199,8 @@ class Create_3d_func {
   @return The native function builder associated with the name, or NULL
 */
 extern Create_func *find_native_function_builder(const LEX_STRING &name);
+
+extern Create_3d_func *find_static_function_builder(THD *);
 
 /**
   Find the function builder for qualified functions.
