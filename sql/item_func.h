@@ -364,6 +364,7 @@ class Item_func : public Item_result_field {
     ETAG_FUNC,
     CURRENT_USER_IN_FUNC,
     CURRENT_ROLE_IN_FUNC,
+    VECTOR_DISTANCE_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -855,6 +856,11 @@ class Item_real_func : public Item_func {
   Item_real_func(Item *a, Item *b) : Item_func(a, b) { set_data_type_double(); }
 
   Item_real_func(const POS &pos, Item *a, Item *b) : Item_func(pos, a, b) {
+    set_data_type_double();
+  }
+
+  Item_real_func(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_func(pos, a, b, c) {
     set_data_type_double();
   }
 

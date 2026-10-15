@@ -1,0 +1,70 @@
+#
+# PS-11584: DISTANCE() with EUCLIDEAN / EUCLIDEAN_SQUARED must raise
+# ER_DATA_OUT_OF_RANGE for NaN/Inf elements even when both vectors are
+# byte-identical: an exactly-zero sum over the other elements must not
+# short-circuit to 0.  The NaN/Inf sits in a 16-lane block, or in the
+# tail after it.
+#
+# EUCLIDEAN: NaN, +Inf and -Inf against themselves (1 dim).
+SELECT DISTANCE(X'0000C07F', X'0000C07F', "EUCLIDEAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000c07f,0x0000c07f,'EUCLIDEAN')'
+SELECT DISTANCE(X'0000807F', X'0000807F', "EUCLIDEAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000807f,0x0000807f,'EUCLIDEAN')'
+SELECT DISTANCE(X'000080FF', X'000080FF', "EUCLIDEAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x000080ff,0x000080ff,'EUCLIDEAN')'
+# EUCLIDEAN: [1, 1, 1, 1, NaN] against itself (no 16-lane block).
+SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'),
+CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'), "EUCLIDEAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(concat(repeat(0x0000803f,4),0x0000c07f),concat(repeat(0x0000803f,4),0x0000c07f),'EUCLIDEAN')'
+# EUCLIDEAN: [1 x 16, NaN] against itself (NaN in the tail).
+SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'),
+CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'), "EUCLIDEAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(concat(repeat(0x0000803f,16),0x0000c07f),concat(repeat(0x0000803f,16),0x0000c07f),'EUCLIDEAN')'
+# EUCLIDEAN_SQUARED: NaN, +Inf and -Inf against themselves (1 dim).
+SELECT DISTANCE(X'0000C07F', X'0000C07F', "EUCLIDEAN_SQUARED");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000c07f,0x0000c07f,'EUCLIDEAN_SQUARED')'
+SELECT DISTANCE(X'0000807F', X'0000807F', "EUCLIDEAN_SQUARED");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000807f,0x0000807f,'EUCLIDEAN_SQUARED')'
+SELECT DISTANCE(X'000080FF', X'000080FF', "EUCLIDEAN_SQUARED");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x000080ff,0x000080ff,'EUCLIDEAN_SQUARED')'
+# EUCLIDEAN_SQUARED: [1, 1, 1, 1, NaN] against itself (no 16-lane block).
+SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'),
+CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'), "EUCLIDEAN_SQUARED");
+ERROR 22003: DOUBLE value is out of range in 'distance(concat(repeat(0x0000803f,4),0x0000c07f),concat(repeat(0x0000803f,4),0x0000c07f),'EUCLIDEAN_SQUARED')'
+# EUCLIDEAN_SQUARED: [1 x 16, NaN] against itself (NaN in the tail).
+SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'),
+CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'), "EUCLIDEAN_SQUARED");
+ERROR 22003: DOUBLE value is out of range in 'distance(concat(repeat(0x0000803f,16),0x0000c07f),concat(repeat(0x0000803f,16),0x0000c07f),'EUCLIDEAN_SQUARED')'
+# DOT: NaN, +Inf and -Inf against themselves (1 dim).
+SELECT DISTANCE(X'0000C07F', X'0000C07F', "DOT");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000c07f,0x0000c07f,'DOT')'
+SELECT DISTANCE(X'0000807F', X'0000807F', "DOT");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000807f,0x0000807f,'DOT')'
+SELECT DISTANCE(X'000080FF', X'000080FF', "DOT");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x000080ff,0x000080ff,'DOT')'
+# DOT: [1, 1, 1, 1, NaN] against itself (no 16-lane block).
+SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'),
+CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'), "DOT");
+ERROR 22003: DOUBLE value is out of range in 'distance(concat(repeat(0x0000803f,4),0x0000c07f),concat(repeat(0x0000803f,4),0x0000c07f),'DOT')'
+# DOT: [1 x 16, NaN] against itself (NaN in the tail).
+SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'),
+CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'), "DOT");
+ERROR 22003: DOUBLE value is out of range in 'distance(concat(repeat(0x0000803f,16),0x0000c07f),concat(repeat(0x0000803f,16),0x0000c07f),'DOT')'
+# MANHATTAN: NaN, +Inf and -Inf against themselves (1 dim).
+SELECT DISTANCE(X'0000C07F', X'0000C07F', "MANHATTAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000c07f,0x0000c07f,'MANHATTAN')'
+SELECT DISTANCE(X'0000807F', X'0000807F', "MANHATTAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000807f,0x0000807f,'MANHATTAN')'
+SELECT DISTANCE(X'000080FF', X'000080FF', "MANHATTAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x000080ff,0x000080ff,'MANHATTAN')'
+# MANHATTAN: [1, 1, 1, 1, NaN] against itself (no 16-lane block).
+SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'),
+CONCAT(REPEAT(X'0000803F', 4), X'0000C07F'), "MANHATTAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(concat(repeat(0x0000803f,4),0x0000c07f),concat(repeat(0x0000803f,4),0x0000c07f),'MANHATTAN')'
+# MANHATTAN: [1 x 16, NaN] against itself (NaN in the tail).
+SELECT DISTANCE(CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'),
+CONCAT(REPEAT(X'0000803F', 16), X'0000C07F'), "MANHATTAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(concat(repeat(0x0000803f,16),0x0000c07f),concat(repeat(0x0000803f,16),0x0000c07f),'MANHATTAN')'
+# Control: NaN against a different vector.
+SELECT DISTANCE(X'0000C07F', X'00000000', "EUCLIDEAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000c07f,0x00000000,'EUCLIDEAN')'

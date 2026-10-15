@@ -1,0 +1,11 @@
+--echo #
+--echo # PS-11584: the SIMD horizontal sum must not change the result.  For
+--echo # a = [1e4, 1e4, 5, 0 x 13] and b = [1e4, -1e4, 1, 0 x 13] the dot
+--echo # product is 1e8 - 1e8 + 5 = 5, so DISTANCE(a, b, 'DOT') = -5.  The
+--echo # three products sit in different lanes; a float32 reduction that adds
+--echo # 1e8 + 5 before -1e8 rounds 5 to 8 (the AVX-512 reduction order).
+--echo #
+
+SELECT DISTANCE(TO_VECTOR('[10000,10000,5,0,0,0,0,0,0,0,0,0,0,0,0,0]'),
+                TO_VECTOR('[10000,-10000,1,0,0,0,0,0,0,0,0,0,0,0,0,0]'),
+                'DOT') AS d;

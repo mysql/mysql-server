@@ -13560,6 +13560,9 @@ ER_MRS_COMPONENT_WARNING
 ER_MRS_COMPONENT_ERROR
   eng "%s"
 
+ER_VECTOR_DISTANCE_SIMD_DISPATCH
+  eng "For VECTOR_DISTANCE using %s"
+
 #
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.
 #
