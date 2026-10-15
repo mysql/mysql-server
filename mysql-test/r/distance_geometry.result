@@ -1,0 +1,37 @@
+#
+# Bug#121547: DISTANCE() must reject GEOMETRY arguments.  A GEOMETRY
+# value is a binary string, like the vector arguments DISTANCE()
+# accepts, so it used to pass the type check.  When its length was a
+# multiple of 4, the SRID and WKB bytes were read as floats: a collection
+# of three POINT(0 0) is 76 bytes, and DISTANCE(g, g, ...) returned 0.
+#
+CREATE TABLE t1 (g GEOMETRY, v VARBINARY(76));
+INSERT INTO t1 VALUES (
+ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 0), POINT(0 0))'),
+REPEAT(X'00', 76));
+# 19 floats' worth of bytes.
+SELECT LENGTH(g) FROM t1;
+LENGTH(g)
+76
+# A GEOMETRY column, as either argument.
+SELECT DISTANCE(g, g, 'EUCLIDEAN') FROM t1;
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(g, v, 'EUCLIDEAN') FROM t1;
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(v, g, 'EUCLIDEAN') FROM t1;
+ERROR HY000: Incorrect arguments to distance
+# The type is checked when the statement is prepared, so no row is
+# needed.
+SELECT DISTANCE(g, g, 'EUCLIDEAN') FROM t1 WHERE FALSE;
+ERROR HY000: Incorrect arguments to distance
+# The result of a spatial function.
+SELECT DISTANCE(ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 0), POINT(0 0))'), ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 0), POINT(0 0))'), 'EUCLIDEAN');
+ERROR HY000: Incorrect arguments to distance
+SELECT VECTOR_DISTANCE(TO_VECTOR(CONCAT('[', REPEAT('0,', 18), '1]')),
+ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 0), POINT(0 0))'), 'COSINE');
+ERROR HY000: Incorrect arguments to distance
+# The binary string column next to it is still accepted.
+SELECT DISTANCE(v, v, 'EUCLIDEAN') FROM t1;
+DISTANCE(v, v, 'EUCLIDEAN')
+0
+DROP TABLE t1;
