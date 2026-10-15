@@ -10,6 +10,7 @@ TABLE_NAME	DATA_TYPE	COLUMN_TYPE
 COLUMNS	bigint	bigint unsigned
 PARAMETERS	int	int unsigned
 ROUTINES	int	int unsigned
+TYPES	bigint	bigint unsigned
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -819,6 +820,7 @@ information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	STATISTICS	EXPRESSION
 information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME
 information_schema	TRIGGERS	ACTION_STATEMENT
+information_schema	TYPES	DATA_TYPE
 information_schema	USER_ATTRIBUTES	ATTRIBUTE
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
@@ -1401,6 +1403,7 @@ TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
 TABLE_CONSTRAINTS_EXTENSIONS	information_schema.TABLE_CONSTRAINTS_EXTENSIONS	1
 TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
+TYPES	information_schema.TYPES	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 VIEWS	information_schema.VIEWS	1
 VIEW_ROUTINE_USAGE	information_schema.VIEW_ROUTINE_USAGE	1

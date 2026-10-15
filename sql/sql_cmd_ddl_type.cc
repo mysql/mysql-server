@@ -170,7 +170,9 @@ bool Sql_cmd_create_type::execute(THD *thd) {
   TypeDescriptor td;
   td.m_type = m_type->type;
   td.m_type_flags = m_type->get_type_flags();
+  td.m_length_specified = m_type->get_length() != nullptr;
   td.m_length = m_type->get_length_as_size_t();
+  td.m_dec_specified = m_type->get_dec() != nullptr;
   td.m_dec = m_type->get_dec_as_size_t();
   td.m_charset = m_type->get_charset();
   td.m_has_explicit_collation = false;  // FIXME PT_Type

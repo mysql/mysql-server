@@ -5719,14 +5719,20 @@ bool Alter_info::add_field(
     td.m_type = type;
     td.m_type_flags = type_modifier;
 
-    td.m_length = 0;
     if (length != nullptr) {
+      td.m_length_specified = true;
       td.m_length = atoi(length);
+    } else {
+      td.m_length_specified = false;
+      td.m_length = 0;
     }
 
-    td.m_dec = 0;
     if (decimals != nullptr) {
+      td.m_dec_specified = true;
       td.m_dec = atoi(decimals);
+    } else {
+      td.m_dec_specified = false;
+      td.m_dec = 0;
     }
 
     td.m_charset = cs;

@@ -734,5 +734,5 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 260700.
+The schema checksum corresponds to DD version 261000.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

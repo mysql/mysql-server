@@ -47,8 +47,10 @@ struct TypeDescriptor {
   enum_field_types m_type{MYSQL_TYPE_INVALID};
   ulong m_type_flags{0};
   // const char *m_length{nullptr};
+  bool m_length_specified{false};
   size_t m_length{0};
   // const char *m_dec{nullptr};
+  bool m_dec_specified{false};
   size_t m_dec{0};
   const CHARSET_INFO *m_charset{nullptr};
   bool m_has_explicit_collation{false};

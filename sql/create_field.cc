@@ -601,11 +601,11 @@ bool Create_field::init_from_type_descriptor(THD *thd,
   const char *param_dec = nullptr;
   char buffer_length[80];
   char buffer_dec[80];
-  if (td->m_length > 0) {
+  if (td->m_length_specified) {
     snprintf(buffer_length, sizeof(buffer_length), "%lu", td->m_length);
     param_length = buffer_length;
   }
-  if (td->m_dec > 0) {
+  if (td->m_dec_specified) {
     snprintf(buffer_dec, sizeof(buffer_dec), "%lu", td->m_dec);
     param_dec = buffer_dec;
   }

@@ -41,7 +41,9 @@ struct mysql_type_ident_t {
 struct mysql_type_descriptor_t {
   mysql_field_type_t mysql_type{MYSQL_FIELD_TYPE_INVALID};
   uint32_t type_flags{0};
+  bool length_specified{false};
   size_t length{0};
+  bool decimals_specified{false};
   size_t decimals{0};
   const CHARSET_INFO *charset{nullptr};
   bool has_explicit_collation{false};

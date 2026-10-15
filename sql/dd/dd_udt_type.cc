@@ -103,7 +103,7 @@ bool create_udt_type(THD *thd, const dd::Schema &sch_obj,
   obj->set_name(type_name);
   obj->set_type(get_new_field_type(td.m_type));
   obj->set_unsigned(td.m_type_flags & UNSIGNED_FLAG);
-  obj->set_char_length(td.m_length);
+  obj->set_char_length(td.m_length); // FIXME length_specified
   obj->set_numeric_precision(0);  // FIXME
   obj->set_numeric_scale(0);      // FIXME
   obj->set_numeric_scale_null(false);

@@ -502,7 +502,9 @@ static void convert_type_descriptor(const mysql_type_descriptor_t *from,
                                     TypeDescriptor *to) {
   to->m_type = static_cast<enum_field_types>(from->mysql_type);
   to->m_type_flags = from->type_flags;
+  to->m_length_specified = from->length_specified;
   to->m_length = from->length;
+  to->m_dec_specified = from->decimals_specified;
   to->m_dec = from->decimals;
 
   // FIXME: how/if to expose charset from component

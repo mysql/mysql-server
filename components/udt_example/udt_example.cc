@@ -46,7 +46,9 @@ const char *component_name = "udt_example";
 struct mysql_type_descriptor_t VARCHAR_TYPE_DESCRIPTOR = {
     MYSQL_FIELD_TYPE_VARCHAR,  // mysql_type
     0,                         // type_flags
+    true,                      // length_specified
     20,                        // length
+    false,                     // decimals_specified
     0,                         // decimals
     nullptr,                   // charset
     false,                     // has_explicit_collation
@@ -63,7 +65,9 @@ struct mysql_type_ident_t COMPLEX_NUMBER_TYPE_NAME = {
 struct mysql_type_descriptor_t COMPLEX_NUMBER_TYPE_DESCRIPTOR = {
     MYSQL_FIELD_TYPE_BLOB,     // mysql_type
     0,                         // type_flags
+    true,                      // length_specified
     16,                        // length
+    false,                     // decimals_specified
     0,                         // decimals
     nullptr,                   // charset
     false,                     // has_explicit_collation
