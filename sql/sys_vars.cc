@@ -103,6 +103,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // validate_user_plugins
 #include "sql/binlog.h"            // mysql_bin_log
+#include "sql/binlog_ostream.h"    // binlog_temp_files_dir
 #include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/clone_handler.h"
 #include "sql/conn_handler/connection_handler_impl.h"  // Per_thread_connection_handler
@@ -1331,6 +1332,20 @@ static bool check_binlog_large_transaction_optimization_threshold(
   return false;
 }
 
+/*
+  Setting the optimization ON creates the binary log's temp files directory,
+  where the optimization's spill files are, if it does not exist. When the
+  directory cannot be created, the optimization stays OFF.
+*/
+static bool check_binlog_large_transaction_optimization_enabled(sys_var *self,
+                                                                THD *,
+                                                                set_var *var) {
+  if (var->save_result.ulonglong_value == 0 || !binlog_temp_files_dir.create())
+    return false;
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), self->name.str, "ON");
+  return true;
+}
+
 static bool fix_binlog_large_transaction_optimization_enabled(sys_var *,
                                                               THD *thd,
                                                               enum_var_type) {
@@ -1383,7 +1398,7 @@ static Sys_var_bool Sys_binlog_large_transaction_optimization_enabled(
     "code path.",
     GLOBAL_VAR(opt_binlog_large_transaction_optimization_enabled),
     CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(nullptr),
+    ON_CHECK(check_binlog_large_transaction_optimization_enabled),
     ON_UPDATE(fix_binlog_large_transaction_optimization_enabled));
 
 static Sys_var_ulonglong Sys_binlog_large_transaction_optimization_threshold(

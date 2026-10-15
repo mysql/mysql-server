@@ -3812,16 +3812,18 @@ class Large_transaction_header_log_event
                                      terminating event in the file.
     @param terminating_event_type    Type of the transaction's terminating
                                      event in the file.
+    @param terminating_event_body    The terminating event's body.
     @param padding_size              Filler bytes occupying the remainder
                                      of the reserved region.
   */
   Large_transaction_header_log_event(
       THD *thd_arg, uint64_t terminating_event_offset,
       mysql::binlog::event::Log_event_type terminating_event_type,
-      uint64_t padding_size)
+      std::string terminating_event_body, uint64_t padding_size)
       : mysql::binlog::event::Large_transaction_header_event(
             terminating_event_offset,
-            static_cast<uint8_t>(terminating_event_type), padding_size),
+            static_cast<uint8_t>(terminating_event_type),
+            std::move(terminating_event_body), padding_size),
         Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, Log_event::EVENT_STMT_CACHE,
                   Log_event::EVENT_NORMAL_LOGGING, header(), footer()) {
     DBUG_TRACE;
@@ -3840,7 +3842,9 @@ class Large_transaction_header_log_event
 
   void claim_memory_ownership(bool claim) override;
 
-  size_t get_data_size() override { return kFixedBodyLength + m_padding_size; }
+  size_t get_data_size() override {
+    return kFixedBodyLength + m_terminating_event_body.size() + m_padding_size;
+  }
 
 #ifndef MYSQL_SERVER
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;

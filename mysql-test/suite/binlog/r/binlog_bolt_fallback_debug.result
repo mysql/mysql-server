@@ -35,6 +35,73 @@ include/assert.inc [A failed rename commits all rows.]
 include/rpl/save_binlog_file_position.inc
 include/assert_grep.inc [The Gtid event keeps the session's original commit timestamp.]
 include/assert_grep.inc [The Gtid event keeps the session's original server version.]
+# R3: the reset after a promotion cannot restore the standard form; COMMIT succeeds.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+# R3: with the optimization OFF, a small transaction is written in the standard form.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+INSERT INTO t1 VALUES (4, 'small, optimization off');
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+# R3: the same failure; with the optimization ON, a small transaction is written in the standard form.
+BEGIN;
+INSERT INTO t1 VALUES (5, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (6, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (7, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+INSERT INTO t1 VALUES (8, 'small, optimization on');
+# R3: the same failure; the next large transaction is promoted.
+BEGIN;
+INSERT INTO t1 VALUES (9, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (10, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (11, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+BEGIN;
+INSERT INTO t1 VALUES (12, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (13, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (14, REPEAT('y', 5000000));
+COMMIT;
+include/assert.inc [R3: every large transaction's spilled file is promoted.]
+include/assert.inc [R3: every row is committed.]
+include/assert_grep.inc [R3: each failed replacement is reported in the error log.]
+# R3: the binary log is readable and holds both small transactions.
+include/assert_grep.inc [R3: the small transaction written with the optimization OFF is in the binary log.]
+include/assert_grep.inc [R3: the small transaction written with the optimization ON is in the binary log.]
+# R3a: the replacement fails again at the next transaction's first event.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES (4, 'retry fails');
+ERROR HY000: Out of memory (Needed NN bytes)
+ROLLBACK;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+include/assert.inc [R3a: the failed statement's row is rolled back.]
+INSERT INTO t1 VALUES (5, 'after the failed retry');
+include/assert.inc [R3a: the transaction after the failed retry succeeds.]
+# R3b: the first name for the spill file is taken.
+SET SESSION debug = "+d,simulate_bolt_spill_file_name_taken";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,simulate_bolt_spill_file_name_taken";
+include/assert.inc [R3b: the spilled file is promoted with the next name.]
+include/assert.inc [R3b: every row is committed.]
+# R3b: the file that had the name is still in the directory.
+1
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 # A session spills a large transaction and holds it open.
 # Another session's failed promotion turns logging off and closes the log.

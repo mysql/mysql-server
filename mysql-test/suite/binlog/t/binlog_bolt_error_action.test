@@ -17,12 +17,20 @@
 # R3. The same failure with binlog_error_action = IGNORE_ERROR is reported in
 #     the error log and the transaction still commits in the engine, while
 #     nothing of it reaches the binary log.
+# R4. With IGNORE_ERROR, the other members of the BOLT transaction's flush
+#     group are not written into the closed binary log, and the server keeps
+#     running.
+# R5. A failure to sync the directories after the rename is a rotation error
+#     like the one of R3: with IGNORE_ERROR, the transaction commits in the
+#     engine, binary logging is turned off, and nothing of the transaction
+#     reaches the binary log.
 #
 # === Implementation ===
-# R1 uses the fail_bolt_spill_file_sync debug point; R2 and R3 use
+# R1 uses the fail_bolt_spill_file_sync debug point; R2, R3 and R4 use
 # fail_bolt_promoted_file_reopen, which fails reopening the promoted file
-# after the rename. Each case resets the binary log first so the file at
-# index 1 is the active one.
+# after the rename; R5 uses fail_bolt_directory_sync, which fails the
+# directory syncs after the rename. Each case resets the binary log first so
+# the file at index 1 is the active one.
 #
 # The error log is redirected to its own file because ABORT_SERVER goes through
 # the crash handler, whose backtrace MTR would otherwise flag.
@@ -190,6 +198,107 @@ SET SESSION DEBUG="-d,fail_bolt_promoted_file_reopen";
 --let $assert_count = 0
 --source include/assert_grep.inc
 --let $assert_text = R3: the ignored failure writes no transaction to the binary log.
+--let $assert_select = Xid
+--let $assert_count = 0
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+############################################################################
+# Case 3: binlog_error_action = IGNORE_ERROR, with another transaction in the
+# BOLT transaction's flush group.
+# Expected behavior: the failed rotation turns logging off before the other
+# member is written. That member is handled as for a flush error.
+############################################################################
+--echo # R4: the same failure with a second member in the flush group.
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+--connect (bolt_session, localhost, root,,)
+--connect (member_session, localhost, root,,)
+--connection bolt_session
+--disable_query_log
+SET SESSION binlog_transaction_compression = OFF;
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('f', 4000000));
+--enable_result_log
+--enable_query_log
+SET SESSION DEBUG = "+d,fail_bolt_promoted_file_reopen";
+SET DEBUG_SYNC = 'waiting_in_the_middle_of_flush_stage SIGNAL bolt_leading WAIT_FOR member_enrolled';
+--send COMMIT
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR bolt_leading';
+--connection member_session
+SET SESSION binlog_transaction_compression = OFF;
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_flush_stage SIGNAL member_enrolled';
+--send INSERT INTO t1 VALUES (4, 'member')
+--connection bolt_session
+# The ignored rotation error leaves a warning whose errno is not deterministic.
+--disable_warnings
+--reap
+--enable_warnings
+SET SESSION DEBUG = "-d,fail_bolt_promoted_file_reopen";
+SET DEBUG_SYNC = 'RESET';
+--connection member_session
+--reap
+SET DEBUG_SYNC = 'RESET';
+--connection default
+--disconnect bolt_session
+--disconnect member_session
+--let $assert_text = R4: both transactions commit in the engine.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
+
+############################################################################
+# Case 4: binlog_error_action = IGNORE_ERROR, the directory sync after the
+# rename fails.
+# Expected behavior: as in case 2, binary logging is turned off and the
+# transaction commits in the engine only.
+############################################################################
+--echo # R5: a directory sync failure after the rename with IGNORE_ERROR keeps the commit and stops logging.
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_query_log
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+--let $bolt_log_file = query_get_value("SHOW BINARY LOGS", Log_name, 1)
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('i', 4000000));
+SET SESSION DEBUG="+d,fail_bolt_directory_sync";
+# The ignored rotation error leaves a warning whose errno is not deterministic.
+--disable_warnings
+COMMIT;
+--enable_warnings
+SET SESSION DEBUG="-d,fail_bolt_directory_sync";
+--enable_result_log
+--enable_query_log
+--let $assert_text = R5: the ignored failure still commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--echo # R5: binary logging is turned off.
+--error ER_NO_BINARY_LOGGING
+SHOW BINARY LOGS;
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_log_file > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = R5: the ignored failure writes no row events to the binary log.
+--let $assert_select = Write_rows
+--let $assert_count = 0
+--source include/assert_grep.inc
+--let $assert_text = R5: the ignored failure writes no transaction to the binary log.
 --let $assert_select = Xid
 --let $assert_count = 0
 --source include/assert_grep.inc

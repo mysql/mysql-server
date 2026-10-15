@@ -13019,15 +13019,23 @@ int Large_transaction_header_log_event::pack_info(Protocol *protocol) {
 bool Large_transaction_header_log_event::write_data_body(
     Basic_ostream *ostream) {
   DBUG_TRACE;
+  assert(m_terminating_event_body.size() <= kMaxTerminatingEventBodyLength);
   uchar fixed[Large_transaction_header_event::kFixedBodyLength];
   fixed[0] = m_version;
   int8store(fixed + 1, m_terminating_event_offset);
   fixed[1 + sizeof(m_terminating_event_offset)] = m_terminating_event_type;
-  if (wrapper_my_b_safe_write(ostream, fixed, sizeof(fixed))) return true;
+  fixed[2 + sizeof(m_terminating_event_offset)] =
+      static_cast<uchar>(m_terminating_event_body.size());
+  if (wrapper_my_b_safe_write(ostream, fixed, sizeof(fixed)) ||
+      wrapper_my_b_safe_write(
+          ostream, pointer_cast<const uchar *>(m_terminating_event_body.data()),
+          m_terminating_event_body.size()))
+    return true;
 
   /* Write the padding in bounded chunks; its contents are undefined and
      ignored on read, zeros keep the file deterministic. */
-  const uchar zeros[4096] = {0};
+  constexpr size_t kPaddingChunkSize = 4096;
+  const uchar zeros[kPaddingChunkSize] = {0};
   for (uint64_t left = m_padding_size; left > 0;) {
     const size_t chunk = std::min<uint64_t>(left, sizeof(zeros));
     if (wrapper_my_b_safe_write(ostream, zeros, chunk)) return true;

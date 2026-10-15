@@ -19,7 +19,8 @@
 --source include/not_binlog_transaction_compression_on.inc
 
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
---let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
 --let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
 

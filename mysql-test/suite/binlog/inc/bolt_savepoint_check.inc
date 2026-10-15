@@ -43,7 +43,9 @@ if ($sp_expect_promoted)
   --source ../inc/validate_bolt_header.inc
 }
 --let $sp_temp_inc = $MYSQLTEST_VARDIR/tmp/bolt_sp_temp.inc
---exec ls "$MYSQLD_DATADIR/#binlog_temp_files" | grep -c '^bolt_' | xargs printf -- '--let \044sp_temp_files = %s\n' > $sp_temp_inc
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
+--exec ls "$BOLT_TEMP_DIR" | grep -c '^bolt_' | xargs printf -- '--let \044sp_temp_files = %s\n' > $sp_temp_inc
 --source $sp_temp_inc
 --remove_file $sp_temp_inc
 --let $assert_text = $sp_case: no bolt_ temp file is left over

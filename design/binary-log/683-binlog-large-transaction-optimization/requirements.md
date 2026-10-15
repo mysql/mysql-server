@@ -44,7 +44,7 @@
 
 **FR13.** The optimization must introduce a `Large_transaction_header_event` binlog event type whose purpose is to speed up recovery for large transactions by allowing the server to locate the terminating event directly, skipping reading the payload of the large transaction.
 
-**FR13.1.** The optimization must write a `Large_transaction_header_event` into the promoted binlog file, recording the offset, type, and identity of the large transaction's terminating event. The terminating event contains either an internal XID (for DML and DDL transactions) or an external XID (for XA PREPARE and XA COMMIT ONE PHASE transactions).
+**FR13.1.** The optimization must write a `Large_transaction_header_event` into the promoted binlog file, recording the offset, type, and identity of the large transaction's terminating event. The terminating event contains either an internal XID (for transactions committed with two-phase commit) or an external XID (for XA PREPARE and XA COMMIT ONE PHASE transactions); a transaction whose terminating event carries no XID falls back to the standard code path.
 
 **FR14**. The optimization must compute the transaction's GTID at commit time and write the `Gtid_log_event`, write the `Previous_gtids_log_event` at the start of the file, and set the commit dependency tracking (`last_committed` / `sequence_number`) as when rotating to a new binlog file.
 
@@ -58,7 +58,7 @@
 
 **FR17.** The optimization must evaluate fallback conditions and commit the transaction through the standard code path if any of the conditions are met, emit a diagnostic message, and increment `binlog_large_transaction_optimization_missed_count`.
 
-**FR17.1.** The fallback conditions are: (1)`binlog_format` is not ROW; (2) the reserved header space is insufficient for the required header events; (3) binlog encryption is enabled;(4) binlog transaction compression is enabled; (5) `binlog_checksum` changed while the transaction was in progress, so the transaction's cached events do not match the current checksum configuration; (6) a single statement updated both transactional and non-transactional tables.
+**FR17.1.** The fallback conditions are: (1)`binlog_format` is not ROW; (2) the reserved header space is insufficient for the required header events; (3) binlog encryption is enabled;(4) binlog transaction compression is enabled; (5) `binlog_checksum` changed while the transaction was in progress, so the transaction's cached events do not match the current checksum configuration; (6) a single statement updated both transactional and non-transactional tables; (7) the transaction does not end with an XID or XA PREPARE event (it is not two-phase committed), so recovery could not verify its terminating event.
 
 **FR17.2**. A fallback transaction must produce the same event sequence in the active binlog as a transaction written through the standard code path. It achieves this by overriding the spilled `log_pos` and recomputing the checksum.
 
@@ -78,7 +78,7 @@
 
 **FR19.6.** If the verification required by FR19.5 fails, recovery must use the standard sequential scan for a large transaction.
 
-**FR19.7.** When `source_verify_checksum` is ON, recovery must use the standard sequential scan for a large transaction.
+**FR19.7.** The skip of FR19.1 applies to the two recovery paths that read binary logs: binary log crash recovery and GTID reconstruction from binary logs. It applies whatever the `binlog_checksum` of the file and whatever `source_verify_checksum`: that option verifies the checksum of each event that is read, and the terminating event is read and verified. Relay log recovery and GTID reconstruction from relay logs are out of scope and use the standard sequential scan, because the header's offset refers to the source's binary log.
 
 **FR20.** The optimization must ensure that a replica ignores the `Large_transaction_header_event` when it receives it, since the event is not relevant to the replica. This is achieved by marking `Large_transaction_header_event` as an ignorable event per the MySQL replication protocol.
 

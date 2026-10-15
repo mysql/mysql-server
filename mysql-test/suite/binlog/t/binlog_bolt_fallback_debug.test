@@ -10,7 +10,18 @@
 # R2. A promotion that fails after the transaction's Gtid event was created
 #     falls back, and the Gtid event written on the standard path still
 #     carries the session's original commit timestamp and server version.
-# R3. A binary log closed while the transaction was running prevents promotion,
+# R3. When the cache cannot go back to the standard form after a promotion,
+#     the COMMIT still succeeds and a warning is logged. The session's next
+#     transaction, small or large, with the optimization ON or OFF, puts the
+#     cache back in the standard form at its first event, is written
+#     correctly, and a large one is promoted.
+# R3a. When that retry fails too, the statement fails with an out of memory
+#     error and its changes are rolled back, and the transaction after it
+#     succeeds.
+# R3b. When a leftover file already has the name of a new spill file, the
+#     cache skips that name and uses the next one, and the transaction's
+#     spilled file is still promoted.
+# R4. A binary log closed while the transaction was running prevents promotion,
 #     because there is no longer a file sequence to promote into.
 #
 # === Implementation ===
@@ -177,7 +188,163 @@ connection default;
 disconnect late_fallback_session;
 
 ############################################################################
-# Case 3: The binary log was closed while the transaction was running.
+# Case 3: The cache cannot go back to the standard form after a promotion.
+#
+# After a promotion, the cache replaces its rewritten representation with one
+# in the standard form. When that replacement fails, the next transaction's
+# first event retries it, so the next transaction never writes into the old
+# rewritten representation. A debug build asserts that the first event of
+# every transaction finds the cache in the standard form.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+CALL mtr.add_suppression("Could not replace the binary log cache of a large transaction with a new cache in the standard form");
+--enable_query_log
+connect (pending_reset_session, localhost, root,,);
+connection pending_reset_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+
+--echo # R3: the reset after a promotion cannot restore the standard form; COMMIT succeeds.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+--echo # R3: with the optimization OFF, a small transaction is written in the standard form.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+INSERT INTO t1 VALUES (4, 'small, optimization off');
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+
+--echo # R3: the same failure; with the optimization ON, a small transaction is written in the standard form.
+BEGIN;
+INSERT INTO t1 VALUES (5, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (6, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (7, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+INSERT INTO t1 VALUES (8, 'small, optimization on');
+
+--echo # R3: the same failure; the next large transaction is promoted.
+BEGIN;
+INSERT INTO t1 VALUES (9, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (10, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (11, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+BEGIN;
+INSERT INTO t1 VALUES (12, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (13, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (14, REPEAT('y', 5000000));
+COMMIT;
+
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R3: every large transaction's spilled file is promoted.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 4
+--source include/assert.inc
+--let $assert_text = R3: every row is committed.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 14
+--source include/assert.inc
+--let $assert_text = R3: each failed replacement is reported in the error log.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Could not replace the binary log cache of a large transaction with a new cache in the standard form
+--let $assert_count = 3
+--source include/assert_grep.inc
+--echo # R3: the binary log is readable and holds both small transactions.
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_fallback_debug_dump.txt
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--exec $MYSQL_BINLOG --force-if-open --verbose $MYSQLD_DATADIR/binlog.0* > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = R3: the small transaction written with the optimization OFF is in the binary log.
+--let $assert_select = small, optimization off
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R3: the small transaction written with the optimization ON is in the binary log.
+--let $assert_select = small, optimization on
+--let $assert_count = 1
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+--echo # R3a: the replacement fails again at the next transaction's first event.
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+BEGIN;
+# 5 is EE_OUTOFMEMORY, the error of a failed allocation.
+--replace_regex /Needed [0-9]* bytes/Needed NN bytes/
+--error 5
+INSERT INTO t1 VALUES (4, 'retry fails');
+ROLLBACK;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+--let $assert_text = R3a: the failed statement's row is rolled back.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id = 4, count, 1] = 0
+--source include/assert.inc
+INSERT INTO t1 VALUES (5, 'after the failed retry');
+--let $assert_text = R3a: the transaction after the failed retry succeeds.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+connection default;
+disconnect pending_reset_session;
+
+############################################################################
+# Case 3b: A leftover file already has the new spill file's name.
+#
+# simulate_bolt_spill_file_name_taken creates a file with the name that the
+# cache is about to use, as a leftover of an earlier run would have.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connect (name_taken_session, localhost, root,,);
+connection name_taken_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--echo # R3b: the first name for the spill file is taken.
+SET SESSION debug = "+d,simulate_bolt_spill_file_name_taken";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,simulate_bolt_spill_file_name_taken";
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R3b: the spilled file is promoted with the next name.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = R3b: every row is committed.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--echo # R3b: the file that had the name is still in the directory.
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
+--exec ls $BOLT_TEMP_DIR | grep -c '^bolt_'
+--exec rm -f $BOLT_TEMP_DIR/bolt_*
+connection default;
+disconnect name_taken_session;
+
+############################################################################
+# Case 4: The binary log was closed while the transaction was running.
 #
 # binlog_error_action=IGNORE_ERROR turns binary logging off for the rest of the
 # server process, which closes the log and leaves MYSQL_BIN_LOG::name null. A

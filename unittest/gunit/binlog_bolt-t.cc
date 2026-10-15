@@ -26,21 +26,23 @@
   (BOLT). Everything here is arithmetic or a predicate: no server, no THD, no
   locks and no files.
 
-  These three subjects are covered by no MTR test, or by an MTR test that cannot
+  These four subjects are covered by no MTR test, or by an MTR test that cannot
   reach the interesting values:
 
    - the reserved-region size quantization. Nothing in the MTR suite asserts the
      reservation or its rounding at all.
    - the reserved-region fit and padding arithmetic. The MTR test for the
      "region too small" fallback forces the outcome with a debug symbol rather
-     than driving the predicate, because the region is sized from the serialized
-     Previous_gtids estimate at spill time and no configuration makes it too
+     than driving the predicate, because the region is sized from the active
+     binary log header at the first event and no configuration makes it too
      small while leaving the transaction otherwise promotable.
-   - is_bolt_temp_file(). MTR covers roughly seven literal names, each at the
-     cost of a full server start, and cannot practically cover the boundaries.
-     This predicate has already regressed once: its character class omitted
-     A-Z while mkstemp() produces upper case, and a name it wrongly rejects is
-     treated as an unsafe entry, which aborts startup.
+   - is_bolt_temp_file(). Each name that MTR covers costs a full server
+     start, so MTR cannot cover the boundaries. A name that
+     is_bolt_temp_file() wrongly rejects is left in the directory at startup.
+   - how find_large_trx_terminating_event() classifies a header that recovery
+     cannot use: no XID to verify, a header that does not match the file, and
+     a failing reader. MTR cannot make a seek or a read fail with an I/O
+     error. A fake reader stands in for the binary log file.
 */
 
 #include <gtest/gtest.h>
@@ -55,6 +57,7 @@
 #include "sql/binlog.h"                   // reserved-bytes helpers
 #include "sql/binlog/large_trx_commit.h"  // fit and padding arithmetic
 #include "sql/binlog_ostream.h"           // is_bolt_temp_file, constants
+#include "sql/binlog_reader.h"            // IBasic_binlog_file_reader
 
 namespace mysql::binlog::event::unittests {
 
@@ -63,27 +66,27 @@ namespace {
 /// The quantum the reservation is rounded up to.
 constexpr my_off_t kQuantum = kBinlogTempFileReservedBytes;
 
-/// The headroom always added on top of the Previous_gtids estimate.
-constexpr my_off_t kHeadroom = kBinlogTempFilePreviousGtidsHeadroomBytes;
+/// The headroom always added on top of the binary log header length.
+constexpr my_off_t kHeadroom = kBinlogTempFileHeaderHeadroomBytes;
 
 }  // namespace
 
 //
-// The reserved-region size: previous_gtids + headroom, rounded up to the
+// The reserved-region size: header length + headroom, rounded up to the
 // quantum.
 //
 
 class BoltReservedBytesTest : public ::testing::Test {
  protected:
-  /// Publish an estimate and read back the reservation it produces.
-  static my_off_t reservation_for(my_off_t previous_gtids_size) {
-    update_binlog_temp_file_previous_gtids_size_estimate(previous_gtids_size);
-    return get_binlog_temp_file_reserved_bytes();
+  /// Set a header length and read back the reservation it produces.
+  static my_off_t reservation_for(my_off_t header_length) {
+    set_binlog_cache_reserved_bytes(header_length);
+    return get_binlog_cache_reserved_bytes();
   }
 };
 
 TEST_F(BoltReservedBytesTest, RoundsUpToTheQuantum) {
-  // An empty Previous_gtids still needs the headroom, which rounds to one
+  // An empty header still needs the headroom, which rounds to one
   // quantum.
   EXPECT_EQ(reservation_for(0), kQuantum);
   EXPECT_EQ(reservation_for(1), kQuantum);
@@ -104,22 +107,22 @@ TEST_F(BoltReservedBytesTest, RoundsUpToTheQuantum) {
 TEST_F(BoltReservedBytesTest, IsAlwaysAQuantumMultipleAndLeavesHeadroom) {
   // The two properties the callers depend on, over a range that crosses
   // several quantum boundaries: the spill file's reserved region is a whole
-  // number of quanta, and it can always hold the estimate plus the headroom.
-  for (my_off_t estimate = 0; estimate <= 4 * kQuantum; estimate += 997) {
-    const my_off_t reserved = reservation_for(estimate);
-    EXPECT_EQ(reserved % kQuantum, my_off_t{0}) << "estimate " << estimate;
-    EXPECT_GE(reserved, estimate + kHeadroom) << "estimate " << estimate;
+  // number of quanta, and it can always hold the header plus the headroom.
+  for (my_off_t length = 0; length <= 4 * kQuantum; length += 997) {
+    const my_off_t reserved = reservation_for(length);
+    EXPECT_EQ(reserved % kQuantum, my_off_t{0}) << "header length " << length;
+    EXPECT_GE(reserved, length + kHeadroom) << "header length " << length;
     // Never more than one quantum of slack beyond what was required.
-    EXPECT_LT(reserved, estimate + kHeadroom + kQuantum)
-        << "estimate " << estimate;
+    EXPECT_LT(reserved, length + kHeadroom + kQuantum)
+        << "header length " << length;
   }
 }
 
 TEST_F(BoltReservedBytesTest, IsMonotonic) {
   my_off_t previous = 0;
-  for (my_off_t estimate = 0; estimate <= 4 * kQuantum; estimate += 1024) {
-    const my_off_t reserved = reservation_for(estimate);
-    EXPECT_GE(reserved, previous) << "estimate " << estimate;
+  for (my_off_t length = 0; length <= 4 * kQuantum; length += 1024) {
+    const my_off_t reserved = reservation_for(length);
+    EXPECT_GE(reserved, previous) << "header length " << length;
     previous = reserved;
   }
 }
@@ -135,6 +138,10 @@ class BoltHeaderArithmeticTest : public ::testing::Test {
     return static_cast<my_off_t>(Gtid_event::get_max_event_length());
   }
 
+  /// The longest terminating event body, which is what the fit check budgets.
+  static constexpr my_off_t kMaxBody =
+      Large_transaction_header_event::kMaxTerminatingEventBodyLength;
+
   /**
     The region is filled exactly when the prefix, the padded
     Large_transaction_header event and the Gtid event add up to its size. This
@@ -144,22 +151,24 @@ class BoltHeaderArithmeticTest : public ::testing::Test {
   static my_off_t region_used(my_off_t reserved, my_off_t gtid_event_length,
                               my_off_t prefix_length, my_off_t checksum_len) {
     const my_off_t padding = large_trx_header_event_padding(
-        reserved, gtid_event_length, prefix_length, checksum_len);
+        reserved, gtid_event_length, prefix_length, checksum_len, kMaxBody);
     const my_off_t lth_total =
-        large_trx_header_event_min_length(checksum_len) + padding;
+        large_trx_header_event_min_length(checksum_len, kMaxBody) + padding;
     return prefix_length + lth_total + gtid_event_length + checksum_len;
   }
 };
 
 TEST_F(BoltHeaderArithmeticTest, MinLengthAccountsForTheChecksum) {
-  const my_off_t without = large_trx_header_event_min_length(0);
-  const my_off_t with = large_trx_header_event_min_length(BINLOG_CHECKSUM_LEN);
+  const my_off_t without = large_trx_header_event_min_length(0, 8);
+  const my_off_t with =
+      large_trx_header_event_min_length(BINLOG_CHECKSUM_LEN, 8);
   EXPECT_EQ(with, without + BINLOG_CHECKSUM_LEN);
 
-  // A minimal event is its header plus the fixed body, and nothing else.
+  // A minimal event is its header, the fixed body and the terminating event's
+  // body, and nothing else.
   EXPECT_EQ(without, static_cast<my_off_t>(
                          LOG_EVENT_HEADER_LEN +
-                         Large_transaction_header_event::kFixedBodyLength));
+                         Large_transaction_header_event::kFixedBodyLength + 8));
 }
 
 TEST_F(BoltHeaderArithmeticTest, FitIsExactAtTheBoundary) {
@@ -167,9 +176,9 @@ TEST_F(BoltHeaderArithmeticTest, FitIsExactAtTheBoundary) {
        {my_off_t{0}, my_off_t{BINLOG_CHECKSUM_LEN}}) {
     const my_off_t prefix = 1024;
     // The smallest region that can hold everything the check budgets.
-    const my_off_t needed = prefix +
-                            large_trx_header_event_min_length(checksum_len) +
-                            max_gtid_length() + checksum_len;
+    const my_off_t needed =
+        prefix + large_trx_header_event_min_length(checksum_len, kMaxBody) +
+        max_gtid_length() + checksum_len;
 
     EXPECT_TRUE(large_trx_header_events_fit(prefix, checksum_len, needed))
         << "checksum_len " << checksum_len;
@@ -212,21 +221,27 @@ TEST_F(BoltHeaderArithmeticTest, PaddingDoesNotUnderflowAtTheTightestFit) {
   // padding size rather than a negative one.
   const my_off_t checksum_len = BINLOG_CHECKSUM_LEN;
   const my_off_t prefix = 1024;
-  const my_off_t needed = prefix +
-                          large_trx_header_event_min_length(checksum_len) +
-                          max_gtid_length() + checksum_len;
+  const my_off_t needed =
+      prefix + large_trx_header_event_min_length(checksum_len, kMaxBody) +
+      max_gtid_length() + checksum_len;
 
   ASSERT_TRUE(large_trx_header_events_fit(prefix, checksum_len, needed));
   EXPECT_EQ(large_trx_header_event_padding(needed, max_gtid_length(), prefix,
-                                           checksum_len),
+                                           checksum_len, kMaxBody),
             my_off_t{0});
 
   // A shorter Gtid event in the same region leaves exactly the difference as
   // padding.
   const my_off_t shorter = max_gtid_length() - 40;
-  EXPECT_EQ(
-      large_trx_header_event_padding(needed, shorter, prefix, checksum_len),
-      my_off_t{40});
+  EXPECT_EQ(large_trx_header_event_padding(needed, shorter, prefix,
+                                           checksum_len, kMaxBody),
+            my_off_t{40});
+
+  // A shorter terminating event body (an Xid event's 8 bytes) leaves the
+  // difference as padding too.
+  EXPECT_EQ(large_trx_header_event_padding(needed, max_gtid_length(), prefix,
+                                           checksum_len, 8),
+            kMaxBody - 8);
 }
 
 //
@@ -241,13 +256,12 @@ class BoltTempFileNameTest : public ::testing::Test {
 };
 
 TEST_F(BoltTempFileNameTest, AcceptsTheNamesTheCacheCreates) {
-  // mkstemp() draws from [A-Za-z0-9], so upper case must be accepted. This is
-  // the case the original character class got wrong.
+  // The alphabet is [A-Za-z0-9_].
   EXPECT_TRUE(is_bolt_temp_file(with_prefix("aB3xY9").c_str()));
   EXPECT_TRUE(is_bolt_temp_file(with_prefix("ZZZZZZ").c_str()));
   EXPECT_TRUE(is_bolt_temp_file(with_prefix("0123456789abcdef").c_str()));
 
-  // The promoted-name form is <hex start time>_<hex serial>, so an embedded
+  // The cache creates <hex start time>_<hex serial>, so an embedded
   // underscore is part of the alphabet.
   EXPECT_TRUE(is_bolt_temp_file(with_prefix("18f2c4a1b_0").c_str()));
   EXPECT_TRUE(is_bolt_temp_file(with_prefix("_").c_str()));
@@ -286,6 +300,153 @@ TEST_F(BoltTempFileNameTest, RejectsNamesThatDoNotCarryThePrefix) {
   // The prefix is matched case sensitively.
   EXPECT_FALSE(is_bolt_temp_file("BOLT_abc"));
   EXPECT_FALSE(is_bolt_temp_file("Bolt_abc"));
+}
+
+//
+// find_large_trx_terminating_event(): the results other than kVerified.
+//
+
+/**
+  A binary log file reader with no file. seek() and read_event_object() fail
+  as the test asks, and every other function must not be called.
+*/
+class Fake_binlog_file_reader : public IBasic_binlog_file_reader {
+ public:
+  my_off_t m_position{1000};
+  bool m_fail_seek{false};
+  bool m_fail_seek_back{false};
+  Binlog_read_error::Error_type m_read_error{Binlog_read_error::TRUNC_EVENT};
+  int m_seeks{0};
+  int m_reads{0};
+
+  bool open(const char *, my_off_t, Format_description_log_event **) override {
+    ADD_FAILURE();
+    return true;
+  }
+  void close() override { ADD_FAILURE(); }
+  bool has_fatal_error() const override {
+    return m_read_error > Binlog_read_error::READ_EOF;
+  }
+  Binlog_read_error::Error_type get_error_type() const override {
+    return m_read_error;
+  }
+  const char *get_error_str() const override { return "fake"; }
+  bool is_checksum_verification_enabled() const override { return false; }
+  my_off_t position() const override { return m_position; }
+  bool seek(my_off_t pos) override {
+    ++m_seeks;
+    if (m_fail_seek || (m_fail_seek_back && m_seeks == 2)) return true;
+    m_position = pos;
+    return false;
+  }
+  Log_event *read_event_object() override {
+    ++m_reads;
+    return nullptr;
+  }
+  const Format_description_event &format_description_event() const override {
+    return m_fde;
+  }
+  std::optional<Event_metadata> read_event_metadata() override {
+    ADD_FAILURE();
+    return {};
+  }
+  Log_event *read_event_payload(const Event_metadata &) override {
+    ADD_FAILURE();
+    return nullptr;
+  }
+  std::optional<Event_payload> read_payload(const Event_metadata &) override {
+    ADD_FAILURE();
+    return {};
+  }
+  bool skip_event_payload(const Event_metadata &) override {
+    ADD_FAILURE();
+    return true;
+  }
+
+ private:
+  Format_description_event m_fde{BINLOG_VERSION, "9.7.0"};
+};
+
+class BoltHeaderCheckTest : public ::testing::Test {
+ protected:
+  static constexpr my_off_t kFileSize = 100000;
+
+  /// Check a header that records the given terminating event.
+  static Large_trx_header_check check(Fake_binlog_file_reader &reader,
+                                      uint64_t offset, uint8_t type,
+                                      const std::string &body) {
+    const Large_transaction_header_event lth(offset, type, body, 0);
+    my_off_t end = 0;
+    const Large_trx_header_check result =
+        find_large_trx_terminating_event(reader, kFileSize, lth, &end);
+    EXPECT_EQ(end, 0U);
+    return result;
+  }
+};
+
+TEST_F(BoltHeaderCheckTest, ACommitQueryTransactionDoesNotQualify) {
+  /* A transaction that is not two-phase committed ends with a COMMIT query,
+     and its header records no XID. The file is not read. */
+  Fake_binlog_file_reader reader;
+  EXPECT_EQ(check(reader, 5000, QUERY_EVENT, ""),
+            Large_trx_header_check::kNotApplicable);
+  EXPECT_EQ(reader.m_seeks, 0);
+  EXPECT_EQ(reader.m_reads, 0);
+  EXPECT_EQ(reader.m_position, 1000U);
+}
+
+TEST_F(BoltHeaderCheckTest, AHeaderThatDoesNotDescribeTheFileIsInvalid) {
+  Fake_binlog_file_reader reader;
+  /* An Xid event with no body to verify against. */
+  EXPECT_EQ(check(reader, 5000, XID_EVENT, ""),
+            Large_trx_header_check::kInvalid);
+  /* An offset that is not ahead of the reader, or not inside the file. */
+  EXPECT_EQ(check(reader, 1000, XID_EVENT, "12345678"),
+            Large_trx_header_check::kInvalid);
+  EXPECT_EQ(check(reader, kFileSize, XID_EVENT, "12345678"),
+            Large_trx_header_check::kInvalid);
+  EXPECT_EQ(check(reader, kFileSize - 1, XID_EVENT, "12345678"),
+            Large_trx_header_check::kInvalid);
+  EXPECT_EQ(reader.m_seeks, 0);
+}
+
+TEST_F(BoltHeaderCheckTest, BytesThatDoNotDecodeAreInvalid) {
+  for (const auto error :
+       {Binlog_read_error::TRUNC_EVENT, Binlog_read_error::READ_EOF,
+        Binlog_read_error::BOGUS, Binlog_read_error::EVENT_TOO_LARGE,
+        Binlog_read_error::CHECKSUM_FAILURE}) {
+    Fake_binlog_file_reader reader;
+    reader.m_read_error = error;
+    EXPECT_EQ(check(reader, 5000, XID_EVENT, "12345678"),
+              Large_trx_header_check::kInvalid)
+        << "read error " << error;
+    /* The reader is back at its position. */
+    EXPECT_EQ(reader.m_position, 1000U);
+  }
+}
+
+TEST_F(BoltHeaderCheckTest, AFailingReaderIsAReadError) {
+  {
+    Fake_binlog_file_reader reader;
+    reader.m_fail_seek = true;
+    EXPECT_EQ(check(reader, 5000, XID_EVENT, "12345678"),
+              Large_trx_header_check::kReadError);
+    EXPECT_EQ(reader.m_reads, 0);
+  }
+  {
+    Fake_binlog_file_reader reader;
+    reader.m_fail_seek_back = true;
+    EXPECT_EQ(check(reader, 5000, XA_PREPARE_LOG_EVENT, "12345678"),
+              Large_trx_header_check::kReadError);
+  }
+  for (const auto error :
+       {Binlog_read_error::SYSTEM_IO, Binlog_read_error::MEM_ALLOCATE}) {
+    Fake_binlog_file_reader reader;
+    reader.m_read_error = error;
+    EXPECT_EQ(check(reader, 5000, XID_EVENT, "12345678"),
+              Large_trx_header_check::kReadError)
+        << "read error " << error;
+  }
 }
 
 }  // namespace mysql::binlog::event::unittests

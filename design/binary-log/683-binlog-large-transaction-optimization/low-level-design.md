@@ -22,11 +22,11 @@ In addition to the system variables, we also introduce two atomic status counter
 
 ### `Large_transaction_header_event`
 
-A new event type, `LARGE_TRANSACTION_HEADER_EVENT = 43`, is added to `Log_event_type`. As described in the high-level design, it serves two purposes: it records where the transaction's terminating event sits, so recovery can seek to it, and its padding fills whatever the fixed header events leave unused in the reserved region. Its body is `version` (1 byte), `terminating_event_offset` (8 bytes), `terminating_event_type` (1 byte), and variable-length padding.
+A new event type, `LARGE_TRANSACTION_HEADER_EVENT = 43`, is added to `Log_event_type`. As described in the high-level design, it serves two purposes: it records where the transaction's terminating event sits, so recovery can seek to it, and its padding fills whatever the fixed header events leave unused in the reserved region. Its body is `version` (1 byte), `terminating_event_offset` (8 bytes), `terminating_event_type` (1 byte), `terminating_event_body_length` (1 byte), `terminating_event_body` (at most 141 bytes: the terminating event's body, that is, its XID), and variable-length padding.
 
 Following the usual MySQL event split, it is implemented as two classes:
 
-- `mysql::binlog::event::Large_transaction_header_event`, the binlog-events library class, handles deserialization. It exposes the format constants (`kVersion = 1`, `kFixedBodyLength = 1 + 8 + 1 = 10`), validates the version, reads the terminating event's offset and type, and treats the remainder as padding.
+- `mysql::binlog::event::Large_transaction_header_event`, the binlog-events library class, handles deserialization. It exposes the format constants (`kVersion = 1`, `kFixedBodyLength = 1 + 8 + 1 + 1 = 11`, `kMaxTerminatingEventBodyLength = 141`), validates the version, reads the terminating event's offset, type and body, and treats the remainder as padding.
 - `Large_transaction_header_log_event`, the server class, inherits from the library event and from `Log_event` and handles serialization (`write_data_body`), `pack_info`/`print`, and `do_apply_event`, which is a no-op since the event carries recovery metadata only. Its constructor always sets `LOG_EVENT_IGNORABLE_F`, so the event is transparent to anything that does not understand it, preserving replication and tooling compatibility (NFR8, NFR10).
 
 ### Promotable Binlog Cache
@@ -46,7 +46,7 @@ The current implementation of binlog cache is layered: `binlog_cache_data` (even
 
   - A `bolt_` name only records that the binary log cache created the file; it is not a promise the file will be promoted. Every spilled transaction cache gets the name while the optimization is enabled, including transactions that eventually commit through the standard code path because they fall below the threshold or hit a fallback condition at commit.
 
-The first event offset written into the spilled file does not start at zero. Instead, the cache reserves a block of bytes at the front of the file when it is opened (`binlog_cache_data::open`), sized as the current `Previous_gtids` size plus 32 KB of headroom, rounded up to a 64 KB quantum (`get_binlog_temp_file_reserved_bytes`). The cache then places all of its data after this reserved region.
+The first event offset written into the spilled file does not start at zero. Instead, the cache reserves a block of bytes at the front of the file when it is opened (`binlog_cache_data::open`), sized as the length of the active binary log file's header (every event written before its first transaction) plus 32 KB of headroom, rounded up to a 64 KB quantum. The size is computed once when a binary log file is opened (`set_binlog_cache_reserved_bytes`) and read at each transaction's first event (`get_binlog_cache_reserved_bytes`), so long-lived sessions follow the current header. The cache then places all of its data after this reserved region.
 
 ### Temp-files Directory
 
@@ -229,33 +229,32 @@ A fallback writes the transaction into the binary log through the standard flush
                      v
      Large_transaction_header_event encountered
                      |
-    relay-log recovery OR source_verify_checksum ON?
+                 relay log?
             /                            \
           yes                             no
            |                               |
            v                               v
-   ignore the header;              validate offset + type,
-   fall back to ordinary           then seek directly to the
-   sequential scan                 terminating event
-                                           |
-                                           v
-                             event at that offset matches
-                             the recorded type?
-                                 /                \
-                               yes                 no
-                                |                   |
-                                v                   v
-                     transaction is complete;   file marked malformed,
-                     collect its XID / GTID      transaction rolled back
+   ignore the header;              read the event at the recorded
+   fall back to ordinary           offset (checksum verified): does
+   sequential scan                 it have the recorded type and
+                                   body (XID)?
+                                       /                \
+                                     yes                 no
+                                      |                   |
+                                      v                   v
+                           seek to it; the          ignore the header;
+                           transaction is           read the transaction
+                           complete; collect        sequentially
+                           its XID / GTID
 ```
 
 The recovery behavior on a binlog file promoted through the BOLT code path mostly reuses the existing recovery, aside from adding one extra optimization.
 
-While recovery scans the last binary log file, encountering a `Large_transaction_header_event` lets it skip the transaction body. The header carries the offset and type of the transaction's terminating event. `process_large_trx_header_event()` validates that offset (inside the file, ahead of the current position, with room for an event), seeks to it, and remembers the recorded offset and type. On a later iteration, `validate_large_trx_terminal_event()` (called at the top of the scan loop) confirms that the event now sitting at that offset has the recorded type before the transaction's GTID is added to the executed set. A mismatch marks the file as malformed, and the transaction rolls back.
+While recovery scans the last binary log file, encountering a `Large_transaction_header_event` lets it skip the transaction body. The header carries the offset, type and body (the XID) of the transaction's terminating event. `process_large_trx_header_event()` calls `find_large_trx_terminating_event_end()`, which reads the event at that offset with a checksum-verifying reader and checks its type and body against the header. Only then does it seek to the event, which the scan reads next and collects as usual. If the offset is not ahead of the current position, or the event does not match, a warning is logged and the transaction is read sequentially (FR19.6).
 
-Two cases deliberately skip this shortcut and fall back to an ordinary sequential scan: relay log recovery, because the header's offset refers to the source's binary log rather than the relay log (gated by `is_relay_log_recovery()`), and any run with `source_verify_checksum` on. The five crash window cases are covered in the HLD and not repeated here.
+Relay logs skip this shortcut and use the ordinary sequential scan, because the header's offset refers to the source's binary log rather than the relay log (gated by `is_relay_log_recovery()` in crash recovery and `is_relay_log` in GTID reconstruction). Binary logs use it whatever their `binlog_checksum` and whatever `source_verify_checksum`: that option verifies the checksum of each event that is read, and the terminating event is read through a checksum-verifying reader. The five crash window cases are covered in the HLD and not repeated here.
 
-The same validate-then-seek optimization is applied at both places recovery reads a binary log file: when the GTID set is collected (`read_gtids_from_binlog`), and during 2PC crash recovery (`Log_sanitizer`, via the `process_large_trx_header_event()` / `validate_large_trx_terminal_event()` pair named above).
+The same validate-then-seek optimization is applied at both places recovery reads a binary log file, through `find_large_trx_terminating_event_end()`: when the GTID set is collected (`read_gtids_from_binlog`, which also checks that the event ends where the transaction length of the following Gtid event says), and during 2PC crash recovery (`Log_sanitizer::process_large_trx_header_event()`). Neither derives an offset from an event's 4-byte `log_pos`, so a terminating event beyond 4 GiB is found.
 
 ### Savepoint handling
 
@@ -324,7 +323,7 @@ If `Rpl_encryption::enable` acquires `LOCK_log` first, then the BOLT transaction
 
 If BOLT acquires `LOCK_log` first, there are two sub cases:
 
-- If `Rpl_encryption::enable` has started but not yet finished recovering the master key (`recover_master_key()` is still in progress), `Rpl_encryption::is_enabled` returns false, so BOLT proceeds with writing a plaintext file. The same gap exists in `Binlog_ofile::open()` and BOLT has the same behaviour. 
+- If `Rpl_encryption::enable` has started but not yet finished recovering the master key (`recover_master_key()` is still in progress), `Rpl_encryption::is_enabled` returns false, so BOLT proceeds with writing a plaintext file. The same gap exists in `Binlog_ofile::open()` and BOLT has the same behaviour.
 - If `Rpl_encryption::enable` has completed `recover_master_key()` and is blocked on `rotate_logs()` because it needs `LOCK_log` to rotate, then `Rpl_encryption::is_enabled` returns true at this point, so BOLT falls back.
 
 ---

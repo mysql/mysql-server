@@ -339,7 +339,7 @@ TEST_F(BinlogCacheRepresentationTest, ResetEmptiesConvertedCache) {
   auto source = create_checksumless();
   write_chunked(*source, s.bytes, 4096);
   auto converted = convert(*source);
-  ASSERT_FALSE(converted->reset(false /*preserve_spilled_file*/));
+  ASSERT_FALSE(converted->reset(binlog::Spilled_file_on_reset::kDelete));
   EXPECT_EQ(converted->logical_length(), 0U);
   EXPECT_EQ(converted->physical_length(), 0U);
   EXPECT_FALSE(converted->is_spilled());

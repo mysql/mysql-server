@@ -23,8 +23,25 @@ INSERT INTO t1 VALUES (5, REPEAT('e', 4000000));
 INSERT INTO t1 VALUES (6, REPEAT('f', 4000000));
 COMMIT;
 include/assert.inc [The second transaction's spilled file was promoted into a new binary log file.]
-# Truncate the active promoted file and reject the invalid LTH.
+# Truncate the active promoted file; recovery ignores the header.
 # Kill the server
-Pattern "contains an invalid large transaction header" found
+# restart
+include/assert_grep.inc [Recovery ignores the header and reads the transaction sequentially.]
+include/assert_grep.inc [Recovery trims the incomplete transaction from the file, as without the header.]
+# Commit a third qualifying transaction for recovery with checksum verification.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL max_binlog_size = 1073741824;
+BEGIN;
+INSERT INTO t1 VALUES (7, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (8, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (9, REPEAT('i', 4000000));
+COMMIT;
+include/assert.inc [The third transaction's spilled file was promoted into a new binary log file.]
+# Kill and restart: --source-verify-checksum=ON
+include/assert_grep.inc [R4: recovery logs that source_verify_checksum disabled the optimized recovery.]
+include/assert_grep.inc [R4: recovery does not seek past the body; only case 1 logged a seek.]
+include/assert.inc [R4: the BOLT transaction survives recovery.]
+include/assert.inc [R4: GTID reconstruction reads the transaction sequentially and finds its GTID.]
 # restart
 DROP TABLE t1;

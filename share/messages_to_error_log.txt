@@ -13548,8 +13548,8 @@ ER_IB_MSG_DML_PURGE_DELAY_STARTED
 ER_BINLOG_BOLT_TEMP_FILES_DIR_INVALID
   eng "Failed to initialize #binlog_temp_files at '%s': it must be a directory and cannot be a symbolic link."
 
-ER_BINLOG_BOLT_TEMP_FILES_DIR_UNSAFE_ENTRY
-  eng "Failed to initialize #binlog_temp_files at '%s': found unsafe entry '%s'. Only regular managed spill files named 'bolt_<alphanumeric id>' are allowed."
+ER_BINLOG_BOLT_TEMP_FILES_DIR_SKIPPED_ENTRY
+  eng "Skipped entry '%s' in the binary log temporary files directory '%s': it was not created by the server and is left in place. Only regular files named 'bolt_<alphanumeric id>' are removed at startup."
 
 ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED
   eng "Failed to initialize #binlog_temp_files at '%s' (OS error %d)."
@@ -13567,13 +13567,22 @@ ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION
   eng "Could not optimize binlog recovery of a large transaction because source_verify_checksum is enabled."
 
 ER_BINLOG_BOLT_INVALID_LARGE_TRX_HEADER
-  eng "Could not recover binary log file '%s' because it contains an invalid large transaction header."
+  eng "Ignored a large transaction header in binary log file '%s' that does not describe the transaction's terminating event; the transaction is read sequentially."
 
 ER_BINLOG_BOLT_THRESHOLD_ADJUSTED
   eng "Variable 'binlog_large_transaction_optimization_threshold' was adjusted from %llu bytes to %llu bytes to match binlog_cache_size."
 
-ER_BINLOG_BOLT_RELAY_LOG_PROMOTION
-  eng "Could not promote a spilled large transaction file to '%s': promotion is not supported for relay logs."
+ER_BINLOG_BOLT_TEMP_FILES_DIR_UNDELETED_FILE
+  eng "Could not delete the leftover spill file '%s' (OS error %d); it is left in place and is never reused."
+
+ER_BINLOG_BOLT_DISABLED_TEMP_FILES_DIR
+  eng "Turned binlog_large_transaction_optimization_enabled OFF because the binary log temporary files directory for '%s' is unusable; see the previous error."
+
+ER_BINLOG_BOLT_TEMP_FILES_DIR_UNUSABLE
+  eng "Cannot enable binlog_large_transaction_optimization_enabled because the binary log temporary files directory for '%s' was unusable at server startup; see the reason logged at startup."
+
+ER_BINLOG_BOLT_CACHE_STANDARD_FORM_RESTORE_FAILED
+  eng "Could not replace the binary log cache of a large transaction with a new cache in the standard form: out of memory. The session's next transaction retries the replacement."
 
 
 #

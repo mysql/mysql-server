@@ -9,7 +9,7 @@
 
 After this feature is implemented, MySQL server will stop exhibiting commit stalls when committing large transactions and will also achieve constant time recovery for large transactions. This allows applications with workloads containing large transactions to have an improved MySQL experience.
 
-Large transactions present a significant performance challenge for MySQL's binary logging subsystem. When a transaction exceeds the in-memory binlog cache (controlled by `binlog-cache-size`), events spill to a local temp file. At commit time, copying the entire file contents to the binlog file while holding `LOCK_log` takes longer as the transaction size increases. This inflates commit latency, stalls concurrent commits, and widens the crash window. If the server crashes while copying the transaction, recovery must scan the entire binlog file to identify incomplete transactions, a process that can take hours for multi-gigabyte transactions.\
+Large transactions present a significant performance challenge for MySQL's binary logging subsystem. When a transaction exceeds the in-memory binlog cache (controlled by `binlog-cache-size`), events spill to a local temp file. At commit time, copying the entire file contents to the binlog file while holding `LOCK_log` takes longer as the transaction size increases. This inflates commit latency, stalls concurrent commits, and widens the crash window. If the server crashes while copying the transaction, recovery must scan the entire binlog file to identify incomplete transactions, a process whose duration grows with the transaction size and is bounded by disk read throughput (in our benchmark, 50 GiB took about 15 minutes on HDD and about 4 minutes on SSD; see the performance benchmark).\
 \
 We propose an optimization where large transactions spill binlog events directly to a dedicated temp file that is structurally identical to a binlog file, and finalize the commit by promoting that file into the binlog sequence, eliminating the bottleneck entirely. Crash recovery also becomes constant time regardless of the last binlog file's size, since recovery skips scanning the large transaction's payload.\
 \
@@ -109,19 +109,23 @@ The fixed header events occupy the front of the reserved region, the `Large_tran
     |                Post-header (0 bytes)                           |
     +----------------------------------------------------------------+
     |                Event Data Body (variable)                      |
-    +---------+------------------+------------------------+----------+
-    | Version | XID Event Offset | Terminating Event Type |  Padding |
-    | (1 byte)|    (8 bytes)     |       (1 byte)         |  (var)   |
-    +---------+------------------+------------------------+----------+
+    +---------+------------------+-----------------+-------------+-----------------+---------+
+    | Version | XID Event Offset | Terminating     | Terminating | Terminating     | Padding |
+    | (1 byte)|    (8 bytes)     | Event Type      | Event Body  | Event Body      |  (var)  |
+    |         |                  | (1 byte)        | Length (1)  | (var, <= 141)   |         |
+    +---------+------------------+-----------------+-------------+-----------------+---------+
 ```
 
-Term Event Type (1 byte): The `type_code` of the transaction's terminating event located at XID Event Offset. Valid values are:
+Terminating Event Type (1 byte): The `type_code` of the transaction's terminating event located at XID Event Offset. Valid values are:
 
-- 0x02(2) - `QUERY_EVENT`: DDL transaction.
-- 0x10(16) - `XID_EVENT`: DML transaction committed via implicit XA.
+- 0x10(16) - `XID_EVENT`: transaction committed via implicit XA (two-phase commit).
 - 0x26(38) - `XA_PREPARE_LOG_EVENT`: XA PREPARE or XA COMMIT ONE PHASE transaction.
 
-During crash recovery, the engine seeks to XID Event Offset and compares the event header's `type_code` against the stored Terminating Event Type. A match confirms the transaction is complete and its GTID is added to `gtid_executed`; a mismatch indicates corruption or incomplete write, and the transaction is rolled back.
+A transaction that ends with a `COMMIT` query (it is not two-phase committed) is not promoted: it has no XID that recovery could verify.
+
+Terminating Event Body: a copy of the terminating event's body, the bytes between its common header and its checksum. It is the transaction's identity: the internal XID (8 bytes) of an `XID_EVENT`, or the one-phase flag and the external XID of an `XA_PREPARE_LOG_EVENT`.
+
+During crash recovery, the server reads the event at XID Event Offset, verifying its checksum, and compares its `type_code` and body against the stored Terminating Event Type and Body. A match confirms the transaction is complete: recovery seeks to that event and collects its XID. A mismatch means the header does not describe the transaction, so it is ignored and the transaction is read sequentially, as without the optimization.
 
 #### Reserved bytes
 
@@ -129,7 +133,7 @@ Because we assign each event its `log_pos` as it spills, we must finalize the of
 \
 The `Previous_gtids_log_event` encodes the set of GTIDs already present in the binlog. Each GTID records each source UUID with a single contiguous range costs 40 bytes (16 for the UUID, 8 for the range count, 16 for one range), plus 8 bytes for the overall count. A deployment that has seen 10 distinct sources therefore encodes to about 408 bytes, growing with additional ranges per source or with tagged GTIDs.\
 \
-Because this size is deployment-dependent and changes over time, the reservation is not a static number. We size it as the current `Previous_gtids_log_event` size plus 32 KB of headroom. The current size captures the actual GTID state, and the 32 KB absorbs any growth between the moment the reservation is sized and the moment the transaction commits, along with the small fixed events. The unused portion is padded into the file by the `Large_transaction_header_event`. This overhead is negligible, since a transaction executing the optimization's code path has by definition exceeded `binlog_large_transaction_optimization_threshold` (at least 10 MB), so a few KB of padding is a tiny fraction of the file. If the header still does not fit the reservation, the transaction falls back to the standard code path.
+Because this size is deployment-dependent and changes over time, the reservation is not a static number. We size it as the length of the active binary log file's header (every event written before its first transaction) plus 32 KB of headroom, computed when each binary log file is opened. The current size captures the actual GTID state, and the 32 KB absorbs any growth between the moment the reservation is sized and the moment the transaction commits, along with the small fixed events. The unused portion is padded into the file by the `Large_transaction_header_event`. This overhead is negligible, since a transaction executing the optimization's code path has by definition exceeded `binlog_large_transaction_optimization_threshold` (at least 10 MB), so a few KB of padding is a tiny fraction of the file. If the header still does not fit the reservation, the transaction falls back to the standard code path.
 
 #### Integration with Binary Log Group Commit
 
@@ -143,7 +147,9 @@ When a spilled transaction commits, it takes a dedicated single-commit path that
 
 Crash recovery proceeds exactly as it does today, with one addition. When recovery encounters a `Large_transaction_header_event`, it learns two things at once: (1) the transaction is complete and was committed through the optimization's code path, and (2) the offset of the terminating event. Recovery uses that offset to seek directly to the terminating event, collect its XID, and continue, without reading the transaction body. A multi-gigabyte transaction is skipped in a single seek instead of a full scan, which is what makes recovery time independent of transaction size. Everything else in the file is recovered normally.
 
-**Validation**: Before seeking, the offset is checked against the file length. If it exceeds the file length, the fast path is abandoned and the reader continues scanning sequentially from its current position. The event at the seeked position is read through the standard reader, which validates the event header, length, and checksum. Any subsequent transactions in the same file are scanned sequentially after the seek, and a partial tail from a crash is handled identically to the non-optimized case. A malformed or truncated target event terminates scanning of that file, and the transaction's GTID is not added to the executed set, as the transaction cannot be confirmed complete.
+**Validation**: Before seeking, the event at the recorded offset is read through the standard reader, which validates the event header, length, and checksum, and its type and body (the XID) must match the ones the header recorded. If the offset is outside the file or the event does not match, the fast path is abandoned and the reader continues scanning sequentially from its current position, as if the header were absent. Any subsequent transactions in the same file are scanned sequentially after the seek, and a partial tail from a crash is handled identically to the non-optimized case.
+
+**Scope**: The skip applies to binary log crash recovery and to GTID reconstruction from binary logs, whatever the file's `binlog_checksum` and whatever `source_verify_checksum` (it verifies the checksum of each event that is read; the terminating event is read and verified). Relay log recovery and GTID reconstruction from relay logs are out of scope: the header's offset refers to the source's binary log, so relay logs are scanned sequentially as today.
 
 #### Crash-Safety Analysis
 

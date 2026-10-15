@@ -41,6 +41,8 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysqld_error.h"
+#include "mysys_err.h"          // EE_OUTOFMEMORY, EE_FILENOTFOUND
+#include "sql/error_handler.h"  // Dummy_error_handler
 #include "sql/mysqld.h"
 #include "sql/rpl_log_encryption.h"
 #include "sql/sql_class.h"
@@ -63,23 +65,43 @@ bool is_bolt_temp_file(const char *name) {
 namespace {
 
 /*
-  A spilled temp file starts as an anonymous mkstemp() file, which is created
-  0600 with my_umask ignored. It may get promoted directly into a binary log
-  through the binlog large transaction optimization code path, so edit the
-  permissions to match what a binlog file created by the server would have.
+  Creates a named spill file. The name is <prefix><server-start
+  time>_<serial>. A leftover file of an earlier run that started in the same
+  second can have the same name. Then the name is skipped and the next serial
+  is tried. The file gets the permissions of a binary log file, because the
+  file may become a binary log file.
 */
-ulong binlog_temp_file_permissions() {
-  ulong permissions = 0;
-  if (my_umask & 0400) permissions |= USER_READ;
-  if (my_umask & 0200) permissions |= USER_WRITE;
-  if (my_umask & 0100) permissions |= USER_EXECUTE;
-  if (my_umask & 0040) permissions |= GROUP_READ;
-  if (my_umask & 0020) permissions |= GROUP_WRITE;
-  if (my_umask & 0010) permissions |= GROUP_EXECUTE;
-  if (my_umask & 0004) permissions |= OTHERS_READ;
-  if (my_umask & 0002) permissions |= OTHERS_WRITE;
-  if (my_umask & 0001) permissions |= OTHERS_EXECUTE;
-  return permissions;
+File create_binlog_cache_file(IO_CACHE *cache, char *name) {
+  static std::atomic<uint64_t> serial_counter{0};
+  const char *const dir = cache->dir != nullptr ? cache->dir : "";
+  const char separator[2] = {cache->dir != nullptr ? FN_LIBCHAR : '\0', '\0'};
+  for (;;) {
+    const uint64_t serial =
+        serial_counter.fetch_add(1, std::memory_order_relaxed);
+    const int length =
+        snprintf(name, FN_REFLEN, "%s%s%s%llx_%llx", dir, separator,
+                 cache->prefix != nullptr ? cache->prefix : "",
+                 static_cast<unsigned long long>(server_start_time),
+                 static_cast<unsigned long long>(serial));
+    if (length < 0 || length >= FN_REFLEN) {
+      set_my_errno(ENAMETOOLONG);
+      return -1;
+    }
+    /* A leftover file of an earlier run has this name. */
+    DBUG_EXECUTE_IF("simulate_bolt_spill_file_name_taken", {
+      (void)my_close(my_create(name, 0, O_RDWR, MYF(0)), MYF(0));
+      DBUG_SET("-d,simulate_bolt_spill_file_name_taken");
+    });
+    /* No MY_WME: a name that a leftover file has is skipped silently. */
+    const File file =
+        mysql_file_open(cache->file_key, name,
+                        O_CREAT | O_EXCL | O_RDWR | MY_FOPEN_BINARY, MYF(0));
+    if (file >= 0) return file;
+    if (my_errno() == EEXIST) continue;
+    /* The error that the open raises with MY_WME. */
+    MyOsError(my_errno(), EE_FILENOTFOUND, MYF(0), name);
+    return -1;
+  }
 }
 
 }  // namespace
@@ -94,36 +116,23 @@ bool IO_CACHE_binlog_cache_storage::open(const char *dir, const char *prefix,
   DBUG_TRACE;
   if (open_cached_file(&m_io_cache, dir, prefix, cache_size, MYF(MY_WME)))
     return true;
-  m_spilled_file_is_managed = false;
 
   /*
-    Default to an anonymous spill file. Whether it is instead a named file that
-    can be promoted into the binary log sequence is decided by the caller via
-    set_named_file(): only the cache rewritten at the first spill is named.
-    A named file is kept in the filesystem namespace (promotable, and cleaned
-    up at server startup if left behind); an anonymous file is unlinked at
-    creation and is never visible. So when the binlog large transaction
-    optimization is disabled for a transaction, its spill file leaves no
-    visible bolt_ file.
+    The spill file is anonymous by default. An anonymous spill file is
+    unlinked when the cache creates it, and is never visible.
+    set_named_file() sets a creator instead. Then the spill file is a named
+    bolt_ file that can be promoted. Only a cache rewritten into binlog file
+    form calls set_named_file().
   */
-  m_io_cache.named_file = false;
-  /* Keep the arguments: reset re-opens the cache after a spill. */
-  m_dir = dir;
-  m_prefix = prefix;
-  m_cache_size = cache_size;
-  m_max_cache_size_arg = max_cache_size;
+  m_io_cache.named_file_creator = nullptr;
 
   /*
     The cache's content is placed after the reserved bytes: physical
     positions start there, and the first flush into the lazily created
-    temporary file seeks there (the file's offset is 0 at creation).
-
-    The reserved region is applied in all cases, even when the binlog large
-    transaction optimization is disabled for this transaction. A non-promoted
-    transaction never fills it with header events and never copies it into the
-    binary log (begin() starts the read cursor past it), so it costs only
-    transient temp-file space and is invisible in the binary log. Only the file
-    naming is gated on binlog_large_transaction_optimization_enabled.
+    temporary file seeks there (the file's offset is 0 at creation). Only a
+    cache in binlog file form reserves bytes (the standard form passes 0); a
+    transaction that falls back never copies them into the binary log
+    (begin() starts the read cursor past them).
   */
   m_reserved_bytes = reserved_bytes;
   m_io_cache.pos_in_file = reserved_bytes;
@@ -171,20 +180,7 @@ bool IO_CACHE_binlog_cache_storage::write(const unsigned char *buffer,
     }
   }
 
-  if (my_b_safe_write(&m_io_cache, buffer, length)) return true;
-
-  /*
-    open_cached_file creates the physical backing file lazily. For a named
-    (promotable) spill file, immediately replace its generic mkstemp name with
-    the managed bolt_ form before callers can observe or promote it. An
-    anonymous spill file (optimization disabled for this transaction) has no
-    name and is left as-is.
-  */
-  if (is_spilled() && m_io_cache.named_file && !m_spilled_file_is_managed) {
-    if (rename_spilled_file()) return true;
-    m_spilled_file_is_managed = true;
-  }
-  return false;
+  return my_b_safe_write(&m_io_cache, buffer, length);
 }
 
 bool IO_CACHE_binlog_cache_storage::truncate(my_off_t offset) {
@@ -204,74 +200,44 @@ bool IO_CACHE_binlog_cache_storage::truncate(my_off_t offset) {
   return false;
 }
 
-bool IO_CACHE_binlog_cache_storage::rename_spilled_file() {
-  DBUG_TRACE;
-  assert(is_spilled());
-  if (m_io_cache.file_name == nullptr) return true;
-
-  const char *const old_name = m_io_cache.file_name;
-
-  /*
-    The name is bolt_<server-start time>_<serial>, both in hex. It is unique
-    within a server run: server_start_time is constant for the run and the
-    serial is a monotonic atomic counter, so no probe or retry is needed.
-    Leftover files from earlier runs are removed at startup; if that cleanup
-    fails the binlog large transaction optimization is disabled and no new files
-    are created, so a name cannot collide with an earlier run's file either.
-  */
-  static std::atomic<uint64_t> serial_counter{0};
-  const uint64_t serial =
-      serial_counter.fetch_add(1, std::memory_order_relaxed);
-
-  char new_name[FN_REFLEN];
-  const char *const dir = (m_dir != nullptr) ? m_dir : "";
-  const char separator[2] = {(m_dir != nullptr) ? FN_LIBCHAR : '\0', '\0'};
-  const int length = snprintf(
-      new_name, sizeof(new_name), "%s%s%s%llx_%llx", dir, separator,
-      kBinlogTempFilePrefix, static_cast<unsigned long long>(server_start_time),
-      static_cast<unsigned long long>(serial));
-  if (length < 0 || static_cast<size_t>(length) >= sizeof(new_name))
-    return true;
-
-  char *replacement = my_strdup(PSI_NOT_INSTRUMENTED, new_name, MYF(MY_WME));
-  if (replacement == nullptr) return true;
-  if (mysql_file_rename(m_io_cache.file_key, old_name, new_name, MYF(MY_WME))) {
-    my_free(replacement);
-    return true;
-  }
-
-  my_free(m_io_cache.file_name);
-  m_io_cache.file_name = replacement;
-  return my_chmod(new_name, binlog_temp_file_permissions(), MYF(MY_WME));
+void IO_CACHE_binlog_cache_storage::set_named_file() {
+  m_io_cache.named_file_creator = create_binlog_cache_file;
 }
 
-bool IO_CACHE_binlog_cache_storage::reset(bool preserve_spilled_file) {
-  assert(!preserve_spilled_file || is_spilled());
-  if (is_spilled()) {
-    disable_encryption();
+void IO_CACHE_binlog_cache_storage::release_named_file(
+    binlog::Spilled_file_on_reset spilled_file_action) {
+  disable_encryption();
+  if (spilled_file_action == binlog::Spilled_file_on_reset::kKeep) {
+    my_free(m_io_cache.file_name);
+    m_io_cache.file_name = nullptr;
+  }
+  close();
+}
 
-    /*
-      For a temp file that has been promoted to a binlog file, we reset the
-      file_name before close() to prevent close_cached_file() from deleting
-      the promoted file. For the same reason we close and re-open instead of
-      truncating: the cache keeps its descriptor across the promotion rename,
-      so a truncate would zero the promoted binlog file.
-    */
-    if (preserve_spilled_file) {
-      my_free(m_io_cache.file_name);
-      m_io_cache.file_name = nullptr;
-    }
-
-    close();
-    if (open(m_dir, m_prefix, m_cache_size, m_max_cache_size_arg,
-             m_reserved_bytes))
-      return true;
-  } else if (truncate(0)) { /* Never spilled: rewind to the reserved boundary */
-    return true;
+bool IO_CACHE_binlog_cache_storage::reset(
+    binlog::Spilled_file_on_reset spilled_file_action) {
+  assert(spilled_file_action != binlog::Spilled_file_on_reset::kKeep ||
+         m_io_cache.file_name != nullptr);
+  /* Binlog_cache_storage::reset() replaces a cache with a named file. */
+  if (m_io_cache.file_name != nullptr) {
+    release_named_file(spilled_file_action);
+    DBUG_EXECUTE_IF("ensure_binlog_cache_is_reset",
+                    { binlog_cache_is_reset = true; };);
+    return false;
   }
 
-  assert(!is_spilled());
-  assert(length() == 0);
+  if (truncate(0)) return true;
+
+  /* Truncate the temporary file if there is one. */
+  if (m_io_cache.file != -1) {
+    if (my_chsize(m_io_cache.file, 0, 0, MYF(MY_WME))) return true;
+
+    DBUG_EXECUTE_IF("show_io_cache_size", {
+      my_off_t file_size =
+          my_seek(m_io_cache.file, 0L, MY_SEEK_END, MYF(MY_WME + MY_FAE));
+      assert(file_size == 0);
+    });
+  }
 
   DBUG_EXECUTE_IF("ensure_binlog_cache_temporary_file_is_encrypted", {
     /*
@@ -368,6 +334,8 @@ bool IO_CACHE_binlog_cache_storage::next(unsigned char **buffer,
 }
 
 my_off_t IO_CACHE_binlog_cache_storage::length() const {
+  /* A cache whose named file was released is closed, and holds nothing. */
+  if (!my_b_inited(&m_io_cache)) return 0;
   /* Physical positions include the reserved bytes; report the data
      length. */
   if (m_io_cache.type == WRITE_CACHE)
@@ -376,7 +344,10 @@ my_off_t IO_CACHE_binlog_cache_storage::length() const {
 }
 
 bool IO_CACHE_binlog_cache_storage::write_would_spill(my_off_t length) const {
-  if (is_spilled() || m_io_cache.type != WRITE_CACHE) return false;
+  if (m_io_cache.type != WRITE_CACHE ||            // cache not in write mode
+      m_io_cache.pos_in_file != m_reserved_bytes)  // data already in the file
+    return false;
+  /* A write that fills the buffer exactly does not flush it. */
   return length >
          static_cast<my_off_t>(m_io_cache.write_end - m_io_cache.write_pos);
 }
@@ -434,6 +405,12 @@ bool IO_CACHE_binlog_cache_storage::setup_ciphers_password() {
 }
 
 bool Binlog_cache_storage::create_checksumless_representation() {
+  /* Fails as an allocation of the new cache's buffer fails. */
+  DBUG_EXECUTE_IF("fail_bolt_standard_form_restore", {
+    my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
+             static_cast<size_t>(m_cache_size));
+    return true;
+  });
   // Anonymous spill file, no reserved header region (the standard form).
   auto representation = binlog::create_checksumless_cache_representation(
       m_dir, m_prefix, m_cache_size, m_max_cache_size);
@@ -443,8 +420,12 @@ bool Binlog_cache_storage::create_checksumless_representation() {
 }
 
 bool Binlog_cache_storage::open(my_off_t cache_size, my_off_t max_cache_size) {
-  m_dir = binlog_temp_files_dir.path();
-  m_prefix = kBinlogTempFilePrefix;
+  const char *LOG_PREFIX = "ML";
+
+  /* The standard form spills to tmpdir; only a cache rewritten into binlog
+     file form is in the binary log's temp files directory. */
+  m_dir = mysql_tmpdir;
+  m_prefix = LOG_PREFIX;
   m_cache_size = cache_size;
   m_max_cache_size = max_cache_size;
   return create_checksumless_representation();
@@ -486,17 +467,37 @@ bool Binlog_cache_storage::truncate_at_event_boundary(
                                                       events_before_offset);
 }
 
-bool Binlog_cache_storage::reset(bool preserve_spilled_file) {
+bool Binlog_cache_storage::reset(
+    binlog::Spilled_file_on_reset spilled_file_action) {
   assert(m_representation != nullptr);
   m_large_trx_rewrite_planned = false;
   m_large_trx_rewrite_failed = false;
-  // A rewritten cache goes back to the standard form even if its reset
-  // failed. That is safe for a promoted file: a failed reset has already
-  // closed it and released its name, so destroying it does not delete it.
   const bool was_rewritten = is_large_trx_rewritten();
-  bool error = m_representation->reset(preserve_spilled_file);
-  if (was_rewritten && create_checksumless_representation()) error = true;
-  return error;
+  const bool error = m_representation->reset(spilled_file_action);
+  if (!was_rewritten) return error;
+  /*
+    A rewritten cache is replaced by a new cache in the standard checksumless
+    form. So an error from the rewritten cache's own reset leaves nothing
+    behind. Destroying the rewritten cache does not delete a promoted file:
+    the rewritten cache's reset already dropped the promoted file's name.
+
+    A failed replacement does not raise an error in the session. The
+    transaction has ended, or is rolled back to its start. The replacement
+    fails only when memory runs out. The caller reports the failure, and the
+    next transaction's first event retries the replacement (see
+    restore_standard_form()).
+  */
+  Dummy_error_handler no_session_error;
+  THD *const thd = current_thd;
+  if (thd != nullptr) thd->push_internal_handler(&no_session_error);
+  const bool replacement_failed = create_checksumless_representation();
+  if (thd != nullptr) thd->pop_internal_handler();
+  return replacement_failed;
+}
+
+bool Binlog_cache_storage::restore_standard_form() {
+  if (!is_large_trx_rewritten()) return false;
+  return create_checksumless_representation();
 }
 
 size_t Binlog_cache_storage::disk_writes() const {
@@ -579,8 +580,8 @@ bool Binlog_cache_storage::rewrite_into_binlog_file_format(
     return false;
   }
   auto rewritten = binlog::create_checksummed_cache_representation(
-      *m_representation, checksum_alg, m_dir, m_prefix, m_cache_size,
-      m_max_cache_size, reserved_bytes);
+      *m_representation, checksum_alg, binlog_temp_files_dir.path(),
+      kBinlogTempFilePrefix, m_cache_size, m_max_cache_size, reserved_bytes);
   if (rewritten == nullptr) return true;
   m_representation = std::move(rewritten);
   return false;
@@ -753,28 +754,28 @@ int Binlog_encryption_ostream::get_header_size() {
 Binlog_temp_files_dir binlog_temp_files_dir;
 
 /*
-  Deletes the bolt_* spill files left in the binlog temp files directory by a
-  previous run. The directory belongs to the server and should only hold bolt_*
-  files; Binlog_temp_files_dir::init() calls this during startup.
+  Deletes the bolt_* spill files that a previous run left in the binlog temp
+  files directory. Binlog_temp_files_dir::init() calls this function during
+  startup.
 
-  Every entry other than "." and ".." must be a regular file, must not be a
-  symlink, and must match the bolt_* name. Anything else means this is not the
-  directory we think it is, so the error reason is logged and the cleanup
-  fails rather than being skipped. Since init() runs from mysqld startup, that
-  failure aborts server start.
+  Only regular files with the bolt_* name are deleted. Any other entry was not
+  created by the binary log cache and is left in place with a warning. A
+  bolt_* file that cannot be deleted is also left in place with a warning.
+  The leftover file is never reused, because every new spill file gets a
+  unique name.
 
-  Returns true on failure, having logged the reason.
+  Returns true when the directory cannot be listed, having logged the reason
+  at the given level. No result of this function stops the server startup.
 */
-static bool temp_files_dir_clear_files(const char *path) {
+static bool temp_files_dir_clear_files(const char *path, loglevel level) {
   MY_DIR *dir_info = my_dir(path, MYF(MY_WANT_STAT));
   if (dir_info == nullptr) {
-    LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED, path, my_errno());
+    LogErr(level, ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED, path, my_errno());
     return true;
   }
 
   uint removed = 0;
-  bool failed = false;
-  for (uint i = 0; i < dir_info->number_off_files && !failed; i++) {
+  for (uint i = 0; i < dir_info->number_off_files; i++) {
     const fileinfo *file = dir_info->dir_entry + i;
     /* Skip "." and "..". */
     if (file->name[0] == '.' &&
@@ -783,27 +784,25 @@ static bool temp_files_dir_clear_files(const char *path) {
     char file_path[FN_REFLEN];
     if (snprintf(file_path, sizeof(file_path), "%s%c%s", path, FN_LIBCHAR,
                  file->name) >= static_cast<int>(sizeof(file_path))) {
-      LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_INVALID, path);
-      failed = true;
-      break;
+      LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_SKIPPED_ENTRY,
+             file->name, path);
+      continue;
     }
     /* Do not follow links or delete entries the server did not create. */
     if (file->mystat == nullptr || !MY_S_ISREG(file->mystat->st_mode) ||
         my_is_symlink(file_path, nullptr) || !is_bolt_temp_file(file->name)) {
-      LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_UNSAFE_ENTRY, path,
-             file->name);
-      failed = true;
-      break;
+      LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_SKIPPED_ENTRY,
+             file->name, path);
+      continue;
     }
     if (my_delete(file_path, MYF(0))) {
-      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_DELETE_FILE, file_path);
-      failed = true;
-      break;
+      LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_UNDELETED_FILE,
+             file_path, my_errno());
+      continue;
     }
     removed++;
   }
   my_dirend(dir_info);
-  if (failed) return true;
 
   if (removed > 0)
     LogErr(INFORMATION_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_CLEANED, removed,
@@ -811,43 +810,117 @@ static bool temp_files_dir_clear_files(const char *path) {
   return false;
 }
 
-bool Binlog_temp_files_dir::init(const char *log_basename) {
+namespace {
+
+/** What a binlog temp files directory path refers to. */
+enum class Temp_files_dir_state { kMissing, kDirectory, kInvalid };
+
+/*
+  Checks what path is: it must be a directory and not a symlink, so that the
+  files in it are on the same filesystem as the binary log files. Logs the
+  reason at the given level when it is invalid.
+*/
+Temp_files_dir_state temp_files_dir_state(const char *path, loglevel level) {
+  if (my_is_symlink(path, nullptr)) {
+    LogErr(level, ER_BINLOG_BOLT_TEMP_FILES_DIR_INVALID, path);
+    return Temp_files_dir_state::kInvalid;
+  }
+  MY_STAT stat_area;
+  if (my_stat(path, &stat_area, MYF(0)) == nullptr)
+    return Temp_files_dir_state::kMissing;
+  if (!MY_S_ISDIR(stat_area.st_mode)) {
+    LogErr(level, ER_BINLOG_BOLT_TEMP_FILES_DIR_INVALID, path);
+    return Temp_files_dir_state::kInvalid;
+  }
+  return Temp_files_dir_state::kDirectory;
+}
+
+/*
+  Creates the directory at path unless it exists. Another session or another
+  server sharing the binlog directory may create it at the same time: an
+  EEXIST that leaves a directory is success.
+
+  Returns true on failure, having logged the reason as an error.
+*/
+bool temp_files_dir_create(const char *path) {
+  switch (temp_files_dir_state(path, ERROR_LEVEL)) {
+    case Temp_files_dir_state::kDirectory:
+      return false;
+    case Temp_files_dir_state::kInvalid:
+      return true;
+    case Temp_files_dir_state::kMissing:
+      break;
+  }
+  if (my_mkdir(path, my_umask_dir, MYF(0)) == 0) return false;
+  if (my_errno() == EEXIST && temp_files_dir_state(path, ERROR_LEVEL) ==
+                                  Temp_files_dir_state::kDirectory)
+    return false;
+  LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED, path, my_errno());
+  return true;
+}
+
+}  // namespace
+
+bool Binlog_temp_files_dir::init(const char *log_basename, loglevel level) {
   DBUG_TRACE;
   assert(log_basename != nullptr && !m_initialized);
+  m_log_basename = log_basename;
 
-  // Build <log basename>/#binlog_temp_files
+  /*
+    Build <binlog directory>/#binlog_temp_files/<binlog base name>. Servers
+    that share a binlog directory have different base names, so each one
+    creates and cleans only its own directory.
+  */
   char dir_part[FN_REFLEN];
-  size_t dir_len;  // Required out-param of dirname_part(); value unused.
-  dirname_part(dir_part, log_basename, &dir_len);
+  size_t dir_part_len;  // Required out-param of dirname_part(); value unused.
+  const char *const base_name =
+      log_basename + dirname_part(dir_part, log_basename, &dir_part_len);
 
-  const int path_len = snprintf(m_path, sizeof(m_path), "%s%s", dir_part,
-                                kBinlogTempFilesDirName);
-  if (path_len < 0 || static_cast<size_t>(path_len) >= sizeof(m_path)) {
-    LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED, log_basename,
-           ENAMETOOLONG);
+  const int parent_len = snprintf(m_parent, sizeof(m_parent), "%s%s", dir_part,
+                                  kBinlogTempFilesDirName);
+  const int path_len = snprintf(m_path, sizeof(m_path), "%s%c%s", m_parent,
+                                FN_LIBCHAR, base_name);
+  if (parent_len < 0 || static_cast<size_t>(parent_len) >= sizeof(m_parent) ||
+      path_len < 0 || static_cast<size_t>(path_len) >= sizeof(m_path) ||
+      base_name[0] == '\0') {
+    LogErr(level, ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED, log_basename,
+           base_name[0] == '\0' ? EINVAL : ENAMETOOLONG);
+    m_init_failed = true;
     return true;
   }
-  const char *path = m_path;
 
-  /* A symlink is rejected even if it points to a directory: files in
-     this directory must be on the same filesystem as the binlog files. */
-  if (my_is_symlink(path, nullptr)) {
-    LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_INVALID, path);
+  /* Files left by a previous run are deleted whatever the optimization's
+     setting: it may have been ON then. */
+  if (temp_files_dir_state(m_parent, level) == Temp_files_dir_state::kInvalid) {
+    m_init_failed = true;
     return true;
   }
-
-  MY_STAT stat_area;
-  if (my_stat(path, &stat_area, MYF(0)) != nullptr) {
-    if (!MY_S_ISDIR(stat_area.st_mode)) {
-      LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_INVALID, path);
+  switch (temp_files_dir_state(m_path, level)) {
+    case Temp_files_dir_state::kInvalid:
+      m_init_failed = true;
       return true;
-    }
-    if (temp_files_dir_clear_files(path)) return true;
-  } else if (my_mkdir(path, my_umask_dir, MYF(0)) != 0) {
-    LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED, path, my_errno());
-    return true;
+    case Temp_files_dir_state::kDirectory:
+      if (temp_files_dir_clear_files(m_path, level)) {
+        m_init_failed = true;
+        return true;
+      }
+      break;
+    case Temp_files_dir_state::kMissing:
+      break;
   }
 
   m_initialized = true;
   return false;
+}
+
+bool Binlog_temp_files_dir::create() {
+  DBUG_TRACE;
+  /* The reason was logged when init() failed at startup. */
+  if (m_init_failed) {
+    LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_UNUSABLE, m_log_basename);
+    return true;
+  }
+  /* The binary log is off, so init() was never called. */
+  if (!m_initialized) return false;
+  return temp_files_dir_create(m_parent) || temp_files_dir_create(m_path);
 }

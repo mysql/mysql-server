@@ -81,8 +81,8 @@ class Checksumless_binlog_cache_representation final
   /* Nothing to do: flush_and_sync_spilled_file() flushes and syncs the file. */
   bool sync() override { return false; }
 
-  bool reset(bool preserve_spilled_file) override {
-    return m_file.reset(preserve_spilled_file);
+  bool reset(Spilled_file_on_reset spilled_file_action) override {
+    return m_file.reset(spilled_file_action);
   }
 
   size_t disk_writes() const override { return m_file.disk_writes(); }
@@ -176,20 +176,18 @@ class Checksummed_binlog_cache_representation final
     if (rewritten->open(dir, prefix, cache_size, max_cache_size,
                         reserved_bytes))
       return nullptr;
-    rewritten->m_file.set_named_file(true);
+    rewritten->m_file.set_named_file();
 
     /*
-      Create the converter, writing into the new file. It writes straight
-      into m_file, not through rewritten->write(): that write() sends the
-      rest of an event in progress through this same converter (see below),
-      and counts it as logical bytes, so going through it would convert and
-      count the bytes twice.
+      Create the converter. The copy below converts the source's bytes and
+      writes them into m_file directly. After the copy, write() uses the same
+      converter for the rest of the event in progress.
     */
     auto to_binlog_file_format = std::make_unique<Event_format_converter>(
         rewritten->m_file,  // downstream: where the converted bytes go
         Event_format_converter::Direction::kToBinlogFileFormat,  // direction
         rewritten->m_footer_len,               // 4 with CRC32, 0 with NONE
-        static_cast<uint32>(reserved_bytes));  // log_pos starts after it
+        static_cast<uint32>(reserved_bytes));  // log_pos counts from here
 
     /*
       Copy the source's bytes through the converter; the source is all in
@@ -274,10 +272,10 @@ class Checksummed_binlog_cache_representation final
   /* Nothing to do: flush_and_sync_spilled_file() flushes and syncs the file. */
   bool sync() override { return false; }
 
-  bool reset(bool preserve_spilled_file) override {
+  bool reset(Spilled_file_on_reset spilled_file_action) override {
     m_in_progress_event_converter.reset();
     m_logical_length = 0;
-    return m_file.reset(preserve_spilled_file);
+    return m_file.reset(spilled_file_action);
   }
 
   size_t disk_writes() const override { return m_file.disk_writes(); }

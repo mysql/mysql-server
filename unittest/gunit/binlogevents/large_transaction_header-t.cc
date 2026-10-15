@@ -23,6 +23,7 @@
 
 #include <gtest/gtest.h>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include "my_byteorder.h"
@@ -38,14 +39,16 @@ class LargeTrxHeaderTest : public ::testing::Test {
 
   /**
     Build a serialized LTH event with a full fixed body (version, offset,
-    terminal event type). The version byte is caller-supplied so that
-    invalid-version cases can be exercised without truncating the body.
+    terminal event type, terminal event body). The version byte is
+    caller-supplied so that invalid-version cases can be exercised without
+    truncating the body.
   */
   std::vector<char> build_event(uint8_t version, uint64_t offset,
-                                uint8_t terminal_type, size_t padding_size) {
+                                uint8_t terminal_type, size_t padding_size,
+                                const std::string &terminal_body = "xid12345") {
     const size_t event_size = LOG_EVENT_MINIMAL_HEADER_LEN +
                               Large_transaction_header_event::kFixedBodyLength +
-                              padding_size;
+                              terminal_body.size() + padding_size;
     std::vector<char> buf(event_size, '\0');
     uchar *p = reinterpret_cast<uchar *>(buf.data());
     int4store(p, 1755000000);  // timestamp
@@ -57,7 +60,10 @@ class LargeTrxHeaderTest : public ::testing::Test {
     uchar *body = p + LOG_EVENT_MINIMAL_HEADER_LEN;
     body[0] = version;
     int8store(body + 1, offset);
-    body[Large_transaction_header_event::kFixedBodyLength - 1] = terminal_type;
+    body[9] = terminal_type;
+    body[10] = static_cast<uchar>(terminal_body.size());
+    memcpy(body + Large_transaction_header_event::kFixedBodyLength,
+           terminal_body.data(), terminal_body.size());
     return buf;
   }
 
@@ -78,6 +84,7 @@ TEST_F(LargeTrxHeaderTest, DecodeRoundtrip) {
       EXPECT_EQ(ev.get_terminating_event_offset(), offset);
       EXPECT_EQ(ev.get_terminating_event_type(),
                 static_cast<uint8_t>(XID_EVENT));
+      EXPECT_EQ(ev.get_terminating_event_body(), "xid12345");
       EXPECT_EQ(ev.get_padding_size(), padding);
     }
   }
@@ -98,6 +105,28 @@ TEST_F(LargeTrxHeaderTest, RejectsUnknownVersion) {
     Large_transaction_header_event ev(buf.data(), &m_fde);
     EXPECT_FALSE(ev.header()->get_is_valid());
   }
+}
+
+TEST_F(LargeTrxHeaderTest, DecodesTheLongestTerminatingEventBody) {
+  const std::string longest(
+      Large_transaction_header_event::kMaxTerminatingEventBodyLength, 'x');
+  auto buf =
+      build_event(Large_transaction_header_event::kVersion, 42,
+                  static_cast<uint8_t>(XA_PREPARE_LOG_EVENT), 16, longest);
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  ASSERT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_terminating_event_body(), longest);
+  EXPECT_EQ(ev.get_padding_size(), 16U);
+}
+
+TEST_F(LargeTrxHeaderTest, RejectsATooLongTerminatingEventBody) {
+  const std::string too_long(
+      Large_transaction_header_event::kMaxTerminatingEventBodyLength + 1, 'x');
+  auto buf =
+      build_event(Large_transaction_header_event::kVersion, 42,
+                  static_cast<uint8_t>(XA_PREPARE_LOG_EVENT), 16, too_long);
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  EXPECT_FALSE(ev.header()->get_is_valid());
 }
 
 TEST_F(LargeTrxHeaderTest, RejectsTruncatedBody) {

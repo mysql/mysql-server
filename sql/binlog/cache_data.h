@@ -1,3 +1,26 @@
+// Copyright (c) 2009, 2026, Oracle and/or its affiliates.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version 2.0,
+// as published by the Free Software Foundation.
+//
+// This program is designed to work with certain software (including
+// but not limited to OpenSSL) that is licensed under separate terms,
+// as designated in a particular file or component or in included license
+// documentation.  The authors of MySQL hereby grant you an additional
+// permission to link the program and your derivative works with the
+// separately licensed software that they have either included with
+// the program or referenced in the documentation.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License, version 2.0, for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
+
 #ifndef BINLOG_CACHE_DATA_H_INCLUDED
 #define BINLOG_CACHE_DATA_H_INCLUDED
 
@@ -122,8 +145,8 @@ class binlog_cache_data {
   bool is_trx_cache() const { return flags.transactional; }
 
   /**
-    Returns true when the cache's physical representation carries event
-    checksum footers, i.e. it was rewritten with CRC32.
+    Returns true when the cache was rewritten with CRC32, so its events carry
+    checksum footers.
 
     @retval true   The physical events carry their own checksum.
     @retval false  They do not, so a checksum is added when the cache is
@@ -135,9 +158,9 @@ class binlog_cache_data {
 
   /**
     @return Whether this transaction may use the binlog large transaction
-            optimization: it was eligible at its first event, so its cache
-            is rewritten into binlog file form at its first spill (see
-            latch_large_trx_optimization()).
+            optimization. latch_large_trx_optimization() decides at the
+            transaction's first event. The cache is then rewritten into
+            binlog file form at the cache's first spill.
   */
   bool large_trx_optimization_enabled() const {
     return m_large_trx_optimization_enabled;
@@ -200,6 +223,16 @@ class binlog_cache_data {
     return m_terminating_event_type;
   }
 
+  /**
+    Returns the body of the transaction's terminating event, the bytes between
+    its common header and its checksum: the internal XID of an Xid event, or
+    the one-phase flag and external XID of an XA_prepare event. Recorded by
+    finalize() for those two types only; empty otherwise.
+  */
+  const std::string &terminating_event_body() const {
+    return m_terminating_event_body;
+  }
+
   my_off_t get_byte_position() const { return m_cache.length(); }
 
   void cache_state_checkpoint(my_off_t pos_to_checkpoint);
@@ -210,11 +243,13 @@ class binlog_cache_data {
      Reset the cache to unused state when the transaction is finished. It
      drops all data and clears the transaction flags.
 
-     @param preserve_spilled_file  When true, the spilled file is retained
-            rather than deleted, because the caller has promoted it into the
-            binary log sequence and now owns it.
+     @param spilled_file_action  kKeep when the spilled file is kept rather
+                                 than deleted, because the caller has
+                                 promoted the spilled file to a binary log
+                                 file and now owns the file.
   */
-  virtual void reset(bool preserve_spilled_file = false);
+  virtual void reset(binlog::Spilled_file_on_reset spilled_file_action =
+                         binlog::Spilled_file_on_reset::kDelete);
 
   /**
     Returns information about the cache content with respect to
@@ -315,6 +350,11 @@ class binlog_cache_data {
   */
   mysql::binlog::event::Log_event_type m_terminating_event_type =
       mysql::binlog::event::UNKNOWN_EVENT;
+  /**
+    Body of the transaction's terminating event (its XID), recorded at
+    finalize() together with its offset.
+  */
+  std::string m_terminating_event_body;
 
   size_t m_compressed_size = 0;
   size_t m_decompressed_size = 0;
@@ -510,7 +550,8 @@ class binlog_trx_cache_data : public binlog_cache_data {
         m_cannot_rollback(false),
         before_stmt_pos(MY_OFF_T_UNDEF) {}
 
-  void reset(bool preserve_spilled_file = false) override;
+  void reset(binlog::Spilled_file_on_reset spilled_file_action =
+                 binlog::Spilled_file_on_reset::kDelete) override;
 
   bool cannot_rollback() const { return m_cannot_rollback; }
 

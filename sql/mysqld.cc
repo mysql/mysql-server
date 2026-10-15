@@ -8394,12 +8394,27 @@ static int init_server_components() {
   }
 
   /*
-    Initialize the #binlog_temp_files directory for spilled files; if the
-    directory already exists, clear it.
+    The binary log's temp files directory, for the large transaction
+    optimization's spill files:
+    - init() deletes the spill files that a previous run left in the
+      directory, regardless of the optimization's setting.
+    - create() creates the directory if it does not exist, and is called
+      when the optimization is enabled.
+    A problem with the directory never stops the server startup. With the
+    optimization enabled, an error is logged and the optimization is turned
+    OFF. With the optimization disabled, a warning is logged.
   */
-  if (opt_bin_log && !is_help_or_validate_option() &&
-      binlog_temp_files_dir.init(log_bin_basename))
-    unireg_abort(MYSQLD_ABORT_EXIT);
+  if (opt_bin_log && !is_help_or_validate_option()) {
+    const bool enabled = opt_binlog_large_transaction_optimization_enabled;
+    const bool temp_files_dir_init_failed = binlog_temp_files_dir.init(
+        log_bin_basename, enabled ? ERROR_LEVEL : WARNING_LEVEL);
+    if (enabled &&
+        (temp_files_dir_init_failed || binlog_temp_files_dir.create())) {
+      opt_binlog_large_transaction_optimization_enabled = false;
+      LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_DISABLED_TEMP_FILES_DIR,
+             log_bin_basename);
+    }
+  }
 
   if (global_system_variables.binlog_row_value_options != 0) {
     const char *msg = nullptr;
@@ -9978,8 +9993,8 @@ int mysqld_main(int argc, char **argv)
 
     if (mysql_bin_log.write_event_to_binlog_and_sync(&prev_gtids_ev))
       unireg_abort(MYSQLD_ABORT_EXIT);
-    update_binlog_temp_file_previous_gtids_size_estimate(
-        prev_gtids_ev.common_header->data_written);
+    /* The end position is the header's end. No transaction is written yet. */
+    set_binlog_cache_reserved_bytes(mysql_bin_log.get_binlog_end_pos());
 
     // run auto purge member function. It will evaluate auto purge controls
     // and configuration, calculate which log files are to be purged, and

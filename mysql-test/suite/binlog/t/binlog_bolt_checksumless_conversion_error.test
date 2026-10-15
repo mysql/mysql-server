@@ -61,7 +61,9 @@ COMMIT;
 --source include/assert.inc
 
 --let $temp_inc = $MYSQLTEST_VARDIR/tmp/bolt_conversion_error_temp_files.inc
---exec ls "$MYSQLD_DATADIR/#binlog_temp_files" | grep -c '^bolt_' | xargs printf -- '--let \044temp_files = %s\n' > $temp_inc
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
+--exec ls "$BOLT_TEMP_DIR" | grep -c '^bolt_' | xargs printf -- '--let \044temp_files = %s\n' > $temp_inc
 --source $temp_inc
 --remove_file $temp_inc
 --let $assert_text = R4: no bolt_ temp file is left.

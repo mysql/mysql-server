@@ -76,12 +76,14 @@ bool real_open_cached_file(IO_CACHE *cache) {
   char name_buff[FN_REFLEN];
   int error = 1;
   DBUG_TRACE;
-  if ((cache->file = mysql_file_create_temp(
-           cache->file_key, name_buff, cache->dir, cache->prefix,
-           (O_RDWR | O_TRUNC), cache->named_file ? KEEP_FILE : UNLINK_FILE,
-           MYF(MY_WME))) >= 0) {
+  if ((cache->file =
+           cache->named_file_creator != nullptr
+               ? cache->named_file_creator(cache, name_buff)
+               : mysql_file_create_temp(cache->file_key, name_buff, cache->dir,
+                                        cache->prefix, (O_RDWR | O_TRUNC),
+                                        UNLINK_FILE, MYF(MY_WME))) >= 0) {
     error = 0;
-    if (cache->named_file &&
+    if (cache->named_file_creator != nullptr &&
         (cache->file_name = my_strdup(key_memory_IO_CACHE, name_buff,
                                       MYF(MY_WME))) == nullptr) {
       (void)mysql_file_close(cache->file, MYF(0));

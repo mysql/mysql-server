@@ -1,14 +1,28 @@
-Created 3 managed BOLT spill files
+# R1, R2: only the server's own spill files are removed.
 # restart
-Startup cleanup removed all managed BOLT spill files
-# Remove a pre-rename mkstemp name containing upper case.
+Entries in the server's directory:
+Entries in the other server's directory:
+bolt_0123456789abcdef_0
+# R3: entries the server did not create are left in place.
 # restart
-Startup cleanup removed the pre-rename mkstemp files
-# Reject a symbolic link for #binlog_temp_files.
-# restart
-# Reject an unrecognized regular entry.
-# restart
-# Reject a symbolic-link entry, even with a managed file name.
-# restart
-# Reject a nested directory, even with a managed file name.
-# restart
+Entries in the server's directory:
+bolt_1111
+bolt_2222
+not_a_managed_bolt_file
+include/assert_grep.inc [A warning is logged for each skipped entry.]
+# R4: a symbolic link for the directory turns the optimization OFF.
+# restart: --binlog-large-transaction-optimization-enabled=ON
+include/assert.inc [R4: the server starts with the optimization OFF.]
+include/assert_grep.inc [R4: the reason is logged as an error.]
+include/assert_grep.inc [R4: turning the optimization OFF is logged as an error.]
+# R5: with the optimization disabled, the same directory is a warning.
+# restart: --binlog-large-transaction-optimization-enabled=OFF
+include/assert_grep.inc [R5: the reason is logged as a warning.]
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+ERROR 42000: Variable 'binlog_large_transaction_optimization_enabled' can't be set to the value of 'ON'
+include/assert.inc [R5: the optimization stays disabled.]
+include/assert_grep.inc [R5: enabling the optimization later is logged as an error.]
+# restart:
+# R6: a leftover spill file that cannot be deleted is left in place.
+# restart:
+include/assert_grep.inc [R6: the undeleted file is logged as a warning.]

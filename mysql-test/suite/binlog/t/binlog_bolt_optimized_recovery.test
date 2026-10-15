@@ -1,19 +1,27 @@
 # BOLT stands for Binary-log Optimization for Large Transactions.
 #
 # === Purpose ===
-# Verify BOLT recovery logs the optimized seek and rejects a truncated
-# promoted binary log with an invalid Large_transaction_header.
+# Verify BOLT recovery logs the optimized seek, and that a header that does not
+# describe the transaction's terminating event is ignored.
 #
 # === Requirements ===
 # R1. Recovery logs the optimized large-transaction seek after promotion.
 # R2. A BOLT transaction survives normal restart recovery.
-# R3. A corrupt LTH event causes the server to crash during recovery.
+# R3. When the LTH event's terminating event is missing (the file was
+#     truncated), recovery ignores the header, reads the transaction
+#     sequentially as without the optimization, and the server starts.
+# R4. With source_verify_checksum ON, recovery reads a BOLT transaction
+#     sequentially, so the checksum of every event in its body is verified,
+#     and logs why the optimized recovery was not used.
 #
 # === Implementation ===
 # 1. Initialize BOLT and a clean test table.
 # 2. Commit a qualifying transaction and restart to inspect recovery logging.
 # 3. Stop the server, truncate the promoted file at a fixed 1 MiB offset,
-#    and verify standalone recovery fails with the invalid-LTH diagnostic.
+#    restart, and verify the warning and the sequential recovery.
+# 4. Commit a qualifying transaction, restart with source_verify_checksum ON,
+#    and verify the note, that no seek is logged, and that the transaction
+#    survives.
 #
 --source include/not_windows.inc
 --source include/have_log_bin.inc
@@ -23,11 +31,10 @@
 --let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
 --let $save_max_binlog_size = query_get_value(SELECT @@GLOBAL.max_binlog_size, @@GLOBAL.max_binlog_size, 1)
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
---let $BOLT_BACKUP = $MYSQLTEST_VARDIR/tmp/bolt_lth_backup
---let $BOLT_FAILURE_LOG = $MYSQLTEST_VARDIR/tmp/bolt_invalid_lth.err
 
 # Setup
 --disable_query_log
+CALL mtr.add_suppression("Ignored a large transaction header in binary log file");
 DROP TABLE IF EXISTS t1;
 --enable_query_log
 RESET BINARY LOGS AND GTIDS;
@@ -72,9 +79,9 @@ COMMIT;
 --source include/assert.inc
 
 ############################################################################
-# Case 2: Try to recover a file with corrupt LTH
-# We simulate a corrupt LTH by manually truncating the XID event,
-# so the LTH points to a position that doesn't exist.
+# Case 2: Recover a file whose LTH does not describe its terminating event.
+# We simulate it by truncating the file before the XID event, so the LTH
+# points to a position that doesn't exist.
 ############################################################################
 --let $binlog_file_before_corruption = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo # Commit a second qualifying transaction for corrupt-LTH recovery.
@@ -89,22 +96,62 @@ COMMIT;
 --let $assert_cond = "$corrupt_file" != "$binlog_file_before_corruption"
 --source include/assert.inc
 
---echo # Truncate the active promoted file and reject the invalid LTH.
+--echo # Truncate the active promoted file; recovery ignores the header.
 --source include/kill_mysqld.inc
 --let BOLT_BINLOG = $MYSQLD_DATADIR/$corrupt_file
---exec cp $BOLT_BINLOG $BOLT_BACKUP
 --exec truncate -s 1048576 $BOLT_BINLOG
---error 1
---exec $MYSQLD_CMD --loose-console > $BOLT_FAILURE_LOG 2>&1
---let SEARCH_FILE = $BOLT_FAILURE_LOG
---let SEARCH_PATTERN = contains an invalid large transaction header
---source include/search_pattern.inc
-
---exec cp $BOLT_BACKUP $BOLT_BINLOG
---remove_file $BOLT_BACKUP
---remove_file $BOLT_FAILURE_LOG
 --let $restart_parameters = restart
 --source include/start_mysqld.inc
+--let $assert_text = Recovery ignores the header and reads the transaction sequentially.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Ignored a large transaction header in binary log file .* that does not describe the transaction's terminating event
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = Recovery trims the incomplete transaction from the file, as without the header.
+--let $assert_select = Binlog trimmed to
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+############################################################################
+# Case 3: Recover a BOLT transaction with source_verify_checksum ON.
+# Expected behavior: the transaction is read sequentially and commits.
+############################################################################
+--echo # Commit a third qualifying transaction for recovery with checksum verification.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL max_binlog_size = 1073741824;
+--let $binlog_file_before_verify = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+BEGIN;
+INSERT INTO t1 VALUES (7, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (8, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (9, REPEAT('i', 4000000));
+COMMIT;
+--let $verify_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = The third transaction's spilled file was promoted into a new binary log file.
+--let $assert_cond = "$verify_file" != "$binlog_file_before_verify"
+--source include/assert.inc
+
+--let $gtid_executed_before_verify = `SELECT @@GLOBAL.gtid_executed`
+--let $restart_parameters = restart: --source-verify-checksum=ON
+--source include/kill_and_restart_mysqld.inc
+
+--let $assert_text = R4: recovery logs that source_verify_checksum disabled the optimized recovery.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Could not optimize binlog recovery of a large transaction because source_verify_checksum is enabled
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R4: recovery does not seek past the body; only case 1 logged a seek.
+--let $assert_select = Optimized binlog recovery by avoiding a sequential read of a large transaction body
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R4: the BOLT transaction survives recovery.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id >= 7, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = R4: GTID reconstruction reads the transaction sequentially and finds its GTID.
+--let $assert_cond = "[SELECT @@GLOBAL.gtid_executed]" = "$gtid_executed_before_verify"
+--source include/assert.inc
+--let $restart_parameters = restart
+--source include/restart_mysqld.inc
 
 # Cleanup
 DROP TABLE t1;

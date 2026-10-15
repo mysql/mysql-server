@@ -17,7 +17,7 @@ SET GLOBAL binlog_checksum = CRC32;
 SET @@GLOBAL.DEBUG = '+d,group_replication_version_with_vcle';
 # R1: pause a BOLT commit on server1, then let server2 join.
 [connection server1]
-SET DEBUG_SYNC = 'bolt_before_promotion_lock_log SIGNAL bolt_paused WAIT_FOR bolt_go';
+SET DEBUG_SYNC = 'bgc_before_flush_stage SIGNAL bolt_paused WAIT_FOR bolt_go';
 COMMIT;
 [connection server_1]
 SET DEBUG_SYNC = 'now WAIT_FOR bolt_paused';

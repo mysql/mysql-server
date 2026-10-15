@@ -519,11 +519,9 @@ THD *Commit_stage_manager::fetch_queue_acquire_lock(StageID stage) {
   if (stage != BINLOG_FLUSH_STAGE)
     return m_queue[stage].fetch_and_empty_acquire_lock();
   /* For the binlog large transaction optimization (BOLT): a fetch of the
-     flush queue must hand the next group to a waiting large transaction,
-     under the same lock hold (see assign_next_flush_leader()). This runs
-     even with BOLT disabled, because BOLT can be disabled while a large
-     transaction waits. Skipping it then would leave that transaction
-     waiting forever, never committed. */
+     flush queue makes a waiting BOLT session the leader of the next group,
+     under the flush queue lock. The hand-off runs even with BOLT disabled,
+     because BOLT can be disabled while a BOLT session waits. */
   lock_queue(stage);
   THD *queue = fetch_queue_skip_acquire_lock(stage);
   unlock_queue(stage);

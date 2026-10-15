@@ -1,0 +1,2 @@
+--max-allowed-packet=1073741824
+--binlog-transaction-compression=OFF

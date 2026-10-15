@@ -1,0 +1,66 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify that recovery finds the terminating event of a BOLT transaction
+# that begins beyond 4 GiB in the binary log file. An event's end_log_pos is
+# a 4-byte field, so recovery must not derive the offset from it.
+#
+# === Requirements ===
+# R1. Crash recovery seeks to a terminating event beyond 4 GiB.
+# R2. The BOLT transaction survives recovery.
+#
+# === Implementation ===
+# 1. Commit one transaction of more than 4 GiB, which is promoted.
+# 2. Crash before the rotation that follows it (max_binlog_size), so the
+#    promoted file is the last binary log file, then restart.
+# 3. Verify the recovery log line, the offset in it, and the transaction.
+#
+--source include/big_test.inc
+--source include/not_windows.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $save_threshold = `SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold`
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (f1 LONGTEXT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (REPEAT('a', 1073741824 / 2));
+CREATE TABLE t2 LIKE t1;
+
+--echo # Commit a BOLT transaction of more than 4 GiB and crash before the
+--echo # rotation that follows it.
+--source include/expect_crash.inc
+SET SESSION DEBUG = "+d,crash_bolt_before_max_size_rotate";
+--error CR_SERVER_LOST
+INSERT INTO t2 SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT
+f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL
+SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION
+ALL SELECT f1 FROM t1;
+--source include/start_mysqld.inc
+
+--echo # R1: recovery seeks to the terminating event, beyond 4 GiB.
+--let $assert_text = Recovery seeks to the terminating event of the transaction.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset [0-9]{10,}
+--let $assert_count = 1
+--source include/assert_grep.inc
+# binlog.000002 holds the promoted setup insert, binlog.000003 the large
+# transaction; the restart opened binlog.000004.
+--let $promoted_file = query_get_value(SHOW BINARY LOGS, Log_name, 3)
+--let $promoted_size = query_get_value(SHOW BINARY LOGS, File_size, 3)
+--let $assert_text = The large transaction's spilled file was promoted into a file of more than 4 GiB.
+--let $assert_cond = "$promoted_file" = "binlog.000003" AND $promoted_size > 1 << 32
+--source include/assert.inc
+
+--echo # R2: the transaction survives recovery.
+--let $assert_text = All rows of the BOLT transaction are committed.
+--let $assert_cond = [SELECT COUNT(*) AS c FROM t2, c, 1] = 9
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1, t2;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--enable_query_log
+RESET BINARY LOGS AND GTIDS;

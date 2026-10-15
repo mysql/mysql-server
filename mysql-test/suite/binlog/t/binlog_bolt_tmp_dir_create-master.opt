@@ -1,0 +1,2 @@
+--binlog-large-transaction-optimization-enabled=OFF
+--binlog-transaction-compression=OFF

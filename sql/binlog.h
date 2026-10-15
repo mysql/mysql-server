@@ -312,8 +312,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
                                    bool parallelization_barrier);
 
   /**
-    Reopens the active binary log file, after promote_spilled_file()
-    renamed the spilled file to replace it, positioned at its end.
+    Reopens the active binary log file after promote_spilled_file() renamed
+    the spilled file to the new binary log file's name. The new handle is
+    positioned at the file's end. On failure, the current handle stays open.
 
     @retval false  Success.
     @retval true   Error.
@@ -1141,14 +1142,16 @@ struct LOAD_FILE_INFO {
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 
 /**
-  Return the lock-free reservation based on the most recently serialized
-  Previous_gtids event size.
+  Return the size of the header region a transaction reserves at the front of
+  its binlog cache file, set from the active binary log's header.
 */
-my_off_t get_binlog_temp_file_reserved_bytes();
+my_off_t get_binlog_cache_reserved_bytes();
 
-/** Publish a newly serialized Previous_gtids event size for cache opens. */
-void update_binlog_temp_file_previous_gtids_size_estimate(
-    my_off_t previous_gtids_size);
+/**
+  Set the binlog cache reservation from the length of the active binary log
+  file's header: the events written before its first transaction.
+*/
+void set_binlog_cache_reserved_bytes(my_off_t header_length);
 
 /**
   Check if the the transaction is empty.

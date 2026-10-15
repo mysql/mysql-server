@@ -201,9 +201,6 @@ DROP TABLE t1;
 
 --echo # remove tmpdir
 --remove_files_wildcard $tmpdir *
-# The server creates #binlog_temp_files (binary log large transaction
-# optimization) next to the binary logs it was given.
---rmdir $tmpdir/#binlog_temp_files
 --rmdir $tmpdir
 
 --echo # restarted with previous slave settings

@@ -1,3 +1,26 @@
+// Copyright (c) 2009, 2026, Oracle and/or its affiliates.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version 2.0,
+// as published by the Free Software Foundation.
+//
+// This program is designed to work with certain software (including
+// but not limited to OpenSSL) that is licensed under separate terms,
+// as designated in a particular file or component or in included license
+// documentation.  The authors of MySQL hereby grant you an additional
+// permission to link the program and your derivative works with the
+// separately licensed software that they have either included with
+// the program or referenced in the documentation.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License, version 2.0, for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
+
 /**
   @file
   @brief Lifecycle and bookkeeping for the per-session binary log caches: the
@@ -6,7 +29,7 @@
 */
 
 #include "sql/binlog/cache_data.h"
-#include "sql/binlog.h"              // get_binlog_temp_file_reserved_bytes
+#include "sql/binlog.h"              // get_binlog_cache_reserved_bytes
 #include "sql/mysqld.h"              // opt_binlog_large_transaction_*
 #include "sql/rpl_log_encryption.h"  // rpl_encryption
 #include "sql/sql_class.h"           // THD
@@ -48,7 +71,7 @@ void binlog_cache_data::latch_large_trx_optimization(
   m_cache.plan_large_trx_rewrite(
       static_cast<mysql::binlog::event::enum_binlog_checksum_alg>(
           binlog_checksum_options),
-      get_binlog_temp_file_reserved_bytes());
+      get_binlog_cache_reserved_bytes());
   m_large_trx_optimization_enabled = true;
 }
 
@@ -95,15 +118,21 @@ void binlog_cache_data::cache_state_rollback(my_off_t pos_to_rollback) {
     m_large_trx_optimization_threshold = 0;
     m_terminating_event_offset = 0;
     m_terminating_event_type = mysql::binlog::event::UNKNOWN_EVENT;
+    m_terminating_event_body.clear();
   }
 }
 
-void binlog_cache_data::reset(bool preserve_spilled_file) {
+void binlog_cache_data::reset(
+    binlog::Spilled_file_on_reset spilled_file_action) {
   compute_statistics();
   remove_pending_event();
 
-  if (m_cache.reset(preserve_spilled_file)) {
-    LogErr(WARNING_LEVEL, ER_BINLOG_CANT_RESIZE_CACHE);
+  if (m_cache.reset(spilled_file_action)) {
+    /* A cache still in binlog file form could not be replaced. */
+    if (m_cache.is_large_trx_rewritten())
+      LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_CACHE_STANDARD_FORM_RESTORE_FAILED);
+    else
+      LogErr(WARNING_LEVEL, ER_BINLOG_CANT_RESIZE_CACHE);
   }
 
   flags.with_xid = false;
@@ -132,6 +161,7 @@ void binlog_cache_data::reset(bool preserve_spilled_file) {
   m_large_trx_optimization_threshold = 0;
   m_terminating_event_offset = 0;
   m_terminating_event_type = mysql::binlog::event::UNKNOWN_EVENT;
+  m_terminating_event_body.clear();
   m_compressed_size = 0;
   m_decompressed_size = 0;
   m_compression_type = mysql::binlog::event::compression::NONE;
@@ -168,16 +198,24 @@ void binlog_cache_data::truncate(my_off_t pos) {
     rewritten cache truncate in O(1). Offset 0 has no map entry and no
     preceding events. Anything else uses the scanning truncate.
 
-    The truncation can fail, for example on a read error while scanning. A
-    failed truncation would leave rolled-back events in the cache, so it
-    records an incident: the transaction then commits through the standard
-    path, which writes an incident event and rotates, instead of logging
-    changes the engine rolled back.
+    A failed truncation would leave rolled-back events in the cache. So this
+    function records an incident. The transaction then commits through the
+    standard path, which writes an incident event and rotates.
   */
   bool error = false;
   if (pos == 0) {
     if (m_cache.is_large_trx_rewritten() || m_cache.is_spilled()) {
-      error = m_cache.reset(false /*preserve_spilled_file*/);
+      error = m_cache.reset(binlog::Spilled_file_on_reset::kDelete);
+      /*
+        A rewritten cache that could not be replaced is not an incident: the
+        next event retries the replacement, and fails if the retry fails, so
+        no rolled back change can reach the binary log from the old cache.
+      */
+      if (error && m_cache.is_large_trx_rewritten()) {
+        LogErr(WARNING_LEVEL,
+               ER_BINLOG_BOLT_CACHE_STANDARD_FORM_RESTORE_FAILED);
+        error = false;
+      }
     } else {
       m_cache.clear_large_trx_rewrite_plan();
       error = m_cache.truncate_at_event_boundary(0, 0);
@@ -219,12 +257,13 @@ void binlog_cache_data::compute_statistics() {
   binlog_trx_cache_data
 */
 
-void binlog_trx_cache_data::reset(bool preserve_spilled_file) {
+void binlog_trx_cache_data::reset(
+    binlog::Spilled_file_on_reset spilled_file_action) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
   m_cannot_rollback = false;
   before_stmt_pos = MY_OFF_T_UNDEF;
-  binlog_cache_data::reset(preserve_spilled_file);
+  binlog_cache_data::reset(spilled_file_action);
   DBUG_PRINT("return", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
   return;
 }

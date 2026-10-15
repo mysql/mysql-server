@@ -41,6 +41,14 @@
 
 namespace binlog {
 
+/** What a reset does with a binlog cache's spilled file. */
+enum class Spilled_file_on_reset {
+  /** Delete the spilled file, as for any binlog cache. */
+  kDelete,
+  /** Keep the spilled file: it was promoted and is now a binary log file. */
+  kKeep,
+};
+
 /**
   @class Binlog_cache_representation
 
@@ -100,14 +108,14 @@ class Binlog_cache_representation : public Truncatable_ostream {
   /**
     Drop all data. Forwarded to IO_CACHE_binlog_cache_storage::reset().
 
-    @param preserve_spilled_file  True when the spilled file was promoted into
-                                  the binary log sequence: it is closed but not
-                                  deleted.
+    @param spilled_file_action  kKeep when the spilled file was promoted to a
+                                binary log file: the spilled file is closed
+                                but not deleted.
 
     @retval false  Success.
     @retval true   Error.
   */
-  virtual bool reset(bool preserve_spilled_file) = 0;
+  virtual bool reset(Spilled_file_on_reset spilled_file_action) = 0;
   /** @return The number of writes to the temporary file. */
   virtual size_t disk_writes() const = 0;
   /** @return The bytes reserved at the front of the temporary file. */
@@ -229,9 +237,8 @@ create_checksumless_cache_representation(const char *dir, const char *prefix,
   Rewrite a standard form cache into a new representation in binlog file
   form: a named bolt_ temp file with reserved_bytes reserved at the front for
   the header events, real log_pos values, and a CRC footer per event when
-  checksum_alg is CRC32. The source cache is not modified; when it has not
-  spilled (the rewrite at the first spill), it is read from memory, without
-  flushing it.
+  checksum_alg is CRC32. The source cache is not modified. A source cache
+  that has not spilled is read from memory without being flushed.
 
   The source cache may end inside an event, whose remaining bytes are still to
   be written in the standard form: the new representation rewrites the bytes

@@ -70,6 +70,10 @@ Rollback points (savepoints and the implicit rollback point of each statement) a
 2. Any other truncation target: the cache is scanned from the start, event header by event header, to find the stored position. No current caller needs this; it is kept as a fallback.
 3. Rolling back to position 0 (the first statement fails): the cache is reset to a fresh, empty cache in the standard form, and the transaction's BOLT state is cleared.
 
+### 2.5 The binlog cache size limit
+
+`max_binlog_cache_size` limits the bytes the transaction's binlog cache stores, with and without BOLT. A rewritten cache stores each event with its footer, so with CRC32 the footers count against the limit, 4 bytes for each event. A transaction of many small events can therefore reach the limit with fewer events with BOLT ON than with BOLT OFF. This also applies when the spilled file is not promoted, because the rewrite happens at the first spill. The reserved header region at the front of the temp file does not count against the limit. With `binlog_checksum=NONE`, a rewritten cache stores the same bytes as a cache in the standard form.
+
 ## 3. Low-level design
 
 This section describes the code paths of the checksumless cache: how a transaction's cache is written, rewritten, committed, and rolled back, for a large transaction that is promoted (3.1), a small one (3.2), a large one that is not promoted (3.3), and rollback points (3.4 to 3.6).

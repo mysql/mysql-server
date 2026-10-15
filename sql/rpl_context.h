@@ -401,13 +401,12 @@ class Binlog_group_commit_ctx {
   }
   bool must_lead_flush_group() const { return m_must_lead_flush_group; }
 
-  /// This session's flag: whether this BOLT session has been made the
-  /// leader of the next flush group. The leader of the current flush group
-  /// sets the flag after it fetches the flush queue and appends this BOLT
-  /// session to the emptied queue. The leader sets it while holding the
-  /// flush queue lock. This BOLT session reads the flag while it waits in
-  /// Commit_stage_manager::append_to(), and clears it when it wakes up. The
-  /// flag is also cleared by reset().
+  /// Whether this BOLT session has been made the leader of the next flush
+  /// group. Under the flush queue lock, the current group's leader fetches
+  /// the queue, appends this BOLT session to the emptied queue and sets the
+  /// flag. This BOLT session waits for the flag in
+  /// Commit_stage_manager::append_to() and clears the flag on wake-up.
+  /// reset() also clears the flag.
   void set_assigned_flush_leader(bool value) {
     m_assigned_flush_leader = value;
   }

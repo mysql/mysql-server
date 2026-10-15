@@ -21,4 +21,27 @@ include/assert.inc [R3: the ignored failure still commits all rows.]
 # restart
 include/assert_grep.inc [R3: the ignored failure writes no row events to the binary log.]
 include/assert_grep.inc [R3: the ignored failure writes no transaction to the binary log.]
+# R4: the same failure with a second member in the flush group.
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+SET SESSION DEBUG = "+d,fail_bolt_promoted_file_reopen";
+SET DEBUG_SYNC = 'waiting_in_the_middle_of_flush_stage SIGNAL bolt_leading WAIT_FOR member_enrolled';
+COMMIT;
+SET DEBUG_SYNC = 'now WAIT_FOR bolt_leading';
+SET SESSION binlog_transaction_compression = OFF;
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_flush_stage SIGNAL member_enrolled';
+INSERT INTO t1 VALUES (4, 'member');
+SET SESSION DEBUG = "-d,fail_bolt_promoted_file_reopen";
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+include/assert.inc [R4: both transactions commit in the engine.]
+# restart
+# R5: a directory sync failure after the rename with IGNORE_ERROR keeps the commit and stops logging.
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+include/assert.inc [R5: the ignored failure still commits all rows.]
+# R5: binary logging is turned off.
+SHOW BINARY LOGS;
+ERROR HY000: You are not using binary logging
+# restart
+include/assert_grep.inc [R5: the ignored failure writes no row events to the binary log.]
+include/assert_grep.inc [R5: the ignored failure writes no transaction to the binary log.]
 DROP TABLE t1;

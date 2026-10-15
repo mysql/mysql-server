@@ -28,7 +28,8 @@
 #include <cassert>
 #include <memory>
 #include <string>
-#include "my_io.h"  // FN_REFLEN
+#include "my_io.h"              // FN_REFLEN
+#include "mysql/my_loglevel.h"  // loglevel
 #include "sql/basic_ostream.h"
 #include "sql/binlog/cache_representation.h"
 #include "sql/rpl_log_encryption.h"
@@ -103,11 +104,13 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   /* binlog cache doesn't need seek operation. Setting true to return error */
   bool seek(my_off_t offset [[maybe_unused]]) override { return true; }
   /**
-     Reset status and drop all data. When preserve_spilled_file is true, the
-     caller has promoted the spilled file and reset closes the cache without
-     deleting that file.
+     Reset status and drop all data. A cache with a named spill file is
+     closed instead, and is not usable afterwards: the caller replaces it.
+     With kKeep, the caller has promoted the spilled file, and closing the
+     cache does not delete that file.
   */
-  bool reset(bool preserve_spilled_file = false);
+  bool reset(binlog::Spilled_file_on_reset spilled_file_action =
+                 binlog::Spilled_file_on_reset::kDelete);
   /**
      Returns the file name if a temporary file is opened, otherwise nullptr is
      returned.
@@ -170,35 +173,36 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   */
   bool flush_and_sync_spilled_file();
   /**
-     Selects whether the next lazily-created spill file is a named file (kept
-     in the filesystem namespace, and therefore promotable) or an anonymous
-     file. Set per transaction, before the first spill.
+     Makes the next lazily-created spill file a named file, kept in the
+     filesystem namespace and therefore promotable, instead of an anonymous
+     file. Called per transaction, before the first spill.
   */
-  void set_named_file(bool named) { m_io_cache.named_file = named; }
+  void set_named_file();
 
   /**
-    True if writing length bytes would make the cache spill for the first
-    time: it has not spilled and length is more than the free part of the
-    in-memory buffer. my_b_write() copies without flushing as long as the
-    data fits up to write_end, so filling the buffer exactly does not spill.
-    Only a transaction that planned a rewrite into binlog file form calls it.
+    True if writing length bytes would be the cache's first write to its file
+    since its last reset, because length is more than the free part of the
+    in-memory buffer. An open file does not count, because a reset truncates
+    the file and keeps it open.
   */
   bool write_would_spill(my_off_t length) const;
 
  private:
-  /** Rename a newly spilled generic cache file to a managed bolt_ name. */
-  bool rename_spilled_file();
-
+  /**
+     A named spill file may have been promoted to a real binary log file, and
+     the cache keeps its descriptor across the promotion. Truncating through
+     that descriptor would empty the promoted file, so the cache is closed
+     instead. The cache is not opened again, because only a rewritten cache
+     has a named file, and Binlog_cache_storage::reset() replaces the
+     rewritten cache. With kKeep, the binary log already holds the promoted
+     file through its own descriptor, and the cache only drops the file's
+     name, so closing the cache does not delete the file. With kDelete,
+     closing the cache deletes the file.
+  */
+  void release_named_file(binlog::Spilled_file_on_reset spilled_file_action);
   IO_CACHE m_io_cache;
   my_off_t m_max_cache_size = 0;
   my_off_t m_reserved_bytes = 0;
-  /* True after the lazily-created spill file has a generated bolt_ name. */
-  bool m_spilled_file_is_managed = false;
-  /* The open() arguments, kept for re-opening after reset. */
-  const char *m_dir = nullptr;
-  const char *m_prefix = nullptr;
-  my_off_t m_cache_size = 0;
-  my_off_t m_max_cache_size_arg = 0;
   /**
     Enable IO Cache temporary file encryption.
 
@@ -261,11 +265,18 @@ class Binlog_cache_storage : public Basic_ostream {
   bool truncate_at_event_boundary(my_off_t offset, size_t events_before_offset);
 
   /**
-     Reset status and drop all data. When preserve_spilled_file is true, the
-     cache closes without deleting a file the binlog large transaction
-     optimization has already promoted.
+     Reset status and drop all data. With kKeep, the cache closes without
+     deleting a file the binlog large transaction optimization has already
+     promoted. A cache rewritten into binlog file form is replaced by a new
+     one in the standard form.
+
+     @retval false  Success.
+     @retval true   Error. When the cache is still in binlog file form
+                    afterwards, the replacement failed: no error was raised in
+                    the session, and restore_standard_form() retries it.
   */
-  bool reset(bool preserve_spilled_file = false);
+  bool reset(binlog::Spilled_file_on_reset spilled_file_action =
+                 binlog::Spilled_file_on_reset::kDelete);
   /**
      Returns the count of disk writes
   */
@@ -306,6 +317,18 @@ class Binlog_cache_storage : public Basic_ostream {
     reset().
   */
   bool large_trx_rewrite_failed() const { return m_large_trx_rewrite_failed; }
+  /**
+    Puts a cache that is still in binlog file form back in the standard form.
+    That happens only when reset() could not replace a rewritten cache. A new
+    transaction must not write into the old rewritten representation, so
+    binlog_cache_data::write_event() calls this at each transaction's first
+    event. It does nothing when the cache is in the standard form.
+
+    @retval false  The cache is in the standard form.
+    @retval true   The replacement failed, and an error was raised in the
+                   session. The write must fail.
+  */
+  [[nodiscard]] bool restore_standard_form();
   /** Footer bytes per event in the physical form (4 with CRC32, else 0). */
   my_off_t footer_length() const {
     return physical_events_have_checksum() ? BINLOG_CHECKSUM_LEN : 0;
@@ -456,72 +479,100 @@ class Binlog_encryption_ostream : public Truncatable_ostream {
   std::unique_ptr<Stream_cipher> m_encryptor;
 };
 
-// Directory where the temp binlog files (spilled from cache), live.
-// This directory lives in the binlog directory.
+// Directory where the temp binlog files (spilled from cache) live, in a
+// subdirectory named after the binary log's base name. This directory lives
+// in the binlog directory.
 inline constexpr const char *kBinlogTempFilesDirName = "#binlog_temp_files";
 
 // Allocation quantum for the header reservation at the beginning of every
 // binlog temp file.
 inline constexpr my_off_t kBinlogTempFileReservedBytes = 64 * 1024;
 
-// Minimum space left after the Previous_gtids payload in a temp-file header.
-inline constexpr my_off_t kBinlogTempFilePreviousGtidsHeadroomBytes = 32 * 1024;
+// Minimum space left after the binary log header in a temp-file header region.
+inline constexpr my_off_t kBinlogTempFileHeaderHeadroomBytes = 32 * 1024;
 
-// Managed large-transaction spill files are named
-// bolt_<server-start time>_<serial> (both hex), which is unique within a
-// server run and lets startup cleanup recognize only files created by this
-// feature.
+// The spill files of binlog caches rewritten into binlog file form are named
+// bolt_<server-start time>_<serial> (both hex), which is unique within a server
+// run and lets startup cleanup recognize only files created by the binary log
+// cache.
 inline constexpr char kBinlogTempFilePrefix[] = "bolt_";
 
 /**
-  Returns true if 'name' is a binary log cache spill file, i.e. matches the
-  bolt_<id> pattern that IO_CACHE_binlog_cache_storage gives its spill files.
+  Returns true if 'name' is the name of a BOLT spill file, that is, it matches
+  the bolt_<id> pattern.
 
-  A true result does NOT mean the file was, or will be, promoted into the
-  binary log sequence. Every binlog cache spill file uses this name, including
-  transactions that commit through the standard path (below the threshold,
-  encrypted, compressed, and so on). This is purely an ownership check, so that
-  startup cleanup of \#binlog_temp_files only deletes files the binary log cache
-  created.
-
-  Declared here, rather than kept local to binlog_ostream.cc, so a unit test can
-  exercise the whole name space cheaply. Getting this predicate wrong is
-  expensive: a name it wrongly rejects becomes an "unsafe entry" that aborts
-  startup, which is how the missing A-Z range in the original character class
-  behaved, since mkstemp() also produces upper case.
+  A true result does NOT mean the file was, or will be, promoted to a binary
+  log file: a transaction whose cache was rewritten may still fall back to
+  the standard commit path. This is purely an ownership check, so that
+  startup cleanup of \#binlog_temp_files only deletes files with BOLT's name
+  pattern.
 
   @param name  Base name of a directory entry, without any directory part.
 
-  @retval true   The binary log cache created this file.
-  @retval false  It did not, so cleanup must leave the file alone.
+  @retval true   The name matches BOLT's spill file pattern.
+  @retval false  It does not, so cleanup must leave the file alone.
 */
 bool is_bolt_temp_file(const char *name);
 
+/**
+  The directory of the spilled files that the binary log large
+  transaction optimization (BOLT) may promote. The directory exists once the
+  optimization is enabled, and is never removed: a transaction that started
+  with the optimization enabled may still write to its spilled file after
+  the optimization is disabled.
+*/
 class Binlog_temp_files_dir {
  public:
   /**
-     Init directory at server startup.
+    At server startup, with the binary log on: computes the directory's path
+    and, if the directory exists, deletes the files a previous run left in it.
+    Does not create it (see create()).
 
-     @param log_basename  The log basename; the directory is created in
-                          its directory part
+    @param log_basename  The log basename; the directory is
+                         <directory part>/#binlog_temp_files/<base name>
+    @param level         The level a failure is logged at: an error when the
+                         optimization is enabled, otherwise a warning.
 
-     @retval false  Success.
-     @retval true   Failure; an error has been logged.
+    @retval false  Success.
+    @retval true   Failure; the reason has been logged at level.
   */
-  bool init(const char *log_basename);
+  bool init(const char *log_basename, loglevel level);
 
-  // @return full path of the directory.
+  /**
+    Creates the directory if it does not exist. The server calls create() at
+    startup when the optimization is enabled. The server also calls create()
+    when binlog_large_transaction_optimization_enabled is set to ON.
+    Concurrent calls are safe.
+
+    When the binary log is off, init() is never called. Then create() does
+    nothing and returns false. When init() failed, create() returns true.
+    Then the optimization cannot be enabled without the directory.
+
+    @retval false  Success.
+    @retval true   Failure; an error has been logged.
+  */
+  bool create();
+
+  /** @return The full path of the directory. */
   const char *path() const {
     assert(m_initialized);
     return m_path;
   }
 
  private:
+  /** <binlog directory>/#binlog_temp_files, shared by servers. */
+  char m_parent[FN_REFLEN];
+  /** <binlog directory>/#binlog_temp_files/<binlog base name>. */
   char m_path[FN_REFLEN];
+  /** @see init() */
   bool m_initialized{false};
+  /** Set when init() failed. @see create() */
+  bool m_init_failed{false};
+  /** The log basename init() was called with. */
+  const char *m_log_basename{nullptr};
 };
 
-// The binary log's temp files directory (#binlog_temp_files).
+// The binary log's temp files directory (#binlog_temp_files/<base name>).
 extern Binlog_temp_files_dir binlog_temp_files_dir;
 
 #endif  // BINLOG_OSTREAM_INCLUDED
