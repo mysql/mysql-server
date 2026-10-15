@@ -438,7 +438,7 @@ DEFINE_METHOD(int, mysql_udt_registration_imp::unregister_method,
   mysql_rwlock_wrlock(&THR_LOCK_udt);
 
   // FIXME: lifecycle, may be in use
-  udt_function_hash->erase(key);
+  udt_method_hash->erase(key);
 
   mysql_rwlock_unlock(&THR_LOCK_udt);
 
