@@ -1005,6 +1005,10 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
     case Item_func::IN_FUNC: {
       Item *predicand = cond_func->key_item();
       if (!predicand) return nullptr;
+      // Skip outer references, like in the BETWEEN and default cases.
+      if (predicand->type() != Item::ROW_ITEM &&
+          predicand->is_outer_reference())
+        return nullptr;
       predicand = predicand->real_item();
       if (predicand->type() != Item::FIELD_ITEM &&
           predicand->type() != Item::ROW_ITEM)

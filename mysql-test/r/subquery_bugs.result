@@ -2704,3 +2704,85 @@ a	b
 2	2
 DEALLOCATE PREPARE bug38249983_stmt;
 DROP TABLE t1;
+#
+# Crash in get_full_func_mm_tree() for a correlated subquery in HAVING
+# when the subquery uses dynamic range access and the outer query block
+# is aggregated through a temporary table
+#
+CREATE TABLE t1 (id INT PRIMARY KEY, name VARCHAR(10));
+CREATE TABLE t2 (id INT PRIMARY KEY, a INT, b INT, KEY(a), KEY(b));
+INSERT INTO t1 VALUES (1, 'one'), (2, 'two'), (3, 'three'), (4, 'four');
+INSERT INTO t2
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 40)
+SELECT n, n % 4 + 1, IF(n % 3 = 0, NULL, (n + 1) % 4 + 1) FROM seq;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+# The subquery must be planned with dynamic range access
+# ("re-planned for each iteration") to reproduce the problem.
+EXPLAIN FORMAT=TREE SELECT t1.name, COUNT(*) AS c
+FROM t1 JOIN t2 ON t2.a = t1.id OR t2.b = t1.id
+GROUP BY t1.id, t1.name
+HAVING COUNT(*) = (SELECT COUNT(*) FROM t2 AS s WHERE s.a = t1.id OR s.b = t1.id);
+EXPLAIN
+-> Filter: (count(0) = (select #2))
+    -> Table scan on <temporary>
+        -> Aggregate using temporary table
+            -> Nested loop inner join  (...)
+                -> Table scan on t1  (...)
+                -> Filter: ((t2.a = t1.id) or (t2.b = t1.id))  (...)
+                    -> Index range scan on t2 (re-planned for each iteration)  (...)
+    -> Select #2 (subquery in condition; dependent)
+        -> Aggregate: count(0)  (...)
+            -> Filter: ((s.a = t1.id) or (s.b = t1.id))  (...)
+                -> Index range scan on s (re-planned for each iteration)  (...)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.id' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,count(0) AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`id`) or (`test`.`t2`.`b` = `test`.`t1`.`id`)) group by `test`.`t1`.`id`,`test`.`t1`.`name` having (count(0) = (/* select#2 */ select count(0) from `test`.`t2` `s` where ((`s`.`a` = `test`.`t1`.`id`) or (`s`.`b` = `test`.`t1`.`id`))))
+SELECT t1.name, COUNT(*) AS c
+FROM t1 JOIN t2 ON t2.a = t1.id OR t2.b = t1.id
+GROUP BY t1.id, t1.name
+HAVING COUNT(*) = (SELECT COUNT(*) FROM t2 AS s WHERE s.a = t1.id OR s.b = t1.id);
+name	c
+four	17
+one	16
+three	17
+two	17
+# Outer reference as the left operand of IN
+EXPLAIN FORMAT=TREE SELECT t1.name, COUNT(*) AS c
+FROM t1 JOIN t2 ON t2.a = t1.id OR t2.b = t1.id
+GROUP BY t1.id, t1.name
+HAVING COUNT(*) >= (SELECT COUNT(*) FROM t2 AS s
+WHERE (s.a = t1.id OR s.b = t1.id) AND t1.id IN (s.a, s.b));
+EXPLAIN
+-> Filter: (count(0) >= (select #2))
+    -> Table scan on <temporary>
+        -> Aggregate using temporary table
+            -> Nested loop inner join  (...)
+                -> Table scan on t1  (...)
+                -> Filter: ((t2.a = t1.id) or (t2.b = t1.id))  (...)
+                    -> Index range scan on t2 (re-planned for each iteration)  (...)
+    -> Select #2 (subquery in condition; dependent)
+        -> Aggregate: count(0)  (...)
+            -> Filter: (((s.a = t1.id) or (s.b = t1.id)) and (t1.id in (s.a,s.b)))  (...)
+                -> Index range scan on s (re-planned for each iteration)  (...)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.id' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.id' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,count(0) AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`id`) or (`test`.`t2`.`b` = `test`.`t1`.`id`)) group by `test`.`t1`.`id`,`test`.`t1`.`name` having (count(0) >= (/* select#2 */ select count(0) from `test`.`t2` `s` where (((`s`.`a` = `test`.`t1`.`id`) or (`s`.`b` = `test`.`t1`.`id`)) and (`test`.`t1`.`id` in (`s`.`a`,`s`.`b`)))))
+SELECT t1.name, COUNT(*) AS c
+FROM t1 JOIN t2 ON t2.a = t1.id OR t2.b = t1.id
+GROUP BY t1.id, t1.name
+HAVING COUNT(*) >= (SELECT COUNT(*) FROM t2 AS s
+WHERE (s.a = t1.id OR s.b = t1.id) AND t1.id IN (s.a, s.b));
+name	c
+four	17
+one	16
+three	17
+two	17
+DROP TABLE t1, t2;

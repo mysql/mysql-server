@@ -6112,6 +6112,15 @@ bool Item_field::fix_outer_field(THD *thd, Field **base_field,
 
       Item_ref *rf = new Item_ref(context, pitem, field_name);
       if (rf == nullptr) return true;
+      /*
+        rf is itself an outer reference. Without depended_from, its
+        used_tables() is taken from the item in the outer query block's
+        ref_items slot, which becomes a temporary table field once the outer
+        query switches to a tmp table slice. The reference would then look
+        like a column of the subquery's own table 0, e.g. to range analysis
+        done during execution (dynamic range access).
+      */
+      rf->depended_from = last_checked_context->query_block;
       *ref_field = rf;
       *base_field = nullptr;
       *complete = true;
