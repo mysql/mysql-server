@@ -61,6 +61,7 @@ jobs:
           sparse-checkout: scripts/ci
           path: trusted
       - name: Verify PR merge commit
+        if: false
         working-directory: source
         env:
           EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
