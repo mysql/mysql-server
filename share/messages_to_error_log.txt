@@ -13545,6 +13545,9 @@ ER_IB_MSG_MAX_PURGE_LAG_EXCEEDED
 ER_IB_MSG_DML_PURGE_DELAY_STARTED
   eng "InnoDB DML operations are being delayed by %lu microseconds due to purge lag. History list length is %llu, innodb_max_purge_lag=%lu, innodb_max_purge_lag_delay=%lu."
 
+ER_VECTOR_DISTANCE_SIMD_DISPATCH
+  eng "For VECTOR_DISTANCE using %s"
+
 #
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.
 #

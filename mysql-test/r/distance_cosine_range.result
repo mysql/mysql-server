@@ -1,0 +1,17 @@
+#
+# PS-11584: COSINE distance must stay within [0, 2].  v and 3v are
+# parallel (distance 0), v and -3v anti-parallel (distance 2); rounding
+# must not push the result below 0 or above 2, where ACOS(1 - d) is NULL.
+#
+# Parallel: v and 3v.
+SELECT d >= 0 AS ge0, d <= 2 AS le2, ACOS(1 - d) IS NOT NULL AS acos_ok,
+ROUND(d, 6) AS d
+FROM (SELECT DISTANCE(TO_VECTOR('[0.7,0.2,0.9,0.9,0.1,0.4,0.1,0.7,0.5,0.4,0.2,0.1,0.1,0.9,0.9,0.1]'), TO_VECTOR('[2.1,0.6,2.7,2.7,0.3,1.2,0.3,2.1,1.5,1.2,0.6,0.3,0.3,2.7,2.7,0.3]'), 'COSINE') AS d) AS t;
+ge0	le2	acos_ok	d
+1	1	1	0
+# Anti-parallel: v and -3v.
+SELECT d >= 0 AS ge0, d <= 2 AS le2, ACOS(1 - d) IS NOT NULL AS acos_ok,
+ROUND(d, 6) AS d
+FROM (SELECT DISTANCE(TO_VECTOR('[0.7,0.2,0.9,0.9,0.1,0.4,0.1,0.7,0.5,0.4,0.2,0.1,0.1,0.9,0.9,0.1]'), TO_VECTOR('[-2.1,-0.6,-2.7,-2.7,-0.3,-1.2,-0.3,-2.1,-1.5,-1.2,-0.6,-0.3,-0.3,-2.7,-2.7,-0.3]'), 'COSINE') AS d) AS t;
+ge0	le2	acos_ok	d
+1	1	1	2

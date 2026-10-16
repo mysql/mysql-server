@@ -1,0 +1,401 @@
+#
+# Test coverage for vector DISTANCE() function.
+#
+#
+# 0) Prepare playground.
+#
+CREATE TABLE t1 (id INT PRIMARY KEY, v1 VECTOR(1), v2 VECTOR(2));
+INSERT INTO t1 VALUES (0, TO_VECTOR('[0]'), TO_VECTOR('[0, 0]')),
+(1, TO_VECTOR('[1]'), TO_VECTOR('[1, 0]')),
+(2, TO_VECTOR('[1]'), TO_VECTOR('[0, 1]')),
+(3, TO_VECTOR('[2]'), TO_VECTOR('[1, 1]')),
+(4, TO_VECTOR('[2]'), TO_VECTOR('[2, 0]')),
+(98, TO_VECTOR('[1]'), TO_VECTOR('[2]')),
+(99, NULL, NULL);
+CREATE TABLE t_metric_name (id INT PRIMARY KEY, name VARCHAR(10));
+INSERT INTO t_metric_name VALUES (1, "EUCLIDEAN"), (99, NULL);
+#
+# 1) Test how different number and types of arguments are handled.
+#
+# 1.1) Arity.
+#
+SELECT DISTANCE();
+ERROR 42000: Incorrect parameter count in the call to native function 'DISTANCE'
+SELECT DISTANCE(TO_VECTOR("[1]"));
+ERROR 42000: Incorrect parameter count in the call to native function 'DISTANCE'
+SELECT DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[2]"));
+ERROR 42000: Incorrect parameter count in the call to native function 'DISTANCE'
+SELECT DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[2]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[2]"), "EUCLIDEAN")
+1
+SELECT DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[2]"), TO_VECTOR("[3]"), "EUCLIDEAN");
+ERROR 42000: Incorrect parameter count in the call to native function 'DISTANCE'
+#
+# 1.2) Argument types.
+#
+# Only vectors or binary strings are allowed for first the two arguments.
+SELECT DISTANCE("[1]", TO_VECTOR("[2]"), "EUCLIDEAN");
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(X'0000803F', TO_VECTOR("[2]"), "EUCLIDEAN");
+DISTANCE(X'0000803F', TO_VECTOR("[2]"), "EUCLIDEAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[2]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[2]"), "EUCLIDEAN")
+2
+SELECT DISTANCE(v1, TO_VECTOR("[2]"), "EUCLIDEAN") FROM t1 WHERE id = 0;
+DISTANCE(v1, TO_VECTOR("[2]"), "EUCLIDEAN")
+2
+SELECT DISTANCE(id, TO_VECTOR("[2]"), "EUCLIDEAN") FROM t1 WHERE id = 0;
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[1]"), "[2]", "EUCLIDEAN");
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[2]"), X'0000803F', "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[2]"), X'0000803F', "EUCLIDEAN")
+1
+SELECT DISTANCE(TO_VECTOR("[3]"), v1, "EUCLIDEAN") FROM t1 WHERE id = 1;
+DISTANCE(TO_VECTOR("[3]"), v1, "EUCLIDEAN")
+2
+SELECT DISTANCE(TO_VECTOR("[0]"), id, "EUCLIDEAN") FROM t1 WHERE id = 1;
+ERROR HY000: Incorrect arguments to distance
+# The third argument must be a string literal with value from the
+# fixed list of metric names.
+SELECT DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[-1, 0]"), 1);
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[1, 0]"), CONCAT("EUCLI","DEAN"));
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[2, 0]"), "euclidean");
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[2, 0]"), "euclidean")
+1.4142135623730951
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[3, 0]"), "EuClIdEaN");
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[3, 0]"), "EuClIdEaN")
+2.23606797749979
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[4, 0]"), X'4555434C494445414E');
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[4, 0]"), X'4555434C494445414E')
+3.1622776601683795
+# Metric strings with embedded NUL must be rejected regardless of prefix match.
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), X'4555434C494445414E00');
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), X'4555434C494445414E004A554E4B');
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[5, 0]"), "NOSUCHMETRIC");
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[6, 0]"), name) FROM t_metric_name WHERE id = 1;
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[7, 0]"), NULL);
+ERROR HY000: Incorrect arguments to distance
+#
+# 1.3) NULL arguments and nullability in metadata for result.
+#
+SELECT DISTANCE(NULL, TO_VECTOR("[1, 0]"), "EUCLIDEAN");
+DISTANCE(NULL, TO_VECTOR("[1, 0]"), "EUCLIDEAN")
+NULL
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), NULL, "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 1]"), NULL, "EUCLIDEAN")
+NULL
+SELECT DISTANCE(v2, TO_VECTOR("[1, 0]"), "EUCLIDEAN") FROM t1 WHERE id = 99;
+DISTANCE(v2, TO_VECTOR("[1, 0]"), "EUCLIDEAN")
+NULL
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), v2, "EUCLIDEAN") FROM t1 WHERE id = 99;
+DISTANCE(TO_VECTOR("[1, 1]"), v2, "EUCLIDEAN")
+NULL
+# The third argument doesn't allow NULL values in any form.
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), NULL);
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), name) FROM t_metric_name WHERE id = 99;
+ERROR HY000: Incorrect arguments to distance
+# The result metadata should indicate that it is nullable.
+CREATE TABLE tt SELECT DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[0, 1]"), "EUCLIDEAN") AS d;
+SHOW CREATE TABLE tt;
+Table	Create Table
+tt	CREATE TABLE `tt` (
+  `d` double DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tt;
+#
+# 2) Test vector arguments length mismatch.
+#
+SELECT DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[1, 0]"), "EUCLIDEAN");
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(v2, TO_VECTOR("[1]"), "EUCLIDEAN") FROM t1 WHERE id = 1;
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(v1, v2, "EUCLIDEAN") FROM t1 WHERE id = 1;
+ERROR HY000: Incorrect arguments to distance
+#
+# Note that length check happens at runtime. This is well visible
+# when we have value stored in a vector field which is shorter than
+# maximum length specified at the field creation time.
+SELECT DISTANCE(v1, v2, "EUCLIDEAN") FROM t1 WHERE id = 98;
+DISTANCE(v1, v2, "EUCLIDEAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), v2, "EUCLIDEAN") FROM t1 WHERE id = 98;
+ERROR HY000: Incorrect arguments to distance
+# Binary-string BLOB arguments exceeding max_dimensions (16383) are rejected.
+# A BLOB column is used so the argument passes the resolve-time binary-charset
+# type check; the max_dimensions guard fires at runtime in val_real().
+CREATE TABLE t_oversized (v MEDIUMBLOB);
+INSERT INTO t_oversized VALUES (REPEAT(X'00000000', 16384));
+SELECT DISTANCE(v, v, "EUCLIDEAN") FROM t_oversized;
+ERROR HY000: Incorrect arguments to distance
+DROP TABLE t_oversized;
+#
+# 3) Some basic tests for different (from syntax PoV) variants of
+#    arguments.
+#
+SELECT DISTANCE(X'0000803F0000803F', X'0000000000000040', "EUCLIDEAN");
+DISTANCE(X'0000803F0000803F', X'0000000000000040', "EUCLIDEAN")
+1.4142135623730951
+SELECT DISTANCE(X'0000803F0000803F', TO_VECTOR("[2, 0]"), "EUCLIDEAN");
+DISTANCE(X'0000803F0000803F', TO_VECTOR("[2, 0]"), "EUCLIDEAN")
+1.4142135623730951
+SELECT DISTANCE(X'0000803F0000803F', v2, "EUCLIDEAN") FROM t1 WHERE id = 4;
+DISTANCE(X'0000803F0000803F', v2, "EUCLIDEAN")
+1.4142135623730951
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "EUCLIDEAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), X'000000000000803F', "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 0]"), X'000000000000803F', "EUCLIDEAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), v2, "EUCLIDEAN") FROM t1 WHERE id = 1;
+DISTANCE(TO_VECTOR("[0, 0]"), v2, "EUCLIDEAN")
+1
+SELECT DISTANCE(a.v2, b.v2, "EUCLIDEAN") FROM t1 AS a, t1 AS b WHERE a.id = 0 AND b.id = 4;
+DISTANCE(a.v2, b.v2, "EUCLIDEAN")
+2
+SELECT DISTANCE(v2, X'0000000000000040', "EUCLIDEAN") FROM t1 WHERE id = 0;
+DISTANCE(v2, X'0000000000000040', "EUCLIDEAN")
+2
+SELECT DISTANCE(v2, TO_VECTOR("[0, 2]"), "EUCLIDEAN") FROM t1 WHERE id = 0;
+DISTANCE(v2, TO_VECTOR("[0, 2]"), "EUCLIDEAN")
+2
+# Non-trivial (artificial) combinations
+SELECT DISTANCE(TO_VECTOR(CONCAT("[0", ", ", "1]")), CONCAT(X'00000000', X'00000040'), "EUCLIDEAN");
+DISTANCE(TO_VECTOR(CONCAT("[0", ", ", "1]")), CONCAT(X'00000000', X'00000040'), "EUCLIDEAN")
+1
+# The below case demonstrates that arguments to DISTANCE might not be
+# well-aligned in memory.
+SELECT DISTANCE(SUBSTR(X'010000000000000040', 2), RIGHT(X'40000000000000803F', 8), "EUCLIDEAN");
+DISTANCE(SUBSTR(X'010000000000000040', 2), RIGHT(X'40000000000000803F', 8), "EUCLIDEAN")
+1
+# 9-byte blobs; SUBSTR from pos 2 → 8 bytes at offset 1 (misaligned for float).
+# Length must stay a multiple of 4; SUBSTR(..., 4) on 9 bytes yields 6 → ER_TO_VECTOR_CONVERSION.
+SELECT DISTANCE(SUBSTR(X'000100000000000040', 2), SUBSTR(X'00040000000000803F', 2), "EUCLIDEAN");
+DISTANCE(SUBSTR(X'000100000000000040', 2), SUBSTR(X'00040000000000803F', 2), "EUCLIDEAN")
+1
+#
+# 4) Basic test for different vector values.
+#
+# Identical / collinear vectors.
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[1, 1]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[1, 1]"), "EUCLIDEAN")
+0
+SELECT DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[1, 0]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[1, 0]"), "EUCLIDEAN")
+0
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[2.5, 2.5]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[2.5, 2.5]"), "EUCLIDEAN")
+2.1213203435596424
+SELECT DISTANCE(TO_VECTOR("[1, 2, 3, 4, 5]"), TO_VECTOR("[1, 2, 3, 4, 5]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 2, 3, 4, 5]"), TO_VECTOR("[1, 2, 3, 4, 5]"), "EUCLIDEAN")
+0
+# Orthogonal vectors.
+SELECT DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[0, 1]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[0, 1]"), "EUCLIDEAN")
+1.4142135623730951
+SELECT DISTANCE(TO_VECTOR("[0, 1, 0]"), TO_VECTOR("[-1, 0, -1]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 1, 0]"), TO_VECTOR("[-1, 0, -1]"), "EUCLIDEAN")
+1.7320508075688772
+SELECT DISTANCE(TO_VECTOR("[1, 0, 3, 0, 5]"), TO_VECTOR("[0, 2, 0, 4, 0]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 0, 3, 0, 5]"), TO_VECTOR("[0, 2, 0, 4, 0]"), "EUCLIDEAN")
+7.416198487095663
+# Anti-parallel vectors.
+SELECT DISTANCE(TO_VECTOR("[-1, -1]"), TO_VECTOR("[2, 2]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[-1, -1]"), TO_VECTOR("[2, 2]"), "EUCLIDEAN")
+4.242640687119285
+SELECT DISTANCE(TO_VECTOR("[-2e38, 1]"), TO_VECTOR("[2e38, -1]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[-2e38, 1]"), TO_VECTOR("[2e38, -1]"), "EUCLIDEAN")
+3.999999872114277e38
+# Distance from origin.
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "EUCLIDEAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[3, 4]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[3, 4]"), "EUCLIDEAN")
+5
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[5, 12]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[5, 12]"), "EUCLIDEAN")
+13
+SELECT DISTANCE(TO_VECTOR("[0, 0, 0, 0]"), TO_VECTOR("[1, 1, 1, 1]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 0, 0, 0]"), TO_VECTOR("[1, 1, 1, 1]"), "EUCLIDEAN")
+2
+# Mixed-sign and larger vectors.
+SELECT DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "EUCLIDEAN")
+5.196152422706632
+SELECT DISTANCE(TO_VECTOR("[1, 7, 3, 16, 5]"), TO_VECTOR("[1, 2, 3, 4, 5]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 7, 3, 16, 5]"), TO_VECTOR("[1, 2, 3, 4, 5]"), "EUCLIDEAN")
+13
+# Zero vector (behavior differs per metric).
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2, 2]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2, 2]"), "EUCLIDEAN")
+2.8284271247461903
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[0, 0]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[0, 0]"), "EUCLIDEAN")
+0
+SELECT DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[0]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[0]"), "EUCLIDEAN")
+0
+# Large values near float32 max.
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2e38, 0]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2e38, 0]"), "EUCLIDEAN")
+1.9999999360571385e38
+# Same value in a 16-dim vector (one full 16-lane block): squaring 2e38
+# overflows float32, so the sums must be done in double.
+SELECT DISTANCE(TO_VECTOR("[2e38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
+TO_VECTOR("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
+"EUCLIDEAN");
+DISTANCE(TO_VECTOR("[2e38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
+TO_VECTOR("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
+"EUCLIDEAN")
+1.9999999360571385e38
+# Element difference exceeds FLT_MAX (2.5e38 - (-2.5e38) = 5e38): the
+# subtraction must be done in double, not float32, for every metric.
+SELECT DISTANCE(STRING_TO_VECTOR('[2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38]'),
+STRING_TO_VECTOR('[-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38]'),
+"EUCLIDEAN");
+DISTANCE(STRING_TO_VECTOR('[2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38]'),
+STRING_TO_VECTOR('[-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38]'),
+"EUCLIDEAN")
+1.4142136032096404e39
+# Same overflow in the last element only.
+SELECT DISTANCE(TO_VECTOR("[1, 1, 1, 1, 2.5e38]"),
+TO_VECTOR("[0, 0, 0, 0, -2.5e38]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 1, 1, 1, 2.5e38]"),
+TO_VECTOR("[0, 0, 0, 0, -2.5e38]"), "EUCLIDEAN")
+5.00000014437899e38
+# Tiny values against their negation: 1e-23 * 1e-23 is 0 in float32, so
+# the sums must be done in double.
+SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]"), "EUCLI
+7.99999999855967e-23
+# 20 dims: only the first 16 elements hold the tiny values.
+SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0,0]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,0,0,0,0]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0,0]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,0,
+7.99999999855967e-23
+# 16383 dims (the maximum), elements near 1e-21: products are subnormal
+# in float32, so they are recomputed in double (Manhattan has no products
+# and stays in float32).  Every SIMD width sums in the same order, so the
+# result is the same on every CPU.
+SELECT DISTANCE(TO_VECTOR(CONCAT('[', REPEAT('1e-21,', 16382), '1e-21]')),
+TO_VECTOR(CONCAT('[', REPEAT('2e-21,', 16382), '2e-21]')),
+"EUCLIDEAN");
+DISTANCE(TO_VECTOR(CONCAT('[', REPEAT('1e-21,', 16382), '1e-21]')),
+TO_VECTOR(CONCAT('[', REPEAT('2e-21,', 16382), '2e-21]')),
+"EUCLIDEAN")
+1.2799608962850438e-19
+# Subnormal float32 inputs (TO_VECTOR rejects them, binary arguments do
+# not): 16 x 1e-40 against 16 x -1e-40.  Products flush to zero in
+# float32, so they are recomputed in double.
+SELECT DISTANCE(X'C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100',
+X'C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180', "EUCLIDEAN");
+DISTANCE(X'C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100',
+X'C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C216018
+7.999956880891808e-40
+# Symmetry: DISTANCE(a, b) = DISTANCE(b, a).
+SELECT DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "EUCLIDEAN") =
+DISTANCE(TO_VECTOR("[4, 5, 6]"), TO_VECTOR("[1, 2, 3]"), "EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "EUCLIDEAN") =
+DISTANCE(TO_VECTOR("[4, 5, 6]"), TO_VECTOR("[1, 2, 3]"), "EUCLIDEAN")
+1
+# Special IEEE 754 float32 values: NaN, +Infinity, -Infinity.
+# NaN/Inf input elements raise ER_DATA_OUT_OF_RANGE for all metrics (POW/EXP convention).
+SELECT DISTANCE(X'0000C07F', X'00000000', "EUCLIDEAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000c07f,0x00000000,'EUCLIDEAN')'
+SELECT DISTANCE(X'0000807F', X'00000000', "EUCLIDEAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000807f,0x00000000,'EUCLIDEAN')'
+SELECT DISTANCE(X'000080FF', X'00000000', "EUCLIDEAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x000080ff,0x00000000,'EUCLIDEAN')'
+# Lane layout coverage: elements are summed in 16-lane blocks plus a tail.
+# 16-dim: one block, no tail.
+SELECT DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
+TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
+"EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
+TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
+"EUCLIDEAN")
+4
+# 20-dim: one block and a 4-element tail.
+SELECT DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
+TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
+"EUCLIDEAN");
+DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
+TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
+"EUCLIDEAN")
+4.47213595499958
+#
+# prepared statements
+#
+PREPARE s1 FROM 'SELECT DISTANCE(v1, TO_VECTOR("[2]"), "EUCLIDEAN") FROM t1 WHERE id = 4';
+EXECUTE s1;
+DISTANCE(v1, TO_VECTOR("[2]"), "EUCLIDEAN")
+0
+EXECUTE s1;
+DISTANCE(v1, TO_VECTOR("[2]"), "EUCLIDEAN")
+0
+DEALLOCATE PREPARE s1;
+PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR("[2]"), "?") FROM t1 WHERE id = 4';
+ERROR HY000: Incorrect arguments to distance
+PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR(?), "EUCLIDEAN") FROM t1 WHERE id = 4';
+SET @met="[2]";
+EXECUTE stmt USING @met;
+DISTANCE(v1, TO_VECTOR(?), "EUCLIDEAN")
+0
+DEALLOCATE PREPARE stmt;
+#
+# 5) Distance in query contexts.
+#
+# ORDER BY distance: nearest-neighbour pattern.
+SELECT id FROM t1 WHERE id IN (0,1,2,3,4)
+ORDER BY DISTANCE(v2, TO_VECTOR('[1, 0]'), "EUCLIDEAN"), id;
+id
+1
+0
+3
+4
+2
+# ORDER BY distance DESC: farthest-neighbour pattern.
+SELECT id FROM t1 WHERE id IN (0,1,2,3,4)
+ORDER BY DISTANCE(v2, TO_VECTOR('[1, 0]'), "EUCLIDEAN") DESC, id;
+id
+2
+0
+3
+4
+1
+# WHERE: range query filtering by distance.
+SELECT id FROM t1
+WHERE id IN (0,1,2,3,4) AND DISTANCE(v2, TO_VECTOR('[1, 0]'), "EUCLIDEAN") < 1.5
+ORDER BY id;
+id
+0
+1
+2
+3
+4
+# Derived table with distance.
+SELECT id FROM
+(SELECT id, DISTANCE(v2, TO_VECTOR('[1, 0]'), "EUCLIDEAN") AS d
+FROM t1 WHERE id IN (0,1,2,3,4)) AS sq
+WHERE d IS NOT NULL ORDER BY d, id;
+id
+1
+0
+3
+4
+2
+DROP TABLE t_metric_name;
+DROP TABLE t1;

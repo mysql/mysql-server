@@ -1,0 +1,2 @@
+let $metric = EUCLIDEAN;
+--source ../include/distance.inc

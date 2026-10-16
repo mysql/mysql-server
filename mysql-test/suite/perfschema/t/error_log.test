@@ -142,6 +142,7 @@ SELECT prio,error_code,subsystem,data
 # MY-011872,MY-011874: ER_IB_MSG_47,ER_IB_MSG_49, innodb_numa_interleave constructor and destructor, depends on platform
 # MY-015140: ER_IB_MSG_INNODB_FLUSH_METHOD, info emitted if default flush method is used on non-Windows platforms, depends on platform
 # MY-015696: ER_WARN_TLS_SESSION_WITHOUT_PQC, depends on configuration
+# MY-016022: ER_VECTOR_DISTANCE_SIMD_DISPATCH, emits to inform about the SIMD/scalar used to calculate vector_distance
 SELECT prio,error_code,subsystem
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -156,7 +157,8 @@ SELECT prio,error_code,subsystem
                          "MY-013884", "MY-013908", "MY-013930", "MY-014013",
                          "MY-000068", "MY-014066", "MY-014067", "MY-014068",
                          "MY-013932", "MY-010101", "MY-010099", "MY-011070",
-                         "MY-011872", "MY-011874", "MY-015140", "MY-015696")
+                         "MY-011872", "MY-011874", "MY-015140", "MY-015696",
+                         "MY-016022")
  ORDER BY logged, error_code;
 
 --echo
