@@ -8841,6 +8841,37 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
   return false;
 }
 
+/**
+  Whether a scalar subquery is evaluated after grouping in an expression.
+
+  Grouped expressions are evaluated before aggregation; their ROLLUP wrappers
+  supply NULL at higher levels without re-evaluating the subquery. References
+  to grouped expressions (for example, an alias in HAVING) have the same
+  semantics. Grouped aggregate arguments are also evaluated before ROLLUP.
+*/
+static bool subquery_is_evaluated_after_grouping(Query_block *query_block,
+                                                 Item *expr, Item *subquery) {
+  class Walker : public Item_tree_walker {
+   public:
+    using Item_tree_walker::is_stopped;
+    using Item_tree_walker::stop_at;
+  } walker;
+  bool found = false;
+  WalkItem(expr, enum_walk::PREFIX | enum_walk::POSTFIX, [&](Item *item) {
+    if (walker.is_stopped(item) || !item->has_subquery()) return false;
+    if (is_rollup_group_wrapper(item) ||
+        query_block->find_in_group_list(item, /*rollup_level=*/nullptr) !=
+            nullptr ||
+        (item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function)) {
+      walker.stop_at(item);
+    } else if (item == subquery) {
+      found = true;
+    }
+    return false;
+  });
+  return found;
+}
+
 bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
   if (thd->lex->m_subquery_to_derived_is_impossible) return false;
 
@@ -8992,6 +9023,30 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
 
     Item *lifted_where = nullptr;
     if (subquery.m_correlation_map != 0) {
+      // SELECT and HAVING subqueries evaluated after ROLLUP must observe the
+      // current level's NULL values. A derived-table join would evaluate their
+      // correlations before ROLLUP. Subqueries inside grouped expressions
+      // still qualify for the transformation, since they are evaluated before
+      // aggregation and the grouped result itself is rolled up.
+      if (olap == ROLLUP_TYPE) {
+        bool evaluated_after_grouping = false;
+        if (subquery.m_locations &
+            Item::Collect_scalar_subquery_info::L_SELECT) {
+          for (Item *expr : visible_fields()) {
+            if (subquery_is_evaluated_after_grouping(this, expr, subq)) {
+              evaluated_after_grouping = true;
+              break;
+            }
+          }
+        }
+        if (!evaluated_after_grouping &&
+            (subquery.m_locations &
+             Item::Collect_scalar_subquery_info::L_HAVING))
+          evaluated_after_grouping =
+              subquery_is_evaluated_after_grouping(this, m_having_cond, subq);
+        if (evaluated_after_grouping) continue;
+      }
+
       // We have a correlated subquery. Check if we can handle it or not (only
       // applicable for subqueries without set operations)
       if (!subs_query_expression->is_set_operation()) {
