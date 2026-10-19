@@ -6,11 +6,13 @@ CALL mtr.add_suppression("Either disk is full, file system is read only");
 CALL mtr.add_suppression("Binary logging not possible");
 CALL mtr.add_suppression("Hence turning logging off for the whole duration");
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
-# R1: a spill-sync failure falls back to the standard commit path.
+# R1: a spill-sync failure rolls the transaction back.
 include/assert.inc [R1: the transaction's spilled file is not promoted.]
-include/assert.inc [R1: it is counted as a missed optimization.]
-include/assert.inc [R1: every row is committed.]
-include/assert_grep.inc [R1: the transaction is in the binary log.]
+include/assert.inc [R1: it is not counted as a missed optimization.]
+include/assert.inc [R1: no row is committed.]
+include/assert_grep.inc [R1: the transaction is not in the binary log.]
+INSERT INTO t1 VALUES (4, 'd');
+include/assert.inc [R1: the session commits its next transaction.]
 # R2: a failure after the rename with ABORT_SERVER aborts the server.
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 include/assert.inc [R2: the aborted promotion commits no rows.]

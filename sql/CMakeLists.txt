@@ -1146,6 +1146,7 @@ SET(BINLOG_SOURCE
   binlog/cache_representation.cc
   binlog/thd_backup_and_restore.cc
   binlog/global.cc
+  binlog/file_rotation.cc
   binlog/large_trx_commit.cc
   binlog/log_sanitizer.cc
   binlog/recovery.cc

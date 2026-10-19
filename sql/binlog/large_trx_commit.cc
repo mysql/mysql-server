@@ -425,7 +425,7 @@ bool MYSQL_BIN_LOG::reopen_promoted_binlog_file() {
   return false;
 }
 
-bool MYSQL_BIN_LOG::promote_spilled_file(Spilled_file_promotion *promotion) {
+bool MYSQL_BIN_LOG::promote_spilled_file(Spilled_file_rotation *promotion) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_log);
   m_binlog_index_monitor.assert_owner();
@@ -586,7 +586,7 @@ Spilled_file_promotion_result MYSQL_BIN_LOG::rotate_and_promote_spilled_file(
     THD *thd, binlog_cache_data *cache_data) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_log);
-  Spilled_file_promotion promotion;
+  Spilled_file_rotation promotion;
   promotion.thd = thd;
   promotion.cache_data = cache_data;
 
@@ -606,7 +606,7 @@ Spilled_file_promotion_result MYSQL_BIN_LOG::rotate_and_promote_spilled_file(
     promotion.fallback_reason = Large_trx_fallback_reason::kReservedHeaderSpace;
   } else {
     error = new_file_impl(false /*need_lock_log*/,
-                          nullptr /*extra_description_event*/, &promotion);
+                          nullptr /*extra_description_event*/, promotion);
     /* The GTID table could not be written, and the rotation kept the active
        binary log file in use, as for any rotation: the transaction falls back
        and is written into that file. */
@@ -614,9 +614,16 @@ Spilled_file_promotion_result MYSQL_BIN_LOG::rotate_and_promote_spilled_file(
                           Large_trx_fallback_reason::kGtidPersistence)
       error = 0;
     /*
+      A fatal error stops the transaction: it is handled as a failed
+      rotation, not by a fallback.
+    */
+    if (thd->is_fatal_error()) error = 1;
+    /*
       A rotation reports its errors to the client, as for FLUSH LOGS. Here it
-      runs in the flush stage, which handles a failure through
-      binlog_error_action: the session must not keep that error.
+      runs in the flush stage. The flush stage handles a failed rotation
+      through binlog_error_action, which reports to the client itself, and a
+      fallback writes the transaction as usual. So the session must not keep
+      the rotation's error.
     */
     if (thd->is_error()) thd->clear_error();
   }

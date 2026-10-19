@@ -7,9 +7,10 @@
 # and binlog_error_action applies, as for any rotation in the flush stage.
 #
 # === Requirements ===
-# R1. A failure to make the spilled file durable falls back: the transaction
-#     commits, its rows are in the binary log, and it is counted as a missed
-#     optimization.
+# R1. A failure to make the spilled file durable, before the flush stage,
+#     rolls the transaction back: COMMIT fails with ER_ERROR_ON_WRITE, no row
+#     is committed, nothing reaches the binary log, and the session can commit
+#     its next transaction.
 # R2. A failure after the rename with binlog_error_action = ABORT_SERVER
 #     aborts the server, the client is told binary logging is not possible,
 #     and after the restart the transaction is in neither the engine nor the
@@ -65,9 +66,9 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 
 ############################################################################
 # Case 0: the spilled file cannot be made durable.
-# Expected behavior: the transaction falls back to the standard commit path.
+# Expected behavior: the transaction is rolled back.
 ############################################################################
---echo # R1: a spill-sync failure falls back to the standard commit path.
+--echo # R1: a spill-sync failure rolls the transaction back.
 --disable_query_log
 RESET BINARY LOGS AND GTIDS;
 --enable_query_log
@@ -80,6 +81,7 @@ INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
 INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
 INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
 SET SESSION DEBUG="+d,fail_bolt_spill_file_sync";
+--error ER_ERROR_ON_WRITE
 COMMIT;
 SET SESSION DEBUG="-d,fail_bolt_spill_file_sync";
 --enable_result_log
@@ -89,21 +91,25 @@ SET SESSION DEBUG="-d,fail_bolt_spill_file_sync";
 --let $assert_text = R1: the transaction's spilled file is not promoted.
 --let $assert_cond = $bolt_after = $bolt_before
 --source include/assert.inc
---let $assert_text = R1: it is counted as a missed optimization.
---let $assert_cond = $missed_after = $missed_before + 1
+--let $assert_text = R1: it is not counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
---let $assert_text = R1: every row is committed.
---let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--let $assert_text = R1: no row is committed.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
 --let $bolt_log_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_log_file > $bolt_dump
 --let $assert_file = $bolt_dump
---let $assert_text = R1: the transaction is in the binary log.
+--let $assert_text = R1: the transaction is not in the binary log.
 --let $assert_select = Xid
---let $assert_count = 1
+--let $assert_count = 0
 --source include/assert_grep.inc
 --remove_file $bolt_dump
+INSERT INTO t1 VALUES (4, 'd');
+--let $assert_text = R1: the session commits its next transaction.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--source include/assert.inc
 --disable_query_log
 TRUNCATE t1;
 --enable_query_log

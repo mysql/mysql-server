@@ -112,13 +112,15 @@ File create_binlog_cache_file(IO_CACHE *cache, char *name) {
 /*
   Keeps the message of the first error that the rewrite raises, and keeps
   every condition that the rewrite raises out of the statement. The statement
-  then shows no error and no warning when the transaction falls back.
+  then shows no error and no warning when the transaction falls back. A fatal
+  error is not kept out, because the statement stops with it.
 */
 class Rewrite_error_handler : public Internal_error_handler {
  public:
-  bool handle_condition(THD *, uint, const char *,
+  bool handle_condition(THD *thd, uint, const char *,
                         Sql_condition::enum_severity_level *level,
                         const char *msg) override {
+    if (thd->is_fatal_error()) return false;
     if (*level == Sql_condition::SL_ERROR && m_message.empty()) m_message = msg;
     return true;
   }
@@ -480,6 +482,8 @@ bool Binlog_cache_storage::write(const unsigned char *buffer, my_off_t length) {
     const bool rewrite_failed = rewrite_into_binlog_file_format(
         m_large_trx_planned_checksum_alg, m_large_trx_planned_reserved_bytes);
     if (thd != nullptr) thd->pop_internal_handler();
+    /* A fatal error, such as running out of memory, stops the statement. */
+    if (rewrite_failed && thd != nullptr && thd->is_fatal_error()) return true;
     if (rewrite_failed) {
       m_large_trx_rewrite_failed = true;
       LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_REWRITE_FAILED,

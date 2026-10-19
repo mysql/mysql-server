@@ -179,12 +179,15 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   */
   bool flush_and_sync_spilled_file();
   /**
-     Creates the temporary file without writing to it.
+     Creates the temporary file without writing to it, if the file does not
+     exist yet.
 
      @retval false  Success
      @retval true   Error
   */
-  bool create_spilled_file() { return real_open_cached_file(&m_io_cache); }
+  bool create_spilled_file() {
+    return m_io_cache.file == -1 && real_open_cached_file(&m_io_cache);
+  }
   /**
      Makes the next lazily-created spill file a named file, kept in the
      filesystem namespace and therefore promotable, instead of an anonymous

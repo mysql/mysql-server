@@ -41,6 +41,8 @@
 
 #include "my_byteorder.h"
 #include "my_dbug.h"
+#include "my_sys.h"        // my_error
+#include "mysqld_error.h"  // ER_OUTOFMEMORY
 #include "sql/binlog_ostream.h"
 #include "sql/log_event.h"
 
@@ -206,6 +208,10 @@ class Checksummed_binlog_cache_representation final
     if (source.truncate(source.logical_length()) || copy_failed) return nullptr;
 
     DBUG_EXECUTE_IF("fail_bolt_cache_conversion", { return nullptr; });
+    DBUG_EXECUTE_IF("fail_bolt_cache_conversion_out_of_memory", {
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 1);
+      return nullptr;
+    });
 
     rewritten->m_logical_length = source.logical_length();
 

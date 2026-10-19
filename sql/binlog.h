@@ -47,6 +47,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // Item_result
 #include "sql/binlog/binlog_tc_log_processing.h"
+#include "sql/binlog/file_rotation.h"  // File_rotation, Spilled_file_rotation
 #include "sql/binlog/large_trx_commit.h"
 #include "sql/binlog_index.h"   // Log_info, Binlog_index
 #include "sql/binlog_reader.h"  // Binlog_file_reader
@@ -113,6 +114,8 @@ struct Binlog_user_var_event {
 class MYSQL_BIN_LOG : public TC_LOG {
  public:
   class Binlog_ofile;
+  /* Runs the rotation steps of a promotion (see promote_spilled_file()). */
+  friend class Spilled_file_rotation;
 
  private:
   enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };
@@ -255,7 +258,13 @@ class MYSQL_BIN_LOG : public TC_LOG {
  private:
   int new_file_impl(bool need_lock,
                     Format_description_log_event *extra_description_event,
-                    Spilled_file_promotion *promotion = nullptr);
+                    File_rotation &rotation);
+  /** A standard rotation (see Standard_file_rotation). */
+  int new_file_impl(bool need_lock,
+                    Format_description_log_event *extra_description_event) {
+    Standard_file_rotation standard_rotation;
+    return new_file_impl(need_lock, extra_description_event, standard_rotation);
+  }
 
   bool open(PSI_file_key log_file_key, const char *log_name,
             const char *new_name, uint32 new_index_number);
@@ -287,13 +296,13 @@ class MYSQL_BIN_LOG : public TC_LOG {
     standard commit path. A failure after the rename, in the directory syncs
     or the reopen, is a rotation error.
 
-    @param promotion  Information about this promotion (see
-                      Spilled_file_promotion).
+    @param promotion  The rotation steps of this promotion, and information
+                      about it (see Spilled_file_rotation).
 
     @retval false  The file was promoted, or the transaction falls back.
     @retval true   Error after the new file was replaced.
   */
-  [[nodiscard]] bool promote_spilled_file(Spilled_file_promotion *promotion);
+  [[nodiscard]] bool promote_spilled_file(Spilled_file_rotation *promotion);
 
   /**
     Creates the Gtid event of a transaction that is written into the binary
@@ -786,16 +795,26 @@ class MYSQL_BIN_LOG : public TC_LOG {
     binary log files.
     @param new_index_number The binary log file index number to start from
     after the RESET BINARY LOGS AND GTIDS command is called.
-    @param promotion Information about the promotion when this function is
-    called by the rotation that promotes a large transaction's spilled file
-    (see Spilled_file_promotion), nullptr otherwise.
+    @param rotation The rotation steps that differ for the rotation that
+    promotes a large transaction's spilled file (see Spilled_file_rotation).
+    The overload without this parameter uses a Standard_file_rotation.
   */
   bool open_binlog(const char *log_name, const char *new_name,
                    ulong max_size_arg, bool null_created_arg,
                    bool need_lock_index, bool need_tsid_lock,
                    Format_description_log_event *extra_description_event,
-                   uint32 new_index_number = 0,
-                   Spilled_file_promotion *promotion = nullptr);
+                   uint32 new_index_number, File_rotation &rotation);
+  /** A standard open or rotation (see Standard_file_rotation). */
+  bool open_binlog(const char *log_name, const char *new_name,
+                   ulong max_size_arg, bool null_created_arg,
+                   bool need_lock_index, bool need_tsid_lock,
+                   Format_description_log_event *extra_description_event,
+                   uint32 new_index_number = 0) {
+    Standard_file_rotation standard_rotation;
+    return open_binlog(log_name, new_name, max_size_arg, null_created_arg,
+                       need_lock_index, need_tsid_lock, extra_description_event,
+                       new_index_number, standard_rotation);
+  }
   bool open_index_file(const char *index_file_name_arg, const char *log_name,
                        bool need_lock_index);
   /* Use this to start writing a new log file */

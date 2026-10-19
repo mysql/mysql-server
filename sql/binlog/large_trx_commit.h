@@ -76,26 +76,6 @@ enum class Large_trx_fallback_reason {
   kPromotionFailed,
 };
 
-/**
-  Information about the promotion of a large transaction's spilled binlog
-  cache file, passed through the rotation that promotes it (see
-  MYSQL_BIN_LOG::promote_spilled_file()).
-*/
-struct Spilled_file_promotion {
-  /** In: the session committing the transaction. */
-  THD *thd{nullptr};
-  /** In: the transaction's cache, whose spilled file is promoted. */
-  binlog_cache_data *cache_data{nullptr};
-  /** Out: set when the file was promoted. */
-  bool promoted{false};
-  /** Out, when promoted: the end of the header events copied from the new
-      file. */
-  my_off_t header_end{0};
-  /** Out: why the transaction falls back when its spilled file is not
-      promoted. */
-  Large_trx_fallback_reason fallback_reason{Large_trx_fallback_reason::kNone};
-};
-
 /** The outcome of MYSQL_BIN_LOG::rotate_and_promote_spilled_file(). */
 enum class Spilled_file_promotion_result {
   /** The spilled file became the new binary log file. */

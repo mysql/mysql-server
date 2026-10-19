@@ -18,6 +18,9 @@
 #     the rewrite also falls back, and the spilling statement succeeds.
 # R7. The rewrite failure is a failure reason, so every fallback for it is
 #     logged.
+# R8. A fatal error in the rewrite, such as running out of memory, does not
+#     fall back: the spilling statement fails with that error, and the
+#     session can commit its next transaction.
 #
 --source include/have_debug.inc
 --source include/have_log_bin.inc
@@ -126,6 +129,20 @@ COMMIT;
 --remove_file $temp_inc
 --let $assert_text = R6: no bolt_ temp file is left.
 --let $assert_cond = $temp_files = 0
+--source include/assert.inc
+
+--echo # R8: a fatal error in the rewrite fails the spilling statement.
+TRUNCATE t1;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000));
+SET SESSION debug = '+d,fail_bolt_cache_conversion_out_of_memory';
+--error ER_OUTOFMEMORY
+INSERT INTO t1 VALUES (2, REPEAT('b', 6000000));
+SET SESSION debug = '-d,fail_bolt_cache_conversion_out_of_memory';
+ROLLBACK;
+INSERT INTO t1 VALUES (3, REPEAT('c', 1000));
+--let $assert_text = R8: the session commits its next transaction.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "3"
 --source include/assert.inc
 
 DROP TABLE t1;

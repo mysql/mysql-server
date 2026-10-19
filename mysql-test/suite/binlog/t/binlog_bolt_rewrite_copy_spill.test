@@ -1,0 +1,76 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# The rewrite into binlog file form copies the cache and adds a CRC32 footer
+# after every event. With many small events, the copy no longer fits in the
+# buffer and spills into the named spill file during the rewrite. Verify that
+# the spill file keeps every copied event, so the promoted file is complete.
+#
+# === Requirements ===
+# R1. A cache whose rewrite spills during the copy is promoted into a valid
+#     binlog file that holds every event of the transaction.
+#
+# === Implementation ===
+# Fill a small binlog cache with many small row events, so that the copy at
+# the first spill overflows the buffer. Then add a large row to pass the
+# threshold, commit, and validate the promoted file and the rows.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_enabled = `SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled`
+--let $save_threshold = `SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold`
+--let $save_checksum = `SELECT @@GLOBAL.binlog_checksum`
+--let $save_cache_size = `SELECT @@GLOBAL.binlog_cache_size`
+
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_cache_size = 4096;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+
+# A new session opens its binlog cache with the size set above.
+--connect (copy_spill, localhost, root,,)
+BEGIN;
+--disable_query_log
+--let $i = 1
+while ($i <= 200)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('s', 50))
+  --inc $i
+}
+--enable_query_log
+INSERT INTO t1 VALUES (1000, REPEAT('L', 11000000));
+COMMIT;
+--disconnect copy_spill
+--connection default
+
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R1: the transaction's spilled file is promoted.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_copy_spill_dump.txt
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum --base64-output=decode-rows --verbose $MYSQLD_DATADIR/$bolt_header_file > $bolt_dump
+--let $assert_text = R1: the promoted file holds every row event of the transaction.
+--let $assert_file = $bolt_dump
+--let $assert_select = ^### INSERT INTO `test`.`t1`
+--let $assert_count = 201
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+--let $assert_text = R1: every row is committed.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 201
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--eval SET GLOBAL binlog_cache_size = $save_cache_size
+--enable_query_log

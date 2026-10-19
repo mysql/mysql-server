@@ -35,4 +35,15 @@ include/assert_grep.inc [R7: the second rewrite failure is also logged as the re
 # R6: the binary log is valid and every row exists.
 include/assert.inc [R6: every row is retained.]
 include/assert.inc [R6: no bolt_ temp file is left.]
+# R8: a fatal error in the rewrite fails the spilling statement.
+TRUNCATE t1;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000));
+SET SESSION debug = '+d,fail_bolt_cache_conversion_out_of_memory';
+INSERT INTO t1 VALUES (2, REPEAT('b', 6000000));
+ERROR HY001: Out of memory; restart server and try again (needed 1 bytes)
+SET SESSION debug = '-d,fail_bolt_cache_conversion_out_of_memory';
+ROLLBACK;
+INSERT INTO t1 VALUES (3, REPEAT('c', 1000));
+include/assert.inc [R8: the session commits its next transaction.]
 DROP TABLE t1;

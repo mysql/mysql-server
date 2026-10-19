@@ -1,0 +1,12 @@
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_cache_size = 4096;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1000, REPEAT('L', 11000000));
+COMMIT;
+include/assert.inc [R1: the transaction's spilled file is promoted.]
+include/assert_grep.inc [R1: the promoted file holds every row event of the transaction.]
+include/assert.inc [R1: every row is committed.]
+DROP TABLE t1;

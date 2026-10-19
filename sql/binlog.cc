@@ -4167,7 +4167,7 @@ bool MYSQL_BIN_LOG::open_binlog(
     const char *log_name, const char *new_name, ulong max_size_arg,
     bool null_created_arg, bool need_lock_index, bool need_tsid_lock,
     Format_description_log_event *extra_description_event,
-    uint32 new_index_number, Spilled_file_promotion *promotion) {
+    uint32 new_index_number, File_rotation &rotation) {
   // lock_index must be acquired *before* tsid_lock.
   assert(need_tsid_lock || !need_lock_index);
   DBUG_TRACE;
@@ -4380,7 +4380,7 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   /*
     When open_binlog() is called by the rotation that promotes a large
-    transaction's spilled file (promotion is not nullptr),
+    transaction's spilled file (see Spilled_file_rotation),
     promote_spilled_file() copies the header events written above into the
     front of the transaction's spilled binlog cache file, then renames the
     spilled file to replace the new binary log file.
@@ -4393,10 +4393,7 @@ bool MYSQL_BIN_LOG::open_binlog(
     temp files directory. Either way no indexed binary log file holds the
     large transaction's XID, so recovery rolls it back.
   */
-  if (promotion != nullptr) {
-    assert(!is_relay_log);
-    if (promote_spilled_file(promotion)) goto err;
-  }
+  if (rotation.replace_new_file_with_spilled_file(*this)) goto err;
 
   if (m_binlog_file->flush_and_sync()) goto err;
 
@@ -4429,32 +4426,13 @@ bool MYSQL_BIN_LOG::open_binlog(
   atomic_log_state = LOG_OPENED;
   /*
     At every rotate memorize the last transaction counter state to use it as
-    offset at logging the transaction logical timestamps. When a spilled
-    file is promoted, its transaction's Gtid event was generated after the
-    tracker was rotated.
+    offset at logging the transaction logical timestamps.
   */
-  if (promotion == nullptr || !promotion->promoted)
-    m_dependency_tracker.rotate();
+  rotation.rotate_dependency_tracker(*this);
 
   m_binlog_index_monitor.close_purge_index_file();
-  DBUG_EXECUTE_IF("crash_bolt_after_purge_index_remove", {
-    if (promotion != nullptr && promotion->promoted) DBUG_SUICIDE();
-  });
 
-  /*
-    A promoted file holds the transaction already: publish only its header
-    events here, replacing the previous file's end position, as
-    update_binlog_end_pos() does for a fresh file. The flush stage publishes
-    the rest after the after_flush hook, as for any transaction.
-  */
-  if (promotion != nullptr && promotion->promoted) {
-    lock_binlog_end_pos();
-    atomic_binlog_end_pos = promotion->header_end;
-    signal_update();
-    unlock_binlog_end_pos();
-  } else {
-    update_binlog_end_pos();
-  }
+  rotation.publish_end_position(*this);
   return false;
 
 err:
@@ -5111,7 +5089,7 @@ int MYSQL_BIN_LOG::new_file_without_locking(
 */
 int MYSQL_BIN_LOG::new_file_impl(
     bool need_lock_log, Format_description_log_event *extra_description_event,
-    Spilled_file_promotion *promotion) {
+    File_rotation &rotation) {
   int error = 0;
   bool close_on_error = false;
   char new_name[FN_REFLEN], *new_name_ptr = nullptr, *old_name;
@@ -5153,43 +5131,19 @@ int MYSQL_BIN_LOG::new_file_impl(
   }
 
   if (!is_relay_log) {
-    /*
-      When this rotation promotes a large transaction's spilled file, the
-      rotation runs on that transaction's THD in the middle of its commit.
-      Saving the GTIDs commits a write to mysql.gtid_executed on the current
-      THD, which would commit the large transaction too early. With
-      current_thd set to nullptr, the GTID table code uses its own THD
-      instead.
-    */
-    THD *const large_trx_thd =
-        promotion != nullptr &&
-                /* The debug point raises its error on current_thd. */
-                !DBUG_EVALUATE_IF("gtid_executed_readonly", true, false)
-            ? current_thd
-            : nullptr;
-    if (large_trx_thd != nullptr) current_thd = nullptr;
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
-    error = gtid_state->save_gtids_of_last_binlog_into_table();
-    if (large_trx_thd != nullptr) large_trx_thd->store_globals();
-    if (error) {
+    if ((error = rotation.save_gtids_of_last_binlog())) {
       if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN) {
         close_on_error =
             m_binlog_file->get_real_file_size() >=
                 static_cast<my_off_t>(max_size) ||
             DBUG_EVALUATE_IF("simulate_max_binlog_size", true, false);
 
-        /*
-          The current binary log stays in use. The large transaction is
-          written into the current binary log as on the standard commit path.
-        */
-        if (!close_on_error && promotion != nullptr)
-          promotion->fallback_reason =
-              Large_trx_fallback_reason::kGtidPersistence;
-
         if (!close_on_error) {
           LogErr(ERROR_LEVEL, ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY,
                  "Current binlog file was flushed to disk and will be kept in "
                  "use.");
+          rotation.record_gtid_persistence_fallback_reason();
         } else {
           snprintf(close_on_error_msg, sizeof close_on_error_msg,
                    ER_THD(current_thd, ER_RPL_GTID_TABLE_CANNOT_OPEN), "mysql",
@@ -5304,7 +5258,7 @@ int MYSQL_BIN_LOG::new_file_impl(
     error = open_binlog(
         old_name, new_name_ptr, max_size, true /*null_created_arg=true*/,
         false /*need_lock_index=false*/, true /*need_tsid_lock=true*/,
-        extra_description_event, 0 /*new_index_number*/, promotion);
+        extra_description_event, 0 /*new_index_number*/, rotation);
   }
 
   /* handle reopening errors */
@@ -6808,7 +6762,17 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
         record_large_trx_fallback(Large_trx_fallback_reason::kLogClosed);
       } else if (DBUG_EVALUATE_IF("fail_bolt_spill_file_sync", true, false) ||
                  large_trx_cache->get_cache()->flush_and_sync_spilled_file()) {
-        record_large_trx_fallback(Large_trx_fallback_reason::kPromotionFailed);
+        /*
+          The spilled file could not be written or synced, the transaction is
+          rolled back.
+        */
+        if (!thd->is_error()) {
+          char errbuf[MYSYS_STRERROR_SIZE];
+          my_error(ER_ERROR_ON_WRITE, MYF(0),
+                   large_trx_cache->get_cache()->tmp_file_name(), my_errno(),
+                   my_strerror(errbuf, sizeof(errbuf), my_errno()));
+        }
+        return RESULT_ABORTED;
       } else {
         large_trx_cache->request_spilled_file_promotion();
         thd->rpl_thd_ctx.binlog_group_commit_ctx().set_must_lead_flush_group(
