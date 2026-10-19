@@ -961,9 +961,9 @@ static bool matching_cond(bool max_fl, Index_lookup *ref, KEY *keyinfo,
         return false;
       }
 
-      // Storing a nonintegral value in BIGINT can round it without reporting
-      // truncation. An equality lookup must use the value of the predicate.
-      if (eq_type && part->field->type() == MYSQL_TYPE_LONGLONG &&
+      // Integer fields can silently round real values or numeric strings,
+      // even with TYPE_OK. An equality lookup must use the predicate value.
+      if (eq_type && is_integer_type(part->field->type()) &&
           stored_field_cmp_to_item(part->field->table->in_use, part->field,
                                    value) != 0)
         return false;

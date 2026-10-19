@@ -9086,8 +9086,8 @@ static Item *part_of_refkey(TABLE *table, Index_lookup *ref,
 
 /**
   Store item value into field and check whether the value survived the
-  round-trip without truncation. Integer fields can silently round or
-  truncate decimal and real values while returning TYPE_OK, so the caller
+  round-trip without truncation. Integer fields can silently round decimal,
+  real values, and numeric strings while returning TYPE_OK, so the caller
   cannot rely on the return status alone. This helper re-reads the stored
   value and compares it with the original to detect such conversion.
 
@@ -9113,7 +9113,8 @@ static type_conversion_status save_in_field_check_truncation(THD *thd,
   } else if (is_integer_type(field->type()) &&
              (item->result_type() == REAL_RESULT ||
               item->result_type() == STRING_RESULT)) {
-    // Integer fields can silently round a real value, even with TYPE_OK.
+    // Integer fields can silently round a real value or numeric string,
+    // even with TYPE_OK.
     // Compare in the same numeric domain as the original equality.
     if (stored_field_cmp_to_item(thd, field, item) != 0)
       return TYPE_NOTE_TRUNCATED;
