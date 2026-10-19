@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 *****************************************************************************/
 
 #include <gtest/gtest.h>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -247,6 +248,7 @@ TEST_F(ManifestReaderTest, MergeNoLocalManifestDedupsGlobal) {
   Manifest_reader global(exe, "");
   Manifest_reader local(exe, local_dir()); /* absent */
   EXPECT_FALSE(local.file_present());
+  EXPECT_EQ(0, local.open_errno()); /* absent is not an open error */
 
   std::string components;
   ASSERT_TRUE(global.components(components));
@@ -303,6 +305,28 @@ TEST_F(ManifestReaderTest, MergeLocalWithoutComponentsFails) {
   write_local_manifest(R"({ "read_local_manifest": false })");
   Manifest_reader global(exe, "");
   Manifest_reader local(exe, local_dir());
+
+  std::string components;
+  ASSERT_TRUE(global.components(components));
+  EXPECT_FALSE(manifest::merge_local_components(global, local, components));
+  EXPECT_EQ("file://a", components); /* unchanged on failure */
+}
+
+TEST_F(ManifestReaderTest, MergeUnopenableLocalManifestFails) {
+  /* An existing local manifest that cannot be opened must not be */
+  /* silently treated as absent.                                  */
+  if (geteuid() == 0) GTEST_SKIP() << "root ignores mode 000";
+  std::string exe = write_manifest(
+      R"({ "components": "file://a", "merge_local_manifest": true })");
+  write_local_manifest(R"({ "components": "file://b" })");
+  const std::string local_manifest = local_dir() + "mysqld.my";
+  ASSERT_EQ(0, chmod(local_manifest.c_str(), 0));
+  Manifest_reader global(exe, "");
+  Manifest_reader local(exe, local_dir());
+  /* CAP_DAC_OVERRIDE lets a non-root process open a mode 000 file. */
+  if (local.open_errno() == 0) GTEST_SKIP() << "mode 000 did not block open";
+  EXPECT_FALSE(local.file_present());
+  EXPECT_EQ(EACCES, local.open_errno());
 
   std::string components;
   ASSERT_TRUE(global.components(components));
