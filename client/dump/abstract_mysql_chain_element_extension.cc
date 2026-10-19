@@ -139,9 +139,17 @@ std::string Abstract_mysql_chain_element_extension::quote_name(
   if (!runner) return name;
 
   buff[0] = '`';
-  int len = mysql_real_escape_string_quote(runner->get_low_level_connection(),
-                                           buff + 1, name_str,
-                                           (ulong)name.size(), '`');
+  MYSQL *connection = runner->get_low_level_connection();
+  const ulong len = mysql_real_escape_string_quote(
+      connection, buff + 1, name_str, (ulong)name.size(), '`');
+  if (len == static_cast<ulong>(-1)) {
+    const Mysql::Tools::Base::Message_data message(
+        mysql_errno(connection), mysql_error(connection),
+        Mysql::Tools::Base::Message_type_error);
+    delete runner;
+    if (m_message_handler != nullptr) (*m_message_handler)(message);
+    return "``";
+  }
   buff[len + 1] = '`';
   delete runner;
   return std::string(buff);
