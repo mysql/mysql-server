@@ -346,6 +346,15 @@ bool Deployed_components::load() {
     */
     if (manifest::merge_local_components(*current_reader, *local_reader,
                                          components_) == false) {
+      if (local_reader->open_errno() != 0) {
+        /* The local manifest exists but could not be opened. */
+        char errbuf[MYSYS_STRERROR_SIZE];
+        last_error_.assign(
+            "Could not open local manifest file '" +
+            local_reader->manifest_file() + "': " +
+            my_strerror(errbuf, sizeof(errbuf), local_reader->open_errno()));
+        return false;
+      }
       last_error_.assign(
           "Could not parse 'components' attribute from local manifest "
           "file.");

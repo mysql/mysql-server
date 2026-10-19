@@ -25,6 +25,7 @@
 #define MANIFEST_INCLUDED
 
 #include <algorithm>
+#include <cerrno>
 #include <fstream> /* std::ifstream */
 #include <memory>
 #include <string>
@@ -90,6 +91,7 @@ class Manifest_reader final {
         schema_(),
         data_(),
         file_present_(false),
+        open_errno_(0),
         valid_(false),
         empty_(true),
         ro_(true) {
@@ -106,9 +108,21 @@ class Manifest_reader final {
       config_file_path_ = path + executable;
     else
       config_file_path_ = instance_path + executable;
+    errno = 0;
     std::ifstream file_stream(config_file_path_,
                               std::ios::in | std::ios::ate | std::ios::binary);
-    if (!file_stream.is_open()) return;
+    if (!file_stream.is_open()) {
+      /*
+        ENOENT/ENOTDIR (or no errno at all) means there is no manifest at
+        this path. Any other failure means the file exists but could not
+        be opened (e.g. EACCES); remember it so callers can report it.
+        Either way the reader stays absent: file_present() is false.
+      */
+      const int open_errno = errno;
+      if (open_errno != 0 && open_errno != ENOENT && open_errno != ENOTDIR)
+        open_errno_ = open_errno;
+      return;
+    }
     file_present_ = true;
     {
       /* Check if files read-only or not */
@@ -143,6 +157,8 @@ class Manifest_reader final {
   ~Manifest_reader() = default;
 
   bool file_present() const { return file_present_; }
+  /** errno of a failed open of an existing manifest file, else 0 */
+  int open_errno() const { return open_errno_; }
   bool empty() const { return !file_present_ || empty_; }
   bool ro() const { return ro_; }
   std::string manifest_file() const { return config_file_path_; }
@@ -196,6 +212,8 @@ class Manifest_reader final {
   rapidjson::Document data_;
   /** File status */
   bool file_present_;
+  /** errno when the file exists but could not be opened, else 0 */
+  int open_errno_;
   /** Validity of configuration data */
   bool valid_;
   /** content */
@@ -267,9 +285,11 @@ inline std::string merge_component_lists(const std::string &global,
   manifest, a zero-byte one, or an instance path that resolves to the
   global manifest itself (which is not merged into itself).
 
-  A local manifest that cannot be opened is treated as absent, as
-  Manifest_reader does elsewhere; a local manifest that opens but has
-  no readable "components" is an error.
+  A local manifest that does not exist (open fails with ENOENT or
+  ENOTDIR, or sets no errno) is treated as absent. A local manifest
+  that exists but cannot be opened (local_reader.open_errno() is
+  non-zero, e.g. EACCES) is an error, as is one that opens but has no
+  readable "components".
 
   @param global_reader  Reader for the global manifest
   @param local_reader   Reader for the instance-path manifest
@@ -277,17 +297,21 @@ inline std::string merge_component_lists(const std::string &global,
                               on success
 
   @retval true  components holds the merged list
-  @retval false local manifest opened but its "components" unreadable;
-                components is unchanged
+  @retval false local manifest exists but could not be opened, or
+                opened but its "components" unreadable; components is
+                unchanged
 */
 inline bool merge_local_components(const Manifest_reader &global_reader,
                                    const Manifest_reader &local_reader,
                                    std::string &components) {
   std::string local_components;
-  if (local_reader.manifest_file() != global_reader.manifest_file() &&
-      !local_reader.empty() &&
-      local_reader.components(local_components) == false)
-    return false;
+  if (local_reader.manifest_file() != global_reader.manifest_file()) {
+    /* Present but unopenable: do not boot without its components. */
+    if (local_reader.open_errno() != 0) return false;
+    if (!local_reader.empty() &&
+        local_reader.components(local_components) == false)
+      return false;
+  }
   components = merge_component_lists(components, local_components);
   return true;
 }
