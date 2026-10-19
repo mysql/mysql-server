@@ -48,12 +48,13 @@ Large_transaction_header_event::Large_transaction_header_event(
   READER_ASSERT_POSITION(fde->common_header_len);
 
   READER_TRY_SET(m_version, read<uint8_t>);
-  if (m_version == 0 || m_version > kVersion) {
-    READER_THROW("Invalid Large_transaction_header version");
+  if (m_version > kVersion) {
+    m_body_state = Body_state::kNewerVersion;
+    READER_THROW("Newer Large_transaction_header version");
   }
+  if (m_version == 0) READER_THROW("Invalid Large_transaction_header version");
   READER_TRY_SET(m_terminating_event_offset, read<uint64_t>);
-  /* Read unconditionally: a truncated event missing the type byte is
-     reported as a read error rather than silently defaulting the type. */
+  /* A truncated event without the type byte is a read error. */
   READER_TRY_SET(m_terminating_event_type, read<uint8_t>);
   READER_TRY_SET(body_length, read<uint8_t>);
   if (body_length > kMaxTerminatingEventBodyLength) {
@@ -66,6 +67,16 @@ Large_transaction_header_event::Large_transaction_header_event(
   m_padding_size = READER_CALL(available_to_read);
 
   READER_CATCH_ERROR;
+  /*
+    A body that cannot be used does not make the event invalid. A reader skips
+    the event by the length in its common header, and reads the transaction
+    sequentially.
+  */
+  if (!header()->get_is_valid()) {
+    if (m_body_state == Body_state::kDecoded)
+      m_body_state = Body_state::kMalformed;
+    header()->set_is_valid(true);
+  }
   BAPI_VOID_RETURN;
 }
 
@@ -92,6 +103,7 @@ void Large_transaction_header_event::print_long_info(std::ostream &info) {
   info << "\tTerminating event body: " << m_terminating_event_body.size()
        << " bytes";
   info << "\tPadding: " << m_padding_size << " bytes";
+  if (m_body_state != Body_state::kDecoded) info << "\tBody not decoded";
   info << "\n";
 }
 #endif

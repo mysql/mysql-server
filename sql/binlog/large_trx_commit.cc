@@ -21,6 +21,14 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
+/**
+  @file
+  @brief The commit path for the binary log large transaction optimization:
+  deciding whether a transaction may use the optimization, promoting the
+  transaction's spilled file to a binary log file, and reporting why a
+  candidate transaction falls back to the standard commit path.
+*/
+
 #include "sql/binlog/large_trx_commit.h"
 
 #ifndef _WIN32
@@ -33,16 +41,14 @@
 #include <memory>
 #include <string_view>
 
-#include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_sys.h"
 #include "mysql/binlog/event/binlog_event.h"
 #include "mysql/binlog/event/control_events.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysqld_error.h"       // ER_GNO_EXHAUSTED
+#include "mysqld_error.h"       // ER_BINLOG_BOLT_*
 #include "mysys_err.h"          // EE_SYNC
-#include "scope_guard.h"        // create_scope_guard
 #include "sql/basic_ostream.h"  // StringBuffer_ostream
 #include "sql/binlog.h"
 #include "sql/binlog/binlog_ofile.h"          // MYSQL_BIN_LOG::Binlog_ofile
@@ -51,44 +57,26 @@
 #include "sql/binlog/global.h"                // binlog::global_context
 #include "sql/binlog_ostream.h"
 #include "sql/binlog_reader.h"  // IBasic_binlog_file_reader
-#include "sql/current_thd.h"
-#include "sql/debug_sync.h"  // DEBUG_SYNC
-#include "sql/derror.h"      // ER_THD
-#include "sql/handler.h"     // ha_flush_logs
 #include "sql/log_event.h"
 #include "sql/mysqld.h"
-#include "sql/rpl_commit_stage_manager.h"          // Commit_stage_manager
-#include "sql/rpl_gtid.h"                          // gtid_state
-#include "sql/rpl_handler.h"                       // RUN_HOOK
-#include "sql/rpl_log_encryption.h"                // rpl_encryption
-#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
-#include "sql/rpl_trx_tracking.h"  // Transaction_dependency_tracker
+#include "sql/rpl_log_encryption.h"  // rpl_encryption
 #include "sql/sql_class.h"
 #include "sql/transaction_info.h"
-
-/**
-  @file
-  @brief The commit path for the binary log large transaction optimization:
-  deciding whether a transaction may use the optimization, promoting the
-  transaction's spilled file to a binary log file, and reporting why a
-  candidate transaction falls back to the standard commit path.
-*/
 
 using mysql::binlog::event::enum_binlog_checksum_alg;
 
 namespace {
 
 /**
-  Slot 0 corresponds to kNone and is never logged to the error log;
-  record_large_trx_fallback() rejects that value. Entries must be string
-  literals so .data() is NUL-terminated for the %s in
-  ER_BINLOG_BOLT_LARGE_TRX_FALLBACK.
+  The detail logged for each Large_trx_fallback_reason, indexed by the
+  reason. Entries must be string literals, so that .data() is NUL-terminated
+  for the %s in ER_BINLOG_BOLT_LARGE_TRX_FALLBACK.
 */
 constexpr std::array<std::string_view, 12> kFallbackDetails{
     // kNone (never logged, record_large_trx_fallback() rejects it)
     "no fallback",
     // kStatementCache
-    "the statement cache is nonempty",
+    "the transaction also changed a non-transactional table",
     // kNonRowFormat
     "the transaction contains non-ROW events",
     // kEncryption
@@ -100,18 +88,16 @@ constexpr std::array<std::string_view, 12> kFallbackDetails{
     // kReservedHeaderSpace
     "the reserved header region is too small",
     // kGtidPersistence
-    "GTID persistence prevented promotion; attempting the standard "
-    "commit path",
+    "mysql.gtid_executed could not be updated at the rotation",
     // kIncident
     "the transaction has a logging incident to report",
     // kLogClosed
     "the binary log was closed while the transaction was running",
     // kRewriteFailed
     "the binary log cache could not be rewritten into the binary log file "
-    "format",
+    "form",
     // kPromotionFailed
-    "the spilled binary log cache file could not be promoted; the "
-    "transaction was written into the binary log instead",
+    "the spilled binary log cache file could not be promoted",
 };
 
 static_assert(
@@ -142,7 +128,7 @@ bool is_large_trx_commit_candidate(binlog_cache_mngr *cache_mngr) {
          /*
            Only a named spilled file can be promoted.
          */
-         trx_cache->get_cache()->tmp_file_name() != nullptr &&
+         trx_cache->get_cache()->named_file_name() != nullptr &&
          trx_cache->get_byte_position() >
              trx_cache->large_trx_optimization_threshold();
 }
@@ -192,9 +178,9 @@ Large_trx_fallback_reason large_trx_commit_blocker(
   */
   if (trx_cache->get_cache()->is_encrypted() || rpl_encryption.is_enabled())
     return Large_trx_fallback_reason::kEncryption;
-  if (trx_cache->get_compression_type() !=
-      mysql::binlog::event::compression::NONE)
-    return Large_trx_fallback_reason::kCompression;
+  /* Binlog_cache_compressor never compresses a rewritten cache. */
+  assert(trx_cache->get_compression_type() ==
+         mysql::binlog::event::compression::NONE);
   return Large_trx_fallback_reason::kNone;
 }
 
@@ -233,6 +219,22 @@ bool sync_directory_of(const char *path) {
 #endif
 }
 
+/*
+  True for a fallback reason that the server's configuration causes. Such a
+  fallback repeats for every large transaction, so it is logged once per
+  server run.
+*/
+bool is_configuration_reason(Large_trx_fallback_reason reason) {
+  return reason == Large_trx_fallback_reason::kEncryption ||
+         reason == Large_trx_fallback_reason::kNonRowFormat ||
+         reason == Large_trx_fallback_reason::kCompression ||
+         reason == Large_trx_fallback_reason::kStatementCache;
+}
+
+/* Whether a configuration reason was logged in this server run. */
+std::array<std::atomic<bool>, kFallbackDetails.size()>
+    configuration_reason_logged{};
+
 }  // namespace
 
 void record_large_trx_fallback(Large_trx_fallback_reason reason) {
@@ -242,8 +244,19 @@ void record_large_trx_fallback(Large_trx_fallback_reason reason) {
   /* Atomic so concurrent sessions can increment this counter. */
   binlog_large_transaction_optimization_missed_count.fetch_add(
       1, std::memory_order_relaxed);
+  const size_t index = static_cast<size_t>(reason);
+  if (is_configuration_reason(reason)) {
+    /* One session logs the reason. Later fallbacks are only counted. */
+    std::atomic<bool> &logged = configuration_reason_logged[index];
+    if (logged.load(std::memory_order_relaxed) ||
+        logged.exchange(true, std::memory_order_relaxed))
+      return;
+    LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_LARGE_TRX_FALLBACK_ONCE,
+           kFallbackDetails[index].data());
+    return;
+  }
   LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_LARGE_TRX_FALLBACK,
-         kFallbackDetails[static_cast<size_t>(reason)].data());
+         kFallbackDetails[index].data());
 }
 
 binlog_cache_data *get_cache_for_large_trx_commit(
@@ -324,6 +337,21 @@ Large_trx_header_check find_large_trx_terminating_event(
     IBasic_binlog_file_reader &reader, my_off_t file_size,
     const mysql::binlog::event::Large_transaction_header_event &lth,
     my_off_t *end) {
+  /*
+    A header body in a newer format version is not applicable. A malformed
+    header body is invalid. In both cases the transaction is read
+    sequentially.
+  */
+  using Body_state =
+      mysql::binlog::event::Large_transaction_header_event::Body_state;
+  switch (lth.get_body_state()) {
+    case Body_state::kDecoded:
+      break;
+    case Body_state::kNewerVersion:
+      return Large_trx_header_check::kNotApplicable;
+    case Body_state::kMalformed:
+      return Large_trx_header_check::kInvalid;
+  }
   const uint8_t type = lth.get_terminating_event_type();
   /*
     The optimized recovery skips the transaction body only after it verifies
@@ -342,21 +370,18 @@ Large_trx_header_check find_large_trx_terminating_event(
   if (body.empty() || offset <= position || offset >= file_size ||
       file_size - offset < LOG_EVENT_HEADER_LEN)
     return Large_trx_header_check::kInvalid;
-  if (reader.seek(offset)) return Large_trx_header_check::kReadError;
-
-  const std::unique_ptr<Log_event> event(reader.read_event_object());
-  const my_off_t event_end = reader.position();
   /*
-    A failed read is a read error only when the reader itself failed. Bytes
-    that do not decode into an event (a wrong offset, a truncated file, a
-    checksum mismatch) are an invalid header: the sequential read handles
-    them as it does without the header.
+    If the terminating event cannot be sought or read, the header is invalid,
+    and the transaction is read sequentially. Only a failed seek back is a
+    read error.
   */
-  const Binlog_read_error::Error_type read_error = reader.get_error_type();
-  if (reader.seek(position) ||
-      (event == nullptr && (read_error == Binlog_read_error::SYSTEM_IO ||
-                            read_error == Binlog_read_error::MEM_ALLOCATE)))
-    return Large_trx_header_check::kReadError;
+  std::unique_ptr<Log_event> event;
+  my_off_t event_end = 0;
+  if (!reader.seek(offset)) {
+    event.reset(reader.read_event_object());
+    event_end = reader.position();
+  }
+  if (reader.seek(position)) return Large_trx_header_check::kReadError;
   if (event == nullptr) return Large_trx_header_check::kInvalid;
 
   const my_off_t checksum_len =
@@ -415,8 +440,10 @@ bool MYSQL_BIN_LOG::promote_spilled_file(Spilled_file_promotion *promotion) {
 
   DBUG_EXECUTE_IF("crash_bolt_after_purge_index_sync", DBUG_SUICIDE(););
 
-  /* 1. Encryption and the checksum algorithm, under LOCK_log (also checked
-     before the rotation, in rotate_and_promote_spilled_file()). */
+  /*
+    1. Encryption and the checksum algorithm, under LOCK_log.
+    rotate_and_promote_spilled_file() also checks both before the rotation.
+  */
   if (rpl_encryption.is_enabled())
     return fall_back(Large_trx_fallback_reason::kEncryption);
   if (!large_trx_cache_checksum_matches_binlog(cache_data))
@@ -427,8 +454,10 @@ bool MYSQL_BIN_LOG::promote_spilled_file(Spilled_file_promotion *promotion) {
   const my_off_t checksum_len = cache->footer_length();
   const my_off_t reserved = cache->reserved_bytes();
 
-  /* 2. The new file's header events, and whether the reserved region holds
-     them with the Large_transaction_header and Gtid events. */
+  /*
+    2. The new file's header events, and whether the reserved region holds
+    the header events with the Large_transaction_header and Gtid events.
+  */
   const my_off_t header_end = m_binlog_file->position();
   if (!large_trx_header_events_fit(header_end, checksum_len, reserved))
     return fall_back(Large_trx_fallback_reason::kReservedHeaderSpace);
@@ -520,10 +549,10 @@ bool MYSQL_BIN_LOG::promote_spilled_file(Spilled_file_promotion *promotion) {
     descriptor across the rename. The cache's reset gets kKeep, so the reset
     does not delete the renamed file.
   */
-  const char *temp_file_name = cache->tmp_file_name();
-  if (temp_file_name == nullptr ||
+  const char *spilled_file_name = cache->named_file_name();
+  if (spilled_file_name == nullptr ||
       DBUG_EVALUATE_IF("fail_bolt_promotion_rename", true, false) ||
-      my_rename(temp_file_name, log_file_name, MYF(MY_WME)))
+      my_rename(spilled_file_name, log_file_name, MYF(MY_WME)))
     return fall_back_after_gtid(Large_trx_fallback_reason::kPromotionFailed);
   promotion->promoted = true;
   promotion->header_end = header_end;
@@ -534,7 +563,7 @@ bool MYSQL_BIN_LOG::promote_spilled_file(Spilled_file_promotion *promotion) {
     so the spilled file's old name does not come back.
   */
   if (DBUG_EVALUATE_IF("fail_bolt_directory_sync", true, false) ||
-      sync_directory_of(log_file_name) || sync_directory_of(temp_file_name))
+      sync_directory_of(log_file_name) || sync_directory_of(spilled_file_name))
     return true;
   DBUG_EXECUTE_IF("crash_bolt_after_promote_rename", DBUG_SUICIDE(););
 

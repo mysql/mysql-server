@@ -1143,6 +1143,7 @@ SET(BINLOG_SOURCE
   binlog/binlog_ofile.cc
   binlog/binlog_tc_log.cc
   binlog/cache_data.cc
+  binlog/cache_representation.cc
   binlog/thd_backup_and_restore.cc
   binlog/global.cc
   binlog/large_trx_commit.cc
@@ -1155,7 +1156,6 @@ SET(BINLOG_SOURCE
   binlog/monitoring/context.cc
   binlog/decompressing_event_object_istream.cc
   binlog/services/iterator/file_storage.cc
-  binlog/cache_representation.cc
   binlog.cc
   binlog_index.cc
   binlog_istream.cc

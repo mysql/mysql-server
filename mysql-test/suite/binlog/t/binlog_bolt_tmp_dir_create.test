@@ -13,6 +13,8 @@
 # R3. Setting it OFF keeps the directory.
 # R4. SET ... = ON fails when the directory cannot be created (a regular file
 #     has its name); the variable stays OFF.
+# R5. Started with the optimization ON, when the directory cannot be created,
+#     the server starts, logs an error and turns the optimization OFF.
 #
 --source include/not_windows.inc
 --source include/have_log_bin.inc
@@ -22,7 +24,10 @@
 --let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
 --let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
 --disable_query_log
-CALL mtr.add_suppression("Failed to initialize #binlog_temp_files at");
+CALL mtr.add_suppression("The binary log temporary files directory .* is unusable");
+CALL mtr.add_suppression("Could not use the binary log temporary files directory");
+CALL mtr.add_suppression("Could not build the binary log temporary files directory path");
+CALL mtr.add_suppression("Turned binlog_large_transaction_optimization_enabled OFF because the binary log temporary files directory");
 --enable_query_log
 
 --echo # R1: the optimization is OFF; no directory, even after a spill.
@@ -58,6 +63,42 @@ SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 --remove_file $BOLT_TEMP_DIR
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 --file_exists $BOLT_TEMP_DIR
+
+--echo # R5: started with the optimization ON, the directory cannot be created.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--rmdir $BOLT_TEMP_DIR
+--let $BOLT_PARENT_DIR = $MYSQLD_DATADIR/#binlog_temp_files
+--exec chmod a-w $BOLT_PARENT_DIR
+# A user who can write into a read-only directory (root) cannot run this case.
+--let BOLT_PARENT_DIR = $BOLT_PARENT_DIR
+--let BOLT_PROBE_INC = $MYSQLTEST_VARDIR/tmp/bolt_tmp_dir_create_probe.inc
+--perl
+  my $probe = "$ENV{BOLT_PARENT_DIR}/bolt_write_probe";
+  my $writable = 0;
+  if (open(my $fh, '>', $probe)) { close($fh); unlink($probe); $writable = 1; }
+  open(my $out, '>', $ENV{BOLT_PROBE_INC}) or die "Cannot write the probe result";
+  print $out "--let \$bolt_parent_writable = $writable\n";
+  close($out);
+EOF
+--source $BOLT_PROBE_INC
+--remove_file $BOLT_PROBE_INC
+--let $restart_parameters = restart: --binlog-large-transaction-optimization-enabled=ON
+--source include/restart_mysqld.inc
+--exec chmod u+w $BOLT_PARENT_DIR
+if (!$bolt_parent_writable)
+{
+  --let $assert_text = R5: the server starts with the optimization OFF.
+  --let $assert_cond = @@GLOBAL.binlog_large_transaction_optimization_enabled = 0
+  --source include/assert.inc
+  --let $assert_text = R5: turning the optimization OFF is logged as an error.
+  --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+  --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_tmp_dir_create
+  --let $assert_select = \[ERROR\].*Turned binlog_large_transaction_optimization_enabled OFF
+  --let $assert_count = 1
+  --source include/assert_grep.inc
+}
+--let $restart_parameters = restart
+--source include/restart_mysqld.inc
 
 # Cleanup
 SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;

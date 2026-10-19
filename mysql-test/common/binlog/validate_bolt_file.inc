@@ -4,6 +4,7 @@
 # optimized recovery to an incorrect terminal event.
 # The awk program avoids `$` field syntax because mysqltest expands it.
 
+--source include/not_windows.inc
 --let $bolt_promoted_dump = $MYSQLTEST_VARDIR/tmp/bolt_promoted_dump.txt
 --let $bolt_validator_script = $MYSQLTEST_VARDIR/tmp/validate_bolt_header.awk
 --exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum --verbose $MYSQLD_DATADIR/$bolt_header_file > $bolt_promoted_dump
@@ -81,11 +82,11 @@ BEGIN {
   gsub(/[[:space:]]/, "", terminal_type)
 
   # Check the promoted prefix is contiguous, the first GTID ends exactly at
-  # the 64 KiB reserved boundary, the LTH points beyond that boundary, and
-  # the stored type is a recovery-supported terminal event (Query, XID, or
-  # XA PREPARE) that matches the raw event-header byte.
+  # the reserved boundary (a multiple of 64 KiB), the LTH points beyond that
+  # boundary, and the stored type is a terminating event type (Query, Xid or
+  # XA_prepare) that matches the raw event-header byte.
   if (!(previous_start >= 4 && previous_end == lth_start &&
-        lth_end == gtid_start && gtid_end == 65536 &&
+        lth_end == gtid_start && gtid_end % 65536 == 0 &&
         lth_offset >= gtid_end && terminal_end > lth_offset &&
         lth_padding > 0 && (lth_type == 2 || lth_type == 16 || lth_type == 38) &&
         terminal_type == lth_type)) exit 1

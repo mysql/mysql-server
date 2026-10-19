@@ -1,8 +1,8 @@
 # === Purpose ===
 # Verify that semisynchronous replication keeps its guarantee for transactions
-# committed through BOLT. BOLT commits on its own path rather than through
-# MYSQL_BIN_LOG::ordered_commit(), so it has to invoke the same replication
-# hooks, in the same order, with the same locks held. If it did not, a promoted
+# committed through BOLT. The spilled file is promoted in the flush stage of
+# MYSQL_BIN_LOG::ordered_commit(), so a BOLT transaction runs the same
+# replication hooks as any transaction. If a hook were skipped, a promoted
 # transaction would be acknowledged to the client without any replica having
 # confirmed it, and the loss would be silent: nothing else reports it.
 #
@@ -13,9 +13,8 @@
 # R3. Semisync is still active after promotions, so the transactions above were
 #     not counted by a source that had silently switched semisync off.
 # R4. A BOLT transaction is applied in full on the replica.
-# R5. The after_flush hook runs before the promoted file's end position is
-#     published, so a dump thread cannot read the transaction's events before
-#     the source has registered that it owes an acknowledgement for them.
+# R5. The after_sync hook runs before the engine commit, so the transaction's
+#     rows are not visible while the source waits for the acknowledgement.
 #
 # Every case asserts Binlog_large_transaction_optimization_count moved, because
 # a transaction that quietly fell back to the standard commit path would satisfy

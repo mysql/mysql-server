@@ -7,7 +7,7 @@
 # === Requirements ===
 # R1. A crash after the main-index update rolls a post-rollback promoted
 #     transaction forward, and the promoted file's own header still points at a
-#     decodable terminating event.
+#     decodable terminating event. Recovery skips the transaction's body.
 # R2. A crash after the promote rename, before the main-index update, rolls a
 #     post-rollback BOLT transaction back and leaves no extra binary log
 #     and no spill file behind.
@@ -86,6 +86,12 @@ COMMIT;
 --let $assert_text = The last kept row survived the chsize trim intact.
 --let $assert_cond = [SELECT LENGTH(data) AS len FROM t1 WHERE id = 3, len, 1] = 4000000
 --source include/assert.inc
+--let $assert_text = R1: recovery skips the transaction's body.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Optimized binary log recovery by avoiding a sequential read
+--let $assert_count = 1
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_savepoint_recovery
+--source include/assert_grep.inc
 
 # The promoted file was trimmed by my_chsize before promotion, so its recorded
 # terminating-event offset has to still land on a decodable event. The shared

@@ -412,6 +412,15 @@ class Binlog_group_commit_ctx {
   }
   bool is_assigned_flush_leader() const { return m_assigned_flush_leader; }
 
+  /// Request an automatic purge at end of BGC. A BOLT promotion of the
+  /// session's spilled file rotates the binlog in the flush stage, where the
+  /// purge cannot run. The flag is cleared by reset().
+  void set_purge_after_commit() { m_purge_after_commit = true; }
+
+  /// Whether any session in queue requested an automatic purge at end of
+  /// BGC.
+  static bool aggregate_purge_after_commit(THD *queue);
+
   /// Aggregate the rotate requests over all sessions in queue
   ///
   /// @return The first element states whether any session
@@ -428,6 +437,8 @@ class Binlog_group_commit_ctx {
   bool m_must_lead_flush_group{false};
   /// @see set_assigned_flush_leader()
   bool m_assigned_flush_leader{false};
+  /// @see set_purge_after_commit()
+  bool m_purge_after_commit{false};
 };
 
 /*

@@ -22,5 +22,6 @@ include/assert.inc [A reserved region too small does not promote a binary log.]
 include/assert.inc [A reserved region too small increments the missed counter once.]
 include/assert.inc [A reserved-header fallback stays in the active binary log.]
 include/assert.inc [A reserved-header fallback commits all rows.]
+include/assert_grep.inc [The fallback reason is logged: the reserved header region is too small.]
 include/assert_grep.inc [The fallback transaction is present in the active binary log.]
 DROP TABLE t1;

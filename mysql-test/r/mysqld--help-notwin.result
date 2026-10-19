@@ -191,12 +191,13 @@ The following options may be given as the first argument:
  Enables the large transaction optimization, which keeps
  large-transaction commit latency low, avoids stalling
  concurrent commits, and keeps binary log crash recovery
- fast regardless of transaction size. When ON (the
- default), a transaction whose spilled size exceeds
+ fast regardless of transaction size when
+ source_verify_checksum is OFF. When this variable is ON
+ (the default), a transaction whose spilled size exceeds
  binlog_large_transaction_optimization_threshold is
  committed by promoting its temporary file into the binary
- log sequence. When OFF, all transactions commit through
- the standard code path.
+ log sequence. When this variable is OFF, all transactions
+ commit through the standard code path.
  (Defaults to on; use --skip-binlog-large-transaction-optimization-enabled to disable.)
  --binlog-large-transaction-optimization-threshold=# 
  The spilled size in bytes above which a transaction

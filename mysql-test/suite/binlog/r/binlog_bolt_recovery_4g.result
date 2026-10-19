@@ -14,6 +14,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # restart
 # R1: recovery seeks to the terminating event, beyond 4 GiB.
 include/assert_grep.inc [Recovery seeks to the terminating event of the transaction.]
+include/assert.inc [R1: the terminating event begins beyond 4 GiB.]
 include/assert.inc [The large transaction's spilled file was promoted into a file of more than 4 GiB.]
 # R2: the transaction survives recovery.
 include/assert.inc [All rows of the BOLT transaction are committed.]

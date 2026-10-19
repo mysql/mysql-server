@@ -86,7 +86,9 @@ class binlog_cache_data {
     flags.transactional = trx_cache_arg;
   }
 
-  bool open(my_off_t cache_size, my_off_t max_cache_size);
+  bool open(my_off_t cache_size, my_off_t max_cache_size) {
+    return m_cache.open(cache_size, max_cache_size);
+  }
 
   Binlog_cache_storage *get_cache() { return &m_cache; }
   int finalize(THD *thd, Log_event *end_event);
@@ -176,8 +178,9 @@ class binlog_cache_data {
   }
 
   /**
-    @return Why the transaction was not eligible at its first event, with the
-            knob ON; kNone if it was eligible or the knob was OFF (see
+    @return Why the transaction was not eligible at its first event, with
+            the knob binlog_large_transaction_optimization_enabled ON. kNone
+            if the transaction was eligible or the knob was OFF (see
             latch_large_trx_optimization()).
   */
   Large_trx_fallback_reason large_trx_ineligible_reason() const {
@@ -194,6 +197,7 @@ class binlog_cache_data {
   void request_spilled_file_promotion() {
     m_spilled_file_promotion_requested = true;
   }
+  /** @see request_spilled_file_promotion() */
   bool is_spilled_file_promotion_requested() const {
     return m_spilled_file_promotion_requested;
   }
@@ -241,7 +245,7 @@ class binlog_cache_data {
 
   /**
      Reset the cache to unused state when the transaction is finished. It
-     drops all data and clears the transaction flags.
+     drops all data in the cache and clears the flags of the transaction state.
 
      @param spilled_file_action  kKeep when the spilled file is kept rather
                                  than deleted, because the caller has
@@ -319,8 +323,10 @@ class binlog_cache_data {
   size_t m_event_counter = 0;
 
   /**
-    Whether the knob and threshold have been latched for this transaction.
-    Cleared by reset() and by a rollback to offset 0.
+    Whether the knob binlog_large_transaction_optimization_enabled and the
+    threshold have been latched for this transaction.
+    Cleared by reset() and by a rollback to offset 0. After a rollback to
+    offset 0, the next event latches again with the current knob.
   */
   bool m_large_trx_optimization_latched = false;
   /** @see large_trx_optimization_enabled() */
@@ -351,8 +357,8 @@ class binlog_cache_data {
   mysql::binlog::event::Log_event_type m_terminating_event_type =
       mysql::binlog::event::UNKNOWN_EVENT;
   /**
-    Body of the transaction's terminating event (its XID), recorded at
-    finalize() together with its offset.
+    Body of the transaction's terminating event, recorded at finalize(): the
+    XID of an Xid or XA_prepare event. Empty for any other event type.
   */
   std::string m_terminating_event_body;
 
@@ -472,8 +478,8 @@ class binlog_cache_data {
     is serialized (and again after a rollback to offset 0).
 
     It captures:
-    - the knob and the threshold, so later changes to them do not affect
-      this transaction;
+    - the knob binlog_large_transaction_optimization_enabled and the
+      threshold, so later changes to them do not affect this transaction;
     - whether the transaction is eligible: the knob is ON, there is no
       pending incident, the first event is not in statement format,
       binlog_encryption is OFF and binlog_transaction_compression is OFF;
@@ -495,6 +501,9 @@ class binlog_cache_data {
   void latch_large_trx_optimization(THD *thd, const Log_event *first_event);
 
   /**
+    The first condition, at the transaction's first event, that makes the
+    transaction ineligible for the optimization.
+
     @param thd          The session writing the event.
     @param first_event  The transaction cache's first event.
 

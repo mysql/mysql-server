@@ -1289,23 +1289,21 @@ static void warn_binlog_large_transaction_optimization_threshold_adjusted(
   LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_THRESHOLD_ADJUSTED, previous_threshold,
          adjusted_threshold);
   if (thd != nullptr)
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING,
-        ER_BINLOG_BOLT_THRESHOLD_ADJUSTED_SQL_WARNING,
-        ER_THD(thd, ER_BINLOG_BOLT_THRESHOLD_ADJUSTED_SQL_WARNING),
-        previous_threshold, adjusted_threshold);
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_DA_BINLOG_BOLT_THRESHOLD_ADJUSTED,
+                        ER_THD(thd, ER_DA_BINLOG_BOLT_THRESHOLD_ADJUSTED),
+                        previous_threshold, adjusted_threshold);
 }
 
 /*
-  The threshold must not be smaller than binlog_cache_size: a transaction only
-  qualifies large transaction optimization once its cache has spilled,
-  which happens at binlog_cache_size, so a lower threshold would never
-  be the deciding limit.
+  The threshold must not be smaller than binlog_cache_size. A transaction
+  only qualifies for the large transaction optimization once its cache has
+  spilled, which happens at binlog_cache_size. So a lower threshold would
+  never be the deciding limit.
 */
 static bool adjust_binlog_large_transaction_optimization_threshold(THD *thd) {
-  if (opt_binlog_large_transaction_optimization_threshold == 0 ||
-      opt_binlog_large_transaction_optimization_threshold >=
-          static_cast<ulonglong>(binlog_cache_size))
+  if (opt_binlog_large_transaction_optimization_threshold >=
+      static_cast<ulonglong>(binlog_cache_size))
     return false;
 
   const ulonglong previous_threshold =
@@ -1391,11 +1389,12 @@ static Sys_var_bool Sys_binlog_large_transaction_optimization_enabled(
     "Enables the large transaction optimization, which keeps "
     "large-transaction commit latency low, avoids stalling concurrent "
     "commits, and keeps binary log crash recovery fast regardless of "
-    "transaction size. When ON (the default), a transaction whose spilled "
-    "size exceeds binlog_large_transaction_optimization_threshold is "
-    "committed by promoting its temporary file into the binary log "
-    "sequence. When OFF, all transactions commit through the standard "
-    "code path.",
+    "transaction size when source_verify_checksum is OFF. When this "
+    "variable is ON (the default), a transaction whose spilled size exceeds "
+    "binlog_large_transaction_optimization_threshold is committed by "
+    "promoting its temporary file into the binary log sequence. When this "
+    "variable is OFF, all transactions commit through the standard code "
+    "path.",
     GLOBAL_VAR(opt_binlog_large_transaction_optimization_enabled),
     CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_binlog_large_transaction_optimization_enabled),

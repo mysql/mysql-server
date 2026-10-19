@@ -45,6 +45,7 @@ SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 --source include/rpl/connection_source.inc
 
 --echo # Write a qualifying BOLT transaction on the source.
+--let $source_bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
 INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
@@ -52,7 +53,7 @@ INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
 COMMIT;
 --let $source_optimized_count = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $assert_text = The source transaction's spilled file was promoted before replication.
---let $assert_cond = $source_optimized_count > 0
+--let $assert_cond = $source_optimized_count = $source_bolt_before + 1
 --source include/assert.inc
 
 --source include/rpl/sync_to_replica_received.inc
@@ -90,13 +91,9 @@ DROP TABLE t1;
 --eval SET GLOBAL binlog_large_transaction_optimization_threshold = $source_save_threshold
 --eval SET SESSION binlog_transaction_compression = $source_save_compression
 --enable_query_log
---source include/rpl/connection_replica.inc
+--source include/rpl/sync_to_replica.inc
 --disable_query_log
 --eval SET GLOBAL binlog_large_transaction_optimization_enabled = $replica_save_enabled
 --eval SET GLOBAL binlog_large_transaction_optimization_threshold = $replica_save_threshold
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 --enable_query_log
---let $rpl_skip_sync = 1
 --source include/rpl/deinit.inc

@@ -1,7 +1,7 @@
 # BOLT stands for Binary-log Optimization for Large Transactions.
 #
 # === Purpose ===
-# Exploratory regression test for the checksumless cache: after a transaction
+# A test of the checksumless cache: after a transaction
 # cache has been converted to the checksummed (promotable) representation, a
 # ROLLBACK TO SAVEPOINT at offset 0 resets the transaction's BOLT latch. If the
 # knob or binlog_checksum changes before the next event, that event must still

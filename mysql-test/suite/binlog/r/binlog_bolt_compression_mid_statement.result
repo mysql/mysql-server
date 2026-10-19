@@ -7,6 +7,7 @@ SET SESSION binlog_transaction_compression = ON;
 RETURN v;
 END|
 # R1: compression turned ON after the cache was rewritten.
+TRUNCATE TABLE performance_schema.binary_log_transaction_compression_stats;
 INSERT INTO t1 VALUES (1, REPEAT('a', 6000000)), (compress_on(2), REPEAT('b', 6000000));
 include/assert.inc [R1: compression is ON after the statement.]
 include/assert.inc [R1: the transaction's spilled file is promoted.]

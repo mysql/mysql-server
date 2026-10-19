@@ -30,6 +30,7 @@ include/assert.inc [Encryption enabled mid-transaction increments the missed cou
 include/assert.inc [The mid-transaction encryption fallback stays in the active binary log.]
 include/assert.inc [The mid-transaction encryption fallback commits all rows.]
 include/assert.inc [The mid-transaction encryption fallback preserves the full payload.]
+include/assert_grep.inc [The fallback reason is logged: binary log encryption was enabled while the transaction was running.]
 include/assert.inc [Enabling encryption mid-transaction rotates the binary log.]
 include/assert.inc [The mid-transaction encryption fallback wrote into an encrypted binary log.]
 SET GLOBAL binlog_encryption = OFF;
@@ -55,6 +56,16 @@ include/assert.inc [An encrypted file is not promoted after encryption is turned
 include/assert.inc [The encrypted-file fallback increments the missed counter once.]
 include/assert.inc [The encrypted-file fallback stays in the active binary log.]
 include/assert.inc [The encrypted-file fallback commits all rows.]
+SET GLOBAL binlog_encryption = ON;
+# R6: a transaction that runs with encryption ON uses the standard path.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+include/assert.inc [R6: the transaction's spilled file is not promoted.]
+include/assert.inc [R6: the fallback increments the missed counter once.]
+include/assert.inc [R6: the fallback commits all rows.]
 SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
 # ----------------------------------------------------------------------

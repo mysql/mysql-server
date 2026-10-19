@@ -91,6 +91,10 @@ class Checksumless_binlog_cache_representation final
 
   const char *tmp_file_name() const override { return m_file.tmp_file_name(); }
 
+  const char *named_file_name() const override {
+    return m_file.named_file_name();
+  }
+
   bool is_spilled() const override { return m_file.is_spilled(); }
 
   File spilled_file() const override { return m_file.spilled_file(); }
@@ -205,6 +209,9 @@ class Checksummed_binlog_cache_representation final
 
     rewritten->m_logical_length = source.logical_length();
 
+    /* Create the named spill file now, so that a failure falls back. */
+    if (rewritten->m_file.create_spilled_file()) return nullptr;
+
     /*
       Keep the converter, with its parse state, for the rest of the event in
       progress (see write()). Even a source that ends at an event boundary is
@@ -224,25 +231,25 @@ class Checksummed_binlog_cache_representation final
   void close() override { m_file.close(); }
 
   /*
-    The caller (binlog_cache_data::write_event()) picks each event's format
-    when the event starts, so every event that reaches this function is in
-    binlog file format, except the one being written when the rewrite ran: it
-    started in standard format, and its remaining bytes still arrive in
-    standard format.
+    The caller (binlog_cache_data::write_event()) picks each event's form
+    when the event starts. So every event that reaches this function is in
+    binlog file form, except the event being written when the rewrite ran.
+    That event started in the standard form, and its remaining bytes still
+    arrive in the standard form.
   */
   bool write(const unsigned char *buffer, my_off_t length) override {
     // No in-progress event being written: the incoming bytes are in binlog
-    // file format already. Store as is.
+    // file form already. Store as is.
     if (m_in_progress_event_converter == nullptr)
       return m_file.write(buffer, length);
 
-    // The rest of the in-progress event, in standard format.
+    // The rest of the in-progress event, in the standard form.
     if (m_in_progress_event_converter->write(buffer, length)) return true;
-    // Standard-format bytes are logical bytes, so add them as they are.
+    // Standard-form bytes are logical bytes, so add them as they are.
     m_logical_length += length;
 
     // Reset m_in_progress_event_converter after the in-progress event is
-    // done: later bytes are in binlog file format.
+    // done: later bytes are in binlog file form.
     if (m_in_progress_event_converter->at_event_boundary())
       m_in_progress_event_converter.reset();
     return false;
@@ -283,6 +290,10 @@ class Checksummed_binlog_cache_representation final
   my_off_t reserved_bytes() const override { return m_file.reserved_bytes(); }
 
   const char *tmp_file_name() const override { return m_file.tmp_file_name(); }
+
+  const char *named_file_name() const override {
+    return m_file.named_file_name();
+  }
 
   bool is_spilled() const override { return m_file.is_spilled(); }
 
@@ -389,9 +400,10 @@ class Checksummed_binlog_cache_representation final
   }
 
   /**
-    Converts events between the standard format and the binlog file format
-    (not related to binlog_format sys var), rewriting each event's header,
-    and adding or removing its footer, as the events pass through.
+    Converts events between the standard form and the binlog file form, as
+    the events pass through. The converter rewrites each event's header, and
+    adds or removes the event's footer. The forms are not related to the
+    binlog_format system variable.
 
     - kToBinlogFileFormat (the rewrite): event_len + footer, log_pos =
       running end offset in the binlog file (after the reserved region),
@@ -409,8 +421,8 @@ class Checksummed_binlog_cache_representation final
       @param direction      Which way the events are converted.
       @param footer_len     The footer length of the binlog file form:
                             BINLOG_CHECKSUM_LEN with CRC32, 0 with NONE.
-      @param start_log_pos  To binlog file form: the file offset of the first
-                            event. Unused to standard form.
+      @param start_log_pos  For kToBinlogFileFormat: the file offset of the
+                            first event. Unused for kToStandardFormat.
     */
     Event_format_converter(Basic_ostream &downstream, Direction direction,
                            uint32 footer_len, uint32 start_log_pos)
@@ -517,9 +529,9 @@ class Checksummed_binlog_cache_representation final
     Basic_ostream &m_downstream;
     const Direction m_direction;
     const uint32 m_footer_len;
-    /** A CRC32 footer is computed and appended (to binlog file format). */
+    /** A CRC32 footer is computed and appended (kToBinlogFileFormat). */
     const bool m_adds_footer;
-    /** Footer bytes dropped from each source event (to standard format). */
+    /** Footer bytes dropped from each source event (kToStandardFormat). */
     const my_off_t m_dropped_footer_len;
     /** To binlog file form: the end offset of the last converted event. */
     uint32 m_end_log_pos;
@@ -535,7 +547,9 @@ class Checksummed_binlog_cache_representation final
 
   /** The in-memory buffer and the named bolt_ temporary file. */
   IO_CACHE_binlog_cache_storage m_file;
+  /** The checksum algorithm of the events in binlog file form. */
   Checksum_alg m_checksum_alg;
+  /** Footer bytes per event: BINLOG_CHECKSUM_LEN with CRC32, 0 with NONE. */
   uint32 m_footer_len;
   /** The cache's length in the standard form. */
   my_off_t m_logical_length = 0;

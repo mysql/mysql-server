@@ -14,7 +14,7 @@ COMMIT;
 include/assert.inc [The transaction's spilled file was promoted into a new binary log file.]
 # Kill and restart: --binlog-large-transaction-optimization-enabled=ON --binlog-large-transaction-optimization-threshold=10M --max-binlog-size=1G --binlog-transaction-compression=OFF
 # Recovery logs the optimized large-transaction seek.
-Pattern "Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset" found
+Pattern "Optimized binary log recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset" found
 include/assert.inc [The committed BOLT transaction survives recovery.]
 # Commit a second qualifying transaction for corrupt-LTH recovery.
 BEGIN;
@@ -42,6 +42,21 @@ include/assert.inc [The third transaction's spilled file was promoted into a new
 include/assert_grep.inc [R4: recovery logs that source_verify_checksum disabled the optimized recovery.]
 include/assert_grep.inc [R4: recovery does not seek past the body; only case 1 logged a seek.]
 include/assert.inc [R4: the BOLT transaction survives recovery.]
-include/assert.inc [R4: GTID reconstruction reads the transaction sequentially and finds its GTID.]
+include/assert.inc [R4: the transaction's GTID is in gtid_executed after recovery.]
+# restart
+# Commit a fourth qualifying transaction without event checksums.
+SET GLOBAL binlog_checksum = NONE;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL max_binlog_size = 1073741824;
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('j', 4000000));
+INSERT INTO t1 VALUES (11, REPEAT('k', 4000000));
+INSERT INTO t1 VALUES (12, REPEAT('l', 4000000));
+COMMIT;
+include/assert.inc [The fourth transaction's spilled file was promoted into a new binary log file.]
+# Kill and restart: --binlog-checksum=NONE
+include/assert_grep.inc [R5: recovery seeks past the body of a transaction without event checksums.]
+include/assert.inc [R5: the BOLT transaction survives recovery.]
 # restart
 DROP TABLE t1;

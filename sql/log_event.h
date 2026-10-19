@@ -3767,12 +3767,12 @@ class Ignorable_log_event
 /**
   @class Large_transaction_header_log_event
 
-  Server class of the binlog large transaction optimization header event
-  (see mysql::binlog::event::Large_transaction_header_event
-  for the wire format and purpose). Written by the server into the
-  reserved header region of a promoted binary log file; on the applier
-  side it is a no-op (and, being flagged ignorable, servers that do not
-  know the type skip it entirely).
+  Server class of the header event of the binary log large transaction
+  optimization (BOLT). mysql::binlog::event::Large_transaction_header_event
+  describes the wire format and purpose. The server writes the event into
+  the reserved header region of a promoted binary log file. The applier does
+  nothing with the event. The event is flagged ignorable, so servers that do
+  not know its type skip it.
 
   @internal
   The inheritance structure is as follows
@@ -3810,8 +3810,8 @@ class Large_transaction_header_log_event
     @param thd_arg                    THD of the committing session.
     @param terminating_event_offset  Offset of the transaction's
                                      terminating event in the file.
-    @param terminating_event_type    Type of the transaction's terminating
-                                     event in the file.
+    @param terminating_event_type    Binary log event type of the
+                                     terminating event.
     @param terminating_event_body    The terminating event's body.
     @param padding_size              Filler bytes occupying the remainder
                                      of the reserved region.

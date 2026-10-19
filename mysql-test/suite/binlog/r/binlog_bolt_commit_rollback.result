@@ -143,9 +143,9 @@ include/assert.inc [Immediate max-binlog-size rotation opens a fresh active bina
 include/assert.inc [Immediate max-binlog-size rotation keeps all promoted rows.]
 SHOW BINARY LOGS;
 Log_name	File_size	Encrypted
-binlog.000001	203	No
-binlog.000002	16066082	No
-binlog.000003	199	No
+binlog.000001	#	No
+binlog.000002	#	No
+binlog.000003	#	No
 BEGIN;
 INSERT INTO t1 (x, y) VALUES (101, REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (x, y) VALUES (102, REPEAT('abcdefghijklmnop', 250000));

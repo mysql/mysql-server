@@ -13,6 +13,10 @@
 # R2. With binlog_checksum=CRC32, the footers count against
 #     max_binlog_cache_size, so fewer statements fit with the optimization ON
 #     than OFF.
+# R3. The statement that first spills the cache, and so rewrites it, is
+#     checked against max_binlog_cache_size. With a limit that the first
+#     spill already reaches, no more statements fit with the optimization ON
+#     than OFF.
 #
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
@@ -25,52 +29,11 @@
 
 SET GLOBAL binlog_checksum = CRC32;
 SET GLOBAL binlog_cache_size = 4096;
-SET GLOBAL max_binlog_cache_size = 65536;
 CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(32)) ENGINE=InnoDB;
 
---let $round = 1
-while ($round <= 2)
-{
-  --let $knob = OFF
-  if ($round == 2)
-  {
-    --let $knob = ON
-  }
-  --eval SET GLOBAL binlog_large_transaction_optimization_enabled = $knob
-  # A new session opens its binlog cache with the sizes set above.
-  --connect (limit_session, localhost, root,,)
-  --disable_query_log
-  BEGIN;
-  --let $statements = 0
-  --let $full = 0
-  while (!$full)
-  {
-    --error 0, ER_TRANS_CACHE_FULL
-    --eval INSERT INTO t1 VALUES ($statements, REPEAT('x', 20))
-    if ($mysql_errno)
-    {
-      --let $full = 1
-    }
-    if (!$mysql_errno)
-    {
-      --inc $statements
-    }
-  }
-  ROLLBACK;
-  --enable_query_log
-  --disconnect limit_session
-  --connection default
-  if ($round == 1)
-  {
-    --let $statements_off = $statements
-  }
-  if ($round == 2)
-  {
-    --let $statements_on = $statements
-  }
-  --inc $round
-}
-
+--let $bolt_row_bytes = 20
+--let $bolt_max_cache_size = 65536
+--source ../inc/bolt_cache_limit_count.inc
 --let $assert_text = R1: the limit stops a rewritten cache after many statements.
 --let $assert_cond = $statements_on > 100
 --source include/assert.inc
@@ -79,9 +42,18 @@ while ($round <= 2)
 --source include/assert.inc
 
 DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(2000)) ENGINE=InnoDB;
+--let $bolt_row_bytes = 2000
+--let $bolt_max_cache_size = 4096
+--source ../inc/bolt_cache_limit_count.inc
+--let $assert_text = R3: the statement that rewrites the cache is checked against the limit.
+--let $assert_cond = $statements_on <= $statements_off
+--source include/assert.inc
+
+DROP TABLE t1;
 --disable_query_log
 --eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
 --eval SET GLOBAL binlog_checksum = $save_checksum
---eval SET GLOBAL binlog_cache_size = $save_cache_size
 --eval SET GLOBAL max_binlog_cache_size = $save_max_cache_size
+--eval SET GLOBAL binlog_cache_size = $save_cache_size
 --enable_query_log

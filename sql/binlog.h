@@ -47,9 +47,9 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // Item_result
 #include "sql/binlog/binlog_tc_log_processing.h"
-#include "sql/binlog/large_trx_commit.h"  // Large_trx_fallback_reason
-#include "sql/binlog_index.h"             // Log_info, Binlog_index
-#include "sql/binlog_reader.h"            // Binlog_file_reader
+#include "sql/binlog/large_trx_commit.h"
+#include "sql/binlog_index.h"   // Log_info, Binlog_index
+#include "sql/binlog_reader.h"  // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
 #include "sql/tc_log.h"            // TC_LOG
@@ -263,7 +263,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   /**
     Replaces the new binary log file that a rotation is opening with a large
     transaction's spilled binlog cache file. Called by open_binlog(), under
-    LOCK_log and the binlog-index lock, after the new file's header events
+    LOCK_log and the binary log index lock, after the new file's header events
     are written and before the file is added to the binary log index. The
     transaction body in the spilled file was already synced, before
     ordered_commit().
@@ -281,11 +281,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
     4. Rename the spilled file to replace the new file, sync both directories,
        and reopen the renamed file at its end.
 
-    A failure in steps 1 to 4, before the rename is complete, changes nothing
-    that is visible: the rotation keeps the new binary log file it opened,
-    which holds only its header events, and the transaction is written into
-    that file as on the standard commit path. A failure after the rename is a
-    rotation error.
+    A failure before the rename completes changes nothing in the binary log.
+    The rotation keeps the new binary log file it opened, which holds only its
+    header events. The transaction is written into that file as on the
+    standard commit path. A failure after the rename, in the directory syncs
+    or the reopen, is a rotation error.
 
     @param promotion  Information about this promotion (see
                       Spilled_file_promotion).

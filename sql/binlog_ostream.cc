@@ -42,7 +42,7 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"          // EE_OUTOFMEMORY, EE_FILENOTFOUND
-#include "sql/error_handler.h"  // Dummy_error_handler
+#include "sql/error_handler.h"  // Dummy_error_handler, Internal_error_handler
 #include "sql/mysqld.h"
 #include "sql/rpl_log_encryption.h"
 #include "sql/sql_class.h"
@@ -85,8 +85,13 @@ File create_binlog_cache_file(IO_CACHE *cache, char *name) {
                  static_cast<unsigned long long>(serial));
     if (length < 0 || length >= FN_REFLEN) {
       set_my_errno(ENAMETOOLONG);
+      MyOsError(ENAMETOOLONG, EE_FILENOTFOUND, MYF(0), name);
       return -1;
     }
+    DBUG_EXECUTE_IF("fail_bolt_spill_file_create", {
+      MyOsError(ENOSPC, EE_FILENOTFOUND, MYF(0), name);
+      return -1;
+    });
     /* A leftover file of an earlier run has this name. */
     DBUG_EXECUTE_IF("simulate_bolt_spill_file_name_taken", {
       (void)my_close(my_create(name, 0, O_RDWR, MYF(0)), MYF(0));
@@ -103,6 +108,27 @@ File create_binlog_cache_file(IO_CACHE *cache, char *name) {
     return -1;
   }
 }
+
+/*
+  Keeps the message of the first error that the rewrite raises, and keeps
+  every condition that the rewrite raises out of the statement. The statement
+  then shows no error and no warning when the transaction falls back.
+*/
+class Rewrite_error_handler : public Internal_error_handler {
+ public:
+  bool handle_condition(THD *, uint, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *msg) override {
+    if (*level == Sql_condition::SL_ERROR && m_message.empty()) m_message = msg;
+    return true;
+  }
+
+  /** Returns the first error message, or an empty string if there was none. */
+  const std::string &message() const { return m_message; }
+
+ private:
+  std::string m_message;
+};
 
 }  // namespace
 
@@ -127,16 +153,17 @@ bool IO_CACHE_binlog_cache_storage::open(const char *dir, const char *prefix,
   m_io_cache.named_file_creator = nullptr;
 
   /*
-    The cache's content is placed after the reserved bytes: physical
-    positions start there, and the first flush into the lazily created
-    temporary file seeks there (the file's offset is 0 at creation). Only a
-    cache in binlog file form reserves bytes (the standard form passes 0); a
-    transaction that falls back never copies them into the binary log
-    (begin() starts the read cursor past them).
+    Only a cache in binlog file form reserves bytes at the front of its file.
+    The cache's content starts after the reserved bytes. The first flush into
+    the lazily created file seeks there, because a new file's offset is 0.
+    begin() starts reading after the reserved bytes, so a transaction that
+    falls back never copies them into the binary log.
   */
   m_reserved_bytes = reserved_bytes;
-  m_io_cache.pos_in_file = reserved_bytes;
-  m_io_cache.seek_not_done = true;
+  if (reserved_bytes != 0) {
+    m_io_cache.pos_in_file = reserved_bytes;
+    m_io_cache.seek_not_done = true;
+  }
 
   if (rpl_encryption.is_enabled()) enable_encryption();
 
@@ -283,7 +310,7 @@ bool IO_CACHE_binlog_cache_storage::flush_and_sync_spilled_file() {
 }
 
 const char *IO_CACHE_binlog_cache_storage::tmp_file_name() const {
-  return m_io_cache.file_name;
+  return my_filename(m_io_cache.file);
 }
 
 bool IO_CACHE_binlog_cache_storage::begin(unsigned char **buffer,
@@ -441,15 +468,24 @@ bool Binlog_cache_storage::write(const unsigned char *buffer, my_off_t length) {
   if (m_large_trx_rewrite_planned &&
       m_representation->write_would_spill(length)) {
     m_large_trx_rewrite_planned = false;
-    // If the rewrite fails, the cache stays in the standard form and this
-    // write spills as without the optimization; an error the rewrite
-    // reported must not fail the statement.
-    THD *thd = current_thd;
-    const bool had_error = thd != nullptr && thd->is_error();
-    if (rewrite_into_binlog_file_format(m_large_trx_planned_checksum_alg,
-                                        m_large_trx_planned_reserved_bytes)) {
+    /*
+      If the rewrite fails, the cache stays in the standard form, and this
+      write spills as without the optimization. A condition that the rewrite
+      raises must not reach the statement. The error log gets the message of
+      the rewrite's first error instead.
+    */
+    Rewrite_error_handler rewrite_error_handler;
+    THD *const thd = current_thd;
+    if (thd != nullptr) thd->push_internal_handler(&rewrite_error_handler);
+    const bool rewrite_failed = rewrite_into_binlog_file_format(
+        m_large_trx_planned_checksum_alg, m_large_trx_planned_reserved_bytes);
+    if (thd != nullptr) thd->pop_internal_handler();
+    if (rewrite_failed) {
       m_large_trx_rewrite_failed = true;
-      if (thd != nullptr && !had_error && thd->is_error()) thd->clear_error();
+      LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_REWRITE_FAILED,
+             rewrite_error_handler.message().empty()
+                 ? "no error was reported"
+                 : rewrite_error_handler.message().c_str());
     }
   }
   return m_representation->write(buffer, length);
@@ -485,7 +521,7 @@ bool Binlog_cache_storage::reset(
     transaction has ended, or is rolled back to its start. The replacement
     fails only when memory runs out. The caller reports the failure, and the
     next transaction's first event retries the replacement (see
-    restore_standard_form()).
+    restore_standard_form()). No message is needed from the error.
   */
   Dummy_error_handler no_session_error;
   THD *const thd = current_thd;
@@ -513,6 +549,11 @@ my_off_t Binlog_cache_storage::reserved_bytes() const {
 const char *Binlog_cache_storage::tmp_file_name() const {
   assert(m_representation != nullptr);
   return m_representation->tmp_file_name();
+}
+
+const char *Binlog_cache_storage::named_file_name() const {
+  assert(m_representation != nullptr);
+  return m_representation->named_file_name();
 }
 
 bool Binlog_cache_storage::is_spilled() const {
@@ -572,13 +613,7 @@ bool Binlog_cache_storage::rewrite_into_binlog_file_format(
     region. The cache is rewritten at most once per transaction, always from
     the standard form, at its first spill (write()).
   */
-  if (m_representation->is_large_trx_rewritten()) {
-    assert(m_representation->physical_checksum_alg() ==
-           (binlog::is_checksum_alg_in_use(checksum_alg)
-                ? checksum_alg
-                : mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF));
-    return false;
-  }
+  assert(!m_representation->is_large_trx_rewritten());
   auto rewritten = binlog::create_checksummed_cache_representation(
       *m_representation, checksum_alg, binlog_temp_files_dir.path(),
       kBinlogTempFilePrefix, m_cache_size, m_max_cache_size, reserved_bytes);
@@ -883,7 +918,7 @@ bool Binlog_temp_files_dir::init(const char *log_basename, loglevel level) {
   if (parent_len < 0 || static_cast<size_t>(parent_len) >= sizeof(m_parent) ||
       path_len < 0 || static_cast<size_t>(path_len) >= sizeof(m_path) ||
       base_name[0] == '\0') {
-    LogErr(level, ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED, log_basename,
+    LogErr(level, ER_BINLOG_BOLT_TEMP_FILES_DIR_PATH_INVALID, log_basename,
            base_name[0] == '\0' ? EINVAL : ENAMETOOLONG);
     m_init_failed = true;
     return true;

@@ -18,10 +18,9 @@
 # The condition cannot be reached by configuration alone. With
 # binlog_transaction_compression ON at the transaction's first event, the
 # transaction is not eligible for the optimization, so its cache is never
-# rewritten, and Binlog_cache_compressor rewrites it as a single compressed
-# payload event during finalize(). That happens before the promotion decision,
-# so the transaction is never a candidate, which exits silently rather than
-# through the compression check.
+# rewritten. At commit the transaction falls back with the compression reason
+# that its first event recorded, not through the commit-time compression
+# check.
 #
 # The debug symbol force_bolt_compression_fallback therefore stands in for
 # the condition: it records the compression reason and returns no cache, at the
@@ -40,6 +39,10 @@
 --let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
 --let $save_binlog_format = query_get_value(SELECT @@SESSION.binlog_format, @@SESSION.binlog_format, 1)
 --let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+
+# A configuration reason is logged once per server run. Restart, so that no
+# earlier test on this server has logged the reason this test checks.
+--source include/restart_mysqld_no_echo.inc
 
 # Setup
 --disable_query_log
@@ -127,7 +130,14 @@ SET SESSION debug = @old_debug;
 --source include/assert.inc
 # Confirms the reason reported is the compression one, which also pins the
 # message to its enum slot in kFallbackDetails.
---exec grep -q "binary log transaction compression is enabled" $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = The fallback reason is logged: binary log transaction compression is enabled.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = binary log transaction compression is enabled
+--let $assert_count =
+--let $assert_count_condition = >= 1
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_compression_fallback
+--source include/assert_grep.inc
+--let $assert_count_condition =
 
 # Cleanup
 DROP TABLE t1;

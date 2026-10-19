@@ -31,13 +31,10 @@
 #           START OF binlog_cache_size TESTS                    #
 #################################################################
 
-#########################################################################
-# Raising binlog_cache_size above                                       #
-# binlog_large_transaction_optimization_threshold adjusts the threshold  #
-# to match and reports it in the error log. This test sets              #
-# binlog_cache_size across its whole range, so the adjustment is         #
-# expected here.                                                        #
-#########################################################################
+# Raising binlog_cache_size above
+# binlog_large_transaction_optimization_threshold adjusts the threshold to
+# match and reports it in the error log. This test sets binlog_cache_size
+# across its whole range, so the adjustment is expected here.
 --disable_query_log
 CALL mtr.add_suppression("was adjusted from .* to match binlog_cache_size");
 --enable_query_log

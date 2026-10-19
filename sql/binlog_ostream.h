@@ -117,6 +117,11 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   */
   const char *tmp_file_name() const;
   /**
+     Returns the path of the named spill file. Returns nullptr when the spill
+     file is anonymous or not created yet.
+  */
+  const char *named_file_name() const { return m_io_cache.file_name; }
+  /**
      Returns the count of calling temporary file's write()
   */
   size_t disk_writes() const;
@@ -145,6 +150,7 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   */
   bool next(unsigned char **buffer, my_off_t *length);
   my_off_t length() const;
+  /** Returns the bytes reserved at the front of the file. */
   my_off_t reserved_bytes() const { return m_reserved_bytes; }
   bool flush() override { return false; }
   bool sync() override { return false; }
@@ -173,9 +179,17 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   */
   bool flush_and_sync_spilled_file();
   /**
+     Creates the temporary file without writing to it.
+
+     @retval false  Success
+     @retval true   Error
+  */
+  bool create_spilled_file() { return real_open_cached_file(&m_io_cache); }
+  /**
      Makes the next lazily-created spill file a named file, kept in the
      filesystem namespace and therefore promotable, instead of an anonymous
-     file. Called per transaction, before the first spill.
+     file. Called on the cache that the rewrite creates, before the cache's
+     first spill.
   */
   void set_named_file();
 
@@ -266,9 +280,9 @@ class Binlog_cache_storage : public Basic_ostream {
 
   /**
      Reset status and drop all data. With kKeep, the cache closes without
-     deleting a file the binlog large transaction optimization has already
-     promoted. A cache rewritten into binlog file form is replaced by a new
-     one in the standard form.
+     deleting a file that the binary log large transaction optimization (BOLT)
+     has already promoted. A cache rewritten into binlog file form is replaced
+     by a new one in the standard form.
 
      @retval false  Success.
      @retval true   Error. When the cache is still in binlog file form
@@ -282,13 +296,15 @@ class Binlog_cache_storage : public Basic_ostream {
   */
   size_t disk_writes() const;
   /**
-     Returns the bytes reserved at the beginning of the temp file.
-  */
-  my_off_t reserved_bytes() const;
-  /**
      Returns the name of the temporary file.
   */
   const char *tmp_file_name() const;
+  /**
+     Returns the bytes reserved at the beginning of the temp file.
+  */
+  my_off_t reserved_bytes() const;
+  /** @see IO_CACHE_binlog_cache_storage::named_file_name */
+  const char *named_file_name() const;
   /** @see IO_CACHE_binlog_cache_storage::is_spilled */
   bool is_spilled() const;
   /** @see IO_CACHE_binlog_cache_storage::spilled_file */
@@ -312,9 +328,19 @@ class Binlog_cache_storage : public Basic_ostream {
   /** Drop the plan made by plan_large_trx_rewrite(), if any. */
   void clear_large_trx_rewrite_plan() { m_large_trx_rewrite_planned = false; }
   /**
+    Drop the rewrite plan and the result of a failed rewrite.
+    binlog_cache_data::cache_state_rollback() calls this function at a
+    rollback to the start of the transaction, because the transaction's next
+    event latches the optimization again.
+  */
+  void clear_large_trx_rewrite_state() {
+    m_large_trx_rewrite_planned = false;
+    m_large_trx_rewrite_failed = false;
+  }
+  /**
     True if the planned rewrite was tried and failed. The cache then stays
     in the standard form and spills as without the optimization. Cleared by
-    reset().
+    reset() and clear_large_trx_rewrite_state().
   */
   bool large_trx_rewrite_failed() const { return m_large_trx_rewrite_failed; }
   /**
@@ -344,7 +370,7 @@ class Binlog_cache_storage : public Basic_ostream {
     return binlog::is_checksum_alg_in_use(physical_checksum_alg());
   }
   /**
-     Add the logical size of one event written in binlog file format. The
+     Add the logical size of one event written in binlog file form. The
      logical size excludes the checksum footer.
   */
   void add_logical_length(my_off_t logical_event_length);
@@ -479,22 +505,27 @@ class Binlog_encryption_ostream : public Truncatable_ostream {
   std::unique_ptr<Stream_cipher> m_encryptor;
 };
 
-// Directory where the temp binlog files (spilled from cache) live, in a
-// subdirectory named after the binary log's base name. This directory lives
-// in the binlog directory.
+/**
+  Name of the directory, in the binary log directory, that holds one
+  subdirectory per server for the spilled files of caches in binlog file form.
+  The subdirectory is named after the server's binary log base name.
+*/
 inline constexpr const char *kBinlogTempFilesDirName = "#binlog_temp_files";
 
-// Allocation quantum for the header reservation at the beginning of every
-// binlog temp file.
+/**
+  Allocation quantum for the header region reserved at the front of the
+  spilled file of a cache rewritten into binlog file form.
+*/
 inline constexpr my_off_t kBinlogTempFileReservedBytes = 64 * 1024;
 
-// Minimum space left after the binary log header in a temp-file header region.
+/** Minimum space left after the binary log header in the header region. */
 inline constexpr my_off_t kBinlogTempFileHeaderHeadroomBytes = 32 * 1024;
 
-// The spill files of binlog caches rewritten into binlog file form are named
-// bolt_<server-start time>_<serial> (both hex), which is unique within a server
-// run and lets startup cleanup recognize only files created by the binary log
-// cache.
+/**
+  Prefix of the spilled files of caches rewritten into binlog file form. The
+  files are named bolt_<server-start time>_<serial>, both in hex. Startup
+  cleanup deletes only files with this name pattern.
+*/
 inline constexpr char kBinlogTempFilePrefix[] = "bolt_";
 
 /**
@@ -528,8 +559,8 @@ class Binlog_temp_files_dir {
     and, if the directory exists, deletes the files a previous run left in it.
     Does not create it (see create()).
 
-    @param log_basename  The log basename; the directory is
-                         <directory part>/#binlog_temp_files/<base name>
+    @param log_basename  The log basename. The directory is
+                         <directory part>/\#binlog_temp_files/<base name>.
     @param level         The level a failure is logged at: an error when the
                          optimization is enabled, otherwise a warning.
 
@@ -572,7 +603,7 @@ class Binlog_temp_files_dir {
   const char *m_log_basename{nullptr};
 };
 
-// The binary log's temp files directory (#binlog_temp_files/<base name>).
+/** The binary log's temp files directory (\#binlog_temp_files/<base name>). */
 extern Binlog_temp_files_dir binlog_temp_files_dir;
 
 #endif  // BINLOG_OSTREAM_INCLUDED

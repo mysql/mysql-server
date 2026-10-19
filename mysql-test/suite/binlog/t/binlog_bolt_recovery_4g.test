@@ -15,8 +15,12 @@
 #    promoted file is the last binary log file, then restart.
 # 3. Verify the recovery log line, the offset in it, and the transaction.
 #
+# The test writes a binary log file of more than 4 GiB: it needs about 10 GiB
+# of free disk space in the MTR vardir.
 --source include/big_test.inc
 --source include/not_windows.inc
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
@@ -42,9 +46,29 @@ ALL SELECT f1 FROM t1;
 --echo # R1: recovery seeks to the terminating event, beyond 4 GiB.
 --let $assert_text = Recovery seeks to the terminating event of the transaction.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset [0-9]{10,}
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_recovery_4g
+--let $assert_select = Optimized binary log recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset [0-9]{10,}
 --let $assert_count = 1
 --source include/assert_grep.inc
+--let BOLT_ERROR_LOG = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let BOLT_OFFSET_INC = $MYSQLTEST_VARDIR/tmp/bolt_recovery_4g_offset.inc
+--perl
+  my $offset = 0;
+  open(my $log, '<', $ENV{BOLT_ERROR_LOG}) or die "Cannot open the error log";
+  while (my $line = <$log>) {
+    $offset = 0 if $line =~ /^CURRENT_TEST: binlog\.binlog_bolt_recovery_4g$/;
+    $offset = $1 if $line =~ /seeking to its terminating event at offset (\d+)/;
+  }
+  close($log);
+  open(my $out, '>', $ENV{BOLT_OFFSET_INC}) or die "Cannot write the offset";
+  print $out "--let \$bolt_seek_offset = $offset\n";
+  close($out);
+EOF
+--source $BOLT_OFFSET_INC
+--remove_file $BOLT_OFFSET_INC
+--let $assert_text = R1: the terminating event begins beyond 4 GiB.
+--let $assert_cond = $bolt_seek_offset > 1 << 32
+--source include/assert.inc
 # binlog.000002 holds the promoted setup insert, binlog.000003 the large
 # transaction; the restart opened binlog.000004.
 --let $promoted_file = query_get_value(SHOW BINARY LOGS, Log_name, 3)

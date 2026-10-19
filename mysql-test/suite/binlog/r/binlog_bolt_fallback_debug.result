@@ -19,6 +19,7 @@ include/assert.inc [An incident increments the missed counter once.]
 include/assert.inc [An incident fallback force-rotates to a new active binary log.]
 include/assert.inc [An incident fallback commits all rows.]
 include/assert.inc [An incident fallback preserves the full payload.]
+include/assert_grep.inc [The fallback reason is logged: the transaction has a logging incident to report.]
 # A failed rename of the spilled file falls back to the standard path.
 SET SESSION original_commit_timestamp = 1234567890123456;
 SET SESSION original_server_version = 80000;
@@ -32,6 +33,7 @@ SET SESSION debug = "-d,fail_bolt_promotion_rename";
 include/assert.inc [A failed rename does not promote the spilled file.]
 include/assert.inc [A failed rename increments the missed counter once.]
 include/assert.inc [A failed rename commits all rows.]
+include/assert_grep.inc [The fallback reason is logged: the spilled binary log cache file could not be promoted.]
 include/rpl/save_binlog_file_position.inc
 include/assert_grep.inc [The Gtid event keeps the session's original commit timestamp.]
 include/assert_grep.inc [The Gtid event keeps the session's original server version.]
@@ -111,5 +113,6 @@ include/assert.inc [A closed binary log does not promote.]
 include/assert.inc [A closed binary log increments the missed counter once.]
 include/assert.inc [A closed-log fallback still commits all rows.]
 include/assert.inc [A closed-log fallback preserves the full payload.]
+include/assert_grep.inc [The fallback reason is logged: the binary log was closed while the transaction was running.]
 # restart
 DROP TABLE t1;

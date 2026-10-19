@@ -33,5 +33,5 @@ include/assert.inc [The replica SQL applier promotes the qualifying transaction 
 include/assert.inc [Replica-local promotion opens a new active binary log.]
 [connection master]
 DROP TABLE t1;
-[connection slave]
+include/rpl/sync_to_replica.inc
 include/rpl/deinit.inc

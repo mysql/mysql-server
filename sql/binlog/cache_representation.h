@@ -33,7 +33,6 @@
 */
 
 #include <memory>
-#include <utility>
 
 #include "my_io.h"
 #include "mysql/binlog/event/binlog_event.h"
@@ -120,8 +119,10 @@ class Binlog_cache_representation : public Truncatable_ostream {
   virtual size_t disk_writes() const = 0;
   /** @return The bytes reserved at the front of the temporary file. */
   virtual my_off_t reserved_bytes() const = 0;
-  /** @return The temporary file's name, or nullptr for an anonymous file. */
+  /** @return The temporary file's name. */
   virtual const char *tmp_file_name() const = 0;
+  /** @return The named spill file's path, or nullptr for an anonymous file. */
+  virtual const char *named_file_name() const = 0;
   /** @return True once the cache has overflowed into its temporary file. */
   virtual bool is_spilled() const = 0;
   /** @return The temporary file's descriptor, or -1 before the spill. */

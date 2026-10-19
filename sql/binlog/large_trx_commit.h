@@ -27,12 +27,12 @@
 /**
   @file
 
-  The commit path of the binlog large transaction optimization. When a
-  transaction's binlog cache has spilled to a file larger than
+  The commit path of the binary log large transaction optimization (BOLT).
+  When a transaction's binlog cache has spilled to a file larger than
   binlog_large_transaction_optimization_threshold, the cache is not copied
   into the binary log. Instead, the binary log is rotated in the flush stage,
-  and the spilled file becomes the new binary log file (see
-  MYSQL_BIN_LOG::rotate_and_promote_spilled_file()).
+  and the spilled file becomes the new binary log file. See
+  MYSQL_BIN_LOG::rotate_and_promote_spilled_file().
 */
 
 #include "my_inttypes.h"  // my_off_t
@@ -50,17 +50,29 @@ class Large_transaction_header_event;
   optimization's commit path.
 */
 enum class Large_trx_fallback_reason {
+  /** No fallback: the spilled file can be promoted. */
   kNone,
+  /** The transaction also changed a non-transactional table. */
   kStatementCache,
+  /** The transaction contains events that are not in ROW format. */
   kNonRowFormat,
+  /** Binary log encryption was enabled while the transaction ran. */
   kEncryption,
+  /** Binary log transaction compression is enabled. */
   kCompression,
+  /** The cache's checksum algorithm does not match binlog_checksum. */
   kChecksumMismatch,
+  /** The reserved header region cannot hold the header events. */
   kReservedHeaderSpace,
+  /** mysql.gtid_executed could not be updated at the rotation. */
   kGtidPersistence,
+  /** The transaction has a logging incident to report. */
   kIncident,
+  /** The binary log was closed while the transaction ran. */
   kLogClosed,
+  /** The cache could not be rewritten into binlog file form. */
   kRewriteFailed,
+  /** The spilled file could not be promoted. */
   kPromotionFailed,
 };
 
@@ -79,8 +91,8 @@ struct Spilled_file_promotion {
   /** Out, when promoted: the end of the header events copied from the new
       file. */
   my_off_t header_end{0};
-  /** Out: why the transaction falls back, when its spilled file was not
-   * promoted. */
+  /** Out: why the transaction falls back when its spilled file is not
+      promoted. */
   Large_trx_fallback_reason fallback_reason{Large_trx_fallback_reason::kNone};
 };
 
@@ -99,11 +111,11 @@ enum class Spilled_file_promotion_result {
   optimization, that is, by promoting its spilled temporary file into the
   binary log sequence, or nullptr when the transaction commits through the
   standard path. When a candidate transaction is blocked, the blocking
-  condition is recorded (see record_large_trx_fallback).
+  condition is recorded (see record_large_trx_fallback()).
 
   @param cache_mngr  The session's binlog cache manager.
 
-  @return the cache whose spilled file is to be promoted, or nullptr when the
+  @return The cache whose spilled file is to be promoted, or nullptr when the
           transaction commits through the standard path.
 */
 binlog_cache_data *get_cache_for_large_trx_commit(
@@ -191,20 +203,21 @@ enum class Large_trx_header_check {
   /** The header describes the terminating event: the body can be skipped. */
   kVerified,
   /**
-    The transaction does not end with an Xid or XA_prepare event, so there is
-    no XID to verify the terminating event against: the transaction is read
-    sequentially.
+    The header body is in a newer format version, or the transaction does not
+    end with an Xid or XA_prepare event, so there is no XID to verify the
+    terminating event against: the transaction is read sequentially.
   */
   kNotApplicable,
   /**
-    The bytes at the recorded offset are not the terminating event that the
-    header records: the transaction is read sequentially.
+    The header body is malformed, or the terminating event that the header
+    records cannot be read at the recorded offset: the transaction is read
+    sequentially.
   */
   kInvalid,
   /**
-    The reader failed: a seek failed, or a read failed with an I/O or memory
-    error. The reader's position is unknown, so the caller cannot go on
-    reading the file.
+    The reader could not seek back to its position after the header. The
+    reader's position is unknown, so the caller cannot go on reading the
+    file.
   */
   kReadError,
 };

@@ -404,7 +404,7 @@ TRUNCATE t1;
 --enable_query_log
 
 ############################################################################
-# Cases 11 and 12: crash around the post-promotion max_binlog_size rotation.
+# Cases 12 and 13: crash around the post-promotion max_binlog_size rotation.
 #
 # rotate_if_needed() runs after the transaction is already committed in both
 # the binary log and the engines, so neither crash may lose it. These cases

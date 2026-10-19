@@ -14,5 +14,11 @@ SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 ERROR 42000: Variable 'binlog_large_transaction_optimization_enabled' can't be set to the value of 'ON'
 include/assert.inc [The optimization stays OFF.]
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+# R5: started with the optimization ON, the directory cannot be created.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+# restart: --binlog-large-transaction-optimization-enabled=ON
+include/assert.inc [R5: the server starts with the optimization OFF.]
+include/assert_grep.inc [R5: turning the optimization OFF is logged as an error.]
+# restart
 SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
 DROP TABLE t1;

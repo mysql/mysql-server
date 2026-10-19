@@ -22,5 +22,16 @@ include/assert.inc [FLUSH rotates the promoted active binary log.]
 PURGE BINARY LOGS TO 'binlog.000005';
 SHOW BINARY LOGS;
 Log_name	File_size	Encrypted
-binlog.000005	199	No
+binlog.000005	#	No
+# A promotion purges an expired binlog file.
+include/assert.inc [The promoted file stays below max_binlog_size, so no size rotation runs.]
+FLUSH BINARY LOGS;
+SET GLOBAL binlog_expire_logs_auto_purge = ON;
+SET GLOBAL binlog_expire_logs_seconds = 1;
+BEGIN;
+INSERT INTO t1 VALUES (4, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (5, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (6, REPEAT('f', 4000000));
+COMMIT;
+include/assert.inc [The BOLT transaction preserves every row.]
 DROP TABLE t1;

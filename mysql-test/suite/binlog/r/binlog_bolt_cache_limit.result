@@ -1,9 +1,15 @@
 SET GLOBAL binlog_checksum = CRC32;
 SET GLOBAL binlog_cache_size = 4096;
-SET GLOBAL max_binlog_cache_size = 65536;
 CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(32)) ENGINE=InnoDB;
+SET GLOBAL max_binlog_cache_size = 65536;
 SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 include/assert.inc [R1: the limit stops a rewritten cache after many statements.]
 include/assert.inc [R2: the footers count, so fewer statements fit with the optimization ON.]
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(2000)) ENGINE=InnoDB;
+SET GLOBAL max_binlog_cache_size = 4096;
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+include/assert.inc [R3: the statement that rewrites the cache is checked against the limit.]
 DROP TABLE t1;

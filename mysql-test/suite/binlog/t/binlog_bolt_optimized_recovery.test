@@ -13,6 +13,8 @@
 # R4. With source_verify_checksum ON, recovery reads a BOLT transaction
 #     sequentially, so the checksum of every event in its body is verified,
 #     and logs why the optimized recovery was not used.
+# R5. With binlog_checksum = NONE, recovery still seeks past the body of a
+#     BOLT transaction.
 #
 # === Implementation ===
 # 1. Initialize BOLT and a clean test table.
@@ -22,6 +24,8 @@
 # 4. Commit a qualifying transaction, restart with source_verify_checksum ON,
 #    and verify the note, that no seek is logged, and that the transaction
 #    survives.
+# 5. Commit a qualifying transaction with binlog_checksum = NONE, restart, and
+#    verify the seek and the transaction.
 #
 --source include/not_windows.inc
 --source include/have_log_bin.inc
@@ -71,7 +75,7 @@ COMMIT;
 
 --echo # Recovery logs the optimized large-transaction seek.
 --let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let SEARCH_PATTERN = Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset
+--let SEARCH_PATTERN = Optimized binary log recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset
 --source include/search_pattern.inc
 
 --let $assert_text = The committed BOLT transaction survives recovery.
@@ -104,6 +108,7 @@ COMMIT;
 --source include/start_mysqld.inc
 --let $assert_text = Recovery ignores the header and reads the transaction sequentially.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_optimized_recovery
 --let $assert_select = Ignored a large transaction header in binary log file .* that does not describe the transaction's terminating event
 --let $assert_count = 1
 --source include/assert_grep.inc
@@ -137,21 +142,61 @@ COMMIT;
 
 --let $assert_text = R4: recovery logs that source_verify_checksum disabled the optimized recovery.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = Could not optimize binlog recovery of a large transaction because source_verify_checksum is enabled
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_optimized_recovery
+--let $assert_select = Read a large transaction sequentially during recovery of binary log file .*, because source_verify_checksum is enabled
 --let $assert_count = 1
 --source include/assert_grep.inc
 --let $assert_text = R4: recovery does not seek past the body; only case 1 logged a seek.
---let $assert_select = Optimized binlog recovery by avoiding a sequential read of a large transaction body
+--let $assert_select = Optimized binary log recovery by avoiding a sequential read of a large transaction body
 --let $assert_count = 1
 --source include/assert_grep.inc
 --let $assert_text = R4: the BOLT transaction survives recovery.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id >= 7, count, 1] = 3
 --source include/assert.inc
---let $assert_text = R4: GTID reconstruction reads the transaction sequentially and finds its GTID.
+--let $assert_text = R4: the transaction's GTID is in gtid_executed after recovery.
 --let $assert_cond = "[SELECT @@GLOBAL.gtid_executed]" = "$gtid_executed_before_verify"
 --source include/assert.inc
 --let $restart_parameters = restart
 --source include/restart_mysqld.inc
+
+############################################################################
+# Case 4: Recover a BOLT transaction written with binlog_checksum = NONE.
+# Expected behavior: recovery seeks past the body, and the transaction commits.
+############################################################################
+--echo # Commit a fourth qualifying transaction without event checksums.
+--let $save_checksum = `SELECT @@GLOBAL.binlog_checksum`
+SET GLOBAL binlog_checksum = NONE;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL max_binlog_size = 1073741824;
+--let $binlog_file_before_none = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('j', 4000000));
+INSERT INTO t1 VALUES (11, REPEAT('k', 4000000));
+INSERT INTO t1 VALUES (12, REPEAT('l', 4000000));
+COMMIT;
+--let $none_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = The fourth transaction's spilled file was promoted into a new binary log file.
+--let $assert_cond = "$none_file" != "$binlog_file_before_none"
+--source include/assert.inc
+
+--let $restart_parameters = restart: --binlog-checksum=NONE
+--source include/kill_and_restart_mysqld.inc
+
+--let $assert_text = R5: recovery seeks past the body of a transaction without event checksums.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_optimized_recovery
+--let $assert_select = Optimized binary log recovery by avoiding a sequential read of a large transaction body
+--let $assert_count = 2
+--source include/assert_grep.inc
+--let $assert_text = R5: the BOLT transaction survives recovery.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id >= 10, count, 1] = 3
+--source include/assert.inc
+--let $restart_parameters = restart
+--source include/restart_mysqld.inc
+--disable_query_log
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log
 
 # Cleanup
 DROP TABLE t1;

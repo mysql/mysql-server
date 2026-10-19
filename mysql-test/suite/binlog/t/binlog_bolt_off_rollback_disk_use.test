@@ -1,0 +1,48 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# With the optimization OFF, a rollback to a savepoint behaves as without the
+# optimization: the binlog cache is truncated and keeps its disk statistics.
+#
+# === Requirements ===
+# R1. With the optimization OFF, a transaction whose cache spilled to disk and
+#     was rolled back to a savepoint at its start is still counted in
+#     Binlog_cache_disk_use.
+#
+# === Implementation ===
+# 1. Use a small binlog_cache_size so that one statement spills the cache.
+# 2. Set a savepoint at the start, spill, roll back to the savepoint, write a
+#    small row, and commit.
+# 3. Check that Binlog_cache_disk_use grew by one.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $save_enabled = `SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled`
+--let $save_cache_size = `SELECT @@GLOBAL.binlog_cache_size`
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+SET GLOBAL binlog_cache_size = 4096;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+--echo # A new session opens its binlog cache with the size set above.
+--connect (disk_use_session, localhost, root,,)
+--let $disk_use_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_cache_disk_use', Value, 1)
+BEGIN;
+SAVEPOINT s0;
+INSERT INTO t1 VALUES (1, REPEAT('a', 100000));
+ROLLBACK TO SAVEPOINT s0;
+INSERT INTO t1 VALUES (2, 'small');
+COMMIT;
+--let $disk_use_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_cache_disk_use', Value, 1)
+--let $assert_text = R1: the spilled cache is counted in Binlog_cache_disk_use.
+--let $assert_cond = $disk_use_after = $disk_use_before + 1
+--source include/assert.inc
+--disconnect disk_use_session
+--connection default
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_cache_size = $save_cache_size
+--enable_query_log

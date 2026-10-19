@@ -40,14 +40,10 @@
 
 Large_trx_fallback_reason binlog_cache_data::large_trx_latch_blocker(
     THD *thd, const Log_event *first_event) {
-  /*
-    Same order as the commit-time blockers (large_trx_commit_blocker()).
-    may_have_sbr_stmts() is true until the first row event, so only the first
-    event itself is checked for statement format here; statements logged
-    later are caught at commit.
-  */
+  /* Same order as large_trx_commit_blocker(). */
   if (m_cache_mngr.has_incident()) return Large_trx_fallback_reason::kIncident;
-  if (first_event->is_sbr_logging_format())
+  if (first_event->is_sbr_logging_format() ||
+      (thd != nullptr && !thd->is_current_stmt_binlog_format_row()))
     return Large_trx_fallback_reason::kNonRowFormat;
   if (rpl_encryption.is_enabled())
     return Large_trx_fallback_reason::kEncryption;
@@ -111,6 +107,7 @@ void binlog_cache_data::cache_state_rollback(my_off_t pos_to_rollback) {
     flags.with_end = false;
     flags.with_content = false;
     m_event_counter = 0;
+    /* The transaction's next event latches the optimization again. */
     m_large_trx_optimization_latched = false;
     m_large_trx_last_event_length = 0;
     m_large_trx_ineligible_reason = Large_trx_fallback_reason::kNone;
@@ -119,6 +116,7 @@ void binlog_cache_data::cache_state_rollback(my_off_t pos_to_rollback) {
     m_terminating_event_offset = 0;
     m_terminating_event_type = mysql::binlog::event::UNKNOWN_EVENT;
     m_terminating_event_body.clear();
+    m_cache.clear_large_trx_rewrite_state();
   }
 }
 
@@ -192,11 +190,19 @@ void binlog_cache_data::truncate(my_off_t pos) {
   DBUG_PRINT("info", ("truncating to position %lu", (ulong)pos));
   remove_pending_event();
 
+  /* A cache in the standard form truncates as without the optimization. */
+  if (!m_cache.is_large_trx_rewritten()) {
+    // TODO: check the return value.
+    (void)m_cache.truncate(pos);
+    return;
+  }
+
   /*
-    Every truncation target is a checkpoint (savepoint or statement start),
-    so cache_state_map knows how many events precede it, which lets a
-    rewritten cache truncate in O(1). Offset 0 has no map entry and no
-    preceding events. Anything else uses the scanning truncate.
+    Here the cache is rewritten into binlog file form. Every truncation target
+    is a checkpoint (savepoint or statement start), so cache_state_map knows how
+    many events precede it, which lets a rewritten cache truncate in O(1).
+    Offset 0 has no map entry and no preceding events. Anything else uses the
+    scanning truncate.
 
     A failed truncation would leave rolled-back events in the cache. So this
     function records an incident. The transaction then commits through the
@@ -204,21 +210,15 @@ void binlog_cache_data::truncate(my_off_t pos) {
   */
   bool error = false;
   if (pos == 0) {
-    if (m_cache.is_large_trx_rewritten() || m_cache.is_spilled()) {
-      error = m_cache.reset(binlog::Spilled_file_on_reset::kDelete);
-      /*
-        A rewritten cache that could not be replaced is not an incident: the
-        next event retries the replacement, and fails if the retry fails, so
-        no rolled back change can reach the binary log from the old cache.
-      */
-      if (error && m_cache.is_large_trx_rewritten()) {
-        LogErr(WARNING_LEVEL,
-               ER_BINLOG_BOLT_CACHE_STANDARD_FORM_RESTORE_FAILED);
-        error = false;
-      }
-    } else {
-      m_cache.clear_large_trx_rewrite_plan();
-      error = m_cache.truncate_at_event_boundary(0, 0);
+    error = m_cache.reset(binlog::Spilled_file_on_reset::kDelete);
+    /*
+      A rewritten cache that could not be replaced is not an incident: the
+      next event retries the replacement, and fails if the retry fails, so
+      no rolled back change can reach the binary log from the old cache.
+    */
+    if (error && m_cache.is_large_trx_rewritten()) {
+      LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_CACHE_STANDARD_FORM_RESTORE_FAILED);
+      error = false;
     }
   } else if (auto it = cache_state_map.find(pos); it != cache_state_map.end()) {
     error = m_cache.truncate_at_event_boundary(pos, it->second.event_counter);

@@ -39,10 +39,11 @@
    - is_bolt_temp_file(). Each name that MTR covers costs a full server
      start, so MTR cannot cover the boundaries. A name that
      is_bolt_temp_file() wrongly rejects is left in the directory at startup.
-   - how find_large_trx_terminating_event() classifies a header that recovery
-     cannot use: no XID to verify, a header that does not match the file, and
-     a failing reader. MTR cannot make a seek or a read fail with an I/O
-     error. A fake reader stands in for the binary log file.
+   - how find_large_trx_terminating_event() classifies a header: a header
+     that matches the event at its offset, no XID to verify, a header that
+     does not match the file, and a failing reader. MTR cannot make a seek or
+     a read fail with an I/O error. A fake reader stands in for the binary log
+     file.
 */
 
 #include <gtest/gtest.h>
@@ -50,7 +51,9 @@
 #include <string>
 #include <vector>
 
+#include "my_byteorder.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql/binlog/event/binlog_event.h"
 #include "mysql/binlog/event/control_events.h"
 #include "mysql/binlog/event/large_transaction_header_event.h"
@@ -83,6 +86,9 @@ class BoltReservedBytesTest : public ::testing::Test {
     set_binlog_cache_reserved_bytes(header_length);
     return get_binlog_cache_reserved_bytes();
   }
+
+  /// Leave the reservation of an empty header for the other tests.
+  void TearDown() override { set_binlog_cache_reserved_bytes(0); }
 };
 
 TEST_F(BoltReservedBytesTest, RoundsUpToTheQuantum) {
@@ -91,8 +97,7 @@ TEST_F(BoltReservedBytesTest, RoundsUpToTheQuantum) {
   EXPECT_EQ(reservation_for(0), kQuantum);
   EXPECT_EQ(reservation_for(1), kQuantum);
 
-  // Exactly one quantum once the headroom is added: the early return, with no
-  // rounding applied.
+  // Exactly one quantum once the headroom is added.
   ASSERT_LT(kHeadroom, kQuantum) << "the headroom must be inside one quantum";
   EXPECT_EQ(reservation_for(kQuantum - kHeadroom), kQuantum);
 
@@ -313,7 +318,7 @@ TEST_F(BoltTempFileNameTest, RejectsNamesThatDoNotCarryThePrefix) {
 class Fake_binlog_file_reader : public IBasic_binlog_file_reader {
  public:
   my_off_t m_position{1000};
-  bool m_fail_seek{false};
+  bool m_fail_seek_to_offset{false};
   bool m_fail_seek_back{false};
   Binlog_read_error::Error_type m_read_error{Binlog_read_error::TRUNC_EVENT};
   int m_seeks{0};
@@ -335,13 +340,42 @@ class Fake_binlog_file_reader : public IBasic_binlog_file_reader {
   my_off_t position() const override { return m_position; }
   bool seek(my_off_t pos) override {
     ++m_seeks;
-    if (m_fail_seek || (m_fail_seek_back && m_seeks == 2)) return true;
+    if ((m_fail_seek_to_offset && m_seeks == 1) ||
+        (m_fail_seek_back && m_seeks == 2))
+      return true;
     m_position = pos;
     return false;
   }
   Log_event *read_event_object() override {
     ++m_reads;
-    return nullptr;
+    if (m_event.empty()) return nullptr;
+    /* The decoded event owns its buffer, so decode a copy. */
+    auto *data = static_cast<unsigned char *>(
+        my_malloc(PSI_NOT_INSTRUMENTED, m_event.size(), MYF(0)));
+    memcpy(data, m_event.data(), m_event.size());
+    Log_event *event = nullptr;
+    if (binlog_event_deserialize(data, m_event.size(), &m_fde, false, &event) !=
+        Binlog_read_error::SUCCESS) {
+      my_free(data);
+      return nullptr;
+    }
+    event->register_temp_buf(reinterpret_cast<char *>(data));
+    m_position += m_event.size();
+    return event;
+  }
+
+  /**
+    Make read_event_object() return an Xid event with the given XID and no
+    checksum. When extra_body_bytes is not 0, the event's body is longer than
+    an Xid event's body by that many bytes.
+  */
+  void set_xid_event(uint64_t xid, size_t extra_body_bytes = 0) {
+    m_event.assign(LOG_EVENT_HEADER_LEN + sizeof(xid) + extra_body_bytes, 0);
+    unsigned char *header = m_event.data();
+    header[EVENT_TYPE_OFFSET] = XID_EVENT;
+    int4store(header + SERVER_ID_OFFSET, 1);
+    int4store(header + EVENT_LEN_OFFSET, static_cast<uint32>(m_event.size()));
+    int8store(header + LOG_EVENT_HEADER_LEN, xid);
   }
   const Format_description_event &format_description_event() const override {
     return m_fde;
@@ -363,8 +397,14 @@ class Fake_binlog_file_reader : public IBasic_binlog_file_reader {
     return true;
   }
 
+  Fake_binlog_file_reader() {
+    m_fde.footer()->checksum_alg = BINLOG_CHECKSUM_ALG_OFF;
+  }
+
  private:
   Format_description_event m_fde{BINLOG_VERSION, "9.7.0"};
+  /** The serialized event that read_event_object() returns, if any. */
+  std::vector<unsigned char> m_event;
 };
 
 class BoltHeaderCheckTest : public ::testing::Test {
@@ -382,9 +422,53 @@ class BoltHeaderCheckTest : public ::testing::Test {
     EXPECT_EQ(end, 0U);
     return result;
   }
+
+  /// The body that a header records for an Xid event with the given XID.
+  static std::string xid_body(uint64_t xid) {
+    char body[sizeof(xid)];
+    int8store(body, xid);
+    return std::string(body, sizeof(body));
+  }
 };
 
-TEST_F(BoltHeaderCheckTest, ACommitQueryTransactionDoesNotQualify) {
+TEST_F(BoltHeaderCheckTest, AHeaderThatMatchesTheEventIsVerified) {
+  Fake_binlog_file_reader reader;
+  reader.set_xid_event(42);
+  const Large_transaction_header_event lth(5000, XID_EVENT, xid_body(42), 0);
+  my_off_t end = 0;
+  EXPECT_EQ(find_large_trx_terminating_event(reader, kFileSize, lth, &end),
+            Large_trx_header_check::kVerified);
+  EXPECT_EQ(end, 5000U + LOG_EVENT_HEADER_LEN + sizeof(uint64_t));
+  /* The reader is back at its position. */
+  EXPECT_EQ(reader.m_position, 1000U);
+}
+
+TEST_F(BoltHeaderCheckTest, AnEventThatDoesNotMatchTheHeaderIsInvalid) {
+  {
+    /* Another transaction's Xid event at the recorded offset. */
+    Fake_binlog_file_reader reader;
+    reader.set_xid_event(43);
+    EXPECT_EQ(check(reader, 5000, XID_EVENT, xid_body(42)),
+              Large_trx_header_check::kInvalid);
+    EXPECT_EQ(reader.m_position, 1000U);
+  }
+  {
+    /* The header records another event type. */
+    Fake_binlog_file_reader reader;
+    reader.set_xid_event(42);
+    EXPECT_EQ(check(reader, 5000, XA_PREPARE_LOG_EVENT, xid_body(42)),
+              Large_trx_header_check::kInvalid);
+  }
+  {
+    /* The event is longer than the header records. */
+    Fake_binlog_file_reader reader;
+    reader.set_xid_event(42, 4);
+    EXPECT_EQ(check(reader, 5000, XID_EVENT, xid_body(42)),
+              Large_trx_header_check::kInvalid);
+  }
+}
+
+TEST_F(BoltHeaderCheckTest, ACommitQueryTransactionIsNotApplicable) {
   /* A transaction that is not two-phase committed ends with a COMMIT query,
      and its header records no XID. The file is not read. */
   Fake_binlog_file_reader reader;
@@ -410,11 +494,12 @@ TEST_F(BoltHeaderCheckTest, AHeaderThatDoesNotDescribeTheFileIsInvalid) {
   EXPECT_EQ(reader.m_seeks, 0);
 }
 
-TEST_F(BoltHeaderCheckTest, BytesThatDoNotDecodeAreInvalid) {
+TEST_F(BoltHeaderCheckTest, AnEventThatCannotBeReadIsInvalid) {
   for (const auto error :
        {Binlog_read_error::TRUNC_EVENT, Binlog_read_error::READ_EOF,
         Binlog_read_error::BOGUS, Binlog_read_error::EVENT_TOO_LARGE,
-        Binlog_read_error::CHECKSUM_FAILURE}) {
+        Binlog_read_error::CHECKSUM_FAILURE, Binlog_read_error::SYSTEM_IO,
+        Binlog_read_error::MEM_ALLOCATE}) {
     Fake_binlog_file_reader reader;
     reader.m_read_error = error;
     EXPECT_EQ(check(reader, 5000, XID_EVENT, "12345678"),
@@ -425,28 +510,21 @@ TEST_F(BoltHeaderCheckTest, BytesThatDoNotDecodeAreInvalid) {
   }
 }
 
-TEST_F(BoltHeaderCheckTest, AFailingReaderIsAReadError) {
-  {
-    Fake_binlog_file_reader reader;
-    reader.m_fail_seek = true;
-    EXPECT_EQ(check(reader, 5000, XID_EVENT, "12345678"),
-              Large_trx_header_check::kReadError);
-    EXPECT_EQ(reader.m_reads, 0);
-  }
-  {
-    Fake_binlog_file_reader reader;
-    reader.m_fail_seek_back = true;
-    EXPECT_EQ(check(reader, 5000, XA_PREPARE_LOG_EVENT, "12345678"),
-              Large_trx_header_check::kReadError);
-  }
-  for (const auto error :
-       {Binlog_read_error::SYSTEM_IO, Binlog_read_error::MEM_ALLOCATE}) {
-    Fake_binlog_file_reader reader;
-    reader.m_read_error = error;
-    EXPECT_EQ(check(reader, 5000, XID_EVENT, "12345678"),
-              Large_trx_header_check::kReadError)
-        << "read error " << error;
-  }
+TEST_F(BoltHeaderCheckTest, AFailedSeekToTheEventIsInvalid) {
+  Fake_binlog_file_reader reader;
+  reader.m_fail_seek_to_offset = true;
+  EXPECT_EQ(check(reader, 5000, XID_EVENT, "12345678"),
+            Large_trx_header_check::kInvalid);
+  EXPECT_EQ(reader.m_reads, 0);
+  /* The reader is back at its position. */
+  EXPECT_EQ(reader.m_position, 1000U);
+}
+
+TEST_F(BoltHeaderCheckTest, AFailedSeekBackIsAReadError) {
+  Fake_binlog_file_reader reader;
+  reader.m_fail_seek_back = true;
+  EXPECT_EQ(check(reader, 5000, XA_PREPARE_LOG_EVENT, "12345678"),
+            Large_trx_header_check::kReadError);
 }
 
 }  // namespace mysql::binlog::event::unittests

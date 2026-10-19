@@ -6,7 +6,7 @@
 # table. Savepoint matrix for the checksumless cache. Savepoint and statement-
 # rollback positions are logical (checksum-free) offsets; a cache that was
 # rewritten into binlog file form at its first spill truncates at the
-# matching physical offset in O(1). Every case below ends with the same
+# matching physical offset in O(1). The case ends with the matrix's
 # checks (inc/bolt_savepoint_check.inc):
 #   - t1 holds exactly the expected rows, each with its own payload;
 #   - the transaction's spilled file was promoted (or not) as expected, and the

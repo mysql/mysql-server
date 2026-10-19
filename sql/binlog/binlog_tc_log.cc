@@ -137,9 +137,11 @@ int Binlog_tc_log::process_flush_stage_queue(MYSQL_BIN_LOG *binlog
   for (THD *head = first_seen; head; head = head->next_to_commit) {
     Thd_backup_and_restore switch_thd(current_thd, head);
 
-    /* The first member of the group is its leader. Only the leader may
-       promote its spilled file, because the promotion rotates the binary
-       log. */
+    /*
+      The first member of the group is the group's leader. Only the leader
+      may promote the leader's spilled file, because the promotion rotates
+      the binary log.
+    */
     binlog->set_flushing_group_leader(head == first_seen);
     const auto [error, flushed_bytes] = binlog->flush_thread_caches(head);
     total_bytes += flushed_bytes;
@@ -149,8 +151,10 @@ int Binlog_tc_log::process_flush_stage_queue(MYSQL_BIN_LOG *binlog
 #endif
   }
 
-  /* Reset the flag after the group, so no later write is taken for a group
-     leader. */
+  /*
+    Reset the flag after the group. Then no later write is mistaken for a
+    write of a group leader.
+  */
   binlog->set_flushing_group_leader(false);
   *out_queue_var = first_seen;
   *total_bytes_var = total_bytes;

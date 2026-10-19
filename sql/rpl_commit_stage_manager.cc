@@ -254,8 +254,10 @@ bool Commit_stage_manager::append_to(StageID stage, THD *thd) {
                       &m_queue_lock[BINLOG_FLUSH_STAGE]);
     /* Clear the flag for this session's next commit. */
     ctx.set_assigned_flush_leader(false);
-    /* The leader that fetched the queue put this session first in it, so
-       this session is the leader. */
+    /*
+      The leader that fetched the queue put this session first in the queue,
+      so this session is the leader.
+    */
     assert(m_queue[stage].get_leader() == thd);
     return true;
   }
@@ -518,10 +520,12 @@ THD *Commit_stage_manager::fetch_queue_acquire_lock(StageID stage) {
   DBUG_PRINT("debug", ("Fetching queue for stage %d", stage));
   if (stage != BINLOG_FLUSH_STAGE)
     return m_queue[stage].fetch_and_empty_acquire_lock();
-  /* For the binlog large transaction optimization (BOLT): a fetch of the
-     flush queue makes a waiting BOLT session the leader of the next group,
-     under the flush queue lock. The hand-off runs even with BOLT disabled,
-     because BOLT can be disabled while a BOLT session waits. */
+  /*
+    For the binary log large transaction optimization (BOLT): a fetch of the
+    flush queue makes a waiting BOLT session the leader of the next group,
+    under the flush queue lock. The hand-off runs even with BOLT disabled,
+    because BOLT can be disabled while a BOLT session waits.
+  */
   lock_queue(stage);
   THD *queue = fetch_queue_skip_acquire_lock(stage);
   unlock_queue(stage);

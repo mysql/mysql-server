@@ -38,17 +38,18 @@ class LargeTrxHeaderTest : public ::testing::Test {
   LargeTrxHeaderTest() : m_fde(BINLOG_VERSION, "9.7.0") {}
 
   /**
-    Build a serialized LTH event with a full fixed body (version, offset,
-    terminal event type, terminal event body). The version byte is
+    Build a serialized Large_transaction_header event with a full fixed body
+    (version, offset, terminating event type, terminating event body). The
+    version byte is
     caller-supplied so that invalid-version cases can be exercised without
     truncating the body.
   */
-  std::vector<char> build_event(uint8_t version, uint64_t offset,
-                                uint8_t terminal_type, size_t padding_size,
-                                const std::string &terminal_body = "xid12345") {
+  std::vector<char> build_event(
+      uint8_t version, uint64_t offset, uint8_t terminating_type,
+      size_t padding_size, const std::string &terminating_body = "xid12345") {
     const size_t event_size = LOG_EVENT_MINIMAL_HEADER_LEN +
                               Large_transaction_header_event::kFixedBodyLength +
-                              terminal_body.size() + padding_size;
+                              terminating_body.size() + padding_size;
     std::vector<char> buf(event_size, '\0');
     uchar *p = reinterpret_cast<uchar *>(buf.data());
     int4store(p, 1755000000);  // timestamp
@@ -58,12 +59,13 @@ class LargeTrxHeaderTest : public ::testing::Test {
     int4store(p + LOG_POS_OFFSET, 0);
     int2store(p + FLAGS_OFFSET, LOG_EVENT_IGNORABLE_F);
     uchar *body = p + LOG_EVENT_MINIMAL_HEADER_LEN;
+    /* The fixed body: version (1), offset (8), type (1), body length (1). */
     body[0] = version;
     int8store(body + 1, offset);
-    body[9] = terminal_type;
-    body[10] = static_cast<uchar>(terminal_body.size());
+    body[1 + 8] = terminating_type;
+    body[1 + 8 + 1] = static_cast<uchar>(terminating_body.size());
     memcpy(body + Large_transaction_header_event::kFixedBodyLength,
-           terminal_body.data(), terminal_body.size());
+           terminating_body.data(), terminating_body.size());
     return buf;
   }
 
@@ -98,13 +100,23 @@ TEST_F(LargeTrxHeaderTest, IgnorableFlagIsPreserved) {
   EXPECT_NE(ev.header()->flags & LOG_EVENT_IGNORABLE_F, 0);
 }
 
-TEST_F(LargeTrxHeaderTest, RejectsUnknownVersion) {
-  for (uint8_t bad_version : {uint8_t{0}, uint8_t{2}, uint8_t{255}}) {
+TEST_F(LargeTrxHeaderTest, DecodesANewerVersionWithoutItsBody) {
+  for (uint8_t newer_version : {uint8_t{2}, uint8_t{255}}) {
     auto buf =
-        build_event(bad_version, 42, static_cast<uint8_t>(XID_EVENT), 16);
+        build_event(newer_version, 42, static_cast<uint8_t>(XID_EVENT), 16);
     Large_transaction_header_event ev(buf.data(), &m_fde);
-    EXPECT_FALSE(ev.header()->get_is_valid());
+    EXPECT_TRUE(ev.header()->get_is_valid());
+    EXPECT_EQ(ev.get_body_state(),
+              Large_transaction_header_event::Body_state::kNewerVersion);
   }
+}
+
+TEST_F(LargeTrxHeaderTest, DecodesVersionZeroAsMalformed) {
+  auto buf = build_event(0, 42, static_cast<uint8_t>(XID_EVENT), 16);
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  EXPECT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_body_state(),
+            Large_transaction_header_event::Body_state::kMalformed);
 }
 
 TEST_F(LargeTrxHeaderTest, DecodesTheLongestTerminatingEventBody) {
@@ -119,17 +131,30 @@ TEST_F(LargeTrxHeaderTest, DecodesTheLongestTerminatingEventBody) {
   EXPECT_EQ(ev.get_padding_size(), 16U);
 }
 
-TEST_F(LargeTrxHeaderTest, RejectsATooLongTerminatingEventBody) {
+TEST_F(LargeTrxHeaderTest, DecodesAnEmptyTerminatingEventBody) {
+  /* A transaction that ends with a COMMIT query records no XID. */
+  auto buf = build_event(Large_transaction_header_event::kVersion, 42,
+                         static_cast<uint8_t>(QUERY_EVENT), 16, "");
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  ASSERT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_terminating_event_type(), static_cast<uint8_t>(QUERY_EVENT));
+  EXPECT_TRUE(ev.get_terminating_event_body().empty());
+  EXPECT_EQ(ev.get_padding_size(), 16U);
+}
+
+TEST_F(LargeTrxHeaderTest, DecodesATooLongTerminatingEventBodyAsMalformed) {
   const std::string too_long(
       Large_transaction_header_event::kMaxTerminatingEventBodyLength + 1, 'x');
   auto buf =
       build_event(Large_transaction_header_event::kVersion, 42,
                   static_cast<uint8_t>(XA_PREPARE_LOG_EVENT), 16, too_long);
   Large_transaction_header_event ev(buf.data(), &m_fde);
-  EXPECT_FALSE(ev.header()->get_is_valid());
+  EXPECT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_body_state(),
+            Large_transaction_header_event::Body_state::kMalformed);
 }
 
-TEST_F(LargeTrxHeaderTest, RejectsTruncatedBody) {
+TEST_F(LargeTrxHeaderTest, DecodesATruncatedBodyAsMalformed) {
   /* Body shorter than the fixed fields: version byte only. */
   auto buf = build_event(Large_transaction_header_event::kVersion, 42,
                          static_cast<uint8_t>(XID_EVENT), 0);
@@ -137,7 +162,9 @@ TEST_F(LargeTrxHeaderTest, RejectsTruncatedBody) {
   uchar *p = reinterpret_cast<uchar *>(buf.data());
   int4store(p + EVENT_LEN_OFFSET, static_cast<uint32_t>(buf.size()));
   Large_transaction_header_event ev(buf.data(), &m_fde);
-  EXPECT_FALSE(ev.header()->get_is_valid());
+  EXPECT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_body_state(),
+            Large_transaction_header_event::Body_state::kMalformed);
 }
 
 }  // namespace mysql::binlog::event::unittests

@@ -1,0 +1,9 @@
+--binlog-cache-size=1M
+--binlog-large-transaction-optimization-enabled=ON
+--binlog-large-transaction-optimization-threshold=10M
+--max-binlog-size=1G
+--binlog-transaction-compression=OFF
+--binlog-checksum=CRC32
+--gtid-mode=ON
+--enforce-gtid-consistency=ON
+--binlog-row-event-max-size=4096

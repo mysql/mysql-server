@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file large_transaction_header_event.h
+  @file
 
   @brief Deserialization of the Large_transaction_header
          event. All serialization logic lives in the server class under
@@ -122,6 +122,20 @@ class Large_transaction_header_event : public Binary_log_event {
   static constexpr size_t kMaxTerminatingEventBodyLength = 1 + 4 + 4 + 4 + 128;
 
   /**
+    Whether the event's body could be decoded. The event stays valid in every
+    case: the header is only an optimization, so a reader that cannot use the
+    body reads the transaction sequentially.
+  */
+  enum class Body_state {
+    /** The body was decoded. */
+    kDecoded,
+    /** A later server wrote the body in a newer format version. */
+    kNewerVersion,
+    /** The body is malformed. */
+    kMalformed,
+  };
+
+  /**
     Deserializing constructor.
 
     @param buf  Contains the serialized event.
@@ -137,8 +151,8 @@ class Large_transaction_header_event : public Binary_log_event {
 
     @param terminating_event_offset  Offset of the transaction's
                                      terminating event in the file.
-    @param terminating_event_type    Type code of the transaction's
-                                     terminating event in the file.
+    @param terminating_event_type    Binary log event type of the
+                                     terminating event.
     @param terminating_event_body    The terminating event's body, at most
                                      kMaxTerminatingEventBodyLength bytes.
     @param padding_size              Number of filler bytes to occupy the
@@ -165,14 +179,15 @@ class Large_transaction_header_event : public Binary_log_event {
     return m_terminating_event_offset;
   }
 
-  /** @return Type code of the transaction's terminating event. */
+  /** @return Binary log event type of the terminating event. */
   uint8_t get_terminating_event_type() const {
     return m_terminating_event_type;
   }
 
   /**
-    @return The terminating event's body (between its common header and its
-            checksum), which identifies the transaction.
+    @return The terminating event's body, the bytes between its common header
+            and its checksum, which identifies the transaction. Empty when the
+            terminating event is not an Xid or XA_prepare event.
   */
   const std::string &get_terminating_event_body() const {
     return m_terminating_event_body;
@@ -184,6 +199,9 @@ class Large_transaction_header_event : public Binary_log_event {
   */
   uint64_t get_padding_size() const { return m_padding_size; }
 
+  /** @return Whether the event's body could be decoded. */
+  Body_state get_body_state() const { return m_body_state; }
+
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &info) override;
   void print_long_info(std::ostream &info) override;
@@ -194,12 +212,14 @@ class Large_transaction_header_event : public Binary_log_event {
   uint8_t m_version{kVersion};
   /** Offset of the transaction's terminating event in this file. */
   uint64_t m_terminating_event_offset{0};
-  /** Type code of the terminating event. */
+  /** Binary log event type of the terminating event. */
   uint8_t m_terminating_event_type{0};
   /** Body of the terminating event. */
   std::string m_terminating_event_body;
   /** Number of filler bytes following the fixed body fields. */
   uint64_t m_padding_size{0};
+  /** @see get_body_state() */
+  Body_state m_body_state{Body_state::kDecoded};
 };
 
 }  // namespace mysql::binlog::event

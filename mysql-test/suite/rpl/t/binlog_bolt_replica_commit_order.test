@@ -3,14 +3,12 @@
 # replica_preserve_commit_order, so the replica's own binary log lists
 # transactions in the source's order.
 #
-# The optimized commit path bypasses the group-commit stages, and with them the
-# two calls that enforce commit order: Commit_order_manager::wait() before the
-# flush stage, and Commit_order_manager::finish_one() once the session is
-# enqueued. Nothing downstream compensates -- finish_commit() has no
-# commit-order handling, and ha_commit_low()'s hook is gated by
-# is_ha_commit_low_invoking_commit_order(), which is never true for a
-# transaction that logged something. So without those calls a worker applying a
-# large transaction can write its local binary log out of turn.
+# The spilled file is promoted in the flush stage of
+# MYSQL_BIN_LOG::ordered_commit(), so a BOLT transaction goes through the same
+# commit-order calls as any transaction: Commit_order_manager::wait() before
+# the flush stage, and Commit_order_manager::finish_one() once the session is
+# enqueued. If either were skipped, a worker applying a large transaction could
+# write its local binary log out of turn.
 #
 # === Requirements ===
 # R1. With replica_preserve_commit_order=ON, log_replica_updates=ON and several
@@ -40,6 +38,7 @@
 # transactions are promoted locally, on the applier, which is the path under
 # test.
 
+--source include/not_windows.inc
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

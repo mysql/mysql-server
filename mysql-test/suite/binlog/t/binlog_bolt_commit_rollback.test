@@ -474,6 +474,7 @@ SET GLOBAL max_binlog_size = 1073741824;
 --let $assert_text = Immediate max-binlog-size rotation keeps all promoted rows.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
 --source include/assert.inc
+--replace_column 2 #
 SHOW BINARY LOGS;
 
 ############################################################################

@@ -75,31 +75,34 @@ void Log_sanitizer::process_large_trx_header_event(
   */
   if (reader.is_checksum_verification_enabled()) {
     LogErr(INFORMATION_LEVEL,
-           ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION);
+           ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION,
+           m_valid_file.c_str());
     return;
   }
+  /*
+    When the header is not applicable or invalid, the transaction is read
+    sequentially, as without the header.
+  */
   my_off_t end = 0;
   switch (
       find_large_trx_terminating_event(reader, m_last_file_size, ev, &end)) {
     case Large_trx_header_check::kVerified:
       break;
     case Large_trx_header_check::kNotApplicable:
-      /* The transaction is read sequentially, as without the header. */
       return;
     case Large_trx_header_check::kInvalid:
-      /* The transaction is read sequentially, as without the header. */
       LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_INVALID_LARGE_TRX_HEADER,
              m_valid_file.c_str());
       return;
     case Large_trx_header_check::kReadError:
       m_is_malformed = true;
       m_failure_message.assign(
-          "Could not read the terminating event of a large transaction");
+          "Could not seek back to the end of a large transaction header");
       return;
   }
-  const my_off_t xid_offset =
+  const my_off_t terminating_event_offset =
       static_cast<my_off_t>(ev.get_terminating_event_offset());
-  if (reader.seek(xid_offset)) {
+  if (reader.seek(terminating_event_offset)) {
     m_is_malformed = true;
     m_failure_message.assign(
         "Could not seek to the terminating event of a large transaction");
@@ -107,7 +110,8 @@ void Log_sanitizer::process_large_trx_header_event(
   }
 
   LogErr(INFORMATION_LEVEL, ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_SKIP,
-         static_cast<ulonglong>(xid_offset), m_valid_file.c_str());
+         static_cast<ulonglong>(terminating_event_offset),
+         m_valid_file.c_str());
   m_in_transaction = true;
 }
 

@@ -8,11 +8,15 @@
 # R1. PURGE and FLUSH do not discard or corrupt an active BOLT spill file.
 # R2. A spill promotes after a concurrent FLUSH creates a new active binlog.
 # R3. A promoted historical file can be purged after a subsequent FLUSH.
+# R4. A promotion purges expired binlog files as a rotation does, also when
+#     the promoted file stays below max_binlog_size.
 #
 # === Implementation ===
 # Create history, keep a transaction spilled, purge older history and rotate,
 # then commit the spill. Rotate the resulting promoted active file once more
-# and purge it through the normal binary-log lifecycle.
+# and purge it through the normal binary-log lifecycle. Then let the oldest
+# binlog file expire and promote one more spilled file: the commit purges the
+# expired file.
 #
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
@@ -23,6 +27,8 @@
 --let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
 --let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_expire_seconds = `SELECT @@GLOBAL.binlog_expire_logs_seconds`
+--let $save_expire_auto_purge = `SELECT @@GLOBAL.binlog_expire_logs_auto_purge`
 
 # Setup
 --disable_query_log
@@ -81,7 +87,33 @@ FLUSH BINARY LOGS;
 --eval PURGE BINARY LOGS TO '$successor_file'
 --let $file_does_not_exist = $MYSQLD_DATADIR/$promoted_file
 --source include/file_does_not_exist.inc
+--replace_column 2 #
 SHOW BINARY LOGS;
+
+--echo # A promotion purges an expired binlog file.
+--let $assert_text = The promoted file stays below max_binlog_size, so no size rotation runs.
+--let $assert_cond = @@GLOBAL.max_binlog_size > 104857600
+--source include/assert.inc
+FLUSH BINARY LOGS;
+--let $expired_file = query_get_value(SHOW BINARY LOGS, Log_name, 1)
+SET GLOBAL binlog_expire_logs_auto_purge = ON;
+SET GLOBAL binlog_expire_logs_seconds = 1;
+--sleep 2
+connection spill_client;
+BEGIN;
+INSERT INTO t1 VALUES (4, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (5, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (6, REPEAT('f', 4000000));
+COMMIT;
+connection default;
+--let $purge_promoted_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_header_file = $purge_promoted_file
+--source ../inc/validate_bolt_header.inc
+--let $file_does_not_exist = $MYSQLD_DATADIR/$expired_file
+--source include/file_does_not_exist.inc
+--let $assert_text = The BOLT transaction preserves every row.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 6
+--source include/assert.inc
 
 connection spill_client;
 disconnect spill_client;
@@ -92,4 +124,6 @@ DROP TABLE t1;
 --disable_query_log
 --eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
 --eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL binlog_expire_logs_seconds = $save_expire_seconds
+--eval SET GLOBAL binlog_expire_logs_auto_purge = $save_expire_auto_purge
 --enable_query_log

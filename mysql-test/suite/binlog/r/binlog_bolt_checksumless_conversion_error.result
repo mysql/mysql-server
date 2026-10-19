@@ -12,7 +12,27 @@ COMMIT;
 include/assert.inc [R2: the transaction's spilled file is not promoted.]
 include/assert.inc [R2: it is counted as a missed optimization.]
 include/assert_grep.inc [R2: the rewrite failure is the reason in the error log.]
+include/assert_grep.inc [R5: the rewrite failure warning says that no error was reported.]
 # R3: the binary log is valid and every row exists.
 include/assert.inc [R3: every row is retained.]
 include/assert.inc [R4: no bolt_ temp file is left.]
+# R6: with binlog_checksum=NONE, the spilling statement succeeds although
+# the bolt_ temp file cannot be created.
+TRUNCATE t1;
+SET GLOBAL binlog_checksum = NONE;
+RESET BINARY LOGS AND GTIDS;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000));
+SET SESSION debug = '+d,fail_bolt_spill_file_create';
+INSERT INTO t1 VALUES (2, REPEAT('b', 6000000));
+SET SESSION debug = '-d,fail_bolt_spill_file_create';
+INSERT INTO t1 VALUES (3, REPEAT('c', 6000000));
+COMMIT;
+include/assert.inc [R6: the transaction's spilled file is not promoted.]
+include/assert.inc [R6: it is counted as a missed optimization.]
+include/assert_grep.inc [R5: the rewrite failure warning names the file that could not be created.]
+include/assert_grep.inc [R7: the second rewrite failure is also logged as the reason.]
+# R6: the binary log is valid and every row exists.
+include/assert.inc [R6: every row is retained.]
+include/assert.inc [R6: no bolt_ temp file is left.]
 DROP TABLE t1;

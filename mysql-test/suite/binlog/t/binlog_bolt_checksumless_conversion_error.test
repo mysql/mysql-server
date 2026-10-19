@@ -13,6 +13,11 @@
 #     threshold), with the rewrite failure as the reason.
 # R3. The binary log verifies and every row is retained.
 # R4. No bolt_ temp file is left.
+# R5. The server logs a warning with the cause of the rewrite failure.
+# R6. With binlog_checksum=NONE, a failure to create the bolt_ temp file at
+#     the rewrite also falls back, and the spilling statement succeeds.
+# R7. The rewrite failure is a failure reason, so every fallback for it is
+#     logged.
 #
 --source include/have_debug.inc
 --source include/have_log_bin.inc
@@ -23,6 +28,7 @@
 --let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
 --disable_query_log
 CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because the binary log cache could not be rewritten');
+CALL mtr.add_suppression('Could not rewrite the binlog cache of a large transaction into the binlog file form');
 --enable_query_log
 SET GLOBAL binlog_checksum = CRC32;
 RESET BINARY LOGS AND GTIDS;
@@ -48,9 +54,14 @@ COMMIT;
 --let $assert_cond = $missed_after = $missed_before + 1
 --source include/assert.inc
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = Could not optimize large transaction execution in the binary log because the binary log cache could not be rewritten into the binary log file format
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_checksumless_conversion_error
+--let $assert_select = Could not optimize large transaction execution in the binary log because the binary log cache could not be rewritten into the binary log file form
 --let $assert_count = 1
 --let $assert_text = R2: the rewrite failure is the reason in the error log.
+--source include/assert_grep.inc
+--let $assert_select = Could not rewrite the binlog cache of a large transaction into the binlog file form: no error was reported
+--let $assert_count = 1
+--let $assert_text = R5: the rewrite failure warning says that no error was reported.
 --source include/assert_grep.inc
 
 --echo # R3: the binary log is valid and every row exists.
@@ -67,6 +78,53 @@ COMMIT;
 --source $temp_inc
 --remove_file $temp_inc
 --let $assert_text = R4: no bolt_ temp file is left.
+--let $assert_cond = $temp_files = 0
+--source include/assert.inc
+
+--echo # R6: with binlog_checksum=NONE, the spilling statement succeeds although
+--echo # the bolt_ temp file cannot be created.
+TRUNCATE t1;
+SET GLOBAL binlog_checksum = NONE;
+RESET BINARY LOGS AND GTIDS;
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000));
+SET SESSION debug = '+d,fail_bolt_spill_file_create';
+--replace_regex /File '.*bolt_[^']*'/File 'BOLT_FILE'/
+INSERT INTO t1 VALUES (2, REPEAT('b', 6000000));
+SET SESSION debug = '-d,fail_bolt_spill_file_create';
+INSERT INTO t1 VALUES (3, REPEAT('c', 6000000));
+COMMIT;
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+
+--let $assert_text = R6: the transaction's spilled file is not promoted.
+--let $assert_cond = $bolt_after = $bolt_before
+--source include/assert.inc
+--let $assert_text = R6: it is counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_select = Could not rewrite the binlog cache of a large transaction into the binlog file form: File '.*bolt_.*' not found \(OS errno 28
+--let $assert_count = 1
+--let $assert_text = R5: the rewrite failure warning names the file that could not be created.
+--source include/assert_grep.inc
+--let $assert_select = Could not optimize large transaction execution in the binary log because the binary log cache could not be rewritten into the binary log file form
+--let $assert_count = 2
+--let $assert_text = R7: the second rewrite failure is also logged as the reason.
+--source include/assert_grep.inc
+
+--echo # R6: the binary log is valid and every row exists.
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$binlog_file > /dev/null
+--let $assert_text = R6: every row is retained.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "1,2,3"
+--source include/assert.inc
+
+--exec ls "$BOLT_TEMP_DIR" | grep -c '^bolt_' | xargs printf -- '--let \044temp_files = %s\n' > $temp_inc
+--source $temp_inc
+--remove_file $temp_inc
+--let $assert_text = R6: no bolt_ temp file is left.
 --let $assert_cond = $temp_files = 0
 --source include/assert.inc
 

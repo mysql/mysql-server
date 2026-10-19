@@ -13007,11 +13007,15 @@ void Large_transaction_header_log_event::claim_memory_ownership(bool claim) {
 int Large_transaction_header_log_event::pack_info(Protocol *protocol) {
   char buf[256];
   const size_t bytes =
-      snprintf(buf, sizeof(buf),
-               "# Large transaction header "
-               "(terminating event offset %llu, type %u)",
-               static_cast<unsigned long long>(m_terminating_event_offset),
-               static_cast<unsigned>(m_terminating_event_type));
+      get_body_state() != Body_state::kDecoded
+          ? snprintf(buf, sizeof(buf),
+                     "# Large transaction header (body not decoded)")
+          : snprintf(
+                buf, sizeof(buf),
+                "# Large transaction header "
+                "(terminating event offset %llu, type %u)",
+                static_cast<unsigned long long>(m_terminating_event_offset),
+                static_cast<unsigned>(m_terminating_event_type));
   protocol->store_string(buf, bytes, &my_charset_bin);
   return 0;
 }
@@ -13032,8 +13036,10 @@ bool Large_transaction_header_log_event::write_data_body(
           m_terminating_event_body.size()))
     return true;
 
-  /* Write the padding in bounded chunks; its contents are undefined and
-     ignored on read, zeros keep the file deterministic. */
+  /*
+    Write the padding in bounded chunks. The padding's contents are ignored
+    on read. Zeros keep the file deterministic.
+  */
   constexpr size_t kPaddingChunkSize = 4096;
   const uchar zeros[kPaddingChunkSize] = {0};
   for (uint64_t left = m_padding_size; left > 0;) {
@@ -13046,8 +13052,10 @@ bool Large_transaction_header_log_event::write_data_body(
 
 int Large_transaction_header_log_event::do_apply_event(Relay_log_info const *) {
   DBUG_TRACE;
-  /* Nothing to apply: the event only carries recovery metadata for the
-     file it was written into. */
+  /*
+    Nothing to apply. The event only carries recovery metadata for the file
+    that the event was written into.
+  */
   return 0;
 }
 #endif
@@ -13065,6 +13073,10 @@ void Large_transaction_header_log_event::print(
               static_cast<unsigned long long>(m_terminating_event_offset),
               static_cast<unsigned>(m_terminating_event_type),
               static_cast<unsigned long long>(m_padding_size));
+  if (m_body_state != Body_state::kDecoded)
+    my_b_printf(&print_event_info->head_cache,
+                "# The body was not decoded: a newer format version, or a "
+                "malformed body\n");
 }
 #endif
 
