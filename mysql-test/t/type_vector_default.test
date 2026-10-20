@@ -1,0 +1,28 @@
+--echo #
+--echo # VECTOR columns can't have a constant default value, not even an empty
+--echo # string in non-strict mode, as an empty value is not a valid vector.
+--echo #
+--error ER_BLOB_CANT_HAVE_DEFAULT
+CREATE TABLE t (a INT, v VECTOR(2) NOT NULL DEFAULT '');
+--error ER_BLOB_CANT_HAVE_DEFAULT
+CREATE TABLE t (a INT, v VECTOR(2) DEFAULT '');
+SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';
+--error ER_BLOB_CANT_HAVE_DEFAULT
+CREATE TABLE t (a INT, v VECTOR(2) NOT NULL DEFAULT '');
+--error ER_BLOB_CANT_HAVE_DEFAULT
+CREATE TABLE t (a INT, v VECTOR(2) DEFAULT '');
+--error ER_BLOB_CANT_HAVE_DEFAULT
+CREATE TABLE t (a INT, v VECTOR(2) NOT NULL DEFAULT 'a');
+CREATE TABLE t (a INT PRIMARY KEY);
+--error ER_BLOB_CANT_HAVE_DEFAULT
+ALTER TABLE t ADD COLUMN v VECTOR(2) NOT NULL DEFAULT '';
+DROP TABLE t;
+SET SESSION sql_mode = DEFAULT;
+--echo # DEFAULT NULL and default expressions are allowed.
+CREATE TABLE t (a INT, v1 VECTOR(2) DEFAULT NULL,
+                v2 VECTOR(2) NOT NULL DEFAULT (STRING_TO_VECTOR('[3,4]')));
+SHOW CREATE TABLE t;
+INSERT INTO t(a) VALUES (1);
+INSERT INTO t VALUES (2, DEFAULT, DEFAULT);
+SELECT a, v1, VECTOR_TO_STRING(v2) FROM t;
+DROP TABLE t;
