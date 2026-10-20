@@ -310,6 +310,12 @@ extern os_event_t srv_buf_dump_event;
 
 /** The buffer pool resize thread waits on this event. */
 extern os_event_t srv_buf_resize_event;
+
+#ifdef UNIV_DEBUG
+/** Synchronizes an AHI enable request with buffer pool resize completion in
+debug tests. */
+extern os_event_t srv_buf_resize_ahi_enable_event;
+#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /** The buffer pool dump/load file name */
