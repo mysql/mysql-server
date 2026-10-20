@@ -2252,13 +2252,17 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
         ((*field)->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
          ((*field)->m_default_val_expr == nullptr)) &&
         ((*field)->real_type() != MYSQL_TYPE_ENUM)) {
+      // The implicit default (empty value) is not valid for these types.
+      const bool no_implicit_default =
+          (*field)->type() == MYSQL_TYPE_GEOMETRY ||
+          (*field)->type() == MYSQL_TYPE_VECTOR;
       bool view = false;
       if (table_list) {
         table_list = table_list->top_table();
         view = table_list->is_view();
       }
       if (view) {
-        if ((*field)->type() == MYSQL_TYPE_GEOMETRY) {
+        if (no_implicit_default) {
           my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), table_list->db,
                    table_list->table_name);
         } else {
@@ -2267,7 +2271,7 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                 table_list->table_name);
         }
       } else {
-        if ((*field)->type() == MYSQL_TYPE_GEOMETRY) {
+        if (no_implicit_default) {
           my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), (*field)->field_name);
         } else {
           (*field)->set_warning(Sql_condition::SL_WARNING,

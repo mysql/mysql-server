@@ -9755,6 +9755,19 @@ type_conversion_status Item_default_value::save_in_field_inner(
         return TYPE_ERR_BAD_VALUE;
       }
 
+      // The implicit default (empty value) is not a valid VECTOR, so raise
+      // an error instead of a warning, regardless of SQL mode or IGNORE.
+      if (field_arg->type() == MYSQL_TYPE_VECTOR && !field_arg->is_nullable()) {
+        if (context->view_error_handler) {
+          Table_ref *view = m_table_ref->top_table();
+          my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), view->db,
+                   view->table_name);
+        } else {
+          my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field_name);
+        }
+        return TYPE_ERR_BAD_VALUE;
+      }
+
       if (context->view_error_handler) {
         Table_ref *view = m_table_ref->top_table();
         push_warning_printf(thd, Sql_condition::SL_WARNING,
