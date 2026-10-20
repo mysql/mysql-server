@@ -535,12 +535,11 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
       !!from->get_info(&temp_checkpoint_master_log_pos, 0UL) ||
       !!from->get_info(&temp_checkpoint_seqno, 0UL) ||
       !!from->get_info(&nbytes, 0UL) ||
+      nbytes > no_bytes_in_map(&group_executed) ||
       !!from->get_info(buffer, (size_t)nbytes, (uchar *)nullptr) ||
       /* default is empty string */
       !!from->get_info(channel, sizeof(channel), ""))
     return true;
-
-  assert(nbytes <= no_bytes_in_map(&group_executed));
 
   internal_id = (uint)temp_internal_id;
   group_relay_log_pos = temp_group_relay_log_pos;
