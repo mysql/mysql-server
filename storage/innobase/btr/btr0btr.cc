@@ -1164,6 +1164,52 @@ void btr_truncate_recover(const dict_index_t *index) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
+/** The block that btr_page_reorganize_low() copies the page to during crash
+recovery, allocated from OS memory once per thread.
+
+During recovery the read I/O threads apply redo when a read completes. The
+reads issued by buf_read_recv_pages() can hold every block of the buffer pool
+that the parsed redo does not use. If the I/O threads then took the temporary
+block from the buffer pool, they would wait for a free block forever, and no
+read would complete to free one.
+
+The block is only a copy of the page that the records are read from: it is not
+in the buffer pool, not latched and not locked. Like the blocks of a buffer
+pool chunk, it is raw memory with only the fields it needs set. */
+class Recv_reorganize_block {
+ public:
+  ~Recv_reorganize_block() {
+    ut::free(m_block);
+    ut::aligned_free(m_frame);
+  }
+
+  /** @return the block of this thread, allocated on first use */
+  buf_block_t *get() {
+    if (m_block == nullptr) {
+      m_frame = static_cast<byte *>(
+          ut::aligned_alloc(UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
+      ut_a(m_frame != nullptr);
+      m_block = static_cast<buf_block_t *>(ut::zalloc(sizeof(buf_block_t)));
+      ut_a(m_block != nullptr);
+      m_block->frame = m_frame;
+      m_block->page.state = BUF_BLOCK_MEMORY;
+    }
+    return m_block;
+  }
+
+ private:
+  /** The control block, or nullptr if not allocated yet */
+  buf_block_t *m_block{};
+
+  /** The page frame of m_block */
+  byte *m_frame{};
+};
+
+/** The temporary block of btr_page_reorganize_low() in recovery */
+static thread_local Recv_reorganize_block recv_reorganize_block;
+#endif /* !UNIV_HOTBACKUP */
+
 bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
                              dict_index_t *index, mtr_t *mtr) {
   buf_block_t *block = page_cur_get_block(cursor);
@@ -1196,7 +1242,10 @@ bool btr_page_reorganize_low(bool recovery, ulint z_level, page_cur_t *cursor,
   mtr_log_t log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
-  temp_block = buf_block_alloc(buf_pool);
+  /* In recovery, do not wait for a free block of the buffer pool: see
+  Recv_reorganize_block. */
+  temp_block =
+      recovery ? recv_reorganize_block.get() : buf_block_alloc(buf_pool);
 #else  /* !UNIV_HOTBACKUP */
   temp_block = back_block2;
 #endif /* !UNIV_HOTBACKUP */
@@ -1313,7 +1362,9 @@ func_exit:
   ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 #ifndef UNIV_HOTBACKUP
-  buf_block_free(temp_block);
+  if (!recovery) {
+    buf_block_free(temp_block);
+  }
 #endif /* !UNIV_HOTBACKUP */
 
   /* Restore logging mode */
