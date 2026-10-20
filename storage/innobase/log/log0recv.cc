@@ -1073,8 +1073,13 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
   bool found;
   const page_id_t page_id(recv_addr->space, recv_addr->page_no);
 
+  /* Getting the page size may open the tablespace file. When the open files
+  limit is reached, that waits for pending reads to complete, and the I/O
+  threads need recv_sys->mutex to complete them. */
+  mutex_exit(&recv_sys->mutex);
   const page_size_t page_size =
       fil_space_get_page_size(recv_addr->space, &found);
+  mutex_enter(&recv_sys->mutex);
 
   if (!found || recv_sys->missing_ids.find(recv_addr->space) !=
                     recv_sys->missing_ids.end()) {
