@@ -1,0 +1,109 @@
+# buf_page_init_for_read() inserts into the page hash without
+# holding the LRU list mutex. This test stresses the two windows that the
+# narrowed latching opens, with debug sync points widening them:
+#
+# 1) buf_lru_free_page_delay_zip_reinsert widens the window between the
+#    page hash delete and the re-insert of the compressed-only descriptor
+#    in the keep-zip path of buf_LRU_free_page(). The hash cell X-latch is
+#    held across that window, so a concurrent read of the page being
+#    unzip-evicted must block on the cell latch instead of inserting a
+#    second descriptor for the same page id (which would fail
+#    ut_a(!buf_page_hash_get_low(buf_pool, b->id)) at the re-insert).
+#
+# 2) buf_page_init_for_read_delay_lru_add widens the window in which a
+#    page is hash-visible but not yet linked into the LRU list. Threads
+#    finding such a page via the page hash (buf_page_get_zip() ->
+#    buf_block_try_discard_uncompressed() -> buf_LRU_free_page(),
+#    buf_buddy_relocate(), buf_page_make_young_if_needed()) must back off
+#    from it because it is io-fixed for read; buf_page_can_relocate()
+#    accepts it (io-fixed, not in the LRU list) without asserting.
+#
+# The workload keeps a compressed table with externally stored BLOBs
+# (read through buf_page_get_zip()) larger than the buffer pool, so that
+# unzip-LRU eviction, keep-zip frees, physical re-reads and buddy
+# alloc/free churn all run concurrently.
+
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+--source include/big_test.inc
+
+SET GLOBAL DEBUG="+d,buf_lru_free_page_delay_zip_reinsert,buf_page_init_for_read_delay_lru_add";
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  c LONGBLOB
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+
+--disable_query_log
+DELIMITER |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i <= 2000 DO
+    INSERT INTO t1 VALUES (i, REPEAT(CONCAT('row', i, '-'), 2048));
+    IF i % 200 = 0 THEN
+      COMMIT;
+    END IF;
+    SET i = i + 1;
+  END WHILE;
+  COMMIT;
+END|
+CREATE PROCEDURE scan_t1(IN iterations INT)
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  DECLARE dummy BIGINT;
+  WHILE i <= iterations DO
+    SELECT SUM(LENGTH(c)) INTO dummy FROM t1;
+    SET i = i + 1;
+  END WHILE;
+END|
+CREATE PROCEDURE update_t1(IN iterations INT)
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i <= iterations DO
+    UPDATE t1 SET c = REPEAT(CONCAT('mod', i, '-'), 2048)
+      WHERE id % 500 = i % 500;
+    COMMIT;
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+SET autocommit = 0;
+CALL populate_t1();
+SET autocommit = 1;
+--enable_query_log
+
+# Two connections scanning the BLOB column (physical re-reads +
+# buf_page_get_zip() -> buf_block_try_discard_uncompressed()), one
+# connection updating (creates dirty compressed pages, so the keep-zip
+# eviction path sees both ZIP_PAGE and ZIP_DIRTY re-inserts).
+--connect(con_scan1, localhost, root,,)
+--send CALL scan_t1(6)
+
+--connect(con_scan2, localhost, root,,)
+--send CALL scan_t1(6)
+
+--connect(con_upd, localhost, root,,)
+--send CALL update_t1(12)
+
+--connection con_scan1
+--reap
+--disconnect con_scan1
+
+--connection con_scan2
+--reap
+--disconnect con_scan2
+
+--connection con_upd
+--reap
+--disconnect con_upd
+
+--connection default
+SELECT COUNT(*), MIN(LENGTH(c)) > 0 FROM t1;
+
+SET GLOBAL DEBUG="-d,buf_lru_free_page_delay_zip_reinsert,buf_page_init_for_read_delay_lru_add";
+
+DROP PROCEDURE populate_t1;
+DROP PROCEDURE scan_t1;
+DROP PROCEDURE update_t1;
+DROP TABLE t1;

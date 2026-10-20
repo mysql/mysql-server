@@ -1,0 +1,153 @@
+# buf_page_init_for_read() does not hold the LRU list mutex, so it can run
+# concurrently with a buffer pool resize. This test covers two windows:
+#
+# 1) Between computing the page hash cell latch for the page id and acquiring
+#    it. A resize which rebuilds the page hash (the new size differs from the
+#    old one by more than a factor of two) changes the number of cells, and
+#    so the latch the page id maps to. The function must re-confirm the latch
+#    after acquiring it, otherwise it looks up and inserts into the page hash
+#    under a latch which does not protect the page id.
+#
+# 2) Between inserting the page into the page hash and linking it into the
+#    LRU list. A shrinking resize must not withdraw the block of such a page
+#    (it is io-fixed for read and not on the LRU list), but retry until the
+#    read has completed, and it must move the page to its new page hash cell
+#    when it rebuilds the page hash.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb_16k.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c CHAR(200)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd');
+INSERT INTO t1 SELECT id + 4, c FROM t1;
+INSERT INTO t1 SELECT id + 8, c FROM t1;
+INSERT INTO t1 SELECT id + 16, c FROM t1;
+INSERT INTO t1 SELECT id + 32, c FROM t1;
+INSERT INTO t1 SELECT id + 64, c FROM t1;
+INSERT INTO t1 SELECT id + 128, c FROM t1;
+INSERT INTO t1 SELECT id + 256, c FROM t1;
+INSERT INTO t1 SELECT id + 512, c FROM t1;
+INSERT INTO t1 SELECT id + 1024, c FROM t1;
+
+# About 17 MB of data, used to fill the buffer pool in the second scenario.
+CREATE TABLE t2 (id INT PRIMARY KEY, c CHAR(200)) ENGINE=InnoDB;
+INSERT INTO t2 SELECT id, c FROM t1;
+INSERT INTO t2 SELECT id + 2048, c FROM t2;
+INSERT INTO t2 SELECT id + 4096, c FROM t2;
+INSERT INTO t2 SELECT id + 8192, c FROM t2;
+INSERT INTO t2 SELECT id + 16384, c FROM t2;
+INSERT INTO t2 SELECT id + 32768, c FROM t2;
+
+--echo #
+--echo # Scenario 1: the page hash is rebuilt between computing the page hash
+--echo # cell latch and acquiring it.
+--echo #
+
+# Start with a cold buffer pool, so that the leaf pages of t1 must be read.
+# The resize status is empty after the restart, so the wait for
+# 'Completed resizing' below cannot be satisfied by an earlier resize.
+--source include/restart_mysqld.inc
+--source include/count_sessions.inc
+
+SET @old_buffer_pool_size = @@GLOBAL.innodb_buffer_pool_size;
+
+# Open the table and read the root and the first leaf page.
+SELECT c FROM t1 WHERE id = 1;
+
+--connect (con1, localhost, root,,)
+SET DEBUG_SYNC = 'buf_page_init_for_read_before_hash_lock SIGNAL paused WAIT_FOR go';
+--send SELECT c FROM t1 WHERE id = 2000
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR paused';
+
+# Grow the buffer pool by more than a factor of two, so that the page hash
+# is rebuilt with a different number of cells.
+SET GLOBAL innodb_buffer_pool_size = @old_buffer_pool_size * 8;
+let $wait_timeout = 180;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+--source include/wait_condition.inc
+
+SET DEBUG_SYNC = 'now SIGNAL go';
+
+--connection con1
+--reap
+--disconnect con1
+
+--connection default
+SET DEBUG_SYNC = 'RESET';
+--source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Scenario 2: the buffer pool is shrunk while a page is in the page
+--echo # hash but not yet on the LRU list.
+--echo #
+
+--let $restart_parameters = restart: --innodb-buffer-pool-size=32M
+--source include/restart_mysqld.inc
+--source include/count_sessions.inc
+
+# Open t1 and read its root page, then fill the buffer pool with t2. Free
+# blocks are taken from the head of the free list, which is ordered by chunk,
+# so the next page read gets a block from one of the last chunks, which the
+# shrink below withdraws.
+SELECT c FROM t1 WHERE id = 1;
+--disable_result_log
+SELECT SUM(LENGTH(c)) FROM t2;
+--enable_result_log
+
+--connect (con1, localhost, root,,)
+SET DEBUG_SYNC = 'buf_page_init_for_read_before_lru_add SIGNAL paused WAIT_FOR go';
+--send SELECT c FROM t1 WHERE id = 2000
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR paused';
+
+let $retries_before = `SELECT COUNT(*) FROM performance_schema.error_log
+  WHERE data LIKE 'Will retry to withdraw%'`;
+
+# Shrink the buffer pool by more than a factor of two, so that the page hash
+# is rebuilt as well.
+SET GLOBAL innodb_buffer_pool_size = 8 * 1024 * 1024;
+
+# The withdrawal cannot complete while the block of the page being read is
+# neither free nor on the LRU list; it must keep retrying. Wait for two
+# retries: the first one can also be caused by pages of t2 which the
+# withdrawal still has to evict.
+let $wait_condition =
+  SELECT COUNT(*) > $retries_before + 1 FROM performance_schema.error_log
+  WHERE data LIKE 'Will retry to withdraw%';
+--source include/wait_condition.inc
+
+SELECT SUBSTR(variable_value, 1, 18) = 'Completed resizing' AS completed
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+
+SET DEBUG_SYNC = 'now SIGNAL go';
+
+--connection con1
+--reap
+--disconnect con1
+
+--connection default
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+--source include/wait_condition.inc
+
+SELECT @@GLOBAL.innodb_buffer_pool_size = 8 * 1024 * 1024 AS shrunk;
+SELECT c FROM t1 WHERE id = 2000;
+
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1, t2;
+
+--source include/wait_until_count_sessions.inc
+
+# Restore the original buffer pool size.
+--let $restart_parameters = restart
+--source include/restart_mysqld.inc
