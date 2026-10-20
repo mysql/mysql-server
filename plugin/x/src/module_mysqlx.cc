@@ -26,6 +26,7 @@
 #include "plugin/x/src/module_mysqlx.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "my_dbug.h"  // NOLINT(build/include_subdir)

@@ -558,6 +558,13 @@ MYSQL_THD Sql_data_context::get_thd() const {
   return srv_session_info_get_thd(m_mysql_session);
 }
 
+// UBSAN vptr instrumentation emits a THD RTTI reference, but xplugin_unit_tests
+// links libmysqlx without the server THD typeinfo. Keep THD::set_ssl out of
+// line so its body is instrumented only in the server, not in libmysqlx.
+SUPPRESS_UBSAN void Sql_data_context::set_ssl(Vio *vio) {
+  get_thd()->set_ssl(vio);
+}
+
 ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
                                           iface::Resultset *rset) {
   const auto error = execute_sql(sql, sql_len, rset);

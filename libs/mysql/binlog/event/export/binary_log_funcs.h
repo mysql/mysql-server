@@ -29,6 +29,7 @@
 #ifndef MYSQL_BINLOG_EVENT_EXPORT_BINARY_LOG_FUNCS_H
 #define MYSQL_BINLOG_EVENT_EXPORT_BINARY_LOG_FUNCS_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include "field_types.h"  // enum_field_types
 
@@ -55,6 +56,32 @@ unsigned int my_timestamp_binary_length(unsigned int dec);
 */
 uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
                          unsigned int metadata);
+
+enum enum_calc_field_size_status {
+  CALC_FIELD_SIZE_OK = 0,
+  CALC_FIELD_SIZE_TRUNCATED = 1,
+  CALC_FIELD_SIZE_INVALID_TYPE = 2
+};
+
+/**
+  This helper function calculates the size in bytes of a particular field in a
+  row type event, after checking that all bytes read from master_data fit in
+  the available input.
+
+  @param col Field type code
+  @param master_data The field data
+  @param metadata The field metadata
+  @param available Number of bytes available from master_data
+  @param field_size The size in bytes of the field, on success
+
+  @retval CALC_FIELD_SIZE_OK The field size was calculated successfully.
+  @retval CALC_FIELD_SIZE_TRUNCATED The field length prefix or value exceeds
+          the available input.
+  @retval CALC_FIELD_SIZE_INVALID_TYPE The field type or metadata is invalid.
+*/
+enum enum_calc_field_size_status calc_field_size_checked(
+    unsigned char col, const unsigned char *master_data, unsigned int metadata,
+    size_t available, uint32_t *field_size);
 
 /**
    Compute the maximum display length of a field.

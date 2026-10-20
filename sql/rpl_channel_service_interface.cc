@@ -167,7 +167,7 @@ static void clean_thread_context() { my_thread_end(); }
 static THD *create_surrogate_thread() {
   THD *thd = nullptr;
   thd = new THD;
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
   thd->security_context()->skip_grants();
 

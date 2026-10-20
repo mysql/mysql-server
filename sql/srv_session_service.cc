@@ -73,13 +73,15 @@ void srv_session_deinit_thread() { Srv_session::deinit_thread(); }
   @param plugin_ctx            Plugin's context, opaque pointer that would
                                be provided to callbacks. Might be NULL.
   @param ignore_max_connection_limit true if the session is exempted
+  @param allow_extra_connection true to allow the reserved extra connection
   @return
     handler of session   on success
     NULL                 on failure
 */
 Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
                                        void *plugin_ctx,
-                                       bool ignore_max_connection_limit) {
+                                       bool ignore_max_connection_limit,
+                                       bool allow_extra_connection) {
   DBUG_TRACE;
 
   if (!srv_session_server_is_available()) {
@@ -98,7 +100,7 @@ Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
 
   if (simulate_reach_max_connections ||
       !conn_manager->check_and_incr_conn_count(ignore_max_connection_limit,
-                                               true)) {
+                                               true, allow_extra_connection)) {
     if (error_cb)
       error_cb(plugin_ctx, ER_CON_COUNT_ERROR, ER_DEFAULT(ER_CON_COUNT_ERROR));
     return nullptr;
@@ -106,9 +108,14 @@ Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
 
   Srv_session *session = nullptr;
   try {
+    // Let tests verify connection-count cleanup when allocation fails.
+    DBUG_EXECUTE_IF("srv_session_alloc_failure", throw std::bad_alloc(););
     session = new Srv_session(error_cb, plugin_ctx);
   } catch (...) {
     DBUG_PRINT("error", ("Can't allocate a Srv_session object"));
+    // Admission already incremented the count. No session was constructed
+    // to release it through close().
+    Connection_handler_manager::dec_connection_count();
     connection_errors_internal++;
     if (error_cb)
       error_cb(plugin_ctx, ER_OUT_OF_RESOURCES,
@@ -119,7 +126,8 @@ Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
   THD *current = current_thd;
   THD *stack_thd = session->get_thd();
 
-  session->get_thd()->thread_stack = reinterpret_cast<char *>(&stack_thd);
+  session->get_thd()->capture_stack_base(
+      reinterpret_cast<const void *>(&stack_thd));
   session->get_thd()->store_globals();
 
   const bool result = session->open();

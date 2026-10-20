@@ -33,6 +33,7 @@
 #include "helper/json/to_string.h"
 #include "helper/sqlstring_utils.h"
 #include "mrs/database/helper/sp_function_query.h"
+#include "mrs/embedded_runtime_services.h"
 #include "mrs/http/error.h"
 
 #include "mysql/harness/string_utils.h"
@@ -402,6 +403,14 @@ void QueryRestMysqlTask::execute_at_router(
     const std::string &schema, const std::string &object,
     const MysqlTaskOptions &task_options, const rapidjson::Document &doc,
     const ResultSets &rs) {
+  if (mrs::get_embedded_runtime_services() != nullptr) {
+    // Router-driven MySQL tasks depend on Router's nonblocking client session.
+    // Component mode only supports embedded sessions for runtime DB traffic.
+    throw http::Error(
+        HttpStatusCode::NotImplemented,
+        "mysqlTask.driver='router' is not supported in embedded MRS mode");
+  }
+
   using namespace std::string_literals;
   using namespace helper::json::sql;
 

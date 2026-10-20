@@ -57,7 +57,7 @@ class Handler final : public Handler_interface {
 
   [[nodiscard]] bool has_space() override;
 
-  [[nodiscard]] Status start_writing(Lsn lsn) override;
+  [[nodiscard]] Status start_writing(Lsn start_lsn) override;
 
   void stop_writing() override;
 

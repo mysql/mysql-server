@@ -24,10 +24,16 @@
 */
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <initializer_list>
 #include <string>
 #include <thread>
+
+#ifndef _WIN32
+#include <signal.h>
+#include <sys/stat.h>
+#endif
 
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
@@ -56,6 +62,17 @@ using namespace std::chrono_literals;
 
 class SplicerTest : public RouterComponentTest {
  protected:
+  template <class Predicate>
+  bool wait_for_condition(Predicate predicate,
+                          std::chrono::milliseconds timeout) {
+    const auto end = std::chrono::steady_clock::now() + timeout;
+    do {
+      if (predicate()) return true;
+      std::this_thread::sleep_for(20ms);
+    } while (std::chrono::steady_clock::now() < end);
+    return predicate();
+  }
+
   TempDirectory conf_dir_;
   const std::string mock_server_host_{"127.0.0.1"s};
   const std::string router_host_{"127.0.0.1"s};
@@ -113,6 +130,487 @@ TEST_F(SplicerTest, ssl_mode_default_preferred) {
   launch_router({"-c", conf_file});
   EXPECT_TRUE(wait_for_port_ready(router_port));
 }
+
+#ifndef _WIN32
+TEST_F(SplicerTest, tls_listener_survives_sighup) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
+
+  const auto config = mysql_harness::ConfigBuilder::build_section(
+      "routing",
+      {{"bind_port", std::to_string(router_port)},
+       {"destinations", mock_server_host_ + ":" + std::to_string(server_port)},
+       {"routing_strategy", "round-robin"},
+       {"client_ssl_mode", "required"},
+       {"client_ssl_key", valid_ssl_key_},
+       {"client_ssl_cert", valid_ssl_cert_}});
+  const auto conf_file = create_config_file(conf_dir_.name(), config);
+
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  EXPECT_TRUE(wait_for_port_ready(router_port));
+}
+
+TEST_F(SplicerTest, tls_passthrough_does_not_register_reload_owner) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
+  const auto config = mysql_harness::ConfigBuilder::build_section(
+      "routing",
+      {{"bind_port", std::to_string(router_port)},
+       {"destinations", mock_server_host_ + ":" + std::to_string(server_port)},
+       {"routing_strategy", "round-robin"},
+       {"client_ssl_mode", "PASSTHROUGH"},
+       {"server_ssl_mode", "AS_CLIENT"}});
+  const auto conf_file = create_config_file(conf_dir_.name(), config);
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
+
+  const auto log_path = router.get_logfile_path();
+  std::filesystem::rename(log_path, log_path + ".1");
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(
+      wait_for_condition([&] { return std::filesystem::exists(log_path); },
+                         std::chrono::seconds{2}));
+  std::this_thread::sleep_for(100ms);
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::Not(::testing::HasSubstr(
+                  "TLS reload succeeded for 'routing client connections'")));
+}
+
+TEST_F(SplicerTest, tls_listener_keeps_previous_context_on_invalid_pem) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+  const auto cert_path = conf_dir_.name() + "/reload-cert.pem";
+  const auto key_path = conf_dir_.name() + "/reload-key.pem";
+  const auto initial_cert = SSL_TEST_DATA_DIR "/server-cert.pem";
+  const auto initial_key = SSL_TEST_DATA_DIR "/server-key.pem";
+  std::filesystem::copy_file(initial_cert, cert_path);
+  std::filesystem::copy_file(initial_key, key_path);
+
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
+  const auto config = mysql_harness::ConfigBuilder::build_section(
+      "routing",
+      {{"bind_port", std::to_string(router_port)},
+       {"destinations", mock_server_host_ + ":" + std::to_string(server_port)},
+       {"routing_strategy", "round-robin"},
+       {"client_ssl_mode", "required"},
+       {"client_ssl_key", key_path},
+       {"client_ssl_cert", cert_path},
+       {"server_ssl_mode", "DISABLED"}});
+  const auto conf_file = create_config_file(conf_dir_.name(), config);
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
+
+  mysqlrouter::MySQLSession existing_session;
+  existing_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                                   SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+  ASSERT_NO_THROW(existing_session.connect(router_host_, router_port,
+                                           "someuser", "somepass", "", ""));
+
+  std::ofstream cert{cert_path, std::ios::trunc};
+  cert << "not a PEM certificate\n";
+  cert.close();
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_log_contains(
+      router, "TLS reload failed for 'routing client connections':", 2s));
+
+  const auto connect_with_previous_context = [&] {
+    EXPECT_EQ(0, existing_session.ping());
+    mysqlrouter::MySQLSession new_session;
+    new_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                                SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+    ASSERT_NO_THROW(new_session.connect(router_host_, router_port, "someuser",
+                                        "somepass", "", ""));
+  };
+  ASSERT_NO_FATAL_FAILURE(connect_with_previous_context());
+
+  const auto wait_for_failure_count = [&](std::size_t expected) {
+    return wait_for_condition(
+        [&] {
+          return count_str_occurences(
+                     router.get_logfile_content(),
+                     "TLS reload failed for 'routing client connections':") >=
+                 expected;
+        },
+        2s);
+  };
+
+  std::filesystem::copy_file(initial_cert, cert_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/ecdsa_certs/server-key.pem",
+                             key_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_for_failure_count(2));
+  ASSERT_NO_FATAL_FAILURE(connect_with_previous_context());
+
+  std::filesystem::copy_file(initial_key, key_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  const auto missing_cert = cert_path + ".missing";
+  std::filesystem::rename(cert_path, missing_cert);
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_for_failure_count(3));
+  ASSERT_NO_FATAL_FAILURE(connect_with_previous_context());
+  std::filesystem::rename(missing_cert, cert_path);
+
+  ASSERT_EQ(0, ::chmod(cert_path.c_str(), 0));
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_for_failure_count(4));
+  ASSERT_NO_FATAL_FAILURE(connect_with_previous_context());
+  ASSERT_EQ(0, ::chmod(cert_path.c_str(), S_IRUSR | S_IWUSR));
+}
+
+TEST_F(SplicerTest, tls_listener_accepts_replaced_cert_and_key) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+  const auto cert_path = conf_dir_.name() + "/reload-cert.pem";
+  const auto key_path = conf_dir_.name() + "/reload-key.pem";
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/server-cert.pem", cert_path);
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/server-key.pem", key_path);
+
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
+  const auto config = mysql_harness::ConfigBuilder::build_section(
+      "routing",
+      {{"bind_port", std::to_string(router_port)},
+       {"destinations", mock_server_host_ + ":" + std::to_string(server_port)},
+       {"routing_strategy", "round-robin"},
+       {"client_ssl_mode", "required"},
+       {"client_ssl_key", key_path},
+       {"client_ssl_cert", cert_path},
+       {"server_ssl_mode", "DISABLED"}});
+  const auto conf_file = create_config_file(conf_dir_.name(), config);
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
+
+  mysqlrouter::MySQLSession existing_session;
+  existing_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                                   SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+  ASSERT_NO_THROW(existing_session.connect(router_host_, router_port,
+                                           "someuser", "somepass", "", ""));
+
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/ecdsa_certs/server-cert.pem",
+                             cert_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/ecdsa_certs/server-key.pem",
+                             key_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  const auto log_path = router.get_logfile_path();
+  const auto rotated_log_path = log_path + ".1";
+  std::filesystem::rename(log_path, rotated_log_path);
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_log_contains(
+      router, "TLS reload succeeded for 'routing client connections'", 2s));
+  EXPECT_TRUE(std::filesystem::exists(log_path));
+  EXPECT_TRUE(std::filesystem::exists(rotated_log_path));
+
+  // A connection that completed its handshake before the reload keeps its TLS
+  // generation. New handshakes must observe the replacement certificate.
+  EXPECT_EQ(0, existing_session.ping());
+
+  mysqlrouter::MySQLSession old_ca_session;
+  old_ca_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                                 SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+  EXPECT_THROW(old_ca_session.connect(router_host_, router_port, "someuser",
+                                      "somepass", "", ""),
+               mysqlrouter::MySQLSession::Error);
+
+  mysqlrouter::MySQLSession new_ca_session;
+  new_ca_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                                 SSL_TEST_DATA_DIR "/ecdsa_certs/cacert.pem",
+                                 "", "", "");
+  ASSERT_NO_THROW(new_ca_session.connect(router_host_, router_port, "someuser",
+                                         "somepass", "", ""));
+}
+
+TEST_F(SplicerTest, inbound_tls_publishes_replaced_ca) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+  const auto ca_path = conf_dir_.name() + "/reload-client-ca.pem";
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/cacert.pem", ca_path);
+
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
+  const auto config = mysql_harness::ConfigBuilder::build_section(
+      "routing",
+      {{"bind_port", std::to_string(router_port)},
+       {"destinations", mock_server_host_ + ":" + std::to_string(server_port)},
+       {"routing_strategy", "round-robin"},
+       {"client_ssl_mode", "REQUIRED"},
+       {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
+       {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
+       {"client_ssl_ca", ca_path},
+       {"server_ssl_mode", "DISABLED"}});
+  const auto conf_file = create_config_file(conf_dir_.name(), config);
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
+
+  mysqlrouter::MySQLSession existing_session;
+  existing_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                                   SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+  existing_session.set_ssl_cert(SSL_TEST_DATA_DIR "/client-cert.pem",
+                                SSL_TEST_DATA_DIR "/client-key.pem");
+  ASSERT_NO_THROW(existing_session.connect(router_host_, router_port,
+                                           "someuser", "somepass", "", ""));
+
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/crl-ca-cert.pem", ca_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_log_contains(
+      router, "TLS reload succeeded for 'routing client connections'", 2s));
+
+  EXPECT_EQ(0, existing_session.ping());
+  mysqlrouter::MySQLSession old_client;
+  old_client.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                             SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+  old_client.set_ssl_cert(SSL_TEST_DATA_DIR "/client-cert.pem",
+                          SSL_TEST_DATA_DIR "/client-key.pem");
+  EXPECT_THROW(old_client.connect(router_host_, router_port, "someuser",
+                                  "somepass", "", ""),
+               mysqlrouter::MySQLSession::Error);
+
+  mysqlrouter::MySQLSession new_client;
+  new_client.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                             SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+  new_client.set_ssl_cert(SSL_TEST_DATA_DIR "/crl-client-cert.pem",
+                          SSL_TEST_DATA_DIR "/crl-client-key.pem");
+  ASSERT_NO_THROW(new_client.connect(router_host_, router_port, "someuser",
+                                     "somepass", "", ""));
+}
+
+TEST_F(SplicerTest, inbound_tls_publishes_replaced_crl) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+  const auto crl_path = conf_dir_.name() + "/reload-client-crl.pem";
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/crl-client-revoked.crl",
+                             crl_path);
+
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
+  const auto config = mysql_harness::ConfigBuilder::build_section(
+      "routing",
+      {{"bind_port", std::to_string(router_port)},
+       {"destinations", mock_server_host_ + ":" + std::to_string(server_port)},
+       {"routing_strategy", "round-robin"},
+       {"client_ssl_mode", "REQUIRED"},
+       {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
+       {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
+       {"client_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
+       {"client_ssl_crl", crl_path},
+       {"server_ssl_mode", "DISABLED"}});
+  const auto conf_file = create_config_file(conf_dir_.name(), config);
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
+
+  mysqlrouter::MySQLSession existing_session;
+  existing_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                                   SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+  existing_session.set_ssl_cert(
+      SSL_TEST_DATA_DIR "/crl-server-revoked-cert.pem",
+      SSL_TEST_DATA_DIR "/crl-server-revoked-key.pem");
+  ASSERT_NO_THROW(existing_session.connect(router_host_, router_port,
+                                           "someuser", "somepass", "", ""));
+
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/crl-server-revoked.crl",
+                             crl_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_log_contains(
+      router, "TLS reload succeeded for 'routing client connections'", 2s));
+
+  EXPECT_EQ(0, existing_session.ping());
+  mysqlrouter::MySQLSession revoked_client;
+  revoked_client.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                                 SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+  revoked_client.set_ssl_cert(SSL_TEST_DATA_DIR "/crl-server-revoked-cert.pem",
+                              SSL_TEST_DATA_DIR "/crl-server-revoked-key.pem");
+  EXPECT_THROW(revoked_client.connect(router_host_, router_port, "someuser",
+                                      "somepass", "", ""),
+               mysqlrouter::MySQLSession::Error);
+
+  mysqlrouter::MySQLSession valid_client;
+  valid_client.set_ssl_options(mysql_ssl_mode::SSL_MODE_VERIFY_CA, "", "",
+                               SSL_TEST_DATA_DIR "/cacert.pem", "", "", "");
+  valid_client.set_ssl_cert(SSL_TEST_DATA_DIR "/crl-client-cert.pem",
+                            SSL_TEST_DATA_DIR "/crl-client-key.pem");
+  ASSERT_NO_THROW(valid_client.connect(router_host_, router_port, "someuser",
+                                       "somepass", "", ""));
+}
+
+TEST_F(SplicerTest, outbound_tls_keeps_cached_context_on_invalid_reload) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+  const auto ca_path = conf_dir_.name() + "/reload-ca.pem";
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/cacert.pem", ca_path);
+
+  auto mock_args =
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args();
+  for (const auto &[option, value] :
+       std::initializer_list<std::pair<std::string, std::string>>{
+           {"--ssl-cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
+           {"--ssl-key", SSL_TEST_DATA_DIR "/server-key.pem"},
+           {"--ssl-mode", "PREFERRED"}}) {
+    mock_args.emplace_back(option);
+    mock_args.emplace_back(value);
+  }
+  mock_server_spawner().spawn(mock_args);
+
+  const auto config = mysql_harness::ConfigBuilder::build_section(
+      "routing",
+      {{"bind_port", std::to_string(router_port)},
+       {"destinations", mock_server_host_ + ":" + std::to_string(server_port)},
+       {"routing_strategy", "round-robin"},
+       {"client_ssl_mode", "REQUIRED"},
+       {"client_ssl_key", valid_ssl_key_},
+       {"client_ssl_cert", valid_ssl_cert_},
+       {"server_ssl_mode", "REQUIRED"},
+       {"server_ssl_verify", "VERIFY_CA"},
+       {"server_ssl_ca", ca_path}});
+  const auto conf_file = create_config_file(conf_dir_.name(), config);
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
+
+  const auto connect = [&] {
+    mysqlrouter::MySQLSession session;
+    session.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                            "", "");
+    ASSERT_NO_THROW(session.connect(router_host_, router_port, "someuser",
+                                    "somepass", "", ""));
+    session.disconnect();
+  };
+  ASSERT_NO_FATAL_FAILURE(connect());
+
+  std::ofstream ca{ca_path, std::ios::trunc};
+  ca << "not a PEM certificate\n";
+  ca.close();
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  std::this_thread::sleep_for(1s);
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::HasSubstr(
+                  "TLS reload failed for 'routing server connections'"));
+  ASSERT_NO_FATAL_FAILURE(connect());
+}
+
+TEST_F(SplicerTest, outbound_tls_publishes_replaced_ca_without_crl) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+  const auto ca_path = conf_dir_.name() + "/reload-positive-ca.pem";
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/cacert.pem", ca_path);
+
+  auto mock_args =
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args();
+  for (const auto &[option, value] :
+       std::initializer_list<std::pair<std::string, std::string>>{
+           {"--ssl-cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
+           {"--ssl-key", SSL_TEST_DATA_DIR "/server-key.pem"},
+           {"--ssl-mode", "PREFERRED"}}) {
+    mock_args.emplace_back(option);
+    mock_args.emplace_back(value);
+  }
+  mock_server_spawner().spawn(mock_args);
+
+  const auto config = mysql_harness::ConfigBuilder::build_section(
+      "routing",
+      {{"bind_port", std::to_string(router_port)},
+       {"destinations", mock_server_host_ + ":" + std::to_string(server_port)},
+       {"routing_strategy", "round-robin"},
+       {"client_ssl_mode", "REQUIRED"},
+       {"client_ssl_key", valid_ssl_key_},
+       {"client_ssl_cert", valid_ssl_cert_},
+       {"server_ssl_mode", "REQUIRED"},
+       {"server_ssl_verify", "VERIFY_CA"},
+       {"server_ssl_ca", ca_path}});
+  const auto conf_file = create_config_file(conf_dir_.name(), config);
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
+
+  mysqlrouter::MySQLSession existing_session;
+  existing_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "",
+                                   "", "", "", "");
+  ASSERT_NO_THROW(existing_session.connect(router_host_, router_port,
+                                           "someuser", "somepass", "", ""));
+
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/ecdsa_certs/cacert.pem",
+                             ca_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_log_contains(
+      router, "TLS reload succeeded for 'routing server connections'", 2s));
+
+  EXPECT_EQ(0, existing_session.ping());
+  mysqlrouter::MySQLSession new_session;
+  new_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                              "", "");
+  EXPECT_THROW(new_session.connect(router_host_, router_port, "someuser",
+                                   "somepass", "", ""),
+               mysqlrouter::MySQLSession::Error);
+}
+
+TEST_F(SplicerTest, outbound_tls_publishes_replaced_crl) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+  const auto crl_path = conf_dir_.name() + "/reload-crl.pem";
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/crl-client-revoked.crl",
+                             crl_path);
+
+  auto mock_args =
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args();
+  for (const auto &[option, value] :
+       std::initializer_list<std::pair<std::string, std::string>>{
+           {"--ssl-cert", SSL_TEST_DATA_DIR "/crl-server-revoked-cert.pem"},
+           {"--ssl-key", SSL_TEST_DATA_DIR "/crl-server-revoked-key.pem"},
+           {"--ssl-mode", "PREFERRED"}}) {
+    mock_args.emplace_back(option);
+    mock_args.emplace_back(value);
+  }
+  mock_server_spawner().spawn(mock_args);
+
+  const auto config = mysql_harness::ConfigBuilder::build_section(
+      "routing",
+      {{"bind_port", std::to_string(router_port)},
+       {"destinations", mock_server_host_ + ":" + std::to_string(server_port)},
+       {"routing_strategy", "round-robin"},
+       {"client_ssl_mode", "REQUIRED"},
+       {"client_ssl_key", valid_ssl_key_},
+       {"client_ssl_cert", valid_ssl_cert_},
+       {"server_ssl_mode", "REQUIRED"},
+       {"server_ssl_verify", "VERIFY_CA"},
+       {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
+       {"server_ssl_crl", crl_path}});
+  const auto conf_file = create_config_file(conf_dir_.name(), config);
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
+
+  mysqlrouter::MySQLSession existing_session;
+  existing_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "",
+                                   "", "", "", "");
+  ASSERT_NO_THROW(existing_session.connect(router_host_, router_port,
+                                           "someuser", "somepass", "", ""));
+
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/crl-server-revoked.crl",
+                             crl_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_log_contains(
+      router, "TLS reload succeeded for 'routing server connections'", 2s));
+
+  EXPECT_EQ(0, existing_session.ping());
+  mysqlrouter::MySQLSession new_session;
+  new_session.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                              "", "");
+  EXPECT_THROW(new_session.connect(router_host_, router_port, "someuser",
+                                   "somepass", "", ""),
+               mysqlrouter::MySQLSession::Error);
+}
+#endif
 
 /**
  * check metadata-cache handles broken hostnames in metadata.

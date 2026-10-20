@@ -2054,6 +2054,13 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
       - for most platforms (8 * STACK_MIN_SIZE) is enough;
       - for Solaris SPARC 64 (10 * STACK_MIN_SIZE) is required.
       - for clang and ASAN/UBSAN we need even more stack space.
+
+    Under ASAN, local variables may either use the physical stack with
+    redzones or be moved to ASAN's fake stack. The THD stack baseline
+    and the current stack position are resolved to physical call-stack
+    addresses, so this margin check measures physical stack consumption
+    in either mode and returns an error before the thread exhausts that
+    stack and faults.
   */
 
   {

@@ -1,0 +1,156 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify MRS component withstands a server restart:
+#
+# This test validates that the component continues operating normally after a
+# server restart.
+#
+
+--echo
+--echo
+--echo ## I. Validate component status after a server restart
+--echo #
+--echo # 1. Ensure a working component remains operational after a restart with a persisted HTTP port setting
+--echo # 2. Reject an invalid metadata account immediately during server startup
+--echo # 3. Reject a missing metadata account immediately during server startup
+
+# Init
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--disable_query_log
+--disable_result_log
+# An in-flight metadata refresh may observe the deliberate server shutdown.
+call mtr.add_suppression("Can't refresh MRDS layout, because of the following error:.*Server shutdown in progress \\(1053\\)");
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo #
+--echo # I.1. Ensure a working component remains operational after a restart
+
+# Persist settings to survive the restart. PERSIST_ONLY must not change the
+# current value before restart.
+--disable_query_log
+--disable_result_log
+--eval SET PERSIST mysql_rest_service.http_port=$HTTP_SERVER_PORT;
+SET PERSIST_ONLY mysql_rest_service.http_max_connections=2048;
+SET PERSIST mysql_rest_service.http_max_request_body_size=0;
+SET PERSIST mysql_rest_service.http_max_response_body_size=2097152;
+--enable_result_log
+--enable_query_log
+
+--let $http_max_connections = `SELECT @@mysql_rest_service.http_max_connections;`
+--let $assert_text = SET PERSIST_ONLY must not change current http_max_connections
+--let $assert_cond = $http_max_connections = 1024
+--source include/assert.inc
+
+--let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+# MySQL Rest Service Component: Setting mysql_user: 'mysql_mrs_metadata'
+--let $wait_log_pattern = Setting mysql_user: \'mysql_mrs_metadata\'
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+# MySQL Rest Service Component: Setting mysql_user_data_access: 'mysql_mrs_data'
+--let $wait_log_pattern = Setting mysql_user_data_access: \'mysql_mrs_data\'
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+# Starting MySQL REST Metadata monitor
+--let $wait_log_pattern = Starting MySQL REST Metadata monitor
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+# Wait for readiness
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+# Verify that the persisted value was applied.
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = MRS Component persisted http_port must be active after restart
+--let $assert_cond = $current_http_port = $HTTP_SERVER_PORT
+--source include/assert.inc
+
+--let $http_max_connections = `SELECT @@mysql_rest_service.http_max_connections;`
+--let $assert_text = MRS Component persisted http_max_connections must be loaded after restart
+--let $assert_cond = $http_max_connections = 2048
+--source include/assert.inc
+
+--let $http_max_request_body_size = `SELECT @@mysql_rest_service.http_max_request_body_size;`
+--let $assert_text = MRS Component persisted http_max_request_body_size must be loaded after restart
+--let $assert_cond = $http_max_request_body_size = 0
+--source include/assert.inc
+
+--let $http_max_response_body_size = `SELECT @@mysql_rest_service.http_max_response_body_size;`
+--let $assert_text = MRS Component persisted http_max_response_body_size must be loaded after restart
+--let $assert_cond = $http_max_response_body_size = 2097152
+--source include/assert.inc
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("rejected request due to max_request_body_size limit");
+--enable_result_log
+--enable_query_log
+
+--let $mrs_client_arg_path='/does-not-exist'
+--let $mrs_client_arg_payload='x'
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_expected_status=413
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+# Reset the persisted setting
+--disable_query_log
+--disable_result_log
+RESET PERSIST mysql_rest_service.http_port;
+RESET PERSIST mysql_rest_service.http_max_connections;
+RESET PERSIST mysql_rest_service.http_max_request_body_size;
+RESET PERSIST mysql_rest_service.http_max_response_body_size;
+SET GLOBAL mysql_rest_service.http_max_connections=DEFAULT;
+SET GLOBAL mysql_rest_service.http_max_request_body_size=DEFAULT;
+SET GLOBAL mysql_rest_service.http_max_response_body_size=DEFAULT;
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo #
+--echo # I.2. Reject an invalid metadata account during server startup
+
+--disable_query_log
+--disable_result_log
+SELECT mysql_rest_service_stop();
+call mtr.add_suppression("MySQL Rest Service Component: Backend startup failed in background thread: Internal MRS account");
+--enable_result_log
+--enable_query_log
+
+REVOKE 'mysql_rest_service_meta_provider'
+  FROM 'mysql_mrs_metadata'@'localhost';
+
+--let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+--let $wait_log_pattern = Backend startup failed in background thread: Internal MRS account \'mysql_mrs_metadata\'@\'localhost\' must have \'mysql_rest_service_meta_provider\'@\'%\' as its default role without admin option
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--echo
+--echo #
+--echo # I.3. Reject a missing metadata account during server startup
+
+DROP USER 'mysql_mrs_metadata'@'localhost';
+
+--let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+--let $wait_log_pattern = Backend startup failed in background thread: Internal MRS account \'mysql_mrs_metadata\'@\'localhost\' cannot be resolved to a security context
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--echo
+--echo #
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

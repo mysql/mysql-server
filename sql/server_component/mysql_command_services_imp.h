@@ -45,7 +45,12 @@ enum class mysql_command_connection_mode {
 struct Mysql_handle {
   MYSQL *mysql = nullptr;
   const MYSQL_METHODS *client_methods = nullptr;
-  // A failed mysql_real_connect() frees MYSQL::extension, so mode lives here.
+  // A failed mysql_real_connect() frees MYSQL::extension.
+  // Keep these settings here so they survive the failure.
+  // The handle owns the user and host name copies.
+  char *user_name = nullptr;
+  char *host_name = nullptr;
+  bool admin_session = true;
   mysql_command_connection_mode connection_mode =
       mysql_command_connection_mode::kEmbedded;
 };
@@ -64,9 +69,8 @@ struct Mysql_res_handle {
   csi_read_rows() transfers it for mysql_store_result(); mysql_use_result()
   consumes it through use_result_cursor until EOF or mysql_free_result().
   This information is used by mysql_text_consumer service apis.
-  mcs_thd, mcs_protocol, mcs_user_name, mcs_password, mcs_tcpip_port,
-  mcs_db and mcs_client_flag will be set by mysql_service_mysql_command_options
-  set() api.
+  mcs_thd, mcs_protocol, mcs_password, mcs_tcpip_port, mcs_db and
+  mcs_client_flag will be set by mysql_service_mysql_command_options set() api.
 */
 struct mysql_command_service_extn {
   MYSQL_SESSION session_svc;
@@ -78,12 +82,11 @@ struct mysql_command_service_extn {
   SRV_CTX_H consumer_srv_data = nullptr;
   MYSQL_THD mcs_thd = nullptr;
   const char *mcs_protocol = nullptr;
-  const char *mcs_user_name = nullptr;
-  const char *mcs_host_name = nullptr;
   const char *mcs_password = nullptr;
   int mcs_tcpip_port;
   const char *mcs_db = nullptr;
   uint32_t mcs_client_flag = 0;
+  bool mcs_admin_session = true;
   bool no_lock_registry = false;
   /*
     Remember whether set() chose default or custom services after service

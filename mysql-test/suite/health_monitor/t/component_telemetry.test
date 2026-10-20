@@ -1,0 +1,72 @@
+--source include/have_server_telemetry_metrics.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+
+call mtr.add_suppression("\\[OTEL\\]");
+
+--source ../include/health_monitor_setup.inc
+
+#
+# Note:
+#
+# There is no easy way to actually verify the metrics
+# reported actually match what is discovered,
+# as this imply to deploy an external system and inspect it.
+#
+# This test generates some stress for code coverage.
+#
+
+#
+# Test that:
+# - components that provide metrics (Health Monitor)
+# - components that consume metrics (Telemetry)
+#
+# can be loaded / unloaded in any order.
+#
+# This verifies that:
+# - meter addition is notified correctly
+# - meter removal is notified correctly
+#
+
+-- echo # Install Telemetry
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT "Telemetry discovered health monitor" as status;
+
+-- echo # Uninstall Health Monitor
+UNINSTALL COMPONENT 'file://component_health_monitor';
+
+SELECT "Telemetry detected health monitor is unloaded" as status;
+
+-- echo # Install Health Monitor
+INSTALL COMPONENT 'file://component_health_monitor';
+
+SELECT "Telemetry detected health monitor is loaded" as status;
+
+-- echo # Uninstall Telemetry
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+SELECT "Telemetry unloaded cleanly" as status;
+
+-- echo # Install Telemetry
+INSTALL COMPONENT 'file://component_telemetry';
+
+SELECT "Telemetry reloaded cleanly" as status;
+
+-- echo # Uninstall Telemetry
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+-- echo # Install Telemetry
+INSTALL COMPONENT 'file://component_telemetry'
+  SET telemetry.metrics_enabled='OFF';
+
+SELECT "Telemetry reloaded cleanly without metrics" as status;
+
+-- echo # Uninstall Telemetry
+UNINSTALL COMPONENT 'file://component_telemetry';
+
+# Cleanup
+
+-- echo # Uninstall Health Monitor
+UNINSTALL COMPONENT 'file://component_health_monitor';
+

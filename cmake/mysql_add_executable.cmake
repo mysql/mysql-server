@@ -190,7 +190,11 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
   IF(ARG_COMPONENT STREQUAL "Router")
     ADD_DEPENDENCIES(mysqlrouter_all ${target})
   ENDIF()
-  IF(NOT ARG_EXCLUDE_FROM_ALL)
+  # Keep Router executables out of the server-wide aggregate when only Router
+  # libraries are imported for the MRS component.
+  IF(NOT ARG_EXCLUDE_FROM_ALL AND
+     NOT (ROUTER_BUILD_MRS_DEPENDENCIES_ONLY AND
+          ARG_COMPONENT STREQUAL "Router"))
     ADD_DEPENDENCIES(executable_all ${target})
   ENDIF()
 

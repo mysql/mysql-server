@@ -8,6 +8,9 @@
 #
 --source include/have_router.inc
 
+--let $component_only_suppression_pattern=Too many requests from host: .*.
+--source include/component_only_suppression.inc
+
 --let $extra_mrs_router_id=1
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 --source ../include/schema/basic_schema.sql

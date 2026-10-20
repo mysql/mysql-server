@@ -1,0 +1,177 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Verify thread instrumentation is created and destroyed
+
+# System stats not supported on Windows
+--source include/not_windows.inc
+--source ../include/health_monitor_setup.inc
+
+--echo 
+--echo #
+--echo # Disk, Memory and System Collectors are stopped
+--echo # Verify that only Disk Forecaster and Supervisor threads remain
+--echo #
+use performance_schema;
+--echo
+select count(*) as 'Expect 2' from threads where name like '%health%';
+--echo
+--replace_column 1 <thread_id> 3 <thread_os_id>
+select thread_id, name, thread_os_id from threads where name like '%health%'
+  order by name;
+
+--echo 
+--echo #
+--echo # Start the collectors
+--echo #
+set @@global.health_monitor.disk_running = on;
+set @@global.health_monitor.memory_running = on;
+set @@global.health_monitor.system_running = on;
+
+--echo 
+--echo #
+--echo # Verify the 5 Health Monitor threads:
+--echo # disk, disk forecaster, memory, system, supervisor
+--echo #
+let $wait_condition = select count(*) = 5 from threads where name like '%health%';
+--source include/wait_condition.inc
+--echo
+--replace_column 1 <thread_id> 3 <thread_os_id>
+select thread_id, name, thread_os_id from threads where name like '%health%'
+  order by name;
+
+--echo 
+--echo #
+--echo # Change system variables to force multiple thread restarts
+--echo #
+--echo
+--echo # Force disk collector restart
+set @@global.health_monitor.disk_sample_rate = 10;
+--echo # Use the shortest Forecaster sample interval for stop-transition checks
+set @@global.health_monitor.disk_forecast_sample_interval = 10;
+--echo
+--echo # Force memory collector restart
+set @@global.health_monitor.memory_sample_rate = 20;
+--echo
+--echo # Force system collector restart
+set @@global.health_monitor.system_sample_rate = 15;
+--echo
+--echo # Force restart for all collectors
+set @@global.health_monitor.status_interval = 2;
+
+--echo 
+--echo #
+--echo # Verify that the same 5 Health Monitor threads remain
+--echo #
+let $wait_condition = select count(*) = 5 from threads where name like '%health%';
+--source include/wait_condition.inc
+--sleep 1
+--echo
+--replace_column 1 <thread_id> 3 <thread_os_id>
+select thread_id, name, thread_os_id from threads where name like '%health%'
+  order by name;
+
+--echo
+--echo # Stopping disk collection pauses Forecaster input
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0 from performance_schema.disk_metric;
+--source include/wait_condition_or_abort.inc
+
+--echo # Stop Forecaster and let Disk Collector consume any pending request
+set @@global.health_monitor.disk_forecast_running = off;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 0
+    from performance_schema.threads
+   where name = 'thread/health/disk_forecaster';
+--source include/wait_condition_or_abort.inc
+--sleep 12
+
+--disable_query_log
+select count(*) into @metric_count_before_disk_stop
+  from performance_schema.disk_metric;
+--enable_query_log
+set @@global.health_monitor.disk_running = off;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 0
+    from performance_schema.threads
+   where name = 'thread/health/disk_collector';
+--source include/wait_condition_or_abort.inc
+
+--echo # Run Forecaster for one interval while disk input remains stopped
+set @@global.health_monitor.disk_forecast_running = on;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 1
+    from performance_schema.threads
+   where name = 'thread/health/disk_forecaster';
+--source include/wait_condition_or_abort.inc
+--sleep 12
+set @@global.health_monitor.disk_forecast_running = off;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 0
+    from performance_schema.threads
+   where name = 'thread/health/disk_forecaster';
+--source include/wait_condition_or_abort.inc
+
+set @@global.health_monitor.disk_running = on;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 1
+    from performance_schema.threads
+   where name = 'thread/health/disk_collector';
+--source include/wait_condition_or_abort.inc
+
+--sleep 2
+select count(*) = @metric_count_before_disk_stop
+       as no_stale_metric_request_after_disk_restart
+  from performance_schema.disk_metric;
+
+set @@global.health_monitor.disk_forecast_running = on;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > @metric_count_before_disk_stop
+    from performance_schema.disk_metric;
+--source include/wait_condition_or_abort.inc
+select count(*) > @metric_count_before_disk_stop
+       as disk_metrics_resume_after_new_input
+  from performance_schema.disk_metric;
+
+--echo 
+--echo #
+--echo # Stop the collectors
+--echo #
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+--echo 
+--echo #
+--echo # Verify that Disk, Memory and System Collector threads were deleted
+--echo # Disk Forecaster and Supervisor threads remain
+--echo
+use performance_schema;
+--echo
+let $wait_condition = select count(*) = 2 from threads where name like '%health%';
+--source include/wait_condition.inc
+--echo
+--replace_column 1 <thread_id> 3 <thread_os_id>
+select thread_id, name, thread_os_id from threads where name like '%health%'
+  order by name;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

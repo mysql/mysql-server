@@ -1,0 +1,82 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Verify that the Health Monitor detects when the server is shutting down.
+--echo ## Requires debug build.
+--echo ##
+
+--source include/no_protocol.inc
+--source include/have_debug.inc
+
+--echo
+--echo # Ignore warnings during startup
+# Disable binary logging for replication tests
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+# Enable binary logging
+set session sql_log_bin = 1;
+
+--echo
+--echo # Install the component
+--eval install component 'file://component_health_monitor'
+
+--echo
+--echo # Turn off the collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+--echo
+--echo # Configure the disk collector
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval set @@global.health_monitor.disk_monitored = '$MYSQLTEST_VARDIR'
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+truncate performance_schema.health_block_device;
+
+--echo
+--echo # Start the disk collector
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for 2 collection cycles
+let $count = 2;
+let $table = performance_schema.health_block_device;
+let $wait_timeout = 60;
+--source include/wait_until_rows_count.inc
+
+--echo
+--echo # Restart the server
+--source include/restart_mysqld.inc
+
+--echo
+--echo #
+--echo # Verify shutdown was detected
+--echo #
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=Server shutdown detected
+--source include/search_pattern.inc
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+--eval uninstall component 'file://component_health_monitor';

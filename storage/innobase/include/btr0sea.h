@@ -195,13 +195,14 @@ void btr_search_update_hash_on_move(buf_block_t *new_block, buf_block_t *block,
                                     dict_index_t *index);
 
 /** Drop any adaptive hash index entries that point to an index page.
-@param[in,out]  block   block containing index page, s- or x-latched, or an
-                        index page for which we know that
-                        block->buf_fix_count == 0 or it is an index page which
-                        has already been removed from the buf_pool->page_hash
-                        i.e.: it is in state BUF_BLOCK_REMOVE_HASH
-@param[in]      force   Should the block's index be reset even if AHI is
-                        disabled? */
+The caller must retain the block's associated index for the complete call, for
+example through an open table handle, an active foreign-key check, or ownership
+of dict_sys mutex. The lifetime requirement does not apply when the block is
+private in BUF_BLOCK_REMOVE_HASH state.
+@param[in,out]  block   block containing the index page; must be s- or x-latched
+                        unless it is private in BUF_BLOCK_REMOVE_HASH state
+@param[in]      force   whether to reset the block's index even if AHI is
+                        disabled */
 void btr_search_drop_page_hash_index(buf_block_t *block, bool force = false);
 
 /** Resets block's AHI index field to nullptr, removes the reference from

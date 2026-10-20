@@ -29,12 +29,15 @@
 #include <stdexcept>
 #include <vector>
 
+#include "components/mysql_rest_service/component_application_type_name.h"
 #include "hostname_validator.h"
+#include "mysql/harness/application_type_manager.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/tls_reload_component.h"
 #include "mysql/harness/tls_server_context.h"
 #include "mysql/harness/utility/string.h"  // join, string_format
 #include "mysql_routing.h"
@@ -292,92 +295,105 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       }
     }
 
-    // client side TlsContext.
-    TlsServerContext source_tls_ctx{TlsVersion::TLS_1_2, TlsVersion::AUTO,
-                                    config.client_ssl_session_cache_mode,
-                                    config.client_ssl_session_cache_size,
-                                    config.client_ssl_session_cache_timeout};
+    // Build a complete client-side context before publishing it.
+    const auto make_source_tls_context = [&config]() {
+      auto source_tls_ctx = std::make_shared<TlsServerContext>(
+          TlsVersion::TLS_1_2, TlsVersion::AUTO,
+          config.client_ssl_session_cache_mode,
+          config.client_ssl_session_cache_size,
+          config.client_ssl_session_cache_timeout);
 
-    if (config.source_ssl_mode != SslMode::kDisabled &&
-        config.source_ssl_mode != SslMode::kPassthrough) {
-      if (config.source_ssl_cert.empty()) {
-        throw std::invalid_argument(
-            "client_ssl_cert must be set, if client_ssl_mode is enabled.");
-      }
-      if (config.source_ssl_key.empty()) {
-        throw std::invalid_argument(
-            "client_ssl_key must be set, if client_ssl_mode is enabled.");
-      }
-
-      const auto res = source_tls_ctx.load_key_and_cert(config.source_ssl_key,
-                                                        config.source_ssl_cert);
-      if (!res) {
-        throw std::system_error(
-            res.error(), "loading client_ssl_cert '" + config.source_ssl_cert +
-                             "' and client_ssl_key '" + config.source_ssl_key +
-                             "' failed");
-      }
-
-      if (!config.source_ssl_curves.empty()) {
-        if (source_tls_ctx.has_set_curves_list()) {
-          const auto res = source_tls_ctx.curves_list(config.source_ssl_curves);
-          if (!res) {
-            throw std::system_error(res.error(), "setting client_ssl_curves=" +
-                                                     config.source_ssl_curves +
-                                                     " failed");
-          }
-
-        } else {
+      if (config.source_ssl_mode != SslMode::kDisabled &&
+          config.source_ssl_mode != SslMode::kPassthrough) {
+        if (config.source_ssl_cert.empty()) {
           throw std::invalid_argument(
-              "setting client_ssl_curves is not supported by the ssl library, "
-              "it should stay unset");
+              "client_ssl_cert must be set, if client_ssl_mode is enabled.");
         }
-      }
+        if (config.source_ssl_key.empty()) {
+          throw std::invalid_argument(
+              "client_ssl_key must be set, if client_ssl_mode is enabled.");
+        }
 
-      {
-        const auto res =
-            source_tls_ctx.init_tmp_dh(config.source_ssl_dh_params);
+        const auto res = source_tls_ctx->load_key_and_cert(
+            config.source_ssl_key, config.source_ssl_cert);
         if (!res) {
-          throw std::system_error(res.error(),
-                                  "setting client_ssl_dh_params failed");
+          throw std::system_error(res.error(), "loading client_ssl_cert '" +
+                                                   config.source_ssl_cert +
+                                                   "' and client_ssl_key '" +
+                                                   config.source_ssl_key +
+                                                   "' failed");
         }
-      }
 
-      {
-        const std::string ssl_cipher = config.source_ssl_cipher.empty()
-                                           ? get_default_ciphers()
-                                           : config.source_ssl_cipher;
+        if (!config.source_ssl_curves.empty()) {
+          if (source_tls_ctx->has_set_curves_list()) {
+            const auto res =
+                source_tls_ctx->curves_list(config.source_ssl_curves);
+            if (!res) {
+              throw std::system_error(res.error(),
+                                      "setting client_ssl_curves=" +
+                                          config.source_ssl_curves + " failed");
+            }
 
-        const auto res = source_tls_ctx.cipher_list(ssl_cipher);
-        if (!res) {
-          throw std::system_error(res.error(), "setting client_ssl_cipher=" +
-                                                   ssl_cipher + " failed");
-        }
-      }
-
-      if (!config.source_ssl_ca_file.empty() ||
-          !config.source_ssl_ca_dir.empty()) {
-        if (!config.source_ssl_ca_dir.empty()) {
-          // throws on error
-          ensure_readable_directory("client_ssl_capath",
-                                    config.source_ssl_ca_dir);
-        }
-        {
-          const auto res = source_tls_ctx.ssl_ca(config.source_ssl_ca_file,
-                                                 config.source_ssl_ca_dir);
-          if (!res) {
-            throw std::system_error(
-                res.error(),
-                "setting client_ssl_ca=" + config.source_ssl_ca_file +
-                    " and client_ssl_capath=" + config.source_ssl_ca_dir +
-                    " failed");
+          } else {
+            throw std::invalid_argument(
+                "setting client_ssl_curves is not supported by the ssl "
+                "library, "
+                "it should stay unset");
           }
+        }
+
+        {
+          const auto res =
+              source_tls_ctx->init_tmp_dh(config.source_ssl_dh_params);
+          if (!res) {
+            throw std::system_error(res.error(),
+                                    "setting client_ssl_dh_params failed");
+          }
+        }
+
+        {
+          const std::string ssl_cipher = config.source_ssl_cipher.empty()
+                                             ? get_default_ciphers()
+                                             : config.source_ssl_cipher;
+
+          const auto res = source_tls_ctx->cipher_list(ssl_cipher);
+          if (!res) {
+            throw std::system_error(res.error(), "setting client_ssl_cipher=" +
+                                                     ssl_cipher + " failed");
+          }
+        }
+
+        if (!config.source_ssl_ca_file.empty() ||
+            !config.source_ssl_ca_dir.empty()) {
+          if (!config.source_ssl_ca_dir.empty()) {
+            // throws on error
+            ensure_readable_directory("client_ssl_capath",
+                                      config.source_ssl_ca_dir);
+          }
+          {
+            const auto res = source_tls_ctx->ssl_ca(config.source_ssl_ca_file,
+                                                    config.source_ssl_ca_dir);
+            if (!res) {
+              throw std::system_error(
+                  res.error(),
+                  "setting client_ssl_ca=" + config.source_ssl_ca_file +
+                      " and client_ssl_capath=" + config.source_ssl_ca_dir +
+                      " failed");
+            }
+          }
+
+          source_tls_ctx->verify(TlsVerify::PEER, TlsVerifyOpts::kClientOnce);
         }
 
         if (!config.source_ssl_crl_file.empty() ||
             !config.source_ssl_crl_dir.empty()) {
-          const auto res = source_tls_ctx.crl(config.source_ssl_crl_file,
-                                              config.source_ssl_crl_dir);
+          if (!config.source_ssl_crl_dir.empty()) {
+            // throws on error
+            ensure_readable_directory("client_ssl_crlpath",
+                                      config.source_ssl_crl_dir);
+          }
+          const auto res = source_tls_ctx->crl(config.source_ssl_crl_file,
+                                               config.source_ssl_crl_dir);
           if (!res) {
             throw std::system_error(
                 res.error(),
@@ -386,28 +402,10 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                     " failed");
           }
         }
-
-        source_tls_ctx.verify(TlsVerify::PEER, TlsVerifyOpts::kClientOnce);
       }
-
-      if (!config.source_ssl_crl_file.empty() ||
-          !config.source_ssl_crl_dir.empty()) {
-        if (!config.source_ssl_crl_dir.empty()) {
-          // throws on error
-          ensure_readable_directory("client_ssl_crlpath",
-                                    config.source_ssl_crl_dir);
-        }
-        const auto res = source_tls_ctx.crl(config.source_ssl_crl_file,
-                                            config.source_ssl_crl_dir);
-        if (!res) {
-          throw std::system_error(
-              res.error(),
-              "setting client_ssl_crl=" + config.source_ssl_crl_file +
-                  " and client_ssl_crlpath=" + config.source_ssl_crl_dir +
-                  " failed");
-        }
-      }
-    }
+      return source_tls_ctx;
+    };
+    auto source_tls_ctx = make_source_tls_context();
 
     auto dest_tls_context = std::make_unique<DestinationTlsContext>(
         config.server_ssl_session_cache_mode,
@@ -497,6 +495,12 @@ static void start(mysql_harness::PluginFuncEnv *env) {
             "setting server_ssl_key=" + config.dest_ssl_key +
                 " and server_ssl_cert=" + config.dest_ssl_cert + " failed");
       }
+
+      std::string out_tls_reload_error;
+      if (!dest_tls_context->reload(out_tls_reload_error)) {
+        throw std::runtime_error("loading destination TLS material failed: " +
+                                 out_tls_reload_error);
+      }
     }
 
     if (config.connection_sharing == 1) {
@@ -519,10 +523,19 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       }
     }
 
-    net::io_context &io_ctx = IoComponent::get_instance().io_context();
-    {
+    auto &io_component = IoComponent::get_instance();
+    net::io_context &io_ctx = io_component.io_context();
+    net::io_context &acceptor_io_ctx = io_component.acceptor_io_context();
+    const bool is_application_component =
+        mysql_harness::ApplicationTypeManager::instance().get() ==
+        mysql_harness::kComponentApplicationTypeName;
+
+    std::shared_ptr<routing_guidelines::Routing_guidelines_engine>
+        routing_guidelines = nullptr;
+    if (!is_application_component) {
       auto &routing_component = MySQLRoutingComponent::get_instance();
       std::lock_guard lock(routing_guidelines_create_mtx);
+
       if (!routing_component.routing_guidelines_initialized()) {
         const auto &routing_guidelines_document =
             create_routing_guidelines_document(g_app_info->config->sections(),
@@ -532,6 +545,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                     routing_guidelines_document.value().c_str());
           routing_component.set_routing_guidelines(
               routing_guidelines_document.value());
+          routing_guidelines =
+              MySQLRoutingComponent::get_instance().get_routing_guidelines();
         } else if (routing_guidelines_document.error() ==
                    std::errc::not_supported) {
           log_debug(
@@ -542,21 +557,59 @@ static void start(mysql_harness::PluginFuncEnv *env) {
               "Unable to create routing guidelines from configuration file: " +
               routing_guidelines_document.error().message());
         }
+      } else {
+        // Guidelines initialized by a different routing plugin, can be used
+        // straight away
+        routing_guidelines =
+            MySQLRoutingComponent::get_instance().get_routing_guidelines();
       }
     }
 
-    auto routing_guidelines =
-        MySQLRoutingComponent::get_instance().get_routing_guidelines();
     auto r = std::make_shared<MySQLRouting>(
-        config, io_ctx, std::move(routing_guidelines), name,
-        config.source_ssl_mode != SslMode::kDisabled ? &source_tls_ctx
-                                                     : nullptr,
+        config, io_ctx, acceptor_io_ctx, std::move(routing_guidelines), name,
+        config.source_ssl_mode != SslMode::kDisabled ? source_tls_ctx : nullptr,
         config.dest_ssl_mode != SslMode::kDisabled ? dest_tls_context.get()
                                                    : nullptr);
 
     r->set_destinations(config.destinations);
 
     MySQLRoutingComponent::get_instance().register_route(section->key, r);
+
+    auto tls_reload_registration =
+        mysql_harness::TlsReloadComponent::kInvalidRegistrationId;
+    if (config.source_ssl_mode != SslMode::kDisabled &&
+        config.source_ssl_mode != SslMode::kPassthrough) {
+      tls_reload_registration =
+          mysql_harness::TlsReloadComponent::get_instance().register_callback(
+              name + " client connections",
+              [r, make_source_tls_context]()
+                  -> mysql_harness::TlsReloadComponent::Result {
+                try {
+                  r->get_context().replace_source_ssl_ctx(
+                      make_source_tls_context());
+                  return mysql_harness::TlsReloadComponent::Result{};
+                } catch (const std::exception &e) {
+                  return stdx::unexpected(std::string{e.what()});
+                }
+              });
+    }
+
+    auto destination_tls_reload_registration =
+        mysql_harness::TlsReloadComponent::kInvalidRegistrationId;
+    if (config.dest_ssl_mode != SslMode::kDisabled &&
+        config.source_ssl_mode != SslMode::kPassthrough) {
+      destination_tls_reload_registration =
+          mysql_harness::TlsReloadComponent::get_instance().register_callback(
+              name + " server connections",
+              [r]() -> mysql_harness::TlsReloadComponent::Result {
+                std::string error;
+                auto *context = r->get_context().destination_ssl_config();
+                if (context == nullptr || context->reload(error)) {
+                  return mysql_harness::TlsReloadComponent::Result{};
+                }
+                return stdx::unexpected(std::move(error));
+              });
+    }
 
     auto *mdc = metadata_cache::MetadataCacheAPI::instance();
     using namespace std::chrono_literals;
@@ -565,7 +618,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       std::this_thread::sleep_for(1ms);
     }
 
-    if (mdc->is_initialized() && !r->is_standalone()) {
+    if (mdc->is_initialized() && !r->is_standalone() &&
+        !is_application_component) {
       mdc->add_routing_guidelines_update_callbacks(
           [r](const std::string &routing_guidelines_document) {
             return r->update_routing_guidelines(routing_guidelines_document);
@@ -578,9 +632,16 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       });
     }
 
-    Scope_guard guard{[r, mdc, section_key = section->key]() {
+    Scope_guard guard{[r, mdc, is_application_component,
+                       section_key = section->key, tls_reload_registration,
+                       destination_tls_reload_registration]() {
+      mysql_harness::TlsReloadComponent::get_instance().unregister_callback(
+          tls_reload_registration);
+      mysql_harness::TlsReloadComponent::get_instance().unregister_callback(
+          destination_tls_reload_registration);
       MySQLRoutingComponent::get_instance().erase(section_key);
-      if (mdc->is_initialized() && !r->is_standalone()) {
+      if (mdc->is_initialized() && !r->is_standalone() &&
+          !is_application_component) {
         mdc->clear_routing_guidelines_update_callbacks();
         mdc->clear_router_info_update_callback();
       }

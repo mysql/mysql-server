@@ -298,7 +298,7 @@ bool Resource_group_mgr::post_init() {
   std::unique_ptr<THD> thd(new (std::nothrow) THD());
   if (thd.get() == nullptr) return true;
 
-  thd->thread_stack = reinterpret_cast<char *>(&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   thd->security_context()->set_master_access(SUPER_ACL);

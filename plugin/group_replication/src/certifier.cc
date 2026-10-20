@@ -147,7 +147,7 @@ void Certifier_broadcast_thread::dispatcher() {
   THD *thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
   global_thd_manager_add_thd(thd);
   broadcast_thd = thd;

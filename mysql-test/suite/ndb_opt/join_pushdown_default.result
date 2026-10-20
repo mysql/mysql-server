@@ -1957,8 +1957,8 @@ EXPLAIN
         -> Group aggregate: count(distinct t2.b)  (cost=4015 rows=4)
             -> Nested loop inner join  (cost=4011 rows=16)
                 -> Sort: t1.b  (cost=4002 rows=16)
-                    -> Table scan on t1  (cost=4002 rows=16)
-                -> Index lookup on t2 using PRIMARY (a = t1.c)  (cost=0.506 rows=1)
+                    -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (cost=4002 rows=16)
+                -> Index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.c)  (cost=0.506 rows=1)
 
 Warnings:
 Note	1003	Can't push table 't2' as child of 't1', it is in a sorted-branch which can't be referred.
@@ -5901,7 +5901,7 @@ explain format=tree select * from t as a left join t as b
 on a.k is null and a.uq=b.uq;
 EXPLAIN
 -> Left hash join (no condition)
-    -> Table scan on a
+    -> Table scan on a over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
     -> Hash
         -> Zero rows (Impossible filter)
 
@@ -6181,15 +6181,15 @@ on x0.d=x1.a;
 EXPLAIN
 -> Aggregate: count(0)
     -> Nested loop left join
-        -> Table scan on x0
+        -> Table scan on x0 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
         -> Filter: ((x2.c is null) or (x4.d = x0.d))
             -> Nested loop left join
                 -> Nested loop inner join
-                    -> Index lookup on x1 using PRIMARY (a = x0.d)
-                    -> Table scan on x2, activating pushed join of 3 tables
+                    -> Index lookup on x1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = x0.d)
+                    -> Table scan on x2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 3 tables
                 -> Nested loop inner join
-                    -> Index lookup on x3 using PRIMARY (a = x2.d), child of x2 in pushed join
-                    -> Index lookup on x4 using PRIMARY (a = x3.d), child of x3 in pushed join
+                    -> Index lookup on x3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = x2.d), child of x2 in pushed join
+                    -> Index lookup on x4 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = x3.d), child of x3 in pushed join
 
 Warnings:
 Note	1003	Can't push outer joined table 'x1' as child of 'x0', join-nest containing the table has FILTER conditions
@@ -6889,9 +6889,9 @@ EXPLAIN
         -> Nested loop inner join
             -> Table scan on <subquery2>
                 -> Materialize with deduplication
-                    -> Table scan on t3
-            -> Index lookup on t1 using c (c = `<subquery2>`.c), activating pushed join of 2 tables
-        -> Index lookup on t2 using PRIMARY (a = t1.b), child of t1 in pushed join
+                    -> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+            -> Index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c), activating pushed join of 2 tables
+        -> Index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b), child of t1 in pushed join
 
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3', it is in a materialized-branch which can't be referred.
@@ -6913,9 +6913,9 @@ EXPLAIN
         -> Nested loop inner join
             -> Table scan on <subquery2>
                 -> Materialize with deduplication
-                    -> Table scan on t3
-            -> Index lookup on t1 using c (c = `<subquery2>`.c), activating pushed join of 2 tables
-        -> Single-row index lookup on t2 using PRIMARY (a = t1.b, b = `<subquery2>`.c), child of t1 in pushed join
+                    -> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+            -> Index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c), activating pushed join of 2 tables
+        -> Single-row index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = `<subquery2>`.c), child of t1 in pushed join
 
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3', it is in a materialized-branch which can't be referred.
@@ -6936,9 +6936,9 @@ EXPLAIN
         -> Nested loop inner join
             -> Table scan on <subquery3>
                 -> Materialize with deduplication
-                    -> Table scan on t3
-            -> Index lookup on t1 using c (c = `<subquery3>`.c), activating pushed join of 2 tables
-        -> Single-row index lookup on t2 using PRIMARY (a = t1.b, b = `<subquery3>`.c), child of t1 in pushed join
+                    -> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+            -> Index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery3>`.c), activating pushed join of 2 tables
+        -> Single-row index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = `<subquery3>`.c), child of t1 in pushed join
 
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3', it is in a materialized-branch which can't be referred.
@@ -6960,13 +6960,13 @@ EXPLAIN
             -> Nested loop inner join
                 -> Table scan on <subquery3>
                     -> Materialize with deduplication
-                        -> Table scan on t3
-                -> Index lookup on t1 using c (c = `<subquery3>`.c), activating pushed join of 2 tables
-            -> Single-row index lookup on t2 using PRIMARY (a = t1.b, b = `<subquery3>`.c), child of t1 in pushed join
+                        -> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+                -> Index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery3>`.c), activating pushed join of 2 tables
+            -> Single-row index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = `<subquery3>`.c), child of t1 in pushed join
         -> Filter: (`<subquery4>`.c = `<subquery3>`.c)
             -> Single-row index lookup on <subquery4> using <auto_distinct_key> (c = t1.c)
                 -> Materialize with deduplication
-                    -> Table scan on t4
+                    -> Table scan on t4 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
 
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3', it is in a materialized-branch which can't be referred.
@@ -6988,13 +6988,13 @@ EXPLAIN
 -> Aggregate: count(0)
     -> Nested loop inner join
         -> Nested loop inner join
-            -> Table scan on t1
+            -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
             -> Table scan on <subquery2>
                 -> Materialize with deduplication
                     -> Nested loop inner join
-                        -> Table scan on t3s, activating pushed join of 2 tables
-                        -> Index lookup on t4s using PRIMARY (a = t3s.b), child of t3s in pushed join
-        -> Index lookup on t2 using c (c = `<subquery2>`.c)
+                        -> Table scan on t3s over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 2 tables
+                        -> Index lookup on t4s using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t3s.b), child of t3s in pushed join
+        -> Index lookup on t2 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c)
 
 Warnings:
 Note	1003	Can't push table 't3s' as child, 'type' must be a 'ref' access
@@ -7169,10 +7169,10 @@ EXPLAIN
             -> Table scan on <subquery2>
                 -> Materialize with deduplication
                     -> Nested loop inner join
-                        -> Table scan on t3s, activating pushed join of 2 tables
-                        -> Index lookup on t4s using PRIMARY (a = t3s.b), child of t3s in pushed join
-            -> Index lookup on t1 using c (c = `<subquery2>`.c), activating pushed join of 2 tables
-        -> Index lookup on t2 using PRIMARY (a = t1.b), child of t1 in pushed join
+                        -> Table scan on t3s over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 2 tables
+                        -> Index lookup on t4s using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t3s.b), child of t3s in pushed join
+            -> Index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c), activating pushed join of 2 tables
+        -> Index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b), child of t1 in pushed join
 
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3s', it is in a materialized-branch which can't be referred.
@@ -7205,15 +7205,15 @@ EXPLAIN
                 -> Table scan on <subquery2>
                     -> Materialize with deduplication
                         -> Nested loop inner join
-                            -> Table scan on t3s1, activating pushed join of 2 tables
-                            -> Index lookup on t4s1 using PRIMARY (a = t3s1.b), child of t3s1 in pushed join
-                -> Index lookup on t1 using c (c = `<subquery2>`.c), activating pushed join of 2 tables
-            -> Index lookup on t2 using PRIMARY (a = t1.b), child of t1 in pushed join
+                            -> Table scan on t3s1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 2 tables
+                            -> Index lookup on t4s1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t3s1.b), child of t3s1 in pushed join
+                -> Index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c), activating pushed join of 2 tables
+            -> Index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b), child of t1 in pushed join
         -> Single-row index lookup on <subquery3> using <auto_distinct_key> (c = t1.d)
             -> Materialize with deduplication
                 -> Nested loop inner join
-                    -> Table scan on t3s2, activating pushed join of 2 tables
-                    -> Index lookup on t4s2 using PRIMARY (a = t3s2.b), child of t3s2 in pushed join
+                    -> Table scan on t3s2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 2 tables
+                    -> Index lookup on t4s2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t3s2.b), child of t3s2 in pushed join
 
 Warnings:
 Note	1003	Can't push table 't1' as child of 't3s1', it is in a materialized-branch which can't be referred.
@@ -7542,12 +7542,12 @@ explain format=tree select a,
 (select sum(a) over w from t2 window w as(order by "whatever") limit 1)
 from t3;
 EXPLAIN
--> Table scan on t3
+-> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
 -> Select #2 (subquery in projection; run only once)
     -> Limit: 1 row(s)
         -> Window aggregate with buffering: sum(t2.a) OVER w
             -> Sort: whatever
-                -> Table scan on t2
+                -> Table scan on t2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,(/* select#2 */ select sum(`test`.`t2`.`a`) OVER `w` from `test`.`t2` window `w` AS (ORDER BY 'whatever' )  limit 1) AS `(select sum(a) over w from t2 window w as(order by "whatever") limit 1)` from `test`.`t3`
@@ -7586,17 +7586,17 @@ EXPLAIN
     -> Stream results
         -> Nested loop inner join
             -> Nested loop inner join
-                -> Index lookup on t1 using PRIMARY (a = 1), activating pushed join of 2 tables, with pushed condition: (t1.d = 1)
+                -> Index lookup on t1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = 1), activating pushed join of 2 tables, with pushed condition: (t1.d = 1)
                 -> Filter: (t2.a = (t1.b + 0))
-                    -> Single-row index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
-            -> Single-row index lookup on t3 using PRIMARY (a = t1.b, b = t1.c), child of t1 in pushed join
+                    -> Single-row index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = (t1.b + 0), b = t1.c)
+            -> Single-row index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = t1.c), child of t1 in pushed join
     -> Stream results
         -> Nested loop inner join
             -> Nested loop inner join
-                -> Index lookup on t1 using PRIMARY (a = 1), activating pushed join of 2 tables, with pushed condition: (t1.d = 1)
+                -> Index lookup on t1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = 1), activating pushed join of 2 tables, with pushed condition: (t1.d = 1)
                 -> Filter: (t2.a = (t1.b + 0))
-                    -> Single-row index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
-            -> Single-row index lookup on t3 using PRIMARY (a = t1.b, b = t1.c), child of t1 in pushed join
+                    -> Single-row index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = (t1.b + 0), b = t1.c)
+            -> Single-row index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = t1.c), child of t1 in pushed join
 
 Warnings:
 Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
@@ -7628,16 +7628,16 @@ EXPLAIN
     -> Union materialize with deduplication
         -> Nested loop inner join
             -> Nested loop inner join
-                -> Index lookup on t1 using PRIMARY (a = 1), activating pushed join of 2 tables, with pushed condition: (t1.d = 1)
+                -> Index lookup on t1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = 1), activating pushed join of 2 tables, with pushed condition: (t1.d = 1)
                 -> Filter: (t2.a = (t1.b + 0))
-                    -> Single-row index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
-            -> Single-row index lookup on t3 using PRIMARY (a = t1.b, b = t1.c), child of t1 in pushed join
+                    -> Single-row index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = (t1.b + 0), b = t1.c)
+            -> Single-row index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = t1.c), child of t1 in pushed join
         -> Nested loop inner join
             -> Nested loop inner join
-                -> Index lookup on t1 using PRIMARY (a = 1), activating pushed join of 2 tables, with pushed condition: (t1.d = 1)
+                -> Index lookup on t1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = 1), activating pushed join of 2 tables, with pushed condition: (t1.d = 1)
                 -> Filter: (t2.a = (t1.b + 0))
-                    -> Single-row index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
-            -> Single-row index lookup on t3 using PRIMARY (a = t1.b, b = t1.c), child of t1 in pushed join
+                    -> Single-row index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = (t1.b + 0), b = t1.c)
+            -> Single-row index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = t1.c), child of t1 in pushed join
 
 Warnings:
 Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
@@ -7697,13 +7697,13 @@ straight_join t as t5
 EXPLAIN
 -> Nested loop left join
     -> Nested loop left join
-        -> Table scan on t1, activating pushed join of 5 tables
+        -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 5 tables
         -> Nested loop inner join
-            -> Single-row index lookup on t2 using PRIMARY (pk = t1.a), child of t1 in pushed join
-            -> Single-row index lookup on t3 using PRIMARY (pk = t2.b), child of t2 in pushed join
+            -> Single-row index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (pk = t1.a), child of t1 in pushed join
+            -> Single-row index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (pk = t2.b), child of t2 in pushed join
     -> Nested loop inner join
-        -> Single-row index lookup on t4 using PRIMARY (pk = t1.c), child of t3 in pushed join
-        -> Single-row index lookup on t5 using PRIMARY (pk = t3.d), child of t3 in pushed join
+        -> Single-row index lookup on t4 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (pk = t1.c), child of t3 in pushed join
+        -> Single-row index lookup on t5 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (pk = t3.d), child of t3 in pushed join
 
 Warnings:
 Note	1003	/* select#1 */ select `t1`.`pk` AS `pk`,`t2`.`pk` AS `pk`,`t3`.`pk` AS `pk`,`t4`.`pk` AS `pk`,`t5`.`pk` AS `pk` from `test`.`t` `t1` left join (`test`.`t` `t2` straight_join `test`.`t` `t3`) on(((`t3`.`pk` = `t2`.`b`) and (`t2`.`pk` = `t1`.`a`))) left join (`test`.`t` `t4` straight_join `test`.`t` `t5`) on(((`t5`.`pk` = `t3`.`d`) and (`t4`.`pk` = `t1`.`c`))) where true
@@ -7755,10 +7755,10 @@ table1.col_int_key = table2.col_int_key AND
 table1.pk = table3.pk;
 EXPLAIN
 -> Nested loop left join
-    -> Table scan on table1
+    -> Table scan on table1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
     -> Nested loop inner join
         -> Zero rows (Impossible filter)
-        -> Index lookup on table2 using col_int_key (col_int_key = table1.col_int_key), with pushed condition: (table2.col_int = table1.col_int)
+        -> Index lookup on table2 using col_int_key in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (col_int_key = table1.col_int_key), with pushed condition: (table2.col_int = table1.col_int)
 
 Warnings:
 Note	1003	Can't push outer joined table 'table2' as child of 'table1', a table in its dependant join-nest(s) is not part of the pushed join
@@ -7807,9 +7807,9 @@ straight_join t100 on t100.k = t1000.k;
 EXPLAIN
 -> Nested loop inner join
     -> Nested loop inner join
-        -> Table scan on t10, with pushed condition: (t10.i is not null)
-        -> Index lookup on t1000 using i (i = t10.i), activating pushed join of 2 tables
-    -> Single-row index lookup on t100 using PRIMARY (k = t1000.k), child of t1000 in pushed join
+        -> Table scan on t10 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (t10.i is not null)
+        -> Index lookup on t1000 using i in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (i = t10.i), activating pushed join of 2 tables
+    -> Single-row index lookup on t100 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t1000.k), child of t1000 in pushed join
 
 Warnings:
 Note	1003	Didn't push table 't10' as root, too few rows to enable full parallelism
@@ -7821,9 +7821,9 @@ straight_join t100 on t100.k = t10.k;
 EXPLAIN
 -> Nested loop inner join
     -> Nested loop inner join
-        -> Table scan on t10, activating pushed join of 3 tables, with pushed condition: (t10.i is not null)
-        -> Index lookup on t1000 using i (i = t10.i), child of t10 in pushed join
-    -> Single-row index lookup on t100 using PRIMARY (k = t10.k), child of t10 in pushed join
+        -> Table scan on t10 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 3 tables, with pushed condition: (t10.i is not null)
+        -> Index lookup on t1000 using i in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (i = t10.i), child of t10 in pushed join
+    -> Single-row index lookup on t100 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t10.k), child of t10 in pushed join
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10`.`k` AS `k`,`test`.`t10`.`i` AS `i`,`test`.`t1000`.`k` AS `k`,`test`.`t1000`.`i` AS `i`,`test`.`t100`.`k` AS `k`,`test`.`t100`.`i` AS `i` from `test`.`t10` straight_join `test`.`t1000` straight_join `test`.`t100` where ((`test`.`t1000`.`i` = `test`.`t10`.`i`) and (`test`.`t100`.`k` = `test`.`t10`.`k`))
@@ -7851,9 +7851,9 @@ inner join t as t3 on t3.k = t1.k;
 EXPLAIN
 -> Nested loop inner join
     -> Nested loop inner join
-        -> Table scan on t1, activating pushed join of 3 tables, with pushed condition: (t1.k is not null)
-        -> Index lookup on t2 using ix2 (a = t1.k), child of t1 in pushed join
-    -> Index lookup on t3 using ix1 (k = t1.k), child of t1 in pushed join
+        -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 3 tables, with pushed condition: (t1.k is not null)
+        -> Index lookup on t2 using ix2 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.k), child of t1 in pushed join
+    -> Index lookup on t3 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t1.k), child of t1 in pushed join
 
 Warnings:
 Note	1003	/* select#1 */ select straight_join `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t2`.`k` AS `k`,`t2`.`a` AS `a`,`t3`.`k` AS `k`,`t3`.`a` AS `a` from `test`.`t` `t1` join `test`.`t` `t2` join `test`.`t` `t3` where ((`t2`.`a` = `t1`.`k`) and (`t3`.`k` = `t1`.`k`))
@@ -7876,9 +7876,9 @@ left join t as t3 on t3.k = t1.k;
 EXPLAIN
 -> Nested loop left join
     -> Nested loop inner join
-        -> Table scan on t1, activating pushed join of 3 tables, with pushed condition: (t1.k is not null)
-        -> Index lookup on t2 using ix2 (a = t1.k), child of t1 in pushed join
-    -> Index lookup on t3 using ix1 (k = t1.k), child of t1 in pushed join
+        -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 3 tables, with pushed condition: (t1.k is not null)
+        -> Index lookup on t2 using ix2 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.k), child of t1 in pushed join
+    -> Index lookup on t3 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t1.k), child of t1 in pushed join
 
 Warnings:
 Note	1003	/* select#1 */ select straight_join `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t2`.`k` AS `k`,`t2`.`a` AS `a`,`t3`.`k` AS `k`,`t3`.`a` AS `a` from `test`.`t` `t1` join `test`.`t` `t2` left join `test`.`t` `t3` on((`t3`.`k` = `t1`.`k`)) where (`t2`.`a` = `t1`.`k`)
@@ -7901,9 +7901,9 @@ inner join t as t3 on t3.k = t1.k;
 EXPLAIN
 -> Nested loop inner join
     -> Nested loop left join
-        -> Table scan on t1, activating pushed join of 3 tables, with pushed condition: (t1.k is not null)
-        -> Index lookup on t2 using ix2 (a = t1.k), child of t1 in pushed join
-    -> Index lookup on t3 using ix1 (k = t1.k), child of t1 in pushed join
+        -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 3 tables, with pushed condition: (t1.k is not null)
+        -> Index lookup on t2 using ix2 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.k), child of t1 in pushed join
+    -> Index lookup on t3 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t1.k), child of t1 in pushed join
 
 Warnings:
 Note	1003	/* select#1 */ select straight_join `t1`.`k` AS `k`,`t1`.`a` AS `a`,`t2`.`k` AS `k`,`t2`.`a` AS `a`,`t3`.`k` AS `k`,`t3`.`a` AS `a` from `test`.`t` `t1` left join `test`.`t` `t2` on((`t2`.`a` = `t1`.`k`)) join `test`.`t` `t3` where (`t3`.`k` = `t1`.`k`)

@@ -59,16 +59,16 @@ EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Nested loop inner join  (rows=390625)
         -> Inner hash join (no condition)  (rows=390625)
-            -> Table scan on t4, activating pushed join of 2 tables  (rows=25)
+            -> Table scan on t4 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 2 tables  (rows=25)
             -> Hash
                 -> Inner hash join (no condition)  (rows=15625)
-                    -> Table scan on t3  (rows=25)
+                    -> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (rows=25)
                     -> Hash
                         -> Inner hash join (no condition)  (rows=625)
-                            -> Table scan on t2  (rows=25)
+                            -> Table scan on t2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (rows=25)
                             -> Hash
-                                -> Table scan on t1  (rows=25)
-        -> Single-row index lookup on t5 using PRIMARY (pk = t4.col_int), child of t4 in pushed join  (rows=1)
+                                -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (rows=25)
+        -> Single-row index lookup on t5 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (pk = t4.col_int), child of t4 in pushed join  (rows=1)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access

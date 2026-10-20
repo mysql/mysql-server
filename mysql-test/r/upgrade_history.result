@@ -1,0 +1,26 @@
+# Suppress expected recovery warnings from corrupt history files
+CALL mtr.add_suppression("Invalid format of file .*mysql_upgrade_history.*The file will be recreated");
+# Case 1 (FR-6.1.1, FR-6.1.2): Create the initial history entry.
+# Use an isolated initialized data directory so this test controls its history file.
+# The restart helper connects to the test schema, so create it during initialization.
+# Case 2 (FR-6.1.3): Append the current entry after a different exact version.
+# A return to a previous exact release is recorded as a new entry.
+# Case 3 (FR-6.2.1, FR-6.2.5): Extend a matching legacy history entry.
+# A missing update_history starts with the current exact release.
+# Case 4 (FR-6.2.2): Append after a compatibility-version transition.
+# A legacy entry for a different compatibility version remains in the history.
+# Case 5 (FR-6.2.3): Append to an empty update-history array.
+# Case 6: Recover from an update-history entry without a full version.
+# Case 7: Recover from non-array update-history values.
+# Case 8 (FR-6.3.1): Append an entry after an empty valid history.
+# Case 9: Recover from a non-object parent entry.
+# Case 10: Recover from a parent entry without a string version.
+# Case 11 (FR-6.3.3): Recover from a parseable structurally invalid history file.
+# Case 12 (FR-6.3.3): Recover from a non-object root document.
+# Case 13 (FR-6.3.3): Recover when file_format is not a string.
+# Case 14 (FR-6.3.3): Recover when the upgrade-history array is absent.
+# Case 15: Recover from an invalid history file.
+# History-file errors are non-fatal and the next write recreates the document.
+# Case 16: Recover when file_format is absent.
+# Shut down the isolated server
+# Restore the default server for post-test checks

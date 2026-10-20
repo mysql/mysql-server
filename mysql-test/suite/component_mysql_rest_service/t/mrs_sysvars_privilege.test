@@ -1,0 +1,155 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that MRS system variables use normal Server privileges independently
+# of MYSQL_REST_SERVICE_ADMIN.
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Read MRS system variables without an administrative privilege
+--echo ## II. Reject writes authorized only by MYSQL_REST_SERVICE_ADMIN
+--echo ## III. Apply dynamic writes with SYSTEM_VARIABLES_ADMIN
+--echo ## IV. Require PERSIST_RO_VARIABLES_ADMIN for persistence-only operations
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+CREATE USER 'mrs_sysvar_user'@'localhost';
+--connect(mrs_sysvar_user, localhost, mrs_sysvar_user,,)
+
+--echo
+--echo # I. Reading an MRS system variable requires no MRS privilege
+SELECT @@GLOBAL.mysql_rest_service.http_max_connections;
+
+--echo
+--echo # II. MYSQL_REST_SERVICE_ADMIN does not authorize system-variable writes
+--connection default
+GRANT MYSQL_REST_SERVICE_ADMIN ON *.* TO
+  'mrs_sysvar_user'@'localhost';
+
+--connection mrs_sysvar_user
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL mysql_rest_service.http_max_connections = 1025;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET PERSIST mysql_rest_service.http_max_connections = 2048;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY mysql_rest_service.http_max_connections = 3072;
+
+--connection default
+--let $http_max_connections = `SELECT @@GLOBAL.mysql_rest_service.http_max_connections;`
+--let $assert_text = rejected MRS-admin writes leave the runtime value unchanged
+--let $assert_cond = $http_max_connections = 1024
+--source include/assert.inc
+
+--let $persisted_count = `SELECT COUNT(*) FROM performance_schema.persisted_variables WHERE VARIABLE_NAME = 'mysql_rest_service.http_max_connections';`
+--let $assert_text = rejected MRS-admin writes create no persisted value
+--let $assert_cond = $persisted_count = 0
+--source include/assert.inc
+
+SET PERSIST_ONLY mysql_rest_service.http_max_connections = 1025;
+
+--connection mrs_sysvar_user
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST mysql_rest_service.http_max_connections;
+
+--connection default
+--let $persisted_value = `SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables WHERE VARIABLE_NAME = 'mysql_rest_service.http_max_connections';`
+--let $assert_text = rejected MRS-admin reset preserves the persisted value
+--let $assert_cond = $persisted_value = 1025
+--source include/assert.inc
+
+REVOKE MYSQL_REST_SERVICE_ADMIN ON *.* FROM
+  'mrs_sysvar_user'@'localhost';
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO
+  'mrs_sysvar_user'@'localhost';
+
+--echo
+--echo # III. SYSTEM_VARIABLES_ADMIN authorizes dynamic writes without MRS admin
+--connection mrs_sysvar_user
+SET GLOBAL mysql_rest_service.http_max_connections = 1025;
+SET PERSIST mysql_rest_service.http_max_connections = 2048;
+
+--connection default
+--let $http_max_connections = `SELECT @@GLOBAL.mysql_rest_service.http_max_connections;`
+--let $assert_text = SET PERSIST applies the configured runtime value
+--let $assert_cond = $http_max_connections = 2048
+--source include/assert.inc
+
+--let $persisted_value = `SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables WHERE VARIABLE_NAME = 'mysql_rest_service.http_max_connections';`
+--let $assert_text = SET PERSIST stores the configured value
+--let $assert_cond = $persisted_value = 2048
+--source include/assert.inc
+
+--connection mrs_sysvar_user
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+SET PERSIST_ONLY mysql_rest_service.http_max_connections = 3072;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST mysql_rest_service.http_max_connections;
+
+# System-variable authority does not authorize lifecycle UDFs.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT mysql_rest_service_start();
+
+--connection default
+--let $http_max_connections = `SELECT @@GLOBAL.mysql_rest_service.http_max_connections;`
+--let $assert_text = rejected persistence-only operations leave runtime unchanged
+--let $assert_cond = $http_max_connections = 2048
+--source include/assert.inc
+
+--let $persisted_value = `SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables WHERE VARIABLE_NAME = 'mysql_rest_service.http_max_connections';`
+--let $assert_text = rejected persistence-only operations leave storage unchanged
+--let $assert_cond = $persisted_value = 2048
+--source include/assert.inc
+
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO
+  'mrs_sysvar_user'@'localhost';
+
+--echo
+--echo # IV. Both native persistence privileges authorize persistence-only forms
+--connection mrs_sysvar_user
+SET PERSIST_ONLY mysql_rest_service.http_max_connections = 3072;
+
+--connection default
+--let $http_max_connections = `SELECT @@GLOBAL.mysql_rest_service.http_max_connections;`
+--let $assert_text = SET PERSIST_ONLY leaves the runtime value unchanged
+--let $assert_cond = $http_max_connections = 2048
+--source include/assert.inc
+
+--let $persisted_value = `SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables WHERE VARIABLE_NAME = 'mysql_rest_service.http_max_connections';`
+--let $assert_text = SET PERSIST_ONLY replaces the stored value
+--let $assert_cond = $persisted_value = 3072
+--source include/assert.inc
+
+--connection mrs_sysvar_user
+RESET PERSIST mysql_rest_service.http_max_connections;
+SET GLOBAL mysql_rest_service.http_max_connections = DEFAULT;
+
+--connection default
+--let $persisted_count = `SELECT COUNT(*) FROM performance_schema.persisted_variables WHERE VARIABLE_NAME = 'mysql_rest_service.http_max_connections';`
+--let $assert_text = RESET PERSIST removes the stored value
+--let $assert_cond = $persisted_count = 0
+--source include/assert.inc
+
+--let $http_max_connections = `SELECT @@GLOBAL.mysql_rest_service.http_max_connections;`
+--let $assert_text = SYSTEM_VARIABLES_ADMIN can restore the runtime default
+--let $assert_cond = $http_max_connections = 1024
+--source include/assert.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = privilege checks leave the component READY
+--let $assert_cond = "$mrs_state" = "READY"
+--source include/assert.inc
+
+--echo # The HTTPS listener remains usable after rejected and accepted writes.
+--exec $MRS_CLIENT_ARGS --path /mrs-sysvar-privilege-probe --response-type raw --expected-status NotFound --display none
+
+--echo
+--echo # Cleanup
+--disconnect mrs_sysvar_user
+DROP USER 'mrs_sysvar_user'@'localhost';
+--source ../include/cmrs/cleanup.inc

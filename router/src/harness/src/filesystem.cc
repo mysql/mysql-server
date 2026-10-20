@@ -39,7 +39,7 @@ namespace mysql_harness {
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
 
-const char *const Path::extension_separator = ".";
+HARNESS_EXPORT const char *const Path::extension_separator = ".";
 
 Path::Path() noexcept : type_(FileType::EMPTY_PATH) {}
 

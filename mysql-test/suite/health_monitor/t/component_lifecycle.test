@@ -1,0 +1,74 @@
+# Bug#36054934: Health Monitor owns component objects through one manager.
+# Check cleanup after partial initialization, exceptions and repeated loading.
+--source include/no_protocol.inc
+--source include/have_debug.inc
+
+call mtr.add_suppression("Health Monitor: Failed to start");
+call mtr.add_suppression("Health Monitor: Failed to initialize component objects");
+
+--echo # Failed initialization releases partially constructed objects
+set @saved_debug = @@session.debug;
+set session debug = '+d,health_monitor_fail_collectors_init';
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+install component 'file://component_health_monitor';
+set session debug = @saved_debug;
+
+select count(*) as registered_components from mysql.component
+  where component_urn = 'file://component_health_monitor';
+select count(*) as registered_variables from performance_schema.global_variables
+  where variable_name like 'health_monitor.%';
+select count(*) as worker_threads from performance_schema.threads
+  where name like 'thread/health/%';
+
+--echo # Initialization exceptions also release partially constructed objects
+set session debug = '+d,health_monitor_throw_collectors_init';
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+install component 'file://component_health_monitor';
+set session debug = @saved_debug;
+
+select count(*) as registered_components from mysql.component
+  where component_urn = 'file://component_health_monitor';
+select count(*) as registered_variables from performance_schema.global_variables
+  where variable_name like 'health_monitor.%';
+select count(*) as worker_threads from performance_schema.threads
+  where name like 'thread/health/%';
+
+--echo # A fresh owner can load after failure and after normal teardown
+--disable_query_log
+let $cycles = 3;
+while ($cycles)
+{
+  install component 'file://component_health_monitor';
+
+  set @@global.health_monitor.memory_running = on;
+  set @@global.health_monitor.system_running = on;
+  let $wait_timeout = 15;
+  let $wait_condition =
+    select count(*) = 2 from performance_schema.threads
+      where name in ('thread/health/memory_collector',
+                     'thread/health/system_collector');
+  --source include/wait_condition_or_abort.inc
+
+  # Exercise table and status callbacks before their objects are destroyed.
+  select count(*) into @sample_count
+    from performance_schema.health_system_memory;
+  select variable_value into @disk_full
+    from performance_schema.global_status
+    where variable_name = 'super_read_only_disk_full';
+
+  uninstall component 'file://component_health_monitor';
+
+  let $wait_condition =
+    select count(*) = 0 from performance_schema.threads
+      where name like 'thread/health/%';
+  --source include/wait_condition_or_abort.inc
+  dec $cycles;
+}
+--enable_query_log
+
+select count(*) as registered_components from mysql.component
+  where component_urn = 'file://component_health_monitor';
+select count(*) as registered_variables from performance_schema.global_variables
+  where variable_name like 'health_monitor.%';
+select count(*) as worker_threads from performance_schema.threads
+  where name like 'thread/health/%';

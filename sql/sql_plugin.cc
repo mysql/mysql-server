@@ -1864,7 +1864,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
   DBUG_TRACE;
 
   Table_ref tables("mysql", "plugin", TL_READ);
-  new_thd->thread_stack = (char *)&tables;
+  new_thd->capture_stack_base(&tables);
   new_thd->store_globals();
   const LEX_CSTRING db_lex_cstr = {STRING_WITH_LEN("mysql")};
   new_thd->set_db(db_lex_cstr);

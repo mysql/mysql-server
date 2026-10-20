@@ -134,12 +134,24 @@ void Bulk_flusher::wait_to_stop() {
   m_stop.store(true);
   m_flush_thread.join();
   ut_ad(m_priv_queue.empty());
-  ut_ad(m_queue.empty());
+  {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    ut_ad(m_queue.empty());
+    ut_ad(m_pending_flushes == 0);
+  }
 #ifdef UNIV_DEBUG
   for (auto &page_extent : m_free_queue) {
     ut_ad(!page_extent->m_is_owned_by_bulk_flusher.load());
   }
 #endif /* UNIV_DEBUG */
+}
+
+void Bulk_flusher::wait_for_idle() {
+  std::unique_lock lk(m_mutex);
+
+  /* The queue might not be full, so explicitly wake the flusher. */
+  m_condition.notify_all();
+  m_condition.wait(lk, [&]() { return m_pending_flushes == 0; });
 }
 
 void Bulk_flusher::do_work(fil_node_t *node) {
@@ -165,6 +177,13 @@ void Bulk_flusher::do_work(fil_node_t *node) {
       page_extent->destroy();
       Page_extent::drop(page_extent);
     }
+
+    {
+      std::lock_guard<std::mutex> guard(m_mutex);
+      ut_ad(m_pending_flushes > 0);
+      --m_pending_flushes;
+    }
+    m_condition.notify_all();
   }
   m_priv_queue.clear();
 }
@@ -216,6 +235,7 @@ void Bulk_flusher::add(Page_extent *page_extent,
     }
   }
   m_queue.push_back(page_extent);
+  ++m_pending_flushes;
   IF_DEBUG(page_extent->m_is_owned_by_bulk_flusher.store(true));
 
   /* If queue is full, wake up the flusher thread. */
@@ -1732,9 +1752,7 @@ void Btree_load::add_blobs_to_bulk_flusher() {
       m_extents_tracked.push_back(page_extent);
     }
   }
-  while (m_bulk_flusher.is_work_available()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
+  m_bulk_flusher.wait_for_idle();
 }
 
 void Btree_load::add_to_bulk_flusher(bool finish) {

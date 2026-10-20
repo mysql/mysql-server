@@ -441,8 +441,18 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_DIFFERENCE(ST_DIFFERENCE(ST_GEOMFROMTEXT(@st
 --echo #-------------------------------------------------------------------------------------------
 --echo # Spatial Operators with ST_SYMDIFFERENCE()
 --echo #-------------------------------------------------------------------------------------------
-SELECT ST_EQUALS(ST_UNION(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
-ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2))),ST_GEOMFROMTEXT('MULTIPOLYGON(((15 0,20 2.5,15.909090909090908 4.545454545454546,15 0)),((20 2.5,25 0,23.695652173913043 4.3478260869565215,20.454545454545453 2.7272727272727275,20 2.5)),((19 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,15.909090909090908 4.545454545454546,16.071428571428573 5.357142857142858,20.454545454545453 2.7272727272727275,23.333333333333332 4.166666666666667,19 15),(11 15,10.777777777777779 14.444444444444443,10 15,11 15)),((20 15,30 15,25 25,20 15)),((23.695652173913043 4.3478260869565215,25 5,35 0,32 10,40 15,30 15,22 10,23.695652173913043 4.3478260869565215)))'));
+# ST_EQUALS against a full-precision literal is exact, so a last-digit change
+# in any coordinate breaks it even when the geometry is unchanged. Boost 1.92
+# produces exactly that here: the computed result is the same point set as the
+# literal below (empty symmetric difference) and its area differs by about
+# 6e-14 on an area of 432, one unit in the last place, but ST_EQUALS returns 0.
+# Compare geometrically instead. The 1e-6 bound sits far above that noise and
+# far below the area of the smallest component ring, which is about 1.
+SET @symdiff_expected= 'MULTIPOLYGON(((15 0,20 2.5,15.909090909090908 4.545454545454546,15 0)),((20 2.5,25 0,23.695652173913043 4.3478260869565215,20.454545454545453 2.7272727272727275,20 2.5)),((19 15,20 15,15 25,10 15,0 15,7 10,5 0,15 5,15.909090909090908 4.545454545454546,16.071428571428573 5.357142857142858,20.454545454545453 2.7272727272727275,23.333333333333332 4.166666666666667,19 15),(11 15,10.777777777777779 14.444444444444443,10 15,11 15)),((20 15,30 15,25 25,20 15)),((23.695652173913043 4.3478260869565215,25 5,35 0,32 10,40 15,30 15,22 10,23.695652173913043 4.3478260869565215)))';
+SET @symdiff_actual= ST_UNION(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),
+ST_GEOMFROMTEXT(@star_2)),ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_1),ST_GEOMFROMTEXT(@star_2)));
+SELECT ST_ISEMPTY(ST_SYMDIFFERENCE(@symdiff_actual, ST_GEOMFROMTEXT(@symdiff_expected))) AS same_point_set,
+ABS(ST_AREA(@symdiff_actual) - ST_AREA(ST_GEOMFROMTEXT(@symdiff_expected))) < 1e-6 AS area_within_tolerance;
 
 # TODO Bug #33739281 Some gis functions give different results with gcc11 in optimized mode on ARM
 # SELECT ST_EQUALS(ST_DIFFERENCE(ST_SYMDIFFERENCE(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_elem_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical)),

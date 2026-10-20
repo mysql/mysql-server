@@ -30,16 +30,15 @@ ADD_HARNESS_PLUGIN(rest_host_cache
   rest_host_cache_status.cc
   rest_host_cache_entries.cc
   rest_host_cache_spec.cc
+
+  REQUIRES_IF
+  host_cache_interface
+  rest_api_interface
+  http_server_lib_interface
+
   REQUIRES
   host_cache
   http_server_lib
   rest_api
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}")
-
-GENERATE_EXPORT_HEADER(rest_host_cache
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/rest_host_cache_export.h)
-
-TARGET_INCLUDE_DIRECTORIES(rest_host_cache
-  PUBLIC
-    ${CMAKE_CURRENT_BINARY_DIR}/../include/
-    )

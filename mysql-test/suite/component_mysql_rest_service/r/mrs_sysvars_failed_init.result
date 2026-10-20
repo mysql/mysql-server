@@ -1,0 +1,11 @@
+
+
+## I. 1. Ensure all systemvars are unregistered when a single one fails
+##       to be registered.
+SET @@GLOBAL.DEBUG = '+d, mrs_component_sysvar_registration_failure';
+SET @@GLOBAL.DEBUG = '+d, mrs_component_skip_keyring_init';
+INSTALL COMPONENT "file://component_mysql_rest_service";
+ERROR HY000: Failed to register system variables.
+SET @@GLOBAL.DEBUG = '-d, mrs_component_sysvar_registration_failure';
+SET @@GLOBAL.DEBUG = '-d, mrs_component_skip_keyring_init';
+include/assert.inc [MRS Component system variables must be unregistered]

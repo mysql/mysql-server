@@ -23,29 +23,36 @@
 
 add_harness_plugin(routertestplugin_bad_one NO_INSTALL
   DESTINATION harness
-  SOURCES bad_one.cc)
+  SOURCES bad_one.cc
+  NO_EXPORT_HEADER)
 add_harness_plugin(routertestplugin_bad_two NO_INSTALL
   DESTINATION harness
-  SOURCES bad_two.cc)
+  SOURCES bad_two.cc
+  NO_EXPORT_HEADER)
 add_harness_plugin(routertestplugin_magic NO_INSTALL
   DESTINATION harness
-  SOURCES magic.cc)
-TARGET_INCLUDE_DIRECTORIES(routertestplugin_magic PRIVATE ../include)
+  SOURCES magic.cc
+  NO_EXPORT_HEADER)
+HARNESS_PLUGIN_INCLUDE_DIRECTORIES(routertestplugin_magic PRIVATE ../include)
 
 add_harness_plugin(routertestplugin_example NO_INSTALL
   DESTINATION harness
   SOURCES example.cc
-  REQUIRES routertestplugin_magic)
+  REQUIRES routertestplugin_magic
+  NO_EXPORT_HEADER)
 
 add_harness_plugin(routertestplugin_lifecycle NO_INSTALL
   DESTINATION harness
   SOURCES lifecycle.cc
+  NO_EXPORT_HEADER
 )
-TARGET_INCLUDE_DIRECTORIES(routertestplugin_lifecycle PRIVATE ../include)
+HARNESS_PLUGIN_INCLUDE_DIRECTORIES(routertestplugin_lifecycle PRIVATE ../include)
 
 add_harness_plugin(routertestplugin_lifecycle2 NO_INSTALL
   DESTINATION harness
-  SOURCES lifecycle2.cc)
+  SOURCES lifecycle2.cc
+  NO_EXPORT_HEADER)
 add_harness_plugin(routertestplugin_lifecycle3 NO_INSTALL
   DESTINATION harness
-  SOURCES lifecycle3.cc)
+  SOURCES lifecycle3.cc
+  NO_EXPORT_HEADER)

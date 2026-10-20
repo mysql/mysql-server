@@ -49,10 +49,27 @@ namespace {
 int stack_direction = 0;
 }
 
+/**
+  Determine whether the stack grows upward or downward.
+
+  The function is deliberately not inlined, so @p a belongs to its
+  caller's frame while @c b_marker belongs to this frame. In ordinary
+  builds, resolve_stack_pointer() returns those local markers unchanged
+  and their relative addresses reveal the stack-growth direction.
+
+  In ASan builds, local variables may be allocated on ASan's fake stack.
+  resolve_stack_pointer() therefore replaces both markers with physical
+  frame addresses before comparing them. This keeps stack-direction
+  detection in the same address space as later stack-overrun checks.
+
+  @param a Stack marker from initialize_stack_direction().
+  @returns 1 if the stack grows upward, otherwise 0.
+*/
 NO_INLINE
-int stack_direction_f(int *a) {
-  int b;
-  if (&b > a) {
+static int stack_direction_f(const char *a) {
+  char b_marker = 0;
+  const char *b = resolve_stack_pointer(&b_marker);
+  if (b > a) {
     // printf("Stack grows upward\n");
     return 1;
   }
@@ -64,12 +81,12 @@ int stack_direction_f(int *a) {
  Prevent compiler optimizations by calling function
  through pointer.
 */
-int (*ptr_f)(int *) = stack_direction_f;
+static int (*ptr_f)(const char *) = stack_direction_f;
 
 NO_INLINE
 int initialize_stack_direction() {
-  int a;
-  const int retval = ptr_f(&a);
+  int a = 0;
+  const int retval = ptr_f(resolve_stack_pointer(&a));
   if (retval == 0) {
     stack_direction = -1;
   } else {
@@ -86,7 +103,7 @@ long used_stack(const char *a_ptr, const char *b_ptr) {
 }  // namespace
 
 #ifndef NDEBUG
-std::atomic<long> max_stack_used;
+static std::atomic<long> max_stack_used;
 #endif
 
 /**
@@ -113,20 +130,18 @@ bool check_stack_overrun(const THD *thd, long margin, unsigned char *buf) {
 
   if (!my_thread_equal(thd->real_id, my_thread_self())) return false;
 
-#if defined(HAVE_ASAN)
-  // Stack grows upward, but our address computations do not work with
-  // the "fake stack" of ASAN. Just return OK.
-  // With ASAN_OPTIONS=detect_stack_use_after_return=true
-  // any test which deliberately runs out of stack
-  // (expects ER_STACK_OVERRUN_NEED_MORE) will most likely crash.
-  if (stack_direction == 1) {
-    return false;
-  }
-#endif
-
-  long stack_used = 0;
-  stack_used =
-      used_stack(thd->thread_stack, reinterpret_cast<char *>(&stack_used));
+  /*
+    Compare the current stack location with the base captured when
+    this THD was attached to the OS thread. In ordinary builds,
+    stack_marker provides the conventional local-variable stack address.
+    Under ASan, resolve_stack_pointer() replaces that potentially
+    fake-stack address with a physical frame address, keeping both
+    operands in the same address space.
+  */
+  char stack_marker = 0;
+  const char *const resolved_stack_pointer =
+      resolve_stack_pointer(&stack_marker);
+  const long stack_used = used_stack(thd->stack_base(), resolved_stack_pointer);
   if (stack_used >= static_cast<long>(my_thread_stack_size - margin) ||
       DBUG_EVALUATE_IF("simulate_stack_overrun", true, false)) {
     // Touch the buffer, so that it is not optimized away by -flto.

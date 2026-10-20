@@ -103,19 +103,23 @@ stdx::expected<std::string, std::error_code> AuthBase::public_key_encrypt(
   std::string data;
 
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
-  data.resize(EVP_PKEY_get_size(pkey));
-
   EvpPkeyCtx key_ctx{EVP_PKEY_CTX_new(pkey, nullptr)};
-  EVP_PKEY_encrypt_init(key_ctx.get());
-  EVP_PKEY_CTX_set_rsa_padding(key_ctx.get(), RSA_PKCS1_OAEP_PADDING);
+  if (!key_ctx || EVP_PKEY_encrypt_init(key_ctx.get()) != 1 ||
+      EVP_PKEY_CTX_set_rsa_padding(key_ctx.get(), RSA_PKCS1_OAEP_PADDING) !=
+          1) {
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
+  }
 
-  size_t encrypted_len;
+  data.resize(EVP_PKEY_get_size(pkey));
+  size_t encrypted_len = data.size();
 
-  EVP_PKEY_encrypt(key_ctx.get(),  //
-                   reinterpret_cast<unsigned char *>(data.data()),
-                   &encrypted_len,
-                   reinterpret_cast<const unsigned char *>(plaintext.data()),
-                   plaintext.size());
+  if (EVP_PKEY_encrypt(
+          key_ctx.get(), reinterpret_cast<unsigned char *>(data.data()),
+          &encrypted_len,
+          reinterpret_cast<const unsigned char *>(plaintext.data()),
+          plaintext.size()) != 1) {
+    return stdx::unexpected(make_error_code(std::errc::bad_message));
+  }
 #else
   auto *rsa = EVP_PKEY_get0_RSA(pkey);
   data.resize(RSA_size(rsa));
@@ -245,11 +249,27 @@ stdx::expected<std::string, std::error_code> AuthBase::rsa_encrypt_password(
   return AuthBase::public_key_encrypt(plaintext, pkey.get());
 }
 
+stdx::expected<std::string, std::error_code> RsaTlsContext::public_key() const {
+  if (!tls_context_) {
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
+  }
+  return AuthBase::public_key_from_ssl_ctx_as_pem(tls_context_->get());
+}
+
+stdx::expected<std::string, std::error_code> RsaTlsContext::decrypt_password(
+    std::string_view encrypted, std::string_view nonce) const {
+  if (!tls_context_) {
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
+  }
+  return AuthBase::rsa_decrypt_password(tls_context_->get(), encrypted, nonce);
+}
+
 bool AuthBase::connection_has_public_key(
     MysqlRoutingClassicConnectionBase *connection) {
   if (!connection->context().source_ssl_ctx()) return false;
 
-  SSL_CTX *ssl_ctx = connection->context().source_ssl_ctx()->get();
+  auto tls_context = connection->context().source_ssl_ctx();
+  SSL_CTX *ssl_ctx = tls_context->get();
 
   return SSL_CTX_get0_certificate(ssl_ctx) != nullptr;
 }

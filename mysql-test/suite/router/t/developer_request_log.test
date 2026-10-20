@@ -1,6 +1,7 @@
 # Verify handling of HTTP request/response logging.
 #
 --source include/have_router.inc
+--source include/skip_component_mrs.inc
 
 --let $extra_mrs_router_id=1
 --source ../include/predefined_setup/configure_router_mrs_root.inc

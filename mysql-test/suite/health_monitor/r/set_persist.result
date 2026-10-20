@@ -1,0 +1,187 @@
+##
+## Health Monitor component
+##
+## Verify SET GLOBAL, SET PERSIST and SET PERSIST_ONLY for disk_monitored
+## and disk_fallback_enable. Reload the component to verify that persisted
+## values are applied during registration.
+##
+
+# Procedure:
+#  1. Save active settings and require no persisted values for this test.
+#  2. Verify SET GLOBAL does not persist the fencing setting.
+#  3. Persist fencing ON and an empty path, retaining the active path.
+#  4. Reload the component and verify persisted values and path resolution.
+#  5. Remove the test's persisted values and restore active settings.
+
+## Test case initialization - Begin
+
+# Storage quantities allow up to ULONG_MAX - 1
+set @ulong_max = 18446744073709551615;
+set @max_level = @ulong_max - 1;
+
+# A very high offline level will force the offline mode
+set @force_offline_mode = @max_level;
+
+# Disk usage warning level = 100% will force warnings, 0% will disable warnings
+set @force_disk_warning = 100;
+set @no_disk_warning = 0;
+
+# Memory usage warning level = ULONG_MAX-1 will force warnings, 0 will disable warnings
+set @force_memory_warning = @max_level;
+set @no_memory_warning = 0;
+
+# Ignore warnings during startup
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+
+# Install the component
+install component 'file://component_health_monitor';
+
+# Turn off the collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+# Disable low disk space warnings
+set @@global.health_monitor.disk_usage_warning_level_1 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_2 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_3 = @no_disk_warning;
+
+# Disable low memory warnings
+set @@global.health_monitor.memory_usage_warning_level_1 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_2 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_3 = @no_memory_warning;
+
+# Disable the low level storage thresholds to avoid inadvertently triggering
+# fallback mode on the vardir volume
+set @@global.health_monitor.disk_low_space_level = 0;
+set @@global.health_monitor.disk_low_space_percent = 0;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+# Disable recovery mode
+set @@global.health_monitor.disk_recovery_enable = off;
+
+# Fallback mode may have been triggered when the component was loaded,
+# so reset offline_mode and super_read_only as a precaution.
+# The 'super_read_only_disk_full' status variable will be reset when the
+# monitored disk path is changed.
+
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+
+# Set monitored disk after disabling the low space thresholds
+set @@global.health_monitor.disk_monitored = 'MYSQLTEST_VARDIR';
+
+select @@global.offline_mode;
+@@global.offline_mode
+0
+select @@global.super_read_only;
+@@global.super_read_only
+0
+select @@global.read_only;
+@@global.read_only
+0
+show status like 'super_read_only_disk_full';
+Variable_name	Value
+super_read_only_disk_full	OFF
+show status like 'offline_mode_disk_full';
+Variable_name	Value
+offline_mode_disk_full	OFF
+
+use performance_schema;
+
+## Test case initialization - End
+
+# Health Monitor changed-default persistence and component reload
+
+# SET GLOBAL changes only the active value
+set global health_monitor.disk_fallback_enable = on;
+select @@global.health_monitor.disk_fallback_enable;
+@@global.health_monitor.disk_fallback_enable
+1
+select count(*) = 0 as fallback_enable_not_persisted
+from performance_schema.persisted_variables
+where variable_name = 'health_monitor.disk_fallback_enable';
+fallback_enable_not_persisted
+1
+set global health_monitor.disk_fallback_enable =
+@original_disk_fallback_enable;
+
+# SET PERSIST changes the active value and stores it
+set persist health_monitor.disk_fallback_enable = on;
+
+# SET PERSIST_ONLY stores an empty path without changing the active path
+set global health_monitor.disk_monitored = @data_directory;
+set persist_only health_monitor.disk_monitored = '';
+select @@global.health_monitor.disk_fallback_enable;
+@@global.health_monitor.disk_fallback_enable
+1
+select @@global.health_monitor.disk_monitored = @data_directory
+as explicit_monitored_path_still_active;
+explicit_monitored_path_still_active
+1
+select variable_name,
+if(variable_name = 'health_monitor.disk_monitored',
+concat('length=', length(variable_value)), variable_value)
+as persisted_value
+from performance_schema.persisted_variables
+where variable_name in
+('health_monitor.disk_fallback_enable',
+'health_monitor.disk_monitored')
+order by variable_name;
+variable_name	persisted_value
+health_monitor.disk_fallback_enable	ON
+health_monitor.disk_monitored	length=0
+
+# Component reload applies the two persisted values during registration
+uninstall component 'file://component_health_monitor';
+install component 'file://component_health_monitor';
+select @@global.health_monitor.disk_fallback_enable = 1
+as persisted_fallback_enable_active;
+persisted_fallback_enable_active
+1
+select length(@@global.health_monitor.disk_monitored)
+as empty_monitored_path_active;
+empty_monitored_path_active
+0
+
+# Persisted empty path resolves before active disk forecasting starts
+select count(*) > 0 as persisted_empty_forecaster_uses_datadir
+from performance_schema.error_log
+where data like '%Disk Forecaster: Started:%'
+   and locate(concat("volume='", @data_directory, "'"), data) > 0
+and logged > @component_reload_start;
+persisted_empty_forecaster_uses_datadir
+1
+
+# Remove only the persisted values created by this test
+reset persist `health_monitor.disk_fallback_enable`;
+reset persist `health_monitor.disk_monitored`;
+select count(*) = 0 as test_rows_removed
+from performance_schema.persisted_variables
+where variable_name in
+('health_monitor.disk_fallback_enable',
+'health_monitor.disk_monitored');
+test_rows_removed
+1
+
+# Restore active setup values before uninstall
+set global health_monitor.disk_fallback_enable =
+@original_disk_fallback_enable;
+set global health_monitor.disk_monitored = @original_disk_monitored;
+uninstall component 'file://component_health_monitor';

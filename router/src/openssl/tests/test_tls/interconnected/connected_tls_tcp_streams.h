@@ -85,9 +85,9 @@ class ConnectedTlsTcpStreams {
     tcp_stream_.create_interconnected(context1, context2, socket1, socket2);
 
 #ifdef CONNECTION_TLS_TCP_STREAM_MONITOR
-    out_server.reset(new Stream(out_, &tls_context_.ssl_ctxt_server_, out_,
+    out_server.reset(new Stream(out_, tls_context_.ssl_ctxt_server_, out_,
                                 std::move(*socket1)));
-    out_client.reset(new Stream(out_, &tls_context_.ssl_ctxt_client_, out_,
+    out_client.reset(new Stream(out_, tls_context_.ssl_ctxt_client_, out_,
                                 std::move(*socket2)));
 
     out_server->set_name("Server/Tls");
@@ -96,9 +96,9 @@ class ConnectedTlsTcpStreams {
     out_client->lower_layer().lower_layer().set_name("Client/Raw");
 #else
     out_server.reset(
-        new Stream(&tls_context_.ssl_ctxt_server_, std::move(*socket1)));
+        new Stream(tls_context_.ssl_ctxt_server_, std::move(*socket1)));
     out_client.reset(
-        new Stream(&tls_context_.ssl_ctxt_client_, std::move(*socket2)));
+        new Stream(tls_context_.ssl_ctxt_client_, std::move(*socket2)));
 #endif  // CONNECTION_TLS_TCP_STREAM_MONITOR
   }
 

@@ -429,14 +429,14 @@ int Query_event::fill_data_buf(Log_event_header::Byte *buf,
 
 User_var_event::User_var_event(const char *buf,
                                const Format_description_event *fde)
-    : Binary_log_event(&buf, fde) {
+    : Binary_log_event(&buf, fde), name(nullptr) {
   BAPI_ENTER("User_var_event::User_var_event(const char*, ...)");
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
   READER_TRY_CALL(forward, fde->post_header_len[USER_VAR_EVENT - 1]);
 
   READER_TRY_SET(name_len, read<uint32_t>);
-  if (name_len == 0) READER_THROW("Invalid name length");
+  if (name_len == 0 || name_len > NAME_LEN) READER_THROW("Invalid name length");
   name = READER_CALL(strndup<const char *>, name_len);
   READER_TRY_SET(is_null, read<uint8_t>);
 

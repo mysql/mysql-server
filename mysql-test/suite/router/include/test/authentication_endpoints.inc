@@ -47,6 +47,7 @@ if (!$test_param_authentication)
 --echo
 
 --source ../predefined_setup/configure_router_mrs_root.inc
+--source ../schema/basic_schema.sql
 
 --echo #
 --echo # I.1

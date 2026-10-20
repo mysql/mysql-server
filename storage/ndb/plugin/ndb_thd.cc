@@ -160,7 +160,7 @@ Ndb_thd_memory_guard::~Ndb_thd_memory_guard() {
 
 Ndb_thd_guard::Ndb_thd_guard() : m_thd(new THD()) {
   m_thd->system_thread = SYSTEM_THREAD_BACKGROUND;
-  m_thd->thread_stack = reinterpret_cast<const char *>(&m_thd);
+  m_thd->capture_stack_base(reinterpret_cast<const void *>(&m_thd));
   m_thd->set_new_thread_id();
   m_thd->store_globals();
   m_thd->set_command(COM_DAEMON);

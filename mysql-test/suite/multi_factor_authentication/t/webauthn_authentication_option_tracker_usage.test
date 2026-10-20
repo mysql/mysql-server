@@ -1,0 +1,49 @@
+--source include/have_webauthn_plugin.inc
+--source include/not_solaris.inc
+
+--echo #
+--echo # WL#16403: usage data test
+--echo #
+
+# Test usage data being added for webauthn
+# Test plan:
+# 1. install option tracker
+# 2. install webauthn
+# 3. verify that option usage data are not present
+# 4. create a user using webauthn
+# 5. make sure that opion usage data are present
+# 6. cleanup
+
+CREATE DATABASE `mysql_option`;
+CREATE TABLE `mysql_option`.`option_usage` (
+        `CLUSTER_ID` VARCHAR(36) NOT NULL COLLATE utf8mb4_general_ci,
+        `SERVER_ID` VARCHAR(36) NOT NULL COLLATE utf8mb4_general_ci,
+        `OPTION_NAME` VARCHAR(64) NOT NULL COLLATE utf8mb4_general_ci,
+        `USAGE_DATA` JSON NOT NULL,
+        PRIMARY KEY(`CLUSTER_ID`, `SERVER_ID`, `OPTION_NAME`)
+) Engine=InnoDB;
+
+INSTALL COMPONENT 'file://component_option_tracker';
+
+--echo # No webauthn usage: should return 0 rows.
+SELECT VARIABLE_VALUE > 0 FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'option_tracker_usage:WebauthN authentication';
+
+--replace_result $WEBAUTHN_AUTHENTICATION_PLUGIN webauthn_auth_file_name
+eval INSTALL PLUGIN authentication_webauthn SONAME '$WEBAUTHN_AUTHENTICATION_PLUGIN';
+
+--echo # Should return 0: still not used
+SELECT VARIABLE_VALUE > 0 FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'option_tracker_usage:WebauthN authentication';
+
+CREATE USER u1 IDENTIFIED WITH authentication_webauthn BY 'fooo';
+
+--echo # Should return 1: digest
+SELECT VARIABLE_VALUE > 0 FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'option_tracker_usage:WebauthN authentication';
+
+DROP USER u1;
+UNINSTALL PLUGIN authentication_webauthn;
+UNINSTALL COMPONENT 'file://component_option_tracker';
+DROP TABLE `mysql_option`.`option_usage`;
+DROP DATABASE `mysql_option`;

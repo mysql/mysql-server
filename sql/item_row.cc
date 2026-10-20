@@ -28,6 +28,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql/check_stack.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
@@ -93,6 +94,9 @@ void Item_row::illegal_method_call(const char *method [[maybe_unused]]) const {
 }
 
 bool Item_row::fix_fields(THD *thd, Item **) {
+  uchar buff[STACK_BUFF_ALLOC];
+  if (check_stack_overrun(thd, STACK_MIN_SIZE * 4, buff)) return true;
+
   assert(!fixed);
   null_value = false;
   set_nullable(false);

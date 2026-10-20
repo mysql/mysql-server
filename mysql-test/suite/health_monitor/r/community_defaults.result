@@ -1,0 +1,97 @@
+##
+## Health Monitor component
+##
+## Verify the Health Monitor defaults for Community Edition.
+## A fresh installation uses an empty monitored path and disables fencing.
+## Both disk consumers must resolve the empty path to the data directory.
+##
+
+# Procedure:
+#  1. Install the component without changing its default configuration.
+#  2. Check the public defaults and disk fencing ownership status.
+#  3. Verify both disk consumers start with the data directory path.
+#  4. Check explicit configuration values and restore them with DEFAULT.
+#  5. Uninstall the component.
+
+# Ignore collector messages during installation
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+
+# Install the component with fresh defaults
+install component 'file://component_health_monitor';
+
+# Verify Community Edition defaults
+select length(@@global.health_monitor.disk_monitored) = 0
+as disk_monitored_default_is_empty;
+disk_monitored_default_is_empty
+1
+select @@global.health_monitor.disk_fallback_enable = 0
+as disk_fallback_default_is_off;
+disk_fallback_default_is_off
+1
+select variable_name, variable_value
+from performance_schema.global_status
+where variable_name in
+('offline_mode_disk_full', 'super_read_only_disk_full')
+order by variable_name;
+variable_name	variable_value
+offline_mode_disk_full	OFF
+super_read_only_disk_full	OFF
+
+# Verify the untouched empty default resolves to the data directory
+select count(*) > 0 as fresh_disk_collector_uses_datadir
+from performance_schema.error_log
+where data like '%Disk Collector: Started:%'
+   and locate(concat("volume monitored='", @data_directory, "'"), data) > 0
+and logged > @fresh_install_start;
+fresh_disk_collector_uses_datadir
+1
+select count(*) > 0 as fresh_disk_forecaster_uses_datadir
+from performance_schema.error_log
+where data like '%Disk Forecaster: Started:%'
+   and locate(concat("volume='", @data_directory, "'"), data) > 0
+and logged > @fresh_install_start;
+fresh_disk_forecaster_uses_datadir
+1
+
+# Stop disk consumers before checking explicit configured values
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_forecast_running = off;
+set @@global.health_monitor.disk_monitored = '/db';
+set @@global.health_monitor.disk_fallback_enable = on;
+select @@global.health_monitor.disk_monitored = '/db'
+       as explicit_monitored_path_is_accepted;
+explicit_monitored_path_is_accepted
+1
+select @@global.health_monitor.disk_fallback_enable = 1
+as explicit_fencing_is_accepted;
+explicit_fencing_is_accepted
+1
+
+# Reset the changed values to their public defaults
+set @@global.health_monitor.disk_monitored = default;
+set @@global.health_monitor.disk_fallback_enable = default;
+select length(@@global.health_monitor.disk_monitored) = 0
+as disk_monitored_default_is_restored;
+disk_monitored_default_is_restored
+1
+select @@global.health_monitor.disk_fallback_enable = 0
+as disk_fallback_default_is_restored;
+disk_fallback_default_is_restored
+1
+
+# Uninstall the component
+uninstall component 'file://component_health_monitor';

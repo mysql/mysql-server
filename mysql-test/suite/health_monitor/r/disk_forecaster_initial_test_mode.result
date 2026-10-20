@@ -1,0 +1,33 @@
+##
+## Health Monitor component
+##
+## Verify that TEST mode loaded during component registration executes once.
+## Persist the mode without applying it live, then reload the component.
+## The missing input file must end the test cycle and return to NORMAL.
+##
+
+# Procedure:
+#  1. Install the component and persist TEST mode with SET PERSIST_ONLY.
+#  2. Reload the component to apply TEST mode during registration.
+#  3. Wait for NORMAL and verify that test initialization was attempted.
+#  4. Remove the persisted mode and uninstall the component.
+
+# Install the component and persist TEST mode without changing it live
+install component 'file://component_health_monitor';
+set persist_only health_monitor.disk_forecast_run_mode = TEST;
+
+# Reload the component with TEST as the initial run mode
+uninstall component 'file://component_health_monitor';
+install component 'file://component_health_monitor';
+
+# Initial TEST mode executes and returns to NORMAL after input failure
+select count(*) > 0 as initial_test_mode_executed
+from performance_schema.error_log
+where data like '%[TEST] Test initialization failed%'
+   and logged > @component_reload_start;
+initial_test_mode_executed
+1
+
+# Clean up
+reset persist `health_monitor.disk_forecast_run_mode`;
+uninstall component 'file://component_health_monitor';

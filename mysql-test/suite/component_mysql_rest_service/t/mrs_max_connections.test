@@ -1,0 +1,187 @@
+--source include/have_mysql_rest_service_component.inc
+--source include/not_solaris.inc
+
+# MRS data-plane sessions must use Server connection admission.
+
+--source ../include/cmrs/initialize.inc
+
+SET @saved_max_connections = @@GLOBAL.max_connections;
+CREATE SCHEMA mrs_admission;
+CREATE TABLE mrs_admission.holder (id INT PRIMARY KEY);
+INSERT INTO mrs_admission.holder VALUES (1);
+CREATE USER mrs_admission_user@'%' IDENTIFIED BY 'pwd';
+GRANT SELECT ON mrs_admission.* TO mrs_admission_user@'%';
+--let $router_test_schemas=mrs_admission;$router_test_schemas
+
+--source $router_tests/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/admission"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+
+--let $mrs_add_schema=mrs_admission
+--let $mrs_add_schema_path=/db
+--source $router_tests/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=holder
+--let $mrs_add_db_object_path=/holder
+--let $mrs_add_db_object_op=READ
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_service_path="/passthrough"
+--let $mrs_add_host_name=""
+--let $mrs_add_service_options='{"passthroughDbUser":true}'
+--source $router_tests/mrs/service/add.inc
+
+--let $mrs_add_schema=mrs_admission
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=TRUE
+--source $router_tests/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=holder
+--let $mrs_add_db_object_path=/holder
+--let $mrs_add_db_object_op=READ
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_auth_app=admission authentication
+--let $mrs_add_auth_vendor=MySQL Internal
+--let $mrs_add_auth_service=/passthrough
+--source $router_tests/mrs/auth_app/add.inc
+
+--source $router_tests/mrs/end_object_definition.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Storing statistics failed, because of the following error:Too many connections");
+CALL mtr.add_suppression("Could not get DB session for user 'mrs_admission_user' for service: Too many connections");
+--enable_query_log
+
+--echo # A running REST query contributes to the Server connection count.
+LOCK TABLES mrs_admission.holder WRITE;
+--let $holder_result_file=$MYSQL_TMP_DIR/mrs_admission_holder.result
+--exec_in_background $MRS_CLIENT_ARGS --path /admission/db/holder/1 --display result > $holder_result_file 2>&1
+--let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.processlist WHERE USER = 'mysql_mrs_data' AND STATE LIKE 'Waiting%' AND INFO LIKE '%holder%'
+--source include/wait_condition_or_abort.inc
+SELECT VARIABLE_VALUE >= 2 AS rest_session_counted
+  FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Threads_connected';
+UNLOCK TABLES;
+--let $grep_pattern=OK
+--let $grep_file=$holder_result_file
+--let $wait_timeout=30
+--let $skip_log_pattern=1
+--source include/wait_for_pattern_in_file.inc
+--let $grep_pattern=
+--let $grep_file=
+--let $wait_timeout=
+--let $skip_log_pattern=
+--remove_file $holder_result_file
+
+--echo # Authenticate before filling the limit, then exercise the user pool.
+exec $MRS_CLIENT_ARGS -a BASIC --path /passthrough/authentication/login
+  -u mrs_admission_user -p pwd --display none
+  --session-file $MYSQL_TMP_DIR/mrs_admission_session.dat;
+--let $mrs_client_arg_path='/passthrough/authentication/status'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/mrs_admission_session.dat
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/passthrough/db/holder/1'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/mrs_admission_session.dat
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--echo # The existing mysqltest connection fills max_connections.
+SET GLOBAL max_connections = 1;
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $mrs_client_arg_path='/admission/db/holder/1'
+--let $mrs_client_arg_expected_status=500
+--let $mrs_client_arg_display=status
+--source $router_tests/mrs/mrs_client.inc
+
+--let $mrs_client_arg_path='/passthrough/db/holder/1'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/mrs_admission_session.dat
+--let $mrs_client_arg_expected_status=500
+--let $mrs_client_arg_display=status
+--source $router_tests/mrs/mrs_client.inc
+
+--echo # Request-time metadata access must also enforce the limit.
+--let $mrs_client_arg_path='/passthrough/authentication/status'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/mrs_admission_session.dat
+--let $mrs_client_arg_expected_status=500
+--let $mrs_client_arg_display=status
+--source $router_tests/mrs/mrs_client.inc
+
+--echo # Metadata reload proceeds, but statistics cannot bypass admission.
+SET @statistics_count = (SELECT COUNT(*) FROM mysql_rest_service_metadata.router_status);
+UPDATE mysql_rest_service_metadata.db_object
+  SET request_path = '/reloaded' WHERE request_path = '/holder';
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+SELECT COUNT(*) = @statistics_count AS statistics_enforce_limit
+  FROM mysql_rest_service_metadata.router_status;
+
+--let $mrs_client_arg_path='/admission/db/holder/1'
+--let $mrs_client_arg_expected_status=404
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--let $mrs_client_arg_path='/admission/db/reloaded/1'
+--let $mrs_client_arg_expected_status=500
+--let $mrs_client_arg_display=status
+--source $router_tests/mrs/mrs_client.inc
+
+--echo # Repeated rejections leave no data-plane sessions behind.
+--let $rejections=3
+while ($rejections)
+{
+  --let $mrs_client_arg_path='/admission/db/reloaded/1'
+  --let $mrs_client_arg_expected_status=500
+  --let $mrs_client_arg_display=status
+  --source $router_tests/mrs/mrs_client.inc
+  --dec $rejections
+}
+--let $wait_condition=SELECT COUNT(*) = 0 FROM performance_schema.processlist WHERE USER IN ('mysql_mrs_data', 'mrs_admission_user')
+--source include/wait_condition_or_abort.inc
+
+--echo # Statistics can use the last available connection slot.
+SET GLOBAL max_connections = 2;
+--let $wait_condition=SELECT COUNT(*) > @statistics_count FROM mysql_rest_service_metadata.router_status
+--source include/wait_condition_or_abort.inc
+
+--echo # Both execution modes recover when Server capacity is restored.
+SET GLOBAL max_connections = @saved_max_connections;
+--let $mrs_client_arg_path='/admission/db/reloaded/1'
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/passthrough/db/reloaded/1'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/mrs_admission_session.dat
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--echo # Backend readiness and initial metadata load work at the limit.
+SET GLOBAL max_connections = 1;
+SELECT mysql_rest_service_restart();
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition_or_abort.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $mrs_client_arg_path='/admission/db/reloaded/1'
+--let $mrs_client_arg_expected_status=500
+--let $mrs_client_arg_display=status
+--source $router_tests/mrs/mrs_client.inc
+SET GLOBAL max_connections = @saved_max_connections;
+--let $mrs_client_arg_path='/admission/db/reloaded/1'
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+# Error details are hidden in normal component responses; verify the retained
+# SQL error in the Server log for all eight rejected requests.
+--let $assert_text = All rejected REST requests retain ER_CON_COUNT_ERROR
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = handle_error message=Too many connections sqlcode=1040
+--let $assert_count = 8
+--source include/assert_grep.inc
+
+--echo # Cleanup
+--remove_file $MYSQL_TMP_DIR/mrs_admission_session.dat
+DROP USER mrs_admission_user@'%';
+--source ../include/cmrs/cleanup.inc

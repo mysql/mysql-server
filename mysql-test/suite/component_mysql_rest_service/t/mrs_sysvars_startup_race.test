@@ -1,0 +1,196 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that system-variable updates racing with backend readiness are not
+# lost and do not publish a mixed active-runtime snapshot.
+
+--source include/have_debug.inc
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Commit updates while startup is paused before status publication
+--echo ## II. Publish one coherent active snapshot and retain runtime updates
+--echo ## III. Apply the committed start-time snapshot on the next restart
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--disable_query_log
+--let $initial_current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $initial_current_tls_cert = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert';`
+--let $initial_current_tls_key = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key';`
+--let $initial_current_tls_cipher = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher';`
+--let $initial_current_io_worker_threads = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads';`
+
+--let $updated_http_port = `SELECT $HTTP_SERVER_PORT + 1;`
+--let $updated_tls_cert = $MYSQL_TEST_DIR/std_data/server-cert.pem
+--let $updated_tls_key = $MYSQL_TEST_DIR/std_data/server-key.pem
+--let $updated_tls_cipher = ECDHE-RSA-AES256-GCM-SHA384
+
+call mtr.add_suppression("Paused before publishing current runtime values");
+call mtr.add_suppression("rejected request due to max_request_body_size limit");
+SELECT NOW(6) INTO @startup_pause_start;
+--enable_query_log
+
+SELECT mysql_rest_service_stop();
+
+--echo
+--echo # I. Pause a new startup before it publishes READY and current values
+SET @@GLOBAL.DEBUG = '+d, mrs_component_pause_before_runtime_status_publication';
+SELECT mysql_rest_service_start();
+
+--let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.error_log WHERE LOGGED > @startup_pause_start AND DATA LIKE '%Paused before publishing current runtime values%'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = startup remains STARTING at the publication checkpoint
+--let $assert_cond = "$mrs_state" = "STARTING"
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = no active snapshot is visible at the publication checkpoint
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+
+--echo # Commit start-time and runtime-applied changes while startup is paused.
+--disable_query_log
+--eval SET GLOBAL mysql_rest_service.http_port = $updated_http_port;
+--eval SET GLOBAL mysql_rest_service.ssl_cert = "$updated_tls_cert";
+--eval SET GLOBAL mysql_rest_service.ssl_key = "$updated_tls_key";
+--eval SET GLOBAL mysql_rest_service.ssl_cipher = "$updated_tls_cipher";
+SET GLOBAL mysql_rest_service.io_worker_threads = 1;
+SET GLOBAL mysql_rest_service.http_max_request_body_size = 0;
+
+--let $configured_http_port = `SELECT @@GLOBAL.mysql_rest_service.http_port;`
+--let $configured_tls_cert = `SELECT @@GLOBAL.mysql_rest_service.ssl_cert;`
+--let $configured_tls_key = `SELECT @@GLOBAL.mysql_rest_service.ssl_key;`
+--let $configured_tls_cipher = `SELECT @@GLOBAL.mysql_rest_service.ssl_cipher;`
+--let $configured_io_worker_threads = `SELECT @@GLOBAL.mysql_rest_service.io_worker_threads;`
+--let $configured_request_body_size = `SELECT @@GLOBAL.mysql_rest_service.http_max_request_body_size;`
+--enable_query_log
+
+--let $assert_text = paused startup retains the committed http_port
+--let $assert_cond = $configured_http_port = $updated_http_port
+--source include/assert.inc
+--let $assert_text = paused startup retains the committed TLS certificate
+--let $assert_cond = "$configured_tls_cert" = "$updated_tls_cert"
+--source include/assert.inc
+--let $assert_text = paused startup retains the committed TLS private key
+--let $assert_cond = "$configured_tls_key" = "$updated_tls_key"
+--source include/assert.inc
+--let $assert_text = paused startup retains the committed TLS cipher
+--let $assert_cond = "$configured_tls_cipher" = "$updated_tls_cipher"
+--source include/assert.inc
+--let $assert_text = paused startup retains the committed worker count
+--let $assert_cond = $configured_io_worker_threads = 1
+--source include/assert.inc
+--let $assert_text = paused startup retains the committed request-body limit
+--let $assert_cond = $configured_request_body_size = 0
+--source include/assert.inc
+
+--echo
+--echo # II. Release the same startup through an idempotent start request
+SET @@GLOBAL.DEBUG = '-d, mrs_component_pause_before_runtime_status_publication';
+SET @@GLOBAL.DEBUG = '+d, mrs_component_resume_runtime_status_publication';
+SELECT mysql_rest_service_start();
+SET @@GLOBAL.DEBUG = '-d, mrs_component_resume_runtime_status_publication';
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $current_tls_cert = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert';`
+--let $current_tls_key = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key';`
+--let $current_tls_cipher = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher';`
+--let $current_io_worker_threads = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads';`
+
+--let $assert_text = resumed startup publishes its captured HTTP port
+--let $assert_cond = $current_http_port = $initial_current_http_port
+--source include/assert.inc
+--let $assert_text = resumed startup publishes its captured TLS certificate
+--let $assert_cond = "$current_tls_cert" = "$initial_current_tls_cert"
+--source include/assert.inc
+--let $assert_text = resumed startup publishes its captured TLS private key
+--let $assert_cond = "$current_tls_key" = "$initial_current_tls_key"
+--source include/assert.inc
+--let $assert_text = resumed startup publishes its captured TLS cipher
+--let $assert_cond = "$current_tls_cipher" = "$initial_current_tls_cipher"
+--source include/assert.inc
+--let $assert_text = resumed startup publishes its captured worker count
+--let $assert_cond = $current_io_worker_threads = $initial_current_io_worker_threads
+--source include/assert.inc
+
+--echo # The runtime-applied request-body update survives readiness publication.
+--let $mrs_client_arg_path='/does-not-exist'
+--let $mrs_client_arg_payload='x'
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_expected_status=413
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+SET GLOBAL mysql_rest_service.http_max_request_body_size = DEFAULT;
+
+--let $mrs_client_arg_path='/does-not-exist'
+--let $mrs_client_arg_payload='x'
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_expected_status=404
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--let $UPDATED_MRS_CLIENT_ARGS=$MRS_CLIENT --url https://127.0.0.1:$updated_http_port
+--echo # The configured replacement port is not active before restart.
+--exec $UPDATED_MRS_CLIENT_ARGS --path /mrs-sysvar-race-probe --display none --expected-fatal-error="Can't connect to remote host"
+
+--echo
+--echo # III. Restart with the configuration committed during prior startup
+SELECT mysql_rest_service_restart();
+
+--let $wait_condition=SELECT VARIABLE_VALUE = '$updated_http_port' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port'
+--source include/wait_condition.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $current_tls_cert = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert';`
+--let $current_tls_key = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key';`
+--let $current_tls_cipher = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher';`
+--let $current_io_worker_threads = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads';`
+
+--let $assert_text = restart publishes the committed HTTP port
+--let $assert_cond = $current_http_port = $updated_http_port
+--source include/assert.inc
+--let $assert_text = restart publishes the committed TLS certificate
+--let $assert_cond = "$current_tls_cert" = "$updated_tls_cert"
+--source include/assert.inc
+--let $assert_text = restart publishes the committed TLS private key
+--let $assert_cond = "$current_tls_key" = "$updated_tls_key"
+--source include/assert.inc
+--let $assert_text = restart publishes the committed TLS cipher
+--let $assert_cond = "$current_tls_cipher" = "$updated_tls_cipher"
+--source include/assert.inc
+--let $assert_text = restart publishes the committed worker count
+--let $assert_cond = $current_io_worker_threads = 1
+--source include/assert.inc
+
+--echo # The old listener is unavailable after restart.
+--exec $MRS_CLIENT_ARGS --path /mrs-sysvar-race-probe --display none --expected-fatal-error="Can't connect to remote host"
+
+--echo # The replacement listener is available with one coherent snapshot.
+--exec $UPDATED_MRS_CLIENT_ARGS --path /mrs-sysvar-race-probe --response-type raw --expected-status NotFound --display none
+
+--echo
+--echo # Cleanup
+--disable_query_log
+--eval SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT;
+--enable_query_log
+SET GLOBAL mysql_rest_service.ssl_cert = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_key = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_cipher = DEFAULT;
+SET GLOBAL mysql_rest_service.io_worker_threads = DEFAULT;
+--source ../include/cmrs/cleanup.inc

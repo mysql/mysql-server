@@ -1,0 +1,94 @@
+
+
+## I. Basic component install/uninstall commands:
+#
+# 1. verify that user can issue component uninstall despite its internal
+#    state (initialization is pending due to metadata missing),
+# 2. verify that subsequent install/uninstall,
+#
+## II. uninstall commands still works, after changing the state of
+##     internal initialization:
+#
+# 1. verify that user can issue component uninstall after stopping
+#    internal initialization,
+# 2. verify that user can issue component uninstall after stopping and
+#    resuming internal initialization,
+# 3. verify that user can issue component uninstall after restarting
+#    internal initialization.
+# 4. verify that starting initialization while it is ongoing is
+#    idempotent.
+#
+## III. automatic recovery after creating the metadata schema:
+#
+# 1. verify that the component waits without exposing a listener,
+# 2. create the metadata schema without issuing another lifecycle UDF,
+# 3. verify that the component reaches READY and accepts HTTPS requests.
+#
+
+#
+# I.1
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+
+#
+# I.2
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+
+#
+# II.1
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+SELECT mysql_rest_service_stop();
+mysql_rest_service_stop()
+0
+SELECT mysql_rest_service_stop();
+mysql_rest_service_stop()
+0
+include/assert.inc [state reports STOPPED after idempotent stop]
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+
+#
+# II.2
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+SELECT mysql_rest_service_stop();
+mysql_rest_service_stop()
+0
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+
+#
+# II.3
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+
+#
+# II.4
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+include/assert.inc [state remains WAITING_FOR_METADATA after idempotent start]
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+
+#
+# III
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+include/assert.inc [state reports WAITING_FOR_METADATA while metadata is missing]
+include/assert.inc [current_http_port is inactive while metadata is missing]
+# The REST listener must remain unavailable while metadata is missing.
+# MySQL Rest Service schema created.
+include/assert.inc [state reports READY after metadata is created]
+include/assert.inc [current_http_port is published after metadata recovery]
+# The HTTPS listener accepts requests after metadata recovery.
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

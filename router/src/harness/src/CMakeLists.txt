@@ -22,7 +22,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE(GenerateExportHeader)
-INCLUDE(Plugin)
 
 
 # Generate dynamic_state_schema.cc and configuration_update_schema.cc
@@ -266,6 +265,7 @@ SET(harness_source
   mysql_router_thread.cc
   process_launcher.cc
   logging/consolelog_plugin.cc
+  logging/componentlog_plugin.cc
   logging/filelog_plugin.cc
   logging/handler.cc
   logging/logger.cc
@@ -277,6 +277,7 @@ SET(harness_source
   signal_handler.cc
   scoped_callback.cc
   sd_notify.cc
+  sync_point.cc
   socket_operations.cc
   tls_cipher.cc
   tty.cc
@@ -288,6 +289,7 @@ SET(harness_source
   keyring/master_key_file.cc
   process_state_component.cc
   log_reopen_component.cc
+  tls_reload_component.cc
   dynamic_config.cc
   section_config_exposer.cc
   destination.cc
@@ -300,7 +302,12 @@ SET(harness_source
   resolver/resolver.cc
   resolver/registry.cc
   resolver/error_code.cc
+  application_type_manager.cc
   )
+
+IF(NOT ROUTER_SYNC_POINT_ENABLED)
+  LIST(REMOVE_ITEM harness_source sync_point.cc)
+ENDIF()
 
 IF(NOT SOLARIS)
   LIST(APPEND harness_source
@@ -356,67 +363,77 @@ CONFIGURE_FILE(plugin.h.in ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plug
 
 # create harness library - dynamic version
 ROUTER_ADD_SHARED_LIBRARY(harness-library
-  ${harness_source} ${GENERATED_SOURCES}
+  SOURCES
+  ${harness_source}
+  ${GENERATED_SOURCES}
+
   DEPENDENCIES
   json_schema_target_dynamic_state_schema
   json_schema_target_configuration_update_schema
+  GenError
 
-  NO_EXPORT_HEADER  # custom include-path
+  EXPORT_BASE_NAME HARNESS
+  EXPORT_HEADER "${MySQLRouter_BINARY_DIR}/include/harness_export.h"
 
   OUTPUT_NAME "mysqlharness"
 
-  LINK_LIBRARIES
-  ${common_libraries}
-  router_mysqlclient
+  LINK_LIBRARIES_IF
   extra::rapidjson
   ext::icu
+
+  LINK_LIBRARIES
+  PUBLIC
+  ${common_libraries}
+  router_mysqlclient
+
+  INCLUDE_DIRECTORIES_IF
+  ../include
+  ${CMAKE_CURRENT_BINARY_DIR}
   )
 
-TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC
-  ../include
-  ${CMAKE_CURRENT_BINARY_DIR})
-
-generate_export_header(harness-library
-  BASE_NAME HARNESS
-  EXPORT_FILE_NAME ${MySQLRouter_BINARY_DIR}/include/harness_export.h)
-
 IF(SOLARIS)
-  TARGET_LINK_LIBRARIES(harness-library -lnsl -lsocket)
+  TARGET_LINK_LIBRARIES(harness-library PRIVATE -lnsl -lsocket)
 ENDIF()
 
 ROUTER_ADD_SHARED_LIBRARY(harness_stdx
+  SOURCES
   stdx/filesystem.cc
   stdx/io/file_handle.cc
 
-  NO_EXPORT_HEADER
+  DEPENDENCIES
+  GenError
+
+  EXPORT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/../include/mysql/harness/stdx_export.h"
 
   OUTPUT_NAME "mysqlharness_stdx"
+
+  INCLUDE_DIRECTORIES_IF
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
 )
 
-TARGET_SOURCES(harness_stdx
+TARGET_SOURCES(harness_stdx_interface
   INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/mysql/harness/stdx/bit.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/mysql/harness/stdx/expected.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/mysql/harness/stdx/type_traits.h
   )
-TARGET_INCLUDE_DIRECTORIES(harness_stdx
-  PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  )
-GENERATE_EXPORT_HEADER(harness_stdx
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysql/harness/stdx_export.h)
 
 ## harness_tls
 
 ROUTER_ADD_SHARED_LIBRARY(harness_tls
+  SOURCES
   tls_client_context.cc
   tls_context.cc
   tls_error.cc
   tls_server_context.cc
 
-  NO_EXPORT_HEADER  # custom include-path
+  EXPORT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/../include/mysql/harness/tls_export.h"
   OUTPUT_NAME "mysqlharness_tls"
+
+  INCLUDE_DIRECTORIES_IF
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
 
   LINK_LIBRARIES
   PUBLIC OpenSSL::SSL OpenSSL::Crypto
@@ -425,12 +442,3 @@ ROUTER_ADD_SHARED_LIBRARY(harness_tls
 IF(TARGET copy_openssl_dlls)
   ADD_DEPENDENCIES(harness_tls copy_openssl_dlls)
 ENDIF()
-
-GENERATE_EXPORT_HEADER(harness_tls
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysql/harness/tls_export.h)
-
-TARGET_INCLUDE_DIRECTORIES(harness_tls
-  PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  )

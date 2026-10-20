@@ -39,6 +39,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "mysql/binlog/event/export/binary_log_funcs.h"
 #include "sql/psi_memory_key.h"
 
 struct MY_BITMAP;
@@ -422,6 +423,15 @@ class table_def {
     data from the master to a specific column.
   */
   uint32 calc_field_size(uint col, const uchar *master_data) const;
+
+  /*
+    This function returns the field size in raw bytes after checking that any
+    field length bytes read from master_data fit within available.
+  */
+  enum_calc_field_size_status calc_field_size_checked(uint col,
+                                                      const uchar *master_data,
+                                                      size_t available,
+                                                      uint32 *field_size) const;
 
   std::vector<unsigned int>::const_iterator get_vector_dimensionality_begin()
       const {

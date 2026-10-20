@@ -47,10 +47,12 @@ SET(CLIENT_API_FUNCTIONS
   mysql_field_tell
   mysql_free_result
   mysql_get_client_info
+  mysql_get_client_info_with_version_update
   mysql_get_client_version
   mysql_get_host_info
   mysql_get_proto_info
   mysql_get_server_info
+  mysql_get_server_info_with_version_update
   mysql_get_ssl_cipher
   mysql_hex_string
   mysql_info
@@ -298,8 +300,8 @@ ADD_SUBDIRECTORY(authentication_kerberos)
 # authentication IAM client plug-in
 ADD_SUBDIRECTORY(authentication_oci_client)
 
-# Fido and Webauthn clients
-ADD_SUBDIRECTORY(fido_client)
+# WebAuthn client authentication plug-in
+ADD_SUBDIRECTORY(authentication_webauthn)
 
 # authentication mysql_native_password client plug-in
 ADD_SUBDIRECTORY(authentication_native_password)

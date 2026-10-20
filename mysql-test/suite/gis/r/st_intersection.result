@@ -31,13 +31,13 @@ ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON
 GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems)))
-MULTIPOLYGON(((30 15,19 15,5 0,15 5,25 0,22 10,30 15)),((11 15,19 15,15 25,11 15)))
+MULTIPOLYGON(((19 15,5 0,15 5,25 0,22 10,30 15,19 15)),((11 15,19 15,15 25,11 15)))
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('POINT(0 0)'))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('POINT(0 0)')))
 GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ST_ASTEXT(ST_INTERSECTION(g,g2))
-MULTIPOLYGON(((30 15,19 15,5 0,15 5,25 0,22 10,30 15)),((11 15,19 15,15 25,11 15)))
+MULTIPOLYGON(((19 15,5 0,15 5,25 0,22 10,30 15,19 15)),((11 15,19 15,15 25,11 15)))
 #####################################################################################
 # Verify ST_Intersection() returns NULL if at least one of its arguments are NULL.
 #####################################################################################

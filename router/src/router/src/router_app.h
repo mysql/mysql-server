@@ -45,6 +45,7 @@
 
 #include <cstdint>
 #include <iostream>  // cerr, cout
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -351,6 +352,12 @@ class MySQLRouter {
   void parse_command_options(
       const std::vector<std::string> &arguments);  // throws std::runtime_error
 
+  /** Validates the mutually exclusive TLS reload command-line options. */
+  void validate_tls_reload_options();
+
+  /** Delivers a validated TLS reload request to an already running Router. */
+  void request_tls_reload();
+
   /** @brief Finds all valid configuration files
    *
    * Finds all valid configuration files from the list of default
@@ -463,6 +470,12 @@ class MySQLRouter {
   /** @brief PID file location **/
   std::string pid_file_path_;
   bool pid_file_created_{false};
+
+  /** Request TLS material reload in a running Router and exit. */
+  bool reload_tls_{false};
+  std::string reload_tls_pid_;
+  std::optional<long long> reload_tls_target_pid_;
+  std::string reload_tls_service_name_;
 
   /** @brief CmdArgHandler object handling command line arguments **/
   CmdArgHandler arg_handler_;

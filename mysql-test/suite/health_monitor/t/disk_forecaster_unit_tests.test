@@ -1,0 +1,178 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Disk usage forecasting unit tests
+--echo ##
+
+--source include/no_protocol.inc
+
+--echo
+--echo # Ignore warnings during startup
+--disable_query_log
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+--enable_query_log
+
+--echo
+--echo # Install the component
+--eval install component 'file://component_health_monitor'
+
+--echo
+--echo # Turn off the unused collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+--echo
+--echo # Ensure the disk collectors are on
+set @@global.health_monitor.disk_running = on;
+set @@global.health_monitor.disk_forecast_running = on;
+
+--echo
+--echo # Pause the disk forecaster
+set @@global.health_monitor.disk_forecast_run_mode=STANDBY;
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 1. hm-dfx-01_07d_trend-flt_season-n_eta-00h_state-norm
+--echo ##
+--echo ## Description: Flat trend, no seasonal variation
+--echo ## ----------------------------------------------------------------------
+# Specifiy the disk metrics file
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-01_07d_trend-flt_season-n_eta-00h_state-norm.dfx
+
+# Clear the forecast tables, run the test, print results
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo # Retrieve rows from the disk forecast tables
+--echo
+--echo # disk_metric contains values from the input data file
+select * from disk_metric limit 10;
+
+--echo # disk_forecast contains both fixed and derived values
+# TIMESTAMP | PREDICTION_TIME | HORIZON_MINUTES | VOLUME_SIZE_MB | FORECAST_MB | CI_LOWER_MB | CI_UPPER_MB
+#    1             2                   3               4               5             6             7
+--replace_column 1 <timestamp> 5 <forecast_mb> 6 <ci_lower_mb> 7 <ci_upper_mb>
+select * from disk_forecast order by timestamp, horizon_minutes;
+
+--echo # disk_forecast_summary contains both fixed and derived values
+# TIMESTAMP | VOLUME_SIZE_MB | CURRENT_USAGE_MB | CURRENT_USAGE_PCT | TREND_PER_DAY_MB | USAGE_PER_DAY_PCT | HAS_ETA | DAYS_TO_FULL | STATUS
+#    1             2                  3                  4                   5                6                  7         8             9
+--replace_column 1 <timestamp> 5 <trend_per_day_mb> 6 <usage_per_day_pct> 8 <days_to_full>
+select * from disk_forecast_summary order by timestamp;
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 2. hm-dfx-02_07d_trend-pos_season-y_eta-72h_state-warn
+--echo ##
+--echo ## Description: 7 days, seasonal variation, ETA depletion = 3 days, expect WARNING
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-02_07d_trend-pos_season-y_eta-72h_state-warn.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 3. hm-dfx-03_07d_trend-pos_season-y_eta-00h_state-norm
+--echo ##
+--echo ## Description: 7 days, upward trend, no seasonality, state = NORMAL
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-03_07d_trend-pos_season-n_eta-00h_state-norm.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 4. hm-dfx-04_07d_trend-pos_season-n_eta-00h_state-norm
+--echo ##
+--echo ## Description: 7 days, upward trend, no seasonality, days to depletion = 55.5, expect NORMAL
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-04_07d_trend-pos_season-n_eta-00h_state-norm.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 5. hm-dfx-05_07d_trend-pos_season-y_eta_00h-state-norm
+--echo ##
+--echo ## Description: 7 days, upward trend (moderate) with daily seasonality, ETA 166 days, expect NORMAL
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-05_07d_trend-pos_season-y_eta-00h_state-norm.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 6. hm-dfx-06_07d_trend-neg_season-n_eta-00h_state-norm
+--echo ##
+--echo ## Description: 7 days, downward trend (e.g. disk cleanup), additive model, no seasonality, expect NORMAL
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-06_07d_trend-neg_season-n_eta-00h_state-norm.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 7. hm-dfx-07_07d_trend-pos_season-y_eta-38h_state-crit
+--echo ##
+--echo ## Description: 7 days, sharply positive trend with additive daily seasonality, expect CRITICAL (ETA < 2 days)
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-07_07d_trend-pos_season-y_eta-38h_state-crit.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 8. hm-dfx-08_04d_trend-pos_season-y_eta-21h_state-crit
+--echo ##
+--echo ## Description: 4 days, upward trend (higher) with additive daily seasonality, ETA < 24h, expect CRITICAL
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-08_04d_trend-pos_season-y_eta-21h_state-crit.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 9. hm-dfx-09_03d_trend-pos_season-y_eta-48h_state-crit
+--echo ##
+--echo ## Description: 3 days, upward trend (higher) with additive daily seasonality, ETA < 48h expect CRITICAL
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-09_03d_trend-pos_season-y_eta-48h_state-crit.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 10. hm-dfx-10_14d_trend-pos_season-y_eta-120h_state-warn
+--echo ##
+--echo ## Description: 14 days, upward trend (higher) with additive daily seasonality, ETA 120h expect WARNING
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-10_14d_trend-pos_season-y_eta-120h_state-warn.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ## ----------------------------------------------------------------------
+--echo ## Test 11. hm-dfx-11_14d_trend-pos_season-y_eta-86h_state-warn
+--echo ##
+--echo ## Description: Piecewise rate: Steady then ramps to 8%/day, steep daily season; expected WARNING (ETA ~86h)
+--echo ##              Small disk, 1GB
+--echo ## ----------------------------------------------------------------------
+--let $FILE_NAME = $MYSQL_TEST_DIR/std_data/hm-dfx-11_14d_trend-pos_season-y_eta-86h_state-warn.dfx
+--source ../include/health_monitor_dfx_run_unit_test.inc
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+set @@global.health_monitor.disk_forecast_run_mode=NORMAL;
+
+--echo
+--eval uninstall component 'file://component_health_monitor'

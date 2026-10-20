@@ -25,13 +25,7 @@ INCLUDE(GenerateExportHeader)
 
 ADD_HARNESS_PLUGIN(router_protobuf SOURCES
   protobuf_plugin.cc
+  REQUIRES_IF ext::libprotobuf
   REQUIRES ext::libprotobuf
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
-  )
-TARGET_INCLUDE_DIRECTORIES(router_protobuf
-  PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/../include/)
-
-GENERATE_EXPORT_HEADER(router_protobuf
-  EXPORT_FILE_NAME
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/router_protobuf_export.h
   )

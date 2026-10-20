@@ -90,24 +90,22 @@ const std::string &DestinationTlsContext::get_curves() { return curves_; }
 
 const std::string &DestinationTlsContext::get_ciphers() { return ciphers_; }
 
-TlsClientContext *DestinationTlsContext::get(const std::string &dest_id,
-                                             const std::string &hostname) {
+std::shared_ptr<TlsClientContext> DestinationTlsContext::get(
+    const std::string &dest_id, const std::string &hostname) {
   std::lock_guard<std::mutex> lk(mtx_);
 
   const auto it = tls_contexts_.find(dest_id);
   if (it == tls_contexts_.end()) {
-    // not found
-    auto res = tls_contexts_.emplace(
-        dest_id, std::make_unique<TlsClientContext>(
-                     TlsVerify::PEER, session_cache_mode_,
-                     ssl_session_cache_size_, ssl_session_cache_timeout_));
-    auto *tls_ctx = res.first->second.get();
+    auto tls_ctx = std::make_shared<TlsClientContext>(
+        TlsVerify::PEER, session_cache_mode_, ssl_session_cache_size_,
+        ssl_session_cache_timeout_);
 
-    if (!ciphers_.empty()) tls_ctx->cipher_list(ciphers_);
-    if (!curves_.empty()) tls_ctx->curves_list(curves_);
+    if (!ciphers_.empty() && !tls_ctx->cipher_list(ciphers_)) return {};
+    if (!curves_.empty() && !tls_ctx->curves_list(curves_)) return {};
 
-    if (!key_file_.empty() && !cert_file_.empty()) {
-      tls_ctx->load_key_and_cert(key_file_, cert_file_);
+    if (!key_file_.empty() && !cert_file_.empty() &&
+        !tls_ctx->load_key_and_cert(key_file_, cert_file_)) {
+      return {};
     }
 
     switch (ssl_verify_) {
@@ -115,17 +113,71 @@ TlsClientContext *DestinationTlsContext::get(const std::string &dest_id,
         tls_ctx->verify(TlsVerify::NONE);
         break;
       case SslVerify::kVerifyIdentity:
-        tls_ctx->verify_hostname(hostname);
+        if (!tls_ctx->verify_hostname(hostname)) return {};
         [[fallthrough]];
       case SslVerify::kVerifyCa:
-        tls_ctx->ssl_ca(ca_file_, ca_path_);
-        tls_ctx->crl(crl_file_, crl_path_);
+        if (!tls_ctx->ssl_ca(ca_file_, ca_path_)) return {};
+        if ((!crl_file_.empty() || !crl_path_.empty()) &&
+            !tls_ctx->crl(crl_file_, crl_path_)) {
+          return {};
+        }
         tls_ctx->verify(TlsVerify::PEER);
         break;
     }
 
+    tls_contexts_.emplace(dest_id, tls_ctx);
     return tls_ctx;
   } else {
-    return it->second.get();
+    return it->second;
   }
+}
+
+bool DestinationTlsContext::reload(std::string &out_error) {
+  std::lock_guard<std::mutex> lk(mtx_);
+
+  // Prepare a candidate without changing the cached contexts. A failed
+  // validation therefore leaves existing connections and future cache hits
+  // on the current generation unaffected.
+  TlsClientContext candidate{TlsVerify::PEER, session_cache_mode_,
+                             ssl_session_cache_size_,
+                             ssl_session_cache_timeout_};
+  if (!ciphers_.empty()) {
+    const auto res = candidate.cipher_list(ciphers_);
+    if (!res) {
+      out_error = res.error().message();
+      return false;
+    }
+  }
+  if (!curves_.empty()) {
+    const auto res = candidate.curves_list(curves_);
+    if (!res) {
+      out_error = res.error().message();
+      return false;
+    }
+  }
+  if (!key_file_.empty() && !cert_file_.empty()) {
+    const auto res = candidate.load_key_and_cert(key_file_, cert_file_);
+    if (!res) {
+      out_error = res.error().message();
+      return false;
+    }
+  }
+  if (ssl_verify_ != SslVerify::kDisabled) {
+    const auto ca_res = candidate.ssl_ca(ca_file_, ca_path_);
+    if (!ca_res) {
+      out_error = ca_res.error().message();
+      return false;
+    }
+    if (!crl_file_.empty() || !crl_path_.empty()) {
+      const auto crl_res = candidate.crl(crl_file_, crl_path_);
+      if (!crl_res) {
+        out_error = crl_res.error().message();
+        return false;
+      }
+    }
+  }
+
+  // The next get() lazily creates contexts from the revalidated paths.
+  tls_contexts_.clear();
+  return true;
 }

@@ -68,6 +68,7 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
                    collector::MysqlCacheManager *cache_manager,
                    const std::string &jwt_secret, QueryFactory *query_factory,
                    AuthHandlerFactoryPtr factory);
+  ~AuthorizeManager() override;
 
   void update(const Entries &entries) override;
   void configure(const std::string &options) override;

@@ -43,6 +43,8 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 
+#include "mysqlrouter/keepalive_export.h"
+
 using mysql_harness::logging::log_info;
 
 // Keep symbols with external linkage away from global scope so that
@@ -88,20 +90,13 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-#if defined(_MSC_VER) && defined(keepalive_EXPORTS)
-/* We are building this library */
-#define DLLEXPORT __declspec(dllexport)
-#else
-#define DLLEXPORT
-#endif
-
 static constexpr std::array supported_options{
     "interval",
     "runs",
 };
 
 extern "C" {
-mysql_harness::Plugin DLLEXPORT harness_plugin_keepalive = {
+mysql_harness::Plugin KEEPALIVE_EXPORT harness_plugin_keepalive = {
     mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Keepalive Plugin", VERSION_NUMBER(0, 0, 1),
     // requires

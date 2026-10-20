@@ -138,7 +138,7 @@ void Rpl_opt_tracker::worker() {
   THD *thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();
-  thd->thread_stack = reinterpret_cast<char *>(&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->set_command(COM_DAEMON);
   thd->security_context()->skip_grants();
   thd->system_thread = SYSTEM_THREAD_BACKGROUND;

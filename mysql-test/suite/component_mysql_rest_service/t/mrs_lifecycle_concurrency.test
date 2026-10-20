@@ -1,0 +1,222 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify lifecycle-operation serialization and shutdown admission.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Serialize a concurrent start behind stop
+--echo ## II. Serialize a concurrent stop behind restart
+--echo ## III. Reject pending and new lifecycle calls after uninstall starts
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("Backend start rejected because lifecycle operations are disabled");
+call mtr.add_suppression("Backend restart rejected because lifecycle operations are disabled");
+call mtr.add_suppression("Failed to start MySQL Rest Service backend");
+call mtr.add_suppression("Failed to restart MySQL Rest Service component");
+--enable_result_log
+--enable_query_log
+
+connect(stop_connection,localhost,root,,mysql);
+connect(start_connection,localhost,root,,mysql);
+connect(restart_connection,localhost,root,,mysql);
+connect(uninstall_connection,localhost,root,,mysql);
+
+--echo
+--echo # I. A start queued behind stop reevaluates STOPPED and starts MRS
+connection stop_connection;
+SET DEBUG_SYNC='mrs_component_after_stop_requested SIGNAL stop_owner_paused WAIT_FOR release_stop_owner TIMEOUT 60';
+--send SELECT mysql_rest_service_stop()
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR stop_owner_paused TIMEOUT 60';
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = the operation owner publishes STOPPING before blocking
+--let $assert_cond = "$mrs_state" = "STOPPING"
+--source include/assert.inc
+
+connection start_connection;
+SET DEBUG_SYNC='mrs_component_before_lifecycle_operation_lock SIGNAL queued_start_entered';
+--send SELECT mysql_rest_service_start()
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR queued_start_entered TIMEOUT 60';
+SET DEBUG_SYNC='now SIGNAL release_stop_owner';
+
+connection stop_connection;
+--reap
+connection start_connection;
+--reap
+
+connection default;
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = queued start runs after stop and reaches READY
+--let $assert_cond = "$mrs_state" = "READY"
+--source include/assert.inc
+
+--echo # The replacement listener accepts requests.
+--exec $MRS_CLIENT_ARGS --path /mrs-lifecycle-concurrency-probe --response-type raw --expected-status NotFound --display none
+
+--echo
+--echo # II. A stop queued behind restart runs after the replacement starts
+connection restart_connection;
+SET DEBUG_SYNC='mrs_component_after_stop_requested SIGNAL restart_owner_paused WAIT_FOR release_restart_owner TIMEOUT 60';
+--send SELECT mysql_rest_service_restart()
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR restart_owner_paused TIMEOUT 60';
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = restart publishes STOPPING while it owns the lifecycle lock
+--let $assert_cond = "$mrs_state" = "STOPPING"
+--source include/assert.inc
+
+connection stop_connection;
+SET DEBUG_SYNC='mrs_component_before_lifecycle_operation_lock SIGNAL queued_stop_entered';
+--send SELECT mysql_rest_service_stop()
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR queued_stop_entered TIMEOUT 60';
+SET DEBUG_SYNC='now SIGNAL release_restart_owner';
+
+connection restart_connection;
+--reap
+connection stop_connection;
+--reap
+
+connection default;
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = queued stop runs after restart and reaches STOPPED
+--let $assert_cond = "$mrs_state" = "STOPPED"
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = queued stop clears the replacement listener port
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+
+--echo # The replacement listener is unavailable when queued stop returns.
+--disable_result_log
+--error 1
+--exec $MRS_CLIENT_ARGS --path /mrs-lifecycle-concurrency-probe --display none
+--enable_result_log
+
+SELECT mysql_rest_service_start();
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--echo
+--echo # III. Uninstall closes admission before waiting for a lifecycle owner
+connection stop_connection;
+SET DEBUG_SYNC='mrs_component_after_stop_requested SIGNAL teardown_stop_paused WAIT_FOR release_teardown_stop TIMEOUT 60';
+--send SELECT mysql_rest_service_stop()
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR teardown_stop_paused TIMEOUT 60';
+
+connection start_connection;
+SET DEBUG_SYNC='mrs_component_before_lifecycle_operation_lock SIGNAL pending_start_entered';
+--send SELECT mysql_rest_service_start()
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR pending_start_entered TIMEOUT 60';
+
+connection uninstall_connection;
+SET DEBUG_SYNC='mrs_component_after_lifecycle_admission_closed SIGNAL admission_closed WAIT_FOR release_uninstall TIMEOUT 60';
+--send UNINSTALL COMPONENT "file://component_mysql_rest_service"
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR admission_closed TIMEOUT 60';
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = uninstall closes admission while lifecycle stop is pending
+--let $assert_cond = "$mrs_state" = "STOPPING"
+--source include/assert.inc
+
+--let $component_count = `SELECT COUNT(*) FROM mysql.component WHERE component_urn = 'file://component_mysql_rest_service';`
+--let $assert_text = component remains registered while uninstall is paused
+--let $assert_cond = $component_count = 1
+--source include/assert.inc
+
+connection restart_connection;
+SET DEBUG_SYNC='mrs_component_before_lifecycle_operation_lock SIGNAL new_restart_entered';
+--send SELECT mysql_rest_service_restart()
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR new_restart_entered TIMEOUT 60';
+SET DEBUG_SYNC='now SIGNAL release_teardown_stop';
+
+connection stop_connection;
+--reap
+
+connection start_connection;
+--error ER_MRS_COMPONENT_UDF_ERROR
+--reap
+
+connection restart_connection;
+--error ER_MRS_COMPONENT_UDF_ERROR
+--reap
+
+connection default;
+SET DEBUG_SYNC='now SIGNAL release_uninstall';
+
+connection uninstall_connection;
+--reap
+
+connection default;
+--let $component_count = `SELECT COUNT(*) FROM mysql.component WHERE component_urn = 'file://component_mysql_rest_service';`
+--let $assert_text = component registry entry is removed after concurrent uninstall
+--let $assert_cond = $component_count = 0
+--source include/assert.inc
+
+--let $udf_count = `SELECT COUNT(*) FROM performance_schema.user_defined_functions WHERE UDF_NAME LIKE 'mysql_rest_service_%';`
+--let $assert_text = lifecycle UDFs are removed after concurrent uninstall
+--let $assert_cond = $udf_count = 0
+--source include/assert.inc
+
+--echo # Uninstall leaves both protocols in the expected state.
+--disable_result_log
+--error 1
+--exec $MRS_CLIENT_ARGS --path /mrs-lifecycle-concurrency-probe --display none
+--enable_result_log
+SELECT 1 AS classic_protocol_usable;
+
+--echo
+--echo # Reinstall recovers from the serialized teardown
+--source ../include/cmrs/install_component.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = reinstall reaches READY after concurrent teardown
+--let $assert_cond = "$mrs_state" = "READY"
+--source include/assert.inc
+
+--exec $MRS_CLIENT_ARGS --path /mrs-lifecycle-concurrency-probe --response-type raw --expected-status NotFound --display none
+
+disconnect stop_connection;
+disconnect start_connection;
+disconnect restart_connection;
+disconnect uninstall_connection;
+
+--echo
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

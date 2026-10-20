@@ -27,8 +27,11 @@
 
 #include <cassert>
 #include <map>
+#include <stdexcept>
 #include <utility>
 
+#include "collector/mysql_fixed_pool_manager.h"
+#include "mrs/embedded_runtime_services.h"
 #include "mrs/http/error.h"
 #include "mysql/harness/logging/logging.h"
 
@@ -88,16 +91,25 @@ bool MysqlHandler::verify_credential(const Credentials &credentials,
     // no password -> no login
     if (credentials.password.empty()) return false;
 
-    auto default_auth_user =
-        out_cache->get()->get_connection_parameters().conn_opts;
-    out_cache->get()->change_user(credentials.user, credentials.password, "");
-    out_user->vendor_user_id =
-        (*out_cache->get()->query_one("SELECT CURRENT_USER();"))[0];
+    if (auto *runtime_services = mrs::get_embedded_runtime_services();
+        runtime_services != nullptr) {
+      auto embedded_user = runtime_services->authenticate_mysql_user(
+          credentials.user, credentials.password);
+      if (!embedded_user) return false;
 
-    // Restore default user
-    out_cache->get()->change_user(default_auth_user.username,
-                                  default_auth_user.password, "");
-    out_cache->get()->execute_initial_sqls();
+      out_user->vendor_user_id = std::move(*embedded_user);
+    } else {
+      auto default_auth_user =
+          out_cache->get()->get_connection_parameters().conn_opts;
+      out_cache->get()->change_user(credentials.user, credentials.password, "");
+      out_user->vendor_user_id =
+          (*out_cache->get()->query_one("SELECT CURRENT_USER();"))[0];
+
+      // Restore default user
+      out_cache->get()->change_user(default_auth_user.username,
+                                    default_auth_user.password, "");
+      out_cache->get()->execute_initial_sqls();
+    }
 
     out_user->app_id = entry_.id;
 
@@ -150,16 +162,27 @@ static void on_session_destroyed(const MysqlHandler::SessionPtr &session) {
 void MysqlHandler::init_session(const SessionPtr &session,
                                 const Credentials &credentials) {
   if (session->db_session_pool) {
+    const auto passthrough_pool_size =
+        session->db_session_pool->num_instances();
     session->owner->on_session_delete = on_session_destroyed;
 
     on_session_created(session);
 
-    auto config = cache_manager_->get_connection_configuration(
-        collector::kMySQLConnectionUserdataRW);
-
     try {
-      session->db_session_pool->init(config.provider_, credentials.user,
-                                     credentials.password);
+      if (auto *runtime_services = mrs::get_embedded_runtime_services();
+          runtime_services != nullptr) {
+        if (session->user.vendor_user_id.empty()) {
+          throw std::runtime_error("Missing authenticated MySQL user identity");
+        }
+        session->db_session_pool =
+            runtime_services->create_mysql_user_session_pool(
+                passthrough_pool_size, session->user.vendor_user_id);
+      } else {
+        auto config = cache_manager_->get_connection_configuration(
+            collector::kMySQLConnectionUserdataRW);
+        session->db_session_pool->init(config.provider_, credentials.user,
+                                       credentials.password);
+      }
     } catch (const std::exception &e) {
       log_error("Could not initialize passthrough session cache: %s", e.what());
       throw;

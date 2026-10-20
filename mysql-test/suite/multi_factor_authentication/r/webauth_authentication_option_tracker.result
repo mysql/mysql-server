@@ -1,0 +1,15 @@
+INSTALL COMPONENT 'file://component_option_tracker';
+# Should return 0 rows
+SELECT * FROM performance_schema.mysql_option
+WHERE OPTION_NAME = 'WebauthN authentication' AND OPTION_ENABLED = 'TRUE';
+INSTALL PLUGIN authentication_webauthn SONAME 'authentication_webauthn.so';
+# Should return one row
+SELECT * FROM performance_schema.mysql_option
+WHERE OPTION_NAME = 'WebauthN authentication' AND OPTION_ENABLED = 'TRUE';
+OPTION_NAME	WebauthN authentication
+OPTION_ENABLED	TRUE
+OPTION_CONTAINER	authentication_webauthn plugin
+# Cleanup
+UNINSTALL PLUGIN authentication_webauthn;
+UNINSTALL COMPONENT 'file://component_option_tracker';
+# End of 9.1 tests

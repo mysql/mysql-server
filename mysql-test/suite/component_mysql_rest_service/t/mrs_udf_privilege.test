@@ -1,0 +1,50 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that MRS lifecycle UDFs require MYSQL_REST_SERVICE_ADMIN at execution.
+
+--source include/not_solaris.inc
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+CREATE USER 'mrs_udf_user'@'localhost';
+--connect(mrs_udf_user, localhost, mrs_udf_user,,)
+
+PREPARE mrs_stop FROM
+  'SELECT mysql_rest_service_stop()';
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+EXECUTE mrs_stop;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT mysql_rest_service_start();
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT mysql_rest_service_restart();
+
+--connection default
+GRANT MYSQL_REST_SERVICE_ADMIN ON *.* TO 'mrs_udf_user'@'localhost';
+
+--connection mrs_udf_user
+EXECUTE mrs_stop;
+SELECT mysql_rest_service_start();
+
+--connection default
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--connection mrs_udf_user
+SELECT mysql_rest_service_restart();
+
+--connection default
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+REVOKE MYSQL_REST_SERVICE_ADMIN ON *.* FROM 'mrs_udf_user'@'localhost';
+
+--connection mrs_udf_user
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+EXECUTE mrs_stop;
+DEALLOCATE PREPARE mrs_stop;
+--disconnect mrs_udf_user
+
+--connection default
+DROP USER 'mrs_udf_user'@'localhost';
+
+--source ../include/cmrs/cleanup.inc

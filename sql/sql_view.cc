@@ -1401,7 +1401,18 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
     assert(!parser_state.m_input.m_has_digest);
 
     // Parse the query text of the view
+    // View references contribute to the enclosing statement's CTE budget,
+    // even though each view definition is parsed using a separate LEX.
+    view_lex->reparse_common_table_expr_count =
+        old_lex->reparse_common_table_expr_count;
+    view_lex->reparse_common_table_expr_bytes =
+        old_lex->reparse_common_table_expr_bytes;
     result = parse_sql(thd, &parser_state, view_ref->view_creation_ctx);
+    // Preserve the cost on both success and failure, before restoring LEX.
+    old_lex->reparse_common_table_expr_count =
+        view_lex->reparse_common_table_expr_count;
+    old_lex->reparse_common_table_expr_bytes =
+        view_lex->reparse_common_table_expr_bytes;
   }
 
   if (thd->parsing_system_view) thd->pop_internal_handler();

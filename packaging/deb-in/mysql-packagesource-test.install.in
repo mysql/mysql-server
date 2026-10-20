@@ -29,6 +29,7 @@ usr/bin/mysqltest_safe_process
 usr/bin/mysqlxtest
 usr/bin/mysql_keyring_encryption_test
 usr/bin/mysql_test_event_tracking
+@DEB_INSTALL_TEST_MRS_CLIENT@
 # man pages
 usr/share/man/man1/comp_err.1
 # plugins

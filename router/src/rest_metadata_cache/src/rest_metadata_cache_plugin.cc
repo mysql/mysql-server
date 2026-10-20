@@ -42,6 +42,7 @@
 #include "mysqlrouter/component/http_server_component.h"
 #include "mysqlrouter/http_constants.h"
 #include "mysqlrouter/rest_api_component.h"
+#include "mysqlrouter/rest_metadata_cache_export.h"
 #include "mysqlrouter/supported_rest_options.h"
 
 #include "rest_clusters_list.h"
@@ -927,13 +928,6 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
 }
 
-#if defined(_MSC_VER) && defined(rest_metadata_cache_EXPORTS)
-/* We are building this library */
-#define DLLEXPORT __declspec(dllexport)
-#else
-#define DLLEXPORT
-#endif
-
 static constexpr std::array required{
     "logger",
     // "metadata_cache",
@@ -982,24 +976,25 @@ static void expose_configuration(mysql_harness::PluginFuncEnv *env,
 }
 
 extern "C" {
-mysql_harness::Plugin DLLEXPORT harness_plugin_rest_metadata_cache = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "REST_METADATA_CACHE",
-    VERSION_NUMBER(0, 0, 1),
-    // requires
-    required.size(),
-    required.data(),
-    // conflicts
-    0,
-    nullptr,
-    init,     // init
-    nullptr,  // deinit
-    start,    // start
-    nullptr,  // stop
-    true,     // declares_readiness
-    plugin_supported_options.size(),
-    plugin_supported_options.data(),
-    expose_configuration,
+mysql_harness::Plugin REST_METADATA_CACHE_EXPORT
+    harness_plugin_rest_metadata_cache = {
+        mysql_harness::PLUGIN_ABI_VERSION,
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,
+        "REST_METADATA_CACHE",
+        VERSION_NUMBER(0, 0, 1),
+        // requires
+        required.size(),
+        required.data(),
+        // conflicts
+        0,
+        nullptr,
+        init,     // init
+        nullptr,  // deinit
+        start,    // start
+        nullptr,  // stop
+        true,     // declares_readiness
+        plugin_supported_options.size(),
+        plugin_supported_options.data(),
+        expose_configuration,
 };
 }

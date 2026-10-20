@@ -240,6 +240,28 @@ if ($mysql_win_charset)
   DROP TABLE page;
 }
 
+# Parser failures during deferred FTS tokenization must be visible to the
+# client. This failure path is independent of the document charset, so run
+# the oversized-input case only for utf8mb4 rather than repeating the costly
+# parse in every charset variant. MeCab rejects sentences larger than its
+# internal input limit.
+if ($mysql_charset == utf8mb4)
+{
+  call mtr.add_suppression("Mecab: parse\\(\\) failed: too long sentence");
+
+  SET NAMES utf8mb4;
+  CREATE TABLE t1 (
+    id INT PRIMARY KEY,
+    doc LONGTEXT CHARACTER SET utf8mb4,
+    FULLTEXT KEY doc (doc) WITH PARSER mecab
+  ) ENGINE=InnoDB;
+
+  INSERT INTO t1 VALUES
+    (1, REPEAT('すもももももももものうち。', 300000));
+
+  DROP TABLE t1;
+}
+
 SET GLOBAL innodb_ft_aux_table=default;
 
 UNINSTALL PLUGIN mecab;

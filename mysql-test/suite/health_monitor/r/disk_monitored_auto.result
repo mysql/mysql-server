@@ -1,0 +1,178 @@
+##
+## Health Monitor component
+##
+## Verify automatic monitored path selection for the Disk Collector and
+## Disk Forecaster. An empty configured path selects the data directory
+## filesystem while the public system variable remains empty.
+##
+
+# Procedure:
+#  1. Save the explicit setup path and start disk collection.
+#  2. Set an empty path and verify both consumers use the data directory.
+#  3. Verify a live sample, then reapply an empty value and DEFAULT.
+#  4. Check that an unrelated setting does not refresh the monitored path.
+#  5. Restore the explicit path and verify both consumers apply it.
+
+## Test case initialization - Begin
+
+# Storage quantities allow up to ULONG_MAX - 1
+set @ulong_max = 18446744073709551615;
+set @max_level = @ulong_max - 1;
+
+# A very high offline level will force the offline mode
+set @force_offline_mode = @max_level;
+
+# Disk usage warning level = 100% will force warnings, 0% will disable warnings
+set @force_disk_warning = 100;
+set @no_disk_warning = 0;
+
+# Memory usage warning level = ULONG_MAX-1 will force warnings, 0 will disable warnings
+set @force_memory_warning = @max_level;
+set @no_memory_warning = 0;
+
+# Ignore warnings during startup
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+
+# Install the component
+install component 'file://component_health_monitor';
+
+# Turn off the collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+# Disable low disk space warnings
+set @@global.health_monitor.disk_usage_warning_level_1 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_2 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_3 = @no_disk_warning;
+
+# Disable low memory warnings
+set @@global.health_monitor.memory_usage_warning_level_1 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_2 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_3 = @no_memory_warning;
+
+# Disable the low level storage thresholds to avoid inadvertently triggering
+# fallback mode on the vardir volume
+set @@global.health_monitor.disk_low_space_level = 0;
+set @@global.health_monitor.disk_low_space_percent = 0;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+# Disable recovery mode
+set @@global.health_monitor.disk_recovery_enable = off;
+
+# Fallback mode may have been triggered when the component was loaded,
+# so reset offline_mode and super_read_only as a precaution.
+# The 'super_read_only_disk_full' status variable will be reset when the
+# monitored disk path is changed.
+
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+
+# Set monitored disk after disabling the low space thresholds
+set @@global.health_monitor.disk_monitored = 'MYSQLTEST_VARDIR';
+
+select @@global.offline_mode;
+@@global.offline_mode
+0
+select @@global.super_read_only;
+@@global.super_read_only
+0
+select @@global.read_only;
+@@global.read_only
+0
+show status like 'super_read_only_disk_full';
+Variable_name	Value
+super_read_only_disk_full	OFF
+show status like 'offline_mode_disk_full';
+Variable_name	Value
+offline_mode_disk_full	OFF
+
+use performance_schema;
+
+## Test case initialization - End
+
+# Save the explicit setup path and the server data directory
+set @explicit_monitored_path = @@global.health_monitor.disk_monitored;
+set @data_directory = @@global.datadir;
+select length(@explicit_monitored_path) > 0 as explicit_path_is_nonempty;
+explicit_path_is_nonempty
+1
+select length(@data_directory) > 0 as data_directory_is_nonempty;
+data_directory_is_nonempty
+1
+
+# Prepare live collection before the automatic path update
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.disk_running = on;
+
+# Select the data directory filesystem without changing the configured value
+set @@global.health_monitor.disk_monitored = '';
+select length(@@global.health_monitor.disk_monitored) = 0
+as configured_path_is_empty;
+configured_path_is_empty
+1
+
+# Collect a live sample from the data directory filesystem
+truncate performance_schema.health_block_device;
+select count(*) > 0 as sample_published,
+count(*) = count(device) as device_is_not_null,
+count(*) = count(mount_point) as mount_point_is_not_null
+from performance_schema.health_block_device;
+sample_published	device_is_not_null	mount_point_is_not_null
+1	1	1
+
+# Reapplying an empty value refreshes both automatic path consumers
+set @@global.health_monitor.disk_monitored = '';
+
+# DEFAULT also refreshes both automatic path consumers
+set @@global.health_monitor.disk_monitored = default;
+select length(@@global.health_monitor.disk_monitored) = 0
+as configured_path_remains_empty;
+configured_path_remains_empty
+1
+
+# Stop collection before changing the monitored path again
+set @@global.health_monitor.disk_running = off;
+
+# An unrelated setting does not cause a false monitored path update
+set @memory_retention_save = @@global.health_monitor.memory_retention;
+set @@global.health_monitor.memory_retention = @memory_retention_save + 1;
+select count(*) = 0 as no_false_disk_collector_update
+from performance_schema.error_log
+where data like '%Disk Collector: Settings:%'
+   and logged > @unrelated_settings_start;
+no_false_disk_collector_update
+1
+select count(*) = 0 as no_false_disk_forecaster_update
+from performance_schema.error_log
+where data like '%Disk Forecaster: Settings:%'
+   and logged > @unrelated_settings_start;
+no_false_disk_forecaster_update
+1
+
+# Restore the explicit monitored path
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+select @@global.health_monitor.disk_monitored = @explicit_monitored_path
+as configured_path_is_explicit;
+configured_path_is_explicit
+1
+
+# Clean up
+set @@global.health_monitor.memory_retention = @memory_retention_save;
+uninstall component 'file://component_health_monitor';

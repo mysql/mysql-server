@@ -482,11 +482,13 @@ static void dict_mem_fill_vcol_set_for_base_col(const char *col_name,
 
     for (ulint j = 0; j < v_col->num_base; j++) {
       if (strcmp(col_name, table->get_col_name(v_col->base_col[j]->ind)) == 0) {
-        if (*v_cols == nullptr) {
-          *v_cols = ut::new_withkey<dict_vcol_set>(UT_NEW_THIS_FILE_PSI_KEY);
+        /* A change to a base column changes the complete secondary-index
+        record. Include every virtual key part of each affected index, so
+        that a cascaded update has the old values required for undo. */
+        for (auto it = v_col->v_indexes->begin(); it != v_col->v_indexes->end();
+             ++it) {
+          dict_mem_fill_vcol_has_index((*it).index, v_cols);
         }
-
-        (*v_cols)->insert(v_col);
       }
     }
   }

@@ -1,0 +1,43 @@
+
+
+## I. Validate default values of sysvars:
+#
+# 1. Ensure all sysvars report their expected default values.
+# 2. Validate max and min values for all integer values
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+
+#
+# I.1 Ensure all sysvars report their expected default values.
+SET GLOBAL mysql_rest_service.http_port=DEFAULT;
+include/assert.inc [MRS Component default http_port is 33443]
+include/assert.inc [MRS Component default ssl_cert must match MySQL Server @@ssl_cert]
+include/assert.inc [MRS Component default ssl_key must match MySQL Server @@ssl_key]
+include/assert.inc [MRS Component default ssl_cipher must match MySQL Server @@ssl_cipher]
+include/assert.inc [MRS Component default io_worker_threads is 0]
+include/assert.inc [MRS Component default http_max_connections is 1024]
+include/assert.inc [MRS Component default http_max_request_body_size is 16777216]
+include/assert.inc [MRS Component default http_max_response_body_size is 16777216]
+
+#
+## I.2. Validate max and min values for all integer values
+include/assert.inc [MRS Component http_port minimum value is 1]
+include/assert.inc [MRS Component http_port maximum value is 65535]
+include/assert.inc [MRS Component io_worker_threads minimum value is 0]
+include/assert.inc [MRS Component io_worker_threads maximum value is 1024]
+include/assert.inc [MRS Component http_max_connections minimum value is 1]
+include/assert.inc [MRS Component http_max_connections maximum value is 100000]
+include/assert.inc [MRS Component http_max_request_body_size minimum value is 0]
+include/assert.inc [MRS Component http_max_request_body_size maximum value is 2147483648]
+include/assert.inc [MRS Component http_max_response_body_size minimum value is 0]
+include/assert.inc [MRS Component http_max_response_body_size maximum value is 2147483648]
+
+#
+# Cleanup
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

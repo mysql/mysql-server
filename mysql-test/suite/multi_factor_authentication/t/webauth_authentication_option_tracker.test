@@ -1,0 +1,20 @@
+--source include/have_webauthn_plugin.inc
+
+INSTALL COMPONENT 'file://component_option_tracker';
+
+--echo # Should return 0 rows
+query_vertical SELECT * FROM performance_schema.mysql_option
+ WHERE OPTION_NAME = 'WebauthN authentication' AND OPTION_ENABLED = 'TRUE';
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN authentication_webauthn SONAME '$WEBAUTHN_AUTHENTICATION_PLUGIN';
+
+--echo # Should return one row
+query_vertical SELECT * FROM performance_schema.mysql_option
+ WHERE OPTION_NAME = 'WebauthN authentication' AND OPTION_ENABLED = 'TRUE';
+
+--echo # Cleanup
+UNINSTALL PLUGIN authentication_webauthn;
+UNINSTALL COMPONENT 'file://component_option_tracker';
+
+--echo # End of 9.1 tests

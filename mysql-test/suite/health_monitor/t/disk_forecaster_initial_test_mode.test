@@ -1,0 +1,64 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Verify that TEST mode loaded during component registration executes once.
+--echo ## Persist the mode without applying it live, then reload the component.
+--echo ## The missing input file must end the test cycle and return to NORMAL.
+--echo ##
+--echo
+--echo # Procedure:
+--echo #  1. Install the component and persist TEST mode with SET PERSIST_ONLY.
+--echo #  2. Reload the component to apply TEST mode during registration.
+--echo #  3. Wait for NORMAL and verify that test initialization was attempted.
+--echo #  4. Remove the persisted mode and uninstall the component.
+
+--source include/not_parallel.inc
+--source include/no_protocol.inc
+
+# Install directly so the common setup does not alter the initial run mode.
+--disable_query_log
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+--enable_query_log
+
+--echo
+--echo # Install the component and persist TEST mode without changing it live
+install component 'file://component_health_monitor';
+set persist_only health_monitor.disk_forecast_run_mode = TEST;
+
+--disable_query_log
+# Exclude messages from the first installation when checking the reload.
+select now(6) into @component_reload_start;
+--enable_query_log
+
+--echo
+--echo # Reload the component with TEST as the initial run mode
+uninstall component 'file://component_health_monitor';
+install component 'file://component_health_monitor';
+
+--echo
+--echo # Initial TEST mode executes and returns to NORMAL after input failure
+# Wait for the worker to finish the initial TEST cycle before checking its log.
+let $wait_timeout = 15;
+let $wait_condition =
+  select variable_value = 'NORMAL'
+    from performance_schema.global_status
+   where variable_name = 'disk_forecaster_run_mode';
+--source include/wait_condition_or_abort.inc
+
+select count(*) > 0 as initial_test_mode_executed
+  from performance_schema.error_log
+ where data like '%[TEST] Test initialization failed%'
+   and logged > @component_reload_start;
+
+--echo
+--echo # Clean up
+reset persist `health_monitor.disk_forecast_run_mode`;
+uninstall component 'file://component_health_monitor';

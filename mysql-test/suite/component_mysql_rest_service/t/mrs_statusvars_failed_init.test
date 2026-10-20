@@ -1,0 +1,32 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Skip if have_debug not available
+--source include/have_debug.inc
+--source include/not_solaris.inc
+
+# Verify that a partial status-variable registration is rolled back.
+
+--echo
+--echo
+--echo ## I. Ensure all status variables are unregistered after registration fails
+
+SET @@GLOBAL.DEBUG = '+d, mrs_component_statusvar_registration_failure';
+SET @@GLOBAL.DEBUG = '+d, mrs_component_skip_keyring_init';
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("Initialization method provided by component 'mysql:component_mysql_rest_service' failed.");
+call mtr.add_suppression("MySQL Rest Service Component: Failed to initialize. Error 'Registering Status Variables'");
+--enable_result_log
+--enable_query_log
+
+--error ER_MRS_STATUSVARS_REGISTER_ERROR
+INSTALL COMPONENT "file://component_mysql_rest_service";
+
+SET @@GLOBAL.DEBUG = '-d, mrs_component_statusvar_registration_failure';
+SET @@GLOBAL.DEBUG = '-d, mrs_component_skip_keyring_init';
+
+--let $statusvars_count = `SELECT COUNT(*) = 0 FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'mysql_rest_service.%';`
+--let $assert_text = MRS Component status variables must be unregistered
+--let $assert_cond = $statusvars_count = 1
+--source include/assert.inc

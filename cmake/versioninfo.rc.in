@@ -23,8 +23,8 @@
 
 #include <windows.h>
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION     @MAJOR_VERSION@,@MINOR_VERSION@,@PATCH_VERSION@,0
-PRODUCTVERSION  @MAJOR_VERSION@,@MINOR_VERSION@,@PATCH_VERSION@,0
+FILEVERSION     @MAJOR_VERSION@,@MINOR_VERSION@,@PATCH_VERSION@,@UPDATE_VERSION@
+PRODUCTVERSION  @MAJOR_VERSION@,@MINOR_VERSION@,@PATCH_VERSION@,@UPDATE_VERSION@
 FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
 FILEFLAGS       0
 FILEOS          VOS__WINDOWS32
@@ -37,8 +37,8 @@ BEGIN
         BEGIN
             VALUE "CompanyName",      "Oracle Corporation\0"
             VALUE "ProductName",      "@VINFO_PRODUCT_NAME@\0"
-            VALUE "FileVersion",      "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.0\0"
-            VALUE "ProductVersion",   "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.0\0"
+            VALUE "FileVersion",      "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.@UPDATE_VERSION@\0"
+            VALUE "ProductVersion",   "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.@UPDATE_VERSION@\0"
             VALUE "LegalCopyright",   "@VINFO_COPYRIGHT_LINE@\0"
             VALUE "LegalTrademarks",  "Oracle(R), Java, MySQL, and NetSuite are registered trademarks of Oracle and/or its affiliates.\0"
         END

@@ -27,12 +27,12 @@ Thd_backup_and_restore::Thd_backup_and_restore(THD *backup_thd, THD *new_thd)
     : m_backup_thd(backup_thd),
       m_new_thd(new_thd),
       m_new_thd_old_real_id(new_thd->real_id),
-      m_new_thd_old_thread_stack(new_thd->thread_stack) {
+      m_new_thd_old_thread_stack(new_thd->stack_base()) {
   assert(m_backup_thd != nullptr && m_new_thd != nullptr);
   // Reset the state of the current thd.
   m_backup_thd->restore_globals();
 
-  m_new_thd->thread_stack = m_backup_thd->thread_stack;
+  m_new_thd->set_stack_base(m_backup_thd->stack_base());
   m_new_thd->store_globals();
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_mem_cnt_THD)(m_new_thd, &m_backup_cnt_thd);
@@ -49,7 +49,7 @@ Thd_backup_and_restore::~Thd_backup_and_restore() {
   */
   m_new_thd->restore_globals();
   m_new_thd->real_id = m_new_thd_old_real_id;
-  m_new_thd->thread_stack = m_new_thd_old_thread_stack;
+  m_new_thd->set_stack_base(m_new_thd_old_thread_stack);
 
   // Reset the global variables to the original state.
   m_backup_thd->store_globals();

@@ -1,0 +1,53 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Load the component
+--echo ##   2. DML operations on Health Monitor tables
+--echo ##   3. Unload the component
+
+# System stats not supported on Windows
+--source include/not_windows.inc
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo ###
+--echo ### Table Operations: DML
+--echo ###
+
+--echo
+--echo #
+--echo # system_disk_stats
+--echo #
+--echo
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into system_disk_stats
+  set device = 'foo', read_count = 1000, flushes = 1000;
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+update system_disk_stats
+  set write_count = 0;
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from system_disk_stats
+  where write_count <> 0;
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from system_disk_stats;
+
+--echo
+--echo # Truncate is not allowed
+--error ER_TABLEACCESS_DENIED_ERROR
+truncate table system_disk_stats;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

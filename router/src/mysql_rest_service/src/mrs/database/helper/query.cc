@@ -107,11 +107,15 @@ void QueryRaw::prepare_and_execute(MySQLSession *session, const std::string &q,
         },
         on_resultset_end);
     session->prepare_remove(id);
-  } catch (mysqlrouter::MySQLSession::Error &e) {
+  } catch (const mysqlrouter::MySQLSession::Error &e) {
     sqlstate_ = session->last_sqlstate();
     session->prepare_remove(id);
     log_debug("Following query failed: '%s', error: '%s'", q.c_str(),
               e.message().c_str());
+    throw;
+  } catch (...) {
+    session->prepare_remove(id);
+    log_debug("Following query failed: '%s'", q.c_str());
     throw;
   }
 }

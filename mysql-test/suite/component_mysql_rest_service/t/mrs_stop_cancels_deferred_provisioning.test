@@ -1,0 +1,58 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that explicitly stopping MRS cancels deferred install-time account
+# provisioning and discards the installer's provisioning authority.
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Stop cancels deferred account provisioning
+--echo #
+
+--connect(component_mrs_init, localhost, root,,)
+--let $skip_schema_init=1
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--disconnect component_mrs_init
+--connection default
+
+--let $wait_log_pattern = Provider role \'mysql_rest_service_meta_provider\'@\'%\' is not available yet
+--let $wait_log_expected_count=1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'WAITING_FOR_METADATA' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+SELECT mysql_rest_service_stop();
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports STOPPED after cancelling deferred provisioning
+--let $assert_cond = "$mrs_state" = "STOPPED"
+--source include/assert.inc
+
+--source ../../router/include/mrs/initialize_schema.inc
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("Backend startup failed in background thread: Internal MRS account 'mysql_mrs_metadata'@'localhost' cannot be resolved to a security context");
+--enable_result_log
+--enable_query_log
+
+SELECT mysql_rest_service_start();
+
+--let $wait_timeout=60
+--let $wait_condition=SELECT VARIABLE_VALUE IN ('ERROR', 'READY') FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports ERROR because explicit stop discarded provisioning authority
+--let $assert_cond = "$mrs_state" = "ERROR"
+--source include/assert.inc
+
+--let $fixed_accounts = `SELECT COUNT(*) FROM mysql.user WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost'`
+--let $assert_text = explicit stop prevents deferred internal account creation
+--let $assert_cond = $fixed_accounts = 0
+--source include/assert.inc
+
+--source ../include/cmrs/cleanup.inc

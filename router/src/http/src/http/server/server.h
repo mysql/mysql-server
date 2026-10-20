@@ -81,8 +81,8 @@ class HTTP_SERVER_LIB_EXPORT Server : public ConnectionStatusCallbacksRaw,
   using IoIterator = IoThreads::iterator;
 
  public:
-  Server(TlsServerContext *tls_context, IoThreads *threads, Bind *bind_raw,
-         Bind *bind_ssl,
+  Server(std::shared_ptr<TlsServerContext> tls_context, IoThreads *threads,
+         Bind *bind_raw, Bind *bind_ssl,
          uint64_t max_http_connections = kDefaultMaxHttpConnections,
          uint64_t max_request_body_size = kDefaultMaxRequestBodySize,
          uint64_t max_response_body_size = kDefaultMaxResponseBodySize,
@@ -102,10 +102,17 @@ class HTTP_SERVER_LIB_EXPORT Server : public ConnectionStatusCallbacksRaw,
   void set_max_response_body_size(std::optional<uint64_t> value);
   uint64_t effective_max_response_body_size() const;
 
-  void clear_overrides();
+  // TLS context management
+  void replace_tls_context(std::shared_ptr<TlsServerContext> tls_context) {
+    std::lock_guard<std::mutex> lock{tls_context_mtx_};
+    tls_context_ = std::move(tls_context);
+  }
 
+  // Server lifecycle
   void start();
   void stop();
+
+  void clear_overrides();
 
  private:  // Ssl connections handling
   void on_new_ssl_connection(socket socket);
@@ -155,7 +162,8 @@ class HTTP_SERVER_LIB_EXPORT Server : public ConnectionStatusCallbacksRaw,
   void start_accepting();
   socket socket_move_to_io_thread(socket socket);
   IoThread *return_next_thread();
-  TlsServerContext *tls_context_;
+  std::mutex tls_context_mtx_;
+  std::shared_ptr<TlsServerContext> tls_context_;
   std::list<IoThread> *threads_;
   IoIterator current_thread_;
   Bind *bind_raw_;

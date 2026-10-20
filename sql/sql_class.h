@@ -1331,12 +1331,23 @@ class THD : public MDL_context_owner,
 
   /** All prepared statements of this connection. */
   Prepared_statement_map stmt_map;
-  /*
-    A pointer to the stack frame of handle_one_connection(),
-    which is called first in the thread for handling a client
-  */
-  const char *thread_stack;
 
+  /** Resolve and save the stack base for the current execution context. */
+  void capture_stack_base(const void *local_marker) {
+    m_stack_base = resolve_stack_pointer(local_marker);
+  }
+
+  /** Set a base captured earlier, or clear it with nullptr. */
+  void set_stack_base(const char *captured_base) {
+    m_stack_base = captured_base;
+  }
+
+  const char *stack_base() const { return m_stack_base; }
+
+ private:
+  const char *m_stack_base{nullptr};
+
+ public:
   /**
     @note
     Some members of THD (currently 'Statement::db',
@@ -3038,11 +3049,7 @@ class THD : public MDL_context_owner,
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
-  inline void set_ssl(Vio *vio) {
-    mysql_mutex_lock(&LOCK_thd_data);
-    m_SSL = (SSL *)vio->ssl_arg;
-    mysql_mutex_unlock(&LOCK_thd_data);
-  }
+  void set_ssl(Vio *vio);
 
   inline void clear_active_vio() {
     mysql_mutex_lock(&LOCK_thd_data);

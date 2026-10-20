@@ -28,17 +28,24 @@
  */
 
 #include <chrono>
+#include <condition_variable>
+#include <filesystem>
+#include <fstream>
+#include <mutex>
 #include <stdexcept>
 #include <thread>
 #include <vector>
 
 #include <gmock/gmock.h>
 
+#include "cluster_metadata_gr.h"
 #include "mock_metadata.h"
 #include "mock_metadata_factory.h"
+#include "mysql/harness/tls_reload_component.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "test/helpers.h"
+#include "test/temp_directory.h"
 
 /**
  * Constants that are used throughout the test cases.
@@ -58,6 +65,171 @@ const mysql_harness::TcpDestination bootstrap_server(kDefaultMetadataHost,
                                                      kDefaultMetadataPort);
 const std::vector<mysql_harness::TcpDestination> metadata_server_vector = {
     bootstrap_server};
+
+class ClusterMetadataTlsReloadTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    reloader_.stop();
+    reloader_.init();
+  }
+
+  void TearDown() override { reloader_.stop(); }
+
+  mysql_harness::TlsReloadComponent &reloader_{
+      mysql_harness::TlsReloadComponent::get_instance()};
+};
+
+class TestClusterMetadata : public GRClusterMetadata {
+ public:
+  using GRClusterMetadata::GRClusterMetadata;
+
+  bool connect_with(mysqlrouter::MySQLSession &session) {
+    return do_connect(session, {"127.0.0.1", 3306});
+  }
+};
+
+class RecordingMySQLSession : public mysqlrouter::MySQLSession {
+ public:
+  using mysqlrouter::MySQLSession::connect;
+
+  void set_ssl_options(mysql_ssl_mode mode, const std::string &tls_version,
+                       const std::string &cipher, const std::string &ca,
+                       const std::string &capath, const std::string &crl,
+                       const std::string &crlpath) override {
+    mode_ = mode;
+    tls_version_ = tls_version;
+    cipher_ = cipher;
+    ca_ = ca;
+    capath_ = capath;
+    crl_ = crl;
+    crlpath_ = crlpath;
+  }
+
+  void connect(const std::string &, unsigned int, const std::string &,
+               const mysql_harness::SecureString &, const std::string &,
+               const std::string &, int, int, unsigned long) override {
+    connected_ = true;
+  }
+
+  mysql_ssl_mode mode_{};
+  std::string tls_version_;
+  std::string cipher_;
+  std::string ca_;
+  std::string capath_;
+  std::string crl_;
+  std::string crlpath_;
+  bool connected_{false};
+};
+
+TEST_F(ClusterMetadataTlsReloadTest, RejectsInvalidCa) {
+  TempDirectory directory;
+  const auto ca = directory.name() + "/metadata-ca.pem";
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/cacert.pem", ca);
+
+  metadata_cache::MetadataCacheMySQLSessionConfig session_config{};
+  mysqlrouter::SSLOptions ssl_options;
+  ssl_options.mode = "REQUIRED";
+  ssl_options.ca = ca;
+
+  GRClusterMetadata metadata{session_config, ssl_options};
+  ASSERT_TRUE(std::filesystem::remove(ca));
+  EXPECT_THROW(metadata.reload_tls(), std::system_error);
+}
+
+TEST_F(ClusterMetadataTlsReloadTest, RejectsInvalidCrl) {
+  TempDirectory directory;
+  const auto crl = directory.name() + "/metadata-crl.pem";
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/crl-client-revoked.crl", crl);
+
+  metadata_cache::MetadataCacheMySQLSessionConfig session_config{};
+  mysqlrouter::SSLOptions ssl_options;
+  ssl_options.mode = "VERIFY_CA";
+  ssl_options.ca = SSL_TEST_DATA_DIR "/cacert.pem";
+  ssl_options.crl = crl;
+
+  GRClusterMetadata metadata{session_config, ssl_options};
+  ASSERT_TRUE(std::filesystem::remove(crl));
+  EXPECT_THROW(metadata.reload_tls(), std::system_error);
+}
+
+TEST_F(ClusterMetadataTlsReloadTest, AcceptsNoOptionalTrustMaterial) {
+  metadata_cache::MetadataCacheMySQLSessionConfig session_config{};
+  mysqlrouter::SSLOptions ssl_options;
+  ssl_options.mode = "REQUIRED";
+
+  GRClusterMetadata metadata{session_config, ssl_options};
+  EXPECT_NO_THROW(metadata.reload_tls());
+}
+
+TEST_F(ClusterMetadataTlsReloadTest, AcceptsCaWithoutCrl) {
+  metadata_cache::MetadataCacheMySQLSessionConfig session_config{};
+  mysqlrouter::SSLOptions ssl_options;
+  ssl_options.mode = "REQUIRED";
+  ssl_options.ca = SSL_TEST_DATA_DIR "/cacert.pem";
+
+  GRClusterMetadata metadata{session_config, ssl_options};
+  EXPECT_NO_THROW(metadata.reload_tls());
+}
+
+TEST_F(ClusterMetadataTlsReloadTest,
+       CallbackPublishesCaAndCrlForNewConnection) {
+  TempDirectory directory;
+  const auto ca = directory.name() + "/metadata-ca.pem";
+  const auto crl = directory.name() + "/metadata-crl.pem";
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/cacert.pem", ca);
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/crl-client-revoked.crl", crl);
+
+  metadata_cache::MetadataCacheMySQLSessionConfig session_config{};
+  mysqlrouter::SSLOptions ssl_options;
+  ssl_options.mode = "VERIFY_CA";
+  ssl_options.ca = ca;
+  ssl_options.crl = crl;
+  TestClusterMetadata metadata{session_config, ssl_options};
+
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/crl-ca-cert.pem", ca,
+                             std::filesystem::copy_options::overwrite_existing);
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/crl-server-revoked.crl", crl,
+                             std::filesystem::copy_options::overwrite_existing);
+
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool callback_complete{false};
+  bool callback_success{false};
+  const auto id = reloader_.register_callback(
+      "metadata_cache", [&]() -> mysql_harness::TlsReloadComponent::Result {
+        try {
+          metadata.reload_tls();
+          callback_success = true;
+        } catch (...) {
+          callback_success = false;
+        }
+        {
+          std::lock_guard<std::mutex> lock{mutex};
+          callback_complete = true;
+        }
+        cv.notify_one();
+        if (callback_success)
+          return mysql_harness::TlsReloadComponent::Result{};
+        return stdx::unexpected(std::string{});
+      });
+
+  reloader_.request_reload();
+  {
+    std::unique_lock<std::mutex> lock{mutex};
+    ASSERT_TRUE(cv.wait_for(lock, std::chrono::seconds{2},
+                            [&] { return callback_complete; }));
+  }
+  ASSERT_TRUE(callback_success);
+
+  RecordingMySQLSession session;
+  ASSERT_TRUE(metadata.connect_with(session));
+  EXPECT_TRUE(session.connected_);
+  EXPECT_EQ(SSL_MODE_VERIFY_CA, session.mode_);
+  EXPECT_EQ(ca, session.ca_);
+  EXPECT_EQ(crl, session.crl_);
+
+  reloader_.unregister_callback(id);
+}
 
 using metadata_cache::ManagedInstance;
 

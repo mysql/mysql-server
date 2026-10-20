@@ -13,4 +13,25 @@ SELECT test_security_context_account_locked();
 test_security_context_account_locked()
 0
 DROP USER 'test_account_locked'@'localhost';
+# Test whether the current statement is a Server substatement
+SELECT test_thd_is_substatement();
+test_thd_is_substatement()
+0
+CREATE FUNCTION test_is_substatement_function()
+RETURNS INTEGER NO SQL
+RETURN test_thd_is_substatement();
+SELECT test_is_substatement_function();
+test_is_substatement_function()
+1
+DROP FUNCTION test_is_substatement_function;
+CREATE TABLE test_is_substatement_trigger (value INTEGER);
+CREATE TRIGGER test_is_substatement_before_insert
+BEFORE INSERT ON test_is_substatement_trigger
+FOR EACH ROW SET NEW.value = test_thd_is_substatement();
+INSERT INTO test_is_substatement_trigger VALUES (0);
+SELECT value FROM test_is_substatement_trigger;
+value
+1
+DROP TRIGGER test_is_substatement_before_insert;
+DROP TABLE test_is_substatement_trigger;
 UNINSTALL COMPONENT "file://component_test_mysql_current_thread_reader";

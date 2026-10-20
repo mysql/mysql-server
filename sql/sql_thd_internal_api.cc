@@ -73,7 +73,7 @@ THD *create_internal_thd() {
   thd->system_thread = SYSTEM_THREAD_BACKGROUND;
   // Skip grants and set the system_user flag in THD.
   thd->security_context()->skip_grants();
-  thd->thread_stack = reinterpret_cast<char *>(&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
@@ -130,7 +130,7 @@ void thd_init(THD *thd, char *stack_start) {
                 mysql_socket_getfd(
                     thd->get_protocol_classic()->get_vio()->mysql_socket)));
   }
-  thd_set_thread_stack(thd, stack_start);
+  thd->capture_stack_base(stack_start);
 
   thd->store_globals();
 }
@@ -183,8 +183,8 @@ void destroy_thd(THD *thd, bool clear_pfs_events [[maybe_unused]]) {
 
 void destroy_thd(THD *thd) { return destroy_thd(thd, true); }
 
-void thd_set_thread_stack(THD *thd, const char *stack_start) {
-  thd->thread_stack = stack_start;
+void thd_set_thread_stack_base(THD *thd, const char *stack_start) {
+  thd->set_stack_base(stack_start);
 }
 
 extern "C" void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond,

@@ -1,0 +1,2 @@
+$WEBAUTHN_AUTHENTICATION_PLUGIN_OPT
+--loose-authentication_webauthn_rp_id=mysql.com

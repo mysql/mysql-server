@@ -30,6 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  ***********************************************************************/
 
 #include <current_thd.h>
+#include <sql/sql_error.h>
 #include <sql/sql_thd_internal_api.h>
 #include <sys/types.h>
 #include <new>
@@ -4868,7 +4869,12 @@ static void fts_tokenize_by_parser(
   param.mode = MYSQL_FTPARSER_SIMPLE_MODE;
 
   PARSER_INIT(parser, &param);
-  parser->parse(&param);
+  if (parser->parse(&param) != 0 && current_thd != nullptr) {
+    push_warning(current_thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
+                 "InnoDB: Full-text parser failed; text may not be indexed "
+                 "and FULLTEXT searches may fail. See the error log for "
+                 "details reported by the parser");
+  }
   PARSER_DEINIT(parser, &param);
 }
 

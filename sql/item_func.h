@@ -4141,6 +4141,15 @@ class Item_func_version final : public Item_static_string_func {
   bool do_itemize(Parse_context *pc, Item **res) override;
 };
 
+class Item_func_version_with_update final : public Item_static_string_func {
+  typedef Item_static_string_func super;
+
+ public:
+  explicit Item_func_version_with_update(const POS &pos);
+
+  bool do_itemize(Parse_context *pc, Item **res) override;
+};
+
 /**
   Internal function used by INFORMATION_SCHEMA implementation to check
   if a role is a mandatory role.

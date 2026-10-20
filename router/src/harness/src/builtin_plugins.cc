@@ -24,6 +24,7 @@
 */
 
 #include "builtin_plugins.h"
+#include "logging/componentlog_plugin.h"
 #ifdef _WIN32
 #include "mysql/harness/logging/eventlog_plugin.h"
 #else
@@ -36,15 +37,17 @@
 namespace mysql_harness {
 
 BuiltinPlugins::BuiltinPlugins()
-    : plugins_({{kLoggerPluginName, {&harness_plugin_logger, false}},
-                {kFilelogPluginName, {&harness_plugin_filelog, true}},
-                {kConsolelogPluginName, {&harness_plugin_consolelog, false}},
+    : plugins_(
+          {{kLoggerPluginName, {&harness_plugin_logger, false}},
+           {kFilelogPluginName, {&harness_plugin_filelog, true}},
+           {kConsolelogPluginName, {&harness_plugin_consolelog, false}},
+           {kComponentlogPluginName, {&harness_plugin_componentlog, false}},
 #ifdef _WIN32
-                {kEventlogPluginName, {&harness_plugin_eventlog, false}}
+           {kEventlogPluginName, {&harness_plugin_eventlog, false}}
 #else
-                {kSyslogPluginName, {&harness_plugin_syslog, false}}
+                {kSyslogPluginName, {&harness_plugin_syslog, false}},
 #endif
-      }) {
+          }) {
 }
 
 /* static */

@@ -436,14 +436,22 @@ int send_proto(connection_descriptor *con, xcom_proto x_proto,
 #define XDRFUNC xdrfunc
 #endif
 
+struct xcom_app_data_xdr_context {
+  uint32_t app_data_depth;
+};
+
 // This function is annotated with SUPPRESS_UBSAN, see header file declaration.
 int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
               enum xdr_op op) {
   XDR xdr;
+  xcom_app_data_xdr_context app_data_xdr_context = {0};
   [[maybe_unused]] int s = 0;
 
   xdr.x_ops = nullptr;
   xdrmem_create(&xdr, (char *)buff, bufflen, op);
+  if (op == XDR_DECODE) {
+    xdr.x_public = reinterpret_cast<caddr_t>(&app_data_xdr_context);
+  }
   /*
     Mac OSX changed the xdrproc_t prototype to take
     three parameters instead of two.

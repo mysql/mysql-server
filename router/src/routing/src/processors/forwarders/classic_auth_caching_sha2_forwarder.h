@@ -26,6 +26,7 @@
 #ifndef ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_AUTH_CACHING_SHA2_FORWARDER_H_
 #define ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_AUTH_CACHING_SHA2_FORWARDER_H_
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -95,6 +96,10 @@ class AuthCachingSha2Forwarder : public ForwardingProcessor {
   bool client_requested_full_auth_{false};
   // track if the plaintext password was requested by the server.
   bool server_requested_full_auth_{false};
+
+  // Keep the key pair used for a public-key response until the matching
+  // encrypted password has been decrypted.
+  RsaTlsContext rsa_tls_context_;
 
   Stage stage_;
 };

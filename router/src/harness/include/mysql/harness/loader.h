@@ -754,8 +754,10 @@ class HARNESS_EXPORT Loader {
    *
    * @param program Name of our program
    * @param config Router configuration
+   * @param can_run_only_on_builtins Allow to run only with internals
    */
-  Loader(const std::string &program, LoaderConfig &config);
+  Loader(const std::string &program, LoaderConfig &config,
+         bool can_run_only_on_builtins = false);
   Loader(const Loader &) = delete;
   ~Loader();
 
@@ -869,6 +871,13 @@ class HARNESS_EXPORT Loader {
    */
   void expose_config_all(const bool initial);
 
+  // IMPORTANT design note: start_all() will block until PluginFuncEnv objects
+  // have been created for all plugins. This guarantees that the required
+  // PluginFuncEnv will always exist when plugin stop() function is called.
+
+  // start() calls these, indents reflect call hierarchy
+  void setup_info();
+
  private:
   enum class Status { UNVISITED, ONGOING, VISITED };
 
@@ -919,12 +928,6 @@ class HARNESS_EXPORT Loader {
   /** @overload */
   const Plugin *load(const std::string &plugin_name, const std::string &key);
 
-  // IMPORTANT design note: start_all() will block until PluginFuncEnv objects
-  // have been created for all plugins. This guarantees that the required
-  // PluginFuncEnv will always exist when plugin stop() function is called.
-
-  // start() calls these, indents reflect call hierarchy
-  void setup_info();
   std::exception_ptr
   run();  // returns first exception returned from below harness functions
   std::exception_ptr init_all();  // returns first exception triggered by init()
@@ -971,6 +974,9 @@ class HARNESS_EXPORT Loader {
     const Plugin *plugin() const { return plugin_; }
 
     const DynamicLibrary &library() const { return module_; }
+
+    void unload_library() { /*module_.unload();*/
+    }
 
    private:
     DynamicLibrary module_;
@@ -1066,6 +1072,8 @@ class HARNESS_EXPORT Loader {
 #ifdef FRIEND_TEST
   friend class ::TestLoader;
 #endif
+
+  bool can_run_only_on_builtins_{false};
 };  // class Loader
 
 }  // namespace mysql_harness

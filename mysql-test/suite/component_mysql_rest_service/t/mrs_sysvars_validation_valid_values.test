@@ -1,0 +1,259 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify MRS component system variables:
+#
+# This test validates the component's sysvars by attempting
+# to set them to valid and invalid values. It ensures that:
+#  - Valid values are accepted and correctly applied
+#  - Invalid values are rejected with appropriate error messages
+#  - Default values are correctly reported
+#
+# The available sysvars are:
+#  - mysql_rest_service.http_port;
+#  - mysql_rest_service.ssl_cert;
+#  - mysql_rest_service.ssl_key;
+#  - mysql_rest_service.ssl_cipher;
+#  - mysql_rest_service.io_worker_threads;
+#  - mysql_rest_service.http_max_connections;
+#  - mysql_rest_service.http_max_request_body_size;
+#  - mysql_rest_service.http_max_response_body_size;
+#
+# This test is split into 4 different blocks, this is the second.
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## II. Set sysvars to valid values:
+--echo #
+--echo # 1. Set each sysvar to a valid value and verify the change.
+--echo # 2. Restart the component and verify that values are applied
+--echo #
+
+# Init
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--echo
+--echo #
+--echo ## II. 1 Set each sysvar to a valid value and verify the change.
+
+--disable_query_log
+# http_port
+--let $http_port_user = `SELECT $HTTP_SERVER_PORT + 1`
+
+--eval SET PERSIST mysql_rest_service.http_port=$http_port_user;
+
+--let $http_port = `SELECT @@mysql_rest_service.http_port;`
+
+--let $assert_text = MRS Component http_port must be %HTTP_PORT%
+--let $assert_cond = $http_port = $http_port_user
+--source include/assert.inc
+
+# ssl_cert
+--let $ssl_cert_user = $MYSQL_TMP_DIR/home/foo/mycert.ca
+
+--eval SET PERSIST mysql_rest_service.ssl_cert="$ssl_cert_user";
+
+--let $ssl_cert = `SELECT @@mysql_rest_service.ssl_cert;`
+
+--let $assert_text = MRS Component ssl_cert must be MYSQL_TMP_DIR/home/foo/mycert.ca
+--let $assert_cond = "$ssl_cert" = "$ssl_cert_user"
+--source include/assert.inc
+
+# ssl_key
+--let $ssl_key_user = $MYSQL_TMP_DIR/home/bar/key.key
+
+--eval SET PERSIST mysql_rest_service.ssl_key="$ssl_key_user";
+
+--let $ssl_key = `SELECT @@mysql_rest_service.ssl_key;`
+
+--let $assert_text = MRS Component ssl_key must be MYSQL_TMP_DIR/home/bar/key.key
+--let $assert_cond = "$ssl_key" = "$ssl_key_user"
+--source include/assert.inc
+
+# ssl_cipher
+--let $ssl_cipher_user = ECDHE-RSA-AES128-GCM-SHA256
+
+--eval SET PERSIST mysql_rest_service.ssl_cipher="$ssl_cipher_user";
+
+--let $ssl_cipher = `SELECT @@mysql_rest_service.ssl_cipher;`
+
+--let $assert_text = MRS Component ssl_cipher must match the configured value
+--let $assert_cond = "$ssl_cipher" = "$ssl_cipher_user"
+--source include/assert.inc
+
+# io_worker_threads
+SET PERSIST mysql_rest_service.io_worker_threads=1;
+
+--let $io_worker_threads = `SELECT @@mysql_rest_service.io_worker_threads;`
+
+--let $assert_text = MRS Component io_worker_threads must be 1
+--let $assert_cond = $io_worker_threads = 1
+--source include/assert.inc
+
+# HTTP limits
+SET PERSIST mysql_rest_service.http_max_connections=100000;
+SET PERSIST mysql_rest_service.http_max_request_body_size=2147483648;
+SET PERSIST mysql_rest_service.http_max_response_body_size=2147483648;
+
+--let $http_max_connections = `SELECT @@mysql_rest_service.http_max_connections;`
+--let $assert_text = MRS Component http_max_connections must be 100000
+--let $assert_cond = $http_max_connections = 100000
+--source include/assert.inc
+
+--let $http_max_request_body_size = `SELECT @@mysql_rest_service.http_max_request_body_size;`
+--let $assert_text = MRS Component http_max_request_body_size must be 2147483648
+--let $assert_cond = $http_max_request_body_size = 2147483648
+--source include/assert.inc
+
+--let $http_max_response_body_size = `SELECT @@mysql_rest_service.http_max_response_body_size;`
+--let $assert_text = MRS Component http_max_response_body_size must be 2147483648
+--let $assert_cond = $http_max_response_body_size = 2147483648
+--source include/assert.inc
+
+# Test cleanup: reset the vars
+RESET PERSIST mysql_rest_service.http_port;
+RESET PERSIST mysql_rest_service.ssl_cert;
+RESET PERSIST mysql_rest_service.ssl_key;
+RESET PERSIST mysql_rest_service.ssl_cipher;
+RESET PERSIST mysql_rest_service.io_worker_threads;
+RESET PERSIST mysql_rest_service.http_max_connections;
+RESET PERSIST mysql_rest_service.http_max_request_body_size;
+RESET PERSIST mysql_rest_service.http_max_response_body_size;
+
+# RESET PERSIST does not change the current global values.
+SET GLOBAL mysql_rest_service.ssl_cert = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_key = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_cipher = DEFAULT;
+SET GLOBAL mysql_rest_service.io_worker_threads = DEFAULT;
+SET GLOBAL mysql_rest_service.http_max_connections = DEFAULT;
+SET GLOBAL mysql_rest_service.http_max_request_body_size = DEFAULT;
+SET GLOBAL mysql_rest_service.http_max_response_body_size = DEFAULT;
+
+--echo
+--echo #
+--echo ## II. 2 Restart the component and verify that values are applied
+
+# test: http_port
+--let $http_port = `SELECT @@mysql_rest_service.http_port;`
+--let $http_port_user = `SELECT $http_port + 1`
+--eval SET GLOBAL mysql_rest_service.http_port = $http_port_user;
+
+SELECT mysql_rest_service_restart();
+
+# MySQL Rest Service Component: Setting HTTP port: $http_port_user
+--let $wait_log_pattern = Setting HTTP port: \'$http_port_user\'
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+# Starting MySQL REST Metadata monitor
+--let $wait_log_pattern = Starting MySQL REST Metadata monitor
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+# Wait for readiness
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = current_http_port reports the restarted listener port
+--let $assert_cond = $current_http_port = $http_port_user
+--source include/assert.inc
+
+# cleanup: http_port test
+SET GLOBAL mysql_rest_service.http_port = DEFAULT;
+
+--let $http_port = `SELECT @@mysql_rest_service.http_port;`
+--let $assert_text = MRS Component default http_port must be 33443
+--let $assert_cond = $http_port = 33443
+--source include/assert.inc
+
+# Restore the MTR-reserved listener port before subsequent restarts.
+--eval SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT;
+
+# test: ssl_cert + ssl_key
+--let $ssl_cert_user = $MYSQL_TMP_DIR/home/foo/cert.ca
+--let $ssl_key_user = $MYSQL_TMP_DIR/home/bar/key.key
+
+--eval SET GLOBAL mysql_rest_service.ssl_cert = "$ssl_cert_user";
+--eval SET GLOBAL mysql_rest_service.ssl_key = "$ssl_key_user";
+
+SELECT mysql_rest_service_restart();
+
+call mtr.add_suppression("MySQL Rest Service Component: Backend startup failed in background thread: TLS initialization failed because the configured SSL certificate file .* does not exist, is not a regular file, or cannot be accessed.*MySQL REST Service remains inactive");
+call mtr.add_suppression("MySQL Rest Service Component: Backend startup failed in background thread: TLS initialization failed because the configured SSL private key file .* does not exist, is not a regular file, or cannot be accessed.*MySQL REST Service remains inactive");
+
+--let $wait_log_pattern = TLS initialization failed because the configured SSL certificate file \'$ssl_cert_user\' does not exist, is not a regular file, or cannot be accessed.%MySQL REST Service remains inactive.
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $current_tls_cert = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert';`
+--let $current_tls_key = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key';`
+--let $assert_text = current_http_port is inactive after failed restart
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+--let $assert_text = current_tls_cert is inactive after failed restart
+--let $assert_cond = "$current_tls_cert" = ""
+--source include/assert.inc
+--let $assert_text = current_tls_key is inactive after failed restart
+--let $assert_cond = "$current_tls_key" = ""
+--source include/assert.inc
+
+# Verify the private-key check independently with a valid certificate.
+--eval SET GLOBAL mysql_rest_service.ssl_cert = "$MYSQL_TEST_DIR/std_data/server-cert.pem";
+SELECT mysql_rest_service_restart();
+
+--let $wait_log_pattern = TLS initialization failed because the configured SSL private key file \'$ssl_key_user\' does not exist, is not a regular file, or cannot be accessed.%MySQL REST Service remains inactive.
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+# cleanup: ssl_cert + ssl_key test
+SET GLOBAL mysql_rest_service.ssl_cert = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_key = DEFAULT;
+
+# Verify the TLS cipher-list policy independently with valid certificate files.
+SET GLOBAL mysql_rest_service.ssl_cipher = "NOT-A-CIPHER";
+SELECT mysql_rest_service_restart();
+
+call mtr.add_suppression("MySQL Rest Service Component: Backend startup failed in background thread: .*using ssl-cipher list failed.*MySQL REST Service remains inactive");
+call mtr.add_suppression("init 'http_server' failed: using ssl-cipher list failed: .*no cipher match");
+
+--let $wait_log_pattern = using ssl-cipher list failed
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $current_tls_cipher = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher';`
+--let $current_io_worker_threads = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads';`
+--let $assert_text = current_http_port is inactive after invalid ssl_cipher
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+--let $assert_text = current_tls_cipher is inactive after invalid ssl_cipher
+--let $assert_cond = "$current_tls_cipher" = ""
+--source include/assert.inc
+--let $assert_text = current_io_worker_threads is inactive after invalid ssl_cipher
+--let $assert_cond = $current_io_worker_threads = 0
+--source include/assert.inc
+
+# Recover from the invalid TLS configuration using the server defaults.
+SET GLOBAL mysql_rest_service.ssl_cipher = DEFAULT;
+SELECT mysql_rest_service_restart();
+
+# Wait for readiness
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--echo
+--echo #
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc
+
+# Explicitly verify that no system variables remain after component uninstall.
+# This is also checked by the postcheck in the featured test, but we repeat it here for clarity and isolation.
+--let $sysvars_count = `SELECT count(*)=0 FROM performance_schema.variables_info WHERE VARIABLE_NAME like 'mysql_rest_service%';`
+
+--let $assert_text = MRS Component system variables must be unregistered
+--let $assert_cond = $sysvars_count = 1
+--source include/assert.inc

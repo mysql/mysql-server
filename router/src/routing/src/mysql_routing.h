@@ -82,7 +82,6 @@ namespace mysql_harness {
 class PluginFuncEnv;
 }  // namespace mysql_harness
 
-struct Nothing {};
 class MySQLRouting;
 
 class ROUTING_EXPORT AcceptingEndpoint {
@@ -98,7 +97,7 @@ class ROUTING_EXPORT AcceptingEndpoint {
   virtual bool is_open() const = 0;
 
   virtual void start(MySQLRouting *r, std::list<IoThread> &,
-                     WaitableMonitor<Nothing> &waitable) = 0;
+                     WaitableMonitor<bool> &waitable) = 0;
 
   virtual std::string name() = 0;
 
@@ -121,7 +120,7 @@ class ROUTING_EXPORT AcceptingEndpointTcpSocket : public AcceptingEndpoint {
   bool is_open() const override;
 
   void start(MySQLRouting *r, std::list<IoThread> &,
-             WaitableMonitor<Nothing> &waitable) override;
+             WaitableMonitor<bool> &waitable) override;
 
   std::string name() override;
 
@@ -145,7 +144,7 @@ class ROUTING_EXPORT AcceptingEndpointUnixSocket : public AcceptingEndpoint {
   bool is_open() const override;
 
   void start(MySQLRouting *r, std::list<IoThread> &,
-             WaitableMonitor<Nothing> &waitable) override;
+             WaitableMonitor<bool> &waitable) override;
 
   std::string name() override;
 
@@ -169,7 +168,8 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /** @brief Default constructor
    *
    * @param routing_config routing configuration
-   * @param io_ctx IO context
+   * @param io_ctx IO context for routing connections
+   * @param acceptor_io_ctx IO context for accepting client connections
    * @param guidelines routing guidelines engine
    * @param route_name Name of connection routing (can be empty string)
    * @param client_ssl_ctx SSL context of the client side
@@ -177,9 +177,17 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    */
   MySQLRouting(
       const RoutingConfig &routing_config, net::io_context &io_ctx,
+      net::io_context &acceptor_io_ctx,
       std::shared_ptr<routing_guidelines::Routing_guidelines_engine> guidelines,
       const std::string &route_name = {},
-      TlsServerContext *client_ssl_ctx = nullptr,
+      std::shared_ptr<TlsServerContext> client_ssl_ctx = nullptr,
+      DestinationTlsContext *dest_ssl_ctx = nullptr);
+
+  MySQLRouting(
+      const RoutingConfig &routing_config, net::io_context &io_ctx,
+      std::shared_ptr<routing_guidelines::Routing_guidelines_engine> guidelines,
+      const std::string &route_name = {},
+      std::shared_ptr<TlsServerContext> client_ssl_ctx = nullptr,
       DestinationTlsContext *dest_ssl_ctx = nullptr);
 
   /** @brief Runs the service and accept incoming connections
@@ -285,19 +293,12 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   bool is_accepting_connections() const override;
 
   /**
-   * Start accepting new connections on a listening socket
+   * Refresh routing socket acceptor state based on currently usable
+   * destinations.
    *
    * @returns std::string on errors.
    */
-  stdx::expected<void, std::string> start_accepting_connections() override;
-
-  /**
-   * Start accepting new connections on a listening socket after it has been
-   * quarantined for lack of valid destinations
-   *
-   * @returns std::string on errors.
-   */
-  stdx::expected<void, std::string> restart_accepting_connections() override;
+  stdx::expected<void, std::string> refresh_socket_acceptor_state() override;
 
   /**
    * In case when routing guideline was updated go through each established
@@ -342,6 +343,12 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   stdx::expected<void, std::string> run_acceptor(
       mysql_harness::PluginFuncEnv *env);
 
+  stdx::expected<void, std::string> start_accepting_connections();
+  stdx::expected<void, std::string> restart_accepting_connections();
+
+  /** Stop socket acceptors while socket_acceptor_state_mtx_ is held. */
+  void stop_socket_acceptors_unlocked(bool shutting_down);
+
   stdx::expected<void, std::string> run_with_no_acceptor(
       mysql_harness::PluginFuncEnv *env);
 
@@ -372,13 +379,14 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
  private:
   bool accept_connections_{true};
 
-  /** Monitor for notifying socket acceptor */
-  WaitableMonitor<Nothing> acceptor_waitable_{Nothing{}};
+  /** Monitor for controlling and notifying socket acceptors. */
+  WaitableMonitor<bool> acceptor_waitable_{false};
 
   /** @brief wrapper for data used by all connections */
   MySQLRoutingContext context_;
 
   net::io_context &io_ctx_;
+  net::io_context &acceptor_io_ctx_;
 
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<DestinationManager> destination_manager_{nullptr};
@@ -408,6 +416,10 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /** Information if the routing plugin is still running. */
   std::atomic<bool> is_running_{true};
 
+  /** Serializes socket acceptor state transitions. */
+  std::mutex socket_acceptor_state_mtx_;
+  bool acceptors_started_{false};
+
   /** Used when the accepting port is been reopened and it failed, to schedule
    * another retry for standalone-destination(s) route. */
   net::steady_timer accept_port_reopen_retry_timer_{io_ctx_};
@@ -415,6 +427,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
   FRIEND_TEST(RoutingTests, get_routing_thread_name);
+  FRIEND_TEST(RoutingTests, NoAcceptorRestartRetryAfterRoutingStops);
   FRIEND_TEST(ClassicProtocolRoutingTest, NoValidDestinations);
   FRIEND_TEST(TestSetupTcpService, single_addr_ok);
   FRIEND_TEST(TestSetupTcpService, getaddrinfo_fails);

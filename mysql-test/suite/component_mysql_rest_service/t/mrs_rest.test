@@ -1,0 +1,265 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify basic REST access.
+#
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Verify basic REST access on DB-OBJECT:
+--echo #
+--echo # 1. verify GET request that returns single docuemnt,
+--echo # 2. verify GET request that returns multiple docuemnts,
+--echo # 3. verify POST request inserts a new document,
+--echo # 4. verify PUT request updates a document,
+--echo # 5. verify DELETE removes a document,
+--echo # 6. verify component procedure execution,
+--echo # 7. verify component procedure result conversion,
+--echo # 8. verify router-driven MySQL task is rejected in embedded MRS mode,
+--echo # 9. verify repeated procedure REST requests on the single component I/O thread,
+--echo # 10. verify recovery after a component procedure execution error.
+--echo # 11. verify a procedure result larger than 1 MiB.
+--echo
+
+--source ../include/cmrs/initialize.inc
+
+--source $router_tests/schema/basic_schema.sql
+
+--disable_query_log
+--disable_result_log
+DELIMITER $$;
+CREATE PROCEDURE `basic_schema`.`component_echo`(IN input VARCHAR(20))
+BEGIN
+  SELECT CONCAT('Hello ', input) AS result;
+END;$$
+CREATE PROCEDURE `basic_schema`.`component_types`()
+BEGIN
+  SELECT csmallint AS signed_value,
+         CAST(id AS UNSIGNED) AS unsigned_value,
+         cfloat AS float_value,
+         cdouble AS double_value,
+         cdatetime AS datetime_value,
+         cbit1 AS bit1_value,
+         cbit10 AS bit10_value,
+         cvarchar AS string_value,
+         CAST(NULL AS CHAR) AS null_value
+    FROM `basic_schema`.`table3`
+   WHERE id = 3;
+END;$$
+CREATE PROCEDURE `basic_schema`.`component_statement_error`(
+  IN should_fail BOOLEAN,
+  OUT integer_value BIGINT,
+  OUT double_value DOUBLE,
+  OUT string_value VARCHAR(20),
+  INOUT nullable_value BIGINT)
+BEGIN
+  IF should_fail THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Component statement error', MYSQL_ERRNO = 5511;
+  END IF;
+
+  SET integer_value = -7;
+  SET double_value = 1.25;
+  SET string_value = 'bound';
+  SET nullable_value = COALESCE(nullable_value, 9);
+END;$$
+CREATE PROCEDURE `basic_schema`.`component_task`()
+BEGIN
+  SELECT 1 AS result;
+END;$$
+CREATE PROCEDURE `basic_schema`.`component_large_result`()
+BEGIN
+  SELECT REPEAT('x', 1024 * 1024 + 1) AS result;
+END;$$
+DELIMITER ;$$
+--enable_result_log
+--enable_query_log
+--source $router_tests/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source $router_tests/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t1
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=component_echo
+--let $mrs_add_db_object_path=/component_echo
+--let $mrs_add_db_object_type=PROCEDURE
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=component_types
+--let $mrs_add_db_object_path=/component_types
+--let $mrs_add_db_object_type=PROCEDURE
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=component_statement_error
+--let $mrs_add_db_object_path=/component_statement_error
+--let $mrs_add_db_object_type=PROCEDURE
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=component_task
+--let $mrs_add_db_object_path=/component_task
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object_auth=TRUE
+--let $mrs_add_db_object_options='{"mysqlTask":{"driver":"router"}}'
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=component_large_result
+--let $mrs_add_db_object_path=/component_large_result
+--let $mrs_add_db_object_type=PROCEDURE
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_auth_app=component_task_auth
+--let $mrs_add_auth_vendor=MRS
+--let $mrs_add_auth_service=/svc
+--source $router_tests/mrs/auth_app/add.inc
+
+--let $mrs_add_user_name="component_task_user"
+--let $mrs_add_user_ext_uid=3000
+# auth_string: $A$005$VxmHRs/knOXHlsrB0onsYl8YmX0=$zBMKnT9FCep0IayH6aF5RI41z9EIGZoYalzD2MR971o=
+# encoded as base64:
+--let $mrs_add_user_auth_string="JEEkMDA1JFZ4bUhScy9rbk9YSGxzckIwb25zWWw4WW1YMD0kekJNS25UOUZDZXAwSWF5SDZhRjVSSTQxejlFSUdab1lhbHpEMk1SOTcxbz0="
+# Auth-string generated for "test" password
+--source $router_tests/mrs/user/add.inc
+--source $router_tests/mrs/end_object_definition.inc
+
+
+--echo
+--echo #
+--echo # I.1
+# Mask off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
+--let $mrs_client_arg_path='/svc/basic/t1/1'
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.2
+# Mask off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
+--let $mrs_client_arg_path='/svc/basic/t1/'
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.3
+# Omit the auto-increment column to exercise generated primary-key propagation.
+--let $mrs_client_arg_path='/svc/basic/t1/'
+--let $mrs_client_arg_payload='{}'
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_json_pointer=/id
+--source $router_tests/mrs/mrs_client.inc
+
+# Mask off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
+--let $mrs_client_arg_path='/svc/basic/t1/'
+--let $mrs_client_arg_payload='{"id":783202}'
+--let $mrs_client_arg_request_type='POST'
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.4
+# Mask off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
+--let $mrs_client_arg_path='/svc/basic/t1/1'
+--let $mrs_client_arg_payload='{"id":1}'
+--let $mrs_client_arg_request_type='PUT'
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.5
+# Mask off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
+--let $mrs_client_arg_path='/svc/basic/t1/1'
+--let $mrs_client_arg_request_type='DELETE'
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.6
+--let $mrs_client_arg_path='/svc/basic/component_echo?input=Andresz'
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.7
+--let $mrs_client_arg_path='/svc/basic/component_types'
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.8
+exec $MRS_CLIENT_ARGS
+  -a scram_post
+  --auth-app component_task_auth
+  --path /svc/authentication/login
+  -u component_task_user
+  -p test
+  --session-type jwt
+  --display none
+  --session-file $MYSQL_TMP_DIR/component_task_session.dat;
+
+--let $mrs_client_arg_path='/svc/basic/component_task'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/component_task_session.dat
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_payload='{}'
+--let $mrs_client_arg_expected_status=501
+--source $router_tests/mrs/mrs_client.inc
+--remove_file $MYSQL_TMP_DIR/component_task_session.dat
+
+--echo
+--echo #
+--echo # I.9
+# Component MRS configures Router's io plugin with threads=1.
+--let $component_echo_request_count=4
+while ($component_echo_request_count)
+{
+  --let $mrs_client_arg_path='/svc/basic/component_echo?input=Andresz'
+  --let $mrs_client_arg_display=none
+  --source $router_tests/mrs/mrs_client.inc
+  --dec $component_echo_request_count
+}
+--echo Four repeated procedure REST requests completed.
+
+--echo
+--echo #
+--echo # I.10
+--let $mrs_client_arg_path='/svc/basic/component_statement_error'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"should_fail": false, "nullable_value": null}'
+--source $router_tests/mrs/mrs_client.inc
+
+--let $mrs_client_arg_path='/svc/basic/component_statement_error'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"should_fail": true, "nullable_value": null}'
+--let $mrs_client_arg_expected_status=511
+--source $router_tests/mrs/mrs_client.inc
+
+# Verify that the service permits another execution after the statement error.
+--let $mrs_client_arg_path='/svc/basic/component_statement_error'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"should_fail": false, "nullable_value": null}'
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.11
+--let $mrs_client_arg_path='/svc/basic/component_large_result'
+--let $mrs_client_arg_expected_status=200
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--echo Procedure result larger than 1 MiB completed.
+
+--echo
+--echo #
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

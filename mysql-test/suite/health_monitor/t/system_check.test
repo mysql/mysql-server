@@ -1,0 +1,55 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Install the Health Monitor component, confirm no INVALID PATH warnings
+--echo ##   2. Verify that columns derived from system files (e.g. /proc) are populated
+
+# System stats not supported on Windows
+--source include/not_windows.inc
+
+--echo ###
+--echo ### Test 1: Install Health Monitor component
+--echo ###
+--echo
+--echo # INVALID PATH warnings are not suppressed and will cause the test to fail
+--source ../include/health_monitor_setup.inc
+
+let $system_debug = 0;
+
+--echo
+--echo # Start the disk and system collectors
+--echo
+set @@global.health_monitor.disk_sample_rate=1;
+set @@global.health_monitor.disk_running = ON;
+set @@global.health_monitor.system_running = ON;
+
+use performance_schema;
+
+# The Supervisor applies collector settings asynchronously. Wait until the
+# system collector enables the on-demand tables.
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0 from performance_schema.system_cpu_stats
+   where cpu is not null;
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo ###
+--echo ### Test 2: Confirm that available system capabilities are populated
+--echo ###
+--echo
+--echo # These are on-demand tables--no need to wait for sample collection
+
+select (count(*) > 0) as 'Expect 1' from system_cpu_stats where cpu is not null;
+select ((count(*) > 0) = (convert(@@version_compile_os using latin1) IN ('Linux'))) as 'Expect 1' from system_disk_stats where device is not null;
+select (count(*) > 0) as 'Expect 1' from system_memory_stats where total_bytes is not null;
+select (count(*) > 0) as 'Expect 1' from system_process_stats where thread_name is not null;
+select (count(*) > 0) as 'Expect 1' from health_block_device where device is not null;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

@@ -139,6 +139,7 @@ while ($i < $keycount)
 eval select $api_conn_count - $start_api_conn_count as Leaks;
 --let $start_api_conn_count = $api_conn_count
 --enable_query_log
+--sleep $STABILISATION_SECS
 select count(1) as ops from ndbinfo.cluster_operations;
 #select * from ndbinfo.cluster_operations;
 
@@ -224,6 +225,7 @@ while ($i < $keycount)
 eval select $api_conn_count - $start_api_conn_count as Leaks;
 --let $start_api_conn_count = $api_conn_count
 --enable_query_log
+--sleep $STABILISATION_SECS
 select count(1) as ops from ndbinfo.cluster_operations;
 #select * from ndbinfo.cluster_operations;
 
@@ -268,6 +270,7 @@ while ($i < $keycount)
 eval select $api_conn_count - $start_api_conn_count as Leaks;
 --let $start_api_conn_count = $api_conn_count
 --enable_query_log
+--sleep $STABILISATION_SECS
 select count(1) as ops from ndbinfo.cluster_operations;
 #select * from ndbinfo.cluster_operations;
 
@@ -311,6 +314,7 @@ while ($i < $keycount)
 eval select $api_conn_count - $start_api_conn_count as Leaks;
 --let $start_api_conn_count = $api_conn_count
 --enable_query_log
+--sleep $STABILISATION_SECS
 select count(1) as ops from ndbinfo.cluster_operations;
 #select * from ndbinfo.cluster_operations;
 
@@ -356,6 +360,7 @@ while ($i < $keycount)
 eval select $api_conn_count - $start_api_conn_count as Leaks;
 --let $start_api_conn_count = $api_conn_count
 --enable_query_log
+--sleep $STABILISATION_SECS
 select count(1) as ops from ndbinfo.cluster_operations;
 #select * from ndbinfo.cluster_operations;
 
@@ -484,6 +489,7 @@ while ($i < $keycount)
 eval select $api_conn_count - $start_api_conn_count as Leaks;
 --let $start_api_conn_count = $api_conn_count
 --enable_query_log
+--sleep $STABILISATION_SECS
 select count(1) as ops from ndbinfo.cluster_operations;
 
 --echo
@@ -526,6 +532,7 @@ while ($i < $keycount)
 eval select $api_conn_count - $start_api_conn_count as Leaks;
 --let $start_api_conn_count = $api_conn_count
 --enable_query_log
+--sleep $STABILISATION_SECS
 select count(1) as ops from ndbinfo.cluster_operations;
 
 --echo
@@ -565,6 +572,7 @@ while ($i < $keycount)
 eval select $api_conn_count - $start_api_conn_count as Leaks;
 --let $start_api_conn_count = $api_conn_count
 --enable_query_log
+--sleep $STABILISATION_SECS
 select count(1) as ops from ndbinfo.cluster_operations;
 
 
@@ -606,6 +614,7 @@ while ($i < $keycount)
 eval select $api_conn_count - $start_api_conn_count as Leaks;
 --let $start_api_conn_count = $api_conn_count
 --enable_query_log
+--sleep $STABILISATION_SECS
 select count(1) as ops from ndbinfo.cluster_operations;
 
 

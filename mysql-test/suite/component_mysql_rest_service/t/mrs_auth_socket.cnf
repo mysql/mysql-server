@@ -1,0 +1,7 @@
+!include ../my.cnf
+
+[mysqld.1]
+plugin-load-add=auth_socket=auth_socket.so;test_plugin_server=auth_test_plugin.so
+
+[ENV]
+LIBMYSQL_PLUGIN_DIR=@env.PLUGIN_AUTH_DIR

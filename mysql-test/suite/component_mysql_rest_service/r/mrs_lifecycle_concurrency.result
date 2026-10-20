@@ -1,0 +1,84 @@
+
+
+## I. Serialize a concurrent start behind stop
+## II. Serialize a concurrent stop behind restart
+## III. Reject pending and new lifecycle calls after uninstall starts
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+
+# I. A start queued behind stop reevaluates STOPPED and starts MRS
+SET DEBUG_SYNC='mrs_component_after_stop_requested SIGNAL stop_owner_paused WAIT_FOR release_stop_owner TIMEOUT 60';
+SELECT mysql_rest_service_stop();
+SET DEBUG_SYNC='now WAIT_FOR stop_owner_paused TIMEOUT 60';
+include/assert.inc [the operation owner publishes STOPPING before blocking]
+SET DEBUG_SYNC='mrs_component_before_lifecycle_operation_lock SIGNAL queued_start_entered';
+SELECT mysql_rest_service_start();
+SET DEBUG_SYNC='now WAIT_FOR queued_start_entered TIMEOUT 60';
+SET DEBUG_SYNC='now SIGNAL release_stop_owner';
+mysql_rest_service_stop()
+0
+mysql_rest_service_start()
+0
+include/assert.inc [queued start runs after stop and reaches READY]
+# The replacement listener accepts requests.
+
+# II. A stop queued behind restart runs after the replacement starts
+SET DEBUG_SYNC='mrs_component_after_stop_requested SIGNAL restart_owner_paused WAIT_FOR release_restart_owner TIMEOUT 60';
+SELECT mysql_rest_service_restart();
+SET DEBUG_SYNC='now WAIT_FOR restart_owner_paused TIMEOUT 60';
+include/assert.inc [restart publishes STOPPING while it owns the lifecycle lock]
+SET DEBUG_SYNC='mrs_component_before_lifecycle_operation_lock SIGNAL queued_stop_entered';
+SELECT mysql_rest_service_stop();
+SET DEBUG_SYNC='now WAIT_FOR queued_stop_entered TIMEOUT 60';
+SET DEBUG_SYNC='now SIGNAL release_restart_owner';
+mysql_rest_service_restart()
+0
+mysql_rest_service_stop()
+0
+include/assert.inc [queued stop runs after restart and reaches STOPPED]
+include/assert.inc [queued stop clears the replacement listener port]
+# The replacement listener is unavailable when queued stop returns.
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+
+# III. Uninstall closes admission before waiting for a lifecycle owner
+SET DEBUG_SYNC='mrs_component_after_stop_requested SIGNAL teardown_stop_paused WAIT_FOR release_teardown_stop TIMEOUT 60';
+SELECT mysql_rest_service_stop();
+SET DEBUG_SYNC='now WAIT_FOR teardown_stop_paused TIMEOUT 60';
+SET DEBUG_SYNC='mrs_component_before_lifecycle_operation_lock SIGNAL pending_start_entered';
+SELECT mysql_rest_service_start();
+SET DEBUG_SYNC='now WAIT_FOR pending_start_entered TIMEOUT 60';
+SET DEBUG_SYNC='mrs_component_after_lifecycle_admission_closed SIGNAL admission_closed WAIT_FOR release_uninstall TIMEOUT 60';
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+SET DEBUG_SYNC='now WAIT_FOR admission_closed TIMEOUT 60';
+include/assert.inc [uninstall closes admission while lifecycle stop is pending]
+include/assert.inc [component remains registered while uninstall is paused]
+SET DEBUG_SYNC='mrs_component_before_lifecycle_operation_lock SIGNAL new_restart_entered';
+SELECT mysql_rest_service_restart();
+SET DEBUG_SYNC='now WAIT_FOR new_restart_entered TIMEOUT 60';
+SET DEBUG_SYNC='now SIGNAL release_teardown_stop';
+mysql_rest_service_stop()
+0
+ERROR HY000: The function 'mysql_rest_service_start' failed. Failed to start MySQL Rest Service backend
+ERROR HY000: The function 'mysql_rest_service_restart' failed. Failed to restart MySQL Rest Service component
+SET DEBUG_SYNC='now SIGNAL release_uninstall';
+include/assert.inc [component registry entry is removed after concurrent uninstall]
+include/assert.inc [lifecycle UDFs are removed after concurrent uninstall]
+# Uninstall leaves both protocols in the expected state.
+SELECT 1 AS classic_protocol_usable;
+classic_protocol_usable
+1
+
+# Reinstall recovers from the serialized teardown
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+include/assert.inc [reinstall reaches READY after concurrent teardown]
+
+# Cleanup
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

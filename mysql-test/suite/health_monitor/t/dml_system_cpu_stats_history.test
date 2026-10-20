@@ -1,0 +1,52 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Load the component
+--echo ##   2. DML operations on Health Monitor tables
+--echo ##   3. Unload the component
+
+# System stats not supported on Windows
+--source include/not_windows.inc
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo ###
+--echo ### Table Operations: DML
+--echo ###
+
+--echo
+--echo #
+--echo # system_cpu_stats_history
+--echo #
+--echo
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into system_cpu_stats_history
+  set cpu = 'foo', user_ms = 1000, procs_running = 1000;
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+update system_cpu_stats_history
+  set user_ms = 0;
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from system_cpu_stats_history
+  where user_ms <> 0;
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from system_cpu_stats_history;
+
+--echo
+--echo # Truncate is allowed
+truncate table system_cpu_stats_history;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

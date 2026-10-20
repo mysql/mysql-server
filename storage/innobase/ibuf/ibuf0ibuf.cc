@@ -3583,13 +3583,6 @@ static void ibuf_insert_to_index_page(
       btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec, index, update, 0, 0,
                                   mtr);
 
-      // TODO: The mtr has not been committed yet, so its redo is not durable.
-      DBUG_EXECUTE_IF("crash_after_log_ibuf_upd_inplace",
-                      ib::redo::must_persist_all(UT_LOCATION_HERE);
-                      ib::info(ER_IB_MSG_615) << "Wrote log record for ibuf"
-                                                 " update in place operation";
-                      DBUG_SUICIDE(););
-
       goto updated_in_place;
     }
 
@@ -4352,6 +4345,37 @@ bool ibuf_is_empty(void) {
   ibuf_mtr_commit(&mtr);
 
   return (is_empty);
+}
+
+void ibuf_evict_if_has_buffered_changes(const page_id_t &page_id) {
+  fil_space_t *space = fil_space_acquire_silent(page_id.space());
+  if (space == nullptr) {
+    return;
+  }
+
+  const page_size_t page_size(space->flags);
+  if (ibuf_fixed_addr_page(page_id, page_size) ||
+      fsp_descr_page(page_id, page_size)) {
+    fil_space_release(space);
+    return;
+  }
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  const page_t *bitmap_page =
+      ibuf_bitmap_get_map_page(page_id, page_size, UT_LOCATION_HERE, &mtr);
+  const bool buffered =
+      ibuf_bitmap_page_get_bits(bitmap_page, page_id, page_size,
+                                IBUF_BITMAP_BUFFERED, &mtr) != 0;
+
+  mtr_commit(&mtr);
+
+  if (buffered) {
+    buf_page_force_evict(page_id, page_size, true);
+  }
+
+  fil_space_release(space);
 }
 
 /** Prints info of ibuf. */

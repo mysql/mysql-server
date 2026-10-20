@@ -55,12 +55,13 @@ class MySQLRoutingContext {
  public:
   MySQLRoutingContext(
       const RoutingConfig &routing_config, std::string name,
-      TlsServerContext *client_ssl_ctx, DestinationTlsContext *dest_tls_context,
+      std::shared_ptr<TlsServerContext> client_ssl_ctx,
+      DestinationTlsContext *dest_tls_context,
       std::shared_ptr<routing_guidelines::Routing_guidelines_engine>
           routing_guidelines)
       : routing_config_(routing_config),
         name_(std::move(name)),
-        client_ssl_ctx_{client_ssl_ctx},
+        client_ssl_ctx_{std::move(client_ssl_ctx)},
         destination_tls_context_{dest_tls_context},
         routing_guidelines_{std::move(routing_guidelines)},
         blocked_endpoints_{routing_config.max_connect_errors} {
@@ -135,7 +136,15 @@ class MySQLRoutingContext {
   /**
    * get the SSL context for the client side of the route.
    */
-  TlsServerContext *source_ssl_ctx() const { return client_ssl_ctx_; }
+  std::shared_ptr<TlsServerContext> source_ssl_ctx() const {
+    std::lock_guard<std::mutex> lock{source_ssl_contexts_mtx_};
+    return client_ssl_ctx_;
+  }
+
+  void replace_source_ssl_ctx(std::shared_ptr<TlsServerContext> tls_context) {
+    std::lock_guard<std::mutex> lock{source_ssl_contexts_mtx_};
+    client_ssl_ctx_ = std::move(tls_context);
+  }
 
   DestinationTlsContext *destination_ssl_config() const {
     return destination_tls_context_;
@@ -150,9 +159,9 @@ class MySQLRoutingContext {
    * @returns a TlsClientContext for the destination.
    * @retval nullptr if creating tls-context failed.
    */
-  TlsClientContext *dest_ssl_ctx(const std::string &dest_id,
-                                 const std::string &hostname) {
-    if (destination_tls_context_ == nullptr) return nullptr;
+  std::shared_ptr<TlsClientContext> dest_ssl_ctx(const std::string &dest_id,
+                                                 const std::string &hostname) {
+    if (destination_tls_context_ == nullptr) return {};
 
     return destination_tls_context_->get(dest_id, hostname);
   }
@@ -222,7 +231,8 @@ class MySQLRoutingContext {
   /** @brief memory in kilobytes allocated for thread's stack */
   size_t thread_stack_size_ = mysql_harness::kDefaultStackSizeInKiloBytes;
 
-  TlsServerContext *client_ssl_ctx_{};
+  mutable std::mutex source_ssl_contexts_mtx_;
+  std::shared_ptr<TlsServerContext> client_ssl_ctx_;
 
   DestinationTlsContext *destination_tls_context_{};
 

@@ -235,6 +235,7 @@ bool get_allow_single_leader();
 */
 bool attempt_rejoin();
 bool get_plugin_is_stopping();
+bool get_plugin_is_being_uninstalled();
 bool get_wait_on_engine_initialization();
 void enable_server_shutdown_status();
 bool get_server_shutdown_status();

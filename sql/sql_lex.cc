@@ -484,6 +484,8 @@ void LEX::reset() {
   max_execution_time = 0;
   switch_resource_group = nullptr;
   reparse_common_table_expr_at = 0;
+  reparse_common_table_expr_count = 0;
+  reparse_common_table_expr_bytes = 0;
   reparse_derived_table_condition = false;
   opt_hints_global = nullptr;
   binlog_need_explicit_defaults_ts = false;
@@ -3037,16 +3039,23 @@ void Table_ref::print(const THD *thd, String *str,
       }
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias)) {
-      char t_alias_buff[MAX_ALIAS_NAME];
+      StringBuffer<MAX_ALIAS_NAME> t_alias_buff(files_charset_info);
       const char *t_alias = alias;
 
       str->append(' ');
       if (lower_case_table_names == 1) {
         if (alias && alias[0])  // Print alias in lowercase
         {
-          my_stpcpy(t_alias_buff, alias);
-          my_casedn_str(files_charset_info, t_alias_buff);
-          t_alias = t_alias_buff;
+          // Table aliases are not length-capped at parse time. Lower-case the
+          // alias in a StringBuffer, which keeps the common case in its inline
+          // buffer and spills an over-long alias to the heap instead of
+          // overflowing a fixed stack buffer.
+          if (t_alias_buff.copy(alias, strlen(alias), files_charset_info)) {
+            return; /* purecov: inspected */
+          }
+          char *const buff = t_alias_buff.c_ptr_safe();
+          my_casedn_str(files_charset_info, buff);
+          t_alias = buff;
         }
       }
 

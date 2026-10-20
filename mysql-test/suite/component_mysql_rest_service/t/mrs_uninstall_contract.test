@@ -1,0 +1,157 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify the MRS component uninstall and retained-state contract.
+
+--echo
+--echo
+--echo ## I. Install and prepare state that must survive uninstall
+--echo ## II. Uninstall and verify removed interfaces and retained state
+--echo ## III. Reinstall and verify that retained state remains usable
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+CREATE USER 'mrs_uninstall_user'@'localhost';
+GRANT MYSQL_REST_SERVICE_ADMIN ON *.* TO
+  'mrs_uninstall_user'@'localhost';
+SET PERSIST mysql_rest_service.http_max_connections = 2048;
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports READY before uninstall
+--let $assert_cond = "$mrs_state" = "READY"
+--source include/assert.inc
+
+--echo # The HTTPS listener accepts requests before uninstall.
+--exec $MRS_CLIENT_ARGS --path /mrs-uninstall-probe --response-type raw --expected-status NotFound --display none
+
+--echo
+--echo # II. Uninstall the component without deleting retained state
+--source ../include/cmrs/uninstall_component.inc
+
+--let $component_count = `SELECT COUNT(*) FROM mysql.component WHERE component_urn = 'file://component_mysql_rest_service';`
+--let $assert_text = component registry entry is removed after uninstall
+--let $assert_cond = $component_count = 0
+--source include/assert.inc
+
+--let $udf_count = `SELECT COUNT(*) FROM performance_schema.user_defined_functions WHERE UDF_NAME LIKE 'mysql_rest_service_%';`
+--let $assert_text = all MRS lifecycle UDFs are unregistered
+--let $assert_cond = $udf_count = 0
+--source include/assert.inc
+
+--error ER_SP_DOES_NOT_EXIST
+SELECT mysql_rest_service_start();
+
+--let $sysvar_count = `SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'mysql_rest_service.%';`
+--let $assert_text = all MRS system variables are unregistered
+--let $assert_cond = $sysvar_count = 0
+--source include/assert.inc
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.http_max_connections;
+
+--let $statusvar_count = `SELECT COUNT(*) FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'mysql_rest_service.%';`
+--let $assert_text = all MRS status variables are unregistered
+--let $assert_cond = $statusvar_count = 0
+--source include/assert.inc
+
+--let $account_count = `SELECT COUNT(*) FROM mysql.user WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost';`
+--let $assert_text = fixed internal accounts survive uninstall
+--let $assert_cond = $account_count = 2
+--source include/assert.inc
+
+--let $role_count = `SELECT COUNT(*) FROM mysql.role_edges WHERE (FROM_USER = 'mysql_rest_service_meta_provider' AND FROM_HOST = '%' AND TO_USER = 'mysql_mrs_metadata' AND TO_HOST = 'localhost') OR (FROM_USER = 'mysql_rest_service_data_provider' AND FROM_HOST = '%' AND TO_USER = 'mysql_mrs_data' AND TO_HOST = 'localhost');`
+--let $assert_text = fixed internal account role grants survive uninstall
+--let $assert_cond = $role_count = 2
+--source include/assert.inc
+
+--let $default_role_count = `SELECT COUNT(*) FROM mysql.default_roles WHERE (DEFAULT_ROLE_USER = 'mysql_rest_service_meta_provider' AND DEFAULT_ROLE_HOST = '%' AND USER = 'mysql_mrs_metadata' AND HOST = 'localhost') OR (DEFAULT_ROLE_USER = 'mysql_rest_service_data_provider' AND DEFAULT_ROLE_HOST = '%' AND USER = 'mysql_mrs_data' AND HOST = 'localhost');`
+--let $assert_text = fixed internal account default roles survive uninstall
+--let $assert_cond = $default_role_count = 2
+--source include/assert.inc
+
+--let $schema_count = `SELECT COUNT(*) FROM information_schema.schemata WHERE SCHEMA_NAME = 'mysql_rest_service_metadata';`
+--let $assert_text = MRS metadata schema survives uninstall
+--let $assert_cond = $schema_count = 1
+--source include/assert.inc
+
+--let $registration_count = `SELECT COUNT(*) FROM mysql_rest_service_metadata.router WHERE id = $extra_mrs_router_id;`
+--let $assert_text = component metadata registration survives uninstall
+--let $assert_cond = $registration_count = 1
+--source include/assert.inc
+
+--let $persisted_count = `SELECT COUNT(*) FROM performance_schema.persisted_variables WHERE VARIABLE_NAME = 'mysql_rest_service.http_max_connections' AND VARIABLE_VALUE = '2048';`
+--let $assert_text = persisted component configuration survives uninstall
+--let $assert_cond = $persisted_count = 1
+--source include/assert.inc
+
+--let $grant_count = `SELECT COUNT(*) FROM mysql.global_grants WHERE USER = 'mrs_uninstall_user' AND HOST = 'localhost' AND PRIV = 'MYSQL_REST_SERVICE_ADMIN';`
+--let $assert_text = existing MRS dynamic privilege grants survive unregister
+--let $assert_cond = $grant_count = 1
+--source include/assert.inc
+
+--echo # The REST listener must remain unavailable after uninstall.
+--exec $MRS_CLIENT_ARGS --path /mrs-uninstall-probe --display none --expected-fatal-error="Can't connect to remote host"
+
+SELECT 1 AS classic_protocol_usable;
+
+# Revoking the retained grant must report that the privilege is unregistered.
+REVOKE MYSQL_REST_SERVICE_ADMIN ON *.* FROM
+  'mrs_uninstall_user'@'localhost';
+
+--echo
+--echo # III. Reinstall the component and reuse retained state
+--source ../include/cmrs/install_component.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $component_count = `SELECT COUNT(*) FROM mysql.component WHERE component_urn = 'file://component_mysql_rest_service';`
+--let $assert_text = component registry entry is restored after reinstall
+--let $assert_cond = $component_count = 1
+--source include/assert.inc
+
+--let $udf_count = `SELECT COUNT(*) FROM performance_schema.user_defined_functions WHERE UDF_NAME LIKE 'mysql_rest_service_%';`
+--let $assert_text = all MRS lifecycle UDFs are restored after reinstall
+--let $assert_cond = $udf_count = 3
+--source include/assert.inc
+
+--let $sysvar_count = `SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'mysql_rest_service.%';`
+--let $assert_text = all MRS system variables are restored after reinstall
+--let $assert_cond = $sysvar_count = 8
+--source include/assert.inc
+
+--let $statusvar_count = `SELECT COUNT(*) FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'mysql_rest_service.%';`
+--let $assert_text = all MRS status variables are restored after reinstall
+--let $assert_cond = $statusvar_count = 6
+--source include/assert.inc
+
+--let $http_max_connections = `SELECT @@mysql_rest_service.http_max_connections;`
+--let $assert_text = persisted component configuration is applied after reinstall
+--let $assert_cond = $http_max_connections = 2048
+--source include/assert.inc
+
+--let $account_count = `SELECT COUNT(*) FROM mysql.user WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost';`
+--let $assert_text = reinstall reuses the two fixed internal accounts
+--let $assert_cond = $account_count = 2
+--source include/assert.inc
+
+--let $registration_count = `SELECT COUNT(*) FROM mysql_rest_service_metadata.router WHERE id = $extra_mrs_router_id;`
+--let $assert_text = reinstall reuses the component metadata registration
+--let $assert_cond = $registration_count = 1
+--source include/assert.inc
+
+SELECT mysql_rest_service_start();
+
+--echo # The HTTPS listener accepts requests after reinstall.
+--exec $MRS_CLIENT_ARGS --path /mrs-uninstall-probe --response-type raw --expected-status NotFound --display none
+
+--echo
+--echo # Cleanup
+RESET PERSIST mysql_rest_service.http_max_connections;
+DROP USER 'mrs_uninstall_user'@'localhost';
+--source ../include/cmrs/cleanup.inc

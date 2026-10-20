@@ -36,7 +36,6 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#include "processors/base/await_client_or_server.h"
 #include "classic_auth.h"
 #include "classic_auth_caching_sha2.h"
 #include "classic_auth_cleartext.h"
@@ -57,6 +56,7 @@
 #include "mysqlrouter/connection_base.h"
 #include "openssl_msg.h"
 #include "openssl_version.h"
+#include "processors/base/await_client_or_server.h"
 #include "processors/base/processor.h"
 #include "processors/forwarders/classic_auth_forwarder.h"
 #include "processors/forwarders/classic_change_user_forwarder.h"
@@ -877,9 +877,9 @@ ServerGreetor::client_greeting_full() {
       .or_else([this](auto err) { return send_server_failed(err); });
 }
 
-static stdx::expected<TlsClientContext *, std::error_code> get_dest_ssl_ctx(
-    MySQLRoutingContext &ctx,
-    const std::optional<mysql_harness::Destination> &opt_dest) {
+static stdx::expected<std::shared_ptr<TlsClientContext>, std::error_code>
+get_dest_ssl_ctx(MySQLRoutingContext &ctx,
+                 const std::optional<mysql_harness::Destination> &opt_dest) {
   if (!opt_dest) {
     return stdx::unexpected(make_error_code(std::errc::invalid_argument));
   }
@@ -909,10 +909,9 @@ ServerGreetor::tls_connect_init() {
     return send_server_failed(make_error_code(std::errc::invalid_argument));
   }
 
-  auto *tls_client_ctx = *tls_client_ctx_res;
-  auto *ssl_ctx = tls_client_ctx->get();
+  auto tls_client_ctx = *tls_client_ctx_res;
 
-  dst_channel.init_ssl(ssl_ctx);
+  dst_channel.init_ssl(tls_client_ctx);
 
   SSL_set_app_data(dst_channel.ssl(), connection());
 
@@ -1863,10 +1862,9 @@ ServerFirstAuthenticator::tls_connect_init() {
     return send_server_failed(make_error_code(std::errc::invalid_argument));
   }
 
-  auto *tls_client_ctx = *tls_client_ctx_res;
-  auto *ssl_ctx = tls_client_ctx->get();
+  auto tls_client_ctx = *tls_client_ctx_res;
 
-  dst_channel.init_ssl(ssl_ctx);
+  dst_channel.init_ssl(tls_client_ctx);
 
   SSL_set_app_data(dst_channel.ssl(), connection());
 

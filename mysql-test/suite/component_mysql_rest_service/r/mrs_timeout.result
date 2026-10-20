@@ -1,0 +1,36 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+# Registred SERVICE at path: /timeout
+# Registred DB_SCHEMA at path: /timeout/db
+# Registred DB_OBJECT at path: /timeout/db/sleep
+#
+# I.
+GET /timeout/db/sleep?delay_seconds=30
+{"message":"Database request timed out","status":504}
+OK
+Timed-out procedure request was cancelled.
+#
+# II.
+Procedure request succeeded after cancellation.
+#
+# III. Cancellation and recovery at the connection limit.
+SET @saved_max_connections = @@GLOBAL.max_connections;
+LOCK TABLES mysql_rest_service_metadata.router READ;
+SET GLOBAL max_connections = 3;
+GET /timeout/db/sleep?delay_seconds=30
+{"message":"Database request timed out","status":504}
+OK
+Timed-out procedure request was cancelled at the connection limit.
+Procedure request succeeded after cancellation at the connection limit.
+SET GLOBAL max_connections = @saved_max_connections;
+UNLOCK TABLES;
+
+# Cleanup
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mrs_timeout;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

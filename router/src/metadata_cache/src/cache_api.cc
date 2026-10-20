@@ -163,6 +163,11 @@ void MetadataCacheAPI::cache_stop() noexcept {
     g_metadata_cache->stop();
 }
 
+void MetadataCacheAPI::reload_tls() {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  g_metadata_cache->reload_tls();
+}
+
 /**
  * Lookup the servers that belong to the cluster.
  *

@@ -1,0 +1,47 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Load the component
+--echo ##   2. DDL operations on Health Monitor tables
+--echo ##   3. Unload the component
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo ###
+--echo ### Table Operations: DDL
+--echo ###
+
+--echo
+--echo #
+--echo # health_system_memory
+--echo #
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+drop table health_system_memory;
+
+--echo
+--error ER_DBACCESS_DENIED_ERROR
+alter table health_system_memory
+  add column foo integer;
+
+--echo
+--error ER_DBACCESS_DENIED_ERROR
+alter table health_system_memory
+  add index test_index(timestamp);
+
+--disable_warnings WARN_DATA_TRUNCATED ONCE
+create table test.create_select
+  as select * from performance_schema.health_system_memory;
+--enable_warnings
+
+drop table test.create_select;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

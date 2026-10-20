@@ -2074,8 +2074,8 @@ EXPLAIN
                 -> Stream results
                     -> Batched key access inner join
                         -> Batch input rows
-                            -> Table scan on t1  (cost=4002 rows=16)
-                        -> Multi-range index lookup on t2 using PRIMARY (a = t1.c)  (cost=0.506 rows=1)
+                            -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (cost=4002 rows=16)
+                        -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.c)  (cost=0.506 rows=1)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -6285,7 +6285,7 @@ explain format=tree select * from t as a left join t as b
 on a.k is null and a.uq=b.uq;
 EXPLAIN
 -> Left hash join (no condition)
-    -> Table scan on a
+    -> Table scan on a over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
     -> Hash
         -> Zero rows (Impossible filter)
 
@@ -6577,15 +6577,15 @@ on x0.d=x1.a;
 EXPLAIN
 -> Aggregate: count(0)
     -> Nested loop left join
-        -> Table scan on x0
+        -> Table scan on x0 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
         -> Filter: ((x2.c is null) or (x4.d = x0.d))
             -> Nested loop left join
                 -> Nested loop inner join
-                    -> Index lookup on x1 using PRIMARY (a = x0.d)
-                    -> Table scan on x2, activating pushed join of 3 tables
+                    -> Index lookup on x1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = x0.d)
+                    -> Table scan on x2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 3 tables
                 -> Nested loop inner join
-                    -> Index lookup on x3 using PRIMARY (a = x2.d), child of x2 in pushed join
-                    -> Index lookup on x4 using PRIMARY (a = x3.d), child of x3 in pushed join
+                    -> Index lookup on x3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = x2.d), child of x2 in pushed join
+                    -> Index lookup on x4 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = x3.d), child of x3 in pushed join
 
 Warnings:
 Note	1003	Can't push outer joined table 'x1' as child of 'x0', join-nest containing the table has FILTER conditions
@@ -7310,9 +7310,9 @@ EXPLAIN
                 -> Batch input rows
                     -> Table scan on <subquery2>
                         -> Materialize with deduplication
-                            -> Table scan on t3
-                -> Multi-range index lookup on t1 using c (c = `<subquery2>`.c)
-        -> Multi-range index lookup on t2 using PRIMARY (a = t1.b)
+                            -> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+                -> Multi-range index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c)
+        -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b)
 
 Warnings:
 Note	1003	Can't push table 't1' as child, access type 'Multi-range' not implemented
@@ -7336,9 +7336,9 @@ EXPLAIN
                 -> Batch input rows
                     -> Table scan on <subquery2>
                         -> Materialize with deduplication
-                            -> Table scan on t3
-                -> Multi-range index lookup on t1 using c (c = `<subquery2>`.c)
-        -> Multi-range index lookup on t2 using PRIMARY (a = t1.b, b = `<subquery2>`.c)
+                            -> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+                -> Multi-range index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c)
+        -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = `<subquery2>`.c)
 
 Warnings:
 Note	1003	Can't push table 't1' as child, access type 'Multi-range' not implemented
@@ -7361,9 +7361,9 @@ EXPLAIN
                 -> Batch input rows
                     -> Table scan on <subquery3>
                         -> Materialize with deduplication
-                            -> Table scan on t3
-                -> Multi-range index lookup on t1 using c (c = `<subquery3>`.c)
-        -> Multi-range index lookup on t2 using PRIMARY (a = t1.b, b = `<subquery3>`.c)
+                            -> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+                -> Multi-range index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery3>`.c)
+        -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = `<subquery3>`.c)
 
 Warnings:
 Note	1003	Can't push table 't1' as child, access type 'Multi-range' not implemented
@@ -7387,13 +7387,13 @@ EXPLAIN
                     -> Batch input rows
                         -> Table scan on <subquery3>
                             -> Materialize with deduplication
-                                -> Table scan on t3
-                    -> Multi-range index lookup on t1 using c (c = `<subquery3>`.c)
-            -> Multi-range index lookup on t2 using PRIMARY (a = t1.b, b = `<subquery3>`.c)
+                                -> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+                    -> Multi-range index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery3>`.c)
+            -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = `<subquery3>`.c)
         -> Filter: (`<subquery4>`.c = `<subquery3>`.c)
             -> Single-row index lookup on <subquery4> using <auto_distinct_key> (c = t1.c)
                 -> Materialize with deduplication
-                    -> Table scan on t4
+                    -> Table scan on t4 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
 
 Warnings:
 Note	1003	Can't push table 't1' as child, access type 'Multi-range' not implemented
@@ -7416,14 +7416,14 @@ EXPLAIN
     -> Batched key access inner join
         -> Batch input rows
             -> Nested loop inner join
-                -> Table scan on t1
+                -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
                 -> Table scan on <subquery2>
                     -> Materialize with deduplication
                         -> Batched key access inner join
                             -> Batch input rows
-                                -> Table scan on t3s
-                            -> Multi-range index lookup on t4s using PRIMARY (a = t3s.b)
-        -> Multi-range index lookup on t2 using c (c = `<subquery2>`.c)
+                                -> Table scan on t3s over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+                            -> Multi-range index lookup on t4s using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t3s.b)
+        -> Multi-range index lookup on t2 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c)
 
 Warnings:
 Note	1003	Can't push table 't3s' as child, 'type' must be a 'ref' access
@@ -7618,10 +7618,10 @@ EXPLAIN
                         -> Materialize with deduplication
                             -> Batched key access inner join
                                 -> Batch input rows
-                                    -> Table scan on t3s
-                                -> Multi-range index lookup on t4s using PRIMARY (a = t3s.b)
-                -> Multi-range index lookup on t1 using c (c = `<subquery2>`.c)
-        -> Multi-range index lookup on t2 using PRIMARY (a = t1.b)
+                                    -> Table scan on t3s over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+                                -> Multi-range index lookup on t4s using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t3s.b)
+                -> Multi-range index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c)
+        -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b)
 
 Warnings:
 Note	1003	Can't push table 't4s' as child, access type 'Multi-range' not implemented
@@ -7658,16 +7658,16 @@ EXPLAIN
                             -> Materialize with deduplication
                                 -> Batched key access inner join
                                     -> Batch input rows
-                                        -> Table scan on t3s1
-                                    -> Multi-range index lookup on t4s1 using PRIMARY (a = t3s1.b)
-                    -> Multi-range index lookup on t1 using c (c = `<subquery2>`.c)
-            -> Multi-range index lookup on t2 using PRIMARY (a = t1.b)
+                                        -> Table scan on t3s1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+                                    -> Multi-range index lookup on t4s1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t3s1.b)
+                    -> Multi-range index lookup on t1 using c in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (c = `<subquery2>`.c)
+            -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b)
         -> Single-row index lookup on <subquery3> using <auto_distinct_key> (c = t1.d)
             -> Materialize with deduplication
                 -> Batched key access inner join
                     -> Batch input rows
-                        -> Table scan on t3s2
-                    -> Multi-range index lookup on t4s2 using PRIMARY (a = t3s2.b)
+                        -> Table scan on t3s2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
+                    -> Multi-range index lookup on t4s2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t3s2.b)
 
 Warnings:
 Note	1003	Can't push table 't4s1' as child, access type 'Multi-range' not implemented
@@ -7998,12 +7998,12 @@ explain format=tree select a,
 (select sum(a) over w from t2 window w as(order by "whatever") limit 1)
 from t3;
 EXPLAIN
--> Table scan on t3
+-> Table scan on t3 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
 -> Select #2 (subquery in projection; run only once)
     -> Limit: 1 row(s)
         -> Window aggregate with buffering: sum(t2.a) OVER w
             -> Sort: whatever
-                -> Table scan on t2
+                -> Table scan on t2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,(/* select#2 */ select sum(`test`.`t2`.`a`) OVER `w` from `test`.`t2` window `w` AS (ORDER BY 'whatever' )  limit 1) AS `(select sum(a) over w from t2 window w as(order by "whatever") limit 1)` from `test`.`t3`
@@ -8044,19 +8044,19 @@ EXPLAIN
             -> Batch input rows
                 -> Batched key access inner join
                     -> Batch input rows
-                        -> Index lookup on t1 using PRIMARY (a = 1), with pushed condition: (t1.d = 1)
+                        -> Index lookup on t1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = 1), with pushed condition: (t1.d = 1)
                     -> Filter: (t2.a = (t1.b + 0))
-                        -> Multi-range index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
-            -> Multi-range index lookup on t3 using PRIMARY (a = t1.b, b = t1.c)
+                        -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = (t1.b + 0), b = t1.c)
+            -> Multi-range index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = t1.c)
     -> Stream results
         -> Batched key access inner join
             -> Batch input rows
                 -> Batched key access inner join
                     -> Batch input rows
-                        -> Index lookup on t1 using PRIMARY (a = 1), with pushed condition: (t1.d = 1)
+                        -> Index lookup on t1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = 1), with pushed condition: (t1.d = 1)
                     -> Filter: (t2.a = (t1.b + 0))
-                        -> Multi-range index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
-            -> Multi-range index lookup on t3 using PRIMARY (a = t1.b, b = t1.c)
+                        -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = (t1.b + 0), b = t1.c)
+            -> Multi-range index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = t1.c)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8092,18 +8092,18 @@ EXPLAIN
             -> Batch input rows
                 -> Batched key access inner join
                     -> Batch input rows
-                        -> Index lookup on t1 using PRIMARY (a = 1), with pushed condition: (t1.d = 1)
+                        -> Index lookup on t1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = 1), with pushed condition: (t1.d = 1)
                     -> Filter: (t2.a = (t1.b + 0))
-                        -> Multi-range index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
-            -> Multi-range index lookup on t3 using PRIMARY (a = t1.b, b = t1.c)
+                        -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = (t1.b + 0), b = t1.c)
+            -> Multi-range index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = t1.c)
         -> Batched key access inner join
             -> Batch input rows
                 -> Batched key access inner join
                     -> Batch input rows
-                        -> Index lookup on t1 using PRIMARY (a = 1), with pushed condition: (t1.d = 1)
+                        -> Index lookup on t1 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = 1), with pushed condition: (t1.d = 1)
                     -> Filter: (t2.a = (t1.b + 0))
-                        -> Multi-range index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
-            -> Multi-range index lookup on t3 using PRIMARY (a = t1.b, b = t1.c)
+                        -> Multi-range index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = (t1.b + 0), b = t1.c)
+            -> Multi-range index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.b, b = t1.c)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8165,15 +8165,15 @@ straight_join t as t5
 EXPLAIN
 -> Nested loop left join
     -> Nested loop left join
-        -> Table scan on t1, activating pushed join of 3 tables
+        -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 3 tables
         -> Batched key access inner join
             -> Batch input rows
-                -> Single-row index lookup on t2 using PRIMARY (pk = t1.a), child of t1 in pushed join
-            -> Multi-range index lookup on t3 using PRIMARY (pk = t2.b)
+                -> Single-row index lookup on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (pk = t1.a), child of t1 in pushed join
+            -> Multi-range index lookup on t3 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (pk = t2.b)
     -> Batched key access inner join
         -> Batch input rows
-            -> Single-row index lookup on t4 using PRIMARY (pk = t1.c), child of t1 in pushed join
-        -> Multi-range index lookup on t5 using PRIMARY (pk = t3.d)
+            -> Single-row index lookup on t4 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (pk = t1.c), child of t1 in pushed join
+        -> Multi-range index lookup on t5 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (pk = t3.d)
 
 Warnings:
 Note	1003	Can't push table 't3' as child, access type 'Multi-range' not implemented
@@ -8227,11 +8227,11 @@ table1.col_int_key = table2.col_int_key AND
 table1.pk = table3.pk;
 EXPLAIN
 -> Nested loop left join
-    -> Table scan on table1
+    -> Table scan on table1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
     -> Batched key access inner join
         -> Batch input rows
             -> Zero rows (Impossible filter)
-        -> Multi-range index lookup on table2 using col_int_key (col_int_key = table1.col_int_key), with pushed condition: (table2.col_int = table1.col_int)
+        -> Multi-range index lookup on table2 using col_int_key in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (col_int_key = table1.col_int_key), with pushed condition: (table2.col_int = table1.col_int)
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, access type 'Multi-range' not implemented
@@ -8282,9 +8282,9 @@ EXPLAIN
     -> Batch input rows
         -> Batched key access inner join
             -> Batch input rows
-                -> Table scan on t10, with pushed condition: (t10.i is not null)
-            -> Multi-range index lookup on t1000 using i (i = t10.i)
-    -> Multi-range index lookup on t100 using PRIMARY (k = t1000.k)
+                -> Table scan on t10 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (t10.i is not null)
+            -> Multi-range index lookup on t1000 using i in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (i = t10.i)
+    -> Multi-range index lookup on t100 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t1000.k)
 
 Warnings:
 Note	1003	Can't push table 't1000' as child, access type 'Multi-range' not implemented
@@ -8299,9 +8299,9 @@ EXPLAIN
     -> Batch input rows
         -> Batched key access inner join
             -> Batch input rows
-                -> Table scan on t10, with pushed condition: (t10.i is not null)
-            -> Multi-range index lookup on t1000 using i (i = t10.i)
-    -> Multi-range index lookup on t100 using PRIMARY (k = t10.k)
+                -> Table scan on t10 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (t10.i is not null)
+            -> Multi-range index lookup on t1000 using i in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (i = t10.i)
+    -> Multi-range index lookup on t100 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t10.k)
 
 Warnings:
 Note	1003	Can't push table 't1000' as child, access type 'Multi-range' not implemented
@@ -8333,9 +8333,9 @@ EXPLAIN
     -> Batch input rows
         -> Batched key access inner join
             -> Batch input rows
-                -> Table scan on t1, with pushed condition: (t1.k is not null)
-            -> Multi-range index lookup on t2 using ix2 (a = t1.k)
-    -> Multi-range index lookup on t3 using ix1 (k = t1.k)
+                -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (t1.k is not null)
+            -> Multi-range index lookup on t2 using ix2 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.k)
+    -> Multi-range index lookup on t3 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t1.k)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8362,9 +8362,9 @@ EXPLAIN
     -> Batch input rows
         -> Batched key access inner join
             -> Batch input rows
-                -> Table scan on t1, with pushed condition: (t1.k is not null)
-            -> Multi-range index lookup on t2 using ix2 (a = t1.k)
-    -> Multi-range index lookup on t3 using ix1 (k = t1.k)
+                -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (t1.k is not null)
+            -> Multi-range index lookup on t2 using ix2 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.k)
+    -> Multi-range index lookup on t3 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t1.k)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8391,9 +8391,9 @@ EXPLAIN
     -> Batch input rows
         -> Batched key access left join
             -> Batch input rows
-                -> Table scan on t1, with pushed condition: (t1.k is not null)
-            -> Multi-range index lookup on t2 using ix2 (a = t1.k)
-    -> Multi-range index lookup on t3 using ix1 (k = t1.k)
+                -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (t1.k is not null)
+            -> Multi-range index lookup on t2 using ix2 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (a = t1.k)
+    -> Multi-range index lookup on t3 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (k = t1.k)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8442,9 +8442,9 @@ STRAIGHT_JOIN p AS table4 ON table4.col_int IS NULL
 AND table4.col_int_unique = table2.col_int_key;
 EXPLAIN
 -> Inner hash join (table4.col_int_unique = table2.col_int_key)  (...)
-    -> Table scan on table4, with pushed condition: (table4.col_int is null)  (...)
+    -> Table scan on table4 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (table4.col_int is null)  (...)
     -> Hash
-        -> Table scan on table2  (...)
+        -> Table scan on table2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (...)
 
 Warnings:
 Note	1003	Can't push table 'table4' as child, 'type' must be a 'ref' access
@@ -8460,8 +8460,8 @@ AND table4.col_int_unique = table2.col_int_key;
 EXPLAIN
 -> Batched key access inner join
     -> Batch input rows
-        -> Table scan on table2, with pushed condition: (table2.col_int_key is not null)  (...)
-    -> Multi-range index lookup on table4 using ix1 (col_int = 1, col_int_unique = table2.col_int_key)  (...)
+        -> Table scan on table2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (table2.col_int_key is not null)  (...)
+    -> Multi-range index lookup on table4 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (col_int = 1, col_int_unique = table2.col_int_key)  (...)
 
 Warnings:
 Note	1003	Can't push table 'table4' as child, access type 'Multi-range' not implemented
@@ -8475,9 +8475,9 @@ STRAIGHT_JOIN p AS table4 ON table4.col_int <=> table2.col_int_key
 AND table4.col_int_unique = table2.col_int_key;
 EXPLAIN
 -> Nested loop inner join  (...)
-    -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.col_int_key is not null)  (...)
+    -> Table scan on table2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 2 tables, with pushed condition: (table2.col_int_key is not null)  (...)
     -> Filter: (table4.col_int <=> table2.col_int_key)  (...)
-        -> Index lookup on table4 using ix1 (col_int = table2.col_int_key, col_int_unique = table2.col_int_key), child of table2 in pushed join  (...)
+        -> Index lookup on table4 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (col_int = table2.col_int_key, col_int_unique = table2.col_int_key), child of table2 in pushed join  (...)
 
 Warnings:
 Note	1003	/* select#1 */ select `table2`.`col_int_key` AS `col_int_key`,`table4`.`col_int` AS `col_int`,`table4`.`col_int_unique` AS `col_int_unique` from `test`.`f` `table2` straight_join `test`.`p` `table4` where ((`table4`.`col_int_unique` = `table2`.`col_int_key`) and (`table4`.`col_int` <=> `table2`.`col_int_key`))
@@ -8490,9 +8490,9 @@ STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
 AND table4.col_int_unique <=> table2.col_int_key;
 EXPLAIN
 -> Nested loop inner join  (...)
-    -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.col_int_key is not null)  (...)
+    -> Table scan on table2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), activating pushed join of 2 tables, with pushed condition: (table2.col_int_key is not null)  (...)
     -> Filter: (table4.col_int_unique <=> table2.col_int_key)  (...)
-        -> Index lookup on table4 using ix1 (col_int = table2.col_int_key, col_int_unique = table2.col_int_key), child of table2 in pushed join  (...)
+        -> Index lookup on table4 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (col_int = table2.col_int_key, col_int_unique = table2.col_int_key), child of table2 in pushed join  (...)
 
 Warnings:
 Note	1003	/* select#1 */ select `table2`.`col_int_key` AS `col_int_key`,`table4`.`col_int` AS `col_int`,`table4`.`col_int_unique` AS `col_int_unique` from `test`.`f` `table2` straight_join `test`.`p` `table4` where ((`table4`.`col_int` = `table2`.`col_int_key`) and (`table4`.`col_int_unique` <=> `table2`.`col_int_key`))
@@ -8506,8 +8506,8 @@ AND table4.col_int_unique = table2.col_int_key;
 EXPLAIN
 -> Batched key access inner join
     -> Batch input rows
-        -> Table scan on table2, with pushed condition: (table2.col_int_key is not null)  (...)
-    -> Multi-range index lookup on table4 using ix1 (col_int = table2.col_int_key, col_int_unique = table2.col_int_key)  (...)
+        -> Table scan on table2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (table2.col_int_key is not null)  (...)
+    -> Multi-range index lookup on table4 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (col_int = table2.col_int_key, col_int_unique = table2.col_int_key)  (...)
 
 Warnings:
 Note	1003	Can't push table 'table4' as child, access type 'Multi-range' not implemented

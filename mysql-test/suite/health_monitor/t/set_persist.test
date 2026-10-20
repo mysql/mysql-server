@@ -1,0 +1,120 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Verify SET GLOBAL, SET PERSIST and SET PERSIST_ONLY for disk_monitored
+--echo ## and disk_fallback_enable. Reload the component to verify that persisted
+--echo ## values are applied during registration.
+--echo ##
+--echo
+--echo # Procedure:
+--echo #  1. Save active settings and require no persisted values for this test.
+--echo #  2. Verify SET GLOBAL does not persist the fencing setting.
+--echo #  3. Persist fencing ON and an empty path, retaining the active path.
+--echo #  4. Reload the component and verify persisted values and path resolution.
+--echo #  5. Remove the test's persisted values and restore active settings.
+
+--source include/not_parallel.inc
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Health Monitor changed-default persistence and component reload
+
+--disable_query_log
+set @original_disk_monitored =
+  @@global.health_monitor.disk_monitored;
+set @original_disk_fallback_enable =
+  @@global.health_monitor.disk_fallback_enable;
+set @data_directory = @@global.datadir;
+--enable_query_log
+
+--let $no_preexisting_rows = `SELECT COUNT(*) = 0 FROM performance_schema.persisted_variables WHERE variable_name IN ('health_monitor.disk_monitored', 'health_monitor.disk_fallback_enable')`
+# Fail before writing persisted values if cleanup would remove existing state.
+--assert($no_preexisting_rows)
+
+--echo
+--echo # SET GLOBAL changes only the active value
+set global health_monitor.disk_fallback_enable = on;
+select @@global.health_monitor.disk_fallback_enable;
+select count(*) = 0 as fallback_enable_not_persisted
+  from performance_schema.persisted_variables
+ where variable_name = 'health_monitor.disk_fallback_enable';
+set global health_monitor.disk_fallback_enable =
+  @original_disk_fallback_enable;
+
+--echo
+--echo # SET PERSIST changes the active value and stores it
+set persist health_monitor.disk_fallback_enable = on;
+
+--echo
+--echo # SET PERSIST_ONLY stores an empty path without changing the active path
+# Keep an explicit live path to distinguish PERSIST_ONLY from SET PERSIST.
+set global health_monitor.disk_monitored = @data_directory;
+set persist_only health_monitor.disk_monitored = '';
+
+--let $persisted_row_count = `SELECT COUNT(*) FROM performance_schema.persisted_variables WHERE variable_name IN ('health_monitor.disk_monitored', 'health_monitor.disk_fallback_enable')`
+--assert($persisted_row_count == 2)
+
+select @@global.health_monitor.disk_fallback_enable;
+select @@global.health_monitor.disk_monitored = @data_directory
+  as explicit_monitored_path_still_active;
+
+select variable_name,
+       if(variable_name = 'health_monitor.disk_monitored',
+          concat('length=', length(variable_value)), variable_value)
+         as persisted_value
+  from performance_schema.persisted_variables
+ where variable_name in
+       ('health_monitor.disk_fallback_enable',
+        'health_monitor.disk_monitored')
+ order by variable_name;
+
+--echo
+--echo # Component reload applies the two persisted values during registration
+# Reloading registers the variables again and applies the persisted values
+# without requiring a server restart.
+--disable_query_log
+select now(6) into @component_reload_start;
+--enable_query_log
+uninstall component 'file://component_health_monitor';
+install component 'file://component_health_monitor';
+
+select @@global.health_monitor.disk_fallback_enable = 1
+       as persisted_fallback_enable_active;
+select length(@@global.health_monitor.disk_monitored)
+  as empty_monitored_path_active;
+
+--echo
+--echo # Persisted empty path resolves before active disk forecasting starts
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Forecaster: Started:%'
+     and locate(concat("volume='", @data_directory, "'"), data) > 0
+     and logged > @component_reload_start;
+--source include/wait_condition_or_abort.inc
+
+select count(*) > 0 as persisted_empty_forecaster_uses_datadir
+  from performance_schema.error_log
+ where data like '%Disk Forecaster: Started:%'
+   and locate(concat("volume='", @data_directory, "'"), data) > 0
+   and logged > @component_reload_start;
+
+--echo
+--echo # Remove only the persisted values created by this test
+reset persist `health_monitor.disk_fallback_enable`;
+reset persist `health_monitor.disk_monitored`;
+
+select count(*) = 0 as test_rows_removed
+  from performance_schema.persisted_variables
+ where variable_name in
+       ('health_monitor.disk_fallback_enable',
+        'health_monitor.disk_monitored');
+
+--echo
+--echo # Restore active setup values before uninstall
+set global health_monitor.disk_fallback_enable =
+  @original_disk_fallback_enable;
+set global health_monitor.disk_monitored = @original_disk_monitored;
+
+uninstall component 'file://component_health_monitor';

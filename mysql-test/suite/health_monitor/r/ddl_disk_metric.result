@@ -1,0 +1,42 @@
+##
+## Test the Health Monitor component
+##
+## Test cases:
+##   1. Load the component
+##   2. DDL operations on Disk_Metric
+##   3. Unload the component
+
+#
+# Install the Health Monitor component
+#
+install component 'file://component_health_monitor';;
+
+###
+### Table Operations: DDL
+###
+
+#
+# disk_metric
+#
+use performance_schema;
+
+drop table disk_metric;
+ERROR 42000: DROP command denied to user 'root'@'localhost' for table 'disk_metric'
+
+alter table disk_metric
+add column foo integer;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+
+alter table disk_metric
+add index test_index(timestamp);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+
+create table test.create_select
+as select * from performance_schema.disk_metric;
+drop table test.create_select;
+
+###
+### Uninstall
+###
+
+uninstall component 'file://component_health_monitor';;

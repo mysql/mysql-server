@@ -3838,10 +3838,13 @@ bool StreamingIterator::DoInit() {
     }
   }
 
-  m_input_slice = m_join->get_ref_item_slice();
-
   m_row_number = 0;
-  return m_subquery_iterator->Init();
+
+  if (m_subquery_iterator->Init()) return true;
+
+  // Init() may switch to the slice representing the child's output.
+  m_input_slice = m_join->get_ref_item_slice();
+  return false;
 }
 
 int StreamingIterator::DoRead() {

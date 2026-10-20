@@ -113,6 +113,8 @@ class Session : public iface::Session {
 
   bool can_authenticate_again() const;
 
+  void set_tls_handle();
+
   void on_auth_failure_impl(const iface::Authentication::Response &response);
 
  protected:

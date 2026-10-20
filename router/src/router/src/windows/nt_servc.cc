@@ -20,9 +20,55 @@
 
 #include <VersionHelpers.h>  // IsWindowsXPOrGreater
 #include <process.h>
+#ifdef MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
+#include <sddl.h>
+#endif  // MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
 #include <windows.h>
 
+#ifdef MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
+#include "mysql/harness/tls_reload_component.h"
+#include "mysqlrouter/windows/router_service_names.h"
+#endif  // MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
+
 static NTService *pService;
+
+#ifdef MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
+static DWORD WINAPI tls_reload_event_thread(void *context) {
+  auto *service = static_cast<NTService *>(context);
+  const HANDLE events[]{service->exit_event(), service->tls_reload_event()};
+  while (WaitForMultipleObjects(2, events, FALSE, INFINITE) ==
+         WAIT_OBJECT_0 + 1) {
+    ResetEvent(service->tls_reload_event());
+    mysql_harness::TlsReloadComponent::get_instance().request_reload();
+  }
+  return 0;
+}
+
+static HANDLE create_tls_reload_event(const std::string &name) {
+  PSECURITY_DESCRIPTOR descriptor{};
+  if (!ConvertStringSecurityDescriptorToSecurityDescriptorA(
+          kTlsReloadEventSecurityDescriptor.data(), SDDL_REVISION_1,
+          &descriptor, nullptr)) {
+    return nullptr;
+  }
+  SECURITY_ATTRIBUTES attributes{};
+  attributes.nLength = sizeof(attributes);
+  attributes.lpSecurityDescriptor = descriptor;
+
+  SetLastError(ERROR_SUCCESS);
+  const auto event = CreateEvent(&attributes, TRUE, FALSE, name.c_str());
+  const auto event_error = GetLastError();
+  LocalFree(descriptor);
+
+  if (event == nullptr || event_error == ERROR_ALREADY_EXISTS) {
+    if (event != nullptr) CloseHandle(event);
+    SetLastError(event_error);
+    return nullptr;
+  }
+
+  return event;
+}
+#endif  // MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
 
 /* ------------------------------------------------------------------------
 
@@ -33,6 +79,8 @@ NTService::NTService() {
   // service variables
   ServiceName = nullptr;
   hExitEvent = nullptr;
+  hTlsReloadEvent = nullptr;
+  hTlsReloadThread = nullptr;
   bPause = FALSE;
   bRunning = FALSE;
   hThreadHandle = nullptr;
@@ -216,6 +264,21 @@ void NTService::ServiceMain(DWORD /* argc */, LPTSTR * /* argv */) {
   if (!(pService->hExitEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr)))
     goto error;
 
+#ifdef MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
+  {
+    const std::string service_name{pService->ServiceName == nullptr
+                                       ? kDefaultServiceName
+                                       : pService->ServiceName};
+    const auto reload_event_name = tls_reload_event_name(service_name);
+    if (!(pService->hTlsReloadEvent =
+              create_tls_reload_event(reload_event_name)))
+      goto error;
+  }
+  if (!(pService->hTlsReloadThread = CreateThread(
+            nullptr, 0, tls_reload_event_thread, pService, 0, nullptr)))
+    goto error;
+#endif  // MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
+
   if (!pService->SetStatus(SERVICE_START_PENDING, NO_ERROR, 0, 3,
                            pService->nStartTimeOut))
     goto error;
@@ -237,6 +300,16 @@ void NTService::ServiceMain(DWORD /* argc */, LPTSTR * /* argv */) {
   // wait for Router main() thread to exit
   if (WaitForSingleObject(pService->hThreadHandle, INFINITE) == WAIT_TIMEOUT)
     CloseHandle(pService->hThreadHandle);
+
+#ifdef MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
+  // Router main() stops the TLS reload coordinator. Keep the event valid
+  // until that shutdown completes, then join its waiter and close both.
+  WaitForSingleObject(pService->hTlsReloadThread, INFINITE);
+  CloseHandle(pService->hTlsReloadThread);
+  CloseHandle(pService->hTlsReloadEvent);
+  pService->hTlsReloadThread = nullptr;
+  pService->hTlsReloadEvent = nullptr;
+#endif  // MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
 
   pService->Exit(0);
   return;
@@ -365,6 +438,14 @@ void NTService::ServiceCtrlHandler(DWORD ctrlCode) {
  -------------------------------------------------------------------------- */
 
 void NTService::Exit(DWORD error) {
+#ifdef MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
+  if (hTlsReloadThread) {
+    if (hExitEvent) SetEvent(hExitEvent);
+    WaitForSingleObject(hTlsReloadThread, INFINITE);
+    CloseHandle(hTlsReloadThread);
+  }
+  if (hTlsReloadEvent) CloseHandle(hTlsReloadEvent);
+#endif  // MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD
   if (hExitEvent) CloseHandle(hExitEvent);
 
   // Send a message to the scm to tell that we stop

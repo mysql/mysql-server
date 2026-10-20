@@ -1,0 +1,289 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Test basic Disk Collector operation. Test cases:
+--echo ##   1. Disk usage warnings
+--echo ##   2. Table resize
+--echo ##   3. New sample data replaces old sample data
+--echo ##   4. Status messages
+--echo ##
+
+--source ../include/health_monitor_setup.inc
+
+let $disk_debug = 0;
+
+--disable_query_log
+SELECT NOW(6) INTO @start_test;
+--enable_query_log
+
+--echo
+--echo # Note: The Disk Collector rounds the sample rate to the nearest multiple
+--echo #       of the base rate of 10 seconds, so the shortest sample rate
+--echo #       is 10 seconds.
+
+--echo
+--echo # Run the monitor to generate some sample data
+--echo # Note table size = retention/sample rate
+--echo
+set @@global.health_monitor.disk_retention = 40;
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo ##
+--echo ## Disk Usage Warnings
+--echo ##
+
+--echo
+--echo #
+--echo # Warning level 1
+--echo #
+--echo
+
+set @@global.health_monitor.disk_running = off;
+--echo
+truncate health_block_device;
+--echo
+set @@global.health_monitor.disk_usage_warning_level_1 = @force_disk_warning;
+
+--echo
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like "%health%";
+
+--echo
+--echo # Wait for the health_block_device table to fill and generate warnings
+let $count = 4;
+let $table = health_block_device;
+let $wait_timeout = 60;
+--source include/wait_until_rows_count.inc
+
+if ($disk_debug)
+{
+  --echo
+  select * from health_block_device;
+  show global variables like '%health_monitor.disk%';
+}
+
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_usage_warning_level_1 = @no_disk_warning;
+
+--echo
+--echo # Verify level 1 warning was issued
+--let $count_warn = `select count(*) from error_log where data like '%Disk: Warning Level 1%' AND logged > @start_test`
+--assert($count_warn > 0)
+
+--echo
+--echo #
+--echo # Warning level 2
+--echo #
+--echo
+
+truncate health_block_device;
+--echo
+set @@global.health_monitor.disk_usage_warning_level_2 = @force_disk_warning;
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for the health_block_device table to fill and generate warnings
+let $count = 4;
+let $table = health_block_device;
+let $wait_timeout = 60;
+--source include/wait_until_rows_count.inc
+
+if ($disk_debug)
+{
+  --echo
+  select * from health_block_device;
+  show global variables like '%health_monitor.disk%';
+}
+
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_usage_warning_level_2 = @no_disk_warning;
+
+--echo
+--echo # Verify level 2 warning was issued
+--let $count_warn = `select count(*) from error_log where data like '%Disk: Warning Level 2%' AND logged > @start_test`
+--assert($count_warn > 0)
+
+--echo
+--echo #
+--echo # Warning level 3
+--echo #
+--echo
+
+truncate health_block_device;
+--echo
+set @@global.health_monitor.disk_usage_warning_level_3 = @force_disk_warning;
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for the health_block_device table to fill and generate warnings
+let $count = 4;
+let $table = health_block_device;
+let $wait_timeout = 60;
+--source include/wait_until_rows_count.inc
+
+if ($disk_debug)
+{
+  --echo
+  select * from health_block_device;
+}
+
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_usage_warning_level_3 = @no_disk_warning;
+
+--echo
+--echo # Verify level 3 warning was issued
+
+--let $count_warn = `select count(*) from error_log where data like '%Disk: Warning Level 3%' and logged > @start_test`
+--assert($count_warn > 0)
+
+--echo
+--echo ##
+--echo ## Table Resize
+--echo ##
+
+--echo
+--echo # Row counts should be at 4
+
+let $wait_condition = select count(*) = 4 from health_block_device;
+let $wait_timeout = 60;
+--source include/wait_condition.inc
+--replace_column 1 <device> 2 <timestamp> 3 <total_bytes> 4 <avail_bytes> 5 <use_pct> 6 <mount_point>
+select * from health_block_device;
+
+--echo
+--echo # Decrease the retention, verify that table size is decreased
+--echo
+
+set @@global.health_monitor.disk_retention = 30;
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.disk_running = on;
+--echo
+let $wait_condition = select count(*) = 3 from health_block_device;
+let $wait_timeout = 60;
+--source include/wait_condition.inc
+--replace_column 1 <device> 2 <timestamp> 3 <total_bytes> 4 <avail_bytes> 5 <use_pct> 6 <mount_point>
+select * from health_block_device;
+
+--echo
+--echo # Increase the retention, verify that table size is increased
+
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_retention = 40;
+set @@global.health_monitor.disk_sample_rate = 10;
+
+--echo
+--echo # Wait for 4 rows
+
+let $count = 4;
+let $table = health_block_device;
+let $wait_timeout = 60;
+set @@global.health_monitor.disk_running = on;
+--source include/wait_until_rows_count.inc
+
+--echo
+--echo # Verify row count
+
+let $wait_condition = select count(*) = 4 from health_block_device;
+let $wait_timeout = 60;
+--source include/wait_condition.inc
+--replace_column 1 <device> 2 <timestamp> 3 <total_bytes> 4 <avail_bytes> 5 <use_pct> 6 <mount_point>
+select * from health_block_device;
+
+--echo
+--echo # Verify new data replaces old data
+
+set @@global.health_monitor.disk_running = off;
+--echo
+truncate health_block_device;
+--echo
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for exactly 4 rows
+
+let $count = 4;
+let $table = health_block_device;
+let $wait_timeout = 60;
+--source include/wait_until_rows_count.inc
+
+--echo
+set @@global.health_monitor.disk_running = off;
+
+if ($disk_debug)
+{
+  --echo
+  select * from health_block_device;
+}
+
+--echo
+--echo # Save the timestamps of the first and last rows
+select timestamp from health_block_device limit 0,1 into @oldest_1;
+select timestamp from health_block_device limit 3,1 into @newest_1;
+
+--echo
+--echo # Verify that the newer timestamp is greater
+--let $count_newer = `select @newest_1 > @oldest_1`
+--assert($count_newer > 0)
+
+--echo
+--echo # Generate a few more rows to ensure the data wraps
+set @@global.health_monitor.disk_running = on;
+
+--echo Sleep 20
+--sleep 20
+set @@global.health_monitor.disk_running = off;
+
+if ($disk_debug)
+{
+  --echo
+  select * from health_block_device;
+}
+
+--echo
+--echo # Verify that the timestamps changed and that the newer timestamp is greater
+
+select timestamp from health_block_device limit 0,1 into @oldest_2;
+select timestamp from health_block_device limit 3,1 into @newest_2;
+
+--let $count_newer = `select @oldest_2 > @oldest_1`
+--assert($count_newer > 0)
+--let $count_newer = `select @newest_2 > @newest_1`
+--assert($count_newer > 0)
+
+--echo
+--echo ##
+--echo ## Status message interval
+--echo ##
+--echo
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # With a sample rate of 10 seconds and status interval to 1,
+--echo # expect a status message after 10 seconds
+--echo
+# Warnings are disabled
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Run for 20 seconds, generate some status messages
+--sleep 20
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # Verify status update message was issued
+--let $count_status = `select count(*) from performance_schema.error_log where data like '%volume=%' and logged > @start_test`
+--assert($count_status > 0)
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+--eval uninstall component 'file://component_health_monitor';

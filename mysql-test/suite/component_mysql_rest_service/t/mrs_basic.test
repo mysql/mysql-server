@@ -1,0 +1,119 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that after installing the component on  default MRS schema,
+# it exposes the default image and HTML files.
+#
+
+--source include/not_solaris.inc
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Verify that files configured by default metadata-schema are accessible:
+--echo #
+--echo # 1. verify that '/index.html' is avaiable,
+--echo # 2. verify that '/favicon.ico' is avaiable,
+--echo # 3. verify that '/favicon.svg' is avaiable,
+--echo # 4. verify that '/sakila.svg' is avaiable,
+--echo # 5. verify that '/standalone-preact.js' is avaiable.
+--echo
+--echo ## II. Verify that "/index.html" and default index "/" return same content.
+--echo #
+--echo
+--echo ## III. Verify that the default files can be removed:
+--echo #
+--echo # 1. verify that '/index.html' is unavailable,
+--echo # 2. verify that '/favicon.ico' is unavailable,
+--echo # 3. verify that '/favicon.svg' is unavailable,
+--echo # 4. verify that '/sakila.svg' is unavailable,
+--echo # 5. verify that '/standalone-preact.js' is unavailable.
+--echo
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+
+--echo
+--echo #
+--echo # I.
+
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+# Router's test-only debug handler must not be registered in embedded MRS.
+--exec $MRS_CLIENT_ARGS --path /debug?do=stop --response-type raw --expected-status NotFound --display none
+
+--echo
+--echo #
+--echo # I.1
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /index.html --display request,status,header,result --response-type raw --wait-until-status=60
+
+--echo
+--echo #
+--echo # I.2
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /favicon.ico --display request,status,header,result --response-type raw
+
+--echo
+--echo #
+--echo # I.3
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /favicon.svg --display request,status,header,result --response-type raw
+
+--echo
+--echo #
+--echo # I.4
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /sakila.svg --display request,status,header,result --response-type raw
+
+--echo
+--echo #
+--echo # I.5
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /standalone-preact.js --display request,status,header,result --response-type raw
+
+--echo
+--echo #
+--echo # II
+--exec $MRS_CLIENT_ARGS --path /index.html --response-type raw --write-to-file $TEST_DIR/mtr_output_file_1.html --display none
+
+--exec $MRS_CLIENT_ARGS --path / --response-type raw --write-to-file $TEST_DIR/mtr_output_file_2.html --display none
+
+--diff_files $TEST_DIR/mtr_output_file_1.html $TEST_DIR/mtr_output_file_2.html
+--remove_file $TEST_DIR/mtr_output_file_1.html
+--remove_file $TEST_DIR/mtr_output_file_2.html
+
+--echo
+--echo #
+--echo # III
+UPDATE mysql_rest_service_metadata.config SET data='{}';
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--echo
+--echo #
+--echo # III.1
+--exec $MRS_CLIENT_ARGS --path /index.html --response-type raw --expected-status NotFound
+
+--echo
+--echo #
+--echo # III.2
+--exec $MRS_CLIENT_ARGS --path /favicon.ico --response-type raw --expected-status NotFound
+
+--echo
+--echo #
+--echo # III.3
+--exec $MRS_CLIENT_ARGS --path /favicon.svg --response-type raw --expected-status NotFound
+
+--echo
+--echo #
+--echo # III.4
+--exec $MRS_CLIENT_ARGS --path /sakila.svg --response-type raw --expected-status NotFound
+
+--echo
+--echo #
+--echo # III.5
+--exec $MRS_CLIENT_ARGS --path /standalone-preact.js --response-type raw --expected-status NotFound
+
+--echo
+--echo #
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

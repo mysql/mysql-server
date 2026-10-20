@@ -113,6 +113,24 @@ constexpr auto GROUP_ID_GARBAGE = 0xFFFF;
 
 #ifndef NDEBUG
 static std::thread::id plugin_init_tid = std::this_thread::get_id();
+
+namespace tpds {
+static constexpr int NO_SIGNAL = 0;
+static constexpr int END_CONNECT_WAIT = 1;
+static std::atomic<int> current_signal = NO_SIGNAL;
+
+template <int SIG>
+static void wait_for_signal() {
+  for (int cs = current_signal.load(); cs != SIG; cs = current_signal.load()) {
+    current_signal.wait(cs);
+  }
+}
+template <int SIG>
+static void send_signal() {
+  current_signal.store(SIG);
+  current_signal.notify_all();
+}
+}  // namespace tpds
 #endif /* NDEBUG */
 
 /**
@@ -886,7 +904,7 @@ static inline bool thread_attach(THD *thd, tp_thread_t *my_thread_data,
     Finally we set-up the thd object properly for execution in this thread.
     This method also performs some cleanup on failures.
   */
-  thd_set_thread_stack(thd, my_thread_data->stack_start);
+  thd_set_thread_stack_base(thd, my_thread_data->stack_start);
   set_user_psi_env(thd);
   thd_store_globals(thd);
   thd_clear_errors(thd);
@@ -1881,8 +1899,12 @@ static inline bool handle_connect_thread_sleep(tp_group_t *my_tp_group,
       mysql_mutex_lock(&my_tp_group->LOCK_group);
     });
 
-    DBUG_EXECUTE_IF("sleep_before_handling_connection_nolock",
-                    my_sleep(5 * 1000 * 1000););
+    DBUG_EXECUTE_IF("wait_before_handling_connection_nolock", {
+      tpds::wait_for_signal<tpds::END_CONNECT_WAIT>();
+      DBUG_LOG("tp_conrep",
+               "Detected END_CONNECT_WAIT signal in "
+               "'wait_before_handling_connection_nolock'");
+    });
 
     // Both the queue empty check and the action of sleeping should
     // happen together, atomically, under the LOCK_connect mutex. This
@@ -2216,7 +2238,7 @@ extern "C" void *tp_worker_thread_main(void *arg) {
 #endif
   tp_group_t *my_tp_group = &(tp_group_list[my_thread_data->thread_tp_group]);
 
-  my_thread_data->stack_start = (char *)&thd;
+  my_thread_data->stack_start = resolve_stack_pointer(&thd);
   mysql_mutex_lock(&my_tp_group->LOCK_group);
 
   /* Count how many threads are initialized for this group */
@@ -2557,6 +2579,17 @@ class Conn_snapshot {
     auth = connections_entering_auth.load() - exit_auth;
     err = get_aborted_connects();
     ok = exit_auth - err;
+
+    DBUG_EXECUTE_IF("wake_waiting_conn_threads", {
+      tpds::send_signal<tpds::END_CONNECT_WAIT>();
+      for (auto ex = connections_exiting_auth.load(); ex < exit_auth + 2;
+           ex = connections_exiting_auth.load()) {
+        DBUG_LOG("tp_conrep",
+                 "Waiting for connections to exit auth, ex:" << ex);
+        connections_exiting_auth.wait(ex);
+      }
+      tpds::send_signal<tpds::NO_SIGNAL>();
+    });
   }
 
   /** Collection information about connections in a givent thread group. */
@@ -3530,9 +3563,18 @@ static bool create_thd_and_authenticate_conn(
   connections_entering_auth++;
 
   // Connection request exiting authentication upon function scope exit.
-  auto exit_auth = create_scope_guard([&]() { connections_exiting_auth++; });
+  auto exit_auth = create_scope_guard([&]() {
+    connections_exiting_auth++;
+    DBUG_EXECUTE_IF("wake_waiting_conn_threads",
+                    { connections_exiting_auth.notify_all(); });
+  });
 
-  DBUG_EXECUTE_IF("sleep_before_auth", my_sleep(5 * 1000 * 1000););
+  DBUG_EXECUTE_IF("wait_before_auth", {
+    tpds::wait_for_signal<tpds::END_CONNECT_WAIT>();
+    DBUG_LOG("tp_conrep",
+             "Detected END_CONNECT_WAIT signal "
+             "in 'wait_before_auth'");
+  });
 
   auto channel_info = conn_cntx->m_channel_info;
   THD *thd = create_thd(channel_info);

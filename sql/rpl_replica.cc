@@ -5473,7 +5473,7 @@ extern "C" void *handle_slave_io(void *arg) {
 #endif
     mysql_thread_set_psi_THD(thd);
 
-    thd->thread_stack = (char *)&thd;  // remember where our stack is
+    thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
     mi->clear_error();
     mi->slave_running = 1;
     if (init_replica_thread(thd, SLAVE_THD_IO)) {
@@ -6186,7 +6186,7 @@ static void *handle_slave_worker(void *arg) {
   mysql_mutex_lock(&w->info_thd_lock);
   w->info_thd = thd;
   mysql_mutex_unlock(&w->info_thd_lock);
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   // save the instrumentation for worker thread in w->info_thd
@@ -7163,7 +7163,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       errmsg = nullptr;
 
       thd = new THD;  // note that constructor of THD uses DBUG_ !
-      thd->thread_stack = (char *)&thd;  // remember where our stack is
+      thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
       mysql_mutex_lock(&rli->info_thd_lock);
       rli->info_thd = thd;
 

@@ -3,6 +3,7 @@
 #
 #
 --source include/have_router.inc
+--source include/skip_component_mrs.inc
 --source include/have_mysql_no_login_plugin.inc
 
 --replace_regex /\.dll/.so/

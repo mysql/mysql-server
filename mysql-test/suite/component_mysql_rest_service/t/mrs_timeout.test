@@ -1,0 +1,84 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that the MRS component cancels a timed-out database request.
+
+--source include/not_solaris.inc
+--source ../include/cmrs/initialize.inc
+
+--disable_query_log
+--disable_result_log
+CREATE SCHEMA mrs_timeout;
+--let $router_test_schemas=mrs_timeout;$router_test_schemas
+DELIMITER $$;
+CREATE PROCEDURE mrs_timeout.sleep_then_return(IN delay_seconds INT)
+SQL SECURITY INVOKER
+BEGIN
+  DO SLEEP(delay_seconds);
+  SELECT delay_seconds AS delay_seconds;
+END;$$
+DELIMITER ;$$
+--enable_result_log
+--enable_query_log
+
+--source $router_tests/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/timeout"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+
+--let $mrs_add_schema=mrs_timeout
+--let $mrs_add_schema_path=/db
+--source $router_tests/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=sleep_then_return
+--let $mrs_add_db_object_path=/sleep
+--let $mrs_add_db_object_options='{"sqlQuery":{"timeout":1000}}'
+--source $router_tests/mrs/db_object/add.inc
+
+--source $router_tests/mrs/end_object_definition.inc
+
+--echo #
+--echo # I.
+--let $mrs_client_arg_path='/timeout/db/sleep?delay_seconds=30'
+--let $mrs_client_arg_expected_status=504
+--let $mrs_client_arg_response_type=raw
+--source $router_tests/mrs/mrs_client.inc
+--echo Timed-out procedure request was cancelled.
+
+--echo #
+--echo # II.
+--let $mrs_client_arg_path='/timeout/db/sleep?delay_seconds=0'
+--let $mrs_client_arg_expected_status=200
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--echo Procedure request succeeded after cancellation.
+
+--echo #
+--echo # III. Cancellation and recovery at the connection limit.
+SET @saved_max_connections = @@GLOBAL.max_connections;
+# Hold the monitor's session at its router check-in, preventing metadata
+# refreshes and statistics writes from competing with the REST requests.
+LOCK TABLES mysql_rest_service_metadata.router READ;
+# The monitor thread is not instrumented in Performance Schema.
+--let $wait_condition=SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE USER = 'mysql_mrs_metadata' AND STATE = 'Waiting for table metadata lock' AND INFO LIKE '%INSERT INTO mysql_rest_service_metadata.router %'
+--source include/wait_condition_or_abort.inc
+# mysqltest, the blocked monitor and the REST query fill all three slots.
+SET GLOBAL max_connections = 3;
+--let $mrs_client_arg_path='/timeout/db/sleep?delay_seconds=30'
+--let $mrs_client_arg_expected_status=504
+--let $mrs_client_arg_response_type=raw
+--source $router_tests/mrs/mrs_client.inc
+--echo Timed-out procedure request was cancelled at the connection limit.
+
+--let $mrs_client_arg_path='/timeout/db/sleep?delay_seconds=0'
+--let $mrs_client_arg_expected_status=200
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--echo Procedure request succeeded after cancellation at the connection limit.
+SET GLOBAL max_connections = @saved_max_connections;
+UNLOCK TABLES;
+
+--echo
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0pages.h"
 #include "log0chkp.h"
 #include "log0recv.h"
+#include "log0write.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem/rec.h"
@@ -5506,6 +5507,11 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     }
 
     mtr_commit(&mtr);
+
+    DBUG_EXECUTE_IF("ib_import_crash_after_encryption_header_redo", {
+      log_write_up_to(*log_sys, mtr.commit_lsn(), true);
+      DBUG_SUICIDE();
+    });
   }
 
   /* The dictionary latches will be released in in row_import_cleanup()
@@ -5549,6 +5555,12 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   err = row_import_check_corruption(table, trx->mysql_thd, cfg.m_missing);
 
   row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
+
+  if (err == DB_SUCCESS) {
+    for (dict_index_t *index : table->indexes) {
+      index->trx_id = trx->id;
+    }
+  }
 
   return (row_import_cleanup(prebuilt, trx, err));
 }

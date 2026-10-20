@@ -48,6 +48,17 @@ constexpr const char *kHostOnResolveFailed = "unknown";
 
 class Configuration {
  public:  // Option fetched from configuration file
+  Configuration() = default;
+  Configuration(const Configuration &) = default;
+  Configuration &operator=(const Configuration &) = delete;
+
+  ~Configuration() {
+    if (!jwt_secret_.empty()) {
+      mysql_harness::detail::secure_wipe(jwt_secret_.data(),
+                                         jwt_secret_.size());
+    }
+  }
+
   std::string mysql_user_;
   mysql_harness::SecureString mysql_user_password_;
   std::string mysql_user_data_access_;

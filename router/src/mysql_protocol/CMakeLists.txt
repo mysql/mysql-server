@@ -35,7 +35,7 @@ TARGET_SOURCES(mysql_protocol
   )
 TARGET_LINK_LIBRARIES(mysql_protocol
   INTERFACE
-  harness_stdx
+  harness_stdx_interface
   )
 TARGET_INCLUDE_DIRECTORIES(mysql_protocol INTERFACE ${include_dirs})
 # GENERATE_EXPORT_HEADER(mysql_protocol

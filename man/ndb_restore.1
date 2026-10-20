@@ -2,12 +2,12 @@
 .\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/24/2026
+.\"      Date: 09/21/2026
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 26.7
+.\"    Source: MySQL 26.10
 .\"  Language: English
 .\"
-.TH "NDB_RESTORE" "1" "06/24/2026" "MySQL 26\&.7" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "09/21/2026" "MySQL 26\&.10" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -366,9 +366,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.4\&.7 to a cluster running NDB Cluster 8\&.0\&.44, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.4\&.11 to a cluster running NDB Cluster 8\&.0\&.48, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 8\&.0\&.44 distribution\&.
+that comes with the NDB Cluster 8\&.0\&.48 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -2234,8 +2234,7 @@ T}
 .sp 1
 Specify the node ID of the data node on which the backup was taken; required\&.
 .sp
-When restoring to a cluster with different number of data nodes from that where the backup was taken, this information helps identify the correct set or sets of files to be restored to a given node\&. (In such cases, multiple files usually need to be restored to a single data node\&.) See
-\m[blue]\fBRestoring to a different number of data nodes\fR\m[]\&\s-2\u[1]\d\s+2, for additional information and examples\&.
+When restoring to a cluster with different number of data nodes from that where the backup was taken, this information helps identify the correct set or sets of files to be restored to a given node\&. (In such cases, multiple files usually need to be restored to a single data node\&.)
 .RE
 .sp
 .RS 4
@@ -3907,12 +3906,6 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
-.SH "NOTES"
-.IP " 1." 4
-Restoring to a different number of data nodes
-.RS 4
-\%https://dev.mysql.com/doc/refman/8.0/en/ndb-restore-different-number-nodes.html
-.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

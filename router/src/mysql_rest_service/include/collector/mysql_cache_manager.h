@@ -45,6 +45,9 @@ enum MySQLConnection {
   kMySQLConnectionUserdataRW
 };
 
+bool is_rw_connection(MySQLConnection type);
+CountedMySQLSession::Sqls build_mysql_cache_initial_sqls(MySQLConnection type);
+
 class ConnectionConfiguration {
  public:
   ConnectionConfiguration() = default;
@@ -68,15 +71,7 @@ class ConnectionConfiguration {
     }
   }
 
-  bool is_rw() const {
-    switch (type_) {
-      case kMySQLConnectionMetadataRW:
-      case kMySQLConnectionUserdataRW:
-        return true;
-      default:
-        return false;
-    }
-  }
+  bool is_rw() const { return is_rw_connection(type_); }
 
   MySQLConnection type_{kMySQLConnectionMetadataRO};
   DestinationProvider *provider_{nullptr};
@@ -96,9 +91,8 @@ class MysqlCacheManager {
   class MysqlCacheCallbacks : public Callbacks {
    public:
     MysqlCacheCallbacks(const ConnectionConfiguration &configuration =
-                            ConnectionConfiguration{},
-                        const std::string &role = {})
-        : connection_configuration_{configuration}, role_{role} {}
+                            ConnectionConfiguration{})
+        : connection_configuration_{configuration} {}
 
     bool object_before_cache(Object, bool dirty) override;
     bool object_retrived_from_cache(Object) override;
@@ -116,7 +110,6 @@ class MysqlCacheManager {
 
    private:
     ConnectionConfiguration connection_configuration_;
-    std::string role_;
     int node_rount_robin_{0};
   };
 
@@ -125,21 +118,17 @@ class MysqlCacheManager {
       : default_mysql_cache_instances_{configuration
                                            .default_mysql_cache_instances_},
         callbacks_metadata_ro_{
-            {collector::kMySQLConnectionMetadataRO, configuration},
-            "mysql_rest_service_meta_provider"},
+            {collector::kMySQLConnectionMetadataRO, configuration}},
         callbacks_userdata_ro_{{
-                                   collector::kMySQLConnectionUserdataRO,
-                                   configuration,
-                               },
-                               "mysql_rest_service_data_provider"},
+            collector::kMySQLConnectionUserdataRO,
+            configuration,
+        }},
         callbacks_metadata_rw_{
-            {collector::kMySQLConnectionMetadataRW, configuration},
-            "mysql_rest_service_meta_provider"},
+            {collector::kMySQLConnectionMetadataRW, configuration}},
         callbacks_userdata_rw_{{
-                                   collector::kMySQLConnectionUserdataRW,
-                                   configuration,
-                               },
-                               "mysql_rest_service_data_provider"} {}
+            collector::kMySQLConnectionUserdataRW,
+            configuration,
+        }} {}
   MysqlCacheManager(Callbacks *callbacks_meta, Callbacks *callbacks_user)
       : default_mysql_cache_instances_{10},
         cache_manager_metadata_ro_{callbacks_meta},
@@ -193,7 +182,14 @@ class MysqlCacheManager {
     }
   }
 
-  std::unique_ptr<collector::CountedMySQLSession> clone_instance(
+  // Bootstrap and metadata monitoring only. Embedded implementations may
+  // bypass max_connections while retaining the selected SQL identity.
+  virtual CachedObject get_control_plane_instance(
+      collector::MySQLConnection type) {
+    return get_instance(type, true);
+  }
+
+  virtual std::unique_ptr<collector::CountedMySQLSession> clone_instance(
       const CountedMySQLSession::ConnectionParameters &params);
 
   virtual void change_instance(CachedObject &instance,

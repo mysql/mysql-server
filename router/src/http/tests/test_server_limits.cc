@@ -24,6 +24,7 @@
 */
 
 #include <limits>
+#include <memory>
 #include <optional>
 
 #include <gtest/gtest.h>
@@ -39,12 +40,13 @@ namespace {
 
 class ServerLimitsTest : public ::testing::Test {
  protected:
-  TlsServerContext tls_ctx_;
+  std::shared_ptr<TlsServerContext> tls_ctx_{
+      std::make_shared<TlsServerContext>()};
   std::list<IoThread> io_threads_;
 };
 
 TEST_F(ServerLimitsTest, MaxHttpConnectionsPrecedence) {
-  http::server::Server server(&tls_ctx_, &io_threads_, nullptr, nullptr, 5);
+  http::server::Server server(tls_ctx_, &io_threads_, nullptr, nullptr, 5);
   EXPECT_EQ(server.effective_max_http_connections(), 5);
 
   server.set_max_http_connections(7);
@@ -55,7 +57,7 @@ TEST_F(ServerLimitsTest, MaxHttpConnectionsPrecedence) {
 }
 
 TEST_F(ServerLimitsTest, MaxRequestBodySizePrecedence) {
-  http::server::Server server(&tls_ctx_, &io_threads_, nullptr, nullptr, 5, 64);
+  http::server::Server server(tls_ctx_, &io_threads_, nullptr, nullptr, 5, 64);
   EXPECT_EQ(server.effective_max_request_body_size(), 64);
 
   server.set_max_request_body_size(128);
@@ -69,7 +71,7 @@ TEST_F(ServerLimitsTest, MaxRequestBodySizePrecedence) {
 }
 
 TEST_F(ServerLimitsTest, MaxResponseBodySizePrecedence) {
-  http::server::Server server(&tls_ctx_, &io_threads_, nullptr, nullptr, 5, 64,
+  http::server::Server server(tls_ctx_, &io_threads_, nullptr, nullptr, 5, 64,
                               256);
   EXPECT_EQ(server.effective_max_response_body_size(), 256);
 
@@ -81,7 +83,7 @@ TEST_F(ServerLimitsTest, MaxResponseBodySizePrecedence) {
 }
 
 TEST_F(ServerLimitsTest, ClearLimitOverridesRestoresConfiguredValues) {
-  http::server::Server server(&tls_ctx_, &io_threads_, nullptr, nullptr, 5, 64,
+  http::server::Server server(tls_ctx_, &io_threads_, nullptr, nullptr, 5, 64,
                               256);
 
   server.set_max_http_connections(7);
@@ -96,7 +98,7 @@ TEST_F(ServerLimitsTest, ClearLimitOverridesRestoresConfiguredValues) {
 }
 
 TEST_F(ServerLimitsTest, RuntimeOverridesAreNotConfigBound) {
-  http::server::Server server(&tls_ctx_, &io_threads_, nullptr, nullptr, 5, 64,
+  http::server::Server server(tls_ctx_, &io_threads_, nullptr, nullptr, 5, 64,
                               256);
   constexpr uint64_t kMax = std::numeric_limits<uint64_t>::max();
 

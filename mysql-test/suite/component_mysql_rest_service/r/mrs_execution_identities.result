@@ -1,0 +1,34 @@
+
+
+## I. Verify metadata and non-passthrough data execution identities
+## II. Verify embedded sessions and internal accounts remain isolated
+CREATE SCHEMA mrs_identity_test;
+CREATE TABLE mrs_identity_test.execution_probe (
+id INT PRIMARY KEY AUTO_INCREMENT,
+execution_user VARCHAR(255) NOT NULL DEFAULT (CURRENT_USER())
+);
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+# Registred SERVICE at path: /identity
+# Registred DB_SCHEMA at path: /identity/db
+# Registred DB_OBJECT at path: /identity/db/probe
+
+# I. Capture command-service statements with their authenticated users.
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+include/assert.inc [metadata command-service queries execute as mysql_mrs_metadata]
+include/assert.inc [non-passthrough application SQL executes as mysql_mrs_data]
+
+# II. Returned sessions close and fixed accounts cannot log in externally.
+include/assert.inc [fixed MRS accounts are locked and have no password material]
+
+# Cleanup
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
+DROP SCHEMA mrs_identity_test;

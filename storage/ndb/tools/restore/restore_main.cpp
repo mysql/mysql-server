@@ -64,6 +64,7 @@ extern RestoreLogger restoreLogger;
 static Uint32 g_tableCompabilityMask = 0;
 static int ga_nodeId = 0;
 static int ga_nParallelism = 128;
+static int ga_log_parallelism = 0;
 static int64 ga_inputBackupId = -1;
 static Uint32 ga_backupId = 0;
 bool ga_dont_ignore_systab_0 = false;
@@ -349,6 +350,11 @@ static struct my_option my_long_options[] = {
     {"parallelism", 'p',
      "Max no of parallel transactions during restore of data", &ga_nParallelism,
      nullptr, nullptr, GET_INT, REQUIRED_ARG, 128, 1,
+     (MaxTransactionsPerThread * g_max_parts), 0, 1, 0},
+    {"log-parallelism", NDB_OPT_NOSHORT,
+     "Max no of parallel transactions during restore of log.  "
+     "0 = use data parallelism",
+     &ga_log_parallelism, nullptr, nullptr, GET_INT, REQUIRED_ARG, 0, 0,
      (MaxTransactionsPerThread * g_max_parts), 0, 1, 0},
     {"print", NDB_OPT_NOSHORT, "Print metadata, data and log to stdout",
      &_print, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -866,8 +872,8 @@ bool create_consumers(RestoreThreadData *data) {
   char threadname[20];
   BaseString::snprintf(threadname, sizeof(threadname), "%d-%u-%u", ga_nodeId,
                        data->m_part_id, ga_slice_id);
-  BackupRestore *restore =
-      new BackupRestore(g_cluster_connection, threadname, ga_nParallelism);
+  BackupRestore *restore = new BackupRestore(
+      g_cluster_connection, threadname, ga_nParallelism, ga_log_parallelism);
 
   if (restore == NULL) {
     delete printer;
@@ -2708,6 +2714,8 @@ int main(int argc, char **argv) {
   if (ga_ignore_extended_pk_updates)
     g_options.append(" --ignore-extended-pk-updates");
   if (opt_skip_fk_checks) g_options.append(" --skip-fk-checks");
+  if (ga_log_parallelism != 0)
+    g_options.appfmt(" --log_parallelism=%u", ga_log_parallelism);
 
   // determine backup format: simple or multi-part, and count parts
   int result = detect_backup_format();
@@ -2773,6 +2781,17 @@ int main(int argc, char **argv) {
     ga_nParallelism = std::max(ga_nParallelism, 1);
     info << "Parallelism for single restore instance is " << ga_nParallelism
          << endl;
+    if (ga_log_parallelism != 0) {
+      if (ga_log_parallelism > MaxTransactionsPerThread) {
+        info << "Requested log parallelism " << ga_log_parallelism
+             << " limited to " << MaxTransactionsPerThread << "." << endl;
+        ga_log_parallelism = MaxTransactionsPerThread;
+      }
+      ga_log_parallelism = std::max(ga_log_parallelism, 1);
+    } else {
+      /* Default - Follow data parallelism */
+      ga_log_parallelism = ga_nParallelism;
+    }
     for (int i = 1; i <= ga_part_count; i++) {
       /*
        * do_restore uses its parameter 'partId' to select the backup part.
@@ -2842,6 +2861,23 @@ int main(int argc, char **argv) {
     ga_nParallelism = std::max(ga_nParallelism, 1);
 
     info << "Part parallelism is " << ga_nParallelism << endl;
+
+    if (ga_log_parallelism != 0) {
+      if (ga_log_parallelism > MaxProcessParallelism) {
+        info << "Requested log-parallelism " << ga_log_parallelism
+             << " limited to " << MaxProcessParallelism << "." << endl;
+        info << "Parameter upperbound is " << ga_part_count << " parts * "
+             << MaxTransactionsPerThread << " max parallelism per part" << endl;
+        ga_log_parallelism = MaxProcessParallelism;
+      }
+      ga_log_parallelism /= ga_part_count;
+      // Ensure at least 1 per thread
+      ga_log_parallelism = std::max(ga_log_parallelism, 1);
+
+      info << "Part log-parallelism is " << ga_log_parallelism << endl;
+    } else {
+      ga_log_parallelism = ga_nParallelism;
+    }
 
     for (int part_id = 1; part_id <= ga_part_count; part_id++) {
       NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_MEAN;

@@ -39,7 +39,7 @@ ADD_LIBRARY(routing_frontend_lib STATIC
 
 TARGET_LINK_LIBRARIES(routing_frontend_lib
   PUBLIC
-  harness_stdx)
+  harness_stdx_interface)
 
 TARGET_INCLUDE_DIRECTORIES(
   routing_frontend_lib
@@ -54,18 +54,59 @@ PUBLIC
 
 ## routing_connections is used by "routing" and "connection_pool"
 ROUTER_ADD_SHARED_LIBRARY(routing_connections
+  SOURCES
   channel.cc
 
   OUTPUT_NAME "mysqlrouter_routing_connections"
+
+  LINK_LIBRARIES_IF
+  harness_stdx_interface
+  harness_tls_interface
+  mysql_protocol
 
   LINK_LIBRARIES
   PUBLIC
   harness_stdx
   harness_tls
   mysql_protocol
+
+  INCLUDE_DIRECTORIES_IF
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../router/include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../../router/include/
   )
 
+ADD_LIBRARY(routing_x_full STATIC x_connection.cc)
+
+TARGET_LINK_LIBRARIES(routing_x_full
+  PUBLIC
+  router_mysqlxclient
+  router_mysqlxmessages
+  harness_net_ts
+  harness-library_interface
+  routing_interface
+)
+
+TARGET_COMPILE_DEFINITIONS(routing_x_full
+  PRIVATE ROUTING_STATIC_DEFINE=1)
+
+ADD_LIBRARY(routing_x_lite STATIC x_connection.cc)
+
+TARGET_LINK_LIBRARIES(routing_x_lite
+  PUBLIC
+  mysqlxclient_lite
+  mysqlxmessages_lite
+  harness_net_ts
+  harness-library_interface
+  routing_interface
+)
+
+TARGET_COMPILE_DEFINITIONS(routing_x_lite
+  PRIVATE ROUTING_STATIC_DEFINE=1)
+
 ROUTER_ADD_SHARED_LIBRARY(routing
+  SOURCES
   mysql_routing.cc
   destination.cc
   destination_error.cc
@@ -79,7 +120,6 @@ ROUTER_ADD_SHARED_LIBRARY(routing
   destination_ssl_context.cc
   classic_connection_base.cc
   classic_connection.cc
-  x_connection.cc
   connection.cc
   blocked_endpoints.cc
   routing_guidelines_adapter.cc
@@ -159,10 +199,22 @@ ROUTER_ADD_SHARED_LIBRARY(routing
 
   OUTPUT_NAME "mysqlrouter_routing"
 
-  DEPENDENCIES GenLiteProtos
+
+  DEPENDENCIES GenLiteProtos GenServerSource
+
+  INCLUDE_DIRECTORIES_IF
+  ${CMAKE_CURRENT_SOURCE_DIR}/
+
+  LINK_LIBRARIES_IF
+  routing_connections_interface
+  routing_guidelines_interface
+  destination_status_interface
+  metadata_cache_interface
+  connection_pool_interface
 
   LINK_LIBRARIES
   PUBLIC
+  routing_x_full
   harness_stdx
   harness_tls
   mysql_protocol
@@ -186,7 +238,7 @@ ENDIF()
 
 DOWNGRADE_STRINGOP_WARNINGS(routing)
 
-TARGET_COMPILE_DEFINITIONS(routing PRIVATE
+TARGET_COMPILE_DEFINITIONS(routing_object PRIVATE
   MYSQL_ROUTER_LOG_DOMAIN="routing")
 
 # The Plugin
@@ -195,10 +247,17 @@ add_harness_plugin(routing_plugin
  SOURCES
  routing_plugin.cc
  plugin_config.cc
- REQUIRES routing
- DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+
+ INCLUDE_DIRECTORIES_IF
+ ${CMAKE_CURRENT_SOURCE_DIR}/
+
+ REQUIRES_IF
+ routing_interface
+
+ REQUIRES
+ routing
+
+ DESTINATION
+ "${ROUTER_INSTALL_PLUGINDIR}"
  )
 TARGET_LINK_LIBRARIES(routing_plugin PRIVATE extra::rapidjson)
-
-GENERATE_EXPORT_HEADER(routing_plugin
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/routing_plugin_export.h)

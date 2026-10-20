@@ -1,0 +1,6 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+
+let NDBAPITEST_NAME=testNodeRestart;
+let NDBAPITEST_ARGS=-n GCPSaveAndFileChange --records=2000 T3;
+--source suite/ndb/include/run_ndbapitest.inc

@@ -1,0 +1,55 @@
+# Bug#39147834 statement rollback on indexed virtual columns crashes when
+# FK ON UPDATE SET NULL updates the parent key.
+
+CREATE TABLE t18 (
+  c5 INT NOT NULL,
+  PRIMARY KEY (c5)
+) ENGINE=InnoDB;
+
+CREATE TABLE t21 (
+  c1 INT NOT NULL,
+  c2 INT DEFAULT NULL,
+  KEY i15 ((c2 DIV 1), (FLOOR(c1))) USING BTREE,
+  CONSTRAINT t21_ibfk_1 FOREIGN KEY (c2) REFERENCES t18 (c5)
+    ON UPDATE SET NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t18 (c5) VALUES (1), (2);
+INSERT INTO t21 (c1, c2) VALUES (0, 1);
+
+# This first changes 1 to 3 and cascades c2 = 1 to c2 = NULL. Updating the
+# second parent row (2 to 3) then hits the duplicate primary key. The whole
+# statement must roll back, including the functional-index update in t21.
+--error ER_DUP_ENTRY
+UPDATE t18 SET c5 = 3;
+
+SELECT c5 FROM t18 ORDER BY c5;
+SELECT c1, c2 FROM t21;
+
+DROP TABLE t21, t18;
+
+# Bug#39872048: DELETE with ON DELETE SET NULL must preserve all functional
+# index key parts when its effects are rolled back.
+CREATE TABLE parent (
+  id INT PRIMARY KEY
+) ENGINE=InnoDB;
+
+CREATE TABLE child (
+  a INT DEFAULT NULL,
+  parent_id INT DEFAULT NULL,
+  KEY idx_functional ((IFNULL(a, 0)), (IFNULL(parent_id, 0))),
+  CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES parent (id)
+    ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+INSERT INTO parent VALUES (1);
+INSERT INTO child VALUES (NULL, 1);
+
+START TRANSACTION;
+DELETE FROM parent WHERE id = 1;
+ROLLBACK;
+
+SELECT id FROM parent;
+SELECT a, parent_id FROM child;
+
+DROP TABLE child, parent;

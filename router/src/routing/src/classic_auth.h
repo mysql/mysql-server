@@ -34,6 +34,7 @@
 
 #include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_server_context.h"
 
 template <class T>
 struct OsslDeleter;
@@ -69,6 +70,24 @@ class AuthBase {
 
   static bool connection_has_public_key(
       MysqlRoutingClassicConnectionBase *connection);
+};
+
+/** Pins one TLS generation for an RSA password exchange. */
+class RsaTlsContext {
+ public:
+  void reset(std::shared_ptr<TlsServerContext> tls_context = {}) {
+    tls_context_ = std::move(tls_context);
+  }
+
+  explicit operator bool() const { return tls_context_ != nullptr; }
+
+  stdx::expected<std::string, std::error_code> public_key() const;
+
+  stdx::expected<std::string, std::error_code> decrypt_password(
+      std::string_view encrypted, std::string_view nonce) const;
+
+ private:
+  std::shared_ptr<TlsServerContext> tls_context_;
 };
 
 #endif

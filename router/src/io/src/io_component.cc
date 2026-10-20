@@ -57,6 +57,10 @@ std::error_code make_error_code(IoComponentErrc e) {
 
 net::io_context &IoComponent::io_context() { return *io_ctx_; }
 
+net::io_context &IoComponent::acceptor_io_context() {
+  return routing_acceptor_io_thread_->context();
+}
+
 stdx::expected<void, std::error_code> IoComponent::init(
     size_t num_worker_threads, const std::string &backend_name) {
   if (io_ctx_)
@@ -82,6 +86,20 @@ stdx::expected<void, std::error_code> IoComponent::init(
   io_ctx_ = std::make_unique<net::io_context>(
       std::make_unique<net::impl::socket::SocketService>(),
       IoBackend::backend(backend_name));
+  try {
+    routing_acceptor_io_thread_ = std::make_unique<IoThread>(
+        0, std::bitset<ThreadAffinity::max_cpus>{}, backend_name,
+        thread_lifecycle_, "io-route-accept");
+
+    auto open_res = routing_acceptor_io_thread_->context().open_res();
+    if (!open_res) {
+      throw std::system_error(open_res.error());
+    }
+  } catch (const std::system_error &e) {
+    reset();
+    return stdx::unexpected(e.code());
+  }
+
   for (size_t ndx{}; ndx < num_worker_threads; ++ndx) {
     std::bitset<ThreadAffinity::max_cpus> cpu_affinity;
     // assign threads in to a CPU thread
@@ -98,7 +116,9 @@ stdx::expected<void, std::error_code> IoComponent::init(
       }
     }
     try {
-      io_threads_.emplace_back(ndx, cpu_affinity, backend_name);
+      io_threads_.emplace_back(ndx, cpu_affinity, backend_name,
+                               thread_lifecycle_);
+      io_threads_.back().wait_until_started();
 
       // check if the io-thread is actually started.
       auto open_res = io_threads_.back().context().open_res();
@@ -112,6 +132,9 @@ stdx::expected<void, std::error_code> IoComponent::init(
       // reset the component
       reset();
       return stdx::unexpected(e.code());
+    } catch (...) {
+      reset();
+      throw;
     }
   }
 
@@ -124,8 +147,14 @@ void IoComponent::run() {
 
   // shutting down
   //
+  // - signal the routing acceptor io-thread to stop running
   // - signal all io-threads to stop running
-  // - join io-threads
+  // - join all io-threads
+  if (routing_acceptor_io_thread_) {
+    routing_acceptor_io_thread_->stop();
+    routing_acceptor_io_thread_->join();
+  }
+
   for (auto &io_thread : io_threads_) {
     io_thread.stop();
     io_thread.join();
@@ -137,6 +166,7 @@ void IoComponent::stop() {
 }
 
 void IoComponent::reset() {
+  routing_acceptor_io_thread_.reset();
   io_threads_.clear();
   io_ctx_.reset();
 

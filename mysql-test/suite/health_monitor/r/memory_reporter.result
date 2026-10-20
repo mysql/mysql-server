@@ -1,0 +1,16 @@
+##
+## Test the Health Monitor component
+## Specifically, we will test memory reporting
+##
+## Test cases:
+##   1. No reports when memory collector is not running
+##   2. No reports when memory collector does not emit
+##      warnings.
+##   3. Reports emitted when collector emits warnings
+##      at level 1, 2 or 3.
+##   4. Reports not emitted when collector emits warnings
+##      at level 1, 2 or 3 and reporting turned off.
+##   5. Report is skipped if less than half of the
+##      level 3 limit is available.
+
+## Test temporarily disabled

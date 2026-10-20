@@ -29,6 +29,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <cstring>
 #include <sstream>
 
+#ifndef UNIV_HOTBACKUP
+#include "arch0arch.h"
+#include "fil0pages_persistence_interface.h"
+#include "mtr0mtr.h"
+#endif /* !UNIV_HOTBACKUP */
+
 #include "buf0flu.h"  //buf_are_flush_lists_empty_validate
 #include "db0err.h"
 #include "log0buf.h"
@@ -58,6 +64,48 @@ struct Log_checkpoint_location {
   /** Checkpoint LSN. */
   lsn_t m_checkpoint_lsn{0};
 };
+
+#ifndef UNIV_HOTBACKUP
+/** Repairs the first record group offset in the recovered redo block.
+@param[in]      block_lsn     LSN of the recovered redo block
+@param[in,out]  block_header  recovered redo block header
+@param[in]      start_lsn     LSN at which redo writing will start */
+void log_fix_first_rec_group(lsn_t block_lsn,
+                             Log_data_block_header &block_header,
+                             lsn_t start_lsn) {
+  const uint16_t on_disc_value = block_header.m_first_rec_group;
+  uint16_t change_to_value = 0;  // no change
+  if (recv_sys != nullptr && recv_sys->last_block_first_mtr_boundary != 0 &&
+      block_lsn < recv_sys->last_block_first_mtr_boundary &&
+      recv_sys->last_block_first_mtr_boundary <
+          block_lsn + OS_FILE_LOG_BLOCK_SIZE &&
+      on_disc_value !=
+          recv_sys->last_block_first_mtr_boundary % OS_FILE_LOG_BLOCK_SIZE) {
+    ut_a(log_is_data_lsn(recv_sys->last_block_first_mtr_boundary));
+    change_to_value =
+        recv_sys->last_block_first_mtr_boundary % OS_FILE_LOG_BLOCK_SIZE;
+    /* We must not start with invalid first_rec_group in the first block,
+    because if we crashed, we could be unable to recover. We do NOT have
+    guarantee that the first_rec_group was correct because recovery did
+    not report error. The first_rec_group was used only to locate the
+    beginning of the log for recovery. For later blocks it was not used.
+    It might be corrupted on disk and stay unnoticed if checksums for
+    log blocks are disabled. In such case it would be better to repair
+    it now instead of relying on the broken value and risking data loss.
+    We emit warning to notice user about the situation. We repair that
+    only in the log buffer. */
+  } else if (on_disc_value == 0) {
+    /* Again, if it was zero, for any reason, we prefer to fix it
+    before starting (we emit warning). */
+    change_to_value = start_lsn % OS_FILE_LOG_BLOCK_SIZE;
+  }
+  if (change_to_value != 0) {
+    ib::warn(ER_IB_RECV_FIRST_REC_GROUP_INVALID, uint{on_disc_value},
+             uint{change_to_value});
+    block_header.m_first_rec_group = change_to_value;
+  }
+}
+#endif /* !UNIV_HOTBACKUP */
 }  // namespace
 
 /** Validates the raw REDO log block buffer.
@@ -147,6 +195,13 @@ before reaching the end in such case. */
 [[nodiscard]] static bool recv_scan_log_recs(
     const byte *buf, size_t buf_len, ib::redo::Lsn start_lsn,
     ib::redo::Lsn &total_scanned_lsn, ib::redo::Buffer &parsing_destination);
+
+/** Finds which checkpoint header contains the given checkpoint LSN.
+@param[in]  log             redo log
+@param[in]  checkpoint_lsn  checkpoint LSN to find
+@return checkpoint header containing checkpoint_lsn */
+[[nodiscard]] static Log_checkpoint_header_no recv_find_checkpoint_header_no(
+    log_t &log, lsn_t checkpoint_lsn);
 
 namespace ib::redo {
 
@@ -273,18 +328,149 @@ Status Handler::write_mtr(const Const_buffers &mtr_data, Lsn &start_lsn,
   return Status::SUCCESS;
 }
 
-Status Handler::start_writing(Lsn lsn) {
-  auto err = log_start(*log_sys, lsn);
+Status Handler::start_writing(Lsn start_lsn) {
+  ut_a(log_sys != nullptr);
+  log_t &log = *log_sys;
+  const lsn_t checkpoint_lsn = pages_persistence->get_checkpoint_lsn();
+
+  /* Make the preservation of max checkpoint info on disk certain by writing
+  the next checkpoint to the other checkpoint header. This is an extra
+  protection in case next checkpoint write will become corrupted because of
+  crash during the write. */
+  log.next_checkpoint_header_no = log_next_checkpoint_header(
+      ::recv_find_checkpoint_header_no(log, checkpoint_lsn));
+
+  ut_a(checkpoint_lsn >= OS_FILE_LOG_BLOCK_SIZE);
+  ut_a(checkpoint_lsn >= LOG_START_LSN);
+  ut_a(start_lsn >= checkpoint_lsn);
+  ut_a(arch_log_sys == nullptr || !arch_log_sys->is_active());
+  /* If flags in the header on disc indicate redo logging was disabled, then let
+  the module know logging should be turned off. We need to do it before anyone
+  attempts to write to the redo log, and conveniently the call to
+  start_writing() indicates the moment the caller wants to start writing to the
+  redo log. The mtr_t::s_logging.disable(..) will set
+  LOG_HEADER_FLAG_CRASH_UNSAFE flag in redo header on disc, which we only know
+  how to do in the currently supported format. We should never write to files
+  which are in the older format. This is why we call this function only after
+  upgrade was already performed. */
+  ut_a(log.m_format == Log_format::CURRENT);
+  if (log_file_header_check_flag(log.m_log_flags, LOG_HEADER_FLAG_NO_LOGGING)) {
+    const auto result = mtr_t::s_logging.disable(nullptr);
+    /* Currently never fails. */
+    ut_a_eq(result, 0);
+    srv_redo_log = false;
+  }
+
+  log.write_to_file_requests_total.store(0);
+  log.write_to_file_requests_interval.store(std::chrono::seconds::zero());
+
+  ut_a((log.sn.load(std::memory_order_acquire) & SN_LOCKED) == 0);
+  log.sn = log_translate_lsn_to_sn(start_lsn);
+  log.sn_locked = log_translate_lsn_to_sn(start_lsn);
+  ut_a((start_lsn + LOG_BLOCK_TRL_SIZE) % OS_FILE_LOG_BLOCK_SIZE != 0);
+  ut_a(start_lsn % OS_FILE_LOG_BLOCK_SIZE != 0);
+  ut_a(start_lsn > LOG_START_LSN);
+
+  log.recent_written.add_link(0, start_lsn);
+  log.recent_written.advance_tail();
+  ut_a(log_buffer_ready_for_write_lsn(log) == start_lsn);
+
+  log.write_lsn = start_lsn;
+  log.flushed_to_disk_lsn = start_lsn;
+  log.write_ahead_end_offset = 0;
+
+  const lsn_t block_lsn =
+      ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
+
+  ut_a(block_lsn % log.buf_size + OS_FILE_LOG_BLOCK_SIZE <= log.buf_size);
+
+  byte *block = static_cast<byte *>(log.buf) + block_lsn % log.buf_size;
+
+  log_background_threads_inactive_validate();
+  ut_a(block_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
+
+  bool recovered_block_was_encrypted = false;
+  Log_data_block_header block_header;
+  {
+    auto file = log.m_files.find(block_lsn);
+    ut_a(file != log.m_files.end());
+    auto file_handle = file->open(Log_file_access_mode::READ_ONLY);
+    ut_a(file_handle.is_open());
+
+    const os_offset_t block_offset = file->offset(block_lsn);
+
+    /* Probe without supplying encryption metadata. An encrypted block cannot
+    be decrypted and returns DB_IO_DECRYPT_FAIL; a plaintext block is returned
+    unchanged. */
+    auto err = log_data_blocks_read(file_handle, block_offset,
+                                    OS_FILE_LOG_BLOCK_SIZE, block, false);
+
+    if (err == DB_IO_DECRYPT_FAIL) {
+      recovered_block_was_encrypted = true;
+      err = log_data_blocks_read(file_handle, block_offset,
+                                 OS_FILE_LOG_BLOCK_SIZE, block);
+    }
+
+    if (err != DB_SUCCESS) {
+      ib::error(ER_IB_ERR_INNODB_REDO_HANDLER_FAILURE, __FUNCTION__,
+                "log_data_blocks_read()", ut_strerr(err));
+      return Status::WRITE_ERROR;
+    }
+    log_data_block_header_deserialize(block, block_header);
+  }
+  /* The last mtr in the block might be incomplete. Trim the block at
+  start_lsn, the end of the last complete mtr found during recovery. */
+  block_header.m_data_len = start_lsn - block_lsn;
+
+  /* log_fix_first_rec_group(..) is only needed when crc32 checksums are
+  disabled */
+  log_fix_first_rec_group(block_lsn, block_header, start_lsn);
+
+  /* Other fields of the header on disc should be just as we've expected. */
+  ut_ad(block_header.m_epoch_no ==
+        log_block_convert_lsn_to_epoch_no(block_lsn));
+  ut_ad(block_header.m_hdr_no == log_block_convert_lsn_to_hdr_no(block_lsn));
+
+  ut_ad(LOG_BLOCK_HDR_SIZE <= block_header.m_first_rec_group);
+  ut_ad(block_header.m_first_rec_group <= block_header.m_data_len);
+  /* As we've modified m_data_len (and perhaps also m_first_rec_group if it was
+  corrupted), we update the buffer (but not the file). */
+  log_data_block_header_serialize(block_header, block);
+
+  log_update_buf_limit(log, start_lsn);
+
+  const auto err = log_files_start(log);
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_ERR_INNODB_REDO_HANDLER_FAILURE, __FUNCTION__,
-              "log_start()", ut_strerr(err));
+              "log_files_start()", ut_strerr(err));
     return Status::WRITE_ERROR;
   }
+
+  /* Do not reorder writes above, below this line. For x86 this
+  protects only from unlikely compile-time reordering. */
+  std::atomic_thread_fence(std::memory_order_release);
+
   if (!srv_read_only_mode) {
-    log_start_background_threads(*log_sys);
+    log_start_background_threads(log);
+
+    /* An empty current block can start directly in the configured mode because
+    it contains no recovered redo that needs to be sealed first. */
+    const bool recovered_block_contains_data =
+        block_header.m_data_len > LOG_BLOCK_HDR_SIZE;
+    if (recovered_block_contains_data &&
+        recovered_block_was_encrypted != srv_redo_log_encrypt) {
+      /* Seal the recovered partial block using its physical encryption mode
+      before any caller can generate new redo. */
+      const bool configured_encryption = srv_redo_log_encrypt;
+
+      srv_redo_log_encrypt = recovered_block_was_encrypted;
+      log_encryption_write_dummy_barrier();
+      srv_redo_log_encrypt = configured_encryption;
+    }
   }
   return Status::SUCCESS;
 }
+
 void Handler::stop_writing() { log_stop_background_threads(*log_sys); }
 
 Status Handler::persist_smaller_than(Lsn end_lsn, Durability desired_guarantee,

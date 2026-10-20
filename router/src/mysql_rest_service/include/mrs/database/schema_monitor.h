@@ -46,6 +46,9 @@
 #include "mysql/harness/utility/wait_variable.h"
 
 namespace mrs {
+
+class MrsStartObserver;
+
 namespace database {
 
 class SchemaMonitor {
@@ -63,7 +66,9 @@ class SchemaMonitor {
                 MetadataLogger *metadata_logger);
   ~SchemaMonitor();
 
-  void start();
+  // Notify the observer after entering the running state and before starting
+  // the blocking run loop.
+  void start(MrsStartObserver *observer);
   void stop();
   void reset();
 

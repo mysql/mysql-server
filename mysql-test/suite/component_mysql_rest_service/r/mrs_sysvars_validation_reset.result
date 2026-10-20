@@ -1,0 +1,83 @@
+## IV. Component uninstall and reinstall:
+#
+# 1. Uninstall the component and ensure sysvars are cleared.
+# 2. Reinstall and verify that default values are restored.
+#
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+
+#
+## IV. 1. Uninstall the component and ensure sysvars are cleared.
+SET GLOBAL mysql_rest_service.http_port = %HTTP_PORT% + 1;
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
+SELECT @@mysql_rest_service.http_port;
+ERROR HY000: Unknown system variable 'mysql_rest_service.http_port'
+SELECT @@mysql_rest_service.ssl_cert;
+ERROR HY000: Unknown system variable 'mysql_rest_service.ssl_cert'
+SELECT @@mysql_rest_service.ssl_key;
+ERROR HY000: Unknown system variable 'mysql_rest_service.ssl_key'
+SELECT @@mysql_rest_service.ssl_cipher;
+ERROR HY000: Unknown system variable 'mysql_rest_service.ssl_cipher'
+SELECT @@mysql_rest_service.io_worker_threads;
+ERROR HY000: Unknown system variable 'mysql_rest_service.io_worker_threads'
+SELECT @@mysql_rest_service.http_max_connections;
+ERROR HY000: Unknown system variable 'mysql_rest_service.http_max_connections'
+SELECT @@mysql_rest_service.http_max_request_body_size;
+ERROR HY000: Unknown system variable 'mysql_rest_service.http_max_request_body_size'
+SELECT @@mysql_rest_service.http_max_response_body_size;
+ERROR HY000: Unknown system variable 'mysql_rest_service.http_max_response_body_size'
+
+#
+## IV. 2. Reinstall and verify that default values are restored.
+
+
+## I. Validate default values of sysvars:
+#
+# 1. Ensure all sysvars report their expected default values.
+# 2. Validate max and min values for all integer values
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+
+#
+# I.1 Ensure all sysvars report their expected default values.
+SET GLOBAL mysql_rest_service.http_port=DEFAULT;
+include/assert.inc [MRS Component default http_port is 33443]
+include/assert.inc [MRS Component default ssl_cert must match MySQL Server @@ssl_cert]
+include/assert.inc [MRS Component default ssl_key must match MySQL Server @@ssl_key]
+include/assert.inc [MRS Component default ssl_cipher must match MySQL Server @@ssl_cipher]
+include/assert.inc [MRS Component default io_worker_threads is 0]
+include/assert.inc [MRS Component default http_max_connections is 1024]
+include/assert.inc [MRS Component default http_max_request_body_size is 16777216]
+include/assert.inc [MRS Component default http_max_response_body_size is 16777216]
+
+#
+## I.2. Validate max and min values for all integer values
+include/assert.inc [MRS Component http_port minimum value is 1]
+include/assert.inc [MRS Component http_port maximum value is 65535]
+include/assert.inc [MRS Component io_worker_threads minimum value is 0]
+include/assert.inc [MRS Component io_worker_threads maximum value is 1024]
+include/assert.inc [MRS Component http_max_connections minimum value is 1]
+include/assert.inc [MRS Component http_max_connections maximum value is 100000]
+include/assert.inc [MRS Component http_max_request_body_size minimum value is 0]
+include/assert.inc [MRS Component http_max_request_body_size maximum value is 2147483648]
+include/assert.inc [MRS Component http_max_response_body_size minimum value is 0]
+include/assert.inc [MRS Component http_max_response_body_size maximum value is 2147483648]
+
+#
+# Cleanup
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

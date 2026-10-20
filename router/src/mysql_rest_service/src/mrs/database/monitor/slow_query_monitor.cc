@@ -28,12 +28,14 @@
 #include <optional>
 #include <utility>
 #include <vector>
+#include "errmsg.h"
 #include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/text_to.h"
 #include "mrs/http/error.h"
 #include "mrs/router_observation_entities.h"
 #include "my_thread.h"  // NOLINT(build/include_subdir)
 #include "mysql/harness/logging/logging.h"
+#include "mysqld_error.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -111,7 +113,8 @@ void SlowQueryMonitor::execute(const std::function<void()> &fn,
   } catch (const mysqlrouter::MySQLSession::Error &e) {
     auto killed = state->killed;
     on_query_end(state);
-    if (e.code() == 2013 && killed)
+    if ((e.code() == CR_SERVER_LOST || e.code() == ER_QUERY_INTERRUPTED) &&
+        killed)
       throw http::Error(HttpStatusCode::GatewayTimeout,
                         "Database request timed out");
     else
@@ -225,7 +228,11 @@ void SlowQueryMonitor::start() {
   log_debug("SlowQueryMonitor::%s", __FUNCTION__);
   monitor_thread_ = std::thread([this]() { run(); });
 
-  state_.wait({k_idle});
+  const auto state = state_.wait({k_idle, k_stopped});
+  if (state == k_stopped) {
+    if (monitor_thread_.joinable()) monitor_thread_.join();
+    log_debug("SlowQueryMonitor::%s canceled during startup", __FUNCTION__);
+  }
 }
 
 void SlowQueryMonitor::stop() {

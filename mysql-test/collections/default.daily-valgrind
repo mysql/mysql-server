@@ -29,4 +29,4 @@ perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_
 
 # Thread Pool Plugin
 perl mysql-test-run.pl --valgrind  --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
-
+perl mysql-test-run.pl --valgrind --timer --force --comment=multi_factor_authentication --vardir=var-mfa --suite=multi_factor_authentication --no-skip

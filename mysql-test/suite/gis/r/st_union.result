@@ -31,13 +31,13 @@ ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((1 1,2
 GEOMETRYCOLLECTION(POLYGON((1 1,2 1,2 2,1 2,1 1)),POINT(0 0))
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems)))
-MULTIPOLYGON(((30 15,19 15,5 0,15 5,25 0,22 10,30 15)),((11 15,19 15,15 25,11 15)))
+MULTIPOLYGON(((19 15,5 0,15 5,25 0,22 10,30 15,19 15)),((19 15,15 25,11 15,19 15)))
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT('POINT(0 0)'))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT('POINT(0 0)')))
 GEOMETRYCOLLECTION(POLYGON((5 0,15 5,25 0,22 10,30 15,19 15,5 0)),POLYGON((19 15,15 25,11 15,19 15)),POINT(0 0))
 SELECT ST_ASTEXT(ST_UNION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ST_ASTEXT(ST_UNION(g,g2))
-MULTIPOLYGON(((30 15,19 15,5 0,15 5,25 0,22 10,30 15)),((11 15,19 15,15 25,11 15)))
+MULTIPOLYGON(((19 15,5 0,15 5,25 0,22 10,30 15,19 15)),((19 15,15 25,11 15,19 15)))
 #####################################################################################
 # Verify ST_Union() returns NULL if at least one of its arguments are NULL.
 #####################################################################################

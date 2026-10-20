@@ -313,6 +313,11 @@ ulint ibuf_count_get(const page_id_t &page_id);
 /** Looks if the insert buffer is empty.
  @return true if empty */
 bool ibuf_is_empty(void);
+
+/** Evicts a page if the change buffer bitmap records buffered changes for it.
+The caller must not own any page latches or buffer pool mutexes.
+@param[in] page_id page identifier */
+void ibuf_evict_if_has_buffered_changes(const page_id_t &page_id);
 /** Prints info of ibuf. */
 void ibuf_print(FILE *file); /*!< in: file where to print */
 

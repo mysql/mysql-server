@@ -49,7 +49,7 @@ Session::Session(THD *, std::size_t seq_num)
 #endif
 
   Session_guard replace_guard(m_thd);
-  m_thd->thread_stack = (char *)&m_thd;
+  m_thd->capture_stack_base(reinterpret_cast<const void *>(&m_thd));
   m_thd->init_query_mem_roots();
 
   m_thd->slave_thread = true;
@@ -92,13 +92,13 @@ THD *Session::get_thd() {
 void Session::attach(TABLE *temporary_tables) {
   std::lock_guard lock(m_session_lock);
   assert(m_thd);
-  m_saved_thread_stack = m_thd->thread_stack;
+  m_saved_thread_stack = m_thd->stack_base();
   // this is the first stack entry after attaching
   // we are going to remove this from the stack, but
   // gives a rough calculation of how much stack we
   // are going to use.
   long stack_ptr = 0;
-  m_thd->thread_stack = reinterpret_cast<char *>(&stack_ptr);
+  m_thd->capture_stack_base(&stack_ptr);
   m_thd->store_globals();
   m_thd->temporary_tables = temporary_tables;
   m_is_attached = true;
@@ -113,7 +113,7 @@ void Session::detach() {
   m_thd->temporary_tables = nullptr;
   m_thd->restore_globals();
   // restore the thread stack
-  m_thd->thread_stack = m_saved_thread_stack;
+  m_thd->set_stack_base(m_saved_thread_stack);
   m_saved_thread_stack = nullptr;
   m_is_attached = false;
 }

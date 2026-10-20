@@ -1,0 +1,85 @@
+--source include/have_tlsv13.inc
+--source include/not_fips_active.inc
+--let $mysql_tls_library=query_get_value(SHOW GLOBAL STATUS LIKE 'Tls_library_version', Value, 1)
+if (`SELECT '$mysql_tls_library' NOT REGEXP 'OpenSSL (3[.]([5-9]|[1-9][0-9])|[4-9][0-9]*)[.]'`)
+{
+  --skip Requires OpenSSL 3.5 or newer
+}
+--let $openssl_binary_version=OpenSSL (3\.[5-9]|3\.[1-9][0-9]|[4-9][0-9]*)\.
+--source include/have_openssl_binary_version.inc
+--source ../include/test/setup_auth_socket.inc
+
+--echo
+--echo # MySQL uses an ML-DSA certificate; MRS HTTPS keeps its RSA certificate.
+--exec $OPENSSL_EXECUTABLE req -x509 -newkey ML-DSA-44 -noenc -subj /CN=localhost -days 1 -keyout $MYSQL_TMP_DIR/mrs_pqc_key.pem -out $MYSQL_TMP_DIR/mrs_pqc_cert.pem > $MYSQL_TMP_DIR/mrs_pqc_openssl.log 2>&1
+SET @saved_ssl_ca=@@GLOBAL.ssl_ca;
+SET @saved_ssl_cert=@@GLOBAL.ssl_cert;
+SET @saved_ssl_key=@@GLOBAL.ssl_key;
+SET @saved_use_pqc_sign=@@GLOBAL.use_pqc_sign;
+SET @saved_require_secure_transport=@@GLOBAL.require_secure_transport;
+SET GLOBAL use_pqc_sign=ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET GLOBAL ssl_ca='$MYSQL_TMP_DIR/mrs_pqc_cert.pem';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET GLOBAL ssl_cert='$MYSQL_TMP_DIR/mrs_pqc_cert.pem';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET GLOBAL ssl_key='$MYSQL_TMP_DIR/mrs_pqc_key.pem';
+ALTER INSTANCE RELOAD TLS;
+
+# Prove the new MySQL TLS context works with a PQC-capable client.
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_MYPORT --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TMP_DIR/mrs_pqc_cert.pem --use-pqc-sign -e "SELECT 1 AS pqc_tls_connection"
+
+--echo
+--echo # A correct password still authenticates over TCP with an ML-DSA server.
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_password -p correct-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_password.dat
+  --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_password.dat
+  --exclude-json-pointer /links,/_metadata --display REQUEST,STATUS,BODY;
+
+--echo
+--echo # External-password authentication also works with secure transport required.
+SET GLOBAL require_secure_transport=ON;
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_external -p mrs_socket_proxy
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
+  --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
+  --display REQUEST,STATUS;
+
+--echo
+--echo # Incorrect passwords and peer-identity authentication remain rejected.
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_password -p wrong-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_wrong.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_wrong.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_match -p nonempty-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_match.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_match.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+
+--echo
+--echo # Cleanup
+SET GLOBAL ssl_ca=@saved_ssl_ca;
+SET GLOBAL ssl_cert=@saved_ssl_cert;
+SET GLOBAL ssl_key=@saved_ssl_key;
+SET GLOBAL use_pqc_sign=@saved_use_pqc_sign;
+ALTER INSTANCE RELOAD TLS;
+SET GLOBAL require_secure_transport=@saved_require_secure_transport;
+--remove_file $MYSQL_TMP_DIR/mrs_pqc_key.pem
+--remove_file $MYSQL_TMP_DIR/mrs_pqc_cert.pem
+--remove_file $MYSQL_TMP_DIR/mrs_pqc_openssl.log
+--remove_file $MYSQL_TMP_DIR/mrs_socket_password.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_external.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_wrong.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_match.dat
+--source ../include/test/cleanup_auth_socket.inc

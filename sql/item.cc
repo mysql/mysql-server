@@ -3310,7 +3310,8 @@ const char *Item_ident::full_name() const {
 void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
                        const char *db_name_arg,
                        const char *table_name_arg) const {
-  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  StringBuffer<MAX_ALIAS_NAME> d_name_buff(files_charset_info);
+  StringBuffer<MAX_ALIAS_NAME> t_name_buff(files_charset_info);
   const char *d_name = db_name_arg;
   const char *t_name = table_name_arg;
   const char *f_name =
@@ -3320,14 +3321,26 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
       // mode '2' does not apply to aliases:
       (lower_case_table_names == 2 && !alias_name_used())) {
     if (!(query_type & QT_NO_TABLE) && table_name_arg && table_name_arg[0]) {
-      my_stpcpy(t_name_buff, table_name_arg);
-      my_casedn_str(files_charset_info, t_name_buff);
-      t_name = t_name_buff;
+      // A table alias used as a column qualifier is not length-capped at parse
+      // time. Lower-case it in a StringBuffer, which keeps the common case in
+      // its inline buffer and spills an over-long identifier to the heap
+      // instead of overflowing a fixed stack buffer.
+      if (t_name_buff.copy(table_name_arg, strlen(table_name_arg),
+                           files_charset_info)) {
+        return; /* purecov: inspected */
+      }
+      char *const buff = t_name_buff.c_ptr_safe();
+      my_casedn_str(files_charset_info, buff);
+      t_name = buff;
     }
     if (!(query_type & QT_NO_DB) && db_name_arg && db_name_arg[0]) {
-      my_stpcpy(d_name_buff, db_name_arg);
-      my_casedn_str(files_charset_info, d_name_buff);
-      d_name = d_name_buff;
+      if (d_name_buff.copy(db_name_arg, strlen(db_name_arg),
+                           files_charset_info)) {
+        return; /* purecov: inspected */
+      }
+      char *const buff = d_name_buff.c_ptr_safe();
+      my_casedn_str(files_charset_info, buff);
+      d_name = buff;
     }
   }
 

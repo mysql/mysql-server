@@ -98,17 +98,21 @@ Init: 0, 0, 0, 0, 0. Usr: 1(+0), 1, 0, 0, 0, 0. Adm: 0(-2), 0, 0, 2, 0, 2.
 # Connect u1 to the user port successfully
 # Connect u1 to the admin port with bad pwd
 # Connect u1 to the user port with bad pwd
-SET GLOBAL DEBUG = "+d,sleep_before_auth";
-# Connect u1 to the admin port, sleep in authentication
-# Connect u1 to the user port, sleep in authentication
-SET GLOBAL DEBUG = "-d,sleep_before_auth";
-SET GLOBAL DEBUG = "+d,sleep_before_handling_connection_nolock";
-# Connect u1 to the admin port, sleep before draining queue
-# Connect u1 to the user port, sleep before draining queue
-SET GLOBAL DEBUG = "-d,sleep_before_handling_connection_nolock";
+SET GLOBAL DEBUG = "+d,wait_before_auth";
+# Connect u1 to the admin port, wait for signal in authentication
+# Connect u1 to the user port, wait for signal in authentication
+SET GLOBAL DEBUG = "-d,wait_before_auth";
+SET GLOBAL DEBUG = "+d,wait_before_handling_connection_nolock";
+# Connect u1 to the admin port, wait for signal before draining queue
+# Connect u1 to the user port, wait for signal before draining queue
+SET GLOBAL DEBUG = "-d,wait_before_handling_connection_nolock";
 # Force connection report
 SELECT NOW(6) INTO @now_var;
+# Set debug flag to signal waiting connection threads after collecting
+# connection report info
+SET GLOBAL DEBUG = "+d,wake_waiting_conn_threads";
 SET GLOBAL thread_pool_connection_report_interval = 0;
+SET GLOBAL DEBUG = "-d,wake_waiting_conn_threads";
 # This should leave us: Init: 8, 2, 2, 2, 2.
 SELECT SUBSTRING(DATA, 105, 20) FROM performance_schema.error_log
 WHERE error_code = 'MY-015509' AND logged > @now_var;

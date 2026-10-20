@@ -1,0 +1,260 @@
+--source ../include/test/setup_auth_socket.inc
+
+--echo
+--echo # The fixture requires an authenticated session.
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --expected-status Unauthorized --display REQUEST,STATUS,BODY;
+
+--echo
+--echo # A password account rejects an incorrect password.
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_password -p wrong-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_wrong.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_wrong.dat
+  --expected-status Unauthorized --display REQUEST,STATUS,BODY;
+
+--echo
+--echo # The correct password creates a session that can read the fixture.
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_password -p correct-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_password.dat
+  --display REQUEST,STATUS;
+SELECT name, vendor_user_id FROM mysql_rest_service_metadata.mrs_user
+  WHERE name = 'mrs_socket_password';
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_password.dat
+  --exclude-json-pointer /links,/_metadata
+  --display REQUEST,STATUS,BODY;
+
+--echo
+--echo # An auth_socket account mapped to a different OS user is rejected.
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_other -p nonempty-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_other.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_other.dat
+  --expected-status Unauthorized --display REQUEST,STATUS,BODY;
+
+--echo
+--echo # HTTP login must reject an auth_socket account mapped to mysqld's OS user.
+# Defer the login failure so any returned session is still checked below.
+# The client saves the session even when the HTTP status is unexpected.
+--error 0,1
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_match -p nonempty-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_match.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+--let $socket_login_error=$__error
+
+SELECT name, vendor_user_id FROM mysql_rest_service_metadata.mrs_user
+  WHERE name = 'mrs_socket_match';
+
+# Reuse the file even after a rejection to detect any leaked session cookie.
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_match.dat
+  --expected-status Unauthorized --display REQUEST,STATUS,BODY;
+
+--echo
+--echo # External authentication must be verified over TCP, not rejected outright.
+--disable_query_log
+SET @old_log_output = @@global.log_output;
+SET @old_general_log = @@global.general_log;
+SET GLOBAL log_output = 'TABLE';
+SET GLOBAL general_log = ON;
+TRUNCATE TABLE mysql.general_log;
+--enable_query_log
+
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_external -p mrs_socket_proxy
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
+  --display REQUEST,STATUS;
+SELECT name, vendor_user_id FROM mysql_rest_service_metadata.mrs_user
+  WHERE vendor_user_id = 'mrs_socket_proxy@%';
+SELECT SUM(argument LIKE '%using Socket') AS socket_connections,
+  SUM(argument LIKE '%using SSL/TLS') AS tls_connections
+  FROM mysql.general_log
+  WHERE command_type = 'Connect' AND argument LIKE 'mrs_socket_external@%';
+
+--disable_query_log
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL log_output = @old_log_output;
+--enable_query_log
+
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
+  --exclude-json-pointer /links,/_metadata
+  --display REQUEST,STATUS,BODY;
+
+--echo
+--echo # One external-password login consumes one hourly connection admission.
+CREATE USER mrs_socket_quota@'%' IDENTIFIED WITH test_plugin_server
+  AS 'mrs_socket_quota' WITH MAX_CONNECTIONS_PER_HOUR 1;
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_quota -p mrs_socket_quota
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_quota.dat
+  --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_quota.dat
+  --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_quota -p mrs_socket_quota
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_quota_exhausted.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_quota_exhausted.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+
+--echo
+--echo # TCP account matching is used with skip-name-resolve.
+CREATE USER mrs_socket_transport@localhost IDENTIFIED BY 'socket-password';
+CREATE USER mrs_socket_transport@'127.0.0.1' IDENTIFIED BY 'tcp-password';
+--disable_query_log
+--disable_result_log
+SELECT mysql_rest_service_stop();
+eval SET PERSIST mysql_rest_service.http_port=$HTTP_SERVER_PORT;
+--enable_result_log
+--enable_query_log
+--let $restart_parameters=restart: --bind-address=127.0.0.1 --skip-name-resolve
+--source include/restart_mysqld.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition_or_abort.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://127.0.0.1:$HTTP_SERVER_PORT
+SELECT @@skip_name_resolve;
+
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_transport -p tcp-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_transport.dat
+  --display REQUEST,STATUS;
+SELECT name, vendor_user_id FROM mysql_rest_service_metadata.mrs_user
+  WHERE name = 'mrs_socket_transport';
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_transport.dat
+  --display REQUEST,STATUS;
+
+--echo
+--echo # A password valid for the socket account must not cause a fallback.
+connect (socket_account,localhost,mrs_socket_transport,socket-password);
+SELECT CURRENT_USER();
+disconnect socket_account;
+connection default;
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_transport -p socket-password
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_no_fallback.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_no_fallback.dat
+  --expected-status Unauthorized --display REQUEST,STATUS;
+
+--echo
+--echo # Hostname binds retain local password authentication.
+--disable_query_log
+--disable_result_log
+SELECT mysql_rest_service_stop();
+eval SET PERSIST mysql_rest_service.http_port=$HTTP_SERVER_PORT;
+--enable_result_log
+--enable_query_log
+--let $restart_parameters=restart: --bind-address=localhost
+--source include/restart_mysqld.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition_or_abort.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://localhost:$HTTP_SERVER_PORT
+SELECT @@bind_address;
+--source ../include/test/verify_auth_socket_local.inc
+
+--echo
+--echo # Secure transport without MySQL TLS retains socket password logins.
+--disable_query_log
+--disable_result_log
+SELECT mysql_rest_service_stop();
+eval SET PERSIST mysql_rest_service.http_port=$HTTP_SERVER_PORT;
+eval SET PERSIST mysql_rest_service.ssl_cert='$MYSQL_TEST_DIR/std_data/server-cert.pem';
+eval SET PERSIST mysql_rest_service.ssl_key='$MYSQL_TEST_DIR/std_data/server-key.pem';
+--enable_result_log
+--enable_query_log
+--let $restart_parameters=restart: --bind-address=127.0.0.1 --tls-version= --require-secure-transport=ON
+--source include/restart_mysqld.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition_or_abort.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://127.0.0.1:$HTTP_SERVER_PORT
+SELECT @@require_secure_transport;
+SELECT VALUE FROM performance_schema.tls_channel_status
+  WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled';
+--source ../include/test/verify_auth_socket_local.inc
+
+--echo
+--echo # Disabling the server requirement does not permit unencrypted TCP.
+SET GLOBAL require_secure_transport=OFF;
+--remove_file $MYSQL_TMP_DIR/mrs_socket_password.dat
+--source ../include/test/verify_auth_socket_local.inc
+
+--echo
+--echo # Re-enabling the policy takes effect without restarting MRS.
+SET GLOBAL require_secure_transport=ON;
+# Force fresh credential verification, not reuse of the existing HTTP session.
+--remove_file $MYSQL_TMP_DIR/mrs_socket_password.dat
+--source ../include/test/verify_auth_socket_local.inc
+
+--echo
+--echo # Reloading MySQL TLS permits secure external-password TCP logins.
+SET GLOBAL tls_version='TLSv1.2,TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+SELECT VALUE FROM performance_schema.tls_channel_status
+  WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled';
+--remove_file $MYSQL_TMP_DIR/mrs_socket_external.dat
+exec $MRS_CLIENT_ARGS -a basic_json -t POST
+  --path /svc/authentication/login -u mrs_socket_external -p mrs_socket_proxy
+  --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
+  --display REQUEST,STATUS;
+exec $MRS_CLIENT_ARGS --path /svc/db/fixture/73
+  --session-file $MYSQL_TMP_DIR/mrs_socket_external.dat
+  --display REQUEST,STATUS;
+
+--echo
+--echo # Without TCP, password logins work and external authentication fails closed.
+--disable_query_log
+--disable_result_log
+SELECT mysql_rest_service_stop();
+eval SET PERSIST mysql_rest_service.http_port=$HTTP_SERVER_PORT;
+--enable_result_log
+--enable_query_log
+--let $restart_parameters=restart: --skip-networking
+--let $wait_for_tcpsocket_status=no_wait
+--source include/restart_mysqld.inc
+# Startup registration also updates last_check_in, before routes are loaded.
+# Wait for READY before waiting for a metadata-monitor check-in.
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition_or_abort.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--let MRS_CLIENT_ARGS=$mrs_auth_socket_client_args
+SELECT @@skip_networking;
+RESET PERSIST mysql_rest_service.http_port;
+RESET PERSIST mysql_rest_service.ssl_cert;
+RESET PERSIST mysql_rest_service.ssl_key;
+--source ../include/test/verify_auth_socket_local.inc
+
+--echo
+--echo # Cleanup
+--remove_file $MYSQL_TMP_DIR/mrs_socket_wrong.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_password.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_other.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_match.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_external.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_external_local.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_quota.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_quota_exhausted.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_transport.dat
+--remove_file $MYSQL_TMP_DIR/mrs_socket_no_fallback.dat
+DROP USER mrs_socket_quota@'%', mrs_socket_transport@localhost,
+  mrs_socket_transport@'127.0.0.1';
+--source ../include/test/cleanup_auth_socket.inc
+
+if ($socket_login_error)
+{
+  --die auth_socket HTTP login must return Unauthorized (401)
+}

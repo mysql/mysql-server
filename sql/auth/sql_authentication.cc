@@ -1870,6 +1870,9 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   end += AUTH_PLUGIN_DATA_PART_1_LENGTH;
   *end++ = 0;
 
+  DBUG_PRINT("info", ("server offered capabilities: %lu",
+                      protocol->get_client_capabilities()));
+
   int2store(end, static_cast<uint16>(protocol->get_client_capabilities()));
   /* write server characteristics: up to 16 bytes allowed */
   end[2] = (char)default_charset_info->number;
@@ -2994,6 +2997,27 @@ static char *get_41_lenc_string(char **buffer, size_t *max_bytes_available,
   return str;
 }
 
+static void negotiate_capabilities(Protocol_classic *protocol,
+                                   ulong client_capabilities,
+                                   ulong server_capabilities) {
+  ulong negotiated_capabilities = client_capabilities & server_capabilities;
+  if (negotiated_capabilities != client_capabilities) {
+    ulong extra_capabilities [[maybe_unused]] =
+        client_capabilities & ~server_capabilities;
+    // This can happen:
+    // - with malicious clients
+    // - with broken mysql clients, cli_calculate_client_flag() does
+    //   not filter out CLIENT_ZSTD_COMPRESSION_ALGORITHM properly.
+    DBUG_PRINT("error",
+               ("Dismissing non negotiated capabilities client = %lu, server = "
+                "%lu, extra = %lu)",
+                client_capabilities, server_capabilities, extra_capabilities));
+  }
+
+  // Never blindly use client_capabilities, it is not trusted.
+  protocol->set_client_capabilities(negotiated_capabilities);
+}
+
 /* the packet format is described in send_client_reply_packet() */
 static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
                                             uchar **buff, size_t pkt_len) {
@@ -3005,6 +3029,7 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
       protocol->has_client_capability(CLIENT_COMPRESS);
   const bool is_server_supports_zstd =
       protocol->has_client_capability(CLIENT_ZSTD_COMPRESSION_ALGORITHM);
+  ulong server_offered_capabilities = protocol->get_client_capabilities();
   assert(mpvio->status == MPVIO_EXT::FAILURE);
 
   uint charset_code = 0;
@@ -3024,7 +3049,7 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
   */
   if (bytes_remaining_in_packet < 2) return packet_error;
 
-  protocol->set_client_capabilities(uint2korr(end));
+  negotiate_capabilities(protocol, uint2korr(end), server_offered_capabilities);
 
   bool is_client_proto_41 = protocol->has_client_capability(CLIENT_PROTOCOL_41);
 
@@ -3034,7 +3059,8 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
   */
   if (bytes_remaining_in_packet == 4 &&
       protocol->has_client_capability(CLIENT_SSL)) {
-    protocol->set_client_capabilities(uint4korr(end));
+    negotiate_capabilities(protocol, uint4korr(end),
+                           server_offered_capabilities);
     mpvio->max_client_packet_length = 0xfffff;
     charset_code = global_system_variables.character_set_client->number;
     goto skip_to_ssl;
@@ -3050,7 +3076,8 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
   if (!packet_has_required_size) return packet_error;
 
   if (is_client_proto_41) {
-    protocol->set_client_capabilities(uint4korr(end));
+    negotiate_capabilities(protocol, uint4korr(end),
+                           server_offered_capabilities);
     mpvio->max_client_packet_length = uint4korr(end + 4);
     charset_code = (uint)(uchar) * (end + 8);
     /*
@@ -3059,7 +3086,8 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
     end += AUTH_PACKET_HEADER_SIZE_PROTO_41;
     bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_41;
   } else {
-    protocol->set_client_capabilities(uint2korr(end));
+    negotiate_capabilities(protocol, uint2korr(end),
+                           server_offered_capabilities);
     mpvio->max_client_packet_length = uint3korr(end + 2);
     end += AUTH_PACKET_HEADER_SIZE_PROTO_40;
     bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;

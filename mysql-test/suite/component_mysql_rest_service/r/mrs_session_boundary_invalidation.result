@@ -1,0 +1,49 @@
+
+
+## I. Invalidate sessions across stop and start
+## II. Invalidate sessions across component restart
+## III. Invalidate sessions across uninstall and reinstall
+## IV. Invalidate sessions across Server restart
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+# DB `basic_schema` - created
+# Registred SERVICE at path: /sessions
+# Registred DB_SCHEMA at path: /sessions/db
+# Registred DB_OBJECT at path: /sessions/db/items
+# Registred AUTH APP at path: /sessions
+# Registred MRS USER: "boundary_user"
+
+# I. Stop and start invalidate both session representations.
+SELECT mysql_rest_service_stop();
+mysql_rest_service_stop()
+0
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+# Fresh authentication succeeds after stop and start.
+
+# II. Restart invalidates both session representations.
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+# Fresh authentication succeeds after component restart.
+
+# III. Uninstall and reinstall invalidate both session representations.
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+# Fresh authentication succeeds after component reinstall.
+
+# IV. Server restart invalidates both session representations.
+# restart
+# Fresh authentication succeeds after Server restart.
+
+# Cleanup
+RESET PERSIST mysql_rest_service.http_port;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

@@ -1,0 +1,165 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify the active MRS listener status variables:
+#  - mysql_rest_service.current_http_port
+#  - mysql_rest_service.current_tls_cert
+#  - mysql_rest_service.current_tls_key
+#  - mysql_rest_service.current_tls_cipher
+#  - mysql_rest_service.current_io_worker_threads
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Validate active runtime values
+--echo ## II. Validate configured values do not change the active snapshot
+--echo ## III. Validate inactive values and republishing after start
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = '$HTTP_SERVER_PORT' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port'
+--source include/wait_condition.inc
+
+--disable_query_log
+
+--let $configured_tls_cert = `SELECT @@mysql_rest_service.ssl_cert;`
+--let $configured_tls_key = `SELECT @@mysql_rest_service.ssl_key;`
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $current_tls_cert = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert';`
+--let $current_tls_key = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key';`
+--let $current_tls_cipher = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher';`
+--let $expected_io_worker_threads = `SELECT GREATEST(CEIL($NUMBER_OF_CPUS / 4), 1);`
+--let $current_io_worker_threads = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads';`
+
+--let $assert_text = current_http_port reports the active listener port
+--let $assert_cond = $current_http_port = $HTTP_SERVER_PORT
+--source include/assert.inc
+--let $assert_text = current_tls_cert reports the active certificate path
+--let $assert_cond = "$current_tls_cert" = "$configured_tls_cert"
+--source include/assert.inc
+--let $assert_text = current_tls_key reports the active private-key path
+--let $assert_cond = "$current_tls_key" = "$configured_tls_key"
+--source include/assert.inc
+--let $assert_text = current_tls_cipher reports a resolved active policy
+--let $assert_cond = "$current_tls_cipher" != ""
+--source include/assert.inc
+--let $assert_text = current_io_worker_threads reports 25% of logical CPUs rounded up
+--let $assert_cond = $current_io_worker_threads = $expected_io_worker_threads
+--source include/assert.inc
+
+--let $initial_current_tls_cipher = $current_tls_cipher
+--let $initial_current_io_worker_threads = $current_io_worker_threads
+
+--let $configured_http_port = `SELECT $HTTP_SERVER_PORT + 1;`
+--let $restart_tls_cert = $MYSQL_TEST_DIR/std_data/server-cert.pem
+--let $restart_tls_key = $MYSQL_TEST_DIR/std_data/server-key.pem
+--let $restart_tls_cipher = ECDHE-RSA-AES256-GCM-SHA384
+--eval SET GLOBAL mysql_rest_service.http_port = $configured_http_port;
+--eval SET GLOBAL mysql_rest_service.ssl_cert = "$restart_tls_cert";
+--eval SET GLOBAL mysql_rest_service.ssl_key = "$restart_tls_key";
+--eval SET GLOBAL mysql_rest_service.ssl_cipher = "$restart_tls_cipher";
+SET GLOBAL mysql_rest_service.io_worker_threads = 1;
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $current_tls_cert = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert';`
+--let $current_tls_key = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key';`
+--let $current_tls_cipher = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher';`
+--let $current_io_worker_threads = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads';`
+
+--let $assert_text = configured http_port does not change current_http_port
+--let $assert_cond = $current_http_port = $HTTP_SERVER_PORT
+--source include/assert.inc
+--let $assert_text = configured ssl_cert does not change current_tls_cert
+--let $assert_cond = "$current_tls_cert" = "$configured_tls_cert"
+--source include/assert.inc
+--let $assert_text = configured ssl_key does not change current_tls_key
+--let $assert_cond = "$current_tls_key" = "$configured_tls_key"
+--source include/assert.inc
+--let $assert_text = configured ssl_cipher does not change current_tls_cipher
+--let $assert_cond = "$current_tls_cipher" = "$initial_current_tls_cipher"
+--source include/assert.inc
+--let $assert_text = configured io_worker_threads does not change current_io_worker_threads
+--let $assert_cond = $current_io_worker_threads = $initial_current_io_worker_threads
+--source include/assert.inc
+
+--eval SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT;
+
+--enable_query_log
+
+FLUSH STATUS;
+
+--disable_query_log
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = FLUSH STATUS does not reset current runtime values
+--let $assert_cond = $current_http_port = $HTTP_SERVER_PORT
+--source include/assert.inc
+--enable_query_log
+
+SELECT mysql_rest_service_stop();
+
+--disable_query_log
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $current_tls_cert = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert';`
+--let $current_tls_key = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key';`
+--let $current_tls_cipher = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher';`
+--let $current_io_worker_threads = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads';`
+
+--let $assert_text = current_http_port is inactive after stop
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+--let $assert_text = current_tls_cert is inactive after stop
+--let $assert_cond = "$current_tls_cert" = ""
+--source include/assert.inc
+--let $assert_text = current_tls_key is inactive after stop
+--let $assert_cond = "$current_tls_key" = ""
+--source include/assert.inc
+--let $assert_text = current_tls_cipher is inactive after stop
+--let $assert_cond = "$current_tls_cipher" = ""
+--source include/assert.inc
+--let $assert_text = current_io_worker_threads is inactive after stop
+--let $assert_cond = $current_io_worker_threads = 0
+--source include/assert.inc
+--enable_query_log
+
+SELECT mysql_rest_service_start();
+
+--let $wait_condition=SELECT VARIABLE_VALUE = '$HTTP_SERVER_PORT' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port'
+--source include/wait_condition.inc
+
+--let $wait_log_pattern = HTTP listener TLS protocol policy is TLSv1.2 and TLSv1.3 when supported; effective TLSv1.2 cipher policy is \'$restart_tls_cipher\'
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--disable_query_log
+--let $current_tls_cert = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert';`
+--let $current_tls_key = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key';`
+--let $current_tls_cipher = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher';`
+--let $current_io_worker_threads = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads';`
+--let $assert_text = current_tls_cert applies the configured path after start
+--let $assert_cond = "$current_tls_cert" = "$restart_tls_cert"
+--source include/assert.inc
+--let $assert_text = current_tls_key applies the configured path after start
+--let $assert_cond = "$current_tls_key" = "$restart_tls_key"
+--source include/assert.inc
+--let $assert_text = current_tls_cipher applies the configured policy after start
+--let $assert_cond = "$current_tls_cipher" = "$restart_tls_cipher"
+--source include/assert.inc
+--let $assert_text = current_io_worker_threads applies the configured count after start
+--let $assert_cond = $current_io_worker_threads = 1
+--source include/assert.inc
+SET GLOBAL mysql_rest_service.ssl_cert = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_key = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_cipher = DEFAULT;
+SET GLOBAL mysql_rest_service.io_worker_threads = DEFAULT;
+--enable_query_log
+
+--echo
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc
+
+--let $statusvars_count = `SELECT COUNT(*) = 0 FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'mysql_rest_service.%';`
+--let $assert_text = MRS Component status variables must be unregistered
+--let $assert_cond = $statusvars_count = 1
+--source include/assert.inc
