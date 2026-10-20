@@ -572,6 +572,7 @@ class Alter_table_ctx {
   typedef uint error_if_not_empty_mask;
   static const error_if_not_empty_mask DATETIME_WITHOUT_DEFAULT = 1 << 0;
   static const error_if_not_empty_mask GEOMETRY_WITHOUT_DEFAULT = 1 << 1;
+  static const error_if_not_empty_mask VECTOR_WITHOUT_DEFAULT = 1 << 2;
 
   Create_field *datetime_field;
   error_if_not_empty_mask error_if_not_empty;
