@@ -31,6 +31,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ddl0ddl_h
 #define ddl0ddl_h
 
+#include <mutex>
+
 #include "fts0fts.h"
 #include "lock0types.h"
 #include "os0file.h"
@@ -530,6 +532,23 @@ struct Context {
 
   /** @return the server session/connection context. */
   [[nodiscard]] THD *thd() noexcept;
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /** Serializes the sync points that the builders execute on thd().
+
+  The tasks driving the builder state machine are picked up by whichever DDL
+  thread is free, so an ALTER building several indexes runs them concurrently,
+  and all of those threads hand the same THD - this context's - to
+  DEBUG_SYNC. debug_sync() does no locking of its own; it assumes a sync point
+  is only ever hit by the thread owning the THD.
+
+  This mutex is deliberately per-context, i.e. per DDL statement and hence per
+  THD: threads sharing a THD must not enter debug_sync() together, while
+  concurrent DDLs from other connections must stay independent - one of them
+  may be parked inside a sync point waiting for a signal that only arrives
+  after another connection's DDL has reached the very same sync point. */
+  std::mutex m_debug_sync_mutex{};
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
   /** Copy the added columns dtuples so that we don't use the same
   column data buffer for the added column across multiple threads.
