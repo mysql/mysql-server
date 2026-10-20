@@ -5957,6 +5957,10 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
     if (recv_recovery_is_on()) {
       /* Pages must be uncompressed for crash recovery. */
       ut_a(uncompressed);
+      /* Simulate a slow disk: the reads of recovery complete late, so that
+      many reads are pending at the same time. */
+      DBUG_EXECUTE_IF("recv_slow_read", std::this_thread::sleep_for(
+                                            std::chrono::milliseconds(2)););
       recv_recover_page(true, (buf_block_t *)bpage);
     } else if (uncompressed && !Compression::is_compressed_page(frame) &&
                fil_page_get_type(frame) == FIL_PAGE_INDEX &&

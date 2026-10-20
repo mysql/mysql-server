@@ -1,0 +1,8 @@
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+# Kill the server
+# restart: --innodb-buffer-pool-size=24M --innodb-buffer-pool-instances=1 --innodb-read-io-threads=4 --debug=+d,recv_slow_read
+SELECT COUNT(*), SUM(LENGTH(v)) FROM t1;
+COUNT(*)	SUM(LENGTH(v))
+30	13200
+# restart:
