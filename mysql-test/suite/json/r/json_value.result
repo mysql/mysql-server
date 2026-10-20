@@ -433,10 +433,10 @@ CREATE TABLE json_value(json_value JSON);
 SELECT JSON_VALUE(json_value, '$.a') AS json_value FROM json_value;
 json_value
 DROP TABLE json_value;
-CREATE TABLE returning(returning JSON);
-SELECT JSON_VALUE(returning, '$.a' RETURNING CHAR) AS returning FROM returning;
+CREATE TABLE `returning`(`returning` JSON);
+SELECT JSON_VALUE(`returning`, '$.a' RETURNING CHAR) AS `returning` FROM `returning`;
 returning
-DROP TABLE returning;
+DROP TABLE `returning`;
 # Test ON EMPTY clause
 SELECT JSON_VALUE('{"data": 123}', '$.num' RETURNING SIGNED) v;
 v

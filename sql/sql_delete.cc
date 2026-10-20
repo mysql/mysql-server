@@ -64,6 +64,7 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
+#include "sql/protocol.h"
 #include "sql/range_optimizer/partition_pruning.h"
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_optimizer.h"
@@ -155,7 +156,14 @@ bool Sql_cmd_delete::precheck(THD *thd) {
   Table_ref *tables = lex->query_tables;
 
   if (!multitable) {
-    if (check_one_table_access(thd, DELETE_ACL, tables)) return true;
+    // DELETE ... RETURNING reads column data back to the client, so require
+    // SELECT privilege on the target table in addition to DELETE.
+    if (m_returning) {
+      if (check_one_table_access(thd, DELETE_ACL | SELECT_ACL, tables))
+        return true;
+    } else {
+      if (check_one_table_access(thd, DELETE_ACL, tables)) return true;
+    }
   } else {
     Table_ref *aux_tables = delete_tables->first;
     Table_ref **save_query_tables_own_last = lex->query_tables_own_last;
@@ -181,6 +189,15 @@ bool Sql_cmd_delete::precheck(THD *thd) {
 
 bool Sql_cmd_delete::check_privileges(THD *thd) {
   DBUG_TRACE;
+
+  // DELETE ... RETURNING requires SELECT privilege on the target table.
+  if (m_returning) {
+    Table_ref *const table_list = lex->query_block->get_table_list();
+    assert(table_list != nullptr);
+    if (table_list == nullptr) return true;  // Fail-closed if unexpectedly null
+    if (check_single_table_access(thd, SELECT_ACL, table_list, false))
+      return true;
+  }
 
   if (check_all_table_privileges(thd)) return true;
 
@@ -322,6 +339,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   */
   if (!using_limit && const_cond_result && !no_rows &&
       !(specialflag & SPECIAL_NO_NEW_FUNC) &&
+      !m_returning &&  // Must read rows individually for RETURNING
       ((!thd->is_current_stmt_binlog_format_row() ||  // not ROW binlog-format
         thd->is_current_stmt_binlog_disabled()) &&    // no binlog for this
                                                       // command
@@ -405,7 +423,16 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
             explain_single_table_modification(thd, thd, &plan, query_block);
         return err;
       }
-      my_ok(thd, 0);
+      if (m_returning) {
+        if (result->send_result_set_metadata(
+                thd, query_block->fields,
+                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+          return true;
+        thd->set_row_count_func(0);
+        if (result->send_eof(thd)) return true;
+      } else {
+        my_ok(thd, 0);
+      }
       return false;
     }
   }
@@ -450,7 +477,16 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
         return err;
       }
 
-      my_ok(thd, 0);
+      if (m_returning) {
+        if (result->send_result_set_metadata(
+                thd, query_block->fields,
+                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+          return true;
+        thd->set_row_count_func(0);
+        if (result->send_eof(thd)) return true;
+      } else {
+        my_ok(thd, 0);
+      }
       return false;  // Nothing to delete
     }
   }  // Ends scope for optimizer trace wrapper
@@ -586,8 +622,17 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !using_limit && !has_delete_triggers && range_scan &&
+        !m_returning &&
         used_index(range_scan) != MAX_KEY)
       read_removal = table->check_read_removal(used_index(range_scan));
+
+    // Send result set metadata for RETURNING before the delete loop
+    if (m_returning) {
+      if (result->send_result_set_metadata(
+              thd, query_block->fields,
+              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+        return true;
+    }
 
     assert(limit > 0);
 
@@ -617,6 +662,17 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
                                              &deleted_rows)) {
         error = 1;
         break;
+      }
+
+      // Send RETURNING data after successful deletion and trigger execution.
+      // This runs after AFTER DELETE triggers, but record[0] is unchanged:
+      // DELETE triggers only have OLD.* (read-only), no NEW.*, so the
+      // trigger cannot modify record[0].
+      if (m_returning) {
+        if (result->send_data(thd, query_block->fields)) {
+          error = 1;
+          break;
+        }
       }
 
       if (!--limit && using_limit) {
@@ -683,7 +739,12 @@ cleanup:
   assert(transactional_table || deleted_rows == 0 ||
          thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
   if (error < 0) {
-    my_ok(thd, deleted_rows);
+    if (m_returning) {
+      thd->set_row_count_func(deleted_rows);
+      if (result->send_eof(thd)) return true;
+    } else {
+      my_ok(thd, deleted_rows);
+    }
     DBUG_PRINT("info", ("%ld records deleted", (long)deleted_rows));
   }
   return error > 0;
@@ -698,6 +759,13 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 
   Query_block *const select = lex->query_block;
   Table_ref *const table_list = select->get_table_list();
+
+  // RETURNING is not supported in multi-table DELETE
+  if (m_returning && multitable) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "RETURNING in multi-table DELETE");
+    return true;
+  }
 
   bool apply_semijoin;
 
@@ -781,11 +849,12 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   // enables it to perform optimizations like sort avoidance and semi-join
   // flattening even if features specific to single-table DELETE (that is, ORDER
   // BY and LIMIT) are used.
-  if (lex->using_hypergraph_optimizer()) {
+  if (lex->using_hypergraph_optimizer() && !m_returning) {
     multitable = true;
   }
 
   if (!multitable && select->first_inner_query_expression() != nullptr &&
+      !m_returning &&
       should_switch_to_multi_table_if_subqueries(thd, select, table_list))
     multitable = true;
 
@@ -837,9 +906,69 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 
     assert(!select->group_list.elements);
     if (select->setup_base_ref_items(thd)) return true; /* purecov: inspected */
-    if (setup_order(thd, select->base_ref_items, &tables, &select->fields,
+    // When RETURNING is present, select->fields contains unresolved RETURNING
+    // items. ORDER BY in DELETE resolves against table columns, not RETURNING,
+    // so pass an empty field list.
+    mem_root_deque<Item *> empty_fields(thd->mem_root);
+    if (setup_order(thd, select->base_ref_items, &tables,
+                    m_returning ? &empty_fields : &select->fields,
                     select->order_list.first))
       return true;
+  }
+
+  // Resolve RETURNING clause expressions
+  if (m_returning) {
+    // Defense-in-depth: verify SELECT privilege on the target table.
+    // RETURNING reads row data, so the user must have SELECT in addition
+    // to DELETE.  (precheck() also checks this, but re-verify here after
+    // tables are opened.)
+    Table_ref *target = select->get_table_list();
+    assert(target != nullptr);
+    // For views, target->table is nullptr (the TABLE* lives on the
+    // underlying base table); for base tables it must be set by now.
+    assert(target->is_view() || target->table != nullptr);
+    if (target == nullptr) return true;
+    if (check_single_table_access(thd, SELECT_ACL, target, false))
+      return true;
+
+    // Ensure name resolution context includes the delete target table,
+    // so that subqueries in RETURNING can resolve outer column references.
+    if (select->context.first_name_resolution_table == nullptr) {
+      select->context.first_name_resolution_table = table_list;
+    }
+
+    // Expand wildcards (*, t1.*) in the RETURNING list before
+    // setup_base_ref_items, since expansion adds items to the list.
+    if (select->with_wild && select->setup_wild(thd)) return true;
+
+    // (Re-)allocate base_ref_items after wildcard expansion may have
+    // increased the number of fields.
+    if (select->setup_base_ref_items(thd)) return true;
+
+    // setup_fields with SELECT_ACL marks columns in the table's read bitmap
+    if (setup_fields(thd, /*want_privilege=*/SELECT_ACL,
+                     /*allow_sum_func=*/false,
+                     /*split_sum_funcs=*/false,
+                     /*column_update=*/false,
+                     /*typed_items=*/nullptr,
+                     &select->fields,
+                     select->base_ref_items))
+      return true;
+
+    // Verify no aggregate functions in RETURNING
+    for (Item *item : select->fields) {
+      if (item->has_aggregation()) {
+        my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
+        return true;
+      }
+    }
+
+    // Set up Query_result_send for sending result set to client
+    Prepared_stmt_arena_holder ps_holder(thd);
+    result = new (thd->mem_root) Query_result_send();
+    if (result == nullptr) return true;
+    select->set_query_result(result);
+    select->master_query_expression()->set_query_result(result);
   }
 
   thd->want_privilege = want_privilege_saved;
@@ -905,7 +1034,17 @@ bool Sql_cmd_delete::execute_inner(THD *thd) {
       return explain_single_table_modification(thd, thd, &plan,
                                                lex->query_block);
     }
-    my_ok(thd);
+    if (m_returning) {
+      // Send empty result set (metadata + EOF) for RETURNING
+      if (result->send_result_set_metadata(
+              thd, lex->query_block->fields,
+              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+        return true;
+      thd->set_row_count_func(0);
+      if (result->send_eof(thd)) return true;
+    } else {
+      my_ok(thd);
+    }
     return false;
   }
   return multitable ? Sql_cmd_dml::execute_inner(thd)
