@@ -1,0 +1,17 @@
+#
+# Bug#120196 n_mysql_tables_in_use uint32 underflow via MRR
+#            dsmrr_init() error path in handler.cc
+#
+# An unlock that finds trx->n_mysql_tables_in_use already at 0 must not
+# wrap it, otherwise SHOW ENGINE INNODB STATUS reports
+# "mysql tables in use 4294967295".
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2), (3);
+SET SESSION debug = '+d,ib_unmatched_external_unlock';
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+SET SESSION debug = '-d,ib_unmatched_external_unlock';
+Transactions with a wrapped 'mysql tables in use': 0
+DROP TABLE t1;

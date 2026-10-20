@@ -1,0 +1,29 @@
+--echo #
+--echo # Bug#120196 n_mysql_tables_in_use uint32 underflow via MRR
+--echo #            dsmrr_init() error path in handler.cc
+--echo #
+--echo # An unlock that finds trx->n_mysql_tables_in_use already at 0 must not
+--echo # wrap it, otherwise SHOW ENGINE INNODB STATUS reports
+--echo # "mysql tables in use 4294967295".
+--echo #
+
+--source include/have_debug.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+SET SESSION debug = '+d,ib_unmatched_external_unlock';
+SELECT COUNT(*) FROM t1;
+SET SESSION debug = '-d,ib_unmatched_external_unlock';
+
+--let $innodb_status = query_get_value(SHOW ENGINE INNODB STATUS, Status, 1)
+--let INNODB_STATUS_TEXT = $innodb_status
+perl;
+  my $n = 0;
+  while ($ENV{INNODB_STATUS_TEXT} =~ /mysql tables in use (\d+)/g) {
+    $n++ if $1 >= 2147483648;
+  }
+  print "Transactions with a wrapped 'mysql tables in use': $n\n";
+EOF
+
+DROP TABLE t1;
