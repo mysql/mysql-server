@@ -1,0 +1,50 @@
+# Recovery must not hang when applying redo needs a free block while the
+# reads issued by buf_read_recv_pages() hold every other frame.
+#
+# Without a limit on pending reads in buf_read_recv_pages(), the reads of
+# a recovery batch take all frames that the parsed redo does not use. The
+# I/O threads apply the redo when a read completes, and applying a page
+# reorganize needs a free block (btr_page_reorganize_low() ->
+# buf_block_alloc()). With every other block fixed by a pending read, no
+# read completes and no block becomes free, and recovery hangs with
+# "Difficult to find free blocks in the buffer pool".
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+
+# Keep all the redo of the workload after the checkpoint, and keep the
+# pages dirty, so that recovery applies redo to many pages.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+
+--disable_query_log
+let $i = 1000;
+while ($i) {
+  eval CREATE TABLE t$i (id INT PRIMARY KEY AUTO_INCREMENT,
+    name CHAR(255) DEFAULT 'a', address CHAR(255) DEFAULT 'b',
+    city CHAR(255) DEFAULT 'c', country CHAR(255) DEFAULT 'd',
+    description CHAR(255) DEFAULT 'e');
+  dec $i;
+}
+--enable_query_log
+
+--source include/kill_mysqld.inc
+
+# Recover with a small buffer pool, one instance and several read I/O
+# threads, so that the reads of one batch can take all free frames.
+let $restart_parameters = restart: --innodb-buffer-pool-size=100M --innodb-buffer-pool-instances=1 --innodb-read-io-threads=4;
+--source include/start_mysqld.inc
+
+SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'test';
+
+--disable_query_log
+let $i = 1000;
+while ($i) {
+  eval DROP TABLE t$i;
+  dec $i;
+}
+--enable_query_log
+
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc
