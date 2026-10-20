@@ -52,3 +52,91 @@ TO_VECTOR(b2)
 0x0000803F0000004000004040
 0x0000803F0000004000004040
 DROP TABLE B;
+#
+# #849: STRING_TO_VECTOR() refuses valid float32 denormal components
+#
+# Smallest normal float32 and denormals are accepted.
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1.2e-38,1]'));
+VECTOR_TO_STRING(STRING_TO_VECTOR('[1.2e-38,1]'))
+[1.20000e-38,1.00000e+00]
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1.1e-38,1]'));
+VECTOR_TO_STRING(STRING_TO_VECTOR('[1.1e-38,1]'))
+[1.10000e-38,1.00000e+00]
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1e-39,1]'));
+VECTOR_TO_STRING(STRING_TO_VECTOR('[1e-39,1]'))
+[1.00000e-39,1.00000e+00]
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[-1e-40,1]'));
+VECTOR_TO_STRING(STRING_TO_VECTOR('[-1e-40,1]'))
+[-9.99995e-41,1.00000e+00]
+# Smallest float32 denormal.
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1e-45,1]'));
+VECTOR_TO_STRING(STRING_TO_VECTOR('[1e-45,1]'))
+[1.40130e-45,1.00000e+00]
+SELECT HEX(STRING_TO_VECTOR('[1.4e-45]'));
+HEX(STRING_TO_VECTOR('[1.4e-45]'))
+01000000
+# Values below the smallest denormal underflow to (signed) zero.
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1e-50,1]'));
+VECTOR_TO_STRING(STRING_TO_VECTOR('[1e-50,1]'))
+[0.00000e+00,1.00000e+00]
+SELECT HEX(STRING_TO_VECTOR('[1e-50,-1e-50]'));
+HEX(STRING_TO_VECTOR('[1e-50,-1e-50]'))
+0000000000000080
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[0,1]'));
+VECTOR_TO_STRING(STRING_TO_VECTOR('[0,1]'))
+[0.00000e+00,1.00000e+00]
+# Overflow and non-finite values are still refused.
+SELECT STRING_TO_VECTOR('[3.5e38,1]');
+ERROR HY000: Data cannot be converted to a valid vector: '[3.5e38,1]'
+SELECT STRING_TO_VECTOR('[-3.5e38,1]');
+ERROR HY000: Data cannot be converted to a valid vector: '[-3.5e38,1]'
+SELECT STRING_TO_VECTOR('[1e39]');
+ERROR HY000: Data cannot be converted to a valid vector: '[1e39]'
+SELECT STRING_TO_VECTOR('[inf]');
+ERROR HY000: Data cannot be converted to a valid vector: '[inf]'
+SELECT STRING_TO_VECTOR('[nan]');
+ERROR HY000: Data cannot be converted to a valid vector: '[nan]'
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[3.4e38,-3.4e38]'));
+VECTOR_TO_STRING(STRING_TO_VECTOR('[3.4e38,-3.4e38]'))
+[3.40000e+38,-3.40000e+38]
+# Unparsable components are refused (strtof() consumes nothing), while an
+# explicit zero is accepted.
+SELECT STRING_TO_VECTOR('[abc]');
+ERROR HY000: Data cannot be converted to a valid vector: '[abc]'
+SELECT STRING_TO_VECTOR('[1,abc]');
+ERROR HY000: Data cannot be converted to a valid vector: '[1,abc]'
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[0.0,-0.0]'));
+VECTOR_TO_STRING(STRING_TO_VECTOR('[0.0,-0.0]'))
+[0.00000e+00,-0.00000e+00]
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT, v VECTOR(3) NOT NULL);
+INSERT INTO t (v) VALUES (STRING_TO_VECTOR('[0.1,0.2,1e-40]'));
+INSERT INTO t (v) VALUES (STRING_TO_VECTOR('[1e-45,-1e-45,1e-50]'));
+SELECT id, VECTOR_TO_STRING(v), HEX(v) FROM t ORDER BY id;
+id	VECTOR_TO_STRING(v)	HEX(v)
+1	[1.00000e-01,2.00000e-01,9.99995e-41]	CDCCCC3DCDCC4C3EC2160100
+2	[1.40130e-45,-1.40130e-45,0.00000e+00]	010000000100008000000000
+DROP TABLE t;
+# Refusing denormals in the text conversion never kept them out of
+# VECTOR columns: binary input bypasses it and was always accepted, so
+# functions working on VECTOR values must handle them anyway.
+# X'C2160100' is 1e-40, X'C2160180' is -1e-40, X'01000000' is the
+# smallest float32 denormal.  Both input paths now store the same bytes.
+CREATE TABLE t (id INT PRIMARY KEY, v VECTOR(3) NOT NULL);
+INSERT INTO t VALUES (1, X'C2160100C216018001000000');
+INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1e-40,-1e-40,1.4e-45]'));
+SELECT id, HEX(v), VECTOR_DIM(v), VECTOR_TO_STRING(v) FROM t ORDER BY id;
+id	HEX(v)	VECTOR_DIM(v)	VECTOR_TO_STRING(v)
+1	C2160100C216018001000000	3	[9.99995e-41,-9.99995e-41,1.40130e-45]
+2	C2160100C216018001000000	3	[9.99995e-41,-9.99995e-41,1.40130e-45]
+SELECT HEX(a.v) = HEX(b.v) AS same_bytes FROM t a, t b
+WHERE a.id = 1 AND b.id = 2;
+same_bytes
+1
+# The text form of a denormal vector converts back to the same bytes,
+# which used to fail with ER_TO_VECTOR_CONVERSION.
+SELECT id, HEX(STRING_TO_VECTOR(VECTOR_TO_STRING(v))) = HEX(v) AS round_trip
+FROM t ORDER BY id;
+id	round_trip
+1	1
+2	1
+DROP TABLE t;
