@@ -1212,78 +1212,91 @@ inline void rec_init_offsets_comp_ordinary(const rec_t *rec, bool temp,
   ulint any_ext = 0;
   ulint null_mask = 1;
   uint16_t i = 0;
+  /* Hoist loop-invariant values out of the per-field loop. */
+  ulint *const opt_offs_base = rec_offs_base(offsets);
+  const uint16_t opt_n_fields = (uint16_t)rec_offs_n_fields(offsets);
+  /* The switch below is loop-invariant and empty in the common case; test
+  for that once and skip it per field. In that case fields are laid out
+  1:1, so index->fields[i] == index->get_physical_field(i). */
+  const bool opt_is_simple =
+      (rec_insert_state == INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION);
+  const dict_field_t *const opt_fields = index->fields;
   do {
     /* Fields are stored on disk in version they are added in and are
     maintained in fields_array in the same order. Get the right field. */
-    const dict_field_t *field = index->get_physical_field(i);
+    const dict_field_t *field =
+        opt_is_simple ? (opt_fields + i) : index->get_physical_field(i);
     const dict_col_t *col = field->col;
     uint64_t len;
 
-    switch (rec_insert_state) {
-      case INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION:
-        ut_ad(!index->has_instant_cols_or_row_versions());
-        break;
+    if (UNIV_UNLIKELY(!opt_is_simple)) {
+      switch (rec_insert_state) {
+        case INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION:
+          ut_ad(!index->has_instant_cols_or_row_versions());
+          break;
 
-      case INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION: {
-        ut_ad(row_version == INVALID_ROW_VERSION || row_version == 0);
-        ut_ad(index->has_row_versions() || temp);
-        /* Record has to be interpreted in v0. */
-        row_version = 0;
+        case INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION: {
+          ut_ad(row_version == INVALID_ROW_VERSION || row_version == 0);
+          ut_ad(index->has_row_versions() || temp);
+          /* Record has to be interpreted in v0. */
+          row_version = 0;
+        }
+          [[fallthrough]];
+        case INSERTED_AFTER_UPGRADE_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION:
+        case INSERTED_AFTER_INSTANT_ADD_NEW_IMPLEMENTATION: {
+          ut_ad(is_valid_row_version(row_version));
+          /* A record may have version=0 if it's from upgrade table */
+          ut_ad(index->has_row_versions() ||
+                (index->table->is_upgraded_instant() && row_version == 0));
+
+          /* Based on the record version and column information, see if this
+          column is there in this record or not. */
+          if (col->is_dropped_in_or_before(row_version)) {
+            /* This columns is dropped before or on this row version so its data
+            won't be there on row. So no need to store the length. Instead,
+            store offs ORed with REC_OFFS_DROP to indicate the same. */
+            len = offs | REC_OFFS_DROP;
+            goto resolved;
+
+            /* NOTE : Existing rows, which have data for this column, would
+            still need to process this column, so don't skip and store the
+            correct length there. Though it will be skipped while fetching
+            row. */
+          } else if (col->is_added_after(row_version)) {
+            /* This columns is added after this row version. In this case no
+            need to store the length. Instead store only if it is NULL or
+            DEFAULT value. */
+            len = rec_get_instant_offset(index, i, offs);
+
+            goto resolved;
+          }
+        } break;
+
+        case INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION:
+        case INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION: {
+          ut_ad(non_default_fields > 0);
+          ut_ad(index->has_instant_cols());
+          ut_ad(!is_valid_row_version(row_version));
+
+          if (i >= non_default_fields) {
+            /* This would be the case when column doesn't exists in the row. In
+            this case we need not to store the length. Instead we store only if
+            the column is NULL or DEFAULT value. */
+            len = rec_get_instant_offset(index, i, offs);
+
+            goto resolved;
+          }
+
+          /* Note : Even if the column has been dropped, this row in V1 would
+          definitely have the value of this column. */
+        } break;
+
+        default:
+          ut_ad(false);
       }
-        [[fallthrough]];
-      case INSERTED_AFTER_UPGRADE_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION:
-      case INSERTED_AFTER_INSTANT_ADD_NEW_IMPLEMENTATION: {
-        ut_ad(is_valid_row_version(row_version));
-        /* A record may have version=0 if it's from upgrade table */
-        ut_ad(index->has_row_versions() ||
-              (index->table->is_upgraded_instant() && row_version == 0));
+    } /* !opt_is_simple */
 
-        /* Based on the record version and column information, see if this
-        column is there in this record or not. */
-        if (col->is_dropped_in_or_before(row_version)) {
-          /* This columns is dropped before or on this row version so its data
-          won't be there on row. So no need to store the length. Instead, store
-          offs ORed with REC_OFFS_DROP to indicate the same. */
-          len = offs | REC_OFFS_DROP;
-          goto resolved;
-
-          /* NOTE : Existing rows, which have data for this column, would still
-          need to process this column, so don't skip and store the correct
-          length there. Though it will be skipped while fetching row. */
-        } else if (col->is_added_after(row_version)) {
-          /* This columns is added after this row version. In this case no need
-          to store the length. Instead store only if it is NULL or DEFAULT
-          value. */
-          len = rec_get_instant_offset(index, i, offs);
-
-          goto resolved;
-        }
-      } break;
-
-      case INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION:
-      case INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION: {
-        ut_ad(non_default_fields > 0);
-        ut_ad(index->has_instant_cols());
-        ut_ad(!is_valid_row_version(row_version));
-
-        if (i >= non_default_fields) {
-          /* This would be the case when column doesn't exists in the row. In
-          this case we need not to store the length. Instead we store only if
-          the column is NULL or DEFAULT value. */
-          len = rec_get_instant_offset(index, i, offs);
-
-          goto resolved;
-        }
-
-        /* Note : Even if the column has been dropped, this row in V1 would
-        definitely have the value of this column. */
-      } break;
-
-      default:
-        ut_ad(false);
-    }
-
-    if (!(col->prtype & DATA_NOT_NULL)) {
+    if (UNIV_UNLIKELY(!(col->prtype & DATA_NOT_NULL))) {
       /* nullable field => read the null flag */
       ut_ad(n_null--);
 
@@ -1304,7 +1317,8 @@ inline void rec_init_offsets_comp_ordinary(const rec_t *rec, bool temp,
       null_mask <<= 1;
     }
 
-    if (!field->fixed_len || (temp && !col->get_fixed_size(temp))) {
+    if (UNIV_UNLIKELY(!field->fixed_len ||
+                      (temp && !col->get_fixed_size(temp)))) {
       ut_ad(col->mtype != DATA_POINT);
       /* Variable-length field: read the length */
       len = *lens--;
@@ -1339,8 +1353,8 @@ inline void rec_init_offsets_comp_ordinary(const rec_t *rec, bool temp,
       len = offs += field->fixed_len;
     }
   resolved:
-    rec_offs_base(offsets)[i + 1] = len;
-  } while (++i < rec_offs_n_fields(offsets));
+    opt_offs_base[i + 1] = len;
+  } while (++i < opt_n_fields);
 
   *rec_offs_base(offsets) = (rec - (lens + 1)) | REC_OFFS_COMPACT | any_ext;
 }
