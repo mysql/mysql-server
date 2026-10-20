@@ -70,8 +70,7 @@ static int after_engine_recovery_call = 0;
 static int after_recovery_call = 0;
 static int before_server_shutdown_call = 0;
 static int after_server_shutdown_call = 0;
-static int after_dd_upgrade_call = 0;
-static bool thread_aborted = false;
+static bool thread_aborted [[maybe_unused]] = false;
 
 static void dump_server_state_calls() {
   if (before_handle_connection_call) {
@@ -148,11 +147,7 @@ static int after_server_shutdown(Server_state_param *) {
   return 0;
 }
 
-static int after_dd_upgrade(Server_state_param *) {
-  after_dd_upgrade_call++;
-
-  return 0;
-}
+static int after_dd_upgrade(Server_state_param *) { return 0; }
 
 Server_state_observer server_state_observer = {
     sizeof(Server_state_observer),
@@ -171,7 +166,6 @@ static int trans_before_commit_call = 0;
 static int trans_before_rollback_call = 0;
 static int trans_after_commit_call = 0;
 static int trans_after_rollback_call = 0;
-static int trans_begin_call = 0;
 
 static void dump_transaction_calls() {
   if (trans_before_dml_call) {
@@ -346,12 +340,7 @@ static int trans_after_rollback(Trans_param *param [[maybe_unused]]) {
   return 0;
 }
 
-static int trans_begin(Trans_param *param [[maybe_unused]],
-                       int &out_val [[maybe_unused]]) {
-  trans_begin_call++;
-
-  return 0;
-}
+static int trans_begin(Trans_param *, int &) { return 0; }
 
 Trans_observer trans_observer = {
     sizeof(Trans_observer),
