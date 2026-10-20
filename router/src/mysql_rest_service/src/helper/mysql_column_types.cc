@@ -173,7 +173,8 @@ std::string txt_from_mysql_column_type(const MYSQL_FIELD *field) {
       if (field->charsetnr == 63) return "MEDIUMBLOB";
       return "MEDIUMTEXT";
     case MYSQL_TYPE_LONG_BLOB:
-      return "BLOB";
+      if (field->charsetnr == 63) return "LONGBLOB";
+      return "LONGTEXT";
     case MYSQL_TYPE_BLOB:
       if (field->charsetnr == 63) return "BLOB";
       return "TEXT";
