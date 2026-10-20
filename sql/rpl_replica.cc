@@ -7818,7 +7818,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
 
   /* format description event checks */
   if (!is_fd_event_saved_in_context(*mi)) goto err;
-  if (!is_fd_event_saved_in_context_usable_with_event_type(*mi, event_type))
+  if (!queue_event_uses_direct_construction(event_type) &&
+      !is_fd_event_saved_in_context_usable_with_event_type(*mi, event_type))
     goto err;
 
   /*

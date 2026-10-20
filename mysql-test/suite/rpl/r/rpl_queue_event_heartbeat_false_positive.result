@@ -1,0 +1,44 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Verify: a stale/narrow cached FDE does not cause a live Heartbeat
+# event to be rejected, since heartbeat decoding does not use
+# post_header_len.
+#
+[connection slave]
+include/rpl/stop_replica.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+# Send heartbeats quickly so the test does not depend on the default
+# (much longer) heartbeat period.
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.1;
+include/rpl/start_replica.inc
+# Let the channel settle into steady state and exchange at least one
+# real heartbeat before injecting anything, so the very next event
+# the injection sees is a heartbeat, not a startup event such as
+# Previous_gtids_log_event.
+# Make the cached format description event describe fewer event
+# types than HEARTBEAT_LOG_EVENT_V2 - simulating a source connection
+# whose cached FDE predates that event type.
+SET GLOBAL DEBUG='+d,queue_event_unknown_event_type_by_fd_event';
+# R1: the receiver keeps accepting heartbeats even though the cached
+# FDE describes fewer event types than HEARTBEAT_LOG_EVENT_V2.
+include/assert.inc [IO thread is still running after receiving a heartbeat under the shrunk FDE]
+# Cleanup: drop the injection.
+SET GLOBAL DEBUG='';
+# Sanity: ordinary replication still works once the injection is gone.
+[connection master]
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+[connection slave]
+SELECT * FROM t1;
+a
+1
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc
