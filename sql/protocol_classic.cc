@@ -836,6 +836,42 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   ~~~~~~~~~~~~~~~~~~~~~
   </td></tr></table>
 
+  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_GTIDS SESSION_TRACK_GTIDS
+
+  The GTID set tracked for the session. Sent only if the client sets
+  ::CLIENT_SESSION_TRACK and session_track_gtids is OWN_GTID or ALL_GTIDS.
+  Not sent when the GTID set is empty.
+
+  <table>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>encoding_spec</td>
+      <td>GTID encoding. Only 0 (string format) is defined. Clients should
+      treat other values as unknown.</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>gtids</td>
+      <td>the GTID set as text, e.g. `uuid:1-9,uuid2:5`</td></tr>
+  </table>
+
+  Example:
+
+  After a CREATE DATABASE statement with session_track_gtids = ALL_GTIDS:
+
+  <table><tr>
+  <td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  03 2a 00 28 65 64 30 63    33 35 37 32 2d 63 63 39
+  38 2d 31 31 66 31 2d 61    63 39 36 2d 37 61 63 38
+  39 63 31 36 64 30 33 32    3a 31 2d 39
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td><td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  .*.(ed0c3572-cc9
+  8-11f1-ac96-7ac8
+  9c16d032:1-9
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td></tr></table>
+
   See also net_send_ok()
 */
 /* clang-format on */
