@@ -244,7 +244,7 @@ Examples:
 
 ```sql
   // 1+2i
-  complex_col = complex::from_cartesian(1.0, 2.0);
+  complex_col = math.complex::from_cartesian(1.0, 2.0);
 ```
 
 ```sql
@@ -253,7 +253,7 @@ Examples:
 ```
 
 ```sql
-  complex_col = complex::add(col_a, col_b);
+  complex_col = math.complex::add(col_a, col_b);
 ```
 
 ## method invocation
