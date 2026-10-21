@@ -109,22 +109,30 @@ ROUTER_COPY_CUSTOM_DYLIB("${JIT_EXECUTOR_LIBRARY}"
 ADD_HARNESS_PLUGIN(jit_executor_plugin
   OUTPUT_NAME "jit_executor"
   SOURCES ${jit_executor_plugin_SOURCE}
-  REQUIRES harness_stdx router_mysql "${EXT_JIT_LIBRARY}"
+
+  REQUIRES_IF
+  harness_stdx_interface
+  router_mysql_interface
+  mysql_rest_service_interface
+
+  REQUIRES
+  harness_stdx
+  router_mysql
+
+  REQUIRES_IF
+  "${EXT_JIT_LIBRARY}"
+
+  INCLUDE_DIRECTORIES_IF
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_SOURCE_DIR}
+
+  INCLUDE_DIRECTORIES
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+  PUBLIC ${MRS_JIT_EXECUTOR_LIB}
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_SOURCE_DIR}
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 
-TARGET_INCLUDE_DIRECTORIES(jit_executor_plugin PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/src/router/include/
-  ${PROJECT_SOURCE_DIR}/src/mysql_rest_service/include/
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  ${MRS_JIT_EXECUTOR_LIB}
-  )
-
 ADD_DEPENDENCIES(jit_executor_plugin ${ext_jit_target})
-
-GENERATE_EXPORT_HEADER(jit_executor_plugin
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/jit_executor_plugin_export.h)

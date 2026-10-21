@@ -964,7 +964,7 @@ bool Events::init(bool opt_noacl_or_bootstrap) {
     guess the real value. So better some value that doesn't assert than
     no value.
   */
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   assert(opt_event_scheduler == Events::EVENTS_ON ||

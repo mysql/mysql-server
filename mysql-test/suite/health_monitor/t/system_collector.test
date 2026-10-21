@@ -1,0 +1,321 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   0. Parallel selects on on-demand tables
+--echo ##   1. Enable/disable history tables
+--echo ##   2. Table resize
+
+# System stats not supported on Windows
+--source include/not_windows.inc
+--source ../include/health_monitor_setup.inc
+
+let $system_debug = 0;
+
+--echo
+--echo ##
+--echo ## Parallel selects on the on-demand tables
+--echo ##
+
+use test;
+
+--echo
+--echo # Create a table to store results
+--echo
+drop table if exists test.t1;
+--echo
+create table test.t1 (time varchar(32), con int, iter int, cpu int, disk int, memory int, process int);
+
+--echo
+--echo # Create a procedure to do repeated selects on the on-demand tables
+--echo
+
+drop procedure if exists test.select_stat_tables;
+--echo
+delimiter |;
+create procedure test.select_stat_tables(in n int, in con int)
+begin
+  declare i int;
+  set i = n;
+  
+  while i > 0 do
+    select count(*) from performance_schema.system_cpu_stats into @cpu;
+    select count(*) from performance_schema.system_disk_stats into @disk;
+    select count(*) from performance_schema.system_memory_stats into @memory;
+    select count(*) from performance_schema.system_process_stats into @process;
+    insert into test.t1 values(now(), con, i, @cpu, @disk, @memory, @process);
+    set i = i - 1;
+  end while;
+end|
+
+delimiter ;|
+
+--echo
+--echo # Start the system collector
+--echo
+set @@global.health_monitor.system_running = ON;
+
+--echo
+--echo # Connection 1 - select_stat_tables
+connect(con1, localhost, root,,);
+--send call test.select_stat_tables(5, 1);
+
+--echo
+--echo # Connection 2 - select_stat_tables
+connect(con2, localhost, root,,);
+--send call test.select_stat_tables(5, 2);
+
+--echo
+--echo # Connection 3 - select_stat_tables
+connect(con3, localhost, root,,);
+--send call test.select_stat_tables(5, 3);
+
+--echo
+--echo # Connection 4 - select_stat_tables
+connect(con4, localhost, root,,);
+--send call test.select_stat_tables(5, 4);
+
+--echo
+--echo # Sleep 5
+--sleep 5
+
+--echo
+--echo # Reap
+
+--connection con1
+--reap
+--connection con2
+--reap
+--connection con3
+--reap
+--connection con4
+--reap
+--echo
+--connection default
+--echo
+
+--replace_column 1 <time> 4 <cpu_rows> 5 <disk_rows> 6 <memory_rows> 7 <process_rows>
+select * from test.t1 order by con, iter;
+
+if ($system_debug) {
+  --echo
+  select * from test.t1 order by con, iter;
+}
+
+
+--echo
+--echo ##
+--echo ## Enable/disable history tables
+--echo ##
+
+use performance_schema;
+
+--echo
+--echo # Stop the system collector, set sample rate to 1 sec
+--echo
+set @@global.health_monitor.system_running = OFF;
+set @@global.health_monitor.system_sample_rate = 1;
+
+--echo
+--echo # Disable and truncate the history tables
+--echo
+set @@global.health_monitor.system_cpu_stats_history = OFF;
+set @@global.health_monitor.system_disk_stats_history = OFF;
+set @@global.health_monitor.system_memory_stats_history = OFF;
+set @@global.health_monitor.system_process_stats_history = OFF;
+
+--echo
+truncate system_cpu_stats_history;
+truncate system_disk_stats_history;
+truncate system_memory_stats_history;
+truncate system_process_stats_history;
+
+--echo
+--echo # Start the system collector
+--echo
+set @@global.health_monitor.system_running = ON;
+
+--echo
+--echo # Expect zero rows for all history tables
+--echo
+--let $assert_text = Expect 0 rows from system_cpu_stats_history
+--let $assert_cond = "[select count(*) from system_cpu_stats_history]" = 0
+--source include/assert.inc
+
+--let $assert_text = Expect 0 rows from system_disk_stats_history
+--let $assert_cond = "[select count(*) from system_disk_stats_history]" = 0
+--source include/assert.inc
+
+--let $assert_text = Expect 0 rows from system_memory_stats_history
+--let $assert_cond = "[select count(*) from system_memory_stats_history]" = 0
+--source include/assert.inc
+
+--let $assert_text = Expect 0 rows from system_process_stats_history
+--let $assert_cond = "[select count(*) from system_process_stats_history]" = 0
+--source include/assert.inc
+
+--echo
+--echo # Enable history tables
+--echo
+set @@global.health_monitor.system_cpu_stats_history = ON;
+set @@global.health_monitor.system_disk_stats_history = ON;
+set @@global.health_monitor.system_memory_stats_history = ON;
+set @@global.health_monitor.system_process_stats_history = ON;
+
+--echo
+--echo # Wait for 1 sample
+
+--let $wait_condition = select count(*) >= 1 from system_process_stats_history;
+--source include/wait_condition.inc
+
+--echo
+--echo # Expect non-zero rows for all history tables
+--echo
+--let $assert_text = Expect > 0 rows from system_cpu_stats_history
+--let $assert_cond = "[select count(*) from system_cpu_stats_history]" > 0
+--source include/assert.inc
+
+--let $assert_text = Expect platform-appropriate rows from system_disk_stats_history
+--let $assert_cond = "[select (count(*) > 0) = (convert(@@version_compile_os using latin1) IN (\'Linux\')) from system_disk_stats_history]" = 1
+--source include/assert.inc
+
+--let $assert_text = Expect > 0 rows from system_memory_stats_history
+--let $assert_cond = "[select count(*) from system_memory_stats_history]" > 0
+--source include/assert.inc
+
+--let $assert_text = Expect > 0 rows from system_process_stats_history
+--let $assert_cond = "[select count(*) from system_process_stats_history]" > 0
+--source include/assert.inc
+
+--echo
+--echo ##
+--echo ## History table resize
+--echo ##
+--echo
+use performance_schema;
+
+--echo
+--echo # Get the number of processors via system_cpu_stats TODO use system(nprocs)
+--echo
+select count(*) from system_cpu_stats into @ncpus;
+
+--echo
+--echo # Get the number of attached block devices via system_disk_stats TODO use system(/proc/diskstats)
+--echo
+select count(*) from system_disk_stats into @ndisks;
+
+--echo
+--echo # Stop the system collector, set sample rate to 1 sec, retention to 10 samples
+--echo
+set @@global.health_monitor.system_running = OFF;
+set @@global.health_monitor.system_sample_rate = 1;
+set @@global.health_monitor.system_retention = 3;
+
+--echo
+--echo # Determine expected tables size
+--echo
+set @sample_rate = @@global.health_monitor.system_sample_rate;
+set @retention = @@global.health_monitor.system_retention;
+set @nsamples = @retention div @sample_rate;
+
+--echo
+select @nsamples as 'Number of samples';
+
+--echo
+set @cpu_expected = @ncpus * @nsamples;
+set @disk_expected = @ndisks * @nsamples;
+set @memory_expected = @nsamples;
+set @process_expected = @nsamples;
+
+if ($system_debug) {
+  --echo
+  select @nsamples, @ncpus, @ndisks;
+  --echo
+  select @cpu_expected, @disk_expected, @memory_expected, @process_expected;
+}
+
+--echo
+--echo # Start the system collector and wait long enough to fill the history tables
+--echo
+set @@global.health_monitor.system_running = ON;
+
+--echo
+--echo # Wait for 3 samples
+
+# Note: To ensure that all tables get 3 samples, wait for the last table to be updated, system_process_stats_history
+--let $count = 3
+--let $table = system_process_stats_history
+--source include/wait_until_rows_count.inc
+
+--echo
+set @@global.health_monitor.system_running = OFF;
+--echo
+select count(*) from system_cpu_stats_history into @cpu_actual;
+select count(*) from system_disk_stats_history into @disk_actual;
+select count(*) from system_memory_stats_history into @memory_actual;
+select count(*) from system_process_stats_history into @process_actual;
+
+if ($system_debug) {
+  --echo
+  --echo ** DEBUG **
+  --echo
+  select * from system_cpu_stats_history;
+  --echo
+  select * from system_disk_stats_history;
+  --echo
+  select * from system_memory_stats_history;
+  --echo
+  select * from system_process_stats_history;
+}
+
+--echo
+--echo # Verify the expected row counts
+--echo
+--let $assert_text = Expect @disk_actual >= @disk_expected
+--let $assert_cond = "[select @disk_actual >= @disk_expected]" > 0
+--source include/assert.inc
+
+--let $assert_text = Expect @memory_actual >= @memory_expected
+--let $assert_cond = "[select @memory_actual >= @memory_expected]" > 0
+--source include/assert.inc
+
+--let $assert_text = Expect @process_actual >= @process_expected
+--let $assert_cond = "[select @process_actual >= @process_expected]" > 0
+--source include/assert.inc
+
+if ($system_debug) {
+  --echo
+  select @cpu_actual, @disk_actual, @memory_actual, @process_actual;
+}
+
+--echo
+--echo ##
+--echo ## Verify that the columns derived from /proc are populated
+--echo ##
+--echo
+--let $assert_text = Expect (select count(*) from system_cpu_stats where cpu = '' or user_ms = 0 or system_ms = 0) = 0
+--let $assert_cond = "[select count(*) from system_cpu_stats where cpu = \'\' or user_ms = 0 or system_ms = 0]" = 0
+--source include/assert.inc
+
+--let $assert_text = Expect (select count(*) from system_disk_stats where device = '' or read_count = 0 or read_time_ms = 0) = 0
+--let $assert_cond = "[select count(*) from system_disk_stats where device = \'\' or read_count = 0 or read_time_ms = 0]" = 0
+--source include/assert.inc
+
+--let $assert_text = Expect (select count(*) from system_process_stats where pid = 0 or process_name not like '%mysqld%' or tid = 0) = 0
+--let $assert_cond = "[select count(*) from system_process_stats where pid = 0 or process_name not like \'%mysqld%\' or tid = 0]" = 0
+--source include/assert.inc
+
+--echo
+--echo ##
+--echo ## Cleanup
+--echo ##
+--echo
+drop table test.t1;
+drop procedure test.select_stat_tables;
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disconnect con4
+
+--echo
+--eval uninstall component 'file://component_health_monitor'

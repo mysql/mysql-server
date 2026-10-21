@@ -129,8 +129,7 @@ struct SpatialDistanceScanInfo {
   int key_idx;
   LogicalOrderings::StateIndex forward_order = 0;
   // MBR coordinates to be passed to QUICK_RANGE.
-  // QUICK_RANGE needs at least one extra byte at the end (TODO:fix that).
-  double coordinates[5];
+  double coordinates[4];
 };
 
 // A full-text index that we can use in the query, either for index lookup or

@@ -285,6 +285,9 @@ class METADATA_CACHE_EXPORT MetadataCacheAPIBase
    */
   virtual void cache_stop() noexcept = 0;
 
+  /** Reapply TLS material for metadata sessions created after this call. */
+  virtual void reload_tls() = 0;
+
   /** @brief Returns list of managed server in a HA cluster
    * * Returns a list of MySQL servers managed by the topology for the given
    * HA cluster.
@@ -507,6 +510,7 @@ class METADATA_CACHE_EXPORT MetadataCacheAPI : public MetadataCacheAPIBase {
   void cache_start() override;
 
   void cache_stop() noexcept override;
+  void reload_tls() override;
 
   cluster_nodes_list_t get_cluster_nodes() override;
   ClusterTopology get_cluster_topology() override;

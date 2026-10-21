@@ -23,11 +23,17 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <string_view>
 #include <system_error>
 #include <thread>
+
+#ifndef _WIN32
+#include <signal.h>
+#endif
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -1062,6 +1068,171 @@ class HttpClientSecureTest
   mysql_harness::Path ssl_cert_data_dir_;
   std::string conf_file_;
 };
+
+#ifndef _WIN32
+TEST_F(HttpClientSecureTest, reload_tls_keeps_https_listener_on_invalid_pem) {
+  const auto cert = conf_dir_.name() + "/reload-cert.pem";
+  const auto key = conf_dir_.name() + "/reload-key.pem";
+  std::filesystem::copy_file(ssl_cert_data_dir_.join(kServerCertFile).str(),
+                             cert);
+  std::filesystem::copy_file(ssl_cert_data_dir_.join(kServerKeyFile).str(),
+                             key);
+  const auto conf = create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"ssl", "1"},
+                          {"ssl_cert", cert},
+                          {"ssl_key", key}}));
+  auto &router = router_spawner().spawn({"-c", conf});
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, http_port_));
+
+  const auto request = [this] {
+    TlsClientContext tls_context;
+    ASSERT_TRUE(tls_context.ssl_ca(
+        ssl_cert_data_dir_.join(kServerCertCaFile).str(), ""));
+    ASSERT_TRUE(tls_context.verify_hostname("localhost"));
+
+    http::base::Uri uri;
+    uri.set_scheme("https");
+    uri.set_host(http_hostname_);
+    uri.set_port(http_port_);
+    uri.set_path("/");
+
+    IOContext io_context;
+    RestClient client{io_context, std::move(tls_context), uri};
+    const auto response = client.request_sync(HttpMethod::Get, uri);
+    ASSERT_TRUE(response) << client.error_msg();
+    EXPECT_EQ(404, response.get_response_code());
+  };
+  ASSERT_NO_FATAL_FAILURE(request());
+
+  std::ofstream out{cert, std::ios::trunc};
+  out << "not a PEM certificate\n";
+  out.close();
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  std::this_thread::sleep_for(std::chrono::seconds{1});
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::HasSubstr("TLS reload failed for 'http_server':"));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, http_port_));
+  ASSERT_NO_FATAL_FAILURE(request());
+}
+
+TEST_F(HttpClientSecureTest, reload_tls_publishes_replaced_https_certificate) {
+  const auto cert = conf_dir_.name() + "/reload-cert.pem";
+  const auto key = conf_dir_.name() + "/reload-key.pem";
+  std::filesystem::copy_file(ssl_cert_data_dir_.join(kServerCertFile).str(),
+                             cert);
+  std::filesystem::copy_file(ssl_cert_data_dir_.join(kServerKeyFile).str(),
+                             key);
+  const auto conf = create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"ssl", "1"},
+                          {"ssl_cert", cert},
+                          {"ssl_key", key}}));
+  auto &router = router_spawner().spawn({"-c", conf});
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, http_port_));
+
+  const auto request = [this](const std::string &ca) -> bool {
+    TlsClientContext tls_context;
+    if (!tls_context.ssl_ca(ca, "")) return false;
+    if (!tls_context.verify_hostname("localhost")) return false;
+
+    http::base::Uri uri;
+    uri.set_scheme("https");
+    uri.set_host(http_hostname_);
+    uri.set_port(http_port_);
+    uri.set_path("/");
+
+    IOContext io_context;
+    RestClient client{io_context, std::move(tls_context), uri};
+    return client.request_sync(HttpMethod::Get, uri);
+  };
+
+  ASSERT_TRUE(request(ssl_cert_data_dir_.join(kServerCertCaFile).str()));
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/ecdsa_certs/server-cert.pem",
+                             cert,
+                             std::filesystem::copy_options::overwrite_existing);
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/ecdsa_certs/server-key.pem",
+                             key,
+                             std::filesystem::copy_options::overwrite_existing);
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  std::this_thread::sleep_for(std::chrono::seconds{1});
+
+  EXPECT_FALSE(request(ssl_cert_data_dir_.join(kServerCertCaFile).str()));
+  ASSERT_TRUE(
+      request(std::string{SSL_TEST_DATA_DIR} + "/ecdsa_certs/cacert.pem"));
+}
+
+TEST_F(HttpClientSecureTest, oneOwnerFailureDoesNotBlockAnotherOwner) {
+  const auto http_cert = conf_dir_.name() + "/http-cert.pem";
+  const auto http_key = conf_dir_.name() + "/http-key.pem";
+  const auto routing_cert = conf_dir_.name() + "/routing-cert.pem";
+  const auto routing_key = conf_dir_.name() + "/routing-key.pem";
+  std::filesystem::copy_file(ssl_cert_data_dir_.join(kServerCertFile).str(),
+                             http_cert);
+  std::filesystem::copy_file(ssl_cert_data_dir_.join(kServerKeyFile).str(),
+                             http_key);
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/server-cert.pem",
+                             routing_cert);
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/server-key.pem", routing_key);
+
+  const auto routing_port = port_pool_.get_next_available();
+  const auto config = mysql_harness::join(
+      std::vector<std::string>{
+          mysql_harness::ConfigBuilder::build_section(
+              "http_server", {{"bind_address", "127.0.0.1"},
+                              {"port", std::to_string(http_port_)},
+                              {"ssl", "1"},
+                              {"ssl_cert", http_cert},
+                              {"ssl_key", http_key}}),
+          mysql_harness::ConfigBuilder::build_section(
+              "routing", {{"bind_port", std::to_string(routing_port)},
+                          {"destinations", "127.0.0.1:1"},
+                          {"routing_strategy", "first-available"},
+                          {"client_ssl_mode", "REQUIRED"},
+                          {"client_ssl_cert", routing_cert},
+                          {"client_ssl_key", routing_key},
+                          {"server_ssl_mode", "DISABLED"}})},
+      "");
+  const auto conf = create_config_file(conf_dir_.name(), config);
+  auto &router = router_spawner().spawn({"-c", conf});
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, http_port_));
+
+  std::ofstream invalid_routing_cert{routing_cert, std::ios::trunc};
+  invalid_routing_cert << "not a PEM certificate\n";
+  invalid_routing_cert.close();
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/ecdsa_certs/server-cert.pem",
+                             http_cert,
+                             std::filesystem::copy_options::overwrite_existing);
+  std::filesystem::copy_file(SSL_TEST_DATA_DIR "/ecdsa_certs/server-key.pem",
+                             http_key,
+                             std::filesystem::copy_options::overwrite_existing);
+
+  ASSERT_EQ(0, ::kill(router.get_pid(), SIGHUP));
+  ASSERT_TRUE(wait_log_contains(
+      router, "TLS reload failed for 'routing client connections':", 2s));
+  ASSERT_TRUE(
+      wait_log_contains(router, "TLS reload succeeded for 'http_server'", 2s));
+
+  TlsClientContext tls_context;
+  ASSERT_TRUE(tls_context.ssl_ca(
+      std::string{SSL_TEST_DATA_DIR} + "/ecdsa_certs/cacert.pem", ""));
+  ASSERT_TRUE(tls_context.verify_hostname("localhost"));
+  http::base::Uri uri;
+  uri.set_scheme("https");
+  uri.set_host(http_hostname_);
+  uri.set_port(http_port_);
+  uri.set_path("/");
+  IOContext io_context;
+  RestClient client{io_context, std::move(tls_context), uri};
+  ASSERT_TRUE(client.request_sync(HttpMethod::Get, uri)) << client.error_msg();
+}
+#endif
 
 /**
  * pretty printer for TlsVersion for gtest.
@@ -2184,6 +2355,34 @@ TEST_F(HttpServerLimitsRuntimeTest, OversizedBodyReturns413) {
   EXPECT_NE(get_req.get_response_code(), HttpStatusCode::PayloadTooLarge);
 }
 
+TEST_F(HttpServerLimitsRuntimeTest, InvalidUriWithOversizedBodyReturns413) {
+  const std::string conf_file{create_config_file(
+      conf_dir_.name(),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server", {{"bind_address", "127.0.0.1"},
+                          {"port", std::to_string(http_port_)},
+                          {"max_request_body_size", "8"}}))};
+
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::READY)
+                          .spawn({"-c", conf_file});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
+
+  const auto response =
+      send_raw_http_request(http_hostname_, http_port_,
+                            "POST /path?someparam=${...://...} HTTP/1.1\r\n"
+                            "Host: 127.0.0.1\r\nContent-Length: 16\r\n"
+                            "Connection: close\r\n\r\nabcdefghijklmnop");
+  EXPECT_THAT(response,
+              ::testing::StartsWith("HTTP/1.1 413 Payload Too Large"));
+
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname_, http_port_, {}, {});
+  auto get_req = rest_client.request_sync(HttpMethod::Get, "/");
+  ASSERT_TRUE(get_req);
+}
+
 TEST_F(HttpServerLimitsRuntimeTest,
        RequestWithContentLengthAndTransferEncodingReturns400) {
   const std::string conf_file{create_config_file(
@@ -2201,7 +2400,7 @@ TEST_F(HttpServerLimitsRuntimeTest,
 
   const auto response = send_raw_http_request(
       http_hostname_, http_port_,
-      "POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+      "POST /path?someparam=${...://...} HTTP/1.1\r\nHost: 127.0.0.1\r\n"
       "Transfer-Encoding: chunked\r\nContent-Length: 4\r\n"
       "Connection: close\r\n\r\n4\r\nabcd\r\n"
       "0\r\n\r\n");
@@ -2226,11 +2425,11 @@ TEST_F(HttpServerLimitsRuntimeTest, RequestWithInvalidContentLengthReturns400) {
 
   ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
 
-  const auto response =
-      send_raw_http_request(http_hostname_, http_port_,
-                            "POST /upload HTTP/1.1\r\nHost: "
-                            "127.0.0.1\r\nContent-Length: abc\r\n"
-                            "Connection: close\r\n\r\n");
+  const auto response = send_raw_http_request(
+      http_hostname_, http_port_,
+      "POST /path?someparam=${...://...} HTTP/1.1\r\nHost: "
+      "127.0.0.1\r\nContent-Length: abc\r\n"
+      "Connection: close\r\n\r\n");
   EXPECT_THAT(response, ::testing::StartsWith("HTTP/1.1 400 Bad Request"));
   EXPECT_THAT(http_server.get_logfile_content(),
               ::testing::ContainsRegex(

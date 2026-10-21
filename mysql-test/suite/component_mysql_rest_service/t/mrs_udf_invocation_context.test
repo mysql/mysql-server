@@ -1,0 +1,28 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Lifecycle UDFs require SELECT outside a Server substatement.
+
+--source include/not_solaris.inc
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+CREATE TABLE mrs_lifecycle_context (value INTEGER);
+
+SELECT mysql_rest_service_stop();
+
+--let $verify_udf_name = mysql_rest_service_start
+--let $verify_udf_expected_state = STOPPED
+--source ../include/test/verify_udf_invocation_context.inc
+
+--let $verify_udf_name = mysql_rest_service_stop
+--let $verify_udf_expected_state = READY
+--source ../include/test/verify_udf_invocation_context.inc
+
+--let $verify_udf_name = mysql_rest_service_restart
+--let $verify_udf_expected_state = READY
+--source ../include/test/verify_udf_invocation_context.inc
+
+DROP TABLE mrs_lifecycle_context;
+--source ../include/cmrs/cleanup.inc

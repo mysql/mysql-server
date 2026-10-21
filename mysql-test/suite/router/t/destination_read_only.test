@@ -1,5 +1,8 @@
 --source include/have_router.inc
 
+--let $component_only_suppression_pattern=Can't refresh MRDS layout, because of the following error:.*The MySQL server is running with the --read-only option.*
+--source include/component_only_suppression.inc
+
 --let $extra_mrs_router_id=1
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 

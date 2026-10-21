@@ -39,6 +39,8 @@ SET @schema_id_crud=@schema_id;
 --source ../mrs/db_schema/add.inc
 SET @schema_id_different_types=@schema_id;
 
+# all_types is metadata-only so its OpenAPI schema has no properties.
+--let $mrs_data_provider_allow_missing_object=1
 --let $mrs_add_db_object=all_types
 --let $mrs_add_db_object_path=/all_types
 --let $mrs_add_db_object_op=CREATE,READ,UPDATE,DELETE

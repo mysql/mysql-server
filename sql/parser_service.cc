@@ -174,7 +174,7 @@ void *parser_service_start_routine(void *arg) {
     DBUG_TRACE;
 
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
-    thd->thread_stack = reinterpret_cast<char *>(&thd);
+    thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
     thd->set_new_thread_id();
     mysql_thread_set_psi_id(thd->thread_id());
     thd->store_globals();

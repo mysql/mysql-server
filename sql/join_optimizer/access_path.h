@@ -1154,7 +1154,10 @@ struct AccessPath {
       Mem_root_array<Item_values_column *> *output_refs;
     } table_value_constructor;
     struct {
-      // No members.
+      // Explain-only table information for a single partitioned const table
+      // whose row was fetched before iterator execution. Other fake-row uses,
+      // including table-independent ones, leave this pointer null.
+      const TABLE *table;
     } fake_single_row;
     struct {
       // The child is optional. It is only used for keeping track of which
@@ -1634,10 +1637,12 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
 }
 
 inline AccessPath *NewFakeSingleRowAccessPath(THD *thd,
-                                              bool count_examined_rows) {
+                                              bool count_examined_rows,
+                                              const TABLE *table = nullptr) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::FAKE_SINGLE_ROW;
   path->count_examined_rows = count_examined_rows;
+  path->fake_single_row().table = table;
   path->set_num_output_rows(1.0);
   path->set_cost(0.0);
   path->set_init_cost(0.0);

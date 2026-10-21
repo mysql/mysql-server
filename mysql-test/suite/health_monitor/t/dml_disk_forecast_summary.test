@@ -1,0 +1,49 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Load the component
+--echo ##   2. DML operations on disk_forecast_summary
+--echo ##   3. Unload the component
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo ###
+--echo ### Table Operations: DML
+--echo ###
+
+--echo
+--echo #
+--echo # disk_forecast_summary
+--echo #
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into disk_forecast_summary
+  set device = 'FOO', total_blocks = 100;
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+update disk_forecast_summary
+  set device = 'FOO';
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from disk_forecast_summary
+  where mount_point like "/";
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from disk_forecast_summary;
+
+--echo
+--echo # Truncate is allowed
+truncate table disk_forecast_summary;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

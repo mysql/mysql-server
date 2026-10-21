@@ -316,17 +316,14 @@ inline void ResolveFieldToFakeTable(
       Fake_TABLE *table = fake_tables.at(item_field->table_name);
       item_field->m_table_ref = table->pos_in_table_list;
       Field *field = nullptr;
-      if (strcmp(item_field->field_name, "x") == 0) {
-        field = table->field[0];
-      } else if (strcmp(item_field->field_name, "y") == 0) {
-        field = table->field[1];
-      } else if (strcmp(item_field->field_name, "z") == 0) {
-        field = table->field[2];
-      } else if (strcmp(item_field->field_name, "w") == 0) {
-        field = table->field[3];
-      } else {
-        assert(false);
+      for (uint field_idx = 0; field_idx < table->s->fields; ++field_idx) {
+        if (strcmp(item_field->field_name,
+                   table->field[field_idx]->field_name) == 0) {
+          field = table->field[field_idx];
+          break;
+        }
       }
+      assert(field != nullptr);
       item_field->field = field;
       item_field->set_nullable(field->is_nullable());
       item_field->set_data_type(field->type());

@@ -1,0 +1,220 @@
+--source include/not_windows.inc
+
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Verify automatic monitored path selection for the Disk Collector and
+--echo ## Disk Forecaster. An empty configured path selects the data directory
+--echo ## filesystem while the public system variable remains empty.
+--echo ##
+--echo
+--echo # Procedure:
+--echo #  1. Save the explicit setup path and start disk collection.
+--echo #  2. Set an empty path and verify both consumers use the data directory.
+--echo #  3. Verify a live sample, then reapply an empty value and DEFAULT.
+--echo #  4. Check that an unrelated setting does not refresh the monitored path.
+--echo #  5. Restore the explicit path and verify both consumers apply it.
+
+--disable_query_log
+select now(6) into @setup_start;
+--enable_query_log
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Save the explicit setup path and the server data directory
+set @explicit_monitored_path = @@global.health_monitor.disk_monitored;
+set @data_directory = @@global.datadir;
+select length(@explicit_monitored_path) > 0 as explicit_path_is_nonempty;
+select length(@data_directory) > 0 as data_directory_is_nonempty;
+
+# Wait for the Disk Forecaster to apply the explicit setup path.
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Forecaster: Settings:%'
+     and locate(concat("volume='", @explicit_monitored_path, "'"), data) > 0
+     and logged > @setup_start;
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # Prepare live collection before the automatic path update
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Select the data directory filesystem without changing the configured value
+--disable_query_log
+select now(6) into @automatic_settings_start;
+--enable_query_log
+set @@global.health_monitor.disk_monitored = '';
+
+# Settings are applied asynchronously. Verify both consumers and the restarted
+# disk thread before checking the configured value or published samples.
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Collector: Settings:%'
+     and locate(concat("volume monitored='", @data_directory, "'"), data) > 0
+     and logged > @automatic_settings_start;
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Forecaster: Settings:%'
+     and locate(concat("volume='", @data_directory, "'"), data) > 0
+     and logged > @automatic_settings_start;
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Collector: Started:%'
+     and locate(concat("volume monitored='", @data_directory, "'"), data) > 0
+     and logged > @automatic_settings_start;
+--source include/wait_condition_or_abort.inc
+
+select length(@@global.health_monitor.disk_monitored) = 0
+       as configured_path_is_empty;
+
+--echo
+--echo # Collect a live sample from the data directory filesystem
+truncate performance_schema.health_block_device;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.health_block_device;
+--source include/wait_condition_or_abort.inc
+
+select count(*) > 0 as sample_published,
+       count(*) = count(device) as device_is_not_null,
+       count(*) = count(mount_point) as mount_point_is_not_null
+  from performance_schema.health_block_device;
+
+--echo
+--echo # Reapplying an empty value refreshes both automatic path consumers
+# A new timestamp prevents the earlier automatic selection from satisfying
+# the refresh checks, even though the configured value is unchanged.
+--disable_query_log
+select now(6) into @empty_reapply_start;
+--enable_query_log
+set @@global.health_monitor.disk_monitored = '';
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Collector: Settings:%'
+     and locate(concat("volume monitored='", @data_directory, "'"), data) > 0
+     and logged > @empty_reapply_start;
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Forecaster: Settings:%'
+     and locate(concat("volume='", @data_directory, "'"), data) > 0
+     and logged > @empty_reapply_start;
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # DEFAULT also refreshes both automatic path consumers
+--disable_query_log
+select now(6) into @default_reapply_start;
+--enable_query_log
+set @@global.health_monitor.disk_monitored = default;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Collector: Settings:%'
+     and locate(concat("volume monitored='", @data_directory, "'"), data) > 0
+     and logged > @default_reapply_start;
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Forecaster: Settings:%'
+     and locate(concat("volume='", @data_directory, "'"), data) > 0
+     and logged > @default_reapply_start;
+--source include/wait_condition_or_abort.inc
+
+select length(@@global.health_monitor.disk_monitored) = 0
+       as configured_path_remains_empty;
+
+--echo
+--echo # Stop collection before changing the monitored path again
+--disable_query_log
+select now(6) into @disk_stop_start;
+--enable_query_log
+set @@global.health_monitor.disk_running = off;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Collector: Settings: running=OFF%'
+     and logged > @disk_stop_start;
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # An unrelated setting does not cause a false monitored path update
+# Collection is stopped, so only settings work can produce these log entries.
+set @memory_retention_save = @@global.health_monitor.memory_retention;
+--disable_query_log
+select now(6) into @unrelated_settings_start;
+--enable_query_log
+set @@global.health_monitor.memory_retention = @memory_retention_save + 1;
+--sleep 2
+
+select count(*) = 0 as no_false_disk_collector_update
+  from performance_schema.error_log
+ where data like '%Disk Collector: Settings:%'
+   and logged > @unrelated_settings_start;
+select count(*) = 0 as no_false_disk_forecaster_update
+  from performance_schema.error_log
+ where data like '%Disk Forecaster: Settings:%'
+   and logged > @unrelated_settings_start;
+
+--echo
+--echo # Restore the explicit monitored path
+--disable_query_log
+select now(6) into @explicit_settings_start;
+--enable_query_log
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Collector: Settings:%'
+     and locate(concat("volume monitored='", @explicit_monitored_path, "'"),
+                data) > 0
+     and logged > @explicit_settings_start;
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Forecaster: Settings:%'
+     and locate(concat("volume='", @explicit_monitored_path, "'"), data) > 0
+     and logged > @explicit_settings_start;
+--source include/wait_condition_or_abort.inc
+
+select @@global.health_monitor.disk_monitored = @explicit_monitored_path
+       as configured_path_is_explicit;
+
+--echo
+--echo # Clean up
+set @@global.health_monitor.memory_retention = @memory_retention_save;
+--eval uninstall component 'file://component_health_monitor'

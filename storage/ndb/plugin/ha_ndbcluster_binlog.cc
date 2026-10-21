@@ -4618,7 +4618,7 @@ class Ndb_binlog_index_table_util {
     // Create a new THD and retry the write
     THD *new_thd = new THD;
     new_thd->set_new_thread_id();
-    new_thd->thread_stack = (char *)&new_thd;
+    new_thd->capture_stack_base(reinterpret_cast<const void *>(&new_thd));
     new_thd->store_globals();
     new_thd->set_command(COM_DAEMON);
     new_thd->system_thread = SYSTEM_THREAD_NDBCLUSTER_BINLOG;
@@ -7404,7 +7404,7 @@ void Ndb_binlog_thread::do_run() {
   */
   thd->set_new_thread_id();
 
-  thd->thread_stack = (char *)&thd; /* remember where our stack is */
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   thd->set_command(COM_DAEMON);

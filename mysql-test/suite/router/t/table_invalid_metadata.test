@@ -1,5 +1,10 @@
 --source include/have_router.inc
 
+--let $component_only_suppression_pattern=will be disabled because of following error: Unknown datatype MYSQL_SUPER_TYPE
+--source include/component_only_suppression.inc
+--let $component_only_suppression_pattern=Field with id:.*, will be disabled because of following error: Invalid value for IdGeneration: xyz
+--source include/component_only_suppression.inc
+
 --let $extra_mrs_router_id=1
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 --source ../include/schema/basic_schema.sql

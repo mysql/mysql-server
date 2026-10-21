@@ -1,0 +1,304 @@
+#
+# Iterator EXPLAIN access-path coverage
+#
+SET @explain_access_path_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch =
+'batched_key_access=on,index_merge=on,index_merge_intersection=on,'
+  'index_merge_sort_union=on,index_merge_union=on,mrr=off';
+CREATE TABLE t_explain_fts (
+id INT NOT NULL AUTO_INCREMENT,
+body TEXT,
+PRIMARY KEY (id),
+FULLTEXT KEY ft_body (body)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_fts (body) VALUES ('alpha beta'), ('beta gamma');
+ANALYZE TABLE t_explain_fts;
+EXPLAIN FORMAT = TREE
+SELECT * FROM t_explain_fts
+WHERE MATCH(body) AGAINST ('alpha' IN BOOLEAN MODE);
+EXPLAIN
+-> Filter: (match t_explain_fts.body against ('alpha' in boolean mode))  (rows=1)
+    -> Full-text index search on t_explain_fts using ft_body (body = 'alpha')  (rows=1)
+
+CREATE TABLE t_explain_ref_or_null (
+id INT NOT NULL,
+k INT,
+KEY k_idx (k)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_ref_or_null VALUES (1, 1), (2, NULL), (3, 2);
+ANALYZE TABLE t_explain_ref_or_null;
+EXPLAIN FORMAT = TREE
+SELECT * FROM t_explain_ref_or_null FORCE INDEX (k_idx)
+WHERE k = 1 OR k IS NULL;
+EXPLAIN
+-> Index lookup on t_explain_ref_or_null using k_idx (k = 1 or NULL), with index condition: ((t_explain_ref_or_null.k = 1) or (t_explain_ref_or_null.k is null))  (rows=2)
+
+EXPLAIN FORMAT = TREE
+SELECT COUNT(*) FROM t_explain_ref_or_null WHERE FALSE;
+EXPLAIN
+-> Zero input rows (Impossible WHERE), aggregated into one output row  (rows=1)
+
+EXPLAIN FORMAT = TREE
+SELECT * FROM t_explain_ref_or_null
+LIMIT 18446744073709551615 OFFSET 1;
+EXPLAIN
+-> Offset: 1 row(s)  (rows=2)
+    -> Table scan on t_explain_ref_or_null  (rows=3)
+
+EXPLAIN FORMAT = TREE
+SELECT SQL_CALC_FOUND_ROWS * FROM t_explain_ref_or_null LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (rows=1)
+    -> Table scan on t_explain_ref_or_null  (rows=3)
+
+CREATE TABLE t_explain_rowid (
+id INT NOT NULL,
+b INT NOT NULL,
+c INT NOT NULL,
+d INT NOT NULL,
+PRIMARY KEY (id),
+KEY b_idx (b),
+KEY c_idx (c),
+KEY d_idx (d)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_rowid VALUES
+(1, 1, 1, 1), (2, 1, 1, 2), (3, 1, 2, 1), (4, 2, 1, 1),
+(5, 2, 2, 2), (6, 3, 3, 3), (7, 4, 4, 4), (8, 5, 5, 5);
+ANALYZE TABLE t_explain_rowid;
+EXPLAIN FORMAT = TREE
+SELECT /*+ INDEX_MERGE(t_explain_rowid b_idx, c_idx) */ *
+FROM t_explain_rowid WHERE b = 1 AND c = 1;
+EXPLAIN
+-> Filter: ((t_explain_rowid.c = 1) and (t_explain_rowid.b = 1))  (rows=1)
+    -> Intersect rows sorted by row ID  (rows=1.12)
+        -> Index range scan on t_explain_rowid using b_idx over (b = 1)  (rows=3)
+        -> Index range scan on t_explain_rowid using c_idx over (c = 1)  (rows=3)
+
+EXPLAIN FORMAT = TREE
+SELECT /*+ INDEX_MERGE(t_explain_rowid b_idx, c_idx, d_idx) */ *
+FROM t_explain_rowid WHERE b = 1 OR c = 1 OR d <=> NULL;
+EXPLAIN
+-> Filter: ((t_explain_rowid.b = 1) or (t_explain_rowid.c = 1) or (t_explain_rowid.d <=> NULL))  (rows=5)
+    -> Deduplicate rows sorted by row ID  (rows=5)
+        -> Index range scan on t_explain_rowid using b_idx over (b = 1)  (rows=3)
+        -> Index range scan on t_explain_rowid using c_idx over (c = 1)  (rows=3)
+
+SET @explain_access_path_weedout_switch = @@optimizer_switch;
+SET optimizer_switch =
+'firstmatch=off,loosescan=off,materialization=off,duplicateweedout=on';
+EXPLAIN FORMAT = TREE
+SELECT o.id
+FROM t_explain_rowid AS o
+WHERE o.b IN (
+SELECT i1.b
+FROM t_explain_rowid AS i1
+JOIN t_explain_rowid AS i2 ON i1.c = i2.c
+);
+EXPLAIN
+-> Remove duplicate o rows using temporary table (weedout)  (rows=20.5)
+    -> Nested loop inner join  (rows=20.5)
+        -> Nested loop inner join  (rows=12.8)
+            -> Table scan on i1  (rows=8)
+            -> Covering index lookup on o using b_idx (b = i1.b)  (rows=1.6)
+        -> Covering index lookup on i2 using c_idx (c = i1.c)  (rows=1.6)
+
+SET optimizer_switch = @explain_access_path_weedout_switch;
+SET @explain_access_path_loosescan_switch = @@optimizer_switch;
+SET optimizer_switch =
+'firstmatch=off,materialization=off,duplicateweedout=off,loosescan=on';
+CREATE TABLE t_explain_loose_outer (
+i INT NOT NULL,
+PRIMARY KEY (i)
+) ENGINE = InnoDB;
+CREATE TABLE t_explain_loose_inner (
+i INT,
+KEY i_idx (i)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_loose_outer VALUES (2), (3), (4), (5);
+INSERT INTO t_explain_loose_inner VALUES (1), (2), (3), (4);
+ANALYZE TABLE t_explain_loose_outer, t_explain_loose_inner;
+EXPLAIN FORMAT = TREE
+SELECT *
+FROM t_explain_loose_outer
+WHERE i IN (SELECT i FROM t_explain_loose_inner);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=4)
+    -> Remove duplicates from input sorted on i_idx  (rows=4)
+        -> Filter: (t_explain_loose_inner.i is not null)  (rows=4)
+            -> Covering index scan on t_explain_loose_inner using i_idx  (rows=4)
+    -> Single-row covering index lookup on t_explain_loose_outer using PRIMARY (i = t_explain_loose_inner.i)  (rows=1)
+
+SET optimizer_switch = @explain_access_path_loosescan_switch;
+DROP TABLE t_explain_loose_outer, t_explain_loose_inner;
+CREATE TABLE t_explain_weedout_outer (
+pk INT NOT NULL,
+f2 INT,
+PRIMARY KEY (pk)
+) ENGINE = InnoDB;
+CREATE TABLE t_explain_weedout_inner (
+pk INT NOT NULL,
+f2 INT,
+PRIMARY KEY (pk)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_weedout_outer VALUES (1, 1), (2, 2);
+ANALYZE TABLE t_explain_weedout_outer, t_explain_weedout_inner;
+EXPLAIN FORMAT = TREE
+SELECT *
+FROM t_explain_weedout_outer
+LEFT JOIN t_explain_weedout_outer AS outer_copy ON 119 IN (
+SELECT subquery_inner.pk
+FROM t_explain_weedout_outer AS subquery_outer,
+(t_explain_weedout_inner AS subquery_inner
+STRAIGHT_JOIN t_explain_weedout_outer AS subquery_copy ON TRUE)
+)
+ORDER BY t_explain_weedout_outer.f2;
+EXPLAIN
+-> Remove duplicate (t_explain_weedout_outer, outer_copy) rows using temporary table (weedout)  (rows=16)
+    -> Nested loop left join  (rows=16)
+        -> Sort row IDs: t_explain_weedout_outer.f2  (rows=2)
+            -> Table scan on t_explain_weedout_outer  (rows=2)
+        -> Nested loop inner join  (rows=8)
+            -> Nested loop inner join  (rows=4)
+                -> Nested loop inner join  (rows=2)
+                    -> Constant row from subquery_inner  (rows=1)
+                    -> Table scan on outer_copy  (rows=2)
+                -> Covering index scan on subquery_outer using PRIMARY  (rows=2)
+            -> Covering index scan on subquery_copy using PRIMARY  (rows=2)
+
+CREATE TABLE t_explain_alternative (a INT, b INT);
+INSERT INTO t_explain_alternative VALUES (1, 1), (2, 2);
+SET @explain_access_path_sql_mode = @@sql_mode;
+SET sql_mode = '';
+EXPLAIN FORMAT = TREE
+SELECT (o.a, o.b) IN (
+SELECT d.a, d.b FROM (TABLE t_explain_alternative) AS d
+)
+FROM t_explain_alternative AS o
+GROUP BY (@explain_access_path_group := 1);
+EXPLAIN
+-> Group (no aggregates)  (rows=1)
+    -> Table scan on o  (rows=2)
+-> Select #2 (subquery in projection; dependent)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Filter: (<if>(outer_field_is_not_null, <is_not_null_test>(d.a), true) and <if>(outer_field_is_not_null, <is_not_null_test>(d.b), true))  (rows=2)
+            -> Filter: (<if>(outer_field_is_not_null, ((<cache>(o.a) = d.a) or (d.a is null)), true) and <if>(outer_field_is_not_null, ((<cache>(o.b) = d.b) or (d.b is null)), true))  (rows=2)
+                -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (rows=4)
+                    -> Covering index lookup on d using <auto_key0> (a = <cache>(o.a) or NULL)  (rows=4)
+                        -> Materialize  (rows=2)
+                            -> Table scan on t_explain_alternative  (rows=2)
+                    -> Table scan on d  (rows=2)
+
+SET sql_mode = @explain_access_path_sql_mode;
+EXPLAIN FORMAT = TREE
+SELECT jt.value
+FROM JSON_TABLE('[1, 2]', '$[*]' COLUMNS (value INT PATH '$')) AS jt;
+EXPLAIN
+-> Materialize table function  (rows=2)
+
+CREATE TABLE t_explain_bka_outer (id INT NOT NULL) ENGINE = InnoDB;
+CREATE TABLE t_explain_bka_inner (
+id INT NOT NULL,
+payload INT NOT NULL,
+KEY id_idx (id)
+) ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (1000),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_explain_bka_outer VALUES (1), (2);
+INSERT INTO t_explain_bka_inner VALUES (1, 1), (2, 1), (1100, 1);
+ANALYZE TABLE t_explain_bka_outer, t_explain_bka_inner;
+EXPLAIN FORMAT = TREE
+SELECT /*+ BKA(i) */ i.payload
+FROM t_explain_bka_outer AS o
+STRAIGHT_JOIN t_explain_bka_inner AS i ON i.id = o.id
+WHERE i.payload = 1;
+EXPLAIN
+-> Batched key access inner join
+    -> Batch input rows
+        -> Table scan on o  (rows=2)
+    -> Filter: (i.payload = 1)  (rows=0.333)
+        -> Multi-range index lookup on i using id_idx in partitions (p0,p1) (id = o.id)  (rows=1)
+
+CREATE TABLE t_explain_dynamic (
+x INT NOT NULL,
+y INT DEFAULT (x),
+z VARCHAR(128) DEFAULT (REPEAT('z', 128)),
+KEY x_idx (x)
+) ENGINE = InnoDB
+PARTITION BY RANGE (x) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_explain_dynamic (x) VALUES
+(10), (20), (30), (40), (110), (120), (130), (140), (210), (220);
+INSERT INTO t_explain_dynamic SELECT * FROM t_explain_dynamic;
+INSERT INTO t_explain_dynamic SELECT * FROM t_explain_dynamic;
+INSERT INTO t_explain_dynamic SELECT * FROM t_explain_dynamic;
+ANALYZE TABLE t_explain_dynamic;
+SET @explain_access_path_dynamic_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch = 'block_nested_loop=off,mrr_cost_based=off';
+EXPLAIN FORMAT = TREE
+SELECT inner_table.x
+FROM t_explain_dynamic PARTITION (p0, p1) AS inner_table,
+t_explain_dynamic AS outer_table
+WHERE inner_table.x < outer_table.y;
+EXPLAIN
+-> Nested loop inner join  (rows=1706)
+    -> Table scan on outer_table over partitions (p0,p1,p2)  (rows=80)
+    -> Filter: (inner_table.x < outer_table.y)  (rows=21.3)
+        -> Index range scan on inner_table (re-planned for each iteration) in partitions (p0,p1)  (rows=64)
+
+SET optimizer_switch = @explain_access_path_dynamic_optimizer_switch;
+EXPLAIN FORMAT = TREE
+WITH RECURSIVE t_explain_recursive (n) AS (
+SELECT 1
+UNION ALL
+SELECT n + 1 FROM t_explain_recursive WHERE n < 3
+)
+SELECT * FROM t_explain_recursive;
+EXPLAIN
+-> Table scan on t_explain_recursive  (rows=2)
+    -> Materialize recursive CTE t_explain_recursive  (rows=2)
+        -> Rows fetched before execution  (rows=1)
+        -> Repeat until convergence
+            -> Filter: (t_explain_recursive.n < 3)  (rows=1)
+                -> Scan new records on t_explain_recursive  (rows=2)
+
+CREATE TABLE t_explain_preexecution (
+id INT NOT NULL,
+payload INT,
+PRIMARY KEY (id)
+) ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_explain_preexecution VALUES (1, 1), (110, 1);
+CREATE TABLE t_explain_const_outer (id INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO t_explain_const_outer VALUES (110);
+ANALYZE TABLE t_explain_preexecution, t_explain_const_outer;
+EXPLAIN FORMAT = TREE
+SELECT MIN(id) FROM t_explain_preexecution PARTITION (p1);
+EXPLAIN
+-> Rows fetched before execution from t_explain_preexecution over partitions (p1)  (rows=1)
+
+EXPLAIN FORMAT = TREE
+SELECT o.id, c.payload
+FROM t_explain_const_outer AS o
+LEFT JOIN t_explain_preexecution AS c
+ON o.id = c.id AND c.id = 110;
+EXPLAIN
+-> Nested loop left join  (rows=1)
+    -> Table scan on o  (rows=1)
+    -> Filter: (o.id = 110)  (rows=1)
+        -> Constant row from c over partitions (p1)  (rows=1)
+
+DROP TABLE t_explain_fts, t_explain_ref_or_null, t_explain_rowid;
+DROP TABLE t_explain_alternative;
+DROP TABLE t_explain_weedout_outer, t_explain_weedout_inner;
+DROP TABLE t_explain_bka_outer, t_explain_bka_inner;
+DROP TABLE t_explain_dynamic;
+DROP TABLE t_explain_preexecution, t_explain_const_outer;
+SET optimizer_switch = @explain_access_path_optimizer_switch;

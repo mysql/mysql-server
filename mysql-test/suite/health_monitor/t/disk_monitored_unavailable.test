@@ -1,0 +1,255 @@
+--source include/not_windows.inc
+
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Verify disk collection when the monitored path becomes unavailable.
+--echo ## Failed checks must retain valid rows, suppress repeated warnings and
+--echo ## leave fencing unchanged. Collection must resume when the path returns.
+--echo ##
+--echo
+--echo # Procedure:
+--echo #  1. Collect valid disk and metric rows before selecting a missing path.
+--echo #  2. Verify retries retain rows and emit one warning for that path.
+--echo #  3. Select another missing path and verify its separate warning.
+--echo #  4. Switch to a valid path and check that no false recovery is reported.
+--echo #  5. Restore the missing path, verify collection resumes and clean up.
+
+--let $missing_path = $MYSQL_TMP_DIR/hm_disk_monitored_unavailable
+# Create and remove the directory to ensure that the selected path is absent.
+--mkdir $missing_path
+--rmdir $missing_path
+--let $missing_path_b = $MYSQL_TMP_DIR/hm_%s_disk_monitored_unavailable
+# The percent sequence must be logged literally, not treated as a format token.
+--mkdir $missing_path_b
+--rmdir $missing_path_b
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Save settings and prepare live disk collection
+set @explicit_monitored_path = @@global.health_monitor.disk_monitored;
+set @disk_sample_rate_save = @@global.health_monitor.disk_sample_rate;
+set @disk_forecast_sample_interval_save =
+    @@global.health_monitor.disk_forecast_sample_interval;
+--replace_result $missing_path MISSING_PATH
+--eval set @missing_path = '$missing_path'
+--replace_result $missing_path_b MISSING_PATH_B
+--eval set @missing_path_b = '$missing_path_b'
+
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_forecast_running = off;
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.disk_forecast_sample_interval = 10;
+truncate performance_schema.health_block_device;
+truncate performance_schema.disk_metric;
+set @@global.health_monitor.disk_forecast_running = on;
+set @@global.health_monitor.disk_running = on;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.health_block_device;
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.disk_metric;
+--source include/wait_condition_or_abort.inc
+
+select count(*) > 0 as initial_disk_row_published
+  from performance_schema.health_block_device;
+select count(*) > 0 as initial_metric_published
+  from performance_schema.disk_metric;
+
+--echo
+--echo # Select a missing live path
+--disable_query_log
+select count(*) into @valid_disk_rows
+  from performance_schema.health_block_device;
+select count(*) into @valid_metric_rows
+  from performance_schema.disk_metric;
+select now(6) into @unavailable_start;
+--enable_query_log
+set @@global.health_monitor.disk_monitored = @missing_path;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like
+         '%Disk Collector: Error: Filesystem check for % failed with error %'
+     and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+     and logged > @unavailable_start;
+--source include/wait_condition_or_abort.inc
+
+--disable_query_log
+select count(*) into @unavailable_disk_rows
+  from performance_schema.health_block_device;
+select count(*) into @unavailable_metric_rows
+  from performance_schema.disk_metric;
+--enable_query_log
+
+--echo
+--echo # Failed retries do not publish rows or repeat transition warnings
+# Allow more than two 10-second collection intervals to exercise failed retries.
+--sleep 22
+select count(*) = @unavailable_disk_rows as disk_rows_retained
+  from performance_schema.health_block_device;
+select count(*) = @unavailable_metric_rows as metric_rows_retained
+  from performance_schema.disk_metric;
+select @unavailable_disk_rows >= @valid_disk_rows as valid_disk_rows_retained;
+select @unavailable_metric_rows >= @valid_metric_rows
+       as valid_metric_rows_retained;
+select count(*) = 1 as one_unavailable_warning
+  from performance_schema.error_log
+ where data like
+       '%Disk Collector: Error: Filesystem check for % failed with error %'
+   and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+   and logged > @unavailable_start;
+select count(*) = 0 as no_duplicate_invalid_path_warning
+  from performance_schema.error_log
+ where data like '%Disk Collector: Error: Invalid Path%'
+   and logged > @unavailable_start;
+
+select @@global.offline_mode = 0 as offline_mode_remains_off;
+select @@global.super_read_only = 0 as super_read_only_remains_off;
+select variable_value = 'OFF' as offline_mode_not_owned
+  from performance_schema.global_status
+ where variable_name = 'offline_mode_disk_full';
+select variable_value = 'OFF' as super_read_only_not_owned
+  from performance_schema.global_status
+ where variable_name = 'super_read_only_disk_full';
+
+--echo
+--echo # A different unavailable path gets its own warning
+--disable_query_log
+select now(6) into @unavailable_b_start;
+--enable_query_log
+set @@global.health_monitor.disk_monitored = @missing_path_b;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like
+         '%Disk Collector: Error: Filesystem check for % failed with error %'
+     and locate(concat("Filesystem check for '", @missing_path_b, "'"), data) > 0
+     and logged > @unavailable_b_start;
+--source include/wait_condition_or_abort.inc
+
+select count(*) = 1 as one_warning_for_second_path
+  from performance_schema.error_log
+ where data like
+       '%Disk Collector: Error: Filesystem check for % failed with error %'
+   and locate(concat("Filesystem check for '", @missing_path_b, "'"), data) > 0
+   and logged > @unavailable_b_start;
+
+--echo
+--echo # Changing to a different valid path does not report it as recovered
+--disable_query_log
+select now(6) into @valid_b_start;
+--enable_query_log
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Collector: Started:%'
+     and locate(concat("volume monitored='", @explicit_monitored_path, "'"),
+                data) > 0
+     and logged > @valid_b_start;
+--source include/wait_condition_or_abort.inc
+
+select count(*) = 0 as no_false_recovery_for_different_path
+  from performance_schema.error_log
+ where data like '%Disk Collector: Filesystem check for % is available again%'
+   and locate(concat("Filesystem check for '", @explicit_monitored_path, "'"),
+              data) > 0
+   and logged > @valid_b_start;
+
+--echo
+--echo # Select the original unavailable path again
+--disable_query_log
+select now(6) into @unavailable_again_start;
+--enable_query_log
+set @@global.health_monitor.disk_monitored = @missing_path;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like
+         '%Disk Collector: Error: Filesystem check for % failed with error %'
+     and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+     and logged > @unavailable_again_start;
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # Make the selected path available without changing the system variable
+# Recreate the same path so recovery is detected by the collector's next check.
+--disable_query_log
+select now(6) into @recovery_start;
+--enable_query_log
+--mkdir $missing_path
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Collector: Filesystem check for % is available again%'
+     and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+     and logged > @recovery_start;
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > @unavailable_disk_rows
+    from performance_schema.health_block_device;
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > @unavailable_metric_rows
+    from performance_schema.disk_metric;
+--source include/wait_condition_or_abort.inc
+
+select count(*) > @unavailable_disk_rows as disk_rows_resumed
+  from performance_schema.health_block_device;
+select count(*) > @unavailable_metric_rows as metric_rows_resumed
+  from performance_schema.disk_metric;
+
+--sleep 12
+select count(*) = 1 as one_recovery_message
+  from performance_schema.error_log
+ where data like '%Disk Collector: Filesystem check for % is available again%'
+   and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+   and logged > @recovery_start;
+
+--echo
+--echo # Stop collection and restore settings
+--disable_query_log
+select now(6) into @disk_stop_start;
+--enable_query_log
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_forecast_running = off;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Disk Collector: Settings: running=OFF%'
+     and logged > @disk_stop_start;
+--source include/wait_condition_or_abort.inc
+
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+set @@global.health_monitor.disk_sample_rate = @disk_sample_rate_save;
+set @@global.health_monitor.disk_forecast_sample_interval =
+    @disk_forecast_sample_interval_save;
+--rmdir $missing_path
+
+--echo
+--echo # Clean up
+--eval uninstall component 'file://component_health_monitor'

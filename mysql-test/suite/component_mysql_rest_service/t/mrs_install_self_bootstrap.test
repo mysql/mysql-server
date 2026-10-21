@@ -1,0 +1,34 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Just start and right away stop MRS component, where
+# valid metadata schema already exists on the disk.
+# Allow the component to generate user-account and keyring.
+#
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. No test scenario, just use default component init/deinit scripts.
+
+
+--echo
+--echo #
+--echo # I.
+--let $init_does_mrs_bootstrap=0
+--source ../include/cmrs/initialize.inc
+
+#TODO 1. Remove line below, this will lead to a hang.
+#     'init' didin't finish and 'stopping' routine was not 'kicked'.
+#     The uninstall is waiting for the thread to finish.
+#
+#     2. Similar issue is visible when the component is installed with
+#        invalid parameter:
+#
+#        INSTALL COMPONENT
+#          "file://component_mysql_rest_service"
+#          SET GLOBAL mysql_rest_service.NOT_EXISTING=1;
+#
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--source ../include/cmrs/cleanup.inc

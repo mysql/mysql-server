@@ -16,10 +16,10 @@ LEFT JOIN e AS table3 ON table2.col_int_unique = table3.col_int_unique;
 EXPLAIN
 -> Nested loop left join  (cost=1254 rows=16)
     -> Left hash join (table2.pk = table1.pk)  (cost=1252 rows=16)
-        -> Table scan on table1  (cost=1000 rows=4)
+        -> Table scan on table1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (cost=1000 rows=4)
         -> Hash
-            -> Table scan on table2  (cost=250 rows=4)
-    -> Single-row index lookup on table3 using ix1 (col_int_unique = table2.col_int_unique)  (cost=0.0688 rows=1)
+            -> Table scan on table2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (cost=250 rows=4)
+    -> Single-row index lookup on table3 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (col_int_unique = table2.col_int_unique)  (cost=0.0688 rows=1)
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
@@ -45,10 +45,10 @@ LEFT JOIN e AS table3 ON table2.col_int_unique = table3.col_int_unique;
 EXPLAIN
 -> Nested loop left join  (cost=1254 rows=16)
     -> Left hash join (table2.pk = table1.pk)  (cost=1252 rows=16)
-        -> Table scan on table1  (cost=1000 rows=4)
+        -> Table scan on table1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (cost=1000 rows=4)
         -> Hash
-            -> Table scan on table2  (cost=250 rows=4)
-    -> Single-row index lookup on table3 using ix1 (col_int_unique = table2.col_int_unique)  (cost=0.0688 rows=1)
+            -> Table scan on table2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)  (cost=250 rows=4)
+    -> Single-row index lookup on table3 using ix1 in partitions (p0,p1,p2,p3,p4,p5,p6,p7) (col_int_unique = table2.col_int_unique)  (cost=0.0688 rows=1)
 
 Warnings:
 Note	1003	/* select#1 */ select straight_join `table1`.`pk` AS `pk`,`table2`.`pk` AS `pk`,`table3`.`pk` AS `pk` from `test`.`e` `table1` left join `test`.`e` `table2` on((`table2`.`pk` = `table1`.`pk`)) left join `test`.`e` `table3` on((`table3`.`col_int_unique` = `table2`.`col_int_unique`)) where true

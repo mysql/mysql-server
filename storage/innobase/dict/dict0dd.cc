@@ -909,6 +909,7 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
 
       dd::Properties &p = dd_index->se_private_data();
       p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
+      p.set(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
     }
 
     /* Set new table id for dd columns */
@@ -7097,6 +7098,17 @@ bool dd_tablespace_update_cache(THD *thd) {
       /* Currently try to find the max one only, it should
       be able to reuse the deleted smaller ones later */
       max_id = id;
+    }
+
+    if (dd_tablespace_is_discarded(t)) {
+      /* Redo recovery can load an interrupted import before its discarded
+      DD state is reconciled. A discarded space must not remain in the cache. */
+      if (fil_space_get(id) != nullptr) {
+        const dberr_t err = fil_close_tablespace(id);
+        ut_a(err == DB_SUCCESS);
+      }
+
+      continue;
     }
 
     const dd::Tablespace_file *f = *t->files().begin();

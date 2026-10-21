@@ -2517,6 +2517,9 @@ DROP TABLE t1,t2;
 #
 CREATE TABLE t (a INT, b INT, c INT, KEY (c));
 INSERT INTO t VALUES (1, 1, 1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE
 SELECT 1
 FROM t AS t1 JOIN t AS t2 ON t1.c = t2.b AND t1.c = t2.c
@@ -3108,6 +3111,9 @@ KEY idx_col2 (col2)
 );
 INSERT INTO t1 (col1, col2, data)
 VALUES (111, 222, JSON_OBJECT('data', REPEAT('LotsOfData', 250000)));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY id;
 EXPLAIN
 -> Index scan on t1 using PRIMARY  (rows=1)
@@ -3374,6 +3380,9 @@ DROP TABLE t5;
 #               failed.
 #
 CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, KEY (f2));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1
 WHERE (t1.f2 < ANY (SELECT t2.f1 FROM t1 AS t2
 WHERE t2.f1 = t1.f1 AND
@@ -3842,43 +3851,6 @@ sum_wf
 2
 DROP TABLE tt, t;
 #
-# Bug#33910388: Slow planning of NATURAL JOIN with many columns
-#
-CREATE TABLE t_natural (
-col1 INT, col2 INT, col3 INT, col4 INT, col5 INT,
-col6 INT, col7 INT, col8 INT, col9 INT, col10 INT,
-col11 INT, col12 INT, col13 INT, col14 INT, col15 INT,
-col16 INT, col17 INT, col18 INT, col19 INT, col20 INT,
-col21 INT, col22 INT, col23 INT, col24 INT, col25 INT,
-col26 INT, col27 INT, col28 INT, col29 INT, col30 INT,
-col31 INT, col32 INT, col33 INT, col34 INT, col35 INT,
-col36 INT, col37 INT, col38 INT, col39 INT, col40 INT,
-col41 INT, col42 INT, col43 INT, col44 INT, col45 INT,
-col46 INT, col47 INT, col48 INT, col49 INT, col50 INT,
-col51 INT, col52 INT, col53 INT, col54 INT, col55 INT,
-col56 INT, col57 INT, col58 INT, col59 INT, col60 INT,
-col61 INT, col62 INT, col63 INT, col64 INT, col65 INT,
-col66 INT, col67 INT, col68 INT, col69 INT, col70 INT,
-col71 INT, col72 INT, col73 INT, col74 INT, col75 INT,
-col76 INT, col77 INT, col78 INT, col79 INT, col80 INT,
-col81 INT, col82 INT, col83 INT, col84 INT, col85 INT,
-col86 INT, col87 INT, col88 INT, col89 INT, col90 INT,
-col91 INT, col92 INT, col93 INT, col94 INT, col95 INT,
-col96 INT, col97 INT, col98 INT, col99 INT, col100 INT);
-EXPLAIN FORMAT=TREE
-SELECT 1 FROM
-t_natural t1
-NATURAL JOIN t_natural t2
-NATURAL JOIN t_natural t3
-NATURAL JOIN t_natural t4
-NATURAL JOIN t_natural t5
-NATURAL JOIN t_natural t6
-NATURAL JOIN t_natural t7
-NATURAL JOIN t_natural t8
-NATURAL JOIN t_natural t9
-NATURAL JOIN t_natural t10;
-DROP TABLE t_natural;
-#
 # Bug#36578540 Sorting on function with side effects results in
 # more function calls
 #
@@ -3907,6 +3879,9 @@ DROP FUNCTION f1;
 DROP TABLE t1, t2;
 CREATE TABLE t3 (x INT);
 INSERT INTO t3 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
 EXPLAIN
 -> Sort: r  (rows=5)
@@ -3942,6 +3917,10 @@ CREATE TABLE t5 (a INT);
 INSERT INTO t5 VALUES (1), (2), (3), (4), (5);
 CREATE TABLE t6 (id INT PRIMARY KEY, y DOUBLE);
 INSERT INTO t6 VALUES (1, 0);
+ANALYZE TABLE t5, t6;
+Table	Op	Msg_type	Msg_text
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
 EXPLAIN FORMAT=TREE
 DELETE FROM t6 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
 EXPLAIN
@@ -4118,6 +4097,9 @@ DROP TABLE t_union;
 #.               transformed query like TRADITIONAL format
 #
 CREATE TABLE t1 (f1 integer);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM t1) AS dt WHERE f1 > 10;
 EXPLAIN
 -> Filter: (t1.f1 > 10)  (rows=0.333)

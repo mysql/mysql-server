@@ -2807,6 +2807,7 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
 
       dd::Properties &p = dd_index->se_private_data();
       p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
+      p.set(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
     }
   }
 

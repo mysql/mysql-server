@@ -1,0 +1,303 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify the fixed internal MRS accounts and their least-privilege roles.
+
+--echo
+--echo
+--echo ## I. Automatically create the fixed internal accounts
+--echo ## II. Reuse valid locked accounts with inherited and mandatory roles
+--echo ## III. Reject an unlocked account with lock-status decoys
+--echo ## IV. Reject an existing account with a missing role
+--echo ## V. Reject direct privileges on an existing account
+--echo ## VI. Reject the provider role with admin option
+--echo ## VII. Reject an additional direct role
+--echo ## VIII. Reject an additional direct mandatory role
+--echo ## IX. Reject a global grant option
+--echo ## X. Provision fixed accounts for a same-named installer at another host
+--echo ## XI. Retry account provisioning after provider roles become available
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--echo
+--echo #
+--echo # I. Automatically create the fixed internal accounts
+
+SELECT User, Host, account_locked
+  FROM mysql.user
+  WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+  ORDER BY User;
+
+SELECT FROM_USER, FROM_HOST, TO_USER, TO_HOST
+  FROM mysql.role_edges
+  WHERE TO_USER IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+  ORDER BY TO_USER;
+
+SELECT DEFAULT_ROLE_USER, DEFAULT_ROLE_HOST, USER, HOST
+  FROM mysql.default_roles
+  WHERE USER IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+  ORDER BY USER;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.mrs_user;
+
+--source ../include/cmrs/uninstall_component.inc
+
+SELECT COUNT(*) AS internal_accounts_after_uninstall
+  FROM mysql.user
+  WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+    AND Host = 'localhost';
+
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+--echo
+--echo #
+--echo # II. Reuse valid locked accounts with inherited and mandatory roles
+
+CREATE ROLE 'mrs_inherited_role', 'mrs_mandatory_role';
+GRANT 'mrs_inherited_role' TO 'mysql_rest_service_meta_provider';
+SET @saved_mandatory_roles = @@global.mandatory_roles;
+SET GLOBAL mandatory_roles = 'mrs_mandatory_role';
+
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider'
+  REQUIRE SUBJECT ' ACCOUNT UNLOCK ' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+
+--source ../include/cmrs/install_component.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--source ../include/cmrs/uninstall_component.inc
+
+SET GLOBAL mandatory_roles = @saved_mandatory_roles;
+REVOKE 'mrs_inherited_role' FROM 'mysql_rest_service_meta_provider';
+DROP ROLE 'mrs_inherited_role', 'mrs_mandatory_role';
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("MySQL Rest Service Component: Backend startup failed in background thread: Internal MRS account");
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo #
+--echo # III. Reject an unlocked account with lock-status decoys
+
+CREATE USER 'mysql_mrs_metadata'@'localhost' IDENTIFIED BY 'dummy'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider'
+  REQUIRE SUBJECT ' ACCOUNT LOCK PASSWORD HISTORY ' ACCOUNT UNLOCK
+  ATTRIBUTE '{"note": "ACCOUNT LOCK"}';
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+
+--source ../include/cmrs/install_component.inc
+
+--let $wait_log_pattern = Internal MRS account \'mysql_mrs_metadata\'@\'localhost\' must be locked
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--source ../include/cmrs/uninstall_component.inc
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+--echo
+--echo #
+--echo # IV. Reject an existing account with a missing role
+
+CREATE USER 'mysql_mrs_metadata'@'localhost' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+
+--source ../include/cmrs/install_component.inc
+
+--let $wait_log_pattern = Internal MRS account \'mysql_mrs_metadata\'@\'localhost\' must have \'mysql_rest_service_meta_provider\'@\'%\' as its default role without admin option
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--source ../include/cmrs/uninstall_component.inc
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+--echo
+--echo #
+--echo # V. Reject direct privileges on an existing account
+
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+GRANT SELECT ON *.* TO 'mysql_mrs_data'@'localhost';
+
+--source ../include/cmrs/install_component.inc
+
+--let $wait_log_pattern = Internal MRS account \'mysql_mrs_data\'@\'localhost\' must have only \'mysql_rest_service_data_provider\'@\'%\' as a direct role and no direct privileges
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--source ../include/cmrs/uninstall_component.inc
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+--echo
+--echo #
+--echo # VI. Reject the provider role with admin option
+
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+GRANT 'mysql_rest_service_meta_provider'
+  TO 'mysql_mrs_metadata'@'localhost'
+  WITH ADMIN OPTION;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+
+--source ../include/cmrs/install_component.inc
+
+--let $wait_log_pattern = Internal MRS account \'mysql_mrs_metadata\'@\'localhost\' must have \'mysql_rest_service_meta_provider\'@\'%\' as its default role without admin option
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--source ../include/cmrs/uninstall_component.inc
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+--echo
+--echo #
+--echo # VII. Reject an additional direct role
+
+CREATE ROLE 'mrs_extra_direct_role';
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+GRANT 'mrs_extra_direct_role' TO 'mysql_mrs_data'@'localhost';
+
+--source ../include/cmrs/install_component.inc
+
+--let $wait_log_pattern = Internal MRS account \'mysql_mrs_data\'@\'localhost\' must have only \'mysql_rest_service_data_provider\'@\'%\' as a direct role and no direct privileges
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--source ../include/cmrs/uninstall_component.inc
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+DROP ROLE 'mrs_extra_direct_role';
+
+--echo
+--echo #
+--echo # VIII. Reject an additional direct mandatory role
+
+CREATE ROLE 'mrs_extra_mandatory_role';
+SET @saved_mandatory_roles = @@global.mandatory_roles;
+SET GLOBAL mandatory_roles = 'mrs_extra_mandatory_role';
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+GRANT 'mrs_extra_mandatory_role' TO 'mysql_mrs_data'@'localhost';
+ALTER USER 'mysql_mrs_data'@'localhost' DEFAULT ROLE
+  'mysql_rest_service_data_provider', 'mrs_extra_mandatory_role';
+
+--source ../include/cmrs/install_component.inc
+
+--let $wait_log_pattern = Internal MRS account \'mysql_mrs_data\'@\'localhost\' must have only \'mysql_rest_service_data_provider\'@\'%\' as a direct role and no direct privileges
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--source ../include/cmrs/uninstall_component.inc
+SET GLOBAL mandatory_roles = @saved_mandatory_roles;
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+DROP ROLE 'mrs_extra_mandatory_role';
+
+--echo
+--echo #
+--echo # IX. Reject a global grant option
+
+CREATE USER 'mysql_mrs_metadata'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_meta_provider' ACCOUNT LOCK;
+CREATE USER 'mysql_mrs_data'@'localhost'
+  DEFAULT ROLE 'mysql_rest_service_data_provider' ACCOUNT LOCK;
+GRANT USAGE ON *.* TO 'mysql_mrs_data'@'localhost' WITH GRANT OPTION;
+
+--source ../include/cmrs/install_component.inc
+
+--let $wait_log_pattern = Internal MRS account \'mysql_mrs_data\'@\'localhost\' must have only \'mysql_rest_service_data_provider\'@\'%\' as a direct role and no direct privileges
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--source ../include/cmrs/uninstall_component.inc
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+--echo
+--echo #
+--echo # X. Provision fixed accounts for a same-named installer at another host
+
+CREATE USER 'mysql_mrs_metadata'@'%';
+GRANT ALL ON *.* TO 'mysql_mrs_metadata'@'%' WITH GRANT OPTION;
+GRANT ROLE_ADMIN ON *.* TO 'mysql_mrs_metadata'@'%';
+
+connect(mrs_same_name, localhost, mysql_mrs_metadata,,);
+--source ../include/cmrs/install_component.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+connection default;
+disconnect mrs_same_name;
+
+SELECT COUNT(*) AS fixed_accounts_created
+  FROM mysql.user
+  WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+    AND Host = 'localhost';
+
+--source ../include/cmrs/uninstall_component.inc
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost',
+  'mysql_mrs_metadata'@'%';
+
+--echo
+--echo #
+--echo # XI. Retry account provisioning after provider roles become available
+
+--let $saved_schema_major=`SELECT major FROM mysql_rest_service_metadata.msm_schema_version`
+--let $saved_schema_minor=`SELECT minor FROM mysql_rest_service_metadata.msm_schema_version`
+--let $saved_schema_patch=`SELECT patch FROM mysql_rest_service_metadata.msm_schema_version`
+CREATE OR REPLACE SQL SECURITY INVOKER
+  VIEW mysql_rest_service_metadata.msm_schema_version (major, minor, patch)
+  AS SELECT 0, 0, 0;
+
+DROP ROLE 'mysql_rest_service_meta_provider',
+  'mysql_rest_service_data_provider';
+
+--source ../include/cmrs/install_component.inc
+
+--let $wait_log_pattern = Provider role \'mysql_rest_service_meta_provider\'@\'%\' is not available yet
+--let $wait_log_expected_count=1
+--source ../include/cmrs/compare_log_timeout.inc
+
+SELECT COUNT(*) AS accounts_created_without_provider_roles
+  FROM mysql.user
+  WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+    AND Host = 'localhost';
+
+CREATE ROLE 'mysql_rest_service_meta_provider',
+  'mysql_rest_service_data_provider';
+GRANT ALL ON `mysql_rest_service_metadata`.*
+  TO 'mysql_rest_service_meta_provider', 'mysql_rest_service_data_provider';
+
+--disable_query_log
+--eval CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.msm_schema_version (major, minor, patch) AS SELECT $saved_schema_major, $saved_schema_minor, $saved_schema_patch
+--enable_query_log
+
+--let $wait_timeout=60
+--let $wait_condition=SELECT COUNT(*) = 2 FROM mysql.user WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost'
+--source include/wait_condition.inc
+
+SELECT COUNT(*) AS accounts_created_after_provider_roles
+  FROM mysql.user
+  WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+    AND Host = 'localhost';
+
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--source ../include/cmrs/uninstall_component.inc
+DROP USER 'mysql_mrs_metadata'@'localhost', 'mysql_mrs_data'@'localhost';
+
+--echo
+--echo #
+--echo # Cleanup
+--let $cleanup_arg_mrs_skip_service_disable=1
+--let $mrs_user_meta=
+--let $mrs_user_data=
+--source ../../router/include/mrs/cleanup.inc

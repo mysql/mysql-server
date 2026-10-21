@@ -38,6 +38,7 @@
 #include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/tls_reload_component.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #include "mysqlrouter/mysql_session.h"  // kSslModePreferred
 #include "mysqlrouter/supported_metadata_cache_options.h"
@@ -164,6 +165,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   std::unique_ptr<MetadataServersStateListener> md_servers_state_listener;
 
   // launch metadata cache
+  auto tls_reload_registration =
+      mysql_harness::TlsReloadComponent::kInvalidRegistrationId;
   try {
     using namespace std::string_literals;
 
@@ -245,6 +248,18 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
     // start metadata cache
     md_cache->cache_start();
+
+    tls_reload_registration =
+        mysql_harness::TlsReloadComponent::get_instance().register_callback(
+            "metadata_cache",
+            [md_cache]() -> mysql_harness::TlsReloadComponent::Result {
+              try {
+                md_cache->reload_tls();
+                return mysql_harness::TlsReloadComponent::Result{};
+              } catch (const std::exception &e) {
+                return stdx::unexpected(std::string{e.what()});
+              }
+            });
   } catch (const std::runtime_error &exc) {  // metadata_cache::metadata_error
                                              // inherits from runtime_error
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
@@ -259,6 +274,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   // keep it running until Harness tells us to shut down
   wait_for_stop(env, 0);
+  if (tls_reload_registration !=
+      mysql_harness::TlsReloadComponent::kInvalidRegistrationId) {
+    mysql_harness::TlsReloadComponent::get_instance().unregister_callback(
+        tls_reload_registration);
+  }
   metadata_cache::MetadataCacheAPI::instance()->cache_stop();
 }
 

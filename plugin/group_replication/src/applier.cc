@@ -191,7 +191,7 @@ void Applier_module::set_applier_thread_context() {
   THD *thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
   // Protocol is only initiated because of process list status
   thd->get_protocol_classic()->init_net(nullptr);

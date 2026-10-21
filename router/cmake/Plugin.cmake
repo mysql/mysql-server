@@ -21,13 +21,77 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+FUNCTION(harness_normalize_target_name INPUT OUTPUT_VARIABLE)
+  STRING(REPLACE - _ _out ${INPUT})
+  SET(${OUTPUT_VARIABLE} "${_out}" PARENT_SCOPE)
+ENDFUNCTION()
+
+FUNCTION(harness_normalize_target_name INPUT OUTPUT_VARIABLE)
+  STRING(REPLACE - _ _out ${INPUT})
+  SET(${OUTPUT_VARIABLE} "${_out}" PARENT_SCOPE)
+ENDFUNCTION()
+
+FUNCTION(harness_target_dummy_file GENERATED_FILE_CC PLUGIN_VERSION PLUGIN_EXPORT_HEADER_FULL PLUGIN_EXPORT_MACRO_LOWER)
+  STRING(TOUPPER "${PLUGIN_EXPORT_MACRO_LOWER}" PLUGIN_EXPORT_MACRO)
+
+  SET(_INCLUDE_PATH "include")
+  STRING(LENGTH "${_INCLUDE_PATH}" _INCLUDE_LENGTH)
+  STRING(FIND "${PLUGIN_EXPORT_HEADER_FULL}" "${_INCLUDE_PATH}" POS)
+  IF(NOT POS EQUAL -1)
+      MATH(EXPR START_POS "${POS} + ${_INCLUDE_LENGTH} + 1")
+      STRING(SUBSTRING "${PLUGIN_EXPORT_HEADER_FULL}" ${START_POS} -1 PLUGIN_EXPORT_HEADER)
+  ELSE()
+      SET(PLUGIN_EXPORT_HEADER "${PLUGIN_EXPORT_HEADER_FULL}")
+  ENDIF()
+
+  CONFIGURE_FILE(${PROJECT_SOURCE_DIR}/plugin_version.cc.in ${GENERATED_FILE_CC} @ONLY)
+ENDFUNCTION()
+
+FUNCTION(harness_target_object_name TARGET output_var)
+  SET(${output_var} "${TARGET}_object" PARENT_SCOPE)
+ENDFUNCTION()
+
+FUNCTION(harness_target_interface_name TARGET output_var)
+  SET(${output_var} "${TARGET}_interface" PARENT_SCOPE)
+ENDFUNCTION()
+
+FUNCTION(harness_target_required_name TARGET output_var)
+  SET(${output_var} "${TARGET}_required" PARENT_SCOPE)
+ENDFUNCTION()
+
+
+FUNCTION(harness_whitelisted_library NAME RESULT)
+  SET(${RESULT} TRUE PARENT_SCOPE)
+  # TODO(lkotula): switch to object/harness_stdx
+  SET(allowed harness_stdx)
+  FOREACH(item ${allowed})
+    IF("${item}" STREQUAL "${NAME}")
+      SET(${RESULT} TRUE PARENT_SCOPE)
+    ENDIF()
+  ENDFOREACH()
+ENDFUNCTION()
+
+FUNCTION(is_cmake_keyword NAME RESULT)
+  SET(${RESULT} FALSE PARENT_SCOPE)
+  IF("PUBLIC" STREQUAL "${NAME}")
+    SET(${RESULT} TRUE PARENT_SCOPE)
+  ELSEIF("PRIVATE" STREQUAL "${NAME}")
+    SET(${RESULT} TRUE PARENT_SCOPE)
+  ELSEIF("SYSTEM" STREQUAL "${NAME}")
+    SET(${RESULT} TRUE PARENT_SCOPE)
+  ELSEIF("LINK_LIBRARIES" STREQUAL "${NAME}")
+    SET(${RESULT} TRUE PARENT_SCOPE)
+  ENDIF()
+
+ENDFUNCTION()
+
+
 # add_harness_plugin - Add a new plugin target and set install
 #                      location
 #
 # add_harness_plugin(name [NO_INSTALL]
 #                    LOG_DOMAIN domain
 #                    SOURCES file1 ...
-#                    INTERFACE directory
 #                    DESTINATION directory
 #                    REQUIRES plugin ...)
 #
@@ -52,8 +116,7 @@
 # Providing it is compulsory unless NO_INSTALL is provided.
 #
 # Files provided after the SOURCES keyword are the sources to build
-# the plugin from, while the files in the directory after INTERFACE
-# will be installed alongside the header files for the harness.
+# the plugin from.
 #
 # For plugins, it is necessary to set the RPATH so that the plugin can
 # find other plugins when being loaded. This, unfortunately, means
@@ -61,9 +124,9 @@
 # changed after that.
 
 FUNCTION(add_harness_plugin NAME)
-  SET(_options NO_INSTALL)
-  SET(_single_value LOG_DOMAIN INTERFACE DESTINATION OUTPUT_NAME)
-  SET(_multi_value SOURCES REQUIRES)
+  SET(_options NO_INSTALL NO_EXPORT_HEADER)
+  SET(_single_value LOG_DOMAIN DESTINATION OUTPUT_NAME EXPORT_HEADER EXPORT_BASE_NAME)
+  SET(_multi_value SOURCES REQUIRES REQUIRES_IF INCLUDE_DIRECTORIES INCLUDE_DIRECTORIES_IF)
   CMAKE_PARSE_ARGUMENTS(_option
     "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
 
@@ -78,8 +141,19 @@ FUNCTION(add_harness_plugin NAME)
     SET(_option_LOG_DOMAIN "\"${NAME}\"")
   ENDIF()
 
+  SET(LIB_FILE_LIST "")
+
   IF(NOT _option_NO_INSTALL)
-    ADD_VERSION_INFO(SHARED _option_SOURCES Router)
+    ADD_VERSION_INFO(SHARED LIB_FILE_LIST Router)
+  ENDIF()
+
+  IF(NOT _option_EXPORT_HEADER)
+    SET(_option_EXPORT_HEADER
+      "${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/${NAME}_export.h")
+  ENDIF()
+
+  IF(NOT _option_EXPORT_BASE_NAME)
+    SET(_option_EXPORT_BASE_NAME "${NAME}")
   ENDIF()
 
   # Add the library and ensure that the name is good for the plugin
@@ -87,7 +161,21 @@ FUNCTION(add_harness_plugin NAME)
   # intend to link against it, which is something that MODULE does not
   # allow. On OSX, this means that the suffix for the library becomes
   # .dylib, which we do not want, so we reset it here.
-  ADD_LIBRARY(${NAME} SHARED ${_option_SOURCES})
+  SET(DUMMY_FILE "${NAME}_harness_plugin.cc")
+  HARNESS_TARGET_DUMMY_FILE(${DUMMY_FILE} 1 ${_option_EXPORT_HEADER} ${_option_EXPORT_BASE_NAME})
+  LIST(APPEND  LIB_FILE_LIST ${DUMMY_FILE})
+
+  HARNESS_TARGET_OBJECT_NAME(${NAME} OBJ_NAME)
+  HARNESS_TARGET_INTERFACE_NAME(${NAME} IF_NAME)
+
+  ADD_LIBRARY(${IF_NAME} INTERFACE)
+  ADD_LIBRARY(${OBJ_NAME} OBJECT ${_option_SOURCES})
+  ADD_LIBRARY(${NAME} SHARED
+    ${LIB_FILE_LIST}
+    $<TARGET_OBJECTS:${OBJ_NAME}>)
+
+  TARGET_COMPILE_FEATURES(${IF_NAME} INTERFACE cxx_std_20)
+  TARGET_COMPILE_FEATURES(${OBJ_NAME} PUBLIC cxx_std_20)
   TARGET_COMPILE_FEATURES(${NAME} PUBLIC cxx_std_20)
   IF(APPLE)
     TARGET_LINK_OPTIONS(${NAME} PRIVATE LINKER:-no_warn_duplicate_libraries)
@@ -99,31 +187,42 @@ FUNCTION(add_harness_plugin NAME)
     SET_TARGET_PROPERTIES(${NAME}
       PROPERTIES OUTPUT_NAME ${_option_OUTPUT_NAME})
   ENDIF()
+  TARGET_COMPILE_DEFINITIONS(${OBJ_NAME} PRIVATE
+    MYSQL_ROUTER_LOG_DOMAIN=${_option_LOG_DOMAIN} ${NAME}_EXPORTS=1  ${OBJ_NAME}_EXPORTS=1)
   TARGET_COMPILE_DEFINITIONS(${NAME} PRIVATE
-    MYSQL_ROUTER_LOG_DOMAIN=${_option_LOG_DOMAIN})
-  IF(NOT WIN32)
+    ${NAME}_EXPORTS=1  ${OBJ_NAME}_EXPORTS=1)
+ IF(NOT WIN32)
     SET_TARGET_PROPERTIES(${NAME} PROPERTIES
       PREFIX ""
       SUFFIX ".so")
   ENDIF()
 
-  # Declare the interface directory for this plugin, if present. It
-  # will be used both when compiling the plugin as well as as for any
-  # dependent targets.
-  IF(_option_INTERFACE)
-    TARGET_INCLUDE_DIRECTORIES(${NAME}
-      PUBLIC ${_option_INTERFACE})
-    execute_process(
-      COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/${_option_INTERFACE}
-        ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
-  ENDIF()
-
   # Add a dependencies on interfaces for other plugins this plugin
   # requires.
+  FOREACH(item ${_option_REQUIRES})
+    harness_whitelisted_library(${item} RESULT)
+    IF(RESULT)
+    ELSEIF(item MATCHES "_interface$")
+    ELSE()
+      MESSAGE(FATAL_ERROR "While processing plugin '${NAME}', following library '${item}' is neither whitelisted nor ends with '_interface'.")
+    ENDIF()
+  ENDFOREACH()
+  TARGET_LINK_LIBRARIES(${OBJ_NAME}
+    PUBLIC harness-library_interface
+    PUBLIC ${_option_REQUIRES_IF}
+    ${IF_NAME} )
   TARGET_LINK_LIBRARIES(${NAME}
-    PUBLIC harness-library
+    PUBLIC ${OBJ_NAME} harness-library
     ${_option_REQUIRES})
+
+  IF(_option_INCLUDE_DIRECTORIES)
+    TARGET_INCLUDE_DIRECTORIES(${OBJ_NAME} ${_option_INCLUDE_DIRECTORIES})
+  ENDIF()
+
+  IF(_option_INCLUDE_DIRECTORIES_IF)
+    TARGET_INCLUDE_DIRECTORIES(${IF_NAME} INTERFACE ${_option_INCLUDE_DIRECTORIES_IF})
+  ENDIF()
+
   # Need to be able to link plugins with each other
   IF(APPLE)
     SET_TARGET_PROPERTIES(${NAME} PROPERTIES
@@ -167,15 +266,38 @@ FUNCTION(add_harness_plugin NAME)
         LIBRARY DESTINATION ${_option_DESTINATION}
         COMPONENT Router)
     ENDIF()
-
-    IF(_option_INTERFACE)
-      FILE(GLOB interface_files ${_option_INTERFACE}/*.h)
-      INSTALL(FILES ${interface_files}
-        DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME}
-        COMPONENT Router)
-    ENDIF()
   ENDIF()
+
+  #IF(NOT _option_NO_EXPORT_HEADER)
+    IF(_option_EXPORT_BASE_NAME)
+      LIST(APPEND extra_args BASE_NAME "${_option_EXPORT_BASE_NAME}")
+    ELSE()
+      LIST(APPEND extra_args BASE_NAME "${NAME}")
+    ENDIF()
+    GENERATE_EXPORT_HEADER(${OBJ_NAME}
+      ${extra_args}
+      EXPORT_FILE_NAME
+      "${_option_EXPORT_HEADER}"
+      )
+    IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../include/")
+      TARGET_INCLUDE_DIRECTORIES(${IF_NAME}
+        INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+        )
+    ENDIF()
+    TARGET_INCLUDE_DIRECTORIES(${IF_NAME}
+      INTERFACE
+      ${CMAKE_CURRENT_BINARY_DIR}/../include/
+      )
+   #ENDIF()
 ENDFUNCTION(add_harness_plugin)
+
+
+FUNCTION(harness_plugin_include_directories NAME)
+  HARNESS_TARGET_OBJECT_NAME(${NAME} OBJ_NAME)
+
+  TARGET_INCLUDE_DIRECTORIES(${OBJ_NAME} ${ARGN})
+ENDFUNCTION(harness_plugin_include_directories)
 
 #
 # ROUTER_ADD_SHARED_LIBRARY(target sources [opts])
@@ -225,15 +347,25 @@ FUNCTION(ROUTER_ADD_SHARED_LIBRARY TARGET)
     DESTINATION
     PREFIX
     SOVERSION
+    EXPORT_HEADER
+    EXPORT_BASE_NAME
+    OUTPUT_NAME
     )
   SET(_multi_value
     INCLUDE_DIRECTORIES
+    INCLUDE_DIRECTORIES_IF
+    SOURCES
+    LINK_LIBRARIES
+    LINK_LIBRARIES_IF
+    DEPENDENCIES
+    COMPILE_DEFINITIONS
     )
   CMAKE_PARSE_ARGUMENTS(_option
     "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
 
   SET(ARGS ${_option_UNPARSED_ARGUMENTS})
   IF(NOT DEFINED _option_SOVERSION)
+    SET(_option_SOVERSION 1)
     LIST(APPEND ARGS SOVERSION 1)
   ELSE()
     LIST(APPEND ARGS SOVERSION ${_option_SOVERSION})
@@ -245,6 +377,7 @@ FUNCTION(ROUTER_ADD_SHARED_LIBRARY TARGET)
   ENDIF()
   IF(NOT DEFINED _option_INCLUDE_DIRECTORIES)
     LIST(APPEND ARGS INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+    SET(_option_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
   ELSE()
     LIST(APPEND ARGS INCLUDE_DIRECTORIES ${_option_INCLUDE_DIRECTORIES})
   ENDIF()
@@ -261,10 +394,93 @@ FUNCTION(ROUTER_ADD_SHARED_LIBRARY TARGET)
   ELSE()
     LIST(APPEND ARGS DESTINATION ${_option_DESTINATION})
   ENDIF()
+  IF(_option_OUTPUT_NAME)
+    SET(_option_OUTPUT_NAME OUTPUT_NAME ${_option_OUTPUT_NAME})
+  ENDIF()
+  IF(_option_LINK_LIBRARIES)
+    SET(_option_LINK_LIBRARIES LINK_LIBRARIES ${_option_LINK_LIBRARIES})
+  ENDIF()
+  SET(_other_target_DEPENDENCIES)
+  IF(_option_DEPENDENCIES)
+    SET(_other_target_DEPENDENCIES DEPENDENCIES ${_option_DEPENDENCIES})
+  ENDIF()
+  IF(NOT _option_EXPORT_HEADER)
+    SET(_option_EXPORT_HEADER
+      "${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/${TARGET}_export.h")
+  ENDIF()
+  IF(NOT _option_EXPORT_BASE_NAME)
+    SET(_option_EXPORT_BASE_NAME "${TARGET}")
+  ENDIF()
 
-  ADD_SHARED_LIBRARY(${TARGET} ${ARGS}
+  SET(DUMMY_FILE "${TARGET}_library.cc")
+  HARNESS_TARGET_DUMMY_FILE(${DUMMY_FILE} ${_option_SOVERSION} ${_option_EXPORT_HEADER} ${_option_EXPORT_BASE_NAME})
+
+  HARNESS_TARGET_OBJECT_NAME(${TARGET} OBJ_NAME)
+  HARNESS_TARGET_INTERFACE_NAME(${TARGET} IF_NAME)
+  HARNESS_TARGET_REQUIRED_NAME(${TARGET} REQ_NAME)
+
+  ADD_LIBRARY(${IF_NAME} INTERFACE)
+  ADD_LIBRARY(${REQ_NAME} INTERFACE)
+  ADD_LIBRARY(${OBJ_NAME} OBJECT ${_option_SOURCES})
+  ADD_SHARED_LIBRARY(${TARGET}
+    ${DUMMY_FILE}
+    $<TARGET_OBJECTS:${OBJ_NAME}>
+    ${_other_target_DEPENDENCIES}
+    ${_option_LINK_LIBRARIES}
+    ${_option_OUTPUT_NAME}
+    ${ARGS}
     NAMELINK_SKIP
     )
+
+  TARGET_COMPILE_FEATURES(${IF_NAME} INTERFACE cxx_std_20)
+  TARGET_COMPILE_FEATURES(${OBJ_NAME} PUBLIC cxx_std_20)
+  TARGET_COMPILE_FEATURES(${TARGET} PUBLIC cxx_std_20)
+
+  #TODO(lktoula): use it directy in TARGET ?
+  IF(_option_LINK_LIBRARIES)
+    FOREACH(item ${_option_LINK_LIBRARIES})
+      is_cmake_keyword(${item} _is_cmake_keyword)
+      IF(NOT ${_is_cmake_keyword})
+        TARGET_LINK_LIBRARIES(${REQ_NAME}
+          INTERFACE ${item})
+      ENDIF()
+    ENDFOREACH()
+  ENDIF()
+
+  IF(_option_COMPILE_DEFINITIONS)
+    TARGET_COMPILE_DEFINITIONS(${OBJ_NAME} PRIVATE
+      ${_option_COMPILE_DEFINITIONS})
+  ENDIF()
+
+  harness_normalize_target_name("${OBJ_NAME}" _NORMALIZED_NAME)
+
+  TARGET_COMPILE_DEFINITIONS(${OBJ_NAME} PRIVATE
+    ${_NORMALIZED_NAME}_EXPORTS=1)
+  TARGET_COMPILE_DEFINITIONS(${TARGET} PRIVATE
+    ${_NORMALIZED_NAME}_EXPORTS=1)
+
+  IF(_option_DEPENDENCIES)
+    ADD_DEPENDENCIES(${IF_NAME} ${_option_DEPENDENCIES})
+  ENDIF()
+
+  IF(_option_INCLUDE_DIRECTORIES_IF)
+    TARGET_INCLUDE_DIRECTORIES(${IF_NAME} INTERFACE ${_option_INCLUDE_DIRECTORIES_IF})
+  ENDIF()
+
+  IF(_option_INCLUDE_DIRECTORIES)
+    TARGET_INCLUDE_DIRECTORIES(${OBJ_NAME} PRIVATE ${_option_INCLUDE_DIRECTORIES})
+  ENDIF()
+
+  IF(_option_LINK_LIBRARIES_IF)
+    TARGET_LINK_LIBRARIES(${IF_NAME}
+      INTERFACE ${_option_LINK_LIBRARIES_IF})
+  ENDIF()
+
+  TARGET_LINK_LIBRARIES(${OBJ_NAME}
+    PUBLIC ${IF_NAME})
+
+  TARGET_LINK_LIBRARIES(${TARGET}
+    PUBLIC ${OBJ_NAME})
 
   ADD_INSTALL_RPATH_FOR_OPENSSL(${TARGET})
   SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${TARGET})
@@ -275,16 +491,31 @@ FUNCTION(ROUTER_ADD_SHARED_LIBRARY TARGET)
     )
   ENDIF()
 
-  IF(NOT _option_NO_EXPORT_HEADER)
-    TARGET_INCLUDE_DIRECTORIES(${TARGET}
-      PUBLIC
-      ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  # Always generate.
+  #IF(NOT _option_NO_EXPORT_HEADER)
+    SET(extra_args)
+    IF(_option_EXPORT_BASE_NAME)
+      LIST(APPEND extra_args BASE_NAME "${_option_EXPORT_BASE_NAME}")
+    ELSE()
+      LIST(APPEND extra_args BASE_NAME "${TARGET}")
+    ENDIF()
+
+    IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../include/")
+      TARGET_INCLUDE_DIRECTORIES(${IF_NAME}
+        INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+        )
+    ENDIF()
+
+    TARGET_INCLUDE_DIRECTORIES(${IF_NAME}
+      INTERFACE
       ${CMAKE_CURRENT_BINARY_DIR}/../include/
       )
-    GENERATE_EXPORT_HEADER(${TARGET}
+    GENERATE_EXPORT_HEADER(${OBJ_NAME}
+      ${extra_args}
       EXPORT_FILE_NAME
-      ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/${TARGET}_export.h
+      "${_option_EXPORT_HEADER}"
       )
-  ENDIF()
+  #ENDIF()
 
 ENDFUNCTION()

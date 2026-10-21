@@ -48,6 +48,7 @@
 #define MY_XML_QUESTION '?'
 #define MY_XML_EXCLAM '!'
 #define MY_XML_CDATA 'D'
+#define MY_XML_CDATA_UNTERMINATED 256
 
 struct MY_XML_ATTR {
   const char *beg;
@@ -116,6 +117,8 @@ static const char *lex2str(int lex) {
       return "IDENT";
     case MY_XML_CDATA:
       return "CDATA";
+    case MY_XML_CDATA_UNTERMINATED:
+      return "unterminated CDATA";
     case MY_XML_EQ:
       return "'='";
     case MY_XML_LT:
@@ -182,7 +185,12 @@ static int my_xml_scan(MY_XML_PARSER *p, MY_XML_ATTR *a) {
         break;
       }
     }
-    lex = MY_XML_CDATA;
+    if (a->end == a->beg) {
+      p->cur = p->end;
+      a->end = p->cur;
+      lex = MY_XML_CDATA_UNTERMINATED;
+    } else
+      lex = MY_XML_CDATA;
   } else if (strchr("?=/<>!", p->cur[0])) {
     p->cur++;
     a->end = p->cur;
@@ -341,6 +349,11 @@ int my_xml_parse(MY_XML_PARSER *p, const char *str, size_t len) {
       lex = my_xml_scan(p, &a);
 
       if (MY_XML_COMMENT == lex) continue;
+
+      if (lex == MY_XML_CDATA_UNTERMINATED) {
+        sprintf(p->errstr, "unexpected END-OF-INPUT");
+        return MY_XML_ERROR;
+      }
 
       if (lex == MY_XML_CDATA) {
         a.beg += 9;

@@ -1,0 +1,347 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Test the 'force' option for fencing the server.
+--echo ##
+--echo ## The 'force' option enables the Health Monitor to terminate foreground connections
+--echo ## that are blocking it from setting SUPER_READ_ONLY. Force is only used when disk
+--echo ## space is below the critical level.
+--echo ##
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Enable low disk space fencing explicitly for this fencing test
+set @@global.health_monitor.disk_fallback_enable = on;
+
+--echo
+--echo # Connection default
+--connection default
+
+let $disk_debug = 0;
+
+--echo
+--echo # Low sample rate with status interval = 1 to get a status message every cycle
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo # Setup the transition to CRITICAL level that will fence the server
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+--echo
+--echo # Enable the fallback 'force' option to terminate foreground queries if SUPER_READ_ONLY is blocked
+let $fallback_force_save = `select @@global.health_monitor.disk_fallback_force`;
+set @@global.health_monitor.disk_fallback_force = 1;
+
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like "%health%";
+
+--echo
+--echo # Create a user eligible for termination
+create user user@localhost;
+grant all on *.* to user@localhost;
+
+--echo
+--echo # Create protected service accounts that the Health Monitor should ignore
+create user mysql_router02@localhost;
+grant all on *.* to mysql_router02@localhost;
+--echo
+create user mysql_router01@localhost;
+grant all on *.* to mysql_router01@localhost;
+--echo
+create user mysql_innodb01@localhost;
+grant all on *.* to mysql_innodb01@localhost;
+
+--echo
+--echo ## To 'force' SUPER_READ_ONLY, the Health Monitor terminates queries in groups.
+--echo ## Create > 20 connections to ensure groups multiple groups.
+
+--echo
+--echo # Connection 1
+connect(con1, localhost, user,,);
+use test;
+
+--echo # Connection 2
+connect(con2, localhost, user,,);
+use test;
+
+--echo # Connection 3
+connect(con3, localhost, user,,);
+use test;
+
+--echo # Connection 4
+connect(con4, localhost, user,,);
+use test;
+
+--echo # Connection 5
+connect(con5, localhost, user,,);
+use test;
+
+--echo # Connection 6
+connect(con6, localhost, user,,);
+use test;
+
+--echo # Connection 7
+connect(con7, localhost, user,,);
+use test;
+
+--echo # Connection 8
+connect(con8, localhost, user,,);
+use test;
+
+--echo # Connection 9
+connect(con9, localhost, user,,);
+use test;
+
+--echo # Connection 10
+connect(con10, localhost, user,,);
+use test;
+
+--echo # Connection 11
+connect(con11, localhost, user,,);
+use test;
+
+--echo # Connection 12
+connect(con12, localhost, user,,);
+use test;
+
+--echo # Connection 13
+connect(con13, localhost, user,,);
+use test;
+
+--echo # Connection 14
+connect(con14, localhost, user,,);
+use test;
+
+--echo # Connection 15
+connect(con15, localhost, user,,);
+use test;
+
+--echo # Connection 16
+connect(con16, localhost, user,,);
+use test;
+
+--echo # Connection 17
+connect(con17, localhost, user,,);
+use test;
+
+--echo # Connection 18
+connect(con18, localhost, user,,);
+use test;
+
+--echo # Connection 19
+connect(con19, localhost, user,,);
+use test;
+
+--echo # Connection 20
+connect(con20, localhost, user,,);
+use test;
+
+--echo # Connection 21
+connect(con21, localhost, user,,);
+use test;
+
+--echo
+--echo # Connect with protected service accounts
+--echo
+--echo # Connection 22 - mysql_router02
+connect(con22, localhost, mysql_router02,,);
+use test;
+
+--echo # Connection 23 - mysql_router01
+connect(con23, localhost, mysql_router01,,);
+use test;
+
+--echo # Connection 24 - mysql_innodb01
+connect(con24, localhost, mysql_innodb01,,);
+use test;
+
+--echo
+--echo ##
+--echo ## This connection will hold a global lock and block SUPER_READ_ONLY
+--echo ##
+--echo
+--echo # Connection 25
+connect(con25, localhost, user,,);
+use test;
+create table t1 (s1 int);
+--echo
+--echo # Set a global table lock to block SUPER_READ_ONLY
+lock tables t1 write;
+
+--echo
+--echo # Connection 26 - mysql_router02
+--echo # This protected service account should not be killed.
+connect(con26, localhost, mysql_router02,,);
+use test;
+--echo
+--echo # Attempt to acquire a write lock, will be blocked by table lock on Connection 25
+--send insert into t1 values (1);
+
+--echo
+--echo # Connection 27
+connect(con27, localhost, user,,);
+use test;
+
+--echo # Connection 28
+connect(con28, localhost, user,,);
+use test;
+
+--echo # Connection 29
+connect(con29, localhost, user,,);
+use test;
+
+--echo # Connection 30
+connect(con30, localhost, user,,);
+use test;
+
+--echo # Connection 31
+connect(con31, localhost, user,,);
+use test;
+
+--echo # Connection 32
+connect(con32, localhost, user,,);
+use test;
+
+--echo # Connection 33
+connect(con33, localhost, user,,);
+use test;
+
+--echo # Connection 34
+connect(con34, localhost, user,,);
+use test;
+
+--echo # Connection 35
+connect(con35, localhost, user,,);
+use test;
+
+--echo # Connection 36
+connect(con36, localhost, user,,);
+use test;
+
+--echo # Connection 37
+connect(con37, localhost, user,,);
+use test;
+
+--echo # Connection 38
+connect(con38, localhost, user,,);
+use test;
+
+--echo # Connection 39
+connect(con39, localhost, user,,);
+use test;
+
+--echo # Connection 40
+connect(con40, localhost, user,,);
+use test;
+
+--echo
+--echo # Connection default
+--connection default
+
+if ($disk_debug)
+{
+  --echo #
+  --echo # Debug
+  --echo #
+  select * from performance_schema.threads where type = 'foreground' order by processlist_id;
+}
+
+--echo
+--echo # Start the disk collector
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Sleep for 20 seconds to help keep connections serialized
+--sleep 20
+
+--echo
+--echo # Wait for status 'super_read_only_disk_full = ON'
+--echo
+--echo # The Health Monitor sets 'super_read_only_disk_full' if it set SUPER_READ_ONLY,
+--echo # but only after completing all retries and, if necessary, terminating foreground
+--echo # queries that might block setting SUPER_READ_ONLY.
+--echo
+let $wait_timeout = 90;
+let $wait_condition = select variable_value = 'ON' from performance_schema.global_status
+                        where variable_name like 'super_read_only_disk_full';
+--source include/wait_condition.inc
+
+--echo
+--echo # Connection 25 should have been terminated, and the global table lock released
+
+--echo
+--echo # Connection 26 - Reap - Should be able to proceed
+--connection con26
+--reap
+
+--echo
+--echo # Connection default
+--connection default
+
+--echo
+--echo # Verify that the protected service accounts were not affected
+use performance_schema;
+--let $assert_text = select count(*) from threads where processlist_user in ('mysql_router02', 'mysql_innodb01', 'mysql_router01')
+--let $assert_cond = "[select count(*) from threads where processlist_user in (\'mysql_router02\', \'mysql_innodb01\', \'mysql_router01\')]" = 4
+--source include/assert.inc
+  
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # Expect at least 3 failed attempts to set SUPER_READ_ONLY, indicating
+--echo # that it was blocked by the global lock
+use performance_schema;
+
+--let $assert_text = Fallback attempts: 2 remaining
+--let $assert_cond = "[select count(*) from error_log where data like \'%2 attempts remaining%\']" > 0
+--source include/assert.inc
+
+--let $assert_text = Fallback attempts: 1 remaining
+--let $assert_cond = "[select count(*) from error_log where data like \'%1 attempts remaining%\']" > 0
+--source include/assert.inc
+
+--let $assert_text = Fallback attempts: 0 remaining
+--let $assert_cond = "[select count(*) from error_log where data like \'%0 attempts remaining%\']" > 0
+--source include/assert.inc
+
+--echo
+--echo # Expect multiple query and session terminations and at least one retry
+
+--let $assert_text = select count(*) from error_log where data like '%KILL QUERY%'
+--let $assert_cond = "[select count(*) from error_log where data like \'%KILL QUERY%\']" > 0
+--source include/assert.inc
+
+--let $assert_text = select count(*) from error_log where data like '%KILL CONNECTION%'
+--let $assert_cond = "[select count(*) from error_log where data like \'%KILL CONNECTION%\']" > 0
+--source include/assert.inc
+
+--let $assert_text = select count(*) from error_log where data like '%Retry SUPER_READ_ONLY%'
+--let $assert_cond = "[select count(*) from error_log where data like \'%Retry SUPER_READ_ONLY%\']" > 0
+--source include/assert.inc
+
+--echo
+--echo # Verify server is fenced
+--source ../include/health_monitor_verify_fenced.inc
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+eval set @@global.health_monitor.disk_fallback_force = $fallback_force_save;
+drop user user@localhost;
+drop user mysql_router02@localhost;
+drop user mysql_innodb01@localhost;
+drop user mysql_router01@localhost;
+drop table test.t1;
+
+--echo
+--eval uninstall component 'file://component_health_monitor';

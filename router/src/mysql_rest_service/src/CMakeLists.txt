@@ -51,9 +51,9 @@ ADD_STATIC_LIBRARY(mysql_rest_service_helper
 
   LINK_LIBRARIES
   mysql_rest_service_if
-  harness-library
-  router_lib
-  http_common
+  harness-library_interface
+  router_lib_interface
+  http_common_interface
 
   INCLUDE_DIRECTORIES
   PRIVATE ${PROJECT_SOURCE_DIR}/src/router/include/
@@ -61,13 +61,8 @@ ADD_STATIC_LIBRARY(mysql_rest_service_helper
 
 SET(mysql_rest_service_db_includes
   ${PROJECT_SOURCE_DIR}/src/http/include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../../http/include/
 )
-
-IF(MRS_JIT_EXECUTOR_LIB)
-  list(APPEND mysql_rest_service_db_includes
-    ${CMAKE_CURRENT_BINARY_DIR}/../../jit_executor/include/
-    ${PROJECT_SOURCE_DIR}/src/jit_executor/include/)
-ENDIF()
 
 ADD_STATIC_LIBRARY(mysql_rest_service_db
   mrs/database/filter_object_generator.cc
@@ -136,14 +131,16 @@ ADD_STATIC_LIBRARY(mysql_rest_service_db
 
   LINK_LIBRARIES
   mysql_rest_service_if
-  harness-library
-  router_lib
+  harness-library_interface
+  router_lib_interface
 
   INCLUDE_DIRECTORIES
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
   PRIVATE
   ${mysql_rest_service_db_includes}
 )
+
+ADD_DEPENDENCIES(mysql_rest_service_db GenError)
 
 # Downgrade -Werror to warning for gcc
 IF(MY_COMPILER_IS_GNU)
@@ -165,9 +162,9 @@ ADD_STATIC_LIBRARY(mysql_rest_service_json
 
   LINK_LIBRARIES
   mysql_rest_service_if
-  harness-library
-  router_lib
-  http_common
+  harness-library_interface
+  router_lib_interface
+  http_common_interface
 
   INCLUDE_DIRECTORIES
   PRIVATE
@@ -179,8 +176,9 @@ ADD_STATIC_LIBRARY(mysql_rest_service_json
   )
 
 SET(mysql_rest_service_impl_libs
-  http_client
-  rest_api
+  http_client_interface
+  http_server_interface
+  rest_api_interface
   mysql_rest_service_db
 )
 
@@ -188,12 +186,20 @@ SET(mysql_rest_service_includes
   ${PROJECT_SOURCE_DIR}/src/harness/include/
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include/
   ${PROJECT_SOURCE_DIR}/src/routing/include/
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+SET(mysql_rest_service_component_impl_libs
+  ${mysql_rest_service_impl_libs}
+)
+SET(mysql_rest_service_component_impl_includes
+  ${mysql_rest_service_includes}
+)
+
 IF(MRS_JIT_EXECUTOR_LIB)
-  list(APPEND mysql_rest_service_impl_libs jit_executor_plugin)
+  list(APPEND mysql_rest_service_impl_libs jit_executor_plugin_interface)
   list(APPEND mysql_rest_service_includes ${PROJECT_SOURCE_DIR}/src/jit_executor/include/)
 ENDIF()
 
@@ -252,6 +258,8 @@ SET(mysql_rest_service_impl_SRC
   mrs/http/header_accept.cc
   mrs/http/utilities.cc
   mrs/http/session_manager.cc
+  mrs/embedded_runtime_services.cc
+  mrs/mrs_start_observer.cc
   mrs/users/user_manager.cc
   mrs/endpoint_manager.cc
   mrs/router_observation_entities.cc
@@ -262,6 +270,32 @@ SET(mysql_rest_service_impl_SRC
   mrs/monitored/gtid_functions.cc
   mrs/monitored/query_retry_on_ro.cc
 )
+
+# The component uses the existing non-JIT code paths. Compile a separate MRS
+# implementation so Router can retain HAVE_JIT_EXECUTOR_PLUGIN.
+ADD_STATIC_LIBRARY(mysql_rest_service_component_impl
+  EXCLUDE_FROM_ALL
+  ${mysql_rest_service_impl_SRC}
+
+  INCLUDE_DIRECTORIES
+  PRIVATE
+  ${mysql_rest_service_component_impl_includes}
+
+  LINK_LIBRARIES
+  ${mysql_rest_service_component_impl_libs}
+
+  COMPILE_DEFINITIONS
+  PRIVATE MYSQL_ROUTER_LOG_DOMAIN="mrs_endpoint"
+)
+
+# With Router disabled, its dependencies are loaded before the component exists.
+IF(WIN32 AND
+   (TARGET component_mysql_rest_service OR ROUTER_BUILD_MRS_DEPENDENCIES_ONLY))
+  SET_PROPERTY(TARGET mysql_rest_service_component_impl
+    PROPERTY EXCLUDE_FROM_DEFAULT_BUILD FALSE)
+ENDIF()
+
+ADD_DEPENDENCIES(mysql_rest_service_component_impl GenError)
 
 IF(MRS_JIT_EXECUTOR_LIB)
   list(APPEND mysql_rest_service_impl_SRC mrs/file_system/db_service_file_system.cc)
@@ -282,8 +316,14 @@ ADD_STATIC_LIBRARY(mysql_rest_service_impl
   PRIVATE MYSQL_ROUTER_LOG_DOMAIN="mrs_endpoint"
   )
 
+ADD_DEPENDENCIES(mysql_rest_service_impl GenError)
+
+IF(MRS_JIT_EXECUTOR_LIB)
+  TARGET_COMPILE_DEFINITIONS(mysql_rest_service_impl
+    PUBLIC HAVE_JIT_EXECUTOR_PLUGIN)
+ENDIF()
+
 SET(mysql_rest_service_reqs
-  io_component
   router_lib
   routing
   http_server
@@ -291,25 +331,72 @@ SET(mysql_rest_service_reqs
   mysql_rest_service_db
   mysql_rest_service_json
   mysql_rest_service_helper
+  http_client
+)
+
+SET(mysql_rest_service_reqs_if)
+IF(MRS_JIT_EXECUTOR_LIB)
+  list(APPEND mysql_rest_service_reqs jit_executor_plugin)
+  SET(mysql_rest_service_reqs_if jit_executor_plugin_interface)
+ENDIF()
+
+SET(mysql_rest_service_plugin_sources
+  mysql_rest_service_plugin_config.cc
+  mysql_rest_service_plugin.cc
+)
+
+ADD_HARNESS_PLUGIN(mysql_rest_service
+  SOURCES ${mysql_rest_service_plugin_sources}
+
+  REQUIRES_IF
+  router_lib_interface
+  io_component_interface
+  http_server_interface
+  routing_interface
+  ext::cno
+  router_tls
+  ${mysql_rest_service_reqs_if}
+
+  REQUIRES ${mysql_rest_service_reqs}
+  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+  INCLUDE_DIRECTORIES_IF
+  ${PROJECT_SOURCE_DIR}/src/routing/src/
+  INCLUDE_DIRECTORIES
+  PRIVATE
+  ${mysql_rest_service_includes}
 )
 
 IF(MRS_JIT_EXECUTOR_LIB)
-  list(APPEND mysql_rest_service_reqs jit_executor_plugin)
+  TARGET_COMPILE_DEFINITIONS(mysql_rest_service_object
+    PRIVATE HAVE_JIT_EXECUTOR_PLUGIN)
 ENDIF()
 
-ADD_HARNESS_PLUGIN(mysql_rest_service
-  SOURCES
-  mysql_rest_service_plugin_config.cc
-  mysql_rest_service_plugin.cc
-  REQUIRES "${mysql_rest_service_reqs}"
-  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+# Compile the embedded component's plugin descriptor without JIT support so it
+# does not require the jit_executor plugin.
+ADD_LIBRARY(mysql_rest_service_component_object OBJECT EXCLUDE_FROM_ALL
+  ${mysql_rest_service_plugin_sources}
 )
-
-TARGET_INCLUDE_DIRECTORIES(mysql_rest_service
-  PRIVATE
-    ${mysql_rest_service_includes}
+TARGET_COMPILE_FEATURES(mysql_rest_service_component_object PUBLIC cxx_std_20)
+TARGET_COMPILE_DEFINITIONS(mysql_rest_service_component_object PRIVATE
+  MYSQL_ROUTER_LOG_DOMAIN="mysql_rest_service"
+  mysql_rest_service_EXPORTS=1
+  mysql_rest_service_component_object_EXPORTS=1
 )
+TARGET_LINK_LIBRARIES(mysql_rest_service_component_object
+  PUBLIC
+  harness-library_interface
+  router_lib_interface
+  io_component_interface
+  http_server_interface
+  routing_interface
+  ext::cno
+  router_tls
+  mysql_rest_service_interface
+)
+TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_component_object
+  PRIVATE ${mysql_rest_service_component_impl_includes}
+)
+ADD_DEPENDENCIES(mysql_rest_service_component_object GenError)
 
 GENERATE_EXPORT_HEADER(mysql_rest_service
   EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/mysql_rest_service_export.h)
-

@@ -84,6 +84,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_partition.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/window.h"
@@ -140,6 +141,10 @@ static unique_ptr<Json_object> ExplainNoAccessPath(
 static unique_ptr<Json_object> AssignParentPath(
     AccessPath *parent_path, const AccessPath *materialized_path,
     unique_ptr<Json_object> obj, JOIN *join);
+static bool AddPartitionsToObject(Json_object *obj,
+                                  const vector<string> &partitions);
+static bool GetSelectedReadPartitions(const TABLE &table,
+                                      vector<string> &partitions);
 inline static double GetJSONDouble(const Json_object *obj, const char *key) {
   return down_cast<const Json_double *>(obj->get(key))->value();
 }
@@ -157,12 +162,17 @@ static bool IsCoveringIndexScan(const KEY &key, const TABLE &table) {
  *
  * @param obj The JSON object to be updated.
  * @param table The table to fetch information from.
+ * @param partitions Selected read partitions, if already fetched by the
+ * caller. A non-null value requests partition emission. This is intended for
+ * leaf table/index access nodes; composite access paths expose their selected
+ * read partitions through their leaf inputs.
  *
- * @retval true if either parameter is nullptr, or adding fields to the JSON
- * object failed.
+ * @retval true if obj or table is nullptr, or adding fields to the JSON object
+ * failed.
  * @retval false if all table information was added successfully.
  */
-static bool AddTableInfoToObject(Json_object *obj, const TABLE *table) {
+static bool AddTableInfoToObject(Json_object *obj, const TABLE *table,
+                                 const vector<string> *partitions = nullptr) {
   bool error = false;
   if (obj == nullptr || table == nullptr) return true;
   if (table->alias_name_used &&
@@ -178,6 +188,10 @@ static bool AddTableInfoToObject(Json_object *obj, const TABLE *table) {
         AddMemberToObject<Json_string>(obj, "schema_name", table->s->db.str);
   }
 
+  if (partitions != nullptr && AddPartitionsToObject(obj, *partitions)) {
+    return true;
+  }
+
   if (table->pos_in_table_list != nullptr &&
       !(bitmap_is_clear_all(table->read_set) &&
         bitmap_is_clear_all(table->write_set))) {
@@ -191,12 +205,118 @@ static bool AddTableInfoToObject(Json_object *obj, const TABLE *table) {
       const char *field_description =
           get_field_name_or_expression(table->in_use, *fld);
       if (AddElementToArray<Json_string>(used_fields_list, field_description))
-        return true;
+        return true; /* LCOV_EXCL_LINE */
     }
     error |= obj->add_alias("used_columns", std::move(used_fields_list));
   }
 
   return error;
+}
+
+/**
+ * Collect the table's selected read partitions in metadata order.
+ *
+ * @param table Table whose read partition bitmap is inspected.
+ * @param[out] partitions Selected leaf partition names. The vector is empty
+ * when partition information is unavailable or no partitions are selected.
+ *
+ * @retval true if collecting the partition names failed.
+ * @retval false on success, including when no names are available.
+ */
+static bool GetSelectedReadPartitions(const TABLE &table,
+                                      vector<string> &partitions) {
+  partitions.clear();
+  if (table.part_info == nullptr || !table.part_info->bitmaps_are_initialized) {
+    return false;
+  }
+
+  // Reuse the enumeration used by TRADITIONAL EXPLAIN and JSON v1. It provides
+  // bitmap inspection, metadata ordering, leaf-subpartition naming, and
+  // character-set conversion. This formatter only adapts the returned names
+  // for TREE and JSON v2.
+  List<const char> partition_names;
+  if (make_used_partitions_str(table.part_info, &partition_names)) return true;
+
+  List_iterator<const char> partition_it(partition_names);
+  const char *partition_name;
+  while ((partition_name = partition_it++) != nullptr) {
+    partitions.emplace_back(partition_name);
+  }
+  return false;
+}
+
+/**
+ * Add selected read partitions to a JSON v2 table access object.
+ *
+ * @param obj JSON object to update.
+ * @param partitions Selected leaf partition names.
+ *
+ * @retval true if obj is nullptr or JSON construction failed.
+ * @retval false on success, including when partitions is empty.
+ */
+static bool AddPartitionsToObject(Json_object *obj,
+                                  const vector<string> &partitions) {
+  if (obj == nullptr) return true;
+  if (partitions.empty()) return false;
+
+  unique_ptr<Json_array> partition_list(new (std::nothrow) Json_array());
+  if (partition_list == nullptr) return true;
+  for (const string &partition_name : partitions) {
+    if (AddElementToArray<Json_string>(partition_list, partition_name)) {
+      return true;
+    }
+  }
+  return obj->add_alias("partitions", std::move(partition_list));
+}
+
+/**
+ * Format selected read partitions for an access-path operation description.
+ *
+ * @param partitions Selected leaf partition names.
+ * @param prefix Text placed before a non-empty partition list.
+ * @param[out] partitions_description Formatted text, or empty when no
+ *                                    partitions are selected.
+ */
+static void AppendPartitionsDescription(const vector<string> &partitions,
+                                        const char *prefix,
+                                        string *partitions_description) {
+  partitions_description->clear();
+  if (partitions.empty()) return;
+
+  *partitions_description += prefix;
+  bool first = true;
+  for (const string &partition_name : partitions) {
+    if (!first) {
+      *partitions_description += ",";
+    }
+    first = false;
+    *partitions_description += partition_name;
+  }
+  *partitions_description += ")";
+}
+
+/**
+ * Collect selected read partitions and append them to an operation string.
+ *
+ * @param table Table whose read partition bitmap is inspected.
+ * @param prefix Text placed before a non-empty partition list.
+ * @param[out] partitions Selected leaf partition names.
+ * @param[in,out] description Operation string to update.
+ *
+ * @retval true if collecting the partition names failed.
+ * @retval false on success, including when no names are available.
+ */
+static bool GetPartitionsAndAppendDescription(const TABLE &table,
+                                              const char *prefix,
+                                              vector<string> *partitions,
+                                              string *description) {
+  if (partitions == nullptr || GetSelectedReadPartitions(table, *partitions)) {
+    return true; /* LCOV_EXCL_LINE */
+  }
+  string partitions_description;
+  AppendPartitionsDescription(*partitions, prefix, &partitions_description);
+  *description += partitions_description;
+  return false;
 }
 
 /**
@@ -232,7 +352,8 @@ static bool AddTableInfoToObject(Json_object *obj, const TABLE *table) {
  * @param reverse Whether or not the scan is reverse.
  * @param pushed_idx_cond Pushed index condition.
  * @param obj The JSON object to add index info to.
- * @returns false if error, true otherwise.
+ * @retval true if an error occurs.
+ * @retval false on success.
  */
 static bool SetIndexInfoInObject(string *str, const AccessPath *path,
                                  const char *json_index_access_type,
@@ -243,7 +364,7 @@ static bool SetIndexInfoInObject(string *str, const AccessPath *path,
                                  unique_ptr<Json_array> range_arr, bool reverse,
                                  Item *pushed_idx_cond, Json_object *obj) {
   const string idx_cond_str =
-      pushed_idx_cond ? ItemToString(pushed_idx_cond) : "";
+      pushed_idx_cond != nullptr ? ItemToString(pushed_idx_cond) : "";
   const string lookup_condition{
       index_lookup == nullptr
           ? ""
@@ -253,16 +374,24 @@ static bool SetIndexInfoInObject(string *str, const AccessPath *path,
       string(IsCoveringIndexScan(key, table) ? "Covering index " : "Index ");
 
   bool error = false;
+  vector<string> partitions;
+  if (GetSelectedReadPartitions(table, partitions)) return true;
+  string partitions_description;
+  AppendPartitionsDescription(partitions, " in partitions (",
+                              &partitions_description);
 
-  if (prefix) covering_index[0] = tolower(covering_index[0]);
+  if (prefix != nullptr)
+    covering_index.front() = tolower(covering_index.front());
 
-  *str += (prefix ? string(prefix) + " " : "") + covering_index +
-          index_access_type +  // lookup/scan/search
-          " on " + table.alias + " using " + key.name +
-          (!lookup_condition.empty() ? " (" + lookup_condition + ")" : "") +
-          (ranges_text != nullptr ? " over " + *ranges_text : "") +
-          (reverse ? " (reverse)" : "") +
-          (pushed_idx_cond ? ", with index condition: " + idx_cond_str : "");
+  *str +=
+      (prefix != nullptr ? string(prefix) + " " : "") + covering_index +
+      index_access_type +  // lookup/scan/search
+      " on " + table.alias + " using " + key.name + partitions_description +
+      (!lookup_condition.empty() ? " (" + lookup_condition + ")" : "") +
+      (ranges_text != nullptr ? " over " + *ranges_text : "") +
+      (reverse ? " (reverse)" : "") +
+      (pushed_idx_cond != nullptr ? ", with index condition: " + idx_cond_str
+                                  : "");
   *str += table.file->explain_extra();
 
   error |= AddMemberToObject<Json_string>(obj, "access_type", "index");
@@ -270,14 +399,14 @@ static bool SetIndexInfoInObject(string *str, const AccessPath *path,
                                           json_index_access_type);
   error |= AddMemberToObject<Json_boolean>(obj, "covering",
                                            IsCoveringIndexScan(key, table));
-  error |= AddTableInfoToObject(obj, &table);
+  error |= AddTableInfoToObject(obj, &table, &partitions);
   error |= AddMemberToObject<Json_string>(obj, "index_name", key.name);
   if (!lookup_condition.empty())
     error |= AddMemberToObject<Json_string>(obj, "lookup_condition",
                                             lookup_condition);
   if (range_arr) error |= obj->add_alias("ranges", std::move(range_arr));
   if (reverse) error |= AddMemberToObject<Json_boolean>(obj, "reverse", true);
-  if (pushed_idx_cond)
+  if (pushed_idx_cond != nullptr)
     error |= AddMemberToObject<Json_string>(obj, "pushed_index_condition",
                                             idx_cond_str);
   if (!table.file->explain_extra().empty())
@@ -1191,6 +1320,9 @@ static unique_ptr<Json_object> SetObjectMembers(
     case AccessPath::TABLE_SCAN: {
       const TABLE &table = *path->table_scan().table;
       description += string("Table scan on ") + table.alias;
+      vector<string> partitions;
+      error |= GetPartitionsAndAppendDescription(table, " over partitions (",
+                                                 &partitions, &description);
       if (table.s->is_secondary_engine()) {
         error |= AddMemberToObject<Json_string>(obj, "secondary_engine",
                                                 table.file->table_type());
@@ -1199,7 +1331,7 @@ static unique_ptr<Json_object> SetObjectMembers(
       }
       description += table.file->explain_extra();
 
-      error |= AddTableInfoToObject(obj, &table);
+      error |= AddTableInfoToObject(obj, &table, &partitions);
       error |= AddMemberToObject<Json_string>(obj, "access_type", "table");
       if (!table.file->explain_extra().empty())
         error |= AddMemberToObject<Json_string>(obj, "message",
@@ -1210,6 +1342,9 @@ static unique_ptr<Json_object> SetObjectMembers(
     case AccessPath::SAMPLE_SCAN: {
       const TABLE &table = *path->sample_scan().table;
       description += string("Sample scan on ") + table.alias;
+      vector<string> partitions;
+      error |= GetPartitionsAndAppendDescription(table, " over partitions (",
+                                                 &partitions, &description);
       if (table.s->is_secondary_engine()) {
         error |= AddMemberToObject<Json_string>(obj, "secondary_engine",
                                                 table.file->table_type());
@@ -1218,7 +1353,11 @@ static unique_ptr<Json_object> SetObjectMembers(
       }
       description += table.file->explain_extra();
 
+      // Preserve SAMPLE_SCAN's established table_name behavior. Unlike other
+      // base-table accesses, it reports table.alias directly and does not add
+      // a separate alias field.
       error |= AddMemberToObject<Json_string>(obj, "table_name", table.alias);
+      error |= AddPartitionsToObject(obj, partitions);
       error |= AddMemberToObject<Json_string>(obj, "access_type", "table");
       error |= AddChildrenFromPushedCondition(table, children);
 
@@ -1315,9 +1454,12 @@ static unique_ptr<Json_object> SetObjectMembers(
       assert(table.file->pushed_idx_cond == nullptr);
       assert(table.file->pushed_cond == nullptr);
       description = string("Constant row from ") + table.alias;
+      vector<string> partitions;
+      error |= GetPartitionsAndAppendDescription(table, " over partitions (",
+                                                 &partitions, &description);
       error |=
           AddMemberToObject<Json_string>(obj, "access_type", "constant_row");
-      error |= AddTableInfoToObject(obj, &table);
+      error |= AddTableInfoToObject(obj, &table, &partitions);
       break;
     }
     case AccessPath::MRR: {
@@ -1331,15 +1473,18 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
-    case AccessPath::FOLLOW_TAIL:
-      description =
-          string("Scan new records on ") + path->follow_tail().table->alias;
+    case AccessPath::FOLLOW_TAIL: {
+      const TABLE &table = *path->follow_tail().table;
+      description = string("Scan new records on ") + table.alias;
+      vector<string> partitions;
+      error |= GetPartitionsAndAppendDescription(table, " over partitions (",
+                                                 &partitions, &description);
       error |= AddMemberToObject<Json_string>(obj, "access_type",
                                               "scan_new_records");
-      error |= AddTableInfoToObject(obj, path->follow_tail().table);
-      error |=
-          AddChildrenFromPushedCondition(*path->follow_tail().table, children);
+      error |= AddTableInfoToObject(obj, &table, &partitions);
+      error |= AddChildrenFromPushedCondition(table, children);
       break;
+    }
     case AccessPath::INDEX_RANGE_SCAN: {
       const auto &param = path->index_range_scan();
       const TABLE &table = *param.used_key_part[0].field->table;
@@ -1427,6 +1572,9 @@ static unique_ptr<Json_object> SetObjectMembers(
       const TABLE &table = *path->dynamic_index_range_scan().table;
       description += string("Index range scan on ") + table.alias +
                      " (re-planned for each iteration)";
+      vector<string> partitions;
+      error |= GetPartitionsAndAppendDescription(table, " in partitions (",
+                                                 &partitions, &description);
       if (table.file->pushed_idx_cond != nullptr) {
         description += ", with index condition: " +
                        ItemToString(table.file->pushed_idx_cond);
@@ -1435,7 +1583,7 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |= AddMemberToObject<Json_string>(obj, "access_type", "index");
       error |= AddMemberToObject<Json_string>(obj, "index_access_type",
                                               "dynamic_index_range_scan");
-      error |= AddTableInfoToObject(obj, &table);
+      error |= AddTableInfoToObject(obj, &table, &partitions);
       if (table.file->pushed_idx_cond != nullptr) {
         error |= AddMemberToObject<Json_string>(
             obj, "pushed_index_condition",
@@ -1449,11 +1597,27 @@ static unique_ptr<Json_object> SetObjectMembers(
       break;
     }
     case AccessPath::TABLE_VALUE_CONSTRUCTOR:
-    case AccessPath::FAKE_SINGLE_ROW:
       error |= AddMemberToObject<Json_string>(obj, "access_type",
                                               "rows_fetched_before_execution");
       description = "Rows fetched before execution";
       break;
+    case AccessPath::FAKE_SINGLE_ROW: {
+      error |= AddMemberToObject<Json_string>(obj, "access_type",
+                                              "rows_fetched_before_execution");
+      const TABLE *const table = path->fake_single_row().table;
+      if (table == nullptr) {
+        description = "Rows fetched before execution";
+        break;
+      }
+
+      description =
+          "Rows fetched before execution from " + string(table->alias);
+      vector<string> partitions;
+      error |= GetPartitionsAndAppendDescription(*table, " over partitions (",
+                                                 &partitions, &description);
+      error |= AddTableInfoToObject(obj, table, &partitions);
+      break;
+    }
     case AccessPath::ZERO_ROWS:
       error |= AddMemberToObject<Json_string>(obj, "access_type", "zero_rows");
       error |= AddMemberToObject<Json_string>(obj, "zero_rows_cause",
@@ -1475,11 +1639,24 @@ static unique_ptr<Json_object> SetObjectMembers(
                                               "materialized_table_function");
       description = "Materialize table function";
       break;
-    case AccessPath::UNQUALIFIED_COUNT:
+    case AccessPath::UNQUALIFIED_COUNT: {
       error |= AddMemberToObject<Json_string>(obj, "access_type", "count_rows");
-      error |= AddTableInfoToObject(obj, join->qep_tab->table());
-      description = "Count rows in " + string(join->qep_tab->table()->alias);
+      const TABLE &table = *join->qep_tab->table();
+      description = "Count rows in " + string(table.alias);
+      if (join->primary_tables == 1) {
+        vector<string> partitions;
+        error |= GetPartitionsAndAppendDescription(table, " over partitions (",
+                                                   &partitions, &description);
+        error |= AddTableInfoToObject(obj, &table, &partitions);
+      } else {
+        // Preserve the legacy first-table fields for JSON v2 compatibility,
+        // but do not attach selected read partitions: one count node
+        // represents all primary tables and a flat partition list would lose
+        // the table-to-partition association.
+        error |= AddTableInfoToObject(obj, &table);
+      }
       break;
+    }
     case AccessPath::NESTED_LOOP_JOIN: {
       string join_type = JoinTypeToString(path->nested_loop_join().join_type);
       error |= AddMemberToObject<Json_string>(obj, "access_type", "join");
@@ -2265,11 +2442,12 @@ std::string PrintQueryPlan(THD *ethd, const THD *query_thd,
    */
   // Major and minor are ints and then converted to a string instead of just
   // written directly as a string to make them easier to keep track of.
-  // Set to "2.0" in MySQL 9.2.0.
-  const uint8_t Major = 2;
-  const uint8_t minor = 0;
-  std::string explain_json_schema_version =
-      std::to_string(Major) + "." + std::to_string(minor);
+  // Version 2.0 was introduced in MySQL 9.2.0. Version 2.1 adds selected
+  // partition information to JSON v2 table-access objects.
+  constexpr uint8_t major = 2;
+  constexpr uint8_t minor = 1;
+  const std::string explain_json_schema_version =
+      std::to_string(major) + "." + std::to_string(minor);
   AddMemberToObject<Json_string>(obj, "json_schema_version",
                                  explain_json_schema_version);
 

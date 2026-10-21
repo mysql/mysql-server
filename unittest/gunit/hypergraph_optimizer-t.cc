@@ -8658,11 +8658,11 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
     Query_arena arena{&optimize_mem_root, Query_arena::STMT_PREPARED};
     thd->swap_query_arena(arena, &arena_backup);
 
-    StartBenchmarkTiming();
-
     for (size_t i = 0; i < num_iterations; ++i) {
       EXPECT_EQ(t1->file->stats.block_size, 16834);
       assert(query_block->join->where_cond == query_block->where_cond());
+
+      StartBenchmarkTiming();
       AccessPath *path = FindBestQueryPlan(thd, query_block);
       assert(path != nullptr);
       assert(path->type == AccessPath::EQ_REF);
@@ -8671,16 +8671,15 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
       [[maybe_unused]] const bool error =
           FinalizePlanForQueryBlock(thd, query_block);
       assert(!error);
+      StopBenchmarkTiming();
 
       query_block->cleanup(/*full=*/false);
       query_block->join->set_root_access_path(nullptr);
       thd->rollback_item_tree_changes();
-      cleanup_items(arena.item_list());
-      arena.free_items();
+      cleanup_items(thd->item_list());
+      thd->free_items();
       optimize_mem_root.ClearForReuse();
     }
-
-    StopBenchmarkTiming();
 
     thd->swap_query_arena(arena_backup, &arena);
   }
@@ -8694,6 +8693,106 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
   DestroyFakeTables(fake_tables);
 }
 BENCHMARK(BM_FindBestQueryPlanPointSelect)
+
+// Measures the time spent in FindBestQueryPlan() for a multi-way join with many
+// equijoin conditions on each edge. Such a query produces many candidate join
+// plans during DPhyp enumeration.
+static void BM_FindBestQueryPlanManyJoinConditions(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  constexpr int kNumTables{6};
+  constexpr int kNumFields{30};
+
+  Server_initializer initializer;
+  initializer.SetUp();
+  unordered_map<string, Fake_TABLE *> fake_tables;
+
+  THD *const thd = initializer.thd();
+  thd->variables.optimizer_switch |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
+
+  string query{"SELECT 1 FROM t1"};
+  for (int table_idx = 1; table_idx <= kNumTables; ++table_idx) {
+    const string table_name = "t" + to_string(table_idx);
+    List<Field> fields;
+    for (int field_idx = 1; field_idx <= kNumFields; ++field_idx) {
+      fields.push_back(new (thd->mem_root) Mock_field_long(
+          "col" + to_string(field_idx), /*is_nullable=*/false,
+          /*is_unsigned=*/false));
+    }
+    fake_tables[table_name] = new (thd->mem_root) Fake_TABLE(fields);
+
+    if (table_idx > 1) {
+      // The unit-test resolver does not implement NATURAL JOIN expansion, so
+      // generate the dense join conditions explicitly.
+      query += " JOIN " + table_name + " ON ";
+      bool first_condition = true;
+      for (int previous_table_idx = 1; previous_table_idx < table_idx;
+           ++previous_table_idx) {
+        for (int field_idx = 1; field_idx <= kNumFields; ++field_idx) {
+          if (!first_condition) query += " AND ";
+          first_condition = false;
+          const string field_name = "col" + to_string(field_idx);
+          query += "t" + to_string(previous_table_idx) + "." + field_name +
+                   " = " + table_name + "." + field_name;
+        }
+      }
+    }
+  }
+
+  Query_block *const query_block = ParseAndResolve(
+      query.c_str(), /*nullable=*/false, initializer, &fake_tables);
+
+  // Build multiple equalities from the join conditions, as JOIN::optimize()
+  // does before invoking FindBestQueryPlan().
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->m_table_nest,
+                             &query_block->cond_value));
+  ASSERT_NE(nullptr, cond_equal);
+  EXPECT_EQ(kNumFields, cond_equal->current_level.size());
+
+  vector<std::unique_ptr<Fake_handler_for_benchmark>> fake_handlers;
+  for (int table_idx = 1; table_idx <= kNumTables; ++table_idx) {
+    Fake_TABLE *const table = fake_tables["t" + to_string(table_idx)];
+    auto handler = std::make_unique<Fake_handler_for_benchmark>(table);
+    table->set_handler(handler.get());
+    table->file->stats.records = 100000;
+    fake_handlers.push_back(std::move(handler));
+  }
+
+  const size_t mem_root_size_after_resolving = thd->mem_root->allocated_size();
+
+  {
+    MEM_ROOT optimize_mem_root;
+    Query_arena arena_backup;
+    Query_arena arena{&optimize_mem_root, Query_arena::STMT_PREPARED};
+    thd->swap_query_arena(arena, &arena_backup);
+
+    for (size_t i = 0; i < num_iterations; ++i) {
+      StartBenchmarkTiming();
+      AccessPath *path = FindBestQueryPlan(thd, query_block);
+      StopBenchmarkTiming();
+
+      assert(path != nullptr);
+      query_block->join->set_root_access_path(path);
+
+      query_block->cleanup(/*full=*/false);
+      query_block->join->set_root_access_path(nullptr);
+      thd->rollback_item_tree_changes();
+      cleanup_items(thd->item_list());
+      thd->free_items();
+      optimize_mem_root.ClearForReuse();
+    }
+
+    thd->swap_query_arena(arena_backup, &arena);
+  }
+
+  EXPECT_EQ(mem_root_size_after_resolving, thd->mem_root->allocated_size());
+
+  query_block->cleanup(/*full=*/true);
+  DestroyFakeTables(fake_tables);
+}
+BENCHMARK(BM_FindBestQueryPlanManyJoinConditions)
 
 /**
    Test the performace of the FieldSizeEstimator class on a table with
@@ -8722,17 +8821,16 @@ static void BM_EstimateFieldSizes(size_t num_iterations) {
     Query_arena arena{&optimize_mem_root, Query_arena::STMT_PREPARED};
     thd->swap_query_arena(arena, &arena_backup);
 
-    StartBenchmarkTiming();
     for (size_t i = 0; i < num_iterations; ++i) {
       // This uses FieldSizeEstimator.
+      StartBenchmarkTiming();
       CalculateReadSetWidth(table);
+      StopBenchmarkTiming();
 
-      cleanup_items(arena.item_list());
-      arena.free_items();
+      cleanup_items(thd->item_list());
+      thd->free_items();
       optimize_mem_root.ClearForReuse();
     }
-
-    StopBenchmarkTiming();
 
     thd->swap_query_arena(arena_backup, &arena);
   }

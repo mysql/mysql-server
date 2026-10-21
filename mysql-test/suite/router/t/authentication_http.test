@@ -2,6 +2,7 @@
 #
 #
 --source include/have_router.inc
+--source include/skip_component_mrs.inc
 
 --let $extra_mrs_router_id=1
 

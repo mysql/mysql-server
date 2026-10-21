@@ -26,10 +26,19 @@
 #ifndef SRC_ROUTER_INCLUDE_MYSQLROUTER_WINDOWS_ROUTER_SERVICE_NAMES_H_
 #define SRC_ROUTER_INCLUDE_MYSQLROUTER_WINDOWS_ROUTER_SERVICE_NAMES_H_
 
+#include <string>
 #include <string_view>
 
 constexpr const std::string_view kDefaultServiceName{"MySQLRouter"};
 constexpr const std::string_view kDefaultServiceDisplayName{"MySQL Router"};
 constexpr const std::string_view kServiceProductName{"Router"};
+// SDDL grants only EVENT_MODIFY_STATE (0x2) to LocalSystem (SY) and the
+// built-in Administrators group (BA), so they may signal the reload event.
+constexpr const std::string_view kTlsReloadEventSecurityDescriptor{
+    "D:(A;;0x2;;;SY)(A;;0x2;;;BA)"};
+
+inline std::string tls_reload_event_name(std::string_view service_name) {
+  return "Global\\MySQLRouterTlsReload_" + std::string(service_name);
+}
 
 #endif  // SRC_ROUTER_INCLUDE_MYSQLROUTER_WINDOWS_ROUTER_SERVICE_NAMES_H_

@@ -24,6 +24,7 @@
 INCLUDE(GenerateExportHeader)
 
 ROUTER_ADD_SHARED_LIBRARY(io_component
+  SOURCES
   io_backend.cc
   io_component.cc
   io_thread.cc
@@ -31,26 +32,30 @@ ROUTER_ADD_SHARED_LIBRARY(io_component
 
   OUTPUT_NAME "mysqlrouter_io_component"
 
+  LINK_LIBRARIES_IF
+  harness_net_ts
+  harness-library_interface
+
   LINK_LIBRARIES
   PUBLIC
-  harness_net_ts
   harness-library
   )
 
 ADD_HARNESS_PLUGIN(io
   SOURCES
   io_plugin.cc
+
+  REQUIRES_IF
+  io_component_interface
+  harness-library_interface
+
   REQUIRES
   io_component
-  harness-library
+
+  INCLUDE_DIRECTORIES_IF
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
-
-TARGET_INCLUDE_DIRECTORIES(io
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-    ${CMAKE_CURRENT_BINARY_DIR}/../include/
-    )
-GENERATE_EXPORT_HEADER(io
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/io_export.h)

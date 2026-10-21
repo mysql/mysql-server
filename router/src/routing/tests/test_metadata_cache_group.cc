@@ -116,6 +116,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   MOCK_METHOD(void, cache_start, (), (override));
 
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method
+  void reload_tls() override {}
   bool is_initialized() noexcept override { return true; }
 
   void instance_name(const std::string &) override {}
@@ -181,6 +182,40 @@ class DestMetadataCacheTest : public ::testing::Test {
   ::testing::StrictMock<MetadataCacheAPIStub> metadata_cache_api_;
   net::io_context io_ctx_;
 };
+
+TEST_F(DestMetadataCacheTest, SocketAcceptorUpdateDelegatesToRefreshCallback) {
+  DestMetadataCacheManager dest(
+      io_ctx_, routing_ctx_, "cache-name",
+      mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
+          .query,
+      DestMetadataCacheManager::ServerRole::Primary, &metadata_cache_api_);
+
+  bool callback_called{false};
+  dest.register_refresh_router_socket_acceptor_state([&]() {
+    callback_called = true;
+    return stdx::expected<void, std::string>{};
+  });
+
+  metadata_cache::AcceptorUpdateHandlerInterface &acceptor_handler = dest;
+  EXPECT_TRUE(acceptor_handler.update_socket_acceptor_state());
+  EXPECT_TRUE(callback_called);
+}
+
+TEST_F(DestMetadataCacheTest,
+       SocketAcceptorUpdateReportsRefreshCallbackFailure) {
+  DestMetadataCacheManager dest(
+      io_ctx_, routing_ctx_, "cache-name",
+      mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
+          .query,
+      DestMetadataCacheManager::ServerRole::Primary, &metadata_cache_api_);
+
+  dest.register_refresh_router_socket_acceptor_state([]() {
+    return stdx::unexpected(std::string{"acceptor refresh failed"});
+  });
+
+  metadata_cache::AcceptorUpdateHandlerInterface &acceptor_handler = dest;
+  EXPECT_FALSE(acceptor_handler.update_socket_acceptor_state());
+}
 
 /*****************************************/
 /*ALLOWED NODES CALLBACK TESTS          */

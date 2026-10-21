@@ -243,8 +243,8 @@ void SharedServer::spawn_server_with_datadir(
 
 #ifdef _WIN32
   // on windows, wait until port is ready as there is no notify-socket.
-  if (!(wait_for_port_ready(classic_tcp_destination().port(), 10s) &&
-        wait_for_port_ready(x_tcp_destination().port(), 10s))) {
+  if (!(wait_for_port_ready(classic_tcp_destination().port(), 30s) &&
+        wait_for_port_ready(x_tcp_destination().port(), 20s))) {
     mysqld_failed_to_start_ = true;
   }
 #endif
@@ -440,10 +440,11 @@ SharedServer::user_connection_ids(MysqlClient &cli,
   }
 
   auto ids_res = cli.query(
-      "SELECT id FROM performance_schema.processlist "
-      "WHERE id != CONNECTION_ID() "
-      "  AND state NOT LIKE 'Group Replication%%' "
-      "  AND User IN (" +
+      "SELECT processlist_id "
+      "FROM performance_schema.threads "
+      "WHERE processlist_id != CONNECTION_ID() "
+      "  AND name = 'thread/sql/one_connection' "
+      "  AND processlist_user IN (" +
       oss.str() + ")");
   if (!ids_res) return stdx::unexpected(ids_res.error());
 

@@ -5,6 +5,7 @@
 
 --let $extra_mrs_router_id=1
 --source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
 
 --echo ## I. Create services with default compelted content and user-defined
 --echo # 1. verify that default page ix html/txt and its legnth

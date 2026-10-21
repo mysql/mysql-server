@@ -40,7 +40,10 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/m_ctype.h"
 
-#ifdef HAVE_GETPASS
+#if defined(__APPLE__)
+/* readpassphrase() is supplied by the macOS SDK's libSystem. */
+#include <readpassphrase.h>
+#elif defined(HAVE_GETPASS)
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif /* HAVE_PWD_H */
@@ -67,9 +70,9 @@
 #else
 #include <conio.h>
 #endif /* _WIN32 */
-#endif /* HAVE_GETPASS */
+#endif /* __APPLE__ / HAVE_GETPASS */
 
-#ifdef HAVE_GETPASSPHRASE /* For Solaris */
+#if defined(HAVE_GETPASSPHRASE) && !defined(__APPLE__) /* For Solaris */
 #define getpass(A) getpassphrase(A)
 #endif
 
@@ -172,7 +175,7 @@ char *get_tty_password(const char *opt_message) {
 
 #else
 
-#ifndef HAVE_GETPASS
+#if !defined(HAVE_GETPASS) && !defined(__APPLE__)
 /*
   Can't use fgets, because readline will get confused
   length is max number of chars in to, not counting \0
@@ -209,14 +212,14 @@ static void get_password(char *to, uint length, int fd, bool echo) {
   *pos = 0;
   return;
 }
-#endif /* ! HAVE_GETPASS */
+#endif /* ! HAVE_GETPASS && !__APPLE__ */
 
 char *get_tty_password(const char *opt_message) {
-#ifdef HAVE_GETPASS
+#if defined(HAVE_GETPASS) && !defined(__APPLE__)
   char *passbuff;
-#else  /* ! HAVE_GETPASS */
+#elif !defined(__APPLE__)
   TERMIO org, tmp;
-#endif /* HAVE_GETPASS */
+#endif
   /*
    * Bug#44929 / Bug#92403 / Bug#110570: Enlarged from 80 to 4096 bytes.
    * See the Doxygen note on get_tty_password() for full rationale.
@@ -225,7 +228,11 @@ char *get_tty_password(const char *opt_message) {
 
   DBUG_TRACE;
 
-#ifdef HAVE_GETPASS
+#if defined(__APPLE__)
+  if (readpassphrase(opt_message ? opt_message : "Enter password: ", buff,
+                     sizeof(buff), RPP_ECHO_OFF) == nullptr)
+    buff[0] = '\0';
+#elif defined(HAVE_GETPASS)
   passbuff = getpass(opt_message ? opt_message : "Enter password: ");
 
   /* copy the password to buff and clear original (static) buffer */
@@ -267,7 +274,7 @@ char *get_tty_password(const char *opt_message) {
   stty(fileno(stdin), &org);
 #endif
   if (isatty(fileno(stdout))) fputc('\n', stdout);
-#endif /* HAVE_GETPASS */
+#endif /* __APPLE__ / HAVE_GETPASS */
 
   /*
     Ensure the buffer is always null-terminated.

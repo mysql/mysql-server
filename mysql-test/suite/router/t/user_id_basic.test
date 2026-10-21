@@ -81,6 +81,14 @@ INSERT INTO `test`.`user2`(user_id, nickname, email) VALUES(0, "none", "no-email
 #
 --source ../include/test/test_table_note.inc
 
+# test_table_note.inc registers the object directly, so grant access to its
+# backing table explicitly.
+--let $_mrs_data_provider_grant_schema=test
+--let $_mrs_data_provider_grant_object=note
+--let $_mrs_data_provider_grant_type=TABLE
+--let $_mrs_data_provider_grant_operations=CREATE,READ,UPDATE,DELETE
+--source ../include/mrs/db_object/grant_data_provider.inc
+
 --let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
 

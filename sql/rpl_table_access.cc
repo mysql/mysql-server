@@ -167,7 +167,7 @@ bool System_table_access::close_table(THD *thd, TABLE *table,
 THD *System_table_access::create_thd() {
   THD *thd = nullptr;
   thd = new THD;
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
   thd->security_context()->skip_grants();
 

@@ -12463,7 +12463,7 @@ static bool upgrade_migrate_privilege_tables() {
   */
   auto ndb_create_thd = [](void *stackptr) -> THD * {
     THD *thd = new THD;
-    thd->thread_stack = reinterpret_cast<char *>(stackptr);
+    thd->capture_stack_base(stackptr);
     thd->store_globals();
 
     thd->init_query_mem_roots();

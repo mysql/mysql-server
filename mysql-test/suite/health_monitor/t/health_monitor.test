@@ -1,0 +1,306 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Load the component
+--echo ##   2. System variables
+--echo ##   3. Unload the component
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo ###
+--echo ### Verify system variable min/max values
+--echo ###
+# +----------------------------------------------+---------+--------------+-----+
+# | Variable_name                                | Default |     Max      | Min |
+# +----------------------------------------------+---------+--------------+-----+
+# | health_monitor.disk_fallback_enable          | OFF     | ---          |  -  |
+# | health_monitor.disk_fallback_force           | OFF     | ---          |  -  |
+# | health_monitor.disk_low_space_critical_level | 2000    | ullong_max-1 |  0  |
+# | health_monitor.disk_low_space_duration       | 300     | 86400        |  1  |
+# | health_monitor.disk_low_space_level          | 5000    | ullong_max-1 |  0  |
+# | health_monitor.disk_low_space_percent        | 10      | 100          |  0  |
+# | health_monitor.disk_monitored                |         | ---          |  -  |
+# | health_monitor.disk_retention                | 86400   | 864000       |  1  |
+# | health_monitor.disk_running                  | ON      | ---          |  -  |
+# | health_monitor.disk_sample_rate              | 60      | 86400        |  1  |
+# | health_monitor.disk_usage_warning_level_1    | 20      | 100          |  0  |
+# | health_monitor.disk_usage_warning_level_2    | 10      | 100          |  0  |
+# | health_monitor.disk_usage_warning_level_3    | 5       | 100          |  0  |
+# | health_monitor.memory_retention              | 86400   | 864000       |  1  |
+# | health_monitor.memory_running                | ON      | ---          |  -  |
+# | health_monitor.memory_sample_rate            | 60      | 86400        |  1  |
+# | health_monitor.memory_usage_warning_level_1  | 1024    | ullong_max-1 |  0  |
+# | health_monitor.memory_usage_warning_level_2  | 500     | ullong_max-1 |  0  |
+# | health_monitor.memory_usage_warning_level_3  | 100     | ullong_max-1 |  0  |
+# | health_monitor.system_retention              | 86400   | 864000       |  1  |
+# | health_monitor.system_running                | ON      | ---          |  -  |
+# | health_monitor.system_sample_rate            | 60      | 86400        |  1  |
+# | health_monitor.system_cpu_stats_history      | ON      | ---          |  -  |
+# | health_monitor.system_disk_stats_history     | ON      | ---          |  -  |
+# | health_monitor.system_memory_stats_history   | ON      | ---          |  -  |
+# | health_monitor.system_process_stats_history  | ON      | ---          |  -  |
+# | health_monitor.status_interval               | 10      | 1000         |  0  |
+# +----------------------------------------------+---------+--------------+-----+
+ 
+--echo #
+--echo # Disk Collector
+--echo #
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_fallback_enable = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_fallback_force = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_critical_level = @ulong_max;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_critical_level = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_critical_level = -2;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_duration = 86401;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_duration = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_level = @ulong_max;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_level = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_level = -2;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_percent = 101;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_low_space_percent = -1;
+
+--echo
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.health_monitor.disk_monitored = -1;
+
+--echo
+--echo # Validate monitored path syntax and preserve the last valid path
+set @disk_monitored_setup_path = @@global.health_monitor.disk_monitored;
+set @disk_running_before_path_test = @@global.health_monitor.disk_running;
+set @@global.health_monitor.disk_running = off;
+
+set @@global.health_monitor.disk_monitored = '';
+select length(@@global.health_monitor.disk_monitored);
+
+set @@global.health_monitor.disk_monitored = '/path/that/does/not/exist';
+select @@global.health_monitor.disk_monitored;
+
+set @@global.health_monitor.disk_monitored = concat('/', repeat('x', 510));
+select length(@@global.health_monitor.disk_monitored);
+
+set @@global.health_monitor.disk_monitored = @disk_monitored_setup_path;
+select @@global.health_monitor.disk_monitored = @disk_monitored_setup_path;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_monitored = 'relative/path';
+
+--replace_regex /x{32,}/<long-path>/
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_monitored = concat('/', repeat('x', 511));
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_monitored = concat('/valid', char(0), 'suffix');
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_monitored = NULL;
+
+select @@global.health_monitor.disk_monitored = @disk_monitored_setup_path;
+set @@global.health_monitor.disk_running = @disk_running_before_path_test;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_retention = 0;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_retention = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_retention = 10000000;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_running = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_sample_rate = 0;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_sample_rate = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_sample_rate = 10000000;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_usage_warning_level_1 = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_usage_warning_level_1 = 101;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_usage_warning_level_2 = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_usage_warning_level_2 = 101;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_usage_warning_level_3 = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.disk_usage_warning_level_3 = 101;
+
+
+--echo #
+--echo # Memory Collector
+--echo #
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_retention = 0;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_retention = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_retention = 10000000;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_running = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_sample_rate = 0;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_sample_rate = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_sample_rate = 10000000;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_usage_warning_level_1 = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_usage_warning_level_1 = @ulong_max;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_usage_warning_level_2 = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_usage_warning_level_2 = @ulong_max;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_usage_warning_level_3 = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_usage_warning_level_3 = @ulong_max;
+
+
+--echo #
+--echo # System Collector
+--echo #
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_retention = 0;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_retention = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_retention = 10000000;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_running = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_sample_rate = 0;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_sample_rate = -1;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_sample_rate = 10000000;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_cpu_stats_history = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_disk_stats_history = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_memory_stats_history = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.system_process_stats_history = -1;
+
+
+--echo #
+--echo # General system vars
+--echo #
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.status_interval = 1001;
+
+--echo
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.status_interval = -1;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

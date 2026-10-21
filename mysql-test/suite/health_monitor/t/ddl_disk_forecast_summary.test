@@ -1,0 +1,51 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Load the component
+--echo ##   2. DDL operations on disk_forecast_summary
+--echo ##   3. Unload the component
+
+--echo
+--echo #
+--echo # Install the Health Monitor component
+--echo #
+--eval install component 'file://component_health_monitor';
+
+--echo
+--echo ###
+--echo ### Table Operations: DDL
+--echo ###
+
+--echo
+--echo #
+--echo # disk_forecast_summary
+--echo #
+use performance_schema;
+
+--echo
+--error ER_TABLEACCESS_DENIED_ERROR
+drop table disk_forecast_summary;
+
+--echo
+--error ER_DBACCESS_DENIED_ERROR
+alter table disk_forecast_summary
+  add column foo integer;
+
+--echo
+--error ER_DBACCESS_DENIED_ERROR
+alter table disk_forecast_summary
+  add index test_index(timestamp);
+
+--echo
+create table test.create_select
+  as select * from performance_schema.disk_forecast_summary;
+
+drop table test.create_select;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

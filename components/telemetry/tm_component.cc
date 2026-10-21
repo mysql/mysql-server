@@ -30,6 +30,8 @@
 #include <unistd.h>
 #endif
 
+#include <cinttypes>
+
 #include <opentelemetry/sdk/version/version.h>
 #include <opentelemetry/version.h>
 
@@ -85,10 +87,8 @@ REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_string_get_data_in_charset,
 REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_string_factory, string_factory_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_string_converter, string_converter_srv);
 
-REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_cond_v1, cond_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_mutex_v1, mutex_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(psi_metric_v1, metric_srv);
-REQUIRES_SERVICE_PLACEHOLDER_AS(psi_stage_v1, stage_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(psi_thread_v7, thread_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(psi_idle_v1, idle_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration, reg_reg);
@@ -277,7 +277,6 @@ mysql_service_status_t telemetry_init_install() {
   bool brc;
 
   g_shutting_down = false;
-  g_sessions_closed = 0LL;
   g_tracer_provider = nullptr;
   g_tracer = nullptr;
 
@@ -497,23 +496,7 @@ void telemetry_init_noop_configure() {
   g_logger = nullptr;
 }
 
-mysql_service_status_t telemetry_deinit() {
-  log_info("%s: Stopping ...", component_name);
-
-  unregister_services_loaded_notification();
-
-  // Done before emit_control_span() and emit_control_log(),
-  // so that UNLOAD COMPONENT does not count as actual usage.
-  otel_component_option_usage_deinit();
-
-  emit_control_span(false, false, false, k_reason_shutdown);
-  emit_control_log(false, false, false, k_reason_shutdown);
-  g_shutting_down.store(true);
-
-  log_info("%s: Unregister telemetry logger ...", component_name);
-
-  unregister_telemetry_logger();
-
+int64_t telemetry_deinit_traces() {
   log_info("%s: Unregister telemetry ...", component_name);
 
   unregister_telemetry_callback();
@@ -522,9 +505,13 @@ mysql_service_status_t telemetry_deinit() {
 
   abort_current_session();
 
-  log_info("%s: Waiting for sessions ...", component_name);
+  log_info("%s: Checking live sessions ...", component_name);
 
-  wait_for_sessions();
+  int64_t remaining = g_session_count.load();
+
+  if (remaining != 0) {
+    return remaining;
+  }
 
   log_info("%s: Unregister notification ...", component_name);
 
@@ -546,6 +533,10 @@ mysql_service_status_t telemetry_deinit() {
   g_tracer = nullptr;
   g_tracer_provider = nullptr;
 
+  return 0;
+}
+
+void telemetry_deinit_metrics() {
   if (sv_metrics_enabled) {
     log_info("%s: Cleanup meters notification ...", component_name);
 
@@ -560,9 +551,17 @@ mysql_service_status_t telemetry_deinit() {
 #else
     cleanup_otel_meter_providers();
 #endif
+
+    sv_metrics_enabled = false;
   } else {
     log_info("%s: Metrics are disabled, nothing to cleanup.", component_name);
   }
+}
+
+void telemetry_deinit_logs() {
+  log_info("%s: Unregister telemetry logger ...", component_name);
+
+  unregister_telemetry_logger();
 
   if (g_logger_provider != nullptr) {
     std::chrono::microseconds const flush_timeout(FLUSH_TIMEOUT_USEC);
@@ -575,6 +574,77 @@ mysql_service_status_t telemetry_deinit() {
 
   g_logger = nullptr;
   g_logger_provider = nullptr;
+}
+
+/*
+ * Important note:
+ *
+ * telemetry_deinit() may fail, and is restartable.
+ *
+ * A first call to UNINSTALL COMPONENT will perform a partial uninstall,
+ * then check for any remaining live telemetry sessions.
+ *
+ * Because of the partial UNINSTALL:
+ * - no new telemetry sessions are created
+ * - existing live sessions will detect telemetry changes,
+ *   and gracefully close over time.
+ *
+ * A subsequent UNINSTALL will check again for live sessions.
+ *
+ * Once every session is closed, UNINSTALL will succeed,
+ * and the telemetry component will be (finally) removed.
+ *
+ * All the deinit() code involved during the partial uninstall
+ * must be idempotent.
+ *
+ * TODO:
+ *
+ * This behavior is needed for robustness, but is not user friendly,
+ * with UNINSTALL reporting errors, such as:
+ *   Returned error: ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE(3538)
+ *   (HY000): De-initialization method provided by component
+ * 'mysql::component_telemetry' failed.
+ *
+ * The main issue is to decouple component INSTALL/UNINSTALL
+ * from component ENABLED/DISABLED.
+ *
+ * The component framework needs a way for the user to:
+ * - disable a component first (draining live sessions),
+ * - then uninstall the component
+ * as two distinct operations.
+ */
+mysql_service_status_t telemetry_deinit() {
+  log_info("%s: Stopping ...", component_name);
+
+  // Will be visible if UNINSTALL fails
+  log_info("%s: RUN_LEVEL = UNINSTALL", component_name);
+  g_run_level.store(RUN_LEVEL_UNINSTALL);
+
+  unregister_services_loaded_notification();
+
+  // Done before emit_control_span() and emit_control_log(),
+  // so that UNLOAD COMPONENT does not count as actual usage.
+  otel_component_option_usage_deinit();
+
+  if (!g_shutting_down.load()) {
+    emit_control_span(false, false, false, k_reason_shutdown);
+    emit_control_log(false, false, false, k_reason_shutdown);
+  }
+  g_shutting_down.store(true);
+
+  telemetry_deinit_metrics();
+
+  telemetry_deinit_logs();
+
+  int64_t remaining = telemetry_deinit_traces();
+
+  if (remaining != 0) {
+    // This is a partial UNINSTALL
+    log_error("%s: Stop failed (%" PRId64
+              " remaining sessions). Retry UNINSTALL later.",
+              component_name, remaining);
+    return 1;
+  }
 
   log_info("%s: Unregister system variables ...", component_name);
 
@@ -590,6 +660,7 @@ mysql_service_status_t telemetry_deinit() {
 
   cleanup_mutexes();
 
+  // This is a full UNINSTALL
   log_info("%s: Stopped.", component_name);
   return 0;
 }
@@ -617,10 +688,8 @@ BEGIN_COMPONENT_REQUIRES(component_telemetry)
   REQUIRES_SERVICE_AS(mysql_string_get_data_in_charset, string_get_data_srv),
   REQUIRES_SERVICE_AS(mysql_string_factory, string_factory_srv),
   REQUIRES_SERVICE_AS(mysql_string_converter, string_converter_srv),
-  REQUIRES_SERVICE_AS(mysql_cond_v1, cond_srv),
   REQUIRES_SERVICE_AS(mysql_mutex_v1, mutex_srv),
   REQUIRES_SERVICE_AS(psi_metric_v1, metric_srv),
-  REQUIRES_SERVICE_AS(psi_stage_v1, stage_srv),
   REQUIRES_SERVICE_AS(psi_thread_v7, thread_srv),
   REQUIRES_SERVICE_AS(psi_idle_v1, idle_srv),
   REQUIRES_SERVICE_AS(registry_registration, reg_reg),

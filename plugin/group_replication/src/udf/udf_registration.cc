@@ -25,6 +25,7 @@
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/udf_registration.h>
 #include <array>
+#include "my_systime.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/udf/udf_communication_protocol.h"
 #include "plugin/group_replication/include/udf/udf_descriptor.h"
@@ -32,6 +33,7 @@
 #include "plugin/group_replication/include/udf/udf_multi_primary.h"
 #include "plugin/group_replication/include/udf/udf_single_primary.h"
 #include "plugin/group_replication/include/udf/udf_write_concurrency.h"
+#include "sql/debug_sync.h"
 
 /* The UDFs we will register. */
 static std::array<udf_descriptor, 10> udfs = {
@@ -98,7 +100,7 @@ end:
   return error;
 }
 
-bool unregister_udfs() {
+bool unregister_udfs(bool wait_for_references) {
   bool error = false;
 
   SERVICE_TYPE(registry) *plugin_registry = mysql_plugin_registry_acquire();
@@ -117,10 +119,23 @@ bool unregister_udfs() {
     my_service<SERVICE_TYPE(udf_registration)> udf_registrar("udf_registration",
                                                              plugin_registry);
     if (udf_registrar.is_valid()) {
-      int was_present;
-      for (udf_descriptor const &udf : udfs) {
-        // Don't care about the functions not being there.
-        error = error || udf_registrar->udf_unregister(udf.name, &was_present);
+      /* Wait for each UDF before moving to the next one. This avoids retrying
+         a removed name that another provider may register while we wait. */
+      for (const udf_descriptor &udf : udfs) {
+        bool udf_in_use = false;
+        do {
+          int was_present = 0;
+          udf_in_use = udf_registrar->udf_unregister(udf.name, &was_present) &&
+                       was_present;
+          if (wait_for_references && udf_in_use) {
+            DEBUG_SYNC(current_thd, "group_replication_udf_unregister_wait");
+            my_sleep(50000);
+          }
+        } while (wait_for_references && udf_in_use);
+
+        if (udf_in_use) {
+          error = true;
+        }
       }
     } else {
       error = true;

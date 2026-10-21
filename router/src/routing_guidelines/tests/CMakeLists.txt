@@ -28,17 +28,22 @@ INCLUDE_DIRECTORIES(
 
 ADD_TEST_FILE(test_parser.cc
   MODULE routing_guidelines
-  LIB_DEPENDS routing_guidelines-static
+  LIB_DEPENDS routing_guidelines_object
   )
+
+TARGET_COMPILE_DEFINITIONS(routertest_routing_guidelines_parser
+  PRIVATE ROUTING_GUIDELINES_STATIC_DEFINE=1)
 
 ADD_TEST_FILE(test_classifier.cc
   MODULE routing_guidelines
   EXTRA_SOURCES ../src/routing_simulator.cc
-  LIB_DEPENDS routing_guidelines-static;
+  LIB_DEPENDS routing_guidelines_object;
   )
 TARGET_INCLUDE_DIRECTORIES(routertest_routing_guidelines_classifier PRIVATE
   ${MySQLRouter_SOURCE_DIR}/src/harness/include/
   )
+TARGET_COMPILE_DEFINITIONS(routertest_routing_guidelines_classifier
+  PRIVATE ROUTING_GUIDELINES_STATIC_DEFINE=1)
 
 FILE(GLOB TEST_FILES RELATIVE
   ${CMAKE_CURRENT_SOURCE_DIR}/data data/simulator/*.json)
@@ -47,16 +52,16 @@ COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}/data "${TEST_FILES}")
 IF(LIBFUZZER_COMPILE_FLAGS)
   MYSQL_ADD_EXECUTABLE(routertest_fuzz_routing_guidelines_parser
     fuzz_parser.cc
-    $<TARGET_OBJECTS:routing_guidelines-fuzzed>
     COMPONENT Router
     LINK_LIBRARIES
+      routing_guidelines-fuzzed
       harness-library  # string_format
       router_utils     # routing_guidelines_version_from_string
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
   TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_routing_guidelines_parser
-    PRIVATE $<TARGET_PROPERTY:routing_guidelines-objects,INCLUDE_DIRECTORIES>)
+    PRIVATE $<TARGET_PROPERTY:routing_guidelines_object,INCLUDE_DIRECTORIES>)
 
   LIBFUZZER_ADD_TEST(routertest_fuzz_routing_guidelines_parser
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus_parser)

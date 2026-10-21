@@ -29,6 +29,7 @@
 #include <list>
 #include <memory>  // make_unique
 #include <string>
+#include <utility>
 
 #include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/io_context.h"
@@ -55,7 +56,28 @@ class IO_COMPONENT_EXPORT IoComponent {
    */
   net::io_context &io_context();
 
+  /**
+   * get ref to the io_context dedicated to socket acceptors.
+   *
+   * Accepted client sockets are still assigned to io_threads().
+   *
+   * behaviour is undefined when called before IoComponent::init() and after
+   * IoComponent::reset()
+   */
+  net::io_context &acceptor_io_context();
+
   static IoComponent &get_instance();
+
+  /**
+   * Set callbacks invoked from each I/O worker thread.
+   *
+   * The callbacks must be set before init() and reset only after reset().
+   */
+  void set_thread_lifecycle(IoThreadLifecycle lifecycle) {
+    thread_lifecycle_ = std::move(lifecycle);
+  }
+
+  void reset_thread_lifecycle() { thread_lifecycle_ = {}; }
 
   /**
    * initialize io-component.
@@ -124,11 +146,14 @@ class IO_COMPONENT_EXPORT IoComponent {
 
   std::list<IoThread> io_threads_;
 
+  std::unique_ptr<IoThread> routing_acceptor_io_thread_;
+
   std::unique_ptr<net::io_context> io_ctx_;
 
   std::atomic<int> users_{};
 
   std::string backend_name_;
+  IoThreadLifecycle thread_lifecycle_;
 };
 
 #endif

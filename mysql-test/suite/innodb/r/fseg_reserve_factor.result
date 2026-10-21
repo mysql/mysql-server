@@ -55,6 +55,32 @@ Total= 5120, used=3212, free=1908
 Fill factor= 62.7344, free factor= 37.2656
 
 SET innodb_interpreter = 'destroy';
+SET @saved_fill_factor = @@GLOBAL.innodb_fill_factor;
+SET GLOBAL innodb_fill_factor = 99;
+SET GLOBAL innodb_segment_reserve_factor = 12.5;
+SET SESSION cte_max_recursion_depth = 200000;
+# A sorted INPLACE rebuild should not waste space on free pages.
+CREATE TABLE t4 (
+id INT NOT NULL,
+payload VARCHAR(100) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE = InnoDB STATS_PERSISTENT = 1;
+INSERT INTO t4
+WITH RECURSIVE seq (n) AS (
+SELECT 1
+UNION ALL
+SELECT n + 1 FROM seq WHERE n < 200000
+)
+SELECT n, RPAD(n, 100, 'x') FROM seq;
+ALTER TABLE t4 FORCE, ALGORITHM = INPLACE;
+ANALYZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
+include/assert.inc [Sorted rebuild must not leave 64 or more extra pages]
+SELECT COUNT(*) FROM t4;
+COUNT(*)
+200000
+SET GLOBAL innodb_fill_factor = @saved_fill_factor;
 SET GLOBAL innodb_segment_reserve_factor = DEFAULT;
-DROP TABLE t1, t2, t3;
+DROP TABLE t1, t2, t3, t4;
 DROP PROCEDURE populate;

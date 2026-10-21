@@ -119,6 +119,7 @@ ServiceStatus check_service_operations(int argc, char **argv,
   if (g_service.GetOS()) { /* true NT family */
     std::string full_service_path;
     ServiceConfOptions conf_opts;
+    bool reload_tls{false};
 
     CmdArgHandler arg_handler{false, true};
     arg_handler.add_option(CmdOption::OptionNames({"-c", "--config"}),
@@ -128,11 +129,21 @@ ServiceStatus check_service_operations(int argc, char **argv,
                              conf_opts.config_file = value;
                            });
     add_service_options(arg_handler, &conf_opts);
+    arg_handler.add_option(
+        CmdOption::OptionNames({"--reload-tls"}),
+        "Request asynchronous TLS material reload in a running Router.",
+        CmdOptionValueReq::none, "",
+        [&reload_tls](const std::string &) { reload_tls = true; });
 
     try {
       arg_handler.process(std::vector<std::string>({argv + 1, argv + argc}));
     } catch (const std::invalid_argument &exc) {
       log_error(exc.what());
+      return ServiceStatus::Error;
+    }
+
+    if (reload_tls && conf_opts.operation != ServiceOperation::None) {
+      log_error("--reload-tls cannot be used with a Windows service operation");
       return ServiceStatus::Error;
     }
 

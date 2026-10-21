@@ -1,0 +1,23 @@
+
+
+## I. Verify that MRS does not expose a plaintext REST endpoint when
+##    MySQL Server TLS is disabled.
+include/assert.inc [MySQL Server TLS must be disabled for this test]
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+include/assert.inc [state reports ERROR after TLS startup failure]
+# The plaintext REST endpoint must remain unavailable.
+
+## II. Configure TLS and verify that the inactive component recovers.
+include/assert.inc [Inactive MRS installation must provision the fixed accounts]
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+include/assert.inc [state reports READY after TLS recovery]
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

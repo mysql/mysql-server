@@ -31,6 +31,7 @@ SET(TEST_MODULE metadata_cache)
 ADD_TEST_FILE(test_cache_plugin.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
+    harness_tls
     test-helpers
     router_mysqlxclient
     router_mysqlxmessages
@@ -64,6 +65,7 @@ TARGET_COMPILE_DEFINITIONS(${T}
   PRIVATE
   METADATA_CACHE_PLUGIN_STATIC_DEFINE=1
   METADATA_CACHE_STATIC_DEFINE=1
+  SSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data"
   )
 
 

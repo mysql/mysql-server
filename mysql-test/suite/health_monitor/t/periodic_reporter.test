@@ -1,0 +1,317 @@
+--echo ##
+--echo ## Test the Health Monitor component.
+--echo ## Specifically, we will test periodic reporting.
+--echo ##
+--echo ## Test cases:
+--echo ##
+--echo ##   1. No reports when periodic reporter is not running
+--echo ##   2. Report is skipped if less than half of the
+--echo ##      level 3 limit is available.
+--echo ##   3. Setting invalid report specification (json)
+--echo ##      returns error.
+--echo ##   4. Report referring to view with invalid characters
+--echo ##      produces warning message in the diagnostic log and
+--echo ##      is ignored.
+--echo ##   5. Report referring to schema qualified view
+--echo ##      name is treated as an invalid name.
+--echo ##   6. Report referring to non-existing view
+--echo ##      is accepted, but reports "no such table".
+--echo ##   7. Creating two views in sys schema, verify
+--echo ##      that we can have two reports with different
+--echo ##      intervals.
+--echo ##
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Empty and invalid report definitions remain invalid
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.memory_report_definition='';
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.periodic_report_definition='invalid json';
+
+--eval uninstall component 'file://component_health_monitor'
+
+--echo ##
+--echo ## Test temporarily disabled
+exit;
+
+--source include/have_log_diagnostic.inc
+
+--echo # Enable diagnostics.
+--let MYSQLD_DIAGNOSTIC_LOG=$MYSQL_TMP_DIR/diagnostic.log
+--let $restart_parameters = "restart:  --log-diagnostic-enable=1 --log-diagnostic=$MYSQLD_DIAGNOSTIC_LOG"
+--replace_result $MYSQLD_DIAGNOSTIC_LOG MYSQLD_DIAGNOSTIC_LOG
+
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+--source ../include/health_monitor_setup.inc
+
+--echo # Set generic grep options.
+--let $grep_file= $MYSQLD_DIAGNOSTIC_LOG
+--let $grep_output= none
+
+--echo #
+--echo # Grant mysql.session the privileges the component needs to query sys views
+--echo # and execute sys procedures.
+--echo #
+GRANT PROCESS ON *.* TO 'mysql.session'@localhost;
+GRANT SELECT ON sys.* TO 'mysql.session'@localhost;
+GRANT EXECUTE ON sys.* TO 'mysql.session'@localhost;
+GRANT SHOW DATABASES ON *.* TO 'mysql.session'@localhost;
+GRANT SHOW VIEW ON *.* TO 'mysql.session'@localhost;
+
+--echo ################################################################################
+--echo ## Test case 1: No reports when reporter not running.
+--echo ################################################################################
+--echo
+--echo #
+--echo # Turn off collectors, turn on periodic reporting.
+--echo # Set periodic report def to a low interval.
+--echo #
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.memory_sample_rate = 10;
+set @@global.health_monitor.periodic_report_definition = '
+[{
+   "title" : "===== PERIODIC TEST DIAGNOSTICS BEGIN =====",
+   "footer" : "===== PERIODIC TEST DIAGNOSTICS END =====",
+   "period" : 2,
+   "queries" : [
+      {"query" : "no_such_view"}
+   ]
+}]';
+set @@global.health_monitor.periodic_reporting = on;
+
+--echo # Give the reporter time to issue reports to the diagnostic log.
+--echo # The header for the report will be written even if the view
+--echo # does not exist.
+--sleep 5
+
+--echo # Turn off periodic reporting and allow the last report to be finished.
+set @@global.health_monitor.periodic_reporting = off;
+--sleep 5
+
+--echo # Count number of reports.
+--let $grep_pattern=PERIODIC TEST
+--source include/grep_pattern.inc
+--let $pre_count= $GREP_RESULT
+--let $assert_text= "At least one occurrence"
+--let $assert_cond= "$pre_count > 0"
+--source include/assert.inc
+
+--echo # Sleep to potentially allow more reports to be generated.
+--sleep 5
+
+--echo # Count again and verify we have the same number.
+--let $grep_pattern=PERIODIC TEST
+--source include/grep_pattern.inc
+--let $post_count= $GREP_RESULT
+--let $assert_text= "No new occurrences"
+--let $assert_cond= "$pre_count = $post_count"
+--source include/assert.inc
+
+--echo ################################################################################
+--echo ## Test case 2: No reports when approaching OOM.
+--echo ################################################################################
+--echo
+
+--echo # Simulate OOM.
+set @@global.health_monitor.memory_usage_warning_level_1 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_2 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_3 = @force_memory_warning - 1;
+set @@global.health_monitor.memory_running = on;
+
+--echo # Turn on periodic reporting.
+set @@global.health_monitor.periodic_reporting = on;
+
+--sleep 10
+
+--echo
+--echo #
+--echo # Verify warning and that no new report was issued.
+--echo #
+--let $grep_pattern=PERIODIC TEST
+--source include/grep_pattern.inc
+--let $post_count= $GREP_RESULT
+--let $assert_text= "No new occurrences"
+--let $assert_cond= "$pre_count = $post_count"
+--source include/assert.inc
+
+--let $grep_pattern=Diagnostic report unavailable
+--source include/grep_pattern.inc
+--let $count= $GREP_RESULT
+--let $assert_text= "At least one occurrence"
+--let $assert_cond= "$count > 0"
+--source include/assert.inc
+
+set @@global.health_monitor.memory_usage_warning_level_3 = @no_memory_warning;
+set @@global.health_monitor.memory_running = off;
+
+--echo ################################################################################
+--echo ## Test case 3: Invalid report specification
+--echo ################################################################################
+
+--echo # Turn on periodic reporting.
+set @@global.health_monitor.periodic_reporting = on;
+
+--let $old_def = `select @@global.health_monitor.periodic_report_definition`
+
+--echo # Set some invalid value.
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.health_monitor.periodic_report_definition = 'invalid json';
+
+--let $new_def = `select @@global.health_monitor.periodic_report_definition`
+--assert($new_def == $old_def)
+
+--echo ################################################################################
+--echo ## Test case 4: Views with invalid characters.
+--echo ## Test case 5: Schema qualified view names.
+--echo ################################################################################
+
+--echo # Set some invalid value.
+set @@global.health_monitor.periodic_report_definition = '
+[{
+   "title" : "===== PERIODIC TEST DIAGNOSTICS BEGIN =====",
+   "footer" : "===== PERIODIC TEST DIAGNOSTICS END =====",
+   "period" : 2,
+   "queries" : [
+      {"query" : "invalid-name"}
+   ]
+}]';
+
+--echo # Verify warning in the diagnostic log.
+--let $grep_pattern=invalid-name
+--source include/grep_pattern.inc
+--let $count= $GREP_RESULT
+--let $assert_text= "One occurrence"
+--let $assert_cond= "$count = 1"
+--source include/assert.inc
+
+--echo # Set some invalid value.
+set @@global.health_monitor.periodic_report_definition = '
+[{
+   "title" : "===== PERIODIC TEST DIAGNOSTICS BEGIN =====",
+   "footer" : "===== PERIODIC TEST DIAGNOSTICS END =====",
+   "period" : 2,
+   "queries" : [
+      {"query" : "invalid@name"}
+   ]
+}]';
+
+--echo # Verify warning in the diagnostic log.
+--let $grep_pattern=invalid@name
+--source include/grep_pattern.inc
+--let $count= $GREP_RESULT
+--let $assert_text= "One occurrence"
+--let $assert_cond= "$count = 1"
+--source include/assert.inc
+
+--echo # Set schema qualified view name.
+set @@global.health_monitor.periodic_report_definition = '
+[{
+   "title" : "===== PERIODIC TEST DIAGNOSTICS BEGIN =====",
+   "footer" : "===== PERIODIC TEST DIAGNOSTICS END =====",
+   "period" : 2,
+   "queries" : [
+      {"query" : "information_schema.tables"}
+   ]
+}]';
+
+--echo # Verify warning in the diagnostic log.
+--let $grep_pattern=information_schema
+--source include/grep_pattern.inc
+--let $count= $GREP_RESULT
+--let $assert_text= "One occurrence"
+--let $assert_cond= "$count = 1"
+--source include/assert.inc
+
+--echo ################################################################################
+--echo ## Test case 6: Report referring non-existing view logs "no such table".
+--echo ################################################################################
+
+--echo # Set non-existing view name.
+set @@global.health_monitor.periodic_report_definition = '
+[{
+   "title" : "===== PERIODIC TEST DIAGNOSTICS BEGIN =====",
+   "footer" : "===== PERIODIC TEST DIAGNOSTICS END =====",
+   "period" : 2,
+   "queries" : [
+      {"query" : "tc6_no_such_view", "internal" : false}
+   ]
+}]';
+
+--sleep 10
+
+--echo # Should have one occurrence in the diagnostic log.
+--let $grep_pattern=tc6_no_such_view. doesn.t exist
+--source include/grep_pattern.inc
+--let $view_count= $GREP_RESULT
+--let $assert_text= "At least one occurrence"
+--let $assert_cond= "$view_count > 0"
+--source include/assert.inc
+
+--echo ################################################################################
+--echo ## Test case 7: Create two views, verify that we can get two reports.
+--echo ################################################################################
+
+--echo # Create views.
+CREATE VIEW sys.hm_v1 AS SELECT 'hm_v1';
+CREATE VIEW sys.hm_v2 AS SELECT 'hm_v2';
+
+--echo # Set two reports referring the views.
+set @@global.health_monitor.periodic_report_definition = '
+[{
+   "title" : "===== PERIODIC TEST DIAGNOSTICS REPORT 1 BEGIN =====",
+   "footer" : "===== PERIODIC TEST DIAGNOSTICS REPORT 1 END =====",
+   "period" : 1,
+   "queries" : [
+      {"query" : "hm_v1", "internal" : false}
+   ]
+},
+{
+   "title" : "===== PERIODIC TEST DIAGNOSTICS REPORT 2 BEGIN =====",
+   "footer" : "===== PERIODIC TEST DIAGNOSTICS REPORT 2 END =====",
+   "period" : 2,
+   "queries" : [
+      {"query" : "hm_v2", "internal" : false}
+   ]
+}]';
+
+--sleep 10
+
+--let $grep_pattern=hm_v1
+--source include/grep_pattern.inc
+--let $v1_count= $GREP_RESULT
+--let $assert_text= "At least one occurrence"
+--let $assert_cond= "$v1_count > 0"
+--source include/assert.inc
+
+--let $grep_pattern=hm_v2
+--source include/grep_pattern.inc
+--let $v2_count= $GREP_RESULT
+--let $assert_text= "At least one occurrence"
+--let $assert_cond= "$v2_count > 0"
+--source include/assert.inc
+
+--let $assert_text= "Reports for v1 more frequent than v2"
+--let $assert_cond= "$v1_count > $v2_count"
+--source include/assert.inc
+
+DROP VIEW sys.hm_v1;
+DROP VIEW sys.hm_v2;
+
+--echo ################################################################################
+--echo ## Cleanup and uninstall.
+--echo ################################################################################
+--echo
+REVOKE PROCESS ON *.* FROM 'mysql.session'@localhost;
+REVOKE SELECT ON sys.* FROM 'mysql.session'@localhost;
+REVOKE EXECUTE ON sys.* FROM 'mysql.session'@localhost;
+REVOKE SHOW DATABASES ON *.* FROM 'mysql.session'@localhost;
+REVOKE SHOW VIEW ON *.* FROM 'mysql.session'@localhost;
+
+--echo
+--eval uninstall component 'file://component_health_monitor';
+
+--remove_file $MYSQLD_DIAGNOSTIC_LOG

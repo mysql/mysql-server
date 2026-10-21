@@ -1,0 +1,97 @@
+## III. Set sysvars to invalid values:
+#
+# 1. Attempt to set each sysvar to an invalid value.
+# 2. Confirm the operation fails with the correct error.
+# 3. Confirm the sysvar retains its previous valid value.
+#
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+
+#
+# TLS is mandatory and cannot be disabled.
+SET GLOBAL mysql_rest_service.use_ssl = 0;
+ERROR HY000: Unknown system variable 'mysql_rest_service.use_ssl'
+
+# Developer selection is not exposed by the component.
+SET GLOBAL mysql_rest_service.developer = 'my_user';
+ERROR HY000: Unknown system variable 'mysql_rest_service.developer'
+
+#
+## I. 1. (http_port)
+## I. 2. (http_port)
+SET GLOBAL mysql_rest_service.http_port = -1;
+ERROR HY000: Variable 'mysql_rest_service.http_port' cannot be set to the value of '-1'. The value must be an integer between 1 and 65535.
+SET GLOBAL mysql_rest_service.http_port = 65536;
+ERROR HY000: Variable 'mysql_rest_service.http_port' cannot be set to the value of '65536'. The value must be an integer between 1 and 65535.
+
+#
+## I. 3. (http_port)
+include/assert.inc [MRS Component http_port must be %HTTP_PORT%]
+
+#
+## I. 1. (ssl_cert, ssl_key)
+## I. 2. (ssl_cert, ssl_key)
+SET GLOBAL mysql_rest_service.ssl_cert = "";
+ERROR HY000: Variable 'mysql_rest_service.ssl_cert' cannot be set to the value of ''. A nonempty value is required.
+SET GLOBAL mysql_rest_service.ssl_key = "";
+ERROR HY000: Variable 'mysql_rest_service.ssl_key' cannot be set to the value of ''. A nonempty value is required.
+
+#
+## I. 3. (ssl_cert, ssl_key)
+include/assert.inc [MRS Component ssl_cert must be %SSL_CERT%]
+include/assert.inc [MRS Component ssl_key must be %SSL_CERT%]
+
+#
+## I. 1. (io_worker_threads)
+## I. 2. (io_worker_threads)
+SET GLOBAL mysql_rest_service.io_worker_threads = -1;
+ERROR HY000: Variable 'mysql_rest_service.io_worker_threads' cannot be set to the value of '-1'. The value must be an integer between 0 and 1024.
+SET GLOBAL mysql_rest_service.io_worker_threads = 1025;
+ERROR HY000: Variable 'mysql_rest_service.io_worker_threads' cannot be set to the value of '1025'. The value must be an integer between 0 and 1024.
+
+#
+## I. 3. (io_worker_threads)
+include/assert.inc [MRS Component io_worker_threads must retain its original value]
+
+#
+## I. 1. (http_max_connections)
+## I. 2. (http_max_connections)
+SET GLOBAL mysql_rest_service.http_max_connections = -1;
+ERROR HY000: Variable 'mysql_rest_service.http_max_connections' cannot be set to the value of '-1'. The value must be an integer between 1 and 100000.
+SET GLOBAL mysql_rest_service.http_max_connections = 100001;
+ERROR HY000: Variable 'mysql_rest_service.http_max_connections' cannot be set to the value of '100001'. The value must be an integer between 1 and 100000.
+SET GLOBAL mysql_rest_service.http_max_connections = NULL;
+ERROR 42000: Incorrect argument type to variable 'mysql_rest_service.http_max_connections'
+SET GLOBAL mysql_rest_service.http_max_connections = "string";
+ERROR 42000: Incorrect argument type to variable 'mysql_rest_service.http_max_connections'
+
+#
+## I. 3. (http_max_connections)
+include/assert.inc [MRS Component http_max_connections must retain its original value]
+
+#
+## I. 1. (HTTP body size limits)
+## I. 2. (HTTP body size limits)
+SET GLOBAL mysql_rest_service.http_max_request_body_size = -1;
+ERROR HY000: Variable 'mysql_rest_service.http_max_request_body_size' cannot be set to the value of '-1'. The value must be an integer between 0 and 2147483648.
+SET GLOBAL mysql_rest_service.http_max_request_body_size = 2147483649;
+ERROR HY000: Variable 'mysql_rest_service.http_max_request_body_size' cannot be set to the value of '2147483649'. The value must be an integer between 0 and 2147483648.
+SET GLOBAL mysql_rest_service.http_max_response_body_size = -1;
+ERROR HY000: Variable 'mysql_rest_service.http_max_response_body_size' cannot be set to the value of '-1'. The value must be an integer between 0 and 2147483648.
+SET GLOBAL mysql_rest_service.http_max_response_body_size = 2147483649;
+ERROR HY000: Variable 'mysql_rest_service.http_max_response_body_size' cannot be set to the value of '2147483649'. The value must be an integer between 0 and 2147483648.
+
+#
+## I. 3. (HTTP body size limits)
+include/assert.inc [MRS Component http_max_request_body_size must retain its original value]
+include/assert.inc [MRS Component http_max_response_body_size must retain its original value]
+
+#
+# Cleanup
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

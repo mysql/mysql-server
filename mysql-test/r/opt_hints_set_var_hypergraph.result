@@ -830,7 +830,7 @@ EXPLAIN
     "estimated_first_row_cost": 7.247489746962514
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 EXPLAIN FORMAT=JSON SELECT /*+ SET_VAR(windowing_use_high_precision=OFF)*/
 d, AVG(d) over w `avg`, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt
@@ -881,7 +881,7 @@ EXPLAIN
     "estimated_first_row_cost": 7.247489746962514
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 DROP TABLE t1;
 CALL test_hint("SET_VAR(windowing_use_high_precision=OFF)", "windowing_use_high_precision");

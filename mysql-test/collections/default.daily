@@ -67,6 +67,10 @@ perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_
 
 # Thread Pool Plugin
 perl mysql-test-run.pl --timer --big-test --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+perl mysql-test-run.pl --timer --big-test --force --comment=multi_factor_authentication --vardir=var-mfa --suite=multi_factor_authentication --no-skip
+
+# Health Monitor
+perl mysql-test-run.pl --timer --force --comment=health_monitor --vardir=var-health-monitor --suite=health_monitor --no-skip --exclude-platform=windows
 
 ######END OF SECTION 2 (NON-DEFAULT SUITES)######################
 
@@ -99,6 +103,5 @@ perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60   --comm
 perl mysql-test-run.pl --timer --force   --comment=innodb-page-size-8k --vardir=var-innodb-page-size-8k  --initialize --innodb-page-size=8k --mysqld=--innodb-page-size=8k --suite=innodb --no-skip
 
 ####END OF SECTION4(EXTENDED INNODB) ####################
-
 
 

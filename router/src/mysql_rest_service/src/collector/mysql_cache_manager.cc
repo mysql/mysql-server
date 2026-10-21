@@ -25,7 +25,8 @@
 
 #include "collector/mysql_cache_manager.h"
 
-#include <vector>
+#include <stdexcept>
+#include <string>
 
 #include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/text_to.h"
@@ -109,19 +110,56 @@ CacheOptions parse_json_options(const std::string &options) {
 
 using Object = MysqlCacheManager::Object;
 
-Object MysqlCacheManager::MysqlCacheCallbacks::object_allocate(bool wait) {
-  using namespace std::string_literals;
-  std::unique_ptr<CountedMySQLSession> obj{new CountedMySQLSession()};
-  std::vector<std::string> sqls{"SET @@SESSION.sql_mode=DEFAULT;"};
+namespace {
 
-  if (!role_.empty()) {
-    sqls.push_back("SET ROLE "s + role_);
+const char *role_for_connection(MySQLConnection type) {
+  switch (type) {
+    case kMySQLConnectionMetadataRO:
+      [[fallthrough]];
+    case kMySQLConnectionMetadataRW:
+      return "mysql_rest_service_meta_provider";
+    case kMySQLConnectionUserdataRO:
+      [[fallthrough]];
+    case kMySQLConnectionUserdataRW:
+      return "mysql_rest_service_data_provider";
   }
 
-  if (connection_configuration_.is_rw())
-    sqls.push_back("SET @@SESSION.session_track_gtids=\"OWN_GTID\";");
+  throw std::logic_error("Unknown MRS MySQL connection type");
+}
 
-  obj->connect_and_set_opts(new_connection_params(wait), sqls);
+}  // namespace
+
+bool is_rw_connection(MySQLConnection type) {
+  switch (type) {
+    case kMySQLConnectionMetadataRW:
+      [[fallthrough]];
+    case kMySQLConnectionUserdataRW:
+      return true;
+    case kMySQLConnectionMetadataRO:
+      [[fallthrough]];
+    case kMySQLConnectionUserdataRO:
+      return false;
+  }
+
+  throw std::logic_error("Unknown MRS MySQL connection type");
+}
+
+CountedMySQLSession::Sqls build_mysql_cache_initial_sqls(MySQLConnection type) {
+  CountedMySQLSession::Sqls sqls{"SET @@SESSION.sql_mode=DEFAULT;"};
+  sqls.push_back(std::string{"SET ROLE "} + role_for_connection(type));
+
+  if (is_rw_connection(type)) {
+    sqls.push_back("SET @@SESSION.session_track_gtids=\"OWN_GTID\";");
+  }
+
+  return sqls;
+}
+
+Object MysqlCacheManager::MysqlCacheCallbacks::object_allocate(bool wait) {
+  std::unique_ptr<CountedMySQLSession> obj{new CountedMySQLSession()};
+  obj->connect_and_set_opts(
+      new_connection_params(wait),
+      build_mysql_cache_initial_sqls(connection_configuration_.type_));
   mrs::Counter<kEntityCounterMySQLConnectionsCreated>::increment();
 
   return obj.release();

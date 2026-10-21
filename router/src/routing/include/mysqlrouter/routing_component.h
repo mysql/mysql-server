@@ -37,6 +37,7 @@
 
 #include "connection.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/stdx/expected.h"
 #include "routing_guidelines/routing_guidelines.h"
 
 class MySQLRoutingBase;
@@ -124,8 +125,7 @@ class ROUTING_EXPORT MySQLRoutingAPI {
   std::vector<mysql_harness::Destination> get_destination_candidates() const;
   SslOptions get_destination_ssl_options() const;
 
-  void start_accepting_connections();
-  void restart_accepting_connections();
+  stdx::expected<void, std::string> refresh_socket_acceptor_state();
 
   bool is_accepting_connections() const;
 
@@ -155,9 +155,10 @@ class ROUTING_EXPORT MySQLRoutingComponent {
   uint64_t current_total_connections();
   uint64_t max_total_connections() const { return max_total_connections_; }
 
-  const rapidjson::Document &routing_guidelines_document() const;
+  std::optional<std::reference_wrapper<const rapidjson::Document>>
+  routing_guidelines_document() const;
 
-  rapidjson::Document routing_guidelines_document_schema() const;
+  std::optional<rapidjson::Document> routing_guidelines_document_schema() const;
 
   std::vector<std::string> route_names() const;
 

@@ -62,6 +62,8 @@ class MysqlFixedPoolManager {
 
   virtual ~MysqlFixedPoolManager() = default;
 
+  uint32_t num_instances() const { return num_instances_; }
+
   virtual CachedObject get_instance() {
     return cache_manager_.get_instance(false);
   }

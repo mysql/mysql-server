@@ -1,0 +1,20 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Index tests - Health Monitor indexes are TODO, SHOW CREATE TABLE for now
+
+# System stats not supported on Windows
+--source include/not_windows.inc
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo
+show create table performance_schema.system_disk_stats;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

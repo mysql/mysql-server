@@ -311,6 +311,11 @@ set names utf8mb4;
 select ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1');
 
 #
+# Unterminated CDATA must be rejected rather than passed to the value handler.
+#
+select ExtractValue('0123456789AB<![CDATA[','/');
+
+#
 # Bug#18201: XML: ExtractValue works even if the xml fragment
 # is not well-formed xml
 #

@@ -1,0 +1,75 @@
+INSTALL COMPONENT "file://component_test_mysql_command_services";
+SET @saved_max_connections = @@GLOBAL.max_connections;
+--source include/count_sessions.inc
+SET @baseline_connections = (SELECT CAST(VARIABLE_VALUE AS UNSIGNED)
+  FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Threads_connected');
+
+--echo # Options reject incompatible modes and changes after session creation.
+SELECT test_mysql_command_session_admission_udf() AS option_checks;
+
+CREATE USER 'mcs_admission_user'@'localhost';
+CREATE USER 'mcs_admission_user'@'admission.example';
+
+--echo # Normal admission can use the last ordinary slot.
+SET GLOBAL max_connections = @baseline_connections + 1;
+SELECT test_mysql_command_session_admission_udf(FALSE, 1) AS normal_admission;
+--echo # Both modes must retain the account identity and reject access to mysql.user.
+SELECT test_mysql_command_session_admission_udf(FALSE, 1, 'mcs_admission_user')
+  AS normal_security_context;
+SELECT test_mysql_command_session_admission_udf(FALSE, 1, 'mcs_no_such_user') <> 'OK'
+  AS failed_security_context_lookup;
+SELECT test_mysql_command_session_admission_udf(FALSE, 1) AS after_failed_lookup;
+
+--echo # At the limit, rejection and retries must not consume capacity.
+SET GLOBAL max_connections = @baseline_connections;
+FLUSH STATUS;
+SELECT test_mysql_command_session_admission_udf(FALSE, 1) AS at_limit;
+SELECT test_mysql_command_session_admission_udf(FALSE, 8) AS retry_at_limit;
+--echo # Rejected sessions must not reserve the extra connection slot.
+SELECT VARIABLE_VALUE = @baseline_connections AS no_extra_slot
+  FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Max_used_connections';
+SELECT test_mysql_command_session_admission_udf(NULL, 1) AS legacy_admin;
+SELECT test_mysql_command_session_admission_udf(TRUE, 1) AS explicit_admin;
+SELECT test_mysql_command_session_admission_udf(TRUE, 1, 'mcs_admission_user')
+  AS admin_security_context;
+SELECT VARIABLE_VALUE = @baseline_connections AS capacity_restored
+  FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Threads_connected';
+
+--echo # Above the limit, normal admission must preserve error information.
+connect (extra,localhost,root,,);
+connection default;
+SELECT test_mysql_command_session_admission_udf(FALSE, 8) AS above_limit;
+SELECT test_mysql_command_session_admission_udf(TRUE, 1) AS admin_above_limit;
+disconnect extra;
+--source include/wait_until_count_sessions.inc
+
+SET GLOBAL max_connections = @baseline_connections + 1;
+--echo # Closing a blocker permits the same handle to connect at the same limit.
+SELECT test_mysql_command_session_admission_udf('recovery') AS normal_recovery;
+--echo # Recovery must retain the configured account and its restricted privileges.
+SELECT test_mysql_command_session_admission_udf(
+  'recovery', 'mcs_admission_user', 'admission.example') AS recovery_security_context;
+
+--echo # Debug builds also verify allocation-failure accounting.
+--disable_query_log
+let $is_debug = `SELECT VERSION() LIKE '%debug%'`;
+if ($is_debug)
+{
+  SET @saved_debug = @@SESSION.debug;
+  SET SESSION debug = '+d,srv_session_alloc_failure';
+  let $allocation_error = `SELECT (test_mysql_command_session_admission_udf(FALSE, 8) LIKE '1041/HY000/%') IS TRUE`;
+  SET SESSION debug = @saved_debug;
+  if (!$allocation_error)
+  {
+    --die Expected ER_OUT_OF_RESOURCES after session allocation failure.
+  }
+}
+--enable_query_log
+SELECT test_mysql_command_session_admission_udf(FALSE, 1) AS after_allocation_failure;
+SELECT VARIABLE_VALUE = @baseline_connections AS capacity_restored
+  FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Threads_connected';
+
+SET GLOBAL max_connections = @saved_max_connections;
+DROP USER 'mcs_admission_user'@'localhost';
+DROP USER 'mcs_admission_user'@'admission.example';
+UNINSTALL COMPONENT "file://component_test_mysql_command_services";

@@ -1,0 +1,96 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ## Specifically, we will test reporting deprecation counters.
+--echo ## The reporting is done by a separate thread in the health
+--echo ## monitor component.
+--echo ##
+
+
+--echo # Run a select before loading the component to get repeatable results
+--echo # even with --no-check-testcases.
+select count(*) from information_schema.processlist;
+
+--echo # Load the component and explicitly start the periodic reporter.
+--source ../include/health_monitor_setup.inc
+
+--disable_query_log
+select now(6) into @deprecation_report_start;
+--enable_query_log
+set @@global.health_monitor.periodic_reporting = on;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like 'Deprecated \'information_schema.processlist\'%'
+     and logged > @deprecation_report_start;
+--source include/wait_condition_or_abort.inc
+
+let $first_ts = `SELECT variable_value FROM performance_schema.global_status
+                   WHERE variable_name LIKE 'Deprecated_use_i_s_processlist_last%'`;
+
+--echo # Run another select to get a difference in timestamps.
+select count(*) from information_schema.processlist;
+
+let $second_ts = `SELECT variable_value FROM performance_schema.global_status
+                    WHERE variable_name LIKE 'Deprecated_use_i_s_processlist_last%'`;
+
+--echo # Verify change in timestamps
+--let $assert_text = Second timestamp is after the first
+--let $assert_cond = "$second_ts" > "$first_ts"
+--source include/assert.inc
+
+--echo # Verify positive counter
+
+let $pos_counter = `SELECT variable_value > 0 FROM performance_schema.global_status
+                      WHERE variable_name LIKE 'Deprecated_use_i_s_processlist_count'`;
+--let $assert_text = Positive counter for usage of information_schema.processlist
+--let $assert_cond = "$pos_counter" = "1"
+--source include/assert.inc
+
+--sleep 2
+
+--echo
+--echo #
+--echo # Verify counter was reported to the error log
+--echo #
+select prio, error_code, subsystem, regexp_replace(data, '[0-9]+', 'N')
+  from performance_schema.error_log
+  where data like 'Deprecated \'information_schema.processlist\'%'
+  order by logged limit 1;
+
+--echo #Verify deprecated usage counter when foreign key created with non std keys
+SET restrict_fk_on_non_standard_key=OFF;
+CREATE TABLE test.t1 (f1 INT PRIMARY KEY, f2 INT, f3 INT, UNIQUE KEY(f2, f3));
+CREATE TABLE test.t2 (f1 INT PRIMARY KEY, f2 INT, f3 INT,
+                      FOREIGN KEY(f2) REFERENCES t1(f2));
+
+let $pos_counter = `SELECT variable_value > 0 FROM performance_schema.global_status
+                      WHERE variable_name LIKE 'Deprecated_use_fk_on_non_standard_key_count'`;
+--let $assert_text = Positive counter for deprecated fk on non standard key usage
+--let $assert_cond = "$pos_counter" = "1"
+--source include/assert.inc
+
+--sleep 2
+
+--echo
+--echo #
+--echo # Verify fk_on_non_standard_key counter was reported to the error log
+--echo #
+select prio, error_code, subsystem, regexp_replace(data, '[0-9]+', 'N')
+  from performance_schema.error_log
+  where data like 'Deprecated \'fk_on_non_standard_key\'%'
+  order by logged limit 1;
+
+drop table test.t2, test.t1;
+SET restrict_fk_on_non_standard_key=ON;
+--echo
+--echo ###
+--echo
+--echo ###
+--echo ### Stop and uninstall
+--echo ###
+--echo
+set @@global.health_monitor.memory_running = off;
+--echo
+--eval uninstall component 'file://component_health_monitor';

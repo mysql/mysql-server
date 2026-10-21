@@ -70,8 +70,8 @@ void Rescue_task::rollback_trx() {
   thd->store_globals();
   thd->temporary_tables = m_rli->save_temporary_tables;
   thd->rli_slave = m_rli;
-  const char *m_saved_thread_stack = thd->thread_stack;
-  thd->thread_stack = reinterpret_cast<char *>(&stack_ptr);
+  const char *m_saved_thread_stack = thd->stack_base();
+  thd->capture_stack_base(&stack_ptr);
   bool rollback_failed{false};
 
   if (thd->get_transaction()->cannot_safely_rollback(
@@ -89,7 +89,7 @@ void Rescue_task::rollback_trx() {
   thd->restore_globals();
   thd->temporary_tables = nullptr;
   // restore the thread stack
-  thd->thread_stack = m_saved_thread_stack;
+  thd->set_stack_base(m_saved_thread_stack);
   m_saved_thread_stack = nullptr;
   if (!rollback_failed) {
     MYSQL_LIB_LOG_DEBUG()

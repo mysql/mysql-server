@@ -1,0 +1,30 @@
+--source include/have_server_telemetry_metrics.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+SELECT test_report_metrics();
+
+# System stats not supported on Windows
+--source include/not_windows.inc
+--source ../include/health_monitor_setup.inc
+set @@global.health_monitor.disk_running = on;
+set @@global.health_monitor.memory_running = on;
+set @@global.health_monitor.system_running = on;
+
+# Allow CPU collector to get data
+--sleep 2
+SELECT test_report_metrics();
+
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+UNINSTALL COMPONENT 'file://component_health_monitor';
+
+SELECT test_report_metrics();
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+
+--echo Component logs:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_server_telemetry_metrics_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_metrics_component.log;

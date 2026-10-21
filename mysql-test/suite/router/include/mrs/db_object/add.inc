@@ -111,6 +111,11 @@ eval  INSERT INTO mysql_rest_service_metadata.db_object(
 --let $_path=`SELECT CONCAT(s.url_context_root, db.request_path, o.request_path) FROM mysql_rest_service_metadata.db_object as o JOIN mysql_rest_service_metadata.db_schema as db on db.id=o.db_schema_id JOIN mysql_rest_service_metadata.service as s ON  s.id = db.service_id  WHERE o.id=$mrs_sql_id_variable;`
 --echo # Registred DB_OBJECT at path: $_path
 
+--let $_mrs_data_provider_grant_schema=`SELECT name FROM mysql_rest_service_metadata.db_schema WHERE id=$mrs_schema_id_sql_variable`
+--let $_mrs_data_provider_grant_object=$mrs_add_db_object
+--let $_mrs_data_provider_grant_type=$mrs_add_db_object_type
+--let $_mrs_data_provider_grant_operations=$mrs_add_db_object_op
+--source grant_data_provider.inc
 
 if (!$mrs_add_db_object_do_not_auto_register_columns)
 {
@@ -209,5 +214,3 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
 --let $mrs_add_db_object_user_variables=
 --let $_mrs_tmp_columns=
 --let $_mrs_tmp_values=
-
-

@@ -1,0 +1,268 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+CREATE USER mrs_socket_match@localhost
+IDENTIFIED WITH auth_socket AS 'MYSQLD_OS_USER';
+CREATE USER mrs_socket_other@localhost
+IDENTIFIED WITH auth_socket AS 'OTHER_OS_USER';
+CREATE USER mrs_socket_password@'%'
+  IDENTIFIED WITH caching_sha2_password BY 'correct-password';
+CREATE USER mrs_socket_external@'%' IDENTIFIED WITH test_plugin_server
+AS 'mrs_socket_proxy';
+CREATE USER mrs_socket_proxy@'%' IDENTIFIED BY 'proxy-password';
+GRANT PROXY ON mrs_socket_proxy@'%' TO mrs_socket_external@'%';
+CREATE SCHEMA mrs_auth_socket;
+CREATE TABLE mrs_auth_socket.fixture (id INT PRIMARY KEY, marker VARCHAR(64));
+INSERT INTO mrs_auth_socket.fixture VALUES (73, 'auth-socket-fixture');
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/db
+# Registred DB_OBJECT at path: /svc/db/fixture
+# Registred AUTH APP at path: /svc
+
+# The fixture requires an authenticated session.
+GET /svc/db/fixture/73
+Unauthorized(401)
+{
+    "message": "Unauthorized",
+    "status": 401
+}
+
+# A password account rejects an incorrect password.
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+{
+    "message": "Unauthorized",
+    "status": 401
+}
+
+# The correct password creates a session that can read the fixture.
+POST /svc/authentication/login
+Ok(200)
+SELECT name, vendor_user_id FROM mysql_rest_service_metadata.mrs_user
+WHERE name = 'mrs_socket_password';
+name	vendor_user_id
+mrs_socket_password	mrs_socket_password@%
+GET /svc/db/fixture/73
+Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+
+# An auth_socket account mapped to a different OS user is rejected.
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+{
+    "message": "Unauthorized",
+    "status": 401
+}
+
+# HTTP login must reject an auth_socket account mapped to mysqld's OS user.
+POST /svc/authentication/login
+Unauthorized(401)
+SELECT name, vendor_user_id FROM mysql_rest_service_metadata.mrs_user
+WHERE name = 'mrs_socket_match';
+name	vendor_user_id
+GET /svc/db/fixture/73
+Unauthorized(401)
+{
+    "message": "Unauthorized",
+    "status": 401
+}
+
+# External authentication must be verified over TCP, not rejected outright.
+POST /svc/authentication/login
+Ok(200)
+SELECT name, vendor_user_id FROM mysql_rest_service_metadata.mrs_user
+WHERE vendor_user_id = 'mrs_socket_proxy@%';
+name	vendor_user_id
+mrs_socket_proxy	mrs_socket_proxy@%
+SELECT SUM(argument LIKE '%using Socket') AS socket_connections,
+SUM(argument LIKE '%using SSL/TLS') AS tls_connections
+FROM mysql.general_log
+WHERE command_type = 'Connect' AND argument LIKE 'mrs_socket_external@%';
+socket_connections	tls_connections
+0	1
+GET /svc/db/fixture/73
+Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+
+# One external-password login consumes one hourly connection admission.
+CREATE USER mrs_socket_quota@'%' IDENTIFIED WITH test_plugin_server
+AS 'mrs_socket_quota' WITH MAX_CONNECTIONS_PER_HOUR 1;
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# TCP account matching is used with skip-name-resolve.
+CREATE USER mrs_socket_transport@localhost IDENTIFIED BY 'socket-password';
+CREATE USER mrs_socket_transport@'127.0.0.1' IDENTIFIED BY 'tcp-password';
+# restart: --bind-address=127.0.0.1 --skip-name-resolve
+SELECT @@skip_name_resolve;
+@@skip_name_resolve
+1
+POST /svc/authentication/login
+Ok(200)
+SELECT name, vendor_user_id FROM mysql_rest_service_metadata.mrs_user
+WHERE name = 'mrs_socket_transport';
+name	vendor_user_id
+mrs_socket_transport	mrs_socket_transport@127.0.0.1
+GET /svc/db/fixture/73
+Ok(200)
+
+# A password valid for the socket account must not cause a fallback.
+SELECT CURRENT_USER();
+CURRENT_USER()
+mrs_socket_transport@localhost
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# Hostname binds retain local password authentication.
+# restart: --bind-address=localhost
+SELECT @@bind_address;
+@@bind_address
+localhost
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# Secure transport without MySQL TLS retains socket password logins.
+# restart: --bind-address=127.0.0.1 --tls-version= --require-secure-transport=ON
+SELECT @@require_secure_transport;
+@@require_secure_transport
+1
+SELECT VALUE FROM performance_schema.tls_channel_status
+WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled';
+VALUE
+No
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# Disabling the server requirement does not permit unencrypted TCP.
+SET GLOBAL require_secure_transport=OFF;
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# Re-enabling the policy takes effect without restarting MRS.
+SET GLOBAL require_secure_transport=ON;
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# Reloading MySQL TLS permits secure external-password TCP logins.
+SET GLOBAL tls_version='TLSv1.2,TLSv1.3';
+ALTER INSTANCE RELOAD TLS;
+SELECT VALUE FROM performance_schema.tls_channel_status
+WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled';
+VALUE
+Yes
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+
+# Without TCP, password logins work and external authentication fails closed.
+# restart: --skip-networking
+SELECT @@skip_networking;
+@@skip_networking
+1
+RESET PERSIST mysql_rest_service.http_port;
+RESET PERSIST mysql_rest_service.ssl_cert;
+RESET PERSIST mysql_rest_service.ssl_key;
+POST /svc/authentication/login
+Ok(200)
+GET /svc/db/fixture/73
+Ok(200)
+{
+    "id": 73,
+    "marker": "auth-socket-fixture"
+}
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+POST /svc/authentication/login
+Unauthorized(401)
+GET /svc/db/fixture/73
+Unauthorized(401)
+
+# Cleanup
+DROP USER mrs_socket_quota@'%', mrs_socket_transport@localhost,
+mrs_socket_transport@'127.0.0.1';
+DROP USER mrs_socket_match@localhost, mrs_socket_other@localhost,
+mrs_socket_password@'%', mrs_socket_external@'%', mrs_socket_proxy@'%';
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mrs_auth_socket;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

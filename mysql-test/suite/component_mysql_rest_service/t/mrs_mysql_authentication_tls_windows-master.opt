@@ -1,0 +1,4 @@
+--bind-address=127.0.0.1
+--loose-enable-named-pipe
+--loose-shared-memory=0
+--require-secure-transport=OFF

@@ -234,8 +234,14 @@ void my_win_console_fputs(const CHARSET_INFO *cs, const char *data) {
 void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt,
                              va_list args) {
   static char buff[MAX_CONSOLE_LINE_SIZE + 1];
-  const size_t len = vsnprintf(buff, sizeof(buff) - 1, fmt, args);
-  my_win_console_write(cs, buff, len);
+  const int len = vsnprintf(buff, sizeof(buff), fmt, args);
+  if (len < 0) return;
+
+  /* vsnprintf() returns the size required, not necessarily the size stored. */
+  const size_t written = (static_cast<size_t>(len) < sizeof(buff))
+                             ? static_cast<size_t>(len)
+                             : sizeof(buff) - 1;
+  my_win_console_write(cs, buff, written);
 }
 
 #include <shellapi.h>

@@ -101,6 +101,12 @@ if ($_mrs_do_default_object_ref)
 
 --echo # Registred OBJECT_REF at $mrs_add_db_object_join_schema.$mrs_add_db_object_join_table
 
+--let $_mrs_data_provider_grant_schema=$mrs_add_db_object_join_schema
+--let $_mrs_data_provider_grant_object=$mrs_add_db_object_join_table
+--let $_mrs_data_provider_grant_type=TABLE
+--let $_mrs_data_provider_grant_operations=$mrs_add_db_object_op
+--source grant_data_provider.inc
+
 if (!$mrs_add_db_object_do_not_auto_register_columns)
 {
     if (!$mrs_sql_id_variable_ob)
@@ -148,4 +154,3 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
 --let $mrs_add_db_object_join_on=
 --let $mrs_add_db_object_op=
 --let $mrs_add_db_object_join_columns=
-

@@ -26,7 +26,7 @@ Next NDBCNTR 1030
 Next NDBFS 2002
 Next DBACC 3007
 Next DBTUP 4040
-Next DBLQH 5113
+Next DBLQH 5114
 Next DBDICT 6229
 Next DBDIH 7251
 Next DBTC 8131
@@ -359,6 +359,8 @@ Error insertions used to test ACCKEYCONF/ABORT interleaving
 5107: Cause SimulatedBlock::allocChunks() to return chunks with gaps
 5108: Cause request to fail with error 1218 SendBuffer overload (temp error)
 5109: Delay on handling BACKUP_FRAGMENT_CONF during an ALTER table operation
+
+5113: Delay handling FS_WRITE_CONF for Redo LAST_WRITE_IN_FILE
 
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC

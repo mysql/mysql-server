@@ -91,6 +91,7 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::init, (MYSQL_H * mysql_h)) {
         MYF(MY_WME | MY_ZEROFILL));
     if (mysql_handle == nullptr) return true;
     mysql_handle->connection_mode = mysql_command_connection_mode::kEmbedded;
+    mysql_handle->admin_session = true;
     auto mysql = &mysql_handle->mysql;
     *mysql = (mysql_init(nullptr));
     if (*mysql == nullptr) {
@@ -166,8 +167,8 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::connect, (MYSQL_H mysql_h)) {
     auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(*mysql);
     if (mcs_ext == nullptr) return true;
 
-    const char *host = mcs_ext->mcs_host_name;
-    const char *user = mcs_ext->mcs_user_name;
+    const char *host = m_handle->host_name;
+    const char *user = m_handle->user_name;
     const char *password = mcs_ext->mcs_password;
     const char *protocol = mcs_ext->mcs_protocol;
     const char *db = mcs_ext->mcs_db;
@@ -175,6 +176,7 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::connect, (MYSQL_H mysql_h)) {
     const uint32_t client_flags = mcs_ext->mcs_client_flag;
 
     if (m_handle->connection_mode == mysql_command_connection_mode::kEmbedded) {
+      mcs_ext->mcs_admin_session = m_handle->admin_session;
       const char *socket = nullptr;
       int port = -1;
 
@@ -358,7 +360,10 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::close, (MYSQL_H mysql_h)) {
     Mysql_handle *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
     if (m_handle != nullptr) {
       MYSQL *mysql = m_handle->mysql;
+      // Close the session before freeing names its security context borrows.
       mysql_close(mysql);
+      my_free(m_handle->user_name);
+      my_free(m_handle->host_name);
       my_free(mysql_h);
     }
   } catch (...) {
@@ -512,7 +517,20 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
       return true;
     }
 
-    auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
+    auto *mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
+
+    if ((option == MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS &&
+         (arg == nullptr || mcs_ext->session_svc != nullptr ||
+          m_handle->connection_mode !=
+              mysql_command_connection_mode::kEmbedded)) ||
+        (!m_handle->admin_session &&
+         (option == MYSQL_COMMAND_LOCAL_THD_HANDLE ||
+          (option == MYSQL_COMMAND_PASSWORD && arg != nullptr)))) {
+      set_mysql_error(m_handle->mysql, CR_INVALID_PARAMETER_NO,
+                      unknown_sqlstate);
+      return true;
+    }
+
     my_h_service consumer_handle;
     mysql_command_consumer_refs *consumer_refs = nullptr;
     if (option >= MYSQL_TEXT_CONSUMER_FACTORY &&
@@ -829,19 +847,27 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
         mcs_ext->mcs_protocol = static_cast<const char *>(arg);
         break;
       case MYSQL_COMMAND_USER_NAME:
-        if (static_cast<const char *>(arg) == nullptr) {
-          mcs_ext->mcs_user_name = MYSQL_SESSION_USER;
-        } else {
-          mcs_ext->mcs_user_name = static_cast<const char *>(arg);
+      case MYSQL_COMMAND_HOST_NAME: {
+        // The embedded THD borrows these names from the handle.
+        if (mcs_ext->session_svc != nullptr) {
+          set_mysql_error(m_handle->mysql, CR_INVALID_PARAMETER_NO,
+                          unknown_sqlstate);
+          return true;
         }
-        break;
-      case MYSQL_COMMAND_HOST_NAME:
-        if (static_cast<const char *>(arg) == nullptr) {
-          mcs_ext->mcs_host_name = MYSQL_SYS_HOST;
-        } else {
-          mcs_ext->mcs_host_name = static_cast<const char *>(arg);
+        const bool is_user = option == MYSQL_COMMAND_USER_NAME;
+        const char *value = static_cast<const char *>(arg);
+        if (value == nullptr)
+          value = is_user ? MYSQL_SESSION_USER : MYSQL_SYS_HOST;
+        char *copy = my_strdup(key_memory_query_service, value, MYF(0));
+        if (copy == nullptr) {
+          set_mysql_error(m_handle->mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+          return true;
         }
+        char *&name = is_user ? m_handle->user_name : m_handle->host_name;
+        my_free(name);
+        name = copy;
         break;
+      }
       case MYSQL_COMMAND_TCPIP_PORT:
         if (static_cast<const char *>(arg) == nullptr) {
           mcs_ext->mcs_tcpip_port = 0;
@@ -864,6 +890,9 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
         }
         break;
       }
+      case MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS:
+        m_handle->admin_session = *static_cast<const bool *>(arg);
+        break;
       case MYSQL_COMMAND_PASSWORD:
         mcs_ext->mcs_password = static_cast<const char *>(arg);
         m_handle->connection_mode =
@@ -902,6 +931,11 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::get,
   try {
     Mysql_handle *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
     if (m_handle == nullptr || !arg) return true;
+    if (option == MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS) {
+      *const_cast<bool *>(static_cast<const bool *>(arg)) =
+          m_handle->admin_session;
+      return false;
+    }
     auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
     switch (option) {
       case MYSQL_COMMAND_CLIENT_FLAGS:

@@ -27,6 +27,6 @@
 
 namespace mysql_harness {
 
-/* static */ std::set<std::string> ConfigSectionPrinter::used_sections_;
+HARNESS_EXPORT std::set<std::string> ConfigSectionPrinter::used_sections_;
 
 }  // namespace mysql_harness

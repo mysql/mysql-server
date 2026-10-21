@@ -282,7 +282,8 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
         ${target} STREQUAL "keyring_aws" OR
         ${target} STREQUAL "component_keyring_aws" OR
         ${target} STREQUAL "component_mle" OR
-        ${target} STREQUAL "component_telemetry"
+        ${target} STREQUAL "component_telemetry" OR
+        ${target} STREQUAL "component_mysql_rest_service"
         )
       GET_TARGET_PROPERTY(output_name ${target} OUTPUT_NAME)
       SET(plugin_so_file "${output_name}.so")

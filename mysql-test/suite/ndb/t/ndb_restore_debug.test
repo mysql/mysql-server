@@ -549,6 +549,37 @@ select count(1) from t2 where b = 2;
 select count(1) from t2 where b != 2;
 --echo Expect all values in t3 to be 2999
 select * from t3 order by a;
+
+truncate t1;
+truncate t2;
+truncate t3;
+--echo Check with varying log + data restore parallelism
+--echo Data=1024, Log=1
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id --parallelism=1024 --log-parallelism=1 >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id --parallelism=1024 --log-parallelism=1 >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Expect all values in t1 to be 2
+select count(1) from t1 where b = 2;
+select count(1) from t1 where b != 2;
+--echo Expect all values in t2 to be 2
+select count(1) from t2 where b = 2;
+select count(1) from t2 where b != 2;
+--echo Expect all values in t3 to be 2999
+select * from t3 order by a;
+
+--echo Check with varying log + data restore parallelism
+--echo Data=1, Log=1024
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id --parallelism=1 --log-parallelism=1024 >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id --parallelism=1 --log-parallelism=1024 >> $NDB_TOOLS_OUTPUT 2>&1
+--echo Expect all values in t1 to be 2
+select count(1) from t1 where b = 2;
+select count(1) from t1 where b != 2;
+--echo Expect all values in t2 to be 2
+select count(1) from t2 where b = 2;
+select count(1) from t2 where b != 2;
+--echo Expect all values in t3 to be 2999
+select * from t3 order by a;
+
+
 drop table t1;
 drop table t2;
 drop table t3;

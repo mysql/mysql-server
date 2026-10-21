@@ -1,0 +1,462 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that install-time MRS bootstrap uses privileges held directly or
+# through default roles, but never session-active non-default roles, and that
+# retry reuses committed accounts without privilege drift.
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Bootstrap succeeds with direct privileges
+--echo ## II. Active-only role privileges are not inherited; a default role works
+--echo ## III. Missing CREATE USER or ROLE_ADMIN fails atomically and recovers
+--echo ## IV. Missing metadata privileges retains accounts without grant drift
+
+# Reserve the component listener port without installing the component.
+--let $init_setup_variables=1
+--source ../include/cmrs/initialize.inc
+--source ../../router/include/mrs/initialize_schema.inc
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("MySQL Rest Service Component: Backend startup failed in background thread: Access denied; you need \\(at least one of\\) the CREATE USER privilege\\(s\\) for this operation; MySQL REST Service remains inactive");
+call mtr.add_suppression("MySQL Rest Service Component: Backend startup failed in background thread: Access denied; you need \\(at least one of\\) the WITH ADMIN, ROLE_ADMIN, SUPER privilege\\(s\\) for this operation; MySQL REST Service remains inactive");
+
+CREATE USER
+  'mrs_bootstrap_direct'@'localhost',
+  'mrs_bootstrap_role_user'@'localhost',
+  'mrs_bootstrap_no_create'@'localhost',
+  'mrs_bootstrap_no_admin'@'localhost',
+  'mrs_bootstrap_no_metadata'@'localhost';
+CREATE ROLE 'mrs_bootstrap_role';
+
+# Keep the privilege needed for INSTALL COMPONENT separate from bootstrap.
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.component TO
+  'mrs_bootstrap_direct'@'localhost',
+  'mrs_bootstrap_role_user'@'localhost',
+  'mrs_bootstrap_no_create'@'localhost',
+  'mrs_bootstrap_no_admin'@'localhost',
+  'mrs_bootstrap_no_metadata'@'localhost';
+
+GRANT CREATE USER ON *.* TO
+  'mrs_bootstrap_direct'@'localhost',
+  'mrs_bootstrap_no_admin'@'localhost',
+  'mrs_bootstrap_no_metadata'@'localhost';
+GRANT ROLE_ADMIN ON *.* TO
+  'mrs_bootstrap_direct'@'localhost',
+  'mrs_bootstrap_no_create'@'localhost',
+  'mrs_bootstrap_no_metadata'@'localhost';
+GRANT SELECT, INSERT, UPDATE ON mysql_rest_service_metadata.* TO
+  'mrs_bootstrap_direct'@'localhost',
+  'mrs_bootstrap_no_create'@'localhost',
+  'mrs_bootstrap_no_admin'@'localhost';
+
+GRANT CREATE USER ON *.* TO 'mrs_bootstrap_role';
+GRANT ROLE_ADMIN ON *.* TO 'mrs_bootstrap_role';
+GRANT SELECT, INSERT, UPDATE ON mysql_rest_service_metadata.* TO
+  'mrs_bootstrap_role';
+GRANT 'mrs_bootstrap_role' TO
+  'mrs_bootstrap_role_user'@'localhost';
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo # I. Direct bootstrap privileges are sufficient
+connect(direct_connection,localhost,mrs_bootstrap_direct,,mysql);
+--let $direct_role_is_none = `SELECT CURRENT_ROLE() = 'NONE';`
+--let $assert_text = direct-grant installer has no active role
+--let $assert_cond = $direct_role_is_none = 1
+--source include/assert.inc
+
+--disable_query_log
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT
+--enable_query_log
+connection default;
+disconnect direct_connection;
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $internal_account_count = `SELECT COUNT(*) FROM mysql.user WHERE user IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND host = 'localhost';`
+--let $assert_text = direct grants provision both fixed internal accounts
+--let $assert_cond = $internal_account_count = 2
+--source include/assert.inc
+
+--let $router_count = `SELECT COUNT(*) FROM mysql_rest_service_metadata.router WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;`
+--let $assert_text = direct grants permit runtime registration
+--let $assert_cond = $router_count = 1
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = direct-grant bootstrap publishes the listener
+--let $assert_cond = $current_http_port = $HTTP_SERVER_PORT
+--source include/assert.inc
+
+--exec $MRS_CLIENT_ARGS --path /mrs-bootstrap-direct --response-type raw --expected-status NotFound --display none
+
+--disable_query_log
+--disable_result_log
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER IF EXISTS 'mysql_mrs_metadata'@'localhost',
+  'mysql_mrs_data'@'localhost';
+DELETE FROM mysql_rest_service_metadata.router
+  WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo # II. A session-active non-default role is not inherited
+--let $create_user_error_pattern=Backend startup failed in background thread: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+--disable_query_log
+SELECT NOW(6) INTO @bootstrap_error_start;
+--enable_query_log
+connect(active_role_connection,localhost,mrs_bootstrap_role_user,,mysql);
+--disable_query_log
+SET ROLE 'mrs_bootstrap_role';
+--enable_query_log
+--let $active_role_is_set = `SELECT CURRENT_ROLE() <> 'NONE';`
+--let $assert_text = installer session has the non-default role active
+--let $assert_cond = $active_role_is_set = 1
+--source include/assert.inc
+
+--disable_query_log
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT
+--enable_query_log
+connection default;
+disconnect active_role_connection;
+
+--let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.error_log WHERE LOGGED > @bootstrap_error_start AND DATA LIKE '%$create_user_error_pattern%'
+--source include/wait_condition.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'ERROR' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $component_count = `SELECT COUNT(*) FROM mysql.component WHERE component_urn = 'file://component_mysql_rest_service';`
+--let $assert_text = active-only bootstrap failure leaves the component installed
+--let $assert_cond = $component_count = 1
+--source include/assert.inc
+
+--let $internal_account_count = `SELECT COUNT(*) FROM mysql.user WHERE user IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND host = 'localhost';`
+--let $assert_text = active-only privileges create no internal account
+--let $assert_cond = $internal_account_count = 0
+--source include/assert.inc
+
+--let $router_count = `SELECT COUNT(*) FROM mysql_rest_service_metadata.router WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;`
+--let $assert_text = active-only privileges create no runtime registration
+--let $assert_cond = $router_count = 0
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = active-only bootstrap failure publishes no listener
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+
+--disable_result_log
+--error 1
+--exec $MRS_CLIENT_ARGS --path /mrs-bootstrap-active-only --display none
+--enable_result_log
+
+# Make the same role a default role and prove a clean retry succeeds.
+--disable_query_log
+--disable_result_log
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+SET DEFAULT ROLE 'mrs_bootstrap_role' TO
+  'mrs_bootstrap_role_user'@'localhost';
+--enable_result_log
+--enable_query_log
+
+connect(default_role_connection,localhost,mrs_bootstrap_role_user,,mysql);
+--let $default_role_is_set = `SELECT CURRENT_ROLE() <> 'NONE';`
+--let $assert_text = retry installer activates its bootstrap role by default
+--let $assert_cond = $default_role_is_set = 1
+--source include/assert.inc
+
+--disable_query_log
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT
+--enable_query_log
+connection default;
+disconnect default_role_connection;
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $internal_account_count = `SELECT COUNT(*) FROM mysql.user WHERE user IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND host = 'localhost';`
+--let $assert_text = default-role retry provisions both internal accounts
+--let $assert_cond = $internal_account_count = 2
+--source include/assert.inc
+
+--exec $MRS_CLIENT_ARGS --path /mrs-bootstrap-default-role --response-type raw --expected-status NotFound --display none
+
+--disable_query_log
+--disable_result_log
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER IF EXISTS 'mysql_mrs_metadata'@'localhost',
+  'mysql_mrs_data'@'localhost';
+DELETE FROM mysql_rest_service_metadata.router
+  WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo # III.1 Missing CREATE USER fails before creating either account
+--disable_query_log
+SELECT NOW(6) INTO @bootstrap_error_start;
+--enable_query_log
+connect(no_create_connection,localhost,mrs_bootstrap_no_create,,mysql);
+--disable_query_log
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT
+--enable_query_log
+connection default;
+disconnect no_create_connection;
+
+--let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.error_log WHERE LOGGED > @bootstrap_error_start AND DATA LIKE '%$create_user_error_pattern%'
+--source include/wait_condition.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'ERROR' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $internal_account_count = `SELECT COUNT(*) FROM mysql.user WHERE user IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND host = 'localhost';`
+--let $assert_text = missing CREATE USER leaves no internal account
+--let $assert_cond = $internal_account_count = 0
+--source include/assert.inc
+
+--let $router_count = `SELECT COUNT(*) FROM mysql_rest_service_metadata.router WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;`
+--let $assert_text = missing CREATE USER leaves no runtime registration
+--let $assert_cond = $router_count = 0
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = missing CREATE USER leaves no listener
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+
+--disable_result_log
+--error 1
+--exec $MRS_CLIENT_ARGS --path /mrs-bootstrap-no-create --display none
+--enable_result_log
+
+--disable_query_log
+--disable_result_log
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+GRANT CREATE USER ON *.* TO 'mrs_bootstrap_no_create'@'localhost';
+--enable_result_log
+--enable_query_log
+
+connect(create_recovery_connection,localhost,mrs_bootstrap_no_create,,mysql);
+--disable_query_log
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT
+--enable_query_log
+connection default;
+disconnect create_recovery_connection;
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = granting CREATE USER permits a successful retry
+--let $assert_cond = "$mrs_state" = "READY"
+--source include/assert.inc
+--exec $MRS_CLIENT_ARGS --path /mrs-bootstrap-create-recovery --response-type raw --expected-status NotFound --display none
+
+--disable_query_log
+--disable_result_log
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER IF EXISTS 'mysql_mrs_metadata'@'localhost',
+  'mysql_mrs_data'@'localhost';
+DELETE FROM mysql_rest_service_metadata.router
+  WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo # III.2 Missing ROLE_ADMIN makes CREATE USER DEFAULT ROLE atomic
+--let $role_admin_error_pattern=Backend startup failed in background thread: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+--disable_query_log
+SELECT NOW(6) INTO @bootstrap_error_start;
+--enable_query_log
+connect(no_admin_connection,localhost,mrs_bootstrap_no_admin,,mysql);
+--disable_query_log
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT
+--enable_query_log
+connection default;
+disconnect no_admin_connection;
+
+--let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.error_log WHERE LOGGED > @bootstrap_error_start AND DATA LIKE '%$role_admin_error_pattern%'
+--source include/wait_condition.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'ERROR' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $internal_account_count = `SELECT COUNT(*) FROM mysql.user WHERE user IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND host = 'localhost';`
+--let $assert_text = missing ROLE_ADMIN leaves no partial internal account
+--let $assert_cond = $internal_account_count = 0
+--source include/assert.inc
+
+--let $router_count = `SELECT COUNT(*) FROM mysql_rest_service_metadata.router WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;`
+--let $assert_text = missing ROLE_ADMIN leaves no runtime registration
+--let $assert_cond = $router_count = 0
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = missing ROLE_ADMIN leaves no listener
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+
+--disable_result_log
+--error 1
+--exec $MRS_CLIENT_ARGS --path /mrs-bootstrap-no-admin --display none
+--enable_result_log
+
+--disable_query_log
+--disable_result_log
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+GRANT ROLE_ADMIN ON *.* TO 'mrs_bootstrap_no_admin'@'localhost';
+--enable_result_log
+--enable_query_log
+
+connect(admin_recovery_connection,localhost,mrs_bootstrap_no_admin,,mysql);
+--disable_query_log
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT
+--enable_query_log
+connection default;
+disconnect admin_recovery_connection;
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = granting ROLE_ADMIN permits a successful retry
+--let $assert_cond = "$mrs_state" = "READY"
+--source include/assert.inc
+--exec $MRS_CLIENT_ARGS --path /mrs-bootstrap-admin-recovery --response-type raw --expected-status NotFound --display none
+
+--disable_query_log
+--disable_result_log
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER IF EXISTS 'mysql_mrs_metadata'@'localhost',
+  'mysql_mrs_data'@'localhost';
+DELETE FROM mysql_rest_service_metadata.router
+  WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo # IV. Missing metadata access retains accounts without grant drift
+
+connect(no_metadata_connection,localhost,mrs_bootstrap_no_metadata,,mysql);
+--disable_query_log
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET GLOBAL mysql_rest_service.http_port = $HTTP_SERVER_PORT
+--enable_query_log
+connection default;
+disconnect no_metadata_connection;
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'WAITING_FOR_METADATA' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = metadata privilege failure reports WAITING_FOR_METADATA
+--let $assert_cond = "$mrs_state" = "WAITING_FOR_METADATA"
+--source include/assert.inc
+
+--let $locked_account_count=`SELECT COUNT(*) FROM mysql.user WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost' AND account_locked = 'Y'`
+--let $assert_text = metadata failure retains both internal accounts locked
+--let $assert_cond = $locked_account_count = 2
+--source include/assert.inc
+
+--let $role_edge_count=`SELECT COUNT(*) FROM mysql.role_edges WHERE TO_USER IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND TO_HOST = 'localhost'`
+--let $expected_role_edge_count=`SELECT COUNT(*) FROM mysql.role_edges WHERE WITH_ADMIN_OPTION = 'N' AND ((FROM_USER = 'mysql_rest_service_meta_provider' AND FROM_HOST = '%' AND TO_USER = 'mysql_mrs_metadata' AND TO_HOST = 'localhost') OR (FROM_USER = 'mysql_rest_service_data_provider' AND FROM_HOST = '%' AND TO_USER = 'mysql_mrs_data' AND TO_HOST = 'localhost'))`
+--let $assert_text = metadata failure retains exactly the provider-role memberships
+--let $assert_cond = $role_edge_count = 2 AND $expected_role_edge_count = 2
+--source include/assert.inc
+
+--let $default_role_count=`SELECT COUNT(*) FROM mysql.default_roles WHERE USER IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND HOST = 'localhost'`
+--let $expected_default_role_count=`SELECT COUNT(*) FROM mysql.default_roles WHERE (DEFAULT_ROLE_USER = 'mysql_rest_service_meta_provider' AND DEFAULT_ROLE_HOST = '%' AND USER = 'mysql_mrs_metadata' AND HOST = 'localhost') OR (DEFAULT_ROLE_USER = 'mysql_rest_service_data_provider' AND DEFAULT_ROLE_HOST = '%' AND USER = 'mysql_mrs_data' AND HOST = 'localhost')`
+--let $assert_text = metadata failure retains exactly the provider default roles
+--let $assert_cond = $default_role_count = 2 AND $expected_default_role_count = 2
+--source include/assert.inc
+
+--let $unexpected_direct_grant_count=`SELECT (SELECT COUNT(*) FROM information_schema.user_privileges WHERE GRANTEE IN ("'mysql_mrs_metadata'@'localhost'", "'mysql_mrs_data'@'localhost'") AND (PRIVILEGE_TYPE <> 'USAGE' OR IS_GRANTABLE <> 'NO')) + (SELECT COUNT(*) FROM information_schema.schema_privileges WHERE GRANTEE IN ("'mysql_mrs_metadata'@'localhost'", "'mysql_mrs_data'@'localhost'")) + (SELECT COUNT(*) FROM information_schema.table_privileges WHERE GRANTEE IN ("'mysql_mrs_metadata'@'localhost'", "'mysql_mrs_data'@'localhost'")) + (SELECT COUNT(*) FROM information_schema.column_privileges WHERE GRANTEE IN ("'mysql_mrs_metadata'@'localhost'", "'mysql_mrs_data'@'localhost'")) + (SELECT COUNT(*) FROM mysql.procs_priv WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost') + (SELECT COUNT(*) FROM mysql.global_grants WHERE USER IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND HOST = 'localhost') + (SELECT COUNT(*) FROM mysql.proxies_priv WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost')`
+--let $assert_text = metadata failure leaves no unexpected direct grants
+--let $assert_cond = $unexpected_direct_grant_count = 0
+--source include/assert.inc
+
+--let $router_count = `SELECT COUNT(*) FROM mysql_rest_service_metadata.router WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;`
+--let $assert_text = metadata privilege failure creates no runtime registration
+--let $assert_cond = $router_count = 0
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = metadata privilege failure leaves no listener
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+
+--disable_result_log
+--error 1
+--exec $MRS_CLIENT_ARGS --path /mrs-bootstrap-no-metadata --display none
+--enable_result_log
+
+--disable_query_log
+GRANT SELECT, INSERT, UPDATE ON mysql_rest_service_metadata.* TO
+  'mrs_bootstrap_no_metadata'@'localhost';
+--enable_query_log
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $locked_account_count=`SELECT COUNT(*) FROM mysql.user WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost' AND account_locked = 'Y'`
+--let $assert_text = metadata recovery keeps both internal accounts locked
+--let $assert_cond = $locked_account_count = 2
+--source include/assert.inc
+
+--let $role_edge_count=`SELECT COUNT(*) FROM mysql.role_edges WHERE TO_USER IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND TO_HOST = 'localhost'`
+--let $expected_role_edge_count=`SELECT COUNT(*) FROM mysql.role_edges WHERE WITH_ADMIN_OPTION = 'N' AND ((FROM_USER = 'mysql_rest_service_meta_provider' AND FROM_HOST = '%' AND TO_USER = 'mysql_mrs_metadata' AND TO_HOST = 'localhost') OR (FROM_USER = 'mysql_rest_service_data_provider' AND FROM_HOST = '%' AND TO_USER = 'mysql_mrs_data' AND TO_HOST = 'localhost'))`
+--let $assert_text = metadata recovery keeps exactly the provider-role memberships
+--let $assert_cond = $role_edge_count = 2 AND $expected_role_edge_count = 2
+--source include/assert.inc
+
+--let $default_role_count=`SELECT COUNT(*) FROM mysql.default_roles WHERE USER IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND HOST = 'localhost'`
+--let $expected_default_role_count=`SELECT COUNT(*) FROM mysql.default_roles WHERE (DEFAULT_ROLE_USER = 'mysql_rest_service_meta_provider' AND DEFAULT_ROLE_HOST = '%' AND USER = 'mysql_mrs_metadata' AND HOST = 'localhost') OR (DEFAULT_ROLE_USER = 'mysql_rest_service_data_provider' AND DEFAULT_ROLE_HOST = '%' AND USER = 'mysql_mrs_data' AND HOST = 'localhost')`
+--let $assert_text = metadata recovery keeps exactly the provider default roles
+--let $assert_cond = $default_role_count = 2 AND $expected_default_role_count = 2
+--source include/assert.inc
+
+--let $unexpected_direct_grant_count=`SELECT (SELECT COUNT(*) FROM information_schema.user_privileges WHERE GRANTEE IN ("'mysql_mrs_metadata'@'localhost'", "'mysql_mrs_data'@'localhost'") AND (PRIVILEGE_TYPE <> 'USAGE' OR IS_GRANTABLE <> 'NO')) + (SELECT COUNT(*) FROM information_schema.schema_privileges WHERE GRANTEE IN ("'mysql_mrs_metadata'@'localhost'", "'mysql_mrs_data'@'localhost'")) + (SELECT COUNT(*) FROM information_schema.table_privileges WHERE GRANTEE IN ("'mysql_mrs_metadata'@'localhost'", "'mysql_mrs_data'@'localhost'")) + (SELECT COUNT(*) FROM information_schema.column_privileges WHERE GRANTEE IN ("'mysql_mrs_metadata'@'localhost'", "'mysql_mrs_data'@'localhost'")) + (SELECT COUNT(*) FROM mysql.procs_priv WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost') + (SELECT COUNT(*) FROM mysql.global_grants WHERE USER IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND HOST = 'localhost') + (SELECT COUNT(*) FROM mysql.proxies_priv WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost')`
+--let $assert_text = metadata recovery adds no unexpected direct grants
+--let $assert_cond = $unexpected_direct_grant_count = 0
+--source include/assert.inc
+
+--let $router_count = `SELECT COUNT(*) FROM mysql_rest_service_metadata.router WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;`
+--let $assert_text = metadata privilege recovery completes runtime registration
+--let $assert_cond = $router_count = 1
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = metadata privilege recovery publishes the listener
+--let $assert_cond = $current_http_port = $HTTP_SERVER_PORT
+--source include/assert.inc
+
+--exec $MRS_CLIENT_ARGS --path /mrs-bootstrap-metadata-recovery --response-type raw --expected-status NotFound --display none
+
+--disable_query_log
+--disable_result_log
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP USER IF EXISTS 'mysql_mrs_metadata'@'localhost',
+  'mysql_mrs_data'@'localhost';
+DELETE FROM mysql_rest_service_metadata.router
+  WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = @@server_uuid;
+
+DROP USER
+  'mrs_bootstrap_direct'@'localhost',
+  'mrs_bootstrap_role_user'@'localhost',
+  'mrs_bootstrap_no_create'@'localhost',
+  'mrs_bootstrap_no_admin'@'localhost',
+  'mrs_bootstrap_no_metadata'@'localhost';
+DROP ROLE 'mrs_bootstrap_role';
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo # Cleanup
+--let $cleanup_arg_mrs_skip_service_disable=1
+--source ../../router/include/mrs/cleanup.inc

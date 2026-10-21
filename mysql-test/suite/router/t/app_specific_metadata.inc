@@ -63,7 +63,7 @@ CREATE USER user_valid@'%' IDENTIFIED BY 'pwd';
 --source ../include/mrs/db_object/add.inc
 
 --echo # Create a view endpoint with metadata defined on the object level
---let $mrs_add_db_object=view
+--let $mrs_add_db_object=view1
 --let $mrs_add_db_object_path=/view_md
 --let $mrs_add_db_object_metadata='{"app_specific_md":"view level"}'
 --source ../include/mrs/db_object/add.inc
@@ -103,6 +103,8 @@ CREATE USER user_valid@'%' IDENTIFIED BY 'pwd';
 
 # Add endpoints to the service requiring authentication
 --echo # Create a function endpoint
+# This endpoint only exercises metadata and has no backing function.
+--let $mrs_data_provider_allow_missing_object=1
 --let $mrs_add_db_object=func_sum
 --let $mrs_add_db_object_path=/func_sum
 --let $mrs_add_db_object_type=FUNCTION
@@ -117,7 +119,7 @@ CREATE USER user_valid@'%' IDENTIFIED BY 'pwd';
 --source ../include/mrs/db_object/add.inc
 
 --echo # Create a view endpoint with metadata defined on the object level
---let $mrs_add_db_object=view
+--let $mrs_add_db_object=view1
 --let $mrs_add_db_object_path=/view
 --let $mrs_add_db_object_metadata='{"app_specific_md":"view level"}'
 --source ../include/mrs/db_object/add.inc

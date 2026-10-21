@@ -1,0 +1,10 @@
+
+
+## I. Ensure all status variables are unregistered after registration fails
+SET @@GLOBAL.DEBUG = '+d, mrs_component_statusvar_registration_failure';
+SET @@GLOBAL.DEBUG = '+d, mrs_component_skip_keyring_init';
+INSTALL COMPONENT "file://component_mysql_rest_service";
+ERROR HY000: Failed to register status variables.
+SET @@GLOBAL.DEBUG = '-d, mrs_component_statusvar_registration_failure';
+SET @@GLOBAL.DEBUG = '-d, mrs_component_skip_keyring_init';
+include/assert.inc [MRS Component status variables must be unregistered]

@@ -1,0 +1,19 @@
+--echo # Verify that mysqld reports its four-part version without starting.
+--let VERSION_OUTPUT= $MYSQL_TMP_DIR/mysqld-version-with-update.out
+--exec $MYSQLD --no-defaults --version-with-update > $VERSION_OUTPUT
+
+--let SEARCH_FILE= $VERSION_OUTPUT
+--let SEARCH_PATTERN= Ver [0-9]+[.][0-9]+[.][0-9]+[.][0-9]+(-| )
+--source include/search_pattern.inc
+
+# Restart so the startup record follows this test's CURRENT_TEST marker.
+# search_pattern.inc ignores records from earlier tests.
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
+
+--echo # Verify that the error log includes mysqld's four-part version.
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= Server version with update: '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+(-|')
+--source include/search_pattern.inc
+
+--remove_file $VERSION_OUTPUT

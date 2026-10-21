@@ -57,6 +57,21 @@ TEST_F(RoutingTests, Defaults) {
   ASSERT_EQ(routing::kDefaultClientConnectTimeout, std::chrono::seconds(9));
 }
 
+TEST_F(RoutingTests, NoAcceptorRestartRetryAfterRoutingStops) {
+  RoutingConfig conf;
+  conf.routing_strategy = routing::RoutingStrategy::kNextAvailable;
+  conf.bind_address = mysql_harness::TcpDestination{"0.0.0.0", 7001};
+  conf.protocol = Protocol::Type::kXProtocol;
+  conf.connect_timeout = 1;
+  MySQLRouting routing(conf, io_ctx_, nullptr);
+  routing.set_destinations_from_dests(
+      {mysql_harness::TcpDestination{"127.0.0.1", 3306}});
+  routing.is_running_ = false;
+
+  EXPECT_FALSE(routing.restart_accepting_connections());
+  EXPECT_EQ(routing.accept_port_reopen_retry_timer_.cancel(), 0);
+}
+
 TEST_F(RoutingTests, set_destinations_from_uri) {
   using mysqlrouter::URI;
 

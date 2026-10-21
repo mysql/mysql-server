@@ -10450,6 +10450,192 @@ int runTcTakeoverReopenOlderGciBehindNewerGci(NDBT_Context *ctx,
   return NDBT_OK;
 }
 
+int runGciWatcher(NDBT_Context *ctx, NDBT_Step *step) {
+  /* Setup Event + subscribe, updating ClusterGci property
+   * until test stopped
+   */
+  Ndb *pNdb = GETNDB(step);
+  pNdb->setDatabaseName("sys");
+  const NdbDictionary::Table *systab_0 =
+      pNdb->getDictionary()->getTable("SYSTAB_0");
+  if (systab_0 == nullptr) {
+    g_err << "Failed to get SYSTAB_0 table"
+          << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (createEvent(pNdb, *systab_0, false, false) != NDBT_OK) {
+    g_err << "Failed to create event" << endl;
+    return NDBT_FAILED;
+  }
+
+  Uint32 result = NDBT_OK;
+  NdbEventOperation *eventOp = createEventOperation(pNdb, *systab_0);
+
+  if (eventOp != nullptr) {
+    while (!ctx->isTestStopped()) {
+      pNdb->pollEvents(1000);
+      const Uint64 epoch = pNdb->getLatestGCI();
+      g_err << "Latest epoch is " << (epoch >> 32) << "/"
+            << (epoch & 0xffffffff) << endl;
+      ctx->setProperty("ClusterGci", epoch >> 32);
+    }
+
+    pNdb->dropEventOperation(eventOp);
+  } else {
+    g_err << "Failed to create event operation." << endl;
+    result = NDBT_FAILED;
+  }
+  dropEvent(pNdb, *systab_0);
+
+  return result;
+}
+
+bool waitGCPSaveStalled(NDBT_Context *ctx, Uint32 stallSecs = 5,
+                        Uint32 maxWaitSecs = 30) {
+  Uint32 prevGci = ctx->getProperty("ClusterGci", Uint32(0));
+  Uint32 sameSecs = 0;
+  require(prevGci != 0);
+  while (maxWaitSecs-- && sameSecs < stallSecs) {
+    NdbSleep_SecSleep(1);
+    Uint32 currGci = ctx->getProperty("ClusterGci", Uint32(0));
+    if (currGci == prevGci) {
+      if (++sameSecs == stallSecs) {
+        return true;
+      }
+    } else {
+      sameSecs = 0;
+    }
+    prevGci = currGci;
+  }
+
+  g_err << "waitGCPSaveStalled : GCP Save not stalled" << endl;
+  return false;
+}
+
+bool waitGCPSaveResumed(NDBT_Context *ctx, Uint32 maxWaitSecs = 30) {
+  Uint32 prevGci = ctx->getProperty("ClusterGci", Uint32(0));
+  require(prevGci != 0);
+  while (maxWaitSecs--) {
+    NdbSleep_SecSleep(1);
+    Uint32 currGci = ctx->getProperty("ClusterGci", Uint32(0));
+    if (currGci != prevGci) {
+      return true;
+    }
+  }
+
+  g_err << "waitGCPSaveResumed : GCP Save stuck at gci " << prevGci << endl;
+  return false;
+}
+
+int runPkUpdatesUntilStopRequested(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  Ndb *pNdb = GETNDB(step);
+  const Uint32 totalSteps = step->getStepTypeCount();
+  const Uint32 stepNo = step->getStepTypeNo();
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  /* Avoid multiple threads interfering with each other */
+  hugoTrans.setThrInfo(totalSteps, stepNo);
+  /* Avoid hugoTrans internal retries causing delays */
+  hugoTrans.setRetryMax(1);
+
+  g_err << "PkUpdatesUntilStopRequested Step " << stepNo << "/" << totalSteps
+        << " starting." << endl;
+
+  while (!ctx->isTestStopped() &&
+         ctx->getProperty("UPDATE_STOP_REQUESTED", Uint32(0)) == 0) {
+    int batch = 100;
+
+    if (hugoTrans.pkUpdateRecords(pNdb, records, batch) == 0) continue;
+
+    NdbError error = hugoTrans.getNdbError();
+    if (error.code == 0 || error.status == NdbError::TemporaryError) {
+      NdbSleep_MilliSleep(50);
+      continue;
+    }
+    g_err << "Failing with error " << error;
+    return NDBT_FAILED;
+  }
+  g_err << "PkUpdatesUntilStopRequested Step " << stepNo << "/" << totalSteps
+        << " finished." << endl;
+  return result;
+}
+
+int runGCPSaveAndFileChange(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbRestarter restarter;
+
+  const int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Victim is node " << victim << endl;
+
+  g_err << "Waiting for non zero GCI" << endl;
+  Uint32 startGci = 0;
+  while ((startGci = ctx->getProperty("ClusterGci", Uint32(0))) == 0 &&
+         !ctx->isTestStopped()) {
+    NdbSleep_SecSleep(1);
+  }
+  if (ctx->isTestStopped()) {
+    return NDBT_FAILED;
+  }
+  g_err << "Have Gci " << startGci << endl;
+
+  g_err << "Injecting error 5113" << endl;
+  if (restarter.insertErrorInNode(victim, 5113) != NDBT_OK) {
+    g_err << "Failed to inject error in node" << endl;
+    return NDBT_FAILED;
+  }
+
+  int result = NDBT_FAILED;
+  do {
+    g_err << "Error injected, giving time for GCP stop" << endl;
+
+    if (!waitGCPSaveStalled(ctx)) {
+      g_err << "GCP Save did not stall" << endl;
+      break;
+    }
+
+    g_err << "Give a little more time for updates to accumulate" << endl;
+    NdbSleep_SecSleep(10);
+
+    g_err << "Requesting updates to stop" << endl;
+    ctx->setProperty("UPDATE_STOP_REQUESTED", Uint32(1));
+
+    g_err << "Giving time for updates to stop" << endl;
+    {
+      Uint32 noOfRunningSteps = 0;
+      Uint32 expectedSteps = 2;  // me + epochWatcher
+      do {
+        noOfRunningSteps = ctx->getNoOfRunningSteps();
+        g_err << "Running steps " << noOfRunningSteps << endl;
+        NdbSleep_SecSleep(1);
+      } while (noOfRunningSteps > expectedSteps);
+    }
+
+    g_err << "Clearing error injection" << endl;
+    if (restarter.insertErrorInNode(victim, 0) != NDBT_OK) {
+      g_err << "Failed to clear error in node" << endl;
+      break;
+    }
+
+    g_err << "Error cleared, checking that GCI resumes" << endl;
+    if (!waitGCPSaveResumed(ctx)) {
+      g_err << "Failed waiting for GCP Save to resume" << endl;
+      ctx->stopTest();
+      break;
+    }
+    result = NDBT_OK;
+    g_err << "Done" << endl;
+
+  } while (false);
+
+  /* Clear error insertion */
+  restarter.insertErrorInNode(victim, 0);
+
+  ctx->stopTest();
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad",
          "Test that one node at a time can be stopped and then restarted "
@@ -11286,6 +11472,14 @@ TESTCASE("TcTakeoverReopenOlderGciBehindNewerGci",
          "open on the master TC") {
   INITIALIZER(runLoadTable);
   STEP(runTcTakeoverReopenOlderGciBehindNewerGci);
+}
+TESTCASE("GCPSaveAndFileChange",
+         "Check resilience of GCP_SAVE mechanism wrt redo log file changes") {
+  INITIALIZER(runLoadTable);
+  STEP(runGciWatcher);
+  STEPS(runPkUpdatesUntilStopRequested, 20);
+  STEP(runGCPSaveAndFileChange);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart)
 

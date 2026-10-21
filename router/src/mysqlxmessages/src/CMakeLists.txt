@@ -32,6 +32,7 @@ SET_SOURCE_FILES_PROPERTIES(${XMSG_SOURCES}
   PROPERTIES GENERATED TRUE)
 
 ROUTER_ADD_SHARED_LIBRARY(router_mysqlxmessages
+  SOURCES
   ${XMSG_SOURCES}
 
   NO_EXPORT_HEADER
@@ -39,30 +40,37 @@ ROUTER_ADD_SHARED_LIBRARY(router_mysqlxmessages
   # depend on mysqlxmessages to generate all the .pb.cc files.
   DEPENDENCIES mysqlxmessages
 
+  LINK_LIBRARIES_IF
+  ext::libprotobuf
   LINK_LIBRARIES
   PUBLIC
   ext::libprotobuf
   )
 
-TARGET_INCLUDE_DIRECTORIES(router_mysqlxmessages
-  PUBLIC $<TARGET_PROPERTY:mysqlxmessages,INCLUDE_DIRECTORIES>
+TARGET_INCLUDE_DIRECTORIES(router_mysqlxmessages_interface
+  INTERFACE $<TARGET_PROPERTY:mysqlxmessages,INCLUDE_DIRECTORIES>
   )
-TARGET_INCLUDE_DIRECTORIES(router_mysqlxmessages
-  SYSTEM PUBLIC
+TARGET_INCLUDE_DIRECTORIES(router_mysqlxmessages_interface
+  SYSTEM INTERFACE
   $<TARGET_PROPERTY:mysqlxmessages,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
   )
-TARGET_COMPILE_DEFINITIONS(router_mysqlxmessages
-  PUBLIC $<TARGET_PROPERTY:mysqlxmessages_shared,INTERFACE_COMPILE_DEFINITIONS>
-  PRIVATE mysqlxmessages_shared_EXPORTS=1
+TARGET_COMPILE_DEFINITIONS(router_mysqlxmessages_interface
+  INTERFACE $<TARGET_PROPERTY:mysqlxmessages_shared,INTERFACE_COMPILE_DEFINITIONS>
   )
-TARGET_COMPILE_OPTIONS(router_mysqlxmessages
-  PUBLIC $<TARGET_PROPERTY:mysqlxmessages_shared,INTERFACE_COMPILE_OPTIONS>
+TARGET_COMPILE_DEFINITIONS(router_mysqlxmessages_object
+  PRIVATE router_mysqlxmessages_object_EXPORTS=1 mysqlxmessages_shared_EXPORTS=1
+  )
+TARGET_COMPILE_DEFINITIONS(router_mysqlxmessages
+  PRIVATE router_mysqlxmessages_object_EXPORTS=1 mysqlxmessages_shared_EXPORTS=1
+  )
+TARGET_COMPILE_OPTIONS(router_mysqlxmessages_interface
+  INTERFACE $<TARGET_PROPERTY:mysqlxmessages_shared,INTERFACE_COMPILE_OPTIONS>
   )
 # See MY_PROTOBUF_FLAGS in MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY
 IF(MY_COMPILER_IS_GNU_OR_CLANG AND NOT WIN32_CLANG)
   MY_CHECK_CXX_COMPILER_WARNING("-Wshadow-field" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
-    TARGET_COMPILE_OPTIONS(router_mysqlxmessages PRIVATE ${HAS_WARN_FLAG})
+    TARGET_COMPILE_OPTIONS(router_mysqlxmessages_object PRIVATE ${HAS_WARN_FLAG})
   ENDIF()
 ENDIF()
 
@@ -95,11 +103,15 @@ FOREACH(F ${XCLI_SOURCES})
 ENDFOREACH()
 
 ROUTER_ADD_SHARED_LIBRARY(router_mysqlxclient
+  SOURCES
   ${XCLI_SOURCES_ABSOLUTE}
 
   NO_EXPORT_HEADER
   OUTPUT_NAME "mysqlrouter_mysqlxclient"
   DEPENDENCIES GenError
+
+  LINK_LIBRARIES_IF
+  router_mysqlxmessages_interface
 
   LINK_LIBRARIES
   PUBLIC
@@ -112,14 +124,19 @@ ROUTER_ADD_SHARED_LIBRARY(router_mysqlxclient
   router_mysqlclient
   )
 
-TARGET_INCLUDE_DIRECTORIES(router_mysqlxclient
-  PUBLIC $<TARGET_PROPERTY:mysqlxclient_shared,INCLUDE_DIRECTORIES>
+TARGET_INCLUDE_DIRECTORIES(router_mysqlxclient_interface
+  INTERFACE $<TARGET_PROPERTY:mysqlxclient_shared,INCLUDE_DIRECTORIES>
   )
-TARGET_INCLUDE_DIRECTORIES(router_mysqlxclient
-  SYSTEM PUBLIC
+TARGET_INCLUDE_DIRECTORIES(router_mysqlxclient_interface
+  SYSTEM INTERFACE
   $<TARGET_PROPERTY:mysqlxclient_shared,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
   )
+TARGET_COMPILE_DEFINITIONS(router_mysqlxclient_interface
+  INTERFACE USE_MYSQLX_FULL_PROTO=1
+  )
+TARGET_COMPILE_DEFINITIONS(router_mysqlxclient_object
+  PRIVATE router_mysqlxclient_object_EXPORTS=1 mysqlxclient_shared_EXPORTS=1
+  )
 TARGET_COMPILE_DEFINITIONS(router_mysqlxclient
-  PUBLIC USE_MYSQLX_FULL_PROTO=1
-  PRIVATE mysqlxclient_shared_EXPORTS=1
+  PRIVATE router_mysqlxclient_object_EXPORTS=1 mysqlxclient_shared_EXPORTS=1
   )

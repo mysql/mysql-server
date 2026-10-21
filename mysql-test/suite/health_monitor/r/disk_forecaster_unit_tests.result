@@ -1,0 +1,380 @@
+##
+## Health Monitor component
+##
+## Disk usage forecasting unit tests
+##
+
+# Ignore warnings during startup
+
+# Install the component
+install component 'file://component_health_monitor';
+
+# Turn off the unused collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+# Ensure the disk collectors are on
+set @@global.health_monitor.disk_running = on;
+set @@global.health_monitor.disk_forecast_running = on;
+
+# Pause the disk forecaster
+set @@global.health_monitor.disk_forecast_run_mode=STANDBY;
+
+## ----------------------------------------------------------------------
+## Test 1. hm-dfx-01_07d_trend-flt_season-n_eta-00h_state-norm
+##
+## Description: Flat trend, no seasonal variation
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+NORMAL
+select count(*) from disk_metric;
+count(*)
+10080
+
+# Test complete
+
+# Retrieve rows from the disk forecast tables
+
+# disk_metric contains values from the input data file
+select * from disk_metric limit 10;
+TIMESTAMP	VOLUME_SIZE_MB	USED_SPACE_MB
+2024-09-20 03:00:00	500000	200000
+2024-09-20 03:01:00	500000	200000
+2024-09-20 03:02:00	500000	200000
+2024-09-20 03:03:00	500000	200000
+2024-09-20 03:04:00	500000	200000
+2024-09-20 03:05:00	500000	200000
+2024-09-20 03:06:00	500000	200000
+2024-09-20 03:07:00	500000	200000
+2024-09-20 03:08:00	500000	200000
+2024-09-20 03:09:00	500000	200000
+# disk_forecast contains both fixed and derived values
+select * from disk_forecast order by timestamp, horizon_minutes;
+TIMESTAMP	PREDICTION_TIME	HORIZON_MINUTES	VOLUME_SIZE_MB	FORECAST_MB	CI_LOWER_MB	CI_UPPER_MB
+<timestamp>	2024-09-27 03:59:00	60	500000	<forecast_mb>	<ci_lower_mb>	<ci_upper_mb>
+<timestamp>	2024-09-28 02:59:00	1440	500000	<forecast_mb>	<ci_lower_mb>	<ci_upper_mb>
+<timestamp>	2024-10-04 02:59:00	10080	500000	<forecast_mb>	<ci_lower_mb>	<ci_upper_mb>
+# disk_forecast_summary contains both fixed and derived values
+select * from disk_forecast_summary order by timestamp;
+TIMESTAMP	VOLUME_SIZE_MB	CURRENT_USAGE_MB	CURRENT_USAGE_PCT	TREND_PER_DAY_MB	USAGE_PER_DAY_PCT	HAS_ETA	DAYS_TO_FULL	STATUS
+<timestamp>	500000	200000.00	40.00	<trend_per_day_mb>	<usage_per_day_pct>	NO	<days_to_full>	NORMAL
+
+## ----------------------------------------------------------------------
+## Test 2. hm-dfx-02_07d_trend-pos_season-y_eta-72h_state-warn
+##
+## Description: 7 days, seasonal variation, ETA depletion = 3 days, expect WARNING
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+WARNING
+select count(*) from disk_metric;
+count(*)
+10080
+
+# Test complete
+
+## ----------------------------------------------------------------------
+## Test 3. hm-dfx-03_07d_trend-pos_season-y_eta-00h_state-norm
+##
+## Description: 7 days, upward trend, no seasonality, state = NORMAL
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+NORMAL
+select count(*) from disk_metric;
+count(*)
+10080
+
+# Test complete
+
+## ----------------------------------------------------------------------
+## Test 4. hm-dfx-04_07d_trend-pos_season-n_eta-00h_state-norm
+##
+## Description: 7 days, upward trend, no seasonality, days to depletion = 55.5, expect NORMAL
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+NORMAL
+select count(*) from disk_metric;
+count(*)
+10080
+
+# Test complete
+
+## ----------------------------------------------------------------------
+## Test 5. hm-dfx-05_07d_trend-pos_season-y_eta_00h-state-norm
+##
+## Description: 7 days, upward trend (moderate) with daily seasonality, ETA 166 days, expect NORMAL
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+NORMAL
+select count(*) from disk_metric;
+count(*)
+10080
+
+# Test complete
+
+## ----------------------------------------------------------------------
+## Test 6. hm-dfx-06_07d_trend-neg_season-n_eta-00h_state-norm
+##
+## Description: 7 days, downward trend (e.g. disk cleanup), additive model, no seasonality, expect NORMAL
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+NORMAL
+select count(*) from disk_metric;
+count(*)
+10080
+
+# Test complete
+
+## ----------------------------------------------------------------------
+## Test 7. hm-dfx-07_07d_trend-pos_season-y_eta-38h_state-crit
+##
+## Description: 7 days, sharply positive trend with additive daily seasonality, expect CRITICAL (ETA < 2 days)
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+CRITICAL
+select count(*) from disk_metric;
+count(*)
+10080
+
+# Test complete
+
+## ----------------------------------------------------------------------
+## Test 8. hm-dfx-08_04d_trend-pos_season-y_eta-21h_state-crit
+##
+## Description: 4 days, upward trend (higher) with additive daily seasonality, ETA < 24h, expect CRITICAL
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+CRITICAL
+select count(*) from disk_metric;
+count(*)
+5760
+
+# Test complete
+
+## ----------------------------------------------------------------------
+## Test 9. hm-dfx-09_03d_trend-pos_season-y_eta-48h_state-crit
+##
+## Description: 3 days, upward trend (higher) with additive daily seasonality, ETA < 48h expect CRITICAL
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+CRITICAL
+select count(*) from disk_metric;
+count(*)
+4320
+
+# Test complete
+
+## ----------------------------------------------------------------------
+## Test 10. hm-dfx-10_14d_trend-pos_season-y_eta-120h_state-warn
+##
+## Description: 14 days, upward trend (higher) with additive daily seasonality, ETA 120h expect WARNING
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+WARNING
+select count(*) from disk_metric;
+count(*)
+20160
+
+# Test complete
+
+## ----------------------------------------------------------------------
+## Test 11. hm-dfx-11_14d_trend-pos_season-y_eta-86h_state-warn
+##
+## Description: Piecewise rate: Steady then ramps to 8%/day, steep daily season; expected WARNING (ETA ~86h)
+##              Small disk, 1GB
+## ----------------------------------------------------------------------
+
+# Clear the forecast tables
+use performance_schema;
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+
+# Set the test filename
+
+# Start the test
+set @@global.health_monitor.disk_forecast_run_mode=TEST;
+
+# Wait for the test to complete, disk_forecast_run_mode returned to STANDBY
+
+# Check the results
+select status from disk_forecast_summary;
+status
+WARNING
+select count(*) from disk_metric;
+count(*)
+20160
+
+# Test complete
+
+##
+## Clean up
+##
+
+truncate disk_metric;
+truncate disk_forecast;
+truncate disk_forecast_summary;
+set @@global.health_monitor.disk_forecast_run_mode=NORMAL;
+
+uninstall component 'file://component_health_monitor';

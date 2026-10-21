@@ -79,6 +79,32 @@ SERVICE_TYPE(dynamic_loader) * dynamic_loader_srv;
 
 typedef std::string my_string;
 
+/*
+  Server-installed components must use the default scheme loader implementation
+  selected by mysqld, not an implementation name embedded in the URN scheme.
+*/
+static bool urns_use_explicit_scheme_service(const char *urns[],
+                                             int component_count) {
+  auto urn_uses_explicit_scheme_service = [](const char *urn) {
+    const char *scheme_end = strstr(urn, "://");
+    if (scheme_end == nullptr) return false;
+
+    const auto scheme_length = static_cast<size_t>(scheme_end - urn);
+    if (memchr(urn, '.', scheme_length) == nullptr) return false;
+
+    my_string scheme(urn, scheme_length);
+    my_error(ER_COMPONENTS_NO_SCHEME_SERVICE, MYF(0), scheme.c_str(), urn);
+    return true;
+  };
+
+  for (int i = 0; i < component_count; ++i) {
+    if (urns[i] != nullptr && urn_uses_explicit_scheme_service(urns[i]))
+      return true;
+  }
+
+  return false;
+}
+
 enum enum_component_table_field {
   CT_FIELD_COMPONENT_ID = 0,
   CT_FIELD_GROUP_ID,
@@ -306,6 +332,9 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
         urns.push_back(group_it->c_str());
       }
       /* We continue process despite of any errors. */
+      if (urns_use_explicit_scheme_service(urns.data(), (int)urns.size()))
+        continue;
+
       dynamic_loader_srv->load(urns.data(), (int)urns.size());
     }
 
@@ -376,6 +405,8 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
       return true;
     }
+
+    if (urns_use_explicit_scheme_service(urns, component_count)) return true;
 
     MUTEX_LOCK(lock, &component_id_by_urn_mutex);
 

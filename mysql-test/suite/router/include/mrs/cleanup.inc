@@ -1,3 +1,24 @@
+if ($MTR_ROUTER_MRS_USE_COMPONENT)
+{
+  if ($_mrs_component_installed)
+  {
+    --disable_query_log
+    --disable_result_log
+    UNINSTALL COMPONENT "file://component_mysql_rest_service";
+
+    DROP USER IF EXISTS 'mysql_mrs_metadata'@'localhost',
+      'mysql_mrs_data'@'localhost';
+    --enable_result_log
+    --enable_query_log
+
+    --let $_mrs_component_installed=0
+  }
+
+  --let $cleanup_arg_mrs_skip_service_disable=1
+  --let $mrs_user_meta=
+  --let $mrs_user_data=
+}
+
 if (!$KEEP_ROUTER_FILES)
 {
 

@@ -1,0 +1,268 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Verify that the Supervisor applies Memory and System Collector settings.
+--echo ## Configuration updates must restart active collectors when needed and
+--echo ## apply pending values even when the collectors are stopped.
+--echo ##
+--echo
+--echo # Procedure:
+--echo #  1. Start both collectors and verify static updates replace their threads.
+--echo #  2. Issue repeated active updates and wait for the final settings.
+--echo #  3. Issue concurrent updates and verify each variable's final value.
+--echo #  4. Stop both collectors and apply repeated updates while they are idle.
+--echo #  5. Re-enable both collectors and verify their threads return.
+
+--source include/not_windows.inc
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo ## Memory and System Collector updates use the Supervisor
+
+--echo
+--echo # Start both collectors through Supervisor
+set @@global.health_monitor.memory_running = on;
+set @@global.health_monitor.system_running = on;
+
+# SET returns before the Supervisor applies the change. Wait for actual worker
+# threads before saving their IDs for the restart checks.
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 2
+    from performance_schema.threads
+   where name in ('thread/health/memory_collector',
+                  'thread/health/system_collector');
+--source include/wait_condition_or_abort.inc
+
+--disable_query_log
+select thread_id into @memory_thread_id
+  from performance_schema.threads
+ where name = 'thread/health/memory_collector';
+select thread_id into @system_thread_id
+  from performance_schema.threads
+ where name = 'thread/health/system_collector';
+select now(6) into @restart_start;
+--enable_query_log
+
+--echo
+--echo # Restart settings create new collector threads
+# Changed thread IDs distinguish a completed restart from an unchanged worker.
+set @@global.health_monitor.memory_sample_rate = 10;
+set @@global.health_monitor.system_sample_rate = 10;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 2
+    from performance_schema.threads
+   where (name = 'thread/health/memory_collector'
+          and thread_id <> @memory_thread_id)
+      or (name = 'thread/health/system_collector'
+          and thread_id <> @system_thread_id);
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 2
+    from performance_schema.error_log
+   where ((data like '%Memory Collector: Settings:%sample interval=10s%')
+          or (data like '%System Collector: Settings:%sample interval=10s%'))
+     and logged > @restart_start;
+--source include/wait_condition_or_abort.inc
+
+select count(*) = 1 as memory_thread_restarted
+  from performance_schema.threads
+ where name = 'thread/health/memory_collector'
+   and thread_id <> @memory_thread_id;
+select count(*) = 1 as system_thread_restarted
+  from performance_schema.threads
+ where name = 'thread/health/system_collector'
+   and thread_id <> @system_thread_id;
+
+--echo
+--echo # Repeated active updates apply the final values without another signal
+--disable_query_log
+select now(6) into @active_updates_start;
+let $updates = 10;
+while ($updates)
+{
+  set @@global.health_monitor.memory_sample_rate = 20;
+  set @@global.health_monitor.system_sample_rate = 20;
+  set @@global.health_monitor.memory_sample_rate = 30;
+  set @@global.health_monitor.system_sample_rate = 30;
+  dec $updates;
+}
+--enable_query_log
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(distinct case
+           when data like '%Memory Collector:%' then 'memory'
+           when data like '%System Collector:%' then 'system'
+         end) = 2
+    from performance_schema.error_log
+   where ((data like '%Memory Collector: Settings:%sample interval=30s%')
+          or (data like '%System Collector: Settings:%sample interval=30s%'))
+     and logged > @active_updates_start;
+--source include/wait_condition_or_abort.inc
+
+select count(distinct case
+         when data like '%Memory Collector:%' then 'memory'
+         when data like '%System Collector:%' then 'system'
+       end) = 2 as final_active_updates_applied
+  from performance_schema.error_log
+ where ((data like '%Memory Collector: Settings:%sample interval=30s%')
+        or (data like '%System Collector: Settings:%sample interval=30s%'))
+   and logged > @active_updates_start;
+
+--echo
+--echo # Concurrent updates apply each variable's final value
+# Concurrent multivariable SET statements may interleave their assignments.
+# The final values need not come from the same statement. Verify below that
+# each collector applies its own final global value.
+--disable_query_log
+connect (settings_update_1, localhost, root,,);
+connect (settings_update_2, localhost, root,,);
+connection default;
+select now(6) into @concurrent_updates_start;
+connection settings_update_1;
+send set @@global.health_monitor.memory_sample_rate = 20,
+         @@global.health_monitor.system_sample_rate = 20;
+connection settings_update_2;
+send set @@global.health_monitor.memory_sample_rate = 40,
+         @@global.health_monitor.system_sample_rate = 40;
+connection settings_update_1;
+reap;
+connection settings_update_2;
+reap;
+connection default;
+--enable_query_log
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(distinct case
+           when data like '%Memory Collector:%' then 'memory'
+           when data like '%System Collector:%' then 'system'
+         end) = 2
+    from performance_schema.error_log
+   where ((data like concat('%Memory Collector: Settings:%sample interval=',
+                            @@global.health_monitor.memory_sample_rate, 's%'))
+          or
+          (data like concat('%System Collector: Settings:%sample interval=',
+                            @@global.health_monitor.system_sample_rate, 's%')))
+     and logged > @concurrent_updates_start;
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # Apply deterministic cleanup values after observing concurrent work
+--disable_query_log
+select now(6) into @cleanup_updates_start;
+--enable_query_log
+set @@global.health_monitor.memory_sample_rate = 60;
+set @@global.health_monitor.system_sample_rate = 60;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(distinct case
+           when data like '%Memory Collector:%' then 'memory'
+           when data like '%System Collector:%' then 'system'
+         end) = 2
+    from performance_schema.error_log
+   where ((data like '%Memory Collector: Settings:%sample interval=60s%')
+          or (data like '%System Collector: Settings:%sample interval=60s%'))
+     and logged > @cleanup_updates_start;
+--source include/wait_condition_or_abort.inc
+
+select @@global.health_monitor.memory_sample_rate = 60
+       as final_concurrent_memory_value_applied;
+select @@global.health_monitor.system_sample_rate = 60
+       as final_concurrent_system_value_applied;
+
+--disable_query_log
+disconnect settings_update_1;
+disconnect settings_update_2;
+--enable_query_log
+
+--echo
+--echo # Stop both collectors through Supervisor
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 0
+    from performance_schema.threads
+   where name in ('thread/health/memory_collector',
+                  'thread/health/system_collector');
+--source include/wait_condition_or_abort.inc
+
+select count(*) = 0 as memory_and_system_threads_stopped
+  from performance_schema.threads
+ where name in ('thread/health/memory_collector',
+                'thread/health/system_collector');
+
+--echo
+--echo # Repeated idle updates apply the final values without another signal
+# Stopped workers cannot notify the Supervisor. The SET callbacks must ensure
+# these pending settings are applied without accidentally starting a worker.
+--disable_query_log
+select now(6) into @idle_updates_start;
+let $updates = 10;
+while ($updates)
+{
+  set @@global.health_monitor.memory_sample_rate = 40;
+  set @@global.health_monitor.system_sample_rate = 40;
+  set @@global.health_monitor.memory_sample_rate = 50;
+  set @@global.health_monitor.system_sample_rate = 50;
+  dec $updates;
+}
+--enable_query_log
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(distinct case
+           when data like '%Memory Collector:%' then 'memory'
+           when data like '%System Collector:%' then 'system'
+         end) = 2
+    from performance_schema.error_log
+   where ((data like '%Memory Collector: Settings:%sample interval=50s%')
+          or (data like '%System Collector: Settings:%sample interval=50s%'))
+     and logged > @idle_updates_start;
+--source include/wait_condition_or_abort.inc
+
+select count(distinct case
+         when data like '%Memory Collector:%' then 'memory'
+         when data like '%System Collector:%' then 'system'
+       end) = 2 as final_idle_updates_applied
+  from performance_schema.error_log
+ where ((data like '%Memory Collector: Settings:%sample interval=50s%')
+        or (data like '%System Collector: Settings:%sample interval=50s%'))
+   and logged > @idle_updates_start;
+select count(*) = 0 as collectors_remain_stopped
+  from performance_schema.threads
+ where name in ('thread/health/memory_collector',
+                'thread/health/system_collector');
+
+--echo
+--echo # Re-enable stopped collectors through Supervisor
+set @@global.health_monitor.memory_running = on;
+set @@global.health_monitor.system_running = on;
+
+let $wait_timeout = 15;
+let $wait_condition =
+  select count(*) = 2
+    from performance_schema.threads
+   where name in ('thread/health/memory_collector',
+                  'thread/health/system_collector');
+--source include/wait_condition_or_abort.inc
+
+select count(*) = 2 as memory_and_system_threads_reenabled
+  from performance_schema.threads
+ where name in ('thread/health/memory_collector',
+                'thread/health/system_collector');
+
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+--echo
+--echo # Clean up
+--eval uninstall component 'file://component_health_monitor'

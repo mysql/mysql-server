@@ -26,11 +26,13 @@
 #ifndef ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_AUTH_NATIVE_FORWARDER_H_
 #define ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_AUTH_NATIVE_FORWARDER_H_
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
 
+#include "classic_auth.h"
 #include "classic_auth_native.h"
 #include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
@@ -80,6 +82,8 @@ class AuthNativeForwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> ok();
 
   std::string initial_server_auth_data_;
+
+  RsaTlsContext rsa_tls_context_;
 
   Stage stage_;
 };

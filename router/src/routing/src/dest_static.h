@@ -39,6 +39,8 @@ class StrategyHandler {
       const bool last_connection_successful,
       const std::uint32_t dest_pool_size) = 0;
 
+  std::uint32_t index() const { return index_pos_; }
+
  protected:
   std::uint32_t index_pos_{0};
 };
@@ -105,6 +107,9 @@ class StaticDestinationsManager final : public DestinationManager {
       const override {
     return destinations_;
   }
+
+  /** Destinations not yet skipped by next-available routing. */
+  DestVector get_remaining_destinations();
 
   bool refresh_destinations(const routing_guidelines::Session_info &) override {
     return false;

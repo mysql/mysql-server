@@ -25,6 +25,8 @@
 
 #include "collector/counted_mysql_session.h"
 
+#include <stdexcept>
+
 #include "mrs/router_observation_entities.h"
 #include "mysql/harness/destination.h"
 
@@ -87,7 +89,16 @@ class GuardBoolSetFalse {
 
 using MySQLSession = mysqlrouter::MySQLSession;
 
-CountedMySQLSession::CountedMySQLSession() {
+CountedMySQLSession::CountedMySQLSession()
+    : CountedMySQLSession(std::make_unique<MySQLSession>()) {}
+
+CountedMySQLSession::CountedMySQLSession(
+    std::unique_ptr<mysqlrouter::MySQLSession> impl)
+    : impl_{std::move(impl)} {
+  if (impl_ == nullptr) {
+    throw std::logic_error(
+        "CountedMySQLSession requires a MySQLSession implementation");
+  }
   mrs::Counter<kEntityCounterMySQLConnectionsActive>::increment();
 }
 
@@ -117,6 +128,7 @@ CountedMySQLSession::Sqls CountedMySQLSession::get_initial_sqls() const {
 void CountedMySQLSession::connect_and_set_opts(
     const ConnectionParameters &connection_params, const Sqls &initial_sqls) {
   connection_params_ = connection_params;
+  connection_id_ = 0;
   initial_sqls_ = initial_sqls;
 
   connect(connection_params);
@@ -143,12 +155,23 @@ void CountedMySQLSession::connect(
   set_ssl_options(opt.ssl_mode, opt.tls_version, opt.ssl_cipher, opt.ca,
                   opt.capath, opt.crl, opt.crlpath);
 
-  MySQLSession::connect(host, port, connection_params.conn_opts.username,
-                        connection_params.conn_opts.password, unix_socket,
-                        connection_params.conn_opts.default_schema,
-                        connection_params.conn_opts.connect_timeout,
-                        connection_params.conn_opts.read_timeout,
-                        connection_params.conn_opts.extra_client_flags);
+  connect(host, port, connection_params.conn_opts.username,
+          connection_params.conn_opts.password, unix_socket,
+          connection_params.conn_opts.default_schema,
+          connection_params.conn_opts.connect_timeout,
+          connection_params.conn_opts.read_timeout,
+          connection_params.conn_opts.extra_client_flags);
+}
+
+void CountedMySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
+                                          const std::string &tls_version,
+                                          const std::string &ssl_cipher,
+                                          const std::string &ca,
+                                          const std::string &capath,
+                                          const std::string &crl,
+                                          const std::string &crlpath) {
+  impl_->set_ssl_options(ssl_mode, tls_version, ssl_cipher, ca, capath, crl,
+                         crlpath);
 }
 
 void CountedMySQLSession::connect(const std::string &host, unsigned int port,
@@ -158,10 +181,12 @@ void CountedMySQLSession::connect(const std::string &host, unsigned int port,
                                   const std::string &default_schema,
                                   int connect_timeout, int read_timeout,
                                   unsigned long extra_client_flags) {
-  MySQLSession::connect(host, port, username, password, unix_socket,
-                        default_schema, connect_timeout, read_timeout,
-                        extra_client_flags);
+  impl_->connect(host, port, username, password, unix_socket, default_schema,
+                 connect_timeout, read_timeout, extra_client_flags);
+
   reconnect_at_next_query_ = false;
+  connection_id_ = 0;
+  update_connection_address(host, port, unix_socket);
 
   auto dest = !unix_socket.empty()
                   ? mysql_harness::Destination(
@@ -182,7 +207,9 @@ void CountedMySQLSession::connect(const MySQLSession &other,
                                   const std::string &username,
                                   const mysql_harness::SecureString &password) {
   auto other_counted = dynamic_cast<const CountedMySQLSession *>(&other);
-  assert(other_counted && "Must be instance of CountedMySQLSession.");
+  if (!other_counted) {
+    throw std::logic_error("Expected CountedMySQLSession instance");
+  }
   auto params = other_counted->get_connection_parameters();
   auto sqls = other_counted->get_initial_sqls();
   params.conn_opts.username = username;
@@ -195,17 +222,26 @@ void CountedMySQLSession::change_user(
     const std::string &user, const mysql_harness::SecureString &password,
     const std::string &db) {
   mrs::Counter<kEntityCounterMySQLChangeUser>::increment();
-  CHECK_DISCONNECTION_VOID(MySQLSession::change_user(user, password, db));
+  CHECK_DISCONNECTION_VOID(impl_->change_user(user, password, db));
   connection_params_.conn_opts.username = user;
   connection_params_.conn_opts.password = password;
   connection_params_.conn_opts.default_schema = db;
+  connection_id_ = 0;
 }
 
-void CountedMySQLSession::reset() { MySQLSession::reset(); }
+void CountedMySQLSession::disconnect() {
+  impl_->disconnect();
+  connection_address_.clear();
+
+  reconnect_at_next_query_ = false;
+  connection_id_ = 0;
+}
+
+void CountedMySQLSession::reset() { impl_->reset(); }
 
 uint64_t CountedMySQLSession::prepare(const std::string &query) {
   mrs::Counter<kEntityCounterMySQLPrepare>::increment();
-  CHECK_DISCONNECTION_RETURN(MySQLSession::prepare(query));
+  CHECK_DISCONNECTION_RETURN(impl_->prepare(query));
 }
 
 void CountedMySQLSession::prepare_execute_with_bind_parameters(
@@ -213,38 +249,133 @@ void CountedMySQLSession::prepare_execute_with_bind_parameters(
     const ResultRowProcessor &processor, const FieldValidator &validator,
     const OnResultSetEnd &on_resultset_end) {
   mrs::Counter<kEntityCounterMySQLPrepareExecute>::increment();
-  CHECK_DISCONNECTION_VOID(MySQLSession::prepare_execute_with_bind_parameters(
+  CHECK_DISCONNECTION_VOID(impl_->prepare_execute_with_bind_parameters(
       ps_id, bind_parameters, processor, validator, on_resultset_end));
 }
 
 void CountedMySQLSession::prepare_remove(uint64_t ps_id) {
   mrs::Counter<kEntityCounterMySQLPrepareRemove>::increment();
-  CHECK_DISCONNECTION_VOID(MySQLSession::prepare_remove(ps_id));
+  CHECK_DISCONNECTION_VOID(impl_->prepare_remove(ps_id));
 }
 
 void CountedMySQLSession::execute(const std::string &query) {
   mrs::Counter<kEntityCounterMySQLQueries>::increment();
-  CHECK_DISCONNECTION_VOID(MySQLSession::execute(query));
+  CHECK_DISCONNECTION_VOID(impl_->execute(query));
 }
 
 void CountedMySQLSession::query(const std::string &query,
                                 const ResultRowProcessor &processor,
                                 const FieldValidator &validator) {
   mrs::Counter<kEntityCounterMySQLQueries>::increment();
-  CHECK_DISCONNECTION_VOID(MySQLSession::query(query, processor, validator));
+  CHECK_DISCONNECTION_VOID(impl_->query(query, processor, validator));
 }
 
 std::unique_ptr<MySQLSession::ResultRow> CountedMySQLSession::query_one(
     const std::string &query, const FieldValidator &validator) {
   mrs::Counter<kEntityCounterMySQLQueries>::increment();
-  CHECK_DISCONNECTION_RETURN(MySQLSession::query_one(query, validator));
+  CHECK_DISCONNECTION_RETURN(impl_->query_one(query, validator));
 }
 
 std::unique_ptr<MySQLSession::ResultRow> CountedMySQLSession::query_one(
     const std::string &query) {
-  // It calls query_one with two arguments. There is no need to count this
-  // call.
-  CHECK_DISCONNECTION_RETURN(MySQLSession::query_one(query));
+  mrs::Counter<kEntityCounterMySQLQueries>::increment();
+  CHECK_DISCONNECTION_RETURN(impl_->query_one(query));
+}
+
+int CountedMySQLSession::ping() { return impl_->ping(); }
+
+bool CountedMySQLSession::execute_nb(const std::string &query) {
+  return impl_->execute_nb(query);
+}
+
+uint64_t CountedMySQLSession::last_insert_id() noexcept {
+  return impl_->last_insert_id();
+}
+
+uint64_t CountedMySQLSession::affected_rows() noexcept {
+  return impl_->affected_rows();
+}
+
+unsigned CountedMySQLSession::warning_count() noexcept {
+  return impl_->warning_count();
+}
+
+std::string CountedMySQLSession::quote(const std::string &s, char qchar) const {
+  return impl_->quote(s, qchar);
+}
+
+bool CountedMySQLSession::is_connected() noexcept {
+  return impl_->is_connected();
+}
+
+const char *CountedMySQLSession::last_sqlstate() {
+  return impl_->last_sqlstate();
+}
+
+const char *CountedMySQLSession::last_error() { return impl_->last_error(); }
+
+unsigned int CountedMySQLSession::last_errno() { return impl_->last_errno(); }
+
+const char *CountedMySQLSession::ssl_cipher() { return impl_->ssl_cipher(); }
+
+bool CountedMySQLSession::has_data_on_socket() {
+  return impl_->has_data_on_socket();
+}
+
+std::vector<std::string> CountedMySQLSession::get_session_tracker_data(
+    enum enum_session_state_type type) {
+  return impl_->get_session_tracker_data(type);
+}
+
+bool CountedMySQLSession::is_ssl_session_reused() {
+  return impl_->is_ssl_session_reused();
+}
+
+unsigned long CountedMySQLSession::server_version() {
+  return impl_->server_version();
+}
+
+MYSQL *CountedMySQLSession::get_handle() { return impl_->get_handle(); }
+
+void CountedMySQLSession::log_queries(bool log) { impl_->log_queries(log); }
+
+bool CountedMySQLSession::log_queries() const { return impl_->log_queries(); }
+
+uint64_t CountedMySQLSession::connection_id() {
+  if (connection_id_ == 0) {
+    auto *handle = impl_->get_handle();
+    if (handle != nullptr) {
+      connection_id_ = mysql_thread_id(handle);
+    }
+
+    if (connection_id_ == 0) {
+      auto row = impl_->query_one("select connection_id()");
+      if (!row) {
+        throw std::logic_error("could not query connection_id()");
+      }
+      connection_id_ = std::stoull((*row)[0]);
+    }
+  }
+
+  return connection_id_;
+}
+
+const std::string &CountedMySQLSession::get_address() noexcept {
+  return connection_address_;
+}
+
+void CountedMySQLSession::update_connection_address(
+    const std::string &host, unsigned int port,
+    const std::string &unix_socket) {
+  if (unix_socket.empty()) {
+    connection_address_ =
+        mysql_harness::Destination(mysql_harness::TcpDestination(host, port))
+            .str();
+  } else {
+    connection_address_ =
+        mysql_harness::Destination(mysql_harness::LocalDestination(unix_socket))
+            .str();
+  }
 }
 
 }  // namespace collector

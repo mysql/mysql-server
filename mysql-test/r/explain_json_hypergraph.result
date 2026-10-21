@@ -98,7 +98,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -175,7 +175,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 drop table t1;
 #
@@ -222,7 +222,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 drop table t1;
 # Index lookup. Nested loop join
@@ -313,7 +313,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 DROP TABLE t1,t2;
 set optimizer_switch=@old_opt_switch;
@@ -415,7 +415,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 DROP TABLE t1,t2;
 # Group aggregates, hash join, sort.
@@ -561,7 +561,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
@@ -627,7 +627,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 # Materialize, window aggregates, Stream
 CREATE TABLE t0 (i0 INTEGER);
@@ -755,7 +755,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 drop table t0, t1;
 # Explain analyze; Temporary table.
@@ -892,7 +892,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 drop table t1;
 drop table t2;
@@ -949,7 +949,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 DROP TABLE t1;
 #
@@ -1080,7 +1080,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -1195,7 +1195,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -1284,7 +1284,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -1318,7 +1318,7 @@ EXPLAIN
     ]
   },
   "query_type": "insert",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 EXPLAIN FORMAT=JSON REPLACE INTO t VALUES (7), (8), (9);
 EXPLAIN
@@ -1340,7 +1340,7 @@ EXPLAIN
     ]
   },
   "query_type": "replace",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 DROP TABLE t;
 #
@@ -1541,3 +1541,32 @@ fulltext_search_references_const
 1
 SET @v1 = NULL;
 DROP TABLE t;
+#
+# WL#17309: Add Selected Partition Information to Iterator-Based EXPLAIN
+#
+SET explain_json_format_version = 2;
+CREATE TABLE t (
+id INT NOT NULL,
+payload VARCHAR(20),
+PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t VALUES (110, 'a'), (120, 'b'), (210, 'c');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t WHERE id BETWEEN 110 AND 120;
+SELECT
+JSON_EXTRACT(@var, '$**.operation') AS operation,
+JSON_EXTRACT(@var, '$**.partitions') AS partitions,
+JSON_EXTRACT(@var, '$.json_schema_version') AS json_schema_version;
+operation	partitions	json_schema_version
+["Filter: (t.id between 110 and 120)", "Index scan on t using PRIMARY in partitions (p1)"]	[["p1"]]	"2.1"
+DROP TABLE t;
+SET @var = NULL;
+SET explain_json_format_version = DEFAULT;

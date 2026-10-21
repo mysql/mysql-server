@@ -35,6 +35,7 @@ Group=@MYSQLROUTER_USER@
 
 # Start main service
 ExecStart=/usr/bin/mysqlrouter
+ExecReload=/usr/bin/mysqlrouter --reload-tls --pid=${MAINPID}
 
 # Sets open_files_limit
 LimitNOFILE = 10000

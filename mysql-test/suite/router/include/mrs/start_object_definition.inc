@@ -13,6 +13,8 @@ if ($extra_mrs_router_id)
 
 --let $_mrs_object_definitions=0
 --let $_mrs_files_definitions=0
+--let $_mrs_data_provider_grants=
+--let $_mrs_object_definition_transaction=1
 
 --disable_query_log
 --disable_result_log

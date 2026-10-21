@@ -65,6 +65,7 @@ ELSE()
   SET (DEB_ZLIB_OPTION "system")
 ENDIF()
 
+SET (DEB_INSTALL_TEST_MRS_CLIENT "")
 IF (WITH_NDB)
   SET (DEB_BASE_PRODUCT "cluster-")
   SET (DEB_BASE_PRODUCTC "Cluster ")
@@ -73,6 +74,7 @@ IF (WITH_NDB)
   SET (DEB_CONTROL_CLIENT_CONFLICT_NDB "mysql-community-client, mysql-commercial-client")
   SET (DEB_NOMEB "1")
   SET (DEB_NOROUTER "1")
+  SET (DEB_INSTALL_TEST_MRS_CLIENT "usr/bin/mysqlrouter_mrs_client usr/libexec")
   SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_MEB=0 -DWITH_ROUTER=0")
 ELSE()
   SET (DEB_BASE_PRODUCT "")
@@ -90,6 +92,7 @@ IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
   )
   SET (DEB_CHANGELOG_TIMESTAMP ${DEB_CHANGELOG_TIMESTAMP} CACHE STRING "")
 ENDIF()
+
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_MLE=ON")
@@ -115,7 +118,6 @@ usr/lib/mysql/plugin/authentication_openid_connect.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/authentication_pam.so
-usr/lib/mysql/plugin/authentication_webauthn.so
 usr/lib/mysql/plugin/component_enterprise_encryption.so
 usr/lib/mysql/plugin/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/component_keyring_hashicorp.so

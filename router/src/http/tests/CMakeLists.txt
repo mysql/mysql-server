@@ -106,7 +106,7 @@ add_googletest_file(test_auth_method.cc
 ## its symbols are marked a "dllimport" by default.
 ## As we use them directly, mark them as "static" instead.
 SET_TARGET_PROPERTIES(routertest_http_auth_method PROPERTIES
-  COMPILE_DEFINITIONS "http_common_DEFINE_STATIC")
+  COMPILE_DEFINITIONS "HTTP_COMMON_STATIC_DEFINE")
 
 # the unit-test needs the http_common's include-directories.
 #
@@ -122,6 +122,7 @@ TARGET_INCLUDE_DIRECTORIES(routertest_http_auth_method
   PRIVATE
   ${PROJECT_SOURCE_DIR}/src/http/src/
   ${PROJECT_SOURCE_DIR}/src/http/include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
   )
 
 add_googletest_file(test_content_type.cc
@@ -181,7 +182,8 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     SKIP_INSTALL
     )
   TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_http_auth_backend
-    PRIVATE $<TARGET_PROPERTY:http_auth_backend,INCLUDE_DIRECTORIES>)
+    PRIVATE
+      $<TARGET_PROPERTY:http_auth_backend_lib_object,INCLUDE_DIRECTORIES>)
 
   LIBFUZZER_ADD_TEST(routertest_fuzz_http_auth_backend
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus_auth_backend)

@@ -30,19 +30,12 @@ ADD_HARNESS_PLUGIN(host_cache
   host_cache_plugin.cc
   host_cache_plugin_config.cc
   host_cache_component.cc
+
+  REQUIRES_IF
+  harness_stdx_interface
+
   REQUIRES
   harness_stdx
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
-  )
-
-TARGET_INCLUDE_DIRECTORIES(host_cache PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  PUBLIC
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  )
-
-GENERATE_EXPORT_HEADER(host_cache
-  EXPORT_FILE_NAME
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/host_cache_export.h
   )

@@ -29,6 +29,7 @@
 #include "mysql/harness/destination.h"
 #include "mysqlrouter/mysql_session.h"
 
+#include <memory>
 #include <vector>
 
 #include "secure_string.h"  // NOLINT(build/include_subdir)
@@ -40,7 +41,7 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
   using Sqls = std::vector<std::string>;
   struct ConnectionParameters {
     struct SslOptions {
-      mysql_ssl_mode ssl_mode;
+      mysql_ssl_mode ssl_mode{SSL_MODE_PREFERRED};
       std::string tls_version;
       std::string ssl_cipher;
       std::string ca;
@@ -65,6 +66,7 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
   };
 
   CountedMySQLSession();
+  explicit CountedMySQLSession(std::unique_ptr<mysqlrouter::MySQLSession> impl);
   ~CountedMySQLSession() override;
 
   virtual void allow_failure_at_next_query();
@@ -74,6 +76,11 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
   virtual void connect_and_set_opts(
       const ConnectionParameters &connection_params, const Sqls &initial_sqls);
   virtual void connect(const ConnectionParameters &connection_params);
+
+  void set_ssl_options(mysql_ssl_mode ssl_mode, const std::string &tls_version,
+                       const std::string &ssl_cipher, const std::string &ca,
+                       const std::string &capath, const std::string &crl,
+                       const std::string &crlpath) override;
 
   void connect(const MySQLSession &other, const std::string &username,
                const mysql_harness::SecureString &password) override;
@@ -89,6 +96,7 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
   void change_user(const std::string &user,
                    const mysql_harness::SecureString &password,
                    const std::string &db) override;
+  void disconnect() override;
   void reset() override;
   uint64_t prepare(const std::string &query) override;
   void prepare_execute_with_bind_parameters(
@@ -108,9 +116,37 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
       const FieldValidator &validator) override;  // throws Error
   std::unique_ptr<MySQLSession::ResultRow> query_one(
       const std::string &query) override;  // throws Error
+  int ping() override;
+  bool execute_nb(const std::string &query) override;
+  uint64_t last_insert_id() noexcept override;
+  uint64_t affected_rows() noexcept override;
+  unsigned warning_count() noexcept override;
+  std::string quote(const std::string &s, char qchar = '\'') const override;
+  bool is_connected() noexcept override;
+  const char *last_sqlstate() override;
+  const char *last_error() override;
+  unsigned int last_errno() override;
+  const char *ssl_cipher() override;
+  bool has_data_on_socket() override;
+  std::vector<std::string> get_session_tracker_data(
+      enum enum_session_state_type type) override;
+  bool is_ssl_session_reused() override;
+  unsigned long server_version() override;
+  MYSQL *get_handle() override;
+  void log_queries(bool log) override;
+  bool log_queries() const override;
+
+  uint64_t connection_id();
+  const std::string &get_address() noexcept;
 
  private:
+  void update_connection_address(const std::string &host, unsigned int port,
+                                 const std::string &unix_socket);
+
   ConnectionParameters connection_params_;
+  uint64_t connection_id_{0};
+  std::unique_ptr<mysqlrouter::MySQLSession> impl_;
+  std::string connection_address_;
   bool reconnect_at_next_query_{false};
   Sqls initial_sqls_;
 };

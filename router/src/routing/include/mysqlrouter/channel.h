@@ -45,6 +45,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "mysql/harness/default_init_allocator.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_context.h"
 #include "mysql/harness/tls_types.h"
 #include "mysqlrouter/classic_protocol.h"
 
@@ -92,9 +93,13 @@ class ROUTING_CONNECTIONS_EXPORT Channel {
    * initialize the SSL session.
    */
   void init_ssl(SSL_CTX *ssl_ctx) {
-    ssl_.reset(SSL_new(ssl_ctx));
-    // the BIOs are owned by the SSL
-    SSL_set_bio(ssl_.get(), BIO_new(BIO_s_mem()), BIO_new(BIO_s_mem()));
+    tls_context_.reset();
+    init_ssl_impl(ssl_ctx);
+  }
+
+  void init_ssl(std::shared_ptr<TlsContext> ssl_ctx) {
+    tls_context_ = std::move(ssl_ctx);
+    init_ssl_impl(tls_context_->get());
   }
 
   /**
@@ -329,6 +334,12 @@ class ROUTING_CONNECTIONS_EXPORT Channel {
   Ssl release_ssl();
 
  private:
+  void init_ssl_impl(SSL_CTX *ssl_ctx) {
+    ssl_.reset(SSL_new(ssl_ctx));
+    // the BIOs are owned by the SSL
+    SSL_set_bio(ssl_.get(), BIO_new(BIO_s_mem()), BIO_new(BIO_s_mem()));
+  }
+
   size_t want_recv_{};
 
   recv_buffer_type recv_buffer_;
@@ -344,6 +355,7 @@ class ROUTING_CONNECTIONS_EXPORT Channel {
   bool is_tls_{false};
 
   Ssl ssl_{};
+  std::shared_ptr<TlsContext> tls_context_;
 };
 
 #endif

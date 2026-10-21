@@ -282,7 +282,7 @@ void box_envelope(const Geometry *g, const dd::Spatial_reference_system *srs,
 }
 
 bool knn_query_to_mbr(THD *thd, Item *knn_query_item,
-                      double (&coordinates)[5]) {
+                      double (&coordinates)[4]) {
   auto geometryExtractionResult = ExtractGeometry(knn_query_item, thd, nullptr);
 
   std::unique_ptr<gis::Geometry> g;

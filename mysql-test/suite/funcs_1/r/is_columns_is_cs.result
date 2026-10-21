@@ -179,7 +179,8 @@ def	information_schema	JSON_DUALITY_VIEW_COLUMNS	JSON_KEY_NAME	10	NULL	YES	varch
 def	information_schema	JSON_DUALITY_VIEW_COLUMNS	ALLOW_INSERT	11	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
 def	information_schema	JSON_DUALITY_VIEW_COLUMNS	ALLOW_UPDATE	12	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
 def	information_schema	JSON_DUALITY_VIEW_COLUMNS	ALLOW_DELETE	13	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
-def	information_schema	JSON_DUALITY_VIEW_COLUMNS	READ_ONLY	14	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
+def	information_schema	JSON_DUALITY_VIEW_COLUMNS	ALLOW_CHECK	14	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
+def	information_schema	JSON_DUALITY_VIEW_COLUMNS	READ_ONLY	15	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
 def	information_schema	JSON_DUALITY_VIEW_LINKS	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	JSON_DUALITY_VIEW_LINKS	TABLE_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	JSON_DUALITY_VIEW_LINKS	TABLE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
@@ -203,11 +204,12 @@ def	information_schema	JSON_DUALITY_VIEW_TABLES	WHERE_CLAUSE	7	NULL	YES	varchar	
 def	information_schema	JSON_DUALITY_VIEW_TABLES	ALLOW_INSERT	8	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
 def	information_schema	JSON_DUALITY_VIEW_TABLES	ALLOW_UPDATE	9	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
 def	information_schema	JSON_DUALITY_VIEW_TABLES	ALLOW_DELETE	10	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
-def	information_schema	JSON_DUALITY_VIEW_TABLES	READ_ONLY	11	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
-def	information_schema	JSON_DUALITY_VIEW_TABLES	IS_ROOT_TABLE	12	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
-def	information_schema	JSON_DUALITY_VIEW_TABLES	REFERENCED_TABLE_ID	13	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
-def	information_schema	JSON_DUALITY_VIEW_TABLES	REFERENCED_TABLE_PARENT_ID	14	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
-def	information_schema	JSON_DUALITY_VIEW_TABLES	REFERENCED_TABLE_PARENT_RELATIONSHIP	15	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select			NULL
+def	information_schema	JSON_DUALITY_VIEW_TABLES	ALLOW_CHECK	11	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
+def	information_schema	JSON_DUALITY_VIEW_TABLES	READ_ONLY	12	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
+def	information_schema	JSON_DUALITY_VIEW_TABLES	IS_ROOT_TABLE	13	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
+def	information_schema	JSON_DUALITY_VIEW_TABLES	REFERENCED_TABLE_ID	14	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
+def	information_schema	JSON_DUALITY_VIEW_TABLES	REFERENCED_TABLE_PARENT_ID	15	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
+def	information_schema	JSON_DUALITY_VIEW_TABLES	REFERENCED_TABLE_PARENT_RELATIONSHIP	16	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select			NULL
 def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select			NULL
 def	information_schema	KEYWORDS	RESERVED	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
@@ -789,6 +791,7 @@ NULL	information_schema	JSON_DUALITY_VIEW_COLUMNS	REFERENCED_TABLE_ID	int	NULL	N
 NULL	information_schema	JSON_DUALITY_VIEW_COLUMNS	ALLOW_INSERT	tinyint	NULL	NULL	NULL	NULL	tinyint
 NULL	information_schema	JSON_DUALITY_VIEW_COLUMNS	ALLOW_UPDATE	tinyint	NULL	NULL	NULL	NULL	tinyint
 NULL	information_schema	JSON_DUALITY_VIEW_COLUMNS	ALLOW_DELETE	tinyint	NULL	NULL	NULL	NULL	tinyint
+NULL	information_schema	JSON_DUALITY_VIEW_COLUMNS	ALLOW_CHECK	tinyint	NULL	NULL	NULL	NULL	tinyint
 NULL	information_schema	JSON_DUALITY_VIEW_COLUMNS	READ_ONLY	tinyint	NULL	NULL	NULL	NULL	tinyint
 3.0000	information_schema	JSON_DUALITY_VIEW_LINKS	TABLE_CATALOG	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	JSON_DUALITY_VIEW_LINKS	TABLE_SCHEMA	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
@@ -813,6 +816,7 @@ NULL	information_schema	JSON_DUALITY_VIEW_COLUMNS	READ_ONLY	tinyint	NULL	NULL	NU
 NULL	information_schema	JSON_DUALITY_VIEW_TABLES	ALLOW_INSERT	tinyint	NULL	NULL	NULL	NULL	tinyint
 NULL	information_schema	JSON_DUALITY_VIEW_TABLES	ALLOW_UPDATE	tinyint	NULL	NULL	NULL	NULL	tinyint
 NULL	information_schema	JSON_DUALITY_VIEW_TABLES	ALLOW_DELETE	tinyint	NULL	NULL	NULL	NULL	tinyint
+NULL	information_schema	JSON_DUALITY_VIEW_TABLES	ALLOW_CHECK	tinyint	NULL	NULL	NULL	NULL	tinyint
 NULL	information_schema	JSON_DUALITY_VIEW_TABLES	READ_ONLY	tinyint	NULL	NULL	NULL	NULL	tinyint
 NULL	information_schema	JSON_DUALITY_VIEW_TABLES	IS_ROOT_TABLE	tinyint	NULL	NULL	NULL	NULL	tinyint
 NULL	information_schema	JSON_DUALITY_VIEW_TABLES	REFERENCED_TABLE_ID	int	NULL	NULL	NULL	NULL	int

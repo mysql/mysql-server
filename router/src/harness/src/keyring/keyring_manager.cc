@@ -25,7 +25,6 @@
 
 #include "keyring/keyring_manager.h"
 
-#include <random>
 #include <stdexcept>
 #include <system_error>
 
@@ -63,6 +62,7 @@
 namespace mysql_harness {
 
 static std::unique_ptr<KeyringFile> g_keyring;
+static std::unique_ptr<Keyring> g_custom_keyring;
 static std::string g_keyring_file_path;
 static std::string g_keyring_key;
 
@@ -204,13 +204,34 @@ bool init_keyring_with_key(const std::string &keyring_file_path,
   return existed;
 }
 
+void init_keyring(Keyring *custom_backend) {
+  if (!custom_backend) throw std::logic_error("Custom keyring is null");
+
+  g_custom_keyring.reset(custom_backend);  // take ownership
+}
+
 void flush_keyring() {
+  if (g_custom_keyring) {
+    // Custom Keyrings should flush automatically (e.g. the server's keyring)
+    return;
+  }
+
   if (!g_keyring) throw std::logic_error("No keyring loaded");
+
   g_keyring->save(g_keyring_file_path, g_keyring_key);
 }
 
-Keyring *get_keyring() noexcept { return g_keyring.get(); }
+Keyring *get_keyring() noexcept {
+  if (g_custom_keyring) return g_custom_keyring.get();
 
-void reset_keyring() noexcept { g_keyring.reset(); }
+  return g_keyring.get();
+}
+
+void reset_keyring() noexcept {
+  g_custom_keyring.reset();
+  g_keyring.reset();
+  g_keyring_file_path.clear();
+  g_keyring_key.clear();
+}
 
 }  // namespace mysql_harness

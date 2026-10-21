@@ -67,7 +67,6 @@ extern opentelemetry::nostd::shared_ptr<opentelemetry::logs::Logger> g_logger;
 extern std::atomic_int64_t g_session_count;
 
 extern std::atomic_bool g_shutting_down;
-extern std::atomic_int64_t g_sessions_closed;
 extern std::atomic_int64_t g_run_level;
 
 constexpr int RUN_LEVEL_BOOT = 0;
@@ -79,8 +78,6 @@ constexpr int RUN_LEVEL_READY = 5;
 constexpr int RUN_LEVEL_FAILED = 6;
 constexpr int RUN_LEVEL_UNINSTALL = 7;
 
-extern mysql_mutex_t g_session_notify_mutex;
-extern mysql_cond_t g_session_notify_cond;
 extern mysql_mutex_t g_all_meters_mutex;
 extern mysql_mutex_t g_option_usage_mutex;
 
@@ -114,9 +111,6 @@ extern opentelemetry::nostd::shared_ptr<opentelemetry::metrics::MeterProvider>
 
 extern MySQLMeterProviders g_all_meter_providers;
 #endif
-
-void to_timespec(const std::chrono::time_point<std::chrono::system_clock> &from,
-                 struct timespec &to);
 
 }  // namespace telemetry
 

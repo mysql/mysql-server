@@ -1,0 +1,22 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Just start and right away stop MRS component, where
+# valid metadata schema already exists on the disk.
+# Allow the component to generate user-account and keyring.
+#
+
+--source include/not_solaris.inc
+
+## Test starts here
+--echo
+--echo
+--echo ## I. No test scenario, just use default component init/deinit scripts.
+
+--echo
+--echo #
+--echo # I.
+--source ../include/cmrs/initialize.inc
+
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--source ../include/cmrs/cleanup.inc

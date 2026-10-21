@@ -308,6 +308,7 @@ Requires:       openssl3-fips
 Requires:       %{name}-client%{?_isa} >= %{min}
 Requires:       %{name}-common%{?_isa} = %{version}-%{release}
 Requires:       %{name}-icu-data-files = %{version}-%{release}
+Obsoletes:      mysql8.4-server < %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-commercial-embedded < 8.0.1
@@ -447,6 +448,8 @@ Obsoletes:      mariadb-client-utils
 Obsoletes:      mysql < %{version}-%{release}
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql%{?_isa} = %{version}-%{release}
+Obsoletes:      mysql8.4 < %{version}-%{release}
+Obsoletes:      mysql8.4-server < %{version}-%{release}
 
 %description    client
 This package contains the standard MySQL clients and administration
@@ -470,6 +473,8 @@ Obsoletes:      mysql-cluster-community-common < %{version}-%{release}
 %endif
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
+Obsoletes:      mysql8.4-common < %{version}-%{release}
+Obsoletes:      mysql8.4-errmsg < %{version}-%{release}
 
 %description    common
 This packages contains common files needed by MySQL client library and
@@ -507,6 +512,8 @@ Requires:       perl(POSIX)
 Requires:       perl(Sys::Hostname)
 Requires:       perl(Time::HiRes)
 Requires:       perl(Time::localtime)
+Requires:       perl(lib)
+Requires:       openssl
 %if 0%{?cluster}
 Requires:       %{name}-data-node%{?_isa} >= %{min}
 Requires:       %{name}-management-server%{?_isa} >= %{min}
@@ -628,6 +635,7 @@ Conflicts:      mysql-cluster-community-client < 8.0.22
 Obsoletes:      mysql-community-client-plugins < %{version}-%{release}
 %endif
 %endif
+Obsoletes:      mysql8.4-server < %{version}-%{release}
 
 %description    client-plugins
 This package contains the client-plugins libraries used by MySQL client applications.
@@ -894,6 +902,9 @@ mkdir debug
            -DCMAKE_CXX_FLAGS="$optflags" \
 %if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %else
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
            -DWITH_AUTHENTICATION_WEBAUTHN=0 \
@@ -946,6 +957,9 @@ mkdir release
            -DCMAKE_CXX_FLAGS="%{optflags}" \
 %if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %else
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
            -DWITH_AUTHENTICATION_WEBAUTHN=0 \
@@ -1004,6 +1018,9 @@ mkdir release
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
 %if 0%{?ssl_default}
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %else
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
            -DWITH_AUTHENTICATION_FIDO=0 \
@@ -1086,6 +1103,11 @@ install -d -m 0755 %{buildroot}/var/run/mysqlrouter
 # Install all binaries
 cd $MBD/release
 make DESTDIR=%{buildroot} install
+
+%if 0%{?with_router} == 0
+install -d -m 0755 %{buildroot}%{_prefix}/libexec
+mv %{buildroot}%{_bindir}/mysqlrouter_mrs_client %{buildroot}%{_prefix}/libexec/
+%endif # !with_router
 
 # Install config and logrotate
 install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
@@ -1306,10 +1328,14 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/private/libpolyglot.so
 %endif # commercial
-
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%if 0%{?ssl_default}
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
+%endif # add_fido_plugins
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -1318,6 +1344,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_health_monitor.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
@@ -1343,6 +1370,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysql_rest_service.so
 
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
@@ -1358,9 +1386,6 @@ fi
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_component_filter_uninstall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %if 0%{?ssl_default}
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
@@ -1424,6 +1449,11 @@ fi
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%if 0%{?ssl_default}
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
+%endif # add_fido_plugins
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -1432,6 +1462,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_health_monitor.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
@@ -1457,6 +1488,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_flow_control_stats.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysql_rest_service.so
 
 %if 0%{?mecab}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
@@ -1467,9 +1499,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %if 0%{?ssl_default}
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
@@ -1714,6 +1743,10 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
 %endif # commercial
+
+%if 0%{?with_router} == 0
+%{_prefix}/libexec/mysqlrouter_mrs_client
+%endif # !with_router
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
@@ -2084,6 +2117,9 @@ fi
 %endif # with_router
 
 %changelog
+* Sun Aug 30 2026 MySQL Release Engineering <mysql-build@oss.oracle.com> - 26.10.0
+- Added component_health_monitor to community
+
 * Fri Feb  6 2026 Harin Vadodaria <harin.vadodaria@oracle.com> - 9.7.0
 - Added component_object_policy
 

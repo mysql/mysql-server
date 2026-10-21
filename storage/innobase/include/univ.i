@@ -277,7 +277,7 @@ constexpr size_t UNIV_WORD_SIZE = SIZEOF_LONG;
 
 /** The following alignment is used in memory allocations in memory heap
 management to ensure correct alignment for doubles etc. */
-constexpr uint32_t UNIV_MEM_ALIGNMENT = 8;
+constexpr size_t UNIV_MEM_ALIGNMENT = 8;
 
 /*
                         DATABASE VERSION CONTROL

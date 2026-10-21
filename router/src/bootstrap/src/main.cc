@@ -31,11 +31,13 @@
 #include <vector>
 
 #include "bootstrap_configurator.h"
+#include "mysql/harness/application_type_manager.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/tty.h"
 #include "mysql/harness/utility/string.h"
 #include "mysql/harness/vt100.h"
 #include "mysql/harness/vt100_filter.h"
+#include "mysqlrouter/router_application_type_name.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
@@ -111,6 +113,10 @@ int main(int argc, char **argv) {
   preconfig_log_init();
 
   init_DIM();
+
+  // Set the Application type
+  mysql_harness::ApplicationTypeManager::instance().set(
+      mysql_harness::kRouterApplicationTypeName);
 
   try {
     BootstrapConfigurator configurator{tty.out, tty.err};

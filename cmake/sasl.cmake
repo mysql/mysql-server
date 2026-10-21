@@ -127,21 +127,11 @@ MACRO(FIND_SYSTEM_SASL)
   ENDIF()
 ENDMACRO(FIND_SYSTEM_SASL)
 
-# Lookup and copy all plugins
-#   lib/sasl2/libanonymous.so
-#   lib/sasl2/libcrammd5.so
-#   lib/sasl2/libdigestmd5.so
-#   lib/sasl2/libgs2.so
+# Lookup and copy plugins used by authentication_ldap_sasl
 #   lib/sasl2/libgssapiv2.so
-#   lib/sasl2/libplain.so
 #   lib/sasl2/libscram.so
 SET(CUSTOM_SASL_PLUGINS
-  anonymous
-  crammd5
-  digestmd5
-  gs2
   gssapiv2
-  plain
   scram
   )
 
@@ -197,13 +187,20 @@ MACRO(FIND_CUSTOM_SASL)
         NO_SYSTEM_ENVIRONMENT_PATH
         )
       IF(NOT ${VAR_NAME})
-        MESSAGE(FATAL_ERROR
+        MESSAGE(WARNING
         "Could not find plugin lib${SASL_PLUGIN}.so in ${WITH_SASL}/lib/sasl2")
       ENDIF()
     ENDFOREACH()
-    # SCRAM library found, setting SCRAM_LIB_CONFIGURED to 1.
-    # SCRAM_LIB_CONFIGURED will be used to construct supported SASL methods.
-    SET(SCRAM_LIB_CONFIGURED 1)
+    IF(NOT SASL_CUSTOM_PLUGIN_gssapiv2 AND NOT SASL_CUSTOM_PLUGIN_scram)
+      MESSAGE(FATAL_ERROR
+        "Could not find any SASL plugin used by authentication_ldap_sasl "
+        "in ${WITH_SASL}/lib/sasl2")
+    ENDIF()
+    IF(SASL_CUSTOM_PLUGIN_scram)
+      # SCRAM library found, setting SCRAM_LIB_CONFIGURED to 1.
+      # SCRAM_LIB_CONFIGURED will be used to construct supported SASL methods.
+      SET(SCRAM_LIB_CONFIGURED 1)
+    ENDIF()
   ENDIF()
 
   IF(SASL_INCLUDE_DIR)
@@ -299,9 +296,11 @@ MACRO(MYSQL_CHECK_SASL_DLLS)
     # On el6, the main library does not depend on krb5, but some plugins do.
     FOREACH(SASL_PLUGIN ${CUSTOM_SASL_PLUGINS})
       SET(VAR_NAME "SASL_CUSTOM_PLUGIN_${SASL_PLUGIN}")
-      FIND_OBJECT_DEPENDENCIES(${${VAR_NAME}} PLUGIN_DEPS)
-      MESSAGE(STATUS "SASL_PLUGIN ${SASL_PLUGIN} DEPENDS ON ${PLUGIN_DEPS}")
-      LIST(APPEND SASL_DEPENDS_ON ${PLUGIN_DEPS})
+      IF(${VAR_NAME})
+        FIND_OBJECT_DEPENDENCIES(${${VAR_NAME}} PLUGIN_DEPS)
+        MESSAGE(STATUS "SASL_PLUGIN ${SASL_PLUGIN} DEPENDS ON ${PLUGIN_DEPS}")
+        LIST(APPEND SASL_DEPENDS_ON ${PLUGIN_DEPS})
+      ENDIF()
     ENDFOREACH()
     LIST(REMOVE_DUPLICATES SASL_DEPENDS_ON)
 
@@ -328,11 +327,6 @@ MACRO(MYSQL_CHECK_SASL_DLLS)
           COPIED_LIBRARY_NAME COPIED_TARGET_NAME
           )
         ADD_DEPENDENCIES(${sasl_target} ${COPIED_TARGET_NAME})
-      ELSEIF(SASL_WITHOUT_KERBEROS)
-        # This should be FATAL_ERROR
-      ELSE()
-        MESSAGE(FATAL_ERROR
-        "Could not find plugin lib${SASL_PLUGIN}.so in ${WITH_SASL}/lib/sasl2")
       ENDIF()
     ENDFOREACH()
   ENDIF()

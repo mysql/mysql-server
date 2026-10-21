@@ -1,0 +1,59 @@
+##
+## Health Monitor component
+##
+## Verify that periodic reporting is disabled by default.
+## Explicitly enabling reporting must start the periodic reporter.
+## Restoring the default must stop it.
+##
+
+# Procedure:
+#  1. Install the component and verify periodic reporting is OFF.
+#  2. Verify that no periodic reporter thread is running.
+#  3. Set periodic_reporting to ON and verify the thread starts.
+#  4. Set periodic_reporting to DEFAULT and verify it is OFF.
+#  5. Verify that the reporter thread stops and uninstall the component.
+
+# Ignore collector messages during installation
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+install component 'file://component_health_monitor';
+# Periodic reporting is disabled by default
+select @@global.health_monitor.periodic_reporting as periodic_reporting;
+periodic_reporting
+0
+select count(*) as periodic_reporter_threads from performance_schema.threads
+where name = 'thread/health/periodic_reporter';
+periodic_reporter_threads
+0
+# Explicit enablement still starts the periodic reporter
+set @@global.health_monitor.periodic_reporting = on;
+select @@global.health_monitor.periodic_reporting as periodic_reporting;
+periodic_reporting
+1
+select count(*) as periodic_reporter_threads from performance_schema.threads
+where name = 'thread/health/periodic_reporter';
+periodic_reporter_threads
+1
+# Restoring DEFAULT stops the periodic reporter
+set @@global.health_monitor.periodic_reporting = default;
+select @@global.health_monitor.periodic_reporting as periodic_reporting;
+periodic_reporting
+0
+select count(*) as periodic_reporter_threads from performance_schema.threads
+where name = 'thread/health/periodic_reporter';
+periodic_reporter_threads
+0
+uninstall component 'file://component_health_monitor';

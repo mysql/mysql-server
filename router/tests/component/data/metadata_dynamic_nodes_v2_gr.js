@@ -134,7 +134,12 @@ function prepare_globals() {
       username: mysqld.global.user,
       password: mysqld.global.password,
     },
-    greeting: {server_version: mysqld.global.server_version}
+    greeting: {
+      server_version: mysqld.global.server_version,
+      exec_time: mysqld.global.connect_exec_time === undefined ?
+          0 :
+          mysqld.global.connect_exec_time,
+    }
   },
   stmts: function(stmt) {
     prepare_globals();

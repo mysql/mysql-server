@@ -1,0 +1,148 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify component-specific authorization and generated-SQL boundaries.
+
+--source include/not_solaris.inc
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source $router_tests/schema/basic_schema.sql
+
+--source $router_tests/mrs/start_object_definition.inc
+
+# Public content.
+--let $mrs_add_service_path="/public"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=FALSE
+--source $router_tests/mrs/db_schema/add.inc
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/items
+--let $mrs_add_db_object_op=READ
+--let $mrs_add_db_object_auth=FALSE
+--source $router_tests/mrs/db_object/add.inc
+
+# Protected content with READ and CREATE authorization.
+--let $mrs_add_service_path="/secure"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=TRUE
+--source $router_tests/mrs/db_schema/add.inc
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/items
+--let $mrs_add_db_object_op=CREATE,READ
+--let $mrs_add_db_object_auth=TRUE
+--source $router_tests/mrs/db_object/add.inc
+
+# The user can authenticate for this service, but has no role privilege on it.
+--let $mrs_add_service_path="/other"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=TRUE
+--source $router_tests/mrs/db_schema/add.inc
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/items
+--let $mrs_add_db_object_op=READ
+--let $mrs_add_db_object_auth=TRUE
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_role_caption=component_user
+--source $router_tests/mrs/role/add.inc
+--let $mrs_grant_privilege_service_path=/secure
+--let $mrs_grant_privilege_schema_path=/db
+--let $mrs_grant_privilege_object_path=/items
+--let $mrs_grant_privilege_crud_operations=CREATE,READ
+--source $router_tests/mrs/role/grant_privilege.inc
+
+--let $mrs_add_auth_app=mrs_auth
+--let $mrs_add_auth_registered_users_only=1
+--let $mrs_add_auth_vendor=MRS
+--let $mrs_add_auth_services=('/secure','/other')
+--source $router_tests/mrs/auth_app/add.inc
+
+--let $mrs_add_user_ext_uid='component-user'
+--let $mrs_add_user_name='component_user'
+--let $mrs_add_user_auth_string='JEEkMDA1JGI2amJJam9BZmdNS1kwWlFJVUVRZmg1d2UxVT0kVHVkYUQvandPNHB4QSttSVZQT2Q2QTlna1g2OUEyMVVpWEl4ajdrcG1Taz0='
+--let $mrs_add_user_role=component_user
+--source $router_tests/mrs/user/add.inc
+
+--source $router_tests/mrs/end_object_definition.inc
+
+--echo
+--echo # Public content works and protected content requires authentication.
+--exec $MRS_CLIENT_ARGS --path /public/db/items/1 --display none
+--exec $MRS_CLIENT_ARGS --path /secure/db/items/1 --expected-status Unauthorized --display none
+
+--exec $MRS_CLIENT_ARGS -a scram_post --auth-app mrs_auth --path /secure/authentication/login -u component_user -p pwd --session-file $MYSQL_TMP_DIR/authz-user.dat --display none
+--exec $MRS_CLIENT_ARGS --path /secure/db/items/1 --session-file $MYSQL_TMP_DIR/authz-user.dat --display none
+
+--echo
+--echo # Service and CRUD denials happen before application SQL executes.
+--disable_query_log
+--disable_result_log
+SET @saved_general_log = @@GLOBAL.general_log;
+SET @saved_log_output = @@GLOBAL.log_output;
+SET GLOBAL general_log = OFF;
+SET GLOBAL log_output = 'TABLE';
+TRUNCATE TABLE mysql.general_log;
+SET GLOBAL general_log = ON;
+--enable_result_log
+--enable_query_log
+
+--exec $MRS_CLIENT_ARGS --path /other/db/items/1 --session-file $MYSQL_TMP_DIR/authz-user.dat --expected-status Forbidden --display none
+--exec $MRS_CLIENT_ARGS -t PUT --path /secure/db/items/1 --encoded-payload %7B%22name%22%3A%22unauthorized%22%7D --session-file $MYSQL_TMP_DIR/authz-user.dat --expected-status Forbidden --display none
+
+--disable_query_log
+--disable_result_log
+SET GLOBAL general_log = OFF;
+--enable_result_log
+--enable_query_log
+--let $denied_data_sql=`SELECT COUNT(*) FROM mysql.general_log WHERE user_host LIKE 'mysql_mrs_data%'`
+--let $assert_text=service and CRUD authorization reject before application SQL
+--let $assert_cond=$denied_data_sql = 0
+--source include/assert.inc
+
+--echo
+--echo # Hostile input remains data and invalid SQL surfaces are rejected.
+--exec $MRS_CLIENT_ARGS -t POST --path /secure/db/items --encoded-payload %7B%22id%22%3A11%2C%22name%22%3A%22injection%22%2C%22comments%22%3A%220%27%20UNION%20SELECT%20CURRENT_USER%28%29%20--%22%7D --session-file $MYSQL_TMP_DIR/authz-user.dat --display none
+SELECT comments FROM basic_schema.table2 WHERE id = 11;
+
+--let $mrs_client_arg_path='/secure/db/items'
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_payload='{"id":12,"name":"invalid","not_exposed":1}'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/authz-user.dat
+--let $mrs_client_arg_expected_status=BadRequest
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--let $mrs_client_arg_path='/secure/db/items?q={"name":{"\$raw":"1 OR 1=1"}}'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/authz-user.dat
+--let $mrs_client_arg_expected_status=BadRequest
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--let $mrs_client_arg_path='/secure/db/table1'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/authz-user.dat
+--let $mrs_client_arg_expected_status=NotFound
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo # Cleanup
+--remove_file $MYSQL_TMP_DIR/authz-user.dat
+--disable_query_log
+--disable_result_log
+SET GLOBAL general_log = OFF;
+SET GLOBAL log_output = @saved_log_output;
+SET GLOBAL general_log = @saved_general_log;
+TRUNCATE TABLE mysql.general_log;
+--enable_result_log
+--enable_query_log
+--source ../include/cmrs/cleanup.inc

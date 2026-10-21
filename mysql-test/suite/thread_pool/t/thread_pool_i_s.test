@@ -28,11 +28,20 @@ FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Deprecated_thread_p
 
 SET @admin_thread_groups = 1;
 
+SET @tp_license_string = 'GPL';
+--let is_com = `SELECT VERSION() LIKE '%commercial%'`
+if ( $is_com )
+{
+  --disable_query_log
+  SET @tp_license_string = 'PROPRIETARY';
+  --enable_query_log
+}
+
 --echo # 1. "pool of threads" functionality and its information_schema tables
 --echo #    are provided as plugin.
 --replace_result .so .<extension> .dll .<extension>
 SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY,
-       PLUGIN_AUTHOR, PLUGIN_LICENSE
+       PLUGIN_AUTHOR, PLUGIN_LICENSE = @tp_license_string AS "Expect 1"
 FROM INFORMATION_SCHEMA.PLUGINS
 WHERE PLUGIN_NAME IN
       ('thread_pool','TP_THREAD_STATE','TP_THREAD_GROUP_STATE','TP_THREAD_GROUP_STATS');
@@ -164,7 +173,7 @@ SELECT TP_GROUP_ID, WAIT_TYPE, TP_THREAD_TYPE FROM information_schema.TP_THREAD_
 --echo # Bug#36359860: No deprecation warning when accessing TP I_S tables
 --echo #
 --echo # Show increase in I_S usage counter from running this test
-SELECT VARIABLE_VALUE - @saved_deprecated_i_s_usage_count AS EXPECT_14
+SELECT VARIABLE_VALUE - @saved_deprecated_i_s_usage_count AS "Expect 14"
 FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Deprecated_thread_pool_i_s_usage_count';
 
 --echo #
@@ -173,13 +182,9 @@ FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Deprecated_thread_p
 --echo #
 --echo # Show output from I_S.plugins for TP.
 
-SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_LIBRARY, PLUGIN_LICENSE, PLUGIN_AUTHOR
-       FROM INFORMATION_SCHEMA.PLUGINS
-       WHERE PLUGIN_LIBRARY='thread_pool.so';
+--eval SELECT PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_AUTHOR, PLUGIN_LICENSE = @tp_license_string AS "Expect 1" FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_LIBRARY LIKE 'thread_pool%'
 
-SELECT COUNT(*) AS EXPECT_0 FROM INFORMATION_SCHEMA.PLUGINS
-WHERE PLUGIN_LIBRARY='thread_pool.so' AND  PLUGIN_LICENSE = 'PROPRIETARY';
+--eval SELECT COUNT(*) AS EXPECT_0 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_LIBRARY LIKE 'thread_pool%' AND PLUGIN_LICENSE <> @tp_license_string
 
-SELECT COUNT(*) AS EXPECT_4 FROM INFORMATION_SCHEMA.PLUGINS
-WHERE PLUGIN_LIBRARY='thread_pool.so' AND  PLUGIN_LICENSE = 'GPL';
+--eval SELECT COUNT(*) AS EXPECT_4 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_LIBRARY LIKE 'thread_pool%' AND PLUGIN_LICENSE = @tp_license_string
 

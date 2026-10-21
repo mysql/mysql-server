@@ -1,0 +1,21 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that MySQL X remains available while the MRS component is running and
+# after it is uninstalled.
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--echo # MySQL X is available while the MRS component is running.
+--exec $MYSQLXTEST -ux_root -e ";" >/dev/null 2>&1
+
+--source ../include/cmrs/cleanup.inc
+
+--echo # MySQL X is available after the MRS component is uninstalled.
+--exec $MYSQLXTEST -ux_root -e ";" >/dev/null 2>&1
+
+--source include/xplugin_drop_user.inc

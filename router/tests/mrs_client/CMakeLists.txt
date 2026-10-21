@@ -21,6 +21,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+# Embed the Router libraries as the MRS component does.
+SET(MRS_CLIENT_LIBRARIES
+  http_client_object
+  http_common_object
+  harness-library_object
+  harness_stdx_object
+  harness_tls_object
+  router_utils_object
+  mysqlclient
+  router_mysqlclient_shim
+  ${CMAKE_DL_LIBS}
+  ${CMAKE_THREAD_LIBS_INIT})
+IF(WIN32)
+  LIST(APPEND MRS_CLIENT_LIBRARIES shlwapi.dll)
+ELSEIF(SOLARIS)
+  LIST(APPEND MRS_CLIENT_LIBRARIES nsl socket)
+ENDIF()
+
 MYSQL_ADD_EXECUTABLE(mysqlrouter_mrs_client
   main.cc
   client/http_client_request.cc
@@ -28,17 +46,26 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_mrs_client
   client/authentication.cc
   COMPONENT Router
   LINK_LIBRARIES
-  http_client
-  harness-library
-  harness_tls
   router_tls
   mysql_rest_service_if
   mysql_rest_service_helper
-  router_mysqlclient
+  ${MRS_CLIENT_LIBRARIES}
   ${SSL_LIBRARIES}
   DEPENDENCIES
   mysql_rest_service_if
   )
+
+TARGET_COMPILE_DEFINITIONS(mysqlrouter_mrs_client PRIVATE
+  HTTP_CLIENT_STATIC_DEFINE
+  HTTP_COMMON_STATIC_DEFINE
+  HARNESS_STATIC_DEFINE
+  HARNESS_STDX_STATIC_DEFINE
+  HARNESS_TLS_STATIC_DEFINE
+  ROUTER_UTILS_STATIC_DEFINE)
+IF(WIN32)
+  # Router objects may import symbols resolved within the same executable.
+  TARGET_LINK_OPTIONS(mysqlrouter_mrs_client PRIVATE "/IGNORE:4217")
+ENDIF()
 
 # mysqlrouter_mrs_client component is set to Test, which
 # do not adds it to `mysqlrouter_all`.

@@ -974,3 +974,902 @@ JSON_CONTAINS_PATH(@var, 'one', '$**.deduplication') AS materialization,
 JSON_SEARCH(@var, 'one', '%Materialize with deduplication%', NULL,
             '$**.operation') IS NOT NULL AS operation_contains_materialzation;
 DROP TABLE t;
+
+--echo #
+--echo # WL#17309: Add Selected Partition Information to Iterator-Based EXPLAIN
+--echo #
+
+SET @wl17309_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch =
+  'batched_key_access=off,block_nested_loop=off,mrr_cost_based=off';
+
+CREATE TABLE t_range_pk (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN (200),
+  PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+
+INSERT INTO t_range_pk VALUES (110, 'a'), (120, 'b'), (210, 'c');
+ANALYZE TABLE t_range_pk;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_range_pk WHERE id BETWEEN 110 AND 210;
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT * FROM t_range_pk WHERE id BETWEEN 110 AND 210;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_range_pk
+WHERE id BETWEEN 110 AND 120
+ORDER BY id DESC;
+--enable_warnings
+
+SET explain_json_format_version = 1;
+--replace_regex $elide_json_costs
+EXPLAIN FORMAT=JSON
+SELECT * FROM t_range_pk WHERE id BETWEEN 110 AND 210;
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_range_pk WHERE id BETWEEN 110 AND 210;
+SELECT
+  JSON_EXTRACT(@var, '$**.operation') AS range_pk_operations,
+  JSON_EXTRACT(@var, '$**.partitions') AS range_pk_partitions,
+  JSON_EXTRACT(@var, '$.json_schema_version') AS range_pk_schema_version;
+SET explain_json_format_version = DEFAULT;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE SELECT * FROM t_range_pk WHERE id = 110;
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t_range_pk WHERE id = 110;
+
+EXPLAIN SELECT * FROM t_range_pk WHERE id = 110;
+
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t_range_pk WHERE id = 110;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS top_level_const_partitions_v1;
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t_range_pk WHERE id = 110;
+SELECT
+  JSON_EXTRACT(@var, '$.query_plan.access_type')
+    AS top_level_const_access_type_v2,
+  JSON_EXTRACT(@var, '$.query_plan.table_name')
+    AS top_level_const_table_v2,
+  JSON_EXTRACT(@var, '$.query_plan.partitions')
+    AS top_level_const_partitions_v2,
+  JSON_EXTRACT(@var, '$.query_plan.operation')
+    AS top_level_const_operation_v2;
+SET explain_json_format_version = DEFAULT;
+
+# A single partitioned table optimized while evaluating MIN() retains its
+# selected read partitions on the resulting pre-execution row.
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT MIN(id) FROM t_range_pk PARTITION (p1);
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT MIN(id) FROM t_range_pk PARTITION (p1);
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT MIN(id) FROM t_range_pk PARTITION (p1);
+SELECT
+  JSON_EXTRACT(@var, '$.query_plan.access_type')
+    AS optimized_aggregate_access_type,
+  JSON_EXTRACT(@var, '$.query_plan.table_name')
+    AS optimized_aggregate_table,
+  JSON_EXTRACT(@var, '$.query_plan.partitions')
+    AS optimized_aggregate_partitions,
+  JSON_EXTRACT(@var, '$.query_plan.operation')
+    AS optimized_aggregate_operation;
+SET explain_json_format_version = DEFAULT;
+
+CREATE TABLE t_const_outer (id INT NOT NULL);
+INSERT INTO t_const_outer VALUES (110);
+ANALYZE TABLE t_const_outer;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+  ON t_const_outer.id = t_const.id AND t_const.id = 110;
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+  ON t_const_outer.id = t_const.id AND t_const.id = 110;
+
+EXPLAIN
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+  ON t_const_outer.id = t_const.id AND t_const.id = 110;
+
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+  ON t_const_outer.id = t_const.id AND t_const.id = 110;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS const_partitions_v1;
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+  ON t_const_outer.id = t_const.id AND t_const.id = 110;
+SET @const_access_path = JSON_UNQUOTE(
+  JSON_SEARCH(@var, 'one', 'constant_row', NULL, '$**.access_type'));
+SELECT
+  JSON_EXTRACT(@var, @const_access_path) AS const_access_type,
+  JSON_EXTRACT(
+    @var, REPLACE(@const_access_path, '.access_type', '.table_name'))
+    AS const_table_name,
+  JSON_EXTRACT(
+    @var, REPLACE(@const_access_path, '.access_type', '.partitions'))
+    AS const_partitions,
+  JSON_EXTRACT(
+    @var, REPLACE(@const_access_path, '.access_type', '.operation'))
+    AS const_operation;
+SET @const_access_path = NULL;
+SET explain_json_format_version = DEFAULT;
+
+# A partitioned unique lookup exercises the EQ_REF access path.
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT i.payload
+FROM t_const_outer AS o
+STRAIGHT_JOIN t_range_pk PARTITION (p1) AS i ON i.id = o.id;
+--enable_warnings
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT i.payload
+FROM t_const_outer AS o
+STRAIGHT_JOIN t_range_pk PARTITION (p1) AS i ON i.id = o.id;
+SELECT
+  JSON_EXTRACT(@var, '$**.index_access_type') AS eq_ref_index_access,
+  JSON_EXTRACT(@var, '$**.partitions') AS eq_ref_partitions,
+  JSON_SEARCH(@var, 'one',
+              '%Single-row index lookup on i using PRIMARY in partitions (p1)%',
+              NULL, '$**.operation') IS NOT NULL
+    AS eq_ref_operation_has_partitions;
+SET explain_json_format_version = DEFAULT;
+
+CREATE TABLE t_range_scan (
+  id INT NOT NULL,
+  payload VARCHAR(20)
+)
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN (200),
+  PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+
+INSERT INTO t_range_scan VALUES (110, 'a'), (120, 'b'), (210, 'c');
+ANALYZE TABLE t_range_scan;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_range_scan WHERE id BETWEEN 110 AND 210;
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT * FROM t_range_scan WHERE id BETWEEN 110 AND 210;
+
+SET explain_json_format_version = 1;
+--replace_regex $elide_json_costs
+EXPLAIN FORMAT=JSON
+SELECT * FROM t_range_scan WHERE id BETWEEN 110 AND 210;
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_range_scan WHERE id BETWEEN 110 AND 210;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS range_scan_partitions;
+SET explain_json_format_version = DEFAULT;
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_range_pk PARTITION (p1) WHERE id BETWEEN 110 AND 120;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS explicit_partitions;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_range_pk PARTITION (p0, p1)
+WHERE id BETWEEN 110 AND 120;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS explicit_pruned_partitions;
+EXPLAIN FORMAT=JSON INTO @var
+INSERT INTO t_range_scan
+SELECT * FROM t_range_pk PARTITION (p1) WHERE id BETWEEN 110 AND 120;
+SELECT
+  JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+    AS dml_node_has_partitions,
+  JSON_EXTRACT(@var, '$**.partitions') AS access_partitions;
+
+EXPLAIN FORMAT=JSON INTO @var
+REPLACE INTO t_range_scan
+SELECT * FROM t_range_pk PARTITION (p1) WHERE id BETWEEN 110 AND 120;
+SELECT
+  JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+    AS replace_root_has_partitions,
+  JSON_EXTRACT(@var, '$**.partitions') AS replace_read_partitions;
+
+EXPLAIN FORMAT=JSON INTO @var
+UPDATE t_range_pk AS target
+JOIN t_const_outer AS source ON target.id = source.id
+SET target.payload = 'updated'
+WHERE target.id BETWEEN 110 AND 120;
+SELECT
+  JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+    AS update_root_has_partitions,
+  JSON_EXTRACT(@var, '$**.partitions') AS update_read_partitions;
+
+EXPLAIN FORMAT=JSON INTO @var
+DELETE target
+FROM t_range_pk AS target
+JOIN t_const_outer AS source ON target.id = source.id
+WHERE target.id BETWEEN 110 AND 120;
+SELECT
+  JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+    AS delete_root_has_partitions,
+  JSON_EXTRACT(@var, '$**.partitions') AS delete_read_partitions;
+SET explain_json_format_version = DEFAULT;
+
+CREATE TABLE t_hash (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  PRIMARY KEY (id)
+)
+PARTITION BY HASH (id) PARTITIONS 3;
+
+INSERT INTO t_hash VALUES (1, 'a'), (4, 'b'), (2, 'c');
+ANALYZE TABLE t_hash;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_hash WHERE id IN (1, 4);
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT * FROM t_hash WHERE id IN (1, 4);
+
+SET explain_json_format_version = 1;
+--replace_regex $elide_json_costs
+EXPLAIN FORMAT=JSON
+SELECT * FROM t_hash WHERE id IN (1, 4);
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_hash WHERE id IN (1, 4);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS hash_partitions;
+SET explain_json_format_version = DEFAULT;
+
+CREATE TABLE t_key (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  PRIMARY KEY (id)
+)
+PARTITION BY KEY (id) PARTITIONS 3;
+
+INSERT INTO t_key VALUES (1, 'a'), (4, 'b'), (2, 'c');
+ANALYZE TABLE t_key;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_key WHERE id IN (1, 4);
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT * FROM t_key WHERE id IN (1, 4);
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_key WHERE id IN (1, 4);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS key_partitions;
+SET explain_json_format_version = DEFAULT;
+
+CREATE TABLE t_list (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  PRIMARY KEY (id)
+)
+PARTITION BY LIST (id) (
+  PARTITION p0 VALUES IN (1, 4),
+  PARTITION p1 VALUES IN (2, 5),
+  PARTITION p2 VALUES IN (3, 6)
+);
+
+INSERT INTO t_list VALUES (1, 'a'), (4, 'b'), (2, 'c');
+ANALYZE TABLE t_list;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_list WHERE id IN (1, 4);
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT * FROM t_list WHERE id IN (1, 4);
+
+SET explain_json_format_version = 1;
+--replace_regex $elide_json_costs
+EXPLAIN FORMAT=JSON
+SELECT * FROM t_list WHERE id IN (1, 4);
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_list WHERE id IN (1, 4);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS list_partitions;
+SET explain_json_format_version = DEFAULT;
+
+# An explicitly selected partition also needs to be reported for index skip
+# scans, whose ranges are assembled separately from ordinary range scans.
+CREATE TABLE t_partition_skip (
+  a INT,
+  b INT,
+  c INT,
+  d INT,
+  e INT,
+  KEY idx1 (a, b, c, d, e)
+)
+PARTITION BY RANGE (a) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN (200),
+  PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_partition_skip VALUES
+  (110, 5, 1, 1, 150), (120, 5, 1, 1, 150),
+  (130, 5, 1, 1, 150), (140, 5, 1, 1, 150),
+  (150, 5, 1, 1, 150);
+ANALYZE TABLE t_partition_skip;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT /*+ SKIP_SCAN(t_partition_skip) */ *
+FROM t_partition_skip PARTITION (p1)
+WHERE a IN (110, 120, 130, 140, 150) AND b = 5 AND e BETWEEN 100 AND 200;
+--enable_warnings
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT /*+ SKIP_SCAN(t_partition_skip) */ *
+FROM t_partition_skip PARTITION (p1)
+WHERE a IN (110, 120, 130, 140, 150) AND b = 5 AND e BETWEEN 100 AND 200;
+SELECT
+  JSON_EXTRACT(@var, '$**.index_access_type') AS skip_scan_index_access,
+  JSON_EXTRACT(@var, '$**.partitions') AS skip_scan_partitions,
+  JSON_SEARCH(@var, 'one',
+              '%skip scan on t_partition_skip using idx1 in partitions (p1)%',
+              NULL, '$**.operation') IS NOT NULL
+    AS skip_scan_operation_has_partitions;
+SET explain_json_format_version = DEFAULT;
+DROP TABLE t_partition_skip;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+WITH RECURSIVE qn AS
+  (SELECT 1 AS n UNION ALL SELECT n + 1 FROM qn WHERE n < 3)
+SELECT * FROM qn;
+--enable_warnings
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+WITH RECURSIVE qn AS
+  (SELECT 1 AS n UNION ALL SELECT n + 1 FROM qn WHERE n < 3)
+SELECT * FROM qn;
+SET @follow_tail_access_path = JSON_UNQUOTE(
+  JSON_SEARCH(@var, 'one', 'scan_new_records', NULL, '$**.access_type'));
+SELECT
+  JSON_EXTRACT(@var, @follow_tail_access_path) AS follow_tail_access_type,
+  JSON_EXTRACT(
+    @var, REPLACE(@follow_tail_access_path, '.access_type', '.operation'))
+    AS follow_tail_operation,
+  JSON_EXTRACT(
+    @var, REPLACE(@follow_tail_access_path, '.access_type', '.partitions'))
+    IS NULL AS follow_tail_has_no_partitions;
+SET @follow_tail_access_path = NULL;
+SET explain_json_format_version = DEFAULT;
+
+CREATE TABLE t_dynamic (
+  x INT NOT NULL,
+  y INT DEFAULT (x),
+  z VARCHAR(128) DEFAULT (REPEAT('z', 128)),
+  KEY (x)
+)
+PARTITION BY RANGE (x) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN (200),
+  PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+
+INSERT INTO t_dynamic(x) VALUES (10), (20), (30), (40), (110), (120), (130),
+  (140), (210), (220);
+INSERT INTO t_dynamic SELECT * FROM t_dynamic;
+INSERT INTO t_dynamic SELECT * FROM t_dynamic;
+INSERT INTO t_dynamic SELECT * FROM t_dynamic;
+ANALYZE TABLE t_dynamic;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT t_inner.x
+FROM t_dynamic PARTITION (p0, p1) AS t_inner,
+     t_dynamic AS t_outer
+WHERE t_inner.x < t_outer.y;
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT t_inner.x
+FROM t_dynamic PARTITION (p0, p1) AS t_inner,
+     t_dynamic AS t_outer
+WHERE t_inner.x < t_outer.y;
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT t_inner.x
+FROM t_dynamic PARTITION (p0, p1) AS t_inner,
+     t_dynamic AS t_outer
+WHERE t_inner.x < t_outer.y;
+SELECT
+  JSON_EXTRACT(@var, '$**.index_access_type') AS dynamic_index_access,
+  JSON_EXTRACT(@var, '$**.partitions') AS dynamic_candidate_partitions,
+  JSON_SEARCH(@var, 'one',
+              '%re-planned for each iteration) in partitions (p0,p1)%',
+              NULL, '$**.operation') IS NOT NULL
+    AS dynamic_operation_has_partitions;
+SET explain_json_format_version = DEFAULT;
+
+# Check MRR and a non-unique ref lookup, which use separate index access paths
+# but both delegate partition reporting to SetIndexInfoInObject().
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT y FROM t_dynamic PARTITION (p0, p1) WHERE x IN (10, 20, 30);
+--enable_warnings
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT y FROM t_dynamic PARTITION (p0, p1) WHERE x IN (10, 20, 30);
+SELECT
+  JSON_EXTRACT(@var, '$**.multi_range_read') AS mrr_enabled,
+  JSON_EXTRACT(@var, '$**.partitions') AS mrr_partitions,
+  JSON_SEARCH(@var, 'one', '%Multi-Range Read%', NULL, '$**.operation')
+    IS NOT NULL AS mrr_operation;
+
+EXPLAIN FORMAT=JSON INTO @var
+SELECT i.y
+FROM t_const_outer AS o
+STRAIGHT_JOIN t_dynamic PARTITION (p1) AS i ON i.x = o.id;
+SELECT
+  JSON_EXTRACT(@var, '$**.index_access_type') AS ref_index_access,
+  JSON_EXTRACT(@var, '$**.partitions') AS ref_partitions,
+  JSON_SEARCH(@var, 'one',
+              '%Index lookup on i using x in partitions (p1)%',
+              NULL, '$**.operation') IS NOT NULL
+    AS ref_operation_has_partitions;
+SET explain_json_format_version = DEFAULT;
+
+CREATE TABLE t_count (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN (200),
+  PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+
+INSERT INTO t_count VALUES (10, 'a'), (110, 'b'), (210, 'c');
+ANALYZE TABLE t_count;
+
+CREATE TABLE t_count_other (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+  PARTITION q0 VALUES LESS THAN (100),
+  PARTITION q1 VALUES LESS THAN (200),
+  PARTITION q2 VALUES LESS THAN MAXVALUE
+);
+
+INSERT INTO t_count_other VALUES (10, 'a'), (110, 'b'), (210, 'c');
+ANALYZE TABLE t_count_other;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT COUNT(*) FROM t_count PARTITION (p0, p1);
+
+# A multi-table count keeps its legacy first-table fields, but has no
+# unambiguous partition set.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT COUNT(*)
+FROM t_count PARTITION (p0) AS p,
+     t_count_other PARTITION (q1) AS q;
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT COUNT(*)
+FROM t_count PARTITION (p0) AS p,
+     t_count_other PARTITION (q1) AS q;
+SELECT
+  JSON_EXTRACT(@var, '$.query_plan.operation') AS multi_count_operation,
+  JSON_EXTRACT(@var, '$.query_plan.table_name') AS multi_count_table_name,
+  JSON_EXTRACT(@var, '$.query_plan.schema_name') AS multi_count_schema_name,
+  JSON_EXTRACT(@var, '$.query_plan.alias') AS multi_count_alias,
+  JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+    AS multi_count_has_partitions;
+SET explain_json_format_version = DEFAULT;
+
+# Multiple classic const tables must not retain single-table provenance.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT t_range_pk.id, t_count.id
+FROM t_range_pk, t_count
+WHERE t_range_pk.id = 110 AND t_count.id = 110;
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT t_range_pk.id, t_count.id
+FROM t_range_pk, t_count
+WHERE t_range_pk.id = 110 AND t_count.id = 110;
+SELECT
+  JSON_EXTRACT(@var, '$.query_plan.operation') AS multi_const_operation,
+  JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.table_name')
+    AS multi_const_has_table,
+  JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+    AS multi_const_has_partitions;
+SET explain_json_format_version = DEFAULT;
+
+# A table-independent fake row must remain table-free.
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE SELECT 1;
+--enable_warnings
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var SELECT 1;
+SELECT
+  JSON_EXTRACT(@var, '$.query_plan.operation') AS fake_row_operation,
+  JSON_CONTAINS_PATH(@var, 'one', '$**.table_name') AS fake_row_has_table,
+  JSON_CONTAINS_PATH(@var, 'one', '$**.partitions')
+    AS fake_row_has_partitions;
+SET explain_json_format_version = DEFAULT;
+
+# A table value constructor must remain table-free.
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE VALUES ROW(1), ROW(2);
+--enable_warnings
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var VALUES ROW(1), ROW(2);
+SELECT
+  JSON_EXTRACT(@var, '$.query_plan.operation') AS values_operation,
+  JSON_CONTAINS_PATH(@var, 'one', '$**.table_name') AS values_has_table,
+  JSON_CONTAINS_PATH(@var, 'one', '$**.partitions')
+    AS values_has_partitions;
+SET explain_json_format_version = DEFAULT;
+
+CREATE TABLE t_subpart (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  KEY (id)
+)
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH (id) (
+  PARTITION p0 VALUES LESS THAN (100) (
+    SUBPARTITION p0s0,
+    SUBPARTITION p0s1
+  ),
+  PARTITION p1 VALUES LESS THAN (200) (
+    SUBPARTITION p1s0,
+    SUBPARTITION p1s1
+  ),
+  PARTITION p2 VALUES LESS THAN MAXVALUE (
+    SUBPARTITION p2s0,
+    SUBPARTITION p2s1
+  )
+);
+
+INSERT INTO t_subpart VALUES (110, 'a'), (111, 'b'), (210, 'c');
+ANALYZE TABLE t_subpart;
+
+SET @wl17309_subpart_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch = 'mrr=off,index_condition_pushdown=off';
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_subpart PARTITION (p1) WHERE id BETWEEN 100 AND 199;
+--enable_warnings
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT * FROM t_subpart PARTITION (p1) WHERE id BETWEEN 100 AND 199;
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_subpart WHERE id BETWEEN 100 AND 250;
+--enable_warnings
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart PARTITION (p1) WHERE id BETWEEN 100 AND 199;
+SELECT
+  JSON_EXTRACT(@var, '$**.partitions') AS subpartitions,
+  JSON_SEARCH(@var, 'one', '%in partitions (p1_p1s0,p1_p1s1)%',
+              NULL, '$**.operation') IS NOT NULL
+    AS subpartition_operation_has_partitions,
+  JSON_SEARCH(@var, 'one', 'p0_p0s0', NULL, '$**.partitions') IS NULL
+    AS p0s0_absent,
+  JSON_SEARCH(@var, 'one', 'p0_p0s1', NULL, '$**.partitions') IS NULL
+    AS p0s1_absent,
+  JSON_SEARCH(@var, 'one', 'p2_p2s0', NULL, '$**.partitions') IS NULL
+    AS p2s0_absent,
+  JSON_SEARCH(@var, 'one', 'p2_p2s1', NULL, '$**.partitions') IS NULL
+    AS p2s1_absent;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart WHERE id BETWEEN 100 AND 250;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS ordered_subpartitions;
+SET explain_json_format_version = DEFAULT;
+SET optimizer_switch = @wl17309_subpart_optimizer_switch;
+
+CREATE TABLE t_subpart_range_key (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  KEY (id)
+)
+PARTITION BY RANGE (id)
+SUBPARTITION BY KEY (id) (
+  PARTITION p0 VALUES LESS THAN (100) (
+    SUBPARTITION p0s0,
+    SUBPARTITION p0s1
+  ),
+  PARTITION p1 VALUES LESS THAN (200) (
+    SUBPARTITION p1s0,
+    SUBPARTITION p1s1
+  ),
+  PARTITION p2 VALUES LESS THAN MAXVALUE (
+    SUBPARTITION p2s0,
+    SUBPARTITION p2s1
+  )
+);
+
+CREATE TABLE t_subpart_list_hash (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  KEY (id)
+)
+PARTITION BY LIST (id)
+SUBPARTITION BY HASH (id) (
+  PARTITION p0 VALUES IN (1) (
+    SUBPARTITION p0s0,
+    SUBPARTITION p0s1
+  ),
+  PARTITION p1 VALUES IN (2) (
+    SUBPARTITION p1s0,
+    SUBPARTITION p1s1
+  ),
+  PARTITION p2 VALUES IN (3) (
+    SUBPARTITION p2s0,
+    SUBPARTITION p2s1
+  )
+);
+
+CREATE TABLE t_subpart_list_key (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  KEY (id)
+)
+PARTITION BY LIST (id)
+SUBPARTITION BY KEY (id) (
+  PARTITION p0 VALUES IN (1) (
+    SUBPARTITION p0s0,
+    SUBPARTITION p0s1
+  ),
+  PARTITION p1 VALUES IN (2) (
+    SUBPARTITION p1s0,
+    SUBPARTITION p1s1
+  ),
+  PARTITION p2 VALUES IN (3) (
+    SUBPARTITION p2s0,
+    SUBPARTITION p2s1
+  )
+);
+
+INSERT INTO t_subpart_range_key VALUES (110, 'a');
+INSERT INTO t_subpart_list_hash VALUES (2, 'a');
+INSERT INTO t_subpart_list_key VALUES (2, 'a');
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE SELECT * FROM t_subpart_range_key PARTITION (p1);
+--enable_warnings
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE SELECT * FROM t_subpart_list_hash PARTITION (p1);
+--enable_warnings
+
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE SELECT * FROM t_subpart_list_key PARTITION (p1);
+--enable_warnings
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart_range_key PARTITION (p1);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS range_key_subpartitions;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart_list_hash PARTITION (p1);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS list_hash_subpartitions;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart_list_key PARTITION (p1);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS list_key_subpartitions;
+SET explain_json_format_version = DEFAULT;
+
+DROP TABLE t_range_pk;
+DROP TABLE t_range_scan;
+DROP TABLE t_const_outer;
+DROP TABLE t_hash;
+DROP TABLE t_key;
+DROP TABLE t_list;
+DROP TABLE t_dynamic;
+DROP TABLE t_count, t_count_other;
+DROP TABLE t_subpart;
+DROP TABLE t_subpart_range_key;
+DROP TABLE t_subpart_list_hash;
+DROP TABLE t_subpart_list_key;
+
+# A planned partitioned inner access can remain unexecuted in ANALYZE.
+CREATE TABLE t_plan_outer (x INT);
+CREATE TABLE t_plan_inner (
+  id INT NOT NULL,
+  j INT NOT NULL,
+  PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN (200),
+  PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_plan_outer VALUES (0);
+INSERT INTO t_plan_inner VALUES (110, 0);
+ANALYZE TABLE t_plan_outer, t_plan_inner;
+
+# The filter rejects the outer row, so the p1 access is never executed.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE
+SELECT STRAIGHT_JOIN i.*
+FROM t_plan_outer AS o
+JOIN t_plan_inner AS i ON i.j = o.x
+WHERE o.x = 999 AND i.id BETWEEN 110 AND 120;
+
+DROP TABLE t_plan_outer, t_plan_inner;
+
+# Direct unpartitioned accesses have neither text nor a JSON v2 field.
+CREATE TABLE t_unpartitioned (id INT NOT NULL);
+INSERT INTO t_unpartitioned VALUES (110);
+ANALYZE TABLE t_unpartitioned;
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_unpartitioned WHERE id BETWEEN 110 AND 120;
+--enable_warnings
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_unpartitioned WHERE id BETWEEN 110 AND 120;
+SELECT JSON_CONTAINS_PATH(@var, 'one', '$**.partitions')
+  AS unpartitioned_has_partitions;
+SELECT JSON_EXTRACT(@var, '$.json_schema_version') AS json_schema_version;
+
+# An empty selected set caused by pruning also omits text and the JSON field.
+CREATE TABLE t_all_pruned (
+  id INT NOT NULL,
+  PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN (200)
+);
+INSERT INTO t_all_pruned VALUES (110);
+ANALYZE TABLE t_all_pruned;
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_all_pruned WHERE id BETWEEN 210 AND 220;
+--enable_warnings
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_all_pruned WHERE id BETWEEN 210 AND 220;
+SELECT JSON_CONTAINS_PATH(@var, 'one', '$**.partitions')
+  AS all_pruned_has_partitions;
+SET explain_json_format_version = DEFAULT;
+
+DROP TABLE t_unpartitioned, t_all_pruned;
+
+# EXPLAIN ANALYZE FORMAT=JSON reports selected partitions together with
+# runtime fields for a pruned range access and a single-row lookup.
+CREATE TABLE t_analyze_json_range (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (1000),
+  PARTITION p1 VALUES LESS THAN (2000),
+  PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_analyze_json_range WITH RECURSIVE qn(n) AS
+  (SELECT 0 UNION ALL SELECT n + 1 FROM qn WHERE n < 999)
+  SELECT 1000 + n, CONCAT('value-', n) FROM qn;
+CREATE TABLE t_analyze_json_outer (id INT NOT NULL);
+INSERT INTO t_analyze_json_outer VALUES (1100);
+ANALYZE TABLE t_analyze_json_range, t_analyze_json_outer;
+
+SET explain_json_format_version = 2;
+EXPLAIN ANALYZE FORMAT=JSON INTO @var
+SELECT * FROM t_analyze_json_range WHERE id BETWEEN 1100 AND 1101;
+SELECT
+  JSON_EXTRACT(@var, '$**.partitions') AS analyze_range_partitions,
+  JSON_SEARCH(@var, 'one', '%Index range scan%', NULL, '$**.operation')
+    IS NOT NULL AS analyze_range_is_range_scan,
+  JSON_SEARCH(@var, 'one', '%in partitions (p1)%', NULL, '$**.operation')
+    IS NOT NULL AS analyze_range_operation_has_partitions,
+  JSON_CONTAINS_PATH(@var, 'all', '$**.actual_rows', '$**.actual_loops')
+    AS analyze_range_has_actual_metrics,
+  JSON_EXTRACT(@var, '$.json_schema_version')
+    AS analyze_range_schema_version;
+
+EXPLAIN ANALYZE FORMAT=JSON INTO @var
+SELECT i.payload
+FROM t_analyze_json_outer AS o
+STRAIGHT_JOIN t_analyze_json_range PARTITION (p1) AS i FORCE INDEX (PRIMARY)
+ON i.id = o.id;
+SELECT
+  JSON_EXTRACT(@var, '$**.partitions') AS analyze_lookup_partitions,
+  JSON_SEARCH(@var, 'one', '%Single-row index lookup%', NULL, '$**.operation')
+    IS NOT NULL AS analyze_lookup_is_single_row,
+  JSON_SEARCH(@var, 'one', '%in partitions (p1)%', NULL, '$**.operation')
+    IS NOT NULL AS analyze_lookup_operation_has_partitions,
+  JSON_CONTAINS_PATH(@var, 'all', '$**.actual_rows', '$**.actual_loops')
+    AS analyze_lookup_has_actual_metrics,
+  JSON_EXTRACT(@var, '$.json_schema_version')
+    AS analyze_lookup_schema_version;
+SET explain_json_format_version = DEFAULT;
+
+DROP TABLE t_analyze_json_range, t_analyze_json_outer;
+
+SET optimizer_switch = @wl17309_optimizer_switch;

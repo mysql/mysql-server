@@ -1,0 +1,177 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify authentication throttling in the component-hosted MRS runtime.
+
+--source include/not_solaris.inc
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source $router_tests/schema/basic_schema.sql
+
+CREATE USER 'mrs_throttle_1'@'%' IDENTIFIED BY 'secret1';
+CREATE USER 'mrs_throttle_2'@'%' IDENTIFIED BY 'secret2';
+
+--source $router_tests/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/throttle"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=TRUE
+--source $router_tests/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/items
+--let $mrs_add_db_object_op=READ
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_auth_app=mysql_auth
+--let $mrs_add_auth_vendor=MySQL Internal
+--let $mrs_add_auth_service=/throttle
+--source $router_tests/mrs/auth_app/add.inc
+
+--let $mrs_add_auth_app=mrs_auth
+--let $mrs_add_auth_vendor=MRS
+--let $mrs_add_auth_service=/throttle
+--source $router_tests/mrs/auth_app/add.inc
+
+--let $mrs_add_user_name="mrs_throttle_1"
+--let $mrs_add_user_ext_uid=8101
+--let $mrs_add_user_auth_string="JEEkMDA1JFZ4bUhScy9rbk9YSGxzckIwb25zWWw4WW1YMD0kekJNS25UOUZDZXAwSWF5SDZhRjVSSTQxejlFSUdab1lhbHpEMk1SOTcxbz0="
+--source $router_tests/mrs/user/add.inc
+
+--let $mrs_add_user_name="mrs_throttle_2"
+--let $mrs_add_user_ext_uid=8102
+--let $mrs_add_user_auth_string="JEEkMDA1JFZ4bUhScy9rbk9YSGxzckIwb25zWWw4WW1YMD0kekJNS25UOUZDZXAwSWF5SDZhRjVSSTQxejlFSUdab1lhbHpEMk1SOTcxbz0="
+--source $router_tests/mrs/user/add.inc
+
+--let $mrs_add_auth_app=oauth_auth
+--let $mrs_add_auth_vendor=Facebook
+--let $mrs_add_auth_services=('/throttle')
+--let $mrs_add_auth_client_id=123456
+--let $mrs_add_auth_client_secret="top_secret"
+--let $mrs_add_auth_url="https://oauth.invalid/authorize"
+--let $mrs_add_auth_url_direct="https://oauth.invalid/direct"
+--source $router_tests/mrs/auth_app/add.inc
+
+--source $router_tests/mrs/end_object_definition.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Too many requests from host: .*");
+CALL mtr.add_suppression("Too many requests for account: .*");
+--enable_query_log
+
+# Establish an ordinary authenticated data session before blocking the host.
+--exec $MRS_CLIENT_ARGS -a BASIC --path /throttle/authentication/login?authApp=mysql_auth -u mrs_throttle_1 -p secret1 --session-file $MYSQL_TMP_DIR/throttle-existing.dat --display none
+--exec $MRS_CLIENT_ARGS --path /throttle/db/items/1 --session-file $MYSQL_TMP_DIR/throttle-existing.dat --display none
+
+--echo
+--echo # Per-host maximum rate counts successful and failed MySQL attempts.
+UPDATE mysql_rest_service_metadata.config SET data =
+  '{"authentication":{"throttling":{"perHost":{"maximumAttemptsPerMinute":2},"blockWhenAttemptsExceededInSeconds":2}}}';
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--exec $MRS_CLIENT_ARGS -a BASIC --path /throttle/authentication/login?authApp=mysql_auth -u mrs_throttle_1 -p secret1 --session-file $MYSQL_TMP_DIR/throttle-host-mysql-1.dat --display none
+--exec $MRS_CLIENT_ARGS -a BASIC --path /throttle/authentication/login?authApp=mysql_auth -u mrs_throttle_1 -p wrong --expected-status Unauthorized --session-file $MYSQL_TMP_DIR/throttle-host-mysql-2.dat --display none
+--exec $MRS_CLIENT_ARGS -a BASIC --path /throttle/authentication/login?authApp=mysql_auth -u mrs_throttle_2 -p secret2 --expected-status TooManyRequests --expected-header Retry-After=2 --session-file $MYSQL_TMP_DIR/throttle-host-mysql-3.dat --display none
+# A blocked response is independent of whether the supplied credentials exist.
+--exec $MRS_CLIENT_ARGS -a BASIC --path /throttle/authentication/login?authApp=mysql_auth -u mrs_throttle_missing -p wrong --expected-status TooManyRequests --session-file $MYSQL_TMP_DIR/throttle-host-mysql-4.dat --display none
+
+# Existing-session data remains available.
+--exec $MRS_CLIENT_ARGS --path /throttle/db/items/1 --session-file $MYSQL_TMP_DIR/throttle-existing.dat --display none
+
+SELECT mysql_rest_service_restart();
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+# The host limiter is evaluated per HTTP request. One SCRAM POST exchange uses
+# both configured slots, so the next request is rejected.
+--echo # Per-host rate limiting also applies to MRS/SCRAM requests.
+--exec $MRS_CLIENT_ARGS -a scram_post --auth-app mrs_auth --path /throttle/authentication/login -u mrs_throttle_1 -p wrong --expected-status Unauthorized --session-file $MYSQL_TMP_DIR/throttle-host-mrs-2.dat --display none
+--exec $MRS_CLIENT_ARGS -a scram_post --auth-app mrs_auth --path /throttle/authentication/login -u mrs_throttle_2 -p test --expected-status TooManyRequests --session-file $MYSQL_TMP_DIR/throttle-host-mrs-3.dat --display none
+
+SELECT mysql_rest_service_restart();
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--echo # OAuth2 authorization initiations use the same per-host limiter.
+--let $mrs_client_arg_path='/throttle/authentication/login?authApp=oauth_auth'
+--let $mrs_client_arg_expected_status=TemporaryRedirect
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/throttle/authentication/login?authApp=oauth_auth'
+--let $mrs_client_arg_expected_status=TemporaryRedirect
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/throttle/authentication/login?authApp=oauth_auth'
+--let $mrs_client_arg_expected_status=TooManyRequests
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+SELECT mysql_rest_service_restart();
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--echo
+--echo # Per-account limiting isolates MySQL and MRS account keys.
+UPDATE mysql_rest_service_metadata.config SET data =
+  '{"authentication":{"throttling":{"perAccount":{"maximumAttemptsPerMinute":2},"blockWhenAttemptsExceededInSeconds":2}}}';
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--exec $MRS_CLIENT_ARGS -a BASIC --path /throttle/authentication/login?authApp=mysql_auth -u mrs_throttle_1 -p secret1 --session-file $MYSQL_TMP_DIR/throttle-account-mysql-1.dat --display none
+--exec $MRS_CLIENT_ARGS -a BASIC --path /throttle/authentication/login?authApp=mysql_auth -u mrs_throttle_1 -p wrong --expected-status Unauthorized --session-file $MYSQL_TMP_DIR/throttle-account-mysql-2.dat --display none
+--exec $MRS_CLIENT_ARGS -a BASIC --path /throttle/authentication/login?authApp=mysql_auth -u mrs_throttle_1 -p secret1 --expected-status TooManyRequests --expected-header Retry-After=2 --session-file $MYSQL_TMP_DIR/throttle-account-mysql-3.dat --display none
+--exec $MRS_CLIENT_ARGS -a BASIC --path /throttle/authentication/login?authApp=mysql_auth -u mrs_throttle_2 -p secret2 --session-file $MYSQL_TMP_DIR/throttle-account-mysql-4.dat --display none
+
+--exec $MRS_CLIENT_ARGS -a scram_post --auth-app mrs_auth --path /throttle/authentication/login -u mrs_throttle_1 -p test --session-file $MYSQL_TMP_DIR/throttle-account-mrs-1.dat --display none
+--exec $MRS_CLIENT_ARGS -a scram_post --auth-app mrs_auth --path /throttle/authentication/login -u mrs_throttle_1 -p wrong --expected-status Unauthorized --session-file $MYSQL_TMP_DIR/throttle-account-mrs-2.dat --display none
+--exec $MRS_CLIENT_ARGS -a scram_post --auth-app mrs_auth --path /throttle/authentication/login -u mrs_throttle_1 -p test --expected-status TooManyRequests --expected-header Retry-After=2 --session-file $MYSQL_TMP_DIR/throttle-account-mrs-3.dat --display none
+--exec $MRS_CLIENT_ARGS -a scram_post --auth-app mrs_auth --path /throttle/authentication/login -u mrs_throttle_2 -p test --session-file $MYSQL_TMP_DIR/throttle-account-mrs-4.dat --display none
+
+# OAuth2 has no local account key at authorization initiation and is not
+# subject to the per-account limiter.
+--let $mrs_client_arg_path='/throttle/authentication/login?authApp=oauth_auth'
+--let $mrs_client_arg_expected_status=TemporaryRedirect
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/throttle/authentication/login?authApp=oauth_auth'
+--let $mrs_client_arg_expected_status=TemporaryRedirect
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/throttle/authentication/login?authApp=oauth_auth'
+--let $mrs_client_arg_expected_status=TemporaryRedirect
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+SELECT mysql_rest_service_restart();
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--echo
+--echo # Minimum interval blocks immediately and expires after its bounded delay.
+UPDATE mysql_rest_service_metadata.config SET data =
+  '{"authentication":{"throttling":{"perHost":{"minimumTimeBetweenRequestsInMs":1000}}}}';
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--let $mrs_client_arg_path='/throttle/authentication/login?authApp=oauth_auth'
+--let $mrs_client_arg_expected_status=TemporaryRedirect
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/throttle/authentication/login?authApp=oauth_auth'
+--let $mrs_client_arg_expected_status=TooManyRequests
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+--sleep 2
+--let $mrs_client_arg_path='/throttle/authentication/login?authApp=oauth_auth'
+--let $mrs_client_arg_expected_status=TemporaryRedirect
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo # Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR throttle-*.dat
+
+DROP USER 'mrs_throttle_1'@'%', 'mrs_throttle_2'@'%';
+--source ../include/cmrs/cleanup.inc

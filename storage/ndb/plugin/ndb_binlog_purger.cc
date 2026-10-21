@@ -417,7 +417,7 @@ void Ndb_binlog_purger::do_run() {
 
 void Ndb_binlog_purger::create_thd(void *stackptr) {
   m_thd = new THD();
-  m_thd->thread_stack = reinterpret_cast<const char *>(stackptr);
+  m_thd->capture_stack_base(stackptr);
   m_thd->set_new_thread_id();
   m_thd->store_globals();
 

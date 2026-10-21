@@ -103,12 +103,12 @@ void destroy_thd(THD *thd, bool clear_pfs_instr);
 void destroy_thd(THD *thd);
 
 /**
-  Set thread stack in THD object
+  Set an already captured thread stack base in a THD object.
 
   @param thd              Thread object
   @param stack_start      Start of stack to set in THD object
 */
-void thd_set_thread_stack(THD *thd, const char *stack_start);
+void thd_set_thread_stack_base(THD *thd, const char *stack_start);
 
 /**
   Returns the partition_info working copy.

@@ -625,7 +625,7 @@ static void set_psi(THD *thd) {
     true   failure
 */
 bool Srv_session::init_thread(const void *plugin) {
-  char stack_start;
+  char stack_start{};
 
   /* If not null, means its already initialized, so return success*/
   if (THR_srv_session_thread != nullptr) return false;
@@ -637,7 +637,9 @@ bool Srv_session::init_thread(const void *plugin) {
 
   THR_srv_session_thread =
       reinterpret_cast<st_plugin_int *>(const_cast<void *>(plugin));
-  THR_stack_start_address = &stack_start;
+  // This value is retained for subsequent session attachments.  Resolve it
+  // while this frame is active so ASan fake-stack storage is not retained.
+  THR_stack_start_address = resolve_stack_pointer(&stack_start);
 
   server_session_threads.add(my_thread_self(), plugin);
 
@@ -889,7 +891,7 @@ bool Srv_session::open() {
     separation between open() and attach() so it is likely that
     a conceptually better solution is required long-term.
   */
-  thd_set_thread_stack(m_thd, &stack_start);
+  m_thd->capture_stack_base(&stack_start);
   m_thd->store_globals();
 
   Global_THD_manager::get_instance()->add_thd(m_thd);
@@ -937,11 +939,12 @@ bool Srv_session::attach() {
 
   DBUG_PRINT("info", ("current_thd=%p", current_thd));
 
-  const char *new_stack = THR_srv_session_thread
-                              ? THR_stack_start_address
-                              : (old_thd ? old_thd->thread_stack : nullptr);
+  const char *new_stack =
+      THR_srv_session_thread != nullptr
+          ? THR_stack_start_address
+          : (old_thd != nullptr ? old_thd->stack_base() : nullptr);
   /*
-    Attach optimistically, as this will set thread_stack,
+    Attach optimistically, as this will set the stack base,
     which needed by store_globals()
   */
   set_attached(new_stack);
@@ -1106,7 +1109,7 @@ bool Srv_session::close() {
 */
 void Srv_session::set_attached(const char *stack) {
   m_state = SRV_SESSION_ATTACHED;
-  thd_set_thread_stack(m_thd, stack);
+  m_thd->set_stack_base(stack);
 }
 
 /**
@@ -1114,7 +1117,7 @@ void Srv_session::set_attached(const char *stack) {
 */
 void Srv_session::set_detached() {
   m_state = SRV_SESSION_DETACHED;
-  thd_set_thread_stack(m_thd, nullptr);
+  m_thd->set_stack_base(nullptr);
 }
 
 int Srv_session::execute_command(enum enum_server_command command,
@@ -1221,8 +1224,6 @@ bool Srv_session::is_associated() const {
 
 bool Srv_session::associate() {
   if (!is_associate()) return true;
-  const char *stack_start = m_thd->thread_stack ? m_thd->thread_stack : nullptr;
-  thd_set_thread_stack(m_thd, stack_start);
   // This will install our new THD object as current_thd
   m_thd->store_globals();
   thd_clear_errors(m_thd);

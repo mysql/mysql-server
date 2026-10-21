@@ -213,8 +213,8 @@ AuthNativeForwarder::caching_sha2_plaintext() {
       tr.trace(Tracer::Event().stage("caching_sha2::forward::public_key"));
     }
 
-    auto pubkey_res = AuthCachingSha2Password::public_key_from_ssl_ctx_as_pem(
-        connection()->context().source_ssl_ctx()->get());
+    rsa_tls_context_.reset(connection()->context().source_ssl_ctx());
+    auto pubkey_res = rsa_tls_context_.public_key();
     if (!pubkey_res) {
       auto ec = pubkey_res.error();
 
@@ -299,12 +299,12 @@ AuthNativeForwarder::caching_sha2_encrypted() {
     nonce = nonce.substr(0, AuthCachingSha2Password::kNonceLength);
   }
 
-  auto recv_res = AuthCachingSha2Password::rsa_decrypt_password(
-      connection()->context().source_ssl_ctx()->get(),
-      msg_res->auth_method_data(), nonce);
+  auto recv_res =
+      rsa_tls_context_.decrypt_password(msg_res->auth_method_data(), nonce);
   if (!recv_res) return recv_client_failed(recv_res.error());
 
   src_protocol.credentials().emplace(Auth::kName, *recv_res);
+  rsa_tls_context_.reset();
 
   discard_current_msg(src_conn);
 

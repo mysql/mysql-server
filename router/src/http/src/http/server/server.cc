@@ -85,12 +85,12 @@ void set_limit_override(std::atomic<bool> &has_runtime_override,
 
 }  // namespace
 
-Server::Server(TlsServerContext *tls_context, IoThreads *threads,
-               server::Bind *bind_raw, server::Bind *bind_ssl,
-               uint64_t max_http_connections, uint64_t max_request_body_size,
-               uint64_t max_response_body_size,
+Server::Server(std::shared_ptr<TlsServerContext> tls_context,
+               IoThreads *threads, server::Bind *bind_raw,
+               server::Bind *bind_ssl, uint64_t max_http_connections,
+               uint64_t max_request_body_size, uint64_t max_response_body_size,
                net::io_context *log_flush_context)
-    : tls_context_{tls_context},
+    : tls_context_{std::move(tls_context)},
       threads_{threads},
       current_thread_{threads_->begin()},
       bind_raw_(bind_raw),
@@ -431,9 +431,14 @@ void Server::on_new_ssl_connection(socket socket) {
       return;
     }
 
+    std::shared_ptr<TlsServerContext> tls_context;
+    {
+      std::lock_guard<std::mutex> lock{tls_context_mtx_};
+      tls_context = tls_context_;
+    }
     connection = std::make_shared<ServerConnectionTls>(
-        ConnectionTls::IO{tls_context_, std::move(socket)}, &allowed_methods_,
-        handler_, this);
+        ConnectionTls::IO{std::move(tls_context), std::move(socket)},
+        &allowed_methods_, handler_, this);
     connections_ssl_.push_back(connection);
   }
 

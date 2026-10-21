@@ -413,6 +413,11 @@ class Diagnostics_area {
     return m_last_statement_cond_count;
   }
 
+  /** Refresh the condition count stored in an already-set OK or EOF status. */
+  void refresh_last_statement_cond_count() {
+    m_last_statement_cond_count = m_current_statement_cond_count;
+  }
+
   /** Return the number of conditions raised by the current statement. */
   ulong current_statement_cond_count() const {
     return m_current_statement_cond_count;

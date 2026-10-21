@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include <ostream>
 
+#include <algorithm>
 #include <array>
 #include <iomanip>
 #include <map>
@@ -856,9 +857,71 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
   }
 }
 
+/** Write back and evict pages in a buffer pool instance for which the change
+buffer bitmap records buffered changes. Page identifiers are copied while the
+LRU mutex is held. Bitmap page reads and page eviction are deliberately done
+after releasing it, because both operations acquire page latches and may
+themselves modify the LRU list.
+@param[in,out] buf_pool buffer pool instance */
+static void recv_evict_pages_with_ibuffered_changes(buf_pool_t *buf_pool) {
+  std::vector<page_id_t> page_ids;
+
+  mutex_enter(&buf_pool->LRU_list_mutex);
+  page_ids.reserve(UT_LIST_GET_LEN(buf_pool->LRU));
+  for (const buf_page_t *page : buf_pool->LRU) {
+    if (!fsp_is_system_temporary(page->space()) &&
+        !fsp_is_undo_tablespace(page->space()) && !trx_sys_hdr_page(page->id) &&
+        !fsp_is_dd_tablespace(page->space())) {
+      page_ids.push_back(page->id);
+    }
+  }
+  mutex_exit(&buf_pool->LRU_list_mutex);
+
+  std::sort(page_ids.begin(), page_ids.end());
+
+  for (const page_id_t &page_id : page_ids) {
+    ibuf_evict_if_has_buffered_changes(page_id);
+  }
+}
+
+/** Restore the flush list order after crash recovery. During recovery dirty
+pages are intentionally inserted without maintaining the normal LSN ordering.
+The list runs from the newest oldest_modification at the head to the oldest at
+the tail, which is where flush-list batches and checkpoint discovery start.
+@param[in,out] buf_pool buffer pool instance */
+static void recv_sort_flush_list(buf_pool_t *buf_pool) {
+  std::vector<buf_page_t *> dirty_pages;
+
+  buf_flush_list_mutex_enter(buf_pool);
+  dirty_pages.reserve(UT_LIST_GET_LEN(buf_pool->flush_list));
+  for (buf_page_t *page : buf_pool->flush_list) {
+    dirty_pages.push_back(page);
+  }
+
+  std::sort(dirty_pages.begin(), dirty_pages.end(),
+            [](const buf_page_t *lhs, const buf_page_t *rhs) {
+              return lhs->get_oldest_lsn() > rhs->get_oldest_lsn();
+            });
+
+  /* writer_mutex and the waits in recv_apply_hashed_log_recs() guarantee
+  that no flush-list batch is active. oldest_hp can retain an entry from an
+  earlier checkpoint query, so reset it before changing any links. */
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+  ut_a(buf_pool->flush_hp.get() == nullptr);
+  buf_pool->oldest_hp.set(nullptr);
+
+  buf_pool->flush_list.clear();
+  for (buf_page_t *page : dirty_pages) {
+    UT_LIST_ADD_LAST(buf_pool->flush_list, page);
+  }
+
+  buf_flush_list_mutex_exit(buf_pool);
+}
+
 /** Empties the hash table of stored log records, applying them to appropriate
-pages. */
-static void recv_apply_hashed_log_recs() {
+pages.
+@param[in] last_batch whether this is the final batch of crash recovery */
+static void recv_apply_hashed_log_recs(bool last_batch) {
   ut_ad(!recv_sys->found_corrupt_log);
   mutex_enter(&recv_sys->mutex);
   ut_a(!srv_read_only_mode);
@@ -946,7 +1009,6 @@ static void recv_apply_hashed_log_recs() {
   mutex_enter(&recv_sys->mutex);
   ut_a_eq(recv_sys->n_pages_to_recover.value(), 0);
 
-  /* Flush all the file pages to disk and invalidate them in the buffer pool */
   log_background_threads_inactive_validate();
   ut_a(recv_sys->flush_end != nullptr);
 
@@ -962,8 +1024,6 @@ static void recv_apply_hashed_log_recs() {
   TBD: why is it important to wait for BUF_FLUSH_LRU to finish here? */
   buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
 
-  os_event_reset(recv_sys->flush_end);
-
   /* We are about to request BUF_FLUSH_LIST, in hope to write all dirty pages
   back to disc, so that we can then invalidate the BP, before next batch.
   However, buf_flush_page_and_try_neighbors() skips over io-fixed pages, so
@@ -977,13 +1037,38 @@ static void recv_apply_hashed_log_recs() {
   which has the same issue: skips over io-fixed pages. */
   buf_pool_wait_for_no_pending_io();
 
-  recv_sys->flush_type = BUF_FLUSH_LIST;
+  if (last_batch) {
+    /* In the final batch we don't need to write back dirty pages, as the page
+    cleaners and regular checkpointing will take care of that, once we unpause
+    checkpointer. For that to work correctly, we only need to ensure flush lists
+    are properly sorted by oldest modification. We also don't need to evict the
+    pages, except for those which have buffered changes - by contract pages
+    present in BP need to have applied changes, and applying them is
+    time-consuming and requires redo log generation. Earlier batches had to
+    write back pages as they had to evict them, which made sure they would be
+    read again if more changes need to be applied to them in a later batch.
+    This is because parallelism in redo log applier depends on io completers. */
+    std::vector<std::thread> threads;
+    for (ulong i = 0; i < srv_buf_pool_instances; ++i) {
+      threads.emplace_back([i]() {
+        recv_evict_pages_with_ibuffered_changes(buf_pool_from_array(i));
+        recv_sort_flush_list(buf_pool_from_array(i));
+      });
+    }
+    for (auto &t : threads) {
+      t.join();
+    }
+  } else {
+    os_event_reset(recv_sys->flush_end);
 
-  os_event_set(recv_sys->flush_start);
+    recv_sys->flush_type = BUF_FLUSH_LIST;
 
-  os_event_wait(recv_sys->flush_end);
+    os_event_set(recv_sys->flush_start);
 
-  buf_pool_invalidate();
+    os_event_wait(recv_sys->flush_end);
+
+    buf_pool_invalidate();
+  }
 
   /* Allow batches from recv_writer thread. */
   mutex_exit(&recv_sys->writer_mutex);
@@ -2023,7 +2108,7 @@ strict ordering.
 
 #ifndef UNIV_HOTBACKUP
     if (recv_heap_used() > mem_limit) {
-      recv_apply_hashed_log_recs();
+      recv_apply_hashed_log_recs(false);
     }
 #endif /* !UNIV_HOTBACKUP */
   }
@@ -2268,7 +2353,7 @@ static
       ut_a_eq(recv_sys->n_pages_to_recover.value(), 0);
       ut_a(recv_sys->spaces->empty());
     } else if (log_test == nullptr) {
-      recv_apply_hashed_log_recs();
+      recv_apply_hashed_log_recs(true);
     }
   }
 

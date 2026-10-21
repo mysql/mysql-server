@@ -2566,3 +2566,44 @@ NULL
 SELECT ST_DISTANCE( @A_WGS84, @EMPTY_COLLECTION_SRID4326_A);
 ST_DISTANCE( @A_WGS84, @EMPTY_COLLECTION_SRID4326_A)
 NULL
+#
+# Sub-metre separations on a geographic SRS
+#
+SET @a = 6378137;
+SET @dlon = 0.00000013025;
+SET @analytic = @a * @dlon * PI()/180;
+SET @p1 = ST_GEOMFROMTEXT('POINT(0 0)', 4326);
+SET @p2 = ST_GEOMFROMTEXT(CONCAT('POINT(0 ', @dlon, ')'), 4326);
+SET @l1 = ST_GEOMFROMTEXT('LINESTRING(0 0,0.00001 0)', 4326);
+SET @l2 = ST_GEOMFROMTEXT(CONCAT('LINESTRING(0 ', @dlon, ',0.00001 ', @dlon, ')'), 4326);
+# Each distance is nonzero and matches the analytic arc.
+SELECT ST_DISTANCE(@p1, @p2) > 0 AS nonzero,
+ABS(ST_DISTANCE(@p1, @p2) / @analytic - 1) < 1e-9 AS matches_analytic;
+nonzero	matches_analytic
+1	1
+SELECT ST_LENGTH(ST_GEOMFROMTEXT(CONCAT('LINESTRING(0 0,0 ', @dlon, ')'), 4326)) > 0 AS nonzero,
+ABS(ST_LENGTH(ST_GEOMFROMTEXT(CONCAT('LINESTRING(0 0,0 ', @dlon, ')'), 4326))
+/ @analytic - 1) < 1e-9 AS matches_analytic;
+nonzero	matches_analytic
+1	1
+SELECT ST_HAUSDORFFDISTANCE(@l1, @l2) > 0 AS nonzero,
+ABS(ST_HAUSDORFFDISTANCE(@l1, @l2) / @analytic - 1) < 1e-9 AS matches_analytic;
+nonzero	matches_analytic
+1	1
+SELECT ST_FRECHETDISTANCE(@l1, @l2) > 0 AS nonzero,
+ABS(ST_FRECHETDISTANCE(@l1, @l2) / @analytic - 1) < 1e-9 AS matches_analytic;
+nonzero	matches_analytic
+1	1
+# Accuracy holds across scales, from centimetres to a degree of arc.
+SELECT d.dlon AS separation_deg,
+ABS(ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+ST_GEOMFROMTEXT(CONCAT('POINT(0 ', d.dlon, ')'), 4326))
+/ (@a * d.dlon * PI()/180) - 1) < 1e-9 AS matches_analytic
+FROM (SELECT 0.00000013025 AS dlon UNION ALL SELECT 0.000001 UNION ALL
+SELECT 0.00001 UNION ALL SELECT 0.001 UNION ALL SELECT 1) d;
+separation_deg	matches_analytic
+0.00000013025	1
+0.00000100000	1
+0.00001000000	1
+0.00100000000	1
+1.00000000000	1

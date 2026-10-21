@@ -24295,6 +24295,42 @@ static void test_bug36686351() {
   mysql_stmt_close(stmt);
 }
 
+/* Verify the legacy and update-aware C API version strings. */
+static void test_version_with_update_client_api() {
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  const char *server_version_with_update;
+  std::string compatibility_version;
+  std::string full_version;
+
+  myheader("test_version_with_update_client_api");
+
+  myquery(mysql_query(mysql, "SELECT VERSION(), VERSION_WITH_UPDATE()"));
+  DIE_UNLESS(result = mysql_store_result(mysql));
+  DIE_UNLESS(row = mysql_fetch_row(result));
+  DIE_UNLESS(row[0] != nullptr);
+  DIE_UNLESS(row[1] != nullptr);
+  compatibility_version = row[0];
+  full_version = row[1];
+  mysql_free_result(result);
+
+  /* Server APIs must reflect their corresponding SQL version strings. */
+  DIE_UNLESS(
+      strcmp(mysql_get_server_info(mysql), compatibility_version.c_str()) == 0);
+  DIE_UNLESS(server_version_with_update =
+                 mysql_get_server_info_with_version_update(mysql));
+  DIE_UNLESS(strcmp(server_version_with_update, full_version.c_str()) == 0);
+  DIE_UNLESS(server_version_with_update ==
+             mysql_get_server_info_with_version_update(mysql));
+  DIE_UNLESS(mysql_get_server_version(mysql) == MYSQL_VERSION_ID);
+
+  /* Client APIs use the build-time version metadata. */
+  DIE_UNLESS(strcmp(mysql_get_client_info(), MYSQL_SERVER_VERSION) == 0);
+  DIE_UNLESS(strcmp(mysql_get_client_info_with_version_update(),
+                    MYSQL_SERVER_VERSION_WITH_UPDATE) == 0);
+  DIE_UNLESS(mysql_get_client_version() == MYSQL_VERSION_ID);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_temporal_param", test_temporal_param},
     {"disable_query_logs", disable_query_logs},
@@ -24614,6 +24650,8 @@ static struct my_tests_st my_tests[] = {
     {"test_bug37202066", test_bug37202066},
     {"test_bug37383098", test_bug37383098},
     {"test_bug36686351", test_bug36686351},
+    {"test_version_with_update_client_api",
+     test_version_with_update_client_api},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

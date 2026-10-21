@@ -205,8 +205,8 @@ class SharedMySQLServer {
 
 #ifdef _WIN32
     // on windows, wait until port is ready as there is no notify-socket.
-    if (!(wait_for_port_ready(server_port_, 10s) &&
-          wait_for_port_ready(server_mysqlx_port_, 10s))) {
+    if (!(wait_for_port_ready(server_port_, 30s) &&
+          wait_for_port_ready(server_mysqlx_port_, 20s))) {
       mysqld_failed_to_start_ = true;
     }
 #endif

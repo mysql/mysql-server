@@ -230,12 +230,6 @@ Pages_persistence::recover_pages(Lsn &flushed_lsn) {
 
   ut_a(!recv_sys->found_corrupt_log);
 
-  if (!srv_force_recovery && !srv_read_only_mode) {
-    ut_ad(buf_are_flush_lists_empty_validate());
-    /* this is not really needed, as the buffer pool should be empty now */
-    buf_flush_sync_all_buf_pools();
-  }
-
   srv_recovery_crash(3);
   const auto recovered_lsn = recv_sys->recovered_lsn;
 

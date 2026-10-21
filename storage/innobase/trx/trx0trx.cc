@@ -37,6 +37,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <new>
 #include <set>
 
+#include <sql/sql_class.h>
+#include <sql/sql_error.h>
 #include <sql_thd_internal_api.h>
 
 #include "btr0sea.h"
@@ -2210,6 +2212,14 @@ void trx_commit_low(trx_t *trx, mtr_t *mtr) {
       instead of just dying. */
 
       ut_error;
+    }
+
+    if (trx->mysql_thd != nullptr) {
+      auto *da = trx->mysql_thd->get_stmt_da();
+
+      if (da->is_ok() || da->is_eof()) {
+        da->refresh_last_statement_cond_count();
+      }
     }
   }
 

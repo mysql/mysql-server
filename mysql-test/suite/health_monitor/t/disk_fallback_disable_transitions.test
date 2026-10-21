@@ -1,0 +1,455 @@
+--echo ##
+--echo ## Health Monitor fencing disable transitions
+--echo ##
+
+--source ../include/health_monitor_setup.inc
+
+--let $missing_path = $MYSQL_TMP_DIR/hm_fenced_path_unavailable
+--mkdir $missing_path
+--rmdir $missing_path
+set @explicit_monitored_path = @@global.health_monitor.disk_monitored;
+--replace_result $missing_path MISSING_PATH
+--eval set @missing_path = '$missing_path'
+
+--echo
+--echo # Confirm the registered fallback default is OFF
+select @@global.health_monitor.disk_fallback_enable = 0
+       as registered_fallback_default_off;
+
+--echo
+--echo # Configure deterministic disk collection and forecasting
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_forecast_running = off;
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.disk_forecast_sample_interval = 10;
+set @@global.health_monitor.status_interval = 1;
+set @@global.health_monitor.disk_low_space_duration = 60;
+set @@global.health_monitor.disk_usage_warning_level_1 = 0;
+set @@global.health_monitor.disk_usage_warning_level_2 = 0;
+set @@global.health_monitor.disk_usage_warning_level_3 = 0;
+set @@global.health_monitor.disk_recovery_level = 0;
+set @@global.health_monitor.disk_recovery_time_1 = 1;
+set @@global.health_monitor.disk_recovery_time_2 = 1;
+set @@global.health_monitor.disk_recovery_increment = 0;
+set @@global.health_monitor.disk_recovery_max_cycles = 3;
+set @@global.health_monitor.disk_recovery_window = 86400;
+set @@global.health_monitor.disk_recovery_enable = on;
+truncate performance_schema.health_block_device;
+truncate performance_schema.disk_metric;
+set @@global.health_monitor.disk_forecast_running = on;
+
+--echo
+--echo ##
+--echo ## Fencing disabled before LOW and CRITICAL samples
+--echo ##
+set @@global.health_monitor.disk_fallback_enable = off;
+set @@global.health_monitor.disk_fallback_force = on;
+set @@global.health_monitor.disk_low_space_level = @force_offline_mode;
+set @@global.health_monitor.disk_low_space_percent = 100;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+
+--disable_query_log
+select now(6) into @disabled_start;
+--enable_query_log
+set @@global.health_monitor.disk_running = on;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0 from performance_schema.error_log
+   where data like '%Disk: Low Level%'
+     and logged > @disabled_start;
+--source include/wait_condition_or_abort.inc
+
+--disable_query_log
+select count(*) into @low_disk_rows
+  from performance_schema.health_block_device;
+select count(*) into @low_metric_rows
+  from performance_schema.disk_metric;
+select now(6) into @disabled_critical_start;
+--enable_query_log
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0 from performance_schema.error_log
+   where data like '%Disk: Critical Level%'
+     and logged > @disabled_critical_start;
+--source include/wait_condition_or_abort.inc
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > @low_metric_rows from performance_schema.disk_metric;
+--source include/wait_condition_or_abort.inc
+
+select count(*) > @low_disk_rows as disk_rows_advanced_while_disabled
+  from performance_schema.health_block_device;
+select count(*) > @low_metric_rows as forecast_metrics_advanced_while_disabled
+  from performance_schema.disk_metric;
+select count(*) = 0 as no_fallback_timer_started
+  from performance_schema.error_log
+ where data like '%Fallback Timer: Running%'
+   and logged > @disabled_start;
+--source ../include/health_monitor_verify_unfenced.inc
+
+--echo
+--echo ##
+--echo ## Disable fencing during a pending countdown
+--echo ##
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+set @@global.health_monitor.disk_fallback_force = off;
+set @@global.health_monitor.disk_fallback_enable = on;
+
+--disable_query_log
+select now(6) into @countdown_start;
+--enable_query_log
+set @@global.health_monitor.disk_running = on;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0 from performance_schema.error_log
+   where data like '%Fallback Timer: Running%'
+     and logged > @countdown_start;
+--source include/wait_condition_or_abort.inc
+--source ../include/health_monitor_verify_unfenced.inc
+
+--disable_query_log
+select now(6) into @disable_countdown_start;
+--enable_query_log
+set @@global.health_monitor.disk_fallback_enable = off;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0 from performance_schema.error_log
+   where data like '%Fallback Timer: Canceled%'
+     and logged > @disable_countdown_start;
+--source include/wait_condition_or_abort.inc
+
+select count(*) = 0 as canceled_timer_did_not_expire
+  from performance_schema.error_log
+ where data like '%Fallback Timer: Expired%'
+   and logged > @disable_countdown_start;
+--source ../include/health_monitor_verify_unfenced.inc
+
+--echo
+--echo ##
+--echo ## Disable fencing after the Health Monitor fences the server
+--echo ##
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_low_space_level = 0;
+set @@global.health_monitor.disk_low_space_percent = 0;
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+set @@global.health_monitor.disk_fallback_enable = on;
+
+--disable_query_log
+select now(6) into @fenced_start;
+--enable_query_log
+set @@global.health_monitor.disk_running = on;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select @@global.offline_mode = 1 and @@global.super_read_only = 1;
+--source include/wait_condition_or_abort.inc
+--source ../include/health_monitor_verify_fenced.inc
+
+set @@global.health_monitor.disk_fallback_enable = off;
+
+--echo
+--echo # Disabling new fencing retains server modes and ownership
+--source ../include/health_monitor_verify_fenced.inc
+
+--echo
+--echo # External clearing ends ownership while disk input is unavailable
+set @@global.health_monitor.disk_monitored = @missing_path;
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like
+         '%Disk Collector: Error: Filesystem check for % failed with error %'
+     and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+     and logged > @fenced_start;
+--source include/wait_condition_or_abort.inc
+
+set @@global.offline_mode = off;
+let $wait_timeout = 30;
+let $wait_condition =
+  select variable_value = 'OFF'
+    from performance_schema.global_status
+   where variable_name = 'offline_mode_disk_full';
+--source include/wait_condition_or_abort.inc
+--let $assert_text = Expect OFFLINE_MODE = OFF
+--let $assert_variable_name = global.offline_mode
+--let $assert_variable_value = 0
+--source include/assert_variable.inc
+--let $assert_text = Expect status 'offline_mode_disk_full' = OFF
+--let $assert_cond = "[show status like \"offline_mode_disk_full\", Value, 1]" = "OFF"
+--source include/assert.inc
+
+--echo
+--echo # External setting does not create Health Monitor ownership
+--disable_query_log
+select count(*) into @external_offline_mode_rows
+  from performance_schema.health_block_device;
+--enable_query_log
+set @@global.offline_mode = on;
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > @external_offline_mode_rows
+    from performance_schema.health_block_device;
+--source include/wait_condition_or_abort.inc
+--let $assert_text = Expect OFFLINE_MODE = ON
+--let $assert_variable_name = global.offline_mode
+--let $assert_variable_value = 1
+--source include/assert_variable.inc
+--let $assert_text = Expect status 'offline_mode_disk_full' = OFF
+--let $assert_cond = "[show status like \"offline_mode_disk_full\", Value, 1]" = "OFF"
+--source include/assert.inc
+set @@global.offline_mode = off;
+
+--echo
+--echo # Recovery continues after fencing is disabled
+--disable_query_log
+select now(6) into @recovery_start;
+--enable_query_log
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+
+let $wait_timeout = 60;
+let $wait_condition =
+  select @@global.offline_mode = 0 and @@global.super_read_only = 0;
+--source include/wait_condition_or_abort.inc
+--source ../include/health_monitor_verify_unfenced.inc
+
+--disable_query_log
+select now(6) into @critical_after_recovery_start;
+--enable_query_log
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0 from performance_schema.error_log
+   where data like '%Disk: Critical Level%'
+     and logged > @critical_after_recovery_start;
+--source include/wait_condition_or_abort.inc
+
+select count(*) = 0 as no_new_fallback_after_recovery
+  from performance_schema.error_log
+ where data like '%Fallback Timer: Running%'
+   and logged > @critical_after_recovery_start;
+--source ../include/health_monitor_verify_unfenced.inc
+
+--echo
+--echo ##
+--echo ## Reconciliation keeps recovery active while ownership remains
+--echo ## and cancels recovery when final ownership ends
+--echo ##
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_fallback_enable = on;
+set @@global.health_monitor.disk_recovery_time_1 = 60;
+set @@global.health_monitor.disk_low_space_critical_level =
+  @force_offline_mode;
+--mkdir $missing_path
+set @@global.health_monitor.disk_monitored = @missing_path;
+
+--disable_query_log
+select now(6) into @reconcile_fence_start;
+--enable_query_log
+set @@global.health_monitor.disk_running = on;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select @@global.offline_mode = 1 and @@global.super_read_only = 1;
+--source include/wait_condition_or_abort.inc
+--source ../include/health_monitor_verify_fenced.inc
+
+--disable_query_log
+select now(6) into @active_recovery_start;
+--enable_query_log
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Recovery: Timer 1: Running%'
+     and logged > @active_recovery_start;
+--source include/wait_condition_or_abort.inc
+
+--rmdir $missing_path
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like
+         '%Disk Collector: Error: Filesystem check for % failed with error %'
+     and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+     and logged > @active_recovery_start;
+--source include/wait_condition_or_abort.inc
+
+--disable_query_log
+select now(6) into @ownership_clear_start;
+--enable_query_log
+set @@global.offline_mode = off;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select variable_value = 'OFF'
+    from performance_schema.global_status
+   where variable_name = 'offline_mode_disk_full';
+--source include/wait_condition_or_abort.inc
+
+--let $assert_text = Expect OFFLINE_MODE = OFF
+--let $assert_variable_name = global.offline_mode
+--let $assert_variable_value = 0
+--source include/assert_variable.inc
+--let $assert_text = Expect SUPER_READ_ONLY = ON
+--let $assert_variable_name = global.super_read_only
+--let $assert_variable_value = 1
+--source include/assert_variable.inc
+--let $assert_text = Expect status 'offline_mode_disk_full' = OFF
+--let $assert_cond = "[show status like \"offline_mode_disk_full\", Value, 1]" = "OFF"
+--source include/assert.inc
+--let $assert_text = Expect status 'super_read_only_disk_full' = ON
+--let $assert_cond = "[show status like \"super_read_only_disk_full\", Value, 1]" = "ON"
+--source include/assert.inc
+
+--sleep 12
+select count(*) = 0 as recovery_continues_with_remaining_ownership
+  from performance_schema.error_log
+ where data like '%Recovery: Timer 1: Canceled%'
+   and logged > @ownership_clear_start;
+
+--disable_query_log
+select now(6) into @final_ownership_clear_start;
+--enable_query_log
+set @@global.super_read_only = off;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Recovery: Timer 1: Canceled%'
+     and logged > @final_ownership_clear_start;
+--source include/wait_condition_or_abort.inc
+
+--sleep 12
+select count(*) = 1 as active_recovery_timer_canceled
+  from performance_schema.error_log
+ where data like '%Recovery: Timer 1: Canceled%'
+   and logged > @final_ownership_clear_start;
+--source ../include/health_monitor_verify_unfenced.inc
+
+--disable_query_log
+select count(*) into @rows_before_reconciled_path_recovery
+  from performance_schema.health_block_device;
+--enable_query_log
+--mkdir $missing_path
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > @rows_before_reconciled_path_recovery
+    from performance_schema.health_block_device;
+--source include/wait_condition_or_abort.inc
+
+--source ../include/health_monitor_verify_unfenced.inc
+
+--echo
+--echo ##
+--echo ## Canceling recovery during timer 2 resets both recovery timers
+--echo ##
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_recovery_time_1 = 10;
+set @@global.health_monitor.disk_recovery_time_2 = 60;
+set @@global.health_monitor.disk_low_space_critical_level =
+  @force_offline_mode;
+set @@global.health_monitor.disk_running = on;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select @@global.offline_mode = 1 and @@global.super_read_only = 1;
+--source include/wait_condition_or_abort.inc
+--source ../include/health_monitor_verify_fenced.inc
+
+--disable_query_log
+select now(6) into @timer_2_recovery_start;
+--enable_query_log
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Recovery: Timer 2: Running%'
+     and logged > @timer_2_recovery_start;
+--source include/wait_condition_or_abort.inc
+
+--let $assert_text = Expect OFFLINE_MODE = OFF
+--let $assert_variable_name = global.offline_mode
+--let $assert_variable_value = 0
+--source include/assert_variable.inc
+--let $assert_text = Expect SUPER_READ_ONLY = ON
+--let $assert_variable_name = global.super_read_only
+--let $assert_variable_value = 1
+--source include/assert_variable.inc
+--let $assert_text = Expect status 'offline_mode_disk_full' = OFF
+--let $assert_cond = "[show status like \"offline_mode_disk_full\", Value, 1]" = "OFF"
+--source include/assert.inc
+--let $assert_text = Expect status 'super_read_only_disk_full' = ON
+--let $assert_cond = "[show status like \"super_read_only_disk_full\", Value, 1]" = "ON"
+--source include/assert.inc
+
+--rmdir $missing_path
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like
+         '%Disk Collector: Error: Filesystem check for % failed with error %'
+     and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+     and logged > @timer_2_recovery_start;
+--source include/wait_condition_or_abort.inc
+
+--disable_query_log
+select count(*) into @timer_2_unavailable_rows
+  from performance_schema.health_block_device;
+select now(6) into @timer_2_cancel_start;
+--enable_query_log
+set @@global.super_read_only = off;
+
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > 0
+    from performance_schema.error_log
+   where data like '%Recovery: Timer 2: Canceled%'
+     and logged > @timer_2_cancel_start;
+--source include/wait_condition_or_abort.inc
+
+--sleep 12
+select count(*) = 1 as completed_recovery_timer_1_reset
+  from performance_schema.error_log
+ where data like '%Recovery: Timer 1: Canceled%'
+   and logged > @timer_2_cancel_start;
+select count(*) = 1 as active_recovery_timer_2_canceled
+  from performance_schema.error_log
+ where data like '%Recovery: Timer 2: Canceled%'
+   and logged > @timer_2_cancel_start;
+--source ../include/health_monitor_verify_unfenced.inc
+
+--mkdir $missing_path
+let $wait_timeout = 30;
+let $wait_condition =
+  select count(*) > @timer_2_unavailable_rows
+    from performance_schema.health_block_device;
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # Clean up
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_forecast_running = off;
+set @@global.health_monitor.disk_fallback_force = off;
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+--rmdir $missing_path
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+--eval uninstall component 'file://component_health_monitor'

@@ -1,0 +1,97 @@
+#
+# Test based on mysql-test/suite/perfschema/t/all_vars.test and adapted for the Health Monitor tables.
+#
+# This test verifies that *all* Health Monitor tables are tested by the health_monitor test suite.
+# In particular, every table there must be covered by:
+# - a ddl_<table_name>.test file.
+# - a dml_<table_name>.test file.
+# - a idx_<table_name>.test file.
+#
+
+--source include/not_windows.inc
+--source include/no_protocol.inc
+
+use test;
+
+--disable_warnings
+drop table if exists all_tables;
+drop table if exists hm_tables;
+drop table if exists tests_expect;
+drop table if exists tests_actual;
+--enable_warnings
+
+create table all_tables (table_name text);
+create table hm_tables (table_name text);
+create table tests_expect (test_name text);
+create table tests_actual (test_name text);
+
+--echo
+--echo # Generate text file of existing tests
+--echo
+perl;
+  use File::Basename;
+  my $dirname=dirname($ENV{MYSQLTEST_FILE});
+  my @all_tests=<$dirname/*.test>;
+  open(F, '>', "$ENV{MYSQLTEST_VARDIR}/tmp/health_monitor-all_tests.txt") or die;
+  binmode F;
+  print F join "\n", sort map { basename $_ } @all_tests;
+EOF
+
+--echo
+--echo # Load test names into a table
+--echo
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval load data infile "$MYSQLTEST_VARDIR/tmp/health_monitor-all_tests.txt" into table test.tests_actual;
+
+--echo
+--echo # Get all tables in the Performance Schema before loading the Health Monitor
+insert into all_tables select table_name from information_schema.tables where table_schema = 'performance_schema';
+
+--echo
+--echo # Load the Health Monitor
+--echo
+--source ../include/health_monitor_setup.inc
+
+use test;
+
+--echo
+--echo # Get all tables in the Performance Schema after loading the Health Monitor
+insert into hm_tables select table_name from information_schema.tables where table_schema = 'performance_schema';
+
+--echo
+--echo # Isolate the Health Monitor tables
+delete from hm_tables where table_name in (select table_name from all_tables);
+
+--echo
+--echo # Create the expected test names
+insert into tests_expect select concat('ddl_', table_name, '.test') from hm_tables;
+insert into tests_expect select concat('dml_', table_name, '.test') from hm_tables;
+insert into tests_expect select concat('idx_', table_name, '.test') from hm_tables;
+
+# Debug
+#--echo
+#select * from tests_expect order by test_name;
+#--echo
+#select * from tests_actual order by test_name;
+
+--echo
+--echo # Find missing tests
+
+delete from tests_expect where test_name in (select test_name from tests_actual);
+
+--echo
+# If this fails, the test listed in the output is missing from the test suite.
+# The way to fix the failure is to implement the missing test, not silence this select.
+--sorted_result
+select test_name `MISSING DDL/DML/IDX TESTS` from tests_expect;
+
+--echo
+--echo # Clean up
+--eval uninstall component 'file://component_health_monitor';
+
+drop table all_tables;
+drop table hm_tables;
+drop table tests_expect;
+drop table tests_actual;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/health_monitor-all_tests.txt

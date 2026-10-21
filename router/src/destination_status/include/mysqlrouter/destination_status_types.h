@@ -35,8 +35,7 @@
 struct QuarantineRoutingCallbacks {
   std::function<std::vector<mysql_harness::Destination>(const std::string &)>
       on_get_destinations;
-  std::function<void(const std::string &)> on_start_acceptors;
-  std::function<void(const std::string &)> on_stop_acceptors;
+  std::function<void(const std::string &)> on_refresh_acceptor_state;
 
   void reset() {
     on_get_destinations =
@@ -44,8 +43,7 @@ struct QuarantineRoutingCallbacks {
       return {};
     };
 
-    on_start_acceptors = [](const std::string &) -> void {};
-    on_stop_acceptors = [](const std::string &) -> void {};
+    on_refresh_acceptor_state = [](const std::string &) -> void {};
   }
 };
 

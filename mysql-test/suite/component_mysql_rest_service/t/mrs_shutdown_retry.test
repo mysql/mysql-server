@@ -1,0 +1,37 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that a failed backend shutdown remains retryable.
+
+--source include/have_debug.inc
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Retry component deinitialization after shutdown request failure
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("Backend shutdown failed: Injected backend shutdown request failure");
+call mtr.add_suppression("Deinitialization method provided by component 'mysql:component_mysql_rest_service' failed");
+--enable_result_log
+--enable_query_log
+
+SET @@GLOBAL.DEBUG = '+d, mrs_component_shutdown_request_failure';
+
+--error ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+
+SET @@GLOBAL.DEBUG = '-d, mrs_component_shutdown_request_failure';
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = failed shutdown remains retryable in STOPPING
+--let $assert_cond = "$mrs_state" = "STOPPING"
+--source include/assert.inc
+
+--echo
+--echo # Cleanup retries component deinitialization
+--source ../include/cmrs/cleanup.inc

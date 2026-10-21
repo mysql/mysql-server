@@ -136,24 +136,7 @@ void debug_dec_session_count(const char *reason, THD *thd,
 
 void inc_session_count() { g_session_count++; }
 
-void dec_session_count() {
-  g_session_count--;
-
-  const bool down = g_shutting_down.load();
-
-  if (down) {
-    g_sessions_closed++;
-
-    /*
-      The thread performing UNINSTALL COMPONENT is waiting
-      for sessions to disconnect.
-      Notify to wake up UNINSTALL COMPONENT.
-    */
-    mutex_srv->lock(&g_session_notify_mutex, __FILE__, __LINE__);
-    cond_srv->signal(&g_session_notify_cond, __FILE__, __LINE__);
-    mutex_srv->unlock(&g_session_notify_mutex, __FILE__, __LINE__);
-  }
-}
+void dec_session_count() { g_session_count--; }
 
 static int64_t big_attribute(unsigned long long value) {
   // TODO: opentelemetry-cpp data truncation
@@ -723,83 +706,6 @@ void abort_current_session() {
 
   if (thd != nullptr) {
     telemetry_traces_srv->abort_telemetry(thd);
-  }
-}
-
-void wait_for_sessions() {
-  std::chrono::time_point<std::chrono::system_clock> wait_until;
-  const std::chrono::milliseconds delay{500};
-  struct timespec deadline {};
-
-  PSI_stage_progress *progress = nullptr;
-
-  stage_srv->start_stage(g_session_stage.m_key, __FILE__, __LINE__);
-  progress = stage_srv->get_current_stage_progress();
-
-  /*
-    From now on, count disconnected sessions.
-    Note that arming g_shutting_down is racy,
-    so we may miss some signal on g_session_notify_cond.
-    As a result, always use a timedwait.
-    The source of truth is g_session_count,
-    not the number of signal received (or not).
-    Beside, the timedwait is used to check for THD::killed as well.
-  */
-  assert(g_shutting_down.load());
-
-  if (progress != nullptr) {
-    progress->m_work_completed = 0;
-    progress->m_work_estimated = g_session_count.load();
-  }
-
-  int attempts = 0;
-
-  while (g_session_count.load() > 0) {
-    /*
-      TODO: Check for THD::killed flag and abort UNINSTALL.
-
-      Currently, UNINSTALL waits for every instrumented sessions,
-      and is not responsive to KILL while waiting.
-
-      To make UNINSTALL progress, user sessions this code waits on
-      should be forcefully killed if necessary.
-
-      Consider making:
-      - UNINSTALL killable
-      by checking for the THD::killed flag during the wait loop.
-
-      This in turn implies:
-      - INSTALL should be restartable,
-        to recover after a killed UNINSTALL.
-      - UNINSTALL should be restartable,
-        to recover after a killed UNINSTALL.
-    */
-
-    wait_until = std::chrono::system_clock::now();
-    wait_until += delay;
-    to_timespec(wait_until, deadline);
-
-    attempts++;
-
-    log_info("%s: waiting for %d sessions, attempt %d", component_name,
-             g_session_count.load(), attempts);
-
-#ifdef DEBUG_SESSION_COUNT
-    assert(attempts <= 10);
-#endif /* DEBUG_SESSION_COUNT */
-
-    mutex_srv->lock(&g_session_notify_mutex, __FILE__, __LINE__);
-    cond_srv->timedwait(&g_session_notify_cond, &g_session_notify_mutex,
-                        &deadline, __FILE__, __LINE__);
-    mutex_srv->unlock(&g_session_notify_mutex, __FILE__, __LINE__);
-
-    if (progress != nullptr) {
-      progress->m_work_completed = g_sessions_closed.load();
-    }
-  }
-
-  if (progress != nullptr) {
-    progress->m_work_completed = g_sessions_closed.load();
   }
 }
 

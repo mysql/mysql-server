@@ -51,4 +51,7 @@ perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-time
 
 # Thread Pool Plugin
 perl mysql-test-run.pl --timer --big-test --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
+perl mysql-test-run.pl --timer --big-test --force --comment=multi_factor_authentication --vardir=var-mfa --suite=multi_factor_authentication --no-skip
 
+# Health Monitor
+perl mysql-test-run.pl --timer --debug-server --force --comment=health_monitor --vardir=var-health-monitor --suite=health_monitor --no-skip --exclude-platform=windows

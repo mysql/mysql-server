@@ -109,17 +109,29 @@ class ROUTING_EXPORT DestinationTlsContext {
    * - curves()
    * - ciphers()
    *
-   * If that succeeds, it the resulting TlsClientContext is cached and a pointer
-   * to it is returned.
+   * If that succeeds, the resulting TlsClientContext is cached and a shared
+   * reference to it is returned.
    *
-   * If a TlsClientContext for the destination exists, a pointer to it is
-   * returned.
+   * If a TlsClientContext for the destination exists, a shared reference to it
+   * is returned.
    *
    * @param dest_id  unique identifier of a destination
    * @param hostname name of the destination host
    */
-  TlsClientContext *get(const std::string &dest_id,
-                        const std::string &hostname);
+  std::shared_ptr<TlsClientContext> get(const std::string &dest_id,
+                                        const std::string &hostname);
+
+  /**
+   * Validate the configured TLS material before invalidating the cache.
+   *
+   * On success, discards the cached client contexts. The next get() lazily
+   * creates a context for its destination from the configured paths. On
+   * failure, existing cache entries remain available, while a cache miss still
+   * initializes a new context from the configured paths.
+   *
+   * @param out_error receives the validation error when false is returned.
+   */
+  bool reload(std::string &out_error);
 
  private:
   SslVerify ssl_verify_{SslVerify::kDisabled};
@@ -133,7 +145,7 @@ class ROUTING_EXPORT DestinationTlsContext {
   std::string cert_file_;
   std::string key_file_;
 
-  std::map<std::string, std::unique_ptr<TlsClientContext>> tls_contexts_;
+  std::map<std::string, std::shared_ptr<TlsClientContext>> tls_contexts_;
 
   std::mutex mtx_;
 

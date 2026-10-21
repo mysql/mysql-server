@@ -239,7 +239,7 @@ void udf_read_functions_table() {
     delete new_thd;
     return;
   }
-  new_thd->thread_stack = (char *)&new_thd;
+  new_thd->capture_stack_base(reinterpret_cast<const void *>(&new_thd));
   new_thd->store_globals();
   {
     LEX_CSTRING db_lex_cstr = {STRING_WITH_LEN(db)};

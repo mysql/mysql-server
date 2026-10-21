@@ -250,12 +250,12 @@ void pre_init_event_thread(THD *thd) {
 
 extern "C" {
 static void *event_scheduler_thread(void *arg) {
-  /* needs to be first for thread_stack */
+  /* Needs to be first for stack-origin capture. */
   THD *thd = ((struct scheduler_param *)arg)->thd;
   Event_scheduler *scheduler = ((struct scheduler_param *)arg)->scheduler;
   bool res;
 
-  thd->thread_stack = (char *)&thd;  // remember where our stack is
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
 
   mysql_thread_set_psi_id(thd->thread_id());
 
@@ -346,14 +346,14 @@ static void *event_worker_thread(void *arg) {
 */
 
 void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
-  /* needs to be first for thread_stack */
-  char my_stack;
+  /* Needs to be first for stack-origin capture. */
+  char my_stack{};
   Event_job_data job_data;
   bool res;
 
   assert(thd->m_digest == nullptr);
 
-  thd->thread_stack = &my_stack;  // remember where our stack is
+  thd->capture_stack_base(&my_stack);
   res = post_init_event_thread(thd);
 
   DBUG_TRACE;

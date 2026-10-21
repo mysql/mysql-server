@@ -344,6 +344,7 @@ DestMetadataCacheManager::get_old_connection_nodes() const {
 std::vector<routing_guidelines::Server_info>
 DestMetadataCacheManager::get_nodes_allowed_by_routing_guidelines() const {
   std::vector<routing_guidelines::Server_info> result;
+  if (!routing_guidelines_) return result;
 
   // This will only match routes which are using $.session.targetPort and
   // $.session.targetIP. It should not be used for user defined guidelines as we
@@ -414,8 +415,10 @@ DestMetadataCacheManager::get_all_nodes() const {
 
 std::vector<routing_guidelines::Server_info>
 DestMetadataCacheManager::get_new_connection_nodes() const {
-  if (!routing_guidelines_ || !cache_api_->is_initialized()) return {};
-  if (routing_guidelines_->routing_guidelines_updated()) {
+  if (!cache_api_->is_initialized()) return {};
+
+  if (!routing_guidelines_ ||
+      routing_guidelines_->routing_guidelines_updated()) {
     // For user-defined guidelines there might be no direct mapping between a
     // Routing plugin and a guidelines route. Therefore each destination
     // returned by the metadata may be a valid candidate.
@@ -496,7 +499,7 @@ bool DestMetadataCacheManager::refresh_destinations(
     current_group_position_ = 0;
     current_destination_group_index_ = 0;
     last_connection_status_ = ConnectionStatus::NotSet;
-    if (failover_successful) {
+    if (failover_successful && routing_guidelines_) {
       const auto &route_classification = routing_guidelines_->classify(
           session_info, routing_ctx_.get_router_info());
 
@@ -564,23 +567,10 @@ void DestMetadataCacheManager::notify_instances_changed(
 }
 
 bool DestMetadataCacheManager::update_socket_acceptor_state() noexcept {
-  const auto &nodes_for_new_connections = get_new_connection_nodes();
-
-  {
-    std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
-    if (!nodes_for_new_connections.empty() &&
-        start_router_socket_acceptor_callback_) {
-      const auto &start_acceptor_res = start_router_socket_acceptor_callback_();
-      return start_acceptor_res ? true : false;
-    }
-
-    if (nodes_for_new_connections.empty() &&
-        stop_router_socket_acceptor_callback_) {
-      stop_router_socket_acceptor_callback_();
-      return true;
-    }
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  if (refresh_router_socket_acceptor_state_callback_) {
+    return refresh_router_socket_acceptor_state_callback_().has_value();
   }
-
   return true;
 }
 
@@ -659,6 +649,8 @@ DestMetadataCacheManager::resolve_routing_guidelines_hostnames(
 }
 
 void DestMetadataCacheManager::prepare_destination_groups() {
+  if (!routing_guidelines_) return;
+
   destination_candidates_.clear();
 
   const auto &all_nodes =
@@ -912,6 +904,8 @@ DestMetadataCacheManager::get_next_destination_impl() {
 stdx::expected<void, std::error_code>
 DestMetadataCacheManager::init_destinations(
     const routing_guidelines::Session_info &session_info) {
+  if (!routing_guidelines_) return {};
+
   if (!cache_api_->is_initialized()) {
     return stdx::unexpected(
         make_error_code(std::errc::no_such_file_or_directory));
@@ -1005,6 +999,10 @@ DestMetadataCacheManager::init_destinations(
 routing_guidelines::Routing_guidelines_engine::RouteChanges
 DestMetadataCacheManager::update_routing_guidelines(
     const std::string &routing_guidelines_document) {
+  if (!routing_guidelines_) {
+    throw std::runtime_error("Routing Guidelines not set up, update failed");
+  }
+
   log_debug("Try to update routing guidelines with: %s",
             routing_guidelines_document.c_str());
   if (routing_guidelines_document.empty() ||

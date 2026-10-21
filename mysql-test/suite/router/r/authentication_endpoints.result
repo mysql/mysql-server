@@ -1,4 +1,3 @@
-# DB `basic_schema` - created
 
 
 ## I. Create servcices that:
@@ -33,6 +32,7 @@
 
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
+# DB `basic_schema` - created
 #
 # I.1
 # Registred SERVICE at path: /a
@@ -408,6 +408,7 @@ DROP ROLE mysql_rest_service_dev;
 
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
+# DB `basic_schema` - created
 #
 # I.1
 # Registred SERVICE at path: /a
@@ -742,6 +743,7 @@ OK
 GET /c/custom/authApps
 []
 OK
+DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;
 DROP ROLE mysql_rest_service_schema_admin;

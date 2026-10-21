@@ -30,10 +30,12 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <charconv>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <initializer_list>
+#include <limits>
 #include <memory>  // unique_ptr
 #include <set>
 #include <sstream>
@@ -61,6 +63,7 @@
 #include "mysql/harness/signal_handler.h"
 #include "mysql/harness/string_utils.h"
 #include "mysql/harness/supported_config_options.h"
+#include "mysql/harness/tls_reload_component.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
 #include "mysql_router_thread.h"  // kDefaultStackSizeInKiloByte
@@ -71,6 +74,9 @@
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/supported_router_options.h"
 #include "mysqlrouter/utils.h"
+#ifdef _WIN32
+#include "mysqlrouter/windows/router_service_names.h"
+#endif
 #include "print_version.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "scope_guard.h"
@@ -235,6 +241,90 @@ void MySQLRouter::parse_command_options(
   }
 }
 
+void MySQLRouter::validate_tls_reload_options() {
+#ifndef _WIN32
+  if (!reload_tls_ && !reload_tls_pid_.empty()) {
+    throw std::runtime_error("--pid can only be used with --reload-tls");
+  }
+#else
+  if (!reload_tls_ && !reload_tls_service_name_.empty()) {
+    throw std::runtime_error(
+        "--service-name can only be used with --reload-tls");
+  }
+  if (reload_tls_ && !pid_file_path_.empty()) {
+    throw std::runtime_error(
+        "--pid-file cannot be used with --reload-tls on Windows");
+  }
+#endif
+
+  if (!reload_tls_) return;
+
+  if (bootstrapper_.is_bootstrap()) {
+    throw std::runtime_error("--reload-tls cannot be used with --bootstrap");
+  }
+
+#ifndef _WIN32
+  if (reload_tls_pid_.empty() == pid_file_path_.empty()) {
+    throw std::runtime_error(
+        "--reload-tls requires exactly one of --pid or --pid-file");
+  }
+
+  std::string pid_text = reload_tls_pid_;
+  if (!pid_file_path_.empty()) {
+    std::ifstream pid_file{pid_file_path_};
+    if (!pid_file) {
+      throw std::runtime_error("Could not read PID file '" + pid_file_path_ +
+                               "'");
+    }
+    std::getline(pid_file, pid_text);
+    for (std::string extra; std::getline(pid_file, extra);) {
+      if (extra.find_first_not_of(" \t\r\n") != std::string::npos) {
+        throw std::runtime_error("PID file '" + pid_file_path_ +
+                                 "' contains more than one PID");
+      }
+    }
+  }
+
+  long long pid{};
+  const auto [ptr, ec] =
+      std::from_chars(pid_text.data(), pid_text.data() + pid_text.size(), pid);
+  if (ec != std::errc{} || ptr != pid_text.data() + pid_text.size() ||
+      pid <= 0 || pid > std::numeric_limits<pid_t>::max()) {
+    throw std::runtime_error("Invalid positive PID '" + pid_text + "'");
+  }
+  reload_tls_target_pid_ = pid;
+#endif
+}
+
+void MySQLRouter::request_tls_reload() {
+#ifndef _WIN32
+  if (::kill(static_cast<pid_t>(*reload_tls_target_pid_), SIGHUP) != 0) {
+    throw std::system_error(errno, std::generic_category(),
+                            "Could not deliver TLS reload request to PID " +
+                                std::to_string(*reload_tls_target_pid_));
+  }
+#else
+  const auto service_name = reload_tls_service_name_.empty()
+                                ? kDefaultServiceName
+                                : reload_tls_service_name_;
+  const auto event_name = tls_reload_event_name(service_name);
+  const auto event = OpenEvent(EVENT_MODIFY_STATE, FALSE, event_name.c_str());
+  if (event == nullptr) {
+    throw std::system_error(
+        GetLastError(), std::system_category(),
+        "Could not open TLS reload event '" + event_name + "'");
+  }
+  const bool set = SetEvent(event) != FALSE;
+  const auto error = set ? ERROR_SUCCESS : GetLastError();
+  CloseHandle(event);
+  if (!set) {
+    throw std::system_error(
+        error, std::system_category(),
+        "Could not signal TLS reload event '" + event_name + "'");
+  }
+#endif
+}
+
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ...?
 void MySQLRouter::init(const std::string &program_name,
@@ -242,6 +332,13 @@ void MySQLRouter::init(const std::string &program_name,
   set_default_config_files(CONFIG_FILES);
 
   parse_command_options(arguments);  // throws std::runtime_error
+  validate_tls_reload_options();
+
+  if (reload_tls_) {
+    request_tls_reload();
+    showing_info_ = true;
+    return;
+  }
 
   if (showing_info_) {
     return;
@@ -710,6 +807,10 @@ void MySQLRouter::start() {
   init_keyring(config);
   init_dynamic_state(config);
 
+  auto &tls_reloader = mysql_harness::TlsReloadComponent::get_instance();
+  static const char kTlsReloadServiceName[]{"tls_reload"};
+  loader_->waitable_services().emplace_back(kTlsReloadServiceName);
+
 #if !defined(_WIN32)
   //
   // reopen the logfile on SIGHUP.
@@ -717,7 +818,6 @@ void MySQLRouter::start() {
   //
 
   auto &log_reopener = mysql_harness::LogReopenComponent::get_instance();
-
   static const char kLogReopenServiceName[]{"log_reopen"};
 
   // report readiness of all services only after the log-reopen handlers is
@@ -730,11 +830,11 @@ void MySQLRouter::start() {
   loader_->waitable_services().emplace_back(kSignalHandlerServiceName);
 
   loader_->after_all_started([&]() {
+    tls_reloader.init();
 #if !defined(_WIN32)
     // as the LogReopener depends on the loggers being started, it must be
     // initialized after Loader::start_all() has been called.
     log_reopener.init();
-
     log_reopener->set_complete_callback([](const auto &errmsg) {
       if (errmsg.empty()) return;
 
@@ -744,14 +844,17 @@ void MySQLRouter::start() {
     });
 
     signal_handler_.add_sig_handler(
-        SIGHUP,
-        [&log_reopener](int /* sig */, const std::string & /*signal_info*/) {
+        SIGHUP, [&log_reopener, &tls_reloader](
+                    int /* sig */, const std::string & /*signal_info*/) {
           // is run by the signal-thread.
           log_reopener->request_reopen();
+          tls_reloader.request_reload();
         });
 
     mysql_harness::on_service_ready(kLogReopenServiceName);
 #endif
+
+    mysql_harness::on_service_ready(kTlsReloadServiceName);
 
     mysql_harness::on_service_ready(kSignalHandlerServiceName);
   });
@@ -763,6 +866,9 @@ void MySQLRouter::start() {
     signal_handler_.remove_sig_handler(SIGINT);
 
     signal_handler_.remove_sig_handler(SIGHUP);
+#endif
+    tls_reloader.stop();
+#if !defined(_WIN32)
     log_reopener.reset();
 #endif
   });
@@ -900,6 +1006,37 @@ void MySQLRouter::prepare_command_options() noexcept {
       [this](const std::string &) {
         this->assert_not_bootstrap_mode("--pid-file");
       });
+
+  arg_handler_.add_option(
+      OptionNames({"--reload-tls"}),
+      "Request asynchronous TLS material reload in a running Router.",
+      CmdOptionValueReq::none, "",
+      [this](const std::string &) { this->reload_tls_ = true; });
+
+#ifndef _WIN32
+  arg_handler_.add_option(
+      OptionNames({"--pid"}), "PID of the Router receiving --reload-tls.",
+      CmdOptionValueReq::required, "pid", [this](const std::string &pid) {
+        if (!this->reload_tls_pid_.empty()) {
+          throw std::runtime_error("Option --pid can only be given once");
+        }
+        this->reload_tls_pid_ = pid;
+      });
+#else
+  arg_handler_.add_option(
+      OptionNames({"--service-name"}),
+      "Windows service receiving --reload-tls (default: MySQLRouter).",
+      CmdOptionValueReq::required, "name", [this](const std::string &name) {
+        if (!this->reload_tls_service_name_.empty()) {
+          throw std::runtime_error(
+              "Option --service-name can only be given once");
+        }
+        if (name.empty()) {
+          throw std::runtime_error("Invalid empty value for --service-name");
+        }
+        this->reload_tls_service_name_ = name;
+      });
+#endif
 
 #ifndef _WIN32
   arg_handler_.add_option(
@@ -1090,6 +1227,12 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
            "--install-service",
            "--install-service-manual",
            "--pid-file",
+           "--reload-tls",
+#ifndef _WIN32
+           "--pid",
+#else
+           "--service-name",
+#endif
            "--remove-credentials-section",
            "--update-credentials-section",
            "--core-file",

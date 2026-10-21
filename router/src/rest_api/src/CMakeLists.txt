@@ -43,11 +43,18 @@ ADD_HARNESS_PLUGIN(rest_api
   rest_api_plugin.cc
   rest_api_handler.cc
   rest_api.cc
+
+  REQUIRES_IF
+  rest_api_lib
+  router_lib_interface
+  http_server_lib_interface
+  http_auth_backend_lib_interface
+
   REQUIRES
   router_lib
   http_server_lib
-  rest_api_lib
   http_auth_backend_lib
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}")
 
 TARGET_INCLUDE_DIRECTORIES(rest_api

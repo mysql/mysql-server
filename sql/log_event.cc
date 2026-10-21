@@ -2157,6 +2157,22 @@ size_t Rows_log_event::print_verbose_one_row(
   const uchar *value0 = value;
   char typestr[64] = "";
 
+  const auto remaining_bytes = [&]() -> size_t {
+    return value <= m_rows_end ? static_cast<size_t>(m_rows_end - value) : 0;
+  };
+  const auto has_remaining = [&](size_t bytes) -> bool {
+    return value <= m_rows_end && bytes <= remaining_bytes();
+  };
+  const auto print_truncated_row_metadata = [&](const char *metadata_name,
+                                                size_t metadata_size) {
+    my_b_printf(file,
+                "***Corrupted replication event was detected: "
+                "%s size is set to %u, but there are only %u bytes "
+                "left of the event. Not printing the value***\n",
+                metadata_name, (uint)metadata_size, (uint)remaining_bytes());
+    return 0;
+  };
+
   // Read value_options if this is AI for PARTIAL_UPDATE_ROWS_EVENT
   ulonglong value_options = 0;
   Bit_reader partial_bits;
@@ -2170,8 +2186,12 @@ size_t Rows_log_event::print_verbose_one_row(
       return 0;
     }
     if ((value_options & PARTIAL_JSON_UPDATES) != 0) {
+      const size_t partial_bits_size = (td->json_column_count() + 7) / 8;
+      if (!has_remaining(partial_bits_size))
+        return print_truncated_row_metadata("partial update bitmap",
+                                            partial_bits_size);
       partial_bits.set_ptr(value);
-      value += (td->json_column_count() + 7) / 8;
+      value += partial_bits_size;
     }
   }
 
@@ -2180,8 +2200,11 @@ size_t Rows_log_event::print_verbose_one_row(
     master columns. Master writes one bit for each column in the
     image.
   */
+  const size_t null_bits_size = (bitmap_bits_set(cols_bitmap) + 7) / 8;
+  if (!has_remaining(null_bits_size))
+    return print_truncated_row_metadata("NULL bitmap", null_bits_size);
   Bit_reader null_bits(value);
-  value += (bitmap_bits_set(cols_bitmap) + 7) / 8;
+  value += null_bits_size;
 
   my_b_printf(file, "%s", prefix);
 
@@ -2204,14 +2227,24 @@ size_t Rows_log_event::print_verbose_one_row(
 
     my_b_printf(file, "###   @%d=", static_cast<int>(i + 1));
     if (!is_null) {
-      size_t fsize =
-          td->calc_field_size((uint)i, pointer_cast<const uchar *>(value));
-      if (fsize > (size_t)(m_rows_end - value)) {
+      if (value > m_rows_end) {
         my_b_printf(file,
                     "***Corrupted replication event was detected: "
                     "field size is set to %u, but there are only %u bytes "
                     "left of the event. Not printing the value***\n",
-                    (uint)fsize, (uint)(m_rows_end - value));
+                    0U, 0U);
+        return 0;
+      }
+      const size_t remaining = m_rows_end - value;
+      uint32 fsize = 0;
+      if (td->calc_field_size_checked(
+              (uint)i, pointer_cast<const uchar *>(value), remaining, &fsize) !=
+          CALC_FIELD_SIZE_OK) {
+        my_b_printf(file,
+                    "***Corrupted replication event was detected: "
+                    "field data is truncated; there are only %u bytes "
+                    "left of the event. Not printing the value***\n",
+                    (uint)remaining);
         return 0;
       }
     }
@@ -6669,23 +6702,168 @@ bool User_var_log_event::write(Basic_ostream *ostream) {
 */
 
 #ifndef MYSQL_SERVER
+static size_t my_strmov_quoted_user_var_name(char *buffer,
+                                             const char *identifier,
+                                             size_t length) {
+  char *pos = buffer;
+
+  *pos++ = '\'';
+  for (size_t i = 0; i < length; i++) {
+    switch (identifier[i]) {
+      case '\0':
+        *pos++ = '\\';
+        *pos++ = '0';
+        break;
+      case '\'':
+        *pos++ = '\\';
+        *pos++ = '\'';
+        break;
+      case '\\':
+        *pos++ = '\\';
+        *pos++ = '\\';
+        break;
+      case '\n':
+        *pos++ = '\\';
+        *pos++ = 'n';
+        break;
+      case '\r':
+        *pos++ = '\\';
+        *pos++ = 'r';
+        break;
+      case '\t':
+        *pos++ = '\\';
+        *pos++ = 't';
+        break;
+      case '\b':
+        *pos++ = '\\';
+        *pos++ = 'b';
+        break;
+      case '\032':
+        *pos++ = '\\';
+        *pos++ = 'Z';
+        break;
+      default:
+        *pos++ = identifier[i];
+        break;
+    }
+  }
+  *pos++ = '\'';
+  return pos - buffer;
+}
+
+static void print_set_session_charset(IO_CACHE *file,
+                                      PRINT_EVENT_INFO *print_event_info,
+                                      const char *charset) {
+  const char *charset_p = charset;  // Avoid type-punning warning.
+  CHARSET_INFO *cs_info = get_charset(uint2korr(charset_p), MYF(MY_WME));
+  if (cs_info) {
+    /* for mysql client */
+    my_b_printf(file, "/*!\\C %s */%s\n", cs_info->csname,
+                print_event_info->delimiter);
+  }
+  my_b_printf(file,
+              "SET "
+              "@@session.character_set_client=%d,"
+              "@@session.collation_connection=%d,"
+              "@@session.collation_server=%d"
+              "%s\n",
+              uint2korr(charset_p), uint2korr(charset + 2),
+              uint2korr(charset + 4), print_event_info->delimiter);
+}
+
 void User_var_log_event::print(FILE *,
                                PRINT_EVENT_INFO *print_event_info) const {
   IO_CACHE *const head = &print_event_info->head_cache;
-  char quoted_id[1 + NAME_LEN * 2 + 2];  // quoted length of the identifier
-  char name_id[NAME_LEN + 1];
-  size_t quoted_len = 0;
 
   if (!print_event_info->short_form) {
     print_header(head, print_event_info, false);
     my_b_printf(head, "\tUser_var\n");
   }
-  my_stpcpy(name_id, name);
-  name_id[name_len] = '\0';
-  my_b_printf(head, "SET @");
-  quoted_len =
-      my_strmov_quoted_identifier((char *)quoted_id, (const char *)name_id);
+  char quoted_id[1 + NAME_LEN * 2 + 2];  // quoted length of the identifier
+  const bool has_nul =
+      std::find(name, name + name_len, '\0') != name + name_len;
+  const bool preserve_value_collation = !is_null && type != STRING_RESULT;
+  const bool saved_sql_mode_inited = print_event_info->sql_mode_inited;
+  const sql_mode_t saved_sql_mode = print_event_info->sql_mode;
+  const bool saved_charset_inited = print_event_info->charset_inited;
+  char saved_charset[sizeof(print_event_info->charset)];
+  char user_var_charset[sizeof(print_event_info->charset)];
+  CHARSET_INFO *value_collation = nullptr;
+  bool invalid_value_collation = false;
+  size_t quoted_len;
+
+  if (saved_charset_inited)
+    memcpy(saved_charset, print_event_info->charset, sizeof(saved_charset));
+  /*
+    The user-variable name must be parsed under a safe client charset, but
+    numeric values get their stored collation from collation_connection.
+    Preserve the collation logged in the USER_VAR_EVENT for those values.
+  */
+  if (preserve_value_collation) {
+    value_collation = get_charset(charset_number, MYF(0));
+    invalid_value_collation =
+        value_collation == nullptr || value_collation->number > 0xffff;
+  }
+  const uint value_collation_number =
+      value_collation != nullptr && !invalid_value_collation
+          ? value_collation->number
+          : my_charset_utf8mb3_general_ci.number;
+  int2store(user_var_charset, my_charset_utf8mb3_general_ci.number);
+  int2store(user_var_charset + 2, value_collation_number);
+  int2store(user_var_charset + 4, my_charset_utf8mb3_general_ci.number);
+  const bool switch_charset =
+      !saved_charset_inited ||
+      memcmp(saved_charset, user_var_charset, sizeof(user_var_charset));
+
+  if (switch_charset) {
+    print_set_session_charset(head, print_event_info, user_var_charset);
+    memcpy(print_event_info->charset, user_var_charset,
+           sizeof(user_var_charset));
+    print_event_info->charset_inited = true;
+  }
+  if (has_nul) {
+    my_b_printf(head, "SET @@session.sql_mode=0%s\n",
+                print_event_info->delimiter);
+    quoted_len = my_strmov_quoted_user_var_name(quoted_id, name, name_len);
+  } else {
+    quoted_len = my_strmov_quoted_identifier(quoted_id, name, name_len);
+  }
   quoted_id[quoted_len] = '\0';
+  const auto restore_sql_mode = [&]() {
+    if (!has_nul) return;
+    if (saved_sql_mode_inited) {
+      /*
+        Keep the handling of old, removed SQL_MODE bits consistent with
+        Query_log_event::print().
+      */
+      const char *mask = "";
+      if (saved_sql_mode & 0x1003ff00) mask = "/*!80005 &~0x1003ff00*/";
+      my_b_printf(head, "SET @@session.sql_mode=%lu%s%s\n",
+                  static_cast<ulong>(saved_sql_mode), mask,
+                  print_event_info->delimiter);
+    } else {
+      print_event_info->sql_mode_inited = false;
+    }
+  };
+  const auto restore_charset = [&]() {
+    if (!switch_charset) return;
+    if (saved_charset_inited) {
+      print_set_session_charset(head, print_event_info, saved_charset);
+      memcpy(print_event_info->charset, saved_charset, sizeof(saved_charset));
+      print_event_info->charset_inited = true;
+    } else {
+      print_event_info->charset_inited = false;
+    }
+  };
+  const auto restore_state = [&]() {
+    restore_sql_mode();
+    restore_charset();
+  };
+  const auto print_invalid_value = [&]() {
+    my_b_printf(head, ":=???%s\n", print_event_info->delimiter);
+  };
+
+  my_b_printf(head, "SET @");
   my_b_write(head, (uchar *)quoted_id, quoted_len);
 
   if (is_null) {
@@ -6693,6 +6871,10 @@ void User_var_log_event::print(FILE *,
   } else {
     switch (type) {
       case REAL_RESULT:
+        if (invalid_value_collation) {
+          print_invalid_value();
+          break;
+        }
         double real_val;
         char real_buf[FMT_G_BUFSIZE(14)];
         real_val = float8get(val);
@@ -6700,6 +6882,10 @@ void User_var_log_event::print(FILE *,
         my_b_printf(head, ":=%s%s\n", real_buf, print_event_info->delimiter);
         break;
       case INT_RESULT:
+        if (invalid_value_collation) {
+          print_invalid_value();
+          break;
+        }
         char int_buf[22];
         longlong10_to_str(
             uint8korr(val), int_buf,
@@ -6707,6 +6893,10 @@ void User_var_log_event::print(FILE *,
         my_b_printf(head, ":=%s%s\n", int_buf, print_event_info->delimiter);
         break;
       case DECIMAL_RESULT: {
+        if (invalid_value_collation) {
+          print_invalid_value();
+          break;
+        }
         char str_buf[DECIMAL_MAX_STR_LENGTH + 1];
         int str_len = sizeof(str_buf);
         const int precision = (int)val[0];
@@ -6741,7 +6931,10 @@ void User_var_log_event::print(FILE *,
 
         hex_str = (char *)my_malloc(key_memory_log_event, 2 * val_len + 1 + 2,
                                     MYF(MY_WME));  // 2 hex digits / byte
-        if (!hex_str) return;
+        if (!hex_str) {
+          restore_state();
+          return;
+        }
         str_to_hex(hex_str, val, val_len);
         /*
           For proper behaviour when mysqlbinlog|mysql, we need to explicitly
@@ -6764,9 +6957,11 @@ void User_var_log_event::print(FILE *,
       case ROW_RESULT:
       default:
         assert(false);
+        restore_state();
         return;
     }
   }
+  restore_state();
 }
 #endif
 
@@ -14610,6 +14805,12 @@ size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
 size_t my_strmov_quoted_identifier(char *buffer, const char *identifier) {
   const int q = '`';
   return my_strmov_quoted_identifier_helper(q, buffer, identifier, 0);
+}
+
+size_t my_strmov_quoted_identifier(char *buffer, const char *identifier,
+                                   size_t length) {
+  const int q = '`';
+  return my_strmov_quoted_identifier_helper(q, buffer, identifier, length);
 }
 
 #endif

@@ -20,7 +20,7 @@ if (!$mrs_user_meta)
   if (!$mrs_user_data)
   {
     --die At least one of two MRS user, must be specified for the script.
-  }  
+  }
 }
 
 --disable_query_log

@@ -726,7 +726,7 @@ class Item_in_subselect : public Item_exists_subselect {
   bool need_expr_cache{true};
 
  private:
-  bool mark_as_outer(Item *left_row, size_t col);
+  bool mark_as_outer(Item *left_operand, size_t col);
 
   /**
     In the case of

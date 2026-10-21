@@ -1,0 +1,50 @@
+call mtr.add_suppression("Health Monitor: Failed to start");
+call mtr.add_suppression("Health Monitor: Failed to initialize component objects");
+# Failed initialization releases partially constructed objects
+set @saved_debug = @@session.debug;
+set session debug = '+d,health_monitor_fail_collectors_init';
+install component 'file://component_health_monitor';
+ERROR HY000: Initialization method provided by component 'mysql:health_monitor_component' failed.
+set session debug = @saved_debug;
+select count(*) as registered_components from mysql.component
+where component_urn = 'file://component_health_monitor';
+registered_components
+0
+select count(*) as registered_variables from performance_schema.global_variables
+where variable_name like 'health_monitor.%';
+registered_variables
+0
+select count(*) as worker_threads from performance_schema.threads
+where name like 'thread/health/%';
+worker_threads
+0
+# Initialization exceptions also release partially constructed objects
+set session debug = '+d,health_monitor_throw_collectors_init';
+install component 'file://component_health_monitor';
+ERROR HY000: Initialization method provided by component 'mysql:health_monitor_component' failed.
+set session debug = @saved_debug;
+select count(*) as registered_components from mysql.component
+where component_urn = 'file://component_health_monitor';
+registered_components
+0
+select count(*) as registered_variables from performance_schema.global_variables
+where variable_name like 'health_monitor.%';
+registered_variables
+0
+select count(*) as worker_threads from performance_schema.threads
+where name like 'thread/health/%';
+worker_threads
+0
+# A fresh owner can load after failure and after normal teardown
+select count(*) as registered_components from mysql.component
+where component_urn = 'file://component_health_monitor';
+registered_components
+0
+select count(*) as registered_variables from performance_schema.global_variables
+where variable_name like 'health_monitor.%';
+registered_variables
+0
+select count(*) as worker_threads from performance_schema.threads
+where name like 'thread/health/%';
+worker_threads
+0
