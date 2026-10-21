@@ -19,7 +19,23 @@ if (!$PB2WORKDIR)
 COMMIT;
 --enable_query_log
 --enable_result_log
+--let $_mrs_object_definition_transaction=0
 
+# GRANT implicitly commits, so apply provider-role grants after the metadata
+# transaction has committed.
+--disable_query_log
+--disable_result_log
+while ($_mrs_data_provider_grants)
+{
+  --let $_mrs_data_provider_grant=`SELECT TRIM(SUBSTRING_INDEX("$_mrs_data_provider_grants", ";", 1))`
+  --let $_mrs_data_provider_grants=`SELECT TRIM(SUBSTRING("$_mrs_data_provider_grants", LENGTH("$_mrs_data_provider_grant") + 2))`
+  --eval $_mrs_data_provider_grant
+}
+--enable_result_log
+--enable_query_log
+
+--let $_mrs_data_provider_grant=
+--let $_mrs_data_provider_grants=
 
 if ($extra_mrs_router_id)
 {

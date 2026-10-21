@@ -750,7 +750,7 @@
 #define MULTI_FACTOR_AUTHENTICATION (1UL << 28)
 
 /**
-  This flag will be reserved to extend the 32bit capabilities structure to
+  This flag is reserved to extend the 32bit capabilities structure to
   64bits.
 */
 #define CLIENT_CAPABILITY_EXTENSION (1UL << 29)
@@ -779,7 +779,8 @@
 /** a compatibility alias for CLIENT_COMPRESS */
 #define CAN_CLIENT_COMPRESS CLIENT_COMPRESS
 
-/** Gather all possible capabilities (flags) supported by the server */
+/** Gather all possible capabilities (flags) supported by the client and/or
+ * server */
 #define CLIENT_ALL_FLAGS                                                       \
   (CLIENT_LONG_PASSWORD | CLIENT_FOUND_ROWS | CLIENT_LONG_FLAG |               \
    CLIENT_CONNECT_WITH_DB | CLIENT_NO_SCHEMA | CLIENT_COMPRESS | CLIENT_ODBC | \
@@ -794,6 +795,11 @@
    CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA |                 \
    CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES |               \
    MULTI_FACTOR_AUTHENTICATION)
+
+/** Flags only supported by the client. */
+#define CLIENT_ONLY_ALL_FLAGS                              \
+  (CLIENT_IGNORE_SIGPIPE | CLIENT_SSL_VERIFY_SERVER_CERT | \
+   CLIENT_REMEMBER_OPTIONS)
 
 /**
   Switch off from ::CLIENT_ALL_FLAGS the flags that are optional and

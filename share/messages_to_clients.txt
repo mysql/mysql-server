@@ -9974,6 +9974,9 @@ ER_CANT_RUN_COMMAND_SERVICES_RECURSIVELY
 ER_WARN_AUDIT_LOG_FILTER_RECOVERY_LOGGING_DISABLED
   eng "The 'audit_log_filter_recovery_mode' variable is set to LOG_NOTHING_IF_INVALID_FILTER_DETECTED, meaning audit events will not be logged if the filter is invalid. Consider changing this variable to LOG_ALL_IF_INVALID_FILTER_DETECTED to ensure that all events are logged, even when the filter is invalid."
 
+ER_CTE_EXPANSION_LIMIT_EXCEEDED
+  eng "Common table expression expansion exceeded an implementation limit. Simplify the query."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #
@@ -11066,6 +11069,36 @@ ER_JDV_COLUMN_TAG_NOT_SUPPORTED_FOR_SUBQUERY
 
 ER_JDV_UPDATE_COLUMN_TAG_NOT_SUPPORTED_FOR_PK
   eng "The UPDATE column tag is not supported for a primary key projection at JSON path '%s'."
+
+ER_MRS_COMPONENT_UDF_ERROR
+  eng "The function '%s' failed. %s"
+
+ER_MRS_KEYRING_INIT_ERROR
+  eng "Failed to initialize Keyring."
+
+ER_MRS_CONFIG_INIT_ERROR
+  eng "Failed to initialize configuration handler."
+
+ER_MRS_SYSVARS_INIT_ERROR
+  eng "Failed to initialize system variables handler."
+
+ER_MRS_SYSVARS_REGISTER_ERROR
+  eng "Failed to register system variables."
+
+ER_MRS_STATUSVARS_INIT_ERROR
+  eng "Failed to initialize status variables handler."
+
+ER_MRS_STATUSVARS_REGISTER_ERROR
+  eng "Failed to register status variables."
+
+ER_MRS_UDFS_INIT_ERROR
+  eng "Failed to initialize UDF handler."
+
+ER_MRS_UDFS_REGISTER_ERROR
+  eng "Failed to register UDFs."
+
+ER_MRS_BACKEND_INIT_ERROR
+  eng "Failed to initialize backend."
 
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).

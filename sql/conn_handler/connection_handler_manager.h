@@ -177,12 +177,16 @@ class Connection_handler_manager {
                             by the session service. If this is the case,
                             we will not count this as an incoming connection.
 
+    @param allow_extra_connection true to reserve an extra connection whose
+                                  privileges are checked during authentication.
+
     @retval
       true   max_connections NOT exceeded
       false  max_connections reached
   */
   bool check_and_incr_conn_count(bool ignore_max_connection_count,
-                                 bool internal_session);
+                                 bool internal_session,
+                                 bool allow_extra_connection = true);
 
   /**
     Reset the max_used_connections counter to the number of current

@@ -1,0 +1,298 @@
+--source include/not_hypergraph.inc
+--source include/elide_costs.inc
+
+--echo #
+--echo # Iterator EXPLAIN access-path coverage
+--echo #
+
+SET @explain_access_path_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch =
+  'batched_key_access=on,index_merge=on,index_merge_intersection=on,'
+  'index_merge_sort_union=on,index_merge_union=on,mrr=off';
+
+# FULL_TEXT_SEARCH.
+CREATE TABLE t_explain_fts (
+  id INT NOT NULL AUTO_INCREMENT,
+  body TEXT,
+  PRIMARY KEY (id),
+  FULLTEXT KEY ft_body (body)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_fts (body) VALUES ('alpha beta'), ('beta gamma');
+--disable_result_log
+ANALYZE TABLE t_explain_fts;
+--enable_result_log
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT * FROM t_explain_fts
+WHERE MATCH(body) AGAINST ('alpha' IN BOOLEAN MODE);
+--enable_warnings
+
+# REF_OR_NULL and ZERO_ROWS_AGGREGATED.
+CREATE TABLE t_explain_ref_or_null (
+  id INT NOT NULL,
+  k INT,
+  KEY k_idx (k)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_ref_or_null VALUES (1, 1), (2, NULL), (3, 2);
+--disable_result_log
+ANALYZE TABLE t_explain_ref_or_null;
+--enable_result_log
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT * FROM t_explain_ref_or_null FORCE INDEX (k_idx)
+WHERE k = 1 OR k IS NULL;
+--enable_warnings
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT COUNT(*) FROM t_explain_ref_or_null WHERE FALSE;
+--enable_warnings
+
+# LIMIT_OFFSET with offset-only and SQL_CALC_FOUND_ROWS variants.
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT * FROM t_explain_ref_or_null
+LIMIT 18446744073709551615 OFFSET 1;
+--enable_warnings
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT SQL_CALC_FOUND_ROWS * FROM t_explain_ref_or_null LIMIT 1;
+--enable_warnings
+
+# ROWID_INTERSECTION and ROWID_UNION.
+CREATE TABLE t_explain_rowid (
+  id INT NOT NULL,
+  b INT NOT NULL,
+  c INT NOT NULL,
+  d INT NOT NULL,
+  PRIMARY KEY (id),
+  KEY b_idx (b),
+  KEY c_idx (c),
+  KEY d_idx (d)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_rowid VALUES
+  (1, 1, 1, 1), (2, 1, 1, 2), (3, 1, 2, 1), (4, 2, 1, 1),
+  (5, 2, 2, 2), (6, 3, 3, 3), (7, 4, 4, 4), (8, 5, 5, 5);
+--disable_result_log
+ANALYZE TABLE t_explain_rowid;
+--enable_result_log
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT /*+ INDEX_MERGE(t_explain_rowid b_idx, c_idx) */ *
+FROM t_explain_rowid WHERE b = 1 AND c = 1;
+--enable_warnings
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT /*+ INDEX_MERGE(t_explain_rowid b_idx, c_idx, d_idx) */ *
+FROM t_explain_rowid WHERE b = 1 OR c = 1 OR d <=> NULL;
+--enable_warnings
+
+# A semijoin with two inner tables uses the multi-table weedout formatting.
+SET @explain_access_path_weedout_switch = @@optimizer_switch;
+SET optimizer_switch =
+  'firstmatch=off,loosescan=off,materialization=off,duplicateweedout=on';
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT o.id
+FROM t_explain_rowid AS o
+WHERE o.b IN (
+  SELECT i1.b
+  FROM t_explain_rowid AS i1
+  JOIN t_explain_rowid AS i2 ON i1.c = i2.c
+);
+--enable_warnings
+SET optimizer_switch = @explain_access_path_weedout_switch;
+
+# A loose semijoin sets the nested-loop LooseScan strategy.
+SET @explain_access_path_loosescan_switch = @@optimizer_switch;
+SET optimizer_switch =
+  'firstmatch=off,materialization=off,duplicateweedout=off,loosescan=on';
+CREATE TABLE t_explain_loose_outer (
+  i INT NOT NULL,
+  PRIMARY KEY (i)
+) ENGINE = InnoDB;
+CREATE TABLE t_explain_loose_inner (
+  i INT,
+  KEY i_idx (i)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_loose_outer VALUES (2), (3), (4), (5);
+INSERT INTO t_explain_loose_inner VALUES (1), (2), (3), (4);
+--disable_result_log
+ANALYZE TABLE t_explain_loose_outer, t_explain_loose_inner;
+--enable_result_log
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT *
+FROM t_explain_loose_outer
+WHERE i IN (SELECT i FROM t_explain_loose_inner);
+--enable_warnings
+SET optimizer_switch = @explain_access_path_loosescan_switch;
+DROP TABLE t_explain_loose_outer, t_explain_loose_inner;
+
+# A weedout spanning two outer tables prints the parenthesized table list.
+CREATE TABLE t_explain_weedout_outer (
+  pk INT NOT NULL,
+  f2 INT,
+  PRIMARY KEY (pk)
+) ENGINE = InnoDB;
+CREATE TABLE t_explain_weedout_inner (
+  pk INT NOT NULL,
+  f2 INT,
+  PRIMARY KEY (pk)
+) ENGINE = InnoDB;
+INSERT INTO t_explain_weedout_outer VALUES (1, 1), (2, 2);
+--disable_result_log
+ANALYZE TABLE t_explain_weedout_outer, t_explain_weedout_inner;
+--enable_result_log
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT *
+FROM t_explain_weedout_outer
+LEFT JOIN t_explain_weedout_outer AS outer_copy ON 119 IN (
+  SELECT subquery_inner.pk
+  FROM t_explain_weedout_outer AS subquery_outer,
+       (t_explain_weedout_inner AS subquery_inner
+        STRAIGHT_JOIN t_explain_weedout_outer AS subquery_copy ON TRUE)
+)
+ORDER BY t_explain_weedout_outer.f2;
+--enable_warnings
+
+# A nullable IN expression exercises the alternative-plan formatter.
+CREATE TABLE t_explain_alternative (a INT, b INT);
+INSERT INTO t_explain_alternative VALUES (1, 1), (2, 2);
+SET @explain_access_path_sql_mode = @@sql_mode;
+SET sql_mode = '';
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT (o.a, o.b) IN (
+  SELECT d.a, d.b FROM (TABLE t_explain_alternative) AS d
+)
+FROM t_explain_alternative AS o
+GROUP BY (@explain_access_path_group := 1);
+--enable_warnings
+SET sql_mode = @explain_access_path_sql_mode;
+
+# MATERIALIZED_TABLE_FUNCTION.
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT jt.value
+FROM JSON_TABLE('[1, 2]', '$[*]' COLUMNS (value INT PATH '$')) AS jt;
+--enable_warnings
+
+# BKA_JOIN with a partitioned inner index lookup.
+CREATE TABLE t_explain_bka_outer (id INT NOT NULL) ENGINE = InnoDB;
+CREATE TABLE t_explain_bka_inner (
+  id INT NOT NULL,
+  payload INT NOT NULL,
+  KEY id_idx (id)
+) ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (1000),
+  PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_explain_bka_outer VALUES (1), (2);
+INSERT INTO t_explain_bka_inner VALUES (1, 1), (2, 1), (1100, 1);
+--disable_result_log
+ANALYZE TABLE t_explain_bka_outer, t_explain_bka_inner;
+--enable_result_log
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT /*+ BKA(i) */ i.payload
+FROM t_explain_bka_outer AS o
+STRAIGHT_JOIN t_explain_bka_inner AS i ON i.id = o.id
+WHERE i.payload = 1;
+--enable_warnings
+
+# DYNAMIC_INDEX_RANGE_SCAN prints its statement-level candidate partition set.
+CREATE TABLE t_explain_dynamic (
+  x INT NOT NULL,
+  y INT DEFAULT (x),
+  z VARCHAR(128) DEFAULT (REPEAT('z', 128)),
+  KEY x_idx (x)
+) ENGINE = InnoDB
+PARTITION BY RANGE (x) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN (200),
+  PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_explain_dynamic (x) VALUES
+  (10), (20), (30), (40), (110), (120), (130), (140), (210), (220);
+INSERT INTO t_explain_dynamic SELECT * FROM t_explain_dynamic;
+INSERT INTO t_explain_dynamic SELECT * FROM t_explain_dynamic;
+INSERT INTO t_explain_dynamic SELECT * FROM t_explain_dynamic;
+--disable_result_log
+ANALYZE TABLE t_explain_dynamic;
+--enable_result_log
+SET @explain_access_path_dynamic_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch = 'block_nested_loop=off,mrr_cost_based=off';
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT inner_table.x
+FROM t_explain_dynamic PARTITION (p0, p1) AS inner_table,
+     t_explain_dynamic AS outer_table
+WHERE inner_table.x < outer_table.y;
+--enable_warnings
+SET optimizer_switch = @explain_access_path_dynamic_optimizer_switch;
+
+# FOLLOW_TAIL is used for the recursive member of a recursive CTE.
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+WITH RECURSIVE t_explain_recursive (n) AS (
+  SELECT 1
+  UNION ALL
+  SELECT n + 1 FROM t_explain_recursive WHERE n < 3
+)
+SELECT * FROM t_explain_recursive;
+--enable_warnings
+
+# FAKE_SINGLE_ROW and CONST_TABLE retain partition provenance.
+CREATE TABLE t_explain_preexecution (
+  id INT NOT NULL,
+  payload INT,
+  PRIMARY KEY (id)
+) ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_explain_preexecution VALUES (1, 1), (110, 1);
+CREATE TABLE t_explain_const_outer (id INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO t_explain_const_outer VALUES (110);
+--disable_result_log
+ANALYZE TABLE t_explain_preexecution, t_explain_const_outer;
+--enable_result_log
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT MIN(id) FROM t_explain_preexecution PARTITION (p1);
+--enable_warnings
+--replace_regex $elide_costs
+--disable_warnings
+EXPLAIN FORMAT = TREE
+SELECT o.id, c.payload
+FROM t_explain_const_outer AS o
+LEFT JOIN t_explain_preexecution AS c
+  ON o.id = c.id AND c.id = 110;
+--enable_warnings
+
+DROP TABLE t_explain_fts, t_explain_ref_or_null, t_explain_rowid;
+DROP TABLE t_explain_alternative;
+DROP TABLE t_explain_weedout_outer, t_explain_weedout_inner;
+DROP TABLE t_explain_bka_outer, t_explain_bka_inner;
+DROP TABLE t_explain_dynamic;
+DROP TABLE t_explain_preexecution, t_explain_const_outer;
+SET optimizer_switch = @explain_access_path_optimizer_switch;

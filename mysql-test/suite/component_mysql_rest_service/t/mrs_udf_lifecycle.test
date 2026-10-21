@@ -1,0 +1,90 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify lifecycle UDF argument, restart, and error contracts not covered by
+# the existing lifecycle tests.
+
+--source include/have_debug.inc
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Reject arguments to the lifecycle UDFs
+--echo ## II. Restart asynchronously after synchronously stopping the old backend
+--echo ## III. Report an immediate lifecycle failure as a SQL error
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("Paused before publishing current runtime values");
+call mtr.add_suppression("Backend stop failed: Injected backend shutdown request failure");
+call mtr.add_suppression("Failed to stop MySQL Rest Service component");
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo # I. Lifecycle UDFs accept no arguments
+--error ER_CANT_INITIALIZE_UDF
+SELECT mysql_rest_service_start(1);
+--error ER_CANT_INITIALIZE_UDF
+SELECT mysql_rest_service_stop(1);
+--error ER_CANT_INITIALIZE_UDF
+SELECT mysql_rest_service_restart(1);
+
+--echo
+--echo # II. Restart stops the old backend and starts its replacement asynchronously
+SET @@GLOBAL.DEBUG = '+d, mrs_component_pause_before_runtime_status_publication';
+SELECT mysql_rest_service_restart();
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = restart returns before replacement startup reaches READY
+--let $assert_cond = "$mrs_state" = "STARTING"
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = asynchronous restart has not published its listener port
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+
+SET @@GLOBAL.DEBUG = '-d, mrs_component_pause_before_runtime_status_publication';
+SELECT mysql_rest_service_stop();
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = stop synchronously cancels an asynchronous restart
+--let $assert_cond = "$mrs_state" = "STOPPED"
+--source include/assert.inc
+
+SELECT mysql_rest_service_start();
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--echo
+--echo # III. An immediate backend failure raises the component UDF SQL error
+SET @@GLOBAL.DEBUG = '+d, mrs_component_shutdown_request_failure';
+--error ER_MRS_COMPONENT_UDF_ERROR
+SELECT mysql_rest_service_stop();
+SET @@GLOBAL.DEBUG = '-d, mrs_component_shutdown_request_failure';
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = failed stop reports lifecycle state ERROR
+--let $assert_cond = "$mrs_state" = "ERROR"
+--source include/assert.inc
+
+# The failed synchronous stop remains retryable.
+SELECT mysql_rest_service_stop();
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = retrying stop reaches STOPPED
+--let $assert_cond = "$mrs_state" = "STOPPED"
+--source include/assert.inc
+
+--echo
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

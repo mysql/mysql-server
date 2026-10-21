@@ -27,10 +27,16 @@ ADD_HARNESS_PLUGIN(rest_signal
   SOURCES
   rest_signal_plugin.cc
   rest_signal_abort.cc
-  REQUIRES
+
+  REQUIRES_IF
+  rest_api_interface
   rest_api_lib
+
+  REQUIRES
   rest_api
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+
   NO_INSTALL
   )
 

@@ -320,6 +320,10 @@ bool is_view_change_log_event_required() {
 
 bool get_plugin_is_stopping() { return lv.plugin_is_stopping; }
 
+bool get_plugin_is_being_uninstalled() {
+  return lv.plugin_is_being_uninstalled;
+}
+
 bool get_wait_on_engine_initialization() {
   return lv.wait_on_engine_initialization;
 }
@@ -2402,6 +2406,21 @@ int plugin_group_replication_deinit(void *p) {
     lv.auto_increment_handler = nullptr;
   }
 
+  /*
+    The call unregister_udfs(), with implicit
+    wait_for_references = false, is made during plugin
+    deinitialization and serves as an idempotent cleanup operation.
+    For a normal UNINSTALL PLUGIN operation, the uninstall check
+    has already called unregister_udfs(true), while the plugin
+    state is still valid, and waited until every UDF reference was
+    released.
+
+    Waiting at this point would be too late because deinitialization
+    has already destroyed some plugin state that an active UDF might
+    access. Consequently, synchronization belongs in the uninstall
+    check, while this deinitialization call only attempts
+    non-blocking cleanup for any remaining registrations.
+  */
   unregister_udfs();
   sql_service_interface_deinit();
   mysql_thread_handler_finalize();
@@ -2477,6 +2496,32 @@ static int plugin_group_replication_check_uninstall(void *) {
              "Please uninstall the component"
              " 'component_group_replication_flow_control_stats'"
              " and then UNINSTALL PLUGIN group_replication.");
+    return 1;
+  }
+
+  /*
+    Prevent new UDF executions while outstanding references are released.
+    Two flags are needed because they have different semantics:
+    * plugin_is_stopping is checked by regular GR UDFs, which must not
+      start while GR is stopping.
+    * plugin_is_being_uninstalled is checked by member-action UDFs. Those
+      UDFs must remain usable after a normal STOP GROUP_REPLICATION, but
+      must not start during plugin uninstall.
+  */
+  bool const was_stopping = lv.plugin_is_stopping.exchange(true);
+  bool const was_being_uninstalled =
+      lv.plugin_is_being_uninstalled.exchange(true);
+
+  /*
+    Plugin deinitialization errors do not prevent the shared object from being
+    unloaded. Unregister the UDF callbacks while the module is still loaded,
+    and wait until any outstanding UDF references are released.
+    If the unregistration fails, the plugin deinitialization will also fail,
+    thus revert back the flags to their prior state.
+  */
+  if (unregister_udfs(true)) {
+    lv.plugin_is_stopping = was_stopping;
+    lv.plugin_is_being_uninstalled = was_being_uninstalled;
     return 1;
   }
 

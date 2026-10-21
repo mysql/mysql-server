@@ -413,7 +413,7 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
   // Create and initialize a new THD.
   THD *thd = new THD;
   assert(thd);
-  thd->thread_stack = pointer_cast<char *>(&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
   lex_start(thd);
 

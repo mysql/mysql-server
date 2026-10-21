@@ -1,0 +1,148 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify MRS component install/uninstall calls when the metadata schema is
+# missing, and automatic recovery after the schema is created.
+#
+
+--source include/not_solaris.inc
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Basic component install/uninstall commands:
+--echo #
+--echo # 1. verify that user can issue component uninstall despite its internal
+--echo #    state (initialization is pending due to metadata missing),
+--echo # 2. verify that subsequent install/uninstall,
+--echo #
+--echo ## II. uninstall commands still works, after changing the state of
+--echo ##     internal initialization:
+--echo #
+--echo # 1. verify that user can issue component uninstall after stopping
+--echo #    internal initialization,
+--echo # 2. verify that user can issue component uninstall after stopping and
+--echo #    resuming internal initialization,
+--echo # 3. verify that user can issue component uninstall after restarting
+--echo #    internal initialization.
+--echo # 4. verify that starting initialization while it is ongoing is
+--echo #    idempotent.
+--echo #
+--echo ## III. automatic recovery after creating the metadata schema:
+--echo #
+--echo # 1. verify that the component waits without exposing a listener,
+--echo # 2. create the metadata schema without issuing another lifecycle UDF,
+--echo # 3. verify that the component reaches READY and accepts HTTPS requests.
+--echo #
+
+# Setup needed variables (do not create MRS Metadata Schema)
+--let $init_setup_variables=1
+--source ../include/cmrs/initialize.inc
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("MySQL Rest Service Component: Backend startup failed in background thread: Internal MRS account 'mysql_mrs_metadata'@'localhost' cannot be resolved to a security context");
+--enable_result_log
+--enable_query_log
+
+--echo
+--echo #
+--echo # I.1
+--source ../include/cmrs/install_component.inc
+# Component can be uninstalled despite INSTALL started async initialization.
+--source ../include/cmrs/uninstall_component.inc
+
+--echo
+--echo #
+--echo # I.2
+# Do the same as in I.1
+--source ../include/cmrs/install_component.inc
+--source ../include/cmrs/uninstall_component.inc
+
+--echo
+--echo #
+--echo # II.1
+--source ../include/cmrs/install_component.inc
+SELECT mysql_rest_service_stop();
+SELECT mysql_rest_service_stop();
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports STOPPED after idempotent stop
+--let $assert_cond = "$mrs_state" = "STOPPED"
+--source include/assert.inc
+--source ../include/cmrs/uninstall_component.inc
+
+--echo
+--echo #
+--echo # II.2
+--source ../include/cmrs/install_component.inc
+SELECT mysql_rest_service_stop();
+SELECT mysql_rest_service_start();
+--source ../include/cmrs/uninstall_component.inc
+
+--echo
+--echo #
+--echo # II.3
+--source ../include/cmrs/install_component.inc
+SELECT mysql_rest_service_restart();
+--source ../include/cmrs/uninstall_component.inc
+
+--echo
+--echo #
+--echo # II.4
+--source ../include/cmrs/install_component.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'WAITING_FOR_METADATA' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+SELECT mysql_rest_service_start();
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state remains WAITING_FOR_METADATA after idempotent start
+--let $assert_cond = "$mrs_state" = "WAITING_FOR_METADATA"
+--source include/assert.inc
+
+--source ../include/cmrs/uninstall_component.inc
+
+--echo
+--echo #
+--echo # III
+--source ../include/cmrs/install_component.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'WAITING_FOR_METADATA' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports WAITING_FOR_METADATA while metadata is missing
+--let $assert_cond = "$mrs_state" = "WAITING_FOR_METADATA"
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = current_http_port is inactive while metadata is missing
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+
+--echo # The REST listener must remain unavailable while metadata is missing.
+--disable_result_log
+--error 1
+--exec $MRS_CLIENT_ARGS --path /index.html --display none
+--enable_result_log
+
+--source ../../router/include/mrs/initialize_schema.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports READY after metadata is created
+--let $assert_cond = "$mrs_state" = "READY"
+--source include/assert.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = current_http_port is published after metadata recovery
+--let $assert_cond = $current_http_port = $HTTP_SERVER_PORT
+--source include/assert.inc
+
+--echo # The HTTPS listener accepts requests after metadata recovery.
+--exec $MRS_CLIENT_ARGS --path /mrs-metadata-recovery-probe --response-type raw --expected-status NotFound --display none
+
+--source ../include/cmrs/cleanup.inc

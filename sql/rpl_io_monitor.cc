@@ -238,7 +238,7 @@ void Source_IO_monitor::source_monitor_handler() {
   struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
   thd_set_psi(thd, psi);
 #endif
-  thd->thread_stack = (char *)&thd;  // remember where our stack is
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
 
   if (init_replica_thread(thd, SLAVE_THD_IO)) {
     my_error(ER_REPLICA_FATAL_ERROR, MYF(0),

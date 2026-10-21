@@ -41,11 +41,13 @@ bool RestRoutingGuidelinesSchema::on_handle_request(
   if (!ensure_no_params(req)) return true;
 
   const auto &routing_component = MySQLRoutingComponent::get_instance();
+  const auto schema_maybe =
+      routing_component.routing_guidelines_document_schema();
+
+  if (!schema_maybe) return false;
 
   req.get_output_headers().add("Content-Type", "application/json");
-
-  send_json_document(req, HttpStatusCode::Ok,
-                     routing_component.routing_guidelines_document_schema());
+  send_json_document(req, HttpStatusCode::Ok, *schema_maybe);
 
   return true;
 }

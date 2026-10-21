@@ -1,0 +1,19 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that quick sequence of uninstalling/installing/resetting of the
+# component does not lead to a deadlock or errors/warnings
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+
+--replace_regex / SET .*/ SET .../
+--eval INSTALL COMPONENT "file://component_mysql_rest_service" SET $install_component_extras
+
+SELECT mysql_rest_service_restart();
+
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--source ../include/cmrs/cleanup.inc

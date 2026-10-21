@@ -645,6 +645,11 @@ set names utf8mb4;
 select ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1');
 ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1')
 test
+select ExtractValue('0123456789AB<![CDATA[','/');
+ExtractValue('0123456789AB<![CDATA[','/')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 22: unexpected END-OF-INPUT'
 select extractValue('<a>a','/a');
 extractValue('<a>a','/a')
 NULL

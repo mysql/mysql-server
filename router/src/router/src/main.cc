@@ -80,6 +80,7 @@
 #include <mysql.h>
 
 #include "dim.h"
+#include "mysql/harness/application_type_manager.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
@@ -87,6 +88,7 @@
 #include "mysql/harness/vt100_filter.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/router_application_type_name.h"
 #include "random_generator.h"
 #include "router_app.h"
 #include "windows/main-windows.h"
@@ -136,6 +138,10 @@ int real_main(int argc, char **argv, bool use_os_logger_initially) {
   preconfig_log_init(use_os_logger_initially);
 
   init_DIM();
+
+  // Set the Application type
+  mysql_harness::ApplicationTypeManager::instance().set(
+      mysql_harness::kRouterApplicationTypeName);
 
   mysqlrouter::MySQLClientThreadToken api_token;
   if (mysql_library_init(argc, argv, nullptr)) {

@@ -113,6 +113,7 @@ INCLUDE(cmake/packaging.cmake)
 INCLUDE(cmake/Plugin.cmake)
 INCLUDE(cmake/fuzzer.cmake)
 INCLUDE(cmake/install_macros.cmake)
+INCLUDE(GenerateExportHeader)
 
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 
@@ -140,6 +141,12 @@ ENDIF()
 #   ADD_DEPENDENCIES(mysqlrouter_all ...)
 #
 ADD_CUSTOM_TARGET(mysqlrouter_all)
+
+IF(ROUTER_BUILD_MRS_DEPENDENCIES_ONLY)
+  # Do not register Router tests whose executables are excluded from the
+  # default server build.
+  SET(WITH_UNIT_TESTS OFF)
+ENDIF()
 
 # Load all modules, including plugins
 ADD_SUBDIRECTORY(src)

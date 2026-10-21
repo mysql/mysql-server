@@ -61,6 +61,7 @@
 #include "http/http_server_context.h"
 #include "http_auth.h"
 #include "mysql/harness/section_config_exposer.h"
+#include "mysql/harness/tls_reload_component.h"
 #include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/component/http_auth_realm_component.h"
 #include "mysqlrouter/component/http_server_component.h"
@@ -157,6 +158,8 @@ class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
 
 static std::map<std::string, std::shared_ptr<http::HttpServerContext>>
     http_servers;
+static std::vector<mysql_harness::TlsReloadComponent::RegistrationId>
+    tls_reload_registrations;
 
 // work-guards to keep the io-context alive
 //
@@ -169,53 +172,50 @@ static std::list<IoComponent::Workguard> io_context_work_guards;
 
 class HttpServerFactory {
  public:
+  static TlsServerContext make_tls_context(
+      const HttpServerPluginConfig &config) {
+    TlsServerContext tls_ctx;
+
+    const auto key_and_cert =
+        tls_ctx.load_key_and_cert(config.ssl_key_, config.ssl_cert_);
+    if (!key_and_cert) {
+      throw std::system_error(key_and_cert.error(),
+                              "using SSL private key file '" + config.ssl_key_ +
+                                  "' or SSL certificate file '" +
+                                  config.ssl_cert_ + "' failed");
+    }
+    if (!config.ssl_curves_.empty()) {
+      if (!tls_ctx.has_set_curves_list()) {
+        throw std::invalid_argument(
+            "setting ssl-curves is not supported by the ssl library, it "
+            "should stay unset");
+      }
+      const auto curves = tls_ctx.curves_list(config.ssl_curves_);
+      if (!curves) {
+        throw std::system_error(curves.error(), "using ssl-curves failed");
+      }
+    }
+    const auto dh_params = tls_ctx.init_tmp_dh(config.ssl_dh_params_);
+    if (!dh_params) {
+      throw std::system_error(dh_params.error(),
+                              "setting ssl_dh_params failed");
+    }
+    if (!config.ssl_cipher_.empty()) {
+      const auto ciphers = tls_ctx.cipher_list(config.ssl_cipher_);
+      if (!ciphers) {
+        throw std::system_error(ciphers.error(),
+                                "using ssl-cipher list failed");
+      }
+    }
+    return tls_ctx;
+  }
+
   static std::shared_ptr<http::HttpServerContext> create(
       const HttpServerPluginConfig &config) {
     if (config.with_ssl_) {
-      // init the TLS Server context according to our config-values
-      TlsServerContext tls_ctx;
-
-      {
-        const auto res =
-            tls_ctx.load_key_and_cert(config.ssl_key_, config.ssl_cert_);
-        if (!res) {
-          throw std::system_error(
-              res.error(), "using SSL private key file '" + config.ssl_key_ +
-                               "' or SSL certificate file '" +
-                               config.ssl_cert_ + "' failed");
-        }
-      }
-
-      if (!config.ssl_curves_.empty()) {
-        if (tls_ctx.has_set_curves_list()) {
-          const auto res = tls_ctx.curves_list(config.ssl_curves_);
-          if (!res) {
-            throw std::system_error(res.error(), "using ssl-curves failed");
-          }
-        } else {
-          throw std::invalid_argument(
-              "setting ssl-curves is not supported by the ssl library, it "
-              "should stay unset");
-        }
-      }
-
-      {
-        const auto res = tls_ctx.init_tmp_dh(config.ssl_dh_params_);
-        if (!res) {
-          throw std::system_error(res.error(), "setting ssl_dh_params failed");
-        }
-      }
-
-      if (!config.ssl_cipher_.empty()) {
-        const auto res = tls_ctx.cipher_list(config.ssl_cipher_);
-        if (!res) {
-          throw std::system_error(res.error(), "using ssl-cipher list failed");
-        }
-      }
-
       auto &io = IoComponent::get_instance();
       return std::make_shared<http::HttpServerContext>(
-          &io.io_context(), &io.io_threads(), std::move(tls_ctx),
+          &io.io_context(), &io.io_threads(), make_tls_context(config),
           config.srv_address_.c_str(), config.srv_port_,
           config.max_http_connections_, config.max_request_body_size_,
           config.max_response_body_size_);
@@ -283,13 +283,28 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       // one.
       http_servers.emplace(section->name, HttpServerFactory::create(config));
 
-      log_info(
+      log_system(
           "listening on %s%s", (config.with_ssl_ ? "https://" : "http://"),
           mysql_harness::TcpDestination(config.srv_address_, config.srv_port_)
               .str()
               .c_str());
 
       auto srv = http_servers.at(section->name);
+
+      if (config.with_ssl_) {
+        tls_reload_registrations.emplace_back(
+            mysql_harness::TlsReloadComponent::get_instance().register_callback(
+                "http_server",
+                [srv, config]() -> mysql_harness::TlsReloadComponent::Result {
+                  try {
+                    srv->replace_tls_context(
+                        HttpServerFactory::make_tls_context(config));
+                    return mysql_harness::TlsReloadComponent::Result{};
+                  } catch (const std::exception &e) {
+                    return stdx::unexpected(std::string{e.what()});
+                  }
+                }));
+      }
 
       // forward the global require-realm to the request-router
       srv->request_router().require_realm(config.require_realm_);
@@ -316,6 +331,10 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 }
 
 static void deinit(mysql_harness::PluginFuncEnv *) {
+  for (const auto id : tls_reload_registrations) {
+    mysql_harness::TlsReloadComponent::get_instance().unregister_callback(id);
+  }
+  tls_reload_registrations.clear();
   http_servers.clear();
 
   io_context_work_guards.clear();

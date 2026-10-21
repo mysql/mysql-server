@@ -82,7 +82,7 @@
 %global add_fido_plugins      1
 %endif
 
-%if 0%{?suse_version} == 1550
+%if 0%{?suse_version} == 1600
 %global dist                  .sl16
 %global sles16                1
 %global add_fido_plugins      1
@@ -169,6 +169,10 @@ documentation and the manual for more information.
 %package        server
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
+%if 0%{?sles16}
+Provides:       user(mysql)
+Provides:       group(mysql)
+%endif
 Requires:       coreutils
 Requires:       grep
 Requires:       procps
@@ -343,6 +347,8 @@ Requires:       perl(IO::Socket)
 Requires:       perl(IO::Socket::INET)
 Requires:       perl(JSON)
 Requires:       perl(Sys::Hostname)
+Requires:       perl(lib)
+Requires:       openssl
 %if 0%{?cluster}
 Requires:       %{name}-data-node%{?_isa} >= %{min}
 Requires:       %{name}-management-server%{?_isa} >= %{min}
@@ -530,6 +536,10 @@ trademark of %{mysql_vendor}
 %package  -n   mysql-router-%{product_suffix}
 Summary:       MySQL Router
 Group:         Applications/Databases
+%if 0%{?sles16}
+Provides:      user(mysqlrouter)
+Provides:      group(mysqlrouter)
+%endif
 Provides:      mysql-router = %{version}-%{release}
 Obsoletes:     mysql-router < %{version}-%{release}
 %if 0%{?commercial}
@@ -567,7 +577,8 @@ This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
 %endif # with_router
 
-%if 0%{?suse_version}
+# RPM on SUSE 16 generates the debuginfo package automatically.
+%if 0%{?sles15}
 %debug_package
 %endif
 
@@ -606,6 +617,9 @@ mkdir debug
            -DWITH_MEB=%{with_meb} \
            -DWITH_MLE=1 \
            -DWITH_ROUTER=%{with_router} \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %if 0%{?cluster}
            -DWITH_NDB=1 \
 %endif
@@ -646,6 +660,9 @@ mkdir release
            -DWITH_MEB=%{with_meb} \
            -DWITH_MLE=1 \
            -DWITH_ROUTER=%{with_router} \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %if 0%{?cluster}
            -DWITH_NDB=1 \
 %endif
@@ -693,6 +710,9 @@ mkdir release
            -DWITH_MEB=%{with_meb} \
            -DWITH_MLE=1 \
            -DWITH_ROUTER=%{with_router} \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
 %if 0%{?cluster}
            -DWITH_NDB=1 \
 %endif
@@ -728,6 +748,11 @@ install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 # Install all binaries
 cd $MBD/release
 make DESTDIR=%{buildroot} install
+
+%if 0%{?with_router} == 0
+install -d -m 0755 %{buildroot}%{_prefix}/libexec
+mv %{buildroot}%{_bindir}/mysqlrouter_mrs_client %{buildroot}%{_prefix}/libexec/
+%endif # !with_router
 
 # Install logrotate and autostart
 install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
@@ -956,8 +981,13 @@ fi
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_health_monitor.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysql_rest_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -1013,9 +1043,6 @@ fi
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_plugin_to_component.sql
 %attr(644, root, root) %{_datadir}/mysql-*/install_component_object_policy.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_component_object_policy.sql
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
@@ -1065,8 +1092,13 @@ fi
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_health_monitor.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysql_rest_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -1113,9 +1145,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
-%endif # add_fido_plugins
 %if 0%{?add_component_keyring_aws}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_aws.so
 %endif # add_component_keyring_aws
@@ -1332,6 +1361,10 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
 %endif # commercial
+
+%if 0%{?with_router} == 0
+%{_prefix}/libexec/mysqlrouter_mrs_client
+%endif # !with_router
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
@@ -1664,6 +1697,9 @@ fi
 %endif # with_router
 
 %changelog
+* Sun Aug 30 2026 MySQL Release Engineering <mysql-build@oss.oracle.com> - 26.10.0
+- Added component_health_monitor to community
+
 * Fri Feb  6 2026 Harin Vadodaria <harin.vadodaria@oracle.com> - 9.7.0
 - Added component_object_policy
 

@@ -25,6 +25,7 @@
 #include "mysql_command_backend.h"
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/mysql_admin_session.h>
+#include <mysql/service_srv_session.h>
 #include "include/mysql.h"
 #include "include/sql_common.h"
 #include "my_dbug.h"
@@ -405,6 +406,7 @@ static mysql_state_machine_status acquire_services(
 
 mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
   MYSQL *mysql = ctx->mysql;
+  net_clear_error(&mysql->net);
   Mysql_handle mysql_handle;
   mysql_handle.mysql = mysql;
   auto mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
@@ -422,18 +424,30 @@ mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
   mysql_service_registry_t *registry_service =
       no_lock_registry ? srv_registry_no_lock : srv_registry;
 
+  /*
+    Avoid possibility of nested txn in the current thd.
+    If it is called, for example from a UDF.
+  */
   if (mcs_extn->mcs_thd == nullptr || mcs_extn->session_svc == nullptr) {
-    /*
-     Avoid possibility of nested txn in the current thd.
-     If it is called, for example from a UDF.
-    */
-    my_service<SERVICE_TYPE(mysql_admin_session)> service(
-        "mysql_admin_session.mysql_server", registry_service);
-    if (service.is_valid()) mysql_session = service->open(nullptr, ctx);
+    if (!mcs_extn->mcs_admin_session) {
+      // Embedded sessions have no authentication check for the reserved slot.
+      mysql_session = srv_session_open_internal(
+          [](void *context, unsigned int error, const char *message) {
+            set_command_service_error(static_cast<MYSQL *>(context), error,
+                                      message, nullptr);
+          },
+          mysql, /*ignore_max_connection_limit=*/false,
+          /*allow_extra_connection=*/false);
+    } else {
+      my_service<SERVICE_TYPE(mysql_admin_session)> service(
+          "mysql_admin_session.mysql_server", registry_service);
+      if (service.is_valid()) mysql_session = service->open(nullptr, ctx);
+    }
     if (mysql_session == nullptr) return STATE_MACHINE_FAILED;
     thd = mysql_session->get_thd();
     mcs_extn->is_thd_associated = false;
     Security_context_handle sc;
+    // Record ownership so failed-connect cleanup closes the session.
     mcs_extn->session_svc = mysql_session;
     if (mysql_security_context_imp::get(thd, &sc)) return STATE_MACHINE_FAILED;
     if (mysql_security_context_imp::lookup(sc, user, host, nullptr, db))

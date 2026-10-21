@@ -61,7 +61,6 @@ ENDFUNCTION()
 # add a test that depends on the 'harness-library' and 'gtest'
 FUNCTION(ADD_HARNESS_TEST_FILE FILE)
   SET(DEFAULT_LIB_DEPENDS
-    harness-library
     ${CMAKE_THREAD_LIBS_INIT}
     ${GTEST_LIBRARIES})
 

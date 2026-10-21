@@ -16,7 +16,7 @@ primary key(id1, id2)
 insert into sakila.compound values (1,1,'one'), (1,2,'two'), (3,1,'three');
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/sakila
-# Registred DB_OBJECT at path: /svc/sakila/compoud
+# Registred DB_OBJECT at path: /svc/sakila/compound
 # Registred DB_OBJECT at path: /svc/sakila/city
 # Registred OBJECT_REF at sakila.country
 # Registred DB_OBJECT at path: /svc/sakila/citynocheck

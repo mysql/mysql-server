@@ -29,7 +29,10 @@ perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication 
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_csa --vardir=var-group_replication-csa --suite=group_replication --defaults-extra-file=include/rpl_change_stream_applier.cnf
 
 perl mysql-test-run.pl --force --timer --comment=classic_hashing --vardir=var-classic_hashing  --suite=classic_hashing  --no-skip --big-test
+perl mysql-test-run.pl --debug-server --timer --force --comment=multi_factor_authentication --vardir=var-mfa --suite=multi_factor_authentication --no-skip
 
 # Thread Pool Plugin
 perl mysql-test-run.pl --debug-server --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl  --no-skip
 
+# Health Monitor
+perl mysql-test-run.pl --timer --force --comment=health_monitor --vardir=var-health-monitor --suite=health_monitor --no-skip --exclude-platform=windows

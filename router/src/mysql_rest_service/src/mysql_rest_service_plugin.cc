@@ -55,10 +55,12 @@
 #include "mrs/database/query_router_info.h"
 #include "mrs/database/schema_monitor.h"
 #include "mrs/database/slow_query_monitor.h"
+#include "mrs/embedded_runtime_services.h"
 #include "mrs/endpoint/handler/handler_debug.cc"
 #include "mrs/endpoint_configuration.h"
 #include "mrs/endpoint_manager.h"
 #include "mrs/gtid_manager.h"
+#include "mrs/mrs_start_observer.h"
 #include "mrs/observability/entities_manager.h"
 #include "mrs/router_observation_entities.h"
 #include "mysql/harness/logging/logger_plugin.h"
@@ -127,11 +129,10 @@ class MrsModule {
     // TODO(areliga): remove that when rebased to the Router version that fixes
     // ODR issues
     my_init();
-    collector::MysqlCacheManager::CachedObject conn1;
 
     try {
-      conn1 = mysql_connection_cache.get_instance(
-          collector::kMySQLConnectionMetadataRO, true);
+      auto conn1 = mysql_connection_cache->get_control_plane_instance(
+          collector::kMySQLConnectionMetadataRO);
 
       check_version_compatibility(conn1.get());
     } catch (const MySQLSession::Error &e) {
@@ -149,8 +150,8 @@ class MrsModule {
     }
 
     try {
-      auto conn2 = mysql_connection_cache.get_instance(
-          collector::kMySQLConnectionUserdataRO, true);
+      auto conn2 = mysql_connection_cache->get_control_plane_instance(
+          collector::kMySQLConnectionUserdataRO);
 
       check_version_compatibility(conn2.get());
     } catch (const MySQLSession::Error &e) {
@@ -183,6 +184,8 @@ class MrsModule {
       name = address + ":" + std::to_string(configuration.http_port_);
     }
 
+    auto conn1 = mysql_connection_cache->get_control_plane_instance(
+        collector::kMySQLConnectionMetadataRO);
     const auto existing_id_maybe =
         find_existing_routers(conn1.get(), name, address);
     if (existing_id_maybe && *existing_id_maybe != configuration.router_id_) {
@@ -196,26 +199,32 @@ class MrsModule {
   }
 
   virtual void start() {
+    log_debug("start -begin");
     init();
     task_monitor.start();
     slow_monitor.start();
-    metadata_logger.start(&configuration, &mysql_connection_cache);
+    metadata_logger.start(&configuration, mysql_connection_cache.get());
     // must be called last
-    mrs_monitor.start();
+    mrs_monitor.start(mrs::get_mrs_start_observer());
+    log_debug("start -end");
   }
 
   virtual void stop() {
+    log_debug("stop -begin");
     slow_monitor.stop();
     task_monitor.stop();
     mrs_monitor.stop();
     // metadata_logger has to be stopped after mrs_monitor
     metadata_logger.stop();
+    log_debug("stop -end");
   }
 
   void reset() {
+    log_debug("reset -begin");
     slow_monitor.reset();
     task_monitor.reset();
     mrs_monitor.reset();
+    log_debug("reset -end");
   }
 
   using AuthHandlerFactory = mrs::authentication::AuthHandlerFactory;
@@ -227,23 +236,27 @@ class MrsModule {
   const std::string jwt_secret;
   mrs::database::QueryFactoryProxy query_factory{
       std::make_shared<mrs::database::v2::QueryFactory>()};
-  collector::MysqlCacheManager mysql_connection_cache{configuration};
+  std::unique_ptr<collector::MysqlCacheManager> mysql_connection_cache{
+      mrs::get_embedded_runtime_services()
+          ? mrs::get_embedded_runtime_services()->create_mysql_cache_manager(
+                configuration)
+          : std::make_unique<collector::MysqlCacheManager>(configuration)};
   mrs::GtidManager gtid_manager;
   std::shared_ptr<AuthHandlerFactory> auth_handler_factory{
       std::make_shared<AuthHandlerFactory>(&query_factory)};
   AuthorizeManager authentication{
-      endpoint_configuration, &mysql_connection_cache,
+      endpoint_configuration, mysql_connection_cache.get(),
       configuration.jwt_secret_, &query_factory, auth_handler_factory};
   mrs::ResponseCache response_cache{"responseCache"};
   mrs::ResponseCache file_cache{"fileCache"};
   mrs::database::SlowQueryMonitor slow_monitor{configuration,
-                                               &mysql_connection_cache};
+                                               mysql_connection_cache.get()};
   mrs::database::MysqlTaskMonitor task_monitor;
   mrs::database::MetadataLogger &metadata_logger{
       mrs::database::MetadataLogger::instance()};
 
   mrs::EndpointManager mrds_object_manager{endpoint_configuration,
-                                           &mysql_connection_cache,
+                                           mysql_connection_cache.get(),
                                            &authentication,
                                            &gtid_manager,
                                            nullptr,
@@ -260,10 +273,12 @@ class MrsModule {
    * different "manager" classes.
    */
   mrs::database::SchemaMonitor mrs_monitor{
-      configuration,   &mysql_connection_cache, &mrds_object_manager,
-      &authentication, &entities_manager,       &gtid_manager,
-      &query_factory,  &response_cache,         &file_cache,
-      &slow_monitor,   &metadata_logger};
+      configuration,        mysql_connection_cache.get(),
+      &mrds_object_manager, &authentication,
+      &entities_manager,    &gtid_manager,
+      &query_factory,       &response_cache,
+      &file_cache,          &slow_monitor,
+      &metadata_logger};
 };
 
 using HandlerDebug = mrs::endpoint::handler::HandlerDebug;
@@ -364,7 +379,7 @@ static void run(mysql_harness::PluginFuncEnv *env) {
   log_debug("run");
   using namespace std::chrono_literals;
   try {
-    std::set<std::string> service_names;
+    std::set<std::string> service_names{"http_server"};
     auto routing_plugins =
         g_mrs_configuration->get_waiting_for_routing_plugins();
 
@@ -375,7 +390,8 @@ static void run(mysql_harness::PluginFuncEnv *env) {
     if (g_mrs_configuration->service_monitor_->wait_for_services(
             service_names) &&
         g_mrs_configuration->init_runtime_configuration()) {
-      if (getenv("_MRS_CONTROL_START")) {
+      if (!mrs::get_embedded_runtime_services() &&
+          getenv("_MRS_CONTROL_START")) {
         g_mrds_module.reset(new HttpControl<helper::TaskControl<MrsModule>>(
             *g_mrs_configuration));
       } else {

@@ -4171,3 +4171,44 @@ SELECT ST_SRID(ST_GeomFromGeoJSON(CAST(ST_GeomFromText('POINT(1 2)') AS JSON)));
 SELECT ST_SRID(ST_GeomFromGeoJSON(CAST(ST_GeomFromText('POINT(1 2)', 0) AS JSON)));
 SELECT ST_SRID(ST_GeomFromGeoJSON(CAST(ST_GeomFromText('POINT(1 2)', 3857) AS JSON)));
 SELECT ST_SRID(ST_GeomFromGeoJSON(CAST(ST_GeomFromText('POINT(1 2)', 4326) AS JSON)));
+
+--echo #
+--echo # Bug#39616304 ST_ASGEOJSON ON A DEEPLY NESTED GEOMETRYCOLLECTION
+--echo #              CRASHES THE SERVER
+--echo #
+
+# Shallow nesting succeeds.
+SELECT LENGTH(ST_AsGeoJSON(CONCAT(_binary 0x00000000,
+                                  REPEAT(_binary 0x010700000001000000, 10),
+                                  _binary 0x010700000000000000)));
+
+# The two sides of the limit. Each nested GeometryCollection contributes two
+# levels to the GeoJSON document (the object and its "geometries" array), so
+# the deepest input that can be serialized has 49 nested collections plus the
+# empty terminator. This boundary is set by the JSON document depth limit, not
+# by the recursion guard added for this bug, which only takes effect deeper.
+SELECT LENGTH(ST_AsGeoJSON(CONCAT(_binary 0x00000000,
+                                  REPEAT(_binary 0x010700000001000000, 49),
+                                  _binary 0x010700000000000000)));
+
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT LENGTH(ST_AsGeoJSON(CONCAT(_binary 0x00000000,
+                                  REPEAT(_binary 0x010700000001000000, 50),
+                                  _binary 0x010700000000000000)));
+
+# Deep nesting is rejected instead of overflowing the stack. This is the case
+# that exercises the recursion guard: without it the recursion runs to the
+# nesting depth of the input and terminates the server.
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT ST_AsGeoJSON(CONCAT(_binary 0x00000000,
+                           REPEAT(_binary 0x010700000001000000, 120000),
+                           _binary 0x010700000000000000));
+
+# Same recursion path via CAST(<geometry> AS JSON).
+CREATE TABLE t1 (g GEOMETRY);
+INSERT INTO t1 VALUES (CONCAT(_binary 0x00000000,
+                              REPEAT(_binary 0x010700000001000000, 200),
+                              _binary 0x010700000000000000));
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT CAST(g AS JSON) FROM t1;
+DROP TABLE t1;

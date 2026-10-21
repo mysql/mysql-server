@@ -1828,7 +1828,6 @@ exit_func:
 
     if (foreign->foreign_index == index) {
       dict_table_t *ref_table = nullptr;
-      dict_table_t *foreign_table = foreign->foreign_table;
       dict_table_t *referenced_table = foreign->referenced_table;
       MDL_ticket *mdl = nullptr;
 
@@ -1836,23 +1835,23 @@ exit_func:
         ref_table = dd_table_open_on_name(trx->mysql_thd, &mdl,
                                           foreign->referenced_table_name_lookup,
                                           false, DICT_ERR_IGNORE_NONE);
+      } else {
+        /* If the thread waits for a lock, dict_operation_lock is temporarily
+        released. The n_foreign_key_checks_running counter protects the
+        referenced table from being dropped while the check is running. */
+        referenced_table->n_foreign_key_checks_running.fetch_add(1);
       }
 
-      if (referenced_table) {
-        foreign_table->n_foreign_key_checks_running.fetch_add(1);
-      }
+      ut_ad(ref_table == nullptr || referenced_table == nullptr);
 
-      /* NOTE that if the thread ends up waiting for a lock
-      we will release dict_operation_lock temporarily!
-      But the counter on the table protects the referenced
-      table from being dropped while the check is running. */
-
+      /* Let row_ins_check_foreign_constraint() handle a failed open: it first
+      applies NULL-key and cascade exemptions, then reports the FK error if the
+      referenced table still cannot be opened. */
       err = row_ins_check_foreign_constraint(true, foreign, table, entry, thr);
 
-      if (referenced_table) {
-        foreign_table->n_foreign_key_checks_running.fetch_sub(1);
-      }
-      if (ref_table != nullptr) {
+      if (referenced_table != nullptr) {
+        referenced_table->n_foreign_key_checks_running.fetch_sub(1);
+      } else if (ref_table != nullptr) {
         dd_table_close(ref_table, trx->mysql_thd, &mdl, false);
       }
 

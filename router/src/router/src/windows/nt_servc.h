@@ -94,9 +94,14 @@ class NTService {
   */
   void Stop(void);
 
+  HANDLE exit_event() const { return hExitEvent; }
+  HANDLE tls_reload_event() const { return hTlsReloadEvent; }
+
  protected:
   LPSTR ServiceName;
   HANDLE hExitEvent;
+  HANDLE hTlsReloadEvent;
+  HANDLE hTlsReloadThread;
   SERVICE_STATUS_HANDLE hServiceStatusHandle;
   BOOL bPause;
   BOOL bRunning;

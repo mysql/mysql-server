@@ -43,6 +43,7 @@
 #include "mrs/authentication/www_authentication_handler.h"
 #include "mrs/http/error.h"
 #include "mrs/rest/request_context.h"
+#include "secure_string.h"  // NOLINT(build/include_subdir)
 
 #include "helper/container/map.h"
 #include "helper/generate_uuid.h"
@@ -258,6 +259,12 @@ AuthorizeManager::AuthorizeManager(
           helper::generate_string<64, helper::Generator8bitsValues>()} {
   if (jwt_secret.empty()) {
     log_info("JWT bearer authorization disabled, the signing secret is empty.");
+  }
+}
+
+AuthorizeManager::~AuthorizeManager() {
+  if (!jwt_secret_.empty()) {
+    mysql_harness::detail::secure_wipe(jwt_secret_.data(), jwt_secret_.size());
   }
 }
 

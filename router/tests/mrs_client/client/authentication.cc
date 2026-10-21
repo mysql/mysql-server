@@ -521,11 +521,9 @@ Result Authentication::do_scram_post_flow(
 
   if (result.status != HttpStatusCode::Ok &&
       result.status != HttpStatusCode::Unauthorized &&
-      result.status != HttpStatusCode::TemporaryRedirect)
-    throw std::runtime_error(
-        std::to_string(result.status) +
-        ", Expected status Ok|Unauthorized with payload, received other status "
-        "code.");
+      result.status != HttpStatusCode::TemporaryRedirect) {
+    return result;
+  }
 
   debugln_struct(1, result);
 

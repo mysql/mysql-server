@@ -1697,6 +1697,18 @@ bool Item_sum_bit::add_bits(const String *s1, ulonglong b1) {
     assert(s1 != nullptr);
     s1_c_p = pointer_cast<const uchar *>(s1->ptr());
     buff_length = s1->length();
+    /*
+      m_digit_cnt was sized at resolve time, from a fabricated length if the
+      argument was still untyped then. Reject a longer runtime value rather
+      than update counters past the end of the array. Only the windowed
+      non-XOR case has a counter array; m_digit_cnt_card is a multiple of 8,
+      so the division avoids overflowing buff_length.
+    */
+    if (m_is_window_function && !m_is_xor &&
+        buff_length > m_digit_cnt_card / 8) {
+      my_error(ER_INVALID_BITWISE_AGGREGATE_OPERANDS_SIZE, MYF(0), func_name());
+      return true;
+    }
     assert(value_buff.length() > 0);
     // See if there has been a non-NULL value in this group/frame:
     const bool non_nulls = value_buff[value_buff.length() - 1];
@@ -6132,6 +6144,34 @@ bool Item_sum_json::val_json(Json_wrapper *wr) {
   */
   *wr = Json_wrapper(m_wrapper->clone_dom());
   return false;
+}
+
+type_conversion_status Item_sum_json::save_in_field_inner(Field *field,
+                                                          bool no_conversions) {
+  if (field->type() != MYSQL_TYPE_JSON)
+    return super::save_in_field_inner(field, no_conversions);
+
+  if (m_is_window_function) {
+    if (wf_common_init()) return set_field_to_null(field);
+    if (add()) return TYPE_ERR_BAD_VALUE;
+  }
+
+  /*
+    Field_json::store_json() serializes m_wrapper before returning and does not
+    retain or modify its DOM. The aggregate therefore keeps ownership
+    of the DOM while the field stores an independent binary value.
+  */
+  assert(!m_wrapper->empty());
+
+  if (m_json_constructor_null_clause ==
+      Json_constructor_null_clause::ABSENT_ON_NULL) {
+    null_value = false;
+  } else if (null_value) {
+    return set_field_to_null(field);
+  }
+
+  field->set_notnull();
+  return down_cast<Field_json *>(field)->store_json(m_wrapper.get());
 }
 
 double Item_sum_json::val_real() {

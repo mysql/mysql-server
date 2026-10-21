@@ -1,0 +1,202 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Test the 'force' option for fencing the server, and ensure that it operates only
+--echo ## when storage is below the critical level.
+--echo ##
+--echo ## The 'force' option enables the Health Monitor to terminate foreground connections
+--echo ## that are blocking it from setting SUPER_READ_ONLY. Force is only used when disk
+--echo ## space is below the Critical level.
+--echo ##
+
+--echo
+--echo # Procedure:
+--echo #  1. Set disk_fallback_force = off
+--echo #  2. Set global table lock
+--echo #  3. Transition to LOW LEVEL, server fenced
+--echo #  4. OFFLINE_MODE will be set but SUPER_READ_ONLY will fail because of global lock
+--echo #  5. Transition to CRITICAL level, server still partially fenced
+--echo #  6. SUPER_READ_ONLY won't be reattempted with disk_fallback_force = off
+--echo #  7. Transition from CRITICAL back to LOW LEVEL
+--echo #  8. Set disk_fallback_force = on
+--echo #  9. Transition to CRITICAL level, with force = on should retry fencing the server
+--echo # 10. SUPER_READ_ONLY should succeed
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Enable low disk space fencing explicitly for this fencing test
+set @@global.health_monitor.disk_fallback_enable = on;
+
+--echo
+--echo ## 1. Disable the fallback 'force' mode.
+--echo
+let $fallback_force_save = `select @@global.health_monitor.disk_fallback_force`;
+set @@global.health_monitor.disk_fallback_force = 0;
+
+--echo
+--echo Connection default
+--connection default
+
+let $disk_debug = 0;
+
+--echo
+--echo # Create a user eligible for termination
+
+create user user1@localhost;
+grant all on *.* to user1@localhost;
+
+--echo
+--echo # Low sample rate with status interval = 1 to get a status message every cycle
+
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo # Setup the transition to LOW LEVEL to trigger the fence process when the disk collector starts
+set @@global.health_monitor.disk_low_space_level = @force_offline_mode;
+set @@global.health_monitor.disk_low_space_percent = 100;
+
+--echo
+--echo # Set the low space duration to the minumum 30s
+set @@global.health_monitor.disk_low_space_duration = 30;
+
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like "%health%";
+
+--echo
+--echo ## 2. Connect user1, set the global table lock.
+--echo
+connect(con1, localhost, user1,,);
+use test;
+create table t1 (s1 int);
+lock tables t1 write;
+
+--echo
+--echo # Connection default
+--connection default
+
+--echo
+--echo ## 3. Transition to LOW LEVEL, wait until server is fenced.
+--echo ##    OFFLINE_MODE will be set, but SUPER_READ_ONLY will fail because it is
+--echo ##    blocked by the global lock.
+--echo
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for status 'offline_mode_disk_full = ON' (could also wait for OFFLINE_MODE = ON)
+let $wait_timeout = 60;
+let $wait_condition = select variable_value = 'ON' from performance_schema.global_status
+                        where variable_name like 'offline_mode_disk_full';
+--source include/wait_condition.inc
+
+--echo
+--echo ## 4. Verify OFFLINE_MODE = ON but SUPER_READ_ONLY was blocked.
+--echo
+--let $assert_text = Expect OFFLINE_MODE = ON
+--let $assert_variable_name = global.offline_mode
+--let $assert_variable_value = 1
+--source include/assert_variable.inc
+
+--let $assert_text = Expect SUPER_READ_ONLY to be OFF
+--let $assert_variable_name = super_read_only
+--let $assert_variable_value = 0
+--source include/assert_variable.inc
+
+--let $assert_text = Expect status 'offline_mode_disk_full' to be ON
+--let $assert_cond = "[show status like \"offline_mode_disk_full\", Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text = Expect status 'super_read_only_disk_full' to be OFF
+--let $assert_cond = "[show status like \"super_read_only_disk_full\", Value, 1]" = "OFF"
+--source include/assert.inc
+
+--echo
+--echo ## 5. Transition from LOW LEVEL to CRITICAL.
+--echo ##    With disk_fallback_force = OFF, the blocking connection should remain.
+--echo
+--disable_query_log
+select now(6) into @critical_start;
+--enable_query_log
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+set @@global.health_monitor.disk_low_space_level = 0;
+
+--echo
+--echo # Wait for CRITICAL state
+let $wait_condition = select count(*) from performance_schema.error_log
+                        where data like "%Disk: Critical Level%"
+                          and logged > @critical_start;
+--source include/wait_condition.inc
+
+--echo
+--echo ## 6. Now at CRITICAL, but with force disabled, SUPER_READ_ONLY should not be reattempted
+--echo
+--let $assert_text = No forced termination after the CRITICAL transition
+--let $assert_cond = "[select count(*) from performance_schema.error_log where data like \'%Terminating%\' and logged > @critical_start]" = 0
+--source include/assert.inc
+
+--echo
+--echo ## 7. Transition from CRITICAL to WARNING.
+--echo
+--disable_query_log
+select now(6) into @warning_start;
+--enable_query_log
+set @@global.health_monitor.disk_usage_warning_level_1 = @force_disk_warning;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+set @@global.health_monitor.disk_low_space_level = 0;
+
+--echo
+--echo # Wait for transition to WARNING
+let $wait_condition = select count(*) from performance_schema.error_log
+                        where data like "%Disk: Warning Level%"
+                          and logged > @warning_start;
+--source include/wait_condition.inc
+
+--echo
+--echo ## 8. Enable the fallback 'force' option.
+--echo
+--disable_query_log
+select now(6) into @force_start;
+--enable_query_log
+set @@global.health_monitor.disk_fallback_force = on;
+
+--echo
+--echo ## 9. Transition from WARNING to CRITICAL.
+--echo ##    Fence should be reattempted, the blocking connection terminated
+--echo ##    and SUPER_READ_ONLY successful.
+--echo
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+set @@global.health_monitor.disk_low_space_level = 0;
+
+--echo
+--echo ## 10. Wait for SUPER_READ_ONLY = ON.
+let $wait_timeout= 60;
+let $wait_condition = select count(*) from performance_schema.error_log
+                        where data like "%SUPER_READ_ONLY = ON%"
+                          and logged > @force_start;
+--source include/wait_condition.inc
+
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--let $assert_text = select @@global.super_read_only = 1
+--let $assert_cond = "[select (@@global.super_read_only = 1)]" = 1
+--source include/assert.inc
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+set @@global.health_monitor.disk_fallback_force = off;
+--echo
+drop user user1@localhost;
+drop table test.t1;
+--echo
+--eval uninstall component 'file://component_health_monitor';

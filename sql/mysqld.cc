@@ -1543,6 +1543,7 @@ char *mysql_data_home = const_cast<char *>(".");
 const char *mysql_real_data_home_ptr = mysql_real_data_home;
 char *opt_protocol_compression_algorithms;
 char server_version[SERVER_VERSION_LENGTH];
+char server_version_with_update[SERVER_VERSION_LENGTH];
 const char *mysqld_unix_port;
 char *opt_mysql_tmpdir;
 
@@ -6863,9 +6864,11 @@ int init_common_variables() {
   if (!opt_validate_config && (opt_initialize || opt_initialize_insecure)) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_INIT, my_progname, server_version,
            (ulong)getpid());
+    LogErr(SYSTEM_LEVEL, ER_SERVER_VERSION_INFO, server_version_with_update);
   } else if (!is_help_or_validate_option()) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_AS, my_progname, server_version,
            (ulong)getpid());
+    LogErr(SYSTEM_LEVEL, ER_SERVER_VERSION_INFO, server_version_with_update);
   }
   if (opt_help && !opt_verbose) unireg_abort(MYSQLD_SUCCESS_EXIT);
 
@@ -7356,7 +7359,7 @@ static int generate_server_uuid() {
     LogErr(ERROR_LEVEL, ER_NO_THD_NO_UUID);
     return 1;
   }
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   /*
@@ -10858,6 +10861,10 @@ struct my_option my_long_early_options[] = {
      &opt_verbose, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"version", 'V', "Output version information and exit.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version-with-update", OPT_VERSION_WITH_UPDATE,
+     "Output version information including the update component and exit.",
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"initialize", 'I',
      "Create the default database and exit."
      " Create a super user with a random expired password and store it into "
@@ -12144,6 +12151,12 @@ static void print_server_version(void) {
   print_explicit_version(server_version);
 }
 
+static void print_server_version_with_update(void) {
+  set_server_version();
+
+  print_explicit_version(server_version_with_update);
+}
+
 /** Compares two options' names, treats - and _ the same */
 static bool operator<(const my_option &a, const my_option &b) {
   const char *sa = a.name;
@@ -12897,6 +12910,9 @@ bool mysqld_get_one_option(int optid,
     case 'V':
       print_server_version();
       exit(MYSQLD_SUCCESS_EXIT);
+    case OPT_VERSION_WITH_UPDATE:
+      print_server_version_with_update();
+      exit(MYSQLD_SUCCESS_EXIT);
     case 'T':
       test_flags = argument ? (uint)atoi(argument) : 0;
       opt_endinfo = true;
@@ -13485,37 +13501,41 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 #endif
 
 static void set_server_version(void) {
-  char *end [[maybe_unused]] = strxmov(server_version, MYSQL_SERVER_VERSION,
-                                       MYSQL_SERVER_SUFFIX_STR, NullS);
+  auto append_runtime_version_suffixes = [](char *buf,
+                                            const char *base_version) {
+    char *end [[maybe_unused]] =
+        strxmov(buf, base_version, MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifndef NDEBUG
-  if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
-    end = my_stpcpy(end, "-debug");
+    if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
+      end = my_stpcpy(end, "-debug");
 #endif
 #ifdef HAVE_VALGRIND
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-valgrind")))
-    end = my_stpcpy(end, "-valgrind");
+    if (SERVER_VERSION_LENGTH - (end - buf) >
+        static_cast<int>(sizeof("-valgrind")))
+      end = my_stpcpy(end, "-valgrind");
 #endif
 #ifdef HAVE_ASAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-asan")))
-    end = my_stpcpy(end, "-asan");
+    if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-asan")))
+      end = my_stpcpy(end, "-asan");
 #endif
 #ifdef HAVE_LSAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-lsan")))
-    end = my_stpcpy(end, "-lsan");
+    if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-lsan")))
+      end = my_stpcpy(end, "-lsan");
 #endif
 #ifdef HAVE_UBSAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-ubsan")))
-    end = my_stpcpy(end, "-ubsan");
+    if (SERVER_VERSION_LENGTH - (end - buf) >
+        static_cast<int>(sizeof("-ubsan")))
+      end = my_stpcpy(end, "-ubsan");
 #endif
 #ifdef HAVE_TSAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-tsan")))
-    end = my_stpcpy(end, "-tsan");
+    if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-tsan")))
+      end = my_stpcpy(end, "-tsan");
 #endif
+  };
+
+  append_runtime_version_suffixes(server_version, MYSQL_SERVER_VERSION);
+  append_runtime_version_suffixes(server_version_with_update,
+                                  MYSQL_SERVER_VERSION_WITH_UPDATE);
 }
 
 static const char *get_relative_path(const char *path) {

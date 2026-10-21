@@ -1,0 +1,188 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify MRS HTTP limits are applied at runtime and backend startup.
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Verify runtime HTTP connection-limit updates
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--disable_query_log
+--disable_result_log
+CREATE SCHEMA mrs_http_limits;
+CREATE TABLE mrs_http_limits.connection_holder (id INT PRIMARY KEY);
+INSERT INTO mrs_http_limits.connection_holder VALUES (1);
+DELIMITER //;
+CREATE PROCEDURE mrs_http_limits.set_max_connections()
+SQL SECURITY INVOKER
+BEGIN
+  SET GLOBAL mysql_rest_service.http_max_connections = 1;
+END;//
+DELIMITER ;//
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql_rest_service_data_provider';
+--let $router_test_schemas=mrs_http_limits;$router_test_schemas
+--enable_result_log
+--enable_query_log
+
+--source $router_tests/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/limits"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+
+--let $mrs_add_schema=mrs_http_limits
+--let $mrs_add_schema_path=/db
+--source $router_tests/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=connection_holder
+--let $mrs_add_db_object_path=/holder
+--let $mrs_add_db_object_op=READ
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=set_max_connections
+--let $mrs_add_db_object_path=/set-max-connections
+--source $router_tests/mrs/db_object/add.inc
+
+--source $router_tests/mrs/end_object_definition.inc
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("rejected connection due to max_http_connections limit");
+call mtr.add_suppression("rejected request due to max_request_body_size limit");
+call mtr.add_suppression("rejected response due to max_response_body_size limit");
+--enable_result_log
+--enable_query_log
+
+LOCK TABLES mrs_http_limits.connection_holder WRITE;
+
+--let $holder_result_file=$MYSQL_TMP_DIR/mrs_http_limit_holder.result
+--exec_in_background $MRS_CLIENT_ARGS --path /limits/db/holder/1 --display result > $holder_result_file 2>&1
+
+--let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.processlist WHERE STATE LIKE 'Waiting%' AND INFO LIKE '%connection_holder%'
+--source include/wait_condition_or_abort.inc
+
+SET GLOBAL mysql_rest_service.http_max_connections = 1;
+
+--let $rejected_result_file=$MYSQL_TMP_DIR/mrs_http_limit_rejected.result
+--error 1
+--exec $MRS_CLIENT_ARGS --path /does-not-exist --expected-status 404 --display none > $rejected_result_file 2>&1
+--remove_file $rejected_result_file
+
+UNLOCK TABLES;
+
+--let $grep_pattern=OK
+--let $grep_file=$holder_result_file
+--let $wait_timeout=30
+--let $skip_log_pattern=1
+--source include/wait_for_pattern_in_file.inc
+--let $grep_pattern=
+--let $grep_file=
+--let $wait_timeout=
+--let $skip_log_pattern=
+--remove_file $holder_result_file
+
+SET GLOBAL mysql_rest_service.http_max_connections = DEFAULT;
+
+--echo
+--echo ## II. Verify a REST procedure can update the HTTP connection limit
+
+--let $mrs_client_arg_path='/limits/db/set-max-connections'
+--let $mrs_client_arg_expected_status=200
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--let $http_max_connections = `SELECT @@mysql_rest_service.http_max_connections;`
+--let $assert_text = REST procedure updates http_max_connections
+--let $assert_cond = $http_max_connections = 1
+--source include/assert.inc
+
+SET GLOBAL mysql_rest_service.http_max_connections = DEFAULT;
+
+--echo
+--echo ## III. Verify runtime request-body limit updates and zero-body handling
+
+SET GLOBAL mysql_rest_service.http_max_request_body_size = 0;
+
+--let $mrs_client_arg_path='/does-not-exist'
+--let $mrs_client_arg_payload='x'
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_expected_status=413
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+# An empty request body remains permitted when the limit is zero.
+--let $mrs_client_arg_path='/does-not-exist'
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_expected_status=404
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=status
+--source $router_tests/mrs/mrs_client.inc
+
+SET GLOBAL mysql_rest_service.http_max_request_body_size = DEFAULT;
+
+--let $mrs_client_arg_path='/does-not-exist'
+--let $mrs_client_arg_payload='x'
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_expected_status=404
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo ## IV. Verify response-body limit updates and zero-body handling
+
+SET GLOBAL mysql_rest_service.http_max_response_body_size = 0;
+
+# A nonempty response is replaced by an empty HTTP 500.
+--let $mrs_client_arg_path='/does-not-exist'
+--let $mrs_client_arg_expected_status=500
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=body,status
+--source $router_tests/mrs/mrs_client.inc
+
+# Zero permits an empty response.
+--let $mrs_client_arg_path='/limits/db/holder'
+--let $mrs_client_arg_request_type=OPTIONS
+--let $mrs_client_arg_expected_status=200
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=body,status
+--source $router_tests/mrs/mrs_client.inc
+
+SET GLOBAL mysql_rest_service.http_max_response_body_size = DEFAULT;
+
+--let $mrs_client_arg_path='/does-not-exist'
+--let $mrs_client_arg_expected_status=404
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo ## V. Verify a stopped-backend update is applied at the next start
+
+SELECT mysql_rest_service_stop();
+SET GLOBAL mysql_rest_service.http_max_request_body_size = 0;
+SELECT mysql_rest_service_start();
+
+--let $wait_condition=SELECT VARIABLE_VALUE = '$HTTP_SERVER_PORT' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port'
+--source include/wait_condition_or_abort.inc
+
+--let $mrs_client_arg_path='/does-not-exist'
+--let $mrs_client_arg_payload='x'
+--let $mrs_client_arg_request_type=POST
+--let $mrs_client_arg_expected_status=413
+--let $mrs_client_arg_response_type=raw
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+SET GLOBAL mysql_rest_service.http_max_request_body_size = DEFAULT;
+
+--echo
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

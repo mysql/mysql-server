@@ -27,7 +27,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -42,6 +41,7 @@
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_client_context.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/cluster_metadata_instance_attributes.h"
 #include "mysqlrouter/mysql_session.h"
@@ -87,6 +87,9 @@ ClusterMetadata::ClusterMetadata(
     }
   }
   ssl_options_ = ssl_options;
+  if (ssl_mode_ != SSL_MODE_DISABLED) {
+    validate_tls_options(ssl_options_);
+  }
 }
 
 /** @brief Destructor
@@ -96,13 +99,44 @@ ClusterMetadata::ClusterMetadata(
  */
 ClusterMetadata::~ClusterMetadata() = default;
 
+void ClusterMetadata::validate_tls_options(
+    const mysqlrouter::SSLOptions &ssl_options) const {
+  TlsClientContext tls_context{TlsVerify::PEER};
+  if (!ssl_options.ca.empty() || !ssl_options.capath.empty()) {
+    const auto ca = tls_context.ssl_ca(ssl_options.ca, ssl_options.capath);
+    if (!ca) throw std::system_error(ca.error(), "loading metadata SSL CA");
+  }
+  if (!ssl_options.crl.empty() || !ssl_options.crlpath.empty()) {
+    const auto crl = tls_context.crl(ssl_options.crl, ssl_options.crlpath);
+    if (!crl) throw std::system_error(crl.error(), "loading metadata SSL CRL");
+  }
+}
+
+void ClusterMetadata::reload_tls() {
+  if (ssl_mode_ == SSL_MODE_DISABLED) return;
+
+  mysqlrouter::SSLOptions ssl_options;
+  {
+    std::lock_guard<std::mutex> lock(ssl_options_m_);
+    ssl_options = ssl_options_;
+  }
+  validate_tls_options(ssl_options);
+
+  std::lock_guard<std::mutex> lock(ssl_options_m_);
+  ssl_options_ = std::move(ssl_options);
+}
+
 bool ClusterMetadata::do_connect(MySQLSession &connection,
                                  const metadata_cache::metadata_server_t &mi) {
   try {
-    connection.set_ssl_options(ssl_mode_, ssl_options_.tls_version,
-                               ssl_options_.cipher, ssl_options_.ca,
-                               ssl_options_.capath, ssl_options_.crl,
-                               ssl_options_.crlpath);
+    mysqlrouter::SSLOptions ssl_options;
+    {
+      std::lock_guard<std::mutex> lock(ssl_options_m_);
+      ssl_options = ssl_options_;
+    }
+    connection.set_ssl_options(
+        ssl_mode_, ssl_options.tls_version, ssl_options.cipher, ssl_options.ca,
+        ssl_options.capath, ssl_options.crl, ssl_options.crlpath);
     connection.connect(mi.hostname(), static_cast<unsigned int>(mi.port()),
                        session_config_.user_credentials.username,
                        session_config_.user_credentials.password,

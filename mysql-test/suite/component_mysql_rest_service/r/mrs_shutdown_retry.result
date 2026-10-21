@@ -1,0 +1,19 @@
+
+
+## I. Retry component deinitialization after shutdown request failure
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+SET @@GLOBAL.DEBUG = '+d, mrs_component_shutdown_request_failure';
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+ERROR HY000: De-initialization method provided by component 'mysql:component_mysql_rest_service' failed.
+SET @@GLOBAL.DEBUG = '-d, mrs_component_shutdown_request_failure';
+include/assert.inc [failed shutdown remains retryable in STOPPING]
+
+# Cleanup retries component deinitialization
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

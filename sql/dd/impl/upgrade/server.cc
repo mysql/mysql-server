@@ -38,6 +38,7 @@
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/upgrade/server.h"
 #include "sql/dd_table_share.h"
+#include "sql/mysqld.h"  // server_version_with_update
 #include "sql/table.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -534,6 +535,28 @@ static bool upgrade_firewall_procedures(THD *thd) {
 }
 
 /**
+ * Check whether the legacy mysql_firewall plugin is installed.
+ *
+ * The firewall component exposes component-scoped system variables. Presence of
+ * the legacy mysql_firewall_database variable is used to decide whether the
+ * legacy plugin stored procedure upgrade path should run.
+ */
+static bool is_firewall_plugin_installed(THD *thd) {
+  LEX_STRING firewall_schema_name = {nullptr, 0};
+  Ed_connection conn(thd);
+
+  lex_string_strmake(thd->mem_root, &firewall_schema_name,
+                     STRING_WITH_LEN("SELECT @@mysql_firewall_database"));
+
+  if (conn.execute_direct(firewall_schema_name)) {
+    thd->clear_error();
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * This function will switch to the schema which is pointed by the
  * mysql-firewall-database variable by executing USE.
  *
@@ -600,7 +623,8 @@ static bool upgrade_firewall(THD *thd) {
   }
 
   // upgrade the procedures
-  if (has_old_firewall_tables || has_new_firewall_tables) {
+  if ((has_old_firewall_tables || has_new_firewall_tables) &&
+      is_firewall_plugin_installed(thd)) {
     error = switch_to_firewall_schema(thd, fw_schema) ||
             upgrade_firewall_procedures(thd);
 
@@ -1038,21 +1062,29 @@ static void remove_legacy_upgrade_info_file() {
   @param initialize   If this is the initialization of the data directory.
 */
 void update_upgrade_history_file(bool initialize) {
-  /* Name of the "mysql_upgrade_history" file. */
+  /* Step 1: Resolve the mysql_upgrade_history path in the current data
+  dir. */
   char upgrade_file[FN_REFLEN] = {0};
   fn_format(upgrade_file, "mysql_upgrade_history", mysql_real_data_home_ptr, "",
             MYF(0));
 
-  /* JSON keys. */
+  /* Step 2: Define the JSON member names used by the persisted
+  document. */
   constexpr char k_file_format[] = "file_format";
   constexpr char k_upgrade_history[] = "upgrade_history";
   constexpr char k_date[] = "date";
   constexpr char k_version[] = "version";
+  constexpr char k_update_history[] = "update_history";
+  constexpr char k_version_with_update[] = "version_with_update";
   constexpr char k_maturity[] = "maturity";
   constexpr char k_initialize[] = "initialize";
   constexpr char v_file_format[] = "1";
 
-  /* If > max entries, we keep the first and the (max - 1)  last ones. */
+  /*
+    Step 3: Define the parent-entry retention limit. When the limit is
+    exceeded, retain the initial parent entry and the newest parent
+    entries. update_history children have no separate retention limit.
+  */
   constexpr int MAX_HISTORY_SIZE = 1000;
   static_assert(MAX_HISTORY_SIZE >= 2,
                 "The upgrade history should contain at least the first "
@@ -1060,7 +1092,8 @@ void update_upgrade_history_file(bool initialize) {
   using namespace rapidjson;
   Document doc;
 
-  /* Open file if it exists, auto close on return. */
+  /* Step 4: Set up an auto-closing handle for all file read/write
+  paths. */
   auto deleter = [&](FILE *ptr) {
     if (ptr != nullptr) my_fclose(ptr, MYF(0));
   };
@@ -1071,8 +1104,13 @@ void update_upgrade_history_file(bool initialize) {
   bool file_exists = (my_stat(upgrade_file, &sa, MYF(0)) != nullptr);
   bool append = file_exists;  // Append to current doc if possible.
 
-  /* If the file exists, read the doc and see if it is valid. */
+  /*
+    Step 5: If history already exists, read it and validate its complete
+    structure before deciding whether it is safe to append. A malformed
+    audit file is replaced with a history containing only this invocation.
+  */
   if (file_exists) {
+    /* Step 5.1: Open the existing file for reading. */
     fp.reset(my_fopen(upgrade_file, O_RDONLY, MYF(0)));
     if (fp == nullptr) {
       LogErr(WARNING_LEVEL, ER_SERVER_CANT_OPEN_FILE, upgrade_file, my_errno(),
@@ -1080,7 +1118,8 @@ void update_upgrade_history_file(bool initialize) {
       return;
     }
 
-    /* Read contents into buffer. */
+    /* Step 5.2: Read the complete JSON document into an in-memory
+    buffer. */
     char buff[512] = {0};
     std::string parsed_value;
     do {
@@ -1088,57 +1127,190 @@ void update_upgrade_history_file(bool initialize) {
       buff[0] = '\0';
     } while (fgets(buff, sizeof(buff) - 1, fp.get()));
 
-    /* Parse JSON, check expected format. */
+    /*
+      Step 5.3: Parse and validate the persisted history. An unusable
+      document is replaced below because this audit file must not
+      prevent the server from starting. Missing update_history is
+      allowed for legacy parent entries, but a present update_history
+      must be a valid array of exact-version entries.
+    */
     ParseResult ok = doc.Parse(parsed_value.c_str());
-    if (!(ok && doc.IsObject() && doc[k_file_format].IsString() &&
-          doc[k_upgrade_history].IsArray())) {
+    bool valid_history = ok && doc.IsObject() && doc.HasMember(k_file_format) &&
+                         doc[k_file_format].IsString() &&
+                         doc.HasMember(k_upgrade_history) &&
+                         doc[k_upgrade_history].IsArray();
+    if (valid_history) {
+      const Value &hist = doc[k_upgrade_history];
+      for (auto parent = hist.Begin(); parent != hist.End() && valid_history;
+           ++parent) {
+        if (!parent->IsObject() || !parent->HasMember(k_version) ||
+            !(*parent)[k_version].IsString()) {
+          valid_history = false;
+          break;
+        }
+
+        if (!parent->HasMember(k_update_history)) continue;
+
+        const Value &updates = (*parent)[k_update_history];
+        if (!updates.IsArray()) {
+          valid_history = false;
+          break;
+        }
+
+        for (auto update = updates.Begin(); update != updates.End(); ++update) {
+          if (!update->IsObject() ||
+              !update->HasMember(k_version_with_update) ||
+              !(*update)[k_version_with_update].IsString()) {
+            valid_history = false;
+            break;
+          }
+        }
+      }
+    }
+    if (!valid_history) {
       LogErr(WARNING_LEVEL, ER_INVALID_FILE_FORMAT, upgrade_file);
       append = false;  // Cannot append, must overwrite with an empty doc.
     }
   }
 
-  /* If the file existed with valid contents, append, otherwise, overwrite. */
+  Value *update_history = nullptr;
+  bool add_upgrade_history_entry = true;
+
+  /*
+    Step 6: Select where to record this server invocation.
+
+    - A different latest parent version requires a new parent entry.
+    - A matching parent records the exact release in its update_history.
+    - A missing update_history is migrated by recording only this
+      invocation.
+  */
   if (append) {
-    /* If current version is same as last entry, return. */
+    /*
+      Step 6.1: Inspect only the latest parent entry. The parent version
+      is the compatibility version; its update_history contains the
+      exact releases, including update 0, recorded during this visit to
+      the parent.
+    */
     Value &hist = doc[k_upgrade_history].GetArray();
     int count = hist.Size();
-    if (count > 0 &&
-        !strcmp(hist[count - 1][k_version].GetString(), server_version))
-      return;
+    if (count > 0) {
+      Value &last_entry = hist[count - 1];
+      if (last_entry.IsObject() && last_entry.HasMember(k_version) &&
+          last_entry[k_version].IsString() &&
+          !strcmp(last_entry[k_version].GetString(), server_version)) {
+        if (!last_entry.HasMember(k_update_history)) {
+          /*
+            Step 6.1.1: Migrate a matching legacy parent. Add an empty
+            child array now, then record only the current exact release;
+            do not invent releases that ran before update_history
+            existed.
+          */
+          Value updates(kArrayType);
+          last_entry.AddMember(k_update_history, updates, doc.GetAllocator());
+          update_history = &last_entry[k_update_history];
+          add_upgrade_history_entry = false;
+        } else if (last_entry[k_update_history].IsArray()) {
+          /*
+            Step 6.1.2: Use the existing child array for a matching
+            parent. Compare only its newest usable child because it
+            represents the immediately preceding exact release for this
+            parent visit.
+          */
+          Value &updates = last_entry[k_update_history].GetArray();
+          const int update_count = updates.Size();
+          if (update_count > 0) {
+            Value &last_update = updates[update_count - 1];
+            if (last_update.IsObject() &&
+                last_update.HasMember(k_version_with_update) &&
+                last_update[k_version_with_update].IsString() &&
+                !strcmp(last_update[k_version_with_update].GetString(),
+                        server_version_with_update))
+              return;  // Step 6.1.2a: Exact-version restart; no file write.
+          }
 
-    /* If the doc contains too many entries, remove from the second and on. */
-    int remove_count = (count - MAX_HISTORY_SIZE) + 1;
-    if (remove_count > 0) {
-      hist.Erase(hist.Begin() + 1, hist.Begin() + remove_count + 1);
+          /*
+            Step 6.1.2b: The child array is empty or the exact version
+            changed. Append the current child in Step 8 rather than adding
+            another parent entry.
+          */
+          update_history = &updates;
+          add_upgrade_history_entry = false;
+        }
+      }
+    }
+
+    if (add_upgrade_history_entry) {
+      /*
+      Step 6.2: Apply the parent-entry cap before adding a new
+      parent.
+      */
+      int remove_count = (count - MAX_HISTORY_SIZE) + 1;
+      if (remove_count > 0) {
+        hist.Erase(hist.Begin() + 1, hist.Begin() + remove_count + 1);
+      }
     }
   } else {
-    /* Otherwise, if no file existed, initialize an empty JSON document. */
+    /* Step 6.3: Create a new empty top-level document after no usable
+    input. */
     doc.SetObject();
     doc.AddMember(k_file_format, v_file_format, doc.GetAllocator());
     Value history(kArrayType);
     doc.AddMember(k_upgrade_history, history, doc.GetAllocator());
   }
 
-  /* Append timestamp, MYSQL_SERVER_VERSION and LTS info to version array. */
+  /*
+    Step 7: Build the common exact-release child for this server
+    invocation. The timestamp is shared with a new parent when one is
+    also created.
+  */
   std::stringstream str;
   std::time_t sec = my_micro_time() / 1000000;
   str << std::put_time(std::gmtime(&sec), "%F %T");
-  Value date(str.str().c_str(), str.str().size(), doc.GetAllocator());
-  Value version(server_version, strlen(server_version), doc.GetAllocator());
-  Value maturity(MYSQL_VERSION_MATURITY);
+  const std::string date_string = str.str();
+  auto make_update_entry = [&]() {
+    Value entry(kObjectType);
+    Value date(date_string.c_str(), date_string.size(), doc.GetAllocator());
+    Value version_with_update(server_version_with_update,
+                              strlen(server_version_with_update),
+                              doc.GetAllocator());
+    entry.AddMember(k_date, date, doc.GetAllocator());
+    entry.AddMember(k_version_with_update, version_with_update,
+                    doc.GetAllocator());
+    return entry;
+  };
 
-  Value new_version;
-  new_version.SetObject();
-  new_version.AddMember(k_date, date, doc.GetAllocator());
-  new_version.AddMember(k_version, version, doc.GetAllocator());
-  new_version.AddMember(k_maturity, maturity, doc.GetAllocator());
-  if (initialize) {
-    Value init(true);
-    new_version.AddMember(k_initialize, init, doc.GetAllocator());
+  if (add_upgrade_history_entry) {
+    /*
+      Step 8.1: Add a new parent for a changed compatibility version,
+      and seed its update_history with the exact release that created
+      the parent.
+    */
+    Value new_version(kObjectType);
+    Value date(date_string.c_str(), date_string.size(), doc.GetAllocator());
+    Value version(server_version, strlen(server_version), doc.GetAllocator());
+    Value maturity(MYSQL_VERSION_MATURITY);
+    Value updates(kArrayType);
+    updates.PushBack(make_update_entry(), doc.GetAllocator());
+
+    new_version.AddMember(k_date, date, doc.GetAllocator());
+    new_version.AddMember(k_version, version, doc.GetAllocator());
+    new_version.AddMember(k_maturity, maturity, doc.GetAllocator());
+    if (initialize) {
+      Value init(true);
+      new_version.AddMember(k_initialize, init, doc.GetAllocator());
+    }
+    new_version.AddMember(k_update_history, updates, doc.GetAllocator());
+    doc[k_upgrade_history].GetArray().PushBack(new_version, doc.GetAllocator());
+  } else {
+    /*
+      Step 8.2: Append the child selected for the existing latest
+      parent.
+    */
+    update_history->PushBack(make_update_entry(), doc.GetAllocator());
   }
-  doc[k_upgrade_history].GetArray().PushBack(new_version, doc.GetAllocator());
 
-  /* Reopen the file, which is auto closed on function return. */
+  /* Step 9: Open the history file for replacement after the JSON is
+  complete. */
   fp.reset(my_fopen(upgrade_file, O_CREAT | O_TRUNC | O_WRONLY, MYF(0)));
   if (fp == nullptr) {
     LogErr(WARNING_LEVEL, ER_SERVER_CANT_OPEN_FILE, upgrade_file, my_errno(),
@@ -1146,7 +1318,8 @@ void update_upgrade_history_file(bool initialize) {
     return;
   }
 
-  /* Write JSON document to a buffer and further to file with a newline. */
+  /* Step 9.1: Serialize the JSON document and write one
+  newline-terminated row. */
   rapidjson::StringBuffer buffer;
   rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
   doc.Accept(writer);

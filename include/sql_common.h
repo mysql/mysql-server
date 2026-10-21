@@ -100,6 +100,8 @@ struct mysql_async_connect;
 
 struct MYSQL_EXTENSION {
   struct st_mysql_trace_info *trace_data;
+  // Per-connection cache of the value returned by VERSION_WITH_UPDATE().
+  char *server_version_with_update;
   STATE_INFO state_change;
   /* Struct to track the state of asynchronous operations */
   struct MYSQL_ASYNC *mysql_async_context;

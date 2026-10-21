@@ -32,7 +32,7 @@ use strict;
 
 use base qw(Exporter);
 our @EXPORT = qw(collect_option collect_test_cases init_pattern
-  $do_test $group_replication $router_test);
+  $do_test $group_replication $router_test $component_mrs_test);
 
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
@@ -86,6 +86,7 @@ our $default_myisam = 0;
 our $group_replication;
 our $router_test;
 our $router_bootstrap_test;
+our $component_mrs_test;
 
 sub collect_option {
   my ($opt, $value) = @_;
@@ -588,6 +589,7 @@ sub collect_test_cases ($$$$) {
       share(\$group_replication);
       share(\$router_test);
       share(\$some_test_found);
+      share(\$component_mrs_test);
 
       # Array containing thread id of all the threads used for
       # collecting test cases from different test suites.
@@ -1562,6 +1564,15 @@ sub collect_one_test_case {
   # Check for group replication tests
   $group_replication = 1 if ($tinfo->{'grp_rpl_test'});
 
+  if ($ENV{'MTR_ROUTER_MRS_USE_COMPONENT'} && $tinfo->{'router_mrs_test'}) {
+    push(@{ $tinfo->{'master_opt'} },
+         '$MYSQL_REST_SERVICE_COMPONENT_OPT');
+    push(@{ $tinfo->{'slave_opt'} },
+         '$MYSQL_REST_SERVICE_COMPONENT_OPT');
+    $tinfo->{'component_mrs_test'} = 1;
+    $tinfo->{'router_test'} = 0;
+  }
+
   # Check for router tests
   if ($tinfo->{'router_test'}) {
     # check if the router executable was found (built)
@@ -1576,7 +1587,9 @@ sub collect_one_test_case {
       return $tinfo;
     }
   }
+
   $router_test = 1 if ($tinfo->{'router_test'});
+  $component_mrs_test = 1 if ($tinfo->{'component_mrs_test'});
 
   # Check for router-jit-executor tests
   if ($tinfo->{'router_jit_executor_test'}) {
@@ -1740,6 +1753,13 @@ my @tags = (
   [ "have_router.inc",      "router_test", 1 ],
   [ "have_jit_executor.inc",      "router_jit_executor_test", 1 ],
   [ "have_router_bootstrap.inc",  "router_bootstrap_test", 1 ],
+
+  # Tests with below .inc file configure Router MRS and can be re-run against
+  # the MRS component by setting MTR_ROUTER_MRS_USE_COMPONENT=1.
+  [ "configure_router_mrs_root.inc",  "router_mrs_test", 1 ],
+
+  # Tests with below .inc files are considered to be MRS component tests.
+  [ "have_component_mrs.inc",      "component_mrs_test", 1 ],
 
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind/asan/ubsan option.

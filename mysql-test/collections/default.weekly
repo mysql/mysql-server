@@ -64,6 +64,10 @@ perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=gro
 
 # Thread Pool Plugin
 perl mysql-test-run.pl --debug-server --big-test --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload,thread_pool_rpl   --no-skip
+perl mysql-test-run.pl --debug-server --big-test --timer --force --comment=multi_factor_authentication --vardir=var-mfa --suite=multi_factor_authentication --no-skip
+
+# Health Monitor
+perl mysql-test-run.pl --timer --debug-server --force --comment=health_monitor --vardir=var-health-monitor --suite=health_monitor --no-skip --exclude-platform=windows
 
 ######END OF SECTION 2 (NON-DEFAULT SUITES)######################
 
@@ -170,6 +174,12 @@ perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-time
 # rpl and rpl_gtid suites with GTID_ONLY=1 and MTA
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60 --comment=rpl_gtid_only_mta --vardir=var-rpl_gtid_only_mta  --suite=rpl,rpl_gtid  --defaults-extra-file=include/rpl_gtid_only_on.cnf --mysqld=--binlog-format=ROW  --mysqld=--replica-parallel-workers=4 --no-skip
 
+# Targeted XA coverage with xa_detach_on_prepare=OFF and disabled binlog.
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60 --comment=xa_detach_off_nobinlog --vardir=var-xa-detach-off-nobinlog --do-test-list=collections/xa_detach_on_prepare_off_nobinlog.list --defaults-extra-file=include/xa_detach_on_prepare_off.cnf --mysqld=--skip-log-bin --mysqld=--skip-log-replica-updates --mysqld=--replica-preserve-commit-order=0 --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=ON --skip-combinations --no-skip
+
+# Targeted XA coverage with xa_detach_on_prepare=OFF and row-based binlog.
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60 --comment=xa_detach_off_binlog --vardir=var-xa-detach-off-binlog --do-test-list=collections/xa_detach_on_prepare_off_binlog.list --defaults-extra-file=include/xa_detach_on_prepare_off.cnf --mysqld=--binlog-format=ROW --skip-combinations --no-skip
+
 ###########END OF SECTION 7 RPL/BINLOG EXTENDED-WEEKLY#############
 
 ####SECTION 8 GR EXTENDED-WEEKLY#############
@@ -206,5 +216,8 @@ perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=gro
 
 # Additional rpl suites with APPLIER_VERSION=2 (Change Stream Applier)
 perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication_csa-debug --vardir=var-group_replication_csa-debug --suite=group_replication --big-test --testcase-timeout=60 --suite-timeout=360 --defaults-extra-file=include/rpl_change_stream_applier.cnf
-####END OF SECTION 8 GR EXTENDED-WEEKLY#############
 
+# Targeted GR XA crash/failure coverage with xa_detach_on_prepare=OFF.
+# Exclude Windows to preserve BUG#34155238 disables.
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=gr_xa_detach_off --vardir=var-gr-xa-detach-off --suite=group_replication --big-test --testcase-timeout=60 --suite-timeout=360 --do-test-list=collections/xa_detach_on_prepare_off_gr.list --defaults-extra-file=include/xa_detach_on_prepare_off.cnf --exclude-platform=windows
+####END OF SECTION 8 GR EXTENDED-WEEKLY#############

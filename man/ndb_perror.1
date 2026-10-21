@@ -2,12 +2,12 @@
 .\"     Title: ndb_perror
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/24/2026
+.\"      Date: 09/21/2026
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 26.7
+.\"    Source: MySQL 26.10
 .\"  Language: English
 .\"
-.TH "NDB_PERROR" "1" "06/24/2026" "MySQL 26\&.7" "MySQL Database System"
+.TH "NDB_PERROR" "1" "09/21/2026" "MySQL 26\&.10" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,9 +35,7 @@ ndb_perror \- obtain NDB error message information
 .SH "DESCRIPTION"
 .PP
 \fBndb_perror\fR
-shows information about an NDB error, given its error code\&. This includes the error message, the type of error, and whether the error is permanent or temporary\&. This is intended as a drop\-in replacement for
-\fBperror\fR
-\fB\-\-ndb\fR, which is no longer supported\&.
+shows information about an NDB error, given its error code\&. This includes the error message, the type of error, and whether the error is permanent or temporary\&.
 Usage
 .sp
 .if n \{\

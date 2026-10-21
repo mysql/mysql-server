@@ -26,6 +26,7 @@ INCLUDE(GenerateExportHeader)
 # destination status library
 
 ROUTER_ADD_SHARED_LIBRARY(destination_status
+  SOURCES
   unreachable_destinations_quarantine.cc
   destination_status_component.cc
 
@@ -33,6 +34,12 @@ ROUTER_ADD_SHARED_LIBRARY(destination_status
   PUBLIC
   harness_stdx
   router_lib
+
+  LINK_LIBRARIES_IF
+  harness_stdx_interface
+  router_lib_interface
+  io_component_interface
+  mysql_protocol
 
   OUTPUT_NAME "mysqlrouter_destination_status"
   )
@@ -43,20 +50,21 @@ ADD_HARNESS_PLUGIN(destination_status_plugin
   OUTPUT_NAME "destination_status"
   SOURCES
   destination_status_plugin.cc
+
   REQUIRES
   router_lib
   harness_stdx
   destination_status
+
+  REQUIRES_IF
+  destination_status_interface
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
-  )
-TARGET_INCLUDE_DIRECTORIES(destination_status_plugin PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  PUBLIC
+
+  INCLUDE_DIRECTORIES
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+
+  INCLUDE_DIRECTORIES_IF
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/
   ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  )
-
-GENERATE_EXPORT_HEADER(destination_status_plugin
-  EXPORT_FILE_NAME
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/destination_status_plugin_export.h
   )

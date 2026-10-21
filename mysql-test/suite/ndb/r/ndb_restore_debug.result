@@ -225,6 +225,49 @@ Expect all values in t3 to be 2999
 select * from t3 order by a;
 a	b
 1	2999
+truncate t1;
+truncate t2;
+truncate t3;
+Check with varying log + data restore parallelism
+Data=1024, Log=1
+Expect all values in t1 to be 2
+select count(1) from t1 where b = 2;
+count(1)
+100
+select count(1) from t1 where b != 2;
+count(1)
+0
+Expect all values in t2 to be 2
+select count(1) from t2 where b = 2;
+count(1)
+100
+select count(1) from t2 where b != 2;
+count(1)
+0
+Expect all values in t3 to be 2999
+select * from t3 order by a;
+a	b
+1	2999
+Check with varying log + data restore parallelism
+Data=1, Log=1024
+Expect all values in t1 to be 2
+select count(1) from t1 where b = 2;
+count(1)
+100
+select count(1) from t1 where b != 2;
+count(1)
+0
+Expect all values in t2 to be 2
+select count(1) from t2 where b = 2;
+count(1)
+100
+select count(1) from t2 where b != 2;
+count(1)
+0
+Expect all values in t3 to be 2999
+select * from t3 order by a;
+a	b
+1	2999
 drop table t1;
 drop table t2;
 drop table t3;

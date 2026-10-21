@@ -197,49 +197,49 @@ set optimizer_switch = @old_os;
 explain format=tree
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
 EXPLAIN
--> Index scan on t2 using PRIMARY, with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null))
+-> Index scan on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null))
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null)) order by `test`.`t2`.`a`
 explain format=tree
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL;
 EXPLAIN
--> Table scan on t2, with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null))
+-> Table scan on t2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null))
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null))
 explain format=tree
 select * from t2 where b in (1,2,3) AND c IS NULL;
 EXPLAIN
--> Table scan on t2, with pushed condition: ((t2.b in (1,2,3)) and (t2.c is null))
+-> Table scan on t2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: ((t2.b in (1,2,3)) and (t2.c is null))
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`b` in (1,2,3)) and (`test`.`t2`.`c` is null))
 explain format=tree
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 EXPLAIN
--> Index range scan (Multi-Range Read) on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
+-> Index range scan (Multi-Range Read) on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9)) order by `test`.`t2`.`a`
 explain format=tree
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9;
 EXPLAIN
--> Index range scan (Multi-Range Read) on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
+-> Index range scan (Multi-Range Read) on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7) over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9))
 explain format=tree
 select * from t2 where c IS NULL order by a;
 EXPLAIN
--> Index scan on t2 using PRIMARY, with pushed condition: (t2.c is null)
+-> Index scan on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (t2.c is null)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` is null) order by `test`.`t2`.`a`
 explain format=tree
 select * from t2 where b = 3 AND c IS NULL order by a;
 EXPLAIN
--> Index scan on t2 using PRIMARY, with pushed condition: ((t2.b = 3) and (t2.c is null))
+-> Index scan on t2 using PRIMARY in partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: ((t2.b = 3) and (t2.c is null))
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`b` = 3) and (`test`.`t2`.`c` is null)) order by `test`.`t2`.`a`
@@ -999,9 +999,9 @@ t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 EXPLAIN
 -> Aggregate: count(0)
     -> Inner hash join (t2.a = t1.a)
-        -> Table scan on t2, with pushed condition: (t2.uq is null)
+        -> Table scan on t2 over partitions (p0,p1,p2,p3,p4,p5,p6,p7), with pushed condition: (t2.uq is null)
         -> Hash
-            -> Table scan on t1
+            -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
@@ -1247,7 +1247,7 @@ explain format=tree
 select * from t
 where auth_login_type='5' AND auth_login_id = '81774133' AND msg_id IN (4866,4869);
 EXPLAIN
--> Index range scan (Multi-Range Read) on t using msg_id over (msg_id = 4866 AND auth_login_type = '5' AND auth_login_id = '81774133') OR (msg_id = 4869 AND auth_login_type = '5' AND auth_login_id = '81774133'), with pushed condition: ((t.auth_login_id = '81774133') and (t.auth_login_type = '5') and (t.msg_id in (4866,4869)))  (cost=1.91 rows=2)
+-> Index range scan (Multi-Range Read) on t using msg_id in partitions (p0,p1,p2,p3,p4,p5,p6,p7) over (msg_id = 4866 AND auth_login_type = '5' AND auth_login_id = '81774133') OR (msg_id = 4869 AND auth_login_type = '5' AND auth_login_id = '81774133'), with pushed condition: ((t.auth_login_id = '81774133') and (t.auth_login_type = '5') and (t.msg_id in (4866,4869)))  (cost=1.91 rows=2)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`delivery_id` AS `delivery_id`,`test`.`t`.`msg_id` AS `msg_id`,`test`.`t`.`auth_login_type` AS `auth_login_type`,`test`.`t`.`auth_login_id` AS `auth_login_id` from `test`.`t` where ((`test`.`t`.`auth_login_id` = '81774133') and (`test`.`t`.`auth_login_type` = '5') and (`test`.`t`.`msg_id` in (4866,4869)))

@@ -82,6 +82,36 @@
 // IWYU pragma: end_exports
 #include "string_with_len.h"
 
+/**
+  Resolve a stack address suitable for stack-usage accounting.
+
+  In ordinary builds, @p local_marker is returned unchanged. Callers
+  normally pass the address of a local variable, which represents the
+  current stack location on platforms without AddressSanitizer's fake
+  stack.
+
+  In ASan builds, local variables can be relocated to ASan's fake stack.
+  Such an address cannot be compared with a thread's physical stack
+  origin, so the marker is intentionally ignored and a physical address
+  from the current frame is returned instead.
+
+  @param local_marker Conventional local stack marker supplied by the
+                      caller. It is used only outside ASan builds.
+  @returns A stack address that is comparable with the THD stack base.
+*/
+ALWAYS_INLINE const char *resolve_stack_pointer(
+    [[maybe_unused]] const void *local_marker) {
+#ifdef HAVE_ASAN
+#if defined(__GNUC__) || defined(__clang__)
+  return static_cast<const char *>(__builtin_frame_address(0));
+#else /* Not GCC/Clang */
+  return static_cast<const char *>(local_marker);
+#endif
+#else /* Not ASAN */
+  return static_cast<const char *>(local_marker);
+#endif
+}
+
 class MY_CHARSET_LOADER;
 
 struct CHARSET_INFO;

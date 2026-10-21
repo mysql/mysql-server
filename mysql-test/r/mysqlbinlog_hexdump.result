@@ -76,7 +76,11 @@ BEGIN
 # 000001a6 85 2f c6 4e   0e   01 00 00 00   19 00 00 00   bf 01 00 00   00 00
 # 000001b9 01 00 00 00 32 01                                |....2.|
 # 	User_var
+/*!\C utf8mb3 *//*!*/;
+SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=33/*!*/;
 SET @`2`:=NULL/*!*/;
+/*!\C utf8mb3 *//*!*/;
+SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
 #111118 13:12:21 server id 1  end_log_pos 552 
 # Position  Timestamp   Type   Source ID        Size      Source Pos    Flags 
 # 000001bf 85 2f c6 4e   02   01 00 00 00   69 00 00 00   28 02 00 00   00 00

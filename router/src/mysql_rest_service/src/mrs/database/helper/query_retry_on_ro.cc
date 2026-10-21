@@ -61,7 +61,7 @@ QueryRetryOnRO::QueryRetryOnRO(collector::MysqlCacheManager *cache,
 }
 
 void QueryRetryOnRO::before_query() {
-  const bool is_session_rw = is_rw(cache_->get_type(session_));
+  const bool is_session_rw = cache_ ? is_rw(cache_->get_type(session_)) : true;
 
   if (filter_object_has_asof_) {
     if (!is_session_rw)
@@ -113,7 +113,7 @@ bool QueryRetryOnRO::should_retry(const uint64_t affected) const {
   // Check the timeout
   if (!is_gtid_executed(session_.get(), gtid_)) {
     // Timeout, change session to RW
-    if (is_rw(cache_->get_type(session_))) {
+    if ((cache_ ? is_rw(cache_->get_type(session_)) : true)) {
       throw_timeout();
     }
     log_debug("Retry on RW session.");

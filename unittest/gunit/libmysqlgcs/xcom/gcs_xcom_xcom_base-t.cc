@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include "app_data.h"
+#include "bitset.h"
 #include "get_synode_app_data.h"
 #include "pax_msg.h"
 #include "xcom_base.h"
@@ -312,6 +313,82 @@ TEST_F(XcomBase, ProposerBatchDeserialization) {
   std::free(buffer);
 }
 #endif  // !defined(_WIN32)
+
+TEST_F(XcomBase, HandleSimpleAckPrepareIgnoresInvalidSender) {
+  synode_no synod;
+  synod.group_id = 1;
+  synod.msgno = 42;
+  synod.node = 0;
+
+  auto *paxos = static_cast<pax_machine *>(std::calloc(1, sizeof(pax_machine)));
+  init_pax_machine(paxos, nullptr, synod);
+
+  auto *config = new_site_def();
+  config->nodeno = 0;
+  config->nodes.node_list_len = 1;
+  config->global_node_set.node_set_len = 1;
+
+  replace_pax_msg(&paxos->proposer.msg, pax_msg_new(synod, config));
+  prepare_push_2p(config, paxos);
+
+  pax_msg *ack_prepare = pax_msg_new(synod, config);
+  ack_prepare->op = ack_prepare_empty_op;
+  ack_prepare->from = 1;
+  ack_prepare->reply_to = paxos->proposer.bal;
+
+  ASSERT_FALSE(handle_simple_ack_prepare(config, paxos, ack_prepare));
+  for (u_int word = 0; word < paxos->proposer.prep_nodeset->bits.bits_len;
+       word++) {
+    ASSERT_EQ(0U, paxos->proposer.prep_nodeset->bits.bits_val[word]);
+  }
+
+  ack_prepare->refcnt = 1;
+  replace_pax_msg(&ack_prepare, nullptr);
+
+  init_pax_machine(paxos, nullptr, synod);
+  free_bit_set(paxos->proposer.prep_nodeset);
+  free_bit_set(paxos->proposer.prop_nodeset);
+  std::free(paxos);
+  std::free(config);
+}
+
+TEST_F(XcomBase, HandleSimpleAckAcceptIgnoresInvalidSender) {
+  synode_no synod;
+  synod.group_id = 1;
+  synod.msgno = 42;
+  synod.node = 0;
+
+  auto *paxos = static_cast<pax_machine *>(std::calloc(1, sizeof(pax_machine)));
+  init_pax_machine(paxos, nullptr, synod);
+
+  auto *config = new_site_def();
+  config->nodeno = 0;
+  config->nodes.node_list_len = 1;
+  config->global_node_set.node_set_len = 1;
+
+  replace_pax_msg(&paxos->proposer.msg, pax_msg_new(synod, config));
+  prepare_push_2p(config, paxos);
+
+  pax_msg *ack_accept = pax_msg_new(synod, config);
+  ack_accept->op = ack_accept_op;
+  ack_accept->from = 1;
+  ack_accept->reply_to = paxos->proposer.bal;
+
+  ASSERT_EQ(nullptr, handle_simple_ack_accept(config, paxos, ack_accept));
+  for (u_int word = 0; word < paxos->proposer.prop_nodeset->bits.bits_len;
+       word++) {
+    ASSERT_EQ(0U, paxos->proposer.prop_nodeset->bits.bits_val[word]);
+  }
+
+  ack_accept->refcnt = 1;
+  replace_pax_msg(&ack_accept, nullptr);
+
+  init_pax_machine(paxos, nullptr, synod);
+  free_bit_set(paxos->proposer.prep_nodeset);
+  free_bit_set(paxos->proposer.prop_nodeset);
+  std::free(paxos);
+  std::free(config);
+}
 
 // clang-format off
 /*
@@ -1217,6 +1294,85 @@ TEST_F(XcomBase, ProcessPingToUsTwoServersSendingPings) {
 
   free(srv_from1.con);
   free(srv_from2.con);
+}
+
+TEST_F(XcomBase, ValidateSnapshotMessageRejectsInvalidSenderNodeNumbers) {
+  gcs_snapshot snapshot{};
+  pax_msg message{};
+
+  message.op = gcs_snapshot_op;
+  message.gcs_snap = &snapshot;
+
+  message.from = 0;
+  EXPECT_TRUE(is_valid_snapshot_message(&message));
+
+  message.from = NSERVERS - 1;
+  EXPECT_TRUE(is_valid_snapshot_message(&message));
+
+  message.from = NSERVERS;
+  EXPECT_FALSE(is_valid_snapshot_message(&message));
+
+  message.from = 0x08000000U;
+  EXPECT_FALSE(is_valid_snapshot_message(&message));
+
+  message.from = VOID_NODE_NO;
+  EXPECT_FALSE(is_valid_snapshot_message(&message));
+
+  message.from = 0;
+  message.gcs_snap = nullptr;
+  EXPECT_FALSE(is_valid_snapshot_message(&message));
+}
+
+TEST_F(XcomBase, GetSnapshotReceiveAction) {
+  gcs_snapshot snapshot{};
+  pax_msg message{};
+
+  message.op = are_you_alive_op;
+  EXPECT_EQ(snapshot_receive_action::not_snapshot,
+            get_snapshot_receive_action(&message, true));
+  EXPECT_EQ(snapshot_receive_action::not_snapshot,
+            get_snapshot_receive_action(&message, false));
+
+  message.op = gcs_snapshot_op;
+  message.gcs_snap = &snapshot;
+
+  message.from = 0;
+  EXPECT_EQ(snapshot_receive_action::drop,
+            get_snapshot_receive_action(&message, true));
+  EXPECT_EQ(snapshot_receive_action::process,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = NSERVERS - 1;
+  EXPECT_EQ(snapshot_receive_action::process,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = NSERVERS;
+  EXPECT_EQ(snapshot_receive_action::drop,
+            get_snapshot_receive_action(&message, true));
+  EXPECT_EQ(snapshot_receive_action::terminate_connection,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = 0x08000000U;
+  EXPECT_EQ(snapshot_receive_action::terminate_connection,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = VOID_NODE_NO;
+  EXPECT_EQ(snapshot_receive_action::terminate_connection,
+            get_snapshot_receive_action(&message, false));
+
+  message.from = 0;
+  message.gcs_snap = nullptr;
+  EXPECT_EQ(snapshot_receive_action::terminate_connection,
+            get_snapshot_receive_action(&message, false));
+}
+
+TEST_F(XcomBase, IsNodeNumberInValidRange) {
+  EXPECT_TRUE(is_node_number_in_valid_range(0));
+  EXPECT_TRUE(is_node_number_in_valid_range(NSERVERS - 1));
+
+  EXPECT_FALSE(is_node_number_in_valid_range(NSERVERS));
+  EXPECT_FALSE(is_node_number_in_valid_range(0x08000000U));
+  EXPECT_FALSE(is_node_number_in_valid_range(VOID_NODE_NO));
 }
 
 }  // namespace xcom_base_unittest

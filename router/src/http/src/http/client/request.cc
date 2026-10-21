@@ -36,6 +36,11 @@ using StatusType = Request::StatusType;
 using Uri = Request::Uri;
 using ConnectionInterface = Request::ConnectionInterface;
 
+Request::Request(const Uri &uri, MethodType method)
+    : holder_{std::make_unique<Holder>(uri, method)} {}
+
+Request::Request() : Request(Uri{"/"}, http::base::method::Get) {}
+
 Request::Request(Request &&other) : holder_{std::move(other.holder_)} {}
 
 Request::~Request() = default;

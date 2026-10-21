@@ -69,6 +69,9 @@ class TaskControl : public T {
       do {
         fetched = state_.wait({k_stateRunning, k_stateStopped});
 
+        log_debug("TaskControl::fetched = %i, was_running=%s", (int)fetched,
+                  (was_running ? "yes" : "no"));
+
         if (was_running) {
           log_debug("TaskControl::start - reset()");
           T::reset();

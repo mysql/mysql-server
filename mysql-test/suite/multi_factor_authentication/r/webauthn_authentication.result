@@ -1,0 +1,107 @@
+INSTALL PLUGIN authentication_webauthn SONAME 'authentication_webauthn.so';
+# Global - default
+SELECT @@global.authentication_webauthn_rp_id;
+@@global.authentication_webauthn_rp_id
+mysql.com
+SET global DEBUG= '+d, simulate_fido_testing';
+# CREATE USER with default 1FA method
+CREATE USER u1 IDENTIFIED BY 'pass';
+SELECT USER();
+USER()
+u1@localhost
+# Add fido authentication as 2nd factor
+ALTER USER u1 ADD 2 FACTOR IDENTIFIED WITH authentication_webauthn;
+# connection should fail as --register-factor option was not set
+# check user_attributes, requires_registration flag should be ON
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+user	plugin	user_attributes
+u1	caching_sha2_password	{"multi_factor_authentication": [{"plugin": "authentication_webauthn", "passwordless": 0, "authentication_string": "", "requires_registration": 1}]}
+# specify --register-factor with 2nd factor, connection should succeed with registration step done for 2nd factor
+current_user()	user()
+u1@%	u1@localhost
+# check user_attributes, requires_registration flag should be OFF
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+user	plugin	user_attributes
+u1	caching_sha2_password	{"multi_factor_authentication": [{"plugin": "authentication_webauthn", "passwordless": 0, "authentication_string": "CkNSRURJRExFTiAKUFVCS0VZTEVO", "requires_registration": 0}]}
+# Add fido authentication as 3rd factor
+ALTER USER u1 ADD 3 FACTOR IDENTIFIED WITH authentication_webauthn;
+# connection should fail as --register-factor option was not set
+# connection should succeed
+current_user()	user()
+u1@%	u1@localhost
+# check user_attributes, after registration requires_registration flag should be OFF
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+user	plugin	user_attributes
+u1	caching_sha2_password	{"multi_factor_authentication": [{"plugin": "authentication_webauthn", "passwordless": 0, "authentication_string": "CkNSRURJRExFTiAKUFVCS0VZTEVO", "requires_registration": 0}, {"plugin": "authentication_webauthn", "passwordless": 0, "authentication_string": "CkNSRURJRExFTiAKUFVCS0VZTEVO", "requires_registration": 0}]}
+# connection should succeed
+current_user()	user()
+u1@%	u1@localhost
+# drop 2,3 factors
+ALTER USER u1 DROP 2 FACTOR DROP 3 FACTOR;
+# user_attributes should be NULL
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+user	plugin	user_attributes
+u1	caching_sha2_password	NULL
+# connection should pass
+current_user()	user()
+u1@%	u1@localhost
+# Add webauthn authentication plugin as 2nd, 3rd factors
+ALTER USER u1 ADD 2 FACTOR IDENTIFIED WITH authentication_webauthn ADD 3 FACTOR IDENTIFIED WITH authentication_webauthn;
+# user_attributes requires_registration flag should be ON
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+user	plugin	user_attributes
+u1	caching_sha2_password	{"multi_factor_authentication": [{"plugin": "authentication_webauthn", "passwordless": 0, "authentication_string": "", "requires_registration": 1}, {"plugin": "authentication_webauthn", "passwordless": 0, "authentication_string": "", "requires_registration": 1}]}
+# connection should fail as --register-factor option was not set
+# connection should succeed
+current_user()	user()
+u1@%	u1@localhost
+# user_attributes requires_registration flag should be OFF
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+user	plugin	user_attributes
+u1	caching_sha2_password	{"multi_factor_authentication": [{"plugin": "authentication_webauthn", "passwordless": 0, "authentication_string": "CkNSRURJRExFTiAKUFVCS0VZTEVO", "requires_registration": 0}, {"plugin": "authentication_webauthn", "passwordless": 0, "authentication_string": "CkNSRURJRExFTiAKUFVCS0VZTEVO", "requires_registration": 0}]}
+DROP USER u1;
+CREATE USER test_user;
+GRANT ALL ON *.* TO test_user;
+REVOKE PASSWORDLESS_USER_ADMIN ON *.* FROM test_user;
+RESET BINARY LOGS AND GTIDS;
+# Add fido authentication as a regular 2FA method
+CREATE USER u1 IDENTIFIED BY 'pass' AND IDENTIFIED WITH authentication_webauthn;
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+user	plugin	user_attributes
+u1	caching_sha2_password	{"multi_factor_authentication": [{"plugin": "authentication_webauthn", "passwordless": 0, "authentication_string": "", "requires_registration": 1}]}
+# perform registration
+DROP USER u1;
+# Add webauthn authentication as a passwordless authentication method
+CREATE USER u1 IDENTIFIED WITH authentication_webauthn INITIAL AUTHENTICATION IDENTIFIED BY 'pass';
+SHOW CREATE USER u1;
+CREATE USER for u1@%
+CREATE USER `u1`@`%` IDENTIFIED WITH 'authentication_webauthn' INITIAL AUTHENTICATION IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+SET GLOBAL authentication_policy = 'caching_sha2_password,authentication_webauthn';
+REVOKE AUTHENTICATION_POLICY_ADMIN ON *.* FROM test_user;
+# registration step replaces webauthn as first factor which does not match with policy
+# ensure nothing changes
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+user	plugin	user_attributes
+u1	caching_sha2_password	{"multi_factor_authentication": [{"plugin": "authentication_webauthn", "passwordless": 1, "authentication_string": "", "requires_registration": 1}]}
+# reset policy to default and check that registration succeeds
+SET GLOBAL authentication_policy = default;
+# do registration step and check that sandbox mode is removed after registration
+current_user()	user()
+u1@%	u1@localhost
+# after registration 1st factor auth method should be replaced with 2nd factor
+SELECT user,plugin,user_attributes FROM mysql.user WHERE user='u1';
+user	plugin	user_attributes
+u1	authentication_webauthn	NULL
+# now connection should succeed without password
+current_user()	user()
+u1@%	u1@localhost
+DROP USER u1;
+CREATE USER u1 IDENTIFIED WITH authentication_webauthn INITIAL AUTHENTICATION IDENTIFIED BY 'pass';
+# below alter user should replace 1FA with 2FA method and will be allowed only if user has PASSWORDLESS_USER_ADMIN privilege
+ALTER USER u1 MODIFY 2 FACTOR IDENTIFIED WITH authentication_webauthn AS 'QLSVFbEVLmJm6TFE/ip92WDEkJhTMe4dHoYRobxJZqea6eaVsLMAtvjm+H5CBdInlB1uxexjuGt8==';
+ERROR HY000: The operation "ALTER USER" cannot be performed for user 'u1'@'%' configured to connect without a password.
+DROP USER u1;
+RESET BINARY LOGS AND GTIDS;
+DROP USER test_user;
+SET global DEBUG= '-d, simulate_fido_testing';
+UNINSTALL PLUGIN authentication_webauthn;

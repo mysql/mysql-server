@@ -1,0 +1,526 @@
+############################################################################
+# Purpose:
+#   Verify that mysql_upgrade_history preserves the legacy compatibility
+#   version, records exact versions in update_history, and handles legacy and
+#   structurally unusable or invalid history files.
+#
+# Implementation:
+#   Initialize an isolated data directory, restart it with seeded history
+#   files, and validate the resulting JSON through LOAD DATA INFILE and the
+#   server JSON functions.
+#
+# References:
+#   WL#17318: Four-part version update support
+############################################################################
+
+--source include/big_test.inc
+
+--let BASEDIR= `select @@basedir`
+--let DDIR=$MYSQL_TMP_DIR/upgrade_history_test
+--let MYSQLD_LOG=$MYSQL_TMP_DIR/upgrade_history_server.log
+--let UPGRADE_HISTORY_FILE=$DDIR/mysql_upgrade_history
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/upgrade_history_bootstrap.sql
+--let RECOVERY_WARNING_ASSERT=$MYSQL_TMP_DIR/assert_upgrade_history_recovery_warning.inc
+--let RESTART_ARGS=--datadir=$DDIR --secure-file-priv=$DDIR --log-error-verbosity=2
+--let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --tls-version= --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR
+--let EXPECT_LAST_UPGRADE_HISTORY_DATE=
+--let EXPECT_LAST_UPGRADE_HISTORY_MATURITY=
+
+--write_file $RECOVERY_WARNING_ASSERT
+--let $grep_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern= Invalid format of file .*mysql_upgrade_history.*The file will be recreated
+--let $grep_output= none
+--source include/grep_pattern.inc
+if ($GREP_RESULT == 0)
+{
+  --die upgrade-history recovery warning was not logged
+}
+EOF
+
+--echo # Suppress expected recovery warnings from corrupt history files
+CALL mtr.add_suppression("Invalid format of file .*mysql_upgrade_history.*The file will be recreated");
+
+# State comments show the relevant JSON members only. <current> and
+# <current-full> stand for the running compatibility and exact-release versions.
+#
+# FR-6 test mapping:
+#   FR-6.1.1: Case 1  — create the initial history entry.
+#   FR-6.1.2: Case 1  — do not rewrite the file on an exact-version restart.
+#   FR-6.1.3: Case 2  — append after an exact-version transition.
+#   FR-6.2.1: Case 3  — extend a matching legacy entry.
+#   FR-6.2.2: Case 4  — append after a compatibility-version transition.
+#   FR-6.2.3: Case 5  — extend an empty update_history array.
+#   FR-6.2.4: Case 6  — recreate after malformed update_history entries.
+#   FR-6.2.5: Case 3  — preserve existing members while extending a legacy entry.
+#   FR-6.2.6: Case 7  — recreate after non-array update_history values.
+#   FR-6.3.1: Case 8  — append to an empty upgrade_history array.
+#   FR-6.3.2: Cases 9-10 — recreate after malformed parent entries.
+#   FR-6.3.3: Cases 11-16 — recreate root-structure and invalid-JSON
+#     corruption cases.
+
+# Case 1 (FR-6.1.1, FR-6.1.2): Create the initial history entry.
+--echo # Case 1 (FR-6.1.1, FR-6.1.2): Create the initial history entry.
+--echo # Use an isolated initialized data directory so this test controls its history file.
+
+--source include/shutdown_mysqld.inc
+
+--echo # The restart helper connects to the test schema, so create it during initialization.
+--write_file $BOOTSTRAP_SQL
+CREATE DATABASE test;
+EOF
+
+# Before initialization: no mysql_upgrade_history file exists.
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL --log-error-verbosity=1 > $MYSQLD_LOG 2>&1
+--file_exists $UPGRADE_HISTORY_FILE
+--copy_file $UPGRADE_HISTORY_FILE $DDIR/initial_upgrade_history_file
+
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--diff_files $UPGRADE_HISTORY_FILE $DDIR/initial_upgrade_history_file
+
+# After initialization/restart:
+# {
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+# Define expected version inputs for assert_upgrade_history.inc.
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_FIRST_UPDATE_HISTORY_VERSION=
+
+--source include/assert_upgrade_history.inc
+
+# Case 2 (FR-6.1.3): Append the current entry after a different exact version.
+--echo # Case 2 (FR-6.1.3): Append the current entry after a different exact version.
+--echo # A return to a previous exact release is recorded as a new entry.
+
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":[{"date":"2026-08-01 11:22:33","version":"$HISTORY_VERSION","maturity":"LTS","update_history":[{"date":"2026-08-01 11:22:33","version_with_update":"$HISTORY_VERSION_WITH_UPDATE"},{"date":"2026-08-01 11:23:33","version_with_update":"different-full-version"}]}]}' > $UPGRADE_HISTORY_FILE
+--copy_file $UPGRADE_HISTORY_FILE $DDIR/different_upgrade_history_file
+
+# Before restart: one matching entry has exact versions [current, different].
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+# After restart:
+# {
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [
+#       {"version_with_update": "<current-full>"},
+#       {"version_with_update": "different-full-version"},
+#       {"version_with_update": "<current-full>"}
+#     ]}
+#   ]
+# }
+--error 2
+--diff_files $UPGRADE_HISTORY_FILE $DDIR/different_upgrade_history_file
+
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=3
+--let EXPECT_FIRST_UPDATE_HISTORY_VERSION=$HISTORY_VERSION_WITH_UPDATE
+--source include/assert_upgrade_history.inc
+
+# Case 3 (FR-6.2.1, FR-6.2.5): Extend a matching legacy history entry.
+--echo # Case 3 (FR-6.2.1, FR-6.2.5): Extend a matching legacy history entry.
+--echo # A missing update_history starts with the current exact release.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":[{"date":"2026-01-01 00:00:00","version":"$HISTORY_VERSION","maturity":"LTS"}]}' > $UPGRADE_HISTORY_FILE
+--copy_file $UPGRADE_HISTORY_FILE $DDIR/legacy_upgrade_history_file
+
+# Before restart: one matching legacy entry has no update_history member.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+# After restart:
+# {
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+--error 2
+--diff_files $UPGRADE_HISTORY_FILE $DDIR/legacy_upgrade_history_file
+
+# Define expected version inputs for assert_upgrade_history.inc.
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_FIRST_UPDATE_HISTORY_VERSION=
+--let EXPECT_LAST_UPGRADE_HISTORY_DATE=2026-01-01 00:00:00
+--let EXPECT_LAST_UPGRADE_HISTORY_MATURITY=LTS
+--source include/assert_upgrade_history.inc
+--let EXPECT_LAST_UPGRADE_HISTORY_DATE=
+--let EXPECT_LAST_UPGRADE_HISTORY_MATURITY=
+
+# Case 4 (FR-6.2.2): Append after a compatibility-version transition.
+--echo # Case 4 (FR-6.2.2): Append after a compatibility-version transition.
+--echo # A legacy entry for a different compatibility version remains in the history.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":[{"date":"2026-01-01 00:11:22","version":"9.7.0","maturity":"LTS"}]}' > $UPGRADE_HISTORY_FILE
+--remove_file $DDIR/legacy_upgrade_history_file
+--copy_file $UPGRADE_HISTORY_FILE $DDIR/legacy_upgrade_history_file
+
+# Before restart: history contains one legacy entry for version 9.7.0.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+# After restart:
+# {
+#   "upgrade_history": [
+#     {"version": "9.7.0"},
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+--error 2
+--diff_files $UPGRADE_HISTORY_FILE $DDIR/legacy_upgrade_history_file
+
+# Define expected version inputs for assert_upgrade_history.inc.
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=9.7.0
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=2
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 5 (FR-6.2.3): Append to an empty update-history array.
+--echo # Case 5 (FR-6.2.3): Append to an empty update-history array.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":[{"date":"2026-08-02 11:22:33","version":"$HISTORY_VERSION","maturity":"LTS","update_history":[]}]}' > $UPGRADE_HISTORY_FILE
+
+# Before restart: one matching entry has an empty update_history array.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+# After restart:
+# {
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_FIRST_UPDATE_HISTORY_VERSION=
+--source include/assert_upgrade_history.inc
+
+# Case 6: Recover from an update-history entry without a full version.
+--echo # Case 6: Recover from an update-history entry without a full version.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":[{"date":"2026-08-03 11:22:33","version":"$HISTORY_VERSION","maturity":"LTS","update_history":[true,{"date":"2026-08-03 11:22:33"},{"version_with_update":1}]}]}' > $UPGRADE_HISTORY_FILE
+
+# Before restart: update_history contains non-object, missing, and non-string
+# version_with_update entries.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart the corrupt document is replaced with one current entry.
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 7: Recover from every supported non-array update-history value.
+--echo # Case 7: Recover from non-array update-history values.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":[{"version":"old-null","update_history":null},{"version":"old-bool","update_history":true},{"version":"old-string","update_history":"invalid"},{"version":"old-number","update_history":1},{"version":"old-object","update_history":{}}]}' > $UPGRADE_HISTORY_FILE
+--copy_file $UPGRADE_HISTORY_FILE $DDIR/non_array_update_history_file
+
+# Before restart: each listed non-array update_history shape is present.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart the corrupt document is replaced with one current entry.
+--error 2
+--diff_files $UPGRADE_HISTORY_FILE $DDIR/non_array_update_history_file
+
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 8 (FR-6.3.1): Append an entry after an empty valid history.
+--echo # Case 8 (FR-6.3.1): Append an entry after an empty valid history.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":[]}' > $UPGRADE_HISTORY_FILE
+
+# Before restart: the document is valid but upgrade_history is empty.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+# After restart:
+# {
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 9: Recover from a non-object parent entry.
+--echo # Case 9: Recover from a non-object parent entry.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":["not an object",{"version":"$HISTORY_VERSION","update_history":[]}]}' > $UPGRADE_HISTORY_FILE
+
+# Before restart: an earlier history entry is a scalar rather than an object.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart the corrupt document is replaced with one current entry.
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 10: Recover from a parent entry without a string version.
+--echo # Case 10: Recover from a parent entry without a string version.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":[{"version":"$HISTORY_VERSION","update_history":[]},{"date":"2026-08-04 11:22:33"},{"version":0}]}' > $UPGRADE_HISTORY_FILE
+
+# Before restart: parent entries have missing and non-string version values.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart the corrupt document is replaced with one current entry.
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 11 (FR-6.3.3): Recover from a parseable structurally invalid history file.
+--echo # Case 11 (FR-6.3.3): Recover from a parseable structurally invalid history file.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1","upgrade_history":{}}' > $UPGRADE_HISTORY_FILE
+
+# Before restart: upgrade_history is an object, not the required array.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart:
+# {
+#   "file_format": "1",
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 12 (FR-6.3.3): Recover from a non-object root document.
+--echo # Case 12 (FR-6.3.3): Recover from a non-object root document.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '[]' > $UPGRADE_HISTORY_FILE
+
+# Before restart: the document root is an array, not an object.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart:
+# {
+#   "file_format": "1",
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_FIRST_UPDATE_HISTORY_VERSION=
+--source include/assert_upgrade_history.inc
+
+# Case 13 (FR-6.3.3): Recover when file_format is not a string.
+--echo # Case 13 (FR-6.3.3): Recover when file_format is not a string.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":1,"upgrade_history":[]}' > $UPGRADE_HISTORY_FILE
+
+# Before restart: file_format is numeric instead of a string.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart:
+# {
+#   "file_format": "1",
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 14 (FR-6.3.3): Recover when the upgrade-history array is absent.
+--echo # Case 14 (FR-6.3.3): Recover when the upgrade-history array is absent.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"file_format":"1"}' > $UPGRADE_HISTORY_FILE
+
+# Before restart: the required upgrade_history member is absent.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart:
+# {
+#   "file_format": "1",
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 15: Recover from an invalid history file.
+--echo # Case 15: Recover from an invalid history file.
+--echo # History-file errors are non-fatal and the next write recreates the document.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--write_file $UPGRADE_HISTORY_FILE
+not valid JSON
+EOF
+
+# Before restart: mysql_upgrade_history contains invalid JSON.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart:
+# {
+#   "file_format": "1",
+#   "upgrade_history": [
+#     {"version": "<current>", "update_history": [{"version_with_update": "<current-full>"}]}
+#   ]
+# }
+# Define expected version inputs for assert_upgrade_history.inc.
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+# Case 16: Recover when file_format is absent.
+--echo # Case 16: Recover when file_format is absent.
+
+--source include/shutdown_mysqld.inc
+--remove_file $UPGRADE_HISTORY_FILE
+
+--exec echo '{"upgrade_history":[]}' > $UPGRADE_HISTORY_FILE
+
+# Before restart: the required file_format member is absent.
+--exec echo "restart:$RESTART_ARGS " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source $RECOVERY_WARNING_ASSERT
+
+# After restart the corrupt document is replaced with one current entry.
+--let HISTORY_VERSION= `SELECT VERSION()`
+--let HISTORY_VERSION_WITH_UPDATE= `SELECT VERSION_WITH_UPDATE()`
+--let EXPECT_LEGACY_PREVIOUS_VERSION=
+--let EXPECT_UPGRADE_HISTORY_ENTRY_COUNT=1
+--let EXPECT_UPDATE_HISTORY_ENTRY_COUNT=1
+--source include/assert_upgrade_history.inc
+
+--echo # Shut down the isolated server
+
+--source include/shutdown_mysqld.inc
+
+--remove_file $MYSQLD_LOG
+--remove_file $BOOTSTRAP_SQL
+--remove_file $RECOVERY_WARNING_ASSERT
+--force-rmdir $DDIR
+
+--echo # Restore the default server for post-test checks
+
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc

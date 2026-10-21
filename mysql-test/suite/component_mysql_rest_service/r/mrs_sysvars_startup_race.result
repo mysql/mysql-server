@@ -1,0 +1,70 @@
+
+
+## I. Commit updates while startup is paused before status publication
+## II. Publish one coherent active snapshot and retain runtime updates
+## III. Apply the committed start-time snapshot on the next restart
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+SELECT mysql_rest_service_stop();
+mysql_rest_service_stop()
+0
+
+# I. Pause a new startup before it publishes READY and current values
+SET @@GLOBAL.DEBUG = '+d, mrs_component_pause_before_runtime_status_publication';
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+include/assert.inc [startup remains STARTING at the publication checkpoint]
+include/assert.inc [no active snapshot is visible at the publication checkpoint]
+# Commit start-time and runtime-applied changes while startup is paused.
+include/assert.inc [paused startup retains the committed http_port]
+include/assert.inc [paused startup retains the committed TLS certificate]
+include/assert.inc [paused startup retains the committed TLS private key]
+include/assert.inc [paused startup retains the committed TLS cipher]
+include/assert.inc [paused startup retains the committed worker count]
+include/assert.inc [paused startup retains the committed request-body limit]
+
+# II. Release the same startup through an idempotent start request
+SET @@GLOBAL.DEBUG = '-d, mrs_component_pause_before_runtime_status_publication';
+SET @@GLOBAL.DEBUG = '+d, mrs_component_resume_runtime_status_publication';
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+SET @@GLOBAL.DEBUG = '-d, mrs_component_resume_runtime_status_publication';
+include/assert.inc [resumed startup publishes its captured HTTP port]
+include/assert.inc [resumed startup publishes its captured TLS certificate]
+include/assert.inc [resumed startup publishes its captured TLS private key]
+include/assert.inc [resumed startup publishes its captured TLS cipher]
+include/assert.inc [resumed startup publishes its captured worker count]
+# The runtime-applied request-body update survives readiness publication.
+SET GLOBAL mysql_rest_service.http_max_request_body_size = DEFAULT;
+# The configured replacement port is not active before restart.
+ERROR: Can't connect to remote host
+
+
+# III. Restart with the configuration committed during prior startup
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+include/assert.inc [restart publishes the committed HTTP port]
+include/assert.inc [restart publishes the committed TLS certificate]
+include/assert.inc [restart publishes the committed TLS private key]
+include/assert.inc [restart publishes the committed TLS cipher]
+include/assert.inc [restart publishes the committed worker count]
+# The old listener is unavailable after restart.
+ERROR: Can't connect to remote host
+
+# The replacement listener is available with one coherent snapshot.
+
+# Cleanup
+SET GLOBAL mysql_rest_service.ssl_cert = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_key = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_cipher = DEFAULT;
+SET GLOBAL mysql_rest_service.io_worker_threads = DEFAULT;
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

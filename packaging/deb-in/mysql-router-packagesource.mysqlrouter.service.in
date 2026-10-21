@@ -38,6 +38,7 @@ Group=mysqlrouter
 Type=notify
 ExecStartPre=/usr/share/mysqlrouter/mysqlrouter-systemd-start pre
 ExecStart=/usr/bin/mysqlrouter
+ExecReload=/usr/bin/mysqlrouter --reload-tls --pid=${MAINPID}
 EnvironmentFile=-/etc/default/mysql
 LimitNOFILE = 10000
 Restart=on-failure

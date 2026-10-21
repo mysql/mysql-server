@@ -128,14 +128,15 @@ static const std::string &get_method_as_string(
 // as templated type.
 template <typename ConnectionStatusCallback>
 impl::Connection create_connection_object(
-    net::io_context &io_context, bool is_tls, TlsClientContext *tls_context,
+    net::io_context &io_context, bool is_tls,
+    std::shared_ptr<TlsClientContext> tls_context,
     ConnectionStatusCallback *ccs, PayloadCallback *obj, bool use_http2) {
   impl::Connection result;
 
   if (is_tls) {
     auto conn = std::make_unique<ConnectionTls>(
-        TlsSocket{tls_context, net::ip::tcp::socket{io_context}}, nullptr, ccs,
-        obj, use_http2);
+        TlsSocket{std::move(tls_context), net::ip::tcp::socket{io_context}},
+        nullptr, ccs, obj, use_http2);
 
     result.tls_handshake_execute = [con = conn.get()](
                                        TlsHandshakeCallback callback) {
@@ -258,12 +259,13 @@ using UsedCallbackImpl = Client::CallbacksImpl;
 Client::Client(io_context &io_context, TlsClientContext &&tls_context,
                bool use_http2)
     : io_context_{io_context},
-      tls_context_{std::move(tls_context)},
+      tls_context_{std::make_shared<TlsClientContext>(std::move(tls_context))},
       callbacks_{std::make_unique<UsedCallbackImpl>(this)},
       use_http2_{use_http2} {}
 
 Client::Client(io_context &io_context, const bool use_http2)
     : io_context_{io_context},
+      tls_context_{std::make_shared<TlsClientContext>()},
       callbacks_{std::make_unique<UsedCallbackImpl>(this)},
       use_http2_{use_http2} {}
 
@@ -340,7 +342,7 @@ void Client::async_send_request(http::client::Request *request) {
         throw make_error_code(FailureCode::kResolveHostNotFound);
 
       auto connection_objects = impl::create_connection_object(
-          io_context_, endpoint.is_tls, &tls_context_, callbacks_.get(),
+          io_context_, endpoint.is_tls, tls_context_, callbacks_.get(),
           callbacks_.get(), use_http2_);
 
       auto connect = [&resolve_result,

@@ -1,0 +1,47 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Load the component
+--echo ##   2. DDL operations on Health Monitor tables
+--echo ##   3. Unload the component
+
+# System stats not supported on Windows
+--source include/not_windows.inc
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo ###
+--echo ### Table Operations: DDL
+--echo ###
+
+--echo
+--echo #
+--echo # system_process_stats_history
+--echo #
+--echo
+
+--error ER_TABLEACCESS_DENIED_ERROR
+drop table system_process_stats_history;
+
+--echo
+--error ER_DBACCESS_DENIED_ERROR
+alter table system_process_stats_history
+  add column foo integer;
+
+--echo
+--error ER_DBACCESS_DENIED_ERROR
+alter table system_process_stats_history
+  add index test_index(timestamp);
+
+create table test.create_select
+  as select * from performance_schema.system_process_stats_history;
+
+drop table test.create_select;
+
+--echo
+--echo ###
+--echo ### Uninstall
+--echo ###
+--echo
+--eval uninstall component 'file://component_health_monitor';

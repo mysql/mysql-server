@@ -374,7 +374,6 @@ POST /svc/authentication/logout
     "status": 200
 }
 OK
-Timeout in wait_condition.inc for SELECT count(*)=0 FROM performance_schema.processlist where USER = 'user1'
 #
 # III.2
 # switch off restriction to registered users and try again with user3

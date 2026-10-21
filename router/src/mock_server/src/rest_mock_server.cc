@@ -49,6 +49,7 @@
 #include "http/base/request.h"
 #include "mysqlrouter/component/http_server_component.h"
 #include "mysqlrouter/mock_server_component.h"
+#include "mysqlrouter/rest_mock_server_export.h"
 #include "scope_guard.h"
 
 #ifdef _WIN32
@@ -335,13 +336,6 @@ static void run(mysql_harness::PluginFuncEnv *env) {
   wait_for_stop(env, 0);
 }
 
-#if defined(_MSC_VER) && defined(rest_mock_server_EXPORTS)
-/* We are building this library */
-#define DLLEXPORT __declspec(dllexport)
-#else
-#define DLLEXPORT
-#endif
-
 static constexpr std::array plugin_requires{
     "logger",
     // "mock_server",
@@ -349,21 +343,22 @@ static constexpr std::array plugin_requires{
 };
 
 extern "C" {
-mysql_harness::Plugin DLLEXPORT harness_plugin_rest_mock_server = {
-    mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
-    "REST_MOCK_SERVER",                      // name
-    VERSION_NUMBER(0, 0, 1),
-    // requires
-    plugin_requires.size(), plugin_requires.data(),
-    // conflicts
-    0, nullptr,
-    init,     // init
-    nullptr,  // deinit
-    run,      // run
-    nullptr,  // stop
-    true,     // declares_readiness
-    0, nullptr,
-    nullptr,  // expose_configuration
+mysql_harness::Plugin REST_MOCK_SERVER_EXPORT
+    harness_plugin_rest_mock_server = {
+        mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+        "REST_MOCK_SERVER",                      // name
+        VERSION_NUMBER(0, 0, 1),
+        // requires
+        plugin_requires.size(), plugin_requires.data(),
+        // conflicts
+        0, nullptr,
+        init,     // init
+        nullptr,  // deinit
+        run,      // run
+        nullptr,  // stop
+        true,     // declares_readiness
+        0, nullptr,
+        nullptr,  // expose_configuration
 };
 }

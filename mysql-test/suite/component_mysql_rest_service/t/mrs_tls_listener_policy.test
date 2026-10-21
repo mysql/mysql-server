@@ -1,0 +1,117 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that the MRS TLS context is independent from the Server TLS contexts.
+
+--source include/not_solaris.inc
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--echo
+--echo # Component restart applies MRS TLS changes without changing Server TLS.
+--disable_query_log
+SET @saved_server_ssl_cipher = @@GLOBAL.ssl_cipher;
+SET @saved_group_concat_max_len = @@SESSION.group_concat_max_len;
+SET SESSION group_concat_max_len = 65535;
+--let $mysql_admin_tls_cert=`SELECT VALUE FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Current_tls_cert'`
+--let $mysql_main_tls_before=`SELECT GROUP_CONCAT(CONCAT(PROPERTY, '=', VALUE) ORDER BY PROPERTY SEPARATOR '|') FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY IN ('Current_tls_ca', 'Current_tls_capath', 'Current_tls_cert', 'Current_tls_cipher', 'Current_tls_ciphersuites', 'Current_tls_crl', 'Current_tls_crlpath', 'Current_tls_key', 'Current_tls_version', 'Force_pqc', 'Use_pqc_sign', 'Tls_kex', 'Ssl_session_cache_mode', 'Ssl_session_cache_size', 'Ssl_session_cache_timeout')`
+--let $mysql_admin_tls_before=`SELECT GROUP_CONCAT(CONCAT(PROPERTY, '=', VALUE) ORDER BY PROPERTY SEPARATOR '|') FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY IN ('Current_tls_ca', 'Current_tls_capath', 'Current_tls_cert', 'Current_tls_cipher', 'Current_tls_ciphersuites', 'Current_tls_crl', 'Current_tls_crlpath', 'Current_tls_key', 'Current_tls_version', 'Force_pqc', 'Use_pqc_sign', 'Tls_kex', 'Ssl_session_cache_mode', 'Ssl_session_cache_size', 'Ssl_session_cache_timeout')`
+--enable_query_log
+
+--let $assert_text=Server admin TLS context uses the configured certificate
+--let $assert_cond="$mysql_admin_tls_cert" = "$MYSQL_TEST_DIR/std_data/server-cert.pem"
+--source include/assert.inc
+
+--disable_query_log
+--eval SET GLOBAL mysql_rest_service.ssl_cert = '$MYSQL_TEST_DIR/std_data/server-cert-sha512.pem'
+--eval SET GLOBAL mysql_rest_service.ssl_key = '$MYSQL_TEST_DIR/std_data/server-key-sha512.pem'
+--enable_query_log
+SET GLOBAL mysql_rest_service.ssl_cipher = 'ECDHE-RSA-AES256-GCM-SHA384';
+SELECT mysql_rest_service_restart();
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--disable_query_log
+--let $mysql_main_tls_after=`SELECT GROUP_CONCAT(CONCAT(PROPERTY, '=', VALUE) ORDER BY PROPERTY SEPARATOR '|') FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY IN ('Current_tls_ca', 'Current_tls_capath', 'Current_tls_cert', 'Current_tls_cipher', 'Current_tls_ciphersuites', 'Current_tls_crl', 'Current_tls_crlpath', 'Current_tls_key', 'Current_tls_version', 'Force_pqc', 'Use_pqc_sign', 'Tls_kex', 'Ssl_session_cache_mode', 'Ssl_session_cache_size', 'Ssl_session_cache_timeout')`
+--let $mysql_admin_tls_after=`SELECT GROUP_CONCAT(CONCAT(PROPERTY, '=', VALUE) ORDER BY PROPERTY SEPARATOR '|') FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY IN ('Current_tls_ca', 'Current_tls_capath', 'Current_tls_cert', 'Current_tls_cipher', 'Current_tls_ciphersuites', 'Current_tls_crl', 'Current_tls_crlpath', 'Current_tls_key', 'Current_tls_version', 'Force_pqc', 'Use_pqc_sign', 'Tls_kex', 'Ssl_session_cache_mode', 'Ssl_session_cache_size', 'Ssl_session_cache_timeout')`
+--let $assert_text=component restart leaves Server main TLS context unchanged
+--let $assert_cond="$mysql_main_tls_after" = "$mysql_main_tls_before"
+--source include/assert.inc
+--let $assert_text=component restart leaves Server admin TLS context unchanged
+--let $assert_cond="$mysql_admin_tls_after" = "$mysql_admin_tls_before"
+--source include/assert.inc
+--let $current_tls_cert=`SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert'`
+--let $current_tls_key=`SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key'`
+--let $current_tls_cipher=`SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher'`
+--let $assert_text=component restart applies the replacement MRS certificate
+--let $assert_cond="$current_tls_cert" = "$MYSQL_TEST_DIR/std_data/server-cert-sha512.pem"
+--source include/assert.inc
+--let $assert_text=component restart applies the replacement MRS private key
+--let $assert_cond="$current_tls_key" = "$MYSQL_TEST_DIR/std_data/server-key-sha512.pem"
+--source include/assert.inc
+--let $assert_text=component restart applies the replacement MRS cipher policy
+--let $assert_cond="$current_tls_cipher" = "ECDHE-RSA-AES256-GCM-SHA384"
+--source include/assert.inc
+--enable_query_log
+
+# A successful handshake is restricted to TLS 1.2 and this single cipher. The
+# certificate extracted from that connection must match the configured leaf.
+--let $openssl_input=$MYSQL_TMP_DIR/mrs-tls-input
+--let $expected_fingerprint=$MYSQL_TMP_DIR/mrs-expected-fingerprint
+--let $active_fingerprint=$MYSQL_TMP_DIR/mrs-active-fingerprint
+--let $tls_transcript=$MYSQL_TMP_DIR/mrs-tls-transcript
+--write_file $openssl_input
+EOF
+--exec $OPENSSL_EXECUTABLE x509 -in $MYSQL_TEST_DIR/std_data/server-cert-sha512.pem -noout -sha256 -fingerprint > $expected_fingerprint
+--exec $OPENSSL_EXECUTABLE s_client -connect 127.0.0.1:$HTTP_SERVER_PORT -tls1_2 -cipher ECDHE-RSA-AES256-GCM-SHA384 -CAfile $MYSQL_TEST_DIR/std_data/ca-sha512.pem -verify_return_error -showcerts -no_ign_eof < $openssl_input > $tls_transcript 2>&1
+--exec $OPENSSL_EXECUTABLE x509 -in $tls_transcript -noout -sha256 -fingerprint > $active_fingerprint
+--diff_files $expected_fingerprint $active_fingerprint
+
+# This TLS 1.2 cipher is allowed by the default policy, but not by the
+# configured single-cipher policy.
+--error 1
+--exec $OPENSSL_EXECUTABLE s_client -connect 127.0.0.1:$HTTP_SERVER_PORT -tls1_2 -cipher ECDHE-RSA-AES128-GCM-SHA256 -CAfile $MYSQL_TEST_DIR/std_data/ca-sha512.pem -verify_return_error -no_ign_eof < $openssl_input > $tls_transcript 2>&1
+
+--echo
+--echo # Server TLS reload leaves the active MRS context unchanged.
+--disable_query_log
+--let $mrs_tls_before=`SELECT GROUP_CONCAT(CONCAT(VARIABLE_NAME, '=', VARIABLE_VALUE) ORDER BY VARIABLE_NAME SEPARATOR '|') FROM performance_schema.global_status WHERE VARIABLE_NAME IN ('mysql_rest_service.current_tls_cert', 'mysql_rest_service.current_tls_key', 'mysql_rest_service.current_tls_cipher')`
+--enable_query_log
+
+SET GLOBAL ssl_cipher = 'ECDHE-RSA-AES128-GCM-SHA256';
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
+
+--disable_query_log
+--let $mrs_tls_after=`SELECT GROUP_CONCAT(CONCAT(VARIABLE_NAME, '=', VARIABLE_VALUE) ORDER BY VARIABLE_NAME SEPARATOR '|') FROM performance_schema.global_status WHERE VARIABLE_NAME IN ('mysql_rest_service.current_tls_cert', 'mysql_rest_service.current_tls_key', 'mysql_rest_service.current_tls_cipher')`
+--let $assert_text=Server TLS reload leaves the active MRS TLS status unchanged
+--let $assert_cond="$mrs_tls_after" = "$mrs_tls_before"
+--source include/assert.inc
+--enable_query_log
+
+# Repeat the constrained handshake to verify the active MRS certificate and
+# cipher were not replaced by the Server reload.
+--exec $OPENSSL_EXECUTABLE s_client -connect 127.0.0.1:$HTTP_SERVER_PORT -tls1_2 -cipher ECDHE-RSA-AES256-GCM-SHA384 -CAfile $MYSQL_TEST_DIR/std_data/ca-sha512.pem -verify_return_error -showcerts -no_ign_eof < $openssl_input > $tls_transcript 2>&1
+--exec $OPENSSL_EXECUTABLE x509 -in $tls_transcript -noout -sha256 -fingerprint > $active_fingerprint
+--diff_files $expected_fingerprint $active_fingerprint
+
+# The Server reload must not restore the MRS default cipher policy.
+--error 1
+--exec $OPENSSL_EXECUTABLE s_client -connect 127.0.0.1:$HTTP_SERVER_PORT -tls1_2 -cipher ECDHE-RSA-AES128-GCM-SHA256 -CAfile $MYSQL_TEST_DIR/std_data/ca-sha512.pem -verify_return_error -no_ign_eof < $openssl_input > $tls_transcript 2>&1
+
+# This request completes over TLS without a client certificate.
+--exec $MRS_CLIENT_ARGS --path /does-not-exist --expected-status 404 --response-type raw --display none
+
+SET GLOBAL ssl_cipher = @saved_server_ssl_cipher;
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
+
+SET GLOBAL mysql_rest_service.ssl_cert = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_key = DEFAULT;
+SET GLOBAL mysql_rest_service.ssl_cipher = DEFAULT;
+--disable_query_log
+SET SESSION group_concat_max_len = @saved_group_concat_max_len;
+--enable_query_log
+--remove_file $openssl_input
+--remove_file $expected_fingerprint
+--remove_file $active_fingerprint
+--remove_file $tls_transcript
+--source ../include/cmrs/cleanup.inc

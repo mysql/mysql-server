@@ -1,0 +1,128 @@
+--source include/windows.inc
+--source include/have_mysql_rest_service_component.inc
+--source include/suppress_tls_off.inc
+--source ../include/cmrs/initialize.inc
+
+--disable_query_log
+--disable_result_log
+CREATE USER mrs_tls_warm@'%'
+  IDENTIFIED WITH caching_sha2_password BY 'correct-password';
+CREATE USER mrs_tls_cold@'%'
+  IDENTIFIED WITH caching_sha2_password BY 'correct-password';
+CREATE SCHEMA mrs_tls_auth;
+CREATE TABLE mrs_tls_auth.fixture (id INT PRIMARY KEY);
+INSERT INTO mrs_tls_auth.fixture VALUES (1);
+--let $router_test_schemas=mrs_tls_auth;$router_test_schemas
+
+# Keep HTTPS available when the MySQL classic TLS context is disabled.
+eval SET GLOBAL mysql_rest_service.ssl_cert='$MYSQL_TEST_DIR/std_data/server-cert.pem';
+eval SET GLOBAL mysql_rest_service.ssl_key='$MYSQL_TEST_DIR/std_data/server-key.pem';
+SELECT mysql_rest_service_restart();
+--enable_result_log
+--enable_query_log
+
+--source $router_tests/mrs/start_object_definition.inc
+--let $mrs_add_service_path="/tls"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+--let $mrs_add_schema=mrs_tls_auth
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=TRUE
+--source $router_tests/mrs/db_schema/add.inc
+--let $mrs_add_db_object=fixture
+--let $mrs_add_db_object_path=/fixture
+--let $mrs_add_db_object_op=READ
+--let $mrs_add_db_object_auth=TRUE
+--source $router_tests/mrs/db_object/add.inc
+--let $mrs_add_auth_app=mysql_auth
+--let $mrs_add_auth_vendor=MySQL Internal
+--let $mrs_add_auth_service=/tls
+--let $mrs_add_auth_registered_users_only=0
+--source $router_tests/mrs/auth_app/add.inc
+--source $router_tests/mrs/end_object_definition.inc
+
+--disable_query_log
+SET @old_log_output=@@GLOBAL.log_output;
+SET @old_general_log=@@GLOBAL.general_log;
+SET GLOBAL general_log=OFF;
+SET GLOBAL log_output='TABLE';
+TRUNCATE TABLE mysql.general_log;
+SET GLOBAL general_log=ON;
+
+--echo # A fresh account uses TLS even when named pipes are enabled.
+--exec $MRS_CLIENT_ARGS -a basic_json -t POST --path /tls/authentication/login -u mrs_tls_warm -p correct-password --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_tls_warm.dat --display none
+--exec $MRS_CLIENT_ARGS --path /tls/db/fixture/1 --session-file $MYSQL_TMP_DIR/mrs_tls_warm.dat --display none
+SELECT COUNT(*) AS authentication_connections,
+  COALESCE(SUM(argument LIKE '%using SSL/TLS'), 0) AS tls_connections
+  FROM mysql.general_log
+  WHERE command_type='Connect' AND argument LIKE 'mrs_tls_warm@%';
+SET GLOBAL general_log=@old_general_log;
+SET GLOBAL log_output=@old_log_output;
+
+--echo # An incorrect password is rejected during full authentication.
+--exec $MRS_CLIENT_ARGS -a basic_json -t POST --path /tls/authentication/login -u mrs_tls_cold -p wrong-password --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_tls_wrong.dat --expected-status Unauthorized --display none
+--exec $MRS_CLIENT_ARGS --path /tls/db/fixture/1 --session-file $MYSQL_TMP_DIR/mrs_tls_wrong.dat --expected-status Unauthorized --display none
+
+SET @old_tls_version=@@GLOBAL.tls_version;
+SET GLOBAL tls_version='';
+--disable_warnings
+ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
+--enable_warnings
+
+# Use new HTTP session files so an existing cookie cannot hide authentication.
+--echo # Without TLS, a cached account cannot fall back to named pipes or TCP.
+--exec $MRS_CLIENT_ARGS -a basic_json -t POST --path /tls/authentication/login -u mrs_tls_warm -p correct-password --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_tls_warm_rejected.dat --expected-status Unauthorized --display none
+--exec $MRS_CLIENT_ARGS --path /tls/db/fixture/1 --session-file $MYSQL_TMP_DIR/mrs_tls_warm_rejected.dat --expected-status Unauthorized --display none
+
+--echo # Without TLS, an uncached account is also rejected.
+--exec $MRS_CLIENT_ARGS -a basic_json -t POST --path /tls/authentication/login -u mrs_tls_cold -p correct-password --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_tls_cold_rejected.dat --expected-status Unauthorized --display none
+--exec $MRS_CLIENT_ARGS --path /tls/db/fixture/1 --session-file $MYSQL_TMP_DIR/mrs_tls_cold_rejected.dat --expected-status Unauthorized --display none
+
+--echo # Reloading TLS permits full authentication without restarting MRS.
+SET GLOBAL tls_version=@old_tls_version;
+ALTER INSTANCE RELOAD TLS;
+--exec $MRS_CLIENT_ARGS -a basic_json -t POST --path /tls/authentication/login -u mrs_tls_cold -p correct-password --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_tls_cold.dat --display none
+--exec $MRS_CLIENT_ARGS --path /tls/db/fixture/1 --session-file $MYSQL_TMP_DIR/mrs_tls_cold.dat --display none
+
+--echo # Without TCP, authentication does not fall back to named pipes.
+--disable_result_log
+SELECT mysql_rest_service_stop();
+eval SET PERSIST mysql_rest_service.http_port=$HTTP_SERVER_PORT;
+--enable_result_log
+--let $restart_parameters=restart: --skip-networking
+--let $wait_for_tcpsocket_status=no_wait
+--source include/restart_mysqld.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition_or_abort.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+--disable_query_log
+
+SET @old_log_output=@@GLOBAL.log_output;
+SET @old_general_log=@@GLOBAL.general_log;
+SET GLOBAL general_log=OFF;
+SET GLOBAL log_output='TABLE';
+TRUNCATE TABLE mysql.general_log;
+SET GLOBAL general_log=ON;
+SELECT @@skip_networking, @@named_pipe;
+--exec $MRS_CLIENT_ARGS -a basic_json -t POST --path /tls/authentication/login -u mrs_tls_cold -p correct-password --session-type cookie --session-file $MYSQL_TMP_DIR/mrs_tls_no_tcp.dat --expected-status Unauthorized --display none
+--exec $MRS_CLIENT_ARGS --path /tls/db/fixture/1 --session-file $MYSQL_TMP_DIR/mrs_tls_no_tcp.dat --expected-status Unauthorized --display none
+# Count failed handshakes too, so an RSA failure cannot hide a pipe attempt.
+SELECT COUNT(*) AS authentication_attempts
+  FROM mysql.general_log
+  WHERE command_type='Connect' AND argument LIKE '%mrs_tls_cold%';
+SET GLOBAL general_log=@old_general_log;
+SET GLOBAL log_output=@old_log_output;
+RESET PERSIST mysql_rest_service.http_port;
+
+--remove_file $MYSQL_TMP_DIR/mrs_tls_warm.dat
+--remove_file $MYSQL_TMP_DIR/mrs_tls_wrong.dat
+--remove_file $MYSQL_TMP_DIR/mrs_tls_warm_rejected.dat
+--remove_file $MYSQL_TMP_DIR/mrs_tls_cold_rejected.dat
+--remove_file $MYSQL_TMP_DIR/mrs_tls_cold.dat
+--remove_file $MYSQL_TMP_DIR/mrs_tls_no_tcp.dat
+DROP USER mrs_tls_warm@'%', mrs_tls_cold@'%';
+--let $mrs_tls_mysql=$MYSQL
+--let $MYSQL=$MYSQL --protocol=PIPE
+--source ../include/cmrs/cleanup.inc
+--let $MYSQL=$mrs_tls_mysql
+--let $mrs_tls_mysql=

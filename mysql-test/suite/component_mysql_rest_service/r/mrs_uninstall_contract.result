@@ -1,0 +1,66 @@
+
+
+## I. Install and prepare state that must survive uninstall
+## II. Uninstall and verify removed interfaces and retained state
+## III. Reinstall and verify that retained state remains usable
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+CREATE USER 'mrs_uninstall_user'@'localhost';
+GRANT MYSQL_REST_SERVICE_ADMIN ON *.* TO
+'mrs_uninstall_user'@'localhost';
+SET PERSIST mysql_rest_service.http_max_connections = 2048;
+include/assert.inc [state reports READY before uninstall]
+# The HTTPS listener accepts requests before uninstall.
+
+# II. Uninstall the component without deleting retained state
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+include/assert.inc [component registry entry is removed after uninstall]
+include/assert.inc [all MRS lifecycle UDFs are unregistered]
+SELECT mysql_rest_service_start();
+ERROR 42000: FUNCTION test.mysql_rest_service_start does not exist
+include/assert.inc [all MRS system variables are unregistered]
+SELECT @@mysql_rest_service.http_max_connections;
+ERROR HY000: Unknown system variable 'mysql_rest_service.http_max_connections'
+include/assert.inc [all MRS status variables are unregistered]
+include/assert.inc [fixed internal accounts survive uninstall]
+include/assert.inc [fixed internal account role grants survive uninstall]
+include/assert.inc [fixed internal account default roles survive uninstall]
+include/assert.inc [MRS metadata schema survives uninstall]
+include/assert.inc [component metadata registration survives uninstall]
+include/assert.inc [persisted component configuration survives uninstall]
+include/assert.inc [existing MRS dynamic privilege grants survive unregister]
+# The REST listener must remain unavailable after uninstall.
+ERROR: Can't connect to remote host
+
+SELECT 1 AS classic_protocol_usable;
+classic_protocol_usable
+1
+REVOKE MYSQL_REST_SERVICE_ADMIN ON *.* FROM
+'mrs_uninstall_user'@'localhost';
+Warnings:
+Warning	3929	Dynamic privilege 'MYSQL_REST_SERVICE_ADMIN' is not registered with the server.
+
+# III. Reinstall the component and reuse retained state
+INSTALL COMPONENT "file://component_mysql_rest_service" SET ...;
+include/assert.inc [component registry entry is restored after reinstall]
+include/assert.inc [all MRS lifecycle UDFs are restored after reinstall]
+include/assert.inc [all MRS system variables are restored after reinstall]
+include/assert.inc [all MRS status variables are restored after reinstall]
+include/assert.inc [persisted component configuration is applied after reinstall]
+include/assert.inc [reinstall reuses the two fixed internal accounts]
+include/assert.inc [reinstall reuses the component metadata registration]
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+# The HTTPS listener accepts requests after reinstall.
+
+# Cleanup
+RESET PERSIST mysql_rest_service.http_max_connections;
+DROP USER 'mrs_uninstall_user'@'localhost';
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

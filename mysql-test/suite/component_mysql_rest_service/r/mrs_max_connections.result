@@ -1,0 +1,64 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+SET @saved_max_connections = @@GLOBAL.max_connections;
+CREATE SCHEMA mrs_admission;
+CREATE TABLE mrs_admission.holder (id INT PRIMARY KEY);
+INSERT INTO mrs_admission.holder VALUES (1);
+CREATE USER mrs_admission_user@'%' IDENTIFIED BY 'pwd';
+GRANT SELECT ON mrs_admission.* TO mrs_admission_user@'%';
+# Registred SERVICE at path: /admission
+# Registred DB_SCHEMA at path: /admission/db
+# Registred DB_OBJECT at path: /admission/db/holder
+# Registred SERVICE at path: /passthrough
+# Registred DB_SCHEMA at path: /passthrough/db
+# Registred DB_OBJECT at path: /passthrough/db/holder
+# Registred AUTH APP at path: /passthrough
+# A running REST query contributes to the Server connection count.
+LOCK TABLES mrs_admission.holder WRITE;
+SELECT VARIABLE_VALUE >= 2 AS rest_session_counted
+FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Threads_connected';
+rest_session_counted
+1
+UNLOCK TABLES;
+# Authenticate before filling the limit, then exercise the user pool.
+# The existing mysqltest connection fills max_connections.
+SET GLOBAL max_connections = 1;
+Internal Error(500)
+Internal Error(500)
+# Request-time metadata access must also enforce the limit.
+Internal Error(500)
+# Metadata reload proceeds, but statistics cannot bypass admission.
+SET @statistics_count = (SELECT COUNT(*) FROM mysql_rest_service_metadata.router_status);
+UPDATE mysql_rest_service_metadata.db_object
+SET request_path = '/reloaded' WHERE request_path = '/holder';
+SELECT COUNT(*) = @statistics_count AS statistics_enforce_limit
+FROM mysql_rest_service_metadata.router_status;
+statistics_enforce_limit
+1
+Internal Error(500)
+# Repeated rejections leave no data-plane sessions behind.
+Internal Error(500)
+Internal Error(500)
+Internal Error(500)
+# Statistics can use the last available connection slot.
+SET GLOBAL max_connections = 2;
+# Both execution modes recover when Server capacity is restored.
+SET GLOBAL max_connections = @saved_max_connections;
+# Backend readiness and initial metadata load work at the limit.
+SET GLOBAL max_connections = 1;
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+Internal Error(500)
+SET GLOBAL max_connections = @saved_max_connections;
+include/assert_grep.inc [All rejected REST requests retain ER_CON_COUNT_ERROR]
+# Cleanup
+DROP USER mrs_admission_user@'%';
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mrs_admission;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

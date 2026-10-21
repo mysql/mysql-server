@@ -479,4 +479,35 @@ FROM (SELECT JSON_UNQUOTE(JSON_SEARCH(@v1, 'one', 'full_text_search')) AS index_
 SET @v1 = NULL;
 DROP TABLE t;
 
+--echo #
+--echo # WL#17309: Add Selected Partition Information to Iterator-Based EXPLAIN
+--echo #
+
+SET explain_json_format_version = 2;
+
+CREATE TABLE t (
+  id INT NOT NULL,
+  payload VARCHAR(20),
+  PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (100),
+  PARTITION p1 VALUES LESS THAN (200),
+  PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+
+INSERT INTO t VALUES (110, 'a'), (120, 'b'), (210, 'c');
+ANALYZE TABLE t;
+
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t WHERE id BETWEEN 110 AND 120;
+SELECT
+  JSON_EXTRACT(@var, '$**.operation') AS operation,
+  JSON_EXTRACT(@var, '$**.partitions') AS partitions,
+  JSON_EXTRACT(@var, '$.json_schema_version') AS json_schema_version;
+
+DROP TABLE t;
+SET @var = NULL;
+SET explain_json_format_version = DEFAULT;
+
 --source include/disable_hypergraph.inc

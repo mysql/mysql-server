@@ -29,6 +29,7 @@ IF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 ENDIF()
 
 ROUTER_ADD_SHARED_LIBRARY(router_utils
+  SOURCES
   default_paths.cc
   keyring_info.cc
   utils.cc
@@ -38,6 +39,9 @@ ROUTER_ADD_SHARED_LIBRARY(router_utils
 
   OUTPUT_NAME "mysqlrouter_utils"
 
+  LINK_LIBRARIES_IF
+  harness-library_interface
+
   LINK_LIBRARIES
   PUBLIC
   harness_stdx
@@ -45,6 +49,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_utils
   )
 
 ROUTER_ADD_SHARED_LIBRARY(router_mysql
+  SOURCES
   common/accounts_cleaner.cc
   common/log_filter.cc
   common/mysql_session.cc
@@ -52,6 +57,9 @@ ROUTER_ADD_SHARED_LIBRARY(router_mysql
   common/utils_sqlstring.cc
 
   OUTPUT_NAME "mysqlrouter_mysql"
+
+  LINK_LIBRARIES_IF
+  harness-library_interface
 
   LINK_LIBRARIES
   PUBLIC
@@ -64,12 +72,17 @@ IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
 ENDIF()
 
 ROUTER_ADD_SHARED_LIBRARY(router_cluster
-  cluster_aware_session.cc  
+  SOURCES
+  cluster_aware_session.cc
   cluster_metadata.cc
   cluster_metadata_instance_attributes.cc
   cluster_metadata_dynamic_state.cc
 
   OUTPUT_NAME "mysqlrouter_cluster"
+
+  LINK_LIBRARIES_IF
+  harness-library_interface
+  routing_guidelines_interface
 
   LINK_LIBRARIES
   PUBLIC
@@ -96,15 +109,20 @@ ELSE()
 ENDIF()
 
 ROUTER_ADD_SHARED_LIBRARY(router_lib
+  SOURCES
   certificate_generator.cc
   certificate_handler.cc
   config_files.cc
   sys_user_operations.cc
 
-  NO_EXPORT_HEADER  # custom names
   OUTPUT_NAME "${router_lib_output_name}"
+  EXPORT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/router_export.h"
+
+  LINK_LIBRARIES_IF
+  harness-library_interface
 
   LINK_LIBRARIES
+  PUBLIC
   ${CMAKE_DL_LIBS}
   harness-library
   harness_stdx
@@ -124,9 +142,6 @@ TARGET_INCLUDE_DIRECTORIES(router_lib
   ${CMAKE_CURRENT_BINARY_DIR}/../include
   )
 
-GENERATE_EXPORT_HEADER(router_lib
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/router_export.h)
-
 SET(frontend_lib_source_files
   router_app.cc
   router_conf.cc
@@ -145,13 +160,18 @@ ENDIF()
 ADD_LIBRARY(router_frontend_lib STATIC
   ${frontend_lib_source_files})
 
+ADD_DEPENDENCIES(router_frontend_lib GenError)
+
 TARGET_LINK_LIBRARIES(router_frontend_lib
-  router_lib
+  router_lib_interface
   routing_frontend_lib
-  harness-library)
+  harness-library_interface
+  routing_guidelines_interface)
 IF(WIN32)
   # for the password_vault.cc
   TARGET_LINK_LIBRARIES(router_frontend_lib Crypt32)
+  TARGET_COMPILE_DEFINITIONS(router_frontend_lib
+    PRIVATE MYSQL_ROUTER_ENABLE_WINDOWS_TLS_RELOAD=1)
 ENDIF()
 
 TARGET_INCLUDE_DIRECTORIES(router_frontend_lib

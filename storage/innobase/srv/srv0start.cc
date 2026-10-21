@@ -70,7 +70,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "log0chkp.h"
-#include "log0encryption.h"
 #include "log0handler.h"
 #include "log0helpers.h"
 #include "log0recv.h"
@@ -1741,6 +1740,7 @@ dberr_t srv_start(bool create_new_db) {
     }
     pages_persistence->enable_checkpointing();
 
+    /* A newly created log must remain empty until start_writing() returns. */
     ut_a(ib::redo::handler->peek_first_unassigned_lsn() == flushed_lsn);
     ut_a(ib::redo::handler->peek_first_nonpersisted_lsn() == flushed_lsn);
 
@@ -1830,24 +1830,14 @@ dberr_t srv_start(bool create_new_db) {
       to actual B-tree pages during pages_persistence->recover_tables() -
       an operation on pages which itself needs to be redo logged.
       Even in srv_read_only_mode we call start_writing(), because many places
-      in innodb assume that log_start() was called - in particular, that we can
-      call peek_unassigned_lsn() in buf_page_lsn_check after reads. However in
-      srv_read_only_mode, the background threads will not be started. */
+      in InnoDB assume that the redo system was initialized for writing - in
+      particular, that we can call peek_unassigned_lsn() in buf_page_lsn_check
+      after reads. However in srv_read_only_mode, the background threads will
+      not be started. */
       const auto start_result = ib::redo::handler->start_writing(recovered_lsn);
       if (start_result != ib::redo::Status::SUCCESS) {
         ut_ad(start_result == ib::redo::Status::WRITE_ERROR);
         return srv_init_abort(DB_ERROR);
-      }
-
-      if (!srv_read_only_mode &&
-          srv_recovered_redo_block_was_encrypted != srv_redo_log_encrypt) {
-        /* Seal the recovered partial block using its physical encryption mode
-        before dictionary startup can generate new redo. */
-        const bool configured_encryption = srv_redo_log_encrypt;
-
-        srv_redo_log_encrypt = srv_recovered_redo_block_was_encrypted;
-        log_encryption_write_dummy_barrier();
-        srv_redo_log_encrypt = configured_encryption;
       }
 
       /* Validate a few system page types that were left uninitialized

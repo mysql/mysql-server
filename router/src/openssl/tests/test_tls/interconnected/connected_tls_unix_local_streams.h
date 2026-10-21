@@ -48,9 +48,9 @@ class ConnectedTlsUnixLocalStreams {
     local_stream_.create_interconnected(context, socket1_, socket2_);
 
     out_server.reset(
-        new Stream(&tls_context_.ssl_ctxt_server_, std::move(*socket1_)));
+        new Stream(tls_context_.ssl_ctxt_server_, std::move(*socket1_)));
     out_client.reset(
-        new Stream(&tls_context_.ssl_ctxt_client_, std::move(*socket2_)));
+        new Stream(tls_context_.ssl_ctxt_client_, std::move(*socket2_)));
   }
 
   void change_non_blocking(const bool non_blocking) {

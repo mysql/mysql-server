@@ -36,6 +36,7 @@
 
 #include "plugin/x/src/xpl_performance_schema.h"
 #include "sql/replication.h"
+#include "sql/sql_class.h"
 #include "sql/ssl_acceptor_context_operator.h"
 #include "unittest/gunit/xplugin/xpl/mock/component_services.h"
 
@@ -133,6 +134,8 @@ int mysql_plugin_registry_release(SERVICE_TYPE(registry) * reg) {
 thread_local THD *current_thd = nullptr;
 
 THD *thd_get_current_thd() { return current_thd; }
+
+void THD::set_ssl(Vio *) { assert(false); }
 
 bool check_address_is_wildcard(const char *, size_t) { return false; }
 

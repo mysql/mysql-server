@@ -596,7 +596,7 @@ test.t1	histogram	status	Histogram statistics removed for column 'col2'.
 #
 ANALYZE TABLE t1 DROP HISTOGRAM ON foobar;
 Table	Op	Msg_type	Msg_text
-test.t1	histogram	Error	No histogram statistics found for column 'foobar'.
+test.t1	histogram	Error	The column 'foobar' does not exist.
 #
 # Non-existing table
 #

@@ -1,0 +1,71 @@
+
+
+## I. Read MRS system variables without an administrative privilege
+## II. Reject writes authorized only by MYSQL_REST_SERVICE_ADMIN
+## III. Apply dynamic writes with SYSTEM_VARIABLES_ADMIN
+## IV. Require PERSIST_RO_VARIABLES_ADMIN for persistence-only operations
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+CREATE USER 'mrs_sysvar_user'@'localhost';
+
+# I. Reading an MRS system variable requires no MRS privilege
+SELECT @@GLOBAL.mysql_rest_service.http_max_connections;
+@@GLOBAL.mysql_rest_service.http_max_connections
+1024
+
+# II. MYSQL_REST_SERVICE_ADMIN does not authorize system-variable writes
+GRANT MYSQL_REST_SERVICE_ADMIN ON *.* TO
+'mrs_sysvar_user'@'localhost';
+SET GLOBAL mysql_rest_service.http_max_connections = 1025;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET PERSIST mysql_rest_service.http_max_connections = 2048;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET PERSIST_ONLY mysql_rest_service.http_max_connections = 3072;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+include/assert.inc [rejected MRS-admin writes leave the runtime value unchanged]
+include/assert.inc [rejected MRS-admin writes create no persisted value]
+SET PERSIST_ONLY mysql_rest_service.http_max_connections = 1025;
+RESET PERSIST mysql_rest_service.http_max_connections;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+include/assert.inc [rejected MRS-admin reset preserves the persisted value]
+REVOKE MYSQL_REST_SERVICE_ADMIN ON *.* FROM
+'mrs_sysvar_user'@'localhost';
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO
+'mrs_sysvar_user'@'localhost';
+
+# III. SYSTEM_VARIABLES_ADMIN authorizes dynamic writes without MRS admin
+SET GLOBAL mysql_rest_service.http_max_connections = 1025;
+SET PERSIST mysql_rest_service.http_max_connections = 2048;
+include/assert.inc [SET PERSIST applies the configured runtime value]
+include/assert.inc [SET PERSIST stores the configured value]
+SET PERSIST_ONLY mysql_rest_service.http_max_connections = 3072;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+RESET PERSIST mysql_rest_service.http_max_connections;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+SELECT mysql_rest_service_start();
+ERROR 42000: Access denied; you need (at least one of) the MYSQL_REST_SERVICE_ADMIN privilege(s) for this operation
+include/assert.inc [rejected persistence-only operations leave runtime unchanged]
+include/assert.inc [rejected persistence-only operations leave storage unchanged]
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO
+'mrs_sysvar_user'@'localhost';
+
+# IV. Both native persistence privileges authorize persistence-only forms
+SET PERSIST_ONLY mysql_rest_service.http_max_connections = 3072;
+include/assert.inc [SET PERSIST_ONLY leaves the runtime value unchanged]
+include/assert.inc [SET PERSIST_ONLY replaces the stored value]
+RESET PERSIST mysql_rest_service.http_max_connections;
+SET GLOBAL mysql_rest_service.http_max_connections = DEFAULT;
+include/assert.inc [RESET PERSIST removes the stored value]
+include/assert.inc [SYSTEM_VARIABLES_ADMIN can restore the runtime default]
+include/assert.inc [privilege checks leave the component READY]
+# The HTTPS listener remains usable after rejected and accepted writes.
+
+# Cleanup
+DROP USER 'mrs_sysvar_user'@'localhost';
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

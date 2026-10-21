@@ -170,12 +170,9 @@ std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {
   return r_->get_context().get_client_connect_timeout();
 }
 
-void MySQLRoutingAPI::start_accepting_connections() {
-  r_->start_accepting_connections();
-}
-
-void MySQLRoutingAPI::restart_accepting_connections() {
-  r_->restart_accepting_connections();
+stdx::expected<void, std::string>
+MySQLRoutingAPI::refresh_socket_acceptor_state() {
+  return r_->refresh_socket_acceptor_state();
 }
 
 void MySQLRoutingAPI::stop_socket_acceptors() {
@@ -303,13 +300,17 @@ uint64_t MySQLRoutingComponent::current_total_connections() {
   return result;
 }
 
-const rapidjson::Document &MySQLRoutingComponent::routing_guidelines_document()
-    const {
+std::optional<std::reference_wrapper<const rapidjson::Document>>
+MySQLRoutingComponent::routing_guidelines_document() const {
+  if (!routing_guidelines_) return std::nullopt;
+
   return routing_guidelines_->get_routing_guidelines_document();
 }
 
-rapidjson::Document MySQLRoutingComponent::routing_guidelines_document_schema()
-    const {
+std::optional<rapidjson::Document>
+MySQLRoutingComponent::routing_guidelines_document_schema() const {
+  if (!routing_guidelines_) return std::nullopt;
+
   rapidjson::Document schema;
   schema.Parse(routing_guidelines_->get_schema());
   return schema;
@@ -355,20 +356,21 @@ void MySQLRoutingComponent::init(const mysql_harness::Config &config) {
                         routing::kDefaultMaxTotalConnections);
 
   QuarantineRoutingCallbacks quarantine_callbacks;
+  quarantine_callbacks.on_get_destinations =
+      [this](const std::string &route_name)
+      -> std::vector<mysql_harness::Destination> {
+    auto route = api(route_name);
+    if (!route) return {};
 
-  quarantine_callbacks.on_get_destinations = [&](
-      const std::string &route_name) -> auto{
-    return this->api(route_name).get_destination_candidates();
+    return route.get_destination_candidates();
   };
 
-  quarantine_callbacks.on_start_acceptors =
-      [&](const std::string &route_name) -> void {
-    this->api(route_name).restart_accepting_connections();
-  };
+  quarantine_callbacks.on_refresh_acceptor_state =
+      [this](const std::string &route_name) -> void {
+    auto route = api(route_name);
+    if (!route) return;
 
-  quarantine_callbacks.on_stop_acceptors =
-      [&](const std::string &route_name) -> void {
-    this->api(route_name).stop_socket_acceptors();
+    (void)route.refresh_socket_acceptor_state();
   };
 
   DestinationStatusComponent::get_instance().register_quarantine_callbacks(

@@ -26,16 +26,23 @@ INCLUDE(GenerateExportHeader)
 # connection pool library
 
 ROUTER_ADD_SHARED_LIBRARY(connection_pool
+  SOURCES
   connection_pool.cc
   connection_pool_component.cc
 
   OUTPUT_NAME "mysqlrouter_connection_pool"
 
+  LINK_LIBRARIES_IF
+  harness_stdx_interface
+  harness_net_ts
+  mysql_protocol
+  routing_connections_interface
+  routing_interface
+
   LINK_LIBRARIES
   PUBLIC
   harness_stdx
   harness_net_ts
-  mysql_protocol
   routing_connections
 
   PRIVATE
@@ -54,21 +61,26 @@ ENDIF()
 
 ADD_HARNESS_PLUGIN(connection_pool_plugin
   OUTPUT_NAME "connection_pool"
+
   SOURCES
   connection_pool_plugin.cc
+
+  REQUIRES_IF
+  routing_connections_interface
+  connection_pool_interface
+  harness_stdx_interface
+
   REQUIRES
   harness_stdx
   connection_pool
+
+
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
-  )
-TARGET_INCLUDE_DIRECTORIES(connection_pool_plugin PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  PUBLIC
+
+  INCLUDE_DIRECTORIES
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+
+  INCLUDE_DIRECTORIES_IF
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/
   ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  )
-
-GENERATE_EXPORT_HEADER(connection_pool_plugin
-  EXPORT_FILE_NAME
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/connection_pool_plugin_export.h
   )

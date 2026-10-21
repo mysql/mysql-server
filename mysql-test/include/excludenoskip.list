@@ -242,6 +242,7 @@ resource_group_init.inc
 require_icu_version.inc
 not_have_zstd_proper_ver.inc
 have_zstd_proper_ver.inc
+mrs_auth_socket_pqc.test
 
 #21.0 fips related test will be run only on system where OpenSSL fips module is installed
 # currently we are checking via this env $OPENSSL_FIPS_INSTALLED

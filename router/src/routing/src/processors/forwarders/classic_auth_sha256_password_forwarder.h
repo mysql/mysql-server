@@ -26,6 +26,7 @@
 #ifndef ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_AUTH_SHA256_PASSWORD_FORWARDER_H_
 #define ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_AUTH_SHA256_PASSWORD_FORWARDER_H_
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -85,6 +86,8 @@ class AuthSha256Forwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> send_password();
 
   std::string initial_server_auth_data_;
+
+  RsaTlsContext rsa_tls_context_;
 
   Stage stage_;
 };

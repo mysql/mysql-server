@@ -5759,6 +5759,40 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order) {
 }
 
 /**
+  Maximum number of reparses of CTE definitions allowed while parsing a single
+  statement.
+
+  Multi-reference CTE definitions need fresh parse tree nodes for each
+  reference. If such definitions are deeply nested, the total reparse work may
+  grow much faster than the statement text. Keep parsing bounded by rejecting
+  statements that need more than this many reparse invocations.
+*/
+static constexpr uint kMaxCommonTableExprReparses = 1024;
+
+/**
+  Maximum cumulative length of CTE definitions reparsed while parsing a single
+  statement.
+
+  This allows the maximum reparse count for small definitions, while reducing
+  the permitted reparse count for larger definitions.
+*/
+static constexpr size_t kMaxCommonTableExprReparseBytes = 64 * 1024 * 1024;
+
+static bool add_common_table_expr_reparse_cost(THD *thd, size_t text_length) {
+  LEX *const lex = thd->lex;
+  if (lex->reparse_common_table_expr_count >= kMaxCommonTableExprReparses ||
+      text_length > kMaxCommonTableExprReparseBytes -
+                        lex->reparse_common_table_expr_bytes) {
+    my_error(ER_CTE_EXPANSION_LIMIT_EXCEEDED, MYF(0));
+    return true;
+  }
+
+  ++lex->reparse_common_table_expr_count;
+  lex->reparse_common_table_expr_bytes += text_length;
+  return false;
+}
+
+/**
   Produces a PT_subquery object from a subquery's text.
   @param thd      Thread handler
   @param text     Subquery's text
@@ -5771,6 +5805,10 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order) {
 static bool reparse_common_table_expr(THD *thd, const char *text,
                                       size_t text_length, uint text_offset,
                                       PT_subquery **node) {
+  if (add_common_table_expr_reparse_cost(thd, text_length)) {
+    return true;
+  }
+
   Common_table_expr_parser_state parser_state;
   parser_state.init(thd, text, text_length);
 

@@ -70,6 +70,8 @@ void *xcom_thread_main(void *cp);
 
 synode_no incr_synode(synode_no synode);
 
+bool_t reservation_is_stale(synode_no msgno);
+
 synode_no decr_synode(synode_no synode);
 
 char *dbg_pax_msg(pax_msg const *p);
@@ -106,6 +108,56 @@ void start_run_tasks();
 int is_node_v4_reachable(char *node_address);
 int is_node_v4_reachable_with_info(struct addrinfo *retrieved_addr_info);
 int are_we_allowed_to_upgrade_to_v6(app_data_ptr a);
+
+/**
+  Check whether a node number is within the supported XCom range.
+
+  @param node Node number to validate.
+
+  @retval true if the node number is smaller than @c NSERVERS.
+  @retval false otherwise.
+*/
+bool is_node_number_in_valid_range(node_no node);
+
+/**
+  Check whether the fields required to process a snapshot message are valid.
+
+  @param p Message to validate.
+
+  @retval true if the message has a snapshot payload and a valid sender number.
+  @retval false otherwise.
+*/
+bool is_valid_snapshot_message(pax_msg const *p);
+
+/** Actions for handling a message in the snapshot receive path. */
+enum class snapshot_receive_action {
+  not_snapshot,
+  process,
+  drop,
+  terminate_connection
+};
+
+/**
+  Decide how an incoming message should be handled by the snapshot receive
+  policy before dispatch.
+
+  Non-snapshot messages are processed normally. Valid snapshot messages are
+  accepted while booting. Snapshot messages received after boot completes are
+  dropped.
+
+  @param p Incoming message to inspect.
+  @param boot_completed Whether this node has completed booting.
+
+  @retval snapshot_receive_action::not_snapshot for a non-snapshot message.
+  @retval snapshot_receive_action::process for a valid snapshot received while
+  booting.
+  @retval snapshot_receive_action::drop for a snapshot received after boot
+  completes.
+  @retval snapshot_receive_action::terminate_connection for an invalid snapshot
+  received while booting.
+*/
+snapshot_receive_action get_snapshot_receive_action(pax_msg const *p,
+                                                    bool boot_completed);
 
 /**
  * @brief Process incoming are_you_alive (i.e.: ping) messages and act

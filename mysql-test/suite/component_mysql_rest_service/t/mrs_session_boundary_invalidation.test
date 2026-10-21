@@ -1,0 +1,121 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify cookie and JWT sessions cannot cross component lifecycle boundaries.
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Invalidate sessions across stop and start
+--echo ## II. Invalidate sessions across component restart
+--echo ## III. Invalidate sessions across uninstall and reinstall
+--echo ## IV. Invalidate sessions across Server restart
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source $router_tests/schema/basic_schema.sql
+
+--source $router_tests/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/sessions"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=TRUE
+--source $router_tests/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/items
+--let $mrs_add_db_object_op=READ
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_auth_app=boundary_auth
+--let $mrs_add_auth_vendor=MRS
+--let $mrs_add_auth_service=/sessions
+--source $router_tests/mrs/auth_app/add.inc
+
+--let $mrs_add_user_name="boundary_user"
+--let $mrs_add_user_ext_uid=7001
+--let $mrs_add_user_auth_string="JEEkMDA1JFZ4bUhScy9rbk9YSGxzckIwb25zWWw4WW1YMD0kekJNS25UOUZDZXAwSWF5SDZhRjVSSTQxejlFSUdab1lhbHpEMk1SOTcxbz0="
+--source $router_tests/mrs/user/add.inc
+
+--source $router_tests/mrs/end_object_definition.inc
+
+--let $mrs_session_test_path=/sessions/db/items/1
+--let $mrs_session_service_path=/sessions
+--let $mrs_session_auth_app=boundary_auth
+--let $mrs_session_user=boundary_user
+--let $mrs_session_password=test
+
+--echo
+--echo # I. Stop and start invalidate both session representations.
+--let $mrs_session_prefix=before-stop-start
+--source ../include/cmrs/create_session_pair.inc
+
+SELECT mysql_rest_service_stop();
+SELECT mysql_rest_service_start();
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--source ../include/cmrs/reject_session_pair.inc
+
+--echo # Fresh authentication succeeds after stop and start.
+--let $mrs_session_prefix=after-stop-start
+--source ../include/cmrs/create_session_pair.inc
+
+--echo
+--echo # II. Restart invalidates both session representations.
+SELECT mysql_rest_service_restart();
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--source ../include/cmrs/reject_session_pair.inc
+
+--echo # Fresh authentication succeeds after component restart.
+--let $mrs_session_prefix=after-component-restart
+--source ../include/cmrs/create_session_pair.inc
+
+--echo
+--echo # III. Uninstall and reinstall invalidate both session representations.
+--source ../include/cmrs/uninstall_component.inc
+--source ../include/cmrs/install_component.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--source ../include/cmrs/reject_session_pair.inc
+
+--echo # Fresh authentication succeeds after component reinstall.
+--let $mrs_session_prefix=after-component-reinstall
+--source ../include/cmrs/create_session_pair.inc
+
+--echo
+--echo # IV. Server restart invalidates both session representations.
+--disable_query_log
+--disable_result_log
+--eval SET PERSIST mysql_rest_service.http_port = $HTTP_SERVER_PORT;
+--enable_result_log
+--enable_query_log
+
+--let $restart_parameters = restart
+--source include/restart_mysqld.inc
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--source ../include/cmrs/reject_session_pair.inc
+
+--echo # Fresh authentication succeeds after Server restart.
+--let $mrs_session_prefix=after-server-restart
+--source ../include/cmrs/create_session_pair.inc
+--remove_file $mrs_cookie_session_file
+--remove_file $mrs_jwt_session_file
+
+--echo
+--echo # Cleanup
+RESET PERSIST mysql_rest_service.http_port;
+--source ../include/cmrs/cleanup.inc

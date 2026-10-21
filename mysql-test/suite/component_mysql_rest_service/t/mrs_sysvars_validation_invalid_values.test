@@ -1,0 +1,187 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify MRS component system variables:
+#
+# This test validates the component's sysvars by attempting
+# to set them to valid and invalid values. It ensures that:
+#  - Valid values are accepted and correctly applied
+#  - Invalid values are rejected with appropriate error messages
+#  - Default values are correctly reported
+#
+# The available sysvars are:
+#  - mysql_rest_service.http_port;
+#  - mysql_rest_service.ssl_cert;
+#  - mysql_rest_service.ssl_key;
+#  - mysql_rest_service.ssl_cipher;
+#  - mysql_rest_service.io_worker_threads;
+#  - mysql_rest_service.http_max_connections;
+#  - mysql_rest_service.http_max_request_body_size;
+#  - mysql_rest_service.http_max_response_body_size;
+#
+# This test is split into 4 different blocks, this is the third.
+
+--source include/not_solaris.inc
+
+--echo ## III. Set sysvars to invalid values:
+--echo #
+--echo # 1. Attempt to set each sysvar to an invalid value.
+--echo # 2. Confirm the operation fails with the correct error.
+--echo # 3. Confirm the sysvar retains its previous valid value.
+--echo #
+
+# Init
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--echo
+--echo #
+--echo # TLS is mandatory and cannot be disabled.
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL mysql_rest_service.use_ssl = 0;
+
+--echo
+--echo # Developer selection is not exposed by the component.
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL mysql_rest_service.developer = 'my_user';
+
+--echo
+--echo #
+--echo ## I. 1. (http_port)
+--echo ## I. 2. (http_port)
+
+--let $original_http_port = `SELECT @@mysql_rest_service.http_port;`
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.http_port = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.http_port = 65536;
+
+--echo
+--echo #
+--echo ## I. 3. (http_port)
+--let $current_http_port = `SELECT @@mysql_rest_service.http_port;`
+
+--let $assert_text = MRS Component http_port must be %HTTP_PORT%
+--let $assert_cond = "$current_http_port" = "$original_http_port"
+--source include/assert.inc
+
+--echo
+--echo #
+--echo ## I. 1. (ssl_cert, ssl_key)
+--echo ## I. 2. (ssl_cert, ssl_key)
+
+--let $original_ssl_cert = `SELECT @@mysql_rest_service.ssl_cert;`
+--let $original_ssl_key = `SELECT @@mysql_rest_service.ssl_key;`
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.ssl_cert = "";
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.ssl_key = "";
+
+--echo
+--echo #
+--echo ## I. 3. (ssl_cert, ssl_key)
+--let $current_ssl_cert = `SELECT @@mysql_rest_service.ssl_cert;`
+
+--let $assert_text = MRS Component ssl_cert must be %SSL_CERT%
+--let $assert_cond = "$current_ssl_cert" = "$original_ssl_cert"
+--source include/assert.inc
+
+--let $current_ssl_key = `SELECT @@mysql_rest_service.ssl_key;`
+
+--let $assert_text = MRS Component ssl_key must be %SSL_CERT%
+--let $assert_cond = "$current_ssl_key" = "$original_ssl_key"
+--source include/assert.inc
+
+--echo
+--echo #
+--echo ## I. 1. (io_worker_threads)
+--echo ## I. 2. (io_worker_threads)
+
+--let $original_io_worker_threads = `SELECT @@mysql_rest_service.io_worker_threads;`
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.io_worker_threads = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.io_worker_threads = 1025;
+
+--echo
+--echo #
+--echo ## I. 3. (io_worker_threads)
+--let $current_io_worker_threads = `SELECT @@mysql_rest_service.io_worker_threads;`
+
+--let $assert_text = MRS Component io_worker_threads must retain its original value
+--let $assert_cond = $current_io_worker_threads = $original_io_worker_threads
+--source include/assert.inc
+
+--echo
+--echo #
+--echo ## I. 1. (http_max_connections)
+--echo ## I. 2. (http_max_connections)
+
+--let $original_http_max_connections = `SELECT @@mysql_rest_service.http_max_connections;`
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.http_max_connections = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.http_max_connections = 100001;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysql_rest_service.http_max_connections = NULL;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysql_rest_service.http_max_connections = "string";
+
+--echo
+--echo #
+--echo ## I. 3. (http_max_connections)
+--let $current_http_max_connections = `SELECT @@mysql_rest_service.http_max_connections;`
+
+--let $assert_text = MRS Component http_max_connections must retain its original value
+--let $assert_cond = $current_http_max_connections = $original_http_max_connections
+--source include/assert.inc
+
+--echo
+--echo #
+--echo ## I. 1. (HTTP body size limits)
+--echo ## I. 2. (HTTP body size limits)
+
+--let $original_http_max_request_body_size = `SELECT @@mysql_rest_service.http_max_request_body_size;`
+--let $original_http_max_response_body_size = `SELECT @@mysql_rest_service.http_max_response_body_size;`
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.http_max_request_body_size = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.http_max_request_body_size = 2147483649;
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.http_max_response_body_size = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+SET GLOBAL mysql_rest_service.http_max_response_body_size = 2147483649;
+
+--echo
+--echo #
+--echo ## I. 3. (HTTP body size limits)
+--let $current_http_max_request_body_size = `SELECT @@mysql_rest_service.http_max_request_body_size;`
+--let $current_http_max_response_body_size = `SELECT @@mysql_rest_service.http_max_response_body_size;`
+
+--let $assert_text = MRS Component http_max_request_body_size must retain its original value
+--let $assert_cond = $current_http_max_request_body_size = $original_http_max_request_body_size
+--source include/assert.inc
+
+--let $assert_text = MRS Component http_max_response_body_size must retain its original value
+--let $assert_cond = $current_http_max_response_body_size = $original_http_max_response_body_size
+--source include/assert.inc
+
+--echo
+--echo #
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

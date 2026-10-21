@@ -1,0 +1,10 @@
+##
+## Test the Health Monitor component
+## Specifically, we will test error handling of the memory reporting
+## The relevant test cases are only part of the debug builds.
+##
+## Test cases:
+##   1. Verify error handling for parse errors,
+##      various other conditions, sql mode, etc.
+##
+## Temporarily disabled

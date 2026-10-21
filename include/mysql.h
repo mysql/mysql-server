@@ -538,7 +538,9 @@ int STDCALL mysql_set_server_option(MYSQL *mysql,
 int STDCALL mysql_ping(MYSQL *mysql);
 const char *STDCALL mysql_stat(MYSQL *mysql);
 const char *STDCALL mysql_get_server_info(MYSQL *mysql);
+const char *STDCALL mysql_get_server_info_with_version_update(MYSQL *mysql);
 const char *STDCALL mysql_get_client_info(void);
+const char *STDCALL mysql_get_client_info_with_version_update(void);
 unsigned long STDCALL mysql_get_client_version(void);
 const char *STDCALL mysql_get_host_info(MYSQL *mysql);
 unsigned long STDCALL mysql_get_server_version(MYSQL *mysql);

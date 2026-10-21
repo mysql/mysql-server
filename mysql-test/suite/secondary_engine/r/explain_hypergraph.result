@@ -24,7 +24,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 ALTER TABLE t1 SECONDARY_LOAD;
 # After table is loaded, the secondary engine should be used.
@@ -87,7 +87,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one

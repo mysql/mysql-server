@@ -1,0 +1,75 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that the MRS component remains inactive when the server has no usable
+# TLS configuration and can recover after TLS is configured.
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Verify that MRS does not expose a plaintext REST endpoint when
+--echo ##    MySQL Server TLS is disabled.
+
+--let $have_ssl = `SELECT (VALUE = 'Yes') FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled'`
+--let $assert_text = MySQL Server TLS must be disabled for this test
+--let $assert_cond = $have_ssl = 0
+--source include/assert.inc
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
+call mtr.add_suppression("Failed to set up SSL");
+call mtr.add_suppression("MySQL Rest Service Component: Backend startup failed in background thread: TLS initialization failed because no usable SSL certificate and private key are configured.*MySQL REST Service remains inactive");
+--enable_result_log
+--enable_query_log
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+
+--let $wait_log_pattern = TLS initialization failed because no usable SSL certificate and private key are configured. Configure mysql_rest_service.ssl_cert and mysql_rest_service.ssl_key, then restart the service; MySQL REST Service remains inactive.
+--let $wait_log_expected_count = 1
+--source ../include/cmrs/compare_log_timeout.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'ERROR' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports ERROR after TLS startup failure
+--let $assert_cond = "$mrs_state" = "ERROR"
+--source include/assert.inc
+
+--echo # The plaintext REST endpoint must remain unavailable.
+--let $MRS_CLIENT_ARGS=$MRS_CLIENT --url http://$mrs_host_and_port
+--disable_result_log
+--error 1
+--exec $MRS_CLIENT_ARGS --path /index.html --display none
+--enable_result_log
+
+--echo
+--echo ## II. Configure TLS and verify that the inactive component recovers.
+
+--let $fixed_accounts = `SELECT COUNT(*) FROM mysql.user WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost'`
+--let $assert_text = Inactive MRS installation must provision the fixed accounts
+--let $assert_cond = $fixed_accounts = 2
+--source include/assert.inc
+
+--disable_query_log
+--eval SET GLOBAL mysql_rest_service.ssl_cert = "$MYSQL_TEST_DIR/std_data/server-cert.pem"
+--eval SET GLOBAL mysql_rest_service.ssl_key = "$MYSQL_TEST_DIR/std_data/server-key.pem"
+--enable_query_log
+
+SELECT mysql_rest_service_restart();
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports READY after TLS recovery
+--let $assert_cond = "$mrs_state" = "READY"
+--source include/assert.inc
+
+--let $MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+--exec $MRS_CLIENT_ARGS --path /index.html --response-type raw --display none
+
+--source ../include/cmrs/cleanup.inc

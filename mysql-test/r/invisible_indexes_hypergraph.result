@@ -496,40 +496,40 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT a FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=14)
+-> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19)  (rows=14)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN FORMAT=tree SELECT b FROM t1;
 EXPLAIN
--> Covering index scan on t1 using b  (rows=14)
+-> Covering index scan on t1 using b in partitions (p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19)  (rows=14)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a < '04';
 EXPLAIN
 -> Filter: (t1.a < '04')  (rows=4.67)
-    -> Table scan on t1  (rows=14)
+    -> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19)  (rows=14)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` < '04')
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
 EXPLAIN FORMAT=tree SELECT a FROM t1;
 EXPLAIN
--> Covering index scan on t1 using a  (rows=14)
+-> Covering index scan on t1 using a in partitions (p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19)  (rows=14)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a < '04';
 EXPLAIN
--> Index range scan on t1 using a over (a < '04')  (rows=8)
+-> Index range scan on t1 using a in partitions (p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19) over (a < '04')  (rows=8)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` < '04')
 ALTER TABLE t1 ALTER INDEX b INVISIBLE;
 EXPLAIN FORMAT=tree SELECT b FROM t1;
 EXPLAIN
--> Table scan on t1  (rows=14)
+-> Table scan on t1 over partitions (p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19)  (rows=14)
 
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`

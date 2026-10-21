@@ -1,0 +1,61 @@
+--echo ##
+--echo ## Health Monitor component
+--echo ##
+--echo ## Test the response to critically low disk space.
+--echo ##
+--echo ## Simulate critically low disk space which should trigger
+--echo ## the Health Monitor to immediately fence the server.
+--echo ##
+
+--source ../include/health_monitor_setup.inc
+
+--echo
+--echo # Enable low disk space fencing explicitly for this fencing test
+set @@global.health_monitor.disk_fallback_enable = on;
+
+--echo
+--echo # Low sample rate with status interval = 1 to get a status message every cycle
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo # Setup the transition to CRITICAL level that will fence the server
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show global variables like "%health%";
+
+--echo
+--echo # Start the disk collector
+set @@global.health_monitor.disk_running = on;
+
+--echo
+--echo # Wait for the offline mode to be triggered (should be immediate)
+let $wait_condition = select @@global.offline_mode;
+let $wait_timeout = 60;
+--source include/wait_condition.inc
+
+--echo
+--echo # Run in CRITICAL state for a few cycles
+--echo Sleep 30
+--sleep 30
+
+--echo
+--echo # Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+--echo
+--echo # Verify server is fenced
+--source ../include/health_monitor_verify_fenced.inc
+
+--echo
+--echo ##
+--echo ## Clean up
+--echo ##
+--echo
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+--echo
+--eval uninstall component 'file://component_health_monitor';

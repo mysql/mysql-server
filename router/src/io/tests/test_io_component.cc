@@ -31,7 +31,10 @@
 
 #include "mysqlrouter/io_component.h"
 
+#include <atomic>
+#include <future>
 #include <limits>
+#include <stdexcept>
 #include <system_error>
 
 #ifndef _WIN32
@@ -55,6 +58,7 @@ class IoComponentTest : public ::testing::Test {
     // if test fails, reset the instance anyway to not interfere with the next
     // test
     IoComponent::get_instance().reset();
+    IoComponent::get_instance().reset_thread_lifecycle();
   }
 };
 
@@ -94,6 +98,25 @@ TEST_F(IoComponentTest, init_reset_reinit) {
   io_comp.reset();
 }
 
+TEST_F(IoComponentTest, init_creates_dedicated_acceptor_context) {
+  auto &io_comp = IoComponent::get_instance();
+
+  SCOPED_TRACE("// init once");
+  ASSERT_TRUE(io_comp.init(1, defaultIoBackend));
+
+  EXPECT_EQ(io_comp.io_threads().size(), 1);
+  EXPECT_NE(&io_comp.acceptor_io_context(), &io_comp.io_context());
+  EXPECT_TRUE(io_comp.acceptor_io_context().open_res());
+
+  // Acceptor work must run even when the shared io_context is not running.
+  std::promise<void> accepted;
+  auto done = accepted.get_future();
+  net::post(io_comp.acceptor_io_context(),
+            [&accepted] { accepted.set_value(); });
+  EXPECT_EQ(done.wait_for(std::chrono::seconds(5)), std::future_status::ready);
+  io_comp.reset();
+}
+
 // test that run leaves as there is no work assigned to it.
 TEST_F(IoComponentTest, init_run_reset_no_work) {
   auto &io_comp = IoComponent::get_instance();
@@ -116,6 +139,34 @@ TEST_F(IoComponentTest, init_run_reset_some_work) {
   io_comp.run();
   SCOPED_TRACE("// reset");
   io_comp.reset();
+}
+
+TEST_F(IoComponentTest, thread_lifecycle) {
+  auto &io_comp = IoComponent::get_instance();
+  std::atomic<size_t> starts{};
+  std::atomic<size_t> stops{};
+
+  io_comp.set_thread_lifecycle(
+      {[&starts](size_t) { ++starts; }, [&stops](size_t) { ++stops; }});
+
+  ASSERT_TRUE(io_comp.init(3, defaultIoBackend));
+  io_comp.reset();
+
+  EXPECT_EQ(starts, 4);
+  EXPECT_EQ(stops, 4);
+}
+
+TEST_F(IoComponentTest, thread_lifecycle_start_failure) {
+  auto &io_comp = IoComponent::get_instance();
+  std::atomic<size_t> stops{};
+
+  io_comp.set_thread_lifecycle(
+      {[](size_t) { throw std::runtime_error("start failed"); },
+       [&stops](size_t) { ++stops; }});
+
+  EXPECT_THROW(io_comp.init(1, defaultIoBackend), std::runtime_error);
+  EXPECT_TRUE(io_comp.io_threads().empty());
+  EXPECT_EQ(stops, 0);
 }
 
 // test unknown backends

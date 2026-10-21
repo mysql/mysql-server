@@ -8953,7 +8953,7 @@ EXPLAIN
     "estimated_total_cost": 0.8012817382812502
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 SET @@explain_json_format_version = 1;
 # Check changing system variable in stored procedure works as expected.

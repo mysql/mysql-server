@@ -104,7 +104,8 @@ bool Connection_handler_manager::valid_connection_count() {
 }
 
 bool Connection_handler_manager::check_and_incr_conn_count(
-    bool is_admin_connection, bool internal_session) {
+    bool is_admin_connection, bool internal_session,
+    bool allow_extra_connection) {
   bool connection_accepted = true;
   mysql_mutex_lock(&LOCK_connection_count);
   /*
@@ -114,8 +115,13 @@ bool Connection_handler_manager::check_and_incr_conn_count(
     The last connection is reserved for SUPER users. This is
     checked later during authentication where valid_connection_count()
     is called for non-SUPER users only.
+
+    Callers that cannot use the reserved slot must disable it here, so the
+    limit check and count increment remain atomic.
   */
-  if (connection_count > max_connections && !is_admin_connection) {
+  if (!is_admin_connection &&
+      (connection_count > max_connections ||
+       (!allow_extra_connection && connection_count == max_connections))) {
     connection_accepted = false;
     m_connection_errors_max_connection++;
   } else {

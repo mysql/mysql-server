@@ -540,11 +540,20 @@ bool JOIN::optimize(bool finalize_access_paths) {
         // All SELECT expressions are fully evaluated
         DBUG_PRINT("info", ("Select tables optimized away"));
         zero_result_cause = "Select tables optimized away";
+        // When aggregate optimization replaces access to exactly one
+        // partitioned base table with a fake-row path, retain its TABLE pointer
+        // for EXPLAIN. Iterator creation and execution do not use this pointer.
+        TABLE *explain_table = nullptr;
+        if (query_block->leaf_table_count == 1 &&
+            tables_list->is_base_table() && tables_list->table != nullptr &&
+            tables_list->table->part_info != nullptr) {
+          explain_table = tables_list->table;
+        }
         tables_list = nullptr;  // All tables resolved
         best_rowcount = 1;
         const_tables = tables = primary_tables = query_block->leaf_table_count;
-        AccessPath *path =
-            NewFakeSingleRowAccessPath(thd, /*count_examined_rows=*/true);
+        AccessPath *path = NewFakeSingleRowAccessPath(
+            thd, /*count_examined_rows=*/true, explain_table);
         path = attach_access_paths_for_having_qualify_limit(path);
         m_root_access_path = path;
         /*

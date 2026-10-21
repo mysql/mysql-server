@@ -2536,10 +2536,14 @@ READ_INFO::READ_INFO(File file_par, size_t tot_length, const CHARSET_INFO *cs,
   field_term_char = field_term_length ? field_term_ptr[0] : INT_MAX;
   line_term_char = line_term_length ? line_term_ptr[0] : INT_MAX;
 
-  /* Set of a stack for unget if long terminators */
+  /*
+    Set up an unget stack for long terminators and LOAD XML CDATA
+    backtracking. A failed match of "![CDATA[" puts all eight bytes back.
+  */
   size_t length =
       max<size_t>(cs->mbmaxlen, max(field_term_length, line_term_length)) + 1;
   length = std::max(length, line_start.length());
+  length = std::max(length, sizeof("![CDATA[") - 1);
   stack = stack_pos = (int *)(*THR_MALLOC)->Alloc(sizeof(int) * length);
 
   if (buff_length > max_size() ||

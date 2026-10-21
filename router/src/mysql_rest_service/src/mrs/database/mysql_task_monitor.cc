@@ -41,7 +41,10 @@ void MysqlTaskMonitor::start() {
   log_debug("MysqlTaskMonitor::%s", __FUNCTION__);
   thread_ = std::thread([this]() { run(); });
 
-  state_.wait({k_running});
+  const auto state = state_.wait({k_running, k_stopped});
+  if (state == k_stopped) {
+    log_debug("MysqlTaskMonitor::%s canceled during startup", __FUNCTION__);
+  }
 }
 
 void MysqlTaskMonitor::stop() {

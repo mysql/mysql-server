@@ -78,6 +78,7 @@ bool UnreachableDestinationsQuarantine::report_connection_result(
 void UnreachableDestinationsQuarantine::add_destination_candidate_to_quarantine(
     const mysql_harness::Destination &dest) {
   auto referencing_instances = get_referencing_routing_instances(dest);
+  std::vector<std::string> routing_instances_to_refresh;
 
   {
     std::lock_guard<std::mutex> quarantine_lock{quarantine_mutex_};
@@ -89,32 +90,41 @@ void UnreachableDestinationsQuarantine::add_destination_candidate_to_quarantine(
                             });
     if (pos != std::end(quarantined_destination_candidates_)) {
       // it is already quarantined, just update the references
-      (*pos)->referencing_routing_instances_ = referencing_instances;
-      return;
+      if ((*pos)->referencing_routing_instances_ == referencing_instances) {
+        return;
+      }
+
+      (*pos)->referencing_routing_instances_ = std::move(referencing_instances);
+      routing_instances_to_refresh = (*pos)->referencing_routing_instances_;
+    } else {
+      routing_instances_to_refresh = referencing_instances;
+
+      auto dest_cand = std::make_shared<Unreachable_destination_candidate>(
+          &io_ctx_, dest, std::move(referencing_instances),
+          quarantine_interval_,
+          /* on delete */
+          [&]() {
+            std::unique_lock<std::mutex> lk(quarantine_empty_cond_m_);
+            quarantined_dest_counter_--;
+            quarantine_empty_cond_.notify_all();
+          },
+          /* on connected to destination */
+          [this, dest]() {
+            remove_destination_candidate_from_quarantine(dest);
+          });
+      quarantined_dest_counter_++;
+
+      auto &timer = dest_cand->timer_;
+      timer.expires_after(quarantine_interval_);
+      timer.async_wait([this, dest](const std::error_code &ec) {
+        quarantine_handler(ec, dest);
+      });
+
+      quarantined_destination_candidates_.push_back(std::move(dest_cand));
     }
-
-    auto dest_cand = std::make_shared<Unreachable_destination_candidate>(
-        &io_ctx_, dest, std::move(referencing_instances), quarantine_interval_,
-        /* on delete */
-        [&]() {
-          std::unique_lock<std::mutex> lk(quarantine_empty_cond_m_);
-          quarantined_dest_counter_--;
-          quarantine_empty_cond_.notify_all();
-        },
-        /* on connected to destination */
-        [this, dest]() { remove_destination_candidate_from_quarantine(dest); });
-    quarantined_dest_counter_++;
-
-    auto &timer = dest_cand->timer_;
-    timer.expires_after(quarantine_interval_);
-    timer.async_wait([this, dest](const std::error_code &ec) {
-      quarantine_handler(ec, dest);
-    });
-
-    quarantined_destination_candidates_.push_back(std::move(dest_cand));
   }
 
-  stop_socket_acceptors_on_all_nodes_quarantined();
+  refresh_acceptor_state(routing_instances_to_refresh);
 }
 
 void UnreachableDestinationsQuarantine::
@@ -128,22 +138,23 @@ void UnreachableDestinationsQuarantine::
     destination_errors_.erase(dest);
   }
 
-  std::lock_guard<std::mutex> quarantine_lock{quarantine_mutex_};
-  auto pos = std::find_if(std::begin(quarantined_destination_candidates_),
-                          std::end(quarantined_destination_candidates_),
-                          [&dest](const auto &quarantined_dest) {
-                            return quarantined_dest->dest_ == dest;
-                          });
-  if (pos == std::end(quarantined_destination_candidates_)) {
-    return;
+  std::vector<std::string> routing_instances_to_refresh;
+  {
+    std::lock_guard<std::mutex> quarantine_lock{quarantine_mutex_};
+    auto pos = std::find_if(std::begin(quarantined_destination_candidates_),
+                            std::end(quarantined_destination_candidates_),
+                            [&dest](const auto &quarantined_dest) {
+                              return quarantined_dest->dest_ == dest;
+                            });
+    if (pos == std::end(quarantined_destination_candidates_)) {
+      return;
+    }
+
+    routing_instances_to_refresh = (*pos)->referencing_routing_instances_;
+    quarantined_destination_candidates_.erase(pos);
   }
 
-  auto &routing_instances = (*pos)->referencing_routing_instances_;
-  for (const auto &instance_name : routing_instances) {
-    routing_callbacks_.on_start_acceptors(instance_name);
-  }
-
-  quarantined_destination_candidates_.erase(pos);
+  refresh_acceptor_state(routing_instances_to_refresh);
 }
 
 bool UnreachableDestinationsQuarantine::is_quarantined(
@@ -199,6 +210,8 @@ void UnreachableDestinationsQuarantine::quarantine_handler(
   }
 
   std::shared_ptr<Unreachable_destination_candidate> destination;
+  std::vector<std::string> routing_instances_to_refresh;
+  bool removed_from_quarantine{false};
   {
     std::lock_guard<std::mutex> l{quarantine_mutex_};
     auto pos = std::find_if(std::begin(quarantined_destination_candidates_),
@@ -210,11 +223,17 @@ void UnreachableDestinationsQuarantine::quarantine_handler(
 
     if (ec && ec != std::errc::operation_canceled) {
       // Something went wrong, play it safe and remove the destination
+      routing_instances_to_refresh = (*pos)->referencing_routing_instances_;
       quarantined_destination_candidates_.erase(pos);
-      return;
+      removed_from_quarantine = true;
+    } else {
+      destination = *pos;
     }
+  }
 
-    destination = *pos;
+  if (removed_from_quarantine) {
+    refresh_acceptor_state(routing_instances_to_refresh);
+    return;
   }
 
   auto connect_res = destination->connect();
@@ -264,18 +283,10 @@ void UnreachableDestinationsQuarantine::quarantine_handler(
   }
 }
 
-void UnreachableDestinationsQuarantine::
-    stop_socket_acceptors_on_all_nodes_quarantined() {
-  std::lock_guard<std::mutex> plugins_lock{routing_instances_mutex_};
-  for (const auto &instance_name : routing_instances_) {
-    const auto destinations =
-        routing_callbacks_.on_get_destinations(instance_name);
-
-    if (std::all_of(
-            std::cbegin(destinations), std::cend(destinations),
-            [this](const auto &dest) { return is_quarantined(dest); })) {
-      routing_callbacks_.on_stop_acceptors(instance_name);
-    }
+void UnreachableDestinationsQuarantine::refresh_acceptor_state(
+    const std::vector<std::string> &routing_instances) {
+  for (const auto &instance_name : routing_instances) {
+    routing_callbacks_.on_refresh_acceptor_state(instance_name);
   }
 }
 

@@ -1,0 +1,323 @@
+--echo ##
+--echo ## Test the Health Monitor component
+--echo ##
+--echo ## Test cases:
+--echo ##   1. Memory usage warnings
+--echo ##   2. Table resize
+--echo ##   3. New sample data replaces old sample data
+--echo ##   4. Status messages
+
+--source ../include/health_monitor_setup.inc
+
+--echo #
+--echo # Allow mysql.session to select from sys views and execute sys procedures.
+--echo # This is a pre requisite to query sys views from the component.
+--echo #
+GRANT PROCESS ON *.* TO 'mysql.session'@localhost;
+GRANT SELECT ON sys.* TO 'mysql.session'@localhost;
+GRANT EXECUTE ON sys.* TO 'mysql.session'@localhost;
+
+let $memory_debug = 0;
+
+--echo
+--echo #
+--echo # Test configuration: 8 rows, 1 second sample rate
+--echo #
+set @@global.health_monitor.memory_retention = 8;
+set @@global.health_monitor.memory_sample_rate = 1;
+set @@global.health_monitor.status_interval = 1;
+
+--echo
+--echo ###
+--echo ### Memory Usage Warnings
+--echo ###
+--echo
+--echo #
+--echo # Warning level 1
+--echo #
+set @@global.health_monitor.memory_running = off;
+--echo
+truncate health_system_memory;
+--echo
+set @@global.health_monitor.memory_usage_warning_level_1 = @force_memory_warning;
+set @@global.health_monitor.memory_running = on;
+set @@global.health_monitor.memory_reporting = on;
+
+if ($memory_debug)
+{
+  --echo
+  show variables like "health%";
+}
+
+--echo
+--echo #
+--echo # Wait for the memory tables to fill up, generate some warnings
+--echo #
+let $count = 8;
+let $table = health_system_memory;
+let $wait_timeout = 60;
+--source include/wait_until_rows_count.inc
+
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.memory_usage_warning_level_1 = @no_memory_warning;
+
+--echo
+--echo #
+--echo # Verify level 1 warning was issued
+--echo #
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=Memory: Warning Level 1
+--source include/search_pattern.inc
+
+--echo
+--echo #
+--echo # Warning level 2
+--echo #
+truncate health_system_memory;
+--echo
+set @@global.health_monitor.memory_usage_warning_level_2 = @force_memory_warning;
+set @@global.health_monitor.memory_running = on;
+
+--echo
+--echo #
+--echo # Wait for the memory tables to fill up, generate some warnings
+--echo #
+let $count = 8;
+let $table = health_system_memory;
+--source include/wait_until_rows_count.inc
+
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.memory_usage_warning_level_2 = @no_memory_warning;
+
+--echo
+--echo #
+--echo # Verify level 2 warning was issued
+--echo #
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=Memory: Warning Level 2
+--source include/search_pattern.inc
+
+--echo
+--echo #
+--echo # Warning level 3
+--echo #
+truncate health_system_memory;
+--echo
+set @@global.health_monitor.memory_usage_warning_level_3 = @force_memory_warning;
+set @@global.health_monitor.memory_running = on;
+
+--echo
+--echo #
+--echo # Wait for the memory tables to fill up, generate some warnings
+--echo #
+let $count = 8;
+let $table = health_system_memory;
+--source include/wait_until_rows_count.inc
+
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.memory_usage_warning_level_3 = @no_memory_warning;
+
+--echo
+--echo #
+--echo # Verify level 3 warning was issued
+--echo #
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=Memory: Warning Level 3
+--source include/search_pattern.inc
+
+--echo
+--echo ###
+--echo ### Table Resize
+--echo ###
+--echo
+
+--echo #
+--echo # Row counts should be at 8
+--echo #
+select count(*) as 'Expect 8' from health_system_memory;
+select count(*) as 'Expect 8' from health_process_memory;
+
+--echo
+--echo #
+--echo # Decrease the retention, verify that table size is decreased
+--echo #
+set @@global.health_monitor.memory_retention = 3;
+set @@global.health_monitor.memory_sample_rate = 1;
+
+--echo
+--echo #
+--echo # Wait for 3 rows
+--echo #
+let $count = 3;
+let $table = health_system_memory;
+set @@global.health_monitor.memory_running = on;
+--source include/wait_until_rows_count.inc
+
+--echo
+select count(*) as 'Expect 3' from health_system_memory;
+select count(*) as 'Expect 3' from health_process_memory;
+
+--echo
+--echo #
+--echo # Increase the retention, verify that table size is increased
+--echo #
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.memory_retention = 8;
+set @@global.health_monitor.memory_sample_rate = 1;
+set @@global.health_monitor.memory_running = on;
+
+--echo
+--echo #
+--echo # Wait for 8 rows
+--echo #
+let $count = 8;
+let $table = health_system_memory;
+set @@global.health_monitor.memory_running = on;
+--source include/wait_until_rows_count.inc
+
+--echo
+--echo ###
+--echo ### Verify row count
+--echo ###
+--echo
+set @@global.health_monitor.memory_running = off;
+--echo
+select count(*) as 'Expect 8' from health_system_memory;
+--replace_column 1 <timestamp> 2 <total_memory> 3 <available> 4 <use_pct> 5 <memory_free> 6 <fs_cache> 7 <swap_total> 8 <swap_free>
+select * from health_system_memory;
+--echo
+select count(*) as 'Expect 8' from health_process_memory;
+--replace_column 1 <timestamp> 2 <mysqld> 3 <pid> 4 <vm_rss> 5 <vm_data> 6 <vm_swap> 7 <page_faults>
+select * from health_process_memory;
+
+--echo
+--echo ###
+--echo ### Verify new data replaces old data
+--echo ###
+--echo
+truncate health_system_memory;
+truncate health_process_memory;
+--echo
+set @@global.health_monitor.memory_running = on;
+
+--echo
+--echo #
+--echo # Wait for 8 rows
+--echo #
+let $count = 8;
+let $table = health_system_memory;
+--source include/wait_until_rows_count.inc
+
+--echo
+set @@global.health_monitor.memory_running = off;
+
+if ($memory_debug)
+{
+  --echo
+  select * from health_system_memory;
+  --echo
+  select * from health_process_memory;
+}
+
+--echo
+--echo #
+--echo # Save the timestamps of the first and last rows
+--echo #
+select timestamp from health_system_memory limit 0,1 into @sm_oldest_1;
+select timestamp from health_system_memory limit 7,1 into @sm_newest_1;
+--echo
+select timestamp from health_process_memory limit 0,1 into @pm_oldest_1;
+select timestamp from health_process_memory limit 7,1 into @pm_newest_1;
+
+--echo
+--echo #
+--echo # Verify that the newer timestamp is greater
+--echo #
+select @sm_newest_1 > @sm_oldest_1 as 'Expect 1';
+select @pm_newest_1 > @pm_oldest_1 as 'Expect 1';
+
+--echo
+--echo #
+--echo # Generate a few more rows to ensure the data wraps
+--echo #
+set @@global.health_monitor.memory_running = on;
+
+--echo Sleep 3
+--sleep 3
+set @@global.health_monitor.memory_running = off;
+
+if ($memory_debug)
+{
+  --echo
+  select * from health_system_memory;
+  --echo
+  select * from health_process_memory;
+}
+
+--echo
+select timestamp from health_system_memory limit 0,1 into @sm_oldest_2;
+select timestamp from health_system_memory limit 7,1 into @sm_newest_2;
+--echo
+select timestamp from health_process_memory limit 0,1 into @pm_oldest_2;
+select timestamp from health_process_memory limit 7,1 into @pm_newest_2;
+
+--echo
+--echo #
+--echo # Verify that the timestamps changed and that the newer timestamp is greater
+--echo #
+select @sm_oldest_2 > @sm_oldest_1 as 'Expect 1';
+select @sm_newest_2 > @sm_newest_1 as 'Expect 1';
+--echo
+select @pm_oldest_2 > @pm_oldest_1 as 'Expect 1';
+select @pm_newest_2 > @pm_newest_1 as 'Expect 1';
+
+--echo
+--echo ###
+--echo ### Status message interval
+--echo ###
+--echo
+set @@global.health_monitor.memory_running = off;
+
+--echo #
+--echo # Set the sample rate to 3 seconds and status interval to 1
+--echo # Expect a status message after 3 seconds
+--echo #
+# Warnings are disabled
+set @@global.health_monitor.memory_sample_rate = 3;
+set @@global.health_monitor.status_interval = 1;
+set @@global.health_monitor.memory_running = on;
+set @@global.health_monitor.memory_reporting = off;
+
+--echo
+--echo #
+--echo # Run for 6 seconds, generate some status messages
+--echo #
+--sleep 6
+set @@global.health_monitor.memory_running = off;
+
+--echo
+--echo #
+--echo # Verify status update message was issued
+--echo #
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= Memory: avail=
+--source include/search_pattern.inc
+
+#--echo
+#--echo #
+#--echo # Verify that the columns derived from /proc are populated
+#--echo #
+# TO DO: Fails on PB2, succeeds elsewhere
+#select count(*) as 'Expect 0' from health_process_memory
+#  where process_name != 'mysqld' or pid = 0 or vm_rss = 0 or vm_data = 0;
+
+--echo
+--echo ###
+--echo ### Revoke and uninstall
+--echo ###
+--echo
+REVOKE PROCESS ON *.* FROM 'mysql.session'@localhost;
+REVOKE SELECT ON sys.* FROM 'mysql.session'@localhost;
+REVOKE EXECUTE ON sys.* FROM 'mysql.session'@localhost;
+--echo
+--eval uninstall component 'file://component_health_monitor';

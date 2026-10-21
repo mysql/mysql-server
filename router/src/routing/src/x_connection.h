@@ -28,10 +28,11 @@
 
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 
-#include <mysqlx.pb.h>
-#include <mysqlx_connection.pb.h>
+// #include <mysqlx.pb.h>
+// #include <mysqlx_connection.pb.h>
 
 #include "basic_protocol_splicer.h"
 #include "connection.h"  // MySQLRoutingConnectionBase
@@ -39,6 +40,7 @@
 
 class XProtocolState {
  public:
+  using Capabilities = std::set<std::string>;
   struct FrameInfo {
     size_t frame_size_;            //!< size of the whole frame
     size_t forwarded_frame_size_;  //!< size of the forwarded part of frame
@@ -47,16 +49,14 @@ class XProtocolState {
   std::optional<FrameInfo> &current_frame() { return current_frame_; }
   std::optional<uint8_t> &current_msg_type() { return msg_type_; }
 
-  Mysqlx::Connection::Capabilities *caps() { return caps_.get(); }
-  void caps(std::unique_ptr<Mysqlx::Connection::Capabilities> caps) {
-    caps_ = std::move(caps);
-  }
+  const Capabilities &caps() { return caps_; }
+  void caps(Capabilities &&caps) { caps_ = std::move(caps); }
 
  private:
   std::optional<FrameInfo> current_frame_{};
   std::optional<uint8_t> msg_type_{};
 
-  std::unique_ptr<Mysqlx::Connection::Capabilities> caps_;
+  Capabilities caps_;
 };
 
 class MysqlRoutingXConnection
@@ -109,7 +109,7 @@ class MysqlRoutingXConnection
   static stdx::expected<size_t, std::error_code> encode_error_packet(
       std::vector<uint8_t> &error_frame, uint16_t error_code,
       const std::string &msg, const std::string &sql_state = "HY000",
-      Mysqlx::Error::Severity severity = Mysqlx::Error::ERROR);
+      bool is_severity_fatal = false);
 
   SslMode source_ssl_mode() const { return client_conn().ssl_mode(); }
 

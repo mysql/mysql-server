@@ -32,6 +32,16 @@ SET(MYSQL_ROUTER_INI "mysqlrouter.conf"
 # MySQL Harness
 SET(HARNESS_NAME "mysqlrouter" CACHE STRING "Name of Harness")
 
+SET(ROUTER_SYNC_POINT_ENABLED TRUE)
+IF(BUILD_IS_SINGLE_CONFIG)
+  GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+  IF(CMAKE_CXX_FLAGS MATCHES "DNDEBUG" OR
+      CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} MATCHES "DNDEBUG" OR
+      CWD_DEFINITIONS MATCHES "NDEBUG")
+    SET(ROUTER_SYNC_POINT_ENABLED FALSE)
+  ENDIF()
+ENDIF()
+
 # Hidden configuration flag for developer-only OpenSSL alert-symbol tests.
 # These tests depend on non-public OpenSSL symbols/APIs (currently buildable
 # with OpenSSL 3.6.1), so they are not suitable for the regular regression

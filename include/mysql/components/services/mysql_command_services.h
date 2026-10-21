@@ -39,8 +39,8 @@ DEFINE_SERVICE_HANDLE(MYSQL_FIELD_H);
 /**
  This enum is used in mysql_service_mysql_command_options service to set the
  provided option similar to mysql_option api.
- @note Please take care that MYSQL_COMMAND_CONSUMER_SERVICE value should be
- greaterthan the last enum value of @ref mysql_option enum.
+ @note MYSQL_TEXT_CONSUMER_FACTORY must be greater than the last value
+ of @ref mysql_option.
 */
 enum mysql_command_option {
   MYSQL_TEXT_CONSUMER_FACTORY = 1024,  // Make sure this number should be
@@ -64,7 +64,8 @@ enum mysql_command_option {
   MYSQL_COMMAND_TCPIP_PORT,
   MYSQL_NO_LOCK_REGISTRY,
   MYSQL_COMMAND_CLIENT_FLAGS,
-  MYSQL_COMMAND_PASSWORD
+  MYSQL_COMMAND_PASSWORD,
+  MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS
 };
 
 /**
@@ -195,19 +196,18 @@ BEGIN_SERVICE_DEFINITION(mysql_command_options)
 --------------+-------------------------------+--------------------------------+
      Type     |     Option                    |Explanation                     |
 --------------+-------------------------------+--------------------------------+
-const char *  |MYSQL_COMMAND_CONSUMER_SERVICE |The service (implementation)    |
-              |                               |name/prefix to look for in the  |
-              |                               |registry and direct all the     |
-              |                               |calls to.                       |
+const char *  |MYSQL_TEXT_CONSUMER_*          |Service implementation name for |
+              |                               |the selected text consumer.     |
+              |                               |Null selects its default.       |
 --------------+-------------------------------+--------------------------------+
 MYSQL_THD     |MYSQL_COMMAND_LOCAL_THD_HANDLE |The THD to run the query in.    |
               |                               |If null a new internal THD will |
               |                               |be created.                     |
 --------------+-------------------------------+--------------------------------+
-const char *  |MYSQL_COMMAND_PROTOCOL         |Could be valid socket meaning co|
-              |                               |nnect to remote server, could be|
-              |                               |"local"(default) meaning connect|
-              |                               |to the current server.          |
+const char *  |MYSQL_COMMAND_PROTOCOL         |Socket/pipe name for            |
+              |                               |authentication. Null or "local" |
+              |                               |uses defaults; unused by        |
+              |                               |embedded sessions.              |
 --------------+-------------------------------+--------------------------------+
 const char *  |MYSQL_COMMAND_USER_NAME        |The user name to send to the    |
               |                               |server/set into the thread's    |
@@ -219,6 +219,10 @@ const char *  |MYSQL_COMMAND_HOST_NAME        |The host name to use to         |
 --------------+-------------------------------+--------------------------------+
 int           |MYSQL_COMMAND_TCPIP_PORT       |The port to use to connect.     |
 --------------+-------------------------------+--------------------------------+
+const void *  |MYSQL_NO_LOCK_REGISTRY         |Non-null selects the no-lock    |
+              |                               |registry; null selects the      |
+              |                               |regular registry.               |
+--------------+-------------------------------+--------------------------------+
 uint32_t      |MYSQL_COMMAND_CLIENT_FLAGS     |Client flags passed to          |
               |                               |mysql_real_connect() and exposed|
               |                               |by the default capabilities     |
@@ -227,12 +231,33 @@ uint32_t      |MYSQL_COMMAND_CLIENT_FLAGS     |Client flags passed to          |
 const char *  |MYSQL_COMMAND_PASSWORD         |Password used to authenticate   |
               |                               |against the current server.     |
 --------------+-------------------------------+--------------------------------+
+bool          |MYSQL_COMMAND_BYPASS_MAX_      |Bypass max_connections for new  |
+              |CONNECTIONS                    |embedded sessions. Default:     |
+              |                               |true.                           |
+--------------+-------------------------------+--------------------------------+
+
+  @note MYSQL_COMMAND_USER_NAME and MYSQL_COMMAND_HOST_NAME are copied by
+  set() and retained across failed connect() attempts until replaced or the
+  handle is closed. These options cannot be changed after an embedded
+  session is created.
 
   @note MYSQL_COMMAND_PASSWORD is write-only and non-owning. The pointer must
   remain valid until connect() returns. A non-null pointer, including an empty
   string, selects normal authentication against the current server. A null
   pointer selects the embedded backend. After an authenticated connection
   attempt, close and reinitialize the handle before connecting again.
+
+  @note MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS accepts a non-null bool pointer.
+  The default is true, preserving the connection-limit exemption. When false,
+  embedded sessions created by connect() are subject to max_connections and
+  cannot use the reserved extra connection slot. Both modes contribute to the
+  connection count and preserve the session's SQL privileges.
+  Administrative admission bypasses only the connection limit; other errors
+  can still prevent connection establishment.
+  Set this option before creating a session and only for embedded connections.
+  Normal admission is incompatible with MYSQL_COMMAND_LOCAL_THD_HANDLE and a
+  non-null MYSQL_COMMAND_PASSWORD. The setting survives failed connect()
+  attempts; get() returns the configured boolean.
 
   @note Authenticated connections are limited to the current server's local
   socket or named pipe, or loopback TCP endpoint. They are incompatible with

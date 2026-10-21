@@ -1778,6 +1778,7 @@ struct Access_permissions {
   bool has_write_access;
 };
 
+#ifdef UNIV_PFS_IO
 /** This function checks if we have read and/or write permissions at the time of
 checking. These are not just the FS-related file permissions, as they are not
 enough in case the file is locked for read and/or write.
@@ -1787,6 +1788,7 @@ enough in case the file is locked for read and/or write.
 @param[in]      path             pathname of the file
 @param[in]      is_raw_device    true if the path is specified to a raw device.
 @return Access modes possible for the path at the time of checking. */
+#endif /* UNIV_PFS_IO */
 [[nodiscard]] Access_permissions os_file_check_access(
 #ifdef UNIV_PFS_IO
     mysql_pfs_key_t pfs_key,
@@ -1800,6 +1802,7 @@ enough in case the file is locked for read and/or write.
 [[nodiscard]] dberr_t os_file_get_status(const char *path,
                                          os_file_stat_t *stat_info);
 
+#ifdef UNIV_PFS_IO
 /** Check if a file can be opened in read-write mode.
  @param[in]   pfs_key       the pfs key to be used for io on this file, which
                             determines the EVENT_NAME for it, and thus has to
@@ -1810,6 +1813,7 @@ enough in case the file is locked for read and/or write.
  @retval true   if file can be opened in the specified mode (rw or ro);
                 or file does not exist
  @retval false  if file exists and can't be opened in the specified mode */
+#endif /* UNIV_PFS_IO */
 [[nodiscard]] bool os_file_check_mode(
 #ifdef UNIV_PFS_IO
     mysql_pfs_key_t pfs_key,

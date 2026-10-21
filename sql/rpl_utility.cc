@@ -99,6 +99,13 @@ uint32 table_def::calc_field_size(uint col, const uchar *master_data) const {
   return length;
 }
 
+enum_calc_field_size_status table_def::calc_field_size_checked(
+    uint col, const uchar *master_data, size_t available,
+    uint32 *field_size) const {
+  return ::calc_field_size_checked(
+      type(col), master_data, m_field_metadata[col], available, field_size);
+}
+
 #if defined(MYSQL_SERVER)
 /**
    Function to compare two size_t integers for their relative
@@ -1351,7 +1358,8 @@ THD_instance_guard::THD_instance_guard(THD *thd)
     : m_is_locally_initialized{thd == nullptr} {
   if (this->m_is_locally_initialized) {
     this->m_target = new THD;
-    this->m_target->thread_stack = (char *)&this->m_target;
+    this->m_target->capture_stack_base(
+        reinterpret_cast<char *>(&this->m_target));
     this->m_target->store_globals();
     this->m_target->security_context()->skip_grants();
   } else {

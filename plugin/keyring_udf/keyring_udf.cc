@@ -58,17 +58,23 @@ const char *type = "charset";
 #define PLUGIN_EXPORT extern "C"
 #endif
 
-static bool is_type_valid(const char *type) {
+// Size of the longest type name, including the null terminator.
+constexpr size_t KEYRING_UDF_KEY_TYPE_LENGTH = sizeof("secret");
+
+static bool is_type_valid(const char *type, size_t type_length) {
   // all possible key type names supported by any keyring plugin/component
   static const std::unordered_set<std::string_view> key_types{"AES", "DSA",
                                                               "RSA", "SECRET"};
   assert(type != nullptr);
-  std::string up_type{type};
-  std::transform(up_type.begin(), up_type.end(), up_type.begin(), ::toupper);
+  if (type_length >= KEYRING_UDF_KEY_TYPE_LENGTH) return false;
+
+  std::string up_type{type, type_length};
+  std::transform(up_type.begin(), up_type.end(), up_type.begin(),
+                 [](unsigned char character) {
+                   return static_cast<char>(std::toupper(character));
+                 });
   return (key_types.find(up_type) != key_types.cend());
 }
-// size of the longest type name
-constexpr size_t KEYRING_UDF_KEY_TYPE_LENGTH = sizeof("secret");
 
 static bool is_null_attribute(const char *attr) {
   std::string up_attr{attr};
@@ -268,9 +274,19 @@ static bool validate_compile_time(UDF_ARGS *args, uint expected_arg_count,
       strcpy(message, "Key id cannot be NULL.");
       return true;
     }
-    if (args->args[1] != nullptr && !is_type_valid(args->args[1])) {
-      strcpy(message, "Invalid key type.");
-      return true;
+    if (args->args[1] != nullptr) {
+      void *argument_charset = nullptr;
+      if (udf_metadata_service->argument_get(args, type, 1, &argument_charset))
+        return true;
+
+      // The server converts string arguments to utf8mb4 only after the init
+      // function returns. Validate constants in other character sets at
+      // runtime, once that conversion has taken place.
+      if (strcmp(static_cast<const char *>(argument_charset), charset) == 0 &&
+          !is_type_valid(args->args[1], args->lengths[1])) {
+        strcpy(message, "Invalid key type.");
+        return true;
+      }
     }
   }
 
@@ -318,7 +334,8 @@ static bool validate_run_time(UDF_ARGS *args, int to_validate) {
     return true;
 
   if (to_validate & VALIDATE_KEY_TYPE &&
-      (args->args[1] == nullptr || *args->args[1] == 0))
+      (args->args[1] == nullptr || *args->args[1] == 0 ||
+       !is_type_valid(args->args[1], args->lengths[1])))
     return true;
 
   if (to_validate & VALIDATE_KEY_LENGTH) {
@@ -443,8 +460,11 @@ static bool fetch(char *key_id, char **out_key, char **out_key_type,
 
   if (out_key != nullptr) memcpy(*out_key, key, key_len);
 
-  if (out_key_type != nullptr)
-    strncpy(*out_key_type, key_type, KEYRING_UDF_KEY_TYPE_LENGTH);
+  if (out_key_type != nullptr) {
+    constexpr size_t max_key_type_length = KEYRING_UDF_KEY_TYPE_LENGTH - 1;
+    strncpy(*out_key_type, key_type, max_key_type_length);
+    (*out_key_type)[max_key_type_length] = '\0';
+  }
 
   return false;
 }
@@ -525,7 +545,7 @@ char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
     return nullptr;
   }
 
-  *length = strlen(initid->ptr);
+  *length = strnlen(initid->ptr, KEYRING_UDF_KEY_TYPE_LENGTH - 1);
   null_guard.release();
   *is_null = 0;
   return initid->ptr;

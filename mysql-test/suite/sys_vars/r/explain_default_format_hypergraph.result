@@ -70,7 +70,7 @@ EXPLAIN
     "estimated_first_row_cost": 0.0
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 set explain_format=tree;
 explain select 1;
@@ -91,7 +91,7 @@ EXPLAIN
     "estimated_first_row_cost": 0.0
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 set explain_format=json;
 explain format=tree select 1;
@@ -112,7 +112,7 @@ EXPLAIN
     "estimated_first_row_cost": 0.0
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 set explain_format=default;
 explain select 1;

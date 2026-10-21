@@ -1,0 +1,320 @@
+##
+## Health Monitor fencing disable transitions
+##
+
+## Test case initialization - Begin
+
+# Storage quantities allow up to ULONG_MAX - 1
+set @ulong_max = 18446744073709551615;
+set @max_level = @ulong_max - 1;
+
+# A very high offline level will force the offline mode
+set @force_offline_mode = @max_level;
+
+# Disk usage warning level = 100% will force warnings, 0% will disable warnings
+set @force_disk_warning = 100;
+set @no_disk_warning = 0;
+
+# Memory usage warning level = ULONG_MAX-1 will force warnings, 0 will disable warnings
+set @force_memory_warning = @max_level;
+set @no_memory_warning = 0;
+
+# Ignore warnings during startup
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+
+# Install the component
+install component 'file://component_health_monitor';
+
+# Turn off the collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+# Disable low disk space warnings
+set @@global.health_monitor.disk_usage_warning_level_1 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_2 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_3 = @no_disk_warning;
+
+# Disable low memory warnings
+set @@global.health_monitor.memory_usage_warning_level_1 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_2 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_3 = @no_memory_warning;
+
+# Disable the low level storage thresholds to avoid inadvertently triggering
+# fallback mode on the vardir volume
+set @@global.health_monitor.disk_low_space_level = 0;
+set @@global.health_monitor.disk_low_space_percent = 0;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+# Disable recovery mode
+set @@global.health_monitor.disk_recovery_enable = off;
+
+# Fallback mode may have been triggered when the component was loaded,
+# so reset offline_mode and super_read_only as a precaution.
+# The 'super_read_only_disk_full' status variable will be reset when the
+# monitored disk path is changed.
+
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+
+# Set monitored disk after disabling the low space thresholds
+set @@global.health_monitor.disk_monitored = 'MYSQLTEST_VARDIR';
+
+select @@global.offline_mode;
+@@global.offline_mode
+0
+select @@global.super_read_only;
+@@global.super_read_only
+0
+select @@global.read_only;
+@@global.read_only
+0
+show status like 'super_read_only_disk_full';
+Variable_name	Value
+super_read_only_disk_full	OFF
+show status like 'offline_mode_disk_full';
+Variable_name	Value
+offline_mode_disk_full	OFF
+
+use performance_schema;
+
+## Test case initialization - End
+set @explicit_monitored_path = @@global.health_monitor.disk_monitored;
+set @missing_path = 'MISSING_PATH';
+
+# Confirm the registered fallback default is OFF
+select @@global.health_monitor.disk_fallback_enable = 0
+as registered_fallback_default_off;
+registered_fallback_default_off
+1
+
+# Configure deterministic disk collection and forecasting
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_forecast_running = off;
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.disk_forecast_sample_interval = 10;
+set @@global.health_monitor.status_interval = 1;
+set @@global.health_monitor.disk_low_space_duration = 60;
+set @@global.health_monitor.disk_usage_warning_level_1 = 0;
+set @@global.health_monitor.disk_usage_warning_level_2 = 0;
+set @@global.health_monitor.disk_usage_warning_level_3 = 0;
+set @@global.health_monitor.disk_recovery_level = 0;
+set @@global.health_monitor.disk_recovery_time_1 = 1;
+set @@global.health_monitor.disk_recovery_time_2 = 1;
+set @@global.health_monitor.disk_recovery_increment = 0;
+set @@global.health_monitor.disk_recovery_max_cycles = 3;
+set @@global.health_monitor.disk_recovery_window = 86400;
+set @@global.health_monitor.disk_recovery_enable = on;
+truncate performance_schema.health_block_device;
+truncate performance_schema.disk_metric;
+set @@global.health_monitor.disk_forecast_running = on;
+
+##
+## Fencing disabled before LOW and CRITICAL samples
+##
+set @@global.health_monitor.disk_fallback_enable = off;
+set @@global.health_monitor.disk_fallback_force = on;
+set @@global.health_monitor.disk_low_space_level = @force_offline_mode;
+set @@global.health_monitor.disk_low_space_percent = 100;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+set @@global.health_monitor.disk_running = on;
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+select count(*) > @low_disk_rows as disk_rows_advanced_while_disabled
+from performance_schema.health_block_device;
+disk_rows_advanced_while_disabled
+1
+select count(*) > @low_metric_rows as forecast_metrics_advanced_while_disabled
+from performance_schema.disk_metric;
+forecast_metrics_advanced_while_disabled
+1
+select count(*) = 0 as no_fallback_timer_started
+from performance_schema.error_log
+where data like '%Fallback Timer: Running%'
+   and logged > @disabled_start;
+no_fallback_timer_started
+1
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = OFF]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+
+##
+## Disable fencing during a pending countdown
+##
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+set @@global.health_monitor.disk_fallback_force = off;
+set @@global.health_monitor.disk_fallback_enable = on;
+set @@global.health_monitor.disk_running = on;
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = OFF]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+set @@global.health_monitor.disk_fallback_enable = off;
+select count(*) = 0 as canceled_timer_did_not_expire
+from performance_schema.error_log
+where data like '%Fallback Timer: Expired%'
+   and logged > @disable_countdown_start;
+canceled_timer_did_not_expire
+1
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = OFF]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+
+##
+## Disable fencing after the Health Monitor fences the server
+##
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_low_space_level = 0;
+set @@global.health_monitor.disk_low_space_percent = 0;
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+set @@global.health_monitor.disk_fallback_enable = on;
+set @@global.health_monitor.disk_running = on;
+include/assert.inc [Expect OFFLINE_MODE = ON]
+include/assert.inc [Expect SUPER_READ_ONLY = ON]
+include/assert.inc [Expect status 'super_read_only_disk_full' = ON]
+include/assert.inc [Expect status 'offline_mode_disk_full' = ON]
+set @@global.health_monitor.disk_fallback_enable = off;
+
+# Disabling new fencing retains server modes and ownership
+include/assert.inc [Expect OFFLINE_MODE = ON]
+include/assert.inc [Expect SUPER_READ_ONLY = ON]
+include/assert.inc [Expect status 'super_read_only_disk_full' = ON]
+include/assert.inc [Expect status 'offline_mode_disk_full' = ON]
+
+# External clearing ends ownership while disk input is unavailable
+set @@global.health_monitor.disk_monitored = @missing_path;
+set @@global.offline_mode = off;
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+
+# External setting does not create Health Monitor ownership
+set @@global.offline_mode = on;
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+include/assert.inc [Expect OFFLINE_MODE = ON]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+set @@global.offline_mode = off;
+
+# Recovery continues after fencing is disabled
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = OFF]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+select count(*) = 0 as no_new_fallback_after_recovery
+from performance_schema.error_log
+where data like '%Fallback Timer: Running%'
+   and logged > @critical_after_recovery_start;
+no_new_fallback_after_recovery
+1
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = OFF]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+
+##
+## Reconciliation keeps recovery active while ownership remains
+## and cancels recovery when final ownership ends
+##
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_fallback_enable = on;
+set @@global.health_monitor.disk_recovery_time_1 = 60;
+set @@global.health_monitor.disk_low_space_critical_level =
+@force_offline_mode;
+set @@global.health_monitor.disk_monitored = @missing_path;
+set @@global.health_monitor.disk_running = on;
+include/assert.inc [Expect OFFLINE_MODE = ON]
+include/assert.inc [Expect SUPER_READ_ONLY = ON]
+include/assert.inc [Expect status 'super_read_only_disk_full' = ON]
+include/assert.inc [Expect status 'offline_mode_disk_full' = ON]
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+set @@global.offline_mode = off;
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = ON]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = ON]
+select count(*) = 0 as recovery_continues_with_remaining_ownership
+from performance_schema.error_log
+where data like '%Recovery: Timer 1: Canceled%'
+   and logged > @ownership_clear_start;
+recovery_continues_with_remaining_ownership
+1
+set @@global.super_read_only = off;
+select count(*) = 1 as active_recovery_timer_canceled
+from performance_schema.error_log
+where data like '%Recovery: Timer 1: Canceled%'
+   and logged > @final_ownership_clear_start;
+active_recovery_timer_canceled
+1
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = OFF]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = OFF]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+
+##
+## Canceling recovery during timer 2 resets both recovery timers
+##
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_recovery_time_1 = 10;
+set @@global.health_monitor.disk_recovery_time_2 = 60;
+set @@global.health_monitor.disk_low_space_critical_level =
+@force_offline_mode;
+set @@global.health_monitor.disk_running = on;
+include/assert.inc [Expect OFFLINE_MODE = ON]
+include/assert.inc [Expect SUPER_READ_ONLY = ON]
+include/assert.inc [Expect status 'super_read_only_disk_full' = ON]
+include/assert.inc [Expect status 'offline_mode_disk_full' = ON]
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = ON]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = ON]
+set @@global.super_read_only = off;
+select count(*) = 1 as completed_recovery_timer_1_reset
+from performance_schema.error_log
+where data like '%Recovery: Timer 1: Canceled%'
+   and logged > @timer_2_cancel_start;
+completed_recovery_timer_1_reset
+1
+select count(*) = 1 as active_recovery_timer_2_canceled
+from performance_schema.error_log
+where data like '%Recovery: Timer 2: Canceled%'
+   and logged > @timer_2_cancel_start;
+active_recovery_timer_2_canceled
+1
+include/assert.inc [Expect OFFLINE_MODE = OFF]
+include/assert.inc [Expect SUPER_READ_ONLY = OFF]
+include/assert.inc [Expect status 'super_read_only_disk_full' = OFF]
+include/assert.inc [Expect status 'offline_mode_disk_full' = OFF]
+
+# Clean up
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_forecast_running = off;
+set @@global.health_monitor.disk_fallback_force = off;
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+uninstall component 'file://component_health_monitor';

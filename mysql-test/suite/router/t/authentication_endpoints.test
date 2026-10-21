@@ -5,7 +5,6 @@
 --source include/have_router.inc
 
 --let $extra_mrs_router_id=1
---source ../include/schema/basic_schema.sql
 
 --let $test_param_authentication=
 --source ../include/test/authentication_endpoints.inc
@@ -15,4 +14,3 @@
 
 
 # Cleanup
-

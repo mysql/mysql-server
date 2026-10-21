@@ -1,0 +1,83 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify MRS component system variables:
+#
+# This test validates the component's sysvars by attempting
+# to set them to valid and invalid values. It ensures that:
+#  - Valid values are accepted and correctly applied
+#  - Invalid values are rejected with appropriate error messages
+#  - Default values are correctly reported
+#
+# The available sysvars are:
+#  - mysql_rest_service.http_port;
+#  - mysql_rest_service.ssl_cert;
+#  - mysql_rest_service.ssl_key;
+#  - mysql_rest_service.ssl_cipher;
+#  - mysql_rest_service.io_worker_threads;
+#  - mysql_rest_service.http_max_connections;
+#  - mysql_rest_service.http_max_request_body_size;
+#  - mysql_rest_service.http_max_response_body_size;
+#
+# This test is split into 4 different blocks, this is the forth and last.
+
+--source include/not_solaris.inc
+
+--echo ## IV. Component uninstall and reinstall:
+--echo #
+--echo # 1. Uninstall the component and ensure sysvars are cleared.
+--echo # 2. Reinstall and verify that default values are restored.
+--echo #
+
+# Init
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--echo
+--echo #
+--echo ## IV. 1. Uninstall the component and ensure sysvars are cleared.
+
+# Set valid values to the sysvars
+--let $http_port = `SELECT @@mysql_rest_service.http_port;`
+--replace_regex / = [0-9]+ \+ 1/ = %HTTP_PORT% + 1/
+--eval SET GLOBAL mysql_rest_service.http_port = $http_port + 1
+
+# Restart the component so the values are applied
+SELECT mysql_rest_service_restart();
+
+# Wait for readiness
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+# Uninstall the component to verify that the sysvars are cleared up
+--source ../include/cmrs/cleanup.inc
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.http_port;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.ssl_cert;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.ssl_key;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.ssl_cipher;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.io_worker_threads;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.http_max_connections;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.http_max_request_body_size;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@mysql_rest_service.http_max_response_body_size;
+
+--echo
+--echo #
+--echo ## IV. 2. Reinstall and verify that default values are restored.
+
+--source ../include/test/mrs_sysvars_validation_defaults.inc

@@ -85,7 +85,7 @@ class HARNESS_EXPORT ProcessStateComponent {
   ProcessStateComponent(ProcessStateComponent &&) = delete;
   void operator=(ProcessStateComponent &&) = delete;
 
-  void clear();
+  void clear() { on_shutdown_request_callbacks_.clear(); }
 
   /**
    * request application shutdown.

@@ -1,0 +1,165 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that component MRS authenticates MySQL accounts through
+# mysql_command_services.
+
+--source ../include/cmrs/initialize.inc
+
+CREATE USER mrs_mysql_auth_user@'%' IDENTIFIED BY 'pwd';
+CREATE USER mrs_mysql_auth_locked@'%' IDENTIFIED BY 'pwd' ACCOUNT LOCK;
+CREATE SCHEMA mrs_mysql_auth;
+CREATE TABLE mrs_mysql_auth.pool_holder (id INT PRIMARY KEY);
+INSERT INTO mrs_mysql_auth.pool_holder VALUES (1);
+GRANT SELECT ON mrs_mysql_auth.* TO mrs_mysql_auth_user@'%';
+--let $router_test_schemas=mrs_mysql_auth;$router_test_schemas
+
+# A second HTTP worker must be able to request a session while the only pool
+# entry is blocked by the first request.
+--disable_query_log
+--disable_result_log
+SET GLOBAL mysql_rest_service.io_worker_threads = 2;
+SELECT mysql_rest_service_stop();
+SELECT mysql_rest_service_start();
+--let $wait_condition=SELECT VARIABLE_VALUE = 2 FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads'
+--source include/wait_condition_or_abort.inc
+--enable_result_log
+--enable_query_log
+
+UPDATE mysql_rest_service_metadata.config
+  SET data = JSON_MERGE_PATCH(data,
+    '{"passthroughDbUser":{"poolSize":1}}');
+
+--source $router_tests/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--let $mrs_add_service_options='{"passthroughDbUser":true}'
+--source $router_tests/mrs/service/add.inc
+
+--let $mrs_add_schema=mrs_mysql_auth
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=TRUE
+--source $router_tests/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=pool_holder
+--let $mrs_add_db_object_path=/holder
+--let $mrs_add_db_object_op=READ
+--source $router_tests/mrs/db_object/add.inc
+
+--let $mrs_add_auth_app=default authentication
+--let $mrs_add_auth_vendor=MySQL Internal
+--let $mrs_add_auth_service=/svc
+--source $router_tests/mrs/auth_app/add.inc
+
+--source $router_tests/mrs/end_object_definition.inc
+
+--echo
+--echo # Successful authentication returns the canonical MySQL account.
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --wait-until-status 60
+  --path /svc/authentication/login
+  -u mrs_mysql_auth_user
+  -p pwd
+  --session-file $MYSQL_TMP_DIR/mrs_mysql_auth_session.dat;
+
+SELECT name, vendor_user_id
+  FROM mysql_rest_service_metadata.mrs_user
+  WHERE name = 'mrs_mysql_auth_user';
+
+--echo
+--echo # Passthrough pool exhaustion returns 429 and recovers after release.
+LOCK TABLES mrs_mysql_auth.pool_holder WRITE;
+
+--let $pool_holder_result_file=$MYSQL_TMP_DIR/mrs_mysql_pool_holder.result
+--exec_in_background $MRS_CLIENT_ARGS --path /svc/db/holder/1 --session-file $MYSQL_TMP_DIR/mrs_mysql_auth_session.dat --display result > $pool_holder_result_file 2>&1
+
+--let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.processlist WHERE STATE LIKE 'Waiting%' AND INFO LIKE '%pool_holder%'
+--source include/wait_condition_or_abort.inc
+
+--let $mrs_client_arg_path='/svc/db/holder/1'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/mrs_mysql_auth_session.dat
+--let $mrs_client_arg_expected_status=TooManyRequests
+--source $router_tests/mrs/mrs_client.inc
+
+UNLOCK TABLES;
+
+--let $grep_pattern=OK
+--let $grep_file=$pool_holder_result_file
+--let $wait_timeout=30
+--let $skip_log_pattern=1
+--source include/wait_for_pattern_in_file.inc
+--let $grep_pattern=
+--let $grep_file=
+--let $wait_timeout=
+--let $skip_log_pattern=
+--remove_file $pool_holder_result_file
+
+--let $mrs_client_arg_path='/svc/db/holder/1'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/mrs_mysql_auth_session.dat
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo # A failed pool allocation releases its slot for a later retry.
+--disable_query_log
+--disable_result_log
+CALL mtr.add_suppression(
+  "Could not get DB session for user 'mrs_mysql_auth_user' for service: .*");
+--enable_result_log
+--enable_query_log
+
+DROP USER mrs_mysql_auth_user@'%';
+
+--let $mrs_client_arg_path='/svc/db/holder/1'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/mrs_mysql_auth_session.dat
+--let $mrs_client_arg_expected_status=InternalError
+--source $router_tests/mrs/mrs_client.inc
+
+CREATE USER mrs_mysql_auth_user@'%' IDENTIFIED BY 'pwd';
+GRANT SELECT ON mrs_mysql_auth.* TO mrs_mysql_auth_user@'%';
+
+--let $mrs_client_arg_path='/svc/db/holder/1'
+--let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/mrs_mysql_auth_session.dat
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo # Invalid, missing, and locked accounts are rejected.
+--let $mrs_client_arg_path='/svc/authentication/login'
+--let $mrs_client_arg_authentication=BASIC
+--let $mrs_client_arg_user=mrs_mysql_auth_user
+--let $mrs_client_arg_password=wrong-password
+--let $mrs_client_arg_expected_status=Unauthorized
+--source $router_tests/mrs/mrs_client.inc
+
+--let $mrs_client_arg_path='/svc/authentication/login'
+--let $mrs_client_arg_authentication=BASIC
+--let $mrs_client_arg_user=mrs_mysql_auth_missing
+--let $mrs_client_arg_password=pwd
+--let $mrs_client_arg_expected_status=Unauthorized
+--source $router_tests/mrs/mrs_client.inc
+
+--let $mrs_client_arg_path='/svc/authentication/login'
+--let $mrs_client_arg_authentication=BASIC
+--let $mrs_client_arg_user=mrs_mysql_auth_locked
+--let $mrs_client_arg_password=pwd
+--let $mrs_client_arg_expected_status=Unauthorized
+--source $router_tests/mrs/mrs_client.inc
+
+--echo
+--echo # A failed attempt does not affect a later authenticated connection.
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u mrs_mysql_auth_user
+  -p pwd
+  --session-file $MYSQL_TMP_DIR/mrs_mysql_auth_session_2.dat;
+
+--echo
+--echo # Cleanup
+--remove_file $MYSQL_TMP_DIR/mrs_mysql_auth_session.dat
+--remove_file $MYSQL_TMP_DIR/mrs_mysql_auth_session_2.dat
+
+DROP USER mrs_mysql_auth_user@'%';
+DROP USER mrs_mysql_auth_locked@'%';
+
+--source ../include/cmrs/cleanup.inc

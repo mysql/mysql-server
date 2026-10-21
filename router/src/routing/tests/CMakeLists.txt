@@ -27,16 +27,17 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
-# routing-library as object-lib for testing
-STATICLIB_FROM_TARGET(routing_export_all routing)
+ADD_LIBRARY(routing_export_all INTERFACE)
 TARGET_COMPILE_DEFINITIONS(routing_export_all
-  PUBLIC ROUTING_STATIC_DEFINE=1)
+    INTERFACE
+    ROUTING_STATIC_DEFINE=1)
 
 SET(TEST_MODULE "routing")
 SET(test_files
   test_block_clients.cc
   # test_connection.cc
   test_connection_container.cc
+  test_destination_ssl_context.cc
   test_metadata_cache_group.cc
   test_static_routing.cc
   test_routing.cc
@@ -54,20 +55,24 @@ FOREACH(test_file ${test_files})
   ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
     MODULE ${TEST_MODULE}
     LIB_DEPENDS
-      routing_export_all
+	  routing_export_all
+      routing_object
+	  routing_required
       test-helpers
     INCLUDE_DIRS
       ${CMAKE_CURRENT_SOURCE_DIR}/../include
       ${CMAKE_CURRENT_SOURCE_DIR}/../src
       ${CMAKE_CURRENT_SOURCE_DIR}/../../harness/tests  # mock_io_service.h
   )
+  # routing-library as object-lib for testing
+
 ENDFOREACH()
 DOWNGRADE_STRINGOP_WARNINGS(routertest_routing_setup_tcp_service)
 
 ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin.cc
   MODULE "routing"
   LIB_DEPENDS
-    routing_export_all
+    routing
     test-helpers
     extra::rapidjson
   INCLUDE_DIRS

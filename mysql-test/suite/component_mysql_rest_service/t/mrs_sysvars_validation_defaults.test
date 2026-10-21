@@ -1,0 +1,4 @@
+--source include/have_mysql_rest_service_component.inc
+
+--source include/not_solaris.inc
+--source ../include/test/mrs_sysvars_validation_defaults.inc

@@ -26,6 +26,9 @@
 #ifndef ROUTER_SRC_HTTP_TESTS_ASIO_TLS_SSL_TEST_CONTEXTES_H_
 #define ROUTER_SRC_HTTP_TESTS_ASIO_TLS_SSL_TEST_CONTEXTES_H_
 
+#include <memory>
+#include <stdexcept>
+
 #include "mysql/harness/tls_client_context.h"
 #include "mysql/harness/tls_server_context.h"
 
@@ -34,15 +37,17 @@ extern std::string g_data_dir;
 class TlsTestContext {
  public:
   TlsTestContext() {
-    auto result = ssl_ctxt_server_.load_key_and_cert(
+    auto result = ssl_ctxt_server_->load_key_and_cert(
         g_data_dir + "/server-key.pem", g_data_dir + "/server-cert.pem");
     if (!result) {
       throw std::runtime_error(result.error().message());
     }
   }
 
-  TlsServerContext ssl_ctxt_server_;
-  TlsClientContext ssl_ctxt_client_{TlsVerify::NONE};
+  std::shared_ptr<TlsServerContext> ssl_ctxt_server_{
+      std::make_shared<TlsServerContext>()};
+  std::shared_ptr<TlsClientContext> ssl_ctxt_client_{
+      std::make_shared<TlsClientContext>(TlsVerify::NONE)};
 };
 
 #endif  // ROUTER_SRC_HTTP_TESTS_ASIO_TLS_SSL_TEST_CONTEXTES_H_

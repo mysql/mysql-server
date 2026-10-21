@@ -222,7 +222,7 @@ static THD *init_new_thd(Channel_info *channel_info) {
     need to know the start of the stack so that we could check for
     stack overruns.
   */
-  thd_set_thread_stack(thd, (char *)&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   return thd;

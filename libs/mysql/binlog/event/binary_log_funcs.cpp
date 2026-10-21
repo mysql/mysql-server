@@ -29,6 +29,7 @@
 #include "mysql/binlog/event/wrapper_functions.h"
 
 #include <climits>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 
@@ -208,9 +209,37 @@ int decimal_binary_size(int precision, int scale) {
          frac0 * sizeof(uint32_t) + dig2bytes[frac0x];
 }
 
-uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
-                         unsigned int metadata) {
+static enum_calc_field_size_status read_field_length(
+    const unsigned char *master_data, uint32_t length_bytes, size_t available,
+    bool check_bounds, uint32_t *length) {
+  if (check_bounds && available < length_bytes)
+    return CALC_FIELD_SIZE_TRUNCATED;
+
+  if (length_bytes == 1) {
+    *length = *master_data;
+    return CALC_FIELD_SIZE_OK;
+  }
+
+  uint32_t temp = 0;
+  memcpy(&temp, master_data, length_bytes);
+  *length = le32toh(temp);
+  return CALC_FIELD_SIZE_OK;
+}
+
+static enum_calc_field_size_status add_to_field_length(uint32_t add,
+                                                       bool check_bounds,
+                                                       uint32_t *length) {
+  if (check_bounds && *length > UINT32_MAX - add)
+    return CALC_FIELD_SIZE_TRUNCATED;
+  *length += add;
+  return CALC_FIELD_SIZE_OK;
+}
+
+static enum_calc_field_size_status calc_field_size_internal(
+    unsigned char col, const unsigned char *master_data, unsigned int metadata,
+    size_t available, bool check_bounds, uint32_t *field_size) {
   uint32_t length = 0;
+  enum_calc_field_size_status status = CALC_FIELD_SIZE_OK;
 
   switch ((col)) {
     case MYSQL_TYPE_NEWDECIMAL:
@@ -241,14 +270,12 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
         length = max_display_length_for_field(MYSQL_TYPE_STRING, metadata) > 255
                      ? 2
                      : 1;
-
-        if (length == 1)
-          length += *master_data;
-        else {
-          uint32_t temp = 0;
-          memcpy(&temp, master_data, 2);
-          length = length + le32toh(temp);
-        }
+        uint32_t data_length = 0;
+        status = read_field_length(master_data, length, available, check_bounds,
+                                   &data_length);
+        if (status != CALC_FIELD_SIZE_OK) return status;
+        status = add_to_field_length(data_length, check_bounds, &length);
+        if (status != CALC_FIELD_SIZE_OK) return status;
       }
       break;
     }
@@ -333,13 +360,12 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
     }
     case MYSQL_TYPE_VARCHAR: {
       length = metadata > 255 ? 2 : 1;
-      if (length == 1)
-        length += (uint32_t)*master_data;
-      else {
-        uint32_t temp = 0;
-        memcpy(&temp, master_data, 2);
-        length = length + le32toh(temp);
-      }
+      uint32_t data_length = 0;
+      status = read_field_length(master_data, length, available, check_bounds,
+                                 &data_length);
+      if (status != CALC_FIELD_SIZE_OK) return status;
+      status = add_to_field_length(data_length, check_bounds, &length);
+      if (status != CALC_FIELD_SIZE_OK) return status;
       break;
     }
     case MYSQL_TYPE_TINY_BLOB:
@@ -357,30 +383,44 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
       */
       switch (metadata) {
         case 1:
-          length = *master_data;
-          break;
         case 2:
-          memcpy(&length, master_data, 2);
-          length = le32toh(length);
-          break;
         case 3:
-          memcpy(&length, master_data, 3);
-          length = le32toh(length);
-          break;
         case 4:
-          memcpy(&length, master_data, 4);
-          length = le32toh(length);
+          status = read_field_length(master_data, metadata, available,
+                                     check_bounds, &length);
+          if (status != CALC_FIELD_SIZE_OK) return status;
           break;
         default:
           BAPI_ASSERT(0);  // Should not come here
+          if (check_bounds) return CALC_FIELD_SIZE_INVALID_TYPE;
           break;
       }
 
-      length += metadata;
+      status = add_to_field_length(metadata, check_bounds, &length);
+      if (status != CALC_FIELD_SIZE_OK) return status;
       break;
     }
     default:
+      if (check_bounds) return CALC_FIELD_SIZE_INVALID_TYPE;
       length = UINT_MAX;
   }
+  if (check_bounds && length > available) return CALC_FIELD_SIZE_TRUNCATED;
+  *field_size = length;
+  return CALC_FIELD_SIZE_OK;
+}
+
+uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
+                         unsigned int metadata) {
+  uint32_t length = 0;
+  (void)calc_field_size_internal(col, master_data, metadata, 0, false, &length);
   return length;
+}
+
+enum enum_calc_field_size_status calc_field_size_checked(
+    unsigned char col, const unsigned char *master_data, unsigned int metadata,
+    size_t available, uint32_t *field_size) {
+  if (field_size == nullptr) return CALC_FIELD_SIZE_INVALID_TYPE;
+  *field_size = 0;
+  return calc_field_size_internal(col, master_data, metadata, available, true,
+                                  field_size);
 }

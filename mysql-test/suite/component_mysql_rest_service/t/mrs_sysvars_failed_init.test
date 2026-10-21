@@ -1,0 +1,41 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Skip if have_debug not available
+--source include/have_debug.inc
+--source include/not_solaris.inc
+
+# Verify MRS component system variables init failures:
+#
+# This test validates the component's system variables registration and
+# unregistration in failure scenarios. In particular, if a system variable
+# fails to be registered, all system variables should be unregistered too
+#
+
+--echo
+--echo
+--echo ## I. 1. Ensure all systemvars are unregistered when a single one fails
+--echo ##       to be registered.
+
+# Set debug trap
+SET @@GLOBAL.DEBUG = '+d, mrs_component_sysvar_registration_failure';
+SET @@GLOBAL.DEBUG = '+d, mrs_component_skip_keyring_init';
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("Initialization method provided by component 'mysql:component_mysql_rest_service' failed.");
+call mtr.add_suppression("MySQL Rest Service Component: Failed to initialize. Error 'Registering System Variables'");
+--enable_result_log
+--enable_query_log
+
+--error ER_MRS_SYSVARS_REGISTER_ERROR
+INSTALL COMPONENT "file://component_mysql_rest_service";
+
+SET @@GLOBAL.DEBUG = '-d, mrs_component_sysvar_registration_failure';
+SET @@GLOBAL.DEBUG = '-d, mrs_component_skip_keyring_init';
+
+# Confirm all systemvars were unregistered
+--let $sysvars_count = `SELECT count(*)=0 FROM performance_schema.variables_info WHERE VARIABLE_NAME like 'mysql_rest_service%';`
+
+--let $assert_text = MRS Component system variables must be unregistered
+--let $assert_cond = $sysvars_count = 1
+--source include/assert.inc

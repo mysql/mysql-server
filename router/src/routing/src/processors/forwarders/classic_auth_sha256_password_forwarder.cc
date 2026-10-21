@@ -125,8 +125,8 @@ AuthSha256Forwarder::client_data() {
         tr.trace(Tracer::Event().stage("sha256_password::forward::public_key"));
       }
 
-      auto pubkey_res = Auth::public_key_from_ssl_ctx_as_pem(
-          connection()->context().source_ssl_ctx()->get());
+      rsa_tls_context_.reset(connection()->context().source_ssl_ctx());
+      auto pubkey_res = rsa_tls_context_.public_key();
       if (!pubkey_res) {
         auto ec = pubkey_res.error();
 
@@ -191,9 +191,8 @@ AuthSha256Forwarder::encrypted_password() {
       nonce = nonce.substr(0, Auth::kNonceLength);
     }
 
-    auto recv_res = Auth::rsa_decrypt_password(
-        connection()->context().source_ssl_ctx()->get(),
-        msg_res->auth_method_data(), nonce);
+    auto recv_res =
+        rsa_tls_context_.decrypt_password(msg_res->auth_method_data(), nonce);
     if (!recv_res) {
       if (auto &tr = tracer()) {
         tr.trace(Tracer::Event().stage("sha256_password::forward::decrypt:\n" +
@@ -203,6 +202,7 @@ AuthSha256Forwarder::encrypted_password() {
     }
 
     src_protocol.credentials().emplace(Auth::kName, *recv_res);
+    rsa_tls_context_.reset();
 
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage(

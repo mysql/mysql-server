@@ -26,6 +26,7 @@
 #ifndef ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_GREETING_RECEIVER_H_
 #define ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_GREETING_RECEIVER_H_
 
+#include "classic_auth.h"
 #include "processors/base/processor.h"
 
 /**
@@ -81,6 +82,10 @@ class ClientGreetor : public Processor {
   stdx::expected<Result, std::error_code> error();
 
   Stage stage_{Stage::Init};
+
+  // The RSA public key and the matching private key must come from one TLS
+  // generation even when a reload happens while the client responds.
+  RsaTlsContext rsa_tls_context_;
 
   classic_protocol::message::server::Error connect_err_{};
 };

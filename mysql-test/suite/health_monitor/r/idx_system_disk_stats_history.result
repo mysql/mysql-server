@@ -1,0 +1,121 @@
+##
+## Test the Health Monitor component
+##
+## Test cases:
+##   1. Index tests - Health Monitor indexes are TODO, SHOW CREATE TABLE for now
+
+## Test case initialization - Begin
+
+# Storage quantities allow up to ULONG_MAX - 1
+set @ulong_max = 18446744073709551615;
+set @max_level = @ulong_max - 1;
+
+# A very high offline level will force the offline mode
+set @force_offline_mode = @max_level;
+
+# Disk usage warning level = 100% will force warnings, 0% will disable warnings
+set @force_disk_warning = 100;
+set @no_disk_warning = 0;
+
+# Memory usage warning level = ULONG_MAX-1 will force warnings, 0 will disable warnings
+set @force_memory_warning = @max_level;
+set @no_memory_warning = 0;
+
+# Ignore warnings during startup
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+
+# Install the component
+install component 'file://component_health_monitor';
+
+# Turn off the collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+# Disable low disk space warnings
+set @@global.health_monitor.disk_usage_warning_level_1 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_2 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_3 = @no_disk_warning;
+
+# Disable low memory warnings
+set @@global.health_monitor.memory_usage_warning_level_1 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_2 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_3 = @no_memory_warning;
+
+# Disable the low level storage thresholds to avoid inadvertently triggering
+# fallback mode on the vardir volume
+set @@global.health_monitor.disk_low_space_level = 0;
+set @@global.health_monitor.disk_low_space_percent = 0;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+# Disable recovery mode
+set @@global.health_monitor.disk_recovery_enable = off;
+
+# Fallback mode may have been triggered when the component was loaded,
+# so reset offline_mode and super_read_only as a precaution.
+# The 'super_read_only_disk_full' status variable will be reset when the
+# monitored disk path is changed.
+
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+
+# Set monitored disk after disabling the low space thresholds
+set @@global.health_monitor.disk_monitored = 'MYSQLTEST_VARDIR';
+
+select @@global.offline_mode;
+@@global.offline_mode
+0
+select @@global.super_read_only;
+@@global.super_read_only
+0
+select @@global.read_only;
+@@global.read_only
+0
+show status like 'super_read_only_disk_full';
+Variable_name	Value
+super_read_only_disk_full	OFF
+show status like 'offline_mode_disk_full';
+Variable_name	Value
+offline_mode_disk_full	OFF
+
+use performance_schema;
+
+## Test case initialization - End
+
+
+show create table performance_schema.system_disk_stats_history;
+Table	Create Table
+system_disk_stats_history	CREATE TABLE `system_disk_stats_history` (
+  `TIMESTAMP` timestamp NOT NULL,
+  `DEVICE` varchar(255) DEFAULT NULL,
+  `READ_COUNT` bigint unsigned DEFAULT NULL,
+  `READ_BYTES` bigint unsigned DEFAULT NULL,
+  `READ_TIME_MS` bigint unsigned DEFAULT NULL,
+  `WRITE_COUNT` bigint unsigned DEFAULT NULL,
+  `WRITE_BYTES` bigint unsigned DEFAULT NULL,
+  `WRITE_TIME_MS` bigint unsigned DEFAULT NULL,
+  `FLUSHES` bigint unsigned DEFAULT NULL,
+  `FLUSH_TIME_MS` bigint unsigned DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+###
+### Uninstall
+###
+
+uninstall component 'file://component_health_monitor';;

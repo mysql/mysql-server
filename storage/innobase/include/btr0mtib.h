@@ -666,10 +666,6 @@ class Bulk_flusher {
   @return innodb error code. */
   dberr_t run();
 
-  /** Check if work is available for the bulk flusher thread.
-  @return true if work is available. */
-  bool is_work_available();
-
   /** Start a new thread to do the flush work.
   @param[in] space_id space for flushing pages to
   @param[in] index loader index
@@ -690,6 +686,10 @@ class Bulk_flusher {
   /** Wait till the bulk flush thread stops. */
   void wait_to_stop();
 
+  /** Wake the bulk flush thread and wait until all submitted extents have
+  been flushed. */
+  void wait_for_idle();
+
   /** Get the maximum allowed queue size.
   @return the maximum allowed queue size. */
   size_t get_max_queue_size() const { return m_max_queue_size; }
@@ -708,6 +708,10 @@ class Bulk_flusher {
   Page_extent *get_free_extent();
 
  private:
+  /** Move queued work to the queue used exclusively by the bulk flush thread.
+  @return true if work was moved. */
+  bool is_work_available();
+
   /** Do the actual work of flushing.
   @param[in,out] node space file node */
   void do_work(fil_node_t *node);
@@ -729,6 +733,9 @@ class Bulk_flusher {
 
   /** Condition variable to wait upon. */
   mutable std::condition_variable m_condition;
+
+  /** Number of queued or in-progress extent flushes, protected by m_mutex. */
+  size_t m_pending_flushes{};
 
   /** This queue is protected by the m_free_mutex. It is used to cache the
   Page_extent objects that have been flushed and ready for re-use. */

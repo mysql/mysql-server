@@ -1,0 +1,235 @@
+##
+## Health Monitor component
+##
+## Verify disk collection when the monitored path becomes unavailable.
+## Failed checks must retain valid rows, suppress repeated warnings and
+## leave fencing unchanged. Collection must resume when the path returns.
+##
+
+# Procedure:
+#  1. Collect valid disk and metric rows before selecting a missing path.
+#  2. Verify retries retain rows and emit one warning for that path.
+#  3. Select another missing path and verify its separate warning.
+#  4. Switch to a valid path and check that no false recovery is reported.
+#  5. Restore the missing path, verify collection resumes and clean up.
+
+## Test case initialization - Begin
+
+# Storage quantities allow up to ULONG_MAX - 1
+set @ulong_max = 18446744073709551615;
+set @max_level = @ulong_max - 1;
+
+# A very high offline level will force the offline mode
+set @force_offline_mode = @max_level;
+
+# Disk usage warning level = 100% will force warnings, 0% will disable warnings
+set @force_disk_warning = 100;
+set @no_disk_warning = 0;
+
+# Memory usage warning level = ULONG_MAX-1 will force warnings, 0 will disable warnings
+set @force_memory_warning = @max_level;
+set @no_memory_warning = 0;
+
+# Ignore warnings during startup
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+
+# Install the component
+install component 'file://component_health_monitor';
+
+# Turn off the collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+# Disable low disk space warnings
+set @@global.health_monitor.disk_usage_warning_level_1 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_2 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_3 = @no_disk_warning;
+
+# Disable low memory warnings
+set @@global.health_monitor.memory_usage_warning_level_1 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_2 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_3 = @no_memory_warning;
+
+# Disable the low level storage thresholds to avoid inadvertently triggering
+# fallback mode on the vardir volume
+set @@global.health_monitor.disk_low_space_level = 0;
+set @@global.health_monitor.disk_low_space_percent = 0;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+# Disable recovery mode
+set @@global.health_monitor.disk_recovery_enable = off;
+
+# Fallback mode may have been triggered when the component was loaded,
+# so reset offline_mode and super_read_only as a precaution.
+# The 'super_read_only_disk_full' status variable will be reset when the
+# monitored disk path is changed.
+
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+
+# Set monitored disk after disabling the low space thresholds
+set @@global.health_monitor.disk_monitored = 'MYSQLTEST_VARDIR';
+
+select @@global.offline_mode;
+@@global.offline_mode
+0
+select @@global.super_read_only;
+@@global.super_read_only
+0
+select @@global.read_only;
+@@global.read_only
+0
+show status like 'super_read_only_disk_full';
+Variable_name	Value
+super_read_only_disk_full	OFF
+show status like 'offline_mode_disk_full';
+Variable_name	Value
+offline_mode_disk_full	OFF
+
+use performance_schema;
+
+## Test case initialization - End
+
+# Save settings and prepare live disk collection
+set @explicit_monitored_path = @@global.health_monitor.disk_monitored;
+set @disk_sample_rate_save = @@global.health_monitor.disk_sample_rate;
+set @disk_forecast_sample_interval_save =
+@@global.health_monitor.disk_forecast_sample_interval;
+set @missing_path = 'MISSING_PATH';
+set @missing_path_b = 'MISSING_PATH_B';
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_forecast_running = off;
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.disk_forecast_sample_interval = 10;
+truncate performance_schema.health_block_device;
+truncate performance_schema.disk_metric;
+set @@global.health_monitor.disk_forecast_running = on;
+set @@global.health_monitor.disk_running = on;
+select count(*) > 0 as initial_disk_row_published
+from performance_schema.health_block_device;
+initial_disk_row_published
+1
+select count(*) > 0 as initial_metric_published
+from performance_schema.disk_metric;
+initial_metric_published
+1
+
+# Select a missing live path
+set @@global.health_monitor.disk_monitored = @missing_path;
+
+# Failed retries do not publish rows or repeat transition warnings
+select count(*) = @unavailable_disk_rows as disk_rows_retained
+from performance_schema.health_block_device;
+disk_rows_retained
+1
+select count(*) = @unavailable_metric_rows as metric_rows_retained
+from performance_schema.disk_metric;
+metric_rows_retained
+1
+select @unavailable_disk_rows >= @valid_disk_rows as valid_disk_rows_retained;
+valid_disk_rows_retained
+1
+select @unavailable_metric_rows >= @valid_metric_rows
+as valid_metric_rows_retained;
+valid_metric_rows_retained
+1
+select count(*) = 1 as one_unavailable_warning
+from performance_schema.error_log
+where data like
+'%Disk Collector: Error: Filesystem check for % failed with error %'
+   and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+and logged > @unavailable_start;
+one_unavailable_warning
+1
+select count(*) = 0 as no_duplicate_invalid_path_warning
+from performance_schema.error_log
+where data like '%Disk Collector: Error: Invalid Path%'
+   and logged > @unavailable_start;
+no_duplicate_invalid_path_warning
+1
+select @@global.offline_mode = 0 as offline_mode_remains_off;
+offline_mode_remains_off
+1
+select @@global.super_read_only = 0 as super_read_only_remains_off;
+super_read_only_remains_off
+1
+select variable_value = 'OFF' as offline_mode_not_owned
+from performance_schema.global_status
+where variable_name = 'offline_mode_disk_full';
+offline_mode_not_owned
+1
+select variable_value = 'OFF' as super_read_only_not_owned
+from performance_schema.global_status
+where variable_name = 'super_read_only_disk_full';
+super_read_only_not_owned
+1
+
+# A different unavailable path gets its own warning
+set @@global.health_monitor.disk_monitored = @missing_path_b;
+select count(*) = 1 as one_warning_for_second_path
+from performance_schema.error_log
+where data like
+'%Disk Collector: Error: Filesystem check for % failed with error %'
+   and locate(concat("Filesystem check for '", @missing_path_b, "'"), data) > 0
+and logged > @unavailable_b_start;
+one_warning_for_second_path
+1
+
+# Changing to a different valid path does not report it as recovered
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+select count(*) = 0 as no_false_recovery_for_different_path
+from performance_schema.error_log
+where data like '%Disk Collector: Filesystem check for % is available again%'
+   and locate(concat("Filesystem check for '", @explicit_monitored_path, "'"),
+data) > 0
+and logged > @valid_b_start;
+no_false_recovery_for_different_path
+1
+
+# Select the original unavailable path again
+set @@global.health_monitor.disk_monitored = @missing_path;
+
+# Make the selected path available without changing the system variable
+select count(*) > @unavailable_disk_rows as disk_rows_resumed
+from performance_schema.health_block_device;
+disk_rows_resumed
+1
+select count(*) > @unavailable_metric_rows as metric_rows_resumed
+from performance_schema.disk_metric;
+metric_rows_resumed
+1
+select count(*) = 1 as one_recovery_message
+from performance_schema.error_log
+where data like '%Disk Collector: Filesystem check for % is available again%'
+   and locate(concat("Filesystem check for '", @missing_path, "'"), data) > 0
+and logged > @recovery_start;
+one_recovery_message
+1
+
+# Stop collection and restore settings
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.disk_forecast_running = off;
+set @@global.health_monitor.disk_monitored = @explicit_monitored_path;
+set @@global.health_monitor.disk_sample_rate = @disk_sample_rate_save;
+set @@global.health_monitor.disk_forecast_sample_interval =
+@disk_forecast_sample_interval_save;
+
+# Clean up
+uninstall component 'file://component_health_monitor';

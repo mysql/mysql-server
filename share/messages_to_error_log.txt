@@ -7377,7 +7377,7 @@ ER_IB_MSG_613
 ER_IB_MSG_614
   eng "%s"
 
-ER_IB_MSG_615
+OBSOLETE_ER_IB_MSG_615
   eng "%s"
 
 ER_IB_MSG_616
@@ -12773,7 +12773,7 @@ ER_IB_LONG_ROLLBACK
   eng "Still rolling back transaction %llu; %llu undo records rolled back out of %llu total (%lu%% complete)."
 
 ER_INVALID_FILE_FORMAT
-  eng "Invalid format of file '%s'."
+  eng "Invalid format of file '%s'. The file will be recreated."
 
 ER_LOG_SANITIZATION
   eng "Relay log sanitization: %s"
@@ -12840,6 +12840,9 @@ ER_TEMPTABLE_ENGINE_ERROR
 
 OBSOLETE_ER_AUTH_INITIAL_PLUGIN_OVERRIDE
   eng "Plugin '%s' from authentication policy cannot be used for initial handshake, using '%s' default instead"
+
+ER_SERVER_VERSION_INFO
+  eng "Server version with update: '%s'"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
@@ -13544,6 +13547,18 @@ ER_IB_MSG_MAX_PURGE_LAG_EXCEEDED
 
 ER_IB_MSG_DML_PURGE_DELAY_STARTED
   eng "InnoDB DML operations are being delayed by %lu microseconds due to purge lag. History list length is %llu, innodb_max_purge_lag=%lu, innodb_max_purge_lag_delay=%lu."
+
+ER_MRS_COMPONENT_MSG
+  eng "%s"
+
+ER_MRS_COMPONENT_INFO
+  eng "%s"
+
+ER_MRS_COMPONENT_WARNING
+  eng "%s"
+
+ER_MRS_COMPONENT_ERROR
+  eng "%s"
 
 #
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.

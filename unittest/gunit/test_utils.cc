@@ -154,7 +154,7 @@ void Server_initializer::SetUp() {
 
   m_thd->set_new_thread_id();
 
-  m_thd->thread_stack = (char *)&stack_thd;
+  m_thd->capture_stack_base(reinterpret_cast<const void *>(&stack_thd));
   m_thd->store_globals();
   lex_start(m_thd);
   Fake_TABLE::reset_highest_table_id();

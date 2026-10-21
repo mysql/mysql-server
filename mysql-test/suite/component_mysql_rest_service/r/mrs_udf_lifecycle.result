@@ -1,0 +1,51 @@
+
+
+## I. Reject arguments to the lifecycle UDFs
+## II. Restart asynchronously after synchronously stopping the old backend
+## III. Report an immediate lifecycle failure as a SQL error
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+
+# I. Lifecycle UDFs accept no arguments
+SELECT mysql_rest_service_start(1);
+ERROR HY000: Can't initialize function 'mysql_rest_service_start'; mysql_rest_service_start() expects no arguments
+SELECT mysql_rest_service_stop(1);
+ERROR HY000: Can't initialize function 'mysql_rest_service_stop'; mysql_rest_service_stop() expects no arguments
+SELECT mysql_rest_service_restart(1);
+ERROR HY000: Can't initialize function 'mysql_rest_service_restart'; mysql_rest_service_restart() expects no arguments
+
+# II. Restart stops the old backend and starts its replacement asynchronously
+SET @@GLOBAL.DEBUG = '+d, mrs_component_pause_before_runtime_status_publication';
+SELECT mysql_rest_service_restart();
+mysql_rest_service_restart()
+0
+include/assert.inc [restart returns before replacement startup reaches READY]
+include/assert.inc [asynchronous restart has not published its listener port]
+SET @@GLOBAL.DEBUG = '-d, mrs_component_pause_before_runtime_status_publication';
+SELECT mysql_rest_service_stop();
+mysql_rest_service_stop()
+0
+include/assert.inc [stop synchronously cancels an asynchronous restart]
+SELECT mysql_rest_service_start();
+mysql_rest_service_start()
+0
+
+# III. An immediate backend failure raises the component UDF SQL error
+SET @@GLOBAL.DEBUG = '+d, mrs_component_shutdown_request_failure';
+SELECT mysql_rest_service_stop();
+ERROR HY000: The function 'mysql_rest_service_stop' failed. Failed to stop MySQL Rest Service component
+SET @@GLOBAL.DEBUG = '-d, mrs_component_shutdown_request_failure';
+include/assert.inc [failed stop reports lifecycle state ERROR]
+SELECT mysql_rest_service_stop();
+mysql_rest_service_stop()
+0
+include/assert.inc [retrying stop reaches STOPPED]
+
+# Cleanup
+UNINSTALL COMPONENT "file://component_mysql_rest_service";
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

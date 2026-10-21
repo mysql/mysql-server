@@ -4653,6 +4653,8 @@ size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
                                    const char *identifier, size_t length);
 #else
 size_t my_strmov_quoted_identifier(char *buffer, const char *identifier);
+size_t my_strmov_quoted_identifier(char *buffer, const char *identifier,
+                                   size_t length);
 #endif
 size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
                                           const char *identifier,

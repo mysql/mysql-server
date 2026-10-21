@@ -527,14 +527,15 @@ ClientGreetor::tls_accept_init() {
 
   src_channel.is_tls(true);
 
-  auto *ssl_ctx = connection()->context().source_ssl_ctx()->get();
+  auto tls_context = connection()->context().source_ssl_ctx();
+  auto *ssl_ctx = tls_context->get();
   // tls <-> (any)
   if (ssl_ctx == nullptr) {
     // shouldn't happen. But if it does, close the connection.
     log_warning("failed to create SSL_CTX");
     return recv_client_failed(make_error_code(std::errc::invalid_argument));
   }
-  src_channel.init_ssl(ssl_ctx);
+  src_channel.init_ssl(std::move(tls_context));
 
   SSL_set_app_data(src_channel.ssl(), connection());
 
@@ -823,8 +824,8 @@ ClientGreetor::plaintext_password() {
       tr.trace(Tracer::Event().stage("client::auth::public_key_request"));
     }
 
-    auto pubkey_res = AuthCachingSha2Password::public_key_from_ssl_ctx_as_pem(
-        connection()->context().source_ssl_ctx()->get());
+    rsa_tls_context_.reset(connection()->context().source_ssl_ctx());
+    auto pubkey_res = rsa_tls_context_.public_key();
     if (!pubkey_res) {
       // couldn't get the public key, fail the auth.
       auto send_res = ClassicFrame::send_msg<
@@ -885,9 +886,11 @@ ClientGreetor::decrypt_password() {
     nonce = nonce.substr(0, AuthCachingSha2Password::kNonceLength);
   }
 
-  auto recv_res = AuthCachingSha2Password::rsa_decrypt_password(
-      connection()->context().source_ssl_ctx()->get(),
-      msg_res->auth_method_data(), nonce);
+  if (!rsa_tls_context_) {
+    rsa_tls_context_.reset(connection()->context().source_ssl_ctx());
+  }
+  auto recv_res =
+      rsa_tls_context_.decrypt_password(msg_res->auth_method_data(), nonce);
   if (!recv_res) {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("client::auth::encrypted::failed: " +
@@ -899,6 +902,7 @@ ClientGreetor::decrypt_password() {
 
   src_protocol.credentials().emplace(src_protocol.auth_method_name(),
                                      *recv_res);
+  rsa_tls_context_.reset();
 
   // discard the current frame.
   discard_current_msg(src_conn);

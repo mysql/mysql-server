@@ -162,6 +162,7 @@ usr/lib/mysql/plugin/component_validate_password.so
 usr/lib/mysql/plugin/component_connection_control.so
 usr/lib/mysql/plugin/component_audit_api_message_emit.so
 usr/lib/mysql/plugin/component_classic_hashing.so
+usr/lib/mysql/plugin/component_health_monitor.so
 usr/lib/mysql/plugin/component_query_attributes.so
 usr/lib/mysql/plugin/component_reference_cache.so
 usr/lib/mysql/plugin/component_telemetry.so
@@ -174,6 +175,7 @@ usr/lib/mysql/plugin/locking_service.so
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/keyring_udf.so
 usr/lib/mysql/plugin/auth_socket.so
+usr/lib/mysql/plugin/authentication_webauthn.so
 usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/semisync_source.so
 usr/lib/mysql/plugin/semisync_replica.so
@@ -187,6 +189,7 @@ usr/lib/mysql/plugin/component_replication_applier_metrics.so
 usr/lib/mysql/plugin/component_group_replication_flow_control_stats.so
 usr/lib/mysql/plugin/component_group_replication_resource_manager.so
 usr/lib/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
+usr/lib/mysql/plugin/component_mysql_rest_service.so
 # support files
 usr/share/mysql-@MYSQL_BASE_VERSION@/dictionary.txt
 usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-log-rotate

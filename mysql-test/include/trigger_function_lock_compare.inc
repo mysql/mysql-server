@@ -128,9 +128,11 @@ while ($isolation_levels)
             --let $need_locks_data=1
             # wait a little to not cause furious spinning and allow for release of latches on page, if any
             --sleep 1
-            # Try to bring back the pages into buffer pool using a non-locking SELECT, if they were missing
+            # Try to bring back the pages into buffer pool using non-locking
+            # scans of both indexes, if they were missing.
             --disable_result_log
-            SELECT * FROM t1;
+            SELECT id FROM t1 FORCE INDEX(PRIMARY);
+            SELECT val FROM t1 FORCE INDEX(idx_val);
             --enable_result_log
           }
         }

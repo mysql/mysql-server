@@ -1,0 +1,26 @@
+# MySQL Rest Service schema created.
+# MySQL REST Service component installed.
+# Registred SERVICE at path: /tls
+# Registred DB_SCHEMA at path: /tls/db
+# Registred DB_OBJECT at path: /tls/db/fixture
+# Registred AUTH APP at path: /tls
+# A fresh account uses TLS even when named pipes are enabled.
+authentication_connections	tls_connections
+1	1
+# An incorrect password is rejected during full authentication.
+# Without TLS, a cached account cannot fall back to named pipes or TCP.
+# Without TLS, an uncached account is also rejected.
+# Reloading TLS permits full authentication without restarting MRS.
+# Without TCP, authentication does not fall back to named pipes.
+# restart: --skip-networking
+@@skip_networking	@@named_pipe
+1	1
+authentication_attempts
+0
+DROP SCHEMA mrs_tls_auth;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

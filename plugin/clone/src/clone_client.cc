@@ -1487,7 +1487,12 @@ int Client::serialize_ack_cmd(size_t &buf_len) {
   buf_ptr += 4;
 
   /* Store Locator */
-  buf_ptr += loc->serialize(buf_ptr);
+  const auto serialized_length = loc->serialize(buf_ptr);
+  DBUG_EXECUTE_IF("clone_send_invalid_ack_locator_db_type", {
+    /* Simulate a serialized ACK locator with invalid engine type (0xff). */
+    *buf_ptr = 0xff;
+  });
+  buf_ptr += serialized_length;
 
   /* Store descriptor length */
   int4store(buf_ptr, m_conn_aux.m_buf_len);
@@ -1539,7 +1544,19 @@ int Client::serialize_init_cmd(size_t &buf_len) {
 
   /* Store SE information and Locators */
   for (auto &loc : m_share->m_storage_vec) {
-    buf_ptr += loc.serialize(buf_ptr);
+    const auto serialized_length = loc.serialize(buf_ptr);
+    DBUG_EXECUTE_IF("clone_send_invalid_locator_db_type", {
+      /* Simulate a serialized locator with invalid engine type (0xff). */
+      *buf_ptr = 0xff;
+    });
+    DBUG_EXECUTE_IF("clone_send_locator_db_type_without_clone_callbacks", {
+      /*
+        Keep the locator payload unchanged, but serialize an installed engine
+        type whose handlerton does not provide clone callbacks.
+      */
+      *buf_ptr = static_cast<uchar>(DB_TYPE_MYISAM);
+    });
+    buf_ptr += serialized_length;
   }
 
   return (err);

@@ -44,6 +44,8 @@
 #include "plugin/x/src/io/connection_type.h"
 #include "plugin/x/src/streaming_command_delegate.h"
 
+struct Vio;
+
 // Use an internal MySQL server user
 #define MYSQL_SESSION_USER "mysql.session"
 #define MYSQLXSYS_HOST "localhost"
@@ -129,6 +131,7 @@ class Sql_data_context : public iface::Sql_session {
   void deinit();
 
   MYSQL_THD get_thd() const;
+  void set_ssl(Vio *vio);
 
   bool kill();
   bool is_acl_disabled();

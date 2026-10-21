@@ -1,0 +1,98 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify that active listener values are published only after MRS is ready.
+
+--source include/have_debug.inc
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Keep current runtime values inactive until MRS reports ready
+
+--let $monitor_start_count_before = `SELECT COUNT(*) FROM performance_schema.error_log WHERE DATA LIKE '%Starting MySQL REST Metadata monitor%';`
+
+SET @@GLOBAL.DEBUG = '+d, mrs_component_pause_before_runtime_status_publication';
+
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("Paused before publishing current runtime values");
+--enable_result_log
+--enable_query_log
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+
+--let $wait_log_pattern=Paused before publishing current runtime values
+--let $wait_log_expected_count=1
+--source ../include/cmrs/compare_log_timeout.inc
+
+# The HTTP listener is active before MRS publishes its current runtime values.
+--exec $MRS_CLIENT_ARGS --path /mrs-status-readiness-probe --response-type raw --expected-status NotFound --display none
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $current_tls_cert = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cert';`
+--let $current_tls_key = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_key';`
+--let $current_tls_cipher = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_tls_cipher';`
+--let $current_io_worker_threads = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_io_worker_threads';`
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+
+--let $assert_text = current_http_port remains inactive before MRS is ready
+--let $assert_cond = $current_http_port = 0
+--source include/assert.inc
+--let $assert_text = current_tls_cert remains inactive before MRS is ready
+--let $assert_cond = "$current_tls_cert" = ""
+--source include/assert.inc
+--let $assert_text = current_tls_key remains inactive before MRS is ready
+--let $assert_cond = "$current_tls_key" = ""
+--source include/assert.inc
+--let $assert_text = current_tls_cipher remains inactive before MRS is ready
+--let $assert_cond = "$current_tls_cipher" = ""
+--source include/assert.inc
+--let $assert_text = current_io_worker_threads remains inactive before MRS is ready
+--let $assert_cond = $current_io_worker_threads = 0
+--source include/assert.inc
+--let $assert_text = state reports STARTING before MRS is ready
+--let $assert_cond = "$mrs_state" = "STARTING"
+--source include/assert.inc
+
+# Starting an accepted lifecycle again is an idempotent no-op.
+SELECT mysql_rest_service_start();
+
+SET @@GLOBAL.DEBUG = '-d, mrs_component_pause_before_runtime_status_publication';
+
+SELECT mysql_rest_service_stop();
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports STOPPED after synchronous stop
+--let $assert_cond = "$mrs_state" = "STOPPED"
+--source include/assert.inc
+
+--let $monitor_start_count_after = `SELECT COUNT(*) FROM performance_schema.error_log WHERE DATA LIKE '%Starting MySQL REST Metadata monitor%';`
+--let $assert_text = cancelled startup does not start the metadata monitor
+--let $assert_cond = $monitor_start_count_after = $monitor_start_count_before
+--source include/assert.inc
+
+SELECT mysql_rest_service_start();
+
+--let $wait_condition=SELECT VARIABLE_VALUE = '$HTTP_SERVER_PORT' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port'
+--source include/wait_condition.inc
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+--let $current_http_port = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.current_http_port';`
+--let $assert_text = current_http_port is published after MRS is ready
+--let $assert_cond = $current_http_port = $HTTP_SERVER_PORT
+--source include/assert.inc
+
+--let $mrs_state = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state';`
+--let $assert_text = state reports READY after MRS is ready
+--let $assert_cond = "$mrs_state" = "READY"
+--source include/assert.inc
+
+# Starting a ready backend is an idempotent no-op.
+SELECT mysql_rest_service_start();
+
+--echo
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

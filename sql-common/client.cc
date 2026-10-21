@@ -3620,6 +3620,7 @@ static void mysql_command_service_extn_free(MYSQL_EXTENSION *ext) {
 void mysql_extension_free(MYSQL_EXTENSION *ext) {
   if (!ext) return;
   if (ext->trace_data) my_free(ext->trace_data);
+  if (ext->server_version_with_update) my_free(ext->server_version_with_update);
   if (ext->mysql_async_context) {
     if (ext->mysql_async_context->connect_context) {
       if (ext->mysql_async_context->connect_context
@@ -4536,11 +4537,14 @@ static void cli_calculate_client_flag(MYSQL *mysql, const char *db,
   else
     mysql->client_flag &= ~CLIENT_CONNECT_WITH_DB;
 
-  /* Remove options that server doesn't support */
-  mysql->client_flag = mysql->client_flag &
-                       (~(CLIENT_COMPRESS | CLIENT_SSL | CLIENT_PROTOCOL_41 |
-                          CLIENT_OPTIONAL_RESULTSET_METADATA) |
-                        mysql->server_capabilities);
+  /* Preserve client only flags */
+  ulong client_only_flags = mysql->client_flag & CLIENT_ONLY_ALL_FLAGS;
+
+  /* Negotiate common client and server capabilities */
+  ulong negotiated = mysql->client_flag & mysql->server_capabilities;
+
+  /* Effective flags to use by the client */
+  mysql->client_flag = client_only_flags | negotiated;
 
   if (mysql->options.protocol == MYSQL_PROTOCOL_SOCKET &&
       mysql->options.extension &&
@@ -6305,6 +6309,16 @@ static mysql_state_machine_status authsm_init_multi_auth(
     mysql_async_auth *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
+
+  DBUG_EXECUTE_IF("authsm_excess_factor",
+                  ctx->current_factor_index = MAX_AUTHENTICATION_FACTOR - 1;);
+
+  /* The server may request at most two additional authentication factors. */
+  if (ctx->current_factor_index >= MAX_AUTHENTICATION_FACTOR - 1) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return STATE_MACHINE_FAILED;
+  }
+
   /*
     If previous factor authentication is a success, read AuthNextFactor packet,
     extract client plugin name and plugin specific data and initiate next factor
@@ -7161,6 +7175,7 @@ static mysql_state_machine_status csm_parse_handshake(
     mysql_async_connect *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
+  MYSQL_EXTENSION *extension = MYSQL_EXTENSION_PTR(mysql);
   NET *net = &mysql->net;
   const int pkt_length = ctx->pkt_length;
   int pkt_scramble_len = 0;
@@ -7225,6 +7240,8 @@ static mysql_state_machine_status csm_parse_handshake(
     my_stpcpy(mysql->unix_socket, ctx->unix_socket);
   else
     mysql->unix_socket = nullptr;
+  my_free(extension->server_version_with_update);
+  extension->server_version_with_update = nullptr;
   my_stpcpy(mysql->server_version, (char *)net->read_pos + 1);
   mysql->port = ctx->port;
 

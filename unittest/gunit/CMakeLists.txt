@@ -159,6 +159,7 @@ SET(TESTS
   mysys_my_clone
   mysys_my_write
   mysys_pathfuncs
+  mysys_stack_pointer
   opt_recperkey
   overflow_bitset
   partitioned_rwlock

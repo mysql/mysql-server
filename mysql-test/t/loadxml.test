@@ -175,3 +175,16 @@ SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
 --echo #
+--echo # LOAD XML CDATA prefix backtracking
+--echo #
+--write_file $MYSQLTEST_VARDIR/tmp/loadxml-cdata-prefix.dat
+<row><a><![CDATz</a></row>
+EOF
+CREATE TABLE t1 (a VARCHAR(100));
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE '$MYSQLTEST_VARDIR/tmp/loadxml-cdata-prefix.dat' INTO TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/loadxml-cdata-prefix.dat
+
+--echo #

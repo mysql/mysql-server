@@ -1,0 +1,226 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify MRS component auto bootstrap:
+#
+# This test validates the component's auto-bootstrap in the metadata.
+#
+# It checks if the component registers itself in the metadata schema
+# with the following information:
+#
+#   - router_name = "@@hostname":"http_port"
+#   - address = "@@hostname"
+#   - product_name = "MySQL Rest Service Component"
+#   - version = current
+#   - attributes = {"server_uuid": "@@server_uuid", "mrs_metadata_accounts":
+#     metadata_account, "mrs_data_accounts": data_account}
+#   - options = {}
+#
+# It also validates that the values are updated accordingly when configuration # changes
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Confirm component metadata registry (default)
+--echo #
+--echo # 1. Confirm the metadata is populated accordingly in the default case
+--echo # 2. Confirm the metadata is updated when the hostname or port changes
+--echo # 3. Confirm a registration uniqueness conflict is recoverable
+--echo #
+
+# Init
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--echo
+--echo #
+--echo ## I. 1. Confirm the metadata is populated accordingly in the default case
+
+--let $hostname = `SELECT @@hostname;`
+--let $http_port = `SELECT @@mysql_rest_service.http_port;`
+--let $version = `SELECT SUBSTRING_INDEX(@@version, '-', 1);`
+--let $server_uuid = `SELECT @@server_uuid;`
+--let $mrs_user = mysql_mrs_metadata
+--let $mrs_user_data = mysql_mrs_data
+--let $product_name = MySQL Rest Service Component
+
+--let $router_name = $hostname:$http_port
+--let $attributes_user = `SELECT JSON_UNQUOTE(JSON_EXTRACT(attributes, "$.mrs_metadata_accounts[0]")) FROM mysql_rest_service_metadata.router;`
+--let $attributes_user_data = `SELECT JSON_UNQUOTE(JSON_EXTRACT(attributes, "$.mrs_data_accounts[0]")) FROM mysql_rest_service_metadata.router;`
+--let $attributes_uuid = `SELECT JSON_UNQUOTE(JSON_EXTRACT(attributes, "$.server_uuid")) FROM mysql_rest_service_metadata.router;`
+--let $expected_options = {}
+
+# Validate id
+--let $id = `SELECT id FROM mysql_rest_service_metadata.router;`
+--let $assert_text = Router ID must be 1
+--let $assert_cond = $id = 1
+--source include/assert.inc
+
+# Validate router_name
+--let $router_name_val = `SELECT router_name FROM mysql_rest_service_metadata.router;`
+--let $assert_text = router_name must be @@hostname:http_port
+--let $assert_cond = "$router_name_val" = "$router_name"
+--source include/assert.inc
+
+# Validate address
+--let $address = `SELECT address FROM mysql_rest_service_metadata.router;`
+--let $assert_text = address must be @@hostname
+--let $assert_cond = "$address" = "$hostname"
+--source include/assert.inc
+
+# Validate product_name
+--let $product_name_val = `SELECT product_name FROM mysql_rest_service_metadata.router;`
+--let $assert_text = product_name must be 'MySQL Rest Service Component'
+--let $assert_cond = "$product_name_val" = "$product_name"
+--source include/assert.inc
+
+# Validate version
+--let $version_val = `SELECT version FROM mysql_rest_service_metadata.router;`
+--let $assert_text = version must be @@version
+--let $assert_cond = "$version_val" = "$version"
+--source include/assert.inc
+
+# Validate attributes
+--let $assert_text = mrs_metadata_accounts[0] must match
+--let $assert_cond = "$attributes_user" = "$mrs_user@localhost"
+--source include/assert.inc
+
+--let $assert_text = mrs_data_accounts[0] must match
+--let $assert_cond = "$attributes_user_data" = "$mrs_user_data@localhost"
+--source include/assert.inc
+
+--let $assert_text = server_uuid must match
+--let $assert_cond = "$attributes_uuid" = "$server_uuid"
+--source include/assert.inc
+
+# Validate options
+--let $options = `SELECT options FROM mysql_rest_service_metadata.router;`
+--let $assert_text = options must be {}
+--let $assert_cond = "$options" = "$expected_options"
+--source include/assert.inc
+
+--echo
+--echo #
+--echo ## I. 2. Confirm the metadata is updated when the hostname or port changes
+
+# Simulate a hostname change and change the configured HTTP port.
+--disable_query_log
+--eval UPDATE mysql_rest_service_metadata.router SET address = 'old-host', router_name = CONCAT('old-host:', $http_port) WHERE id = $id
+--let $http_port_user = `SELECT $http_port + 1`
+--eval SET GLOBAL mysql_rest_service.http_port = $http_port_user
+
+# Restart the component
+SELECT mysql_rest_service_restart();
+
+# Wait for readiness
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+# Validate id - must remain unchanged
+--let $id = `SELECT id FROM mysql_rest_service_metadata.router;`
+--let $assert_text = Router ID must be 1
+--let $assert_cond = $id = 1
+--source include/assert.inc
+
+# Validate router_name
+--let $router_name = $hostname:$http_port_user
+--let $router_name_val = `SELECT router_name FROM mysql_rest_service_metadata.router;`
+--let $assert_text = router_name must be @@hostname:http_port+1
+--let $assert_cond = "$router_name_val" = "$router_name"
+--source include/assert.inc
+
+# Validate address
+--let $address = `SELECT address FROM mysql_rest_service_metadata.router;`
+--let $assert_text = address must be @@hostname
+--let $assert_cond = "$address" = "$hostname"
+--source include/assert.inc
+
+# Validate product_name - must remain unchanged
+--let $product_name_val = `SELECT product_name FROM mysql_rest_service_metadata.router;`
+--let $assert_text = product_name must be 'MySQL Rest Service Component'
+--let $assert_cond = "$product_name_val" = "$product_name"
+--source include/assert.inc
+
+# Validate version - must remain unchanged
+--let $version_val = `SELECT version FROM mysql_rest_service_metadata.router;`
+--let $assert_text = version must be @@version
+--let $assert_cond = "$version_val" = "$version"
+--source include/assert.inc
+
+# Validate attributes
+--let $attributes_user = `SELECT JSON_UNQUOTE(JSON_EXTRACT(attributes, "$.mrs_metadata_accounts[0]")) FROM mysql_rest_service_metadata.router;`
+--let $attributes_user_data = `SELECT JSON_UNQUOTE(JSON_EXTRACT(attributes, "$.mrs_data_accounts[0]")) FROM mysql_rest_service_metadata.router;`
+--let $attributes_uuid = `SELECT JSON_UNQUOTE(JSON_EXTRACT(attributes, "$.server_uuid")) FROM mysql_rest_service_metadata.router;`
+--let $mrs_user = mysql_mrs_metadata
+--let $mrs_user_data = mysql_mrs_data
+
+# validate user
+--let $assert_text = mrs_metadata_accounts[0] must match
+--let $assert_cond = "$attributes_user" = "$mrs_user@localhost"
+--source include/assert.inc
+
+# validate data user
+--let $assert_text = mrs_data_accounts[0] must match
+--let $assert_cond = "$attributes_user_data" = "$mrs_user_data@localhost"
+--source include/assert.inc
+
+# uuid must remain unchanged
+--let $assert_text = server_uuid must match
+--let $assert_cond = "$attributes_uuid" = "$server_uuid"
+--source include/assert.inc
+
+# Validate options - must remain unchanged
+--let $options = `SELECT options FROM mysql_rest_service_metadata.router;`
+--let $assert_text = options must be {}
+--let $assert_cond = "$options" = "$expected_options"
+--source include/assert.inc
+
+--echo
+--echo #
+--echo ## I. 3. Confirm a registration uniqueness conflict is recoverable
+
+--let $http_port_conflict = `SELECT $http_port + 2`
+--eval SET GLOBAL mysql_rest_service.http_port = $http_port_conflict
+--eval INSERT INTO mysql_rest_service_metadata.router (router_name, address, product_name, attributes, options) VALUES (CONCAT(@@hostname, ':', $http_port_conflict), @@hostname, 'Conflicting Router', JSON_OBJECT('server_uuid', 'conflict'), JSON_OBJECT())
+
+--disable_result_log
+call mtr.add_suppression("Backend startup failed in background thread: Duplicate entry .*MySQL REST Service remains inactive");
+--enable_result_log
+
+SELECT mysql_rest_service_restart();
+
+--let $wait_condition=SELECT VARIABLE_VALUE = 'ERROR' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+
+# The conflicting update must leave the component registration unchanged.
+--let $router_name_val = `SELECT router_name FROM mysql_rest_service_metadata.router WHERE id = $id;`
+--let $assert_text = router_name must remain unchanged after a uniqueness conflict
+--let $assert_cond = "$router_name_val" = "$router_name"
+--source include/assert.inc
+
+--let $address = `SELECT address FROM mysql_rest_service_metadata.router WHERE id = $id;`
+--let $assert_text = address must remain unchanged after a uniqueness conflict
+--let $assert_cond = "$address" = "$hostname"
+--source include/assert.inc
+
+--eval DELETE FROM mysql_rest_service_metadata.router WHERE JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.server_uuid')) = 'conflict'
+
+SELECT mysql_rest_service_start();
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $router_name = $hostname:$http_port_conflict
+--let $router_name_val = `SELECT router_name FROM mysql_rest_service_metadata.router WHERE id = $id;`
+--let $assert_text = router_name must update after resolving the uniqueness conflict
+--let $assert_cond = "$router_name_val" = "$router_name"
+--source include/assert.inc
+
+--let $address = `SELECT address FROM mysql_rest_service_metadata.router WHERE id = $id;`
+--let $assert_text = address must update after resolving the uniqueness conflict
+--let $assert_cond = "$address" = "$hostname"
+--source include/assert.inc
+
+--echo
+--echo #
+--echo # Cleanup
+--source ../include/cmrs/cleanup.inc

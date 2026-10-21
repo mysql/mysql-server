@@ -1,0 +1,341 @@
+##
+## Health Monitor component
+##
+## Test the 'force' option for fencing the server.
+##
+## The 'force' option enables the Health Monitor to terminate foreground connections
+## that are blocking it from setting SUPER_READ_ONLY. Force is only used when disk
+## space is below the critical level.
+##
+
+## Test case initialization - Begin
+
+# Storage quantities allow up to ULONG_MAX - 1
+set @ulong_max = 18446744073709551615;
+set @max_level = @ulong_max - 1;
+
+# A very high offline level will force the offline mode
+set @force_offline_mode = @max_level;
+
+# Disk usage warning level = 100% will force warnings, 0% will disable warnings
+set @force_disk_warning = 100;
+set @no_disk_warning = 0;
+
+# Memory usage warning level = ULONG_MAX-1 will force warnings, 0 will disable warnings
+set @force_memory_warning = @max_level;
+set @no_memory_warning = 0;
+
+# Ignore warnings during startup
+set session sql_log_bin = 0;
+call mtr.add_suppression("Disk: Normal");
+call mtr.add_suppression("Disk: Warning");
+call mtr.add_suppression("Disk: Low Level");
+call mtr.add_suppression("Disk: Critical");
+call mtr.add_suppression("Disk: Error");
+call mtr.add_suppression("Disk: Available space");
+call mtr.add_suppression("Disk: Fallback");
+call mtr.add_suppression("Disk: Recovery");
+call mtr.add_suppression("Disk: Maximum recovery cycles");
+call mtr.add_suppression("Disk: OFFLINE_MODE");
+call mtr.add_suppression("Disk: SUPER_READ_ONLY");
+call mtr.add_suppression("Disk Collector: Error");
+call mtr.add_suppression("Memory: Warning");
+set session sql_log_bin = 1;
+
+# Install the component
+install component 'file://component_health_monitor';
+
+# Turn off the collectors
+set @@global.health_monitor.periodic_reporting = off;
+set @@global.health_monitor.memory_reporting = off;
+set @@global.health_monitor.disk_running = off;
+set @@global.health_monitor.memory_running = off;
+set @@global.health_monitor.system_running = off;
+
+# Disable low disk space warnings
+set @@global.health_monitor.disk_usage_warning_level_1 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_2 = @no_disk_warning;
+set @@global.health_monitor.disk_usage_warning_level_3 = @no_disk_warning;
+
+# Disable low memory warnings
+set @@global.health_monitor.memory_usage_warning_level_1 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_2 = @no_memory_warning;
+set @@global.health_monitor.memory_usage_warning_level_3 = @no_memory_warning;
+
+# Disable the low level storage thresholds to avoid inadvertently triggering
+# fallback mode on the vardir volume
+set @@global.health_monitor.disk_low_space_level = 0;
+set @@global.health_monitor.disk_low_space_percent = 0;
+set @@global.health_monitor.disk_low_space_critical_level = 0;
+# Disable recovery mode
+set @@global.health_monitor.disk_recovery_enable = off;
+
+# Fallback mode may have been triggered when the component was loaded,
+# so reset offline_mode and super_read_only as a precaution.
+# The 'super_read_only_disk_full' status variable will be reset when the
+# monitored disk path is changed.
+
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+
+# Set monitored disk after disabling the low space thresholds
+set @@global.health_monitor.disk_monitored = 'MYSQLTEST_VARDIR';
+
+select @@global.offline_mode;
+@@global.offline_mode
+0
+select @@global.super_read_only;
+@@global.super_read_only
+0
+select @@global.read_only;
+@@global.read_only
+0
+show status like 'super_read_only_disk_full';
+Variable_name	Value
+super_read_only_disk_full	OFF
+show status like 'offline_mode_disk_full';
+Variable_name	Value
+offline_mode_disk_full	OFF
+
+use performance_schema;
+
+## Test case initialization - End
+
+# Enable low disk space fencing explicitly for this fencing test
+set @@global.health_monitor.disk_fallback_enable = on;
+
+# Connection default
+
+# Low sample rate with status interval = 1 to get a status message every cycle
+set @@global.health_monitor.disk_sample_rate = 10;
+set @@global.health_monitor.status_interval = 1;
+
+# Setup the transition to CRITICAL level that will fence the server
+set @@global.health_monitor.disk_low_space_critical_level = @force_offline_mode;
+
+# Enable the fallback 'force' option to terminate foreground queries if SUPER_READ_ONLY is blocked
+set @@global.health_monitor.disk_fallback_force = 1;
+
+show global variables like "%health%";
+Variable_name	Value
+health_monitor.disk_fallback_enable	ON
+health_monitor.disk_fallback_force	ON
+health_monitor.disk_forecast_report_interval	240
+health_monitor.disk_forecast_run_mode	NORMAL
+health_monitor.disk_forecast_running	ON
+health_monitor.disk_forecast_sample_interval	60
+health_monitor.disk_forecast_test_filename	
+health_monitor.disk_low_space_critical_level	18446744073709551614
+health_monitor.disk_low_space_duration	300
+health_monitor.disk_low_space_level	0
+health_monitor.disk_low_space_percent	0
+health_monitor.disk_monitored	MYSQLTEST_VARDIR
+health_monitor.disk_recovery_enable	OFF
+health_monitor.disk_recovery_increment	300
+health_monitor.disk_recovery_level	5
+health_monitor.disk_recovery_max_cycles	3
+health_monitor.disk_recovery_time_1	300
+health_monitor.disk_recovery_time_2	300
+health_monitor.disk_recovery_window	86400
+health_monitor.disk_retention	86400
+health_monitor.disk_running	OFF
+health_monitor.disk_sample_rate	10
+health_monitor.disk_usage_warning_level_1	0
+health_monitor.disk_usage_warning_level_2	0
+health_monitor.disk_usage_warning_level_3	0
+health_monitor.memory_report_definition	[{  "title" : "========== MEMORY DIAGNOSTICS BEGIN ==========",  "queries" : [      {"query" : "hm_mem_usage_overview"},      {"query" : "hm_mem_usage_per_component"},      {"query" : "hm_processlist_details_by_current_mem"},      {"query" : "hm_statement_stats_by_total_mem"},      {"query" : "hm_events_allocating_most_mem"},      {"query" : "hm_innodb_buffer_pool_stats"}    ],   "footer" : "========== MEMORY DIAGNOSTICS END ==========" }]
+health_monitor.memory_reporting	OFF
+health_monitor.memory_retention	86400
+health_monitor.memory_running	OFF
+health_monitor.memory_sample_rate	60
+health_monitor.memory_usage_warning_level_1	0
+health_monitor.memory_usage_warning_level_2	0
+health_monitor.memory_usage_warning_level_3	0
+health_monitor.periodic_report_definition	[{   "title" : "========== PERIODIC 15min DIAGNOSTICS BEGIN ==========",   "footer" : "========== PERIODIC 15min DIAGNOSTICS END ==========",   "period" : 900,   "queries" : [      {"query" : "hm_key_global_status"},      {"query" : "hm_connection_ctrl"},      {"query" : "hm_connection_host_cache"},      {"query" : "hm_mem_usage_overview"},      {"query" : "hm_mem_usage_per_component"},      {"query" : "hm_tp_group_state"},      {"query" : "hm_tp_group_stats"},      {"query" : "hm_tp_thread_state"},      {"query" : "hm_tp_connections"}   ]},{   "title" : "========== PERIODIC 60min DIAGNOSTICS BEGIN ==========",   "footer" : "========== PERIODIC 60min DIAGNOSTICS END ==========",   "period" : 3600,   "queries" : [      {"query" : "hm_tmp_table_space"},      {"query" : "hm_tmp_table_count"},      {"query" : "hm_full_table_scans"},      {"query" : "hm_long_lasting_trx"},      {"query" : "hm_statement_stats_by_total_mem"},      {"query" : "hm_error_codes_emitted"},      {"query" : "hm_innodb_metrics"},      {"que
+health_monitor.periodic_reporting	OFF
+health_monitor.status_interval	1
+health_monitor.system_cpu_stats_history	ON
+health_monitor.system_disk_stats_history	ON
+health_monitor.system_memory_stats_history	ON
+health_monitor.system_process_stats_history	ON
+health_monitor.system_retention	86400
+health_monitor.system_running	OFF
+health_monitor.system_sample_rate	60
+
+# Create a user eligible for termination
+create user user@localhost;
+grant all on *.* to user@localhost;
+
+# Create protected service accounts that the Health Monitor should ignore
+create user mysql_router02@localhost;
+grant all on *.* to mysql_router02@localhost;
+
+create user mysql_router01@localhost;
+grant all on *.* to mysql_router01@localhost;
+
+create user mysql_innodb01@localhost;
+grant all on *.* to mysql_innodb01@localhost;
+
+## To 'force' SUPER_READ_ONLY, the Health Monitor terminates queries in groups.
+## Create > 20 connections to ensure groups multiple groups.
+
+# Connection 1
+use test;
+# Connection 2
+use test;
+# Connection 3
+use test;
+# Connection 4
+use test;
+# Connection 5
+use test;
+# Connection 6
+use test;
+# Connection 7
+use test;
+# Connection 8
+use test;
+# Connection 9
+use test;
+# Connection 10
+use test;
+# Connection 11
+use test;
+# Connection 12
+use test;
+# Connection 13
+use test;
+# Connection 14
+use test;
+# Connection 15
+use test;
+# Connection 16
+use test;
+# Connection 17
+use test;
+# Connection 18
+use test;
+# Connection 19
+use test;
+# Connection 20
+use test;
+# Connection 21
+use test;
+
+# Connect with protected service accounts
+
+# Connection 22 - mysql_router02
+use test;
+# Connection 23 - mysql_router01
+use test;
+# Connection 24 - mysql_innodb01
+use test;
+
+##
+## This connection will hold a global lock and block SUPER_READ_ONLY
+##
+
+# Connection 25
+use test;
+create table t1 (s1 int);
+
+# Set a global table lock to block SUPER_READ_ONLY
+lock tables t1 write;
+
+# Connection 26 - mysql_router02
+# This protected service account should not be killed.
+use test;
+
+# Attempt to acquire a write lock, will be blocked by table lock on Connection 25
+insert into t1 values (1);;
+
+# Connection 27
+use test;
+# Connection 28
+use test;
+# Connection 29
+use test;
+# Connection 30
+use test;
+# Connection 31
+use test;
+# Connection 32
+use test;
+# Connection 33
+use test;
+# Connection 34
+use test;
+# Connection 35
+use test;
+# Connection 36
+use test;
+# Connection 37
+use test;
+# Connection 38
+use test;
+# Connection 39
+use test;
+# Connection 40
+use test;
+
+# Connection default
+
+# Start the disk collector
+set @@global.health_monitor.disk_running = on;
+
+# Sleep for 20 seconds to help keep connections serialized
+
+# Wait for status 'super_read_only_disk_full = ON'
+
+# The Health Monitor sets 'super_read_only_disk_full' if it set SUPER_READ_ONLY,
+# but only after completing all retries and, if necessary, terminating foreground
+# queries that might block setting SUPER_READ_ONLY.
+
+
+# Connection 25 should have been terminated, and the global table lock released
+
+# Connection 26 - Reap - Should be able to proceed
+
+# Connection default
+
+# Verify that the protected service accounts were not affected
+use performance_schema;
+include/assert.inc [select count(*) from threads where processlist_user in ('mysql_router02', 'mysql_innodb01', 'mysql_router01')]
+
+# Stop the disk collector
+set @@global.health_monitor.disk_running = off;
+
+# Expect at least 3 failed attempts to set SUPER_READ_ONLY, indicating
+# that it was blocked by the global lock
+use performance_schema;
+include/assert.inc [Fallback attempts: 2 remaining]
+include/assert.inc [Fallback attempts: 1 remaining]
+include/assert.inc [Fallback attempts: 0 remaining]
+
+# Expect multiple query and session terminations and at least one retry
+include/assert.inc [select count(*) from error_log where data like '%KILL QUERY%']
+include/assert.inc [select count(*) from error_log where data like '%KILL CONNECTION%']
+include/assert.inc [select count(*) from error_log where data like '%Retry SUPER_READ_ONLY%']
+
+# Verify server is fenced
+include/assert.inc [Expect OFFLINE_MODE = ON]
+include/assert.inc [Expect SUPER_READ_ONLY = ON]
+include/assert.inc [Expect status 'super_read_only_disk_full' = ON]
+include/assert.inc [Expect status 'offline_mode_disk_full' = ON]
+
+##
+## Clean up
+##
+
+set @@global.super_read_only = off;
+set @@global.read_only = off;
+set @@global.offline_mode = off;
+set @@global.health_monitor.disk_fallback_force = 0;
+drop user user@localhost;
+drop user mysql_router02@localhost;
+drop user mysql_innodb01@localhost;
+drop user mysql_router01@localhost;
+drop table test.t1;
+
+uninstall component 'file://component_health_monitor';;

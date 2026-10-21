@@ -9590,7 +9590,7 @@ static dberr_t calc_row_difference(
     TABLE *table,             /*!< in: table in MySQL data
                               dictionary */
     uchar *upd_buff,          /*!< in: buffer to use */
-    ulint buff_len,           /*!< in: buffer length */
+    size_t buff_len,          /*!< in: buffer length */
     row_prebuilt_t *prebuilt, /*!< in: InnoDB prebuilt struct */
     THD *thd)                 /*!< in: user thread */
 {
@@ -10059,6 +10059,21 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
 
     m_upd_buf_size =
         table->s->reclength + table->s->max_key_length + MAX_REF_PARTS * 3;
+
+    /*
+      Reserve an extra packed value for every virtual column.
+      calc_row_difference() may retain both new and old values for indexed
+      virtual columns, including columns indexed by an online rebuild.
+      The buffer is reused, so its capacity must also cover virtual columns
+      that become indexed after the initial allocation.
+    */
+    for (uint i = 0; i < table->s->fields; i++) {
+      Field *field = table->field[i];
+
+      if (innobase_is_v_fld(field)) {
+        m_upd_buf_size += field->pack_length();
+      }
+    }
 
     m_upd_buf = reinterpret_cast<uchar *>(
         my_malloc(PSI_INSTRUMENT_ME, m_upd_buf_size, MYF(MY_WME)));
@@ -19213,11 +19228,7 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
 
     } else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED &&
                trx_sys->mvcc->is_view_open(trx->read_view)) {
-      mutex_enter(&trx_sys->mutex);
-
-      trx_sys->mvcc->view_close(trx->read_view, true);
-
-      mutex_exit(&trx_sys->mutex);
+      trx_sys->mvcc->view_close(trx->read_view, false);
     }
   }
 
@@ -19809,11 +19820,7 @@ THR_LOCK_DATA **ha_innobase::store_lock(
       /* At low transaction isolation levels we let
       each consistent read set its own snapshot */
 
-      mutex_enter(&trx_sys->mutex);
-
-      trx_sys->mvcc->view_close(trx->read_view, true);
-
-      mutex_exit(&trx_sys->mutex);
+      trx_sys->mvcc->view_close(trx->read_view, false);
     }
   }
 

@@ -24,6 +24,7 @@
 */
 
 #include "metadata_cache.h"
+#include "cluster_metadata.h"
 
 #include <cassert>
 #include <cmath>  // fabs()
@@ -31,7 +32,9 @@
 #include <stdexcept>
 #include <vector>
 
+#include "components/mysql_rest_service/component_application_type_name.h"
 #include "my_thread.h"  // my_thread_self_setname
+#include "mysql/harness/application_type_manager.h"
 #include "mysql/harness/destination.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
@@ -77,6 +80,13 @@ MetadataCache::~MetadataCache() {
   meta_data_->shutdown_notifications_listener();
 }
 
+void MetadataCache::reload_tls() {
+  if (auto cluster_metadata =
+          std::dynamic_pointer_cast<ClusterMetadata>(meta_data_)) {
+    cluster_metadata->reload_tls();
+  }
+}
+
 void *MetadataCache::run_thread(void *context) {
   mysqlrouter::MySQLClientThreadToken api_token;
   MetadataCache *metadata_cache = static_cast<MetadataCache *>(context);
@@ -101,7 +111,16 @@ void MetadataCache::refresh_thread() {
     bool refresh_ok{false};
     const bool attributes_upd = needs_initial_attributes_update();
     const bool last_check_in_upd = needs_last_check_in_update();
-    const bool needs_rw_node = attributes_upd || last_check_in_upd;
+
+    // By default, applications require a RW node to perform metadata updates.
+    // The MRS component is the only exception as it must be a consumer of the
+    // metadata only.
+    const bool is_component =
+        mysql_harness::ApplicationTypeManager::instance().get() ==
+        mysql_harness::kComponentApplicationTypeName;
+    const bool needs_rw_node =
+        !is_component && (attributes_upd || last_check_in_upd);
+
     try {
       // Component tests are using this log message as a indicator of metadata
       // refresh start
@@ -540,7 +559,12 @@ void MetadataCache::on_md_refresh(const bool cluster_nodes_changed,
     }
   }
 
-  if (last_routing_guidelines_used_ != routing_guidelines_doc) {
+  const bool is_application_component =
+      mysql_harness::ApplicationTypeManager::instance().get() ==
+      mysql_harness::kComponentApplicationTypeName;
+
+  if (!is_application_component &&
+      last_routing_guidelines_used_ != routing_guidelines_doc) {
     update_routing_guidelines(routing_guidelines_doc);
     last_routing_guidelines_used_ = routing_guidelines_doc;
   }

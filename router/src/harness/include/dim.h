@@ -44,6 +44,7 @@ class Registry;
 }  // namespace logging
 class LoaderConfig;
 class DynamicState;
+class SyncPointRegistry;
 
 class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
 
@@ -122,6 +123,18 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
     return dynamic_state_.get();
   }
 
+  void set_static_SyncPointRegistry(mysql_harness::SyncPointRegistry *inst);
+
+#if !defined(NDEBUG)
+  bool has_SyncPointRegistry() const {
+    return static_cast<bool>(sync_point_registry_);
+  }
+
+  mysql_harness::SyncPointRegistry &get_SyncPointRegistry() const {
+    return sync_point_registry_.get();
+  }
+#endif
+
  private:
   template <class T>
   class RWLockedUniquePtr {
@@ -171,6 +184,9 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
   RWLockedUniquePtr<mysql_harness::LoaderConfig> loader_config_;
 
   RWLockedUniquePtr<mysql_harness::DynamicState> dynamic_state_;
+#if !defined(NDEBUG)
+  RWLockedUniquePtr<mysql_harness::SyncPointRegistry> sync_point_registry_;
+#endif
 
 };  // class DIM
 

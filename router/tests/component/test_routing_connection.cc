@@ -23,9 +23,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <atomic>
 #include <fstream>
 #include <stdexcept>
 #include <thread>
+#include <vector>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -39,6 +41,7 @@
 #include "dim.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/sync_point.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
@@ -47,6 +50,8 @@
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "router_test_helpers.h"
+#include "routing_guidelines_builder.h"
+#include "scope_guard.h"
 #include "tcp_port_pool.h"
 
 #define ASSERT_NO_ERROR(expr) \
@@ -69,6 +74,7 @@ class ConfigGenerator {
   std::string routing_primary_section_;
   std::string routing_secondary_section_;
   std::string monitoring_section_;
+  std::string sync_point_section_;
 
   std::vector<uint16_t> metadata_server_ports_;
   uint16_t router_rw_port_;
@@ -106,9 +112,9 @@ class ConfigGenerator {
 
   // void metadata_refresh_ttl(unsigned ttl) { metadata_refresh_ttl_ = ttl; }
 
-  void add_metadata_cache_section(
-      std::chrono::milliseconds ttl,
-      ClusterType cluster_type = ClusterType::GR_V2) {
+  void add_metadata_cache_section(std::chrono::milliseconds ttl,
+                                  ClusterType cluster_type = ClusterType::GR_V2,
+                                  std::chrono::seconds connect_timeout = 1s) {
     const std::string cluster_type_str =
         (cluster_type == ClusterType::RS_V2) ? "ar" : "gr";
     metadata_cache_section_ =
@@ -122,7 +128,9 @@ class ConfigGenerator {
         "router_id=1\n"
         "user=mysql_router1_user\n"
         "metadata_cluster=test\n"
-        "connect_timeout=1\n"
+        "connect_timeout=" +
+        std::to_string(connect_timeout.count()) +
+        "\n"
         "ttl=" +
         std::to_string(ttl.count() / 1000.0) + "\n\n";
   }
@@ -191,6 +199,11 @@ class ConfigGenerator {
                             {"bind_address", "127.0.0.1"}});
   }
 
+  void add_sync_point_section() {
+    sync_point_section_ =
+        mysql_harness::ConfigBuilder::build_section("rest_sync_point", {});
+  }
+
   std::string make_DEFAULT_section(
       const std::map<std::string, std::string> *params) {
     auto l = [params](const char *key) -> std::string {
@@ -220,7 +233,7 @@ class ConfigGenerator {
     ofs_config << make_DEFAULT_section(params);
     ofs_config << metadata_cache_section_ << routing_primary_section_
                << routing_secondary_section_ << monitoring_section_
-               << std::endl;
+               << sync_point_section_ << std::endl;
     ofs_config.close();
 
     return file_path.str();
@@ -228,8 +241,10 @@ class ConfigGenerator {
 
   std::string build_config_file(const std::string &temp_test_dir,
                                 ClusterType cluster_type,
-                                bool is_primary_and_secondary = false) {
-    add_metadata_cache_section(metadata_refresh_ttl_, cluster_type);
+                                bool is_primary_and_secondary = false,
+                                std::chrono::seconds connect_timeout = 1s) {
+    add_metadata_cache_section(metadata_refresh_ttl_, cluster_type,
+                               connect_timeout);
     add_routing_primary_section();
     add_monitoring_section(temp_test_dir);
 
@@ -412,6 +427,30 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
     EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
   }
 
+  void set_connect_exec_time(uint16_t http_port,
+                             std::chrono::milliseconds connect_exec_time) {
+    auto rest_client = MockServerRestClient(http_port);
+    auto globals_str = rest_client.get_globals_as_json_string();
+
+    JsonDocument globals;
+    globals.Parse(globals_str.c_str());
+
+    JsonAllocator allocator;
+    globals.RemoveMember("connect_exec_time");
+    JsonValue value;
+    value.SetUint64(static_cast<uint64_t>(connect_exec_time.count()));
+    globals.AddMember("connect_exec_time", value, allocator);
+
+    rest_client.set_globals(json_to_string(globals));
+  }
+
+  int get_metadata_query_count(uint16_t http_port) {
+    const auto globals_str =
+        MockServerRestClient(http_port).get_globals_as_json_string();
+
+    return get_int_field_value(globals_str, "md_query_count");
+  }
+
   std::chrono::milliseconds metadata_refresh_ttl_{100};
   std::chrono::milliseconds wait_for_cache_ready_timeout{
       metadata_refresh_ttl_ + std::chrono::milliseconds(5000)};
@@ -520,6 +559,343 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
 
   ASSERT_THAT(vec_from_lines(router.get_logfile_content()),
               ::testing::Contains(::testing::ContainsRegex(log_msg_re)));
+}
+
+/**
+ * @test
+ *      Verify that a client connecting immediately after Router startup can
+ *      close the RW listener while the destination set is empty, and the first
+ *      successful metadata refresh reopens it.
+ */
+TEST_F(RouterRoutingConnectionTest, RwListenerSurvivesImmediateStartupClients) {
+  constexpr auto kMetadataConnectDelay = 3s;
+  constexpr auto kMetadataConnectTimeout = 5s;
+
+  SCOPED_TRACE("// [prep] launch a 3-node cluster");
+  ASSERT_NO_FATAL_FAILURE(setup_cluster("metadata_dynamic_nodes_v2_gr.js", 3));
+
+  SCOPED_TRACE("// [prep] delay metadata server handshake");
+  set_connect_exec_time(cluster_nodes_http_ports_[0], kMetadataConnectDelay);
+
+  SCOPED_TRACE("// [prep] launching router");
+  auto config_file = config_generator_->build_config_file(
+      temp_test_dir_.name(), ClusterType::GR_V2, false,
+      kMetadataConnectTimeout);
+
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::RUNNING)
+                     .spawn({"-c", config_file});
+
+  SCOPED_TRACE("// [test] expect metadata refresh to be in progress");
+  ASSERT_TRUE(wait_log_contains(router,
+                                "Started refreshing the cluster metadata",
+                                kMetadataConnectDelay));
+  ASSERT_EQ(0, get_metadata_query_count(cluster_nodes_http_ports_[0]));
+
+  SCOPED_TRACE("// [test] expect the RW listener to be open before metadata");
+  ASSERT_TRUE(wait_for_port_used(router_rw_port_, 2s));
+
+  SCOPED_TRACE("// [test] try an RW client before metadata is fetched");
+  try {
+    MySQLSession client;
+    client.connect("127.0.0.1", router_rw_port_, "username", "password", "",
+                   "");
+    std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")};
+  } catch (const std::exception &) {
+  }
+
+  SCOPED_TRACE("// [test] expect the early client to close the RW listener");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port_, 10s));
+
+  EXPECT_TRUE(wait_for_port_ready(monitoring_port_));
+
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
+
+  SCOPED_TRACE("// [test] waiting until metadata is initialized");
+  const auto wait_res = rest_metadata_client.wait_for_cache_ready(
+      wait_for_cache_ready_timeout + kMetadataConnectDelay, metadata_status);
+
+  ASSERT_NO_ERROR(wait_res);
+
+  SCOPED_TRACE("// [test] expect the RW listener to still accept clients");
+  EXPECT_TRUE(wait_for_port_ready(router_rw_port_));
+
+  MySQLSession client;
+  ASSERT_NO_THROW(client.connect("127.0.0.1", router_rw_port_, "username",
+                                 "password", "", ""));
+  ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
+      client.query_one("select @@port")});
+}
+
+class RouterRoutingEarlyClientFailureTest
+    : public RouterRoutingConnectionTest,
+      public ::testing::WithParamInterface<bool> {};
+
+/**
+ * @test
+ *      Verify that completion of an early client failure does not close the
+ *      RW listener if metadata has loaded a PRIMARY in the meantime, and
+ *      does not block a routing guidelines update while waiting to refresh
+ *      the acceptor.
+ */
+TEST_P(RouterRoutingEarlyClientFailureTest,
+       RwListenerStaysOpenWhenMetadataLoadsBeforeEarlyClientFails) {
+#if !HARNESS_SYNC_POINT
+  GTEST_SKIP() << "requires Debug synchronization points";
+#endif
+
+  constexpr auto kMetadataConnectDelay = 10s;
+  constexpr auto kMetadataConnectTimeout = 15s;
+  constexpr const char kSyncPoint[] =
+      "routing.before_client_failure_acceptor_refresh";
+  const std::string sync_point_uri = std::string("/api/") + kRestAPIVersion +
+                                     "/test/sync-points/" + kSyncPoint;
+
+  SCOPED_TRACE("// [prep] launch a 3-node cluster");
+  ASSERT_NO_FATAL_FAILURE(setup_cluster("metadata_dynamic_nodes_v2_gr.js", 3));
+
+  SCOPED_TRACE("// [prep] delay metadata server handshake");
+  set_connect_exec_time(cluster_nodes_http_ports_[0], kMetadataConnectDelay);
+
+  const bool update_guidelines = GetParam();
+  if (update_guidelines) {
+    SCOPED_TRACE("// [prep] load routing guidelines with the first metadata");
+    const auto guidelines = guidelines_builder::create(
+        {{"primary", "$.server.memberRole = PRIMARY"}},
+        {{"rw",
+          "$.session.targetPort = " + std::to_string(router_rw_port_),
+          {{"round-robin", {"primary"}}}}});
+    auto mock_rest_client = MockServerRestClient(cluster_nodes_http_ports_[0]);
+    JsonDocument globals;
+    globals.Parse(mock_rest_client.get_globals_as_json_string().c_str());
+    auto &allocator = globals.GetAllocator();
+    globals["metadata_schema_version"] = JsonValue(rapidjson::kArrayType)
+                                             .PushBack(2, allocator)
+                                             .PushBack(3, allocator)
+                                             .PushBack(0, allocator);
+    globals.RemoveMember("routing_guidelines");
+    globals.AddMember("routing_guidelines", JsonValue(guidelines, allocator),
+                      allocator);
+    mock_rest_client.set_globals(json_to_string(globals));
+  }
+
+  config_generator_->add_sync_point_section();
+  SCOPED_TRACE("// [prep] launch router");
+  auto config_file = config_generator_->build_config_file(
+      temp_test_dir_.name(), ClusterType::GR_V2, false,
+      kMetadataConnectTimeout);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::RUNNING)
+                     .spawn({"-c", config_file});
+
+  ASSERT_TRUE(wait_for_port_ready(monitoring_port_));
+
+  SCOPED_TRACE("// [prep] allow routing to start its acceptors");
+  auto release_start_acceptors = [&]() {
+    IOContext io_ctx;
+    RestClient rest_client(io_ctx, mock_http_hostname_, monitoring_port_);
+    auto req = rest_client.request_sync(
+        HttpMethod::Post,
+        std::string("/api/") + kRestAPIVersion +
+            "/test/sync-points/routing.before_start_acceptors/release");
+    return req && req.get_response_code() == HttpStatusCode::Ok;
+  };
+  // The HTTP listener can open before the REST plugin registers its paths.
+  const auto start_acceptors_deadline = std::chrono::steady_clock::now() + 5s;
+  while (!release_start_acceptors() &&
+         std::chrono::steady_clock::now() < start_acceptors_deadline) {
+    std::this_thread::sleep_for(50ms);
+  }
+  ASSERT_TRUE(release_start_acceptors());
+
+  SCOPED_TRACE("// [prep] wait until the listener is initially open");
+  ASSERT_TRUE(wait_for_port_used(router_rw_port_, 5s));
+
+  auto sync_point_reached = [&]() {
+    IOContext io_ctx;
+    RestClient rest_client(io_ctx, mock_http_hostname_, monitoring_port_);
+    auto req = rest_client.request_sync(HttpMethod::Get, sync_point_uri);
+    if (!req || req.get_response_code() != HttpStatusCode::Ok) return false;
+
+    auto &buffer = req.get_input_buffer();
+    auto response = buffer.pop_front(buffer.length());
+    std::string response_json{response.begin(), response.end()};
+    rapidjson::Document status;
+    status.Parse(response_json);
+
+    return status.IsObject() && status.HasMember("reached") &&
+           status["reached"].IsBool() && status["reached"].GetBool();
+  };
+
+  auto release_sync_point = [&]() {
+    IOContext io_ctx;
+    RestClient rest_client(io_ctx, mock_http_hostname_, monitoring_port_);
+    auto req =
+        rest_client.request_sync(HttpMethod::Post, sync_point_uri + "/release");
+    return req && req.get_response_code() == HttpStatusCode::Ok;
+  };
+
+  SCOPED_TRACE("// [test] start an early client and stop its failure path");
+  std::thread early_client([&] {
+    try {
+      MySQLSession client;
+      client.connect("127.0.0.1", router_rw_port_, "username", "password", "",
+                     "");
+    } catch (const std::exception &) {
+    }
+  });
+  auto join_early_client = create_scope_guard([&] {
+    if (early_client.joinable()) early_client.join();
+  });
+  auto release_sync_point_guard =
+      create_scope_guard([&] { EXPECT_TRUE(release_sync_point()); });
+
+  const auto sync_point_deadline = std::chrono::steady_clock::now() + 10s;
+  while (!sync_point_reached() &&
+         std::chrono::steady_clock::now() < sync_point_deadline) {
+    std::this_thread::sleep_for(100ms);
+  }
+  ASSERT_TRUE(sync_point_reached());
+
+  if (update_guidelines) {
+    // Updating guidelines waits for connection completion under the connection
+    // container lock. It must finish while the early client is still paused
+    // before the acceptor refresh, or it could deadlock with the acceptor.
+    SCOPED_TRACE(
+        "// [test] guidelines update finishes before acceptor refresh");
+    ASSERT_TRUE(wait_log_contains(router, "Routing guidelines document updated",
+                                  kMetadataConnectDelay + 10s));
+  }
+
+  SCOPED_TRACE("// [test] wait until metadata loads a PRIMARY");
+  ASSERT_TRUE(
+      wait_log_contains(router, "mode=RW", kMetadataConnectDelay + 10s));
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, 2s));
+
+  SCOPED_TRACE("// [test] finish the early client failure");
+  ASSERT_TRUE(release_sync_point());
+  release_sync_point_guard.release();
+  early_client.join();
+  join_early_client.release();
+
+  SCOPED_TRACE("// [test] the listener remains open");
+  EXPECT_TRUE(wait_for_port_ready(router_rw_port_, 2s));
+  (void)router;
+}
+
+INSTANTIATE_TEST_SUITE_P(WithAndWithoutGuidelines,
+                         RouterRoutingEarlyClientFailureTest,
+                         ::testing::Bool());
+
+/**
+ * @test
+ *      Verify that an RW listener is closed if metadata removes PRIMARY
+ *      destinations while routing is waiting to start its acceptors.
+ */
+TEST_F(RouterRoutingConnectionTest,
+       RwListenerClosesWhenMetadataIsEmptyBeforeAcceptorStarts) {
+#if !HARNESS_SYNC_POINT
+  GTEST_SKIP() << "requires Debug synchronization points";
+#endif
+
+  constexpr auto kMetadataRefreshTtl = 10s;
+  constexpr auto kSyncPointTimeout = 10s;
+  constexpr const char kSyncPoint[] = "routing.before_start_acceptors";
+  const std::string sync_point_uri = std::string("/api/") + kRestAPIVersion +
+                                     "/test/sync-points/" + kSyncPoint;
+
+  SCOPED_TRACE("// [prep] launch a 3-node cluster");
+  ASSERT_NO_FATAL_FAILURE(setup_cluster("metadata_dynamic_nodes_v2_gr.js", 3));
+
+  config_generator_ = std::make_unique<ConfigGenerator>(
+      get_DEFAULT_defaults(), temp_conf_dir_.name(),
+      std::vector<uint16_t>{cluster_nodes_ports_[0]}, router_rw_port_,
+      router_ro_port_, monitoring_port_, kMetadataRefreshTtl);
+  config_generator_->add_sync_point_section();
+
+  SCOPED_TRACE("// [prep] launch router stopped before starting acceptors");
+  auto config_file = config_generator_->build_config_file(temp_test_dir_.name(),
+                                                          ClusterType::GR_V2);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::RUNNING)
+                     .spawn({"-c", config_file});
+  (void)router;
+
+  ASSERT_TRUE(wait_for_port_ready(monitoring_port_));
+
+  auto sync_point_reached = [&]() {
+    IOContext io_ctx;
+    RestClient rest_client(io_ctx, mock_http_hostname_, monitoring_port_);
+    auto req = rest_client.request_sync(HttpMethod::Get, sync_point_uri);
+    if (!req || req.get_response_code() != HttpStatusCode::Ok) return false;
+
+    auto &buffer = req.get_input_buffer();
+    auto response = buffer.pop_front(buffer.length());
+    std::string response_json{response.begin(), response.end()};
+    rapidjson::Document status;
+    status.Parse(response_json);
+
+    return status.IsObject() && status.HasMember("reached") &&
+           status["reached"].IsBool() && status["reached"].GetBool();
+  };
+
+  const auto sync_point_deadline =
+      std::chrono::steady_clock::now() + kSyncPointTimeout;
+  while (!sync_point_reached() &&
+         std::chrono::steady_clock::now() < sync_point_deadline) {
+    std::this_thread::sleep_for(100ms);
+  }
+  ASSERT_TRUE(sync_point_reached());
+
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
+                                          kRestApiUsername, kRestApiPassword);
+  SCOPED_TRACE("// [prep] wait for initial metadata refresh");
+  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(kSyncPointTimeout,
+                                                            metadata_status));
+
+  auto release_sync_point = [&]() {
+    IOContext io_ctx;
+    RestClient rest_client(io_ctx, mock_http_hostname_, monitoring_port_);
+    auto req =
+        rest_client.request_sync(HttpMethod::Post, sync_point_uri + "/release");
+    return req && req.get_response_code() == HttpStatusCode::Ok;
+  };
+  auto release_sync_point_guard =
+      create_scope_guard([&] { EXPECT_TRUE(release_sync_point()); });
+
+  SCOPED_TRACE("// [prep] configure metadata without a PRIMARY");
+  auto gr_nodes = classic_ports_to_gr_nodes({cluster_nodes_ports_[0],
+                                             cluster_nodes_ports_[1],
+                                             cluster_nodes_ports_[2]});
+  auto cluster_nodes = classic_ports_to_cluster_nodes(
+      {cluster_nodes_ports_[0], cluster_nodes_ports_[1],
+       cluster_nodes_ports_[2]});
+  for (auto &node : gr_nodes) node.member_role = "SECONDARY";
+  for (auto &node : cluster_nodes) node.role = "SECONDARY";
+  for (size_t i = 0; i < gr_nodes.size(); ++i) {
+    set_mock_metadata(cluster_nodes_http_ports_[i], "uuid", gr_nodes, i,
+                      cluster_nodes);
+  }
+
+  SCOPED_TRACE("// [test] wait for metadata refresh without PRIMARY");
+  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_updated(
+      kMetadataRefreshTtl + kSyncPointTimeout, metadata_status));
+
+  SCOPED_TRACE("// [test] let routing start its acceptors");
+  ASSERT_TRUE(release_sync_point());
+  release_sync_point_guard.release();
+
+  SCOPED_TRACE("// [test] wait until routing has actually opened its listener");
+  ASSERT_TRUE(wait_log_contains(
+      router, "Start accepting connections for routing routing:test_default_rw",
+      5s));
+
+  SCOPED_TRACE("// [test] the empty PRIMARY set keeps the RW listener closed");
+  EXPECT_TRUE(wait_for_port_unused(router_rw_port_, 5s));
 }
 
 /**
@@ -835,6 +1211,239 @@ INSTANTIATE_TEST_SUITE_P(
     RWDestinationUnreachable, RWDestinationUnreachableTest,
     ::testing::Values(TracefileTestParam("metadata_1_node_repeat_v2_gr.js",
                                          ClusterType::GR_V2)));
+
+TEST_F(RouterRoutingConnectionTest,
+       RwListenerReopensAfterPrimaryQuarantineRecovery) {
+  TempDirectory tmp_dir("conf");
+  const std::string tracefile{"metadata_1_node_repeat_v2_gr.js"};
+
+  // Keep the metadata view stable while the only PRIMARY is unavailable. This
+  // lets the quarantine worker, not a metadata refresh, drive listener
+  // recovery.
+  const auto ttl = 3600s;
+  config_generator_.reset(new ConfigGenerator(
+      get_DEFAULT_defaults(), tmp_dir.name(), {cluster_nodes_ports_[0]},
+      router_rw_port_, router_ro_port_, monitoring_port_, ttl));
+
+  SCOPED_TRACE("// launch the primary node on port " +
+               std::to_string(cluster_nodes_ports_.at(0)) +
+               " working also as metadata server");
+  cluster_nodes_.push_back(&launch_server(cluster_nodes_ports_[0], tracefile,
+                                          cluster_nodes_http_ports_[0], 1));
+
+  SCOPED_TRACE("// launching router");
+  auto &router = launch_router(router_rw_port_,
+                               config_generator_->build_config_file(
+                                   temp_test_dir_.name(), ClusterType::GR_V2));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
+
+  SCOPED_TRACE("// verify baseline RW connection works");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_rw_port_,
+                                           "username", "password", "", ""));
+    ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")});
+  }
+
+  SCOPED_TRACE("// kill the primary node");
+  EXPECT_NO_THROW(cluster_nodes_[0]->send_clean_shutdown_event());
+  EXPECT_NO_THROW(cluster_nodes_[0]->wait_for_exit());
+
+  SCOPED_TRACE("// trigger quarantine for the primary destination");
+  {
+    MySQLSession client;
+    ASSERT_THROW(client.connect("127.0.0.1", router_rw_port_, "username",
+                                "password", "", "", /*connect_timeout*/ 1),
+                 MySQLSession::Error);
+  }
+
+  ASSERT_TRUE(wait_log_contains(router,
+                                "Add destination '127\\.0\\.0\\.1:" +
+                                    std::to_string(cluster_nodes_ports_[0]) +
+                                    "' to quarantine",
+                                5s));
+  ASSERT_TRUE(wait_log_contains(
+      router, "Stop accepting connections for routing routing:test_default_rw",
+      5s));
+  ASSERT_TRUE(wait_for_port_unused(router_rw_port_, 5s));
+
+  SCOPED_TRACE("// restore the primary node");
+  cluster_nodes_[0] = &launch_server(cluster_nodes_ports_[0], tracefile,
+                                     cluster_nodes_http_ports_[0], 1);
+
+  std::atomic_bool keep_connecting{true};
+  std::vector<std::thread> clients;
+  for (size_t i = 0; i < 16; ++i) {
+    clients.emplace_back([this, &keep_connecting]() {
+      while (keep_connecting.load()) {
+        try {
+          MySQLSession client;
+          client.connect("127.0.0.1", router_rw_port_, "username", "password",
+                         "", "", /*connect_timeout*/ 1);
+          std::unique_ptr<MySQLSession::ResultRow> result{
+              client.query_one("select @@port")};
+        } catch (const std::exception &) {
+        }
+        std::this_thread::sleep_for(5ms);
+      }
+    });
+  }
+
+  auto stop_clients = [&]() {
+    keep_connecting.store(false);
+    for (auto &client : clients) {
+      if (client.joinable()) client.join();
+    }
+  };
+  Scope_guard stop_clients_guard([&]() { stop_clients(); });
+
+  SCOPED_TRACE("// wait until quarantine recovery reopens the RW listener");
+  const auto remove_from_quarantine =
+      wait_log_contains(router,
+                        "Destination candidate '127\\.0\\.0\\.1:" +
+                            std::to_string(cluster_nodes_ports_[0]) +
+                            "' is available, remove it from quarantine",
+                        10s);
+  ASSERT_TRUE(remove_from_quarantine);
+  ASSERT_TRUE(wait_log_contains(
+      router, "Start accepting connections for routing routing:test_default_rw",
+      5s));
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, 5s));
+
+  SCOPED_TRACE("// new RW connections work after quarantine recovery");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_rw_port_,
+                                           "username", "password", "", ""));
+    ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")});
+  }
+
+  stop_clients();
+  stop_clients_guard.release();
+
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::Not(::testing::ContainsRegex(
+                  "Address already in use|address already in use|EADDRINUSE")));
+}
+
+TEST_F(RouterRoutingConnectionTest,
+       StaticRoundRobinListenerReopensAfterQuarantineRecovery) {
+  TempDirectory conf_dir("conf");
+  const std::string tracefile{"metadata_1_node_repeat_v2_gr.js"};
+  const auto server_port = cluster_nodes_ports_[0];
+  const auto router_port = router_rw_port_;
+
+  auto *server = &mock_server_spawner().spawn(
+      mock_server_cmdline(tracefile).port(server_port).args());
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(*server, server_port));
+
+  auto writer = config_writer(conf_dir.name());
+  writer
+      .section("destination_status", {{"error_quarantine_threshold", "1"},
+                                      {"error_quarantine_interval", "1"}})
+      .section("routing:test_default_rw",
+               {{"bind_port", std::to_string(router_port)},
+                {"destinations", "127.0.0.1:" + std::to_string(server_port)},
+                {"protocol", "classic"},
+                {"routing_strategy", "round-robin"},
+                {"connect_timeout", "1"}});
+
+  auto &router =
+      ProcessManager::launch_router({"-c", writer.write()}, EXIT_SUCCESS);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
+
+  SCOPED_TRACE("// verify baseline static RW connection works");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
+                                           "password", "", ""));
+    ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")});
+  }
+
+  SCOPED_TRACE("// stop the only static destination");
+  EXPECT_NO_THROW(server->send_clean_shutdown_event());
+  EXPECT_NO_THROW(server->wait_for_exit());
+
+  SCOPED_TRACE("// trigger quarantine and listener stop");
+  {
+    MySQLSession client;
+    ASSERT_THROW(client.connect("127.0.0.1", router_port, "username",
+                                "password", "", "", /*connect_timeout*/ 1),
+                 MySQLSession::Error);
+  }
+
+  ASSERT_TRUE(wait_log_contains(
+      router,
+      "Add destination '127\\.0\\.0\\.1:" + std::to_string(server_port) +
+          "' to quarantine",
+      5s));
+  ASSERT_TRUE(wait_log_contains(
+      router, "Stop accepting connections for routing routing:test_default_rw",
+      5s));
+  ASSERT_TRUE(wait_for_port_unused(router_port, 5s));
+
+  SCOPED_TRACE("// restore the static destination");
+  server = &mock_server_spawner().spawn(
+      mock_server_cmdline(tracefile).port(server_port).args());
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(*server, server_port));
+
+  std::atomic_bool keep_connecting{true};
+  std::vector<std::thread> clients;
+  for (size_t i = 0; i < 64; ++i) {
+    clients.emplace_back([router_port, &keep_connecting]() {
+      while (keep_connecting.load()) {
+        try {
+          MySQLSession client;
+          client.connect("127.0.0.1", router_port, "username", "password", "",
+                         "", /*connect_timeout*/ 1);
+          std::unique_ptr<MySQLSession::ResultRow> result{
+              client.query_one("select @@port")};
+        } catch (const std::exception &) {
+        }
+        std::this_thread::sleep_for(1ms);
+      }
+    });
+  }
+
+  auto stop_clients = [&]() {
+    keep_connecting.store(false);
+    for (auto &client : clients) {
+      if (client.joinable()) client.join();
+    }
+  };
+  Scope_guard stop_clients_guard([&]() { stop_clients(); });
+
+  SCOPED_TRACE("// wait until quarantine recovery reopens the static listener");
+  const auto remove_from_quarantine = wait_log_contains(
+      router,
+      "Destination candidate '127\\.0\\.0\\.1:" + std::to_string(server_port) +
+          "' is available, remove it from quarantine",
+      10s);
+  ASSERT_TRUE(remove_from_quarantine);
+  ASSERT_TRUE(wait_log_contains(
+      router, "Start accepting connections for routing routing:test_default_rw",
+      5s));
+  ASSERT_TRUE(wait_for_port_ready(router_port, 5s));
+
+  SCOPED_TRACE("// new static RW connections work after quarantine recovery");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
+                                           "password", "", ""));
+    ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")});
+  }
+
+  stop_clients();
+  stop_clients_guard.release();
+
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::Not(::testing::ContainsRegex(
+                  "Address already in use|address already in use|EADDRINUSE")));
+}
 
 class IsROConnectionsKeptWhenPrimaryFailoverTest
     : public RouterRoutingConnectionTest,

@@ -1,0 +1,107 @@
+--source include/have_mysql_rest_service_component.inc
+
+# Verify the component command-service identities and fixed-account isolation.
+
+--source include/not_solaris.inc
+
+--echo
+--echo
+--echo ## I. Verify metadata and non-passthrough data execution identities
+--echo ## II. Verify embedded sessions and internal accounts remain isolated
+
+CREATE SCHEMA mrs_identity_test;
+CREATE TABLE mrs_identity_test.execution_probe (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  execution_user VARCHAR(255) NOT NULL DEFAULT (CURRENT_USER())
+);
+
+--let $init_does_mrs_bootstrap=1
+--source ../include/cmrs/initialize.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--source $router_tests/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/identity"
+--let $mrs_add_host_name=""
+--source $router_tests/mrs/service/add.inc
+
+--let $mrs_add_schema=mrs_identity_test
+--let $mrs_add_schema_path=/db
+--source $router_tests/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=execution_probe
+--let $mrs_add_db_object_path=/probe
+--source $router_tests/mrs/db_object/add.inc
+
+--source $router_tests/mrs/end_object_definition.inc
+
+--echo
+--echo # I. Capture command-service statements with their authenticated users.
+--disable_query_log
+--disable_result_log
+SET @saved_general_log = @@GLOBAL.general_log;
+SET @saved_log_output = @@GLOBAL.log_output;
+SET GLOBAL general_log = OFF;
+SET GLOBAL log_output = 'TABLE';
+TRUNCATE TABLE mysql.general_log;
+SET GLOBAL general_log = ON;
+--enable_result_log
+--enable_query_log
+
+SELECT mysql_rest_service_restart();
+--let $wait_condition=SELECT VARIABLE_VALUE = 'READY' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'mysql_rest_service.state'
+--source include/wait_condition.inc
+--source ../include/cmrs/wait_mrs_read_metadata.inc
+
+--let $mrs_client_arg_path='/identity/db/probe'
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_payload='{}'
+--let $mrs_client_arg_expected_status=200
+--let $mrs_client_arg_display=none
+--source $router_tests/mrs/mrs_client.inc
+
+--disable_query_log
+--disable_result_log
+SET GLOBAL general_log = OFF;
+--enable_result_log
+--enable_query_log
+
+--let $metadata_identity_count = `SELECT COUNT(*) FROM mysql.general_log WHERE user_host LIKE 'mysql_mrs_metadata%' AND argument LIKE '%mysql_rest_service_metadata%';`
+--let $assert_text = metadata command-service queries execute as mysql_mrs_metadata
+--let $assert_cond = $metadata_identity_count > 0
+--source include/assert.inc
+
+--let $data_execution_user = `SELECT execution_user FROM mrs_identity_test.execution_probe ORDER BY id DESC LIMIT 1;`
+--let $assert_text = non-passthrough application SQL executes as mysql_mrs_data
+--let $assert_cond = "$data_execution_user" = "mysql_mrs_data@localhost"
+--source include/assert.inc
+
+--echo
+--echo # II. Returned sessions close and fixed accounts cannot log in externally.
+--let $wait_condition=SELECT COUNT(*) = 0 FROM performance_schema.processlist WHERE USER IN ('mysql_mrs_metadata', 'mysql_mrs_data')
+--source include/wait_condition.inc
+
+--let $internal_account_count = `SELECT COUNT(*) FROM mysql.user WHERE User IN ('mysql_mrs_metadata', 'mysql_mrs_data') AND Host = 'localhost' AND account_locked = 'Y' AND authentication_string = '';`
+--let $assert_text = fixed MRS accounts are locked and have no password material
+--let $assert_cond = $internal_account_count = 2
+--source include/assert.inc
+
+--disable_result_log
+--error 1
+--exec $MYSQL --protocol=tcp -h127.0.0.1 -P$MASTER_MYPORT -umysql_mrs_metadata -e "SELECT 1"
+--error 1
+--exec $MYSQL --protocol=tcp -h127.0.0.1 -P$MASTER_MYPORT -umysql_mrs_data -e "SELECT 1"
+--enable_result_log
+
+--echo
+--echo # Cleanup
+--disable_query_log
+--disable_result_log
+SET GLOBAL general_log = OFF;
+SET GLOBAL log_output = @saved_log_output;
+SET GLOBAL general_log = @saved_general_log;
+TRUNCATE TABLE mysql.general_log;
+--enable_result_log
+--enable_query_log
+--source ../include/cmrs/cleanup.inc
+DROP SCHEMA mrs_identity_test;
