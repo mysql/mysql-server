@@ -221,6 +221,9 @@
 /* Lock Order */
 #cmakedefine WITH_LOCK_ORDER 1
 
+/* User Defined Types*/
+#cmakedefine WITH_EXPERIMENTAL_UDT 1
+
 /* Character sets and collations */
 #cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"
 #cmakedefine SHAREDIR "@SHAREDIR@"

@@ -51,11 +51,14 @@
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"  // append_identifier()
 #include "sql/sql_udf.h"
+#include "sql/sql_udt.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
 #include "template_utils.h"
+
+#include "sql/warn_not_implemented.h"
 
 /**
   Apply a truth test to given expression. Either the expression can implement
@@ -285,10 +288,18 @@ bool PTI_function_call_generic_ident_sys::do_itemize(Parse_context *pc,
       *res = Create_udf_func::s_singleton.create(thd, m_pos, udf,
                                                  opt_udf_expr_list);
     } else {
-      builder = find_qualified_function_builder(thd);
-      assert(builder);
-      *res = builder->create_func(thd, m_pos, ident, opt_udf_expr_list);
-      pc->select->n_stored_func_calls++;
+      // Try UDT functions
+
+      auto *udt_function = acquire_udt_function(ident.str);
+      if (udt_function) {
+        *res = Create_udt_func::create(thd, m_pos, udt_function,
+                                       opt_udf_expr_list);
+      } else {
+        builder = find_qualified_function_builder(thd);
+        assert(builder);
+        *res = builder->create_func(thd, m_pos, ident, opt_udf_expr_list);
+        pc->select->n_stored_func_calls++;
+      }
     }
   }
   return *res == nullptr || (*res)->itemize(pc, res);
@@ -332,6 +343,99 @@ bool PTI_function_call_generic_2d::do_itemize(Parse_context *pc, Item **res) {
   assert(builder);
   *res = builder->create(pc->thd, m_pos, db, func, true, opt_expr_list);
   return *res == nullptr || (*res)->itemize(pc, res);
+}
+
+void PTI_function_call_generic_3d::add_json_info(Json_object *obj) {
+  String full_str;
+
+  append_identifier_with_backtick(&full_str, table.str, table.length);
+  full_str.append('.');
+  append_identifier_with_backtick(&full_str, column.str, column.length);
+  full_str.append('.');
+  append_identifier_with_backtick(&full_str, method.str, method.length);
+  obj->add_alias("method_name", create_dom_ptr<Json_string>(full_str.ptr(),
+                                                            full_str.length()));
+}
+
+bool PTI_function_call_generic_3d::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
+
+  THD *thd = pc->thd;
+
+  WARN_NOT_IMPLEMENTED(thd,
+                       "PTI_function_call_generic_3d::do_itemize()");
+
+  /*
+   * When `table`.`column` is a column that exists
+   * When that column type is a user defined type `db`.`type`
+   * When that used defined type has a method named `method`
+   * Then the syntax `table`.`column`.`method`()
+   * is a method invocation in type `db`.`type`,
+   * using the object `table`.`column` as instance.
+   */
+
+  // See PTI_simple_ident_q_2d
+  // See PTI_simple_ident_q_3d
+
+  PTI_simple_ident_q_2d *maybe_col =
+      new (thd->mem_root) PTI_simple_ident_q_2d(m_pos, table.str, column.str);
+
+  Item *col = nullptr;
+  bool rc;
+
+  rc = maybe_col->do_itemize(pc, &col);
+  if (rc) {
+    return true;
+  }
+
+  // FIXME
+  *res = col;
+
+  return false;
+}
+
+void PTI_function_call_static_method::add_json_info(Json_object *obj) {
+  String full_str;
+
+  if (db.length > 0) {
+    append_identifier_with_backtick(&full_str, db.str, db.length);
+    full_str.append('.');
+  }
+  append_identifier_with_backtick(&full_str, type.str, type.length);
+  full_str.append("::");
+  append_identifier_with_backtick(&full_str, method.str, method.length);
+  obj->add_alias("method_name", create_dom_ptr<Json_string>(full_str.ptr(),
+                                                            full_str.length()));
+}
+
+bool PTI_function_call_static_method::do_itemize(Parse_context *pc,
+                                                 Item **res) {
+  if (super::do_itemize(pc, res)) return true;
+
+  THD *thd = pc->thd;
+
+  if (db.length > 0) {
+    if (sp_check_name(&db)) return true;
+  }
+
+  if (sp_check_name(&type)) return true;
+  if (sp_check_name(&method)) return true;
+
+  Create_3d_func *builder = find_static_function_builder(thd);
+
+  if (db.length > 0) {
+    *res = builder->create(thd, m_pos, db, type, method, opt_expr_list);
+  } else {
+    *res = builder->create(thd, m_pos, type, method, opt_expr_list);
+  }
+
+  if (*res == nullptr) {
+    return true;
+  }
+
+  WARN_NOT_IMPLEMENTED(thd, "PTI_function_call_static_method::do_itemize()");
+
+  return (*res)->itemize(pc, res);
 }
 
 bool PTI_text_literal_nchar_string::do_itemize(Parse_context *pc, Item **res) {

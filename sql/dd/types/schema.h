@@ -40,6 +40,7 @@ class Item_name_key;
 class Primary_id_key;
 class Schema_impl;
 class Table;
+class UDT_Type;
 class View;
 class Event;
 class Function;
@@ -153,6 +154,8 @@ class Schema : virtual public Entity_object {
   virtual View *create_view(THD *thd) const = 0;
 
   virtual View *create_system_view(THD *thd) const = 0;
+
+  virtual UDT_Type *create_udt_type(THD *thd) const = 0;
 
   /**
     Allocate a new object and invoke the copy constructor.

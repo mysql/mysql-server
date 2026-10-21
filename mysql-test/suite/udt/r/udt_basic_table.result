@@ -1,0 +1,38 @@
+CREATE TYPE test.complex_number AS BINARY(16);
+Warnings:
+Warning	6914	The following code is not implemented: Sql_cmd_create_type::execute()
+SELECT * FROM INFORMATION_SCHEMA.TYPES;
+TYPE_CATALOG	TYPE_SCHEMA	TYPE_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
+def	test	complex_number	FIXME	16	16	NULL	NULL	0	binary	binary	FIXME
+INSTALL COMPONENT "file://component_udt_example";
+CREATE TABLE test.complex_demo(
+col_a test.complex_number,
+col_b test.complex_number,
+col_c test.complex_number);
+Warnings:
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6914	The following code is not implemented: resolve_type_descriptor()
+SHOW CREATE TABLE test.complex_demo;
+Table	Create Table
+complex_demo	CREATE TABLE `complex_demo` (
+  `col_a` tinyblob,
+  `col_b` tinyblob,
+  `col_c` tinyblob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO test.complex_demo SET
+col_a = complex_number_from_string("1+2i"),
+col_b = complex_number_from_string("3+4i");
+UPDATE test.complex_demo SET col_c = complex_number_add(col_a, col_b);
+SELECT * FROM test.complex_demo;
+SELECT complex_number_to_string(col_a) as A,
+complex_number_to_string(col_b) as B,
+complex_number_to_string(col_c) as C
+FROM test.complex_demo;
+A	B	C
+1.000000+2.000000i	3.000000+4.000000i	4.000000+6.000000i
+DROP TABLE test.complex_demo;
+DROP TYPE test.complex_number;
+Warnings:
+Warning	6914	The following code is not implemented: Sql_cmd_drop_type::execute()
+UNINSTALL COMPONENT "file://component_udt_example";

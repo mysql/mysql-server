@@ -173,6 +173,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "violite.h"
 #include "sql/tablesample.h"
 
+#include "sql/sql_user_defined_type.h"
+
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
 /* warning C4065: switch statement contains 'default' but no 'case' labels */
@@ -1497,6 +1499,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> APPLIER_WORKER_COUNT_SYM       1244     /* MYSQL */
 %token<lexer.keyword> APPLIER_EVENT_MEMORY_LIMIT_SYM 1245     /* MYSQL */
 
+%token DOUBLE_COLON_SYM 1246 /* OPERATOR */
+
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
   list ident_keywords_unambiguous lest they become reserved keywords.
@@ -1561,6 +1565,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
         LEX_HOSTNAME ULONGLONG_NUM select_alias ident opt_ident ident_or_text
         role_ident role_ident_or_text
+        grant_ident
+        grant_schema_ident
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal DOLLAR_QUOTED_STRING_SYM
         NCHAR_STRING
         BIN_NUM TEXT_STRING_filesystem ident_or_empty
@@ -1678,6 +1684,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         function_call_keyword
         function_call_nonkeyword
         function_call_generic
+        function_call_static_method
         function_call_conflict
         signal_allowed_expr
         simple_target_specification
@@ -1774,11 +1781,13 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <lexer.keyword> ident_keyword label_keyword role_keyword
         lvalue_keyword
+        grant_ident_keyword
         ident_keywords_unambiguous
         ident_keywords_ambiguous_1_roles_and_labels
         ident_keywords_ambiguous_2_labels
         ident_keywords_ambiguous_3_roles
         ident_keywords_ambiguous_4_system_variables
+        ident_keywords_ambiguous_5_grant_ident
 
 %type <lex_user> user_ident_or_text user create_user alter_user user_func role
 
@@ -2005,6 +2014,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <text_literal> text_literal
 
+%type <type_ident> type_ident
+
 %type <top_level_node>
         alter_instance_stmt
         alter_library_stmt
@@ -2020,6 +2031,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         create_role_stmt
         create_srs_stmt
         create_table_stmt
+        create_type_stmt
         delete_stmt
         describe_stmt
         do_stmt
@@ -2029,6 +2041,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         drop_resource_group_stmt
         drop_role_stmt
         drop_srs_stmt
+        drop_type_stmt
         explain_stmt
         handler_stmt
         insert_stmt
@@ -2223,7 +2236,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <int_type> int_type
 
-%type <type> spatial_type type
+%type <type> spatial_type broken_type builtin_type user_defined_type
+       enum_type set_type
 
 %type <numeric_type> real_type numeric_type
 
@@ -2521,6 +2535,7 @@ simple_statement:
         | create_role_stmt
         | create_srs_stmt
         | create_table_stmt
+        | create_type_stmt
         | deallocate                    { $$= nullptr; }
         | delete_stmt
         | describe_stmt
@@ -2541,6 +2556,7 @@ simple_statement:
         | drop_undo_tablespace_stmt     { $$= nullptr; }
         | drop_table_stmt               { $$= nullptr; }
         | drop_trigger_stmt             { $$= nullptr; }
+        | drop_type_stmt
         | drop_user_stmt                { $$= nullptr; }
         | drop_view_stmt                { $$= nullptr; }
         | execute                       { $$= nullptr; }
@@ -3338,6 +3354,28 @@ opt_channel:
           { $$ = to_lex_cstring($3); }
         ;
 
+type_ident:
+          IDENT_sys
+          {
+            $$= NEW_PTN Type_ident(to_lex_cstring($1));
+            if ($$ == nullptr)
+              MYSQL_YYABORT;
+          }
+        | IDENT_sys '.' IDENT_sys
+          {
+            $$= NEW_PTN Type_ident(to_lex_cstring($1), to_lex_cstring($3));
+            if ($$ == nullptr)
+              MYSQL_YYABORT;
+          }
+        ;
+
+create_type_stmt:
+          CREATE TYPE_SYM type_ident AS builtin_type
+          {
+            $$= NEW_PTN PT_create_type_stmt(@$, $3, $5);
+          }
+        ;
+
 create_table_stmt:
           CREATE opt_temporary_or_external TABLE_SYM opt_if_not_exists table_ident
           '(' table_element_list ')' opt_create_table_options_etc
@@ -4015,7 +4053,7 @@ sp_fdparams:
         ;
 
 sp_fdparam:
-          ident type opt_collate
+          ident broken_type opt_collate
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -4077,7 +4115,7 @@ sp_pdparams:
         ;
 
 sp_pdparam:
-          sp_opt_inout ident type opt_collate
+          sp_opt_inout ident broken_type opt_collate
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -4174,7 +4212,7 @@ sp_decls:
 sp_decl:
           DECLARE_SYM           /*$1*/
           sp_decl_idents        /*$2*/
-          type                  /*$3*/
+          broken_type                  /*$3*/
           opt_collate           /*$4*/
           sp_opt_default        /*$5*/
           {                     /*$6*/
@@ -4233,6 +4271,43 @@ sp_decl:
               spvar->type= var_type;
               spvar->default_value= dflt_value_item;
 
+              // ===
+
+              TypeDescriptor td;
+              td.m_type = var_type;
+              td.m_type_flags = $3->get_type_flags();
+              td.m_length_specified = $3->get_length() != nullptr;
+              td.m_length = $3->get_length_as_size_t();
+              td.m_dec_specified = $3->get_dec() != nullptr;
+              td.m_dec = $3->get_dec_as_size_t();
+              td.m_charset = cs ? cs : thd->variables.collation_database;
+              td.m_has_explicit_collation = ($4 != nullptr);
+              td.m_geo_type = $3->get_uint_geom_type();
+              td.m_internal_list = $3->get_interval_list();
+              td.m_type_ident = $3->get_type_ident();
+
+              if (td.m_type_ident != nullptr) {
+                // Using stored procedure DB as default.
+                if (td.m_type_ident->db.length == 0) {
+                  LEX_CSTRING db = to_lex_cstring(sp->m_db);
+                  Type_ident *qualified = new Type_ident(db, td.m_type_ident->type);
+                  td.m_type_ident = qualified;
+                }
+              }
+
+              // FIXME: at parsing time or runtime ?
+              if (resolve_type_descriptor(thd, &td)) {
+                MYSQL_YYABORT;
+              }
+
+              FieldDescriptor fd;
+
+              if (spvar->field_def.init_from_type_descriptor(thd, "", &td, &fd))
+              {
+                MYSQL_YYABORT;
+              }
+
+/*
               if (spvar->field_def.init(thd, "", var_type,
                                         $3->get_length(), $3->get_dec(),
                                         $3->get_type_flags(),
@@ -4245,6 +4320,7 @@ sp_decl:
               {
                 MYSQL_YYABORT;
               }
+*/
 
               if (prepare_sp_create_field(thd, &spvar->field_def))
                 MYSQL_YYABORT;
@@ -7142,11 +7218,11 @@ constraint_enforcement:
         ;
 
 field_def:
-          type opt_column_attribute_list
+          broken_type /* FIXME: opt_collate */ opt_column_attribute_list
           {
             $$= NEW_PTN PT_field_def(@$, $1, $2);
           }
-        | type opt_collate opt_generated_always
+        | broken_type opt_collate opt_generated_always
           AS '(' expr ')'
           opt_stored_attribute opt_column_attribute_list
           {
@@ -7178,7 +7254,21 @@ opt_stored_attribute:
         | STORED_SYM  { $$= Virtual_or_stored::STORED; }
         ;
 
-type:
+enum_type:
+          ENUM_SYM '(' string_list ')' opt_charset_with_opt_binary
+          {
+            $$= NEW_PTN PT_enum_type(@$, $3, $5.charset, $5.force_binary);
+          }
+        ;
+
+set_type:
+          SET_SYM '(' string_list ')' opt_charset_with_opt_binary
+          {
+            $$= NEW_PTN PT_set_type(@$, $3, $5.charset, $5.force_binary);
+          }
+        ;
+
+builtin_type:
           int_type opt_field_length field_options
           {
             $$= NEW_PTN PT_numeric_type(@$, YYTHD, $1, $2, $3);
@@ -7350,14 +7440,6 @@ type:
             $$= NEW_PTN PT_blob_type(@$, Blob_type::LONG, $2.charset,
                                      $2.force_binary);
           }
-        | ENUM_SYM '(' string_list ')' opt_charset_with_opt_binary
-          {
-            $$= NEW_PTN PT_enum_type(@$, $3, $5.charset, $5.force_binary);
-          }
-        | SET_SYM '(' string_list ')' opt_charset_with_opt_binary
-          {
-            $$= NEW_PTN PT_set_type(@$, $3, $5.charset, $5.force_binary);
-          }
         | LONG_SYM opt_charset_with_opt_binary
           {
             $$= NEW_PTN PT_blob_type(@$, Blob_type::MEDIUM, $2.charset,
@@ -7370,6 +7452,37 @@ type:
         | JSON_SYM
           {
             $$= NEW_PTN PT_json_type(@$);
+          }
+        ;
+
+user_defined_type:
+          type_ident
+          {
+#ifdef WITH_EXPERIMENTAL_UDT
+            $$= NEW_PTN PT_user_defined_type(@$, $1);
+#else
+            my_error(ER_NOT_SUPPORTED_YET, MYF(0), "USER DEFINED TYPE");
+            MYSQL_YYABORT;
+#endif
+          }
+        ;
+
+broken_type:
+          builtin_type
+          {
+            $$ = $1;
+          }
+        | user_defined_type
+          {
+            $$ = $1;
+          }
+        | enum_type
+          {
+            $$ = $1;
+          }
+        | set_type
+          {
+            $$ = $1;
           }
         ;
 
@@ -7644,6 +7757,7 @@ column_attribute:
           {
             $$= NEW_PTN PT_comment_column_attr(@$, to_lex_cstring($2));
           }
+/* FIXME: */
         | COLLATE_SYM collation_name
           {
             $$= NEW_PTN PT_collate_column_attr(@$, $2);
@@ -10706,6 +10820,7 @@ simple_expr:
         | function_call_keyword
         | function_call_nonkeyword
         | function_call_generic
+        | function_call_static_method
         | function_call_conflict
         | simple_expr COLLATE_SYM ident_or_text %prec NEG
           {
@@ -11392,6 +11507,21 @@ function_call_generic:
         | ident '.' ident '(' opt_expr_list ')'
           {
             $$= NEW_PTN PTI_function_call_generic_2d(@$, $1, $3, $5);
+          }
+        | ident '.' ident '.' ident '(' opt_expr_list ')'
+          {
+            $$= NEW_PTN PTI_function_call_generic_3d(@$, $1, $3, $5, $7);
+          }
+        ;
+
+function_call_static_method:
+          ident DOUBLE_COLON_SYM ident '(' opt_expr_list ')'
+          {
+            $$= NEW_PTN PTI_function_call_static_method(@$, $1, $3, $5);
+          }
+        | ident '.' ident DOUBLE_COLON_SYM ident '(' opt_expr_list ')'
+          {
+            $$= NEW_PTN PTI_function_call_static_method(@$, $1, $3, $5, $7);
           }
         ;
 
@@ -12565,7 +12695,7 @@ jt_column:
           {
             $$= NEW_PTN PT_json_table_column_for_ordinality(@$, $1);
           }
-        | ident type opt_collate jt_column_type PATH_SYM text_literal
+        | ident broken_type opt_collate jt_column_type PATH_SYM text_literal
           opt_on_empty_or_error_json_table
           {
             auto column = make_unique_destroy_only<Json_table_column>(
@@ -13517,6 +13647,13 @@ drop_trigger_stmt:
             lex->drop_if_exists= $3;
             lex->spname= $4;
             Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_drop_trigger();
+          }
+        ;
+
+drop_type_stmt:
+          DROP TYPE_SYM if_exists type_ident
+          {
+            $$= NEW_PTN PT_drop_type_stmt(@$, $4, $3);
           }
         ;
 
@@ -15912,6 +16049,17 @@ role_ident:
           }
         ;
 
+grant_ident:
+          IDENT_sys
+        | grant_ident_keyword
+          {
+            $$.str= YYTHD->strmake($1.str, $1.length);
+            if ($$.str == nullptr)
+              MYSQL_YYABORT;
+            $$.length= $1.length;
+          }
+        ;
+
 label_ident:
           IDENT_sys    { $$=to_lex_cstring($1); }
         | label_keyword
@@ -16000,6 +16148,18 @@ schema:
         ;
 
 /*
+  Same as schema, except the TYPE keyword is forbidden.
+*/
+grant_schema_ident:
+          grant_ident
+          {
+            $$ = $1;
+            if (check_and_convert_db_name(&$$, false) != Ident_name_check::OK)
+              MYSQL_YYABORT;
+          }
+        ;
+
+/*
   Non-reserved keywords are allowed as unquoted identifiers in general.
 
   OTOH, in a few particular cases statement-specific rules are used
@@ -16020,6 +16180,7 @@ ident_keyword:
         | ident_keywords_ambiguous_2_labels
         | ident_keywords_ambiguous_3_roles
         | ident_keywords_ambiguous_4_system_variables
+        | ident_keywords_ambiguous_5_grant_ident
         ;
 
 /*
@@ -16088,6 +16249,7 @@ label_keyword:
           ident_keywords_unambiguous
         | ident_keywords_ambiguous_3_roles
         | ident_keywords_ambiguous_4_system_variables
+        | ident_keywords_ambiguous_5_grant_ident
         ;
 
 /*
@@ -16517,7 +16679,7 @@ ident_keywords_unambiguous:
         | TRANSACTION_SYM
         | TRIGGERS_SYM
         | TYPES_SYM
-        | TYPE_SYM
+        // | TYPE_SYM
         | UNBOUNDED_SYM
         | UNCOMMITTED_SYM
         | UNDEFINED_SYM
@@ -16566,6 +16728,7 @@ role_keyword:
           ident_keywords_unambiguous
         | ident_keywords_ambiguous_2_labels
         | ident_keywords_ambiguous_4_system_variables
+        | ident_keywords_ambiguous_5_grant_ident
         ;
 
 /*
@@ -16581,6 +16744,7 @@ lvalue_keyword:
         | ident_keywords_ambiguous_1_roles_and_labels
         | ident_keywords_ambiguous_2_labels
         | ident_keywords_ambiguous_3_roles
+        | ident_keywords_ambiguous_5_grant_ident
         ;
 
 /*
@@ -16594,6 +16758,34 @@ ident_keywords_ambiguous_4_system_variables:
         | PERSIST_SYM
         | PERSIST_ONLY_SYM
         | SESSION_SYM
+        ;
+
+/*
+  These non-reserved keywords cannot be used as unquoted unprefixed
+  schema name of object name in GRANT/REVOKE statements.
+
+  GRANT ... ON TYPE ... -> ambiguous:
+  Does TYPE means user defined type, as in "ON TYPE foo.bar" ?
+  Does TYPE means a schema name, as in "ON TYPE.*" ?
+  Does TYPE means an object name, as in "ON TYPE" ?
+
+*/
+ident_keywords_ambiguous_5_grant_ident:
+          TYPE_SYM
+        ;
+
+
+/*
+  Not allowed:
+
+    ident_keywords_ambiguous_5_grant_ident
+*/
+grant_ident_keyword:
+          ident_keywords_unambiguous
+        | ident_keywords_ambiguous_1_roles_and_labels
+        | ident_keywords_ambiguous_2_labels
+        | ident_keywords_ambiguous_3_roles
+        | ident_keywords_ambiguous_4_system_variables
         ;
 
 /*
@@ -17223,7 +17415,7 @@ revoke:
             auto *tmp= NEW_PTN PT_revoke_roles(@$, $3, $5);
             MAKE_CMD(tmp);
           }
-        | REVOKE if_exists role_or_privilege_list ON_SYM opt_acl_type grant_ident FROM user_list opt_ignore_unknown_user
+        | REVOKE if_exists role_or_privilege_list ON_SYM opt_acl_type grant_object FROM user_list opt_ignore_unknown_user
           {
             LEX *lex= Lex;
             lex->grant_if_exists = $2;
@@ -17247,7 +17439,7 @@ revoke:
             Lex->all_privileges= 1;
             Lex->grant= GLOBAL_ACLS;
           }
-          ON_SYM opt_acl_type grant_ident FROM user_list opt_ignore_unknown_user
+          ON_SYM opt_acl_type grant_object FROM user_list opt_ignore_unknown_user
           {
             LEX *lex= Lex;
             lex->sql_command= (lex->grant == (GLOBAL_ACLS & ~GRANT_ACL)) ?
@@ -17290,7 +17482,7 @@ grant:
             auto *tmp= NEW_PTN PT_grant_roles(@$, $2, $4, $5);
             MAKE_CMD(tmp);
           }
-        | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_ident TO_SYM user_list
+        | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_object TO_SYM user_list
           grant_options opt_grant_as
           {
             LEX *lex= Lex;
@@ -17312,7 +17504,7 @@ grant:
             Lex->all_privileges= 1;
             Lex->grant= GLOBAL_ACLS;
           }
-          ON_SYM opt_acl_type grant_ident TO_SYM user_list grant_options opt_grant_as
+          ON_SYM opt_acl_type grant_object TO_SYM user_list grant_options opt_grant_as
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
@@ -17341,6 +17533,7 @@ grant:
 opt_acl_type:
           %empty        { $$= Acl_type::TABLE; }
         | TABLE_SYM     { $$= Acl_type::TABLE; }
+        | TYPE_SYM      { $$= Acl_type::TYPE; }
         | FUNCTION_SYM  { $$= Acl_type::FUNCTION; }
         | PROCEDURE_SYM { $$= Acl_type::PROCEDURE; }
         | LIBRARY_SYM   { $$= Acl_type::LIBRARY; }
@@ -17505,7 +17698,7 @@ require_list_element:
           }
         ;
 
-grant_ident:
+grant_object:
           '*'
           {
             LEX *lex= Lex;
@@ -17520,7 +17713,7 @@ grant_ident:
               MYSQL_YYABORT;
             }
           }
-        | schema '.' '*'
+        | grant_schema_ident '.' '*'
           {
             LEX *lex= Lex;
             lex->current_query_block()->db = $1.str;
@@ -17544,7 +17737,7 @@ grant_ident:
               MYSQL_YYABORT;
             }
           }
-        | ident
+        | grant_ident
           {
             auto tmp = NEW_PTN Table_ident(to_lex_cstring($1));
             if (tmp == nullptr)
@@ -17556,7 +17749,7 @@ grant_ident:
             if (lex->grant == GLOBAL_ACLS)
               lex->grant =  TABLE_OP_ACLS;
           }
-        | schema '.' ident
+        | grant_schema_ident '.' ident
           {
             auto schema_name = YYCLIENT_NO_SCHEMA ? LEX_CSTRING{}
                                                   : to_lex_cstring($1.str);
@@ -18703,7 +18896,7 @@ sf_tail:
             Lex->sphead->m_parser_data.set_parameter_end_ptr(@7.cpp.start);
           }
           RETURNS_SYM           /* $9 */
-          type                  /* $10 */
+          broken_type                  /* $10 */
           opt_collate           /* $11 */
           {                     /* $12 */
             LEX *lex= Lex;
