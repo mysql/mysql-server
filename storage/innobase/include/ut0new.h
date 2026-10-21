@@ -1201,7 +1201,18 @@ inline void *malloc_large_page_withkey(
   if (large_pages_enabled) {
     large_page_mem = malloc_large_page_withkey(key, size);
   }
-  return large_page_mem ? large_page_mem : malloc_page_withkey(key, size);
+  if (large_page_mem != nullptr) {
+    os_total_large_mem_allocated.fetch_add(
+        large_page_low_level_info(large_page_mem).allocation_size);
+    return large_page_mem;
+  }
+
+  void *page_mem = malloc_page_withkey(key, size);
+  if (page_mem != nullptr) {
+    os_total_large_mem_allocated.fetch_add(
+        page_low_level_info(page_mem).allocation_size);
+  }
+  return page_mem;
 }
 
 /** Dynamically allocates memory backed up by large (huge) pages. In the event
@@ -1298,15 +1309,23 @@ inline bool free_large_page(void *ptr, fallback_to_normal_page_t) noexcept {
 
   if (!ptr) return false;
 
+  /* The allocation size has to be read before the memory is released. */
+  size_t allocation_size;
   bool success;
   if (large_page_alloc_impl::page_type(ptr) == detail::Page_type::system_page) {
+    allocation_size = page_low_level_info(ptr).allocation_size;
     success = free_page(ptr);
   } else {
     ut_a(large_page_alloc_impl::page_type(ptr) ==
          detail::Page_type::large_page);
+    allocation_size = large_page_low_level_info(ptr).allocation_size;
     success = free_large_page(ptr);
   }
   assert(success);
+  if (success) {
+    ut_a(os_total_large_mem_allocated.load() >= allocation_size);
+    os_total_large_mem_allocated.fetch_sub(allocation_size);
+  }
   return success;
 }
 
