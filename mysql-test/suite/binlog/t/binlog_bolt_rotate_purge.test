@@ -19,6 +19,7 @@
 # expired file.
 #
 --source include/have_log_bin.inc
+--source include/not_windows.inc
 --source include/have_binlog_format_row.inc
 --source include/not_binlog_transaction_compression_on.inc
 
@@ -98,6 +99,7 @@ FLUSH BINARY LOGS;
 --let $expired_file = query_get_value(SHOW BINARY LOGS, Log_name, 1)
 SET GLOBAL binlog_expire_logs_auto_purge = ON;
 SET GLOBAL binlog_expire_logs_seconds = 1;
+# Wait longer than the 1 s expiry, so the oldest file is expired.
 --sleep 2
 connection spill_client;
 BEGIN;

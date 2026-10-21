@@ -1,7 +1,7 @@
 # Requires $bolt_header_file to name a standalone BOLT-promoted binlog.
 # Decode the promoted file and validate its LTH metadata and layout.
 # These checks keep a plausible but corrupt LTH from silently directing
-# optimized recovery to an incorrect terminal event.
+# optimized recovery to an incorrect terminating event.
 # The awk program avoids `$` field syntax because mysqltest expands it.
 
 --source include/not_windows.inc
@@ -44,13 +44,13 @@ BEGIN {
       continue
     }
 
-    # Parse the LTH's recovery hint: the terminal-event offset, its expected
+    # Parse the LTH's recovery hint: the terminating event offset, its expected
     # type code, and the remaining padding that fills the reserved region.
     if (line ~ /Terminating event offset /) {
       if (!lth_start || lth_offset) exit 1
       value = line
       sub(/^.*Terminating event offset /, "", value)
-      split(value, fields, ", type ")
+      split(value, fields, ", terminating event type ")
       lth_offset = fields[1] + 0
       split(fields[2], fields, ", padding ")
       lth_type = fields[1] + 0
@@ -68,8 +68,8 @@ BEGIN {
       continue
     }
 
-    # The recorded terminal offset must identify a decoded event with an end
-    # position beyond its start.
+    # The recorded terminating event offset must identify a decoded event,
+    # with an end position beyond its start.
     if (line ~ /end_log_pos/ && event_start == lth_offset)
       terminal_end = end_pos(line)
   }

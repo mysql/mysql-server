@@ -251,9 +251,10 @@ class Log_sanitizer {
   ///   event must find the transaction open.
   /// @param ev The `Large_transaction_header_log_event` to process.
   /// @param reader Reader for the current binary log.
+  /// @param file_name Name of the current binary log file, for the messages.
   void process_large_trx_header_event(
       Large_transaction_header_log_event const &ev,
-      IBasic_binlog_file_reader &reader);
+      IBasic_binlog_file_reader &reader, const std::string &file_name);
 
   /// @brief Invoked when a `Query_log_event` is read from the binary log file
   /// reader.

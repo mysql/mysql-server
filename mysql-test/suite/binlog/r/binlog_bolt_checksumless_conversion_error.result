@@ -46,4 +46,6 @@ SET SESSION debug = '-d,fail_bolt_cache_conversion_out_of_memory';
 ROLLBACK;
 INSERT INTO t1 VALUES (3, REPEAT('c', 1000));
 include/assert.inc [R8: the session commits its next transaction.]
+include/assert.inc [R8: the failed statement is not counted as a missed optimization.]
+include/assert.inc [R8: no bolt_ temp file is left.]
 DROP TABLE t1;

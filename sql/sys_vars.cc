@@ -1336,10 +1336,13 @@ static bool check_binlog_large_transaction_optimization_threshold(
   directory cannot be created, the optimization stays OFF.
 */
 static bool check_binlog_large_transaction_optimization_enabled(sys_var *self,
-                                                                THD *,
+                                                                THD *thd,
                                                                 set_var *var) {
   if (var->save_result.ulonglong_value == 0 || !binlog_temp_files_dir.create())
     return false;
+  push_warning(thd, Sql_condition::SL_WARNING,
+               ER_DA_BINLOG_BOLT_TEMP_FILES_DIR_UNUSABLE,
+               ER_THD(thd, ER_DA_BINLOG_BOLT_TEMP_FILES_DIR_UNUSABLE));
   my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), self->name.str, "ON");
   return true;
 }

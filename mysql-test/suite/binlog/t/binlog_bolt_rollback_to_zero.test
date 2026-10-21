@@ -12,12 +12,11 @@
 # fails on a duplicate key on its last row.
 #
 # === Requirements ===
-# R1. Decision "yes" must not leak: after a rolled-back-to-0 transaction that
-#     rewrote its cache, the knob is turned OFF; the next large transaction is
-#     not promoted.
-# R2. Decision "no" must not leak: after a rolled-back-to-0 transaction that
-#     latched the knob OFF, the knob is turned ON; the next large transaction
-#     is promoted.
+# R1. A rewrite in an emptied transaction does not carry over: the knob is
+#     then turned OFF, the next large transaction is not promoted, and no
+#     bolt_ file is left after it.
+# R2. A latched OFF in an emptied transaction does not carry over: the knob
+#     is then turned ON, and the next large transaction is promoted.
 # R3. The same holds when the emptied transaction ends with ROLLBACK.
 # R4. A transaction that continues after the rollback to 0 still works: its
 #     later events latch the knob again and can be promoted, and the binary
@@ -27,7 +26,10 @@
 --source include/have_binlog_format_row.inc
 --source include/not_binlog_transaction_compression_on.inc
 
+--source include/not_windows.inc
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
 --let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
 
@@ -49,6 +51,13 @@ COMMIT;
 --let $promoted_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $assert_text = R1: with the knob OFF, the next large transaction's spilled file is not promoted.
 --let $assert_cond = $promoted_after = $promoted_before
+--source include/assert.inc
+--let $bolt_temp_inc = $MYSQLTEST_VARDIR/tmp/bolt_rollback_to_zero_temp.inc
+--exec ls $BOLT_TEMP_DIR | grep -c '^bolt_' | xargs printf -- '--let \044bolt_temp_files = %s\n' > $bolt_temp_inc
+--source $bolt_temp_inc
+--remove_file $bolt_temp_inc
+--let $assert_text = R1: no bolt_ file is left.
+--let $assert_cond = $bolt_temp_files = 0
 --source include/assert.inc
 --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null

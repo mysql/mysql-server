@@ -1,0 +1,24 @@
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# Commit a large transaction while the GTID table is read-only.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG = "+d,gtid_executed_readonly";
+COMMIT;
+Warnings:
+Error	3881	Gtid table is not ready to be used. Table 'mysql.gtid_executed' cannot be opened.
+SET SESSION DEBUG = "-d,gtid_executed_readonly";
+include/assert.inc [R1: the spilled file is not promoted.]
+include/assert.inc [R1: the fallback is counted.]
+include/assert.inc [R1: the binlog does not rotate.]
+include/assert_grep.inc [R2: the error log has the rotation's error.]
+include/assert_grep.inc [R2: the error log has the fallback reason.]
+include/assert.inc [R3: the transaction commits.]
+include/assert_grep.inc [R3: the transaction's rows are in the active binlog file.]
+INSERT INTO t1 VALUES (4, 'after');
+include/assert.inc [R3: the server keeps logging into the active binlog file.]
+DROP TABLE t1;

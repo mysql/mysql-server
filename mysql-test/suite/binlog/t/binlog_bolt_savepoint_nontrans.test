@@ -1,24 +1,14 @@
 # BOLT stands for Binary-log Optimization for Large Transactions.
 #
 # === Purpose ===
-# Case C24 of binlog_bolt_savepoint_matrix, which needs gtid_mode=OFF so that
+# Case C24 of binlog_bolt_savepoint_matrix. It needs gtid_mode=OFF, so that
 # a transaction may change both a transactional and a non-transactional
-# table. Savepoint matrix for the checksumless cache. Savepoint and statement-
-# rollback positions are logical (checksum-free) offsets; a cache that was
-# rewritten into binlog file form at its first spill truncates at the
-# matching physical offset in O(1). The case ends with the matrix's
-# checks (inc/bolt_savepoint_check.inc):
-#   - t1 holds exactly the expected rows, each with its own payload;
-#   - the transaction's spilled file was promoted (or not) as expected, and the
-#     missed-optimization counter moved as expected;
-#   - the active binary log verifies its checksums and inserts exactly the
-#     expected rows of t1 (so the binlog matches the engine);
-#   - a promoted file has a valid BOLT header;
-#   - no bolt_ temp file is left in #binlog_temp_files.
+# table. It ends with the matrix's shared checks
+# (inc/bolt_savepoint_check.inc, see binlog_bolt_savepoint_matrix).
 #
 # Sizes: binlog_cache_size = 1 MiB, threshold = 10 MiB. BIG rows are 4 MB, so
-# one BIG row spills (and rewrites) the cache and three BIG rows are above the
-# threshold.
+# one BIG row spills the cache, which rewrites it, and three BIG rows are above
+# the threshold.
 #
 # === Cases ===
 #  C24 non-transactional table changed after the savepoint. In ROW format
@@ -31,14 +21,16 @@
 #      - the MyISAM row is kept and logged once, in the earlier binary log.
 #
 --source include/have_log_bin.inc
+--source include/not_windows.inc
 --source include/have_binlog_format_row.inc
 --source include/not_binlog_transaction_compression_on.inc
 
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
 --let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
 --disable_query_log
-CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
 --enable_query_log
 
 SET GLOBAL binlog_checksum = CRC32;
@@ -76,7 +68,7 @@ COMMIT;
 --let $sp_expect_binlog_rows = 3
 --source ../inc/bolt_savepoint_check.inc
 --let $sp_t2_inc = $MYSQLTEST_VARDIR/tmp/bolt_sp_t2.inc
---exec $MYSQL_BINLOG --force-if-open -v $MYSQLD_DATADIR/binlog.000001 $MYSQLD_DATADIR/binlog.000002 | grep -c '^### INSERT INTO .test.\..t2.' | xargs printf -- '--let \044sp_t2_rows = %s\n' > $sp_t2_inc
+--exec $MYSQL_BINLOG --force-if-open -v $MYSQLD_DATADIR/$bolt_binlog_base.000001 $MYSQLD_DATADIR/$bolt_binlog_base.000002 | grep -c '^### INSERT INTO .test.\..t2.' | xargs printf -- '--let \044sp_t2_rows = %s\n' > $sp_t2_inc
 --source $sp_t2_inc
 --remove_file $sp_t2_inc
 --let $assert_text = C24: the MyISAM row is logged once, before the promoted file

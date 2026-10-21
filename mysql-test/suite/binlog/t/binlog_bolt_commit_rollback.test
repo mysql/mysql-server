@@ -23,9 +23,8 @@
 #      with the GTID dependency clock reset for its new binary log.
 #
 # === Implementation ===
-# The source uses a 1 MiB cache and a 10 MiB BOLT threshold. Four 4 MB rows
-# are used because four REPEAT('abcdefghijklmnop', 1000) values are only 64 KB,
-# below BOLT's required promotion threshold. The killed-query case uses a user
+# The source uses a 1 MiB cache and a 10 MiB BOLT threshold. Each transaction
+# has four 4 MB rows, above the 10 MiB threshold. The killed-query case uses a user
 # lock and PROCESSLIST polling rather than timing assumptions. The concurrent
 # cases use five independent sessions with non-overlapping primary-key ranges.
 # Each promoted file is decoded with checksum verification before its header
@@ -34,6 +33,7 @@
 # promoted file.
 #
 --source include/have_log_bin.inc
+--source include/not_windows.inc
 --source include/have_binlog_format_row.inc
 --source include/not_binlog_transaction_compression_on.inc
 
@@ -459,8 +459,8 @@ INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 COMMIT;
 SET GLOBAL max_binlog_size = 1073741824;
 --exec test ! -e $BOLT_TEMP_DIR/bolt_*
---exec test -e $MYSQLD_DATADIR/binlog.000002
---exec test -e $MYSQLD_DATADIR/binlog.000003
+--exec test -e $MYSQLD_DATADIR/$bolt_binlog_base.000002
+--exec test -e $MYSQLD_DATADIR/$bolt_binlog_base.000003
 --let $bolt_header_file = query_get_value(SHOW BINARY LOGS, Log_name, 2)
 --source ../inc/validate_bolt_header.inc
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
@@ -525,7 +525,7 @@ INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
 --let $assert_text = The small transaction stays in the existing active binary log.
 --let $assert_cond = "$binlog_file_after_small" = "$binlog_file_before_small"
 --source include/assert.inc
---let $assert_text = Five waiting large transactions leave five temporary files.
+--let $assert_text = Only the small transaction is visible while the five spills wait.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
 --source include/assert.inc
 connection promote_one;
@@ -552,7 +552,7 @@ connection default;
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 3
 --source include/assert.inc
 --let $assert_text = Three committed spills create three new binary log files.
---let $assert_cond = "$binlog_file_after" = "binlog.000004"
+--let $assert_cond = "$binlog_file_after" = "$bolt_binlog_base.000004"
 --source include/assert.inc
 --let $assert_text = Only the three committed large transactions and small transaction persist.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 13
@@ -639,7 +639,7 @@ connection default;
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 3
 --source include/assert.inc
 --let $assert_text = The XA commit decisions create exactly three new binary log files.
---let $assert_cond = "$binlog_file_after" = "binlog.000004"
+--let $assert_cond = "$binlog_file_after" = "$bolt_binlog_base.000004"
 --source include/assert.inc
 --let $assert_text = Only the committed XA branches and small transaction persist.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 9

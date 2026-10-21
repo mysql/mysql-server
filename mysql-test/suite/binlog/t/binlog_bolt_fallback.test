@@ -28,6 +28,7 @@
 # binlog_bolt_fallback_debug; encryption is in binlog_bolt_encryption.
 #
 --source include/have_log_bin.inc
+--source include/not_windows.inc
 --source include/have_binlog_format_row.inc
 
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
@@ -39,7 +40,7 @@
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
 --let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
 
-CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
 
 # A configuration reason is logged once per server run. Restart, so that no
 # earlier test on this server has logged the reasons this test checks.
@@ -93,7 +94,7 @@ SET @bolt_statement_payload = NULL;
 --source include/assert.inc
 --let $assert_text = The fallback reason is logged once: transaction contains non-ROW events.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = transaction contains non-ROW events; standard binary logging was used instead. Later fallbacks for this reason are only counted
+--let $assert_select = Could not optimize large transaction execution in the binlog because the transaction contains non-ROW events. The transaction used the standard commit path instead\. Later fallbacks for this reason are only counted in Binlog_large_transaction_optimization_missed_count\.
 --let $assert_count = 1
 --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_fallback
 --source include/assert_grep.inc
@@ -173,14 +174,12 @@ COMMIT;
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
 # BINLOG_CHECKSUM_ALG_OFF while binlog_checksum is CRC32.
---let $assert_text = The fallback reason is logged: checksum algorithm does not match binlog_checksum.
+--let $assert_text = The fallback reason is logged: binlog_checksum changed while the transaction was running.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = checksum algorithm does not match binlog_checksum
---let $assert_count =
---let $assert_count_condition = >= 1
+--let $assert_select = Could not optimize large transaction execution in the binlog because binlog_checksum changed while the transaction was running. The transaction used the standard commit path instead\.
+--let $assert_count = 1
 --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_fallback
 --source include/assert_grep.inc
---let $assert_count_condition =
 connection checksum_change;
 disconnect checksum_change;
 connection default;
@@ -338,10 +337,10 @@ COMMIT;
 --let $assert_text = An InnoDB/MyISAM statement rotates to the promoted InnoDB binary log.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
---let $assert_text = An InnoDB/MyISAM fallback commits every InnoDB row.
+--let $assert_text = The promoted transaction commits every InnoDB row.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
---let $assert_text = An InnoDB/MyISAM fallback updates every MyISAM row.
+--let $assert_text = The promoted transaction updates every MyISAM row.
 --let $assert_cond = [SELECT SUM(marker) AS marker_sum FROM t2, marker_sum, 1] = 3
 --source include/assert.inc
 

@@ -12,6 +12,9 @@ SET DEBUG_SYNC = 'now WAIT_FOR bolt_waiting';
 SET GLOBAL binlog_checksum = NONE;
 SET DEBUG_SYNC = 'now SIGNAL bolt_go';
 SET DEBUG_SYNC = 'RESET';
+include/assert.inc [R1: the transaction's spilled file is not promoted.]
+include/assert.inc [R1: the transaction is counted as a missed optimization.]
+include/assert_grep.inc [R1: the checksum change is the fallback reason.]
 # R2: more transactions after it.
 INSERT INTO t1 VALUES (4, 'small');
 INSERT INTO t1 VALUES (5, 'small');

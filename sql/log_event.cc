@@ -13208,7 +13208,7 @@ int Large_transaction_header_log_event::pack_info(Protocol *protocol) {
           : snprintf(
                 buf, sizeof(buf),
                 "# Large transaction header "
-                "(terminating event offset %llu, type %u)",
+                "(terminating event offset %llu, terminating event type %u)",
                 static_cast<unsigned long long>(m_terminating_event_offset),
                 static_cast<unsigned>(m_terminating_event_type));
   protocol->store_string(buf, bytes, &my_charset_bin);
@@ -13264,7 +13264,8 @@ void Large_transaction_header_log_event::print(
   my_b_printf(&print_event_info->head_cache,
               "\tLarge transaction header\tIgnorable\n");
   my_b_printf(&print_event_info->head_cache,
-              "# Terminating event offset %llu, type %u, padding %llu bytes\n",
+              "# Terminating event offset %llu, terminating event type %u, "
+              "padding %llu bytes\n",
               static_cast<unsigned long long>(m_terminating_event_offset),
               static_cast<unsigned>(m_terminating_event_type),
               static_cast<unsigned long long>(m_padding_size));

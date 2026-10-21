@@ -10,8 +10,7 @@
 # R2. A spilled plaintext file is not promoted when binlog_encryption is
 #     turned ON after the file spilled, and the fallback names encryption as
 #     the reason.
-# R3. Such a fallback still commits every row, and the events are readable
-#     from the encrypted binary log the fallback wrote them to.
+# R3. Such a fallback still commits every row into the encrypted binlog.
 # R4. Turning binlog_encryption back OFF restores promotion for later
 #     transactions.
 # R5. A file that spilled while binlog_encryption was ON is not promoted after
@@ -43,7 +42,7 @@
 --let $save_binlog_format = query_get_value(SELECT @@SESSION.binlog_format, @@SESSION.binlog_format, 1)
 --let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
 
-CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
 
 --source ../mysql-test/suite/component_keyring_file/inc/setup_component.inc
 
@@ -153,14 +152,12 @@ COMMIT;
 --let $assert_text = The mid-transaction encryption fallback preserves the full payload.
 --let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = 12000000
 --source include/assert.inc
---let $assert_text = The fallback reason is logged: binary log encryption was enabled while the transaction was running.
+--let $assert_text = The fallback reason is logged: binlog encryption is enabled.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = binary log encryption was enabled while the transaction was running
---let $assert_count =
---let $assert_count_condition = >= 1
+--let $assert_select = Could not optimize large transaction execution in the binlog because binlog encryption is enabled. The transaction used the standard commit path instead\. Later fallbacks for this reason are only counted in Binlog_large_transaction_optimization_missed_count\.
+--let $assert_count = 1
 --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_encryption
 --source include/assert_grep.inc
---let $assert_count_condition =
 
 # Confirm the policy really took effect rather than the fallback happening for
 # some unrelated reason: enabling encryption rotates the binary log, and the

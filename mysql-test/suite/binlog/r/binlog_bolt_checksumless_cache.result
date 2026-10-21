@@ -11,6 +11,7 @@ INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
 COMMIT;
 include/assert.inc [R1: the transaction's spilled file is not promoted.]
 include/assert.inc [R1: the transaction is counted as a missed optimization.]
+include/assert_grep.inc [R1: the checksum change is the fallback reason.]
 include/assert.inc [R1: all rows are committed.]
 SET GLOBAL binlog_checksum = CRC32;
 TRUNCATE t1;

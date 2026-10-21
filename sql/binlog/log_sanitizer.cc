@@ -67,7 +67,7 @@ bool Log_sanitizer::is_log_truncation_needed() const {
 
 void Log_sanitizer::process_large_trx_header_event(
     Large_transaction_header_log_event const &ev,
-    IBasic_binlog_file_reader &reader) {
+    IBasic_binlog_file_reader &reader, const std::string &file_name) {
   /*
     With source_verify_checksum ON, the transaction is read sequentially, so
     the checksum of every event in its body is verified, as without the
@@ -76,7 +76,7 @@ void Log_sanitizer::process_large_trx_header_event(
   if (reader.is_checksum_verification_enabled()) {
     LogErr(INFORMATION_LEVEL,
            ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION,
-           m_valid_file.c_str());
+           file_name.c_str());
     return;
   }
   /*
@@ -92,7 +92,7 @@ void Log_sanitizer::process_large_trx_header_event(
       return;
     case Large_trx_header_check::kInvalid:
       LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_INVALID_LARGE_TRX_HEADER,
-             m_valid_file.c_str());
+             file_name.c_str());
       return;
     case Large_trx_header_check::kReadError:
       m_is_malformed = true;
@@ -110,8 +110,7 @@ void Log_sanitizer::process_large_trx_header_event(
   }
 
   LogErr(INFORMATION_LEVEL, ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_SKIP,
-         static_cast<ulonglong>(terminating_event_offset),
-         m_valid_file.c_str());
+         static_cast<ulonglong>(terminating_event_offset), file_name.c_str());
   m_in_transaction = true;
 }
 

@@ -18,6 +18,7 @@
 #     left.
 #
 --source include/have_log_bin.inc
+--source include/not_windows.inc
 --source include/have_binlog_format_row.inc
 --source include/not_binlog_transaction_compression_on.inc
 
@@ -69,6 +70,8 @@ TRUNCATE TABLE performance_schema.binary_log_transaction_compression_stats;
 --echo # R2: compression turned ON while the cache is still in memory.
 # A new session picks up a buffer large enough to hold the whole transaction.
 # The threshold may not be below binlog_cache_size, so raise it first.
+# The transaction stays below the raised threshold, so it is not counted as a
+# missed optimization. Only the rewrite plan is under test.
 SET GLOBAL binlog_large_transaction_optimization_threshold = 128 * 1024 * 1024;
 SET GLOBAL binlog_cache_size = 64 * 1024 * 1024;
 --connect (con_big, localhost, root,,)

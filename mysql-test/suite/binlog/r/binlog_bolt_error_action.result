@@ -1,5 +1,6 @@
 CALL mtr.add_suppression("An error occurred during flush stage of the commit");
-CALL mtr.add_suppression("Could not optimize large transaction execution in the binary log because the spilled binary log cache file could not be promoted");
+CALL mtr.add_suppression("An error occurred in the binlog rotation that promotes the spilled file of a large transaction");
+CALL mtr.add_suppression("Could not optimize large transaction execution in the binary log because the spilled binlog cache file could not be promoted");
 CALL mtr.add_suppression("Could not use .* for logging");
 CALL mtr.add_suppression("Could not open .* for logging");
 CALL mtr.add_suppression("Either disk is full, file system is read only");
@@ -15,11 +16,13 @@ INSERT INTO t1 VALUES (4, 'd');
 include/assert.inc [R1: the session commits its next transaction.]
 # R2: a failure after the rename with ABORT_SERVER aborts the server.
 SET GLOBAL binlog_error_action = ABORT_SERVER;
+include/assert_grep.inc [R2: the error log says the server aborts.]
 include/assert.inc [R2: the aborted promotion commits no rows.]
 include/assert_grep.inc [R2: the aborted promotion writes no transaction to the binary log.]
 # R3: a failure after the rename with IGNORE_ERROR keeps the commit and stops logging.
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 include/assert.inc [R3: the ignored failure still commits all rows.]
+include/assert_grep.inc [R3: the error log says binary logging is turned off.]
 # restart
 include/assert_grep.inc [R3: the ignored failure writes no row events to the binary log.]
 include/assert_grep.inc [R3: the ignored failure writes no transaction to the binary log.]
@@ -37,6 +40,7 @@ SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'RESET';
 include/assert.inc [R4: both transactions commit in the engine.]
 # restart
+include/assert_grep.inc [R4: the other member is not written into the closed binlog.]
 # R5: a directory sync failure after the rename with IGNORE_ERROR keeps the commit and stops logging.
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 include/assert.inc [R5: the ignored failure still commits all rows.]
@@ -46,4 +50,13 @@ ERROR HY000: You are not using binary logging
 # restart
 include/assert_grep.inc [R5: the ignored failure writes no row events to the binary log.]
 include/assert_grep.inc [R5: the ignored failure writes no transaction to the binary log.]
+# R6: a fatal error during the promotion is a rotation error.
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+include/assert.inc [R6: the fatal error is not counted as a fallback.]
+include/assert.inc [R6: the ignored failure still commits all rows.]
+# R6: binary logging is turned off.
+SHOW BINARY LOGS;
+ERROR HY000: You are not using binary logging
+include/assert_grep.inc [R6: the error log has the fatal error's message.]
+# restart
 DROP TABLE t1;

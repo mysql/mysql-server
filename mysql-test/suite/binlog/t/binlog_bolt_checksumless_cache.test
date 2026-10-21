@@ -2,8 +2,7 @@
 #
 # === Purpose ===
 # Cover settings changes and rollbacks that happen after a transaction cache
-# has been converted from the checksum-free form to the checksummed,
-# promotable form.
+# was rewritten from the standard form into binlog file form.
 #
 # === Requirements ===
 # R1. binlog_checksum changed to NONE after conversion: the transaction falls
@@ -26,7 +25,7 @@
 --let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
 
 --disable_query_log
-CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
 --enable_query_log
 SET GLOBAL binlog_checksum = CRC32;
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
@@ -54,6 +53,12 @@ COMMIT;
 --let $assert_text = R1: the transaction is counted as a missed optimization.
 --let $assert_cond = $missed_after = $missed_before + 1
 --source include/assert.inc
+--let $assert_text = R1: the checksum change is the fallback reason.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_checksumless_cache
+--let $assert_select = Could not optimize large transaction execution in the binlog because binlog_checksum changed while the transaction was running. The transaction used the standard commit path instead\.
+--let $assert_count = 1
+--source include/assert_grep.inc
 --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$binlog_file > /dev/null
 --let $assert_text = R1: all rows are committed.

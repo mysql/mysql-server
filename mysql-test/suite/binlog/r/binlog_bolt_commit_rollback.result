@@ -174,7 +174,7 @@ INSERT INTO t1 (x, y) VALUES (504, REPEAT('abcdefghijklmnop', 250000));
 # Five waiting spills do not prevent a small transaction using the active binlog.
 INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
 include/assert.inc [The small transaction stays in the existing active binary log.]
-include/assert.inc [Five waiting large transactions leave five temporary files.]
+include/assert.inc [Only the small transaction is visible while the five spills wait.]
 COMMIT;
 COMMIT;
 COMMIT;

@@ -1,4 +1,4 @@
-CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
 # ----------------------------------------------------------------------
 # Setup
 # Creating local configuration file for keyring component: component_keyring_file
@@ -30,7 +30,7 @@ include/assert.inc [Encryption enabled mid-transaction increments the missed cou
 include/assert.inc [The mid-transaction encryption fallback stays in the active binary log.]
 include/assert.inc [The mid-transaction encryption fallback commits all rows.]
 include/assert.inc [The mid-transaction encryption fallback preserves the full payload.]
-include/assert_grep.inc [The fallback reason is logged: binary log encryption was enabled while the transaction was running.]
+include/assert_grep.inc [The fallback reason is logged: binlog encryption is enabled.]
 include/assert.inc [Enabling encryption mid-transaction rotates the binary log.]
 include/assert.inc [The mid-transaction encryption fallback wrote into an encrypted binary log.]
 SET GLOBAL binlog_encryption = OFF;

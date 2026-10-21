@@ -80,24 +80,24 @@ constexpr std::array<std::string_view, 12> kFallbackDetails{
     // kNonRowFormat
     "the transaction contains non-ROW events",
     // kEncryption
-    "binary log encryption was enabled while the transaction was running",
+    "binlog encryption is enabled",
     // kCompression
-    "binary log transaction compression is enabled",
+    "binlog transaction compression is enabled",
     // kChecksumMismatch
-    "the transaction's checksum algorithm does not match binlog_checksum",
+    "binlog_checksum changed while the transaction was running",
     // kReservedHeaderSpace
-    "the reserved header region is too small",
+    "the header events of the new binlog file do not fit in the region "
+    "reserved at the front of the spill binlog file",
     // kGtidPersistence
     "mysql.gtid_executed could not be updated at the rotation",
     // kIncident
     "the transaction has a logging incident to report",
     // kLogClosed
-    "the binary log was closed while the transaction was running",
+    "the binlog was closed while the transaction was running",
     // kRewriteFailed
-    "the binary log cache could not be rewritten into the binary log file "
-    "form",
+    "the binlog cache could not be rewritten into the spill binlog file",
     // kPromotionFailed
-    "the spilled binary log cache file could not be promoted",
+    "the spill binlog file could not be promoted",
 };
 
 static_assert(
@@ -466,6 +466,11 @@ bool MYSQL_BIN_LOG::promote_spilled_file(Spilled_file_rotation *promotion) {
   if (m_binlog_file->flush())
     return fall_back(Large_trx_fallback_reason::kPromotionFailed);
 
+  /* A fatal error here stops the transaction (see the caller). */
+  DBUG_EXECUTE_IF("fail_bolt_promotion_out_of_memory", {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), static_cast<int>(header_end));
+    return fall_back(Large_trx_fallback_reason::kPromotionFailed);
+  });
   std::string header(header_end, '\0');
   {
     const File new_file =
@@ -623,9 +628,13 @@ Spilled_file_promotion_result MYSQL_BIN_LOG::rotate_and_promote_spilled_file(
       runs in the flush stage. The flush stage handles a failed rotation
       through binlog_error_action, which reports to the client itself, and a
       fallback writes the transaction as usual. So the session must not keep
-      the rotation's error.
+      the rotation's error. The error log keeps its message.
     */
-    if (thd->is_error()) thd->clear_error();
+    if (thd->is_error()) {
+      LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_PROMOTION_ROTATION_ERROR,
+             thd->get_stmt_da()->message_text());
+      thd->clear_error();
+    }
   }
 
   if (error != 0) return Spilled_file_promotion_result::kRotationError;

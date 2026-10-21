@@ -12,6 +12,7 @@ BEGIN;
 INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
 COMMIT;
 include/assert.inc [R1: with the knob OFF, the next large transaction's spilled file is not promoted.]
+include/assert.inc [R1: no bolt_ file is left.]
 TRUNCATE t1;
 # R2: knob OFF for the rolled-back transaction, ON for the next one.
 SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;

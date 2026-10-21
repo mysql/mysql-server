@@ -1,4 +1,4 @@
-CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 CREATE TABLE t2 (id INT PRIMARY KEY, marker INT) ENGINE=MyISAM;
 # A large STATEMENT transaction uses the standard commit path.
@@ -35,7 +35,7 @@ COMMIT;
 include/assert.inc [A checksum change does not promote a binary log.]
 include/assert.inc [A checksum change increments the missed counter once.]
 include/assert.inc [A checksum-change fallback commits all rows.]
-include/assert_grep.inc [The fallback reason is logged: checksum algorithm does not match binlog_checksum.]
+include/assert_grep.inc [The fallback reason is logged: binlog_checksum changed while the transaction was running.]
 # Restoring the original checksum before commit preserves promotion.
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('r', 5000000));
@@ -70,7 +70,7 @@ COMMIT;
 include/assert.inc [An InnoDB/MyISAM statement promotes its qualifying InnoDB cache.]
 include/assert.inc [An InnoDB/MyISAM statement does not count as a missed optimization.]
 include/assert.inc [An InnoDB/MyISAM statement rotates to the promoted InnoDB binary log.]
-include/assert.inc [An InnoDB/MyISAM fallback commits every InnoDB row.]
-include/assert.inc [An InnoDB/MyISAM fallback updates every MyISAM row.]
+include/assert.inc [The promoted transaction commits every InnoDB row.]
+include/assert.inc [The promoted transaction updates every MyISAM row.]
 DROP TABLE t2;
 DROP TABLE t1;

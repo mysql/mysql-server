@@ -91,6 +91,10 @@ Large_transaction_header_event::Large_transaction_header_event(
 
 #ifndef HAVE_MYSYS
 void Large_transaction_header_event::print_event_info(std::ostream &info) {
+  if (m_body_state != Body_state::kDecoded) {
+    info << "body not decoded";
+    return;
+  }
   info << "terminating event offset " << m_terminating_event_offset;
 }
 

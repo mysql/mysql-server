@@ -9,8 +9,8 @@
 #
 # === Requirements ===
 # R1. binlog_checksum changed from CRC32 to NONE between the commit-time
-#     checks and LOCK_log: the transaction commits, and every binary log file
-#     is readable and verifies.
+#     checks and LOCK_log: the transaction falls back for the checksum change
+#     and commits, and every binlog file is readable and verifies.
 # R2. Transactions committed after it are readable too.
 #
 --source include/have_debug_sync.inc
@@ -21,7 +21,7 @@
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
 --let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
 --disable_query_log
-CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
 --enable_query_log
 
 SET GLOBAL binlog_checksum = CRC32;
@@ -31,6 +31,8 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 --connection default
 
 --echo # R1: change binlog_checksum while the large transaction waits before LOCK_log.
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
 INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
@@ -46,6 +48,20 @@ SET DEBUG_SYNC = 'now SIGNAL bolt_go';
 --connection default
 --reap
 SET DEBUG_SYNC = 'RESET';
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = R1: the transaction's spilled file is not promoted.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = R1: the transaction is counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = R1: the checksum change is the fallback reason.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_checksum_race
+--let $assert_select = Could not optimize large transaction execution in the binlog because binlog_checksum changed while the transaction was running. The transaction used the standard commit path instead\.
+--let $assert_count = 1
+--source include/assert_grep.inc
 
 --echo # R2: more transactions after it.
 INSERT INTO t1 VALUES (4, 'small');

@@ -1,12 +1,16 @@
 # BOLT stands for Binary-log Optimization for Large Transactions.
 #
 # === Purpose ===
-# Verify BOLT crash recovery follows the binary-log 2PC decision.
+# Verify BOLT crash recovery follows the binlog 2PC decision.
 #
 # === Requirements ===
 # R1. A crash before the main-index update rolls the transaction back.
 # R2. A crash after the main-index update recovers the transaction once.
 # R3. A post-main-index XA PREPARE remains prepared until XA COMMIT.
+# R4. A crash after the commit, or around the size rotation that follows a
+#     promotion, commits the transaction once.
+# R5. Every case that commits the transaction commits it through its promoted
+#     file.
 #
 # === Implementation ===
 # 1. Initialize BOLT and a clean test table.
@@ -241,6 +245,8 @@ TRUNCATE t1;
 # Expected behavior: rollforward.
 ############################################################################
 --echo # Post-main-index-update crash commits exactly once.
+--source ../inc/bolt_count_promoted_files.inc
+--let $bolt_promoted_before = $bolt_promoted_files
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --disable_query_log
 --disable_result_log
@@ -259,6 +265,10 @@ COMMIT;
 --let $assert_text = A post-main-index-update crash commits all rows exactly once.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
+--source ../inc/bolt_count_promoted_files.inc
+--let $assert_text = The transaction's spilled file was promoted.
+--let $assert_cond = $bolt_promoted_files = $bolt_promoted_before + 1
+--source include/assert.inc
 --let $assert_text = A post-main-index-update crash preserves the original rows.
 --let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
 --source include/assert.inc
@@ -272,6 +282,8 @@ TRUNCATE t1;
 # Expected behavior: rollforward.
 ############################################################################
 --echo # Post-purge-index-removal crash commits exactly once.
+--source ../inc/bolt_count_promoted_files.inc
+--let $bolt_promoted_before = $bolt_promoted_files
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --disable_query_log
 --disable_result_log
@@ -290,6 +302,10 @@ COMMIT;
 --let $assert_text = A post-purge-index-removal crash commits all rows exactly once.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
+--source ../inc/bolt_count_promoted_files.inc
+--let $assert_text = The transaction's spilled file was promoted.
+--let $assert_cond = $bolt_promoted_files = $bolt_promoted_before + 1
+--source include/assert.inc
 --let $assert_text = A post-purge-index-removal crash preserves the original rows.
 --let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
 --source include/assert.inc
@@ -303,6 +319,8 @@ TRUNCATE t1;
 # Expected behavior: commit.
 ############################################################################
 --echo # Pre-engine-commit crash commits exactly once.
+--source ../inc/bolt_count_promoted_files.inc
+--let $bolt_promoted_before = $bolt_promoted_files
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --disable_query_log
 --disable_result_log
@@ -320,6 +338,10 @@ COMMIT;
 --source include/wait_until_connected_again.inc
 --let $assert_text = A pre-engine-commit crash commits all rows exactly once.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--source ../inc/bolt_count_promoted_files.inc
+--let $assert_text = The transaction's spilled file was promoted.
+--let $assert_cond = $bolt_promoted_files = $bolt_promoted_before + 1
 --source include/assert.inc
 --let $assert_text = A pre-engine-commit crash preserves the original rows.
 --let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
@@ -377,6 +399,8 @@ TRUNCATE t1;
 # every ha_commit_trans(), including the statement commits of the INSERTs.
 ############################################################################
 --echo # Post-binlog-commit crash commits exactly once.
+--source ../inc/bolt_count_promoted_files.inc
+--let $bolt_promoted_before = $bolt_promoted_files
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --disable_query_log
 --disable_result_log
@@ -395,6 +419,10 @@ COMMIT;
 --let $assert_text = A post-binlog-commit crash commits all rows exactly once.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
+--source ../inc/bolt_count_promoted_files.inc
+--let $assert_text = The transaction's spilled file was promoted.
+--let $assert_cond = $bolt_promoted_files = $bolt_promoted_before + 1
+--source include/assert.inc
 --let $assert_text = A post-binlog-commit crash preserves the original rows.
 --let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
 --source include/assert.inc
@@ -406,8 +434,8 @@ TRUNCATE t1;
 ############################################################################
 # Cases 12 and 13: crash around the post-promotion max_binlog_size rotation.
 #
-# rotate_if_needed() runs after the transaction is already committed in both
-# the binary log and the engines, so neither crash may lose it. These cases
+# The size rotation after the commit stage runs after the transaction is
+# committed in both the binlog and the engines, so neither crash may lose it. These cases
 # need max_binlog_size below the promoted file's size to reach the rotation at
 # all, so they restart with a small limit; everything above uses 1G precisely
 # so that no rotation interferes.
@@ -427,6 +455,8 @@ TRUNCATE t1;
 # Expected behavior: commit; the rotation simply never happened.
 ############################################################################
 --echo # Pre-rotation crash commits exactly once.
+--source ../inc/bolt_count_promoted_files.inc
+--let $bolt_promoted_before = $bolt_promoted_files
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --disable_query_log
 --disable_result_log
@@ -445,6 +475,10 @@ COMMIT;
 --let $assert_text = A pre-rotation crash commits all rows exactly once.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
+--source ../inc/bolt_count_promoted_files.inc
+--let $assert_text = The transaction's spilled file was promoted.
+--let $assert_cond = $bolt_promoted_files = $bolt_promoted_before + 1
+--source include/assert.inc
 --let $assert_text = A pre-rotation crash preserves the original rows.
 --let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6
 --source include/assert.inc
@@ -458,6 +492,8 @@ TRUNCATE t1;
 # Expected behavior: commit; the rotation completed before the crash.
 ############################################################################
 --echo # Post-rotation crash commits exactly once.
+--source ../inc/bolt_count_promoted_files.inc
+--let $bolt_promoted_before = $bolt_promoted_files
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --disable_query_log
 --disable_result_log
@@ -475,6 +511,10 @@ COMMIT;
 --source include/wait_until_connected_again.inc
 --let $assert_text = A post-rotation crash commits all rows exactly once.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--source ../inc/bolt_count_promoted_files.inc
+--let $assert_text = The transaction's spilled file was promoted.
+--let $assert_cond = $bolt_promoted_files = $bolt_promoted_before + 1
 --source include/assert.inc
 --let $assert_text = A post-rotation crash preserves the original rows.
 --let $assert_cond = [SELECT SUM(id) AS id_sum FROM t1, id_sum, 1] = 6

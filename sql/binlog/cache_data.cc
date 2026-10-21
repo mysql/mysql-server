@@ -220,6 +220,9 @@ void binlog_cache_data::truncate(my_off_t pos) {
       LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_CACHE_STANDARD_FORM_RESTORE_FAILED);
       error = false;
     }
+  } else if (DBUG_EVALUATE_IF("fail_bolt_rewritten_cache_truncate", true,
+                              false)) {
+    error = true;
   } else if (auto it = cache_state_map.find(pos); it != cache_state_map.end()) {
     error = m_cache.truncate_at_event_boundary(pos, it->second.event_counter);
   } else {
@@ -227,8 +230,8 @@ void binlog_cache_data::truncate(my_off_t pos) {
   }
   if (error)
     set_incident(
-        "The binary log cache could not be truncated on rollback; the "
-        "transaction's binary log content may include rolled-back changes.");
+        "The binlog cache of a transaction could not be truncated at a "
+        "rollback.");
 }
 
 int binlog_cache_data::flush_pending_event(THD *thd) {

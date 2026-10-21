@@ -36,7 +36,7 @@
 # match and reports it in the error log. This test sets binlog_cache_size
 # across its whole range, so the adjustment is expected here.
 --disable_query_log
-CALL mtr.add_suppression("was adjusted from .* to match binlog_cache_size");
+CALL mtr.add_suppression("was adjusted from .* because it cannot be smaller than binlog_cache_size");
 --enable_query_log
 
 #########################################################################

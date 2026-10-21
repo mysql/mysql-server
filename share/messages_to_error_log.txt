@@ -13561,52 +13561,55 @@ ER_MRS_COMPONENT_ERROR
   eng "%s"
 
 ER_BINLOG_BOLT_TEMP_FILES_DIR_INVALID
-  eng "The binary log temporary files directory '%s' is unusable: it must be a directory and cannot be a symbolic link."
+  eng "The binlog temporary files directory '%s' is unusable because it is not a directory or is a symbolic link. Replace it with a directory, then restart the server."
 
 ER_BINLOG_BOLT_TEMP_FILES_DIR_SKIPPED_ENTRY
-  eng "Skipped entry '%s' in the binary log temporary files directory '%s'; the entry is left in place. Only regular files named 'bolt_' followed by letters, digits and '_' are removed at startup."
+  eng "Skipped removing entry '%s' in the binlog temporary files directory '%s' because %s. Remove it if it is not needed."
 
 ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED
-  eng "Could not use the binary log temporary files directory '%s' (OS error %d)."
+  eng "Could not use the binlog temporary files directory '%s' (OS error %d). Check that the server can create, read and write the directory."
 
 ER_BINLOG_BOLT_TEMP_FILES_DIR_CLEANED
-  eng "Removed %u spill files left by a previous run from '%s'."
+  eng "Removed %u leftover spill binlog files in the binlog temporary files directory '%s'."
 
 ER_BINLOG_BOLT_LARGE_TRX_FALLBACK
-  eng "Could not optimize large transaction execution in the binary log because %s; standard binary logging was used instead."
+  eng "Could not optimize large transaction execution in the binlog because %s. The transaction used the standard commit path instead."
 
 ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_SKIP
-  eng "Optimized binary log recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset %llu in binary log file '%s'."
+  eng "Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset %llu in binlog file '%s'."
 
 ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION
-  eng "Read a large transaction sequentially during recovery of binary log file '%s', because source_verify_checksum is enabled."
+  eng "Read a large transaction body sequentially, instead of seeking to its terminating event, in binlog file '%s', because source_verify_checksum is enabled."
 
 ER_BINLOG_BOLT_INVALID_LARGE_TRX_HEADER
-  eng "Ignored a large transaction header in binary log file '%s' that does not describe the transaction's terminating event; the transaction is read sequentially."
+  eng "Ignored a large transaction header in binlog file '%s' because it does not describe the transaction's terminating event. The transaction is read sequentially. The header may be corrupt. Check the storage that holds the binlog."
 
 ER_BINLOG_BOLT_THRESHOLD_ADJUSTED
-  eng "Variable 'binlog_large_transaction_optimization_threshold' was adjusted from %llu bytes to %llu bytes to match binlog_cache_size."
+  eng "Variable 'binlog_large_transaction_optimization_threshold' was adjusted from %llu bytes to %llu bytes because it cannot be smaller than binlog_cache_size."
 
 ER_BINLOG_BOLT_TEMP_FILES_DIR_UNDELETED_FILE
-  eng "Could not delete the leftover spill file '%s' (OS error %d); it is left in place and is never reused."
+  eng "Could not delete the leftover spill binlog file '%s' (OS error %d - %s). The server does not use this file. Delete it to reclaim the space."
 
 ER_BINLOG_BOLT_DISABLED_TEMP_FILES_DIR
-  eng "Turned binlog_large_transaction_optimization_enabled OFF because the binary log temporary files directory for '%s' is unusable; see the previous error."
+  eng "Turned binlog_large_transaction_optimization_enabled OFF because the binlog temporary files directory for '%s' is unusable. The previous error gives the reason. Fix the directory and restart the server to use the optimization."
 
 ER_BINLOG_BOLT_TEMP_FILES_DIR_UNUSABLE
-  eng "Cannot enable binlog_large_transaction_optimization_enabled because the binary log temporary files directory for '%s' was unusable at server startup; see the reason logged at startup."
+  eng "Cannot enable binlog_large_transaction_optimization_enabled because the binlog temporary files directory for '%s' was unusable at server startup. The reason was logged at startup. Fix the directory and restart the server."
 
 ER_BINLOG_BOLT_CACHE_STANDARD_FORM_RESTORE_FAILED
-  eng "Could not allocate a new binary log cache to replace a rewritten one: out of memory. The next event retries."
+  eng "Could not allocate memory for the binlog cache of a session after a large transaction. The session's next transaction retries the allocation."
 
 ER_BINLOG_BOLT_TEMP_FILES_DIR_PATH_INVALID
-  eng "Could not build the binary log temporary files directory path for binary log basename '%s' (OS error %d)."
+  eng "Could not build the binlog temporary files directory path for binlog basename '%s' (OS error %d). Check the log_bin setting, for example its length."
 
 ER_BINLOG_BOLT_REWRITE_FAILED
-  eng "Could not rewrite the binlog cache of a large transaction into the binlog file form: %s. The transaction is written through the standard commit path."
+  eng "Could not rewrite the binlog cache of a large transaction into the binlog file form. The error was '%s'. The transaction used the standard commit path instead. Check the binlog temporary files directory, for example its free space and permissions."
 
 ER_BINLOG_BOLT_LARGE_TRX_FALLBACK_ONCE
-  eng "Could not optimize large transaction execution in the binary log because %s; standard binary logging was used instead. Later fallbacks for this reason are only counted in Binlog_large_transaction_optimization_missed_count."
+  eng "Could not optimize large transaction execution in the binlog because %s. The transaction used the standard commit path instead. Later fallbacks for this reason are only counted in Binlog_large_transaction_optimization_missed_count."
+
+ER_BINLOG_BOLT_PROMOTION_ROTATION_ERROR
+  eng "An error occurred in the binlog rotation that promotes the spill binlog file of a large transaction. The error was '%s'. Check the binlog directory and the binlog temporary files directory."
 
 #
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.

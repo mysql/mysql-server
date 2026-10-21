@@ -1,0 +1,99 @@
+# BOLT stands for Binary-log Optimization for Large Transactions.
+#
+# === Purpose ===
+# Verify the fallback when the rotation for a promotion cannot save the GTIDs
+# of the closed binlog file into mysql.gtid_executed, and the binlog file is
+# below max_binlog_size. The rotation then keeps the active binlog file, as
+# for any rotation, and the transaction is written into that file.
+#
+# === Requirements ===
+# R1. The transaction commits through the standard path: its spilled file is
+#     not promoted, the binlog does not rotate, and the fallback is counted.
+# R2. The error log has the rotation's error and the fallback reason.
+# R3. The transaction is in the active binlog file, and the server keeps
+#     logging.
+#
+# === Implementation ===
+# The upstream debug point gtid_executed_readonly makes the GTID table
+# read-only for one rotation.
+#
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_enabled = `SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled`
+--let $save_threshold = `SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold`
+--disable_query_log
+CALL mtr.add_suppression("Unable to create a new binlog file");
+CALL mtr.add_suppression("Gtid table is not ready to be used");
+CALL mtr.add_suppression("An error occurred in the binlog rotation that promotes the spilled file of a large transaction");
+CALL mtr.add_suppression("Could not optimize large transaction execution in the binary log because");
+--enable_query_log
+
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+
+--echo # Commit a large transaction while the GTID table is read-only.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG = "+d,gtid_executed_readonly";
+COMMIT;
+SET SESSION DEBUG = "-d,gtid_executed_readonly";
+
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = R1: the spilled file is not promoted.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = R1: the fallback is counted.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = R1: the binlog does not rotate.
+--let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--source include/assert.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog_gtid.binlog_bolt_gtid_table_fallback
+--let $assert_text = R2: the error log has the rotation's error.
+--let $assert_select = An error occurred in the binlog rotation that promotes the spilled file of a large transaction: Gtid table is not ready to be used\. Table 'mysql\.gtid_executed' cannot be opened\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R2: the error log has the fallback reason.
+--let $assert_select = Could not optimize large transaction execution in the binary log because mysql\.gtid_executed could not be updated at the rotation; standard binary logging was used instead\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = R3: the transaction commits.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_gtid_table_fallback.dump
+--exec $MYSQL_BINLOG --force-if-open --base64-output=decode-rows -v $MYSQLD_DATADIR/$binlog_file_after > $bolt_dump
+--let $assert_text = R3: the transaction's rows are in the active binlog file.
+--let $assert_file = $bolt_dump
+--let $assert_only_after =
+--let $assert_select = ^### INSERT INTO `test`.`t1`
+--let $assert_count = 3
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+INSERT INTO t1 VALUES (4, 'after');
+--let $assert_text = R3: the server keeps logging into the active binlog file.
+--let $assert_cond = "[SHOW BINARY LOG STATUS, File, 1]" = "$binlog_file_before"
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log

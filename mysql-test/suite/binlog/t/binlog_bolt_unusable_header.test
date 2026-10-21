@@ -19,6 +19,9 @@
 #     the transaction sequentially, and does not trim the binlog file.
 # R5. With gtid_mode=OFF, GTID reconstruction skips the body of a transaction
 #     that has an Anonymous_gtid event, and the server starts.
+# R6. SHOW BINLOG EVENTS shows a decoded header's terminating event offset and
+#     type, and shows that the body of a header in a newer format version was
+#     not decoded.
 #
 # === Implementation ===
 # Each case commits a transaction of many small row events, so a sequential
@@ -32,12 +35,27 @@
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
 
+# bolt_patch_lth_byte.inc needs the Perl module Compress::Zlib.
+--let BOLT_ZLIB_INC = $MYSQLTEST_VARDIR/tmp/bolt_unusable_header_zlib.inc
+--perl
+  my $has_zlib = eval { require Compress::Zlib; 1 } ? 1 : 0;
+  open(my $out, '>', $ENV{BOLT_ZLIB_INC}) or die "Cannot write the probe result";
+  print $out "--let \$bolt_has_zlib = $has_zlib\n";
+  close($out);
+EOF
+--source $BOLT_ZLIB_INC
+--remove_file $BOLT_ZLIB_INC
+if (!$bolt_has_zlib)
+{
+  --skip Needs the Perl module Compress::Zlib
+}
+
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
 --let $save_cte_depth = `SELECT @@SESSION.cte_max_recursion_depth`
 
 # Setup
 --disable_query_log
-CALL mtr.add_suppression("Ignored a large transaction header in binary log file");
+CALL mtr.add_suppression("Ignored a large transaction header in binlog file");
 --enable_query_log
 RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(4000)) ENGINE=InnoDB;
@@ -52,6 +70,10 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(4000)) ENGINE=InnoDB;
 --let $assert_cond = "$bolt_file" != "$binlog_file_before"
 --source include/assert.inc
 --let $gtid_executed_before = `SELECT @@GLOBAL.gtid_executed`
+--let $bolt_lth_info = query_get_value(SHOW BINLOG EVENTS IN '$bolt_file' FROM $bolt_lth_pos LIMIT 1, Info, 1)
+--let $assert_text = R6: SHOW BINLOG EVENTS shows the header's terminating event offset and type.
+--let $assert_cond = "$bolt_lth_info" LIKE "# Large transaction header (terminating event offset %, terminating event type 16)"
+--source include/assert.inc
 
 --echo # Set the header version to 2 in the stopped server's binlog file.
 --source include/kill_mysqld.inc
@@ -61,10 +83,14 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(4000)) ENGINE=InnoDB;
 --let $bolt_patch_value = 2
 --source ../inc/bolt_patch_lth_byte.inc
 
-
 --let $bolt_trace = $MYSQLTEST_VARDIR/tmp/bolt_unusable_header_newer.trace
 --let $restart_parameters = restart: --debug=d,info:o,$bolt_trace
 --source include/start_mysqld_no_echo.inc
+
+--let $bolt_lth_info = query_get_value(SHOW BINLOG EVENTS IN '$bolt_file' FROM $bolt_lth_pos LIMIT 1, Info, 1)
+--let $assert_text = R6: SHOW BINLOG EVENTS shows that the header body was not decoded.
+--let $assert_cond = "$bolt_lth_info" = "# Large transaction header (body not decoded)"
+--source include/assert.inc
 
 --echo # R1: mysqlbinlog prints that the header body was not decoded.
 --let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_unusable_header.dump
@@ -84,11 +110,11 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(4000)) ENGINE=InnoDB;
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_unusable_header
 --let $assert_text = R2: crash recovery does not seek past the body.
---let $assert_select = Optimized binary log recovery by avoiding a sequential read of a large transaction body
+--let $assert_select = Optimized binlog recovery by avoiding a sequential read of a large transaction body
 --let $assert_count = 0
 --source include/assert_grep.inc
 --let $assert_text = R2: crash recovery logs no warning about the header.
---let $assert_select = Ignored a large transaction header in binary log file
+--let $assert_select = Ignored a large transaction header in binlog file
 --let $assert_count = 0
 --source include/assert_grep.inc
 --let $assert_text = R2: crash recovery does not trim the binlog file.
@@ -130,11 +156,11 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(4000)) ENGINE=InnoDB;
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_unusable_header
 --let $assert_text = R4: crash recovery logs that it ignores the header.
---let $assert_select = Ignored a large transaction header in binary log file .* that does not describe the transaction's terminating event
+--let $assert_select = Ignored a large transaction header in binlog file '\./$bolt_file' because it does not describe the transaction's terminating event\. The transaction is read sequentially\. The header may be corrupt\. Check the storage that holds the binlog\.
 --let $assert_count = 1
 --source include/assert_grep.inc
 --let $assert_text = R4: crash recovery does not seek past the body.
---let $assert_select = Optimized binary log recovery by avoiding a sequential read of a large transaction body
+--let $assert_select = Optimized binlog recovery by avoiding a sequential read of a large transaction body
 --let $assert_count = 0
 --source include/assert_grep.inc
 --let $assert_text = R4: crash recovery does not trim the binlog file.

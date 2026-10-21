@@ -23,5 +23,5 @@ include/assert.inc [A compressed cache increments the missed counter once.]
 include/assert.inc [A compression fallback stays in the active binary log.]
 include/assert.inc [A compression fallback commits all rows.]
 include/assert.inc [A compression fallback preserves the full payload.]
-include/assert_grep.inc [The fallback reason is logged: binary log transaction compression is enabled.]
+include/assert_grep.inc [The fallback reason is logged: binlog transaction compression is enabled.]
 DROP TABLE t1;

@@ -5,10 +5,11 @@
 # execution state.
 #
 # === Requirements ===
-# R1. A qualifying tagged-GTID transaction's spilled file is promoted into a new active file.
-# R2. Recovery preserves its GTID in the binary log and mysql.gtid_executed.
+# R1. A qualifying tagged-GTID transaction's spilled file is promoted into a
+#     new active file.
+# R2. A restart preserves its GTID in the binlog and mysql.gtid_executed.
 # R3. The promoted tagged-GTID file satisfies the shared BOLT structural
-#     validation, including its LTH terminal-event metadata.
+#     validation, including its header terminating event metadata.
 #
 # === Implementation ===
 # 1. Initialize BOLT, GTID state, and a clean test table.
@@ -16,6 +17,7 @@
 # 3. Restart and verify persisted GTID state.
 #
 --source include/have_log_bin.inc
+--source include/not_windows.inc
 --source include/have_binlog_format_row.inc
 
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
@@ -71,9 +73,18 @@ SET GTID_NEXT = 'AUTOMATIC';
 --source common/binlog/validate_bolt_file.inc
 --let $gtid_output = $MYSQLTEST_VARDIR/tmp/large_trx_tagged_gtids.txt
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/$promoted_file > $gtid_output
---exec grep -Eq '[0-9a-f-]+:1-2' $gtid_output
---exec grep -Eq '[0-9a-f-]+:prior_large_trx_tag:1' $gtid_output
---exec grep -Eq '[0-9a-f-]+:promoted_large_trx_tag:1' $gtid_output
+--let $assert_file = $gtid_output
+--let $assert_count_condition = >= 1
+--let $assert_text = The promoted file holds the untagged GTIDs.
+--let $assert_select = [0-9a-f-]+:1-2
+--source include/assert_grep.inc
+--let $assert_text = The promoted file holds the prior tagged GTID.
+--let $assert_select = [0-9a-f-]+:prior_large_trx_tag:1
+--source include/assert_grep.inc
+--let $assert_text = The promoted file holds the promoted tagged GTID.
+--let $assert_select = [0-9a-f-]+:promoted_large_trx_tag:1
+--source include/assert_grep.inc
+--let $assert_count_condition =
 --remove_file $gtid_output
 
 --echo # Restart and verify both tags survive persisted GTID state reload.

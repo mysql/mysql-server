@@ -21,6 +21,9 @@ include/assert.inc [The tagged GTID promotion rotates to a new active binary log
 include/assert.inc [The prior tagged GTID is persisted before promotion.]
 include/assert.inc [The promoted tagged GTID is recorded in gtid_executed.]
 # The promoted file retains both tag forms.
+include/assert_grep.inc [The promoted file holds the untagged GTIDs.]
+include/assert_grep.inc [The promoted file holds the prior tagged GTID.]
+include/assert_grep.inc [The promoted file holds the promoted tagged GTID.]
 # Restart and verify both tags survive persisted GTID state reload.
 # restart
 include/assert.inc [The prior tagged GTID survives restart.]

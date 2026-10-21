@@ -56,6 +56,7 @@
 #  C32 compression ON at the first event (not eligible), then ROLLBACK TO
 #
 --source include/have_log_bin.inc
+--source include/not_windows.inc
 --source include/have_binlog_format_row.inc
 --source include/not_binlog_transaction_compression_on.inc
 
@@ -63,7 +64,7 @@
 --let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
 --let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
 --disable_query_log
-CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
 --enable_query_log
 
 SET GLOBAL binlog_checksum = CRC32;

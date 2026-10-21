@@ -88,7 +88,7 @@ COMMIT;
 --source include/assert.inc
 --let $assert_text = R1: recovery skips the transaction's body.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = Optimized binary log recovery by avoiding a sequential read
+--let $assert_select = Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset [0-9]+ in binlog file '\./binlog\.[0-9]{6}'\.
 --let $assert_count = 1
 --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_savepoint_recovery
 --source include/assert_grep.inc

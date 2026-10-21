@@ -56,7 +56,7 @@ enum class Large_trx_fallback_reason {
   kStatementCache,
   /** The transaction contains events that are not in ROW format. */
   kNonRowFormat,
-  /** Binary log encryption was enabled while the transaction ran. */
+  /** Binlog encryption is enabled. */
   kEncryption,
   /** Binary log transaction compression is enabled. */
   kCompression,

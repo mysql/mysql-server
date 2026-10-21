@@ -3,6 +3,7 @@
 Entries in the server's directory:
 Entries in the other server's directory:
 bolt_0123456789abcdef_0
+include/assert_grep.inc [R1: startup logs the number of removed spill files and the directory.]
 # R3: entries the server did not create are left in place.
 # restart
 Entries in the server's directory:
@@ -20,6 +21,11 @@ include/assert_grep.inc [R4: turning the optimization OFF is logged as an error.
 include/assert_grep.inc [R5: the reason is logged as a warning.]
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 ERROR 42000: Variable 'binlog_large_transaction_optimization_enabled' can't be set to the value of 'ON'
+# R5: the client gets a warning that points to the error log.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	#	The binlog temporary files directory was unusable at server startup, so binlog_large_transaction_optimization_enabled stays OFF. The error log has the reason. Fix the directory and restart the server.
+Error	#	Variable 'binlog_large_transaction_optimization_enabled' can't be set to the value of 'ON'
 include/assert.inc [R5: the optimization stays disabled.]
 include/assert_grep.inc [R5: enabling the optimization later is logged as an error.]
 # restart:

@@ -49,7 +49,7 @@ SET GLOBAL binlog_cache_size = 10485760;
 # Verify normalization after a runtime SET.
 --source include/save_error_log_position.inc
 SET GLOBAL binlog_cache_size = 20971520;
---let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]
+--let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes because it cannot be smaller than binlog_cache_size[.]
 --source include/assert_error_log.inc
 --let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
 --let $assert_text= Increasing binlog_cache_size raises the optimization threshold.
@@ -61,14 +61,14 @@ SET GLOBAL binlog_cache_size = 20971520;
 --let $restart_parameters=restart: --binlog-large-transaction-optimization-enabled=ON --binlog-large-transaction-optimization-threshold=10M --binlog-cache-size=20M
 --source include/restart_mysqld.inc
 SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold AS threshold;
---let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]
+--let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes because it cannot be smaller than binlog_cache_size[.]
 --source include/assert_error_log.inc
 
 --echo # Case 2: BOLT is ON; binlog_large_transaction_optimization_threshold < binlog_cache_size.
 # Verify normalization after a runtime SET.
 --source include/save_error_log_position.inc
 SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
---let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes to match binlog_cache_size[.]
+--let $error_pattern=Variable 'binlog_large_transaction_optimization_threshold' was adjusted from 10485760 bytes to 20971520 bytes because it cannot be smaller than binlog_cache_size[.]
 --source include/assert_error_log.inc
 --let $threshold=query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
 --let $assert_text= A lower optimization threshold is raised to match binlog_cache_size.

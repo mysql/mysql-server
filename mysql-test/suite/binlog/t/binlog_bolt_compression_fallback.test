@@ -47,7 +47,7 @@
 # Setup
 --disable_query_log
 --disable_warnings
-CALL mtr.add_suppression('Could not optimize large transaction execution in the binary log because');
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
 DROP TABLE IF EXISTS t1;
 RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
@@ -128,16 +128,13 @@ SET SESSION debug = @old_debug;
 --let $assert_text = A compression fallback preserves the full payload.
 --let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = 15000000
 --source include/assert.inc
-# Confirms the reason reported is the compression one, which also pins the
-# message to its enum slot in kFallbackDetails.
---let $assert_text = The fallback reason is logged: binary log transaction compression is enabled.
+# Checks that the compression reason is logged.
+--let $assert_text = The fallback reason is logged: binlog transaction compression is enabled.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = binary log transaction compression is enabled
---let $assert_count =
---let $assert_count_condition = >= 1
+--let $assert_select = Could not optimize large transaction execution in the binlog because binlog transaction compression is enabled. The transaction used the standard commit path instead\. Later fallbacks for this reason are only counted in Binlog_large_transaction_optimization_missed_count\.
+--let $assert_count = 1
 --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_compression_fallback
 --source include/assert_grep.inc
---let $assert_count_condition =
 
 # Cleanup
 DROP TABLE t1;

@@ -139,9 +139,10 @@ UNLOCK TABLES;
 # reads with getline for the same reason.
 #
 --let $SLAVE_MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_replica_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
 --let $bolt_order_dump = $MYSQL_TMP_DIR/bolt_replica_commit_order_dump.txt
 --let $bolt_order_script = $MYSQL_TMP_DIR/bolt_replica_commit_order.awk
---exec $MYSQL_BINLOG --force-if-open $SLAVE_MYSQLD_DATADIR/slave-bin.0* > $bolt_order_dump
+--exec $MYSQL_BINLOG --force-if-open $SLAVE_MYSQLD_DATADIR/$bolt_replica_binlog_base.0* > $bolt_order_dump
 
 --write_file $bolt_order_script END_OF_SCRIPT
 # Collect the sequence numbers of the source's GTIDs in the order the replica

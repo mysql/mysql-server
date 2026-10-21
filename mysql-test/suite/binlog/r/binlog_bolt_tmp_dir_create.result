@@ -12,6 +12,11 @@ SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
 # R4: enabling fails when the directory cannot be created.
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 ERROR 42000: Variable 'binlog_large_transaction_optimization_enabled' can't be set to the value of 'ON'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	#	The binlog temporary files directory was unusable at server startup, so binlog_large_transaction_optimization_enabled stays OFF. The error log has the reason. Fix the directory and restart the server.
+Error	#	Variable 'binlog_large_transaction_optimization_enabled' can't be set to the value of 'ON'
+include/assert_grep.inc [R4: the error log names the directory that is not a directory.]
 include/assert.inc [The optimization stays OFF.]
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 # R5: started with the optimization ON, the directory cannot be created.
@@ -19,6 +24,7 @@ SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
 # restart: --binlog-large-transaction-optimization-enabled=ON
 include/assert.inc [R5: the server starts with the optimization OFF.]
 include/assert_grep.inc [R5: turning the optimization OFF is logged as an error.]
+include/assert_grep.inc [R5: the error log names the directory and the OS error.]
 # restart
 SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
 DROP TABLE t1;

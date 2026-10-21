@@ -824,19 +824,23 @@ static bool temp_files_dir_clear_files(const char *path, loglevel level) {
     if (snprintf(file_path, sizeof(file_path), "%s%c%s", path, FN_LIBCHAR,
                  file->name) >= static_cast<int>(sizeof(file_path))) {
       LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_SKIPPED_ENTRY,
-             file->name, path);
+             file->name, path, "its path is too long");
       continue;
     }
     /* Do not follow links or delete entries the server did not create. */
     if (file->mystat == nullptr || !MY_S_ISREG(file->mystat->st_mode) ||
         my_is_symlink(file_path, nullptr) || !is_bolt_temp_file(file->name)) {
       LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_SKIPPED_ENTRY,
-             file->name, path);
+             file->name, path,
+             "it is not a BOLT spill file (a regular file whose name is "
+             "'bolt_' followed by letters, digits and '_')");
       continue;
     }
     if (my_delete(file_path, MYF(0))) {
+      char errbuf[MYSYS_STRERROR_SIZE];
       LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_UNDELETED_FILE,
-             file_path, my_errno());
+             file_path, my_errno(),
+             my_strerror(errbuf, sizeof(errbuf), my_errno()));
       continue;
     }
     removed++;
@@ -891,10 +895,19 @@ bool temp_files_dir_create(const char *path) {
       break;
   }
   if (my_mkdir(path, my_umask_dir, MYF(0)) == 0) return false;
-  if (my_errno() == EEXIST && temp_files_dir_state(path, ERROR_LEVEL) ==
-                                  Temp_files_dir_state::kDirectory)
-    return false;
-  LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED, path, my_errno());
+  /* Keep the error: the state check below can change my_errno(). */
+  const int mkdir_error = my_errno();
+  if (mkdir_error == EEXIST) {
+    switch (temp_files_dir_state(path, ERROR_LEVEL)) {
+      case Temp_files_dir_state::kDirectory:
+        return false;
+      case Temp_files_dir_state::kInvalid:
+        return true;
+      case Temp_files_dir_state::kMissing:
+        break;
+    }
+  }
+  LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_TEMP_FILES_DIR_FAILED, path, mkdir_error);
   return true;
 }
 

@@ -2,8 +2,10 @@ RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(4000)) ENGINE=InnoDB;
 # Commit a qualifying transaction of many small row events.
 include/assert.inc [The transaction's spilled file is promoted into a new binlog file.]
+include/assert.inc [R6: SHOW BINLOG EVENTS shows the header's terminating event offset and type.]
 # Set the header version to 2 in the stopped server's binlog file.
 # Kill the server
+include/assert.inc [R6: SHOW BINLOG EVENTS shows that the header body was not decoded.]
 # R1: mysqlbinlog prints that the header body was not decoded.
 include/assert_grep.inc [R1: mysqlbinlog prints that the header body was not decoded.]
 include/assert_grep.inc [R1: mysqlbinlog prints the transaction's terminating event.]
