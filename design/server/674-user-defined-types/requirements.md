@@ -221,6 +221,38 @@ The doxygen technical documentation, for type implementers,
 describes guidelines and best practices to avoid naming collisions,
 to favor a healthy ecosystem of types provided by various vendors.
 
+## Replication
+
+TODO
+
+## Install / Upgrade
+
+TODO
+
+## Backup / Restore
+
+TODO
+
+## Client
+
+TODO
+
+## Observability
+
+At runtime, the server will execute code provided as a User Defined Type to perform operations on a type.
+
+FR:
+
+The server exposes a SQL interface to report statistics about individual operations executions.
+
+FR:
+
+The server exposes a SQL interface to aggregates statistics for all executions of a given operation.
+
+FR:
+
+The server exposes a SQL interface to aggregates statistics for all operations on a given type.
+
 ## Documentation
 
 ### Reference Manual
