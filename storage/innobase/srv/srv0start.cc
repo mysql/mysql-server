@@ -2287,6 +2287,10 @@ void srv_start_threads_after_ddl_recovery() {
   if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO && trx_sys_need_rollback()) {
     /* Rollback all recovered transactions that are
     not in committed nor in XA PREPARE state. */
+    /* The rollback thread must be created only after transaction-coordinator
+    recovery completes. It does not poll for later handoffs or wait on a
+    recovery-completion signal. If its creation is moved before TC recovery,
+    explicit synchronization must be introduced. */
     srv_threads.m_trx_recovery_rollback = os_thread_create(
         trx_recovery_rollback_thread_key, 0, trx_recovery_rollback_thread);
 

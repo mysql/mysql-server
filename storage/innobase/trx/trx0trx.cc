@@ -853,7 +853,9 @@ void trx_resurrect_locks(bool all) {
       }
       DICT_TF2_FLAG_SET(table, DICT_TF2_RESURRECT_PREPARED);
 
-      /* We don't rollback DDL or XA prepared transaction in background */
+      /* DDL transactions are not rolled back in background. Prepared
+      transactions are scheduled only after TC recovery decides to roll them
+      back. */
       if (trx->ddl_operation || is_prepared) {
         lock_table_ix_resurrect(table, trx);
         ib::info(ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK, ulong(table->id),
@@ -3360,6 +3362,77 @@ trx_t *trx_get_trx_by_xid(const XID *xid) {
   trx_sys_mutex_exit();
 
   return (trx);
+}
+
+void trx_schedule_recovered_for_rollback(trx_t *trx) {
+  ut_ad(trx->is_recovered);
+  ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
+  ut_ad(!trx->ddl_operation);
+
+  /* A recovered prepared transaction necessarily has redo undo logs. */
+  ut_ad(trx->rsegs.m_redo.rseg != nullptr && trx_is_redo_rseg_updated(trx));
+
+  DBUG_EXECUTE_IF("crash_before_recover_rollback_undo_state_change",
+                  DBUG_SUICIDE(););
+
+  /* Do not wait for redo space while holding rollback-segment or undo-page
+  latches. Such a wait could block page flushing needed to reclaim space. */
+  log_free_check();
+
+  trx_undo_ptr_t *undo_ptr = &trx->rsegs.m_redo;
+  mtr_t mtr;
+
+  mtr.start();
+
+  trx->rsegs.m_redo.rseg->latch();
+
+  if (undo_ptr->insert_undo != nullptr) {
+    trx_undo_set_state_at_prepare(trx, undo_ptr->insert_undo, true, &mtr);
+    undo_ptr->insert_undo->state = TRX_UNDO_ACTIVE;
+  }
+
+  if (undo_ptr->update_undo != nullptr) {
+    /* A binlog-internal prepared transaction never carries a GTID in undo:
+    TRX_UNDO_FLAG_GTID is written only at commit
+    (trx_write_serialisation_history()), and check_gtid_prepare() returns
+    false for trx_is_mysql_xa(), so trx_prepare_low() does not set
+    TRX_UNDO_FLAG_XA_PREPARE_GTID either. */
+    ut_ad((undo_ptr->update_undo->flag &
+           (TRX_UNDO_FLAG_GTID | TRX_UNDO_FLAG_XA_PREPARE_GTID)) == 0);
+    trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, true, &mtr);
+    undo_ptr->update_undo->state = TRX_UNDO_ACTIVE;
+  }
+
+  trx->rsegs.m_redo.rseg->unlatch();
+
+  mtr.commit();
+
+  const lsn_t commit_lsn = mtr.commit_lsn();
+  ut_ad(commit_lsn > 0 || !mtr_t::s_logging.is_enabled());
+  if (commit_lsn > 0) {
+    /* This persistence must happen before MYSQL_BIN_LOG::open_binlog() clears
+    LOG_EVENT_BINLOG_IN_USE_F. Otherwise, after a crash, the next startup
+    could reject recovery because no usable binlog recovery information
+    remains for this prepared transaction. */
+    using Durability = ib::redo::Handler_interface::Durability;
+    ib::redo::must_succeed(ib::redo::handler->persist_smaller_than(
+                               commit_lsn, Durability::FULLY_PERSISTED),
+                           UT_LOCATION_HERE);
+  }
+
+  /* trx_resurrect_locks() does not add modified tables of a recovered prepared
+  transaction to to_rollback_trx_tables. Add them now so the recovery rollback
+  thread acquires MDL before startup continues. */
+  for (const auto table : trx->mod_tables) {
+    to_rollback_trx_tables.emplace_back(trx->id, table->id);
+  }
+
+  /* Publish ACTIVE only after the undo state changes are durable. */
+  trx_sys_mutex_enter();
+  ut_a(trx_sys->n_prepared_trx > 0);
+  trx->state.store(TRX_STATE_ACTIVE, std::memory_order_relaxed);
+  --trx_sys->n_prepared_trx;
+  trx_sys_mutex_exit();
 }
 
 /** Starts the transaction if it is not yet started.
