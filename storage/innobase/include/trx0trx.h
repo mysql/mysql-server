@@ -198,6 +198,11 @@ int trx_recover_tc_for_mysql(Xa_state_list &xa_list);
  note that the trx may have been committed */
 trx_t *trx_get_trx_by_xid(const XID *xid);
 
+/** Durably change a recovered prepared DML transaction to active and schedule
+it for the recovery rollback thread.
+@param[in,out] trx recovered prepared DML transaction */
+void trx_schedule_recovered_for_rollback(trx_t *trx);
+
 /** If required, flushes the log to disk if we called trx_commit_for_mysql()
  with trx->flush_log_later == true. */
 void trx_commit_complete_for_mysql(trx_t *trx); /*!< in/out: transaction */
@@ -754,6 +759,10 @@ struct trx_t {
   Recovered XA:
   * NOT_STARTED -> PREPARED -> COMMITTED -> (freed)
 
+  Recovered internal transaction followed by
+  trx_schedule_recovered_for_rollback():
+  * NOT_STARTED -> PREPARED -> ACTIVE -> COMMITTED -> (freed)
+
   XA (2PC) (shutdown or disconnect before ROLLBACK or COMMIT):
   * NOT_STARTED -> PREPARED -> (freed)
 
@@ -764,8 +773,11 @@ struct trx_t {
 
   XA (2PC) transactions are always treated as non-autocommit.
 
-  Transitions to ACTIVE or NOT_STARTED occur when
-  !in_rw_trx_list (no trx_sys->mutex needed).
+  Transitions to ACTIVE or NOT_STARTED normally occur when
+  !in_rw_trx_list (no trx_sys->mutex needed). During recovery,
+  trx_schedule_recovered_for_rollback() may transition a recovered prepared
+  transaction to ACTIVE while it remains in rw_trx_list; this transition is
+  protected by trx_sys->mutex.
 
   Autocommit non-locking read-only transactions move between states
   without holding any mutex. They are !in_rw_trx_list.
