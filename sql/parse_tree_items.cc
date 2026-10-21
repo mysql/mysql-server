@@ -360,10 +360,38 @@ void PTI_function_call_generic_3d::add_json_info(Json_object *obj) {
 bool PTI_function_call_generic_3d::do_itemize(Parse_context *pc, Item **res) {
   if (super::do_itemize(pc, res)) return true;
 
-  WARN_NOT_IMPLEMENTED(current_thd,
+  THD *thd = pc->thd;
+
+  WARN_NOT_IMPLEMENTED(thd,
                        "PTI_function_call_generic_3d::do_itemize()");
 
-  return true;
+  /*
+   * When `table`.`column` is a column that exists
+   * When that column type is a user defined type `db`.`type`
+   * When that used defined type has a method named `method`
+   * Then the syntax `table`.`column`.`method`()
+   * is a method invocation in type `db`.`type`,
+   * using the object `table`.`column` as instance.
+   */
+
+  // See PTI_simple_ident_q_2d
+  // See PTI_simple_ident_q_3d
+
+  PTI_simple_ident_q_2d *maybe_col =
+      new (thd->mem_root) PTI_simple_ident_q_2d(m_pos, table.str, column.str);
+
+  Item *col = nullptr;
+  bool rc;
+
+  rc = maybe_col->do_itemize(pc, &col);
+  if (rc) {
+    return true;
+  }
+
+  // FIXME
+  *res = col;
+
+  return false;
 }
 
 void PTI_function_call_static_method::add_json_info(Json_object *obj) {

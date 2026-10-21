@@ -35,6 +35,8 @@ delimiter ;$$
 
 call test.complex();
 
+select foo.bar.baz() from INFORMATION_SCHEMA.TYPES;
+
 UNINSTALL COMPONENT "file://component_udt_example";
 
 DROP PROCEDURE test.complex;
