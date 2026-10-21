@@ -1,0 +1,128 @@
+SET @start_value = @@global.admin_max_connections;
+SELECT @start_value;
+@start_value
+0
+'#--------------------FN_DYNVARS_XXX_01------------------------#'
+SET @@global.admin_max_connections = 5000;
+SET @@global.admin_max_connections = DEFAULT;
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+0
+'#---------------------FN_DYNVARS_XXX_02-------------------------#'
+SET @@global.admin_max_connections = @start_value;
+SELECT @@global.admin_max_connections = 0;
+@@global.admin_max_connections = 0
+1
+'#--------------------FN_DYNVARS_XXX_03------------------------#'
+SET @@global.admin_max_connections = 100000;
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+100000
+SET @@global.admin_max_connections = 99999;
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+99999
+SET @@global.admin_max_connections = 65536;
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+65536
+SET @@global.admin_max_connections = 0;
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+0
+SET @@global.admin_max_connections = 1;
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+1
+'#--------------------FN_DYNVARS_XXX_04-------------------------#'
+SET @@global.admin_max_connections = -1;
+Warnings:
+Warning	1292	Truncated incorrect admin_max_connections value: '-1'
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+0
+SET @@global.admin_max_connections = 100000000000;
+Warnings:
+Warning	1292	Truncated incorrect admin_max_connections value: '100000000000'
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+100000
+SET @@global.admin_max_connections = 10000.01;
+ERROR 42000: Incorrect argument type to variable 'admin_max_connections'
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+100000
+SET @@global.admin_max_connections = -1024;
+Warnings:
+Warning	1292	Truncated incorrect admin_max_connections value: '-1024'
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+0
+SET @@global.admin_max_connections = 100001;
+Warnings:
+Warning	1292	Truncated incorrect admin_max_connections value: '100001'
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+100000
+SET @@global.admin_max_connections = ON;
+ERROR 42000: Incorrect argument type to variable 'admin_max_connections'
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+100000
+SET @@global.admin_max_connections = 'test';
+ERROR 42000: Incorrect argument type to variable 'admin_max_connections'
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+100000
+'#-------------------FN_DYNVARS_XXX_05----------------------------#'
+SET @@session.admin_max_connections = 4096;
+ERROR HY000: Variable 'admin_max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.admin_max_connections;
+ERROR HY000: Variable 'admin_max_connections' is a GLOBAL variable
+'#----------------------FN_DYNVARS_XXX_06------------------------#'
+SELECT @@global.admin_max_connections = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='admin_max_connections';
+@@global.admin_max_connections = VARIABLE_VALUE
+1
+SELECT @@admin_max_connections = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='admin_max_connections';
+@@admin_max_connections = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_XXX_07----------------------#'
+SET @@global.admin_max_connections = TRUE;
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+1
+SET @@global.admin_max_connections = FALSE;
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+0
+'#---------------------FN_DYNVARS_XXX_08----------------------#'
+SET @@global.admin_max_connections = 5000;
+SELECT @@admin_max_connections = @@global.admin_max_connections;
+@@admin_max_connections = @@global.admin_max_connections
+1
+'#---------------------FN_DYNVARS_XXX_09----------------------#'
+SET admin_max_connections = 6000;
+ERROR HY000: Variable 'admin_max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@admin_max_connections;
+@@admin_max_connections
+5000
+SET local.admin_max_connections = 7000;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.admin_max_connections = 7000' at line 1
+SELECT local.admin_max_connections;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.admin_max_connections = 8000;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.admin_max_connections = 8000' at line 1
+SELECT global.admin_max_connections;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT admin_max_connections;
+ERROR 42S22: Unknown column 'admin_max_connections' in 'field list'
+SELECT @@session.admin_max_connections;
+ERROR HY000: Variable 'admin_max_connections' is a GLOBAL variable
+SET @@global.admin_max_connections = @start_value;
+SELECT @@global.admin_max_connections;
+@@global.admin_max_connections
+0

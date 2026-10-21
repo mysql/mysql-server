@@ -53,6 +53,8 @@ struct Connection_handler_functions;
 
 // Initialize static members
 uint Connection_handler_manager::connection_count = 0;
+uint Connection_handler_manager::admin_connection_count = 0;
+ulong Connection_handler_manager::admin_connection_errors_max_connection = 0;
 ulong Connection_handler_manager::max_used_connections = 0;
 ulong Connection_handler_manager::max_used_connections_time = 0;
 std::atomic_ulong Connection_handler_manager::incoming_connection_count = 0;
@@ -108,6 +110,23 @@ bool Connection_handler_manager::check_and_incr_conn_count(
   bool connection_accepted = true;
   mysql_mutex_lock(&LOCK_connection_count);
   /*
+    Bug#99917: Restrict the number of concurrent connections accepted on the
+    administrative interface (admin_address/admin_port). When
+    admin_max_connections is 0 (the default) no limit is imposed, which
+    matches the previous behaviour of the administrative interface. The
+    rejection is counted in Admin_connection_errors_max_connections only, so
+    Connection_errors_max_connections keeps counting ordinary connections
+    refused by max_connections and nothing else. Internal sessions
+    (internal_session == true) never use the administrative interface and
+    are always exempt from this limit.
+  */
+  if (is_admin_connection && !internal_session && admin_max_connections != 0 &&
+      admin_connection_count >= admin_max_connections) {
+    admin_connection_errors_max_connection++;
+    mysql_mutex_unlock(&LOCK_connection_count);
+    return false;
+  }
+  /*
     Here we allow max_connections + 1 clients to connect
     (by checking before we increment by 1).
 
@@ -120,6 +139,7 @@ bool Connection_handler_manager::check_and_incr_conn_count(
     m_connection_errors_max_connection++;
   } else {
     ++connection_count;
+    if (is_admin_connection && !internal_session) ++admin_connection_count;
     if (!internal_session) ++incoming_connection_count;
     if (connection_count > max_used_connections) {
       max_used_connections = connection_count;

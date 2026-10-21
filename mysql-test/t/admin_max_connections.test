@@ -1,0 +1,147 @@
+########################################################################
+# Functional test for the admin_max_connections system variable        #
+# (Bug#99917).                                                          #
+#                                                                       #
+# admin_max_connections caps the number of concurrent connections      #
+# accepted on the administrative interface (admin_address/admin_port). #
+# 0 (the default) means no limit, matching previous behaviour.          #
+#                                                                       #
+# Related status variables (administrative connections only):          #
+#   Admin_connections                        - currently open          #
+#   Admin_connection_errors_max_connections  - refused by the cap      #
+#                                                                       #
+# The administrative interface is enabled for this test through        #
+# admin_max_connections-master.opt. Connecting to it requires the      #
+# SERVICE_CONNECTION_ADMIN privilege.                                   #
+########################################################################
+
+--source include/count_sessions.inc
+
+--echo #
+--echo # 1. Status variables exist and start at a clean baseline
+--echo #
+SHOW GLOBAL STATUS LIKE 'Admin_connection%';
+
+--echo #
+--echo # 2. Create a user allowed to use the administrative interface
+--echo #
+CREATE USER u_admin;
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO u_admin;
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
+--echo #
+--echo # 3. With the default of 0 there is no limit (previous behaviour),
+--echo #    and Admin_connections counts administrative connections only
+--echo #
+connect (admin_nolimit_1,127.0.0.1,u_admin,,,$MASTER_ADMINPORT,,TCP);
+connect (admin_nolimit_2,127.0.0.1,u_admin,,,$MASTER_ADMINPORT,,TCP);
+connect (admin_nolimit_3,127.0.0.1,u_admin,,,$MASTER_ADMINPORT,,TCP);
+connection default;
+SHOW GLOBAL STATUS LIKE 'Admin_connections';
+--echo # An ordinary connection must NOT change Admin_connections
+connect (ordinary_probe,localhost,u_admin,,,,,);
+connection default;
+SHOW GLOBAL STATUS LIKE 'Admin_connections';
+connection ordinary_probe;
+disconnect ordinary_probe;
+--source include/wait_until_disconnected.inc
+connection admin_nolimit_3;
+disconnect admin_nolimit_3;
+--source include/wait_until_disconnected.inc
+connection admin_nolimit_2;
+disconnect admin_nolimit_2;
+--source include/wait_until_disconnected.inc
+connection admin_nolimit_1;
+disconnect admin_nolimit_1;
+--source include/wait_until_disconnected.inc
+connection default;
+--source include/wait_until_count_sessions.inc
+--echo # All administrative connections are gone again
+--let $wait_condition= SELECT VARIABLE_VALUE = 0 FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Admin_connections'
+--source include/wait_condition.inc
+SHOW GLOBAL STATUS LIKE 'Admin_connections';
+
+--echo #
+--echo # 4. With admin_max_connections = 2 the third administrative
+--echo #    connection is rejected, and the rejection is counted in
+--echo #    Admin_connection_errors_max_connections only
+--echo #
+SET GLOBAL admin_max_connections = 2;
+--echo # Remember the normal-connection error counter to prove it stays put
+--let $normal_errors_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Connection_errors_max_connections', Value, 1)
+connect (admin_1,127.0.0.1,u_admin,,,$MASTER_ADMINPORT,,TCP);
+connect (admin_2,127.0.0.1,u_admin,,,$MASTER_ADMINPORT,,TCP);
+connection default;
+SHOW GLOBAL STATUS LIKE 'Admin_connections';
+--replace_result $MASTER_ADMINPORT ADMIN_PORT $MASTER_MYSOCK SOURCE_SOCKET
+--error ER_CON_COUNT_ERROR
+connect (admin_3,127.0.0.1,u_admin,,,$MASTER_ADMINPORT,,TCP);
+SHOW GLOBAL STATUS LIKE 'Admin_connection_errors_max_connections';
+--echo # The rejection did not leak into Connection_errors_max_connections
+--let $normal_errors_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Connection_errors_max_connections', Value, 1)
+if ($normal_errors_before != $normal_errors_after)
+{
+  --die Connection_errors_max_connections changed on an admin rejection
+}
+--echo # Connection_errors_max_connections unchanged: OK
+
+--echo #
+--echo # 5. Ordinary connections are not affected by the admin cap
+--echo #
+connect (ordinary_1,localhost,u_admin,,,,,);
+SELECT 1 AS ordinary_connection_works;
+disconnect ordinary_1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # 6. Closing an administrative connection frees a slot
+--echo #
+connection admin_2;
+disconnect admin_2;
+--source include/wait_until_disconnected.inc
+connection default;
+--let $wait_condition= SELECT VARIABLE_VALUE = 1 FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Admin_connections'
+--source include/wait_condition.inc
+connect (admin_4,127.0.0.1,u_admin,,,$MASTER_ADMINPORT,,TCP);
+SELECT 1 AS admin_slot_freed;
+connection default;
+
+--echo #
+--echo # 7. Lowering the cap below the number of open administrative
+--echo #    connections affects only new connections
+--echo #
+SET GLOBAL admin_max_connections = 1;
+connection admin_1;
+SELECT 1 AS existing_admin_conn_alive;
+connection default;
+--replace_result $MASTER_ADMINPORT ADMIN_PORT $MASTER_MYSOCK SOURCE_SOCKET
+--error ER_CON_COUNT_ERROR
+connect (admin_5,127.0.0.1,u_admin,,,$MASTER_ADMINPORT,,TCP);
+
+--echo #
+--echo # 8. Setting the value back to 0 removes the limit again
+--echo #
+SET GLOBAL admin_max_connections = 0;
+connect (admin_6,127.0.0.1,u_admin,,,$MASTER_ADMINPORT,,TCP);
+connection default;
+
+--echo #
+--echo # Cleanup
+--echo #
+connection admin_6;
+disconnect admin_6;
+--source include/wait_until_disconnected.inc
+connection admin_4;
+disconnect admin_4;
+--source include/wait_until_disconnected.inc
+connection admin_1;
+disconnect admin_1;
+--source include/wait_until_disconnected.inc
+connection default;
+DROP USER u_admin;
+SET GLOBAL admin_max_connections = DEFAULT;
+--source include/wait_until_count_sessions.inc

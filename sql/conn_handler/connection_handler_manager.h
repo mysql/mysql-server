@@ -116,6 +116,12 @@ class Connection_handler_manager {
 
   // Status variables. Must be static as they are used by the signal handler.
   static uint connection_count;            // Protected by LOCK_connection_count
+  // Bug#99917: administrative interface counters, exposed as the
+  // Admin_connections / Admin_connection_errors_max_connections status
+  // variables. They count administrative connections only.
+  static uint admin_connection_count;      // Protected by LOCK_connection_count
+  static ulong
+      admin_connection_errors_max_connection;  // LOCK_connection_count
   static ulong max_used_connections;       // Protected by LOCK_connection_count
   static ulong max_used_connections_time;  // Protected by LOCK_connection_count
 
@@ -193,9 +199,18 @@ class Connection_handler_manager {
   /**
     Decrease the number of current connections.
   */
-  static void dec_connection_count() {
+  static void dec_connection_count(bool is_admin_connection = false) {
     mysql_mutex_lock(&LOCK_connection_count);
     connection_count--;
+    /*
+      Bug#99917: keep the count of connections established on the
+      administrative interface in sync, so that admin_max_connections can be
+      enforced in check_and_incr_conn_count(). is_admin_connection defaults
+      to false for callers (internal sessions, thread pool) that never serve
+      the administrative interface.
+    */
+    if (is_admin_connection && admin_connection_count > 0)
+      admin_connection_count--;
     /*
       Notify shutdown thread when last connection is done with its job
     */
