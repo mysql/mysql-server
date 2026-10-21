@@ -136,7 +136,7 @@ include/assert.inc [R6: the transaction commits only the row after the rollback.
 include/assert_grep.inc [R6: the failed replacement is reported in the error log.]
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 # A session spills a large transaction and holds it open.
-# Another session's failed promotion turns logging off and closes the log.
+# Another session's failed rotation turns logging off and closes the log.
 # The held transaction commits through the standard path.
 COMMIT;
 include/assert.inc [A closed binary log does not promote.]

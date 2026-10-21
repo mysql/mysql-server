@@ -21,4 +21,18 @@ include/assert.inc [R3: the transaction commits.]
 include/assert_grep.inc [R3: the transaction's rows are in the active binlog file.]
 INSERT INTO t1 VALUES (4, 'after');
 include/assert.inc [R3: the server keeps logging into the active binlog file.]
+# R4: the same failure at max_binlog_size with IGNORE_ERROR turns logging off.
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+BEGIN;
+INSERT INTO t1 VALUES (5, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (6, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (7, REPEAT('f', 4000000));
+SET SESSION DEBUG = "+d,gtid_executed_readonly,simulate_max_binlog_size";
+COMMIT;
+SET SESSION DEBUG = "-d,gtid_executed_readonly,simulate_max_binlog_size";
+include/assert.inc [R4: the transaction commits in the engine.]
+# R4: binary logging is turned off.
+SHOW BINARY LOGS;
+ERROR HY000: You are not using binary logging
+# restart
 DROP TABLE t1;

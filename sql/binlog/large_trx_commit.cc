@@ -55,6 +55,7 @@
 #include "sql/binlog/cache_data.h"            // binlog_cache_data
 #include "sql/binlog/cache_representation.h"  // is_checksum_alg_in_use
 #include "sql/binlog/global.h"                // binlog::global_context
+#include "sql/binlog_index.h"                 // exec_binlog_error_action_abort
 #include "sql/binlog_ostream.h"
 #include "sql/binlog_reader.h"  // IBasic_binlog_file_reader
 #include "sql/log_event.h"
@@ -619,10 +620,23 @@ Spilled_file_promotion_result MYSQL_BIN_LOG::rotate_and_promote_spilled_file(
                           Large_trx_fallback_reason::kGtidPersistence)
       error = 0;
     /*
-      A fatal error stops the transaction: it is handled as a failed
-      rotation, not by a fallback.
+      The rotation runs after the before_commit hook, which can have
+      externalized the transaction, for example to the other members in a
+      Group Replication setup. After a fatal error, neither a fallback nor a
+      rollback of the transaction is safe, so the server aborts, whatever
+      binlog_error_action is.
     */
-    if (thd->is_fatal_error()) error = 1;
+    if (thd->is_fatal_error()) {
+      char abort_message[MYSQL_ERRMSG_SIZE + 512];
+      snprintf(abort_message, sizeof(abort_message),
+               "A fatal error occurred while promoting the spill binlog file "
+               "of a large transaction. The error was '%s'. Aborting the "
+               "server to avoid possible inconsistencies. Check the cause of "
+               "this error before restarting the server",
+               thd->is_error() ? thd->get_stmt_da()->message_text()
+                               : "no error message");
+      exec_binlog_error_action_abort(abort_message);
+    }
     /*
       A rotation reports its errors to the client, as for FLUSH LOGS. Here it
       runs in the flush stage. The flush stage handles a failed rotation

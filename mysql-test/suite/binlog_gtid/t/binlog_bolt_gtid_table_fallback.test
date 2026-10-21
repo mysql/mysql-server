@@ -12,10 +12,15 @@
 # R2. The error log has the rotation's error and the fallback reason.
 # R3. The transaction is in the active binlog file, and the server keeps
 #     logging.
+# R4. When the active binlog file is at max_binlog_size, the same failure
+#     makes the rotation fail. The error is not fatal, so
+#     binlog_error_action applies. With IGNORE_ERROR, binary logging is
+#     turned off, and the transaction commits in the engine.
 #
 # === Implementation ===
 # The upstream debug point gtid_executed_readonly makes the GTID table
-# read-only for one rotation.
+# read-only for one rotation. R4 adds the upstream debug point
+# simulate_max_binlog_size, so the rotation cannot keep the active file.
 #
 --source include/have_debug.inc
 --source include/have_log_bin.inc
@@ -27,8 +32,13 @@
 --disable_query_log
 CALL mtr.add_suppression("Unable to create a new binlog file");
 CALL mtr.add_suppression("Gtid table is not ready to be used");
-CALL mtr.add_suppression("An error occurred in the binlog rotation that promotes the spilled file of a large transaction");
-CALL mtr.add_suppression("Could not optimize large transaction execution in the binary log because");
+CALL mtr.add_suppression("An error occurred in the binlog rotation that promotes the spill binlog file of a large transaction");
+CALL mtr.add_suppression("Could not optimize large transaction execution in the binlog because");
+CALL mtr.add_suppression("An error occurred during flush stage of the commit");
+CALL mtr.add_suppression("Binary logging going to be disabled");
+CALL mtr.add_suppression("Could not open .* for logging");
+CALL mtr.add_suppression("Could not use .* for logging");
+CALL mtr.add_suppression("Hence turning logging off for the whole duration");
 --enable_query_log
 
 RESET BINARY LOGS AND GTIDS;
@@ -65,11 +75,11 @@ SET SESSION DEBUG = "-d,gtid_executed_readonly";
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_only_after = CURRENT_TEST: binlog_gtid.binlog_bolt_gtid_table_fallback
 --let $assert_text = R2: the error log has the rotation's error.
---let $assert_select = An error occurred in the binlog rotation that promotes the spilled file of a large transaction: Gtid table is not ready to be used\. Table 'mysql\.gtid_executed' cannot be opened\.
+--let $assert_select = An error occurred in the binlog rotation that promotes the spill binlog file of a large transaction\. The error was 'Gtid table is not ready to be used\. Table 'mysql\.gtid_executed' cannot be opened\.'\. Check the binlog directory and the binlog temporary files directory\.
 --let $assert_count = 1
 --source include/assert_grep.inc
 --let $assert_text = R2: the error log has the fallback reason.
---let $assert_select = Could not optimize large transaction execution in the binary log because mysql\.gtid_executed could not be updated at the rotation; standard binary logging was used instead\.
+--let $assert_select = Could not optimize large transaction execution in the binlog because mysql\.gtid_executed could not be updated at the rotation. The transaction used the standard commit path instead\.
 --let $assert_count = 1
 --source include/assert_grep.inc
 
@@ -89,6 +99,30 @@ INSERT INTO t1 VALUES (4, 'after');
 --let $assert_text = R3: the server keeps logging into the active binlog file.
 --let $assert_cond = "[SHOW BINARY LOG STATUS, File, 1]" = "$binlog_file_before"
 --source include/assert.inc
+
+--echo # R4: the same failure at max_binlog_size with IGNORE_ERROR turns logging off.
+--let $save_error_action = `SELECT @@GLOBAL.binlog_error_action`
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+BEGIN;
+INSERT INTO t1 VALUES (5, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (6, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (7, REPEAT('f', 4000000));
+SET SESSION DEBUG = "+d,gtid_executed_readonly,simulate_max_binlog_size";
+--disable_warnings
+COMMIT;
+--enable_warnings
+SET SESSION DEBUG = "-d,gtid_executed_readonly,simulate_max_binlog_size";
+--let $assert_text = R4: the transaction commits in the engine.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 7
+--source include/assert.inc
+--echo # R4: binary logging is turned off.
+--error ER_NO_BINARY_LOGGING
+SHOW BINARY LOGS;
+--disable_query_log
+--eval SET GLOBAL binlog_error_action = $save_error_action
+--enable_query_log
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
 
 # Cleanup
 DROP TABLE t1;

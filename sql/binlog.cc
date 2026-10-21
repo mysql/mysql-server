@@ -6684,6 +6684,39 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
   if (!all) cache_mngr->trx_cache.set_prev_position(MY_OFF_T_UNDEF);
 
   /*
+    When the spilled file of the transaction's cache can be promoted, the
+    file is made durable here, before the before_commit hook can
+    externalize the transaction. A failure to write or sync the file rolls
+    the transaction back. The file is synced before the flush stage, so
+    that LOCK_log is not held while it is synced.
+  */
+  binlog_cache_data *large_trx_cache =
+      trx_stuff_logged ? get_cache_for_large_trx_commit(cache_mngr) : nullptr;
+  if (large_trx_cache != nullptr && !is_open()) {
+    record_large_trx_fallback(Large_trx_fallback_reason::kLogClosed);
+    large_trx_cache = nullptr;
+  } else if (large_trx_cache != nullptr &&
+             (DBUG_EVALUATE_IF("fail_bolt_spill_file_sync",
+                               (set_my_errno(EIO), true), false) ||
+              large_trx_cache->get_cache()->flush_and_sync_spilled_file())) {
+    /*
+      The spilled file could not be written or synced, the transaction is
+      rolled back.
+    */
+    const int sync_errno = my_errno();
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_strerror(errbuf, sizeof(errbuf), sync_errno);
+    const char *const spilled_file_name =
+        large_trx_cache->get_cache()->tmp_file_name();
+    LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_SPILL_FILE_SYNC_FAILED,
+           spilled_file_name, sync_errno, errbuf);
+    if (!thd->is_error())
+      my_error(ER_ERROR_ON_WRITE, MYF(0), spilled_file_name, sync_errno,
+               errbuf);
+    return RESULT_ABORTED;
+  }
+
+  /*
     Now all the events are written to the caches, so we will commit
     the transaction in the engines. This is done using the group
     commit logic in ordered_commit, which will return when the
@@ -6745,39 +6778,15 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
           false);
     });
     /*
-      When the spilled file can be promoted, the session marks the file for
-      promotion and becomes the leader of the session's flush group. The
-      promotion rotates the binary log in the flush stage, which only the
-      leader runs.
+      When the spilled file was successfully synced above, the file is marked
+      for promotion, and the session becomes the leader of its flush group.
+      This runs after the before_commit hook and the rollback check, so that
+      the file of a transaction that is rolled back is never marked.
     */
-    if (binlog_cache_data *large_trx_cache =
-            trx_stuff_logged ? get_cache_for_large_trx_commit(cache_mngr)
-                             : nullptr) {
-      /*
-        The spilled file is complete: it is made durable here, before the
-        flush stage, so that LOCK_log is not held while it is synced. A closed
-        binary log is not flushed at all by ordered_commit().
-      */
-      if (!is_open()) {
-        record_large_trx_fallback(Large_trx_fallback_reason::kLogClosed);
-      } else if (DBUG_EVALUATE_IF("fail_bolt_spill_file_sync", true, false) ||
-                 large_trx_cache->get_cache()->flush_and_sync_spilled_file()) {
-        /*
-          The spilled file could not be written or synced, the transaction is
-          rolled back.
-        */
-        if (!thd->is_error()) {
-          char errbuf[MYSYS_STRERROR_SIZE];
-          my_error(ER_ERROR_ON_WRITE, MYF(0),
-                   large_trx_cache->get_cache()->tmp_file_name(), my_errno(),
-                   my_strerror(errbuf, sizeof(errbuf), my_errno()));
-        }
-        return RESULT_ABORTED;
-      } else {
-        large_trx_cache->request_spilled_file_promotion();
-        thd->rpl_thd_ctx.binlog_group_commit_ctx().set_must_lead_flush_group(
-            true);
-      }
+    if (large_trx_cache != nullptr) {
+      large_trx_cache->request_spilled_file_promotion();
+      thd->rpl_thd_ctx.binlog_group_commit_ctx().set_must_lead_flush_group(
+          true);
     }
     if (DBUG_EVALUATE_IF("simulate_xa_commit_log_inconsistency", true, false) ||
         ordered_commit(thd, all, skip_commit)) {

@@ -492,8 +492,9 @@ disconnect restore_session;
 # A transaction that spilled before is still a candidate for promotion. The
 # commit path falls back instead of rotating a closed binlog.
 #
-# Another session's transaction closes the binlog. The session under test only
-# commits afterwards.
+# A failed FLUSH BINARY LOGS in another session closes the binlog. The
+# upstream debug point fault_injection_new_file_rotate_event fails that
+# standard rotation. The session under test only commits afterwards.
 #
 # This case is last, and is followed by a restart, because logging stays off
 # afterwards and the cleanup below needs it back.
@@ -522,17 +523,14 @@ INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
 --enable_result_log
 --enable_query_log
 
---echo # Another session's failed promotion turns logging off and closes the log.
+--echo # Another session's failed rotation turns logging off and closes the log.
 connection default;
 --disable_query_log
 --disable_result_log
-BEGIN;
-INSERT INTO t1 VALUES (11, REPEAT('d', 5000000));
-INSERT INTO t1 VALUES (12, REPEAT('e', 5000000));
-INSERT INTO t1 VALUES (13, REPEAT('f', 5000000));
-SET SESSION debug = "+d,fail_bolt_promoted_file_reopen";
-COMMIT;
-SET SESSION debug = "-d,fail_bolt_promoted_file_reopen";
+SET SESSION debug = "+d,fault_injection_new_file_rotate_event";
+--error 0,ER_ERROR_ON_WRITE,ER_CANT_OPEN_FILE,ER_BINLOG_LOGGING_IMPOSSIBLE
+FLUSH BINARY LOGS;
+SET SESSION debug = "-d,fault_injection_new_file_rotate_event";
 --enable_result_log
 --enable_query_log
 
@@ -552,10 +550,10 @@ COMMIT;
 --let $assert_cond = $missed_after = $missed_before + 1
 --source include/assert.inc
 --let $assert_text = A closed-log fallback still commits all rows.
---let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 6
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
 --let $assert_text = A closed-log fallback preserves the full payload.
---let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = 30000000
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = 15000000
 --source include/assert.inc
 --let $assert_text = The fallback reason is logged: the binlog was closed while the transaction was running.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err

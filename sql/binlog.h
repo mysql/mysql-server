@@ -274,8 +274,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
     transaction's spilled binlog cache file. Called by open_binlog(), under
     LOCK_log and the binary log index lock, after the new file's header events
     are written and before the file is added to the binary log index. The
-    transaction body in the spilled file was already synced, before
-    ordered_commit().
+    transaction body in the spilled file was already synced, before the
+    before_commit hook.
 
     1. Check, under LOCK_log, that binary log encryption is off and that the
        cache's checksum algorithm is binlog_checksum.
