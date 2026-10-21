@@ -1,0 +1,60 @@
+# Same as recv_pending_reads_hang, with a workload whose redo is full of
+# page reorganize records and with slow reads simulated during recovery.
+#
+# Applying MLOG_COMP_PAGE_REORGANIZE in an I/O thread needs a free block
+# (btr_page_reorganize_low() -> buf_block_alloc()). With slow reads, the
+# reads issued by buf_read_recv_pages() pile up and take every free block,
+# and recovery hangs with "Difficult to find free blocks in the buffer
+# pool".
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+# Keep all the redo of the workload after the checkpoint, and keep the
+# pages dirty, so that recovery applies redo to many pages.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+
+# Each table has one leaf page with 30 rows. Growing every row makes the
+# updates delete and reinsert the rows, leaving garbage on the page, so
+# that later updates reorganize the page.
+--disable_query_log
+let $i = 500;
+while ($i) {
+  eval CREATE TABLE t$i (id INT PRIMARY KEY, v VARCHAR(2000));
+  eval INSERT INTO t$i SELECT n, REPEAT('a', 200) FROM
+    (WITH RECURSIVE s(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s
+     WHERE n < 30) SELECT n FROM s) x;
+  dec $i;
+}
+let $r = 1;
+while ($r <= 12) {
+  let $len = `SELECT 200 + $r * 20`;
+  let $i = 500;
+  while ($i) {
+    eval UPDATE t$i SET v = REPEAT('b', $len);
+    dec $i;
+  }
+  inc $r;
+}
+--enable_query_log
+
+--source include/kill_mysqld.inc
+
+# Recover with a small buffer pool, one instance and several read I/O
+# threads, and make the reads of recovery slow.
+let $restart_parameters = restart: --innodb-buffer-pool-size=24M --innodb-buffer-pool-instances=1 --innodb-read-io-threads=4 --debug=+d,recv_slow_read;
+--source include/start_mysqld.inc
+
+SELECT COUNT(*), SUM(LENGTH(v)) FROM t1;
+
+--disable_query_log
+let $i = 500;
+while ($i) {
+  eval DROP TABLE t$i;
+  dec $i;
+}
+--enable_query_log
+
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

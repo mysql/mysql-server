@@ -1,0 +1,2 @@
+--innodb-buffer-pool-size=1G
+--innodb-redo-log-capacity=512M
