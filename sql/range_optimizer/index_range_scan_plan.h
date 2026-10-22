@@ -110,6 +110,10 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
                         (see is_key_scan_ror function for more info)
       is_imerge_scan OUT  Set to reflect if the key scan can be used for
                         index-merge-scan
+      has_unsupported_range_start OUT  Whether an assembled range starts with
+                        an empty key or HA_READ_AFTER_KEY. TempTable cannot use
+                        these starts for forward range scans. May be
+                        nullptr if the caller only needs a cost estimate.
 
   NOTES
     param->table->quick_*, param->range_count (and maybe others) are
@@ -124,7 +128,8 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
                            bool update_tbl_stats, enum_order order_direction,
                            bool skip_records_in_range, uint *mrr_flags,
                            uint *bufsize, Cost_estimate *cost,
-                           bool *is_ror_scan, bool *is_imerge_scan);
+                           bool *is_ror_scan, bool *is_imerge_scan,
+                           bool *has_unsupported_range_start = nullptr);
 
 #ifndef NDEBUG
 void dbug_dump_range(int indent, bool verbose, TABLE *table, int index,

@@ -36,6 +36,7 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/mem_root_array.h"
+#include "sql/mysqld.h"
 #include "sql/opt_hints.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
@@ -160,6 +161,11 @@ class Sel_arg_range_sequence {
   /* Number of ranges in the last checked tree->key */
   uint range_count = 0;
   uint max_key_part;
+
+  // Whether any assembled range has an unbounded or exclusive start.
+  // TempTable cannot use these starts for forward range scans.
+  // Accumulate across all ranges, including after stack resets.
+  bool has_unsupported_range_start = false;
 
   Sel_arg_range_sequence(RANGE_OPT_PARAM *param_arg, bool *is_ror_scan_arg,
                          uchar *min_key_arg, uchar *max_key_arg,
@@ -558,6 +564,12 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
     }
   }
 
+  // Inspect the assembled endpoint: an equality prefix can provide a start
+  // supported by TempTable even when a later key part has no lower bound.
+  seq->has_unsupported_range_start |=
+      range->start_key.length == 0 ||
+      range->start_key.flag == HA_READ_AFTER_KEY;
+
   seq->range_count++;
   seq->max_key_part = max<uint>(seq->max_key_part, key_tree->part);
 
@@ -582,7 +594,10 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
                            bool update_tbl_stats, enum_order order_direction,
                            bool skip_records_in_range, uint *mrr_flags,
                            uint *bufsize, Cost_estimate *cost,
-                           bool *is_ror_scan, bool *is_imerge_scan) {
+                           bool *is_ror_scan, bool *is_imerge_scan,
+                           bool *has_unsupported_range_start) {
+  if (has_unsupported_range_start != nullptr)
+    *has_unsupported_range_start = false;
   uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
   uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
 
@@ -640,6 +655,8 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
   rows = file->multi_range_read_info_const(keynr, &seq_if, (void *)&seq, 0,
                                            bufsize, mrr_flags,
                                            &force_default_mrr, cost);
+  if (has_unsupported_range_start != nullptr)
+    *has_unsupported_range_start = seq.has_unsupported_range_start;
   if (rows != HA_POS_ERROR) {
     param->table->quick_rows[keynr] = rows;
     if (update_tbl_stats) {
@@ -878,11 +895,22 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
 
       Opt_trace_object trace_idx(trace);
       trace_idx.add_utf8("index", param->table->key_info[keynr].name);
-      bool is_ror_scan, is_imerge_scan;
+      bool is_ror_scan, is_imerge_scan, has_unsupported_range_start;
       found_records = check_quick_select(
           thd, param, idx, read_index_only, key, update_tbl_stats,
           order_direction, skip_records_in_range, &mrr_flags, &buf_size, &cost,
-          &is_ror_scan, &is_imerge_scan);
+          &is_ror_scan, &is_imerge_scan, &has_unsupported_range_start);
+      // TempTable cannot start a forward range with index_first() or
+      // HA_READ_AFTER_KEY. Reject it before it becomes the access path;
+      // a table scan can then apply the predicate and filesort instead.
+      // Keep this separate from costing: skip-scan callers also use
+      // check_quick_select() for prefix estimates.
+      if (found_records != HA_POS_ERROR && has_unsupported_range_start &&
+          param->table->s->db_type() == temptable_hton) {
+        trace_idx.add("chosen", false)
+            .add_alnum("cause", "unsupported TempTable range start");
+        continue;
+      }
       if (found_records != HA_POS_ERROR && ror_only && !is_ror_scan) {
         trace_idx.add("chosen", false).add_alnum("cause", "not_rowid_ordered");
         continue;

@@ -2131,6 +2131,25 @@ static uint test_if_subkey(ORDER_with_src *order, JOIN_TAB *tab, uint ref,
 }
 
 /**
+  Check whether TempTable supports scanning an index range backwards.
+
+  Only equality ranges covering the entire key are supported. Other ranges
+  require index_last(), HA_READ_BEFORE_KEY or HA_READ_PREFIX_LAST_OR_PREV.
+  ReverseIndexRangeScanIterator also clears EQ_RANGE for a key prefix.
+*/
+static bool temptable_supports_reverse_range(const TABLE *table,
+                                             const AccessPath *path) {
+  if (path->type != AccessPath::INDEX_RANGE_SCAN) return false;
+  const auto &range_scan = path->index_range_scan();
+  const KEY &key = table->key_info[range_scan.index];
+  return std::all_of(
+      range_scan.ranges, range_scan.ranges + range_scan.num_ranges,
+      [&key](const QUICK_RANGE *range) {
+        return (range->flag & EQ_RANGE) && range->max_length == key.key_length;
+      });
+}
+
+/**
   It is not obvious to see that test_if_skip_sort_order() never changes the
   plan if no_changes is true. So we double-check: creating an instance of this
   class saves some important access-path-related information of the current
@@ -2588,6 +2607,19 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
 check_reverse_order:
   assert(order_direction != 0);
 
+  // TempTable cannot replace the current access with a full index scan:
+  // its handler does not support index_first()/index_last(). Require a new
+  // range on the chosen ordering index before changing any access state,
+  // regardless of whether the original access was a table scan, ref or range.
+  // Otherwise, fix_ICP restores the original range and retains filesort.
+  if (best_key >= 0 && table->s->db_type() == temptable_hton &&
+      (no_changes || tab->range_scan() == nullptr ||
+       tab->range_scan() == save_range_scan ||
+       used_index(tab->range_scan()) != (uint)best_key)) {
+    can_skip_sorting = false;
+    goto fix_ICP;
+  }
+
   if (order_direction == -1)  // If ORDER BY ... DESC
   {
     if (tab->range_scan()) {
@@ -2618,6 +2650,18 @@ check_reverse_order:
 
   assert(can_skip_sorting);
 
+  // Reject reverse range scans unsupported by TempTable before changing
+  // the access method, so fix_ICP can restore the original access path
+  // and retain filesort.
+  // Ordinary forward TempTable ranges have already been checked by
+  // get_key_scans_params().
+  if (order_direction == -1 && table->s->db_type() == temptable_hton &&
+      tab->range_scan() != nullptr &&
+      !temptable_supports_reverse_range(table, tab->range_scan())) {
+    can_skip_sorting = false;
+    goto fix_ICP;
+  }
+
   /*
     Update query plan with access pattern for doing
     ordered access according to what we have decided
@@ -2639,6 +2683,9 @@ check_reverse_order:
              keyuse->table_ref == tab->table_ref)
         keyuse++;
 
+      // A generated ordering key retained by another CTE reference may have
+      // been pruned from this reference's key map by finalize_derived_keys().
+      tab->keys().set_bit(changed_key);
       if (create_ref_for_key(join, tab, keyuse, tab->prefix_tables())) {
         can_skip_sorting = false;
         goto fix_ICP;
@@ -2670,12 +2717,10 @@ check_reverse_order:
         and best_key doesn't, then revert the decision.
       */
       if (!table->covering_keys.is_set(best_key)) table->set_keyread(false);
-      // Create an index scan if the table is not a temporary table that uses
-      // Temptable engine (Does not support index_first() and index_last()) and
-      // if there was no new range scan created.
-      if (!(is_temporary_table(tab->table_ref) &&
-            tab->table_ref->table->s->db_type() == temptable_hton) &&
-          ((!tab->range_scan() || tab->range_scan() == save_range_scan))) {
+      // Create an index scan if no new range scan was created. The TempTable
+      // guard above ensures that its unsupported full index scans cannot
+      // reach this branch.
+      if (!tab->range_scan() || tab->range_scan() == save_range_scan) {
         // Avoid memory leak:
         assert(tab->range_scan() == save_range_scan ||
                tab->range_scan() == nullptr);
@@ -2698,11 +2743,15 @@ check_reverse_order:
         */
         table->file->ha_index_or_rnd_end();
         tab->position()->filter_effect = COND_FILTER_STALE;
-      } else if (tab->type() != JT_ALL) {
+      } else if (tab->type() != JT_ALL ||
+                 (tab->range_scan() && tab->range_scan() != save_range_scan)) {
         /*
           We're about to use a quick access to the table.
           We need to change the access method so as the quick access
-          method is actually used.
+          method is actually used, including a newly selected ordered range
+          replacing a table scan. Changing QS_DYNAMIC_RANGE to QS_RANGE
+          prevents execution from rebuilding it with ORDER_NOT_RELEVANT and
+          losing the requested ordering.
         */
         assert(tab->range_scan());
         assert(used_index(tab->range_scan()) == (uint)best_key);
@@ -2962,6 +3011,17 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                 &tab->needed_reg, recheck_range, tab->join()->query_block,
                 &range_scan) > 0) {
           if (length < get_max_used_key_length(range_scan)) {
+            // This candidate may be created after the reverse-range check in
+            // test_if_skip_sort_order(). Validate it before replacing the
+            // current access path; reverse ref access can still be used.
+            if (ordering == ORDER_DESC &&
+                tab->table()->s->db_type() == temptable_hton &&
+                !temptable_supports_reverse_range(tab->table(), range_scan)) {
+              Opt_trace_object(trace, "access_type_unchanged")
+                  .add_alnum("cause", "unsupported TempTable reverse range");
+              ::destroy_at(range_scan);
+              return false;
+            }
             if (tab->range_scan() != nullptr) ::destroy_at(tab->range_scan());
             tab->set_range_scan(range_scan);
             return true;
