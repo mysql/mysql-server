@@ -1454,7 +1454,7 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
   auto cleanup_chain_guard = create_scope_guard([&] {
     if (chain && fk_added_to_chain) {
       chain->remove_foreign_key(table_c->s->db.str, fk_c->fk_name.str);
-      thd->dec_fk_cascade_chain_tables();
+      if (table_p->s != table_c->s) thd->dec_fk_cascade_chain_tables();
       DBUG_PRINT("fk",
                  ("check_child_fk_ref(): Removed %s from Foreign_key_chain %d",
                   fk_c->fk_name.str, chain->size()));
