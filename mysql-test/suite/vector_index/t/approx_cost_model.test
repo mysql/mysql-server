@@ -1,0 +1,171 @@
+# Copyright 2026 Google LLC
+
+--source include/elide_costs.inc
+--source include/have_debug.inc
+use test;
+
+delimiter |;
+create procedure fill_vector_table(tname varchar(40), n_rows int)
+begin
+  declare i int default 1;
+  declare d1 float default 1.0;
+  declare d2 float default 2.0;
+  declare d3 float default 3.0;
+  while i <= n_rows do
+    set @s = concat("insert into ", tname, " (id, emb, name, next_id)values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'), name, ", i+1, ")");
+    prepare stmt from @s;
+    execute stmt;
+    set i = i + 1;
+    set d1 = d1 + 1;
+    set d2 = d2 + 1;
+    set d3 = d3 + 1;
+  end while;
+end |
+delimiter ;|
+
+CREATE TABLE t1(
+  id int, emb vector(3), name VARCHAR(20), next_id int, PRIMARY KEY(id));
+
+--disable_query_log
+CALL fill_vector_table('t1', 2000);
+--enable_query_log
+
+--echo create vector index
+create vector index vecIndex1 on t1(emb)distance_measure=l2_squared;
+
+--echo create secondary indexes
+create index i1 on t1(name);
+create index i2 on t1(next_id);
+
+--echo Test 1: Cost tests
+--echo Expect Vector Index Scan over full Table Scan
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect IndexScan on i2
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id = 2
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect IndexScan on i1
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id = 2 and name = 't1'
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect IndexScan on i1
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where name = 't1'
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect Index Merge on i1 and i2
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id = 2 or name = 't1'
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect PK loopup
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where id = 2
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect IndexScan on PRIMARY
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where id in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect Vector Index Scan over range scan on PRIMARY
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id between 2 and 100
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect Vector Index Scan over range scan on i1
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where name like '%t%'
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect Vector Index Scan over range scan on i1
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where length(name)> 10
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect Vector Index Scan over full Table Scan
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where id + next_id = 10
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+--echo Expect IndexScan on PRIMARY
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where id = 2 and next_id = 3
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10;
+
+
+--echo Test 2: Limit tests
+--echo Expect Vector Index Scan limit 1 < filtered rows 100
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id between 2 and 100
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 1;
+
+--echo Expect Vector Index Scan limit 2 < filtered rows 100
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id between 2 and 100
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 5;
+
+--echo Expect Vector Index Scan limit 20 < filtered rows 100
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id between 2 and 100
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 20;
+
+-- echo Expect Index Range Scan limit 100 = filtered rows 100
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id between 2 and 100
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 100;
+
+-- echo Expect Index Range Scan limit 1000 > filtered rows 100
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id between 2 and 100
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 1000;
+
+-- echo Expect Index Range Scan limit 1000 > filtered rows 100
+--replace_regex $elide_costs
+explain format=tree
+  select * from t1 where next_id between 2 and 100
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+    limit 10000;
+
+--echo Drop the procedure and the table
+drop procedure fill_vector_table;
+drop table t1;

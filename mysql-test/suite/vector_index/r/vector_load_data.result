@@ -1,0 +1,68 @@
+use test;
+create procedure fill_vector_table(tname varchar(40), n_rows int)
+begin
+declare i int default 1;
+declare d1 float default 1.0;
+declare d2 float default 2.0;
+declare d3 float default 3.0;
+while i <= n_rows do
+set @s = concat("insert into ", tname, " values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'))");
+prepare stmt from @s;
+execute stmt;
+set i = i + 1;
+set d1 = d1 + 1;
+set d2 = d2 + 1;
+set d3 = d3 + 1;
+end while;
+end |
+# Test Case 1: Use outfile and load data with vector-type column
+CREATE TABLE t1(id int PRIMARY KEY, emb vector(3) USING varbinary);
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1' CHARACTER SET binary FIELDS TERMINATED BY ',' LINES TERMINATED BY '\r\n'
+FROM t1;
+DELETE FROM t1;
+load data infile 'MYSQLTEST_VARDIR/tmp/t1' INTO TABLE t1 CHARACTER SET binary FIELDS TERMINATED BY ',' LINES TERMINATED BY '\r\n';
+SELECT id, vector_to_string(emb) FROM t1;
+id	vector_to_string(emb)
+1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	[2.00000e+00,3.00000e+00,4.00000e+00]
+3	[3.00000e+00,4.00000e+00,5.00000e+00]
+4	[4.00000e+00,5.00000e+00,6.00000e+00]
+5	[5.00000e+00,6.00000e+00,7.00000e+00]
+6	[6.00000e+00,7.00000e+00,8.00000e+00]
+7	[7.00000e+00,8.00000e+00,9.00000e+00]
+8	[8.00000e+00,9.00000e+00,1.00000e+01]
+9	[9.00000e+00,1.00000e+01,1.10000e+01]
+10	[1.00000e+01,1.10000e+01,1.20000e+01]
+# Test Case 2: Use mysqldump and recreate table with vector-type column
+CREATE TABLE t2(id int PRIMARY KEY, emb vector(3) USING varbinary);
+CALL fill_vector_table('t2', 10);
+SELECT id, vector_to_string(emb) FROM t2;
+id	vector_to_string(emb)
+1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	[2.00000e+00,3.00000e+00,4.00000e+00]
+3	[3.00000e+00,4.00000e+00,5.00000e+00]
+4	[4.00000e+00,5.00000e+00,6.00000e+00]
+5	[5.00000e+00,6.00000e+00,7.00000e+00]
+6	[6.00000e+00,7.00000e+00,8.00000e+00]
+7	[7.00000e+00,8.00000e+00,9.00000e+00]
+8	[8.00000e+00,9.00000e+00,1.00000e+01]
+9	[9.00000e+00,1.00000e+01,1.10000e+01]
+10	[1.00000e+01,1.10000e+01,1.20000e+01]
+# Drop the table
+DROP TABLE t2;
+# then recreate it from the dumped file.
+SELECT id, vector_to_string(emb) FROM t2;
+id	vector_to_string(emb)
+1	[1.00000e+00,2.00000e+00,3.00000e+00]
+2	[2.00000e+00,3.00000e+00,4.00000e+00]
+3	[3.00000e+00,4.00000e+00,5.00000e+00]
+4	[4.00000e+00,5.00000e+00,6.00000e+00]
+5	[5.00000e+00,6.00000e+00,7.00000e+00]
+6	[6.00000e+00,7.00000e+00,8.00000e+00]
+7	[7.00000e+00,8.00000e+00,9.00000e+00]
+8	[8.00000e+00,9.00000e+00,1.00000e+01]
+9	[9.00000e+00,1.00000e+01,1.10000e+01]
+10	[1.00000e+01,1.10000e+01,1.20000e+01]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP procedure fill_vector_table;

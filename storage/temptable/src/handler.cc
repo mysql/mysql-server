@@ -871,6 +871,7 @@ ulong Handler::index_flags(uint index_no, uint, bool) const {
     case HA_KEY_ALG_SE_SPECIFIC:
     case HA_KEY_ALG_RTREE:
     case HA_KEY_ALG_FULLTEXT:
+    case HA_KEY_ALG_KMEANS:
       flags = 0;
       break;
   }

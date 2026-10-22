@@ -1,0 +1,235 @@
+use test;
+create procedure fill_vector_table(tname varchar(40), n_rows int)
+begin
+declare i int default 1;
+declare d1 float default 1.0;
+declare d2 float default 2.0;
+declare d3 float default 3.0;
+while i <= n_rows do
+set @s = concat("insert into ", tname, " (id, emb, name, next_id)values (", i , ", string_to_vector('[", d1, ",", d2, ",", d3, "]'), name, ", i+1, ")");
+prepare stmt from @s;
+execute stmt;
+set i = i + 1;
+set d1 = d1 + 1;
+set d2 = d2 + 1;
+set d3 = d3 + 1;
+end while;
+end |
+CREATE TABLE t1(
+id int, emb vector(3), name VARCHAR(20), next_id int, PRIMARY KEY(id));
+create vector index
+create vector index vecIndex1 on t1(emb)distance_measure=l2_squared;
+create secondary indexes
+create index i1 on t1(name);
+create index i2 on t1(next_id);
+Test 1: Cost tests
+Expect Vector Index Scan over full Table Scan
+explain format=tree
+select * from t1
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=2000)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Single-row index lookup on t1 using PRIMARY (id = t1.id)  (rows=1)
+
+Expect IndexScan on i2
+explain format=tree
+select * from t1 where next_id = 2
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=1)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1)
+        -> Index lookup on t1 using i2 (next_id = 2)  (rows=1)
+
+Expect IndexScan on i1
+explain format=tree
+select * from t1 where next_id = 2 and name = 't1'
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=1)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1)
+        -> Filter: (t1.next_id = 2)  (rows=1)
+            -> Index lookup on t1 using i1 (name = 't1')  (rows=1)
+
+Expect IndexScan on i1
+explain format=tree
+select * from t1 where name = 't1'
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=1)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1)
+        -> Index lookup on t1 using i1 (name = 't1')  (rows=1)
+
+Expect Index Merge on i1 and i2
+explain format=tree
+select * from t1 where next_id = 2 or name = 't1'
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=2)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=2)
+        -> Filter: ((t1.next_id = 2) or (t1.`name` = 't1'))  (rows=2)
+            -> Deduplicate rows sorted by row ID  (rows=2)
+                -> Index range scan on t1 using i2 over (next_id = 2)  (rows=1)
+                -> Index range scan on t1 using i1 over (name = 't1')  (rows=1)
+
+Expect PK loopup
+explain format=tree
+select * from t1 where id = 2
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=1)
+    -> Rows fetched before execution  (rows=1)
+
+Expect IndexScan on PRIMARY
+explain format=tree
+select * from t1 where id in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=15)
+        -> Filter: (t1.id in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15))  (rows=15)
+            -> Index range scan on t1 using PRIMARY over (id = 1) OR (id = 2) OR (13 more)  (rows=15)
+
+Expect Vector Index Scan over range scan on PRIMARY
+explain format=tree
+select * from t1 where next_id between 2 and 100
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=2000)
+        -> Vector index join (with iterative filtering)  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Filter: (t1.next_id between 2 and 100)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (id = t1.id)
+
+Expect Vector Index Scan over range scan on i1
+explain format=tree
+select * from t1 where name like '%t%'
+    order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=2000)
+        -> Vector index join (with iterative filtering)  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Filter: (t1.`name` like '%t%')  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (id = t1.id)
+
+Expect Vector Index Scan over range scan on i1
+explain format=tree
+select * from t1 where length(name)> 10
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=2000)
+        -> Vector index join (with iterative filtering)  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Filter: (length(t1.`name`) > 10)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (id = t1.id)
+
+Expect Vector Index Scan over full Table Scan
+explain format=tree
+select * from t1 where id + next_id = 10
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=2000)
+        -> Vector index join (with iterative filtering)  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Filter: ((t1.id + t1.next_id) = 10)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (id = t1.id)
+
+Expect IndexScan on PRIMARY
+explain format=tree
+select * from t1 where id = 2 and next_id = 3
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=1)
+    -> Rows fetched before execution  (rows=1)
+
+Test 2: Limit tests
+Expect Vector Index Scan limit 1 < filtered rows 100
+explain format=tree
+select * from t1 where next_id between 2 and 100
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 1 row(s) per chunk  (rows=2000)
+        -> Vector index join (with iterative filtering)  (rows=1)
+            -> Vector index scan on t1  (rows=1)
+            -> Filter: (t1.next_id between 2 and 100)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (id = t1.id)
+
+Expect Vector Index Scan limit 2 < filtered rows 100
+explain format=tree
+select * from t1 where next_id between 2 and 100
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 5;
+EXPLAIN
+-> Limit: 5 row(s)  (rows=5)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 5 row(s) per chunk  (rows=2000)
+        -> Vector index join (with iterative filtering)  (rows=5)
+            -> Vector index scan on t1  (rows=5)
+            -> Filter: (t1.next_id between 2 and 100)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (id = t1.id)
+
+Expect Vector Index Scan limit 20 < filtered rows 100
+explain format=tree
+select * from t1 where next_id between 2 and 100
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 20;
+EXPLAIN
+-> Limit: 20 row(s)  (rows=20)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 20 row(s) per chunk  (rows=2000)
+        -> Vector index join (with iterative filtering)  (rows=20)
+            -> Vector index scan on t1  (rows=20)
+            -> Filter: (t1.next_id between 2 and 100)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (id = t1.id)
+
+Expect Index Range Scan limit 100 = filtered rows 100
+explain format=tree
+select * from t1 where next_id between 2 and 100
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 100;
+EXPLAIN
+-> Limit: 100 row(s)  (rows=99)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 100 row(s) per chunk  (rows=99)
+        -> Index range scan on t1 using i2 over (2 <= next_id <= 100), with index condition: (t1.next_id between 2 and 100)  (rows=99)
+
+Expect Index Range Scan limit 1000 > filtered rows 100
+explain format=tree
+select * from t1 where next_id between 2 and 100
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 1000;
+EXPLAIN
+-> Limit: 1000 row(s)  (rows=99)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 1000 row(s) per chunk  (rows=99)
+        -> Index range scan on t1 using i2 over (2 <= next_id <= 100), with index condition: (t1.next_id between 2 and 100)  (rows=99)
+
+Expect Index Range Scan limit 1000 > filtered rows 100
+explain format=tree
+select * from t1 where next_id between 2 and 100
+order by approx_distance(emb, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+limit 10000;
+EXPLAIN
+-> Limit: 10000 row(s)  (rows=99)
+    -> Sort: approx_distance(t1.emb,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10000 row(s) per chunk  (rows=99)
+        -> Index range scan on t1 using i2 over (2 <= next_id <= 100), with index condition: (t1.next_id between 2 and 100)  (rows=99)
+
+Drop the procedure and the table
+drop procedure fill_vector_table;
+drop table t1;

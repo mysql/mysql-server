@@ -1,0 +1,56 @@
+# Copyright 2026 Google LLC
+
+use test;
+create table t1 (id int primary key, embeddings vector(4));
+
+--echo # Insert rows with incompatible dimensions
+--error ER_VECTOR_DATA_DIMENSION_MISMATCH
+insert into t1 values (1, string_to_vector('[1.2, 2.0, -0.8]'));
+--error ER_VECTOR_DATA_DIMENSION_MISMATCH
+insert into t1 values (1, string_to_vector('[1.2]'));
+
+insert into t1 values (1, string_to_vector('[1.2, 2.0, -0.8, 54]'));
+
+--echo # Update a row with incompatible dimensions
+--error ER_VECTOR_DATA_DIMENSION_MISMATCH
+update t1 set embeddings = string_to_vector('[1.2, 2.0, -0.8]') where id = 1;
+
+--let $table_name=t2
+--let $index_name=t2_idx
+--let $column_name=j
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+
+--echo # Table has compatible dimensions except for the last row
+create table t3(i int primary key, j blob);
+insert into t3 select * from t2;
+insert into t3 values (1001, string_to_vector('[1.2, 2.0]'));
+
+delete from t2;
+--echo # Insert rows with incompatible dimensions from another table
+--error ER_VECTOR_DATA_DIMENSION_MISMATCH
+insert into t2 select * from t3;
+
+select vector_to_string(j) from t2 where i in (1000, 999, 998, 997);
+
+--echo # Bulk insert rows with compatible dimensions
+--let $table_name=t4
+--let $index_name=t4_idx
+--let $column_name=j
+--let $dimensions=3
+--let $rows=8000
+--let $deterministic=1
+--let $bulk=1
+--let $add_one_less_dimension=0
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic $bulk $add_one_less_dimension| $MYSQL test 2>&1
+select vector_to_string(j) from t4 where i in (8000, 7999, 7998, 7997);
+
+--echo # Bulk insert rows with incompatible dimensions (one row has one less dimension)
+--let $add_one_less_dimension=1
+--let $table_name=t5
+--error 1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic $bulk $add_one_less_dimension| $MYSQL test 2>&1
+
+drop table t1, t2, t3, t4, t5;

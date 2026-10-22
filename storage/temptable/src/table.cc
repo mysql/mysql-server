@@ -290,6 +290,7 @@ void Table::indexes_create() {
       case HA_KEY_ALG_SE_SPECIFIC:
       case HA_KEY_ALG_RTREE:
       case HA_KEY_ALG_FULLTEXT:
+      case HA_KEY_ALG_KMEANS:
         DBUG_ABORT();
     }
   }

@@ -69,9 +69,10 @@ include/assert_grep.inc [Check the vector columns are available]
 #
 FROM_VECTOR(a2)	FROM_VECTOR(a3)
 [1.00000e+00,2.00000e+00]	[1.00000e+00]
-ERROR 22001: Data too long for column 'a3' at row 1
+ERROR HY000: Provided vector dimensions (2) do not match the defined column dimensions (1).
+ERROR HY000: Provided vector dimensions (1) do not match the defined column dimensions (2).
 FROM_VECTOR(a2)	FROM_VECTOR(a3)
-[1.00000e+00]	[1.00000e+00]
+[1.00000e+00,2.00000e+00]	[1.00000e+00]
 include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:a,slave:a]
 [connection master]
@@ -83,8 +84,8 @@ include/rpl/sync_to_replica.inc
 [connection slave]
 [connection master]
 pk	FROM_VECTOR(v1)
-1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
-2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
 [connection slave]
 include/rpl/wait_for_applier_error.inc [errno=13146]
 [connection master]
@@ -98,8 +99,8 @@ include/rpl/sync_to_replica.inc
 [connection slave]
 [connection master]
 pk	FROM_VECTOR(v1)
-1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
-2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
 [connection slave]
 include/rpl/wait_for_applier_error.inc [errno=13146]
 [connection master]
@@ -158,8 +159,8 @@ include/rpl/sync_to_replica.inc
 [connection slave]
 [connection master]
 pk	FROM_VECTOR(v1)
-1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
-2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00,1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00,5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
 [connection slave]
 include/rpl/wait_for_applier_error.inc [errno=13146]
 [connection master]

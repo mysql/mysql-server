@@ -138,6 +138,7 @@ void ForEachChild(AccessPathPtr path, JoinPtr join,
     case AccessPath::ZERO_ROWS_AGGREGATED:
     case AccessPath::MATERIALIZED_TABLE_FUNCTION:
     case AccessPath::UNQUALIFIED_COUNT:
+    case AccessPath::VECTOR_INDEX_SCAN:
       // No children.
       break;
     case AccessPath::NESTED_LOOP_JOIN:
@@ -243,6 +244,10 @@ void ForEachChild(AccessPathPtr path, JoinPtr join,
     case AccessPath::UPDATE_ROWS:
       func(path->update_rows().child, join);
       break;
+    case AccessPath::VECTOR_INDEX_JOIN:
+      func(path->vector_index_join().outer, join);
+      func(path->vector_index_join().inner, join);
+      break;
   }
 }
 
@@ -315,6 +320,8 @@ void WalkTablesUnderAccessPath(const AccessPath *root_path, Func &&func,
             return false;
           case AccessPath::WINDOW:
             return func(path->window().temp_table);
+          case AccessPath::VECTOR_INDEX_SCAN:
+            return func(path->vector_index_scan().table);
           case AccessPath::AGGREGATE:
           case AccessPath::APPEND:
           case AccessPath::BKA_JOIN:
@@ -339,6 +346,7 @@ void WalkTablesUnderAccessPath(const AccessPath *root_path, Func &&func,
           case AccessPath::ROWID_UNION:
           case AccessPath::DELETE_ROWS:
           case AccessPath::UPDATE_ROWS:
+          case AccessPath::VECTOR_INDEX_JOIN:
             return false;
         }
         assert(false);

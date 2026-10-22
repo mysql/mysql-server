@@ -1,0 +1,83 @@
+USE test;
+# Initial Data inserted
+# Test case 1: prepared statements
+PREPARE stmt FROM 'INSERT INTO t1 VALUES (?, ?)';
+SET @value1 = 1001;
+SET @value2 = string_to_vector("[1,1,1]");
+EXECUTE stmt USING @value1, @value2;
+PREPARE stmt FROM 'SELECT vector_to_string(j) FROM t1 WHERE i=? AND j=?';
+EXECUTE stmt USING @value1, @value2;
+vector_to_string(j)
+[1.00000e+00,1.00000e+00,1.00000e+00]
+PREPARE stmt FROM 'INSERT INTO t1 VALUES (?, string_to_vector(?))';
+SET @value1 = 1002;
+SET @value2 = "[1,1,1]";
+EXECUTE stmt USING @value1, @value2;
+PREPARE stmt FROM 'SELECT vector_to_string(j) FROM t1 WHERE i=?';
+EXECUTE stmt USING @value1;
+vector_to_string(j)
+[1.00000e+00,1.00000e+00,1.00000e+00]
+PREPARE stmt FROM "CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=l2_squared";
+EXECUTE stmt;
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+index_name
+vec_index
+# Test case 2: prepared statements with select into
+PREPARE stmt FROM 'SELECT cosine_distance(j, string_to_vector("[3,1,2]")) AS distance FROM t1 WHERE i=? INTO @temp';
+SET @value1 = 5;
+EXECUTE stmt USING @value1;
+PREPARE stmt FROM 'DROP INDEX vec_index ON t1';
+EXECUTE stmt;
+# Test case 3: select into
+CREATE VECTOR INDEX vec_index ON t1(j) DISTANCE_MEASURE=l2_squared;
+SELECT vector_to_string(j) FROM t1 WHERE i = 10 INTO @vec;
+INSERT INTO t1 VALUES (1003, string_to_vector(@vec));
+# Select the count since vector values are random
+SELECT COUNT(*) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 2 INTO @num;
+SELECT @num;
+@num
+1003
+DELETE FROM t1 WHERE i > 1000;
+PREPARE stmt FROM 'SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector("[1,2,3]"), "distance_measure=l2_squared") LIMIT ?';
+SET @v = 1;
+EXECUTE stmt USING @v;
+i
+1
+SELECT i, cosine_distance(j, string_to_vector('[1,2,3]')) dist FROM t1 ORDER BY dist LIMIT 1 INTO @closest, @dist;
+# Test case 4: fetch into
+CREATE PROCEDURE fetch_vectors()
+BEGIN
+DECLARE done INT DEFAULT FALSE;
+DECLARE v_id INT;
+DECLARE v_vector VECTOR(3) USING VARBINARY;
+DECLARE vector_cursor CURSOR FOR
+SELECT i, j FROM t1;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+OPEN vector_cursor;
+read_loop: LOOP
+FETCH vector_cursor INTO v_id, v_vector;
+IF v_id > 5 THEN
+SET done = TRUE;
+END IF;
+IF done THEN
+LEAVE read_loop;
+END IF;
+-- Output the fetched id & vector length
+SELECT CONCAT('ID: ', v_id, ', Vector: ', length(v_vector));
+END LOOP;
+CLOSE vector_cursor;
+end |
+CALL fetch_vectors();
+CONCAT('ID: ', v_id, ', Vector: ', length(v_vector))
+ID: 1, Vector: 12
+CONCAT('ID: ', v_id, ', Vector: ', length(v_vector))
+ID: 2, Vector: 12
+CONCAT('ID: ', v_id, ', Vector: ', length(v_vector))
+ID: 3, Vector: 12
+CONCAT('ID: ', v_id, ', Vector: ', length(v_vector))
+ID: 4, Vector: 12
+CONCAT('ID: ', v_id, ', Vector: ', length(v_vector))
+ID: 5, Vector: 12
+DROP INDEX vec_index ON t1;
+DROP PROCEDURE fetch_vectors;
+DROP TABLE t1;

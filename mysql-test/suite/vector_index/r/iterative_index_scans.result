@@ -1,0 +1,817 @@
+use test;
+Initial Data inserted
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+create vector index vec_index on t2(j) distance_measure=l2_squared;
+alter table t2 add column k int;
+alter table t1 add column k int;
+update t2 set k = FLOOR(RAND() * 1000) + 1;
+update t1 set k = FLOOR(RAND() * 1000) + 1;
+# Query plans with filters and index scans disabled
+set cloudsql_vector_iterative_filtering=OFF;
+select i from t1 where i < 900  order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 15;
+i
+35
+628
+8
+201
+284
+559
+798
+152
+651
+269
+821
+181
+202
+99
+702
+select i from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+explain format=tree select * from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Filter: ((t1.i % 20) = 0)  (rows=10)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 where i between 20 and 200 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Filter: (t1.i between 20 and 200)  (rows=10)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 where i between 20 and 200 order by i % 3, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: (t1.i % 3), approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Filter: (t1.i between 20 and 200)  (rows=10)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i from t1, t2 where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+35
+35
+35
+35
+35
+35
+35
+35
+35
+explain format=tree select * from t1, t2 where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=181000)
+            -> Inner hash join (no condition)  (rows=181000)
+                -> Table scan on t2  (rows=1000)
+                -> Hash
+                    -> Filter: (t1.i between 20 and 200)  (rows=181)
+                        -> Nested loop inner join  (rows=10)
+                            -> Vector index scan on t1  (rows=10)
+                            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1, t2 where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=1810)
+            -> Inner hash join (no condition)  (rows=1810)
+                -> Filter: (t2.i between 20 and 200)  (rows=181)
+                    -> Index range scan on t2 using PRIMARY over (20 <= i <= 200)  (rows=181)
+                -> Hash
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i from t1 inner join t2 on t1.i = t2.i where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+152
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Filter: (t1.i between 20 and 200)  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Filter: (t1.i between 20 and 200)  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+152
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Filter: (t1.i between 20 and 200)  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Filter: (t1.i between 20 and 200)  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Filter: (t1.i between 20 and 200)  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: t2.i, approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=181)
+            -> Nested loop inner join  (rows=181)
+                -> Filter: (t1.i between 20 and 200)  (rows=181)
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+                -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t2.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=1.81)
+            -> Inner hash join (t2.i = t1.i)  (rows=1.81)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t2  (rows=10)
+                    -> Single-row index lookup on t2 using PRIMARY (i = t2.i)  (rows=1)
+                -> Hash
+                    -> Filter: (t1.i between 20 and 200)  (rows=181)
+                        -> Nested loop inner join  (rows=10)
+                            -> Vector index scan on t1  (rows=10)
+                            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Filter: (t1.i between 20 and 200)  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: t2.i, approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=181)
+            -> Nested loop inner join  (rows=181)
+                -> Filter: (t1.i between 20 and 200)  (rows=181)
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+                -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t2.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=1.81)
+            -> Inner hash join (t2.i = t1.i)  (rows=1.81)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t2  (rows=10)
+                    -> Single-row index lookup on t2 using PRIMARY (i = t2.i)  (rows=1)
+                -> Hash
+                    -> Filter: (t1.i between 20 and 200)  (rows=181)
+                        -> Nested loop inner join  (rows=10)
+                            -> Vector index scan on t1  (rows=10)
+                            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+select i % 3 val from t1 group by val, j order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+val
+2
+1
+2
+0
+2
+1
+0
+2
+0
+2
+explain format=tree select i % 3 val from t1 group by val, j order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Table scan on <temporary>  (rows=10)
+            -> Temporary table with deduplication  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select i % 3 val from t1 group by val, j having val = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')
+        -> Filter: (val = 1)
+            -> Table scan on <temporary>  (rows=10)
+                -> Temporary table with deduplication  (rows=10)
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select i % 3 val from t1 group by val, j having val = 1 order by val, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: val, approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')
+        -> Filter: (val = 1)
+            -> Table scan on <temporary>  (rows=10)
+                -> Temporary table with deduplication  (rows=10)
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+select * from (select i from t1 where i % 2 = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as tmp where i < 100;
+i
+35
+explain format=tree select * from (select i from t1 where i % 2 = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as tmp where i < 100;
+EXPLAIN
+-> Filter: (tmp.i < 100)  (rows=3.33)
+    -> Table scan on tmp  (rows=10)
+        -> Materialize  (rows=10)
+            -> Limit: 10 row(s)  (rows=10)
+                -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+                    -> Filter: ((t1.i % 2) = 1)  (rows=10)
+                        -> Nested loop inner join  (rows=10)
+                            -> Vector index scan on t1  (rows=10)
+                            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+# Query plans and results with filters and index scans enabled
+set cloudsql_vector_iterative_filtering=ON;
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	vector_to_string(j)	approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+660	[2.19360e-01,8.51784e-01,9.94277e-01]	5.950726330280304
+580	[3.09613e-01,9.37703e-01,9.01558e-01]	6.008568048477173
+700	[8.81843e-01,8.58087e-01,8.09439e-01]	6.116484137251973
+520	[8.60154e-02,8.87843e-01,9.68413e-01]	6.199607193470001
+20	[2.70722e-01,9.17146e-01,8.28245e-01]	6.420936584472656
+300	[2.16127e-02,8.45742e-01,8.84421e-01]	6.765225946903229
+460	[8.33529e-01,5.92193e-01,7.22727e-01]	7.195607118308544
+880	[3.34761e-01,6.56309e-01,7.24336e-01]	7.426696717739105
+140	[7.20878e-01,4.28103e-01,7.69637e-01]	7.523286446928978
+500	[5.76102e-01,2.41288e-01,8.75991e-01]	7.792566299438477
+explain format=tree select * from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Vector index join (with iterative filtering)  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Filter: ((t1.i % 20) = 0)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+
+explain analyze select * from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10) (actual rows=10 loops=1)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000) (actual rows=10 loops=1)
+        -> Vector index join (with iterative filtering)  (rows=10) (actual rows=10 loops=1)
+            -> Vector index scan on t1  (rows=10) (actual rows=280 loops=1)
+            -> Filter: ((t1.i % 20) = 0)  (rows=1) (actual rows=0.0357 loops=280)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (actual rows=1 loops=280)
+
+select i from t1 where i between 20 and 200 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+152
+181
+99
+57
+83
+37
+95
+93
+45
+explain format=tree select * from t1 where i between 20 and 200 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Vector index join (with iterative filtering)  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Filter: (t1.i between 20 and 200)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+
+select i from t1 where i between 20 and 200 order by i % 3, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+99
+57
+93
+45
+159
+181
+37
+35
+152
+83
+explain format=tree select * from t1 where i between 20 and 200 order by i % 3, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: (t1.i % 3), approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Vector index join (with iterative filtering)  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Filter: (t1.i between 20 and 200)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+
+# Filter is not pushed down in cross join
+select t1.i from t1, t2 where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+35
+35
+35
+35
+35
+35
+35
+35
+35
+explain format=tree select * from t1, t2 where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=181000)
+            -> Inner hash join (no condition)  (rows=181000)
+                -> Table scan on t2  (rows=1000)
+                -> Hash
+                    -> Filter: (t1.i between 20 and 200)  (rows=181)
+                        -> Nested loop inner join  (rows=10)
+                            -> Vector index scan on t1  (rows=10)
+                            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i from t1, t2 where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+35
+35
+35
+35
+35
+35
+35
+35
+35
+explain format=tree select * from t1, t2 where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=1810)
+            -> Inner hash join (no condition)  (rows=1810)
+                -> Filter: (t2.i between 20 and 200)  (rows=181)
+                    -> Index range scan on t2 using PRIMARY over (20 <= i <= 200)  (rows=181)
+                -> Hash
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+# Filter is pushed down in inner join
+select t1.i from t1 inner join t2 on t1.i = t2.i where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+152
+181
+99
+57
+83
+37
+95
+93
+45
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Vector index join (with iterative filtering)  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Filter: (t1.i between 20 and 200)  (rows=1)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (cost=182 rows=10)
+    -> Nested loop inner join  (cost=182 rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (cost=36.5 rows=1000)
+            -> Vector index join (with iterative filtering)  (cost=21.9 rows=10)
+                -> Vector index scan on t1  (cost=19.4 rows=10)
+                -> Filter: (t1.i between 20 and 200)  (cost=0.25 rows=1)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+        -> Single-row covering index lookup on t2 using PRIMARY (i = t1.i)  (cost=0.251 rows=1)
+
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Vector index join (with iterative filtering)  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Filter: (t1.i between 20 and 200)  (rows=1)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+# Join conditions on the base table are pushed down
+select t1.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+152
+181
+99
+57
+83
+37
+95
+93
+45
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Vector index join (with iterative filtering)  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Filter: (t1.i between 20 and 200)  (rows=1)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	i
+35	35
+152	152
+181	181
+99	99
+57	57
+83	83
+37	37
+95	95
+93	93
+45	45
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Vector index join (with iterative filtering)  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Filter: (t1.i between 20 and 200)  (rows=1)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	i
+35	35
+152	152
+181	181
+99	99
+57	57
+83	83
+37	37
+95	95
+93	93
+45	45
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Vector index join (with iterative filtering)  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Filter: (t1.i between 20 and 200)  (rows=1)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	i
+35	35
+152	152
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: t2.i, approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=181)
+            -> Nested loop inner join  (rows=181)
+                -> Filter: (t1.i between 20 and 200)  (rows=181)
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+                -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	i
+35	35
+152	152
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t2.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=1.81)
+            -> Inner hash join (t2.i = t1.i)  (rows=1.81)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t2  (rows=10)
+                    -> Single-row index lookup on t2 using PRIMARY (i = t2.i)  (rows=1)
+                -> Hash
+                    -> Filter: (t1.i between 20 and 200)  (rows=181)
+                        -> Nested loop inner join  (rows=10)
+                            -> Vector index scan on t1  (rows=10)
+                            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+# Join conditions not on the base table are not pushed down
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	i
+35	35
+152	152
+181	181
+99	99
+57	57
+83	83
+37	37
+95	95
+93	93
+45	45
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Vector index join (with iterative filtering)  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Filter: (t1.i between 20 and 200)  (rows=1)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+        -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	i
+35	35
+152	152
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: t2.i, approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=181)
+            -> Nested loop inner join  (rows=181)
+                -> Filter: (t1.i between 20 and 200)  (rows=181)
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+                -> Single-row index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	i
+35	35
+152	152
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t2.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=1.81)
+            -> Inner hash join (t2.i = t1.i)  (rows=1.81)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t2  (rows=10)
+                    -> Single-row index lookup on t2 using PRIMARY (i = t2.i)  (rows=1)
+                -> Hash
+                    -> Filter: (t1.i between 20 and 200)  (rows=181)
+                        -> Nested loop inner join  (rows=10)
+                            -> Vector index scan on t1  (rows=10)
+                            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+# Temporary table filters not pushed down
+select i % 3 val from t1 group by val, j order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+val
+2
+1
+2
+0
+2
+1
+0
+2
+0
+2
+explain format=tree select i % 3 val from t1 group by val, j order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Table scan on <temporary>  (rows=10)
+            -> Temporary table with deduplication  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+select i % 3 val from t1 group by val, j having val = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+val
+1
+1
+explain format=tree select i % 3 val from t1 group by val, j having val = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')
+        -> Filter: (val = 1)
+            -> Table scan on <temporary>  (rows=10)
+                -> Temporary table with deduplication  (rows=10)
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+select i % 3 val from t1 group by val, j having val = 1 order by val, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+val
+1
+1
+explain format=tree select i % 3 val from t1 group by val, j having val = 1 order by val, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: val, approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared')
+        -> Filter: (val = 1)
+            -> Table scan on <temporary>  (rows=10)
+                -> Temporary table with deduplication  (rows=10)
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+# Only filters within subquery are pushed down
+select * from (select i from t1 where i % 2 = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as tmp where i < 100;
+i
+35
+99
+57
+83
+explain format=tree select * from (select i from t1 where i % 2 = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as tmp where i < 100;
+EXPLAIN
+-> Filter: (tmp.i < 100)  (rows=3.33)
+    -> Table scan on tmp  (rows=10)
+        -> Materialize  (rows=10)
+            -> Limit: 10 row(s)  (rows=10)
+                -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+                    -> Vector index join (with iterative filtering)  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Filter: ((t1.i % 2) = 1)  (rows=1)
+                            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+
+# Queries where the filter cannot produce LIMIT results or cloudsql_vector_iterative_filtering_max_neighbors needs to be increased.
+set cloudsql_vector_iterative_filtering_max_neighbors=30;
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	vector_to_string(j)	approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+660	[2.19360e-01,8.51784e-01,9.94277e-01]	5.938904285430908
+580	[3.09613e-01,9.37703e-01,9.01558e-01]	6.006258010864258
+set cloudsql_vector_iterative_filtering_max_neighbors=50;
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')  from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	vector_to_string(j)	approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+660	[2.19360e-01,8.51784e-01,9.94277e-01]	5.950726330280304
+580	[3.09613e-01,9.37703e-01,9.01558e-01]	6.008568048477173
+700	[8.81843e-01,8.58087e-01,8.09439e-01]	6.116484137251973
+520	[8.60154e-02,8.87843e-01,9.68413e-01]	6.203207969665527
+set cloudsql_vector_iterative_filtering_max_neighbors=default;
+select * from t1 where i % 400 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	j	k
+set cloudsql_vector_iterative_filtering_max_neighbors=1000;
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1 where i % 400 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	vector_to_string(j)	approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+800	[3.38989e-01,6.48162e-01,3.70263e-01]	9.17991852760315
+400	[9.46795e-01,9.87442e-01,4.86692e-02]	9.738458305364475
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i	vector_to_string(j)	approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')
+660	[2.19360e-01,8.51784e-01,9.94277e-01]	5.950726330280304
+580	[3.09613e-01,9.37703e-01,9.01558e-01]	6.008568048477173
+700	[8.81843e-01,8.58087e-01,8.09439e-01]	6.116484137251973
+520	[8.60154e-02,8.87843e-01,9.68413e-01]	6.199607193470001
+20	[2.70722e-01,9.17146e-01,8.28245e-01]	6.420936584472656
+300	[2.16127e-02,8.45742e-01,8.84421e-01]	6.765225946903229
+460	[8.33529e-01,5.92193e-01,7.22727e-01]	7.195607118308544
+880	[3.34761e-01,6.56309e-01,7.24336e-01]	7.426696717739105
+140	[7.20878e-01,4.28103e-01,7.69637e-01]	7.523286446928978
+500	[5.76102e-01,2.41288e-01,8.75991e-01]	7.792566299438477
+select i from t1 where i < 900 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 15;
+i
+35
+628
+8
+201
+284
+559
+798
+152
+651
+269
+821
+181
+202
+99
+702
+# ANN exhausted + failure scenario
+set session debug='+d,return_ann_exhausted_error';
+select i from t1 where i % 3 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+201
+798
+651
+set session debug='-d,return_ann_exhausted_error';
+set session debug='+d,return_ann_failed';
+select i from t1 where i % 3 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+ERROR HY000: Got error 210 - 'Vector ANN search failed' from storage engine
+set session debug='-d,return_ann_failed';
+# Setup a large table, build an index, then delete from it such that < 1k rows remain to test data exhaustion scenario.
+CREATE VECTOR INDEX vec_index3 ON t3(j) DISTANCE_MEASURE=l2_squared;
+select i from t3 where i % 4 = 0 and i % 3 = 0 and i < 500 order by ROUND(approx_distance(j, string_to_vector('[8000,8000,8000]'), 'distance_measure=l2_squared'), -8), i DESC limit 10;
+i
+delete from t3 where i % 10 != 0;
+select i from t3 where i % 4 = 0 and i % 3 = 0 and i < 500 order by ROUND(approx_distance(j, string_to_vector('[8000,8000,8000]'), 'distance_measure=l2_squared'), -8), i DESC limit 10;
+i
+480
+420
+360
+300
+240
+180
+120
+60
+delete from t3 where i % 20 != 0;
+select i from t3 where i % 4 = 0 and i % 3 = 0 and i < 500 order by ROUND(approx_distance(j, string_to_vector('[8000,8000,8000]'), 'distance_measure=l2_squared'), -8), i DESC limit 10;
+i
+480
+420
+360
+300
+240
+180
+120
+60
+explain format=tree select i from t3 where i % 4 = 0 and i % 3 = 0 and i < 500 order by ROUND(approx_distance(j, string_to_vector('[8000,8000,8000]'), 'distance_measure=l2_squared'), -8), i DESC limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (...)
+    -> Sort: round(approx_distance(t3.j,to_vector('[8000,8000,8000]'),'distance_measure=l2_squared'),-(8)), t3.i DESC, limit input to 10 row(s) per chunk  (...)
+        -> Vector index join (with iterative filtering)  (...)
+            -> Vector index scan on t3  (...)
+            -> Filter: (((t3.i % 4) = 0) and ((t3.i % 3) = 0) and (t3.i < 500))  (...)
+                -> Single-row index lookup on t3 using PRIMARY (i = t3.i)
+
+# VectorSearchResults uint32 x uint32 allocation wrap in iterative filtering
+CREATE TABLE t4 (
+pk1 CHAR(250) CHARACTER SET latin1 NOT NULL,
+pk2 CHAR(250) CHARACTER SET latin1 NOT NULL,
+pk3 CHAR(250) CHARACTER SET latin1 NOT NULL,
+pk4 CHAR(250) CHARACTER SET latin1 NOT NULL,
+j VECTOR(3) USING VARBINARY,
+PRIMARY KEY(pk1,pk2,pk3,pk4)
+) ENGINE=InnoDB STATS_PERSISTENT=1 STATS_AUTO_RECALC=0;
+INSERT INTO t4 SELECT LPAD(i,250,'a'), LPAD(i,250,'b'),
+LPAD(i,250,'c'), LPAD(i,250,'d'), j FROM t1;
+CREATE VECTOR INDEX vec_index4 ON t4(j) DISTANCE_MEASURE=l2_squared;
+ANALYZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
+UPDATE mysql.innodb_table_stats SET n_rows=1000000000
+WHERE database_name='test' AND table_name='t4';
+UPDATE mysql.innodb_index_stats SET stat_value=1000000000
+WHERE database_name='test' AND table_name='t4' AND stat_name='n_diff_pfx04';
+FLUSH TABLE t4;
+SELECT 1 FROM t4 WHERE LENGTH(pk2) > 0 AND pk2 = LPAD(1, 250, 'b')
+ORDER BY approx_distance(j, string_to_vector('[1,2,3]'),
+'distance_measure=l2_squared')
+LIMIT 4290677;
+1
+1
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit specified for ANN search larger than the maximum (10000)
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;

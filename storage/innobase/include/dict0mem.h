@@ -82,6 +82,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* Forward declaration. */
 struct ib_rbt_t;
 
+/* Forward declaration */
+namespace ib_vector {
+class VectorColInfo;
+class VectorIndexInfo;
+} /* namespace ib_vector */
+
 /** Format of INSTANTLY DROPPED column names. */
 constexpr char INSTANT_DROP_SUFFIX_8_0_29[] = "_dropped_v";
 constexpr char INSTANT_DROP_PREFIX_8_0_32[] = "!hidden!_dropped_";
@@ -111,9 +117,11 @@ constexpr uint32_t DICT_VIRTUAL = 128;
 constexpr uint32_t DICT_SDI = 256;
 /** Multi-value index */
 constexpr uint32_t DICT_MULTI_VALUE = 512;
+/** Vector index; can't be combined with the other flags */
+constexpr uint32_t DICT_VECTOR = 1024;
 
 /** number of bits used for SYS_INDEXES.TYPE */
-constexpr uint32_t DICT_IT_BITS = 10;
+constexpr uint32_t DICT_IT_BITS = 11;
 /** @} */
 
 #if 0                         /* not implemented, retained for history */
@@ -1167,6 +1175,9 @@ struct dict_index_t {
    */
   std::unique_ptr<dd::Spatial_reference_system> rtr_srs;
 
+  /* Vector index information. */
+  std::shared_ptr<ib_vector::VectorIndexInfo> vec_index_info{nullptr};
+
 #ifdef UNIV_DEBUG
   uint32_t magic_n; /*!< magic number */
 #endif
@@ -1980,6 +1991,9 @@ struct dict_table_t {
 
   /** Creation state of mutex. */
   std::atomic<os_once::state_t> mutex_created;
+
+  /** Information about vector column. */
+  std::shared_ptr<ib_vector::VectorColInfo> vector_col_info{nullptr};
 #endif /* !UNIV_HOTBACKUP */
 
   /** Id of the table. */
@@ -2295,8 +2309,11 @@ regardless of the value of the global srv_stats_persistent_auto_recalc
   /** Approximate size of other indexes in database pages. */
   ulint stat_sum_of_other_index_sizes;
 
-  /** If FTS AUX table, parent table id */
+  /** If FTS AUX table/Vector sub table, parent table id */
   table_id_t parent_id;
+
+  /** If Vector sub table, set this value to true */
+  bool is_vector_sub_table : 1;
 
   /** How many rows are modified since last stats recalc. When a row is
   inserted, updated, or deleted, we add 1 to this number; we calculate

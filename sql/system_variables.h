@@ -513,6 +513,15 @@ struct System_variables {
   char *debug_set_operations_secondary_overflow_at;
 #endif
 
+  /** Enable/Disable multi-threaded ANN search */
+  bool cloudsql_vector_parallel_search;
+
+  /** Enable/Disable iterative filtering for ANN search */
+  bool cloudsql_vector_iterative_filtering;
+
+  /** Maximum number of neighbors to stream for iterative filtering */
+  uint cloudsql_vector_iterative_filtering_max_neighbors;
+
   /**
     Restrict foreign keys on non-unique or partial keys.
     @sa Sys_restrict_fk_on_non_standard_key

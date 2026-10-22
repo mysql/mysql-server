@@ -1,0 +1,62 @@
+set @start_global_value = @@global.cloudsql_vector_max_mem_size;
+select @start_global_value;
+@start_global_value
+1073741824
+select @@global.cloudsql_vector_max_mem_size;
+@@global.cloudsql_vector_max_mem_size
+1073741824
+select @@session.cloudsql_vector_max_mem_size;
+ERROR HY000: Variable 'cloudsql_vector_max_mem_size' is a GLOBAL variable
+show global variables like 'cloudsql_vector_max_mem_size';
+Variable_name	Value
+cloudsql_vector_max_mem_size	1073741824
+show session variables like 'cloudsql_vector_max_mem_size';
+Variable_name	Value
+cloudsql_vector_max_mem_size	1073741824
+select * from performance_schema.global_variables where variable_name='cloudsql_vector_max_mem_size';
+VARIABLE_NAME	VARIABLE_VALUE
+cloudsql_vector_max_mem_size	1073741824
+select * from performance_schema.session_variables where variable_name='cloudsql_vector_max_mem_size';
+VARIABLE_NAME	VARIABLE_VALUE
+cloudsql_vector_max_mem_size	1073741824
+set global cloudsql_vector_max_mem_size=268435456;
+select @@global.cloudsql_vector_max_mem_size;
+@@global.cloudsql_vector_max_mem_size
+268435456
+set session cloudsql_vector_max_mem_size=134217728;
+ERROR HY000: Variable 'cloudsql_vector_max_mem_size' is a GLOBAL variable and should be set with SET GLOBAL
+set @@global.cloudsql_vector_max_mem_size=@start_global_value;
+select @@global.cloudsql_vector_max_mem_size;
+@@global.cloudsql_vector_max_mem_size
+1073741824
+set @start_global_value = @@global.cloudsql_vector_max_mem_size;
+select @start_global_value;
+@start_global_value
+1073741824
+select @@global.cloudsql_vector_max_mem_size;
+@@global.cloudsql_vector_max_mem_size
+1073741824
+select @@session.cloudsql_vector_max_mem_size;
+ERROR HY000: Variable 'cloudsql_vector_max_mem_size' is a GLOBAL variable
+show global variables like 'cloudsql_vector_max_mem_size';
+Variable_name	Value
+cloudsql_vector_max_mem_size	1073741824
+show session variables like 'cloudsql_vector_max_mem_size';
+Variable_name	Value
+cloudsql_vector_max_mem_size	1073741824
+select * from performance_schema.global_variables where variable_name='cloudsql_vector_max_mem_size';
+VARIABLE_NAME	VARIABLE_VALUE
+cloudsql_vector_max_mem_size	1073741824
+select * from performance_schema.session_variables where variable_name='cloudsql_vector_max_mem_size';
+VARIABLE_NAME	VARIABLE_VALUE
+cloudsql_vector_max_mem_size	1073741824
+set global cloudsql_vector_max_mem_size=268435456;
+select @@global.cloudsql_vector_max_mem_size;
+@@global.cloudsql_vector_max_mem_size
+268435456
+set session cloudsql_vector_max_mem_size=134217728;
+ERROR HY000: Variable 'cloudsql_vector_max_mem_size' is a GLOBAL variable and should be set with SET GLOBAL
+set @@global.cloudsql_vector_max_mem_size=@start_global_value;
+select @@global.cloudsql_vector_max_mem_size;
+@@global.cloudsql_vector_max_mem_size
+1073741824

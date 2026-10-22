@@ -1,0 +1,635 @@
+use test;
+flush status;
+Initial Data inserted
+# verify fallback to KNN before index is created
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: l2_squared_distance(t1.j,to_vector('[60, 60,60]')), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Table scan on t1  (rows=1000)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+explain format=tree SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') app FROM t1 ORDER BY app LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: app, limit input to 10 row(s) per chunk  (rows=1000)
+        -> Table scan on t1  (rows=1000)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') app FROM t1 ORDER BY app LIMIT 10;
+i	app
+59	2
+58	5
+60	5
+57	14
+61	14
+56	29
+62	29
+55	50
+63	50
+54	77
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 WHERE i BETWEEN 3 and 6 LIMIT 10;
+i	APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared')
+3	9410
+4	9077
+5	8750
+6	8429
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+# create vector index
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+# KNN fallback warning in the event of ANN failure from the storage layer
+SET SESSION debug='+d,vector_index_unusable';
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+i
+59
+58
+60
+57
+61
+56
+62
+55
+63
+54
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared')
+2
+5
+5
+14
+14
+29
+29
+50
+50
+77
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+explain analyze SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (...) (actual rows=10 loops=1)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (...) (actual rows=10 loops=1)
+        -> Table scan on t1  (...) (actual rows=1000 loops=1)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+SET SESSION debug='-d,vector_index_unusable';
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Query vector dimensions 2 does not match vector index dimensions 3
+SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') dist1, APPROX_DISTANCE(j, string_to_vector('[10, 60,1000]'), 'distance_measure=l2_squared') dist2  FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 10,60]'), 'distance_measure=l2_squared') LIMIT 2;
+i	dist1	dist2
+42	869	915249
+50	245	900385
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index already searched for a different ANN expression in the same query
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index already searched for a different ANN expression in the same query
+# missing limit (using outer limit to prevent long results)
+SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared')) as sub LIMIT 10;
+i
+59
+58
+60
+57
+61
+56
+62
+55
+63
+54
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit is required for ANN search
+explain analyze SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared')) as sub LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (...) (actual rows=10 loops=1)
+    -> Sort: l2_squared_distance(t1.j,to_vector('[60, 60,60]')), limit input to 10 row(s) per chunk  (...) (actual rows=10 loops=1)
+        -> Table scan on t1  (...) (actual rows=1000 loops=1)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit is required for ANN search
+# too large limit (using outer limit to prevent long results)
+SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10001) as sub LIMIT 10;
+i
+59
+58
+60
+57
+61
+56
+62
+55
+63
+54
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit specified for ANN search larger than the maximum (10000)
+show global status like '%cloudsql_vector_knn_fallback%';
+Variable_name	Value
+Cloudsql_vector_knn_fallback_index_inlining_failures	0
+Cloudsql_vector_knn_fallback_less_expensive	0
+Cloudsql_vector_knn_fallback_limit_too_large	1
+Cloudsql_vector_knn_fallback_missing_index	4
+Cloudsql_vector_knn_fallback_missing_limit	2
+Cloudsql_vector_knn_fallback_multiple_ann_one_table	2
+Cloudsql_vector_knn_fallback_unusable_index	3
+# verify NEAREST TO no longer works
+explain format=tree SELECT i FROM t1 WHERE NEAREST(j) TO (string_to_vector('[60,60,60]'), 'distance_measure=l2_squared');
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TO (string_to_vector('[60,60,60]'), 'distance_measure=l2_squared')' at line 1
+# verify num_neighbors is not supported
+SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_neighbors=2,distance_measure=l2_squared') FROM t1 LIMIT 10;
+ERROR 22023: Invalid option key 'num_neighbors' in function APPROX_DISTANCE.
+"Positive test cases"
+"Verify distance measure is required"
+explain format=tree SELECT i,
+vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+APPROX_DISTANCE(j, string_to_vector('[60, 60,60]')) approx_dist FROM t1 LIMIT 10;
+ERROR 42000: Incorrect parameter count in the call to native function 'APPROX_DISTANCE'
+explain format=tree SELECT i,
+vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_leaves_to_search=10') approx_dist FROM t1 LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: distance_measure is a required parameter for APPROX_DISTANCE search
+explain format=tree SELECT i,
+vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_leaves_to_search=10, distance_measure=l2_squared') approx_dist FROM t1 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=10)
+        -> Vector index scan on t1  (rows=10)
+        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i,
+vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_leaves_to_search=10, DISTANCE_MEASURE=l2_squared') approx_dist FROM t1 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=10)
+        -> Vector index scan on t1  (rows=10)
+        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i,
+vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'num_leaves_to_search=10, DISTANCE_MEASURE=L2_SQUARED') approx_dist FROM t1 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=10)
+        -> Vector index scan on t1  (rows=10)
+        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"Verify ANN with different distance measures falls back to KNN"
+explain format=tree SELECT i,
+vector_distance(j, string_to_vector('[60, 60,60]')) dist,
+APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=cosine') approx_dist FROM t1 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Table scan on t1  (rows=1000)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+explain format=tree SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=10)
+        -> Vector index scan on t1  (rows=10)
+        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 15 LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 15 LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 15 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+explain format=tree SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=10)
+        -> Vector index scan on t1  (rows=10)
+        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i, vector_to_string(j),
+vector_distance(j, string_to_vector('[60, 60,60]')) dist FROM t1
+ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i FROM t1 WHERE i < 60 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Vector index join (with iterative filtering)  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Filter: (t1.i < 60)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+
+explain format=tree SELECT i FROM t1 WHERE i = 59 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=1)
+    -> Rows fetched before execution  (rows=1)
+
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 20;
+EXPLAIN
+-> Limit: 20 row(s)  (rows=20)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 20 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=20)
+            -> Vector index scan on t1  (rows=20)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (rows=2)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 2 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=2)
+            -> Vector index scan on t1  (rows=2)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"other column in order by"
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared'), i LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), t1.i, limit input to 10 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"other column in order by with DESC"
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared'), i DESC LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), t1.i DESC, limit input to 10 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"DESC order by"
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') DESC LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared') DESC, limit input to 10 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i % 10 as remainder, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY remainder, j LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Table scan on <temporary>  (rows=10)
+        -> Temporary table with deduplication  (rows=10)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i % 10 as remainder, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY remainder, j LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Table scan on <temporary>  (rows=10)
+        -> Temporary table with deduplication  (rows=10)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i % 10 as remainder, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY remainder, j ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Table scan on <temporary>  (rows=10)
+            -> Temporary table with deduplication  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i % 10 as remainder, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY remainder, j ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Table scan on <temporary>  (rows=10)
+            -> Temporary table with deduplication  (rows=10)
+                -> Nested loop inner join  (rows=10)
+                    -> Vector index scan on t1  (rows=10)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY i LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=10)
+        -> Vector index scan on t1  (rows=10)
+        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT i, APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY i LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=10)
+        -> Vector index scan on t1  (rows=10)
+        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT COUNT(*), APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY i, j LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Table scan on <temporary>
+        -> Aggregate using temporary table
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT COUNT(*), APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY i, j LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Table scan on <temporary>
+        -> Aggregate using temporary table
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"select list and order by, same ANN search"
+explain format=tree SELECT  APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"select list and order by, different ANN search"
+explain format=tree SELECT  APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[900,900,900]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[900,900,900]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"select list and where, same ANN search"
+explain format=tree SELECT  APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+"select list, where, and order by, same ANN search"
+explain format=tree SELECT  APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+"where and order by, same ANN search"
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+"where and order by, different ANN search (seems like where takes precendence)"
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 ORDER BY APPROX_DISTANCE(j, string_to_vector('[160, 160,160]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+Initial Data inserted
+# create vector index
+create vector index vec_index2 on t2(j) distance_measure=l2_squared;
+"order by with join"
+explain format=tree select t1.i, t2.i from t1, t2 where t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row covering index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select t1.i, t2.i from t1, t2 where t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row covering index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+"order by with join"
+explain format=tree select t1.i, t2.i from t1 INNER JOIN t2 on t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row covering index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select t1.i, t2.i from t1 INNER JOIN t2 on t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop inner join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared')  (rows=1000)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row covering index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+"order by with join"
+explain format=tree select t1.i, t2.i from t1 LEFT OUTER JOIN t2 ON t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Nested loop left join  (rows=1000)
+        -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+        -> Single-row covering index lookup on t2 using PRIMARY (i = t1.i)  (rows=1)
+
+"order by with join"
+explain format=tree select t1.i, t2.i from t1 RIGHT JOIN t2 ON t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=10)
+            -> Left hash join (t1.i = t2.i)  (rows=10)
+                -> Covering index scan on t2 using PRIMARY  (rows=1000)
+                -> Hash
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree select t1.i, t2.i from t1 RIGHT JOIN t2 ON t1.i = t2.i ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk
+        -> Stream results  (rows=10)
+            -> Left hash join (t1.i = t2.i)  (rows=10)
+                -> Covering index scan on t2 using PRIMARY  (rows=1000)
+                -> Hash
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"join on ANN condition"
+explain format=tree select t1.i, t2.i from t1 INNER JOIN t2 ON APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') = APPROX_DISTANCE(t2.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+"selecting ANN with join"
+explain format=tree select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared'), APPROX_DISTANCE(t2.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1 INNER JOIN t2 ON t1.i = t2.i LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=0.1)
+    -> Inner hash join (t2.i = t1.i)  (rows=0.1)
+        -> Nested loop inner join  (rows=10)
+            -> Vector index scan on t2  (rows=10)
+            -> Single-row index lookup on t2 using PRIMARY (i = t2.i)  (rows=1)
+        -> Hash
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"Equality on primary key"
+explain format=tree select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1  WHERE t1.i = 1 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=1)
+    -> Rows fetched before execution  (rows=1)
+
+select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1  WHERE t1.i = 1 LIMIT 10;
+APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared')
+10094
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Unable to inline Vector index for ANN search
+explain format=tree select vector_to_string(t1.j) from t1  WHERE t1.i = 1 ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=1)
+    -> Rows fetched before execution  (rows=1)
+
+select vector_to_string(t1.j) from t1  WHERE t1.i = 1 ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+vector_to_string(t1.j)
+[1.00000e+00,2.00000e+00,3.00000e+00]
+explain format=tree select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1  WHERE t1.i = 1 ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=1)
+    -> Rows fetched before execution  (rows=1)
+
+select APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') from t1  WHERE t1.i = 1 ORDER BY APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+APPROX_DISTANCE(t1.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared')
+10094
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Unable to inline Vector index for ANN search
+"join with where clause"
+explain format=tree select t1.i, t2.i from t1, t2 where APPROX_DISTANCE(t2.j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') > 0 LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+"subquery with order by"
+explain format=tree SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 5) as t;
+EXPLAIN
+-> Table scan on t  (rows=5)
+    -> Materialize  (rows=5)
+        -> Limit: 5 row(s)  (rows=5)
+            -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 5 row(s) per chunk  (rows=1000)
+                -> Nested loop inner join  (rows=5)
+                    -> Vector index scan on t1  (rows=5)
+                    -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 1) as sub1, (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 10,60]'), 'distance_measure=l2_squared') LIMIT 1) as sub2 FROM t1;
+EXPLAIN
+-> Covering index scan on t1 using PRIMARY  (rows=1000)
+-> Select #2 (subquery in projection; run only once)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 1 row(s) per chunk  (rows=1000)
+            -> Nested loop inner join  (rows=1)
+                -> Vector index scan on t1  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+-> Select #3 (subquery in projection; run only once)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Sort: approx_distance(t1.j,to_vector('[60, 10,60]'),'distance_measure=l2_squared'), limit input to 1 row(s) per chunk  (rows=1000)
+            -> Nested loop inner join  (rows=1)
+                -> Vector index scan on t1  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10) as t LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s)  (rows=5)
+    -> Table scan on t  (rows=10)
+        -> Materialize  (rows=10)
+            -> Limit: 10 row(s)  (rows=10)
+                -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+                    -> Nested loop inner join  (rows=10)
+                        -> Vector index scan on t1  (rows=10)
+                        -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"query with second table as query vector (not supported)"
+explain format=tree SELECT *
+FROM t1 AS q, LATERAL (
+SELECT *, approx_distance(t2.j, q.j, 'distance_measure=l2_squared') AS dist
+FROM t2
+WHERE t2.i != 4
+LIMIT 2) as dist;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE cannot be used with non-constants
+"subquery with select list"
+explain format=tree SELECT * FROM (SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 LIMIT 10) as t;
+EXPLAIN
+-> Table scan on t  (rows=10)
+    -> Materialize  (rows=10)
+        -> Limit: 10 row(s)  (rows=10)
+            -> Nested loop inner join  (rows=10)
+                -> Vector index scan on t1  (rows=10)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+explain format=tree SELECT ((SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 LIMIT 1));
+EXPLAIN
+-> Rows fetched before execution  (rows=1)
+-> Select #2 (subquery in projection; run only once)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Vector index scan on t1  (rows=1)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+"subquery with where condition"
+SELECT * FROM (SELECT i FROM t1 where APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10) as t LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+SELECT (SELECT i FROM t1 where APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 1);
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+CREATE TABLE t3 as SELECT * FROM t1 WHERE i < 60 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Non SELECT statement Unimplemented
+"Negative test cases"
+# KNN fallback warning in the event of ANN failure from the storage layer
+SET SESSION debug='+d,vector_index_unusable';
+explain format=tree SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[60, 60,60]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Table scan on t1  (rows=1000)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+SET SESSION debug='-d,vector_index_unusable';
+explain format=tree SELECT i, j FROM t1 GROUP BY i HAVING APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE cannot be used in the HAVING clause
+explain format=tree SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE cannot be used in the GROUP BY list
+explain format=tree SELECT sum(t2.i), t2.j, approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') as app from t2, t1 GROUP BY t2.j, app LIMIT 4;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE cannot be used in the GROUP BY list
+explain format=tree SELECT APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') FROM t1 GROUP BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') + APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE cannot be used in the GROUP BY list
+explain format=tree SELECT sum(t2.i), t2.j, ceil(approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')) as app from t2, t1 GROUP BY t2.j, app LIMIT 4;
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE cannot be used in the GROUP BY list
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 2;
+ERROR HY000: Unable to perform similarity search, Reason: Non SELECT statement Unimplemented
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(string_to_vector('[60, 60,60]'), string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 2;
+ERROR HY000: Unable to perform similarity search, Reason: Non SELECT statement Unimplemented
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(string_to_vector('[60, 60,60]'), j, 'distance_measure=l2_squared') LIMIT 2;
+ERROR HY000: Unable to perform similarity search, Reason: Non SELECT statement Unimplemented
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(i, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') LIMIT 2;
+ERROR HY000: Unable to perform similarity search, Reason: Non SELECT statement Unimplemented
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60]'), 'distance_measure=l2_squared') LIMIT 2;
+ERROR HY000: Unable to perform similarity search, Reason: Non SELECT statement Unimplemented
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, NULL, 'distance_measure=l2_squared') LIMIT 2;
+ERROR HY000: Unable to perform similarity search, Reason: Non SELECT statement Unimplemented
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), NULL) LIMIT 2;
+ERROR HY000: Unable to perform similarity search, Reason: Non SELECT statement Unimplemented
+INSERT INTO t1 SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'foo=bar') LIMIT 2;
+ERROR HY000: Unable to perform similarity search, Reason: Non SELECT statement Unimplemented
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[60, 60,60]'), 'distance_measure=l2_squared') < 10 LIMIT 10;
+ERROR HY000: Unable to perform similarity search, Reason: Cannot use APPROX_DISTANCE functions in a condition
+# cleanup
+drop index vec_index on t1;
+drop index vec_index2 on t2;
+DROP TABLE t1;
+DROP TABLE t2;

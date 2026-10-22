@@ -2213,8 +2213,16 @@ bool PT_inline_index_definition::do_contextualize(Table_ddl_parse_context *pc) {
   if (setup_index(m_keytype, m_name, m_type, m_columns, m_options, pc))
     return true;
 
-  if (m_keytype == KEYTYPE_PRIMARY && !pc->key_create_info->is_visible)
+  if (m_keytype == KEYTYPE_VECTOR &&
+      pc->thd->lex->sql_command == SQLCOM_CREATE_TABLE) {
+    my_error(ER_VECTOR_INDEX_DURING_CREATE_TABLE, MYF(0));
+    return true;
+  }
+
+  if (m_keytype == KEYTYPE_PRIMARY && !pc->key_create_info->is_visible) {
     my_error(ER_PK_INDEX_CANT_BE_INVISIBLE, MYF(0));
+    return true;
+  }
 
   return false;
 }

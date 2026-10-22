@@ -1,0 +1,69 @@
+# Copyright 2026 Google LLC
+
+#
+# vector_index.stream_query_basic
+
+--source include/have_debug.inc
+
+
+### prepare the tables
+
+--let $table_name=t1
+--let $dimensions=3
+--let $rows=10000
+--let $deterministic=0
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic | $MYSQL test 2>&1
+
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+
+select * from information_schema.innodb_vector_indexes;
+
+
+### test the basic stream query
+
+# this flag forces stream_id to be 1
+set session debug='+d,vector_force_stream_query';
+
+# the forced stream query scans 100 partitions and will give 1 result in one go
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 1;
+
+
+### test the basic stream query with multiple calls (same stream_id)
+
+set session debug='-d,vector_force_stream_query';
+# this flag makes SQL layer calling storage layer until HA_ANN_EXHAUSTED
+set session debug='+d,vector_infinite_stream_query';
+
+# this index has 100 partitions, by default 1 query uses all 100 partitions in
+# one go (sub_table scan) to get the requested 10 results
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 10;
+
+# even the search partition is limited to 10, they still have enough data to
+# return the requested 10 results, without the need of a 2nd sub_table scan
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared, num_leaves_to_search=10") limit 10;
+
+
+### test the stream query on sparse partitions
+
+# this flag makes the storage layer return 1 (odd-th scan) or 0 (even-th)
+# results, to simulate a sparse partitions (e.g., a table that has most of its
+# rows deleted later after the index is created)
+set session debug='+d,vector_stream_query_simulate_sparse_partitions';
+
+# one scan will use all 100 partitions and return 0 results
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 10;
+
+# each scan only targets 1 partition therefore the total possible results are
+# (((100/1)/2) = 50). This validates that the NOT_ENOUGH_DATA_FOUND is returned
+# when the total number  of results reaches the limit (in 10 iteratiions)
+# cloudsql_vector_iterative_filtering_max_neighbors
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared, num_leaves_to_search=1") limit 10;
+
+# only 5 results are to be returned from the total 10 scans (100/10 = 10), which
+# validates that the NOT_ENOUGH_DATA_FOUND is returned when there is no more
+# partitions to scan
+select if (i > 20000, 'ERROR', '6~7~~') as `what?` from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared, num_leaves_to_search=10") limit 10;
+
+
+### clean up
+drop table t1;

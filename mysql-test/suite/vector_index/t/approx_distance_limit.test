@@ -1,0 +1,47 @@
+# Copyright 2026 Google LLC
+
+--source include/elide_costs.inc
+use test;
+
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted
+
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+
+--echo # verify num_neighbors is not supported
+-- error ER_INVALID_OPTION_KEY
+SELECT APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'num_neighbors=2,distance_measure=l2_squared') FROM t1 LIMIT 10;
+
+--echo # verify limit is honored for ANN
+SELECT ROUND(APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared'), 4) AS dist FROM t1 LIMIT 5;
+
+--echo # verify limit is honored for KNN fallback
+--replace_regex $elide_costs_and_rows
+SELECT APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=cosine') FROM t1 LIMIT 5;
+
+--echo # verify missing limit falls back to KNN
+--replace_regex $elide_costs_and_rows
+explain format=tree SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=cosine');
+
+--replace_regex $elide_costs_and_rows
+explain format=tree SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared')) as t LIMIT 5;
+
+--replace_regex $elide_costs_and_rows
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') IN (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared'));
+
+delete from t1 where i > 10;
+
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10000;
+
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10001;
+
+PREPARE stmt FROM 'SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector("[1,2,3]"), "distance_measure=l2_squared") LIMIT ?';
+SET @v = 10001;
+EXECUTE stmt USING @v;
+
+SELECT i FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 5) as t LIMIT 10001;
+
+SELECT i FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10001) as t LIMIT 5;
+
+drop table t1;

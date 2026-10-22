@@ -1,0 +1,110 @@
+use test;
+Initial Data inserted
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+# verify num_neighbors is not supported
+SELECT APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'num_neighbors=2,distance_measure=l2_squared') FROM t1 LIMIT 10;
+ERROR 22023: Invalid option key 'num_neighbors' in function APPROX_DISTANCE.
+# verify limit is honored for ANN
+SELECT ROUND(APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared'), 4) AS dist FROM t1 LIMIT 5;
+dist
+5.1692
+5.3303
+5.3605
+5.4039
+5.4657
+# verify limit is honored for KNN fallback
+SELECT APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=cosine') FROM t1 LIMIT 5;
+APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=cosine')
+0.27628491694194623
+0.21211280177045888
+0.05436312551323297
+0.3166100422821432
+0.08886800145412577
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+# verify missing limit falls back to KNN
+explain format=tree SELECT * FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=cosine');
+EXPLAIN
+-> Sort: cosine_distance(t1.j,to_vector('[1, 2, 3]'))  (...)
+    -> Table scan on t1  (...)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+explain format=tree SELECT * FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared')) as t LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s)  (...)
+    -> Sort: l2_squared_distance(t1.j,to_vector('[1, 2, 3]')), limit input to 5 row(s) per chunk  (...)
+        -> Table scan on t1  (...)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit is required for ANN search
+explain format=tree SELECT i FROM t1 WHERE APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') IN (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared'));
+EXPLAIN
+-> Nested loop inner join  (...)
+    -> Table scan on t1  (...)
+    -> Filter: (l2_squared_distance(t1.j,<cache>(to_vector('[1, 2, 3]'))) = t1.i)  (...)
+        -> Single-row index lookup on t1 using PRIMARY (i = l2_squared_distance(t1.j,<cache>(to_vector('[1, 2, 3]'))))  (...)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit is required for ANN search
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit is required for ANN search
+delete from t1 where i > 10;
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10000;
+i
+8
+6
+10
+3
+2
+7
+5
+1
+4
+9
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10001;
+i
+8
+6
+10
+3
+2
+7
+5
+1
+4
+9
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit specified for ANN search larger than the maximum (10000)
+PREPARE stmt FROM 'SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector("[1,2,3]"), "distance_measure=l2_squared") LIMIT ?';
+SET @v = 10001;
+EXECUTE stmt USING @v;
+i
+8
+6
+10
+3
+2
+7
+5
+1
+4
+9
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit specified for ANN search larger than the maximum (10000)
+SELECT i FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 5) as t LIMIT 10001;
+i
+8
+6
+10
+3
+2
+SELECT i FROM (SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1, 2, 3]'), 'distance_measure=l2_squared') LIMIT 10001) as t LIMIT 5;
+i
+8
+6
+10
+3
+2
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Limit specified for ANN search larger than the maximum (10000)
+drop table t1;

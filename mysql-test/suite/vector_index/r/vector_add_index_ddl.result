@@ -1,0 +1,35 @@
+call mtr.add_suppression("Only one vector index allowed in DDL");
+Initial Data inserted
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared;
+drop index vec_index on t1;
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop primary key;
+ERROR HY000: Vector index: vector indexes without primary key is not supported yet.
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, engine = InnoDB;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column k int;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column k int default 0, algorithm=instant;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Do not support online operation on table with VECTOR index. Try ALGORITHM=COPY/INPLACE.
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column k int default 0, algorithm=inplace;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+alter table t1 add column k int;
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column m int generated always as (k + 1);
+ERROR HY000: Creation of vector index is not supported during CREATE TABLE statement
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add column m int generated always as (k + 1) stored;
+ERROR HY000: Creation of vector index is not supported during CREATE TABLE statement
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, modify column k bigint default 0;
+ERROR HY000: Creation of vector index is not supported during CREATE TABLE statement
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop column k;
+ERROR HY000: Vector index: ALTER TABLE (needs rebuild) is not supported yet.
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop column k, algorithm=instant;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Do not support online operation on table with VECTOR index. Try ALGORITHM=COPY/INPLACE.
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add index idx_k(k);
+ERROR HY000: Vector Index cannot be created with other DDL statements.
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, add index idx_k(k), algorithm=instant;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Do not support online operation on table with VECTOR index. Try ALGORITHM=COPY/INPLACE.
+alter table t1 add index idx_k(k);
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop index idx_k;
+ERROR HY000: Vector Index cannot be created with other DDL statements.
+alter table t1 add vector index vec_index(J) using tree quantizer=sq8 distance_measure=l2_squared, drop index idx_k, algorithm=inplace;
+ERROR HY000: Vector Index cannot be created with other DDL statements.
+drop table t1;

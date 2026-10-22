@@ -2736,7 +2736,8 @@ store_key::store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null,
                      uint length, Item *item_arg)
     : item(item_arg) {
   if (field_arg->type() == MYSQL_TYPE_BLOB ||
-      field_arg->type() == MYSQL_TYPE_GEOMETRY) {
+      field_arg->type() == MYSQL_TYPE_GEOMETRY
+      || field_arg->type() == MYSQL_TYPE_VECTOR) {
     /*
       Key segments are always packed with a 2 byte length prefix.
       See mi_rkey for details.

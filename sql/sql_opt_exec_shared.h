@@ -253,7 +253,8 @@ class QEP_shared {
         prefix_tables_map(0),
         added_tables_map(0),
         m_ft_func(nullptr),
-        m_skip_records_in_range(false) {}
+        m_skip_records_in_range(false),
+        m_csql_prefer_ann(false) {}
 
   /*
     Simple getters and setters. They are public. However, this object is
@@ -352,6 +353,15 @@ class QEP_shared {
   }
 
   bool skip_records_in_range() const { return m_skip_records_in_range; }
+
+  // Should prefer ann scan for APPROX_DISTANCE
+  void set_csql_prefer_ann(bool csql_prefer_ann) {
+    m_csql_prefer_ann = csql_prefer_ann;
+  }
+
+  bool is_csql_prefer_ann() const {
+    return m_csql_prefer_ann;
+  }
 
  private:
   JOIN *m_join;
@@ -470,6 +480,8 @@ class QEP_shared {
     See comments for check_skip_records_in_range_qualification.
   */
   bool m_skip_records_in_range;
+
+  bool m_csql_prefer_ann;
 };
 
 /// Owner of a QEP_shared; parent of JOIN_TAB and QEP_TAB.
@@ -567,6 +579,13 @@ class QEP_shared_owner {
   bool skip_records_in_range() const { return m_qs->skip_records_in_range(); }
 
   void qs_cleanup();
+
+  void set_csql_prefer_ann(bool csql_prefer_ann) {
+    m_qs->set_csql_prefer_ann(csql_prefer_ann);
+  }
+  bool is_csql_prefer_ann() const {
+    return m_qs->is_csql_prefer_ann();
+  }
 
  protected:
   QEP_shared *m_qs;  // qs stands for Qep_Shared

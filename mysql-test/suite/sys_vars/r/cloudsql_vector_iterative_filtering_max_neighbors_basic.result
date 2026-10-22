@@ -1,0 +1,166 @@
+SET @start_sql_mode = @@session.sql_mode;
+SET SESSION sql_mode = 'STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SET @session_start_value = @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+SELECT @session_start_value;
+@session_start_value
+500
+'#--------------------FN_DYNVARS_032_01------------------------#'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 10;
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = DEFAULT;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+500
+'#---------------------FN_DYNVARS_032_02-------------------------#'
+SET cloudsql_vector_iterative_filtering_max_neighbors = 15;
+SELECT @@cloudsql_vector_iterative_filtering_max_neighbors;
+@@cloudsql_vector_iterative_filtering_max_neighbors
+15
+SELECT session.cloudsql_vector_iterative_filtering_max_neighbors;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT local.cloudsql_vector_iterative_filtering_max_neighbors;
+ERROR 42S02: Unknown table 'local' in field list
+SET session cloudsql_vector_iterative_filtering_max_neighbors = 500;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+500
+'#--------------------FN_DYNVARS_032_03------------------------#'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 1000;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+1000
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 10;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+10
+'#--------------------FN_DYNVARS_032_04-------------------------#'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = -1;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '-1'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 0;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '0'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 9;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '9'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 1001;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '1001'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = "T";
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = "Y";
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = TRUE;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '1'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = ON;
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = OFF;
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = '¹';
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = NO;
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+'#-------------------FN_DYNVARS_032_05----------------------------#'
+SET @@global.cloudsql_vector_iterative_filtering_max_neighbors = 100;
+SELECT @@global.cloudsql_vector_iterative_filtering_max_neighbors;
+@@global.cloudsql_vector_iterative_filtering_max_neighbors
+100
+SET @@global.cloudsql_vector_iterative_filtering_max_neighbors = 500;
+'#----------------------FN_DYNVARS_032_06------------------------#'
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='cloudsql_vector_iterative_filtering_max_neighbors';
+count(VARIABLE_VALUE)
+1
+'#----------------------FN_DYNVARS_032_07------------------------#'
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+10
+SELECT VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='cloudsql_vector_iterative_filtering_max_neighbors';
+VARIABLE_VALUE
+10
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = @session_start_value;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+500
+SET SESSION sql_mode = @start_sql_mode;
+SET @start_sql_mode = @@session.sql_mode;
+SET SESSION sql_mode = 'STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SET @session_start_value = @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+SELECT @session_start_value;
+@session_start_value
+500
+'#--------------------FN_DYNVARS_032_01------------------------#'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 10;
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = DEFAULT;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+500
+'#---------------------FN_DYNVARS_032_02-------------------------#'
+SET cloudsql_vector_iterative_filtering_max_neighbors = 15;
+SELECT @@cloudsql_vector_iterative_filtering_max_neighbors;
+@@cloudsql_vector_iterative_filtering_max_neighbors
+15
+SELECT session.cloudsql_vector_iterative_filtering_max_neighbors;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT local.cloudsql_vector_iterative_filtering_max_neighbors;
+ERROR 42S02: Unknown table 'local' in field list
+SET session cloudsql_vector_iterative_filtering_max_neighbors = 500;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+500
+'#--------------------FN_DYNVARS_032_03------------------------#'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 1000;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+1000
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 10;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+10
+'#--------------------FN_DYNVARS_032_04-------------------------#'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = -1;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '-1'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 0;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '0'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 9;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '9'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 1001;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '1001'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = "T";
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = "Y";
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = TRUE;
+ERROR 42000: Variable 'cloudsql_vector_iterative_filtering_max_neighbors' can't be set to the value of '1'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = ON;
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = OFF;
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = '¹';
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = NO;
+ERROR 42000: Incorrect argument type to variable 'cloudsql_vector_iterative_filtering_max_neighbors'
+'#-------------------FN_DYNVARS_032_05----------------------------#'
+SET @@global.cloudsql_vector_iterative_filtering_max_neighbors = 100;
+SELECT @@global.cloudsql_vector_iterative_filtering_max_neighbors;
+@@global.cloudsql_vector_iterative_filtering_max_neighbors
+100
+SET @@global.cloudsql_vector_iterative_filtering_max_neighbors = 500;
+'#----------------------FN_DYNVARS_032_06------------------------#'
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='cloudsql_vector_iterative_filtering_max_neighbors';
+count(VARIABLE_VALUE)
+1
+'#----------------------FN_DYNVARS_032_07------------------------#'
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+10
+SELECT VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='cloudsql_vector_iterative_filtering_max_neighbors';
+VARIABLE_VALUE
+10
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = @session_start_value;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+@@session.cloudsql_vector_iterative_filtering_max_neighbors
+500
+SET SESSION sql_mode = @start_sql_mode;
