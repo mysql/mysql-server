@@ -51,15 +51,35 @@ void my_init_stacktrace();
 void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack);
 
 /**
+  Output format of my_safe_puts_stderr(): false (the default) for a single
+  line, true for tagged lines. Set by the server from the system variable
+  log_error_crash_query_format. It is written once before the fatal-signal
+  handlers are installed and before worker threads start, and is read-only
+  afterwards, so it is safe to read from a signal handler.
+*/
+extern bool my_safe_puts_tagged_lines;
+
+/**
   Safely print a string of possibly untrusted memory to STDERR from a
   signal handler.
 
-  The string is emitted as a sequence of complete, newline-terminated lines:
+  The string is read in bounded chunks into a buffer on the stack, checking
+  that the memory is readable before using it. Printing stops at the first
+  NUL byte or after max_len bytes. Bytes which are not printable are
+  replaced by ' '. The output format depends on my_safe_puts_tagged_lines.
 
-    <label> +<offset>: <a bounded chunk of val>\n
+  Single line (default): the label, ": ", the string and a newline, e.g.
 
-  where <label> is printed verbatim and <offset> is the byte offset of the
-  chunk within val, e.g.
+    Query (7f3a1c00b010): SELECT 1
+
+  If the memory is not readable at all, "is an invalid pointer" (on Windows
+  "is an invalid string pointer") is printed in place of the string; on
+  Linux, if reading fails, "Can't read from address " and the address may
+  follow on a line of its own.
+
+  Tagged lines: a sequence of complete, newline-terminated lines, each made
+  of the label, " +", the byte offset of the chunk within val, ": " and the
+  chunk, e.g.
 
     Query (7f3a1c00b010) +132: ...
 
@@ -69,12 +89,9 @@ void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack);
   encouraged to include a stable key such as the string address in the
   label, so the lines of one dump can be correlated and reassembled even
   when interleaved. Even a zero-length string produces one (empty) line.
-  Bytes which are not printable are replaced by ' '.
-
-  Printing stops at the first NUL byte or after max_len bytes. If (part of)
-  the memory is not readable, whatever could be read is printed, followed by
-  a line whose payload is "<is an invalid pointer>" and whose <offset> is
-  where reading failed.
+  If (part of) the memory is not readable, whatever could be read is
+  printed, followed by a line whose payload is "\<is an invalid pointer\>"
+  and whose offset is where reading failed.
 
   @param label    Text identifying the string, printed verbatim; should
                   include a stable key such as the address, e.g.

@@ -257,6 +257,13 @@ extern ulong delay_key_write_options;
 
 extern ulong opt_log_timestamps;
 extern const char *timestamp_type_names[];
+/** Values of log_error_crash_query_format. */
+enum enum_log_error_crash_query_format {
+  LOG_ERROR_CRASH_QUERY_SINGLE_LINE = 0,
+  LOG_ERROR_CRASH_QUERY_TAGGED_LINES = 1
+};
+extern ulong opt_log_error_crash_query_format;
+extern const char *log_error_crash_query_format_names[];
 extern char *opt_general_logname, *opt_slow_logname, *opt_bin_logname,
     *opt_relay_logname;
 extern char *mysql_home_ptr, *pidfile_name_ptr;

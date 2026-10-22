@@ -58,28 +58,36 @@
 
 #ifdef HAVE_STACKTRACE
 
+/* Output format of my_safe_puts_stderr(), see my_stacktrace.h. */
+bool my_safe_puts_tagged_lines = false;
+
 /*
-  Number of bytes of the string emitted per line by my_safe_puts_stderr().
-  Together with the "<label> +<offset>: " prefix and the trailing
-  newline, a line stays well below the 512-byte buffer used by the my_safe_*
-  formatters and below PIPE_BUF, so each line can be emitted with a single
-  write(2) that is not interleaved with output from other threads.
+  Number of bytes of the string read, and in the tagged-lines format emitted
+  per line, by my_safe_puts_stderr(). Together with the label, offset and
+  separator prefix and the trailing newline, a tagged line stays well below
+  the 512-byte buffer used by the my_safe_* formatters and below PIPE_BUF,
+  so each line can be emitted with a single write(2) that is not
+  interleaved with output from other threads.
 */
 static constexpr size_t MY_SAFE_PUTS_CHUNK = 132;
 
 /*
-  Diagnostic emitted as the payload of a line when (the rest of) the string
-  cannot be read; the offset of that line tells how far the dump got.
+  Tagged-lines format: diagnostic emitted as the payload of a line when (the
+  rest of) the string cannot be read; the offset of that line tells how far
+  the dump got.
 */
 static const char MY_SAFE_PUTS_INVALID[] = "<is an invalid pointer>";
 
 /*
-  Emit one self-describing output line. Defined next to the other my_safe_*
-  formatters at the bottom of this file, as it is shared by the Linux /proc
-  path, the direct-memory fallback and the Windows variant.
+  Emit one chunk of the string in the selected format, see
+  my_safe_puts_stderr(). Defined next to the other my_safe_* formatters at
+  the bottom of this file, as it is shared by the Linux /proc path, the
+  direct-memory fallback and the Windows variant.
 */
 static void my_safe_puts_line(const char *label, size_t offset,
                               const char *chunk, size_t len);
+static void my_safe_puts_chunk(const char *label, size_t offset,
+                               const char *chunk, size_t len);
 
 #endif /* HAVE_STACKTRACE */
 
@@ -126,13 +134,14 @@ void my_init_stacktrace() {
 #ifdef __linux__
 
 /**
-  Access the pages of this process through /proc/self/task/<tid>/mem
+  Access the pages of this process through /proc/self/task/\<tid\>/mem
   in order to safely print the contents of a memory address range.
 
-  The range is printed as a sequence of self-describing lines, see
-  my_safe_puts_line(). Printing stops at the first NUL byte or after max_len
-  bytes. If (part of) the range is not readable, whatever could be read is
-  printed, followed by a line carrying MY_SAFE_PUTS_INVALID.
+  The range is read one MY_SAFE_PUTS_CHUNK sized chunk at a time and each
+  chunk is printed with my_safe_puts_chunk(). Printing stops at the first
+  NUL byte or after max_len bytes. If (part of) the range is not readable,
+  whatever could be read is printed, followed by a diagnostic, see
+  my_safe_puts_stderr().
 
   @param  label     Text identifying the string, e.g. "Query".
   @param  addr      The address at the start of the memory region.
@@ -162,10 +171,11 @@ static int safe_print_str(const char *label, const char *addr, int max_len) {
   total = max_len;
   offset = (intptr)addr;
 
-  /* A zero-length string still yields one (empty) line. */
-  if (total == 0) my_safe_puts_line(label, 0, buf, 0);
+  /* Tagged lines: a zero-length string still yields one (empty) line. */
+  if (total == 0 && my_safe_puts_tagged_lines)
+    my_safe_puts_line(label, 0, buf, 0);
 
-  /* Read up to the maximum number of bytes, one chunk per line. */
+  /* Read up to the maximum number of bytes, one chunk at a time. */
   while (total) {
     count = std::min(sizeof(buf), total);
 
@@ -180,8 +190,8 @@ static int safe_print_str(const char *label, const char *addr, int max_len) {
     const char *nul = static_cast<const char *>(memchr(buf, 0, nbytes));
     const size_t len = nul ? (size_t)(nul - buf) : (size_t)nbytes;
 
-    /* Output the printable characters as one self-describing line. */
-    my_safe_puts_line(label, max_len - total, buf, len);
+    /* Output the printable characters. */
+    my_safe_puts_chunk(label, max_len - total, buf, len);
 
     /* Advance offset into memory. */
     total -= nbytes;
@@ -196,9 +206,24 @@ static int safe_print_str(const char *label, const char *addr, int max_len) {
     }
   }
 
-  if (failed)
-    my_safe_puts_line(label, max_len - total, MY_SAFE_PUTS_INVALID,
-                      sizeof(MY_SAFE_PUTS_INVALID) - 1);
+  const size_t done = max_len - total;
+  if (my_safe_puts_tagged_lines) {
+    if (failed)
+      my_safe_puts_line(label, done, MY_SAFE_PUTS_INVALID,
+                        sizeof(MY_SAFE_PUTS_INVALID) - 1);
+  } else {
+    /* Output a new line if something was printed. */
+    if (done != 0) my_safe_printf_stderr("%s", "\n");
+    /*
+      Report an unreadable address the way the single-line format always
+      has. It used to read 256 bytes at a time, and as a read of /proc
+      returns the readable part of a range, only a read starting at an
+      unreadable byte failed and was reported, i.e. when reading failed at
+      an offset that is a multiple of 256. Keep that exact output.
+    */
+    if (failed && done % 256 == 0)
+      my_safe_printf_stderr("Can't read from address %p\n", addr + done);
+  }
 
   close(fd);
 
@@ -209,6 +234,10 @@ static int safe_print_str(const char *label, const char *addr, int max_len) {
 
 void my_safe_puts_stderr(const char *label, const char *val, size_t max_len) {
   const char *heap_end = nullptr;
+
+  /* Single line: the label is printed once, followed by the string. */
+  if (!my_safe_puts_tagged_lines) my_safe_printf_stderr("%s: ", label);
+
 #ifdef __linux__
   if (!safe_print_str(label, val, max_len)) return;
 
@@ -217,15 +246,18 @@ void my_safe_puts_stderr(const char *label, const char *val, size_t max_len) {
 #endif
 
   if (!ptr_sane(val, heap_end)) {
-    my_safe_puts_line(label, 0, MY_SAFE_PUTS_INVALID,
-                      sizeof(MY_SAFE_PUTS_INVALID) - 1);
+    if (my_safe_puts_tagged_lines)
+      my_safe_puts_line(label, 0, MY_SAFE_PUTS_INVALID,
+                        sizeof(MY_SAFE_PUTS_INVALID) - 1);
+    else
+      my_safe_printf_stderr("%s", "is an invalid pointer\n");
     return;
   }
 
   /*
     Copy the string chunk by chunk into a local buffer, checking every byte
-    with ptr_sane() before touching it, and emit each chunk as one line.
-    Stops at the first NUL byte or after max_len bytes.
+    with ptr_sane() before touching it, and print each chunk with
+    my_safe_puts_chunk(). Stops at the first NUL byte or after max_len bytes.
   */
   char buf[MY_SAFE_PUTS_CHUNK];
   size_t offset = 0;
@@ -245,16 +277,19 @@ void my_safe_puts_stderr(const char *label, const char *val, size_t max_len) {
       buf[len++] = *p;
     }
 
-    my_safe_puts_line(label, offset, buf, len);
+    my_safe_puts_chunk(label, offset, buf, len);
     offset += len;
 
     if (failed) {
-      my_safe_puts_line(label, offset, MY_SAFE_PUTS_INVALID,
-                        sizeof(MY_SAFE_PUTS_INVALID) - 1);
+      if (my_safe_puts_tagged_lines)
+        my_safe_puts_line(label, offset, MY_SAFE_PUTS_INVALID,
+                          sizeof(MY_SAFE_PUTS_INVALID) - 1);
       break;
     }
     if (nul || offset >= max_len) break;
   }
+
+  if (!my_safe_puts_tagged_lines) my_safe_printf_stderr("%s", "\n");
 }
 
 #ifdef HAVE_EXT_BACKTRACE
@@ -685,10 +720,10 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid) {
 
 void my_safe_puts_stderr(const char *label, const char *val, size_t max_len) {
   /*
-    Same chunked output as the Unix version, see my_safe_puts_line(). Reading
-    an unmapped address raises an access violation, which is caught by the
-    __except handler below; whatever was copied into buf before the fault is
-    still printed, followed by a line carrying MY_SAFE_PUTS_INVALID.
+    Same chunked reading as the Unix version, see my_safe_puts_chunk().
+    Reading an unmapped address raises an access violation, which is caught
+    by the __except handler below; whatever was copied into buf before the
+    fault is still printed, followed by a diagnostic.
   */
   char buf[MY_SAFE_PUTS_CHUNK];
   /*
@@ -698,6 +733,10 @@ void my_safe_puts_stderr(const char *label, const char *val, size_t max_len) {
   */
   volatile size_t offset = 0;
   volatile size_t len = 0;
+
+  /* Single line: the label is printed once, followed by the string. */
+  if (!my_safe_puts_tagged_lines) my_safe_printf_stderr("%s: ", label);
+
   __try {
     for (;;) {
       bool nul = false;
@@ -712,20 +751,24 @@ void my_safe_puts_stderr(const char *label, const char *val, size_t max_len) {
         len = len + 1;
       }
 
-      my_safe_puts_line(label, offset, buf, len);
+      my_safe_puts_chunk(label, offset, buf, len);
       offset = offset + len;
       len = 0;
 
       if (nul || offset >= max_len) break;
     }
+    if (!my_safe_puts_tagged_lines) my_safe_printf_stderr("%s", "\n");
   } __except (EXCEPTION_EXECUTE_HANDLER) {
     /* Flush the bytes read before the fault, then report the bad address. */
     if (len > 0) {
-      my_safe_puts_line(label, offset, buf, len);
+      my_safe_puts_chunk(label, offset, buf, len);
       offset = offset + len;
     }
-    my_safe_puts_line(label, offset, MY_SAFE_PUTS_INVALID,
-                      sizeof(MY_SAFE_PUTS_INVALID) - 1);
+    if (my_safe_puts_tagged_lines)
+      my_safe_puts_line(label, offset, MY_SAFE_PUTS_INVALID,
+                        sizeof(MY_SAFE_PUTS_INVALID) - 1);
+    else
+      my_safe_printf_stderr("%s", "is an invalid string pointer\n");
   }
 }
 #endif /* _WIN32 */
@@ -934,9 +977,17 @@ size_t my_safe_printf_stderr(const char *fmt, ...) {
 }
 
 #ifdef HAVE_STACKTRACE
+/* Replace a byte which is not printable ASCII by ' '. */
+static inline char my_safe_printable(char ch) {
+  const unsigned char c = static_cast<unsigned char>(ch);
+  /* isprint() is neither async-signal-safe nor locale-independent. */
+  return (c >= 0x20 && c < 0x7f) ? ch : ' ';
+}
+
 /**
-  Emit a single, self-describing line of the form
-  "<label> +<offset>: <chunk>\n" using one write(2).
+  Tagged-lines format: emit a single, self-describing line consisting of
+  the label, " +", the decimal offset, ": ", the chunk and a newline,
+  e.g. "Query (7f3a1c00b010) +132: ...", using one write(2).
 
   Bytes of the chunk which are not printable are replaced by ' ', so the line
   can neither contain embedded newlines nor control characters.
@@ -945,7 +996,8 @@ size_t my_safe_printf_stderr(const char *fmt, ...) {
                  "Query (7f3a1c00b010)".
   @param offset  Byte offset of the chunk within the string.
   @param chunk   The bytes to print. Must already be known to be readable.
-  @param len     Number of bytes in chunk, normally <= MY_SAFE_PUTS_CHUNK.
+  @param len     Number of bytes in chunk, normally at most
+                 MY_SAFE_PUTS_CHUNK.
 */
 static void my_safe_puts_line(const char *label, size_t offset,
                               const char *chunk, size_t len) {
@@ -955,13 +1007,37 @@ static void my_safe_puts_line(const char *label, size_t offset,
                                 static_cast<unsigned long>(offset));
   /* Never overflow the line buffer; always leave room for the newline. */
   len = std::min(len, sizeof(line) - 1 - pos);
-  for (size_t i = 0; i < len; ++i) {
-    const unsigned char c = static_cast<unsigned char>(chunk[i]);
-    /* isprint() is neither async-signal-safe nor locale-independent. */
-    line[pos++] = (c >= 0x20 && c < 0x7f) ? static_cast<char>(c) : ' ';
-  }
+  for (size_t i = 0; i < len; ++i) line[pos++] = my_safe_printable(chunk[i]);
   line[pos++] = '\n';
   my_write_stderr(line, pos);
+}
+
+/**
+  Print one chunk of the string in the format selected by
+  my_safe_puts_tagged_lines: as one tagged line, see my_safe_puts_line(),
+  or, in the single-line format, as the bare bytes with no prefix and no
+  newline, so that consecutive chunks form one line. Either way bytes which
+  are not printable are replaced by ' ' and the chunk takes one write(2).
+
+  @param label   Text identifying the string, only used for tagged lines.
+  @param offset  Byte offset of the chunk within the string.
+  @param chunk   The bytes to print. Must already be known to be readable.
+  @param len     Number of bytes in chunk.
+*/
+static void my_safe_puts_chunk(const char *label, size_t offset,
+                               const char *chunk, size_t len) {
+  if (my_safe_puts_tagged_lines) {
+    my_safe_puts_line(label, offset, chunk, len);
+    return;
+  }
+  char out[MY_SAFE_PUTS_CHUNK];
+  while (len > 0) {
+    const size_t n = std::min(len, sizeof(out));
+    for (size_t i = 0; i < n; ++i) out[i] = my_safe_printable(chunk[i]);
+    my_write_stderr(out, n);
+    chunk += n;
+    len -= n;
+  }
 }
 #endif /* HAVE_STACKTRACE */
 

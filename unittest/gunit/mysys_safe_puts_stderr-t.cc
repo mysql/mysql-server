@@ -23,13 +23,16 @@
 
 /*
   Unit tests for my_safe_puts_stderr(), which dumps a (possibly untrusted)
-  string to STDERR from a signal handler as a sequence of self-describing
-  lines of the form
+  string to STDERR from a signal handler, in one of two formats selected by
+  my_safe_puts_tagged_lines:
 
-    <label> +<offset>: <chunk>\n
+  - single line (default): the label, ": ", the string and a newline;
+  - tagged lines: a sequence of self-describing lines, each made of the
+    label, " +", the byte offset of the chunk, ": ", the chunk and a
+    newline.
 
-  The tests redirect STDERR into a pipe, call the function, and parse the
-  captured lines.
+  The tests redirect STDERR into a pipe, call the function, and check or
+  parse the captured output.
 */
 
 #include <gtest/gtest.h>
@@ -68,8 +71,13 @@ struct Line {
   std::string payload;
 };
 
-class SafePutsStderrTest : public ::testing::Test {
+/* Captures what my_safe_puts_stderr() writes, in the given format. */
+class SafePutsStderrBase : public ::testing::Test {
  protected:
+  explicit SafePutsStderrBase(bool tagged) : m_tagged(tagged) {}
+  void SetUp() override { my_safe_puts_tagged_lines = m_tagged; }
+  void TearDown() override { my_safe_puts_tagged_lines = false; }
+
   /*
     Redirect STDERR into a pipe, call my_safe_puts_stderr(), restore STDERR
     and return everything the function wrote. The write end of the pipe is
@@ -101,10 +109,19 @@ class SafePutsStderrTest : public ::testing::Test {
     return out;
   }
 
+ private:
+  const bool m_tagged;
+};
+
+/* Tagged-lines format. */
+class SafePutsStderrTest : public SafePutsStderrBase {
+ protected:
+  SafePutsStderrTest() : SafePutsStderrBase(true) {}
+
   /*
     Split the raw output into lines and check the invariants every line has
     to satisfy: ends with '\n', is at most kMaxLine bytes, starts with the
-    "<label> +" prefix, and contains no control characters.
+    label followed by " +", and contains no control characters.
   */
   static std::vector<Line> parse(const std::string &out, const char *label) {
     std::vector<Line> lines;
@@ -318,6 +335,108 @@ TEST_F(SafePutsStderrTest, LabelVerbatimFoo) {
   const char *in = "world";
   EXPECT_EQ("Foo +0: world\n", capture("Foo", in, strlen(in)));
 }
+
+/* Single-line format (the default). */
+class SafePutsStderrSingleLineTest : public SafePutsStderrBase {
+ protected:
+  SafePutsStderrSingleLineTest() : SafePutsStderrBase(false) {}
+};
+
+/* The default format is single line. */
+TEST(SafePutsStderrDefault, SingleLineIsDefault) {
+  EXPECT_FALSE(my_safe_puts_tagged_lines);
+}
+
+/* 11. The label, ": ", the string and one newline. */
+TEST_F(SafePutsStderrSingleLineTest, Short) {
+  const char *in = "hello";
+  EXPECT_EQ("Query (deadbeef): hello\n",
+            capture("Query (deadbeef)", in, strlen(in)));
+}
+
+/* 12. A string longer than a chunk is still printed as one line. */
+TEST_F(SafePutsStderrSingleLineTest, LongStringOneLine) {
+  const std::string in = printable(3 * kChunk + 5);
+  EXPECT_EQ("Query: " + in + "\n", capture("Query", in.c_str(), in.size()));
+}
+
+/* 13. max_len truncates the string. */
+TEST_F(SafePutsStderrSingleLineTest, MaxLenTruncates) {
+  const std::string in = printable(400);
+  EXPECT_EQ("Query: " + in.substr(0, 150) + "\n",
+            capture("Query", in.c_str(), 150));
+}
+
+/* 14. A zero-length string: the Linux /proc reader prints nothing after
+       the label, the direct-memory reader prints an empty string. */
+TEST_F(SafePutsStderrSingleLineTest, ZeroLength) {
+#ifdef __linux__
+  EXPECT_EQ("Label: ", capture("Label", "", 0));
+#else
+  EXPECT_EQ("Label: \n", capture("Label", "", 0));
+#endif
+}
+
+/* 15. Non-printable bytes are replaced by ' ', so the output stays on one
+       line. */
+TEST_F(SafePutsStderrSingleLineTest, NonPrintableReplaced) {
+  const std::string in("ab\ncd\tef\x01gh\x7fij", 14);
+  EXPECT_EQ("Query: ab cd ef gh ij\n", capture("Query", in.c_str(), 14));
+}
+
+/* 16. Printing stops at the first NUL byte, also when more than a chunk
+       of data follows it. */
+TEST_F(SafePutsStderrSingleLineTest, StopsAtNul) {
+  const char in[] = "prefix\0suffix";
+  EXPECT_EQ("Query: prefix\n", capture("Query", in, sizeof(in)));
+
+  std::string in2 = printable(700);
+  in2[150] = '\0';
+  EXPECT_EQ("Query: " + in2.substr(0, 150) + "\n",
+            capture("Query", in2.c_str(), in2.size()));
+}
+
+#ifdef __linux__
+/* The address as printed by the my_safe_* formatters. */
+static std::string address(const void *p) {
+  char buf[32];
+  my_safe_snprintf(buf, sizeof(buf), "%p", p);
+  return buf;
+}
+
+/* 17. An entirely invalid pointer: the diagnostic follows the label. */
+TEST_F(SafePutsStderrSingleLineTest, InvalidPointer) {
+  const char *in = reinterpret_cast<const char *>(16);
+  EXPECT_EQ("Query: Can't read from address " + address(in) + "\n",
+            capture("Query", in, 100));
+}
+
+/* 18. A string running off the end of mapped memory: the readable part is
+       printed on one line. Reading used to be done 256 bytes at a time and
+       an unreadable address was reported only when such a read started at
+       it; the output is unchanged. */
+TEST_F(SafePutsStderrSingleLineTest, StraddlesUnmappedPage) {
+  const size_t page = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  ASSERT_GT(page, 1024U);
+  void *mem = mmap(nullptr, 2 * page, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  ASSERT_NE(MAP_FAILED, mem);
+  char *first = static_cast<char *>(mem);
+  ASSERT_EQ(0, munmap(first + page, page));
+
+  for (const size_t tail : {size_t{20}, kChunk, size_t{256}, size_t{512}}) {
+    char *in = first + page - tail;
+    const std::string expected = printable(tail);
+    memcpy(in, expected.data(), tail);
+    std::string want = "Query: " + expected + "\n";
+    if (tail % 256 == 0)
+      want += "Can't read from address " + address(first + page) + "\n";
+    EXPECT_EQ(want, capture("Query", in, 1000)) << "tail " << tail;
+  }
+
+  EXPECT_EQ(0, munmap(first, page));
+}
+#endif /* __linux__ */
 
 }  // namespace mysys_safe_puts_stderr_unittest
 

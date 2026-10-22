@@ -355,11 +355,12 @@ static void print_fatal_signal(int sig, siginfo_t *info [[maybe_unused]]) {
       query_length = thd->query().length;
     }
     /*
-      The query is printed as many complete, newline-terminated lines, each
-      prefixed with the same label, here the query pointer, and the byte
-      offset of the chunk, so that other threads writing to the error log
-      concurrently cannot mangle it and the lines can be reassembled
-      afterwards.
+      By default the query is printed as one line after the label. With
+      log_error_crash_query_format=TAGGED_LINES it is printed as many
+      complete, newline-terminated lines, each prefixed with the same
+      label, here the query pointer, and the byte offset of the chunk, so
+      that other threads writing to the error log concurrently cannot
+      mangle it and the lines can be reassembled afterwards.
     */
     char label[48];
     my_safe_snprintf(label, sizeof(label), "Query (%p)", query);

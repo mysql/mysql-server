@@ -1,0 +1,29 @@
+Valid values are 'SINGLE_LINE' and 'TAGGED_LINES'
+SELECT @@global.log_error_crash_query_format;
+@@global.log_error_crash_query_format
+SINGLE_LINE
+SELECT @@session.log_error_crash_query_format;
+ERROR HY000: Variable 'log_error_crash_query_format' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'log_error_crash_query_format';
+Variable_name	Value
+log_error_crash_query_format	SINGLE_LINE
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='log_error_crash_query_format';
+VARIABLE_NAME	VARIABLE_VALUE
+log_error_crash_query_format	SINGLE_LINE
+SET GLOBAL log_error_crash_query_format=TAGGED_LINES;
+ERROR HY000: Variable 'log_error_crash_query_format' is a read only variable
+SET SESSION log_error_crash_query_format=TAGGED_LINES;
+ERROR HY000: Variable 'log_error_crash_query_format' is a read only variable
+SET PERSIST log_error_crash_query_format=TAGGED_LINES;
+ERROR HY000: Variable 'log_error_crash_query_format' is a read only variable
+SET PERSIST_ONLY log_error_crash_query_format=TAGGED_LINES;
+SELECT variable_name, variable_value FROM performance_schema.persisted_variables
+WHERE variable_name='log_error_crash_query_format';
+variable_name	variable_value
+log_error_crash_query_format	TAGGED_LINES
+RESET PERSIST log_error_crash_query_format;
+SELECT COUNT(*) FROM performance_schema.persisted_variables
+WHERE variable_name='log_error_crash_query_format';
+COUNT(*)
+0

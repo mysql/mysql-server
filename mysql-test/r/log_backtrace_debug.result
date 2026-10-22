@@ -59,3 +59,65 @@ COUNT(*)
 1
 #
 # Clean up.
+
+###################################################################
+# Crash handler: format of the query printed after a fatal signal,
+# see log_error_crash_query_format.
+#
+# The statement the crashing thread was executing is printed after
+# "Trying to get some variables.". With the default, SINGLE_LINE,
+# it is printed on one line after "Query (ADDR): ". With
+# TAGGED_LINES, it is printed as complete lines of at most 132 bytes
+# of the statement, each prefixed with "Query (ADDR) +OFFSET: ".
+# In both cases printing stops at the end of the statement and the
+# "Connection ID (thread ID)" line follows.
+###################################################################
+call mtr.add_suppression("mysqld got signal");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+#
+# Take down the server and start our own, with the default format,
+# logging to LOG_FILE2.
+SELECT @@global.log_error_crash_query_format;
+@@global.log_error_crash_query_format
+SINGLE_LINE
+#
+# Crash while the long statement is in flight.
+SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd END_OF_MARKER */;
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Restart with TAGGED_LINES, logging to LOG_FILE3.
+# restart: --log-error=LOG_FILE3 --log-error-verbosity=1 --log-error-crash-query-format=TAGGED_LINES
+SELECT @@global.log_error_crash_query_format;
+@@global.log_error_crash_query_format
+TAGGED_LINES
+#
+# SINGLE_LINE: the whole statement is on one line after the label.
+include/assert_grep.inc [The statement is printed on one line.]
+include/assert_grep.inc [No tagged lines are printed by default.]
+# The query line and the line following it, address and thread ID
+# masked.
+Query (ADDR): SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd END_OF_MARKER */
+Connection ID (thread ID): N
+#
+# Crash again while the long statement is in flight.
+SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd END_OF_MARKER */;
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Restart with the default format, reusing LOG_FILE3.
+# restart: --log-error=LOG_FILE3 --log-error-verbosity=1
+#
+# TAGGED_LINES: the statement is printed as offset-tagged lines.
+include/assert_grep.inc [The first tagged line is at offset 0.]
+include/assert_grep.inc [The second tagged line is at offset 132.]
+include/assert_grep.inc [The third tagged line is at offset 264.]
+include/assert_grep.inc [The last tagged line ends with the end of the statement.]
+include/assert_grep.inc [No single-line query is printed with TAGGED_LINES.]
+# The tagged lines and the line following them, address and thread
+# ID masked.
+Query (ADDR) +0: SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde
+Query (ADDR) +132: f0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef012
+Query (ADDR) +264: 3456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456
+Query (ADDR) +396: 789abcdef0123456789abcd END_OF_MARKER */
+Connection ID (thread ID): N
+#
+# Clean up.
