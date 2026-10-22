@@ -1,0 +1,116 @@
+# Regression test for the server telemetry metrics backed by
+# aggregated_stats_buffer (mysql.stats, mysql.stats.handler).
+#
+# These metrics are read by the OTEL metric callback from the sharded
+# aggregated_stats_buffer. The producers must write that shard next to the
+# per-THD status_var store; if they do not, the metric exports a constant 0
+# while SHOW GLOBAL STATUS shows real activity.
+#
+# This test drives activity exercising the Select, Sort, Created_tmp and
+# Handler (read and write) families, then asserts each covered metric is
+# populated (nonzero). It FAILS on the unfixed server (metrics stuck at 0) and
+# PASSES once the shard writes are in place.
+#
+# Coverage: 19 of the 25 fixed counters are asserted. The remaining 6 are
+# intentionally NOT asserted because they cannot be driven nonzero
+# deterministically and would make the test flaky:
+#   - max_execution_time_exceeded : timing dependent (query must exceed a wall
+#     clock limit)
+#   - mrr_init                     : depends on the optimizer choosing MRR
+#   - select_range_check           : depends on "range checked for each record"
+#   - select_full_range_join       : could not be driven nonzero reliably
+#   - sort_range                   : could not be driven nonzero reliably
+#   - sort_merge_passes            : depends on sort-buffer spill thresholds
+# All 25 flow through the same two mechanisms (THD::inc_status_* and
+# handler::ha_statistic_increment); the 19 asserted here exercise both in both
+# directions, so a broken shard write in either mechanism is caught.
+#
+# Values are not asserted to equal SHOW GLOBAL STATUS exactly: the metric
+# aggregates 64 shards lock-free and is an approximate, non-snapshot sum by
+# design. The regression property is "populated and tracking", i.e. nonzero.
+
+--source include/have_server_telemetry_metrics.inc
+
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+
+# All meters on so the metrics are exported/readable.
+UPDATE performance_schema.setup_meters SET enabled = 'YES';
+
+# Force internal tmp tables to spill to disk so created.tmp_disk_tables fires,
+# and make every query "slow" so slow_queries (long_query_count) fires.
+SET SESSION tmp_table_size = 1024;
+SET SESSION max_heap_table_size = 16384;
+SET SESSION long_query_time = 0;
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c VARCHAR(60), KEY kb (b));
+CREATE TABLE t2 (x INT, y INT);
+--disable_query_log
+let $i = 1;
+while ($i <= 500)
+{
+  eval INSERT INTO t1 VALUES ($i, $i % 17, CONCAT('padding_padding_padding_row_', $i));
+  eval INSERT INTO t2 VALUES ($i % 13, $i);
+  inc $i;
+}
+--enable_query_log
+FLUSH STATUS;
+
+--echo # Drive each affected metric family:
+--disable_result_log
+# Full scan on an unindexed column: select_scan + per-row read_rnd_next.
+SELECT * FROM t1 WHERE c > '';
+# Self join without a usable index: select_full_join.
+SELECT COUNT(*) FROM t1 a1 JOIN t1 a2 ON a1.c = a2.c;
+# Primary key range scan: select_range + read_next.
+SELECT * FROM t1 WHERE a BETWEEN 5 AND 400;
+# ORDER BY on an unindexed column: filesort -> sort_scan / sort_rows.
+SELECT * FROM t1 ORDER BY c;
+# Index descending / min-max: read_prev / read_last / read_first.
+SELECT * FROM t1 ORDER BY a DESC LIMIT 5;
+SELECT MIN(a), MAX(a) FROM t1;
+# Filesort that fetches rows by position: read_rnd.
+SELECT a FROM t1 ORDER BY b LIMIT 400;
+# GROUP BY on unindexed columns: created.tmp_tables (+ disk spill on the wide
+# VARCHAR grouping).
+SELECT b, COUNT(*) FROM t1 GROUP BY b;
+SELECT c, COUNT(*) FROM t1 GROUP BY c;
+# Keyed lookup: read_key.
+SELECT * FROM t1 WHERE a = 42;
+# Write path: write / update / delete (and external_lock on every open).
+INSERT INTO t1 VALUES (9001,1,'x'),(9002,2,'y');
+UPDATE t1 SET c = 'u' WHERE a = 9001;
+DELETE FROM t1 WHERE a = 9002;
+--enable_result_log
+
+# Assert each covered metric is populated (> 0). Each was a constant 0 on the
+# unfixed server. The UDF returns -1 for an unknown meter/metric, so assert
+# strictly > 0 (a bare truthiness check would let both 0 and -1 through).
+#
+# The 19 covered metrics are checked by looping over a "meter:metric" list:
+#   - mysql.stats (inc_status_* producers): the Select/Sort/Created_tmp/slow
+#     families.
+#   - mysql.stats.handler (ha_statistic_increment): the read and write handler
+#     families.
+--let $metrics = mysql.stats:select_scan mysql.stats:select_full_join mysql.stats:select_range mysql.stats:sort_scan mysql.stats:sort_rows mysql.stats:created.tmp_tables mysql.stats:created.tmp_disk_tables mysql.stats:slow_queries mysql.stats.handler:write mysql.stats.handler:update mysql.stats.handler:delete mysql.stats.handler:read_key mysql.stats.handler:read_next mysql.stats.handler:read_prev mysql.stats.handler:read_first mysql.stats.handler:read_last mysql.stats.handler:read_rnd mysql.stats.handler:read_rnd_next mysql.stats.handler:external_lock
+
+while ($metrics != '')
+{
+  # Pop the first "meter:metric" token off the front of the list.
+  --let $pair = `SELECT SUBSTRING_INDEX('$metrics', ' ', 1)`
+  --let $metrics = `SELECT LTRIM(SUBSTRING('$metrics', LENGTH('$pair') + 1))`
+  --let $meter = `SELECT SUBSTRING_INDEX('$pair', ':', 1)`
+  --let $metric = `SELECT SUBSTRING_INDEX('$pair', ':', -1)`
+
+  --let $val = `SELECT test_report_single_metric('$meter','$metric')`
+  if (`SELECT $val <= 0`)
+  {
+    --die FAIL: $meter.$metric not populated (got $val)
+  }
+  --echo PASS: $meter.$metric populated
+}
+
+# Cleanup
+DROP TABLE t1, t2;
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/test_server_telemetry_metrics_component.log

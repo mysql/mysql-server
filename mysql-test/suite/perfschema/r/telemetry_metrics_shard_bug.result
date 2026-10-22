@@ -1,0 +1,43 @@
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+UPDATE performance_schema.setup_meters SET enabled = 'YES';
+SET SESSION tmp_table_size = 1024;
+SET SESSION max_heap_table_size = 16384;
+SET SESSION long_query_time = 0;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c VARCHAR(60), KEY kb (b));
+CREATE TABLE t2 (x INT, y INT);
+FLUSH STATUS;
+# Drive each affected metric family:
+SELECT * FROM t1 WHERE c > '';
+SELECT COUNT(*) FROM t1 a1 JOIN t1 a2 ON a1.c = a2.c;
+SELECT * FROM t1 WHERE a BETWEEN 5 AND 400;
+SELECT * FROM t1 ORDER BY c;
+SELECT * FROM t1 ORDER BY a DESC LIMIT 5;
+SELECT MIN(a), MAX(a) FROM t1;
+SELECT a FROM t1 ORDER BY b LIMIT 400;
+SELECT b, COUNT(*) FROM t1 GROUP BY b;
+SELECT c, COUNT(*) FROM t1 GROUP BY c;
+SELECT * FROM t1 WHERE a = 42;
+INSERT INTO t1 VALUES (9001,1,'x'),(9002,2,'y');
+UPDATE t1 SET c = 'u' WHERE a = 9001;
+DELETE FROM t1 WHERE a = 9002;
+PASS: mysql.stats.select_scan populated
+PASS: mysql.stats.select_full_join populated
+PASS: mysql.stats.select_range populated
+PASS: mysql.stats.sort_scan populated
+PASS: mysql.stats.sort_rows populated
+PASS: mysql.stats.created.tmp_tables populated
+PASS: mysql.stats.created.tmp_disk_tables populated
+PASS: mysql.stats.slow_queries populated
+PASS: mysql.stats.handler.write populated
+PASS: mysql.stats.handler.update populated
+PASS: mysql.stats.handler.delete populated
+PASS: mysql.stats.handler.read_key populated
+PASS: mysql.stats.handler.read_next populated
+PASS: mysql.stats.handler.read_prev populated
+PASS: mysql.stats.handler.read_first populated
+PASS: mysql.stats.handler.read_last populated
+PASS: mysql.stats.handler.read_rnd populated
+PASS: mysql.stats.handler.read_rnd_next populated
+PASS: mysql.stats.handler.external_lock populated
+DROP TABLE t1, t2;
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';

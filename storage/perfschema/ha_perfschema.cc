@@ -44,6 +44,7 @@
 #include "mysql/strings/int2str.h"
 #include "mysqld_error.h"
 #include "nulls.h"
+#include "sql/aggregated_stats_buffer.h"
 #include "sql/hostname_cache.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
@@ -1681,7 +1682,8 @@ int ha_perfschema::write_row(uchar *buf) {
   if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   }
-  ha_statistic_increment(&System_status_var::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count,
+                         &aggregated_stats_buffer::ha_write_count);
   result = m_table_share->write_row(m_table, table, buf, table->field);
   return result;
 }
@@ -1707,7 +1709,8 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data) {
   }
 
   assert(m_table);
-  ha_statistic_increment(&System_status_var::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count,
+                         &aggregated_stats_buffer::ha_update_count);
   const int result =
       m_table->update_row(table, old_data, new_data, table->field);
   return result;
@@ -1720,7 +1723,8 @@ int ha_perfschema::delete_row(const uchar *buf) {
   }
 
   assert(m_table);
-  ha_statistic_increment(&System_status_var::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count,
+                         &aggregated_stats_buffer::ha_delete_count);
   const int result = m_table->delete_row(table, buf, table->field);
   return result;
 }
@@ -1762,7 +1766,8 @@ int ha_perfschema::rnd_next(uchar *buf) {
   }
 
   assert(m_table);
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count,
+                         &aggregated_stats_buffer::ha_read_rnd_next_count);
 
   int result = m_table->rnd_next();
   if (result == 0) {
@@ -1788,7 +1793,8 @@ int ha_perfschema::rnd_pos(uchar *buf, uchar *pos) {
   }
 
   assert(m_table);
-  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count,
+                         &aggregated_stats_buffer::ha_read_rnd_count);
   int result = m_table->rnd_pos(pos);
   if (result == 0) {
     result = m_table->read_row(table, buf, table->field);
@@ -1990,7 +1996,8 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
   }
 
   assert(m_table);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count,
+                         &aggregated_stats_buffer::ha_read_key_count);
 
   assert(table != nullptr);
   assert(table->s != nullptr);
@@ -2016,7 +2023,8 @@ int ha_perfschema::index_next(uchar *buf) {
     return HA_ERR_END_OF_FILE;
   }
 
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count,
+                         &aggregated_stats_buffer::ha_read_next_count);
 
   assert(m_table);
 
@@ -2037,7 +2045,8 @@ int ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen) {
     return HA_ERR_END_OF_FILE;
   }
 
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count,
+                         &aggregated_stats_buffer::ha_read_next_count);
 
   assert(m_table);
 
