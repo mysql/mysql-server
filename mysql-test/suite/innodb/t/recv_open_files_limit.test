@@ -1,0 +1,52 @@
+# Recovery must not hang when the redo touches more tablespaces than
+# innodb_open_files allows.
+#
+# recv_apply_log_rec() held recv_sys->mutex while it called
+# fil_space_get_page_size(), which opens the tablespace file when its size
+# is not known yet. With every file slot in use, opening a file waits for
+# the pending reads on the other files to complete. The read I/O threads
+# complete them in recv_recover_page(), which needs recv_sys->mutex, so
+# recovery hangs, printing "Trying to open a file for N seconds".
+#
+# The server options in -master.opt keep the pages dirty, so that the
+# checkpoint stays behind and recovery applies redo to every tablespace.
+
+--source include/not_valgrind.inc
+--source include/big_test.inc
+
+--disable_query_log
+let $i = 500;
+while ($i) {
+  eval CREATE TABLE t$i (a INT PRIMARY KEY AUTO_INCREMENT, b CHAR(255));
+  dec $i;
+}
+let $r = 5;
+while ($r) {
+  let $i = 500;
+  while ($i) {
+    eval INSERT INTO t$i (b) VALUES ('x');
+    dec $i;
+  }
+  dec $r;
+}
+--enable_query_log
+
+--source include/kill_mysqld.inc
+
+# Recover with the smallest open files limit.
+let $restart_parameters = restart: --innodb-open-files=10;
+--source include/start_mysqld.inc
+
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t500;
+
+--disable_query_log
+let $i = 500;
+while ($i) {
+  eval DROP TABLE t$i;
+  dec $i;
+}
+--enable_query_log
+
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

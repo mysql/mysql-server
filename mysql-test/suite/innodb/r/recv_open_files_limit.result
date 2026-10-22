@@ -1,0 +1,9 @@
+# Kill the server
+# restart: --innodb-open-files=10
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5
+SELECT COUNT(*) FROM t500;
+COUNT(*)
+5
+# restart:
