@@ -59,6 +59,7 @@ use My::ConfigFactory;
 use My::CoreDump;
 use My::File::Path;    # Patched version of File::Path
 use My::Find;
+use My::Manifest;
 use My::Options;
 use My::Platform;
 use My::RouterConfigFactory;
@@ -99,6 +100,9 @@ sub env_or_val($$) { defined $ENV{ $_[0] } ? $ENV{ $_[0] } : $_[1] }
 
 # Local variables
 my $parent_pid;
+my %children;    # Worker pids, so the END hook can stop them on an abort
+my $start_exit_servers_started = 0;    # A worker sent START_EXIT_OK
+my $worker_server_sock;                # Worker's socket to run_test_server
 my $opt_boot_dbx;
 my $opt_boot_ddd;
 my $opt_boot_gdb;
@@ -199,6 +203,8 @@ my $tmpdir_path_updated= 0;
 my $source_dist        = 0;
 my $shutdown_report    = 0;
 my $valgrind_reports   = 0;
+
+my $manifest_stub_content = "{ \"read_local_manifest\": true }";
 
 my @valgrind_args;
 
@@ -451,6 +457,19 @@ END {
     if ($parent_pid && $current_id == $parent_pid) {
         remove_redundant_thread_id_file_locations();
 	clean_unique_id_dir();
+        # Safety net: restore the pre-existing manifest on die/SIGINT.
+        # Idempotent — no-op if the normal exit path already restored it.
+        # The restore is skipped only after a successful --start-and-exit
+        # hand-off (manifest_hand_off): that is the only case in which MTR
+        # exits while leaving servers running, and they need the manifest
+        # (original or MTR-written stub) in place.  A --start-and-exit run
+        # that fails before the hand-off is restored like any other run.
+        # --start and --start-and-test keep MTR alive until the servers
+        # exit, so the restore runs after them.
+        # Workers may still be running on an abort; stop them before
+        # restoring the manifest so a test cannot overwrite it.
+        stop_workers();
+        remove_manifest_file();
     }
     if (defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$) {
     if (!$opt_start_exit) {
@@ -859,12 +878,18 @@ sub main {
 
   mtr_report("ports_per_thread:".$ports_per_thread);
 
+  # Arm the parent-only END cleanup before touching the manifest.
+  $parent_pid = $$;
+  # mtr_error uses POSIX::_exit on Windows, which skips END; restore the
+  # manifest from the parent before exiting.
+  $mtr_report::pre_exit_hook = sub {
+    return unless $$ == $parent_pid;
+    stop_workers();
+    remove_manifest_file();
+  };
   create_manifest_file();
 
   # Create child processes
-  my %children;
-
-  $parent_pid = $$;
   for my $child_num (1 .. $opt_parallel) {
     my $child_pid = My::SafeProcess::Base::_safe_fork();
     if ($child_pid == 0) {
@@ -892,22 +917,16 @@ sub main {
 
   my $completed = run_test_server($server, $tests, $opt_parallel);
 
-  exit(0) if $opt_start_exit;
-
-  # Send Ctrl-C to any children still running
-  kill("INT", keys(%children));
-
-  if (!IS_WINDOWS) {
-    # Wait for children to exit
-    foreach my $pid (keys %children) {
-      my $ret_pid = waitpid($pid, 0);
-      if ($ret_pid != $pid) {
-        mtr_report("Unknown process $ret_pid exited");
-      } else {
-        delete $children{$ret_pid};
-      }
-    }
+  # Hand off only if a worker reported START_EXIT_OK (servers running) and
+  # exited 0; a failed or all-skipped run restores the manifest.
+  if ($opt_start_exit && $start_exit_servers_started &&
+      start_exit_workers_ok()) {
+    # Servers are running detached; leave them the manifest.
+    manifest_hand_off();
+    exit(0);
   }
+
+  stop_workers();
 
   # Remove config files for components
   read_plugin_defs("include/plugin.defs", 1);
@@ -1035,7 +1054,7 @@ sub main {
 # connections, the bulk of the loop is handling the different messages.
 #
 # The message starts with a codeword, which can be 'TESTRESULT',
-# 'START', 'SPENT' or 'VALGREP'.
+# 'START', 'SPENT', 'VALGREP' or 'START_EXIT_OK'.
 #
 # After 'TESTRESULT' or 'START', the master thread finds the next test
 # to run by this worker. It also contains the logic to find a more
@@ -1264,6 +1283,11 @@ sub run_test_server ($$$) {
         } elsif ($line eq 'SRV_CRASH') {
           # Mysqld detected crash during shutdown
           $shutdown_report = 1;
+        } elsif ($line eq 'START_EXIT_OK') {
+          # --start-and-exit: the worker started its servers and is exiting;
+          # schedule nothing more for it.
+          $start_exit_servers_started = 1;
+          next;
         } else {
           # Unknown message from worker
           mtr_error("Unknown response: '$line' from client");
@@ -1421,6 +1445,7 @@ sub run_worker ($) {
                                     Proto    => 'tcp');
   mtr_error("Could not connect to server at port $server_port: $!")
     unless $server;
+  $worker_server_sock = $server;
 
   # Set worker name
   report_option('name', "worker[$thread_num]");
@@ -2516,23 +2541,54 @@ sub check_fips_support() {
   }
 }
 
-# Create global manifest file
+# Create global manifest file.  Delegates to My::Manifest.
 sub create_manifest_file {
   use strict;
   use File::Basename;
-  my $config_content = "{ \"read_local_manifest\": true }";
   my $manifest_file_ext = ".my";
   my $exe_mysqld = find_mysqld($basedir);
   my ($exename, $path, $suffix) = fileparse($exe_mysqld, qr/\.[^.]*/);
   my $manifest_file_path = $path.$exename.$manifest_file_ext;
-  open(my $mh, "> $manifest_file_path") or
-    die "Could not create manifest file $manifest_file_path";
-  print $mh $config_content or
-    die "Could not write manifest file $manifest_file_path";
-  close($mh);
+
+  manifest_create($manifest_file_path, $manifest_stub_content);
 }
 
-# Delete global manifest file
+# Reap the --start-and-exit workers, which exit on their own once the
+# servers are started; true only if every worker exited with status 0.
+sub start_exit_workers_ok {
+  return 1 if IS_WINDOWS;
+  local $?;
+  for my $pid (keys %children) {
+    my $r = waitpid($pid, 0);
+    return 0 if $r != $pid || $? != 0;
+    delete $children{$pid};
+  }
+  return 1;
+}
+
+# Send Ctrl-C to any workers still running and reap them.  Every pid is
+# forgotten afterwards, so a second call (from the END hook) is a no-op.
+sub stop_workers {
+  return unless %children;
+  local $?;    # waitpid sets $?; keep MTR's exit status when called from END
+  kill("INT", keys(%children));
+
+  if (!IS_WINDOWS) {
+    # Wait for children to exit
+    foreach my $pid (keys %children) {
+      my $ret_pid = waitpid($pid, 0);
+      if ($ret_pid != $pid) {
+        mtr_report("Unknown process $ret_pid exited");
+      }
+      delete $children{$pid};
+    }
+  } else {
+    %children = ();
+  }
+}
+
+# Delete global manifest file, restoring a pre-existing backup if one
+# was preserved by create_manifest_file().  Delegates to My::Manifest.
 sub remove_manifest_file {
   use strict;
   use File::Basename;
@@ -2540,7 +2596,8 @@ sub remove_manifest_file {
   my $exe_mysqld = find_mysqld($basedir);
   my ($exename, $path, $suffix) = fileparse($exe_mysqld, qr/\.[^.]*/);
   my $manifest_file_path = $path.$exename.$manifest_file_ext;
-  unlink $manifest_file_path;
+
+  manifest_restore($manifest_file_path, $manifest_stub_content);
 }
 
 # Create config for one component
@@ -5322,6 +5379,7 @@ sub run_testcase ($) {
   if ($start_only) {
     if ($opt_start_exit) {
       mtr_print("Server(s) started, not waiting for them to finish");
+      print $worker_server_sock "START_EXIT_OK\n" if $worker_server_sock;
       if (IS_WINDOWS) {
         POSIX::_exit(0);    # exit hangs here in ActiveState Perl
       } else {

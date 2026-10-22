@@ -10,3 +10,5 @@
 --exec perl $MYSQL_TEST_DIR/lib/t/SafeProcess.t 2>&1
 --exec perl $MYSQL_TEST_DIR/lib/t/testMyConfig.t 2>&1
 --exec perl $MYSQL_TEST_DIR/lib/t/testMyConfigFactory.t 2>&1
+--replace_regex /ok ([0-9]+)( - [^\n]*| # skip [^\n]*)/ok \1/
+--exec perl $MYSQL_TEST_DIR/lib/t/manifest.t 2>&1
