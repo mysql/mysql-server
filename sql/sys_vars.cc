@@ -2697,6 +2697,18 @@ static Sys_var_ulong Sys_log_error_verbosity(
     VALID_RANGE(1, 3), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(update_log_error_verbosity));
 
+static Sys_var_enum Sys_log_error_crash_query_format(
+    "log_error_crash_query_format",
+    "Format of the SQL statement printed by the crash handler. "
+    "SINGLE_LINE prints the statement as one line (default). "
+    "TAGGED_LINES prints it as self-describing lines of at most 132 bytes "
+    "of statement text each, prefixed with the label and byte offset, so "
+    "that log pipelines that process the error log line by line can rely "
+    "on no line mixing statement text with output from other threads.",
+    PERSIST_AS_READONLY READ_ONLY GLOBAL_VAR(opt_log_error_crash_query_format),
+    CMD_LINE(REQUIRED_ARG), log_error_crash_query_format_names,
+    DEFAULT(LOG_ERROR_CRASH_QUERY_SINGLE_LINE), NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static Sys_var_enum Sys_log_timestamps(
     "log_timestamps",
     "UTC to timestamp log files in zulu time, for more concise timestamps "

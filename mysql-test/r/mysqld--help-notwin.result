@@ -598,6 +598,14 @@ The following options may be given as the first argument:
  can safely set this to TRUE. This variable is deprecated
  and will be removed in a future version.
  --log-error[=name]  Error log file
+ --log-error-crash-query-format=name 
+ Format of the SQL statement printed by the crash handler.
+ SINGLE_LINE prints the statement as one line (default).
+ TAGGED_LINES prints it as self-describing lines of at
+ most 132 bytes of statement text each, prefixed with the
+ label and byte offset, so that log pipelines that process
+ the error log line by line can rely on no line mixing
+ statement text with output from other threads.
  --log-error-services=name 
  Services that should be called when an error event is
  received
@@ -1817,6 +1825,7 @@ log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-error stderr
+log-error-crash-query-format SINGLE_LINE
 log-error-services log_filter_internal; log_sink_internal
 log-error-suppression-list 
 log-error-verbosity 2

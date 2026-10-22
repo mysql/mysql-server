@@ -1363,6 +1363,9 @@ bool opt_log_unsafe_statements;
 
 const char *timestamp_type_names[] = {"UTC", "SYSTEM", NullS};
 ulong opt_log_timestamps;
+const char *log_error_crash_query_format_names[] = {"SINGLE_LINE",
+                                                    "TAGGED_LINES", NullS};
+ulong opt_log_error_crash_query_format;
 uint mysqld_port, test_flags, select_errors, ha_open_options;
 uint mysqld_port_timeout;
 ulong delay_key_write_options;
@@ -9638,6 +9641,15 @@ int mysqld_main(int argc, char **argv)
   }
 
   keyring_lockable_init();
+
+#ifdef HAVE_STACKTRACE
+  /*
+    The fatal signal handler must not access system variables, so hand it a
+    plain copy of log_error_crash_query_format before it is installed.
+  */
+  my_safe_puts_tagged_lines =
+      opt_log_error_crash_query_format == LOG_ERROR_CRASH_QUERY_TAGGED_LINES;
+#endif
 
   my_init_signals();
   /*
