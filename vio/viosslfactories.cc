@@ -38,6 +38,7 @@
 #include <string.h>
 
 #include <string>
+#include <vector>
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -54,6 +55,8 @@
 
 #include <dh_ecdh_config.h>
 #include <tls_ciphers.h>
+
+#include "vio/vio_sigalgs.h"
 
 #include "my_openssl_fips.h"
 #define TLS_VERSION_OPTION_SIZE 256
@@ -102,6 +105,8 @@ static const char *ssl_error_string[] = {
     "Failed to set X509 verification parameter",
     "Invalid certificates",
     "Failed to set TLS signature algorithms",
+    "The TLS library accepts none of the mandatory-to-implement TLS 1.3 "
+    "signature algorithms (RFC 8446 section 9.1)",
     "Failed to set TLS session id context"};
 
 const char *sslGetErrString(enum enum_ssl_init_error e) {
@@ -123,6 +128,21 @@ static const char tls_sigalgs_non_fips[] =
 static const char tls_sigalgs_non_fips_pqc[] =
     TLS_SIGALGS_PQC_EXTRA TLS_SIGALGS_COMMON_LIST TLS_SIGALGS_NON_FIPS_EXTRA;
 #endif
+/*
+  Every shipped list, including its terminating NUL, must fit the
+  st_VioSSLFd buffers that record the effective and dropped token lists
+  (effective_sigalgs and dropped_sigalgs have the same size).
+*/
+static_assert(sizeof(tls_sigalgs_fips) <= sizeof(st_VioSSLFd::dropped_sigalgs),
+              "shipped sigalgs list must fit the dropped_sigalgs buffer");
+static_assert(sizeof(tls_sigalgs_non_fips) <=
+                  sizeof(st_VioSSLFd::dropped_sigalgs),
+              "shipped sigalgs list must fit the dropped_sigalgs buffer");
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+static_assert(sizeof(tls_sigalgs_non_fips_pqc) <=
+                  sizeof(st_VioSSLFd::dropped_sigalgs),
+              "shipped sigalgs list must fit the dropped_sigalgs buffer");
+#endif
 #undef TLS_SIGALGS_PQC_EXTRA
 #undef TLS_SIGALGS_NON_FIPS_EXTRA
 #undef TLS_SIGALGS_COMMON_LIST
@@ -136,6 +156,25 @@ static const char *get_sigalgs_list(bool tls_use_pqc_sign [[maybe_unused]]) {
 
   return tls_sigalgs_non_fips;
 }
+
+namespace vio_sigalgs {
+/*
+  Accessors declared in vio/vio_sigalgs.h.  They expose the file-local
+  shipped preference lists above so that unit tests can assert the floor
+  predicate against the real constants.  The accessors are always defined;
+  a list that is compiled out (the PQC list on OpenSSL < 3.5, mirroring
+  get_sigalgs_list()) is reported as nullptr.
+*/
+const char *shipped_list_fips() { return tls_sigalgs_fips; }
+const char *shipped_list_non_fips() { return tls_sigalgs_non_fips; }
+const char *shipped_list_non_fips_pqc() {
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  return tls_sigalgs_non_fips_pqc;
+#else
+  return nullptr;
+#endif
+}
+}  // namespace vio_sigalgs
 
 static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
                               const char *key_file,
@@ -289,6 +328,8 @@ static struct st_VioSSLFd *new_VioSSLFd(
   ssl_fd->tls_session_cache_pqc_only = false;
   ssl_fd->tls_use_pqc_sign = false;
   ssl_fd->tls_kex = nullptr;
+  ssl_fd->effective_sigalgs[0] = '\0';
+  ssl_fd->dropped_sigalgs[0] = '\0';
 
   if (!(ssl_fd->ssl_context = SSL_CTX_new(is_client ? TLS_client_method()
                                                     : TLS_server_method()))) {
@@ -349,12 +390,109 @@ static struct st_VioSSLFd *new_VioSSLFd(
       also advertise PQC-capable signature algorithms before the classical
       fallback list. FIPS mode uses only provider-accepted classical
       algorithms.
+
+      Fast path: try the full configured list first (zero cost for stock
+      OpenSSL where every token is accepted).  On failure, probe each
+      token individually on the real context and reassemble the survivors
+      while preserving the original preference order.  The context's
+      sigalgs state after probing is whatever the last successful probe
+      set; the final SSL_CTX_set1_sigalgs_list() with the full survivor
+      string overwrites it, and on any error path the context is freed.
+      A floor predicate (RFC 8446 section 9.1 MTI set) prevents silently
+      degrading to a context with no viable signature algorithm.
     */
     const char *sig_algs = get_sigalgs_list(tls_use_pqc_sign);
-    if (0 == SSL_CTX_set1_sigalgs_list(ssl_fd->ssl_context,
+    bool sigalgs_applied = false;
+
+    if (1 == SSL_CTX_set1_sigalgs_list(ssl_fd->ssl_context,
                                        const_cast<char *>(sig_algs))) {
-      *error = SSL_INITERR_SIGALGS;
-      goto error;
+      /* Fast path: all tokens accepted. */
+      sigalgs_applied = true;
+      if (snprintf(ssl_fd->effective_sigalgs, sizeof(ssl_fd->effective_sigalgs),
+                   "%s", sig_algs) >=
+          static_cast<int>(sizeof(ssl_fd->effective_sigalgs)))
+        DBUG_PRINT("warning", ("effective_sigalgs list truncated"));
+      ssl_fd->dropped_sigalgs[0] = '\0';
+    }
+
+    DBUG_EXECUTE_IF("tls_sigalgs_reject_pss_pss", { sigalgs_applied = false; });
+    DBUG_EXECUTE_IF("tls_sigalgs_reject_all_but_pkcs1",
+                    { sigalgs_applied = false; });
+
+    if (!sigalgs_applied) {
+      ERR_clear_error();
+
+      /*
+        Probing mutates the acceptor context's sigalgs state, but this is
+        safe: on any error path below the context is freed, and on the
+        success path the final SSL_CTX_set1_sigalgs_list() call re-applies
+        the full survivor list, so the context always ends in a
+        well-defined state.
+      */
+      auto probe = [&](const std::string &token) -> bool {
+        DBUG_EXECUTE_IF("tls_sigalgs_reject_pss_pss", {
+          if (token.substr(0, 12) == "rsa_pss_pss_") return false;
+        });
+        DBUG_EXECUTE_IF("tls_sigalgs_reject_all_but_pkcs1", {
+          return token.compare(0, 10, "rsa_pkcs1_") == 0 ||
+                 token.compare(0, 4, "RSA+") == 0;
+        });
+        bool ok = (1 == SSL_CTX_set1_sigalgs_list(ssl_fd->ssl_context,
+                                                  token.c_str()));
+        ERR_clear_error();
+        return ok;
+      };
+
+      std::vector<std::string> dropped;
+      std::string survivors = vio_sigalgs::filter(sig_algs, probe, &dropped);
+
+      /*
+        The floor is a server-side TLS 1.3 guarantee: the server must
+        produce a CertificateVerify signature, so a TLS 1.3-capable server
+        whose survivors lack every algorithm mandatory for that message must
+        not start: conforming peers are no longer guaranteed to interoperate
+        with it.  A server restricted to TLS 1.2 (--tls-version=TLSv1.2)
+        skips the floor, since it may sign ServerKeyExchange with
+        RSASSA-PKCS1-v1_5.  A client only offers what it supports, so a
+        missing algorithm surfaces as a handshake failure against the server
+        (a visible error), whereas failing context creation on the client
+        would turn --ssl-mode=PREFERRED into a silent plaintext fallback.
+        See vio_sigalgs::floor_required().
+      */
+      if (vio_sigalgs::floor_required(is_client, ssl_ctx_flags) &&
+          !vio_sigalgs::meets_floor(survivors)) {
+        *error = SSL_INITERR_SIGALGS_FLOOR;
+        goto error;
+      }
+
+      /*
+        Where the floor applies it guarantees a non-empty survivor list.
+        Where it is skipped (client, TLS 1.2-only server) an empty survivor
+        list is still rejected here: SSL_CTX_set1_sigalgs_list() returns 0
+        for an empty list, yielding SSL_INITERR_SIGALGS.
+      */
+      if (0 ==
+          SSL_CTX_set1_sigalgs_list(ssl_fd->ssl_context, survivors.c_str())) {
+        *error = SSL_INITERR_SIGALGS;
+        goto error;
+      }
+
+      /* Record effective and dropped lists. */
+      if (snprintf(ssl_fd->effective_sigalgs, sizeof(ssl_fd->effective_sigalgs),
+                   "%s", survivors.c_str()) >=
+          static_cast<int>(sizeof(ssl_fd->effective_sigalgs)))
+        DBUG_PRINT("warning", ("effective_sigalgs list truncated"));
+
+      /* Build colon-joined dropped list. */
+      std::string dropped_str;
+      for (const auto &d : dropped) {
+        if (!dropped_str.empty()) dropped_str += ':';
+        dropped_str += d;
+      }
+      if (snprintf(ssl_fd->dropped_sigalgs, sizeof(ssl_fd->dropped_sigalgs),
+                   "%s", dropped_str.c_str()) >=
+          static_cast<int>(sizeof(ssl_fd->dropped_sigalgs)))
+        DBUG_PRINT("warning", ("dropped_sigalgs list truncated"));
     }
   }
 

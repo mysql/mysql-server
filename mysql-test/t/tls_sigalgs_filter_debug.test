@@ -1,0 +1,175 @@
+--source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
+
+# Test the signature-algorithm filter path using the debug hook
+# tls_sigalgs_reject_pss_pss, which rejects rsa_pss_pss_* tokens.
+
+# Suppress the expected warnings from the filter.
+call mtr.add_suppression("Signature algorithm .* is not supported by the TLS library and was removed from the preference list");
+
+# The mysqlx channel assertions need an active X Plugin; when it is absent
+# (e.g. --mysqlx=OFF) only the mysql_main assertions run.  Its mysqlx log
+# count is then zero, so the per-channel subtractions below still hold.
+--let $have_x = query_get_value(SELECT COUNT(*) AS c FROM information_schema.plugins WHERE plugin_name='mysqlx' AND plugin_status='ACTIVE', c, 1)
+
+# The error log accumulates across restarts, and a TLS library that
+# legitimately rejects rsa_pss_pss_* has already logged these warnings for
+# the initial server start.  Count them first and assert on the increase.
+# The X Plugin builds its own acceptor for channel 'mysqlx' through the same
+# filter, so its warnings are counted separately.
+--perl
+  my $log = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+  my $count = 0;
+  my $xcount = 0;
+  if (open(my $fh, '<', $log)) {
+    while (my $line = <$fh>) {
+      next unless $line =~ /rsa_pss_pss_.*was removed from the preference list/;
+      $count++;
+      $xcount++ if $line =~ /channel 'mysqlx'/;
+    }
+    close($fh);
+  }
+  my $tmpf = "$ENV{'MYSQLTEST_VARDIR'}/tmp/pss_warn_count.inc";
+  open(my $wfh, '>', $tmpf) or die "Cannot write $tmpf: $!";
+  print $wfh "--let \$pss_warn_count = $count\n";
+  print $wfh "--let \$pss_mysqlx_count = $xcount\n";
+  close($wfh);
+EOF
+--source $MYSQLTEST_VARDIR/tmp/pss_warn_count.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/pss_warn_count.inc
+--let $pss_warnings_before = $pss_warn_count
+--let $pss_mysqlx_before = $pss_mysqlx_count
+
+# Restart the server with the debug hook enabled.  The X Plugin creates its
+# TLS context asynchronously, so wait until its interfaces are up.
+--let $restart_parameters = restart: --debug=+d,tls_sigalgs_reject_pss_pss
+--source include/restart_mysqld.inc
+if ($have_x)
+{
+  --source include/xplugin_wait_for_interfaces.inc
+}
+
+# TLS must still be operational.
+--connect (ssl_con,localhost,root,,,,,SSL)
+--replace_column 2 CIPHER
+SHOW STATUS LIKE 'Ssl_cipher';
+
+# The effective list must not contain any rsa_pss_pss_* tokens.
+let $sigalgs = `SELECT VALUE FROM performance_schema.tls_channel_status
+WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Ssl_sigalgs_list'`;
+
+--let $assert_text = Effective sigalgs list does not contain rsa_pss_pss_
+--let $assert_cond = "$sigalgs" NOT LIKE "%rsa_pss_pss_%" 
+--source include/assert.inc
+
+# The hook removes only rsa_pss_pss_* tokens, so both RFC 8446 MTI tokens
+# must remain.
+--let $assert_text = MTI token ECDSA+SHA256 kept (hook removes only rsa_pss_pss_*)
+--let $assert_cond = "$sigalgs" LIKE "%ECDSA+SHA256%"
+--source include/assert.inc
+
+--let $assert_text = MTI token rsa_pss_rsae_sha256 kept (hook removes only rsa_pss_pss_*)
+--let $assert_cond = "$sigalgs" LIKE "%rsa_pss_rsae_sha256%"
+--source include/assert.inc
+
+--disconnect ssl_con
+--connection default
+
+# The debug restart must have added exactly three warnings per channel, one
+# per rsa_pss_pss_* token, on top of whatever the initial start logged.
+--perl
+  my $log = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+  my $count = 0;
+  my $xcount = 0;
+  if (open(my $fh, '<', $log)) {
+    while (my $line = <$fh>) {
+      next unless $line =~ /rsa_pss_pss_.*was removed from the preference list/;
+      $count++;
+      $xcount++ if $line =~ /channel 'mysqlx'/;
+    }
+    close($fh);
+  }
+  my $tmpf = "$ENV{'MYSQLTEST_VARDIR'}/tmp/pss_warn_count.inc";
+  open(my $wfh, '>', $tmpf) or die "Cannot write $tmpf: $!";
+  print $wfh "--let \$pss_warn_count = $count\n";
+  print $wfh "--let \$pss_mysqlx_count = $xcount\n";
+  close($wfh);
+EOF
+--source $MYSQLTEST_VARDIR/tmp/pss_warn_count.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/pss_warn_count.inc
+--let $assert_text = Debug restart logged three rsa_pss_pss warnings for mysql_main
+--let $assert_cond = ($pss_warn_count - $pss_mysqlx_count) - ($pss_warnings_before - $pss_mysqlx_before) = 3
+--source include/assert.inc
+# Silent so that the .result is the same with and without the X Plugin.
+if ($have_x)
+{
+  --let $include_silent = 1
+  --let $assert_text = Debug restart logged three rsa_pss_pss warnings for mysqlx
+  --let $assert_cond = $pss_mysqlx_count - $pss_mysqlx_before = 3
+  --source include/assert.inc
+  --let $include_silent = 0
+}
+
+# Restart clean.
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+if ($have_x)
+{
+  --source include/xplugin_wait_for_interfaces.inc
+}
+
+# The filter warnings must also be logged when the context is replaced by
+# ALTER INSTANCE RELOAD TLS.  The hook is per-thread and the reload runs on
+# this session's thread.
+--perl
+  my $log = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+  my $count = 0;
+  my $xcount = 0;
+  if (open(my $fh, '<', $log)) {
+    while (my $line = <$fh>) {
+      next unless $line =~ /rsa_pss_pss_.*was removed from the preference list/;
+      $count++;
+      $xcount++ if $line =~ /channel 'mysqlx'/;
+    }
+    close($fh);
+  }
+  my $tmpf = "$ENV{'MYSQLTEST_VARDIR'}/tmp/pss_warn_count.inc";
+  open(my $wfh, '>', $tmpf) or die "Cannot write $tmpf: $!";
+  print $wfh "--let \$pss_warn_count = $count\n";
+  print $wfh "--let \$pss_mysqlx_count = $xcount\n";
+  close($wfh);
+EOF
+--source $MYSQLTEST_VARDIR/tmp/pss_warn_count.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/pss_warn_count.inc
+--let $pss_warnings_before = $pss_warn_count
+
+SET SESSION debug='+d,tls_sigalgs_reject_pss_pss';
+ALTER INSTANCE RELOAD TLS;
+SET SESSION debug='-d,tls_sigalgs_reject_pss_pss';
+
+--perl
+  my $log = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+  my $count = 0;
+  my $xcount = 0;
+  if (open(my $fh, '<', $log)) {
+    while (my $line = <$fh>) {
+      next unless $line =~ /rsa_pss_pss_.*was removed from the preference list/;
+      $count++;
+      $xcount++ if $line =~ /channel 'mysqlx'/;
+    }
+    close($fh);
+  }
+  my $tmpf = "$ENV{'MYSQLTEST_VARDIR'}/tmp/pss_warn_count.inc";
+  open(my $wfh, '>', $tmpf) or die "Cannot write $tmpf: $!";
+  print $wfh "--let \$pss_warn_count = $count\n";
+  print $wfh "--let \$pss_mysqlx_count = $xcount\n";
+  close($wfh);
+EOF
+--source $MYSQLTEST_VARDIR/tmp/pss_warn_count.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/pss_warn_count.inc
+--let $assert_text = TLS reload logged three rsa_pss_pss warnings
+--let $assert_cond = $pss_warn_count - $pss_warnings_before = 3
+--source include/assert.inc
+
+# Restore a TLS context built without the hook.
+ALTER INSTANCE RELOAD TLS;
