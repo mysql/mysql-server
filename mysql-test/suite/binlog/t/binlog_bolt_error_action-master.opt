@@ -1,0 +1,1 @@
+--skip-core-file --log-error=$MYSQLTEST_VARDIR/tmp/binlog_bolt_error_action.err --binlog-large-transaction-optimization-enabled=ON --binlog-large-transaction-optimization-threshold=10M --max-binlog-size=1G --sync-binlog=1 --innodb-flush-log-at-trx-commit=1 --binlog-transaction-compression=OFF

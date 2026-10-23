@@ -114,6 +114,7 @@ void Commit_stage_manager::init(PSI_mutex_key key_LOCK_flush_queue,
   mysql_cond_init(key_COND_done, &m_stage_cond_binlog);
   mysql_cond_init(key_COND_done, &m_stage_cond_commit_order);
   mysql_cond_init(key_COND_flush_queue, &m_stage_cond_leader);
+  mysql_cond_init(key_COND_flush_queue, &m_stage_cond_flush_queue_fetched);
   mysql_cond_init(key_COND_wait_for_group_turn,
                   &this->m_cond_wait_for_ticket_turn);
 #ifndef NDEBUG
@@ -159,6 +160,7 @@ void Commit_stage_manager::deinit() {
   mysql_cond_destroy(&m_stage_cond_binlog);
   mysql_cond_destroy(&m_stage_cond_commit_order);
   mysql_cond_destroy(&m_stage_cond_leader);
+  mysql_cond_destroy(&m_stage_cond_flush_queue_fetched);
   mysql_mutex_destroy(&m_lock_done);
   mysql_cond_destroy(&this->m_cond_wait_for_ticket_turn);
   mysql_mutex_destroy(&this->m_lock_wait_for_ticket_turn);
@@ -232,7 +234,45 @@ bool Commit_stage_manager::append_to(StageID stage, THD *thd) {
       [thd, this]() -> void { this->update_session_ticket_state(thd); }};
 
   lock_queue(stage);
+  /*
+    A BOLT session must be the first session of its flush group, because
+    the promotion of its spilled file rotates the binary log in the flush
+    stage. When the flush queue is empty, the BOLT session enrolls below as
+    the leader, as any session does. Otherwise the BOLT session waits in
+    m_flush_leader_candidates. The leader that fetches the current queue
+    then appends the BOLT session to the emptied queue, so the BOLT session
+    leads the next flush group and no other session can take that place
+    first. Sessions that enroll later join the BOLT session's group.
+  */
+  auto &ctx = thd->rpl_thd_ctx.binlog_group_commit_ctx();
+  if (stage == BINLOG_FLUSH_STAGE && ctx.must_lead_flush_group() &&
+      !m_queue[stage].is_empty()) {
+    m_flush_leader_candidates.push_back(thd);
+    DEBUG_SYNC(thd, "bgc_flush_leader_candidate_waiting");
+    while (!ctx.is_assigned_flush_leader())
+      mysql_cond_wait(&m_stage_cond_flush_queue_fetched,
+                      &m_queue_lock[BINLOG_FLUSH_STAGE]);
+    /* Clear the flag for this session's next commit. */
+    ctx.set_assigned_flush_leader(false);
+    /*
+      The leader that fetched the queue put this session first in the queue,
+      so this session is the leader.
+    */
+    assert(m_queue[stage].get_leader() == thd);
+    return true;
+  }
   return m_queue[stage].append(thd);
+}
+
+void Commit_stage_manager::assign_next_flush_leader() {
+  m_queue[BINLOG_FLUSH_STAGE].assert_owner();
+  assert(m_queue[BINLOG_FLUSH_STAGE].is_empty());
+  if (m_flush_leader_candidates.empty()) return;
+  THD *const leader = m_flush_leader_candidates.front();
+  m_flush_leader_candidates.pop_front();
+  m_queue[BINLOG_FLUSH_STAGE].append(leader);
+  leader->rpl_thd_ctx.binlog_group_commit_ctx().set_assigned_flush_leader(true);
+  mysql_cond_broadcast(&m_stage_cond_flush_queue_fetched);
 }
 
 bool Commit_stage_manager::enroll_for(StageID stage, THD *thd,
@@ -478,12 +518,25 @@ void Commit_stage_manager::wait_count_or_timeout(ulong count, long usec,
 
 THD *Commit_stage_manager::fetch_queue_acquire_lock(StageID stage) {
   DBUG_PRINT("debug", ("Fetching queue for stage %d", stage));
-  return m_queue[stage].fetch_and_empty_acquire_lock();
+  if (stage != BINLOG_FLUSH_STAGE)
+    return m_queue[stage].fetch_and_empty_acquire_lock();
+  /*
+    For the binlog large transaction optimization (BOLT): a fetch of the
+    flush queue makes a waiting BOLT session the leader of the next group,
+    under the flush queue lock. The hand-off runs even with BOLT disabled,
+    because BOLT can be disabled while a BOLT session waits.
+  */
+  lock_queue(stage);
+  THD *queue = fetch_queue_skip_acquire_lock(stage);
+  unlock_queue(stage);
+  return queue;
 }
 
 THD *Commit_stage_manager::fetch_queue_skip_acquire_lock(StageID stage) {
   DBUG_PRINT("debug", ("Fetching queue for stage %d", stage));
-  return m_queue[stage].fetch_and_empty_skip_acquire_lock();
+  THD *queue = m_queue[stage].fetch_and_empty_skip_acquire_lock();
+  if (stage == BINLOG_FLUSH_STAGE) assign_next_flush_leader();
+  return queue;
 }
 
 void Commit_stage_manager::process_final_stage_for_ordered_commit_group(

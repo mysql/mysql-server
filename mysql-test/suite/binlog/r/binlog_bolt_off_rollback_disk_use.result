@@ -1,0 +1,12 @@
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+SET GLOBAL binlog_cache_size = 4096;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# A new session opens its binlog cache with the size set above.
+BEGIN;
+SAVEPOINT s0;
+INSERT INTO t1 VALUES (1, REPEAT('a', 100000));
+ROLLBACK TO SAVEPOINT s0;
+INSERT INTO t1 VALUES (2, 'small');
+COMMIT;
+include/assert.inc [R1: the spilled cache is counted in Binlog_cache_disk_use.]
+DROP TABLE t1;

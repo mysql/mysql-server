@@ -1,0 +1,98 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify that sql_replica_skip_counter skips a large transaction from a
+# promoted binlog file. The file starts with a Large_transaction_header_event
+# before the transaction's Gtid event. The applier must treat that event as a
+# Previous_gtids_log_event, so the event never spends the skip counter.
+#
+# === Requirements ===
+# R1. With sql_replica_skip_counter = 1, the replica skips the large
+#     transaction at the start of a promoted binlog file, and applies the
+#     transaction after it.
+# R2. R1 holds with one applier worker and with several applier workers.
+#
+# === Implementation ===
+# For each applier, stop the replica applier, commit a promoted large
+# transaction and a small one on the source, set the skip counter to 1, and
+# start the applier. The rows of the large transaction must be missing on the
+# replica, and the row of the small one must be present.
+#
+--source include/have_binlog_format_row.inc
+--source include/have_gtid_mode_off.inc
+--source include/not_binlog_transaction_compression_on.inc
+--source include/rpl/init_source_replica.inc
+
+--let $source_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $source_save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--source include/rpl/sync_to_replica.inc
+--let $replica_save_workers = `SELECT @@GLOBAL.replica_parallel_workers`
+
+--let $case = 1
+while ($case <= 2)
+{
+  --source include/rpl/connection_replica.inc
+  --source include/rpl/stop_applier.inc
+  if ($case == 1)
+  {
+    --echo # Case 1: one applier worker.
+    SET GLOBAL replica_parallel_workers = 1;
+  }
+  if ($case == 2)
+  {
+    --echo # Case 2: several applier workers.
+    SET GLOBAL replica_parallel_workers = 4;
+  }
+
+  --source include/rpl/connection_source.inc
+  --let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+  --let $base = `SELECT $case * 10`
+  BEGIN;
+  --eval INSERT INTO t1 VALUES ($base + 1, REPEAT('a', 4000000))
+  --eval INSERT INTO t1 VALUES ($base + 2, REPEAT('b', 4000000))
+  --eval INSERT INTO t1 VALUES ($base + 3, REPEAT('c', 4000000))
+  COMMIT;
+  --let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+  --let $assert_text = The source promotes the large transaction's spilled file.
+  --let $assert_cond = $bolt_after = $bolt_before + 1
+  --source include/assert.inc
+  --eval INSERT INTO t1 VALUES ($base + 9, 'after')
+  --source include/rpl/sync_to_replica_received.inc
+
+  --source include/rpl/connection_replica.inc
+  SET GLOBAL sql_replica_skip_counter = 1;
+  --source include/rpl/start_applier.inc
+  --source include/rpl/connection_source.inc
+  --source include/rpl/sync_to_replica.inc
+
+  --let $assert_text = R1: the replica skips the large transaction.
+  --let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id BETWEEN $base + 1 AND $base + 3, count, 1] = 0
+  --source include/assert.inc
+  --let $assert_text = R1: the replica applies the transaction after it.
+  --let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id = $base + 9, count, 1] = 1
+  --source include/assert.inc
+  --let $assert_text = R1: the skip counter is spent.
+  --let $assert_cond = [SELECT @@GLOBAL.sql_replica_skip_counter] = 0
+  --source include/assert.inc
+
+  --source include/rpl/connection_source.inc
+  --inc $case
+}
+
+# Cleanup
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+--disable_query_log
+--eval SET GLOBAL replica_parallel_workers = $replica_save_workers
+--enable_query_log
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $source_save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $source_save_threshold
+--enable_query_log
+--source include/rpl/deinit.inc

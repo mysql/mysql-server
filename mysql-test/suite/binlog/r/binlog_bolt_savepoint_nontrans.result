@@ -1,0 +1,33 @@
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=MyISAM;
+CREATE PROCEDURE ins(IN i INT, IN len INT)
+BEGIN
+INSERT INTO t1 VALUES (i, REPEAT(CHAR(64 + MOD(i, 26)), len));
+END|
+# C24: non-transactional table changed after the savepoint
+BEGIN;
+CALL ins(1, 4000000);
+CALL ins(2, 4000000);
+CALL ins(3, 4000000);
+SAVEPOINT s;
+INSERT INTO t2 VALUES (1, 'myisam');
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
+CALL ins(4, 4000000);
+ROLLBACK TO SAVEPOINT s;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+COMMIT;
+include/assert.inc [C24: non-transactional table changed after the savepoint: t1 holds exactly the expected rows]
+include/assert.inc [C24: non-transactional table changed after the savepoint: every retained row has its own payload]
+include/assert.inc [C24: non-transactional table changed after the savepoint: promoted 1 time(s)]
+include/assert.inc [C24: non-transactional table changed after the savepoint: missed optimizations +0]
+include/assert.inc [C24: non-transactional table changed after the savepoint: the binlog inserts 3 row(s) into t1]
+include/assert.inc [C24: non-transactional table changed after the savepoint: no bolt_ temp file is left over]
+include/assert.inc [C24: the MyISAM row is logged once, before the promoted file]
+include/assert.inc [C24: the non-transactional change is kept]
+DROP PROCEDURE ins;
+DROP TABLE t1, t2;

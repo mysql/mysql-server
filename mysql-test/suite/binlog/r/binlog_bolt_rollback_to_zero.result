@@ -1,0 +1,50 @@
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# R1: knob ON for the rolled-back transaction, OFF for the next one.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (2, REPEAT('a', 2000000)), (1, 'dup');
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+COMMIT;
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
+COMMIT;
+include/assert.inc [R1: with the knob OFF, the next large transaction's spilled file is not promoted.]
+include/assert.inc [R1: no bolt_ file is left.]
+TRUNCATE t1;
+# R2: knob OFF for the rolled-back transaction, ON for the next one.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (2, REPEAT('a', 2000000)), (1, 'dup');
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+COMMIT;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
+COMMIT;
+include/assert.inc [R2: with the knob ON, the next large transaction's spilled file is promoted.]
+TRUNCATE t1;
+# R3: as R1, but the emptied transaction ends with ROLLBACK.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (2, REPEAT('a', 2000000)), (1, 'dup');
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+ROLLBACK;
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
+COMMIT;
+include/assert.inc [R3: with the knob OFF, the next large transaction's spilled file is not promoted.]
+TRUNCATE t1;
+# R4: the transaction continues after the rollback to 0 and is promoted.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (2, REPEAT('a', 2000000)), (1, 'dup');
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+INSERT INTO t1 VALUES (10, REPEAT('b', 6000000)), (11, REPEAT('b', 6000000));
+COMMIT;
+include/assert.inc [R4: the transaction's spilled file is promoted.]
+include/assert.inc [R4: only the rows of the second statement are retained.]
+DROP TABLE t1;

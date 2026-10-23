@@ -115,6 +115,11 @@ class Log_sanitizer {
   /// @returns Reference to a memory key
   virtual PSI_memory_key &get_memory_key() const = 0;
 
+  /// @brief Whether this sanitizer is recovering a relay log rather than a
+  /// binary log.
+  /// @returns true for relay-log recovery, false for binary-log recovery.
+  virtual bool is_relay_log_recovery() const { return false; }
+
   /// @brief This function goes through the opened file and searches for
   /// a valid position in a binary log file. It also gathers
   /// information about XA transactions which will be used during the
@@ -228,6 +233,28 @@ class Log_sanitizer {
 
   /// Last opened file size
   my_off_t m_last_file_size{0};
+
+  /// @brief Invoked when a `Large_transaction_header_log_event` is read from
+  /// the reader.
+  /// @details The header records the terminating event's offset, type and
+  /// XID. Actions taken to process the header:
+  /// - If source_verify_checksum is ON, the transaction is read
+  ///   sequentially.
+  /// - If the transaction does not end with an Xid or XA_prepare event, the
+  ///   transaction is read sequentially.
+  /// - If the event at the recorded offset does not match the header, a
+  ///   warning is logged and the transaction is read sequentially.
+  /// - If the reader fails, `m_is_malformed` is set to true.
+  /// - If the event at the recorded offset matches the header, the reader
+  ///   seeks to the terminating event, and `m_in_transaction` is set to
+  ///   true. The seek skipped the transaction's start, so the terminating
+  ///   event must find the transaction open.
+  /// @param ev The `Large_transaction_header_log_event` to process.
+  /// @param reader Reader for the current binary log.
+  /// @param file_name Name of the current binary log file, for the messages.
+  void process_large_trx_header_event(
+      Large_transaction_header_log_event const &ev,
+      IBasic_binlog_file_reader &reader, const std::string &file_name);
 
   /// @brief Invoked when a `Query_log_event` is read from the binary log file
   /// reader.

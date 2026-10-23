@@ -1,0 +1,144 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# The binlog's temp files directory, #binlog_temp_files/<binlog base
+# name>, exists only once the optimization is enabled, and the binlog cache's
+# standard-form spill files are not in it.
+#
+# === Requirements ===
+# R1. Started with the optimization OFF, the server does not create the
+#     directory, and a transaction that spills leaves nothing there.
+# R2. SET GLOBAL binlog_large_transaction_optimization_enabled = ON creates
+#     the directory.
+# R3. Setting it OFF keeps the directory.
+# R4. SET ... = ON fails when the directory cannot be created (a regular file
+#     has its name); the variable stays OFF. The error log names the
+#     directory, and the client gets a warning that points to the error log.
+# R5. Started with the optimization ON, when the directory cannot be created,
+#     the server starts, logs an error with the directory and the OS error,
+#     and turns the optimization OFF.
+# R6. The directory is not listed as a schema.
+#
+--source include/not_windows.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
+--disable_query_log
+CALL mtr.add_suppression("The binlog temporary files directory .* is unusable");
+CALL mtr.add_suppression("Could not use the binlog temporary files directory");
+CALL mtr.add_suppression("Could not build the binlog temporary files directory path");
+CALL mtr.add_suppression("Turned binlog_large_transaction_optimization_enabled OFF because the binlog temporary files directory");
+--enable_query_log
+
+--echo # R1: the optimization is OFF; no directory, even after a spill.
+--error 1
+--file_exists $BOLT_TEMP_DIR
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+--error 1
+--file_exists $BOLT_TEMP_DIR
+
+--echo # R2: enabling the optimization creates the directory.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+--file_exists $BOLT_TEMP_DIR
+
+--echo # R6: the directory is not listed as a schema.
+--let $assert_text = R6: information_schema.SCHEMATA does not list the binlog temp files directory.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE "%binlog\\_temp\\_files%", count, 1] = 0
+--source include/assert.inc
+--let $bolt_schema_listed = 0
+--let $bolt_row = 1
+--let $bolt_schema = query_get_value(SHOW DATABASES, Database, $bolt_row)
+while ($bolt_schema != 'No such row')
+{
+  if (`SELECT '$bolt_schema' LIKE '%binlog_temp_files%'`)
+  {
+    --let $bolt_schema_listed = 1
+  }
+  --inc $bolt_row
+  --let $bolt_schema = query_get_value(SHOW DATABASES, Database, $bolt_row)
+}
+--let $assert_text = R6: SHOW DATABASES does not list the binlog temp files directory.
+--let $assert_cond = $bolt_schema_listed = 0
+--source include/assert.inc
+
+--echo # R3: disabling it keeps the directory.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--file_exists $BOLT_TEMP_DIR
+
+--echo # R4: enabling fails when the directory cannot be created.
+--rmdir $BOLT_TEMP_DIR
+--write_file $BOLT_TEMP_DIR END_OF_FILE
+not a directory
+END_OF_FILE
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+# The warning number changes when messages are added before it.
+--replace_column 2 #
+SHOW WARNINGS;
+--let $assert_text = R4: the error log names the directory that is not a directory.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_tmp_dir_create
+--let $assert_select = \[ERROR\].* The binlog temporary files directory '[^']*/#binlog_temp_files/$bolt_binlog_base' is unusable because it is not a directory or is a symbolic link\. Replace it with a directory, then restart the server\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = The optimization stays OFF.
+--let $assert_cond = @@GLOBAL.binlog_large_transaction_optimization_enabled = 0
+--source include/assert.inc
+--remove_file $BOLT_TEMP_DIR
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+--file_exists $BOLT_TEMP_DIR
+
+--echo # R5: started with the optimization ON, the directory cannot be created.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--rmdir $BOLT_TEMP_DIR
+--let $BOLT_PARENT_DIR = $MYSQLD_DATADIR/#binlog_temp_files
+# Remember the directory's mode, then make the directory read-only. A user who
+# can write into a read-only directory (root) cannot run this case.
+--let BOLT_PARENT_DIR = $BOLT_PARENT_DIR
+--let BOLT_PROBE_INC = $MYSQLTEST_VARDIR/tmp/bolt_tmp_dir_create_probe.inc
+--perl
+  my $mode = sprintf("%o", (stat($ENV{BOLT_PARENT_DIR}))[2] & 07777);
+  chmod(0555, $ENV{BOLT_PARENT_DIR}) or die "Cannot change the mode of $ENV{BOLT_PARENT_DIR}";
+  my $probe = "$ENV{BOLT_PARENT_DIR}/bolt_write_probe";
+  my $writable = 0;
+  if (open(my $fh, '>', $probe)) { close($fh); unlink($probe); $writable = 1; }
+  open(my $out, '>', $ENV{BOLT_PROBE_INC}) or die "Cannot write the probe result";
+  print $out "--let \$bolt_parent_writable = $writable\n";
+  print $out "--let \$bolt_parent_mode = $mode\n";
+  close($out);
+EOF
+--source $BOLT_PROBE_INC
+--remove_file $BOLT_PROBE_INC
+--let $restart_parameters = restart: --binlog-large-transaction-optimization-enabled=ON
+--source include/restart_mysqld.inc
+--exec chmod $bolt_parent_mode $BOLT_PARENT_DIR
+if (!$bolt_parent_writable)
+{
+  --let $assert_text = R5: the server starts with the optimization OFF.
+  --let $assert_cond = @@GLOBAL.binlog_large_transaction_optimization_enabled = 0
+  --source include/assert.inc
+  --let $assert_text = R5: turning the optimization OFF is logged as an error.
+  --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+  --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_tmp_dir_create
+  --let $assert_select = \[ERROR\].* Turned binlog_large_transaction_optimization_enabled OFF because the binlog temporary files directory for '[^']*/$bolt_binlog_base' is unusable\. The previous error gives the reason\. Fix the directory and restart the server to use the optimization\.
+  --let $assert_count = 1
+  --source include/assert_grep.inc
+  --let $assert_text = R5: the error log names the directory and the OS error.
+  --let $assert_select = \[ERROR\].* Could not use the binlog temporary files directory '[^']*/#binlog_temp_files/$bolt_binlog_base' \(OS error 13\)\. Check that the server can create, read and write the directory\.
+  --let $assert_count = 1
+  --source include/assert_grep.inc
+}
+--let $restart_parameters = restart
+--source include/restart_mysqld.inc
+
+# Cleanup
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+DROP TABLE t1;

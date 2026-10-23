@@ -1,0 +1,153 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify the reserved-header fallback. When the region reserved at the front of
+# a spill binlog file cannot hold the header events of the new binlog file,
+# the spill binlog file is not promoted. The transaction is then written into
+# the new binlog file through the standard commit path.
+#
+# === Requirements ===
+# R1. A promotable large transaction promotes when the reserved region fits.
+# R2. A reserved region too small prevents the promotion. The optimization
+#     counter does not move, and the missed counter increments exactly once.
+# R3. The fallback writes the transaction into the new binlog file that the
+#     rotation opened.
+# R4. The fallback commits every row.
+# R5. The fallback reports the reserved-header reason in the error log.
+# R6. The new binlog file stays readable, with valid checksums, and holds the
+#     transaction without a large transaction header.
+#
+# === Implementation ===
+# The reserved region is sized at the transaction's first event, from the
+# length of the active binlog file's header, so no configuration makes it too
+# small while leaving the transaction otherwise promotable. The debug symbol
+# force_bolt_reserved_header_fallback makes the real check in
+# promote_spilled_file() fail. That check runs after the rotation opened the
+# new binlog file, so the forced path is the real fallback.
+#
+# Case 1 runs the identical transaction without the symbol, so the opposite
+# outcome in case 2 is attributable to the region size and not to the workload.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_binlog_format = query_get_value(SELECT @@SESSION.binlog_format, @@SESSION.binlog_format, 1)
+--let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+
+# Setup
+--disable_query_log
+--disable_warnings
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
+DROP TABLE IF EXISTS t1;
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+############################################################################
+# Case 1: the reserved region fits, so the transaction promotes. This is the
+# control for case 2: same session settings, same statements, same sizes.
+############################################################################
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A promotable large transaction promotes when the reserved region fits.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = A fitting reserved region promotes a binlog.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = A fitting reserved region does not increment the missed counter.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = The promoted commit opens its promoted binlog.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = The BOLT transaction commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+
+############################################################################
+# Case 2: the same transaction with the reserved region forced too small.
+############################################################################
+# The fallback rotates the binlog, so the R6 check below inspects a new
+# binlog file that holds only this case's transaction.
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A reserved region too small for the header events uses the standard path.
+SET @old_debug = @@SESSION.debug;
+SET SESSION debug = "+d,force_bolt_reserved_header_fallback";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+SET SESSION debug = @old_debug;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = A reserved region too small does not promote a binlog.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A reserved region too small increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = A reserved-header fallback writes into the new binlog file.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = A reserved-header fallback commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = The fallback reason is logged: the header events do not fit in the reserved region.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Could not optimize large transaction execution in the binlog because the header events of the new binlog file do not fit in the region reserved at the front of the spill binlog file. The transaction used the standard commit path instead\.
+--let $assert_count = 1
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_reserved_header_fallback
+--source include/assert_grep.inc
+
+# R6. The fallback commits into the new binlog file, so that file must
+# decode with valid checksums and hold the transaction without a large
+# transaction header. --force-if-open is required because the file is active.
+--let $bolt_fallback_dump = $MYSQLTEST_VARDIR/tmp/bolt_reserved_header_fallback.txt
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file_after > $bolt_fallback_dump
+--let $assert_file = $bolt_fallback_dump
+--let $assert_text = The fallback transaction is present in the active binlog.
+--let $assert_select = Write_rows
+--let $assert_count =
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+--let $assert_count_condition =
+--let $assert_text = The new binlog file holds no large transaction header.
+--let $assert_select = Large transaction header
+--let $assert_count = 0
+--source include/assert_grep.inc
+--remove_file $bolt_fallback_dump
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--disable_warnings
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET SESSION binlog_format = $save_binlog_format
+--eval SET SESSION binlog_transaction_compression = $save_compression
+--enable_warnings
+--enable_query_log

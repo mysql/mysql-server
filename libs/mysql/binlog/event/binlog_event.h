@@ -365,6 +365,11 @@ enum Log_event_type {
   HEARTBEAT_LOG_EVENT_V2 = 41,
 
   GTID_TAGGED_LOG_EVENT = 42,
+
+  /**
+    A binlog event used by the large transaction optimization.
+  */
+  LARGE_TRANSACTION_HEADER_EVENT = 43,
   /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers

@@ -1,0 +1,168 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify startup cleanup of the binlog temporary files directory,
+# #binlog_temp_files/<binlog base name>.
+#
+# === Requirements ===
+# R1. Startup removes the bolt_* spill files left in the server's directory,
+#     and logs how many it removed and from which directory.
+# R2. Startup leaves another server's directory (a different binlog base
+#     name in the same binlog directory) untouched.
+# R3. Entries the server did not create (another name, a symbolic link, a
+#     directory) are left in place with a warning, and startup continues.
+# R4. A symbolic link for the directory itself never stops startup. With the
+#     optimization enabled, startup logs an error and turns the optimization
+#     OFF.
+# R5. With the optimization disabled, the same directory is a warning, and
+#     enabling the optimization later fails with an error and a warning that
+#     points to the error log.
+# R6. A leftover spill file that cannot be deleted is left in place with a
+#     warning, and startup continues.
+#
+# === Implementation ===
+# 1. Restart with managed files in the server's directory and in another
+#    server's directory; only the server's own files are removed.
+# 2. Restart with unexpected entries; they stay and a warning is logged for
+#    each.
+# 3. Restart with a symbolically linked directory, with the optimization
+#    enabled and then disabled, and check the log and the setting.
+# 4. Restart with a spill file in a directory that cannot be written, so the
+#    file cannot be deleted. The case is skipped when the directory is still
+#    writable, as it is for root.
+#
+--source include/not_windows.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $BOLT_PARENT_DIR = $MYSQLD_DATADIR/#binlog_temp_files
+--let $BOLT_CLEANUP_DIR = $BOLT_PARENT_DIR/$bolt_binlog_base
+--let $BOLT_OTHER_DIR = $BOLT_PARENT_DIR/other-server-bin
+--let $BOLT_CLEANUP_DIR_TARGET = $MYSQLD_DATADIR/binlog_bolt_cleanup_dir_target
+--let $BOLT_CLEANUP_FILE_TARGET = $MYSQLD_DATADIR/binlog_bolt_cleanup_file_target
+--disable_query_log
+CALL mtr.add_suppression("Skipped removing entry .* in the binlog temporary files directory");
+CALL mtr.add_suppression("is not a directory or is a symbolic link");
+CALL mtr.add_suppression("Turned binlog_large_transaction_optimization_enabled OFF because the binlog temporary files directory");
+CALL mtr.add_suppression("Cannot enable binlog_large_transaction_optimization_enabled because the binlog temporary files directory");
+CALL mtr.add_suppression("Could not delete the leftover spill binlog file");
+--enable_query_log
+
+--echo # R1, R2: only the server's own spill files are removed.
+--exec touch $BOLT_CLEANUP_DIR/bolt_0123456789abcdef_0
+--exec touch $BOLT_CLEANUP_DIR/bolt_0123456789abcdef_1
+--exec touch $BOLT_CLEANUP_DIR/bolt_aB3xY9
+--mkdir $BOLT_OTHER_DIR
+--exec touch $BOLT_OTHER_DIR/bolt_0123456789abcdef_0
+--source include/restart_mysqld.inc
+--echo Entries in the server's directory:
+--exec ls $BOLT_CLEANUP_DIR
+--echo Entries in the other server's directory:
+--exec ls $BOLT_OTHER_DIR
+--let $assert_text = R1: startup logs the number of removed spill files and the directory.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_tmp_dir_cleanup
+--let $assert_select = Removed 3 leftover spill binlog files in the binlog temporary files directory '[^']*/#binlog_temp_files/$bolt_binlog_base'\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--remove_file $BOLT_OTHER_DIR/bolt_0123456789abcdef_0
+--rmdir $BOLT_OTHER_DIR
+
+--echo # R3: entries the server did not create are left in place.
+--exec touch $BOLT_CLEANUP_DIR/not_a_managed_bolt_file
+--exec touch $BOLT_CLEANUP_FILE_TARGET
+--exec ln -s $BOLT_CLEANUP_FILE_TARGET $BOLT_CLEANUP_DIR/bolt_1111
+--mkdir $BOLT_CLEANUP_DIR/bolt_2222
+--source include/restart_mysqld.inc
+--echo Entries in the server's directory:
+--exec ls $BOLT_CLEANUP_DIR
+--let $assert_text = A warning is logged for each skipped entry.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_tmp_dir_cleanup
+--let $assert_select = Skipped removing entry '(not_a_managed_bolt_file|bolt_1111|bolt_2222)' in the binlog temporary files directory '[^']*/#binlog_temp_files/$bolt_binlog_base' because it is not a BOLT spill file \(a regular file whose name is 'bolt_' followed by letters, digits and '_'\)\. Remove it if it is not needed\.
+--let $assert_count = 3
+--source include/assert_grep.inc
+--remove_file $BOLT_CLEANUP_DIR/not_a_managed_bolt_file
+--remove_file $BOLT_CLEANUP_DIR/bolt_1111
+--remove_file $BOLT_CLEANUP_FILE_TARGET
+--rmdir $BOLT_CLEANUP_DIR/bolt_2222
+
+--echo # R4: a symbolic link for the directory turns the optimization OFF.
+--rmdir $BOLT_CLEANUP_DIR
+--mkdir $BOLT_CLEANUP_DIR_TARGET
+--exec ln -s $BOLT_CLEANUP_DIR_TARGET $BOLT_CLEANUP_DIR
+--let $restart_parameters = restart: --binlog-large-transaction-optimization-enabled=ON
+--source include/restart_mysqld.inc
+--let $assert_text = R4: the server starts with the optimization OFF.
+--let $assert_cond = [SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled] = 0
+--source include/assert.inc
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_tmp_dir_cleanup
+--let $assert_text = R4: the reason is logged as an error.
+--let $assert_select = \[ERROR\].* The binlog temporary files directory '[^']*/#binlog_temp_files/$bolt_binlog_base' is unusable because it is not a directory or is a symbolic link\. Replace it with a directory, then restart the server\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R4: turning the optimization OFF is logged as an error.
+--let $assert_select = \[ERROR\].* Turned binlog_large_transaction_optimization_enabled OFF because the binlog temporary files directory for '[^']*/$bolt_binlog_base' is unusable\. The previous error gives the reason\. Fix the directory and restart the server to use the optimization\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # R5: with the optimization disabled, the same directory is a warning.
+--let $restart_parameters = restart: --binlog-large-transaction-optimization-enabled=OFF
+--source include/restart_mysqld.inc
+--let $assert_text = R5: the reason is logged as a warning.
+--let $assert_select = \[Warning\].* The binlog temporary files directory '[^']*/#binlog_temp_files/$bolt_binlog_base' is unusable because it is not a directory or is a symbolic link\. Replace it with a directory, then restart the server\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+--echo # R5: the client gets a warning that points to the error log.
+# The warning number changes when messages are added before it.
+--replace_column 2 #
+SHOW WARNINGS;
+--let $assert_text = R5: the optimization stays disabled.
+--let $assert_cond = [SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled] = 0
+--source include/assert.inc
+--let $assert_text = R5: enabling the optimization later is logged as an error.
+--let $assert_select = \[ERROR\].* Cannot enable binlog_large_transaction_optimization_enabled because the binlog temporary files directory for '[^']*/$bolt_binlog_base' was unusable at server startup\. The reason was logged at startup\. Fix the directory and restart the server\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--source include/shutdown_mysqld.inc
+--remove_file $BOLT_CLEANUP_DIR
+--rmdir $BOLT_CLEANUP_DIR_TARGET
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
+
+--echo # R6: a leftover spill file that cannot be deleted is left in place.
+--exec touch $BOLT_CLEANUP_DIR/bolt_0123456789abcdef_9
+--let BOLT_CLEANUP_DIR = $BOLT_CLEANUP_DIR
+--let BOLT_PROBE_INC = $MYSQLTEST_VARDIR/tmp/bolt_tmp_dir_cleanup_probe.inc
+# Remember the directory's mode, make the directory read-only, and check that
+# the read-only directory really refuses a new file. A user who can still
+# write into it (root) can also delete the leftover, so the case is skipped.
+--perl
+  my $dir = $ENV{BOLT_CLEANUP_DIR};
+  my $mode = sprintf("%o", (stat($dir))[2] & 07777);
+  chmod(0555, $dir) or die "Cannot change the mode of $dir";
+  my $probe = "$dir/bolt_write_probe";
+  my $writable = 0;
+  if (open(my $fh, '>', $probe)) { close($fh); unlink($probe); $writable = 1; }
+  open(my $out, '>', $ENV{BOLT_PROBE_INC}) or die "Cannot write the probe result";
+  print $out "--let \$bolt_dir_writable = $writable\n";
+  print $out "--let \$bolt_dir_mode = $mode\n";
+  close($out);
+EOF
+--source $BOLT_PROBE_INC
+--remove_file $BOLT_PROBE_INC
+--source include/restart_mysqld.inc
+--exec chmod $bolt_dir_mode $BOLT_CLEANUP_DIR
+if (!$bolt_dir_writable)
+{
+  --let $assert_text = R6: the undeleted file is logged as a warning.
+  --let $assert_select = \[Warning\].* Could not delete the leftover spill binlog file '[^']*/#binlog_temp_files/$bolt_binlog_base/bolt_0123456789abcdef_9' \(OS error [0-9]+ - [^)]*\)\. The server does not use this file\. Delete it to reclaim the space\.
+  --let $assert_count = 1
+  --source include/assert_grep.inc
+  --file_exists $BOLT_CLEANUP_DIR/bolt_0123456789abcdef_9
+  --remove_file $BOLT_CLEANUP_DIR/bolt_0123456789abcdef_9
+}

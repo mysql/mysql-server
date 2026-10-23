@@ -1,0 +1,2 @@
+--log-replica-updates
+--binlog-transaction-compression=OFF

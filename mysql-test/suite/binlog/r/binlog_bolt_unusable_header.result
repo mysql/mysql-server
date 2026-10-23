@@ -1,0 +1,34 @@
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(4000)) ENGINE=InnoDB;
+# Commit a qualifying transaction of many small row events.
+include/assert.inc [The transaction's spilled file is promoted into a new binlog file.]
+include/assert.inc [R6: SHOW BINLOG EVENTS shows the header's terminating event offset and type.]
+# Set the header version to 2 in the stopped server's binlog file.
+# Kill the server
+include/assert.inc [R6: SHOW BINLOG EVENTS shows that the header body was not decoded.]
+# R1: mysqlbinlog prints that the header body was not decoded.
+include/assert_grep.inc [R1: mysqlbinlog prints that the header body was not decoded.]
+include/assert_grep.inc [R1: mysqlbinlog prints the transaction's terminating event.]
+include/assert_grep.inc [R2: crash recovery does not seek past the body.]
+include/assert_grep.inc [R2: crash recovery logs no warning about the header.]
+include/assert_grep.inc [R2: crash recovery does not trim the binlog file.]
+include/assert.inc [R2: the transaction commits.]
+include/assert.inc [R3: the transaction's GTID is in gtid_executed.]
+include/assert.inc [R3: GTID reconstruction reads the transaction sequentially.]
+# Commit a second qualifying transaction of many small row events.
+# Set the length of the terminating event body to 255.
+# Kill the server
+include/assert_grep.inc [R4: crash recovery logs that it ignores the header.]
+include/assert_grep.inc [R4: crash recovery does not seek past the body.]
+include/assert_grep.inc [R4: crash recovery does not trim the binlog file.]
+include/assert.inc [R4: the transaction commits.]
+include/assert.inc [R3: the transaction's GTID is in gtid_executed.]
+include/assert.inc [R3: GTID reconstruction reads the transaction sequentially.]
+# restart: --gtid-mode=OFF --enforce-gtid-consistency=OFF
+# Commit a qualifying transaction without a GTID.
+include/assert.inc [The transaction's spilled file is promoted into a new binlog file.]
+include/assert.inc [The transaction has an Anonymous_gtid event.]
+include/assert.inc [R5: the transaction is retained.]
+include/assert.inc [R5: GTID reconstruction skips the body.]
+# restart
+DROP TABLE t1;

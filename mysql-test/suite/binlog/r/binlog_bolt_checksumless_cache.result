@@ -1,0 +1,50 @@
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# R1: binlog_checksum changed to NONE after conversion.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+SET GLOBAL binlog_checksum = NONE;
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+include/assert.inc [R1: the transaction's spilled file is not promoted.]
+include/assert.inc [R1: the transaction is counted as a missed optimization.]
+include/assert_grep.inc [R1: the checksum change is the fallback reason.]
+include/assert.inc [R1: all rows are committed.]
+SET GLOBAL binlog_checksum = CRC32;
+TRUNCATE t1;
+# R2: knob turned OFF after conversion.
+BEGIN;
+INSERT INTO t1 VALUES (11, REPEAT('d', 4000000));
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+INSERT INTO t1 VALUES (12, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (13, REPEAT('f', 4000000));
+COMMIT;
+include/assert.inc [R2: the latched transaction's spilled file is promoted.]
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+TRUNCATE t1;
+# R3: statement rollback after conversion.
+BEGIN;
+INSERT INTO t1 VALUES (21, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (22, REPEAT('h', 2000000)), (23, REPEAT('h', 2000000)), (21, 'dup');
+ERROR 23000: Duplicate entry '21' for key 't1.PRIMARY'
+INSERT INTO t1 VALUES (24, REPEAT('i', 4000000));
+INSERT INTO t1 VALUES (25, REPEAT('j', 4000000));
+COMMIT;
+include/assert.inc [R3: the transaction's spilled file is promoted.]
+include/assert.inc [R3: only the rows outside the failed statement are retained.]
+TRUNCATE t1;
+# R4: binlog_checksum=NONE.
+SET GLOBAL binlog_checksum = NONE;
+BEGIN;
+INSERT INTO t1 VALUES (41, REPEAT('k', 4000000));
+INSERT INTO t1 VALUES (42, REPEAT('l', 4000000));
+INSERT INTO t1 VALUES (43, REPEAT('m', 4000000));
+COMMIT;
+INSERT INTO t1 VALUES (44, 'small');
+include/assert.inc [R4: the transaction's spilled file is promoted with binlog_checksum=NONE.]
+include/assert.inc [R4: all rows are committed.]
+SET GLOBAL binlog_checksum = CRC32;
+DROP TABLE t1;

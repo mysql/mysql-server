@@ -1038,6 +1038,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
         }
         break;
       case mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT:
+      case mysql::binlog::event::LARGE_TRANSACTION_HEADER_EVENT:
       case mysql::binlog::event::IGNORABLE_LOG_EVENT:
       case mysql::binlog::event::STOP_EVENT:
         break;
@@ -4767,7 +4768,9 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
     if (!error && rli->is_mts_recovery() &&
         ev->get_type_code() != mysql::binlog::event::ROTATE_EVENT &&
         ev->get_type_code() != mysql::binlog::event::FORMAT_DESCRIPTION_EVENT &&
-        ev->get_type_code() != mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) {
+        ev->get_type_code() != mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT &&
+        ev->get_type_code() !=
+            mysql::binlog::event::LARGE_TRANSACTION_HEADER_EVENT) {
       if (ev->starts_group()) {
         rli->mts_recovery_group_seen_begin = true;
       } else if ((ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
@@ -6532,7 +6535,9 @@ bool mts_recovery_groups(Relay_log_info *rli) {
             ev->get_type_code() ==
                 mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
             ev->get_type_code() ==
-                mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) {
+                mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT ||
+            ev->get_type_code() ==
+                mysql::binlog::event::LARGE_TRANSACTION_HEADER_EVENT) {
           delete ev;
           ev = nullptr;
           continue;

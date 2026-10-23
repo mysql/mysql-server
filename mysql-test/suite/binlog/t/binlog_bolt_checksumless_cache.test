@@ -1,0 +1,139 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Cover settings changes and rollbacks that happen after a transaction cache
+# was rewritten from the standard form into binlog file form.
+#
+# === Requirements ===
+# R1. binlog_checksum changed to NONE after conversion: the transaction falls
+#     back (missed counter +1), and the binlog it is copied into is valid.
+# R2. The BOLT knob turned OFF after conversion does not affect the open
+#     transaction (latched at its first event): it is promoted.
+# R3. A statement rollback after conversion (not the first statement) drops
+#     exactly that statement's events: the transaction is still promoted, its
+#     file validates, and only the other rows are retained.
+# R4. With binlog_checksum=NONE the cache is rewritten too (real log_pos,
+#     no footer), so the transaction's spilled file is promoted and its file
+#     validates and is readable.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+
+--disable_query_log
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
+--enable_query_log
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--connect (con_admin, localhost, root,,)
+--connection default
+
+--echo # R1: binlog_checksum changed to NONE after conversion.
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+--connection con_admin
+SET GLOBAL binlog_checksum = NONE;
+--connection default
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = R1: the transaction's spilled file is not promoted.
+--let $assert_cond = $bolt_after = $bolt_before
+--source include/assert.inc
+--let $assert_text = R1: the transaction is counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = R1: the checksum change is the fallback reason.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_checksumless_cache
+--let $assert_select = Could not optimize large transaction execution in the binlog because binlog_checksum changed while the transaction was running. The transaction used the standard commit path instead\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$binlog_file > /dev/null
+--let $assert_text = R1: all rows are committed.
+--let $assert_cond = [SELECT COUNT(*) AS c FROM t1, c, 1] = 3
+--source include/assert.inc
+SET GLOBAL binlog_checksum = CRC32;
+TRUNCATE t1;
+
+--echo # R2: knob turned OFF after conversion.
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (11, REPEAT('d', 4000000));
+--connection con_admin
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--connection default
+INSERT INTO t1 VALUES (12, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (13, REPEAT('f', 4000000));
+COMMIT;
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R2: the latched transaction's spilled file is promoted.
+--let $assert_cond = $bolt_after = $bolt_before + 1
+--source include/assert.inc
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$bolt_header_file > /dev/null
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+TRUNCATE t1;
+
+--echo # R3: statement rollback after conversion.
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (21, REPEAT('g', 4000000));
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (22, REPEAT('h', 2000000)), (23, REPEAT('h', 2000000)), (21, 'dup');
+INSERT INTO t1 VALUES (24, REPEAT('i', 4000000));
+INSERT INTO t1 VALUES (25, REPEAT('j', 4000000));
+COMMIT;
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R3: the transaction's spilled file is promoted.
+--let $assert_cond = $bolt_after = $bolt_before + 1
+--source include/assert.inc
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$bolt_header_file > /dev/null
+--let $assert_text = R3: only the rows outside the failed statement are retained.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "21,24,25"
+--source include/assert.inc
+
+TRUNCATE t1;
+
+--echo # R4: binlog_checksum=NONE.
+SET GLOBAL binlog_checksum = NONE;
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (41, REPEAT('k', 4000000));
+INSERT INTO t1 VALUES (42, REPEAT('l', 4000000));
+INSERT INTO t1 VALUES (43, REPEAT('m', 4000000));
+COMMIT;
+INSERT INTO t1 VALUES (44, 'small');
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R4: the transaction's spilled file is promoted with binlog_checksum=NONE.
+--let $assert_cond = $bolt_after = $bolt_before + 1
+--source include/assert.inc
+--let $bolt_header_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/validate_bolt_header.inc
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_header_file > /dev/null
+--let $assert_text = R4: all rows are committed.
+--let $assert_cond = [SELECT COUNT(*) AS c FROM t1, c, 1] = 4
+--source include/assert.inc
+SET GLOBAL binlog_checksum = CRC32;
+
+# Cleanup
+--disconnect con_admin
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log

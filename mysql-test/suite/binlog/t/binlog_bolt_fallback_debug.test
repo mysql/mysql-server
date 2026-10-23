@@ -1,0 +1,586 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify the BOLT fallback reasons that need a debug symbol to reach. The
+# reasons reachable by configuration are in binlog_bolt_fallback, which stays
+# release-capable by not sourcing have_debug.inc.
+#
+# === Requirements ===
+# R1. A pending logging incident prevents promotion, so the standard path can
+#     write the incident and force the rotation that goes with it.
+# R2. A promotion that fails after the transaction's Gtid event was created
+#     falls back, and the Gtid event written on the standard path still
+#     carries the session's original commit timestamp and server version.
+# R3. When the cache cannot go back to the standard form after a promotion,
+#     the COMMIT still succeeds and a warning is logged. The session's next
+#     transaction, small or large, with the optimization ON or OFF, puts the
+#     cache back in the standard form at its first event, is written
+#     correctly, and a large one is promoted.
+# R3a. When that retry fails too, the statement fails with an out of memory
+#     error and its changes are rolled back, and the transaction after it
+#     succeeds.
+# R3b. When a leftover file already has the name of a new spill file, the
+#     cache skips that name and uses the next one, and the transaction's
+#     spilled file is still promoted.
+# R4. A binlog closed while the transaction was running prevents promotion,
+#     because there is no longer a file sequence to promote into.
+# R5. When a ROLLBACK TO SAVEPOINT cannot truncate a rewritten cache, an
+#     incident is recorded: the transaction is not promoted, the standard
+#     path writes an incident event, and the rolled-back rows are not
+#     committed.
+# R6. When a ROLLBACK TO a savepoint at the transaction's start cannot put the
+#     cache back in the standard form, a warning is logged, the next event
+#     puts the cache back, and the transaction commits.
+#
+# === Implementation ===
+# Spill a transaction above the 10 MiB threshold, force the condition with a
+# debug symbol, and check the two BOLT status counters, the reason reported in
+# the error log, and the committed rows.
+#
+# None of the conditions is configurable, so each case forces its condition
+# with a debug point. For example, the incident producers that survive to
+# commit need a cache write failure on a statement that cannot roll back, and
+# closing the log mid-transaction needs a binlog write to fail while
+# binlog_error_action is IGNORE_ERROR.
+#
+--source include/have_log_bin.inc
+--source include/not_windows.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+--let $save_binlog_format = query_get_value(SELECT @@SESSION.binlog_format, @@SESSION.binlog_format, 1)
+--let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
+CALL mtr.add_suppression("An incident event has been written to the binary log");
+CALL mtr.add_suppression("An error occurred during flush stage of the commit");
+CALL mtr.add_suppression("An error occurred in the binlog rotation that promotes the spill binlog file of a large transaction");
+CALL mtr.add_suppression("Binary logging not possible");
+CALL mtr.add_suppression("Hence turning logging off for the whole duration");
+CALL mtr.add_suppression("Could not use .* for logging");
+CALL mtr.add_suppression("Could not open .* for logging");
+
+# Setup
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION binlog_format = ROW;
+# REPEAT() payloads compress to almost nothing, so a compressed cache would
+# never reach the threshold and the transaction would never be promoted.
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+############################################################################
+# Case 1: A pending logging incident.
+#
+# The group-commit flush is what writes an incident and force-rotates for it,
+# and promotion bypasses that flush, so a transaction carrying an incident must
+# fall back or the incident would never reach the binlog.
+#
+# Note the active binlog is expected to CHANGE here, unlike other fallback
+# cases: handling the incident requests a force rotation. A fresh session is
+# used because binlog_inject_incident fires once per session.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connect (incident_session, localhost, root,,);
+connection incident_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # A transaction with a logging incident uses the standard commit path.
+SET SESSION debug = "+d,binlog_inject_incident";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,binlog_inject_incident";
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = An incident does not promote a binlog.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = An incident increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+# Not the usual "stays in the active file" assertion: handling the incident
+# requests a force rotation, so the standard path leaves a new active file.
+--let $assert_text = An incident fallback force-rotates to a new active binlog.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = An incident fallback commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = An incident fallback preserves the full payload.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = 15000000
+--source include/assert.inc
+--let $assert_text = The fallback reason is logged: the transaction has a logging incident to report.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Could not optimize large transaction execution in the binlog because the transaction has a logging incident to report. The transaction used the standard commit path instead\.
+--let $assert_count = 1
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_fallback_debug
+--source include/assert_grep.inc
+connection default;
+disconnect incident_session;
+connection default;
+
+############################################################################
+# Case 2: The promotion fails after the Gtid event was created.
+#
+# The rename of the spilled file is forced to fail. By then the promotion has
+# built the transaction's Gtid event, which consumes the session's
+# original_commit_timestamp and original_server_version. The fallback writes
+# the transaction as usual and builds the Gtid event again, so those values
+# must still be there.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connect (late_fallback_session, localhost, root,,);
+connection late_fallback_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--echo # A failed rename of the spilled file falls back to the standard path.
+SET SESSION original_commit_timestamp = 1234567890123456;
+SET SESSION original_server_version = 80000;
+SET SESSION debug = "+d,fail_bolt_promotion_rename";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_promotion_rename";
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = A failed rename does not promote the spilled file.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A failed rename increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = A failed rename commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = The fallback reason is logged: the spill binlog file could not be promoted.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Could not optimize large transaction execution in the binlog because the spill binlog file could not be promoted. The transaction used the standard commit path instead\.
+--let $assert_count = 1
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_fallback_debug
+--source include/assert_grep.inc
+
+--source include/rpl/save_binlog_file_position.inc
+--let $late_fallback_output = $MYSQLTEST_VARDIR/tmp/binlog_bolt_fallback_debug_late.output
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $binlog_fullpath > $late_fallback_output
+--let $assert_text = The Gtid event keeps the session's original commit timestamp.
+--let $assert_file = $late_fallback_output
+--let $assert_select = session.original_commit_timestamp=1234567890123456\*
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = The Gtid event keeps the session's original server version.
+--let $assert_file = $late_fallback_output
+--let $assert_select = session.original_server_version=80000\*
+--let $assert_count = 1
+--source include/assert_grep.inc
+--remove_file $late_fallback_output
+connection default;
+disconnect late_fallback_session;
+
+############################################################################
+# Case 3: The cache cannot go back to the standard form after a promotion.
+#
+# After a promotion, the cache replaces its rewritten representation with one
+# in the standard form. When that replacement fails, the next transaction's
+# first event retries it, so the next transaction never writes into the old
+# rewritten representation. A debug build asserts that the first event of
+# every transaction finds the cache in the standard form.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+CALL mtr.add_suppression("Could not allocate memory for the binlog cache of a session after a large transaction");
+--enable_query_log
+connect (pending_reset_session, localhost, root,,);
+connection pending_reset_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+
+--echo # R3: the reset after a promotion cannot restore the standard form; COMMIT succeeds.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+--echo # R3: with the optimization OFF, a small transaction is written in the standard form.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+INSERT INTO t1 VALUES (4, 'small, optimization off');
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+
+--echo # R3: the same failure; with the optimization ON, a small transaction is written in the standard form.
+BEGIN;
+INSERT INTO t1 VALUES (5, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (6, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (7, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+INSERT INTO t1 VALUES (8, 'small, optimization on');
+
+--echo # R3: the same failure; the next large transaction is promoted.
+BEGIN;
+INSERT INTO t1 VALUES (9, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (10, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (11, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+BEGIN;
+INSERT INTO t1 VALUES (12, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (13, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (14, REPEAT('y', 5000000));
+COMMIT;
+
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R3: every large transaction's spilled file is promoted.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 4
+--source include/assert.inc
+--let $assert_text = R3: every row is committed.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 14
+--source include/assert.inc
+--let $assert_text = R3: each failed replacement is reported in the error log.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_fallback_debug
+--let $assert_select = Could not allocate memory for the binlog cache of a session after a large transaction\. The session's next transaction retries the allocation\.
+--let $assert_count = 3
+--source include/assert_grep.inc
+--echo # R3: the binlog is readable and holds both small transactions.
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_fallback_debug_dump.txt
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--exec $MYSQL_BINLOG --force-if-open --verbose $MYSQLD_DATADIR/$bolt_binlog_base.0* > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = R3: the small transaction written with the optimization OFF is in the binlog.
+--let $assert_select = small, optimization off
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R3: the small transaction written with the optimization ON is in the binlog.
+--let $assert_select = small, optimization on
+--let $assert_count = 1
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+--echo # R3a: the replacement fails again at the next transaction's first event.
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+BEGIN;
+# 5 is EE_OUTOFMEMORY, the error of a failed allocation.
+--replace_regex /Needed [0-9]* bytes/Needed NN bytes/
+--error 5
+INSERT INTO t1 VALUES (4, 'retry fails');
+ROLLBACK;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+--let $assert_text = R3a: the failed statement's row is rolled back.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id = 4, count, 1] = 0
+--source include/assert.inc
+INSERT INTO t1 VALUES (5, 'after the failed retry');
+--let $assert_text = R3a: the transaction after the failed retry succeeds.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+connection default;
+disconnect pending_reset_session;
+
+############################################################################
+# Case 3b: A leftover file already has the new spill file's name.
+#
+# simulate_bolt_spill_file_name_taken creates a file with the name that the
+# cache is about to use, as a leftover of an earlier run would have.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connect (name_taken_session, localhost, root,,);
+connection name_taken_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--echo # R3b: the first name for the spill file is taken.
+SET SESSION debug = "+d,simulate_bolt_spill_file_name_taken";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,simulate_bolt_spill_file_name_taken";
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R3b: the spilled file is promoted with the next name.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = R3b: every row is committed.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--echo # R3b: the file that had the name is still in the directory.
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
+--let $bolt_temp_inc = $MYSQLTEST_VARDIR/tmp/bolt_fallback_debug_temp.inc
+--exec ls $BOLT_TEMP_DIR | grep -c '^bolt_' | xargs printf -- '--let \044bolt_temp_files = %s\n' > $bolt_temp_inc
+--source $bolt_temp_inc
+--remove_file $bolt_temp_inc
+--let $assert_text = R3b: only the file that had the name is left.
+--let $assert_cond = $bolt_temp_files = 1
+--source include/assert.inc
+--remove_files_wildcard $BOLT_TEMP_DIR bolt_*
+connection default;
+disconnect name_taken_session;
+
+############################################################################
+# Case 5: A ROLLBACK TO SAVEPOINT cannot truncate a rewritten cache.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connect (truncate_session, localhost, root,,);
+connection truncate_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--echo # R5: the truncation of the rewritten cache fails at ROLLBACK TO SAVEPOINT.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+SAVEPOINT s1;
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+SET SESSION debug = "+d,fail_bolt_rewritten_cache_truncate";
+ROLLBACK TO SAVEPOINT s1;
+SET SESSION debug = "-d,fail_bolt_rewritten_cache_truncate";
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+INSERT INTO t1 VALUES (4, REPEAT('d', 5000000));
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = R5: the transaction is not promoted.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = R5: the rolled-back row is not committed.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "1,3,4"
+--source include/assert.inc
+--let $assert_text = R5: the incident is the fallback reason.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_fallback_debug
+--let $assert_select = Could not optimize large transaction execution in the binlog because the transaction has a logging incident to report. The transaction used the standard commit path instead\.
+--let $assert_count = 2
+--source include/assert_grep.inc
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_fallback_debug_dump.txt
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$binlog_file_before > $bolt_dump
+--let $assert_text = R5: the standard path writes an incident event.
+--let $assert_file = $bolt_dump
+--let $assert_only_after =
+--let $assert_select = # Incident: LOST_EVENTS
+--let $assert_count = 1
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+--let $assert_text = R5: the error log has the truncation failure.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_fallback_debug
+--let $assert_select = The binlog cache of a transaction could not be truncated at a rollback\. An incident event has been written to the binary log
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R5: the incident rotates the binlog.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
+--source include/assert.inc
+connection default;
+disconnect truncate_session;
+
+############################################################################
+# Case 6: A ROLLBACK TO a savepoint at the transaction's start cannot put the
+# cache back in the standard form.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+connect (restore_session, localhost, root,,);
+connection restore_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--let BOLT_ERROR_LOG = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let BOLT_COUNT_INC = $MYSQLTEST_VARDIR/tmp/bolt_restore_failed_count.inc
+--perl
+  open(my $log, '<', $ENV{BOLT_ERROR_LOG}) or die "Cannot read the error log";
+  my $count = grep { /Could not allocate memory for the binlog cache of a session after a large transaction/ } <$log>;
+  close($log);
+  open(my $out, '>', $ENV{BOLT_COUNT_INC}) or die "Cannot write the count";
+  my $expected = $count + 1;
+  print $out "--let \$bolt_restore_failed_expected = $expected\n";
+  close($out);
+EOF
+--source $BOLT_COUNT_INC
+--remove_file $BOLT_COUNT_INC
+--echo # R6: the cache cannot go back to the standard form at ROLLBACK TO s0.
+BEGIN;
+SAVEPOINT s0;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+ROLLBACK TO SAVEPOINT s0;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+INSERT INTO t1 VALUES (3, 'after the rollback');
+COMMIT;
+--let $assert_text = R6: the transaction commits only the row after the rollback.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "3"
+--source include/assert.inc
+--let $assert_text = R6: the failed replacement is reported in the error log.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_fallback_debug
+--let $assert_only_after =
+--let $assert_select = Could not allocate memory for the binlog cache of a session after a large transaction\. The session's next transaction retries the allocation\.
+--let $assert_count = $bolt_restore_failed_expected
+--source include/assert_grep.inc
+connection default;
+disconnect restore_session;
+
+############################################################################
+# Case 4: The binlog was closed while the transaction was running.
+#
+# binlog_error_action=IGNORE_ERROR turns binary logging off for the rest of the
+# server process. That closes the binlog and leaves MYSQL_BIN_LOG::name null.
+# A transaction that spilled before is still a candidate for promotion. The
+# commit path falls back instead of rotating a closed binlog.
+#
+# A failed FLUSH BINARY LOGS in another session closes the binlog. The
+# upstream debug point fault_injection_new_file_rotate_event fails that
+# standard rotation. The session under test only commits afterwards.
+#
+# This case is last, and is followed by a restart, because logging stays off
+# afterwards and the cleanup below needs it back.
+############################################################################
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+--let $save_error_action = query_get_value(SELECT @@GLOBAL.binlog_error_action, @@GLOBAL.binlog_error_action, 1)
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+
+--echo # A session spills a large transaction and holds it open.
+connect (log_closed_session, localhost, root,,);
+connection log_closed_session;
+--disable_query_log
+--disable_warnings
+SET SESSION binlog_format = ROW;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+--enable_result_log
+--enable_query_log
+
+--echo # Another session's failed rotation turns logging off and closes the log.
+connection default;
+--disable_query_log
+--disable_result_log
+SET SESSION debug = "+d,fault_injection_new_file_rotate_event";
+--error 0,ER_ERROR_ON_WRITE,ER_CANT_OPEN_FILE,ER_BINLOG_LOGGING_IMPOSSIBLE
+FLUSH BINARY LOGS;
+SET SESSION debug = "-d,fault_injection_new_file_rotate_event";
+--enable_result_log
+--enable_query_log
+
+# Captured after the close, so only the bystander's commit moves them.
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+
+--echo # The held transaction commits through the standard path.
+connection log_closed_session;
+COMMIT;
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = A closed binlog does not promote.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = A closed binlog increments the missed counter once.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = A closed-log fallback still commits all rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $assert_text = A closed-log fallback preserves the full payload.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS payload FROM t1, payload, 1] = 15000000
+--source include/assert.inc
+--let $assert_text = The fallback reason is logged: the binlog was closed while the transaction was running.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Could not optimize large transaction execution in the binlog because the binlog was closed while the transaction was running. The transaction used the standard commit path instead\.
+--let $assert_count = 1
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_fallback_debug
+--source include/assert_grep.inc
+
+connection default;
+disconnect log_closed_session;
+connection default;
+# Logging is off from here, so restore it before the cleanup below.
+--disable_query_log
+--eval SET GLOBAL binlog_error_action = $save_error_action
+--enable_query_log
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--disable_warnings
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET SESSION binlog_format = $save_binlog_format
+--eval SET SESSION binlog_transaction_compression = $save_compression
+RESET BINARY LOGS AND GTIDS;
+--enable_warnings
+--enable_query_log

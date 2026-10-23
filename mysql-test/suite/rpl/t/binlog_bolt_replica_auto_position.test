@@ -1,0 +1,80 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify that a replica with SOURCE_AUTO_POSITION=1 connects and replicates
+# when its start file on the source begins with a promoted transaction.
+#
+# === Requirements ===
+# R1. The dump thread finds the promoted binlog file as the start file, and
+#     the replica receives the large transaction and the transactions after
+#     it.
+# R2. The replica's gtid_executed matches the source's after the sync.
+#
+# === Implementation ===
+# 1. Initialize GTID replication with SOURCE_AUTO_POSITION=1, and stop the
+#    replica.
+# 2. On the source, commit a qualifying transaction, which promotes its spilled
+#    file into a new binlog file. Commit a small transaction into that file,
+#    rotate, and commit a small transaction into the next file.
+# 3. Start the replica, so that the dump thread searches the source's binlog
+#    files for the first GTID the replica has not received. Verify the rows
+#    and the GTIDs.
+#
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+--let $use_gtids = 1
+--source include/rpl/init_source_replica.inc
+
+--let $source_save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $source_save_threshold = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold, @@GLOBAL.binlog_large_transaction_optimization_threshold, 1)
+
+# Setup
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--source include/rpl/sync_to_replica.inc
+--let $assert_text = The replica uses SOURCE_AUTO_POSITION=1.
+--let $assert_cond = [SELECT AUTO_POSITION FROM performance_schema.replication_connection_configuration, AUTO_POSITION, 1] = 1
+--source include/assert.inc
+--source include/rpl/stop_replica.inc
+
+--source include/rpl/connection_source.inc
+--echo # Commit a qualifying transaction while the replica is stopped.
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+--let $promoted_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = The transaction's spilled file is promoted into a new binlog file.
+--let $assert_cond = "$promoted_file" != "$binlog_file_before"
+--source include/assert.inc
+INSERT INTO t1 VALUES (4, 'd');
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (5, 'e');
+
+--echo # R1: the replica connects with auto-positioning and receives everything.
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $assert_text = R1: the replica has every row.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "1,2,3,4,5"
+--source include/assert.inc
+--let $assert_text = R1: the replica has the full payload of the large transaction.
+--let $assert_cond = [SELECT SUM(OCTET_LENGTH(data)) AS bytes FROM t1 WHERE id <= 3, bytes, 1] = 12000000
+--source include/assert.inc
+--let $replica_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--source include/rpl/connection_source.inc
+--let $assert_text = R2: the replica's gtid_executed matches the source's.
+--let $assert_cond = "[SELECT @@GLOBAL.gtid_executed]" = "$replica_gtid_executed"
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $source_save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $source_save_threshold
+--enable_query_log
+--source include/rpl/deinit.inc

@@ -1,0 +1,28 @@
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# A promotable large transaction promotes when the reserved region fits.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+include/assert.inc [A fitting reserved region promotes a binlog.]
+include/assert.inc [A fitting reserved region does not increment the missed counter.]
+include/assert.inc [The promoted commit opens its promoted binlog.]
+include/assert.inc [The BOLT transaction commits all rows.]
+# A reserved region too small for the header events uses the standard path.
+SET @old_debug = @@SESSION.debug;
+SET SESSION debug = "+d,force_bolt_reserved_header_fallback";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+COMMIT;
+SET SESSION debug = @old_debug;
+include/assert.inc [A reserved region too small does not promote a binlog.]
+include/assert.inc [A reserved region too small increments the missed counter once.]
+include/assert.inc [A reserved-header fallback writes into the new binlog file.]
+include/assert.inc [A reserved-header fallback commits all rows.]
+include/assert_grep.inc [The fallback reason is logged: the header events do not fit in the reserved region.]
+include/assert_grep.inc [The fallback transaction is present in the active binlog.]
+include/assert_grep.inc [The new binlog file holds no large transaction header.]
+DROP TABLE t1;

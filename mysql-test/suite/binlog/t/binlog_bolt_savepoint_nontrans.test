@@ -1,0 +1,91 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Case C24 of binlog_bolt_savepoint_matrix. It needs gtid_mode=OFF, so that
+# a transaction may change both a transactional and a non-transactional
+# table. It ends with the matrix's shared checks
+# (inc/bolt_savepoint_check.inc, see binlog_bolt_savepoint_matrix).
+#
+# Sizes: binlog_cache_size = 1 MiB, threshold = 10 MiB. BIG rows are 4 MB, so
+# one BIG row spills the cache, which rewrites it, and three BIG rows are above
+# the threshold.
+#
+# === Cases ===
+#  C24 non-transactional table changed after the savepoint. In ROW format
+#      the MyISAM change goes to the statement cache and is logged on its own
+#      at the end of its statement (a statement-level commit), so the
+#      transaction cache still truncates normally at ROLLBACK TO. Checks:
+#      - the statement-level commit does not evaluate the still-open
+#        transaction cache for BOLT (no missed optimization, no warning);
+#      - the transaction's spilled file is promoted with exactly its three retained rows;
+#      - the MyISAM row is kept and logged once, in the earlier binlog.
+#
+--source include/have_log_bin.inc
+--source include/not_windows.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+--disable_query_log
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
+--enable_query_log
+
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=MyISAM;
+# Each row's payload is derived from its id, so the checks can tell rows apart.
+--delimiter |
+CREATE PROCEDURE ins(IN i INT, IN len INT)
+BEGIN
+  INSERT INTO t1 VALUES (i, REPEAT(CHAR(64 + MOD(i, 26)), len));
+END|
+--delimiter ;
+--let $BIG = 4000000
+--let $MID = 2000000
+--let $SMALL = 100
+--connect (con_admin, localhost, root,,)
+--connection default
+
+--let $sp_case = C24: non-transactional table changed after the savepoint
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s;
+INSERT INTO t2 VALUES (1, 'myisam');
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+--let $sp_t2_inc = $MYSQLTEST_VARDIR/tmp/bolt_sp_t2.inc
+--exec $MYSQL_BINLOG --force-if-open -v $MYSQLD_DATADIR/$bolt_binlog_base.000001 $MYSQLD_DATADIR/$bolt_binlog_base.000002 | grep -c '^### INSERT INTO .test.\..t2.' | xargs printf -- '--let \044sp_t2_rows = %s\n' > $sp_t2_inc
+--source $sp_t2_inc
+--remove_file $sp_t2_inc
+--let $assert_text = C24: the MyISAM row is logged once, before the promoted file
+--let $assert_cond = $sp_t2_rows = 1
+--source include/assert.inc
+--let $assert_text = C24: the non-transactional change is kept
+--let $assert_cond = [SELECT COUNT(*) AS c FROM t2, c, 1] = 1
+--source include/assert.inc
+--disable_query_log
+TRUNCATE t2;
+--enable_query_log
+
+# Cleanup
+--disconnect con_admin
+DROP PROCEDURE ins;
+DROP TABLE t1, t2;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log

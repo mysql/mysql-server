@@ -1,0 +1,59 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# max_binlog_cache_size limits the bytes a transaction's binlog cache stores.
+# A cache rewritten into binlog file form at its first spill stores a CRC32
+# footer after every event, and the footers count against the limit. Verify
+# that the limit applies to a rewritten cache, and that with CRC32 fewer
+# statements fit than with the optimization OFF.
+#
+# === Requirements ===
+# R1. With the optimization ON, a transaction whose cache was rewritten still
+#     stops with ER_TRANS_CACHE_FULL.
+# R2. With binlog_checksum=CRC32, the footers count against
+#     max_binlog_cache_size, so fewer statements fit with the optimization ON
+#     than OFF.
+# R3. The statement that first spills the cache, and so rewrites it, is
+#     checked against max_binlog_cache_size. With a limit that the first
+#     spill already reaches, no more statements fit with the optimization ON
+#     than OFF.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $save_enabled = `SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled`
+--let $save_checksum = `SELECT @@GLOBAL.binlog_checksum`
+--let $save_cache_size = `SELECT @@GLOBAL.binlog_cache_size`
+--let $save_max_cache_size = `SELECT @@GLOBAL.max_binlog_cache_size`
+
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_cache_size = 4096;
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(32)) ENGINE=InnoDB;
+
+--let $bolt_row_bytes = 20
+--let $bolt_max_cache_size = 65536
+--source ../inc/bolt_cache_limit_count.inc
+--let $assert_text = R1: the limit stops a rewritten cache after many statements.
+--let $assert_cond = $statements_on > 100
+--source include/assert.inc
+--let $assert_text = R2: the footers count, so fewer statements fit with the optimization ON.
+--let $assert_cond = $statements_on < $statements_off
+--source include/assert.inc
+
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(2000)) ENGINE=InnoDB;
+--let $bolt_row_bytes = 2000
+--let $bolt_max_cache_size = 4096
+--source ../inc/bolt_cache_limit_count.inc
+--let $assert_text = R3: the statement that rewrites the cache is checked against the limit.
+--let $assert_cond = $statements_on <= $statements_off
+--source include/assert.inc
+
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--eval SET GLOBAL max_binlog_cache_size = $save_max_cache_size
+--eval SET GLOBAL binlog_cache_size = $save_cache_size
+--enable_query_log

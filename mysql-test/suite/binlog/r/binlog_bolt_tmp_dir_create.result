@@ -1,0 +1,33 @@
+# R1: the optimization is OFF; no directory, even after a spill.
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+COMMIT;
+# R2: enabling the optimization creates the directory.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+# R6: the directory is not listed as a schema.
+include/assert.inc [R6: information_schema.SCHEMATA does not list the binlog temp files directory.]
+include/assert.inc [R6: SHOW DATABASES does not list the binlog temp files directory.]
+# R3: disabling it keeps the directory.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+# R4: enabling fails when the directory cannot be created.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+ERROR 42000: Variable 'binlog_large_transaction_optimization_enabled' can't be set to the value of 'ON'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	#	The binlog temporary files directory is unusable, so binlog_large_transaction_optimization_enabled stays OFF. The error log has the reason and what to do.
+Error	#	Variable 'binlog_large_transaction_optimization_enabled' can't be set to the value of 'ON'
+include/assert_grep.inc [R4: the error log names the directory that is not a directory.]
+include/assert.inc [The optimization stays OFF.]
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+# R5: started with the optimization ON, the directory cannot be created.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+# restart: --binlog-large-transaction-optimization-enabled=ON
+include/assert.inc [R5: the server starts with the optimization OFF.]
+include/assert_grep.inc [R5: turning the optimization OFF is logged as an error.]
+include/assert_grep.inc [R5: the error log names the directory and the OS error.]
+# restart
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+DROP TABLE t1;

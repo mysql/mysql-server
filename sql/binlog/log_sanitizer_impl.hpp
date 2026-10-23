@@ -139,6 +139,19 @@ bool Log_sanitizer::process_one_log(Type_reader &reader,
             dynamic_cast<XA_prepare_log_event &>(*ev));
         break;
       }
+      case mysql::binlog::event::LARGE_TRANSACTION_HEADER_EVENT: {
+        // The header is not used in relay log recovery.
+        if (!this->is_relay_log_recovery()) {
+          /*
+            The reader's own file name is empty for a binlog opened at
+            offset 0, so the name comes from the reader's input file.
+          */
+          this->process_large_trx_header_event(
+              dynamic_cast<Large_transaction_header_log_event &>(*ev), reader,
+              reader.ifile()->file_name());
+        }
+        break;
+      }
       case mysql::binlog::event::ROTATE_EVENT: {
         if (is_source_event) {
           m_validation_started = true;

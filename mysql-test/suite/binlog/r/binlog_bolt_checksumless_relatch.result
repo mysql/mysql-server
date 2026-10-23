@@ -1,0 +1,23 @@
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# R1: knob turned OFF after the converted cache is rolled back to 0.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 2000000)), (5, REPEAT('a', 2000000)), (1, 'dup');
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+INSERT INTO t1 VALUES (2, REPEAT('b', 1000));
+COMMIT;
+include/assert.inc [R1: only the post-rollback row is retained.]
+TRUNCATE t1;
+# R2: binlog_checksum changed to NONE after the rollback to 0.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+BEGIN;
+INSERT INTO t1 VALUES (3, REPEAT('c', 2000000)), (6, REPEAT('c', 2000000)), (3, 'dup');
+ERROR 23000: Duplicate entry '3' for key 't1.PRIMARY'
+SET GLOBAL binlog_checksum = NONE;
+INSERT INTO t1 VALUES (4, REPEAT('d', 1000));
+COMMIT;
+include/assert.inc [R2: only the post-rollback row is retained.]
+DROP TABLE t1;

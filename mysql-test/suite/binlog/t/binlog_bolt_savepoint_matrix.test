@@ -1,0 +1,663 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Savepoint matrix for the checksumless cache. Savepoint and statement-
+# rollback positions are logical (checksum-free) offsets; a cache that was
+# rewritten into binlog file form at its first spill truncates at the
+# matching physical offset in O(1). Every case below ends with the same
+# checks (inc/bolt_savepoint_check.inc):
+#   - t1 holds exactly the expected rows, each with its own payload;
+#   - the transaction's spilled file was promoted (or not) as expected, and the
+#     missed-optimization counter moved as expected;
+#   - the active binlog verifies its checksums and inserts exactly the
+#     expected rows of t1 (so the binlog matches the engine);
+#   - a promoted file has a valid BOLT header;
+#   - no bolt_ temp file is left in #binlog_temp_files.
+#
+# Sizes: binlog_cache_size = 1 MiB, threshold = 10 MiB. BIG rows are 4 MB, so
+# one BIG row spills (and rewrites) the cache and three BIG rows are above the
+# threshold.
+#
+# === Cases ===
+#  C1  two savepoints, ROLLBACK TO the second
+#  C2  two savepoints, ROLLBACK TO the first
+#  C3  ROLLBACK TO the second, then to the first, in a row
+#  C4  ROLLBACK TO the same savepoint twice
+#  C5  ROLLBACK TO the first destroys the second (ER_SP_DOES_NOT_EXIST)
+#  C6  START TRANSACTION; SELECT; SAVEPOINT; INSERT; ROLLBACK TO; COMMIT
+#  C7  same, with a small INSERT after the ROLLBACK TO
+#  C8  START TRANSACTION; INSERT; SAVEPOINT; ROLLBACK TO; ROLLBACK
+#  C9  large transaction, SAVEPOINT, INSERT, ROLLBACK TO, ROLLBACK
+#  C10 savepoint before the first spill, rolled back after the rewrite, then
+#      the transaction grows above the threshold
+#  C11 rollback after the rewrite drops below the threshold
+#  C12 rollback that empties the rewritten cache back to the savepoint, then
+#      no more events
+#  C13 RELEASE SAVEPOINT, then COMMIT
+#  C14 RELEASE SAVEPOINT, then ROLLBACK TO it (ER_SP_DOES_NOT_EXIST)
+#  C15 the same savepoint name set twice; ROLLBACK TO goes to the second
+#  C16 ten savepoints across the spill, ROLLBACK TO a middle one
+#  C17 ROLLBACK TO, then a failing statement (statement rollback)
+#  C18 failing first statement (rollback to offset 0), then savepoints
+#  C19 SAVEPOINT as the very first statement
+#  C20 BOLT knob turned OFF between SAVEPOINT and ROLLBACK TO (latched)
+#  C21 binlog_checksum changed after the ROLLBACK TO (falls back)
+#  C22 binlog_checksum=NONE: rewrite without footers, then ROLLBACK TO
+#  C23 autocommit=0 transaction with a savepoint
+#  C24 (non-transactional table changed after the savepoint) needs
+#      gtid_mode=OFF: binlog_bolt_savepoint_nontrans
+#  C25 back-to-back transactions on the same session after a savepoint one
+#  C26 knob OFF for the whole transaction: standard spill, then ROLLBACK TO
+#  C27 XA transaction with a savepoint (promoted at XA PREPARE)
+#  C28 SAVEPOINT / ROLLBACK TO inside a stored procedure
+#  C29 DDL after a savepoint commits the transaction implicitly
+#  C30 savepoint and rollback entirely in memory, then the transaction spills
+#  C31 twenty SAVEPOINT / ROLLBACK TO rounds on a rewritten cache
+#  C32 compression ON at the first event (not eligible), then ROLLBACK TO
+#
+--source include/have_log_bin.inc
+--source include/not_windows.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+--disable_query_log
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
+--enable_query_log
+
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# Each row's payload is derived from its id, so the checks can tell rows apart.
+--delimiter |
+CREATE PROCEDURE ins(IN i INT, IN len INT)
+BEGIN
+  INSERT INTO t1 VALUES (i, REPEAT(CHAR(64 + MOD(i, 26)), len));
+END|
+--delimiter ;
+--let $BIG = 4000000
+--let $MID = 2000000
+--let $SMALL = 100
+--connect (con_admin, localhost, root,,)
+--connection default
+
+--let $sp_case = C1: two savepoints, ROLLBACK TO the second
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s1;
+--eval CALL ins(4, $BIG)
+SAVEPOINT s2;
+--eval CALL ins(5, $BIG)
+ROLLBACK TO SAVEPOINT s2;
+COMMIT;
+--let $sp_expect_ids = 1,2,3,4
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 4
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C2: two savepoints, ROLLBACK TO the first
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s1;
+--eval CALL ins(4, $BIG)
+SAVEPOINT s2;
+--eval CALL ins(5, $BIG)
+ROLLBACK TO SAVEPOINT s1;
+COMMIT;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C3: ROLLBACK TO the second, then to the first
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s1;
+--eval CALL ins(4, $BIG)
+SAVEPOINT s2;
+--eval CALL ins(5, $BIG)
+ROLLBACK TO SAVEPOINT s2;
+ROLLBACK TO SAVEPOINT s1;
+COMMIT;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C4: ROLLBACK TO the same savepoint twice
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s1;
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s1;
+--eval CALL ins(5, $BIG)
+ROLLBACK TO SAVEPOINT s1;
+--eval CALL ins(6, $SMALL)
+COMMIT;
+--let $sp_expect_ids = 1,2,3,6
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 4
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C5: ROLLBACK TO the first destroys the second
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s1;
+--eval CALL ins(4, $BIG)
+SAVEPOINT s2;
+ROLLBACK TO SAVEPOINT s1;
+--error ER_SP_DOES_NOT_EXIST
+ROLLBACK TO SAVEPOINT s2;
+COMMIT;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C6: START TRANSACTION; SELECT; SAVEPOINT; INSERT; ROLLBACK TO; COMMIT
+--source ../inc/bolt_savepoint_begin.inc
+START TRANSACTION;
+SELECT COUNT(*) FROM t1;
+SAVEPOINT sv;
+--eval CALL ins(1, $BIG)
+ROLLBACK TO SAVEPOINT sv;
+COMMIT;
+--let $sp_expect_ids = none
+--let $sp_expect_promoted = 0
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 0
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C7: as C6, with a small INSERT after the ROLLBACK TO
+--source ../inc/bolt_savepoint_begin.inc
+START TRANSACTION;
+SELECT COUNT(*) FROM t1;
+SAVEPOINT sv;
+--eval CALL ins(1, $BIG)
+ROLLBACK TO SAVEPOINT sv;
+--eval CALL ins(2, $SMALL)
+COMMIT;
+--let $sp_expect_ids = 2
+--let $sp_expect_promoted = 0
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 1
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C8: START TRANSACTION; INSERT; SAVEPOINT; ROLLBACK TO; ROLLBACK
+--source ../inc/bolt_savepoint_begin.inc
+START TRANSACTION;
+--eval CALL ins(1, $BIG)
+SAVEPOINT sv;
+ROLLBACK TO SAVEPOINT sv;
+ROLLBACK;
+--let $sp_expect_ids = none
+--let $sp_expect_promoted = 0
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 0
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C9: large transaction, SAVEPOINT, INSERT, ROLLBACK TO, ROLLBACK
+--source ../inc/bolt_savepoint_begin.inc
+START TRANSACTION;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT sv;
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT sv;
+ROLLBACK;
+--let $sp_expect_ids = none
+--let $sp_expect_promoted = 0
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 0
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C10: savepoint before the first spill, rollback after the rewrite
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $SMALL)
+SAVEPOINT s;
+--eval CALL ins(2, $BIG)
+ROLLBACK TO SAVEPOINT s;
+--eval CALL ins(3, $BIG)
+--eval CALL ins(4, $BIG)
+--eval CALL ins(5, $BIG)
+COMMIT;
+--let $sp_expect_ids = 1,3,4,5
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 4
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C11: rollback after the rewrite drops below the threshold
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $MID)
+SAVEPOINT s;
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+--let $sp_expect_ids = 1
+--let $sp_expect_promoted = 0
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 1
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C12: rollback right back to the savepoint, no more events
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s;
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C13: RELEASE SAVEPOINT, then COMMIT
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+SAVEPOINT s;
+--eval CALL ins(3, $BIG)
+RELEASE SAVEPOINT s;
+--eval CALL ins(4, $SMALL)
+COMMIT;
+--let $sp_expect_ids = 1,2,3,4
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 4
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C14: RELEASE SAVEPOINT, then ROLLBACK TO it
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+SAVEPOINT s;
+--eval CALL ins(3, $BIG)
+RELEASE SAVEPOINT s;
+--error ER_SP_DOES_NOT_EXIST
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C15: the same savepoint name set twice
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+SAVEPOINT a;
+--eval CALL ins(2, $BIG)
+SAVEPOINT a;
+--eval CALL ins(3, $BIG)
+ROLLBACK TO SAVEPOINT a;
+--eval CALL ins(4, $BIG)
+COMMIT;
+--let $sp_expect_ids = 1,2,4
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C16: ten savepoints across the spill, ROLLBACK TO the sixth
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--let $i = 1
+while ($i <= 10)
+{
+  --eval SAVEPOINT s$i
+  --eval CALL ins($i, 2500000)
+  --inc $i
+}
+ROLLBACK TO SAVEPOINT s6;
+COMMIT;
+--let $sp_expect_ids = 1,2,3,4,5
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 5
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C17: ROLLBACK TO, then a failing statement
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s;
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s;
+--error ER_DUP_ENTRY
+--eval INSERT INTO t1 VALUES (5, REPEAT(CHAR(69), $BIG)), (6, REPEAT(CHAR(70), $BIG)), (1, 'dup')
+--eval CALL ins(7, $SMALL)
+COMMIT;
+--let $sp_expect_ids = 1,2,3,7
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 4
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C18: failing first statement, then savepoints
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--error ER_DUP_ENTRY
+--eval INSERT INTO t1 VALUES (1, REPEAT(CHAR(65), $BIG)), (2, REPEAT(CHAR(66), $BIG)), (1, 'dup')
+SAVEPOINT s;
+--eval CALL ins(3, $BIG)
+--eval CALL ins(4, $BIG)
+--eval CALL ins(5, $BIG)
+ROLLBACK TO SAVEPOINT s;
+--eval CALL ins(6, $BIG)
+--eval CALL ins(7, $BIG)
+--eval CALL ins(8, $BIG)
+COMMIT;
+--let $sp_expect_ids = 6,7,8
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C19: SAVEPOINT as the very first statement
+--source ../inc/bolt_savepoint_begin.inc
+START TRANSACTION;
+SAVEPOINT s;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+ROLLBACK TO SAVEPOINT s;
+--eval CALL ins(4, $BIG)
+--eval CALL ins(5, $BIG)
+--eval CALL ins(6, $BIG)
+COMMIT;
+--let $sp_expect_ids = 4,5,6
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C20: knob turned OFF between SAVEPOINT and ROLLBACK TO
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+SAVEPOINT s;
+--connection con_admin
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+--connection default
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+ROLLBACK TO SAVEPOINT s;
+--eval CALL ins(4, $BIG)
+--eval CALL ins(5, $BIG)
+COMMIT;
+--connection con_admin
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+--connection default
+--let $sp_expect_ids = 1,4,5
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C21: binlog_checksum changed after the ROLLBACK TO
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s;
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s;
+--connection con_admin
+SET GLOBAL binlog_checksum = NONE;
+--connection default
+COMMIT;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 0
+--let $sp_expect_missed = 1
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C22: binlog_checksum=NONE, ROLLBACK TO on a footerless cache
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+SAVEPOINT s1;
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s2;
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s2;
+--eval CALL ins(5, $BIG)
+COMMIT;
+--let $sp_expect_ids = 1,2,3,5
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 4
+--source ../inc/bolt_savepoint_check.inc
+# Restored only after the checks: SET GLOBAL binlog_checksum rotates.
+SET GLOBAL binlog_checksum = CRC32;
+
+--let $sp_case = C23: autocommit=0 transaction with a savepoint
+--source ../inc/bolt_savepoint_begin.inc
+SET autocommit = 0;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s;
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+SET autocommit = 1;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C25: back-to-back transactions after a savepoint transaction
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s;
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+--eval CALL ins(5, $SMALL)
+BEGIN;
+--eval CALL ins(6, $MID)
+SAVEPOINT s;
+--eval CALL ins(7, $SMALL)
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+BEGIN;
+--eval CALL ins(8, $BIG)
+--eval CALL ins(9, $BIG)
+--eval CALL ins(10, $BIG)
+COMMIT;
+--let $sp_expect_ids = 1,2,3,5,6,8,9,10
+--let $sp_expect_promoted = 2
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C26: knob OFF for the whole transaction
+--source ../inc/bolt_savepoint_begin.inc
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+BEGIN;
+--eval CALL ins(1, $SMALL)
+SAVEPOINT s;
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s;
+--eval CALL ins(5, $BIG)
+COMMIT;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+--let $sp_expect_ids = 1,5
+--let $sp_expect_promoted = 0
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 2
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C27: XA transaction with a savepoint
+--source ../inc/bolt_savepoint_begin.inc
+XA START 'bolt_sp';
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s;
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s;
+XA END 'bolt_sp';
+XA PREPARE 'bolt_sp';
+XA COMMIT 'bolt_sp';
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C28: SAVEPOINT / ROLLBACK TO inside a stored procedure
+--source ../inc/bolt_savepoint_begin.inc
+--delimiter |
+CREATE PROCEDURE sp_in_proc(IN len INT)
+BEGIN
+  CALL ins(1, len);
+  CALL ins(2, len);
+  CALL ins(3, len);
+  SAVEPOINT p;
+  CALL ins(4, len);
+  ROLLBACK TO SAVEPOINT p;
+END|
+--delimiter ;
+FLUSH BINARY LOGS;
+BEGIN;
+--eval CALL sp_in_proc($BIG)
+COMMIT;
+DROP PROCEDURE sp_in_proc;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C29: DDL after a savepoint commits the transaction implicitly
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s;
+--eval CALL ins(4, $BIG)
+CREATE TABLE t3 (a INT);
+--error ER_SP_DOES_NOT_EXIST
+ROLLBACK TO SAVEPOINT s;
+--let $sp_expect_ids = 1,2,3,4
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 4
+--source ../inc/bolt_savepoint_check.inc
+DROP TABLE t3;
+
+--let $sp_case = C30: savepoint and rollback in memory, then the transaction spills
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $SMALL)
+SAVEPOINT s;
+--eval CALL ins(2, $SMALL)
+ROLLBACK TO SAVEPOINT s;
+--eval CALL ins(3, $BIG)
+--eval CALL ins(4, $BIG)
+--eval CALL ins(5, $BIG)
+COMMIT;
+--let $sp_expect_ids = 1,3,4,5
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 4
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C31: twenty SAVEPOINT / ROLLBACK TO rounds on a rewritten cache
+--source ../inc/bolt_savepoint_begin.inc
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+--let $i = 1
+while ($i <= 20)
+{
+  SAVEPOINT r;
+  --eval CALL ins(100 + $i, $MID)
+  ROLLBACK TO SAVEPOINT r;
+  --inc $i
+}
+COMMIT;
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 1
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+--let $sp_case = C32: compression ON at the first event, then ROLLBACK TO
+--source ../inc/bolt_savepoint_begin.inc
+SET SESSION binlog_transaction_compression = ON;
+BEGIN;
+--eval CALL ins(1, $BIG)
+--eval CALL ins(2, $BIG)
+--eval CALL ins(3, $BIG)
+SAVEPOINT s;
+--eval CALL ins(4, $BIG)
+ROLLBACK TO SAVEPOINT s;
+COMMIT;
+SET SESSION binlog_transaction_compression = OFF;
+# Not eligible at the first event (compression ON), so the cache spills in
+# the standard form. At commit the transaction is compressed, and these payloads
+# compress far below the threshold, so it is not counted as missed either.
+--let $sp_expect_ids = 1,2,3
+--let $sp_expect_promoted = 0
+--let $sp_expect_missed = 0
+--let $sp_expect_binlog_rows = 3
+--source ../inc/bolt_savepoint_check.inc
+
+# Cleanup
+--disconnect con_admin
+DROP PROCEDURE ins;
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log

@@ -1,0 +1,387 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# A transaction commits through the BOLT path by a binlog rotation that
+# promotes its spilled binlog cache file. Verify how failures are handled.
+# A failure to make the spilled file durable, before the before_commit hook,
+# rolls the transaction back. A failure while the rotation opens the new
+# binlog file is fatal, so it aborts the server, whatever binlog_error_action
+# is. With ABORT_SERVER, the rotation aborts the server itself.
+#
+# === Requirements ===
+# R1. A failure to make the spilled file durable, before the before_commit
+#     hook, rolls the transaction back: COMMIT fails with ER_ERROR_ON_WRITE, no
+#     row is committed, nothing reaches the binlog, the error log has an
+#     actionable warning that names the spilled file, and the session can
+#     commit its next transaction.
+# R2. A failure after the rename with binlog_error_action = ABORT_SERVER
+#     aborts the server, the client is told binary logging is not possible,
+#     and after the restart the transaction is in neither the engine nor the
+#     binlog.
+# R3. The same failure with binlog_error_action = IGNORE_ERROR also aborts the
+#     server. The rotation raises the failure as fatal, and a fatal error
+#     after the before_commit hook always aborts. The error log has the abort
+#     message. After the restart, the transaction is in neither the engine nor
+#     the binlog.
+# R4. With a second transaction in the BOLT transaction's flush group, the
+#     abort of R3 commits neither transaction. Neither transaction reaches the
+#     binlog.
+# R5. A failure to sync the directories after the rename also aborts the
+#     server with IGNORE_ERROR, as in R3.
+# R6. A fatal error during the promotion aborts the server, also with
+#     binlog_error_action = IGNORE_ERROR. The error log has an actionable
+#     message with the fatal error's text, and after the restart the
+#     transaction is in neither the engine nor the binlog.
+#
+# === Implementation ===
+# R1 uses the fail_bolt_spill_file_sync debug point; R2, R3 and R4 use
+# fail_bolt_promoted_file_reopen, which fails reopening the promoted file
+# after the rename; R5 uses fail_bolt_directory_sync, which fails the
+# directory syncs after the rename; R6 uses fail_bolt_promotion_out_of_memory,
+# which raises a fatal error before the rename. Each case resets the binary
+# log first so
+# the file at index 1 is the active one.
+#
+# The error log is redirected to its own file because ABORT_SERVER goes through
+# the crash handler, whose backtrace MTR would otherwise flag.
+#
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/not_windows.inc
+--source include/have_binlog_format_row.inc
+
+--let $save_error_action = query_get_value(SELECT @@GLOBAL.binlog_error_action, @@GLOBAL.binlog_error_action, 1)
+--let $save_compression = query_get_value(SELECT @@SESSION.binlog_transaction_compression, @@SESSION.binlog_transaction_compression, 1)
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+
+CALL mtr.add_suppression("An error occurred during flush stage of the commit");
+CALL mtr.add_suppression("An error occurred in the binlog rotation that promotes the spill binlog file of a large transaction");
+CALL mtr.add_suppression("Could not optimize large transaction execution in the binlog because the spill binlog file could not be promoted");
+CALL mtr.add_suppression("Could not use .* for logging");
+CALL mtr.add_suppression("Could not open .* for logging");
+CALL mtr.add_suppression("Either disk is full, file system is read only");
+CALL mtr.add_suppression("Binary logging not possible");
+CALL mtr.add_suppression("Hence turning logging off for the whole duration");
+CALL mtr.add_suppression("Could not write or sync the spill binlog file");
+CALL mtr.add_suppression("A fatal error occurred while promoting the spill binlog file");
+
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+# The payload repeats a single byte, so compression would shrink the cache far
+# below the threshold and the transaction would never spill.
+SET SESSION binlog_transaction_compression = OFF;
+--enable_warnings
+--enable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+############################################################################
+# Case 0: the spilled file cannot be made durable.
+# Expected behavior: the transaction is rolled back.
+############################################################################
+--echo # R1: a spill-sync failure rolls the transaction back.
+--disable_query_log
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG="+d,fail_bolt_spill_file_sync";
+--error ER_ERROR_ON_WRITE
+COMMIT;
+SET SESSION DEBUG="-d,fail_bolt_spill_file_sync";
+--enable_result_log
+--enable_query_log
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $assert_text = R1: the transaction's spilled file is not promoted.
+--let $assert_cond = $bolt_after = $bolt_before
+--source include/assert.inc
+--let $assert_text = R1: it is not counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = R1: the error log has the actionable warning for the spilled file.
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/binlog_bolt_error_action.err
+--let $assert_select = Could not write or sync the spill binlog file '[^']*/#binlog_temp_files/[^']*/bolt_[0-9a-f]+_[0-9a-f]+' of a large transaction \(OS error 5 - Input/output error\)\. The transaction is rolled back\. Check the storage that holds the binlog temporary files directory for free space and I/O errors\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R1: no row is committed.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--let $bolt_log_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_log_file > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = R1: the transaction is not in the binlog.
+--let $assert_select = Xid
+--let $assert_count = 0
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+INSERT INTO t1 VALUES (4, 'd');
+--let $assert_text = R1: the session commits its next transaction.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--source include/assert.inc
+--disable_query_log
+TRUNCATE t1;
+--enable_query_log
+
+############################################################################
+# Case 1: binlog_error_action = ABORT_SERVER.
+# Expected behavior: the server aborts, and the transaction reaches neither
+# the engine nor the binlog.
+#
+# The spilled file is never promoted, so the transaction is in no binlog
+# file and recovery has no reason to roll it forward.
+############################################################################
+--echo # R2: a failure after the rename with ABORT_SERVER aborts the server.
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+--disable_query_log
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG="+d,fail_bolt_promoted_file_reopen";
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = R2: the error log says the server aborts.
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/binlog_bolt_error_action.err
+--let $assert_select = Either disk is full, file system is read only or there was an encryption error while opening the binlog\. Aborting the server\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R2: the aborted promotion commits no rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--let $bolt_log_file = query_get_value("SHOW BINARY LOGS", Log_name, 1)
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_log_file > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = R2: the aborted promotion writes no transaction to the binlog.
+--let $assert_select = Write_rows
+--let $assert_count = 0
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+############################################################################
+# Case 2: binlog_error_action = IGNORE_ERROR.
+# Expected behavior: the server aborts. The rotation raises the reopen
+# failure as fatal, and a fatal error after the before_commit hook aborts the
+# server whatever binlog_error_action is.
+############################################################################
+--echo # R3: a failure after the rename with IGNORE_ERROR aborts the server.
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('f', 4000000));
+SET SESSION DEBUG="+d,fail_bolt_promoted_file_reopen";
+--error ER_BINLOG_LOGGING_IMPOSSIBLE,CR_SERVER_LOST
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = R3: the error log has the abort message with the rotation's error.
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/binlog_bolt_error_action.err
+--let $assert_select = A fatal error occurred while promoting the spill binlog file of a large transaction\. The error was 'Can.t open file: .*'\. Aborting the server to avoid possible inconsistencies\. Check the cause of this error before restarting the server\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R3: the aborted promotion commits no rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_binlog_base.0* > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = R3: the aborted promotion writes no row events to the binlog.
+--let $assert_select = Write_rows
+--let $assert_count = 0
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+############################################################################
+# Case 3: binlog_error_action = IGNORE_ERROR, with another transaction in the
+# BOLT transaction's flush group.
+# Expected behavior: the server aborts in the BOLT transaction's rotation,
+# before the other member is written. Neither transaction commits.
+############################################################################
+--echo # R4: the same failure with a second member in the flush group.
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--connect (bolt_session, localhost, root,,)
+--connect (member_session, localhost, root,,)
+--connection bolt_session
+--disable_query_log
+SET SESSION binlog_transaction_compression = OFF;
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('f', 4000000));
+--enable_result_log
+--enable_query_log
+SET SESSION DEBUG = "+d,fail_bolt_promoted_file_reopen";
+SET DEBUG_SYNC = 'waiting_in_the_middle_of_flush_stage SIGNAL bolt_leading WAIT_FOR member_enrolled';
+--send COMMIT
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR bolt_leading';
+--connection member_session
+SET SESSION binlog_transaction_compression = OFF;
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_flush_stage SIGNAL member_enrolled';
+--send INSERT INTO t1 VALUES (4, 'member')
+--connection bolt_session
+--error ER_BINLOG_LOGGING_IMPOSSIBLE,CR_SERVER_LOST
+--reap
+--connection member_session
+--error CR_SERVER_LOST,ER_BINLOG_LOGGING_IMPOSSIBLE
+--reap
+--connection default
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--disconnect bolt_session
+--disconnect member_session
+--connection default
+--let $assert_text = R4: neither transaction commits in the engine.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_binlog_base.0* > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = R4: neither transaction is written into the binlog.
+--let $assert_select = Write_rows
+--let $assert_count = 0
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+############################################################################
+# Case 4: binlog_error_action = IGNORE_ERROR, the directory sync after the
+# rename fails.
+# Expected behavior: as in case 2, the server aborts.
+############################################################################
+--echo # R5: a directory sync failure after the rename with IGNORE_ERROR aborts the server.
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_query_log
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('g', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('h', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('i', 4000000));
+SET SESSION DEBUG="+d,fail_bolt_directory_sync";
+--error ER_BINLOG_LOGGING_IMPOSSIBLE,CR_SERVER_LOST
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = R5: the error log has the abort message for each of the three aborts.
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/binlog_bolt_error_action.err
+--let $assert_select = A fatal error occurred while promoting the spill binlog file of a large transaction\. The error was 'Can.t open file: .*'\. Aborting the server to avoid possible inconsistencies\. Check the cause of this error before restarting the server\.
+--let $assert_count = 3
+--source include/assert_grep.inc
+--let $assert_text = R5: the aborted promotion commits no rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_binlog_base.0* > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = R5: the aborted promotion writes no row events to the binlog.
+--let $assert_select = Write_rows
+--let $assert_count = 0
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+############################################################################
+# Case 5: binlog_error_action = IGNORE_ERROR, a fatal error during the
+# promotion, before the rename.
+# Expected behavior: the server aborts, whatever binlog_error_action is. The
+# rotation runs after the before_commit hook, so neither a fallback nor a
+# rollback of the transaction is safe.
+############################################################################
+--echo # R6: a fatal error during the promotion aborts the server.
+--disable_query_log
+TRUNCATE t1;
+RESET BINARY LOGS AND GTIDS;
+SET SESSION binlog_transaction_compression = OFF;
+--enable_query_log
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+--disable_result_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('j', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('k', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('l', 4000000));
+SET SESSION DEBUG="+d,fail_bolt_promotion_out_of_memory";
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+COMMIT;
+--enable_result_log
+--enable_query_log
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--let $assert_text = R6: the error log has the actionable abort message with the fatal error's text.
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/binlog_bolt_error_action.err
+--let $assert_only_after =
+--let $assert_select = A fatal error occurred while promoting the spill binlog file of a large transaction\. The error was 'Out of memory; restart server and try again \(needed [0-9]+ bytes\)'\. Aborting the server to avoid possible inconsistencies\. Check the cause of this error before restarting the server\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R6: the aborted promotion commits no rows.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+--let $bolt_log_file = query_get_value("SHOW BINARY LOGS", Log_name, 1)
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_log_file > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_text = R6: the aborted promotion writes no transaction to the binlog.
+--let $assert_select = Write_rows
+--let $assert_count = 0
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--disable_warnings
+--eval SET GLOBAL binlog_error_action = $save_error_action
+--eval SET SESSION binlog_transaction_compression = $save_compression
+RESET BINARY LOGS AND GTIDS;
+--enable_warnings
+--enable_query_log

@@ -1,0 +1,162 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# When the rewrite of the transaction cache into the binlog file format
+# fails at its first spill, the transaction falls back to the standard commit
+# path: the cache stays in the standard form and spills as without the
+# optimization, and no statement fails.
+#
+# === Requirements ===
+# R1. The statement that spills the cache succeeds although the rewrite fails.
+# R2. The transaction commits through the standard path: it is not promoted,
+#     and it is counted as a missed optimization (it ends above the
+#     threshold), with the rewrite failure as the reason.
+# R3. The binlog verifies and every row is retained.
+# R4. No bolt_ temp file is left.
+# R5. The server logs a warning with the cause of the rewrite failure.
+# R6. With binlog_checksum=NONE, a failure to create the bolt_ temp file at
+#     the rewrite also falls back, and the spilling statement succeeds.
+# R7. The rewrite failure is a failure reason, so every fallback for it is
+#     logged.
+# R8. A fatal error in the rewrite, such as running out of memory, does not
+#     fall back: the spilling statement fails with that error, and the
+#     session can commit its next transaction.
+#
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/not_windows.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+--disable_query_log
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because the binlog cache could not be rewritten');
+CALL mtr.add_suppression('Could not rewrite the binlog cache of a large transaction into the binlog file form');
+--enable_query_log
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000));
+SET SESSION debug = '+d,fail_bolt_cache_conversion';
+--echo # R1: the spilling statement succeeds.
+INSERT INTO t1 VALUES (2, REPEAT('b', 6000000));
+SET SESSION debug = '-d,fail_bolt_cache_conversion';
+INSERT INTO t1 VALUES (3, REPEAT('c', 6000000));
+COMMIT;
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+
+--let $assert_text = R2: the transaction's spilled file is not promoted.
+--let $assert_cond = $bolt_after = $bolt_before
+--source include/assert.inc
+--let $assert_text = R2: it is counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_checksumless_conversion_error
+--let $assert_select = Could not optimize large transaction execution in the binlog because the binlog cache could not be rewritten into the spill binlog file. The transaction used the standard commit path instead\.
+--let $assert_count = 1
+--let $assert_text = R2: the rewrite failure is the reason in the error log.
+--source include/assert_grep.inc
+--let $assert_select = Could not rewrite the binlog cache of a large transaction into the binlog file form\. The error was 'no error was reported'\. The transaction used the standard commit path instead\. Check the binlog temporary files directory, for example its free space and permissions\.
+--let $assert_count = 1
+--let $assert_text = R5: the rewrite failure warning says that no error was reported.
+--source include/assert_grep.inc
+
+--echo # R3: the binlog is valid and every row exists.
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null
+--let $assert_text = R3: every row is retained.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "1,2,3"
+--source include/assert.inc
+
+--let $temp_inc = $MYSQLTEST_VARDIR/tmp/bolt_conversion_error_temp_files.inc
+--let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
+--let $BOLT_TEMP_DIR = $MYSQLD_DATADIR/#binlog_temp_files/$bolt_binlog_base
+--exec ls "$BOLT_TEMP_DIR" | grep -c '^bolt_' | xargs printf -- '--let \044temp_files = %s\n' > $temp_inc
+--source $temp_inc
+--remove_file $temp_inc
+--let $assert_text = R4: no bolt_ temp file is left.
+--let $assert_cond = $temp_files = 0
+--source include/assert.inc
+
+--echo # R6: with binlog_checksum=NONE, the spilling statement succeeds although
+--echo # the bolt_ temp file cannot be created.
+TRUNCATE t1;
+SET GLOBAL binlog_checksum = NONE;
+RESET BINARY LOGS AND GTIDS;
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000));
+SET SESSION debug = '+d,fail_bolt_spill_file_create';
+INSERT INTO t1 VALUES (2, REPEAT('b', 6000000));
+SET SESSION debug = '-d,fail_bolt_spill_file_create';
+INSERT INTO t1 VALUES (3, REPEAT('c', 6000000));
+COMMIT;
+--let $bolt_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+
+--let $assert_text = R6: the transaction's spilled file is not promoted.
+--let $assert_cond = $bolt_after = $bolt_before
+--source include/assert.inc
+--let $assert_text = R6: it is counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_select = Could not rewrite the binlog cache of a large transaction into the binlog file form\. The error was 'File '[^']*/#binlog_temp_files/binlog/bolt_[0-9a-f]+_[0-9a-f]+' not found \(OS errno 28 - No space left on device\)'\. The transaction used the standard commit path instead\. Check the binlog temporary files directory, for example its free space and permissions\.
+--let $assert_count = 1
+--let $assert_text = R5: the rewrite failure warning names the file that could not be created.
+--source include/assert_grep.inc
+--let $assert_select = Could not optimize large transaction execution in the binlog because the binlog cache could not be rewritten into the spill binlog file. The transaction used the standard commit path instead\.
+--let $assert_count = 2
+--let $assert_text = R7: the second rewrite failure is also logged as the reason.
+--source include/assert_grep.inc
+
+--echo # R6: the binlog is valid and every row exists.
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$binlog_file > /dev/null
+--let $assert_text = R6: every row is retained.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "1,2,3"
+--source include/assert.inc
+
+--exec ls "$BOLT_TEMP_DIR" | grep -c '^bolt_' | xargs printf -- '--let \044temp_files = %s\n' > $temp_inc
+--source $temp_inc
+--remove_file $temp_inc
+--let $assert_text = R6: no bolt_ temp file is left.
+--let $assert_cond = $temp_files = 0
+--source include/assert.inc
+
+--echo # R8: a fatal error in the rewrite fails the spilling statement.
+TRUNCATE t1;
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000));
+SET SESSION debug = '+d,fail_bolt_cache_conversion_out_of_memory';
+--error ER_OUTOFMEMORY
+INSERT INTO t1 VALUES (2, REPEAT('b', 6000000));
+SET SESSION debug = '-d,fail_bolt_cache_conversion_out_of_memory';
+ROLLBACK;
+INSERT INTO t1 VALUES (3, REPEAT('c', 1000));
+--let $assert_text = R8: the session commits its next transaction.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "3"
+--source include/assert.inc
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = R8: the failed statement is not counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--exec ls "$BOLT_TEMP_DIR" | grep -c '^bolt_' | xargs printf -- '--let \044temp_files = %s\n' > $temp_inc
+--source $temp_inc
+--remove_file $temp_inc
+--let $assert_text = R8: no bolt_ temp file is left.
+--let $assert_cond = $temp_files = 0
+--source include/assert.inc
+
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log

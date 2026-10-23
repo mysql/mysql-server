@@ -272,6 +272,9 @@ void Binlog_group_commit_ctx::reset() {
   this->m_has_waited = false;
   m_max_size_exceeded = false;
   m_force_rotate = false;
+  m_must_lead_flush_group = false;
+  m_assigned_flush_leader = false;
+  m_purge_after_commit = false;
 }
 
 std::string Binlog_group_commit_ctx::to_string() const {
@@ -303,6 +306,13 @@ std::pair<bool, bool> Binlog_group_commit_ctx::aggregate_rotate_settings(
     force_rotate |= thd->rpl_thd_ctx.binlog_group_commit_ctx().m_force_rotate;
   }
   return {exceeded, force_rotate};
+}
+
+bool Binlog_group_commit_ctx::aggregate_purge_after_commit(THD *queue) {
+  for (THD *thd = queue; thd; thd = thd->next_to_commit)
+    if (thd->rpl_thd_ctx.binlog_group_commit_ctx().m_purge_after_commit)
+      return true;
+  return false;
 }
 
 void Rpl_thd_context::init() {

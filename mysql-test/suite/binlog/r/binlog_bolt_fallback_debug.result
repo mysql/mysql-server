@@ -1,0 +1,148 @@
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
+CALL mtr.add_suppression("An incident event has been written to the binary log");
+CALL mtr.add_suppression("An error occurred during flush stage of the commit");
+CALL mtr.add_suppression("An error occurred in the binlog rotation that promotes the spill binlog file of a large transaction");
+CALL mtr.add_suppression("Binary logging not possible");
+CALL mtr.add_suppression("Hence turning logging off for the whole duration");
+CALL mtr.add_suppression("Could not use .* for logging");
+CALL mtr.add_suppression("Could not open .* for logging");
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+# A transaction with a logging incident uses the standard commit path.
+SET SESSION debug = "+d,binlog_inject_incident";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,binlog_inject_incident";
+include/assert.inc [An incident does not promote a binlog.]
+include/assert.inc [An incident increments the missed counter once.]
+include/assert.inc [An incident fallback force-rotates to a new active binlog.]
+include/assert.inc [An incident fallback commits all rows.]
+include/assert.inc [An incident fallback preserves the full payload.]
+include/assert_grep.inc [The fallback reason is logged: the transaction has a logging incident to report.]
+# A failed rename of the spilled file falls back to the standard path.
+SET SESSION original_commit_timestamp = 1234567890123456;
+SET SESSION original_server_version = 80000;
+SET SESSION debug = "+d,fail_bolt_promotion_rename";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_promotion_rename";
+include/assert.inc [A failed rename does not promote the spilled file.]
+include/assert.inc [A failed rename increments the missed counter once.]
+include/assert.inc [A failed rename commits all rows.]
+include/assert_grep.inc [The fallback reason is logged: the spill binlog file could not be promoted.]
+include/rpl/save_binlog_file_position.inc
+include/assert_grep.inc [The Gtid event keeps the session's original commit timestamp.]
+include/assert_grep.inc [The Gtid event keeps the session's original server version.]
+# R3: the reset after a promotion cannot restore the standard form; COMMIT succeeds.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+# R3: with the optimization OFF, a small transaction is written in the standard form.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+INSERT INTO t1 VALUES (4, 'small, optimization off');
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+# R3: the same failure; with the optimization ON, a small transaction is written in the standard form.
+BEGIN;
+INSERT INTO t1 VALUES (5, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (6, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (7, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+INSERT INTO t1 VALUES (8, 'small, optimization on');
+# R3: the same failure; the next large transaction is promoted.
+BEGIN;
+INSERT INTO t1 VALUES (9, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (10, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (11, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+BEGIN;
+INSERT INTO t1 VALUES (12, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (13, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (14, REPEAT('y', 5000000));
+COMMIT;
+include/assert.inc [R3: every large transaction's spilled file is promoted.]
+include/assert.inc [R3: every row is committed.]
+include/assert_grep.inc [R3: each failed replacement is reported in the error log.]
+# R3: the binlog is readable and holds both small transactions.
+include/assert_grep.inc [R3: the small transaction written with the optimization OFF is in the binlog.]
+include/assert_grep.inc [R3: the small transaction written with the optimization ON is in the binlog.]
+# R3a: the replacement fails again at the next transaction's first event.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES (4, 'retry fails');
+ERROR HY000: Out of memory (Needed NN bytes)
+ROLLBACK;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+include/assert.inc [R3a: the failed statement's row is rolled back.]
+INSERT INTO t1 VALUES (5, 'after the failed retry');
+include/assert.inc [R3a: the transaction after the failed retry succeeds.]
+# R3b: the first name for the spill file is taken.
+SET SESSION debug = "+d,simulate_bolt_spill_file_name_taken";
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
+INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
+COMMIT;
+SET SESSION debug = "-d,simulate_bolt_spill_file_name_taken";
+include/assert.inc [R3b: the spilled file is promoted with the next name.]
+include/assert.inc [R3b: every row is committed.]
+# R3b: the file that had the name is still in the directory.
+include/assert.inc [R3b: only the file that had the name is left.]
+# R5: the truncation of the rewritten cache fails at ROLLBACK TO SAVEPOINT.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+SAVEPOINT s1;
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+SET SESSION debug = "+d,fail_bolt_rewritten_cache_truncate";
+ROLLBACK TO SAVEPOINT s1;
+SET SESSION debug = "-d,fail_bolt_rewritten_cache_truncate";
+INSERT INTO t1 VALUES (3, REPEAT('c', 5000000));
+INSERT INTO t1 VALUES (4, REPEAT('d', 5000000));
+COMMIT;
+include/assert.inc [R5: the transaction is not promoted.]
+include/assert.inc [R5: the rolled-back row is not committed.]
+include/assert_grep.inc [R5: the incident is the fallback reason.]
+include/assert_grep.inc [R5: the standard path writes an incident event.]
+include/assert_grep.inc [R5: the error log has the truncation failure.]
+include/assert.inc [R5: the incident rotates the binlog.]
+# R6: the cache cannot go back to the standard form at ROLLBACK TO s0.
+BEGIN;
+SAVEPOINT s0;
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
+SET SESSION debug = "+d,fail_bolt_standard_form_restore";
+ROLLBACK TO SAVEPOINT s0;
+SET SESSION debug = "-d,fail_bolt_standard_form_restore";
+INSERT INTO t1 VALUES (3, 'after the rollback');
+COMMIT;
+include/assert.inc [R6: the transaction commits only the row after the rollback.]
+include/assert_grep.inc [R6: the failed replacement is reported in the error log.]
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+# A session spills a large transaction and holds it open.
+# Another session's failed rotation turns logging off and closes the log.
+# The held transaction commits through the standard path.
+COMMIT;
+include/assert.inc [A closed binlog does not promote.]
+include/assert.inc [A closed binlog increments the missed counter once.]
+include/assert.inc [A closed-log fallback still commits all rows.]
+include/assert.inc [A closed-log fallback preserves the full payload.]
+include/assert_grep.inc [The fallback reason is logged: the binlog was closed while the transaction was running.]
+# restart
+DROP TABLE t1;

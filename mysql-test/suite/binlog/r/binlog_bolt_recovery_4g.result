@@ -1,0 +1,22 @@
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t1 (f1 LONGTEXT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (REPEAT('a', 1073741824 / 2));
+CREATE TABLE t2 LIKE t1;
+# Commit a BOLT transaction of more than 4 GiB and crash before the
+# rotation that follows it.
+SET SESSION DEBUG = "+d,crash_bolt_before_max_size_rotate";
+INSERT INTO t2 SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT
+f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL
+SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION
+ALL SELECT f1 FROM t1;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+# R1: recovery seeks to the terminating event, beyond 4 GiB.
+include/assert_grep.inc [Recovery seeks to the terminating event of the transaction.]
+include/assert.inc [R1: the terminating event begins beyond 4 GiB.]
+include/assert.inc [The large transaction's spilled file was promoted into a file of more than 4 GiB.]
+# R2: the transaction survives recovery.
+include/assert.inc [All rows of the BOLT transaction are committed.]
+DROP TABLE t1, t2;
+RESET BINARY LOGS AND GTIDS;

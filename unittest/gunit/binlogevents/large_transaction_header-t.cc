@@ -1,0 +1,170 @@
+/* Copyright (c) 2026, Oracle and/or its affiliates.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is designed to work with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#include <gtest/gtest.h>
+#include <cstring>
+#include <string>
+#include <vector>
+
+#include "my_byteorder.h"
+#include "mysql/binlog/event/binlog_event.h"
+#include "mysql/binlog/event/control_events.h"
+#include "mysql/binlog/event/large_transaction_header_event.h"
+
+namespace mysql::binlog::event::unittests {
+
+class LargeTrxHeaderTest : public ::testing::Test {
+ protected:
+  LargeTrxHeaderTest() : m_fde(BINLOG_VERSION, "9.7.0") {}
+
+  /**
+    Build a serialized Large_transaction_header event with a full fixed body
+    (version, offset, terminating event type, terminating event body). The
+    version byte is
+    caller-supplied so that invalid-version cases can be exercised without
+    truncating the body.
+  */
+  std::vector<char> build_event(
+      uint8_t version, uint64_t offset, uint8_t terminating_type,
+      size_t padding_size, const std::string &terminating_body = "xid12345") {
+    const size_t event_size = LOG_EVENT_MINIMAL_HEADER_LEN +
+                              Large_transaction_header_event::kFixedBodyLength +
+                              terminating_body.size() + padding_size;
+    std::vector<char> buf(event_size, '\0');
+    uchar *p = reinterpret_cast<uchar *>(buf.data());
+    int4store(p, 1755000000);  // timestamp
+    p[EVENT_TYPE_OFFSET] = LARGE_TRANSACTION_HEADER_EVENT;
+    int4store(p + SERVER_ID_OFFSET, 1);
+    int4store(p + EVENT_LEN_OFFSET, static_cast<uint32_t>(event_size));
+    int4store(p + LOG_POS_OFFSET, 0);
+    int2store(p + FLAGS_OFFSET, LOG_EVENT_IGNORABLE_F);
+    uchar *body = p + LOG_EVENT_MINIMAL_HEADER_LEN;
+    /* The fixed body: version (1), offset (8), type (1), body length (1). */
+    body[0] = version;
+    int8store(body + 1, offset);
+    body[1 + 8] = terminating_type;
+    body[1 + 8 + 1] = static_cast<uchar>(terminating_body.size());
+    memcpy(body + Large_transaction_header_event::kFixedBodyLength,
+           terminating_body.data(), terminating_body.size());
+    return buf;
+  }
+
+  Format_description_event m_fde;
+};
+
+TEST_F(LargeTrxHeaderTest, DecodeRoundtrip) {
+  const uint64_t offsets[] = {0, 1, UINT32_MAX, 0x1122334455667788ULL,
+                              UINT64_MAX};
+  const size_t paddings[] = {0, 1, 4096, 128 * 1024};
+  for (uint64_t offset : offsets) {
+    for (size_t padding : paddings) {
+      auto buf = build_event(Large_transaction_header_event::kVersion, offset,
+                             static_cast<uint8_t>(XID_EVENT), padding);
+      Large_transaction_header_event ev(buf.data(), &m_fde);
+      ASSERT_TRUE(ev.header()->get_is_valid());
+      EXPECT_EQ(ev.get_version(), Large_transaction_header_event::kVersion);
+      EXPECT_EQ(ev.get_terminating_event_offset(), offset);
+      EXPECT_EQ(ev.get_terminating_event_type(),
+                static_cast<uint8_t>(XID_EVENT));
+      EXPECT_EQ(ev.get_terminating_event_body(), "xid12345");
+      EXPECT_EQ(ev.get_padding_size(), padding);
+    }
+  }
+}
+
+TEST_F(LargeTrxHeaderTest, IgnorableFlagIsPreserved) {
+  auto buf = build_event(Large_transaction_header_event::kVersion, 42,
+                         static_cast<uint8_t>(XID_EVENT), 16);
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  ASSERT_TRUE(ev.header()->get_is_valid());
+  EXPECT_NE(ev.header()->flags & LOG_EVENT_IGNORABLE_F, 0);
+}
+
+TEST_F(LargeTrxHeaderTest, DecodesANewerVersionWithoutItsBody) {
+  for (uint8_t newer_version : {uint8_t{2}, uint8_t{255}}) {
+    auto buf =
+        build_event(newer_version, 42, static_cast<uint8_t>(XID_EVENT), 16);
+    Large_transaction_header_event ev(buf.data(), &m_fde);
+    EXPECT_TRUE(ev.header()->get_is_valid());
+    EXPECT_EQ(ev.get_body_state(),
+              Large_transaction_header_event::Body_state::kNewerVersion);
+  }
+}
+
+TEST_F(LargeTrxHeaderTest, DecodesVersionZeroAsMalformed) {
+  auto buf = build_event(0, 42, static_cast<uint8_t>(XID_EVENT), 16);
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  EXPECT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_body_state(),
+            Large_transaction_header_event::Body_state::kMalformed);
+}
+
+TEST_F(LargeTrxHeaderTest, DecodesTheLongestTerminatingEventBody) {
+  const std::string longest(
+      Large_transaction_header_event::kMaxTerminatingEventBodyLength, 'x');
+  auto buf =
+      build_event(Large_transaction_header_event::kVersion, 42,
+                  static_cast<uint8_t>(XA_PREPARE_LOG_EVENT), 16, longest);
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  ASSERT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_terminating_event_body(), longest);
+  EXPECT_EQ(ev.get_padding_size(), 16U);
+}
+
+TEST_F(LargeTrxHeaderTest, DecodesAnEmptyTerminatingEventBody) {
+  /* A transaction that ends with a COMMIT query records no XID. */
+  auto buf = build_event(Large_transaction_header_event::kVersion, 42,
+                         static_cast<uint8_t>(QUERY_EVENT), 16, "");
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  ASSERT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_terminating_event_type(), static_cast<uint8_t>(QUERY_EVENT));
+  EXPECT_TRUE(ev.get_terminating_event_body().empty());
+  EXPECT_EQ(ev.get_padding_size(), 16U);
+}
+
+TEST_F(LargeTrxHeaderTest, DecodesATooLongTerminatingEventBodyAsMalformed) {
+  const std::string too_long(
+      Large_transaction_header_event::kMaxTerminatingEventBodyLength + 1, 'x');
+  auto buf =
+      build_event(Large_transaction_header_event::kVersion, 42,
+                  static_cast<uint8_t>(XA_PREPARE_LOG_EVENT), 16, too_long);
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  EXPECT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_body_state(),
+            Large_transaction_header_event::Body_state::kMalformed);
+}
+
+TEST_F(LargeTrxHeaderTest, DecodesATruncatedBodyAsMalformed) {
+  /* Body shorter than the fixed fields: version byte only. */
+  auto buf = build_event(Large_transaction_header_event::kVersion, 42,
+                         static_cast<uint8_t>(XID_EVENT), 0);
+  buf.resize(LOG_EVENT_MINIMAL_HEADER_LEN + 1);
+  uchar *p = reinterpret_cast<uchar *>(buf.data());
+  int4store(p + EVENT_LEN_OFFSET, static_cast<uint32_t>(buf.size()));
+  Large_transaction_header_event ev(buf.data(), &m_fde);
+  EXPECT_TRUE(ev.header()->get_is_valid());
+  EXPECT_EQ(ev.get_body_state(),
+            Large_transaction_header_event::Body_state::kMalformed);
+}
+
+}  // namespace mysql::binlog::event::unittests

@@ -22,8 +22,11 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
 #include "sql/binlog/log_sanitizer.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysqld_error.h"
 #include "sql/binlog.h"
 #include "sql/binlog/decompressing_event_object_istream.h"  // Decompressing_event_object_istream
+#include "sql/binlog/large_trx_commit.h"  // find_large_trx_terminating_event
 #include "sql/psi_memory_key.h"
 #include "sql/psi_memory_resource.h"
 #include "sql/raii/sentry.h"     // raii::Sentry<>
@@ -60,6 +63,55 @@ std::string const &Log_sanitizer::get_failure_message() const {
 
 bool Log_sanitizer::is_log_truncation_needed() const {
   return m_is_log_truncation_needed;
+}
+
+void Log_sanitizer::process_large_trx_header_event(
+    Large_transaction_header_log_event const &ev,
+    IBasic_binlog_file_reader &reader, const std::string &file_name) {
+  /*
+    With source_verify_checksum ON, the transaction is read sequentially, so
+    the checksum of every event in its body is verified, as without the
+    optimization.
+  */
+  if (reader.is_checksum_verification_enabled()) {
+    LogErr(INFORMATION_LEVEL,
+           ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION,
+           file_name.c_str());
+    return;
+  }
+  /*
+    When the header is not applicable or invalid, the transaction is read
+    sequentially, as without the header.
+  */
+  my_off_t end = 0;
+  switch (
+      find_large_trx_terminating_event(reader, m_last_file_size, ev, &end)) {
+    case Large_trx_header_check::kVerified:
+      break;
+    case Large_trx_header_check::kNotApplicable:
+      return;
+    case Large_trx_header_check::kInvalid:
+      LogErr(WARNING_LEVEL, ER_BINLOG_BOLT_INVALID_LARGE_TRX_HEADER,
+             file_name.c_str());
+      return;
+    case Large_trx_header_check::kReadError:
+      m_is_malformed = true;
+      m_failure_message.assign(
+          "Could not seek back to the end of a large transaction header");
+      return;
+  }
+  const my_off_t terminating_event_offset =
+      static_cast<my_off_t>(ev.get_terminating_event_offset());
+  if (reader.seek(terminating_event_offset)) {
+    m_is_malformed = true;
+    m_failure_message.assign(
+        "Could not seek to the terminating event of a large transaction");
+    return;
+  }
+
+  LogErr(INFORMATION_LEVEL, ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_SKIP,
+         static_cast<ulonglong>(terminating_event_offset), file_name.c_str());
+  m_in_transaction = true;
 }
 
 void Log_sanitizer::process_query_event(Query_log_event const &ev) {

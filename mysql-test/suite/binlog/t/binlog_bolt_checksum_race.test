@@ -1,0 +1,97 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# SET GLOBAL binlog_checksum takes LOCK_log and rotates the binlog. A
+# large transaction that passed BOLT's commit-time checks but has not taken
+# LOCK_log yet can see the algorithm change under it. The promoted file must
+# never declare one algorithm in its Format_description event while later
+# events in it use another.
+#
+# === Requirements ===
+# R1. binlog_checksum changed from CRC32 to NONE between the commit-time
+#     checks and LOCK_log: the transaction falls back for the checksum change
+#     and commits, and every binlog file is readable and verifies.
+# R2. Transactions committed after it are readable too.
+#
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_checksum = query_get_value(SELECT @@GLOBAL.binlog_checksum, @@GLOBAL.binlog_checksum, 1)
+--disable_query_log
+CALL mtr.add_suppression('Could not optimize large transaction execution in the binlog because');
+--enable_query_log
+
+SET GLOBAL binlog_checksum = CRC32;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--connect (con_admin, localhost, root,,)
+--connection default
+
+--echo # R1: change binlog_checksum while the large transaction waits before LOCK_log.
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET DEBUG_SYNC = 'bgc_before_flush_stage SIGNAL bolt_waiting WAIT_FOR bolt_go';
+--send COMMIT
+
+--connection con_admin
+SET DEBUG_SYNC = 'now WAIT_FOR bolt_waiting';
+SET GLOBAL binlog_checksum = NONE;
+SET DEBUG_SYNC = 'now SIGNAL bolt_go';
+
+--connection default
+--reap
+SET DEBUG_SYNC = 'RESET';
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $assert_text = R1: the transaction's spilled file is not promoted.
+--let $assert_cond = $bolt_count_after = $bolt_count_before
+--source include/assert.inc
+--let $assert_text = R1: the transaction is counted as a missed optimization.
+--let $assert_cond = $missed_after = $missed_before + 1
+--source include/assert.inc
+--let $assert_text = R1: the checksum change is the fallback reason.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_checksum_race
+--let $assert_select = Could not optimize large transaction execution in the binlog because binlog_checksum changed while the transaction was running. The transaction used the standard commit path instead\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # R2: more transactions after it.
+INSERT INTO t1 VALUES (4, 'small');
+INSERT INTO t1 VALUES (5, 'small');
+--let $assert_text = All rows are committed.
+--let $assert_cond = [SELECT COUNT(*) AS c FROM t1, c, 1] = 5
+--source include/assert.inc
+
+# Every binlog file must be readable with its own declared algorithm.
+FLUSH BINARY LOGS;
+--let $i = 1
+--let $k = 1
+while ($k)
+{
+  --let $binlog_name = query_get_value(SHOW BINARY LOGS, Log_name, $i)
+  if ($binlog_name == 'No such row')
+  {
+    --let $k = 0
+  }
+  if ($k)
+  {
+    --exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_name > /dev/null
+    --inc $i
+  }
+}
+--echo # All binlog files verified.
+
+# Cleanup
+--disconnect con_admin
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_checksum = $save_checksum
+--enable_query_log

@@ -1,0 +1,108 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify that a failure to sync a large transaction's spilled binlog cache
+# file does not make the group diverge. The spilled file is synced before the
+# before_commit hook, where Group Replication broadcasts and certifies the
+# transaction. So a sync failure rolls the transaction back before any other
+# member can see it.
+#
+# === Requirements ===
+# R1. COMMIT on server1 fails with ER_ERROR_ON_WRITE, and server1 has no row of
+#     the transaction.
+# R2. The error log of server1 has an actionable warning that names the
+#     spilled file.
+# R3. server2 has no row of the transaction, and both members have the same
+#     gtid_executed.
+# R4. server1 stays ONLINE, and its next transaction commits and replicates.
+#
+# === Implementation ===
+# The fail_bolt_spill_file_sync debug point fails the sync on server1.
+#
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_binlog_transaction_compression_on.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 2
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--let $sysvars_to_save = [ "GLOBAL.binlog_checksum", "GLOBAL.binlog_large_transaction_optimization_enabled", "GLOBAL.binlog_large_transaction_optimization_threshold" ]
+--source include/save_sysvars.inc
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET SESSION sql_log_bin = 0;
+CALL mtr.add_suppression("Could not write or sync the spill binlog file");
+SET SESSION sql_log_bin = 1;
+--source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/save_sysvars.inc
+SET GLOBAL binlog_checksum = CRC32;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--source include/start_group_replication.inc
+
+--echo # R1: the sync failure rolls the transaction back on server1.
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--disable_query_log
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG = "+d,fail_bolt_spill_file_sync";
+--replace_regex /'[^']*bolt_[^']*'/'BOLT_FILE'/
+--error ER_ERROR_ON_WRITE
+COMMIT;
+SET SESSION DEBUG = "-d,fail_bolt_spill_file_sync";
+--enable_query_log
+--let $assert_text = R1: server1 has no row of the transaction.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text = R2: the error log has the actionable warning for the spilled file.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_bolt_spill_sync_failure
+--let $assert_select = Could not write or sync the spill binlog file '[^']*/#binlog_temp_files/[^']*/bolt_[0-9a-f]+_[0-9a-f]+' of a large transaction \(OS error 5 - Input/output error\)\. The transaction is rolled back\. Check the storage that holds the binlog temporary files directory for free space and I/O errors\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # R4: server1 stays ONLINE, and its next transaction commits.
+--let $group_replication_member_state = ONLINE
+--source include/gr_wait_for_member_state.inc
+INSERT INTO t1 VALUES (10, 'small');
+--source include/rpl/sync.inc
+--let $server1_gtids = `SELECT @@GLOBAL.gtid_executed`
+
+--echo # R3: server2 has none of the failed transaction.
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--let $assert_text = R3: server2 has only the row of the next transaction.
+--let $assert_cond = [SELECT GROUP_CONCAT(id ORDER BY id) AS ids FROM t1, ids, 1] = "10"
+--source include/assert.inc
+--let $server2_gtids = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_text = R3: both members have the same gtid_executed.
+--let $assert_cond = "$server1_gtids" = "$server2_gtids"
+--source include/assert.inc
+
+# Cleanup
+--let $rpl_connection_name= server1
+--source include/connection.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/stop_group_replication.inc
+--source include/restore_sysvars.inc
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--source include/stop_group_replication.inc
+--source include/restore_sysvars.inc
+--source include/group_replication_end.inc

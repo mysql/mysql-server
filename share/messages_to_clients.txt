@@ -11100,6 +11100,12 @@ ER_MRS_UDFS_REGISTER_ERROR
 ER_MRS_BACKEND_INIT_ERROR
   eng "Failed to initialize backend."
 
+ER_DA_BINLOG_BOLT_THRESHOLD_ADJUSTED
+  eng "Variable 'binlog_large_transaction_optimization_threshold' was adjusted from %llu bytes to %llu bytes because it cannot be smaller than binlog_cache_size."
+
+ER_DA_BINLOG_BOLT_TEMP_FILES_DIR_UNUSABLE
+  eng "The binlog temporary files directory is unusable, so binlog_large_transaction_optimization_enabled stays OFF. The error log has the reason and what to do."
+
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #

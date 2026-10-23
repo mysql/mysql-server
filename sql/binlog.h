@@ -47,6 +47,8 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // Item_result
 #include "sql/binlog/binlog_tc_log_processing.h"
+#include "sql/binlog/file_rotation.h"  // File_rotation, Spilled_file_rotation
+#include "sql/binlog/large_trx_commit.h"
 #include "sql/binlog_index.h"   // Log_info, Binlog_index
 #include "sql/binlog_reader.h"  // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
@@ -56,6 +58,7 @@
 #include "thr_mutex.h"
 
 class Format_description_log_event;
+class Gtid_log_event;
 class Gtid_monitoring_info;
 class Gtid_set;
 class Ha_trx_info;
@@ -67,8 +70,11 @@ class Tsid_map;
 class THD;
 class Transaction_boundary_parser;
 class binlog_cache_data;
+class binlog_cache_mngr;
 class user_var_entry;
 class Binlog_cache_storage;
+
+binlog_cache_mngr *thd_get_cache_mngr(const THD *thd);
 
 struct Gtid;
 
@@ -108,12 +114,16 @@ struct Binlog_user_var_event {
 class MYSQL_BIN_LOG : public TC_LOG {
  public:
   class Binlog_ofile;
+  /* Runs the rotation steps of a promotion (see promote_spilled_file()). */
+  friend class Spilled_file_rotation;
 
  private:
   enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };
 
   /* LOCK_log is inited by init_pthread_objects() */
   mysql_mutex_t LOCK_log;
+  /** @see set_flushing_group_leader() */
+  bool m_flushing_group_leader{false};
   char *name;
   char log_file_name[FN_REFLEN];
   char db[NAME_LEN + 1];
@@ -247,10 +257,79 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  private:
   int new_file_impl(bool need_lock,
-                    Format_description_log_event *extra_description_event);
+                    Format_description_log_event *extra_description_event,
+                    File_rotation &rotation);
+  /** A standard rotation (see Standard_file_rotation). */
+  int new_file_impl(bool need_lock,
+                    Format_description_log_event *extra_description_event) {
+    Standard_file_rotation standard_rotation;
+    return new_file_impl(need_lock, extra_description_event, standard_rotation);
+  }
 
   bool open(PSI_file_key log_file_key, const char *log_name,
             const char *new_name, uint32 new_index_number);
+
+  /**
+    Replaces the new binary log file that a rotation is opening with a large
+    transaction's spilled binlog cache file. Called by open_binlog(), under
+    LOCK_log and the binary log index lock, after the new file's header events
+    are written and before the file is added to the binary log index. The
+    transaction body in the spilled file was already synced, before the
+    before_commit hook.
+
+    1. Check, under LOCK_log, that binary log encryption is off and that the
+       cache's checksum algorithm is binlog_checksum.
+    2. Check that the new file's header events fit in the reserved region at
+       the front of the spilled file, together with a Large_transaction_header
+       event and the transaction's Gtid event. Then read the header events
+       back from the new file.
+    3. Write into the reserved region a copy of the header events, then the
+       Large_transaction_header event, padded so the Gtid event ends where
+       the transaction's first event starts, then the Gtid event, and sync
+       the spilled file.
+    4. Rename the spilled file to replace the new file, sync both directories,
+       and reopen the renamed file at its end.
+
+    A failure before the rename completes changes nothing in the binary log.
+    The rotation keeps the new binary log file it opened, which holds only its
+    header events. The transaction is written into that file as on the
+    standard commit path. A failure after the rename, in the directory syncs
+    or the reopen, is a rotation error.
+
+    @param promotion  The rotation steps of this promotion, and information
+                      about it (see Spilled_file_rotation).
+
+    @retval false  The file was promoted, or the transaction falls back.
+    @retval true   Error after the new file was replaced.
+  */
+  [[nodiscard]] bool promote_spilled_file(Spilled_file_rotation *promotion);
+
+  /**
+    Creates the Gtid event of a transaction that is written into the binary
+    log: generates its logical timestamps and takes its commit timestamps and
+    server versions. Used by write_transaction() and by
+    promote_spilled_file().
+
+    @param thd                      The session of the transaction.
+    @param cache_data               The transaction's binlog cache.
+    @param parallelization_barrier  Whether the transaction must not be
+                                    applied in parallel with others.
+
+    @return The Gtid event, without its transaction length.
+  */
+  Gtid_log_event create_gtid_event(THD *thd, binlog_cache_data *cache_data,
+                                   bool parallelization_barrier);
+
+  /**
+    Reopens the active binary log file after promote_spilled_file() renamed
+    the spilled file to the new binary log file's name. The new handle is
+    positioned at the file's end. On failure, the current handle stays open.
+
+    @retval false  Success.
+    @retval true   Error.
+  */
+  [[nodiscard]] bool reopen_promoted_binlog_file();
+
   bool init_and_set_log_file_name(const char *log_name, const char *new_name,
                                   uint32 new_index_number);
   int generate_new_name(char *new_name, const char *log_name,
@@ -716,12 +795,26 @@ class MYSQL_BIN_LOG : public TC_LOG {
     binary log files.
     @param new_index_number The binary log file index number to start from
     after the RESET BINARY LOGS AND GTIDS command is called.
+    @param rotation The rotation steps that differ for the rotation that
+    promotes a large transaction's spilled file (see Spilled_file_rotation).
+    The overload without this parameter uses a Standard_file_rotation.
   */
   bool open_binlog(const char *log_name, const char *new_name,
                    ulong max_size_arg, bool null_created_arg,
                    bool need_lock_index, bool need_tsid_lock,
                    Format_description_log_event *extra_description_event,
-                   uint32 new_index_number = 0);
+                   uint32 new_index_number, File_rotation &rotation);
+  /** A standard open or rotation (see Standard_file_rotation). */
+  bool open_binlog(const char *log_name, const char *new_name,
+                   ulong max_size_arg, bool null_created_arg,
+                   bool need_lock_index, bool need_tsid_lock,
+                   Format_description_log_event *extra_description_event,
+                   uint32 new_index_number = 0) {
+    Standard_file_rotation standard_rotation;
+    return open_binlog(log_name, new_name, max_size_arg, null_created_arg,
+                       need_lock_index, need_tsid_lock, extra_description_event,
+                       new_index_number, standard_rotation);
+  }
   bool open_index_file(const char *index_file_name_arg, const char *log_name,
                        bool need_lock_index);
   /* Use this to start writing a new log file */
@@ -741,6 +834,37 @@ class MYSQL_BIN_LOG : public TC_LOG {
   bool write_transaction(THD *thd, binlog_cache_data *cache_data,
                          Binlog_event_writer *writer,
                          bool parallelization_barrier);
+
+  /**
+    Commits a large transaction without copying its binlog cache: rotates the
+    binary log, and the rotation makes the transaction's spilled file the new
+    binary log file (see promote_spilled_file()). Called in the flush stage,
+    with LOCK_log held, for the first transaction of a flush group, before
+    its Gtid event is written.
+
+    @param thd         The session of the transaction.
+    @param cache_data  The transaction's binlog cache.
+
+    @return Whether the spilled file was promoted, the transaction falls back,
+            or the rotation failed (see Spilled_file_promotion_result). A
+            transaction that falls back is written as on the standard commit
+            path, into the active binary log file, or into the new one when
+            the rotation already ran.
+  */
+  [[nodiscard]] Spilled_file_promotion_result rotate_and_promote_spilled_file(
+      THD *thd, binlog_cache_data *cache_data);
+
+  /**
+    Whether the member being flushed is the leader of its flush group. The
+    flush stage sets this while it writes each member. A member whose cache
+    was marked for promotion in MYSQL_BIN_LOG::commit() promotes its spilled
+    file only when this is true, because the promotion rotates the binary log
+    before any other member is written.
+  */
+  void set_flushing_group_leader(bool value) {
+    m_flushing_group_leader = value;
+  }
+  bool is_flushing_group_leader() const { return m_flushing_group_leader; }
 
   /**
      Write a dml into statement cache and then flush it into binlog. It writes
@@ -1035,6 +1159,18 @@ struct LOAD_FILE_INFO {
 };
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
+
+/**
+  Return the size of the header region a transaction reserves at the front of
+  its binlog cache file, set from the active binary log's header.
+*/
+my_off_t get_binlog_cache_reserved_bytes();
+
+/**
+  Set the binlog cache reservation from the length of the active binary log
+  file's header: the events written before its first transaction.
+*/
+void set_binlog_cache_reserved_bytes(my_off_t header_length);
 
 /**
   Check if the the transaction is empty.

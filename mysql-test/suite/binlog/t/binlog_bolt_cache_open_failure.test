@@ -1,0 +1,87 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify that a session survives a failure to open its binlog caches. The
+# caches are opened at the session's first binlogged statement. When the open
+# fails, the session's binlog cache manager is destroyed with a cache that was
+# never opened.
+#
+# === Requirements ===
+# R1. A failed open of the binlog caches fails the statement with out of
+#     memory, and the server does not crash.
+# R2. The session's next statement opens the caches and is binlogged.
+# R3. R1 and R2 hold with the optimization ON and OFF.
+#
+# === Implementation ===
+# The debug symbol fail_binlog_cache_open fails the open of the first binlog
+# cache as a failed allocation of the cache's buffer does. Each case runs in a
+# new connection, so the statement under test is the connection's first
+# binlogged statement. The statement under test uses the statement format,
+# because the statement-format write into the binlog cache checks whether the
+# open failed.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--let $save_enabled = query_get_value(SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled, @@GLOBAL.binlog_large_transaction_optimization_enabled, 1)
+
+--disable_query_log
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+
+--let $bolt_case = 1
+while ($bolt_case <= 2)
+{
+  if ($bolt_case == 1)
+  {
+    --echo # Case 1: the optimization is ON.
+    SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+  }
+  if ($bolt_case == 2)
+  {
+    --echo # Case 2: the optimization is OFF.
+    SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+  }
+
+  --connect (con1, localhost, root,,)
+  --disable_warnings
+  SET SESSION binlog_format = STATEMENT;
+  --enable_warnings
+  SET SESSION debug = "+d,fail_binlog_cache_open";
+  # 5 is EE_OUTOFMEMORY, the error of a failed allocation.
+  --replace_regex /Needed [0-9]* bytes/Needed NN bytes/
+  --error 5
+  --eval INSERT INTO t1 VALUES ($bolt_case)
+  SET SESSION debug = "-d,fail_binlog_cache_open";
+  --disable_warnings
+  SET SESSION binlog_format = ROW;
+  --enable_warnings
+  --eval INSERT INTO t1 VALUES ($bolt_case)
+  --disconnect con1
+  --connection default
+
+  --let $assert_text = The row of the statement after the failed open is committed.
+  --let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id = $bolt_case, count, 1] = 1
+  --source include/assert.inc
+
+  --inc $bolt_case
+}
+
+--let $assert_text = The binlog holds both rows.
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_cache_open_failure.txt
+--exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > $bolt_dump
+--let $assert_file = $bolt_dump
+--let $assert_select = Write_rows
+--let $assert_count = 2
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+# Cleanup
+DROP TABLE t1;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--enable_query_log

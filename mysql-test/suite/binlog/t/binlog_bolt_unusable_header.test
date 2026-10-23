@@ -1,0 +1,215 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify that a large transaction header that the server cannot use does not
+# break recovery. Such a header is in a newer format version, or its body is
+# malformed. Recovery then reads the transaction sequentially, as without the
+# header. Also verify that GTID reconstruction skips the body of a transaction
+# that has an Anonymous_gtid event.
+#
+# === Requirements ===
+# R1. A header in a newer format version decodes. mysqlbinlog prints that the
+#     header body was not decoded.
+# R2. Crash recovery reads the transaction of a header in a newer format
+#     version sequentially. It logs no warning, it does not trim the binlog
+#     file, and the transaction commits.
+# R3. GTID reconstruction reads the transaction of an unusable header
+#     sequentially, and finds the transaction's GTID.
+# R4. Crash recovery logs that it ignores a header with a malformed body, reads
+#     the transaction sequentially, and does not trim the binlog file.
+# R5. With gtid_mode=OFF, GTID reconstruction skips the body of a transaction
+#     that has an Anonymous_gtid event, and the server starts.
+# R6. SHOW BINLOG EVENTS shows a decoded header's terminating event offset and
+#     type, and shows that the body of a header in a newer format version was
+#     not decoded.
+#
+# === Implementation ===
+# Each case commits a transaction of many small row events, so a sequential
+# read of the body reads many more events than a skip. The server starts with
+# a debug trace, and the trace counts the events that GTID reconstruction
+# reads in read_gtids_from_binlog(). The header is changed in the stopped
+# server's binlog file, and the event checksum is recomputed.
+#
+--source include/not_windows.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+# bolt_patch_lth_byte.inc needs the Perl module Compress::Zlib.
+--let BOLT_ZLIB_INC = $MYSQLTEST_VARDIR/tmp/bolt_unusable_header_zlib.inc
+--perl
+  my $has_zlib = eval { require Compress::Zlib; 1 } ? 1 : 0;
+  open(my $out, '>', $ENV{BOLT_ZLIB_INC}) or die "Cannot write the probe result";
+  print $out "--let \$bolt_has_zlib = $has_zlib\n";
+  close($out);
+EOF
+--source $BOLT_ZLIB_INC
+--remove_file $BOLT_ZLIB_INC
+if (!$bolt_has_zlib)
+{
+  --skip Needs the Perl module Compress::Zlib
+}
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_cte_depth = `SELECT @@SESSION.cte_max_recursion_depth`
+
+# Setup
+--disable_query_log
+CALL mtr.add_suppression("Ignored a large transaction header in binlog file");
+--enable_query_log
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(4000)) ENGINE=InnoDB;
+
+############################################################################
+# Case 1: A header in a newer format version.
+############################################################################
+--echo # Commit a qualifying transaction of many small row events.
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/bolt_unusable_header_trx.inc
+--let $assert_text = The transaction's spilled file is promoted into a new binlog file.
+--let $assert_cond = "$bolt_file" != "$binlog_file_before"
+--source include/assert.inc
+--let $gtid_executed_before = `SELECT @@GLOBAL.gtid_executed`
+--let $bolt_lth_info = query_get_value(SHOW BINLOG EVENTS IN '$bolt_file' FROM $bolt_lth_pos LIMIT 1, Info, 1)
+--let $assert_text = R6: SHOW BINLOG EVENTS shows the header's terminating event offset and type.
+--let $assert_cond = "$bolt_lth_info" LIKE "# Large transaction header (terminating event offset %, terminating event type 16)"
+--source include/assert.inc
+
+--echo # Set the header version to 2 in the stopped server's binlog file.
+--source include/kill_mysqld.inc
+--let $bolt_patch_file = $MYSQLD_DATADIR/$bolt_file
+--let $bolt_patch_pos = $bolt_lth_pos
+--let $bolt_patch_offset = 0
+--let $bolt_patch_value = 2
+--source ../inc/bolt_patch_lth_byte.inc
+
+--let $bolt_trace = $MYSQLTEST_VARDIR/tmp/bolt_unusable_header_newer.trace
+--let $restart_parameters = restart: --debug=d,info:o,$bolt_trace
+--source include/start_mysqld_no_echo.inc
+
+--let $bolt_lth_info = query_get_value(SHOW BINLOG EVENTS IN '$bolt_file' FROM $bolt_lth_pos LIMIT 1, Info, 1)
+--let $assert_text = R6: SHOW BINLOG EVENTS shows that the header body was not decoded.
+--let $assert_cond = "$bolt_lth_info" = "# Large transaction header (body not decoded)"
+--source include/assert.inc
+
+--echo # R1: mysqlbinlog prints that the header body was not decoded.
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_unusable_header.dump
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_file > $bolt_dump
+--let $assert_text = R1: mysqlbinlog prints that the header body was not decoded.
+--let $assert_file = $bolt_dump
+--let $assert_select = # The body was not decoded: a newer format version, or a malformed body
+--let $assert_count = 1
+--let $assert_only_after =
+--source include/assert_grep.inc
+--let $assert_text = R1: mysqlbinlog prints the transaction's terminating event.
+--let $assert_select = Xid =
+--let $assert_count = 1
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_unusable_header
+--let $assert_text = R2: crash recovery does not seek past the body.
+--let $assert_select = Optimized binlog recovery by avoiding a sequential read of a large transaction body
+--let $assert_count = 0
+--source include/assert_grep.inc
+--let $assert_text = R2: crash recovery logs no warning about the header.
+--let $assert_select = Ignored a large transaction header in binlog file
+--let $assert_count = 0
+--source include/assert_grep.inc
+--let $assert_text = R2: crash recovery does not trim the binlog file.
+--let $assert_select = Binlog trimmed to
+--let $assert_count = 0
+--source include/assert_grep.inc
+--let $assert_text = R2: the transaction commits.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id <= 3000, count, 1] = 3000
+--source include/assert.inc
+--let $assert_text = R3: the transaction's GTID is in gtid_executed.
+--let $assert_cond = "[SELECT @@GLOBAL.gtid_executed]" = "$gtid_executed_before"
+--source include/assert.inc
+--source ../inc/bolt_unusable_header_count_events.inc
+--let $assert_text = R3: GTID reconstruction reads the transaction sequentially.
+--let $assert_cond = $bolt_events_read > 1000
+--source include/assert.inc
+
+############################################################################
+# Case 2: A header with a malformed body.
+############################################################################
+--echo # Commit a second qualifying transaction of many small row events.
+--let $bolt_id_base = 3000
+--source ../inc/bolt_unusable_header_trx.inc
+--let $gtid_executed_before = `SELECT @@GLOBAL.gtid_executed`
+
+--echo # Set the length of the terminating event body to 255.
+--source include/kill_mysqld.inc
+--let $bolt_patch_file = $MYSQLD_DATADIR/$bolt_file
+--let $bolt_patch_pos = $bolt_lth_pos
+# Version (1 byte), offset (8 bytes), type (1 byte), then the body length.
+--let $bolt_patch_offset = 10
+--let $bolt_patch_value = 255
+--source ../inc/bolt_patch_lth_byte.inc
+
+--let $bolt_trace = $MYSQLTEST_VARDIR/tmp/bolt_unusable_header_malformed.trace
+--let $restart_parameters = restart: --debug=d,info:o,$bolt_trace
+--source include/start_mysqld_no_echo.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_unusable_header
+--let $assert_text = R4: crash recovery logs that it ignores the header.
+--let $assert_select = Ignored a large transaction header in binlog file '\./$bolt_file' because it does not describe the transaction's terminating event\. The transaction is read sequentially\. The header may be corrupt\. Check the storage that holds the binlog\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R4: crash recovery does not seek past the body.
+--let $assert_select = Optimized binlog recovery by avoiding a sequential read of a large transaction body
+--let $assert_count = 0
+--source include/assert_grep.inc
+--let $assert_text = R4: crash recovery does not trim the binlog file.
+--let $assert_select = Binlog trimmed to
+--let $assert_count = 0
+--source include/assert_grep.inc
+--let $assert_text = R4: the transaction commits.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id > 3000, count, 1] = 3000
+--source include/assert.inc
+--let $assert_text = R3: the transaction's GTID is in gtid_executed.
+--let $assert_cond = "[SELECT @@GLOBAL.gtid_executed]" = "$gtid_executed_before"
+--source include/assert.inc
+--source ../inc/bolt_unusable_header_count_events.inc
+--let $assert_text = R3: GTID reconstruction reads the transaction sequentially.
+--let $assert_cond = $bolt_events_read > 1000
+--source include/assert.inc
+
+############################################################################
+# Case 3: A usable header of a transaction with an Anonymous_gtid event.
+############################################################################
+--let $restart_parameters = restart: --gtid-mode=OFF --enforce-gtid-consistency=OFF
+--source include/restart_mysqld.inc
+--echo # Commit a qualifying transaction without a GTID.
+--let $bolt_id_base = 6000
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--source ../inc/bolt_unusable_header_trx.inc
+--let $assert_text = The transaction's spilled file is promoted into a new binlog file.
+--let $assert_cond = "$bolt_file" != "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = The transaction has an Anonymous_gtid event.
+--let $bolt_event_type = query_get_value(SHOW BINLOG EVENTS IN '$bolt_file' FROM $bolt_lth_end LIMIT 1, Event_type, 1)
+--let $assert_cond = "$bolt_event_type" = "Anonymous_Gtid"
+--source include/assert.inc
+
+--let $bolt_trace = $MYSQLTEST_VARDIR/tmp/bolt_unusable_header_anonymous.trace
+--let $restart_parameters = restart: --gtid-mode=OFF --enforce-gtid-consistency=OFF --debug=d,info:o,$bolt_trace
+--source include/restart_mysqld_no_echo.inc
+--let $assert_text = R5: the transaction is retained.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id > 6000, count, 1] = 3000
+--source include/assert.inc
+--source ../inc/bolt_unusable_header_count_events.inc
+--let $assert_text = R5: GTID reconstruction skips the body.
+--let $assert_cond = $bolt_events_read < 100
+--source include/assert.inc
+
+# Cleanup
+--let $restart_parameters = restart
+--source include/restart_mysqld.inc
+DROP TABLE t1;
+--disable_query_log
+--eval SET SESSION cte_max_recursion_depth = $save_cte_depth
+--enable_query_log
