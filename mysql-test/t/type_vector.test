@@ -31,3 +31,54 @@ CREATE TABLE B(b1 INT, b2 VARCHAR(30) CHARACTER SET utf32);
 INSERT INTO B VALUES (1, '[1,2,3]'),(2, ' [1,2,3] ');
 SELECT TO_VECTOR(b2) FROM B;
 DROP TABLE B;
+
+--echo #
+--echo # Prepared statements with VECTOR parameters and unset user variables
+--echo #
+
+PREPARE stmt FROM 'SELECT VECTOR_DIM(?), FROM_VECTOR(?), VECTOR_TO_STRING(?)';
+EXECUTE stmt USING @unset_v, @unset_v, @unset_v;
+SET @v = TO_VECTOR('[1,2,3]');
+EXECUTE stmt USING @v, @v, @v;
+SET @v = NULL;
+EXECUTE stmt USING @v, @v, @v;
+DEALLOCATE PREPARE stmt;
+
+CREATE TABLE C(c1 INT, c2 VECTOR(3));
+PREPARE ins_stmt FROM 'INSERT INTO C VALUES (?, ?)';
+SET @id = 1;
+EXECUTE ins_stmt USING @id, @unset_vec;
+SET @id = 2;
+SET @v = TO_VECTOR('[1,2,3]');
+EXECUTE ins_stmt USING @id, @v;
+SELECT c1, FROM_VECTOR(c2) FROM C ORDER BY c1;
+DEALLOCATE PREPARE ins_stmt;
+DROP TABLE C;
+
+--echo # Non-binary string variables passed to VECTOR parameters in prepared
+--echo # statements must preserve their non-binary charset and be rejected,
+--echo # matching direct (non-prepared) execution.
+CREATE TABLE vec_tbl (id INT AUTO_INCREMENT PRIMARY KEY, v VECTOR(3));
+INSERT INTO vec_tbl (v) VALUES (TO_VECTOR('[1,2,3]'));
+SET @str12 = 'abcdefghijkl';
+SELECT CHARSET(@str12), LENGTH(@str12);
+--error ER_DATA_INCOMPATIBLE_WITH_VECTOR
+INSERT INTO vec_tbl (v) VALUES (@str12);
+--error ER_WRONG_ARGUMENTS
+SELECT VECTOR_TO_STRING(@str12);
+--error ER_WRONG_ARGUMENTS
+SELECT VECTOR_DIM(@str12);
+PREPARE ins_stmt FROM 'INSERT INTO vec_tbl (v) VALUES (?)';
+--error ER_DATA_INCOMPATIBLE_WITH_VECTOR
+EXECUTE ins_stmt USING @str12;
+SELECT id, VECTOR_TO_STRING(v) FROM vec_tbl;
+DEALLOCATE PREPARE ins_stmt;
+PREPARE sel_stmt FROM 'SELECT VECTOR_TO_STRING(?)';
+--error ER_WRONG_ARGUMENTS
+EXECUTE sel_stmt USING @str12;
+DEALLOCATE PREPARE sel_stmt;
+PREPARE dim_stmt FROM 'SELECT VECTOR_DIM(?)';
+--error ER_WRONG_ARGUMENTS
+EXECUTE dim_stmt USING @str12;
+DEALLOCATE PREPARE dim_stmt;
+DROP TABLE vec_tbl;
