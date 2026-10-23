@@ -26,7 +26,7 @@ COMMIT;
 include/assert.inc [rpl_semi_sync_source_yes_tx should be 1 + 1]
 include/assert.inc [rpl_semi_sync_source_no_tx should be 0 + 0]
 include/assert.inc [The AFTER_SYNC transaction took the BOLT commit path.]
-include/assert.inc [The AFTER_SYNC promotion opens a new active binary log.]
+include/assert.inc [The AFTER_SYNC promotion opens a new active binlog.]
 include/rpl/sync_to_replica.inc
 [connection slave]
 include/assert.inc [The replica applies every row of the AFTER_SYNC promotion.]
@@ -44,7 +44,7 @@ COMMIT;
 include/assert.inc [rpl_semi_sync_source_yes_tx should be 3 + 1]
 include/assert.inc [rpl_semi_sync_source_no_tx should be 0 + 0]
 include/assert.inc [The AFTER_COMMIT transaction took the BOLT commit path.]
-include/assert.inc [The AFTER_COMMIT promotion opens a new active binary log.]
+include/assert.inc [The AFTER_COMMIT promotion opens a new active binlog.]
 include/rpl/sync_to_replica.inc
 [connection slave]
 include/assert.inc [The replica applies every row of the AFTER_COMMIT promotion.]

@@ -28,12 +28,12 @@ SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'RESET';
-include/assert.inc [R2: the small transaction is in the first binary log file.]
+include/assert.inc [R2: the small transaction is in the first binlog file.]
 include/assert.inc [R2: the late transaction is in the first candidate's promoted file.]
 include/assert.inc [R2: the late transaction is written behind the first candidate.]
 # R3: both candidates are promoted, each into its own file, in order.
 include/assert.inc [R3: both large transactions are promoted.]
 include/assert.inc [R3: the second candidate leads the next group, in the next file.]
-# R4: every row is committed and the binary logs verify.
+# R4: every row is committed and the binlog files verify.
 include/assert.inc [R4: every row is committed.]
 DROP TABLE t1;

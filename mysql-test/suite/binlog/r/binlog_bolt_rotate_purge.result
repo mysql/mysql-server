@@ -12,13 +12,13 @@ INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
 PURGE BINARY LOGS TO 'binlog.000002';
 # Rotate while the qualifying spill file is still open.
 FLUSH BINARY LOGS;
-include/assert.inc [FLUSH opens a new active binary log while a BOLT spill exists.]
+include/assert.inc [FLUSH opens a new active binlog while a BOLT spill exists.]
 COMMIT;
 include/assert.inc [The spill promotes after PURGE and FLUSH complete.]
 include/assert.inc [The BOLT transaction preserves every row.]
 # Rotate the promoted active file, then purge it as ordinary history.
 FLUSH BINARY LOGS;
-include/assert.inc [FLUSH rotates the promoted active binary log.]
+include/assert.inc [FLUSH rotates the promoted active binlog.]
 PURGE BINARY LOGS TO 'binlog.000005';
 SHOW BINARY LOGS;
 Log_name	File_size	Encrypted
@@ -34,4 +34,8 @@ INSERT INTO t1 VALUES (5, REPEAT('e', 4000000));
 INSERT INTO t1 VALUES (6, REPEAT('f', 4000000));
 COMMIT;
 include/assert.inc [The BOLT transaction preserves every row.]
+# SHOW BINARY LOGS lists the promoted file, and a reset removes it.
+include/assert.inc [SHOW BINARY LOGS lists the promoted binlog file.]
+RESET BINARY LOGS AND GTIDS;
+include/assert.inc [After the reset, SHOW BINARY LOGS no longer lists the promoted binlog file.]
 DROP TABLE t1;

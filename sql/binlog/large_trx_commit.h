@@ -27,7 +27,7 @@
 /**
   @file
 
-  The commit path of the binary log large transaction optimization (BOLT).
+  The commit path of the binlog large transaction optimization (BOLT).
   When a transaction's binlog cache has spilled to a file larger than
   binlog_large_transaction_optimization_threshold, the cache is not copied
   into the binary log. Instead, the binary log is rotated in the flush stage,

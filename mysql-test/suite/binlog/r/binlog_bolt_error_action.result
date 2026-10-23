@@ -14,14 +14,14 @@ include/assert.inc [R1: the transaction's spilled file is not promoted.]
 include/assert.inc [R1: it is not counted as a missed optimization.]
 include/assert_grep.inc [R1: the error log has the actionable warning for the spilled file.]
 include/assert.inc [R1: no row is committed.]
-include/assert_grep.inc [R1: the transaction is not in the binary log.]
+include/assert_grep.inc [R1: the transaction is not in the binlog.]
 INSERT INTO t1 VALUES (4, 'd');
 include/assert.inc [R1: the session commits its next transaction.]
 # R2: a failure after the rename with ABORT_SERVER aborts the server.
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 include/assert_grep.inc [R2: the error log says the server aborts.]
 include/assert.inc [R2: the aborted promotion commits no rows.]
-include/assert_grep.inc [R2: the aborted promotion writes no transaction to the binary log.]
+include/assert_grep.inc [R2: the aborted promotion writes no transaction to the binlog.]
 # R3: a failure after the rename with IGNORE_ERROR aborts the server.
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 include/assert_grep.inc [R3: the error log has the abort message with the rotation's error.]
@@ -49,5 +49,5 @@ include/assert_grep.inc [R5: the aborted promotion writes no row events to the b
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 include/assert_grep.inc [R6: the error log has the actionable abort message with the fatal error's text.]
 include/assert.inc [R6: the aborted promotion commits no rows.]
-include/assert_grep.inc [R6: the aborted promotion writes no transaction to the binary log.]
+include/assert_grep.inc [R6: the aborted promotion writes no transaction to the binlog.]
 DROP TABLE t1;

@@ -12,8 +12,8 @@ include/assert.inc [A post-purge-index-sync crash rolls back all rows.]
 include/assert.inc [A post-promote-rename crash rolls back all rows.]
 # Post-rotate-event-sync crash rolls back and destroys the orphan.
 include/assert.inc [A post-rotate-event-sync crash rolls back all rows.]
-include/assert.inc [Recovery leaves no third binary log from the deleted orphan.]
-include/assert.inc [The orphan's slot holds a freshly opened binary log.]
+include/assert.inc [Recovery leaves no third binlog from the deleted orphan.]
+include/assert.inc [The orphan's slot holds a freshly opened binlog.]
 # Post-main-index-update crash commits exactly once.
 include/assert.inc [A post-main-index-update crash commits all rows exactly once.]
 include/assert.inc [The transaction's spilled file was promoted.]

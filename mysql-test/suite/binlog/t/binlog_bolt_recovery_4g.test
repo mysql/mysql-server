@@ -1,8 +1,8 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify that recovery finds the terminating event of a BOLT transaction
-# that begins beyond 4 GiB in the binary log file. An event's end_log_pos is
+# that begins beyond 4 GiB in the binlog file. An event's end_log_pos is
 # a 4-byte field, so recovery must not derive the offset from it.
 #
 # === Requirements ===
@@ -12,10 +12,10 @@
 # === Implementation ===
 # 1. Commit one transaction of more than 4 GiB, which is promoted.
 # 2. Crash before the rotation that follows it (max_binlog_size), so the
-#    promoted file is the last binary log file, then restart.
+#    promoted file is the last binlog file, then restart.
 # 3. Verify the recovery log line, the offset in it, and the transaction.
 #
-# The test writes a binary log file of more than 4 GiB: it needs about 10 GiB
+# The test writes a binlog file of more than 4 GiB: it needs about 10 GiB
 # of free disk space in the MTR vardir.
 --source include/big_test.inc
 --source include/not_windows.inc

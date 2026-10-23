@@ -5,9 +5,9 @@
 #   $sp_expect_ids      ids left in t1, comma-separated, or "none"
 #   $sp_expect_promoted 1 if the transaction must have been promoted, else 0
 #   $sp_expect_missed   expected change of the missed-optimization counter
-#   $sp_expect_binlog_rows  rows of t1 the active binary log must insert
+#   $sp_expect_binlog_rows  rows of t1 the active binlog must insert
 #
-# Checks: retained rows; promotion and missed counters; the active binary log
+# Checks: retained rows; promotion and missed counters; the active binlog
 # verifies its checksums and contains exactly the expected t1 row events; a
 # promoted file has a valid BOLT header; no bolt_ temp file is left over.
 --let $sp_ids = `SELECT IFNULL(GROUP_CONCAT(id ORDER BY id), 'none') FROM t1`
@@ -34,7 +34,7 @@
 --exec $MYSQL_BINLOG --force-if-open -v $MYSQLD_DATADIR/$sp_file | grep -c '^### INSERT INTO .test.\..t1.' | xargs printf -- '--let \044sp_binlog_rows = %s\n' > $sp_rows_inc
 --source $sp_rows_inc
 --remove_file $sp_rows_inc
---let $assert_text = $sp_case: the binary log inserts $sp_expect_binlog_rows row(s) into t1
+--let $assert_text = $sp_case: the binlog inserts $sp_expect_binlog_rows row(s) into t1
 --let $assert_cond = "$sp_binlog_rows" = "$sp_expect_binlog_rows"
 --source include/assert.inc
 if ($sp_expect_promoted)

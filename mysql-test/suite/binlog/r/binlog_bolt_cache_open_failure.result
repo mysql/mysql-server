@@ -1,0 +1,23 @@
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+# Case 1: the optimization is ON.
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET SESSION binlog_format = STATEMENT;
+SET SESSION debug = "+d,fail_binlog_cache_open";
+INSERT INTO t1 VALUES (1);
+ERROR HY000: Out of memory (Needed NN bytes)
+SET SESSION debug = "-d,fail_binlog_cache_open";
+SET SESSION binlog_format = ROW;
+INSERT INTO t1 VALUES (1);
+include/assert.inc [The row of the statement after the failed open is committed.]
+# Case 2: the optimization is OFF.
+SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;
+SET SESSION binlog_format = STATEMENT;
+SET SESSION debug = "+d,fail_binlog_cache_open";
+INSERT INTO t1 VALUES (2);
+ERROR HY000: Out of memory (Needed NN bytes)
+SET SESSION debug = "-d,fail_binlog_cache_open";
+SET SESSION binlog_format = ROW;
+INSERT INTO t1 VALUES (2);
+include/assert.inc [The row of the statement after the failed open is committed.]
+include/assert_grep.inc [The binlog holds both rows.]
+DROP TABLE t1;

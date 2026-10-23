@@ -25,7 +25,7 @@ include/assert.inc [C24: non-transactional table changed after the savepoint: t1
 include/assert.inc [C24: non-transactional table changed after the savepoint: every retained row has its own payload]
 include/assert.inc [C24: non-transactional table changed after the savepoint: promoted 1 time(s)]
 include/assert.inc [C24: non-transactional table changed after the savepoint: missed optimizations +0]
-include/assert.inc [C24: non-transactional table changed after the savepoint: the binary log inserts 3 row(s) into t1]
+include/assert.inc [C24: non-transactional table changed after the savepoint: the binlog inserts 3 row(s) into t1]
 include/assert.inc [C24: non-transactional table changed after the savepoint: no bolt_ temp file is left over]
 include/assert.inc [C24: the MyISAM row is logged once, before the promoted file]
 include/assert.inc [C24: the non-transactional change is kept]

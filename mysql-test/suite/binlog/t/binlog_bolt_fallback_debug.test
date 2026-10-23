@@ -1,3 +1,4 @@
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify the BOLT fallback reasons that need a debug symbol to reach. The
@@ -21,7 +22,7 @@
 # R3b. When a leftover file already has the name of a new spill file, the
 #     cache skips that name and uses the next one, and the transaction's
 #     spilled file is still promoted.
-# R4. A binary log closed while the transaction was running prevents promotion,
+# R4. A binlog closed while the transaction was running prevents promotion,
 #     because there is no longer a file sequence to promote into.
 # R5. When a ROLLBACK TO SAVEPOINT cannot truncate a rewritten cache, an
 #     incident is recorded: the transaction is not promoted, the standard
@@ -39,7 +40,7 @@
 # None of the conditions is configurable, so each case forces its condition
 # with a debug point. For example, the incident producers that survive to
 # commit need a cache write failure on a statement that cannot roll back, and
-# closing the log mid-transaction needs a binary log write to fail while
+# closing the log mid-transaction needs a binlog write to fail while
 # binlog_error_action is IGNORE_ERROR.
 #
 --source include/have_log_bin.inc
@@ -81,9 +82,9 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 #
 # The group-commit flush is what writes an incident and force-rotates for it,
 # and promotion bypasses that flush, so a transaction carrying an incident must
-# fall back or the incident would never reach the binary log.
+# fall back or the incident would never reach the binlog.
 #
-# Note the active binary log is expected to CHANGE here, unlike other fallback
+# Note the active binlog is expected to CHANGE here, unlike other fallback
 # cases: handling the incident requests a force rotation. A fresh session is
 # used because binlog_inject_incident fires once per session.
 ############################################################################
@@ -112,7 +113,7 @@ SET SESSION debug = "-d,binlog_inject_incident";
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = An incident does not promote a binary log.
+--let $assert_text = An incident does not promote a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
 --let $assert_text = An incident increments the missed counter once.
@@ -120,7 +121,7 @@ SET SESSION debug = "-d,binlog_inject_incident";
 --source include/assert.inc
 # Not the usual "stays in the active file" assertion: handling the incident
 # requests a force rotation, so the standard path leaves a new active file.
---let $assert_text = An incident fallback force-rotates to a new active binary log.
+--let $assert_text = An incident fallback force-rotates to a new active binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = An incident fallback commits all rows.
@@ -279,17 +280,17 @@ COMMIT;
 --let $assert_select = Could not allocate memory for the binlog cache of a session after a large transaction\. The session's next transaction retries the allocation\.
 --let $assert_count = 3
 --source include/assert_grep.inc
---echo # R3: the binary log is readable and holds both small transactions.
+--echo # R3: the binlog is readable and holds both small transactions.
 --let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_fallback_debug_dump.txt
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
 --let $bolt_binlog_base = `SELECT SUBSTRING_INDEX(@@GLOBAL.log_bin_basename, '/', -1)`
 --exec $MYSQL_BINLOG --force-if-open --verbose $MYSQLD_DATADIR/$bolt_binlog_base.0* > $bolt_dump
 --let $assert_file = $bolt_dump
---let $assert_text = R3: the small transaction written with the optimization OFF is in the binary log.
+--let $assert_text = R3: the small transaction written with the optimization OFF is in the binlog.
 --let $assert_select = small, optimization off
 --let $assert_count = 1
 --source include/assert_grep.inc
---let $assert_text = R3: the small transaction written with the optimization ON is in the binary log.
+--let $assert_text = R3: the small transaction written with the optimization ON is in the binlog.
 --let $assert_select = small, optimization on
 --let $assert_count = 1
 --source include/assert_grep.inc
@@ -485,7 +486,7 @@ connection default;
 disconnect restore_session;
 
 ############################################################################
-# Case 4: The binary log was closed while the transaction was running.
+# Case 4: The binlog was closed while the transaction was running.
 #
 # binlog_error_action=IGNORE_ERROR turns binary logging off for the rest of the
 # server process. That closes the binlog and leaves MYSQL_BIN_LOG::name null.
@@ -543,10 +544,10 @@ connection log_closed_session;
 COMMIT;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
---let $assert_text = A closed binary log does not promote.
+--let $assert_text = A closed binlog does not promote.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
---let $assert_text = A closed binary log increments the missed counter once.
+--let $assert_text = A closed binlog increments the missed counter once.
 --let $assert_cond = $missed_after = $missed_before + 1
 --source include/assert.inc
 --let $assert_text = A closed-log fallback still commits all rows.

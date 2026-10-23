@@ -1,8 +1,8 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify that transactions committed through the BOLT path take part in the
-# binary log group commit ticket protocol Group Replication relies on across
+# binlog group commit ticket protocol Group Replication relies on across
 # view changes. Group Replication assigns every certified transaction a
 # ticket, and a view change pushes a new ticket that waits for every session
 # of the previous one. A BOLT commit that never processes its ticket would

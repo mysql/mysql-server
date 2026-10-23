@@ -15,9 +15,9 @@ INSERT INTO t1 VALUES (2, REPEAT('x', 5000000));
 INSERT INTO t1 VALUES (3, REPEAT('y', 5000000));
 COMMIT;
 SET SESSION debug = "-d,binlog_inject_incident";
-include/assert.inc [An incident does not promote a binary log.]
+include/assert.inc [An incident does not promote a binlog.]
 include/assert.inc [An incident increments the missed counter once.]
-include/assert.inc [An incident fallback force-rotates to a new active binary log.]
+include/assert.inc [An incident fallback force-rotates to a new active binlog.]
 include/assert.inc [An incident fallback commits all rows.]
 include/assert.inc [An incident fallback preserves the full payload.]
 include/assert_grep.inc [The fallback reason is logged: the transaction has a logging incident to report.]
@@ -75,9 +75,9 @@ COMMIT;
 include/assert.inc [R3: every large transaction's spilled file is promoted.]
 include/assert.inc [R3: every row is committed.]
 include/assert_grep.inc [R3: each failed replacement is reported in the error log.]
-# R3: the binary log is readable and holds both small transactions.
-include/assert_grep.inc [R3: the small transaction written with the optimization OFF is in the binary log.]
-include/assert_grep.inc [R3: the small transaction written with the optimization ON is in the binary log.]
+# R3: the binlog is readable and holds both small transactions.
+include/assert_grep.inc [R3: the small transaction written with the optimization OFF is in the binlog.]
+include/assert_grep.inc [R3: the small transaction written with the optimization ON is in the binlog.]
 # R3a: the replacement fails again at the next transaction's first event.
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('w', 5000000));
@@ -139,8 +139,8 @@ SET GLOBAL binlog_error_action = IGNORE_ERROR;
 # Another session's failed rotation turns logging off and closes the log.
 # The held transaction commits through the standard path.
 COMMIT;
-include/assert.inc [A closed binary log does not promote.]
-include/assert.inc [A closed binary log increments the missed counter once.]
+include/assert.inc [A closed binlog does not promote.]
+include/assert.inc [A closed binlog increments the missed counter once.]
 include/assert.inc [A closed-log fallback still commits all rows.]
 include/assert.inc [A closed-log fallback preserves the full payload.]
 include/assert_grep.inc [The fallback reason is logged: the binlog was closed while the transaction was running.]

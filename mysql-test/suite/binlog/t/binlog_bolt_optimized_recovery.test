@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify BOLT recovery logs the optimized seek, and that a header that does not
@@ -60,7 +60,7 @@ INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
 COMMIT;
 
 --let $promoted_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = The transaction's spilled file was promoted into a new binary log file.
+--let $assert_text = The transaction's spilled file was promoted into a new binlog file.
 --let $assert_cond = "$promoted_file" != "$binlog_file_before"
 --source include/assert.inc
 
@@ -98,7 +98,7 @@ INSERT INTO t1 VALUES (6, REPEAT('f', 4000000));
 COMMIT;
 
 --let $corrupt_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = The second transaction's spilled file was promoted into a new binary log file.
+--let $assert_text = The second transaction's spilled file was promoted into a new binlog file.
 --let $assert_cond = "$corrupt_file" != "$binlog_file_before_corruption"
 --source include/assert.inc
 
@@ -134,7 +134,7 @@ INSERT INTO t1 VALUES (8, REPEAT('h', 4000000));
 INSERT INTO t1 VALUES (9, REPEAT('i', 4000000));
 COMMIT;
 --let $verify_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = The third transaction's spilled file was promoted into a new binary log file.
+--let $assert_text = The third transaction's spilled file was promoted into a new binlog file.
 --let $assert_cond = "$verify_file" != "$binlog_file_before_verify"
 --source include/assert.inc
 
@@ -178,7 +178,7 @@ INSERT INTO t1 VALUES (11, REPEAT('k', 4000000));
 INSERT INTO t1 VALUES (12, REPEAT('l', 4000000));
 COMMIT;
 --let $none_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = The fourth transaction's spilled file was promoted into a new binary log file.
+--let $assert_text = The fourth transaction's spilled file was promoted into a new binlog file.
 --let $assert_cond = "$none_file" != "$binlog_file_before_none"
 --source include/assert.inc
 

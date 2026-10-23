@@ -1,7 +1,7 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
-# SET GLOBAL binlog_checksum takes LOCK_log and rotates the binary log. A
+# SET GLOBAL binlog_checksum takes LOCK_log and rotates the binlog. A
 # large transaction that passed BOLT's commit-time checks but has not taken
 # LOCK_log yet can see the algorithm change under it. The promoted file must
 # never declare one algorithm in its Format_description event while later
@@ -70,7 +70,7 @@ INSERT INTO t1 VALUES (5, 'small');
 --let $assert_cond = [SELECT COUNT(*) AS c FROM t1, c, 1] = 5
 --source include/assert.inc
 
-# Every binary log file must be readable with its own declared algorithm.
+# Every binlog file must be readable with its own declared algorithm.
 FLUSH BINARY LOGS;
 --let $i = 1
 --let $k = 1
@@ -87,7 +87,7 @@ while ($k)
     --inc $i
   }
 }
---echo # All binary log files verified.
+--echo # All binlog files verified.
 
 # Cleanup
 --disconnect con_admin

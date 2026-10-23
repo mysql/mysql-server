@@ -143,7 +143,7 @@ class Checksumless_binlog_cache_representation final
 };
 
 /**
-  The binlog file form, used by the binary log large transaction optimization
+  The binlog file form, used by the binlog large transaction optimization
   (BOLT), from the first spill of an eligible transaction (see
   create_checksummed_cache_representation()). Every later event is written in
   the same form, both while it is in the in-memory buffer and after it reaches

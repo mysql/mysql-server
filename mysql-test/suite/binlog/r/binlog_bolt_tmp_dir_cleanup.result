@@ -24,7 +24,7 @@ ERROR 42000: Variable 'binlog_large_transaction_optimization_enabled' can't be s
 # R5: the client gets a warning that points to the error log.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	#	The binlog temporary files directory was unusable at server startup, so binlog_large_transaction_optimization_enabled stays OFF. The error log has the reason. Fix the directory and restart the server.
+Warning	#	The binlog temporary files directory is unusable, so binlog_large_transaction_optimization_enabled stays OFF. The error log has the reason and what to do.
 Error	#	Variable 'binlog_large_transaction_optimization_enabled' can't be set to the value of 'ON'
 include/assert.inc [R5: the optimization stays disabled.]
 include/assert_grep.inc [R5: enabling the optimization later is logged as an error.]

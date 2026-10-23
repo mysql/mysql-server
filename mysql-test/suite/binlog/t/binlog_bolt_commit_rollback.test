@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify BOLT safely discards rolled-back spill files and handles normal, XA,
@@ -20,7 +20,7 @@
 # R10. The same five-spill boundary handles XA one-phase and prepared branches
 #      with the correct commit and rollback decisions.
 # R11. Every promoted file has a checksummed Previous_gtids, LTH, GTID prefix
-#      with the GTID dependency clock reset for its new binary log.
+#      with the GTID dependency clock reset for its new binlog.
 #
 # === Implementation ===
 # The source uses a 1 MiB cache and a 10 MiB BOLT threshold. Each transaction
@@ -74,14 +74,14 @@ ROLLBACK;
 --let $assert_text = Rollback leaves the BOLT promotion count unchanged.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
---let $assert_text = Rollback keeps the active binary log unchanged.
+--let $assert_text = Rollback keeps the active binlog unchanged.
 --let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = Rollback removes all transaction rows.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
 
---echo # Retry the same transaction and promote a new active binary log.
+--echo # Retry the same transaction and promote a new active binlog.
 BEGIN;
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
@@ -94,10 +94,10 @@ COMMIT;
 --let $bolt_header_file = $binlog_file_after
 --source ../inc/validate_bolt_header.inc
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $assert_text = Retry promotes one new active binary log.
+--let $assert_text = Retry promotes one new active binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
---let $assert_text = Retry changes the active binary log file.
+--let $assert_text = Retry changes the active binlog file.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = Retry commits the four rows exactly once.
@@ -108,7 +108,7 @@ COMMIT;
 # Case 2: Two promotions back to back on the same session.
 #
 # A promoted commit resets its cache with the spilled file preserved, since
-# that file is now a binary log. This checks the cache is reusable afterwards:
+# that file is now a binlog. This checks the cache is reusable afterwards:
 # a stale descriptor, reservation size or terminating-event offset carried into
 # the second transaction would corrupt its header while leaving the rows
 # intact, so both promoted files are validated.
@@ -162,7 +162,7 @@ COMMIT;
 --let $assert_text = Neither consecutive promotion is a missed optimization.
 --let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
---let $assert_text = The first promotion leaves the original active binary log.
+--let $assert_text = The first promotion leaves the original active binlog.
 --let $assert_cond = "$bolt_first_promoted" != "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = The second promotion opens a file of its own.
@@ -324,7 +324,7 @@ reap;
 ROLLBACK;
 --exec test ! -e $BOLT_TEMP_DIR/bolt_*
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $assert_text = KILL QUERY followed by rollback does not promote a binary log.
+--let $assert_text = KILL QUERY followed by rollback does not promote a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
 --let $assert_text = KILL QUERY followed by rollback removes all transaction rows.
@@ -379,7 +379,7 @@ connection default;
 --source include/wait_until_count_sessions.inc
 --exec test ! -e $BOLT_TEMP_DIR/bolt_*
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
---let $assert_text = Disconnecting an active spill does not promote a binary log.
+--let $assert_text = Disconnecting an active spill does not promote a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
 --let $assert_text = Disconnecting an active spill rolls back all rows.
@@ -430,10 +430,10 @@ ROLLBACK;
 --exec test ! -e $BOLT_TEMP_DIR/bolt_*
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = A statement error followed by rollback does not promote a binary log.
+--let $assert_text = A statement error followed by rollback does not promote a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
---let $assert_text = A statement error followed by rollback keeps the active binary log unchanged.
+--let $assert_text = A statement error followed by rollback keeps the active binlog unchanged.
 --let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = A statement error followed by rollback removes all rows.
@@ -450,7 +450,7 @@ RESET BINARY LOGS AND GTIDS;
 --let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 SET GLOBAL max_binlog_size = 4096;
---echo # A promoted oversized file becomes binary-log history and opens a fresh active file.
+--echo # A promoted oversized file becomes binlog history and opens a fresh active file.
 BEGIN;
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
@@ -468,7 +468,7 @@ SET GLOBAL max_binlog_size = 1073741824;
 --let $assert_text = The oversized transaction's spilled file is promoted once before rotation.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
---let $assert_text = Immediate max-binlog-size rotation opens a fresh active binary log.
+--let $assert_text = Immediate max-binlog-size rotation opens a fresh active binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = Immediate max-binlog-size rotation keeps all promoted rows.
@@ -522,7 +522,7 @@ connection default;
 INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
 --let $binlog_file_after_small = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --exec ls $BOLT_TEMP_DIR/bolt_* | wc -l | grep -E '^[[:space:]]*5[[:space:]]*$' > /dev/null
---let $assert_text = The small transaction stays in the existing active binary log.
+--let $assert_text = The small transaction stays in the existing active binlog.
 --let $assert_cond = "$binlog_file_after_small" = "$binlog_file_before_small"
 --source include/assert.inc
 --let $assert_text = Only the small transaction is visible while the five spills wait.
@@ -551,7 +551,7 @@ connection default;
 --let $assert_text = Three committed spills produce exactly three BOLT promotions.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 3
 --source include/assert.inc
---let $assert_text = Three committed spills create three new binary log files.
+--let $assert_text = Three committed spills create three new binlog files.
 --let $assert_cond = "$binlog_file_after" = "$bolt_binlog_base.000004"
 --source include/assert.inc
 --let $assert_text = Only the three committed large transactions and small transaction persist.
@@ -610,7 +610,7 @@ connection default;
 INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
 --let $binlog_file_after_small = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --exec ls $BOLT_TEMP_DIR/bolt_* | wc -l | grep -E '^[[:space:]]*5[[:space:]]*$' > /dev/null
---let $assert_text = The small transaction stays in the existing active binary log with XA spills pending.
+--let $assert_text = The small transaction stays in the existing active binlog with XA spills pending.
 --let $assert_cond = "$binlog_file_after_small" = "$binlog_file_before_small"
 --source include/assert.inc
 connection promote_one;
@@ -638,7 +638,7 @@ connection default;
 --let $assert_text = One XA one-phase commit and two XA PREPARE paths produce three promotions.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 3
 --source include/assert.inc
---let $assert_text = The XA commit decisions create exactly three new binary log files.
+--let $assert_text = The XA commit decisions create exactly three new binlog files.
 --let $assert_cond = "$binlog_file_after" = "$bolt_binlog_base.000004"
 --source include/assert.inc
 --let $assert_text = Only the committed XA branches and small transaction persist.

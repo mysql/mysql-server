@@ -1,7 +1,7 @@
 # Start one case of binlog_bolt_savepoint_matrix.
 #
 # Input: $sp_case (case name, echoed).
-# Rotates to a fresh active binary log so that the checks in
+# Rotates to a fresh active binlog so that the checks in
 # bolt_savepoint_check.inc see only this case's transaction.
 --echo # $sp_case
 --disable_query_log

@@ -1,6 +1,7 @@
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
-# A transaction commits through the BOLT path by a binary log rotation that
+# A transaction commits through the BOLT path by a binlog rotation that
 # promotes its spilled binlog cache file. Verify how failures are handled.
 # A failure to make the spilled file durable, before the before_commit hook,
 # rolls the transaction back. A failure while the rotation opens the new
@@ -10,13 +11,13 @@
 # === Requirements ===
 # R1. A failure to make the spilled file durable, before the before_commit
 #     hook, rolls the transaction back: COMMIT fails with ER_ERROR_ON_WRITE, no
-#     row is committed, nothing reaches the binary log, the error log has an
+#     row is committed, nothing reaches the binlog, the error log has an
 #     actionable warning that names the spilled file, and the session can
 #     commit its next transaction.
 # R2. A failure after the rename with binlog_error_action = ABORT_SERVER
 #     aborts the server, the client is told binary logging is not possible,
 #     and after the restart the transaction is in neither the engine nor the
-#     binary log.
+#     binlog.
 # R3. The same failure with binlog_error_action = IGNORE_ERROR also aborts the
 #     server. The rotation raises the failure as fatal, and a fatal error
 #     after the before_commit hook always aborts. The error log has the abort
@@ -30,7 +31,7 @@
 # R6. A fatal error during the promotion aborts the server, also with
 #     binlog_error_action = IGNORE_ERROR. The error log has an actionable
 #     message with the fatal error's text, and after the restart the
-#     transaction is in neither the engine nor the binary log.
+#     transaction is in neither the engine nor the binlog.
 #
 # === Implementation ===
 # R1 uses the fail_bolt_spill_file_sync debug point; R2, R3 and R4 use
@@ -118,7 +119,7 @@ SET SESSION DEBUG="-d,fail_bolt_spill_file_sync";
 --let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_log_file > $bolt_dump
 --let $assert_file = $bolt_dump
---let $assert_text = R1: the transaction is not in the binary log.
+--let $assert_text = R1: the transaction is not in the binlog.
 --let $assert_select = Xid
 --let $assert_count = 0
 --source include/assert_grep.inc
@@ -134,9 +135,9 @@ TRUNCATE t1;
 ############################################################################
 # Case 1: binlog_error_action = ABORT_SERVER.
 # Expected behavior: the server aborts, and the transaction reaches neither
-# the engine nor the binary log.
+# the engine nor the binlog.
 #
-# The spilled file is never promoted, so the transaction is in no binary log
+# The spilled file is never promoted, so the transaction is in no binlog
 # file and recovery has no reason to roll it forward.
 ############################################################################
 --echo # R2: a failure after the rename with ABORT_SERVER aborts the server.
@@ -171,7 +172,7 @@ COMMIT;
 --let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_log_file > $bolt_dump
 --let $assert_file = $bolt_dump
---let $assert_text = R2: the aborted promotion writes no transaction to the binary log.
+--let $assert_text = R2: the aborted promotion writes no transaction to the binlog.
 --let $assert_select = Write_rows
 --let $assert_count = 0
 --source include/assert_grep.inc
@@ -369,7 +370,7 @@ COMMIT;
 --let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_error_action_dump.txt
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$bolt_log_file > $bolt_dump
 --let $assert_file = $bolt_dump
---let $assert_text = R6: the aborted promotion writes no transaction to the binary log.
+--let $assert_text = R6: the aborted promotion writes no transaction to the binlog.
 --let $assert_select = Write_rows
 --let $assert_count = 0
 --source include/assert_grep.inc

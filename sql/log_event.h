@@ -3767,7 +3767,7 @@ class Ignorable_log_event
 /**
   @class Large_transaction_header_log_event
 
-  Server class of the header event of the binary log large transaction
+  Server class of the header event of the binlog large transaction
   optimization (BOLT). mysql::binlog::event::Large_transaction_header_event
   describes the wire format and purpose. The server writes the event into
   the reserved header region of a promoted binary log file. The applier does

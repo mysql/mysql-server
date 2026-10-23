@@ -31,7 +31,7 @@ include/rpl/wait_for_applier_to_stop.inc
 include/assert.inc [START REPLICA UNTIL applies every BOLT transaction row.]
 include/assert.inc [START REPLICA UNTIL stops before the later marker transaction.]
 include/assert.inc [The replica SQL applier promotes the transaction's spilled file once before stopping.]
-include/assert.inc [Replica-local promotion opens a new active binary log before stopping.]
+include/assert.inc [Replica-local promotion opens a new active binlog before stopping.]
 include/rpl/assert_replica_status.inc [Exec_Source_Log_Pos]
 include/rpl/start_applier.inc
 [connection master]

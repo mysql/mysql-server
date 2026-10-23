@@ -1,7 +1,7 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
-# When the rewrite of the transaction cache into the binary log file format
+# When the rewrite of the transaction cache into the binlog file format
 # fails at its first spill, the transaction falls back to the standard commit
 # path: the cache stays in the standard form and spills as without the
 # optimization, and no statement fails.
@@ -11,7 +11,7 @@
 # R2. The transaction commits through the standard path: it is not promoted,
 #     and it is counted as a missed optimization (it ends above the
 #     threshold), with the rewrite failure as the reason.
-# R3. The binary log verifies and every row is retained.
+# R3. The binlog verifies and every row is retained.
 # R4. No bolt_ temp file is left.
 # R5. The server logs a warning with the cause of the rewrite failure.
 # R6. With binlog_checksum=NONE, a failure to create the bolt_ temp file at
@@ -68,7 +68,7 @@ COMMIT;
 --let $assert_text = R5: the rewrite failure warning says that no error was reported.
 --source include/assert_grep.inc
 
---echo # R3: the binary log is valid and every row exists.
+--echo # R3: the binlog is valid and every row exists.
 --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file > /dev/null
 --let $assert_text = R3: every row is retained.
@@ -117,7 +117,7 @@ COMMIT;
 --let $assert_text = R7: the second rewrite failure is also logged as the reason.
 --source include/assert_grep.inc
 
---echo # R6: the binary log is valid and every row exists.
+--echo # R6: the binlog is valid and every row exists.
 --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$binlog_file > /dev/null
 --let $assert_text = R6: every row is retained.

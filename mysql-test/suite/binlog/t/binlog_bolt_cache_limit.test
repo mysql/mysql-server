@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # max_binlog_cache_size limits the bytes a transaction's binlog cache stores.

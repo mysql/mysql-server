@@ -38,7 +38,7 @@ include/assert.inc [The allowed database retains every large transaction row.]
 include/assert.inc [The allowed database preserves the full large payload.]
 include/assert.inc [The filtered database receives no rows from the transaction.]
 include/assert.inc [The replica promotes the retained qualifying subset once.]
-include/assert.inc [Replica-local BOLT opens a new active binary log after filtering.]
+include/assert.inc [Replica-local BOLT opens a new active binlog after filtering.]
 include/rpl/stop_replica.inc
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = ();
 include/rpl/start_replica.inc

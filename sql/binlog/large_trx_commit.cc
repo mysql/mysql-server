@@ -23,7 +23,7 @@
 
 /**
   @file
-  @brief The commit path for the binary log large transaction optimization:
+  @brief The commit path for the binlog large transaction optimization:
   deciding whether a transaction may use the optimization, promoting the
   transaction's spilled file to a binary log file, and reporting why a
   candidate transaction falls back to the standard commit path.
@@ -460,7 +460,8 @@ bool MYSQL_BIN_LOG::promote_spilled_file(Spilled_file_rotation *promotion) {
     the header events with the Large_transaction_header and Gtid events.
   */
   const my_off_t header_end = m_binlog_file->position();
-  if (!large_trx_header_events_fit(header_end, checksum_len, reserved))
+  if (!large_trx_header_events_fit(header_end, checksum_len, reserved) ||
+      DBUG_EVALUATE_IF("force_bolt_reserved_header_fallback", true, false))
     return fall_back(Large_trx_fallback_reason::kReservedHeaderSpace);
 
   /* Write the header events into the new file, so they can be read back. */
@@ -488,18 +489,16 @@ bool MYSQL_BIN_LOG::promote_spilled_file(Spilled_file_rotation *promotion) {
 
   /*
     3. The header block: the new file's header events, then the
-    Large_transaction_header and Gtid events. The promoted file starts a new
-    binary log file: rotate the dependency tracker before generating the
-    transaction's logical timestamps (open_binlog() then does not rotate it
-    again). The transaction is a parallelization barrier for the replica's
-    parallel applier.
+    Large_transaction_header and Gtid events. open_binlog() has already
+    rotated the dependency tracker for the new file, so the transaction's
+    logical timestamps count from the promoted file. The transaction is a
+    parallelization barrier for the replica's parallel applier.
   */
   constexpr int kPromotedHeaderBlockInitialSize = 1024;
   StringBuffer_ostream<kPromotedHeaderBlockInitialSize> block;
   if (block.write(pointer_cast<const uchar *>(header.data()), header_end))
     return fall_back(Large_trx_fallback_reason::kPromotionFailed);
 
-  m_dependency_tracker.rotate();
   Transaction_ctx *trn_ctx = thd->get_transaction();
   trn_ctx->sequence_number = m_dependency_tracker.step();
   if (trn_ctx->last_committed == SEQ_UNINIT)
@@ -607,9 +606,6 @@ Spilled_file_promotion_result MYSQL_BIN_LOG::rotate_and_promote_spilled_file(
     promotion.fallback_reason = Large_trx_fallback_reason::kEncryption;
   } else if (!large_trx_cache_checksum_matches_binlog(cache_data)) {
     promotion.fallback_reason = Large_trx_fallback_reason::kChecksumMismatch;
-  } else if (DBUG_EVALUATE_IF("force_bolt_reserved_header_fallback", true,
-                              false)) {
-    promotion.fallback_reason = Large_trx_fallback_reason::kReservedHeaderSpace;
   } else {
     error = new_file_impl(false /*need_lock_log*/,
                           nullptr /*extra_description_event*/, promotion);

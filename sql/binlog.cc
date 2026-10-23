@@ -4379,6 +4379,12 @@ bool MYSQL_BIN_LOG::open_binlog(
   if (!is_relay_log) set_binlog_cache_reserved_bytes(m_binlog_file->position());
 
   /*
+    At every rotate memorize the last transaction counter state to use it as
+    offset at logging the transaction logical timestamps.
+  */
+  m_dependency_tracker.rotate();
+
+  /*
     When open_binlog() is called by the rotation that promotes a large
     transaction's spilled file (see Spilled_file_rotation),
     promote_spilled_file() copies the header events written above into the
@@ -4424,11 +4430,6 @@ bool MYSQL_BIN_LOG::open_binlog(
   }
 
   atomic_log_state = LOG_OPENED;
-  /*
-    At every rotate memorize the last transaction counter state to use it as
-    offset at logging the transaction logical timestamps.
-  */
-  rotation.rotate_dependency_tracker(*this);
 
   m_binlog_index_monitor.close_purge_index_file();
 

@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify a savepoint rollback uses the final transaction-cache size to choose
@@ -21,7 +21,7 @@
 # === Implementation ===
 # Configure a 1 MiB cache and a 10 MiB BOLT threshold. Each case spills the
 # transaction cache, rolls back to a savepoint, commits, and checks the final
-# active binary-log filename, both BOLT status counters, and the retained rows.
+# active binlog filename, both BOLT status counters, and the retained rows.
 # CRC32 is forced explicitly, and the copied/promoted binlog streams are
 # decoded with checksum verification.
 #

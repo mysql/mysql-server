@@ -1,8 +1,8 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify normal PURGE and FLUSH rotation remain safe while a BOLT spill file
-# exists and after that spill is promoted into the main binary-log index.
+# exists and after that spill is promoted into the main binlog index.
 #
 # === Requirements ===
 # R1. PURGE and FLUSH do not discard or corrupt an active BOLT spill file.
@@ -10,13 +10,16 @@
 # R3. A promoted historical file can be purged after a subsequent FLUSH.
 # R4. A promotion purges expired binlog files as a rotation does, also when
 #     the promoted file stays below max_binlog_size.
+# R5. A promoted binlog file is listed by SHOW BINARY LOGS and removed by
+#     RESET BINARY LOGS AND GTIDS, like any binlog file.
 #
 # === Implementation ===
 # Create history, keep a transaction spilled, purge older history and rotate,
 # then commit the spill. Rotate the resulting promoted active file once more
-# and purge it through the normal binary-log lifecycle. Then let the oldest
+# and purge it through the normal binlog lifecycle. Then let the oldest
 # binlog file expire and promote one more spilled file: the commit purges the
-# expired file.
+# expired file. Finally check that SHOW BINARY LOGS lists the last promoted
+# file, and that RESET BINARY LOGS AND GTIDS removes it.
 #
 --source include/have_log_bin.inc
 --source include/not_windows.inc
@@ -59,7 +62,7 @@ connection default;
 --echo # Rotate while the qualifying spill file is still open.
 FLUSH BINARY LOGS;
 --let $binlog_after_spill_rotation = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = FLUSH opens a new active binary log while a BOLT spill exists.
+--let $assert_text = FLUSH opens a new active binlog while a BOLT spill exists.
 --let $assert_cond = "$binlog_after_spill_rotation" != "$binlog_before_spill"
 --source include/assert.inc
 --exec ls $BOLT_TEMP_DIR/bolt_* > /dev/null
@@ -81,7 +84,7 @@ connection default;
 --echo # Rotate the promoted active file, then purge it as ordinary history.
 FLUSH BINARY LOGS;
 --let $successor_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = FLUSH rotates the promoted active binary log.
+--let $assert_text = FLUSH rotates the promoted active binlog.
 --let $assert_cond = "$successor_file" != "$promoted_file"
 --source include/assert.inc
 --exec test -e $MYSQLD_DATADIR/$promoted_file
@@ -116,6 +119,46 @@ connection default;
 --let $assert_text = The BOLT transaction preserves every row.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 6
 --source include/assert.inc
+
+--echo # SHOW BINARY LOGS lists the promoted file, and a reset removes it.
+--let $bolt_listed = 0
+--let $bolt_row = 1
+--let $bolt_log_name = query_get_value(SHOW BINARY LOGS, Log_name, $bolt_row)
+while ($bolt_log_name != 'No such row')
+{
+  if ($bolt_log_name == $purge_promoted_file)
+  {
+    --let $bolt_listed = 1
+  }
+  --inc $bolt_row
+  --let $bolt_log_name = query_get_value(SHOW BINARY LOGS, Log_name, $bolt_row)
+}
+--let $assert_text = SHOW BINARY LOGS lists the promoted binlog file.
+--let $assert_cond = $bolt_listed = 1
+--source include/assert.inc
+--exec test -e $MYSQLD_DATADIR/$purge_promoted_file
+RESET BINARY LOGS AND GTIDS;
+--let $bolt_listed = 0
+--let $bolt_row = 1
+--let $bolt_log_name = query_get_value(SHOW BINARY LOGS, Log_name, $bolt_row)
+while ($bolt_log_name != 'No such row')
+{
+  if ($bolt_log_name == $purge_promoted_file)
+  {
+    --let $bolt_listed = 1
+  }
+  --inc $bolt_row
+  --let $bolt_log_name = query_get_value(SHOW BINARY LOGS, Log_name, $bolt_row)
+}
+--let $assert_text = After the reset, SHOW BINARY LOGS no longer lists the promoted binlog file.
+--let $assert_cond = $bolt_listed = 0
+--source include/assert.inc
+--let $bolt_first_file = query_get_value(SHOW BINARY LOGS, Log_name, 1)
+if ($bolt_first_file != $purge_promoted_file)
+{
+  --let $file_does_not_exist = $MYSQLD_DATADIR/$purge_promoted_file
+  --source include/file_does_not_exist.inc
+}
 
 connection spill_client;
 disconnect spill_client;

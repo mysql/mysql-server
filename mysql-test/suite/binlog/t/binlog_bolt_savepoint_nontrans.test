@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Case C24 of binlog_bolt_savepoint_matrix. It needs gtid_mode=OFF, so that
@@ -18,7 +18,7 @@
 #      - the statement-level commit does not evaluate the still-open
 #        transaction cache for BOLT (no missed optimization, no warning);
 #      - the transaction's spilled file is promoted with exactly its three retained rows;
-#      - the MyISAM row is kept and logged once, in the earlier binary log.
+#      - the MyISAM row is kept and logged once, in the earlier binlog.
 #
 --source include/have_log_bin.inc
 --source include/not_windows.inc

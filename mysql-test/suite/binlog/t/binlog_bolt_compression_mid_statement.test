@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # binlog_transaction_compression cannot be changed inside a multi-statement
@@ -10,10 +10,10 @@
 # === Requirements ===
 # R1. Compression turned ON after the cache was rewritten (the cache spilled
 #     before the change): the cache is not compressed and the temp file is
-#     promoted; the binary log verifies and holds every row.
+#     promoted; the binlog verifies and holds every row.
 # R2. Compression turned ON while the cache is still in memory: the cache is
 #     compressed and commits through the standard path, without being
-#     promoted or counted as a missed optimization; the binary log verifies,
+#     promoted or counted as a missed optimization; the binlog verifies,
 #     holds a compressed payload and every row, and no bolt_ temp file is
 #     left.
 #

@@ -1,3 +1,5 @@
+# BOLT is the binlog large transaction optimization.
+#
 # === Purpose ===
 # Verify that semisynchronous replication keeps its guarantee for transactions
 # committed through BOLT. The spilled file is promoted in the flush stage of
@@ -100,7 +102,7 @@ COMMIT;
 --let $assert_text = The AFTER_SYNC transaction took the BOLT commit path.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
---let $assert_text = The AFTER_SYNC promotion opens a new active binary log.
+--let $assert_text = The AFTER_SYNC promotion opens a new active binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 
@@ -148,7 +150,7 @@ COMMIT;
 --let $assert_text = The AFTER_COMMIT transaction took the BOLT commit path.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
---let $assert_text = The AFTER_COMMIT promotion opens a new active binary log.
+--let $assert_text = The AFTER_COMMIT promotion opens a new active binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 

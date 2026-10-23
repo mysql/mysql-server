@@ -1,9 +1,9 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify the compression fallback: a transaction whose cache carries a
-# compressed payload must commit through the standard binary log path, because
-# promotion publishes the cache as a binary log file and a compressed cache is
+# compressed payload must commit through the standard binlog path, because
+# promotion publishes the cache as a binlog file and a compressed cache is
 # not one.
 #
 # === Requirements ===
@@ -65,7 +65,7 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 --let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---echo # An uncompressed cache promotes a binary log.
+--echo # An uncompressed cache promotes a binlog.
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT('a', 5000000));
 INSERT INTO t1 VALUES (2, REPEAT('b', 5000000));
@@ -74,13 +74,13 @@ COMMIT;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = An uncompressed cache promotes a binary log.
+--let $assert_text = An uncompressed cache promotes a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
 --let $assert_text = An uncompressed cache does not increment the missed counter.
 --let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
---let $assert_text = The promoted commit opens its promoted binary log.
+--let $assert_text = The promoted commit opens its promoted binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = The BOLT transaction commits all rows.
@@ -91,7 +91,7 @@ COMMIT;
 # Case 2: the same transaction with the compression reason forced.
 ############################################################################
 # Case 1 promoted its spilled file, and a promoted file becomes the active
-# binary log, so rotate to a fresh file first: the assertion below requires the
+# binlog, so rotate to a fresh file first: the assertion below requires the
 # active file to be unchanged by this case, which is only meaningful when this
 # case is the only writer.
 --disable_query_log
@@ -113,13 +113,13 @@ SET SESSION debug = @old_debug;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = A compressed cache does not promote a binary log.
+--let $assert_text = A compressed cache does not promote a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
 --let $assert_text = A compressed cache increments the missed counter once.
 --let $assert_cond = $missed_after = $missed_before + 1
 --source include/assert.inc
---let $assert_text = A compression fallback stays in the active binary log.
+--let $assert_text = A compression fallback stays in the active binlog.
 --let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = A compression fallback commits all rows.

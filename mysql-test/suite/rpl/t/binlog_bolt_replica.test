@@ -1,8 +1,8 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify a replica re-logging a qualifying source BOLT transaction also uses
-# BOLT for its local binary log.
+# BOLT for its local binlog.
 #
 # === Requirements ===
 # R1. A source BOLT transaction replicates successfully to the replica.
@@ -77,7 +77,7 @@ COMMIT;
 --let $assert_text = The replica SQL applier promotes the qualifying transaction once.
 --let $assert_cond = $replica_bolt_after = $replica_bolt_before + 1
 --source include/assert.inc
---let $assert_text = Replica-local promotion opens a new active binary log.
+--let $assert_text = Replica-local promotion opens a new active binlog.
 --let $assert_cond = "$replica_binlog_after" != "$replica_binlog_before"
 --source include/assert.inc
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`

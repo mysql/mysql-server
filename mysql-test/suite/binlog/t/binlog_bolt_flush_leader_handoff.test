@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # A large transaction that promotes its spilled binlog cache file must lead
@@ -12,10 +12,10 @@
 # R1. Large transactions that find the flush queue not empty wait as
 #     candidates, and nothing is promoted while they wait.
 # R2. A small transaction that enrolls after the fetch joins the group of the
-#     first candidate, behind it, in its promoted binary log file.
+#     first candidate, behind it, in its promoted binlog file.
 # R3. Each candidate leads its own group in arrival order, so both are
-#     promoted, each into its own binary log file.
-# R4. Every row is committed and every binary log file verifies.
+#     promoted, each into its own binlog file.
+# R4. Every row is committed and every binlog file verifies.
 #
 --source include/have_debug_sync.inc
 --source include/have_log_bin.inc
@@ -112,7 +112,7 @@ SET DEBUG_SYNC = 'RESET';
 --source $rows_inc
 --remove_file $rows_inc
 
---let $assert_text = R2: the small transaction is in the first binary log file.
+--let $assert_text = R2: the small transaction is in the first binlog file.
 --let $assert_cond = $small_rows = 1
 --source include/assert.inc
 --let $assert_text = R2: the late transaction is in the first candidate's promoted file.
@@ -131,7 +131,7 @@ SET DEBUG_SYNC = 'RESET';
 --let $assert_cond = $big2_rows = 1
 --source include/assert.inc
 
---echo # R4: every row is committed and the binary logs verify.
+--echo # R4: every row is committed and the binlog files verify.
 --let $assert_text = R4: every row is committed.
 --let $assert_cond = [SELECT COUNT(*) FROM t1] = 8
 --source include/assert.inc

@@ -30,7 +30,7 @@ include/rpl/sync_to_replica.inc
 include/assert.inc [Replication applies every row from the source BOLT transaction.]
 include/assert.inc [Replication preserves the full large-transaction payload.]
 include/assert.inc [The replica SQL applier promotes the qualifying transaction once.]
-include/assert.inc [Replica-local promotion opens a new active binary log.]
+include/assert.inc [Replica-local promotion opens a new active binlog.]
 [connection master]
 DROP TABLE t1;
 include/rpl/sync_to_replica.inc

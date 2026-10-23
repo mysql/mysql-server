@@ -34,10 +34,6 @@ int Standard_file_rotation::save_gtids_of_last_binlog() {
   return gtid_state->save_gtids_of_last_binlog_into_table();
 }
 
-void Standard_file_rotation::rotate_dependency_tracker(MYSQL_BIN_LOG &log) {
-  log.m_dependency_tracker.rotate();
-}
-
 void Standard_file_rotation::publish_end_position(MYSQL_BIN_LOG &log) {
   log.update_binlog_end_pos();
 }
@@ -60,10 +56,6 @@ bool Spilled_file_rotation::replace_new_file_with_spilled_file(
     MYSQL_BIN_LOG &log) {
   assert(!log.is_relay_log);
   return log.promote_spilled_file(this);
-}
-
-void Spilled_file_rotation::rotate_dependency_tracker(MYSQL_BIN_LOG &log) {
-  if (!promoted) log.m_dependency_tracker.rotate();
 }
 
 void Spilled_file_rotation::publish_end_position(MYSQL_BIN_LOG &log) {

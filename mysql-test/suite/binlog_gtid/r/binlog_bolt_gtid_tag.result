@@ -17,7 +17,7 @@ INSERT INTO t1 VALUES (5, REPEAT('c', 5000000));
 COMMIT;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [The tagged GTID transaction's spilled file was promoted.]
-include/assert.inc [The tagged GTID promotion rotates to a new active binary log.]
+include/assert.inc [The tagged GTID promotion rotates to a new active binlog.]
 include/assert.inc [The prior tagged GTID is persisted before promotion.]
 include/assert.inc [The promoted tagged GTID is recorded in gtid_executed.]
 # The promoted file retains both tag forms.

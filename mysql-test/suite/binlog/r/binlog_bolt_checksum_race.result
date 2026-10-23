@@ -20,5 +20,5 @@ INSERT INTO t1 VALUES (4, 'small');
 INSERT INTO t1 VALUES (5, 'small');
 include/assert.inc [All rows are committed.]
 FLUSH BINARY LOGS;
-# All binary log files verified.
+# All binlog files verified.
 DROP TABLE t1;

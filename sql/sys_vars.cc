@@ -1393,8 +1393,8 @@ static Sys_var_bool Sys_binlog_large_transaction_optimization_enabled(
     "large-transaction commit latency low, avoids stalling concurrent "
     "commits, and keeps binary log crash recovery fast regardless of "
     "transaction size when source_verify_checksum is OFF. When this "
-    "variable is ON (the default), a transaction whose spilled size exceeds "
-    "binlog_large_transaction_optimization_threshold is committed by "
+    "variable is ON (the default), a transaction whose binlog cache size "
+    "exceeds binlog_large_transaction_optimization_threshold is committed by "
     "promoting its temporary file into the binary log sequence. When this "
     "variable is OFF, all transactions commit through the standard code "
     "path.",
@@ -1405,8 +1405,9 @@ static Sys_var_bool Sys_binlog_large_transaction_optimization_enabled(
 
 static Sys_var_ulonglong Sys_binlog_large_transaction_optimization_threshold(
     "binlog_large_transaction_optimization_threshold",
-    "The spilled size in bytes above which a transaction qualifies for the "
-    "large transaction optimization. Has no effect while "
+    "The size in bytes of a transaction's binlog cache, without checksums, "
+    "above which the transaction qualifies for the large transaction "
+    "optimization. Has no effect while "
     "binlog_large_transaction_optimization_enabled is OFF.",
     GLOBAL_VAR(opt_binlog_large_transaction_optimization_threshold),
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(10 * 1024 * 1024, ULLONG_MAX),

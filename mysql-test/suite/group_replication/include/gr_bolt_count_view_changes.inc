@@ -1,7 +1,7 @@
-# Count the View_change events in a binary log file of the current server.
+# Count the View_change events in a binlog file of the current server.
 #
 # Parameters:
-#   $vc_file   binary log file name (no directory)
+#   $vc_file   binlog file name (no directory)
 # Sets:
 #   $vc_count  number of View_change events in $vc_file
 --let $_vc_port = `SELECT @@port`

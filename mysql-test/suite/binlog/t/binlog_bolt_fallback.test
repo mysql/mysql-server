@@ -1,7 +1,7 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
-# Verify BOLT uses the ordinary binary-log commit path when a spilled,
+# Verify BOLT uses the ordinary binlog commit path when a spilled,
 # above-threshold transaction cannot safely be promoted, while retaining
 # promotion eligibility with a dynamically sized reserved header.
 #
@@ -20,7 +20,7 @@
 #
 # === Implementation ===
 # Each case spills a transaction above the 10 MiB threshold and checks the two
-# BOLT status counters, the active binary-log filename, and the reason reported
+# BOLT status counters, the active binlog filename, and the reason reported
 # in the error log.
 #
 # Every condition here is reachable by configuration, so this file also runs on
@@ -80,13 +80,13 @@ SET @bolt_statement_payload = NULL;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = A large STATEMENT transaction does not promote a binary log.
+--let $assert_text = A large STATEMENT transaction does not promote a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
 --let $assert_text = A large STATEMENT transaction increments the missed counter once.
 --let $assert_cond = $missed_after = $missed_before + 1
 --source include/assert.inc
---let $assert_text = A large STATEMENT transaction stays in the active binary log.
+--let $assert_text = A large STATEMENT transaction stays in the active binlog.
 --let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = A large STATEMENT fallback commits its row.
@@ -121,13 +121,13 @@ SET @bolt_mixed_payload = NULL;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = A large MIXED transaction does not promote a binary log.
+--let $assert_text = A large MIXED transaction does not promote a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
 --let $assert_text = A large MIXED transaction increments the missed counter once.
 --let $assert_cond = $missed_after = $missed_before + 1
 --source include/assert.inc
---let $assert_text = A large MIXED transaction stays in the active binary log.
+--let $assert_text = A large MIXED transaction stays in the active binlog.
 --let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = A large MIXED fallback commits its row.
@@ -164,7 +164,7 @@ INSERT INTO t1 VALUES (3, REPEAT('e', 5000000));
 COMMIT;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
---let $assert_text = A checksum change does not promote a binary log.
+--let $assert_text = A checksum change does not promote a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
 --let $assert_text = A checksum change increments the missed counter once.
@@ -220,7 +220,7 @@ COMMIT;
 --let $assert_text = Restoring the checksum before commit does not increment the missed counter.
 --let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
---let $assert_text = The restored-checksum commit opens its promoted binary log.
+--let $assert_text = The restored-checksum commit opens its promoted binlog.
 --let $assert_cond = "$binlog_file_after_commit" != "$binlog_file_before_commit"
 --source include/assert.inc
 --let $assert_text = The restored-checksum BOLT transaction commits all rows.
@@ -276,13 +276,13 @@ COMMIT;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = A dynamically reserved Previous_gtids header promotes a binary log.
+--let $assert_text = A dynamically reserved Previous_gtids header promotes a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
 --let $assert_text = A dynamically reserved Previous_gtids header does not increment the missed counter.
 --let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
---let $assert_text = The dynamically reserved-header commit opens its promoted binary log.
+--let $assert_text = The dynamically reserved-header commit opens its promoted binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = A dynamically reserved-header commit commits all rows.
@@ -334,7 +334,7 @@ COMMIT;
 --let $assert_text = An InnoDB/MyISAM statement does not count as a missed optimization.
 --let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
---let $assert_text = An InnoDB/MyISAM statement rotates to the promoted InnoDB binary log.
+--let $assert_text = An InnoDB/MyISAM statement rotates to the promoted InnoDB binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = The promoted transaction commits every InnoDB row.

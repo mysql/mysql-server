@@ -1,6 +1,8 @@
+# BOLT is the binlog large transaction optimization.
+#
 # === Purpose ===
 # Verify that a replica applier committing through the BOLT path still honours
-# replica_preserve_commit_order, so the replica's own binary log lists
+# replica_preserve_commit_order, so the replica's own binlog lists
 # transactions in the source's order.
 #
 # The spilled file is promoted in the flush stage of
@@ -8,11 +10,11 @@
 # commit-order calls as any transaction: Commit_order_manager::wait() before
 # the flush stage, and Commit_order_manager::finish_one() once the session is
 # enqueued. If either were skipped, a worker applying a large transaction could
-# write its local binary log out of turn.
+# write its local binlog out of turn.
 #
 # === Requirements ===
 # R1. With replica_preserve_commit_order=ON, log_replica_updates=ON and several
-#     applier workers, the replica's binary log records transactions in source
+#     applier workers, the replica's binlog records transactions in source
 #     order even when the larger ones commit through the BOLT path.
 # R2. At least one transaction really did take the BOLT path on the replica, so
 #     that R1 is not vacuously satisfied.
@@ -22,12 +24,12 @@
 # GTID mode is ON, so every transaction the replica applies keeps the GTID it
 # was assigned on the source. The source is the only thing generating GTIDs
 # here, so its sequence numbers are exactly the source's commit order. Reading
-# the replica's binary logs front to back and collecting those sequence numbers
+# the replica's binlog files front to back and collecting those sequence numbers
 # therefore yields the order in which the replica logged them, and the order
 # check is simply that the numbers ascend.
 #
-# All of the replica's binary logs are read, not just the current one: promotion
-# *is* a rotation, since the spilled file becomes the next binary log file, so a
+# All of the replica's binlog files are read, not just the current one: promotion
+# *is* a rotation, since the spilled file becomes the next binlog file, so a
 # run with promotions spreads the transactions over several files and the newest
 # file holds only the last BOLT transaction.
 #
@@ -130,7 +132,7 @@ UNLOCK TABLES;
 --source include/assert.inc
 
 #
-# R1. Decode every one of the replica's binary logs, in order, and check that
+# R1. Decode every one of the replica's binlog files, in order, and check that
 # the source's GTID sequence numbers ascend. The shell glob supplies the files
 # in name order, which is also their creation order because the numeric suffix
 # is zero padded, and mysqlbinlog concatenates them in the order given.

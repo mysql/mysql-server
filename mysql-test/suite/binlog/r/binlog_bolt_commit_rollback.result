@@ -15,23 +15,23 @@ INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 ROLLBACK;
 include/assert.inc [Rollback leaves the BOLT promotion count unchanged.]
-include/assert.inc [Rollback keeps the active binary log unchanged.]
+include/assert.inc [Rollback keeps the active binlog unchanged.]
 include/assert.inc [Rollback removes all transaction rows.]
-# Retry the same transaction and promote a new active binary log.
+# Retry the same transaction and promote a new active binlog.
 BEGIN;
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 COMMIT;
-include/assert.inc [Retry promotes one new active binary log.]
-include/assert.inc [Retry changes the active binary log file.]
+include/assert.inc [Retry promotes one new active binlog.]
+include/assert.inc [Retry changes the active binlog file.]
 include/assert.inc [Retry commits the four rows exactly once.]
 # The first of two consecutive promotions on one session.
 # The second promotion, whose predecessor is itself a promoted file.
 include/assert.inc [Two consecutive transactions promote twice.]
 include/assert.inc [Neither consecutive promotion is a missed optimization.]
-include/assert.inc [The first promotion leaves the original active binary log.]
+include/assert.inc [The first promotion leaves the original active binlog.]
 include/assert.inc [The second promotion opens a file of its own.]
 include/assert.inc [Both consecutive promotions commit all eight rows.]
 include/assert.inc [Both consecutive promotions preserve every payload in full.]
@@ -91,7 +91,7 @@ INSERT INTO t1 (y) VALUES (CONCAT(REPEAT('abcdefghijklmnop', 250000), IF(GET_LOC
 KILL QUERY ID;
 ERROR 70100: Query execution was interrupted
 ROLLBACK;
-include/assert.inc [KILL QUERY followed by rollback does not promote a binary log.]
+include/assert.inc [KILL QUERY followed by rollback does not promote a binlog.]
 include/assert.inc [KILL QUERY followed by rollback removes all transaction rows.]
 BEGIN;
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
@@ -107,7 +107,7 @@ INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
-include/assert.inc [Disconnecting an active spill does not promote a binary log.]
+include/assert.inc [Disconnecting an active spill does not promote a binlog.]
 include/assert.inc [Disconnecting an active spill rolls back all rows.]
 BEGIN;
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
@@ -126,11 +126,11 @@ INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (x, y) VALUES (1, REPEAT('abcdefghijklmnop', 250000));
 ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 ROLLBACK;
-include/assert.inc [A statement error followed by rollback does not promote a binary log.]
-include/assert.inc [A statement error followed by rollback keeps the active binary log unchanged.]
+include/assert.inc [A statement error followed by rollback does not promote a binlog.]
+include/assert.inc [A statement error followed by rollback keeps the active binlog unchanged.]
 include/assert.inc [A statement error followed by rollback removes all rows.]
 SET GLOBAL max_binlog_size = 4096;
-# A promoted oversized file becomes binary-log history and opens a fresh active file.
+# A promoted oversized file becomes binlog history and opens a fresh active file.
 BEGIN;
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
@@ -139,7 +139,7 @@ INSERT INTO t1 (y) VALUES (REPEAT('abcdefghijklmnop', 250000));
 COMMIT;
 SET GLOBAL max_binlog_size = 1073741824;
 include/assert.inc [The oversized transaction's spilled file is promoted once before rotation.]
-include/assert.inc [Immediate max-binlog-size rotation opens a fresh active binary log.]
+include/assert.inc [Immediate max-binlog-size rotation opens a fresh active binlog.]
 include/assert.inc [Immediate max-binlog-size rotation keeps all promoted rows.]
 SHOW BINARY LOGS;
 Log_name	File_size	Encrypted
@@ -173,7 +173,7 @@ INSERT INTO t1 (x, y) VALUES (503, REPEAT('abcdefghijklmnop', 250000));
 INSERT INTO t1 (x, y) VALUES (504, REPEAT('abcdefghijklmnop', 250000));
 # Five waiting spills do not prevent a small transaction using the active binlog.
 INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
-include/assert.inc [The small transaction stays in the existing active binary log.]
+include/assert.inc [The small transaction stays in the existing active binlog.]
 include/assert.inc [Only the small transaction is visible while the five spills wait.]
 COMMIT;
 COMMIT;
@@ -181,7 +181,7 @@ COMMIT;
 ROLLBACK;
 ROLLBACK;
 include/assert.inc [Three committed spills produce exactly three BOLT promotions.]
-include/assert.inc [Three committed spills create three new binary log files.]
+include/assert.inc [Three committed spills create three new binlog files.]
 include/assert.inc [Only the three committed large transactions and small transaction persist.]
 include/assert.inc [The committed transaction ranges are preserved exactly.]
 XA START 'bolt_concurrent_one_phase_1';
@@ -216,7 +216,7 @@ INSERT INTO t1 (x, y) VALUES (504, REPEAT('abcdefghijklmnop', 250000));
 XA END 'bolt_concurrent_prepare_2';
 # Five waiting XA branches leave the active binlog available for a small transaction.
 INSERT INTO t1 (x, y) VALUES (1, 'small transaction');
-include/assert.inc [The small transaction stays in the existing active binary log with XA spills pending.]
+include/assert.inc [The small transaction stays in the existing active binlog with XA spills pending.]
 XA ROLLBACK 'bolt_concurrent_one_phase_1';
 XA ROLLBACK 'bolt_concurrent_one_phase_2';
 XA COMMIT 'bolt_concurrent_one_phase_3' ONE PHASE;
@@ -225,7 +225,7 @@ XA ROLLBACK 'bolt_concurrent_prepare_1';
 XA PREPARE 'bolt_concurrent_prepare_2';
 XA COMMIT 'bolt_concurrent_prepare_2';
 include/assert.inc [One XA one-phase commit and two XA PREPARE paths produce three promotions.]
-include/assert.inc [The XA commit decisions create exactly three new binary log files.]
+include/assert.inc [The XA commit decisions create exactly three new binlog files.]
 include/assert.inc [Only the committed XA branches and small transaction persist.]
 include/assert.inc [The committed XA transaction ranges are preserved exactly.]
 DROP TABLE t2;

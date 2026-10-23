@@ -193,17 +193,18 @@ The following options may be given as the first argument:
  concurrent commits, and keeps binary log crash recovery
  fast regardless of transaction size when
  source_verify_checksum is OFF. When this variable is ON
- (the default), a transaction whose spilled size exceeds
- binlog_large_transaction_optimization_threshold is
- committed by promoting its temporary file into the binary
- log sequence. When this variable is OFF, all transactions
- commit through the standard code path.
+ (the default), a transaction whose binlog cache size
+ exceeds binlog_large_transaction_optimization_threshold
+ is committed by promoting its temporary file into the
+ binary log sequence. When this variable is OFF, all
+ transactions commit through the standard code path.
  (Defaults to on; use --skip-binlog-large-transaction-optimization-enabled to disable.)
  --binlog-large-transaction-optimization-threshold=# 
- The spilled size in bytes above which a transaction
- qualifies for the large transaction optimization. Has no
- effect while
- binlog_large_transaction_optimization_enabled is OFF.
+ The size in bytes of a transaction's binlog cache,
+ without checksums, above which the transaction qualifies
+ for the large transaction optimization. Has no effect
+ while binlog_large_transaction_optimization_enabled is
+ OFF.
  --binlog-max-flush-queue-time=# 
  The maximum time that the binary log group commit will
  keep reading transactions before it flush the

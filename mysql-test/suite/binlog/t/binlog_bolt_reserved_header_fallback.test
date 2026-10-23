@@ -1,28 +1,29 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
-# Verify the reserved-header fallback: when the region reserved at the front of
-# a spilled binary log cache cannot hold the promoted file's header events, the
-# transaction must commit through the standard binary log path, leaving no
-# trace of the abandoned promotion.
+# Verify the reserved-header fallback. When the region reserved at the front of
+# a spill binlog file cannot hold the header events of the new binlog file,
+# the spill binlog file is not promoted. The transaction is then written into
+# the new binlog file through the standard commit path.
 #
 # === Requirements ===
 # R1. A promotable large transaction promotes when the reserved region fits.
-# R2. A reserved region too small prevents promotion: the optimization counter
-#     does not move and the missed counter increments exactly once.
-# R3. The fallback does not rotate; the transaction stays in the active file.
+# R2. A reserved region too small prevents the promotion. The optimization
+#     counter does not move, and the missed counter increments exactly once.
+# R3. The fallback writes the transaction into the new binlog file that the
+#     rotation opened.
 # R4. The fallback commits every row.
 # R5. The fallback reports the reserved-header reason in the error log.
-# R6. The active binary log stays readable, with valid checksums, afterwards.
+# R6. The new binlog file stays readable, with valid checksums, and holds the
+#     transaction without a large transaction header.
 #
 # === Implementation ===
 # The reserved region is sized at the transaction's first event, from the
-# length of the active binary log file's header, so no configuration makes it
-# too small while leaving the transaction otherwise promotable. The debug symbol
-# force_bolt_reserved_header_fallback clears the "header events fit"
-# predicate immediately before the real check. That check precedes any GTID
-# assignment and any file I/O, so the forced path is the same no-side-effects
-# fallback the real check takes.
+# length of the active binlog file's header, so no configuration makes it too
+# small while leaving the transaction otherwise promotable. The debug symbol
+# force_bolt_reserved_header_fallback makes the real check in
+# promote_spilled_file() fail. That check runs after the rotation opened the
+# new binlog file, so the forced path is the real fallback.
 #
 # Case 1 runs the identical transaction without the symbol, so the opposite
 # outcome in case 2 is attributable to the region size and not to the workload.
@@ -67,13 +68,13 @@ COMMIT;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = A fitting reserved region promotes a binary log.
+--let $assert_text = A fitting reserved region promotes a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
 --let $assert_text = A fitting reserved region does not increment the missed counter.
 --let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
---let $assert_text = The promoted commit opens its promoted binary log.
+--let $assert_text = The promoted commit opens its promoted binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = The BOLT transaction commits all rows.
@@ -83,12 +84,10 @@ COMMIT;
 ############################################################################
 # Case 2: the same transaction with the reserved region forced too small.
 ############################################################################
-# Case 1 promoted its spilled file, and a promoted file becomes the active
-# binary log, so it would otherwise still be receiving events here. Rotate to
-# a fresh file so the R6 check below inspects only this case's transaction.
+# The fallback rotates the binlog, so the R6 check below inspects a new
+# binlog file that holds only this case's transaction.
 --disable_query_log
 TRUNCATE t1;
-FLUSH BINARY LOGS;
 --enable_query_log
 --let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
@@ -105,14 +104,14 @@ SET SESSION debug = @old_debug;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = A reserved region too small does not promote a binary log.
+--let $assert_text = A reserved region too small does not promote a binlog.
 --let $assert_cond = $bolt_count_after = $bolt_count_before
 --source include/assert.inc
 --let $assert_text = A reserved region too small increments the missed counter once.
 --let $assert_cond = $missed_after = $missed_before + 1
 --source include/assert.inc
---let $assert_text = A reserved-header fallback stays in the active binary log.
---let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--let $assert_text = A reserved-header fallback writes into the new binlog file.
+--let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 --let $assert_text = A reserved-header fallback commits all rows.
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
@@ -124,18 +123,22 @@ SET SESSION debug = @old_debug;
 --let $assert_only_after = CURRENT_TEST: binlog.binlog_bolt_reserved_header_fallback
 --source include/assert_grep.inc
 
-# R6. The abandoned promotion must not have disturbed the active binary log.
-# The fallback commits into that same file, so it must still decode with
-# valid checksums. --force-if-open is required because the file is active.
+# R6. The fallback commits into the new binlog file, so that file must
+# decode with valid checksums and hold the transaction without a large
+# transaction header. --force-if-open is required because the file is active.
 --let $bolt_fallback_dump = $MYSQLTEST_VARDIR/tmp/bolt_reserved_header_fallback.txt
 --exec $MYSQL_BINLOG --force-if-open --verify-binlog-checksum $MYSQLD_DATADIR/$binlog_file_after > $bolt_fallback_dump
 --let $assert_file = $bolt_fallback_dump
---let $assert_text = The fallback transaction is present in the active binary log.
+--let $assert_text = The fallback transaction is present in the active binlog.
 --let $assert_select = Write_rows
 --let $assert_count =
 --let $assert_count_condition = >= 1
 --source include/assert_grep.inc
 --let $assert_count_condition =
+--let $assert_text = The new binlog file holds no large transaction header.
+--let $assert_select = Large transaction header
+--let $assert_count = 0
+--source include/assert_grep.inc
 --remove_file $bolt_fallback_dump
 
 # Cleanup

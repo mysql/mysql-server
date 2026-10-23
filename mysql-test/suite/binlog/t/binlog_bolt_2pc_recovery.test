@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Verify BOLT crash recovery follows the binlog 2PC decision.
@@ -200,7 +200,7 @@ TRUNCATE t1;
 # the main index does not list it yet. Recovery must delete the file and roll
 # the transaction back.
 #
-# Resets the binary log first so the file count is deterministic. Afterwards
+# Resets the binlog first so the file count is deterministic. Afterwards
 # there must be just the predecessor and the file opened at startup; a third
 # would mean the orphan was kept.
 ############################################################################
@@ -227,12 +227,12 @@ COMMIT;
 --let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
 --source include/assert.inc
 --let $bolt_third_log = query_get_value(SHOW BINARY LOGS, Log_name, 3)
---let $assert_text = Recovery leaves no third binary log from the deleted orphan.
+--let $assert_text = Recovery leaves no third binlog from the deleted orphan.
 --let $assert_cond = "$bolt_third_log" = "No such row"
 --source include/assert.inc
 # The orphan's slot holds a freshly opened log, not the 12 MB promoted file.
 --let $bolt_second_log_size = query_get_value(SHOW BINARY LOGS, File_size, 2)
---let $assert_text = The orphan's slot holds a freshly opened binary log.
+--let $assert_text = The orphan's slot holds a freshly opened binlog.
 --let $assert_cond = $bolt_second_log_size < 1000000
 --source include/assert.inc
 --list_files $BOLT_TEMP_DIR

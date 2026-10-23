@@ -29,7 +29,7 @@
 
   @brief The interface of the binlog cache representations, which store a
   session's binlog cache in the standard form or in the binary log file form
-  of the binary log large transaction optimization (BOLT).
+  of the binlog large transaction optimization (BOLT).
 */
 
 #include <memory>

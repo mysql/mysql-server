@@ -46,7 +46,6 @@ class binlog_cache_data;
   - saving the GTIDs of the closed binlog file into mysql.gtid_executed;
   - recording the fallback reason when the GTIDs cannot be saved;
   - replacing the new binlog file with the spilled file;
-  - rotating the dependency tracker;
   - publishing the new binlog file's end position.
   MYSQL_BIN_LOG::new_file_impl() and MYSQL_BIN_LOG::open_binlog() call these
   steps. The rest of the rotation is the same for both.
@@ -84,13 +83,6 @@ class File_rotation {
   virtual bool replace_new_file_with_spilled_file(MYSQL_BIN_LOG &log) = 0;
 
   /**
-    Rotates the dependency tracker for the new binlog file.
-
-    @param log  The binlog that is rotated.
-  */
-  virtual void rotate_dependency_tracker(MYSQL_BIN_LOG &log) = 0;
-
-  /**
     Publishes the new binlog file's initial end position.
 
     @param log  The binlog that is rotated.
@@ -112,7 +104,6 @@ class Standard_file_rotation : public File_rotation {
   bool replace_new_file_with_spilled_file(MYSQL_BIN_LOG &) override {
     return false;
   }
-  void rotate_dependency_tracker(MYSQL_BIN_LOG &log) override;
   void publish_end_position(MYSQL_BIN_LOG &log) override;
 };
 
@@ -138,12 +129,6 @@ class Spilled_file_rotation : public File_rotation {
   void record_gtid_persistence_fallback_reason() override;
   /** Promotes the spilled file (see MYSQL_BIN_LOG::promote_spilled_file()). */
   bool replace_new_file_with_spilled_file(MYSQL_BIN_LOG &log) override;
-  /**
-    Rotates the dependency tracker only when the spilled file was not
-    promoted. The promotion rotated the tracker before it generated the
-    transaction's logical timestamps.
-  */
-  void rotate_dependency_tracker(MYSQL_BIN_LOG &log) override;
   /** Publishes only the header events of a promoted file. */
   void publish_end_position(MYSQL_BIN_LOG &log) override;
 

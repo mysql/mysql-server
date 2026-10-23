@@ -1,17 +1,17 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # A view change gets a newer binlog group commit ticket than every
-# transaction certified before it, and must be written into the binary log
+# transaction certified before it, and must be written into the binlog
 # after all of them. A transaction committed through the BOLT path is paused
 # after it has waited for its ticket's turn but before it takes LOCK_log; a
 # member joins meanwhile. The view change must wait for the BOLT transaction,
-# instead of being written into the binary log before it.
+# instead of being written into the binlog before it.
 #
 # === Requirements ===
 # R1. While the BOLT transaction is paused, the view change is not written.
 # R2. The BOLT transaction's spilled file is promoted, and the view change is not written
-#     into the binary log file that was active before it.
+#     into the binlog file that was active before it.
 # R3. The joining member comes ONLINE and has the transaction.
 #
 --source include/big_test.inc
@@ -73,7 +73,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR bolt_paused';
 --let $rpl_connection_name= server_1
 --source include/connection.inc
 # The view is installed in the group, so the view change event is on its way
-# to server1's binary log. Give it time to be written, if it could be.
+# to server1's binlog. Give it time to be written, if it could be.
 --let $wait_condition = SELECT COUNT(*) = 2 FROM performance_schema.replication_group_members
 --source include/wait_condition.inc
 --sleep 3
@@ -102,7 +102,7 @@ SET DEBUG_SYNC = 'RESET';
 --let $rpl_connection_name= server1
 --source include/connection.inc
 --source ../include/gr_bolt_count_view_changes.inc
---let $assert_text = R2: the view change is not in the binary log file active before the promotion.
+--let $assert_text = R2: the view change is not in the binlog file active before the promotion.
 --let $assert_cond = $vc_count = $vc_before
 --source include/assert.inc
 --source include/rpl/sync.inc

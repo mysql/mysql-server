@@ -8,9 +8,9 @@ BEGIN;
 INSERT INTO t1 VALUES (1, @bolt_statement_payload);
 COMMIT;
 SET @bolt_statement_payload = NULL;
-include/assert.inc [A large STATEMENT transaction does not promote a binary log.]
+include/assert.inc [A large STATEMENT transaction does not promote a binlog.]
 include/assert.inc [A large STATEMENT transaction increments the missed counter once.]
-include/assert.inc [A large STATEMENT transaction stays in the active binary log.]
+include/assert.inc [A large STATEMENT transaction stays in the active binlog.]
 include/assert.inc [A large STATEMENT fallback commits its row.]
 include/assert_grep.inc [The fallback reason is logged once: transaction contains non-ROW events.]
 # A large MIXED transaction with a statement event uses the standard path.
@@ -20,9 +20,9 @@ BEGIN;
 INSERT INTO t1 VALUES (1, @bolt_mixed_payload);
 COMMIT;
 SET @bolt_mixed_payload = NULL;
-include/assert.inc [A large MIXED transaction does not promote a binary log.]
+include/assert.inc [A large MIXED transaction does not promote a binlog.]
 include/assert.inc [A large MIXED transaction increments the missed counter once.]
-include/assert.inc [A large MIXED transaction stays in the active binary log.]
+include/assert.inc [A large MIXED transaction stays in the active binlog.]
 include/assert.inc [A large MIXED fallback commits its row.]
 include/assert_grep.inc [R5: the second non-ROW fallback is only counted, not logged again.]
 # A checksum change during a large transaction uses the standard path.
@@ -32,7 +32,7 @@ SET GLOBAL binlog_checksum = IF(@@GLOBAL.binlog_checksum = 'CRC32', 'NONE', 'CRC
 INSERT INTO t1 VALUES (2, REPEAT('d', 5000000));
 INSERT INTO t1 VALUES (3, REPEAT('e', 5000000));
 COMMIT;
-include/assert.inc [A checksum change does not promote a binary log.]
+include/assert.inc [A checksum change does not promote a binlog.]
 include/assert.inc [A checksum change increments the missed counter once.]
 include/assert.inc [A checksum-change fallback commits all rows.]
 include/assert_grep.inc [The fallback reason is logged: binlog_checksum changed while the transaction was running.]
@@ -46,7 +46,7 @@ INSERT INTO t1 VALUES (3, REPEAT('t', 5000000));
 COMMIT;
 include/assert.inc [Restoring the checksum before commit promotes the transaction's spilled file.]
 include/assert.inc [Restoring the checksum before commit does not increment the missed counter.]
-include/assert.inc [The restored-checksum commit opens its promoted binary log.]
+include/assert.inc [The restored-checksum commit opens its promoted binlog.]
 include/assert.inc [The restored-checksum BOLT transaction commits all rows.]
 include/assert.inc [The executed GTID set exceeds BOLT's reserved header.]
 # A dynamically reserved Previous_gtids header preserves promotion.
@@ -55,9 +55,9 @@ INSERT INTO t1 VALUES (1, REPEAT('g', 5000000));
 INSERT INTO t1 VALUES (2, REPEAT('h', 5000000));
 INSERT INTO t1 VALUES (3, REPEAT('i', 5000000));
 COMMIT;
-include/assert.inc [A dynamically reserved Previous_gtids header promotes a binary log.]
+include/assert.inc [A dynamically reserved Previous_gtids header promotes a binlog.]
 include/assert.inc [A dynamically reserved Previous_gtids header does not increment the missed counter.]
-include/assert.inc [The dynamically reserved-header commit opens its promoted binary log.]
+include/assert.inc [The dynamically reserved-header commit opens its promoted binlog.]
 include/assert.inc [A dynamically reserved-header commit commits all rows.]
 INSERT INTO t1 VALUES (1, REPEAT('n', 5000000));
 INSERT INTO t1 VALUES (2, REPEAT('o', 5000000));
@@ -69,7 +69,7 @@ UPDATE t1 JOIN t2 USING (id) SET t1.data = CONCAT(t1.data, 'x'), t2.marker = 1;
 COMMIT;
 include/assert.inc [An InnoDB/MyISAM statement promotes its qualifying InnoDB cache.]
 include/assert.inc [An InnoDB/MyISAM statement does not count as a missed optimization.]
-include/assert.inc [An InnoDB/MyISAM statement rotates to the promoted InnoDB binary log.]
+include/assert.inc [An InnoDB/MyISAM statement rotates to the promoted InnoDB binlog.]
 include/assert.inc [The promoted transaction commits every InnoDB row.]
 include/assert.inc [The promoted transaction updates every MyISAM row.]
 DROP TABLE t2;

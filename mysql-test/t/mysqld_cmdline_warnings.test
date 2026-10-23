@@ -12,7 +12,7 @@
 --let $PLUGIN_DIR   = 	 `select @@plugin_dir`
 --let $WL11109_DATADIR = $MYSQL_TMP_DIR/wl11109dir
 --let $LOG_FILE =        $WL11109_DATADIR/mysqld.log
-# The binary log large transaction optimization is OFF: when ON, startup creates
+# The binlog large transaction optimization is OFF: when ON, startup creates
 # its temp files directory in the binary log directory, here the datadir the
 # test removes.
 --let $MYSQLD_ARGS =     --no-defaults --plugin-dir=$PLUGIN_DIR --secure-file-priv="" --lc-messages-dir=$MESSAGES_DIR --datadir=$WL11109_DATADIR --log-error=$LOG_FILE --binlog-large-transaction-optimization-enabled=OFF

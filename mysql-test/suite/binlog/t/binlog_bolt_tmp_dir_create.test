@@ -1,7 +1,7 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
-# The binary log's temp files directory, #binlog_temp_files/<binary log base
+# The binlog's temp files directory, #binlog_temp_files/<binlog base
 # name>, exists only once the optimization is enabled, and the binlog cache's
 # standard-form spill files are not in it.
 #
@@ -17,6 +17,7 @@
 # R5. Started with the optimization ON, when the directory cannot be created,
 #     the server starts, logs an error with the directory and the OS error,
 #     and turns the optimization OFF.
+# R6. The directory is not listed as a schema.
 #
 --source include/not_windows.inc
 --source include/have_log_bin.inc
@@ -47,6 +48,26 @@ COMMIT;
 --echo # R2: enabling the optimization creates the directory.
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 --file_exists $BOLT_TEMP_DIR
+
+--echo # R6: the directory is not listed as a schema.
+--let $assert_text = R6: information_schema.SCHEMATA does not list the binlog temp files directory.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE "%binlog\\_temp\\_files%", count, 1] = 0
+--source include/assert.inc
+--let $bolt_schema_listed = 0
+--let $bolt_row = 1
+--let $bolt_schema = query_get_value(SHOW DATABASES, Database, $bolt_row)
+while ($bolt_schema != 'No such row')
+{
+  if (`SELECT '$bolt_schema' LIKE '%binlog_temp_files%'`)
+  {
+    --let $bolt_schema_listed = 1
+  }
+  --inc $bolt_row
+  --let $bolt_schema = query_get_value(SHOW DATABASES, Database, $bolt_row)
+}
+--let $assert_text = R6: SHOW DATABASES does not list the binlog temp files directory.
+--let $assert_cond = $bolt_schema_listed = 0
+--source include/assert.inc
 
 --echo # R3: disabling it keeps the directory.
 SET GLOBAL binlog_large_transaction_optimization_enabled = OFF;

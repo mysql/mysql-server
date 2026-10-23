@@ -283,7 +283,7 @@ class Binlog_cache_storage : public Basic_ostream {
 
   /**
      Reset status and drop all data. With kKeep, the cache closes without
-     deleting a file that the binary log large transaction optimization (BOLT)
+     deleting a file that the binlog large transaction optimization (BOLT)
      has already promoted. A cache rewritten into binlog file form is replaced
      by a new one in the standard form.
 
@@ -391,7 +391,8 @@ class Binlog_cache_storage : public Basic_ostream {
   bool copy_to(Basic_ostream *ostream, bool *ostream_error = nullptr);
 
   /**
-     Returns logical data length.
+     Returns logical data length. A cache whose open() failed holds nothing,
+     so its length is 0.
   */
   my_off_t length() const;
   /**
@@ -549,7 +550,7 @@ inline constexpr char kBinlogTempFilePrefix[] = "bolt_";
 bool is_bolt_temp_file(const char *name);
 
 /**
-  The directory of the spilled files that the binary log large
+  The directory of the spilled files that the binlog large
   transaction optimization (BOLT) may promote. The directory exists once the
   optimization is enabled, and is never removed: a transaction that started
   with the optimization enabled may still write to its spilled file after

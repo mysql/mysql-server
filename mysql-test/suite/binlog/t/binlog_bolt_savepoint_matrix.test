@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Savepoint matrix for the checksumless cache. Savepoint and statement-
@@ -9,7 +9,7 @@
 #   - t1 holds exactly the expected rows, each with its own payload;
 #   - the transaction's spilled file was promoted (or not) as expected, and the
 #     missed-optimization counter moved as expected;
-#   - the active binary log verifies its checksums and inserts exactly the
+#   - the active binlog verifies its checksums and inserts exactly the
 #     expected rows of t1 (so the binlog matches the engine);
 #   - a promoted file has a valid BOLT header;
 #   - no bolt_ temp file is left in #binlog_temp_files.

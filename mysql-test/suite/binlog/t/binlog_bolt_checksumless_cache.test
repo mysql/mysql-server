@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
 # Cover settings changes and rollbacks that happen after a transaction cache
@@ -6,7 +6,7 @@
 #
 # === Requirements ===
 # R1. binlog_checksum changed to NONE after conversion: the transaction falls
-#     back (missed counter +1), and the binary log it is copied into is valid.
+#     back (missed counter +1), and the binlog it is copied into is valid.
 # R2. The BOLT knob turned OFF after conversion does not affect the open
 #     transaction (latched at its first event): it is promoted.
 # R3. A statement rollback after conversion (not the first statement) drops

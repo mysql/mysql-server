@@ -1,14 +1,14 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
-# Verify startup cleanup of the binary log temporary files directory,
-# #binlog_temp_files/<binary log base name>.
+# Verify startup cleanup of the binlog temporary files directory,
+# #binlog_temp_files/<binlog base name>.
 #
 # === Requirements ===
 # R1. Startup removes the bolt_* spill files left in the server's directory,
 #     and logs how many it removed and from which directory.
-# R2. Startup leaves another server's directory (a different binary log base
-#     name in the same binary log directory) untouched.
+# R2. Startup leaves another server's directory (a different binlog base
+#     name in the same binlog directory) untouched.
 # R3. Entries the server did not create (another name, a symbolic link, a
 #     directory) are left in place with a warning, and startup continues.
 # R4. A symbolic link for the directory itself never stops startup. With the

@@ -457,6 +457,12 @@ bool Binlog_cache_storage::open(my_off_t cache_size, my_off_t max_cache_size) {
   m_prefix = LOG_PREFIX;
   m_cache_size = cache_size;
   m_max_cache_size = max_cache_size;
+  /* Fails as an allocation of the cache's buffer fails. */
+  DBUG_EXECUTE_IF("fail_binlog_cache_open", {
+    my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
+             static_cast<size_t>(m_cache_size));
+    return true;
+  });
   return create_checksumless_representation();
 }
 
@@ -635,7 +641,7 @@ bool Binlog_cache_storage::copy_to(Basic_ostream *ostream,
 }
 
 my_off_t Binlog_cache_storage::length() const {
-  assert(m_representation != nullptr);
+  if (m_representation == nullptr) return 0;
   return m_representation->logical_length();
 }
 

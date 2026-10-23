@@ -1,3 +1,5 @@
+# BOLT is the binlog large transaction optimization.
+#
 # === Purpose ===
 # Verify crash recovery of a file promoted after a savepoint rollback. That is
 # the only path where the physical spill file was trimmed by my_chsize, so
@@ -9,7 +11,7 @@
 #     transaction forward, and the promoted file's own header still points at a
 #     decodable terminating event. Recovery skips the transaction's body.
 # R2. A crash after the promote rename, before the main-index update, rolls a
-#     post-rollback BOLT transaction back and leaves no extra binary log
+#     post-rollback BOLT transaction back and leaves no extra binlog
 #     and no spill file behind.
 #
 # === Implementation ===
@@ -137,12 +139,12 @@ COMMIT;
 
 # The renamed file never reached the main index, so startup recovery deleted it
 # from the data directory using the purge-index record. Its name is then reused
-# by the binary log the restart opens, so the deletion cannot be checked by
-# name; assert instead that exactly two binary logs exist -- the one that was
+# by the binlog the restart opens, so the deletion cannot be checked by
+# name; assert instead that exactly two binlog files exist -- the one that was
 # active before the transaction, and the one the restart opened -- so no third,
 # orphaned file was indexed.
 --let $bolt_third_log = query_get_value(SHOW BINARY LOGS, Log_name, 3)
---let $assert_text = Recovery left no third, orphaned binary log.
+--let $assert_text = Recovery left no third, orphaned binlog.
 --let $assert_cond = "$bolt_third_log" = "No such row"
 --source include/assert.inc
 --list_files $BOLT_TEMP_DIR

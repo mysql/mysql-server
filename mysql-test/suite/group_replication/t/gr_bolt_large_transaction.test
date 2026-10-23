@@ -1,4 +1,4 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # Verify that Group Replication can serialize a local transaction whose THD
 # binlog cache has been converted to BOLT's promotable checksummed

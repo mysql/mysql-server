@@ -1,7 +1,7 @@
-# BOLT stands for Binary-log Optimization for Large Transactions.
+# BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
-# Verify BOLT promotion persists tagged GTIDs in the binary log and GTID
+# Verify BOLT promotion persists tagged GTIDs in the binlog and GTID
 # execution state.
 #
 # === Requirements ===
@@ -54,7 +54,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 --let $assert_text = The tagged GTID transaction's spilled file was promoted.
 --let $assert_cond = $count_after = $count_before + 1
 --source include/assert.inc
---let $assert_text = The tagged GTID promotion rotates to a new active binary log.
+--let $assert_text = The tagged GTID promotion rotates to a new active binlog.
 --let $assert_cond = "$binlog_file_after" != "$binlog_file_before"
 --source include/assert.inc
 --let $prior_tag_rows = query_get_value(SELECT COUNT(*) AS count FROM mysql.gtid_executed WHERE source_uuid = "$server_uuid" AND gtid_tag = 'prior_large_trx_tag' AND interval_start = 1 AND interval_end = 1, count, 1)
