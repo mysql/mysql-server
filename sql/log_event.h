@@ -1015,6 +1015,11 @@ class Log_event {
         */
         (type_code == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) ||
         /*
+          A Large_transaction_header_event only speeds up recovery. The
+          replica's applier ignores it.
+        */
+        (type_code == mysql::binlog::event::LARGE_TRANSACTION_HEADER_EVENT) ||
+        /*
           Rotate_log_event can occur in the middle of a transaction.
           When this happens, either it is a Rotate event generated on
           the slave which has the slave's server_id, or it is a Rotate
@@ -3852,6 +3857,14 @@ class Large_transaction_header_log_event
 
 #if defined(MYSQL_SERVER)
   int do_apply_event(Relay_log_info const *rli) override;
+  /*
+    A Large_transaction_header_event only speeds up recovery. The replica's
+    applier ignores it.
+  */
+  enum_skip_reason do_shall_skip(Relay_log_info *) override {
+    return EVENT_SKIP_IGNORE;
+  }
+  int do_update_pos(Relay_log_info *rli) override;
 #endif
 };
 

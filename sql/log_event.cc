@@ -13253,6 +13253,11 @@ int Large_transaction_header_log_event::do_apply_event(Relay_log_info const *) {
   */
   return 0;
 }
+
+int Large_transaction_header_log_event::do_update_pos(Relay_log_info *rli) {
+  rli->inc_event_relay_log_pos();
+  return 0;
+}
 #endif
 
 #ifndef MYSQL_SERVER

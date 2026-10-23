@@ -606,6 +606,16 @@ Spilled_file_promotion_result MYSQL_BIN_LOG::rotate_and_promote_spilled_file(
     promotion.fallback_reason = Large_trx_fallback_reason::kEncryption;
   } else if (!large_trx_cache_checksum_matches_binlog(cache_data)) {
     promotion.fallback_reason = Large_trx_fallback_reason::kChecksumMismatch;
+  } else if (thd->mdl_context.owns_equal_or_stronger_lock(
+                 MDL_key::TABLE, "mysql", "gtid_executed", MDL_SHARED_READ)) {
+    /*
+      The rotation saves the GTIDs of the active file into
+      mysql.gtid_executed on its own THD. When this transaction has used the
+      table, the save could wait on this transaction's own row locks until
+      innodb_lock_wait_timeout, with LOCK_log held, because this transaction
+      commits only after the rotation.
+    */
+    promotion.fallback_reason = Large_trx_fallback_reason::kGtidPersistence;
   } else {
     error = new_file_impl(false /*need_lock_log*/,
                           nullptr /*extra_description_event*/, promotion);
