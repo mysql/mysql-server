@@ -21,7 +21,7 @@ This experiment validates BOLT's impact on large transaction commit latency.
 
 ### Workload Setup
 
-- Large transaction: one transaction inserts 8 MiB `LONGBLOB` chunks into a dedicated table and commits once.
+- Large transaction: one transaction inserts 8 MiB LONGBLOB chunks into a dedicated table and commits once.
 - Payload sizes are 1 GiB, 5 GiB, 10 GiB, and 50 GiB.
 - Concurrent Sysbench workload: 1,500 threads against 500 tables with 100,000 rows per table (50 million rows total).
 
@@ -31,10 +31,10 @@ BOLT also affects overall system throughput, but here we share only the commit-l
 
 | Storage | BOLT | 1 GiB | 5 GiB | 10 GiB | 50 GiB |
 | --- | --- | --- | --- | --- | --- |
-| HDD | ON | 3.325s | 3.081s | 3.204s | 2.741s |
-| HDD | OFF | 17.473s | 92.322s | 202.495s | 1091.222s |
-| SSD | ON | 2.253s | 2.351s | 2.215s | 2.419s |
-| SSD | OFF | 9.940s | 44.067s | 88.983s | 435.713s |
+| HDD | ON | 3.291s | 3.112s | 3.167s | 2.779s |
+| HDD | OFF | 17.618s | 91.044s | 205.108s | 1078.556s |
+| SSD | ON | 2.228s | 2.374s | 2.241s | 2.392s |
+| SSD | OFF | 9.847s | 43.228s | 90.017s | 429.884s |
 
 The table shows that BOLT makes commit latency effectively independent of transaction size. With BOLT ON, latency stays in the 2s to 3.5s range across all payload sizes. With BOLT OFF, latency grows roughly linearly with the transaction. The improvement widens as transactions grow. On SSD it goes from about 4x at 1 GiB to about 180x at 50 GiB. On HDD it goes from about 5x at 1 GiB to about 400x at 50 GiB.
 
@@ -49,9 +49,9 @@ Note that we measure how long the binlog recovery stage takes. We do not measure
 | Storage | BOLT | 1 GiB | 5 GiB | 10 GiB | 50 GiB |
 | --- | --- | --- | --- | --- | --- |
 | HDD | ON | 0.22s | 0.21s | 0.19s | 0.23s |
-| HDD | OFF | 14.6s | 76.9s | 168.7s | 909.4s |
-| SSD | ON | 0.09s | 0.11s | 0.12s | 0.11s |
-| SSD | OFF | 5.68s | 25.2s | 50.8s | 249s |
+| HDD | OFF | 14.8s | 75.8s | 171.2s | 898.3s |
+| SSD | ON | 0.09s | 0.10s | 0.12s | 0.11s |
+| SSD | OFF | 5.61s | 25.5s | 50.1s | 252s |
 
 BOLT recovery is consistent across all transaction sizes. It does not read the transaction body and only reads the first and last event, which makes recovery constant time. This yields large recovery improvements and saves tens of minutes in availability time.
 
@@ -73,7 +73,7 @@ Single host: r7i.16xlarge with a 1 TiB gp3 EBS volume (3,000 IOPS baseline, 125 
 
 ### Workload Setup
 
-A custom Sysbench workload inserts `LONGBLOB` payloads in 8 MiB chunks (matching Experiment 1) into one of 500 shard tables per transaction, then commits. Spreading writes across 500 tables avoids the lock contention that a single table would create among writer threads. We modified the scripts to control both the transaction size and the mix of sizes. For example, a run can be 100% 128 MB transactions, or a mix such as 20% 5 GB, 30% 128 MB, and 50% 20 KB.
+A custom Sysbench workload inserts LONGBLOB payloads in 8 MiB chunks (matching Experiment 1) into one of 500 shard tables per transaction, then commits. Spreading writes across 500 tables avoids the lock contention that a single table would create among writer threads. We modified the scripts to control both the transaction size and the mix of sizes. For example, a run can be 100% 128 MB transactions, or a mix such as 20% 5 GB, 30% 128 MB, and 50% 20 KB.
 
 Across all experiments, we use 50 threads and run for 30 minutes.
 
@@ -85,10 +85,10 @@ We measure the performance improvement for a workload made up only of large tran
 
 | BOLT | Elapsed (s) | 5 GB Trxs Count | Throughput (MB/s) |
 | --- | --- | --- | --- |
-| ON | 1810 | 22 | 60.8 |
-| OFF | 1810 | 7 | 19.3 |
+| ON | 1810 | 23 | 63.53 |
+| OFF | 1810 | 6 | 16.57 |
 
-When BOLT is off, the system is limited by latency. As described in Experiment 1, during the transaction commit the transaction blocks all other transactions from committing. BOLT does not have this bottleneck, so it is instead limited by IO throughput. This yields roughly a 3x throughput improvement.
+When BOLT is off, the system is limited by latency. As described in Experiment 1, during the transaction commit the transaction blocks all other transactions from committing. BOLT does not have this bottleneck, so it is instead limited by IO throughput. This yields roughly a 3.8x throughput improvement.
 
 #### Sub-Experiment 2: Medium-Sized Transactions Workload
 
@@ -96,8 +96,8 @@ We measure the performance penalty that BOLT may add for transactions that spill
 
 | BOLT | Elapsed (s) | 64 MB Trxs Count | Throughput (MB/s) |
 | --- | --- | --- | --- |
-| ON | 1810 | 482 | 17.0 |
-| OFF | 1810 | 468 | 16.5 |
+| ON | 1810 | 494 | 17.56 |
+| OFF | 1810 | 465 | 16.54 |
 
 As expected, there is no meaningful difference between ON and OFF. The CRC computation adds negligible overhead.
 
@@ -107,19 +107,19 @@ We measure the performance improvement for a workload made up of different trans
 
 | BOLT | Elapsed (s) | 5 GB Trxs Count | 256 MB Trxs Count | 12 MB Trxs Count | 5 KB Trxs Count | Throughput (MB/s) |
 | --- | --- | --- | --- | --- | --- | --- |
-| ON | 1810 | 18 | 42 | 68 | 42 | 56.1 |
-| OFF | 1810 | 6 | 22 | 38 | 16 | 19.9 |
+| ON | 1810 | 19 | 44 | 71 | 37 | 59.18 |
+| OFF | 1810 | 6 | 20 | 44 | 24 | 19.68 |
 
-BOLT commits the 5 GB and 256 MB transactions faster and with very low commit latency, which allows more concurrency and higher parallelization. As a result, system throughput improves by about 2.8x.
+BOLT commits the 5 GB and 256 MB transactions faster and with very low commit latency, which allows more concurrency and higher parallelization. As a result, system throughput improves by about 3x.
 
 #### Sub-Experiment 4: Small-Sized Transactions Workload
 
-We measure the performance penalty that BOLT may add for computing the CRC checksum for events written into the binlog `IO_cache`. With BOLT enabled, events are written into memory with checksum ON, while if BOLT is disabled, events are written into cache without computing a checksum; the checksum is then computed again when copied into the binlog file. We don't anticipate this to introduce any performance penalty, as CRC computation is fast and the bottleneck on the binlog lies in the commit codepath, not the write. This experiment runs Sysbench without any modifications, using normal-sized binlog transactions.
+We measure whether BOLT adds any overhead to small-sized transactions. With BOLT enabled, events are written into the binlog cache without a checksum, exactly as when BOLT is disabled. The checksum is computed once, when the events are copied from the cache into the binlog file. 
 
 | BOLT | Elapsed (s) | Throughput (MB/s) |
 | --- | --- | --- |
-| ON | 1810 | 23.6 |
-| OFF | 1810 | 23.7 |
+| ON | 1810 | 23.74 |
+| OFF | 1810 | 23.76 |
 
 As expected, there is no meaningful difference between ON and OFF. The CRC computation adds no overhead.
 
@@ -129,9 +129,7 @@ BOLT also writes the CRC when the file is spilled to disk. This experiment is de
 
 | BOLT | Elapsed (s) | 12 MB Trxs Count | Throughput (MB/s) |
 | --- | --- | --- | --- |
-| ON | 1810 | 472 | 16.6 |
-| OFF | 1810 | 468 | 16.5 |
+| ON | 1810 | 2482 | 16.59 |
+| OFF | 1810 | 2499 | 16.56 |
 
 Similar to Sub-Experiment 4, there is no overhead.
-
----

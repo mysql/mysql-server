@@ -2,146 +2,213 @@
 
 ### Functional requirements
 
-**FR1**. The optimization must create a dedicated directory named `#binlog_temp_files` for storing session binlog cache temp files, located in the same directory as the binlog files so that promoting a temp file into the binlog sequence is a metadata-only operation on the same filesystem.
+#### The binlog temp files directory and the spilled files
 
-**FR2.** The optimization must create the `#binlog_temp_files` directory during binlog initialization at startup, after the binlog directory is known and before the server accepts connections.
+**FR1.** The optimization must store the spilled files that may be promoted in a dedicated directory, `<binlog directory>/#binlog_temp_files/<binlog base name>`, so that promoting a file into the binlog sequence is a rename on the same filesystem. Servers that share a binlog directory have different base names, so each server uses only its own subdirectory. A binlog cache that is not rewritten into the binlog file form spills into `tmpdir`, as without the optimization.
 
-**FR2.1.** If `#binlog_temp_files` already exists at startup, the server must clean up its managed temp files according to FR28.5 through FR28.8.
+**FR2.** At startup, when the binlog is ON, the server must check the directory and clean up leftover spill files according to FR5.5 through FR5.8, regardless of the optimization's setting. When the optimization is ON, the server must create the directory before it accepts connections.
 
-**FR3**. The optimization must exclude the `#binlog_temp_files` directory from schema-visible listings, such as `SHOW DATABASES` and `information_schema`, so that it does not appear as a schema.
+**FR2.1.** Setting `binlog_large_transaction_optimization_enabled` to ON must create the directory if it does not exist.
 
-**FR4.** The optimization must assign temp files unique filenames to avoid conflicts.
+**FR3.** The `#binlog_temp_files` directory must not appear as a schema, for example in `SHOW DATABASES` or `information_schema`.
 
-**FR5.** The optimization must provide a global, dynamically settable system variable of boolean type, `binlog_large_transaction_optimization_enabled`, that turns the optimization ON or OFF, with a default of ON. Changes must take effect for subsequent transactions across all existing and new sessions without a server restart.
+**FR4.** Every spilled file must get a unique name.
 
-**FR5.1.** When `binlog_large_transaction_optimization_enabled` is set to OFF, every transaction must commit through the standard code path.
+**FR5.** The spilled files must be on the same filesystem as the binlog files.
 
-**FR6**. The optimization must provide a global, dynamically settable threshold, `binlog_large_transaction_optimization_threshold`, that controls the spilled size above which a transaction is committed through the optimization's code path. Changes must take effect for subsequent transactions across all existing and new sessions without a server restart.
+**FR5.1.** Operators must account for the binlog volume space that concurrent large transactions use. Without the optimization, these spilled files are in `tmpdir`.
 
-**FR6.1.** The threshold is only evaluated when `binlog_large_transaction_optimization_enabled` is set to ON. When the optimization is disabled, no transaction qualifies for the optimized code path regardless of the threshold value.
+**FR5.2.** At startup, if the directory path is not a directory or is a symbolic link, the server must log an error and turn the optimization OFF. When the optimization is OFF, the server logs a warning instead.
 
-**FR7**. The optimization must use a default `binlog_large_transaction_optimization_threshold` of 128 MB, which must be appropriate for most workloads without further configuration.
+**FR5.3.** If the directory cannot be created or used at startup, the server must log an error and turn the optimization OFF. When the optimization is OFF, the server logs a warning instead.
 
-**FR8**. The optimization must enforce a minimum `binlog_large_transaction_optimization_threshold` of 10 MB. Values below 10 MB must be rejected.
+**FR5.4.** A write failure on a spilled file during the transaction, such as a full disk, must be handled as on the standard binlog cache. A failure to create the spilled file when the cache is rewritten must fall back to the standard form.
 
-**FR9.** The optimization must commit a transaction through the optimization's code path when the transaction has spilled its binlog cache to a temp file and the spilled size exceeds `binlog_large_transaction_optimization_threshold`.
+**FR5.5.** A spilled file must be named `bolt_<server start time>_<serial>`, with lowercase hexadecimal numbers.
 
-**FR9.1.** When a transaction qualifies for the optimization, the commit must be finalized by promoting the temp file into the binlog sequence. The promoted file is renamed to the next sequential binlog file name (e.g., if the active binlog is `mysql_bin.000005`, the promoted file becomes `mysql_bin.000006`). The promoted file must then become the active binlog file and must use the existing `max_binlog_size` rotation behavior.
+**FR5.6.** Startup cleanup must delete only regular files whose names match `bolt_` followed by letters, digits and `_`. Every other entry must be left in place with a warning.
 
-**FR9.2.** Promoted files must be treated identically to standard binlog files with respect to `FLUSH BINARY LOGS`, `PURGE BINARY LOGS`, and `RESET BINARY LOGS AND GTIDS` . They appear in `SHOW BINARY LOGS`, are eligible for purge based on retention policy, and are removed on reset.
+**FR5.7.** Startup cleanup must delete each matching file and log how many it removed.
 
-**FR9.3.** When the optimization is enabled, the effective value of `binlog_large_transaction_optimization_threshold` is set to the maximum of `binlog_large_transaction_optimization_threshold` and `binlog_cache_size`. This constraint is enforced upon engine startup and on every SET statement that alters either variable.
+**FR5.8.** If startup cleanup cannot delete a matching file, the server must log a warning and leave the file in place. The file is never reused, and startup continues.
 
-**FR9.4.** When the optimization is enabled, if `binlog_large_transaction_optimization_threshold` is set to a value less than `binlog_cache_size`, the threshold is adjusted to match `binlog_cache_size` and the server must emit a warning indicating the adjustment.
+#### System and status variables
 
-**FR9.5**. When the optimization is enabled, if `binlog_cache_size` is set to a value greater than `binlog_large_transaction_optimization_threshold`, the threshold is adjusted to match `binlog_cache_size` and the server must emit a warning indicating the adjustment.
+**FR6.** The optimization must provide a global, dynamic boolean system variable, `binlog_large_transaction_optimization_enabled`, with a default of ON. A transaction must use the value it has at the transaction's first event.
 
-**FR10.** When a transaction has not spilled to a temp file, or its spilled size does not exceed `binlog_large_transaction_optimization_threshold`, the optimization must commit it through the standard code path and produce a binary log identical to what the standard path produces today.
+**FR6.1.** When `binlog_large_transaction_optimization_enabled` is OFF, every transaction must commit through the standard commit path.
 
-**FR11.** The optimization must not affect GTID generation or sequencing. The promoted file's transaction retains the GTID sequencing, which is assigned at commit time.
+**FR6.2.** Setting `binlog_large_transaction_optimization_enabled` to ON must fail, with a warning, when the binlog temp files directory cannot be used.
 
-**FR12**. The optimization must work correctly with both XA transactions (external XID) and non-XA transactions (internal XID).
+**FR7.** The optimization must provide a global, dynamic threshold, `binlog_large_transaction_optimization_threshold`. A transaction whose binlog cache size, without checksums, exceeds the threshold commits through the optimization's path. A transaction must use the value it has at the transaction's first event.
 
-**FR13.** The optimization must introduce a `Large_transaction_header_event` binlog event type whose purpose is to speed up recovery for large transactions by allowing the server to locate the terminating event directly, skipping reading the payload of the large transaction.
+**FR7.1.** The threshold has no effect while `binlog_large_transaction_optimization_enabled` is OFF.
 
-**FR13.1.** The optimization must write a `Large_transaction_header_event` into the promoted binlog file, recording the offset, type, and identity of the large transaction's terminating event. The terminating event contains either an internal XID (for transactions committed with two-phase commit) or an external XID (for XA PREPARE and XA COMMIT ONE PHASE transactions); a transaction whose terminating event carries no XID falls back to the standard code path.
+**FR8.** The default threshold must be 128 MiB.
 
-**FR14**. The optimization must compute the transaction's GTID at commit time and write the `Gtid_log_event`, write the `Previous_gtids_log_event` at the start of the file, and set the commit dependency tracking (`last_committed` / `sequence_number`) as when rotating to a new binlog file.
+**FR9.** The minimum threshold must be 10 MiB. A smaller value must be raised to 10 MiB, with a warning.
 
-**FR15**. The optimization must delete the temp file with no trace left in the binlog or the binlog index when a transaction is rolled back before promotion, since a rolled-back transaction is never written to the binlog file.
+**FR9.1.** The threshold must never be smaller than `binlog_cache_size`, whether the optimization is ON or OFF. This must hold at startup and after every change to either variable.
 
-**FR16.** The optimization must handle `ROLLBACK TO SAVEPOINT` which truncates the temp file to the byte offset recorded when the savepoint was established.
+**FR9.2.** Setting the threshold below `binlog_cache_size` must raise it to `binlog_cache_size`. While the optimization is ON, the server must also emit a warning to the client and the error log.
 
-**FR16.1.** When the optimization spills a large transaction to a temp file, all existing savepoint offsets must be adjusted to account for the reserved header space.
+**FR9.3.** Setting `binlog_cache_size` above the threshold must raise the threshold to match. While the optimization is ON, the server must also emit the same warning.
 
-**FR16.2.** When a savepoint rollback is activated and the remaining transaction size is larger than `binlog_large_transaction_optimization_threshold` then the spilled file is maintained and the optimization continues. Otherwise, it falls back to the standard code path of copying the transaction into the existing binlog file.
+**FR10.** The optimization must expose the status variable `Binlog_large_transaction_optimization_count`: the number of spilled files promoted since server startup.
 
-**FR17.** The optimization must evaluate fallback conditions and commit the transaction through the standard code path if any of the conditions are met, emit a diagnostic message, and increment `binlog_large_transaction_optimization_missed_count`.
+**FR11.** The optimization must expose the status variable `Binlog_large_transaction_optimization_missed_count`: the number of transactions that exceeded the threshold with the optimization ON but committed through the standard commit path, since server startup.
 
-**FR17.1.** The fallback conditions are: (1)`binlog_format` is not ROW; (2) the reserved header space is insufficient for the required header events; (3) binlog encryption is enabled;(4) binlog transaction compression is enabled; (5) `binlog_checksum` changed while the transaction was in progress, so the transaction's cached events do not match the current checksum configuration; (6) a single statement updated both transactional and non-transactional tables; (7) the transaction does not end with an XID or XA PREPARE event (it is not two-phase committed), so recovery could not verify its terminating event.
+**FR12.** Both status variables must appear in `SHOW GLOBAL STATUS` and `performance_schema.global_status`.
 
-**FR17.2**. A fallback transaction must produce the same event sequence in the active binlog as a transaction written through the standard code path. It achieves this by overriding the spilled `log_pos` and recomputing the checksum.
+#### Eligibility and the binlog cache
 
-**FR18.** The optimization must be safe against concurrent binlog rotation. The promotion workflow computes the binlog sequence number and writes header events while holding `LOCK_log`, ensuring no concurrent rotation can invalidate the promoted file's position in the sequence.
+**FR13.** A transaction must be eligible for the optimization at its first event only when the optimization is ON, no incident is pending, its first statement is logged in row format, binlog encryption is OFF and binlog transaction compression is OFF. Only an eligible transaction's cache is rewritten at its first spill.
 
-**FR19.** The optimization must not change the existing binlog crash recovery flow.
+**FR14.** `max_binlog_cache_size` must limit the bytes a transaction's binlog cache stores, including the checksum footers of a rewritten cache. The statement that crosses the limit must fail as on the standard commit path.
 
-**FR19.1.** As an exception to FR19 during recovery the optimization may skip reading a large transaction's payload by using the terminating-event offset recorded in `Large_transaction_header_event` to locate the terminating event directly. This reduces recovery time to constant time regardless of transaction size.
+#### Commit and promotion
 
-**FR19.2.** If the server crashes before promotion completes, recovery must discard the temp file and roll back the transaction.
+**FR15.** A transaction must commit through the optimization's path when it was eligible at its first event (FR13), its binlog cache was rewritten into the binlog file form at its first spill, its binlog cache size, without checksums, exceeds the threshold, and no fallback condition applies (FR26.1).
 
-**FR19.3.** If the server crashes after promotion completes but before InnoDB commit completes, recovery must roll forward the transaction.
+**FR15.1.** Such a transaction's commit must promote its spilled file into the binlog sequence as the next binlog file (for example, if the active binlog is `mysql_bin.000005`, the promoted file becomes `mysql_bin.000006`). The promoted file then becomes the active binlog file, and the existing `max_binlog_size` rotation applies to it.
 
-**FR19.4.** If the server crashes after both promotion and InnoDB commit complete, the transaction must be durable with no data loss.
+**FR15.2.** Promoted files must be treated like any binlog file by `FLUSH BINARY LOGS`, `PURGE BINARY LOGS` and `RESET BINARY LOGS AND GTIDS`. They appear in `SHOW BINARY LOGS`, are purged by the retention policy, and are removed on reset.
 
-**FR19.5.** Before adding a GTID to the executed set during optimized recovery, recovery must verify that the recorded offset identifies a complete binlog event whose event type and XID match the values recorded in `Large_transaction_header_event`.
+**FR15.3.** A promotion rotates the binlog, so it must purge expired binlog files as any rotation does, also when the promoted file is below `max_binlog_size`.
 
-**FR19.6.** If the verification required by FR19.5 fails, recovery must use the standard sequential scan for a large transaction.
+**FR16.** A transaction that never spilled, or whose binlog cache size, without checksums, does not exceed the threshold, must commit through the standard commit path and produce the binlog that the standard commit path produces.
 
-**FR19.7.** The skip of FR19.1 applies to the two recovery paths that read binary logs: binary log crash recovery and GTID reconstruction from binary logs. It applies whatever the `binlog_checksum` of the file and whatever `source_verify_checksum`: that option verifies the checksum of each event that is read, and the terminating event is read and verified. Relay log recovery and GTID reconstruction from relay logs are out of scope and use the standard sequential scan, because the header's offset refers to the source's binary log.
+**FR17.** The optimization must not affect GTID generation or ordering. The GTID of a transaction whose spilled file is promoted is assigned at commit.
 
-**FR20.** The optimization must ensure that a replica ignores the `Large_transaction_header_event` when it receives it, since the event is not relevant to the replica. This is achieved by marking `Large_transaction_header_event` as an ignorable event per the MySQL replication protocol.
+**FR18.** The optimization must work with XA transactions (external XID) and with transactions that use an internal XID.
 
-**FR21.** `START REPLICA UNTIL` must function identically regardless of whether the transaction was committed through the optimization or the standard code path.
+**FR19.** The optimization must write the promoted file's `Previous_gtids_log_event` and the transaction's `Gtid_log_event` at commit, and set the dependency tracking (`last_committed` / `sequence_number`) as for a new binlog file.
 
-**FR22.** When `binlog_format` is set to STATEMENT or MIXED, binlog encryption is enabled, or binlog transaction compression is enabled, the optimization must emit a warning to the error log indicating that the optimization is disabled and transactions will fall back to the standard code path.
+**FR20.** The promotion must be safe against concurrent rotation. It must run inside the binlog rotation, under `LOCK_log`.
 
-**FR23**. The optimization must expose a status variable, `binlog_large_transaction_optimization_count`, reporting the number of transactions that successfully executed the optimization's code path since server startup.
+**FR21.** The spilled file must be flushed and synced before the `before_commit` hook. A failure must roll the transaction back, return the error to the client, and log a warning that names the file. No other server may receive the transaction.
 
-**FR24**. The optimization must expose a status variable, `binlog_large_transaction_optimization_missed_count`, reporting the number of transactions that exceeded `binlog_large_transaction_optimization_threshold` but could not execute the optimization's code path since server startup.
+**FR22.** A promotion rotates the binlog, so the previously active binlog file can be closed below `max_binlog_size`.
 
-**FR25**. The optimization must expose `binlog_large_transaction_optimization_count` and `binlog_large_transaction_optimization_missed_count` through `SHOW GLOBAL STATUS` and `performance_schema.global_status`.
+**FR22.1.** Concurrent large transactions each get their own promoted binlog file.
 
-**FR26.** The optimization must not change the output of `SHOW BINARY LOGS`, `SHOW BINLOG EVENTS`, or `SHOW BINARY LOG STATUS`. Promoted files appear in these statements identically to standard binlog files.
+**FR23.** A promoted binlog file can hold other transactions after the large transaction: the other members of its commit group, and later transactions until the next rotation.
 
-**FR27.** The optimization must not change the output of the `performance_schema.log_status` table.
+#### Rollback
 
-**FR28.** The optimization must store its temp files on the same filesystem as the binlog files. [LTO-V3-R1]
+**FR24.** When a transaction is rolled back, its spilled file must be deleted, with no trace in the binlog or the binlog index.
 
-**FR28.1.** Operators must account for the additional binlog-volume space consumed by concurrent large transactions, which previously resided in the system `tmpdir`.
+**FR25.** `ROLLBACK TO SAVEPOINT` and the rollback of a failed statement must truncate the cache to the rollback point, also after the cache was rewritten.
 
-**FR28.2.** At startup, if the `#binlog_temp_files` path exists but is not a directory (e.g., a symlink or regular file), the server must log an error and disable the optimization.
+**FR25.1.** Rollback points must be logical positions in the standard form. A rewritten cache must map a rollback point to its physical offset without scanning the cache.
 
-**FR28.3.** If directory creation or permission acquisition fails at startup, the server must log an error and disable the optimization.
+**FR25.2.** Whether a transaction's spilled file is promoted after a rollback must be decided at commit, by its binlog cache size, without checksums.
 
-**FR28.4.** If disk space is exhausted while writing to a temp file during transaction execution, the write error is handled identically to a disk-full error on the standard binlog cache temp file.
+**FR25.3.** When a rewritten cache cannot be truncated at a rollback, the server must record an incident, so that rolled-back events never reach the binlog.
 
-**FR28.5.** A temp file created by the optimization must have a name matching the pattern `bolt_<unique_id>`, where `<unique_id>` is a lowercase identifier unique within `#binlog_temp_files` (BOLT stands for "Binlog Optimization for Large Transaction").
+**FR25.4.** After a rollback to the start of the transaction, the cache must be as at the start of a transaction: the next event decides eligibility again.
 
-**FR28.6.** Startup cleanup must accept for deletion only regular files whose basename matches the optimization's temp file naming pattern and must reject all other directory entries.
+#### Fallbacks and error handling
 
-**FR28.7.** Startup cleanup must delete each accepted file.
+**FR26.** When a fallback condition applies, the transaction must commit through the standard commit path, and the server must increment `Binlog_large_transaction_optimization_missed_count` and log the reason. The one exception is binlog transaction compression turned ON in the middle of a statement, before the cache spills. The transaction is then compressed and not counted.
 
-**FR28.8.** If startup cleanup cannot delete an accepted file, the server must log `ER_BINLOG_CANT_DELETE_FILE` from MYSQL_BIN_LOG and disable the optimization.
+**FR26.1.** The fallback conditions are:
+1. the transaction contains statement-format events;
+2. the transaction also changed a non-transactional table;
+3. binlog encryption is ON;
+4. binlog transaction compression is ON;
+5. `binlog_checksum` changed while the transaction was running;
+6. the reserved header region cannot hold the header events;
+7. a logging incident is pending;
+8. the binlog was closed while the transaction was running;
+9. the cache could not be rewritten into the binlog file form;
+10. `mysql.gtid_executed` cannot be written at the rotation, and the rotation keeps the active binlog file;
+11. a non-fatal error before the spilled file replaces the new binlog file.
 
-**FR29**. The optimization may cause binlog files to be rotated before they reach `max_binlog_size`. Because promoting a temp file inserts it into the binlog sequence as a new binlog file and forces a rotation, the previously active binlog file is closed early, potentially well below `max_binlog_size`, if a large transaction is issued while little or no concurrent workload is writing to the active file. This results in smaller than configured binlog files around large transactions.
+**FR26.1.1.** If binlog transaction compression is turned ON after the cache was rewritten into the binlog file form, the transaction is written to the binlog uncompressed. This is a known limitation.
 
-**FR29.1.** When multiple concurrent transactions each qualify for the optimization, each transaction is committed to its own promoted binlog file. The promoted files may be smaller than `max_binlog_size`. Each promoted file becomes part of the binlog sequence independently.
+**FR26.2.** A transaction that falls back must produce the same events in the binlog as on the standard commit path. Its cache is read back in the standard form, and the binlog writer sets `log_pos` and the checksum.
 
-**FR30**. The optimization may produce a binlog file that contains transactions other than the large transaction. Although the large transaction is generally the only transaction in the promoted binlog file, subsequent small transactions can also be written into it if the file's size is still below `max_binlog_size` before the next rotation occurs.
+**FR26.3.** A fallback must not raise a client error or warning.
+
+**FR27.** A fallback for a configuration reason (statement-format events, a non-transactional change, binlog encryption, binlog transaction compression) must be logged once per server run. Later fallbacks for the same reason must only be counted.
+
+**FR28.** The optimization must follow these error-handling rules. The externalization point is the `before_commit` hook.
+1. When a fallback condition of FR26.1 applies, the transaction must use the standard commit path, and the blocker must be counted and logged as a fallback reason.
+2. When the error is not fatal and the cache is still usable, the transaction must fall back to the standard commit path, and the fallback reason must be recorded.
+3. Before the externalization point, a fatal error or a cache that cannot be trusted must end the statement or the transaction with the error.
+4. After the externalization point, a non-fatal rotation failure must be handled by `binlog_error_action`, and a fatal error must abort the server, regardless of the value of `binlog_error_action`. A failure to write the Rotate event, or to open and prepare the new binlog file, is fatal.
+
+**FR28.1.** Every error-path message must say what happened, what the server did, and what the user can check.
+
+#### The large transaction header event and recovery
+
+**FR29.** The optimization must introduce an ignorable `Large_transaction_header_event` binlog event type that lets recovery locate a large transaction's terminating event and skip its body.
+
+**FR29.1.** The optimization must write a `Large_transaction_header_event` into the promoted binlog file, recording the offset, type and body of the transaction's terminating event. The body is the internal XID of an `Xid_log_event`, or the one-phase flag and the external XID of an `XA_prepare_log_event`. For any other terminating event the body is empty, and recovery reads the transaction sequentially.
+
+**FR30.** The optimization must not change the binlog crash recovery flow, except as FR30.1 allows.
+
+**FR30.1.** Recovery may skip a large transaction's body by using the terminating event offset in `Large_transaction_header_event`.
+
+**FR30.2.** If the server crashes before the promoted file is added to the binlog index, recovery must roll the transaction back, and startup must remove the spilled file.
+
+**FR30.3.** If the server crashes after the promoted file is added to the binlog index and before the engine commit completes, recovery must commit the transaction.
+
+**FR30.4.** If the server crashes after the engine commit, the transaction must be durable with no data loss.
+
+**FR30.5.** Before it skips a body, recovery must verify that the event at the recorded offset is complete and has the recorded type, length and body.
+
+**FR30.6.** If the verification of FR30.5 fails, recovery must read the transaction sequentially. If the reader cannot return to its position after the header, recovery must report an error, because it cannot continue from an unknown position.
+
+**FR30.7.** The skip applies to binlog crash recovery and to GTID reconstruction from binlogs, only when `source_verify_checksum` is OFF. With the option ON, recovery reads the transaction sequentially, so every event's checksum is verified. GTID reconstruction skips only when it collects all GTIDs of the file. Relay log recovery and GTID reconstruction from relay logs read transactions sequentially, because the header's offset refers to the source's binlog.
+
+**FR30.8.** A `Large_transaction_header_event` whose body is in a newer format version, or is malformed, must not stop any reader. Recovery must read the transaction sequentially.
+
+#### Replication and compatibility
+
+**FR31.** A replica must ignore the `Large_transaction_header_event`. The event is marked ignorable.
+
+**FR32.** `START REPLICA UNTIL` must work the same for transactions in promoted binlog files and in other binlog files.
+
+**FR33.** Promoted files must appear in `SHOW BINARY LOGS` and `SHOW BINARY LOG STATUS` like any binlog file. `SHOW BINLOG EVENTS` shows a promoted file's `Large_transaction_header_event`.
+
+**FR34.** The optimization must not change the output of `performance_schema.log_status`.
+
+**FR35.** The optimization must work with Group Replication and semi-synchronous replication. Readers of the binlog cache must see the standard form.
 
 ### Non-functional requirements
 
-**NFR1**. The optimization must not impact the durability invariant: InnoDB must never mark a large transaction executing on the optimization's code path as committed unless the corresponding promoted binlog file is durable on disk.
+#### Durability and crash safety
 
-**NFR2**. The optimization must preserve `sync_binlog` durability semantics. Before a temp file is promoted into the binlog sequence, it must be synced to durable storage, so that promotion does not weaken the durability guarantees provided by `sync_binlog`.
+**NFR1.** InnoDB must never mark a transaction whose spilled file is promoted as committed unless the promoted binlog file is durable.
 
-**NFR3**. The optimization must still recover consistently if MySQL users manually delete files from `#binlog_temp_files` at recovery time, since any file remaining in that directory is a temp file whose promotion into the binlog sequence did not complete, so its transaction was never committed.
+**NFR2.** The optimization must preserve `sync_binlog` durability. The spilled file must be synced before the flush stage, and the header block before the rename. After the rename, the binlog directory and the temp files directory must be synced before the promoted file is added to the binlog index.
 
-**NFR4**. The optimization must complete commit in constant time under `LOCK_log` regardless of transaction size.
+**NFR3.** Recovery must stay consistent if users delete files from the temp files directory. Any file there belongs to a transaction whose promotion did not complete, so the transaction was not committed.
 
-**NFR5**. The optimization must complete binlog crash recovery in constant time regardless of transaction size.
+#### Performance
 
-**NFR6**. The optimization must not degrade performance for transactions that do not exceed `binlog_large_transaction_optimization_threshold`.
+**NFR4.** The promotion must do work under `LOCK_log` that does not depend on the transaction's size.
 
-**NFR7**. The optimization must be safe under concurrent access, including multiple sessions spilling to their own temp files, concurrent commits from both the optimized and standard paths, and concurrent rotations.
+**NFR5.** With `source_verify_checksum` OFF, binlog crash recovery must not depend on the size of a transaction whose spilled file is promoted.
 
-**NFR8**. The optimization must not require changes to the MySQL client-server protocol or the replication protocol. The `Large_transaction_header_event` must be of ignorable event type, so it does not impact compatibility with existing replicas or binlog tooling.
+**NFR6.** The optimization must not degrade performance for transactions that do not exceed the threshold.
 
-**NFR9.** The optimization must be transparent to backup tools. Promoted binlog files must be readable and processable by these tools identically to standard binlog files, with no special handling required.
+#### Concurrency
 
-**NFR10.** The optimization must ensure that on downgrade to a version that does not recognize `Large_transaction_header_event`, the server safely skips the event because it is marked as ignorable.
+**NFR7.** The optimization must be safe under concurrent access: many sessions spilling to their own files, concurrent commits on both paths, and concurrent rotations.
 
-**NFR11.** The optimization must not require special migration steps on upgrade, since it only produces `Large_transaction_header_event` for new transactions committed after the upgrade. Binlog files produced before the upgrade remain unchanged and fully compatible.
+#### Compatibility
 
-**NFR12**. The optimization must create temp files with the same file permissions and ownership as binlog files, since they contain equally sensitive data and reside alongside the binlog files.
+**NFR8.** The optimization must not change the client-server protocol or the replication protocol. The `Large_transaction_header_event` must be ignorable, so that existing replicas and binlog tools work.
+
+**NFR9.** Promoted binlog files must be readable by backup and binlog tools like any binlog file.
+
+**NFR10.** A server version that does not know `Large_transaction_header_event` must skip it, because it is ignorable.
+
+**NFR11.** The optimization must need no migration on upgrade. Binlog files written before the upgrade stay unchanged.
+
+#### Security
+
+**NFR12.** Spilled files must have the permissions and ownership of binlog files, because they hold equally sensitive data.
