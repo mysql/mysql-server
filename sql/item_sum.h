@@ -772,10 +772,12 @@ class Item_sum : public Item_func {
     Common initial actions for window functions. For non-buffered processing
     ("on-the-fly"), check partition change and possible reset partition
     state. In this case return false.
-    For buffered processing, if windowing state m_do_copy_null is true, set
-    null_value to is_nullable() and return true.
+    For framing functions, if the frame is empty, set null_value to
+    is_nullable() and return true. Buffered execution supplies this state in
+    m_do_copy_null; execution without windowing steps checks the single row
+    against the frame when its input is ready.
 
-    @return true if case two above holds, else false
+    @return true if the frame is empty, else false
   */
   bool wf_common_init();
 

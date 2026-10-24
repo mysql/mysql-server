@@ -981,10 +981,17 @@ bool Item_sum::reset_wf_state(uchar *arg) {
 }
 
 bool Item_sum::wf_common_init() {
-  if (m_window->do_copy_null()) {
-    assert(m_window->needs_buffering());
-    null_value = is_nullable();
-    return true;
+  if (framing()) {
+    // Without a window iterator, test the frame here, after the input row
+    // (which may be the result of implicit aggregation) is available.
+    const bool empty_frame = m_window->has_windowing_steps()
+                                 ? m_window->do_copy_null()
+                                 : m_window->is_single_row_frame_empty();
+    if (empty_frame) {
+      assert(m_window->needs_buffering());
+      null_value = is_nullable();
+      return true;
+    }
   }
   if (m_window->at_partition_border() && !m_window->needs_buffering()) {
     clear();
@@ -5494,7 +5501,7 @@ my_decimal *Item_first_last_value::val_decimal(my_decimal *decimal_buffer) {
 }
 
 String *Item_first_last_value::val_str(String *str) {
-  if (wf_common_init()) return str;
+  if (wf_common_init()) return nullptr;
 
   if (compute()) return error_str();
 
@@ -5675,7 +5682,7 @@ my_decimal *Item_nth_value::val_decimal(my_decimal *decimal_buffer) {
 }
 
 String *Item_nth_value::val_str(String *str) {
-  if (wf_common_init()) return str;
+  if (wf_common_init()) return nullptr;
 
   if (compute()) return error_str();
 
@@ -6102,7 +6109,7 @@ void Item_sum_json::print(const THD *thd, String *str,
 String *Item_sum_json::val_str(String *str) {
   assert(fixed);
   if (m_is_window_function) {
-    if (wf_common_init()) return str;
+    if (wf_common_init()) return nullptr;
     /*
       For a group aggregate function, add() is called by Aggregator* classes;
       for window functions, which does not use Aggregator, it has to be called

@@ -1519,6 +1519,29 @@ const char *Window::printable_name() const {
   return m_name->val_str(nullptr)->ptr();
 }
 
+bool Window::is_single_row_frame_empty() {
+  assert(!has_windowing_steps());
+  const bool following_start =
+      m_frame->m_from->m_border_type == WBT_VALUE_FOLLOWING;
+  const bool preceding_end =
+      m_frame->m_to->m_border_type == WBT_VALUE_PRECEDING;
+  if (!following_start && !preceding_end) return false;
+
+  if (m_frame->m_query_expression == WFU_RANGE) {
+    // Compare only bounds that can exclude the sole row. In particular,
+    // CURRENT ROW includes it without reevaluating volatile ordering items.
+    // Typed comparisons preserve NULL peers, intervals and rounded offsets.
+    reset_order_by_peer_set();
+    return (following_start && before_frame()) ||
+           (preceding_end && after_frame());
+  }
+
+  assert(m_frame->m_query_expression == WFU_ROWS);
+  // Bounds have been validated and may be unsigned or execution-time values.
+  return (following_start && m_frame->m_from->border()->val_int() != 0) ||
+         (preceding_end && m_frame->m_to->border()->val_int() != 0);
+}
+
 void Window::reset_all_wf_state() {
   for (Item_sum &sum : m_functions) {
     for (bool framing : {false, true}) {
