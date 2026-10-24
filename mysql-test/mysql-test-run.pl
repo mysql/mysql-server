@@ -889,8 +889,23 @@ sub main {
   $parent_pid = $$;
   # mtr_error uses POSIX::_exit on Windows, which skips END; restore the
   # manifest from the parent before exiting.
+  #
+  # On native Win32 Perl the workers are fork-emulated pseudo-processes
+  # (threads of this process, with their own negative $$), and _exit in
+  # a worker ends the whole process, parent included, so neither the
+  # parent's hook nor its END block runs.  Such a worker therefore
+  # restores the manifest itself, from its copy of the manifest state.
+  # It cannot stop the other workers, whose mysqltest children may still
+  # write the manifest, so the backup is kept.  On Cygwin a worker is a
+  # real process and its _exit leaves the parent running; it must not
+  # touch the manifest.
   $mtr_report::pre_exit_hook = sub {
-    return unless $$ == $parent_pid;
+    if ($$ != $parent_pid) {
+      return unless IS_WIN32PERL;
+      $workers_unconfirmed = 1;
+      remove_manifest_file();
+      return;
+    }
     stop_workers();
     remove_manifest_file();
   };
