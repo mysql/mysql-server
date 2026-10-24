@@ -31,7 +31,7 @@ use lib "lib";
 use Fcntl ();
 use File::Temp qw(tempdir);
 use POSIX ();
-use Test::More tests => 192;
+use Test::More tests => 208;
 
 BEGIN { use_ok("My::Manifest"); }
 
@@ -1093,5 +1093,84 @@ SKIP: {
        "T14: a failed rename is reported");
   ok(!-e "$target.tmp.$$", "T14: temporary file removed after the failure");
   is(slurp("$target/keep"), "kept\n", "T14: target left untouched");
+  manifest_reset();
+}
+
+# ======================================================================
+# TEST 15: Restore with the backup kept (workers not confirmed stopped)
+#          — the original is copied back and .mtr_saved stays; the next
+#          run drops the backup when the manifest still equals it, and
+#          refuses to guess when a late write changed the manifest.  In
+#          the stub-only case the marker stays, so a late write is
+#          quarantined by the next run.
+# ======================================================================
+{
+  my $dir      = tempdir(CLEANUP => 1);
+  my $mf       = "$dir/mysqld.my";
+  my $original = "kept-backup-original\n";
+  manifest_reset();
+
+  # (a) Preserved manifest, nothing writes after the restore.  The
+  #     original is 0600; the copy must get that mode, not the umask's.
+  spew($mf, $original);
+  chmod 0600, $mf;
+  manifest_create($mf, $stub_content);
+  my @warnings;
+  {
+    local $SIG{__WARN__} = sub { push @warnings, $_[0] };
+    manifest_restore($mf, $stub_content, 1);
+  }
+  is(slurp($mf), $original, "T15a: original copied back");
+  is(slurp("$mf.mtr_saved"), $original, "T15a: backup kept");
+  SKIP: {
+    skip "permission bits are not meaningful on MSWin32", 1
+      if $^O eq 'MSWin32';
+    is((stat $mf)[2] & 07777, 0600, "T15a: copy keeps the 0600 mode");
+  }
+  ok(grep({ /kept its backup/ } @warnings),
+     "T15a: warning says the backup was kept");
+  manifest_restore($mf, $stub_content, 1);
+  is(slurp("$mf.mtr_saved"), $original, "T15a: second restore is a no-op");
+
+  manifest_reset();
+  my $err = do { eval { manifest_create($mf, $stub_content) }; $@ };
+  ok(!$err, "T15a: next run starts cleanly");
+  is(slurp($mf), $stub_content, "T15a: next run wrote the stub");
+  manifest_restore($mf, $stub_content);
+  is(slurp($mf), $original, "T15a: next run restores the original");
+  ok(!-e "$mf.mtr_saved", "T15a: next run leaves no .mtr_saved");
+
+  # (b) Preserved manifest, a late write after the restore.
+  manifest_reset();
+  manifest_create($mf, $stub_content);
+  {
+    local $SIG{__WARN__} = sub { };
+    manifest_restore($mf, $stub_content, 1);
+  }
+  spew($mf, "late-write\n");
+  manifest_reset();
+  $err = do { eval { manifest_create($mf, $stub_content) }; $@ };
+  like($err, qr/Both .* exist with different content/,
+       "T15b: next run refuses to guess after a late write");
+  is(slurp("$mf.mtr_saved"), $original, "T15b: backup still holds original");
+  manifest_reset();
+  unlink $mf, "$mf.mtr_saved";
+
+  # (c) Stub only, a late write after the restore.
+  manifest_create($mf, $stub_content);
+  manifest_restore($mf, $stub_content, 1);
+  ok(!-e $mf, "T15c: stub removed");
+  ok(-e "$mf.mtr_stub", "T15c: marker kept");
+  spew($mf, "late-write\n");
+  manifest_reset();
+  {
+    local $SIG{__WARN__} = sub { };
+    manifest_create($mf, $stub_content);
+  }
+  is(slurp("$mf.mtr_leftover"), "late-write\n",
+     "T15c: next run quarantines the late write");
+  ok(!-e "$mf.mtr_saved", "T15c: late write not preserved as a user file");
+  manifest_restore($mf, $stub_content);
+  ok(!-e $mf, "T15c: next run removes its stub");
   manifest_reset();
 }

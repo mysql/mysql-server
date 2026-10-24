@@ -52,6 +52,7 @@ use File::Temp qw/tempdir/;
 use Getopt::Long;
 use IO::Select;
 use IO::Socket::INET;
+use POSIX ();
 
 push @INC, ".";
 
@@ -205,6 +206,9 @@ my $shutdown_report    = 0;
 my $valgrind_reports   = 0;
 
 my $manifest_stub_content = "{ \"read_local_manifest\": true }";
+# True once stop_workers() gave up waiting for a worker; the manifest
+# is then restored with its backup kept (see remove_manifest_file).
+my $workers_unconfirmed = 0;
 
 my @valgrind_args;
 
@@ -2571,6 +2575,16 @@ sub start_exit_workers_ok {
 
 # Send Ctrl-C to any workers still running and reap them.  Every pid is
 # forgotten afterwards, so a second call (from the END hook) is a no-op.
+#
+# On Windows (and Cygwin) MTR does not wait indefinitely here, so that
+# a hung worker cannot delay the manifest restore.  It polls for up to
+# 10 seconds instead; a worker still running after that is reported and
+# forgotten, and $workers_unconfirmed makes remove_manifest_file() keep
+# the manifest backup, since that worker or its mysqltest child may
+# still write the manifest.  On native Win32 Perl the workers are
+# pseudo-processes (threads), and kill INT reaches one only when that
+# thread next polls its message queue, so on an abort the bound may
+# often expire; keeping the backup is harmless then.
 sub stop_workers {
   return unless %children;
   local $?;    # waitpid sets $?; keep MTR's exit status when called from END
@@ -2586,6 +2600,21 @@ sub stop_workers {
       delete $children{$pid};
     }
   } else {
+    # Bounded wait: 100 polls of 100 ms.  waitpid returns the pid once
+    # the worker has exited and -1 if it is no longer our child; both
+    # mean it is gone.
+    for (my $polls = 0 ; %children && $polls < 100 ; $polls++) {
+      foreach my $pid (keys %children) {
+        delete $children{$pid} if waitpid($pid, POSIX::WNOHANG()) != 0;
+      }
+      mtr_milli_sleep(100) if %children;
+    }
+    if (%children) {
+      $workers_unconfirmed = 1;
+      mtr_warning("Workers still running after 10 seconds: " .
+                  join(" ", sort keys %children) .
+                  "; the manifest backup will be kept");
+    }
     %children = ();
   }
 }
@@ -2600,7 +2629,8 @@ sub remove_manifest_file {
   my ($exename, $path, $suffix) = fileparse($exe_mysqld, qr/\.[^.]*/);
   my $manifest_file_path = $path.$exename.$manifest_file_ext;
 
-  manifest_restore($manifest_file_path, $manifest_stub_content);
+  manifest_restore($manifest_file_path, $manifest_stub_content,
+                   $workers_unconfirmed);
 }
 
 # Create config for one component

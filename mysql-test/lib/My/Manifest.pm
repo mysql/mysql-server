@@ -139,21 +139,44 @@ sub _content_matches {
   return defined $data && $data eq $content;
 }
 
-# _write_file($path, $content) — publish $content at $path atomically.
-# The content is written to a temporary file in the same directory
-# (<path>.tmp.<pid>) and renamed over $path, so a server reading the
-# manifest, or a run killed mid-write, never sees a partial file.
-# Dies on any open/print/close/rename failure, removing the temporary
-# file and leaving whatever was at $path untouched.
+# _slurp_raw($path) — the file's bytes.  Dies on open failure.
+sub _slurp_raw {
+  my ($path) = @_;
+  open my $fh, '<', $path or die "Could not read manifest $path: $!";
+  binmode $fh;
+  local $/;
+  my $data = <$fh>;
+  close $fh;
+  return defined $data ? $data : '';
+}
+
+# _write_file($path, $content [, $mode]) — publish $content at $path
+# atomically.  The content is written to a temporary file in the same
+# directory (<path>.tmp.<pid>) and renamed over $path, so a server
+# reading the manifest, or a run killed mid-write, never sees a partial
+# file.  If $mode is given, the temporary file gets those permission
+# bits before the rename, so $path never has any other mode.
+# Dies on any open/print/close/chmod/rename failure, removing the
+# temporary file and leaving whatever was at $path untouched.
+#
+# A run killed between the open and the rename leaves <path>.tmp.<pid>
+# behind; that is the same exposure as the earlier truncating write,
+# and $path itself is intact.  rename() replaces an existing target on
+# Windows as well (Perl's Win32 rename uses MOVEFILE_REPLACE_EXISTING).
 sub _write_file {
-  my ($path, $content) = @_;
+  my ($path, $content, $mode) = @_;
   my $tmp = "$path.tmp.$$";
   my $ok = eval {
     open(my $fh, '>', $tmp) or
       die "Could not create manifest file $tmp: $!";
+    binmode $fh;
     print $fh $content or
       die "Could not write manifest file $tmp: $!";
     close($fh) or die "Could not write manifest file $tmp: $!";
+    if (defined $mode) {
+      chmod($mode, $tmp) or
+        die "Could not set the mode of manifest file $tmp: $!";
+    }
     rename($tmp, $path) or
       die "Could not move manifest file $tmp to $path: $!";
     1;
@@ -185,6 +208,24 @@ sub manifest_create {
 
   my $backup = $manifest_file_path . ".mtr_saved";
   my $marker = $manifest_file_path . ".mtr_stub";
+
+  # A previous run that could not confirm its workers had stopped
+  # restored the original by copy and kept the backup (manifest_restore
+  # with $keep_backup).  If the manifest still equals that backup,
+  # nothing overwrote it afterwards: move the backup back over the
+  # manifest and treat it as the user's below.  A rename rather than an
+  # unlink, so that a process of that run still writing the manifest
+  # between the compare and here cannot destroy the original: either
+  # its write lands first and the rename replaces it, or it lands on
+  # the original afterwards, exactly as if nothing had been compared.
+  # If the files differ, the conflict check below refuses to guess,
+  # and the backup is kept.
+  if (-e $backup && -e $manifest_file_path &&
+      _slurp_raw($manifest_file_path) eq _slurp_raw($backup)) {
+    rename($backup, $manifest_file_path)
+      or die "Could not move redundant backup $backup to "
+           . "$manifest_file_path: $!";
+  }
 
   if (-e $backup) {
     # A backup from a prior run that died before restoring already
@@ -250,10 +291,20 @@ sub manifest_create {
   _write_file($manifest_file_path, $config_content);
 }
 
-# manifest_restore($manifest_file_path, $config_content)
+# manifest_restore($manifest_file_path, $config_content [, $keep_backup])
 #
 # Idempotent restore helper; never dies so the END-block safety net
-# always runs to completion.  Three states:
+# always runs to completion.
+#
+# $keep_backup is set when the caller could not confirm that every
+# process that may write the manifest has exited.  The original is then
+# copied back (atomically, via a temporary file) and <path>.mtr_saved
+# is kept, so a late write by such a process cannot destroy the only
+# copy; the next run drops the backup if the manifest still equals it.
+# In the stub-only case the marker is kept, so the next run quarantines
+# a manifest written after the stub was removed.
+#
+# Three states:
 #   1. $preserved_manifest set & file exists -> rename backup over manifest;
 #      clear state only on success so the END-block can retry.
 #   2. $manifest_stub_created true           -> unlink the MTR-written stub
@@ -269,13 +320,36 @@ sub manifest_create {
 #                                               everything succeeded.
 #   3. Neither                               -> true no-op (second call).
 sub manifest_restore {
-  my ($manifest_file_path, $config_content) = @_;
+  my ($manifest_file_path, $config_content, $keep_backup) = @_;
   croak "usage: manifest_restore(<path>, <content>)"
     unless defined $manifest_file_path && defined $config_content;
   # Servers detached by --start-and-exit keep reading the manifest.
   return if $handed_off;
 
-  if (defined $preserved_manifest && -e $preserved_manifest) {
+  if (defined $preserved_manifest && -e $preserved_manifest &&
+      $keep_backup) {
+    # Copy the original back and keep the backup.  The copy gets the
+    # backup's permission bits before it is renamed into place, so the
+    # manifest is never visible with other permissions (ownership is the
+    # caller's).
+    my $ok = eval {
+      my $mode = (stat $preserved_manifest)[2];
+      die "Could not stat manifest backup $preserved_manifest: $!\n"
+        unless defined $mode;
+      _write_file($manifest_file_path, _slurp_raw($preserved_manifest),
+                  $mode & 07777);
+      1;
+    };
+    if ($ok) {
+      warn "Restored manifest $manifest_file_path and kept its backup "
+         . "$preserved_manifest, because MTR could not confirm that "
+         . "all test processes had stopped\n";
+      $preserved_manifest = undef;
+    } else {
+      warn "Could not restore manifest from $preserved_manifest: $@";
+      # Leave $preserved_manifest set so the END-block safety net can retry.
+    }
+  } elsif (defined $preserved_manifest && -e $preserved_manifest) {
     # Same-directory rename: atomic, no copy fallback, so a failure leaves
     # the stub and backup intact for retry or next-run adoption.
     if (rename($preserved_manifest, $manifest_file_path)) {
@@ -316,7 +390,7 @@ sub manifest_restore {
         }
       }
     }
-    if ($ok && -e $marker) {
+    if ($ok && -e $marker && !$keep_backup) {
       unlink $marker
         or do { warn "Could not unlink marker $marker: $!";
                 $ok = 0 };
