@@ -455,8 +455,6 @@ BEGIN {
 END {
     my $current_id = $$;
     if ($parent_pid && $current_id == $parent_pid) {
-        remove_redundant_thread_id_file_locations();
-	clean_unique_id_dir();
         # Safety net: restore the pre-existing manifest on die/SIGINT.
         # Idempotent — no-op if the normal exit path already restored it.
         # The restore is skipped only after a successful --start-and-exit
@@ -468,8 +466,13 @@ END {
         # exit, so the restore runs after them.
         # Workers may still be running on an abort; stop them before
         # restoring the manifest so a test cannot overwrite it.
+        # This runs before the build-thread id cleanup below, which dies
+        # if it cannot read or delete the id file; that failure must not
+        # skip the restore.
         stop_workers();
         remove_manifest_file();
+        remove_redundant_thread_id_file_locations();
+	clean_unique_id_dir();
     }
     if (defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$) {
     if (!$opt_start_exit) {
