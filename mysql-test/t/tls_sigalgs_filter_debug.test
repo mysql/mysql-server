@@ -1,5 +1,6 @@
 --source include/have_debug.inc
 --source include/no_valgrind_without_big.inc
+--source include/have_tlsv13.inc
 
 # Test the signature-algorithm filter path using the debug hook
 # tls_sigalgs_reject_pss_pss, which rejects rsa_pss_pss_* tokens.
@@ -42,17 +43,20 @@ EOF
 
 # Restart the server with the debug hook enabled.  The X Plugin creates its
 # TLS context asynchronously, so wait until its interfaces are up.
---let $restart_parameters = restart: --debug=+d,tls_sigalgs_reject_pss_pss
+# Restrict the server to TLS 1.3 so that the handshake below cannot fall
+# back to TLS 1.2 if the filtered list broke TLS 1.3.
+--let $restart_parameters = restart: --debug=+d,tls_sigalgs_reject_pss_pss --tls-version=TLSv1.3
 --source include/restart_mysqld.inc
 if ($have_x)
 {
   --source include/xplugin_wait_for_interfaces.inc
 }
 
-# TLS must still be operational.
+# TLS 1.3 must still be operational.
 --connect (ssl_con,localhost,root,,,,,SSL)
 --replace_column 2 CIPHER
 SHOW STATUS LIKE 'Ssl_cipher';
+SHOW SESSION STATUS LIKE 'Ssl_version';
 
 # The effective list must not contain any rsa_pss_pss_* tokens.
 let $sigalgs = `SELECT VALUE FROM performance_schema.tls_channel_status
