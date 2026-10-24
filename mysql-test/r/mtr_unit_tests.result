@@ -250,7 +250,7 @@ ok 10 - 'character-sets-dir' generated
 ok 11 - 'MASTER_MY_PORT' generated
 ok 12 - group like 'mysqld' exists
 1..12
-1..185
+1..192
 ok 1
 ok 2
 ok 3
@@ -436,3 +436,10 @@ ok 182
 ok 183
 ok 184
 ok 185
+ok 186
+ok 187
+ok 188
+ok 189
+ok 190
+ok 191
+ok 192

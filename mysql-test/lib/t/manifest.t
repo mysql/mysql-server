@@ -31,7 +31,7 @@ use lib "lib";
 use Fcntl ();
 use File::Temp qw(tempdir);
 use POSIX ();
-use Test::More tests => 185;
+use Test::More tests => 192;
 
 BEGIN { use_ok("My::Manifest"); }
 
@@ -1052,5 +1052,46 @@ SKIP: {
   is((stat("$mf.mtr_lock"))[2] & 0777, 0666, "T13b: owner widened it to 0666");
   manifest_restore($mf, $stub_content);
   is(slurp($mf), $original, "T13b: original restored again");
+  manifest_reset();
+}
+
+# ======================================================================
+# TEST 14: The stub is published atomically — written to a temporary
+#          file beside the manifest and renamed into place, so the path
+#          only ever holds a complete file; no temporary file lingers,
+#          and a failed publish leaves the target untouched
+# ======================================================================
+{
+  my $dir = tempdir(CLEANUP => 1);
+  my $mf  = "$dir/mysqld.my";
+  manifest_reset();
+
+  # A leftover stub from a killed run is replaced, not rewritten in place.
+  spew($mf, $stub_content);
+  my $old_ino = (stat $mf)[1];
+  spew("$mf.mtr_stub", "");
+  manifest_create($mf, $stub_content);
+  is(slurp($mf), $stub_content, "T14: stub complete after publish");
+  SKIP: {
+    skip "inode numbers are not meaningful on Windows", 1
+      if $^O eq 'MSWin32';
+    isnt((stat $mf)[1], $old_ino,
+         "T14: stub replaced by rename, not rewritten in place");
+  }
+  my @tmp = glob("\Q$mf\E.tmp.*");
+  is(scalar @tmp, 0, "T14: no temporary file left after publish");
+  manifest_restore($mf, $stub_content);
+  ok(!-e $mf, "T14: stub removed on restore");
+
+  # The rename fails (the target is a non-empty directory): the publish
+  # dies, removes its temporary file and leaves the target as it was.
+  my $target = "$dir/target";
+  mkdir $target or die "mkdir $target: $!";
+  spew("$target/keep", "kept\n");
+  my $err = do { eval { My::Manifest::_write_file($target, "partial") }; $@ };
+  like($err, qr/Could not move manifest file/,
+       "T14: a failed rename is reported");
+  ok(!-e "$target.tmp.$$", "T14: temporary file removed after the failure");
+  is(slurp("$target/keep"), "kept\n", "T14: target left untouched");
   manifest_reset();
 }

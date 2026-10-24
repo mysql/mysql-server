@@ -139,15 +139,30 @@ sub _content_matches {
   return defined $data && $data eq $content;
 }
 
-# _write_file($path, $content) — create/truncate $path and write $content.
-# Dies on any open/print/close failure.
+# _write_file($path, $content) — publish $content at $path atomically.
+# The content is written to a temporary file in the same directory
+# (<path>.tmp.<pid>) and renamed over $path, so a server reading the
+# manifest, or a run killed mid-write, never sees a partial file.
+# Dies on any open/print/close/rename failure, removing the temporary
+# file and leaving whatever was at $path untouched.
 sub _write_file {
   my ($path, $content) = @_;
-  open(my $fh, '>', $path) or
-    die "Could not create manifest file $path: $!";
-  print $fh $content or
-    die "Could not write manifest file $path: $!";
-  close($fh) or die "Could not write manifest file $path: $!";
+  my $tmp = "$path.tmp.$$";
+  my $ok = eval {
+    open(my $fh, '>', $tmp) or
+      die "Could not create manifest file $tmp: $!";
+    print $fh $content or
+      die "Could not write manifest file $tmp: $!";
+    close($fh) or die "Could not write manifest file $tmp: $!";
+    rename($tmp, $path) or
+      die "Could not move manifest file $tmp to $path: $!";
+    1;
+  };
+  if (!$ok) {
+    my $err = $@;
+    unlink $tmp;
+    die $err;
+  }
 }
 
 # ---- public API -------------------------------------------------------
