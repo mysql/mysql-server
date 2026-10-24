@@ -206,8 +206,9 @@ my $shutdown_report    = 0;
 my $valgrind_reports   = 0;
 
 my $manifest_stub_content = "{ \"read_local_manifest\": true }";
-# True once stop_workers() gave up waiting for a worker; the manifest
-# is then restored with its backup kept (see remove_manifest_file).
+# True once stop_workers() gave up waiting for a worker, or reaped one
+# killed by a signal other than SIGINT; the manifest is then restored
+# with its backup kept (see remove_manifest_file).
 my $workers_unconfirmed = 0;
 
 my @valgrind_args;
@@ -2590,6 +2591,8 @@ sub start_exit_workers_ok {
 
 # Send Ctrl-C to any workers still running and reap them.  Every pid is
 # forgotten afterwards, so a second call (from the END hook) is a no-op.
+# A worker reaped after being killed by a signal other than SIGINT also
+# sets $workers_unconfirmed, as its cleanup did not stop its children.
 #
 # On Windows (and Cygwin) MTR does not wait indefinitely here, so that
 # a hung worker cannot delay the manifest restore.  It polls for up to
@@ -2611,6 +2614,18 @@ sub stop_workers {
       my $ret_pid = waitpid($pid, 0);
       if ($ret_pid != $pid) {
         mtr_report("Unknown process $ret_pid exited");
+      } elsif (($? & 127) && ($? & 127) != POSIX::SIGINT()) {
+        # Killed by a signal (e.g. SIGKILL from the OOM killer): its
+        # END cleanup never ran, so its mysqltest child may outlive it
+        # for about a second and still write the manifest.  A non-zero
+        # exit is not such a case: the worker's INT handler calls
+        # exit(1), which runs END.  Nor is death by the SIGINT sent
+        # above: Perl does not call the INT handler once END has begun,
+        # so that signal kills only a worker already in END, as when it
+        # has finished its last test and is exiting.
+        $workers_unconfirmed = 1;
+        mtr_warning("Worker $pid was killed by signal " . ($? & 127) .
+                    "; the manifest backup will be kept");
       }
       delete $children{$pid};
     }
