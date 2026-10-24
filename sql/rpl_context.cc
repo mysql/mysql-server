@@ -275,6 +275,7 @@ void Binlog_group_commit_ctx::reset() {
   m_must_lead_flush_group = false;
   m_assigned_flush_leader = false;
   m_purge_after_commit = false;
+  m_save_gtids_after_commit = false;
 }
 
 std::string Binlog_group_commit_ctx::to_string() const {
@@ -297,22 +298,18 @@ memory::Aligned_atomic<bool> &Binlog_group_commit_ctx::manual_ticket_setting() {
   return flag;
 }
 
-std::pair<bool, bool> Binlog_group_commit_ctx::aggregate_rotate_settings(
-    THD *queue) {
-  bool exceeded = false;
-  bool force_rotate = false;
+Binlog_group_commit_ctx::After_commit_settings
+Binlog_group_commit_ctx::aggregate_after_commit_settings(THD *queue) {
+  After_commit_settings settings;
   for (THD *thd = queue; thd; thd = thd->next_to_commit) {
-    exceeded |= thd->rpl_thd_ctx.binlog_group_commit_ctx().m_max_size_exceeded;
-    force_rotate |= thd->rpl_thd_ctx.binlog_group_commit_ctx().m_force_rotate;
+    const Binlog_group_commit_ctx &ctx =
+        thd->rpl_thd_ctx.binlog_group_commit_ctx();
+    settings.max_size_exceeded |= ctx.m_max_size_exceeded;
+    settings.force_rotate |= ctx.m_force_rotate;
+    settings.purge |= ctx.m_purge_after_commit;
+    settings.save_gtids |= ctx.m_save_gtids_after_commit;
   }
-  return {exceeded, force_rotate};
-}
-
-bool Binlog_group_commit_ctx::aggregate_purge_after_commit(THD *queue) {
-  for (THD *thd = queue; thd; thd = thd->next_to_commit)
-    if (thd->rpl_thd_ctx.binlog_group_commit_ctx().m_purge_after_commit)
-      return true;
-  return false;
+  return settings;
 }
 
 void Rpl_thd_context::init() {

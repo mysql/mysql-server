@@ -64,8 +64,6 @@ enum class Large_trx_fallback_reason {
   kChecksumMismatch,
   /** The reserved header region cannot hold the header events. */
   kReservedHeaderSpace,
-  /** mysql.gtid_executed could not be updated at the rotation. */
-  kGtidPersistence,
   /** The transaction has a logging incident to report. */
   kIncident,
   /** The binary log was closed while the transaction ran. */
@@ -110,6 +108,36 @@ binlog_cache_data *get_cache_for_large_trx_commit(
                  Large_trx_fallback_reason::kNone.
 */
 void record_large_trx_fallback(Large_trx_fallback_reason reason);
+
+/**
+  Saves into mysql.gtid_executed the GTIDs that the rotation for a large
+  transaction did not save in the flush stage (see
+  Spilled_file_rotation::save_gtids_of_last_binlog()).
+
+  The commit stage's leader calls this after the group commits and the
+  members are signaled. In the flush stage, the large transaction or another
+  member of its group can hold a lock on mysql.gtid_executed until the group
+  commits. A save in the flush stage would wait for the lock on
+  mysql.gtid_executed while holding LOCK_log, and the group could not commit
+  until the wait ended. A wait for a row lock ends after
+  innodb_lock_wait_timeout with an error, and a wait for a metadata lock
+  never ends. Saving after the group commits avoids this wait. With
+  binlog_order_commits=OFF, the members commit on their own sessions after
+  they are signaled, so the save can wait briefly for a member's row lock,
+  but no member waits for the save. After the commit, the leader does not
+  hold LOCK_log, so a save that waits for a lock does not block the binlog. The
+  save runs on the leader's session, as the save of the rotation at
+  max_binlog_size does.
+
+  A failed save does not fail the commit, which has completed. The save marks
+  its GTIDs as saved before it writes them, so after a failure no later save
+  writes them, and the table misses them until the next server start with the
+  binlog enabled. So a failure follows binlog_error_action, as a failed save
+  of the rotation at max_binlog_size does.
+
+  @param thd  The commit stage's leader.
+*/
+void save_gtids_after_large_trx_rotation(THD *thd);
 
 /*
   The promoted file's header events are written into a region reserved at the

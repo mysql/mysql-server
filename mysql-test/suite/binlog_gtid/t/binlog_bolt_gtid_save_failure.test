@@ -1,0 +1,145 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify a failed GTID save after a promotion. The rotation for a promotion
+# does not save the GTIDs of the previous binlog file into
+# mysql.gtid_executed. The commit saves them after the group commits. A
+# failure of that save does not fail the commit, and follows
+# binlog_error_action.
+#
+# === Requirements ===
+# R1. With IGNORE_ERROR, the spilled file is promoted: the binlog rotates,
+#     the promotion is counted, and no fallback is counted.
+# R2. With IGNORE_ERROR, the error log has the save's error, and no rotation
+#     error and no fallback reason.
+# R3. With IGNORE_ERROR, the client sees no error and no warning from the
+#     failed save.
+# R4. With IGNORE_ERROR, the transaction commits, and the server keeps
+#     logging.
+# R5. With ABORT_SERVER, the failed save aborts the server, and the error log
+#     says why. After the restart, the transaction is committed,
+#     gtid_executed holds every GTID committed before the abort, and
+#     mysql.gtid_executed holds the GTID of a MyISAM transaction that only
+#     the startup saved from the binlog.
+#
+# === Implementation ===
+# The upstream debug point gtid_executed_readonly makes the GTID save fail
+# once. A MyISAM insert before the large transaction leaves a GTID that
+# InnoDB does not store at commit.
+# The error log is redirected to its own file because ABORT_SERVER goes
+# through the crash handler, whose backtrace MTR would otherwise flag.
+#
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $save_enabled = `SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled`
+--let $save_threshold = `SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold`
+--let $save_error_action = `SELECT @@GLOBAL.binlog_error_action`
+--let $error_log = $MYSQLTEST_VARDIR/tmp/binlog_bolt_gtid_save_failure.err
+
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE t_myisam (id INT PRIMARY KEY) ENGINE=MyISAM;
+--echo # A MyISAM insert leaves a GTID that only a save writes into the table.
+INSERT INTO t_myisam VALUES (1);
+
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+
+--echo # Commit a large transaction while the GTID save fails, with IGNORE_ERROR.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG = "+d,gtid_executed_readonly";
+COMMIT;
+--echo # R3: the client sees no warning.
+SHOW WARNINGS;
+SET SESSION DEBUG = "-d,gtid_executed_readonly";
+
+--let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
+--let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $assert_text = R1: the spilled file is promoted.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = R1: no fallback is counted.
+--let $assert_cond = $missed_after = $missed_before
+--source include/assert.inc
+--let $assert_text = R1: the binlog rotates.
+--let $assert_cond = "$binlog_file_after" <> "$binlog_file_before"
+--source include/assert.inc
+
+--let $assert_file = $error_log
+--let $assert_text = R2: the error log has the save's error.
+--let $assert_select = \[ERROR\].*Could not save the GTIDs of the previous binlog file into the mysql\.gtid_executed table after the binlog rotation for a large transaction\. The error was 'Gtid table is not ready to be used\. Table 'mysql\.gtid_executed' cannot be opened\.'\. 'binlog_error_action' is set to 'IGNORE_ERROR', so the server keeps running\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R2: no rotation error is logged.
+--let $assert_select = An error occurred in the binlog rotation that promotes the spill binlog file of a large transaction
+--let $assert_count = 0
+--source include/assert_grep.inc
+--let $assert_text = R2: no fallback reason is logged.
+--let $assert_select = Could not optimize large transaction execution in the binlog because
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--let $assert_text = R4: the transaction commits.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+INSERT INTO t1 VALUES (4, 'after');
+--let $assert_text = R4: the server keeps logging into the promoted binlog file.
+--let $assert_cond = "[SHOW BINARY LOG STATUS, File, 1]" = "$binlog_file_after"
+--source include/assert.inc
+
+--let $gtid_executed_before = `SELECT @@GLOBAL.gtid_executed`
+
+--echo # R5: the same failure with ABORT_SERVER aborts the server.
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+INSERT INTO t_myisam VALUES (2);
+--let $myisam_gno = `SELECT GTID_SUBTRACT(@@GLOBAL.gtid_executed, '$gtid_executed_before')`
+--let $myisam_gno = `SELECT SUBSTRING_INDEX('$myisam_gno', ':', -1)`
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+BEGIN;
+INSERT INTO t1 VALUES (5, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (6, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (7, REPEAT('f', 4000000));
+# The large transaction takes the GTID number after the MyISAM insert.
+--let $gtid_executed_before = `SELECT CONCAT(@@GLOBAL.server_uuid, ':1-', $myisam_gno + 1)`
+SET SESSION DEBUG = "+d,gtid_executed_readonly";
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+COMMIT;
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--let $assert_file = $error_log
+--let $assert_text = R5: the error log says why the server aborts.
+--let $assert_select = Could not save the GTIDs of the previous binlog file into the mysql\.gtid_executed table after the binlog rotation for a large transaction\. The error was 'Gtid table is not ready to be used\. Table 'mysql\.gtid_executed' cannot be opened\.'\. Aborting the server\. The next server start with the binlog enabled saves the GTIDs into the table\.
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = R5: the transaction is committed.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 7
+--source include/assert.inc
+--let $assert_text = R5: gtid_executed holds every GTID committed before the abort.
+--let $assert_cond = "[SELECT @@GLOBAL.gtid_executed]" = "$gtid_executed_before"
+--source include/assert.inc
+--let $assert_text = R5: mysql.gtid_executed holds the second MyISAM transaction's GTID.
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.gtid_executed WHERE source_uuid = @@GLOBAL.server_uuid AND interval_start <= $myisam_gno AND interval_end >= $myisam_gno] = 1
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1, t_myisam;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--eval SET GLOBAL binlog_error_action = $save_error_action
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log

@@ -60,6 +60,7 @@
 #include "sql/binlog_reader.h"  // IBasic_binlog_file_reader
 #include "sql/log_event.h"
 #include "sql/mysqld.h"
+#include "sql/rpl_gtid.h"            // gtid_state
 #include "sql/rpl_log_encryption.h"  // rpl_encryption
 #include "sql/sql_class.h"
 #include "sql/transaction_info.h"
@@ -73,7 +74,7 @@ namespace {
   reason. Entries must be string literals, so that .data() is NUL-terminated
   for the %s in ER_BINLOG_BOLT_LARGE_TRX_FALLBACK.
 */
-constexpr std::array<std::string_view, 12> kFallbackDetails{
+constexpr std::array<std::string_view, 11> kFallbackDetails{
     // kNone (never logged, record_large_trx_fallback() rejects it)
     "no fallback",
     // kStatementCache
@@ -89,8 +90,6 @@ constexpr std::array<std::string_view, 12> kFallbackDetails{
     // kReservedHeaderSpace
     "the header events of the new binlog file do not fit in the region "
     "reserved at the front of the spill binlog file",
-    // kGtidPersistence
-    "mysql.gtid_executed could not be updated at the rotation",
     // kIncident
     "the transaction has a logging incident to report",
     // kLogClosed
@@ -606,25 +605,9 @@ Spilled_file_promotion_result MYSQL_BIN_LOG::rotate_and_promote_spilled_file(
     promotion.fallback_reason = Large_trx_fallback_reason::kEncryption;
   } else if (!large_trx_cache_checksum_matches_binlog(cache_data)) {
     promotion.fallback_reason = Large_trx_fallback_reason::kChecksumMismatch;
-  } else if (thd->mdl_context.owns_equal_or_stronger_lock(
-                 MDL_key::TABLE, "mysql", "gtid_executed", MDL_SHARED_READ)) {
-    /*
-      The rotation saves the GTIDs of the active file into
-      mysql.gtid_executed on its own THD. When this transaction has used the
-      table, the save could wait on this transaction's own row locks until
-      innodb_lock_wait_timeout, with LOCK_log held, because this transaction
-      commits only after the rotation.
-    */
-    promotion.fallback_reason = Large_trx_fallback_reason::kGtidPersistence;
   } else {
     error = new_file_impl(false /*need_lock_log*/,
                           nullptr /*extra_description_event*/, promotion);
-    /* The GTID table could not be written, and the rotation kept the active
-       binary log file in use, as for any rotation: the transaction falls back
-       and is written into that file. */
-    if (error != 0 && promotion.fallback_reason ==
-                          Large_trx_fallback_reason::kGtidPersistence)
-      error = 0;
     /*
       The rotation runs after the before_commit hook, which can have
       externalized the transaction, for example to the other members in a
@@ -666,4 +649,41 @@ Spilled_file_promotion_result MYSQL_BIN_LOG::rotate_and_promote_spilled_file(
   if (promotion.fallback_reason != Large_trx_fallback_reason::kNone)
     record_large_trx_fallback(promotion.fallback_reason);
   return Spilled_file_promotion_result::kFellBack;
+}
+
+void save_gtids_after_large_trx_rotation(THD *thd) {
+  DBUG_TRACE;
+  DBUG_EXECUTE_IF("crash_bolt_before_gtid_save_after_commit", DBUG_SUICIDE(););
+  /*
+    The group has committed, so the client must not see an error or a
+    warning from the save. The save's own diagnostics area keeps them.
+  */
+  Diagnostics_area save_da(false);
+  thd->push_diagnostics_area(&save_da);
+  const int error = gtid_state->save_gtids_of_last_binlog_into_table();
+  char save_error[MYSQL_ERRMSG_SIZE];
+  if (save_da.is_error())
+    snprintf(save_error, sizeof(save_error), "%s", save_da.message_text());
+  else if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN)
+    snprintf(save_error, sizeof(save_error),
+             ER_THD(thd, ER_RPL_GTID_TABLE_CANNOT_OPEN), "mysql",
+             "gtid_executed");
+  else
+    snprintf(save_error, sizeof(save_error), "%s",
+             ER_THD(thd, ER_OOM_SAVE_GTIDS));
+  thd->pop_diagnostics_area();
+  if (error == 0) return;
+
+  if (binlog_error_action == ABORT_SERVER) {
+    char abort_message[MYSQL_ERRMSG_SIZE + 512];
+    snprintf(abort_message, sizeof(abort_message),
+             "Could not save the GTIDs of the previous binlog file into the "
+             "mysql.gtid_executed table after the binlog rotation for a large "
+             "transaction. The error was '%s'. Aborting the server. The next "
+             "server start with the binlog enabled saves the GTIDs into the "
+             "table",
+             save_error);
+    exec_binlog_error_action_abort(abort_message);
+  }
+  LogErr(ERROR_LEVEL, ER_BINLOG_BOLT_GTID_SAVE_FAILED, save_error);
 }

@@ -1,0 +1,19 @@
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE t_myisam (id INT PRIMARY KEY) ENGINE=MyISAM;
+# A MyISAM insert leaves a GTID that only a save writes into the table.
+INSERT INTO t_myisam VALUES (1);
+# Crash after the commit, before the GTID save.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG = "+d,crash_bolt_before_gtid_save_after_commit";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+include/assert.inc [R1: the large transaction is committed once.]
+include/assert_grep.inc [R1: the large transaction is in the promoted binlog file.]
+include/assert.inc [R1: the promoted binlog file follows the previous one.]
+include/assert.inc [R2: gtid_executed holds every GTID committed before the crash.]
+include/assert.inc [R3: mysql.gtid_executed holds the MyISAM transaction's GTID.]
+DROP TABLE t1, t_myisam;

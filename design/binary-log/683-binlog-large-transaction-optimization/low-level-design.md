@@ -387,7 +387,7 @@ When the optimization is OFF, the CRC work is the same as without the optimizati
 
 ## 3. Committing a large transaction through `ordered_commit()`
 
-The second change is in the commit. A large transaction whose spilled file is promoted commits through the binlog group commit, as any transaction does. Only its flush stage differs. When a large transaction leads its flush group, the binlog is rotated during the flush stage, and the spilled file becomes the new binlog file. This section explains the idea, each step of the group commit, why the transaction must lead its flush group and how it becomes the leader, the promotion inside the rotation, crash safety, and the effect on the other transactions.
+The second change is in the commit. A large transaction whose spilled file is promoted commits through the binlog group commit, as any transaction does. Only its flush stage differs. When a large transaction leads its flush group, the binlog is rotated during the flush stage, and the spilled file becomes the new binlog file. This section explains the idea, each step of the group commit, why the transaction must lead its flush group and how it becomes the leader, the promotion inside the rotation, crash safety, the GTID save after the commit, and the effect on the other transactions.
 
 ### 3.1 Idea
 
@@ -395,7 +395,7 @@ A transaction whose spilled file is promoted commits through the standard binlog
 
 The main difference is in the flush stage. A standard transaction copies its cache into the active file. A BOLT transaction rotates the binlog instead, and its spilled file becomes the new file. The rotation creates the new file as usual, and before the new file is published, the spilled file takes its place, with the new file's header events copied in front of the transaction. The other members of the group are then written into the promoted file, after the BOLT transaction, and the whole group proceeds to the sync and commit stages as in any group commit.
 
-Everything else comes from the standard code. That includes commit order on replicas, the semi-sync and Group Replication hooks, the rotation itself (the crash safety of the new file, the index update, the GTID persistence), the purge after a rotation, and the `max_binlog_size` rotation after the commit.
+Everything else comes from the standard code. That includes commit order on replicas, the semi-sync and Group Replication hooks, the rotation itself (the crash safety of the new file and the index update), the purge after a rotation, and the `max_binlog_size` rotation after the commit.
 
 ### 3.2 `ordered_commit()` step by step
 
@@ -410,21 +410,21 @@ A BOLT transaction runs every step of `ordered_commit()`. The "Difference" colum
 | 1b | Binlog closed? | skips the flush and sync stages and goes to the commit stage | not reached, because with the binlog closed, `MYSQL_BIN_LOG::commit()` does not request the promotion, and records the fallback with `kLogClosed` (step 0a) | none in this step |
 | 1c | The leader fetches the queue, `fetch_and_process_flush_stage_queue()` | takes every session enrolled so far as its group, which closes the group. The flush queue is then empty again, so a session that arrives now enrolls into a new queue and becomes the leader of the next group, which flushes once this group leaves the flush stage. `ha_flush_logs()` makes the engines' prepare records durable, and the commit-order waiters are released | the same three actions. In addition, still holding the flush queue lock, the leader appends the first waiting BOLT candidate, if any, to the emptied queue as the next group's leader (`Commit_stage_manager::assign_next_flush_leader()`), and wakes it | new, the leader hand-off, which is a check for every group and a hand-off only when a BOLT candidate waits |
 | 1d | `assign_automatic_gtids_to_flush_group()` | assigns the group's automatic GTIDs | identical | none |
-| 1e | Write each member, `flush_thread_caches()` → `binlog_cache_data::flush()` | generates its logical timestamps, writes its Gtid event and copies its cache into the active file | only for a transaction that `MYSQL_BIN_LOG::commit()` marked for promotion and that leads its flush group (`is_flushing_group_leader()`), so it is the first member written. Other transactions are copied as usual. The BOLT transaction calls `rotate_and_promote_spilled_file()`, which first checks, before rotating, that the binlog is open, that encryption is OFF and that the checksum algorithm matches. If one check fails, there is no rotation, and the transaction is copied into the active file as usual. Otherwise the standard rotation `new_file_impl()` runs with a `Spilled_file_rotation`. It waits for the prepared XIDs, saves the GTIDs, writes the Rotate event into the active file and closes it, and `open_binlog()` writes the new file's header and calls `promote_spilled_file()`, which turns the spilled file into the new active binlog file, so nothing is copied. The rotation lets dump threads read only up to the end of the new file's header events. The cache is reset, keeping the file. `update_thd_next_event_pos()` records the position, and `set_purge_after_commit()` requests the purge | replaced, a rotation with the spilled file instead of the copy |
+| 1e | Write each member, `flush_thread_caches()` → `binlog_cache_data::flush()` | generates its logical timestamps, writes its Gtid event and copies its cache into the active file | only for a transaction that `MYSQL_BIN_LOG::commit()` marked for promotion and that leads its flush group (`is_flushing_group_leader()`), so it is the first member written. Other transactions are copied as usual. The BOLT transaction calls `rotate_and_promote_spilled_file()`, which first checks, before rotating, that the binlog is open, that encryption is OFF and that the checksum algorithm matches. If one check fails, there is no rotation, and the transaction is copied into the active file as usual. Otherwise the standard rotation `new_file_impl()` runs with a `Spilled_file_rotation`. It waits for the prepared XIDs, requests the GTID save after the commit instead of saving the GTIDs (`set_save_gtids_after_commit()`), writes the Rotate event into the active file and closes it, and `open_binlog()` writes the new file's header and calls `promote_spilled_file()`, which turns the spilled file into the new active binlog file, so nothing is copied. The rotation lets dump threads read only up to the end of the new file's header events. The cache is reset, keeping the file. `update_thd_next_event_pos()` records the position, and `set_purge_after_commit()` requests the purge | replaced, a rotation with the spilled file instead of the copy |
 | 1f | After each member, `set_trans_pos()`, `inc_prep_xids()` | records its position (its end in the active file) and counts it as prepared in that file | the same two actions. The position is the end of the new file, which is the end of the large transaction, and the transaction counts as prepared in the new file | none, applied to the new file |
 | 1g | Other members of the group | written into the active file | written into the promoted file, after the BOLT transaction | none |
 | 1h | `set_max_size_exceeded()` | marks the group when the active file is over `max_binlog_size` | identical, on the new file, which is usually over the limit | none |
 | 1i | `flush_cache_to_file()`, `after_flush` hook, `update_binlog_end_pos()` | flushes the binlog IO_CACHE. Semi-sync registers the position, and dump threads may read up to it | the same three actions, on the new active binlog file. Dump threads can read the BOLT transaction only from this step, because when the rotation made the promoted file the active file, it let dump threads read up to the end of the file's header events and no further | none in this step, because the rotation limits what dump threads can read |
-| 1j | Flush error, `handle_binlog_flush_or_sync_error()` | applies `binlog_error_action` | identical. A non-fatal rotation error reaches this step. A fatal one has already aborted the server, which section 5.3 covers in detail, in row 12 | none |
+| 1j | Flush error, `handle_binlog_flush_or_sync_error()` | applies `binlog_error_action` | identical. A non-fatal rotation error reaches this step. A fatal one has already aborted the server, which section 5.3 covers in detail, in row 11 | none |
 | 2 | Stage #2 (sync), sync delay, `sync_binlog_file()`, end position when `sync_binlog=1` | fsyncs the active file | identical, on the new active binlog file. The BOLT transaction's part is already durable, because its body was synced in `MYSQL_BIN_LOG::commit()`, and its header block was synced while the spilled file was promoted, before the rename | none |
 | 3 | Stage #3 (commit), `call_after_sync_hook()`, `process_commit_stage_queue()` | runs the `after_sync` hook, commits in the engines in order and adds the GTIDs to `gtid_executed` | identical | none |
 | 4 | After-commit stage, `process_after_commit_stage_queue()` | runs the `after_commit` hook | identical | none |
 | 5 | `signal_done()`, `finish_commit()` | wakes the followers and cleans up the session | identical | none |
-| 6 | Rotation at `max_binlog_size` and purge, `rotate()`, `auto_purge()` | rotates when the active binlog file is over `max_binlog_size` after the group is written, then purges expired binlog files | the same rotation and purge. The rotation in the flush stage does not purge, so step 1e always requests a purge after a BOLT rotation. When the promoted file is over `max_binlog_size`, the binlog rotates again here, and that rotation purges as usual. Otherwise the requested purge runs here (`aggregate_purge_after_commit()`), without `LOCK_log` | new, a purge is always requested after a BOLT rotation |
+| 6 | GTID save, rotation at `max_binlog_size` and purge, `save_gtids_after_large_trx_rotation()`, `rotate()`, `auto_purge()` | rotates when the active binlog file is over `max_binlog_size` after the group is written, then purges expired binlog files | first, when a BOLT rotation ran in the flush stage, saves the GTIDs of the previous file into `mysql.gtid_executed` on the leader's session, without `LOCK_log`, as section 3.8 describes. Then the same rotation and purge. The rotation in the flush stage does not purge, so step 1e always requests a purge after a BOLT rotation. When the promoted file is over `max_binlog_size`, the binlog rotates again here, and that rotation purges as usual. Otherwise the requested purge runs here, without `LOCK_log`. One pass over the group, `aggregate_after_commit_settings()`, collects the requests for the GTID save and the purge, together with the existing rotation requests | new, the GTID save after a BOLT rotation, and a purge always requested after a BOLT rotation |
 
 If the BOLT transaction falls back when it is written, it is written as a standard transaction, into the active file, or into the new file that the rotation created when the rotation already ran. Section 5 lists these cases.
 
-The code of `ordered_commit()` changes only for the purge request and debug points. The BOLT logic sits in three places around it. Before `ordered_commit()`, `MYSQL_BIN_LOG::commit()` decides on the promotion and marks the transaction. At flush stage enrollment, the transaction is made the leader of its flush group. In the flush stage, the copy of the group's first member is replaced by a rotation, and the rotation reuses the standard `new_file_impl()` and `open_binlog()` with a few additions for the promotion. All other steps run the standard code unchanged.
+The code of `ordered_commit()` changes only for the purge request, the GTID save after a BOLT rotation, and debug points. The BOLT logic sits in three places around it. Before `ordered_commit()`, `MYSQL_BIN_LOG::commit()` decides on the promotion and marks the transaction. At flush stage enrollment, the transaction is made the leader of its flush group. In the flush stage, the copy of the group's first member is replaced by a rotation, and the rotation reuses the standard `new_file_impl()` and `open_binlog()` with a few additions for the promotion. All other steps run the standard code unchanged.
 
 ### 3.3 Why the rotation runs in the flush stage
 
@@ -433,7 +433,7 @@ Transactions get their place in the binlog in the flush stage, where the leader 
 Two parts of the rotation differ for a BOLT transaction:
 
 - The dependency tracker restarts with the promoted file before the BOLT transaction's logical timestamps are generated, so the BOLT transaction is a parallelization barrier for the replica's parallel applier.
-- The rotation saves the previous file's GTIDs into `mysql.gtid_executed` with `current_thd` unset, so the GTID table code uses its own THD. The rotation runs inside the BOLT transaction's commit, and a write on the BOLT session would commit that transaction early.
+- The rotation does not save the previous file's GTIDs into `mysql.gtid_executed`. The commit stage's leader saves them after the group commits, as section 3.8 describes.
 
 ### 3.4 Why the BOLT transaction must lead its group
 
@@ -459,7 +459,7 @@ Two details keep the hand-off safe. Only the leader of the flush group may promo
 
 The promotion is one extra step inside a standard binlog rotation. The rotation closes the active file and creates the new file as usual. The promotion then replaces the new file with the spilled file, and the rotation finishes as usual by adding the new file to the binlog index.
 
-1. `new_file_impl()` waits for the prepared transactions, saves the active file's GTIDs (`save_gtids_of_last_binlog()`), writes the Rotate event into the active file, and closes it.
+1. `new_file_impl()` waits for the prepared transactions. It does not save the active file's GTIDs, because `save_gtids_of_last_binlog()` requests the save after the commit instead. It writes the Rotate event into the active file, and closes it.
 2. `open_binlog()` records the new file's name in the purge index, creates the new file, writes its header events (the `Format_description_log_event` and the `Previous_gtids_log_event`), and rotates the dependency tracker, as for any rotation.
 3. `promote_spilled_file()`, called through `replace_new_file_with_spilled_file()`:
    1. checks again, under `LOCK_log`, that encryption is OFF and that the checksum algorithm matches;
@@ -495,14 +495,61 @@ When the rotation starts, the BOLT transaction is prepared in the engines and it
 | Crash | State on disk | At restart |
 |---|---|---|
 | Before step 1 | The active file is the last binlog file and holds no event of the BOLT transaction. | Recovery finds no XID for the BOLT transaction, so the engine rolls the transaction back. The startup cleanup of the temp files directory removes the spilled file. |
-| In step 1, after the GTIDs are saved | `mysql.gtid_executed` holds the active file's GTIDs. | As before step 1. Saving these GTIDs twice is harmless, because the executed GTID set is rebuilt from the table and the binlog together. |
 | In step 1, after the Rotate event | The active file ends with a Rotate event to a file not in the index. | As before step 1, as for any interrupted rotation. |
 | In steps 2 and 3, before the rename | The new file exists and holds only its header events. Its name is in the purge index, and not in the binlog index. The spilled file may already hold its header block. | Startup removes the new file through the purge index, and the cleanup removes the spilled file. Recovery scans the active file, and the transaction is rolled back. |
 | In step 3, after the rename | The spilled file has replaced the new file, or, if the rename was not durable yet, either file is still in place. The name is in the purge index only. | Startup removes the file at the new name through the purge index, and the cleanup removes a spilled file that was not renamed. The transaction is rolled back. |
 | After step 4 | The new file is in the binlog index and holds the whole transaction, even if its name is still in the purge index. | The new file is the last binlog file. Recovery reads the new file, skips the body using the `Large_transaction_header_event`, finds the XID, and commits the transaction. A transaction ended by XA PREPARE stays prepared. |
 | After the engine commit, or around the rotation at `max_binlog_size` after the commit stage | The transaction is committed in the engines and the binlog. | If the new file is still the last binlog file, recovery scans it as after step 4, skips the body using the `Large_transaction_header_event`, and finds the transaction already committed. An interrupted rotation at `max_binlog_size` is handled as for any rotation. |
 
-### 3.8 Effect on standard transactions
+### 3.8 Saving the GTIDs of the previous file
+
+At every rotation, the server saves into `mysql.gtid_executed` the GTIDs of the active file that the table does not hold yet (`Gtid_state::save_gtids_of_last_binlog_into_table()`). A BOLT rotation does not save them in the flush stage. The BOLT transaction and the other members of its group may hold locks on `mysql.gtid_executed`, and they release them only when the group commits. A save in the flush stage would wait for such a lock while holding `LOCK_log`. A wait for a row lock ends after `innodb_lock_wait_timeout` with an error, and a wait for a metadata lock never ends. So the leader of the commit stage saves the GTIDs on its own session after the group commits, without `LOCK_log` and before the purge, in the same place where the rotation at `max_binlog_size` saves them. With `binlog_order_commits` OFF, the members commit on their own sessions after the leader signals them, so the save can wait briefly for a member's row lock, but no member waits for the save. Between the rotation and this deferred save, the table may miss GTIDs that are in the binlog, and this section shows that a crash in that window loses nothing that the existing server keeps. Consistent, below, means that the storage engine, the binlog files and `mysql.gtid_executed` agree after the restart.
+
+#### Groups before the BOLT-led group
+
+The groups that committed before the BOLT-led group wrote their transactions into the previous file, and binlog crash recovery reads only the last binlog file, which is the promoted file. These groups do not risk a GTID that `mysql.gtid_executed` never collects, because the BOLT rotation calls `wait_for_prep_xids()` before it creates the new file. A transaction stops counting as prepared only after it commits in the storage engine and its GTID is added to the executed GTID set (`process_commit_stage_queue()`, or `finish_commit()` when `binlog_order_commits` is OFF). So when the BOLT rotation creates the new file, no transaction in the previous file is still prepared, and the new file's `Previous_gtids_log_event`, which the promoted file copies, holds every GTID of these groups.
+
+After a crash with the binlog ON, startup reads the GTIDs of these groups from the promoted file's `Previous_gtids_log_event` and saves the ones that the table misses, so these groups are consistent whether or not the deferred save ran. After a crash with the binlog OFF, InnoDB recovery writes the GTIDs of their InnoDB transactions into the table from the undo logs. Only the GTIDs of their transactions on other storage engines are missing from the table, when the crash happens before the deferred save. The existing server has the same loss for such transactions, and BOLT only extends the window in which it can happen.
+
+#### The BOLT-led group after a crash
+
+The BOLT transaction is prepared in the storage engine before the flush stage, and a crash can happen before or after each of the later steps.
+
+| # | Crash point | Restart with the binlog ON | Restart with the binlog OFF |
+|---|---|---|---|
+| 1 | Before the rotation | The BOLT transaction is not in the binlog, and binlog crash recovery rolls it back. Consistent | The storage engine rolls back every prepared transaction, the BOLT transaction too. Consistent. The spilled file stays until a restart with the binlog ON removes it |
+| 2 | After the rotation, before the group commits in the storage engine | The group is in the promoted file, and binlog crash recovery commits it. Startup saves the GTIDs the table misses. Consistent | The group is rolled back, but it stays in the promoted file, so the binlog and the storage engine disagree |
+| 3 | After the group commits in the storage engine, before the deferred save | As row 2, with nothing left to commit. Consistent | The group is committed. InnoDB recovery writes the GTIDs of its InnoDB transactions into the table, and the GTIDs of its transactions on other storage engines are missing |
+| 4 | After the deferred save | As after any rotation. Consistent | Consistent |
+
+With the binlog ON, the BOLT-led group is consistent at every crash point. With the binlog OFF, rows 2 and 3 have the same losses that the existing server has for any group that crashes at the same point, so the deferred save adds none.
+
+#### The BOLT-led group after a fallback
+
+A fallback is BOLT giving up on the promotion. The BOLT transaction commits through the standard commit path, and the server keeps running.
+
+| # | Fallback | What happens |
+|---|---|---|
+| 1 | Before the rotation | BOLT does not rotate the binlog, so no save is deferred. The BOLT transaction is copied into the active file, and the next rotation saves its GTID as for any transaction |
+| 2 | After the rotation, into the new file | The rotation in the flush stage does not save. The BOLT transaction is copied into the new file, and the deferred save runs after the commit, as after a promotion |
+
+The deferred save runs whenever the BOLT rotation ran, regardless of whether the spilled file was promoted.
+
+#### The BOLT-led group after a failure
+
+A failure is an error that the server handles while it keeps running, by closing the binlog, by logging, or by aborting on purpose.
+
+| # | Failure | What happens |
+|---|---|---|
+| 1 | Non-fatal rotation failure, with `binlog_error_action=IGNORE_ERROR` | The binlog is closed. The deferred save still runs after the commit, because the save does not need an open binlog |
+| 2 | Non-fatal rotation failure, with `binlog_error_action=ABORT_SERVER`, or a fatal error after the `before_commit` hook | The server aborts before the deferred save, and recovers as after a crash in row 2 |
+| 3 | The deferred save cannot write `mysql.gtid_executed`, because the table cannot be opened or written, or the server runs out of memory | The group is committed and the file stays promoted. The save marks the GTIDs as saved before it writes them, as the save of the rotation at `max_binlog_size` and the save at shutdown do, so no later save writes them. The table then misses them until the next server start with the binlog ON, which saves them from the promoted file's `Previous_gtids_log_event`. A restart with the binlog OFF, or a clone of the server, would miss them. So the failure follows `binlog_error_action`, as a failed save of the rotation at `max_binlog_size` does. With `ABORT_SERVER`, the server aborts, and the restart saves the GTIDs. With `IGNORE_ERROR`, the server logs an error and keeps running |
+
+#### Consecutive saves
+
+The BOLT-led group releases `LOCK_log` when it leaves the flush stage, so a standard rotation, or the deferred save of the next BOLT rotation, can save the GTIDs before this deferred save. Each save writes only the GTIDs that the table misses and marks them as saved under the GTID state lock, so the later save writes only what the earlier one left, and no GTID is saved twice.
+
+### 3.9 Effect on standard transactions
 
 BOLT transactions go through the same three stages of `ordered_commit()` as standard transactions. This subsection lists what a BOLT transaction costs them.
 
@@ -522,12 +569,11 @@ With semi-sync, the members wait until a replica has received the BOLT transacti
 
 The rotation that the large transaction triggers in the flush stage shares most of the standard binlog rotation code path. This section describes how the rotation code separates the steps that differ for a promotion from the steps that every rotation shares.
 
-`new_file_impl()` and `open_binlog()` run both standard rotations and promotions. The steps that differ between the two are behind an interface, `File_rotation` (`sql/binlog/file_rotation.h`). It is an abstract class with one virtual function per step. `new_file_impl()` and `open_binlog()` take a `File_rotation &` and call each step at its point in the rotation, so the rotation code needs no promotion-specific branch. There are two implementations. `Standard_file_rotation` does the standard rotation. `Spilled_file_rotation` does the promotion's version of each step, and also carries the promotion's information. The table lists the four steps in the order the rotation calls them:
+`new_file_impl()` and `open_binlog()` run both standard rotations and promotions. The steps that differ between the two are behind an interface, `File_rotation` (`sql/binlog/file_rotation.h`). It is an abstract class with one virtual function per step. `new_file_impl()` and `open_binlog()` take a `File_rotation &` and call each step at its point in the rotation, so the rotation code needs no promotion-specific branch. There are two implementations. `Standard_file_rotation` does the standard rotation. `Spilled_file_rotation` does the promotion's version of each step, and also carries the promotion's information. The table lists the three steps in the order the rotation calls them:
 
 | Step | `Standard_file_rotation` | `Spilled_file_rotation` |
 |---|---|---|
-| `save_gtids_of_last_binlog()` | `gtid_state->save_gtids_of_last_binlog_into_table()` | the same, with `current_thd` unset around it; the debug point `gtid_executed_readonly` keeps `current_thd` so that it can raise its error |
-| `record_gtid_persistence_fallback_reason()` | nothing | records `kGtidPersistence`, so the transaction falls back into the active file, which the rotation keeps |
+| `save_gtids_of_last_binlog()` | `gtid_state->save_gtids_of_last_binlog_into_table()` | does not save, and requests the save after the commit (`set_save_gtids_after_commit()`), as section 3.8 describes |
 | `replace_new_file_with_spilled_file()` | nothing, returns success | `promote_spilled_file()` |
 | `publish_end_position()` | `update_binlog_end_pos()` | publishes only the header end of a promoted file; otherwise `update_binlog_end_pos()` |
 
@@ -579,7 +625,6 @@ Every fallback is counted, and its reason is logged, so that a user can see why 
 | `kCompression` | binlog transaction compression is enabled |
 | `kChecksumMismatch` | binlog_checksum changed while the transaction was running |
 | `kReservedHeaderSpace` | the header events of the new binlog file do not fit in the region reserved at the front of the spill binlog file |
-| `kGtidPersistence` | mysql.gtid_executed could not be updated at the rotation |
 | `kIncident` | the transaction has a logging incident to report |
 | `kLogClosed` | the binlog was closed while the transaction was running |
 | `kRewriteFailed` | the binlog cache could not be rewritten into the spill binlog file |
@@ -599,6 +644,7 @@ Every case is handled by one of four rules. Which rule applies depends on whethe
    - When the cache cannot be truncated back at a rollback, after a failed statement or at ROLLBACK TO SAVEPOINT, an incident is recorded instead. The cache's content is discarded, and an incident event is written in place of the transaction.
 4. After the externalization point:
    - A non-fatal rotation failure is handled by `binlog_error_action`, as any flush-stage error is. The standard commit path then has no binlog file to write into, so no fallback is used. No transaction rollback is used either, because the transaction may already have left the server.
+   - A failed GTID save after the commit is also handled by `binlog_error_action`, because the group has committed and only the table misses the GTIDs.
    - A fatal error aborts the server, regardless of the value of `binlog_error_action`. Neither a fallback nor a transaction rollback is safe after a fatal error.
 
 The tables below list every failure in the order the steps run, with the rule that applies, the BOLT behaviour, and how the standard commit path handles the same kind of failure.
@@ -618,16 +664,16 @@ Before the externalization point:
 
 After the externalization point:
 
-Rows 10 to 14 happen during the rotation that promotes the spilled file.
+Rows 10 to 13 happen during the rotation that promotes the spilled file.
 
 | # | When | Failure | Rule | BOLT behaviour | Standard commit path behaviour |
 |---|---|---|---|---|---|
 | 9 | Flush stage, before the rotation | The binlog is closed, encryption is ON, or the checksum changed. | 1 | Not a failure. The binlog is not rotated, and the transaction is written into the active binlog file through the standard commit path. The fallback is counted and logged. | No such step. |
-| 10 | Flush stage, rotation, saving the GTIDs | The GTID table cannot be opened (`ER_RPL_GTID_TABLE_CANNOT_OPEN`). | 2 | When the active binlog file is below `max_binlog_size`, the rotation keeps it in use, and the transaction falls back into it. `new_file_impl()` still returns the error, and `rotate_and_promote_spilled_file()` turns the error and `kGtidPersistence` into the fallback. When the active binlog file is at or above `max_binlog_size`, the rotation fails instead, as in row 11. | The error is also logged, and the active file is kept when it is below `max_binlog_size`. |
-| 11 | Flush stage, rotation, before the new binlog file is opened | A non-fatal failure that row 10 does not cover, for example a failure to flush the active binlog file, or to save the GTIDs when the active binlog file is at `max_binlog_size`. | 4 | It is a rotation error, and `binlog_error_action` applies. | The same as any flush-stage error. |
-| 12 | Flush stage, rotation, any step | A fatal error. `new_file_impl()` raises two rotation failures as fatal: a failure to write the Rotate event into the active binlog file, and a failure to open the new binlog file after the active one is closed. The second includes every failure after the rename. | 4 | The server aborts through `exec_binlog_error_action_abort()`, regardless of the value of `binlog_error_action`. The error log message gives the fatal error's text, says why the server aborts, and says to fix the cause before restarting the server. | No such rule. On the standard commit path, every flush-stage error follows `binlog_error_action`. |
-| 13 | Flush stage, rotation, in `promote_spilled_file()`, before the rename | A non-fatal failure. Binlog encryption was turned ON or the checksum changed, the reserved region is too small, the new file's header events cannot be flushed or read, the header block cannot be built, written or synced, or the rename fails. | 2 | The transaction falls back and is written into the new binlog file. The cache is still usable, because none of these failures changes the data region of the spilled file, which the fallback copies. The session error is logged (`ER_BINLOG_BOLT_PROMOTION_ROTATION_ERROR`) and cleared first. | No such step. |
-| 14 | Flush stage, rotation, in `promote_spilled_file()`, after the rename | The directory sync or the reopen fails. | 4 | `new_file_impl()` raises the failure as fatal, so the server aborts, as in row 12. | The same error follows `binlog_error_action` on the standard commit path. |
+| 10 | Flush stage, rotation, before the new binlog file is opened | A non-fatal failure, for example a failure to flush the active binlog file or to generate the new binlog file's name. | 4 | It is a rotation error, and `binlog_error_action` applies. | The same as any flush-stage error. |
+| 11 | Flush stage, rotation, any step | A fatal error. `new_file_impl()` raises two rotation failures as fatal: a failure to write the Rotate event into the active binlog file, and a failure to open the new binlog file after the active one is closed. The second includes every failure after the rename. | 4 | The server aborts through `exec_binlog_error_action_abort()`, regardless of the value of `binlog_error_action`. The error log message gives the fatal error's text, says why the server aborts, and says to fix the cause before restarting the server. | No such rule. On the standard commit path, every flush-stage error follows `binlog_error_action`. |
+| 12 | Flush stage, rotation, in `promote_spilled_file()`, before the rename | A non-fatal failure. Binlog encryption was turned ON or the checksum changed, the reserved region is too small, the new file's header events cannot be flushed or read, the header block cannot be built, written or synced, or the rename fails. | 2 | The transaction falls back and is written into the new binlog file. The cache is still usable, because none of these failures changes the data region of the spilled file, which the fallback copies. The session error is logged (`ER_BINLOG_BOLT_PROMOTION_ROTATION_ERROR`) and cleared first. | No such step. |
+| 13 | Flush stage, rotation, in `promote_spilled_file()`, after the rename | The directory sync or the reopen fails. | 4 | `new_file_impl()` raises the failure as fatal, so the server aborts, as in row 11. | The same error follows `binlog_error_action` on the standard commit path. |
+| 14 | After commit, GTID save | The GTIDs of the previous file cannot be saved into `mysql.gtid_executed`, because the table cannot be opened or written, or the server runs out of memory. | 4 | The group has committed, and the file stays promoted. The save's own diagnostics area keeps the save's error out of the session. `binlog_error_action` applies, because the table misses the GTIDs until the next server start with the binlog ON, as section 3.8 describes. With `ABORT_SERVER`, the server aborts through `exec_binlog_error_action_abort()`. With `IGNORE_ERROR`, `ER_BINLOG_BOLT_GTID_SAVE_FAILED` is logged, and the server keeps running. | The rotation fails instead. When the active binlog file is below `max_binlog_size`, the rotation keeps it in use. Otherwise `binlog_error_action` applies. |
 | 15 | After commit, reset | The replacement standard-form cache cannot be allocated. | – | The transaction has committed. `Dummy_error_handler` keeps the error out of the session, and `ER_BINLOG_BOLT_CACHE_STANDARD_FORM_RESTORE_FAILED` is logged. The THD's fatal flag stays set until the next command. The next transaction's first event retries the replacement. If it fails again, that statement fails with out of memory (row 2), so the error is still reported, and there is no inconsistency or data loss. | The behaviour is the same. A failed reset logs `ER_BINLOG_CANT_RESIZE_CACHE`. |
 
 ## 6. Recovery
@@ -721,7 +767,7 @@ A failed seek to an already verified terminating event also returns `ERROR`, as 
 
 ### 6.5 Relay logs
 
-A replica receives the `Large_transaction_header_event` like any other event and writes it into its relay log. The applier skips it (`do_apply_event()` is a no-op, and the boundary parser ignores it). Relay log recovery and GTID reconstruction from relay logs read transactions sequentially.
+A replica receives the `Large_transaction_header_event` like any other event and writes it into its relay log. The applier treats it as it treats a `Previous_gtids_log_event`. `do_apply_event()` is a no-op, the event never spends `sql_replica_skip_counter`, it does not move the group position, and the parallel applier's coordinator handles it, not a worker. Relay log recovery and the recovery of the parallel applier also skip it, as they skip a `Previous_gtids_log_event`, and the boundary parser ignores it. Relay log recovery and GTID reconstruction from relay logs read transactions sequentially.
 
 ### 6.6 Error handling during recovery
 
@@ -786,8 +832,10 @@ Two atomic status counters report the optimization. `Binlog_large_transaction_op
 | `ER_BINLOG_BOLT_LARGE_TRX_FALLBACK_ONCE` | warning | the first fallback for a configuration reason in a server run | Could not optimize large transaction execution in the binlog because binlog encryption is enabled. The transaction used the standard commit path instead. Later fallbacks for this reason are only counted in Binlog_large_transaction_optimization_missed_count. |
 | `ER_BINLOG_BOLT_REWRITE_FAILED` | warning | the rewrite at the first spill fails with a non-fatal error | Could not rewrite the binlog cache of a large transaction into the binlog file form. The error was 'Error writing file '/var/lib/mysql/#binlog_temp_files/binlog/bolt_67163a2f_1c' (OS errno 28 - No space left on device)'. The transaction used the standard commit path instead. Check the binlog temporary files directory, for example its free space and permissions. |
 | `ER_BINLOG_BOLT_PROMOTION_ROTATION_ERROR` | warning | the promotion's rotation raised a non-fatal error, before the error is cleared | An error occurred in the binlog rotation that promotes the spill binlog file of a large transaction. The error was 'Error writing file '/var/lib/mysql/binlog.000042' (OS errno 28 - No space left on device)'. Check the binlog directory and the binlog temporary files directory. |
+| `ER_BINLOG_BOLT_GTID_SAVE_FAILED` | error | the GTID save after the commit of a BOLT-led group fails with `binlog_error_action=IGNORE_ERROR`, and the server keeps running | Could not save the GTIDs of the previous binlog file into the mysql.gtid_executed table after the binlog rotation for a large transaction. The error was 'Gtid table is not ready to be used. Table 'mysql.gtid_executed' cannot be opened.'. 'binlog_error_action' is set to 'IGNORE_ERROR', so the server keeps running. The next server start with the binlog enabled saves the GTIDs into the table. |
 | `ER_BINLOG_BOLT_SPILL_FILE_SYNC_FAILED` | warning | the spilled file cannot be flushed, truncated or synced before the `before_commit` hook, and the transaction is rolled back | Could not write or sync the spill binlog file '/var/lib/mysql/#binlog_temp_files/binlog/bolt_67163a2f_1c' of a large transaction (OS error 5 - Input/output error). The transaction is rolled back. Check the storage that holds the binlog temporary files directory for free space and I/O errors. |
 | `ER_BINLOG_LOGGING_NOT_POSSIBLE` (existing message, from `exec_binlog_error_action_abort()`) | error | a fatal error during the promotion's rotation aborts the server | Binary logging not possible. Message: A fatal error occurred while promoting the spill binlog file of a large transaction. The error was 'Can't open file: '/var/lib/mysql/binlog.000043' (errno: 24 - Too many open files)'. Aborting the server to avoid possible inconsistencies. Check the cause of this error before restarting the server. |
+| `ER_BINLOG_LOGGING_NOT_POSSIBLE` (existing message, from `exec_binlog_error_action_abort()`) | error | the GTID save after the commit of a BOLT-led group fails with `binlog_error_action=ABORT_SERVER`, and the server aborts | Binary logging not possible. Message: Could not save the GTIDs of the previous binlog file into the mysql.gtid_executed table after the binlog rotation for a large transaction. The error was 'Gtid table is not ready to be used. Table 'mysql.gtid_executed' cannot be opened.'. Aborting the server. The next server start with the binlog enabled saves the GTIDs into the table. |
 | `ER_BINLOG_BOLT_CACHE_STANDARD_FORM_RESTORE_FAILED` | warning | a rewritten cache cannot be replaced with a standard-form cache | Could not allocate memory for the binlog cache of a session after a large transaction. The session's next transaction retries the allocation. |
 | `ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_SKIP` | information | crash recovery skips a transaction body | Optimized binlog recovery by avoiding a sequential read of a large transaction body and seeking to its terminating event at offset 5368709337 in binlog file './binlog.000043'. |
 | `ER_BINLOG_BOLT_RECOVERY_LARGE_TRX_CHECKSUM_VERIFICATION` | information | crash recovery reads a large transaction in a promoted file sequentially because `source_verify_checksum` is ON | Read a large transaction body sequentially, instead of seeking to its terminating event, in binlog file './binlog.000043', because source_verify_checksum is enabled. |
@@ -866,7 +914,7 @@ New files:
 | `libs/mysql/binlog/event/large_transaction_header_event.{h,cpp}` | `mysql::binlog::event::Large_transaction_header_event`, the event's format and decoder |
 | `sql/binlog/cache_data.{h,cc}` | `binlog_cache_data` and `binlog_cache_mngr`, with the per-transaction BOLT state, the latch at the first event and the truncation |
 | `sql/binlog/cache_representation.{h,cc}` | `Binlog_cache_representation`, its two implementations, and `Event_format_converter` |
-| `sql/binlog/large_trx_commit.{h,cc}` | the promotion candidate and the BOLT blockers, the fallback reasons and their logging, `rotate_and_promote_spilled_file()`, `promote_spilled_file()`, and the header check `find_large_trx_terminating_event()` |
+| `sql/binlog/large_trx_commit.{h,cc}` | the promotion candidate and the BOLT blockers, the fallback reasons and their logging, `rotate_and_promote_spilled_file()`, `promote_spilled_file()`, the GTID save after the commit `save_gtids_after_large_trx_rotation()`, and the header check `find_large_trx_terminating_event()` |
 | `sql/binlog/file_rotation.{h,cc}` | `File_rotation`, `Standard_file_rotation` and `Spilled_file_rotation` |
 | `unittest/gunit/binlog_bolt-t.cc`, `unittest/gunit/binlog_bolt_cache_representation-t.cc`, `unittest/gunit/binlogevents/large_transaction_header-t.cc` | unit tests |
 
@@ -881,7 +929,7 @@ Changed files:
 | `sql/log_event.{h,cc}` | `Large_transaction_header_log_event`, with its serialization, `pack_info()`, `print()` and `do_apply_event()` |
 | `sql/binlog_reader.{h,cc}` | decodes the header event; `is_checksum_verification_enabled()` |
 | `sql/binlog/log_sanitizer.{h,cc}`, `sql/binlog/log_sanitizer_impl.hpp`, `sql/rpl_relay_log_sanitizer.h` | the header in binlog crash recovery |
-| `sql/rpl_commit_stage_manager.{h,cc}`, `sql/rpl_context.{h,cc}` | the flush group leader hand-off, and the purge request after a promotion |
+| `sql/rpl_commit_stage_manager.{h,cc}`, `sql/rpl_context.{h,cc}` | the flush group leader hand-off, and the purge and GTID save requests after a BOLT rotation |
 | `sql/sys_vars.{h,cc}`, `sql/mysqld.{h,cc}` | the system and status variables, and the startup of the binlog temp files directory |
 | `libs/mysql/binlog/event/binlog_event.{h,cpp}`, `control_events.cpp`, `trx_boundary_parser.cpp` | the new event type |
 | `client/mysqlbinlog.cc` | prints the header event |

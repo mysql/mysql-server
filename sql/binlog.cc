@@ -5144,7 +5144,6 @@ int MYSQL_BIN_LOG::new_file_impl(
           LogErr(ERROR_LEVEL, ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY,
                  "Current binlog file was flushed to disk and will be kept in "
                  "use.");
-          rotation.record_gtid_persistence_fallback_reason();
         } else {
           snprintf(close_on_error_msg, sizeof close_on_error_msg,
                    ER_THD(current_thd, ER_RPL_GTID_TABLE_CANNOT_OPEN), "mysql",
@@ -7527,11 +7526,11 @@ commit_stage:
   if (sync_error)
     handle_binlog_flush_or_sync_error(thd, true /* need_lock_log */, nullptr);
 
-  /* Extract the rotate settings of all thread before signal done */
-  const auto [check_rotate, force_rotate] =
-      Binlog_group_commit_ctx::aggregate_rotate_settings(final_queue);
-  const bool purge_after_commit =
-      Binlog_group_commit_ctx::aggregate_purge_after_commit(final_queue);
+  /* Extract the rotate, purge and GTID save settings of all threads before
+     signal done */
+  const auto [check_rotate, force_rotate, purge_after_commit,
+              save_gtids_after_commit] =
+      Binlog_group_commit_ctx::aggregate_after_commit_settings(final_queue);
 
   DEBUG_SYNC(thd, "before_signal_done");
   /* Commit done so signal all waiting threads */
@@ -7550,6 +7549,12 @@ commit_stage:
   DEBUG_SYNC(thd, "bgc_after_commit_stage_before_rotation");
   CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
       "bgc_after_commit_stage_before_rotation_timestamp");
+
+  /*
+    A BOLT rotation in the flush stage did not save the GTIDs of the previous
+    binlog file. Save them now that the group has committed.
+  */
+  if (save_gtids_after_commit) save_gtids_after_large_trx_rotation(thd);
 
   /*
     If we need to rotate, we do it without commit error.

@@ -2,23 +2,52 @@ RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 SET GLOBAL innodb_lock_wait_timeout = 2;
+SET SESSION innodb_lock_wait_timeout = 2;
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 CREATE TABLE t_myisam (id INT PRIMARY KEY) ENGINE=MyISAM;
-# A MyISAM insert leaves a GTID that the next rotation must save.
+# A MyISAM insert leaves a GTID that the next save must write.
 INSERT INTO t_myisam VALUES (1);
-# Commit a large transaction that holds a lock on mysql.gtid_executed.
+# R1: commit a large transaction that holds a lock on mysql.gtid_executed.
 BEGIN;
 SELECT * FROM mysql.gtid_executed FOR UPDATE;
 INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
 INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
 INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
 COMMIT;
-include/assert.inc [R1: the spilled file is not promoted.]
-include/assert.inc [R1: the fallback is counted.]
-include/assert.inc [R1: the binlog does not rotate.]
-include/assert_grep.inc [R1: the error log has the GTID persistence reason.]
-include/assert_grep.inc [R2: the GTID save does not time out.]
+include/assert.inc [R1: the spilled file is promoted.]
+include/assert.inc [R1: no fallback is counted.]
+include/assert.inc [R1: the binlog rotates.]
+include/assert.inc [R1: the transaction commits.]
+include/assert.inc [R3: mysql.gtid_executed holds the MyISAM transaction's GTID.]
+# R4: a member of the large transaction's group holds a lock on mysql.gtid_executed.
+INSERT INTO t_myisam VALUES (2);
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_flush_stage SIGNAL small_enrolled WAIT_FOR small_go';
+SET DEBUG_SYNC = 'bgc_after_flush_stage_before_sync_stage SIGNAL small_fetched WAIT_FOR small_go_on';
+INSERT INTO t1 VALUES (10, 'small');
+SET DEBUG_SYNC = 'now WAIT_FOR small_enrolled';
+BEGIN;
+INSERT INTO t1 VALUES (11, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (12, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (13, REPEAT('f', 4000000));
+SET DEBUG_SYNC = 'bgc_flush_leader_candidate_waiting SIGNAL big_waiting';
+COMMIT;
+SET DEBUG_SYNC = 'now WAIT_FOR big_waiting';
+SET DEBUG_SYNC = 'now SIGNAL small_go';
+SET DEBUG_SYNC = 'now WAIT_FOR small_fetched';
+BEGIN;
+SELECT * FROM mysql.gtid_executed FOR UPDATE;
+INSERT INTO t1 VALUES (14, 'member');
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_flush_stage SIGNAL member_enrolled';
+COMMIT;
+SET DEBUG_SYNC = 'now WAIT_FOR member_enrolled';
+SET DEBUG_SYNC = 'now SIGNAL small_go_on';
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+include/assert.inc [R4: the spilled file is promoted.]
+include/assert.inc [R4: the large transaction and the member commit.]
+include/assert_grep.inc [R4: the member is written into the promoted binlog file.]
+include/assert_grep.inc [R2: no GTID save error is logged.]
 include/assert_grep.inc [R2: no rotation error is logged.]
-include/assert.inc [R3: the transaction commits.]
-include/assert_grep.inc [R3: the transaction's rows are in the active binlog file.]
 DROP TABLE t1, t_myisam;

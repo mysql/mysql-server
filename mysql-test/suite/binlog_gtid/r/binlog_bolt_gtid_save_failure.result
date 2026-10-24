@@ -1,0 +1,43 @@
+RESET BINARY LOGS AND GTIDS;
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE t_myisam (id INT PRIMARY KEY) ENGINE=MyISAM;
+# A MyISAM insert leaves a GTID that only a save writes into the table.
+INSERT INTO t_myisam VALUES (1);
+# Commit a large transaction while the GTID save fails, with IGNORE_ERROR.
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+SET SESSION DEBUG = "+d,gtid_executed_readonly";
+COMMIT;
+# R3: the client sees no warning.
+SHOW WARNINGS;
+Level	Code	Message
+SET SESSION DEBUG = "-d,gtid_executed_readonly";
+include/assert.inc [R1: the spilled file is promoted.]
+include/assert.inc [R1: no fallback is counted.]
+include/assert.inc [R1: the binlog rotates.]
+include/assert_grep.inc [R2: the error log has the save's error.]
+include/assert_grep.inc [R2: no rotation error is logged.]
+include/assert_grep.inc [R2: no fallback reason is logged.]
+include/assert.inc [R4: the transaction commits.]
+INSERT INTO t1 VALUES (4, 'after');
+include/assert.inc [R4: the server keeps logging into the promoted binlog file.]
+# R5: the same failure with ABORT_SERVER aborts the server.
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+INSERT INTO t_myisam VALUES (2);
+BEGIN;
+INSERT INTO t1 VALUES (5, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (6, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (7, REPEAT('f', 4000000));
+SET SESSION DEBUG = "+d,gtid_executed_readonly";
+COMMIT;
+ERROR HY000: Binary logging not possible. Message: Could not save the GTIDs of the previous binlog file into the mysql.gtid_executed table after the binlog rotation for a large transaction. The error was 'Gtid table is not ready to be used. Table 'mysql.gtid_executed' cannot be opened.'. Aborting the server. The next server start with the binlog enabled saves the GTIDs into the table
+include/assert_grep.inc [R5: the error log says why the server aborts.]
+include/assert.inc [R5: the transaction is committed.]
+include/assert.inc [R5: gtid_executed holds every GTID committed before the abort.]
+include/assert.inc [R5: mysql.gtid_executed holds the second MyISAM transaction's GTID.]
+DROP TABLE t1, t_myisam;

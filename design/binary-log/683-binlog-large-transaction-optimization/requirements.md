@@ -74,7 +74,7 @@
 
 **FR15.2.** Promoted files must be treated like any binlog file by `FLUSH BINARY LOGS`, `PURGE BINARY LOGS` and `RESET BINARY LOGS AND GTIDS`. They appear in `SHOW BINARY LOGS`, are purged by the retention policy, and are removed on reset.
 
-**FR15.3.** A promotion rotates the binlog, so it must purge expired binlog files as any rotation does, also when the promoted file is below `max_binlog_size`.
+**FR15.3.** A promotion rotates the binlog, so it must purge expired binlog files and save the GTIDs of the previous binlog file into `mysql.gtid_executed`, as any rotation does, also when the promoted file is below `max_binlog_size`.
 
 **FR16.** A transaction that never spilled, or whose binlog cache size, without checksums, does not exceed the threshold, must commit through the standard commit path and produce the binlog that the standard commit path produces.
 
@@ -122,8 +122,7 @@
 7. a logging incident is pending;
 8. the binlog was closed while the transaction was running;
 9. the cache could not be rewritten into the binlog file form;
-10. `mysql.gtid_executed` cannot be written at the rotation, and the rotation keeps the active binlog file;
-11. a non-fatal error before the spilled file replaces the new binlog file.
+10. a non-fatal error before the spilled file replaces the new binlog file.
 
 **FR26.1.1.** If binlog transaction compression is turned ON after the cache was rewritten into the binlog file form, the transaction is written to the binlog uncompressed. This is a known limitation.
 
@@ -167,7 +166,7 @@
 
 #### Replication and compatibility
 
-**FR31.** A replica must ignore the `Large_transaction_header_event`. The event is marked ignorable.
+**FR31.** A replica must ignore the `Large_transaction_header_event`. The event is marked ignorable, and the applier must not spend `sql_replica_skip_counter` on it.
 
 **FR32.** `START REPLICA UNTIL` must work the same for transactions in promoted binlog files and in other binlog files.
 

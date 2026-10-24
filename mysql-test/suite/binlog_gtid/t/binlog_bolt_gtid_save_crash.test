@@ -1,0 +1,85 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify a crash after a promotion, after the group commits and before the
+# commit saves the GTIDs of the previous binlog file into
+# mysql.gtid_executed. The rotation for a promotion does not save them, so
+# at the crash the table can miss GTIDs that are in the binlog.
+#
+# === Requirements ===
+# R1. After the restart, the large transaction is committed once.
+# R2. gtid_executed holds every GTID committed before the crash.
+# R3. mysql.gtid_executed holds the GTID of a MyISAM transaction in the
+#     previous binlog file, which only a save writes into the table.
+#
+# === Implementation ===
+# The debug point crash_bolt_before_gtid_save_after_commit crashes the server
+# before the save. A MyISAM insert before the large transaction leaves a GTID
+# that InnoDB does not store at commit.
+#
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $save_enabled = `SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled`
+--let $save_threshold = `SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold`
+
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+CREATE TABLE t_myisam (id INT PRIMARY KEY) ENGINE=MyISAM;
+--echo # A MyISAM insert leaves a GTID that only a save writes into the table.
+INSERT INTO t_myisam VALUES (1);
+
+--echo # Crash after the commit, before the GTID save.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+--enable_query_log
+--let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('a', 4000000));
+INSERT INTO t1 VALUES (2, REPEAT('b', 4000000));
+INSERT INTO t1 VALUES (3, REPEAT('c', 4000000));
+# The GTIDs committed before the crash, the large transaction's included.
+--let $gtid_executed_before = `SELECT CONCAT(@@GLOBAL.server_uuid, ':1-4')`
+SET SESSION DEBUG = "+d,crash_bolt_before_gtid_save_after_commit";
+--error 2013
+COMMIT;
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--let $assert_text = R1: the large transaction is committed once.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+--let $promoted_file = query_get_value(SHOW BINARY LOGS, Log_name, 2)
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_gtid_save_crash.dump
+--exec $MYSQL_BINLOG --base64-output=decode-rows -v $MYSQLD_DATADIR/$promoted_file > $bolt_dump
+--let $assert_text = R1: the large transaction is in the promoted binlog file.
+--let $assert_file = $bolt_dump
+--let $assert_select = ^### INSERT INTO `test`.`t1`
+--let $assert_count = 3
+--source include/assert_grep.inc
+--remove_file $bolt_dump
+--let $assert_text = R1: the promoted binlog file follows the previous one.
+--let $assert_cond = "[SHOW BINARY LOGS, Log_name, 1]" = "$binlog_file_before"
+--source include/assert.inc
+--let $assert_text = R2: gtid_executed holds every GTID committed before the crash.
+--let $assert_cond = "[SELECT @@GLOBAL.gtid_executed]" = "$gtid_executed_before"
+--source include/assert.inc
+# The MyISAM insert has GTID number 3, after the two CREATE TABLE statements.
+--let $assert_text = R3: mysql.gtid_executed holds the MyISAM transaction's GTID.
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.gtid_executed WHERE source_uuid = @@GLOBAL.server_uuid AND interval_start <= 3 AND interval_end >= 3] = 1
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1, t_myisam;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+RESET BINARY LOGS AND GTIDS;
+--enable_query_log

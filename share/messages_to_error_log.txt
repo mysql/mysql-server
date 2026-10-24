@@ -13614,6 +13614,9 @@ ER_BINLOG_BOLT_PROMOTION_ROTATION_ERROR
 ER_BINLOG_BOLT_SPILL_FILE_SYNC_FAILED
   eng "Could not write or sync the spill binlog file '%s' of a large transaction (OS error %d - %s). The transaction is rolled back. Check the storage that holds the binlog temporary files directory for free space and I/O errors."
 
+ER_BINLOG_BOLT_GTID_SAVE_FAILED
+  eng "Could not save the GTIDs of the previous binlog file into the mysql.gtid_executed table after the binlog rotation for a large transaction. The error was '%s'. 'binlog_error_action' is set to 'IGNORE_ERROR', so the server keeps running. The next server start with the binlog enabled saves the GTIDs into the table."
+
 #
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.
 #

@@ -417,16 +417,28 @@ class Binlog_group_commit_ctx {
   /// purge cannot run. The flag is cleared by reset().
   void set_purge_after_commit() { m_purge_after_commit = true; }
 
-  /// Whether any session in queue requested an automatic purge at end of
-  /// BGC.
-  static bool aggregate_purge_after_commit(THD *queue);
+  /// Request that the GTIDs of the previous binlog file are saved into
+  /// mysql.gtid_executed at end of BGC. A BOLT rotation in the flush stage
+  /// does not save them (see save_gtids_after_large_trx_rotation()). The flag
+  /// is cleared by reset().
+  void set_save_gtids_after_commit() { m_save_gtids_after_commit = true; }
 
-  /// Aggregate the rotate requests over all sessions in queue
-  ///
-  /// @return The first element states whether any session
-  /// detected max binlog size exceeded and the second whether any session
-  /// requested forced binlog rotate.
-  static std::pair<bool, bool> aggregate_rotate_settings(THD *queue);
+  /// The requests for the end of BGC, aggregated over all sessions in a
+  /// queue (see aggregate_after_commit_settings()).
+  struct After_commit_settings {
+    /// Whether any session detected that binlog max size was exceeded.
+    bool max_size_exceeded{false};
+    /// Whether any session requested a forced binlog rotate.
+    bool force_rotate{false};
+    /// Whether any session requested an automatic purge.
+    bool purge{false};
+    /// Whether any session requested the GTID save.
+    bool save_gtids{false};
+  };
+
+  /// Aggregate the requests for the end of BGC over all sessions in queue,
+  /// in one pass.
+  static After_commit_settings aggregate_after_commit_settings(THD *queue);
 
  private:
   /// Whether session detected that binlog max size was exceeded.
@@ -439,6 +451,8 @@ class Binlog_group_commit_ctx {
   bool m_assigned_flush_leader{false};
   /// @see set_purge_after_commit()
   bool m_purge_after_commit{false};
+  /// @see set_save_gtids_after_commit()
+  bool m_save_gtids_after_commit{false};
 };
 
 /*

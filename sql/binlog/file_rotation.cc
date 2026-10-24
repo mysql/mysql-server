@@ -39,17 +39,8 @@ void Standard_file_rotation::publish_end_position(MYSQL_BIN_LOG &log) {
 }
 
 int Spilled_file_rotation::save_gtids_of_last_binlog() {
-  THD *const large_trx_thd =
-      /* The debug point raises its error on current_thd. */
-      DBUG_EVALUATE_IF("gtid_executed_readonly", nullptr, current_thd);
-  if (large_trx_thd != nullptr) current_thd = nullptr;
-  const int error = gtid_state->save_gtids_of_last_binlog_into_table();
-  if (large_trx_thd != nullptr) large_trx_thd->store_globals();
-  return error;
-}
-
-void Spilled_file_rotation::record_gtid_persistence_fallback_reason() {
-  fallback_reason = Large_trx_fallback_reason::kGtidPersistence;
+  thd->rpl_thd_ctx.binlog_group_commit_ctx().set_save_gtids_after_commit();
+  return 0;
 }
 
 bool Spilled_file_rotation::replace_new_file_with_spilled_file(

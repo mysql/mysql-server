@@ -44,7 +44,6 @@ class binlog_cache_data;
   promotes a large transaction's spilled binlog cache file (see
   Spilled_file_rotation). The steps that differ are:
   - saving the GTIDs of the closed binlog file into mysql.gtid_executed;
-  - recording the fallback reason when the GTIDs cannot be saved;
   - replacing the new binlog file with the spilled file;
   - publishing the new binlog file's end position.
   MYSQL_BIN_LOG::new_file_impl() and MYSQL_BIN_LOG::open_binlog() call these
@@ -61,13 +60,6 @@ class File_rotation {
             Gtid_state::save_gtids_of_last_binlog_into_table().
   */
   virtual int save_gtids_of_last_binlog() = 0;
-
-  /**
-    Called when mysql.gtid_executed cannot be written and the active binlog
-    file stays in use, instead of the new file. A rotation that promotes a
-    spilled file falls back into that file and records why.
-  */
-  virtual void record_gtid_persistence_fallback_reason() = 0;
 
   /**
     Called after the new binlog file's header events are written, and before
@@ -92,15 +84,12 @@ class File_rotation {
 
 /**
   The steps of a standard binlog rotation. A standard rotation does not
-  replace the new binlog file with a spilled file. It does not record a
-  fallback reason either, because only a promotion falls back to the
-  standard commit path. So replace_new_file_with_spilled_file() and
-  record_gtid_persistence_fallback_reason() do nothing.
+  replace the new binlog file with a spilled file, so
+  replace_new_file_with_spilled_file() does nothing.
 */
 class Standard_file_rotation : public File_rotation {
  public:
   int save_gtids_of_last_binlog() override;
-  void record_gtid_persistence_fallback_reason() override {}
   bool replace_new_file_with_spilled_file(MYSQL_BIN_LOG &) override {
     return false;
   }
@@ -115,18 +104,14 @@ class Standard_file_rotation : public File_rotation {
 class Spilled_file_rotation : public File_rotation {
  public:
   /**
-    Saves the GTIDs with current_thd unset: the rotation runs on the large
-    transaction's THD in the middle of its commit. Saving the GTIDs commits a
-    write to mysql.gtid_executed on the current THD, which would commit the
-    large transaction too early. With current_thd unset, the GTID table code
-    uses its own THD instead.
+    Does not save the GTIDs, and requests that the commit saves them after
+    the group commits, because the large transaction and the other members of
+    its group can hold locks on mysql.gtid_executed until then (see
+    save_gtids_after_large_trx_rotation()).
+
+    @return 0.
   */
   int save_gtids_of_last_binlog() override;
-  /**
-    Records kGtidPersistence as the fallback reason. The transaction falls
-    back into the active binlog file, which the rotation keeps.
-  */
-  void record_gtid_persistence_fallback_reason() override;
   /** Promotes the spilled file (see MYSQL_BIN_LOG::promote_spilled_file()). */
   bool replace_new_file_with_spilled_file(MYSQL_BIN_LOG &log) override;
   /** Publishes only the header events of a promoted file. */

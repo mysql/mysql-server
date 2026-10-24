@@ -1,27 +1,35 @@
 # BOLT is the binlog large transaction optimization.
 #
 # === Purpose ===
-# Verify the fallback when a large transaction has used mysql.gtid_executed.
-# The rotation for a promotion saves the GTIDs of the active binlog file into
-# that table on its own THD. That save would wait on the large transaction's
-# own row locks, while LOCK_log is held, because the large transaction
-# commits only after the rotation.
+# Verify that locks on mysql.gtid_executed do not block a promotion, when the
+# large transaction holds them and when another member of its flush group
+# holds them. The rotation for a promotion does not save the GTIDs of the
+# previous binlog file. The commit saves them after the group commits, when
+# no member of the group waits for the save.
 #
 # === Requirements ===
-# R1. When the large transaction holds a lock on mysql.gtid_executed, the
-#     spilled file is not promoted, the binlog does not rotate, and the
-#     fallback is counted with the GTID persistence reason.
-# R2. The commit does not wait on the transaction's own locks. The GTID save
-#     does not time out, and no rotation error is logged.
-# R3. The transaction commits, and its rows are in the active binlog file.
+# R1. When the large transaction holds a lock on mysql.gtid_executed, its
+#     spilled file is promoted, the binlog rotates, and no fallback is
+#     counted.
+# R2. The GTID save does not wait on the locks. No save error and no
+#     rotation error is logged.
+# R3. After the commit, mysql.gtid_executed holds the GTID of a MyISAM
+#     transaction, which only a save writes into the table.
+# R4. When a member of the large transaction's flush group holds a lock on
+#     mysql.gtid_executed, the spilled file is promoted, the member is
+#     written into the promoted binlog file, and both commit, without a
+#     save error or a rotation error.
 #
 # === Implementation ===
-# A MyISAM insert leaves a GTID that the next rotation must save into the
-# table, because InnoDB does not store it at commit. The large transaction
-# then locks mysql.gtid_executed with SELECT ... FOR UPDATE before its large
-# change. innodb_lock_wait_timeout is small, so a wait would show quickly as
-# a rotation error.
+# A MyISAM insert leaves a GTID that the next save must write into the table,
+# because InnoDB does not store it at commit. SELECT ... FOR UPDATE locks
+# mysql.gtid_executed. innodb_lock_wait_timeout is small for every session,
+# so a save that waits on the locks would show quickly as an error.
+# In R4, a small transaction leads a flush group and pauses before the queue
+# is fetched, so the large transaction waits as the next leader. The member
+# enrolls after the fetch and joins the large transaction's group.
 #
+--source include/have_debug_sync.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
 
@@ -29,25 +37,23 @@
 --let $save_enabled = `SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled`
 --let $save_threshold = `SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold`
 --let $save_lock_wait_timeout = `SELECT @@GLOBAL.innodb_lock_wait_timeout`
---disable_query_log
-CALL mtr.add_suppression("Could not optimize large transaction execution in the binlog because");
---enable_query_log
 
 RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
 SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
 SET GLOBAL innodb_lock_wait_timeout = 2;
+SET SESSION innodb_lock_wait_timeout = 2;
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
 CREATE TABLE t_myisam (id INT PRIMARY KEY) ENGINE=MyISAM;
 
---echo # A MyISAM insert leaves a GTID that the next rotation must save.
+--echo # A MyISAM insert leaves a GTID that the next save must write.
 INSERT INTO t_myisam VALUES (1);
 
 --let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_before = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
---echo # Commit a large transaction that holds a lock on mysql.gtid_executed.
+--echo # R1: commit a large transaction that holds a lock on mysql.gtid_executed.
 BEGIN;
 --disable_result_log
 SELECT * FROM mysql.gtid_executed FOR UPDATE;
@@ -60,43 +66,107 @@ COMMIT;
 --let $bolt_count_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
 --let $missed_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_missed_count', Value, 1)
 --let $binlog_file_after = query_get_value(SHOW BINARY LOG STATUS, File, 1)
---let $assert_text = R1: the spilled file is not promoted.
---let $assert_cond = $bolt_count_after = $bolt_count_before
+--let $assert_text = R1: the spilled file is promoted.
+--let $assert_cond = $bolt_count_after = $bolt_count_before + 1
 --source include/assert.inc
---let $assert_text = R1: the fallback is counted.
---let $assert_cond = $missed_after = $missed_before + 1
+--let $assert_text = R1: no fallback is counted.
+--let $assert_cond = $missed_after = $missed_before
 --source include/assert.inc
---let $assert_text = R1: the binlog does not rotate.
---let $assert_cond = "$binlog_file_after" = "$binlog_file_before"
+--let $assert_text = R1: the binlog rotates.
+--let $assert_cond = "$binlog_file_after" <> "$binlog_file_before"
 --source include/assert.inc
+--let $assert_text = R1: the transaction commits.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
+--source include/assert.inc
+
+--let $assert_text = R3: mysql.gtid_executed holds the MyISAM transaction's GTID.
+# The MyISAM insert has GTID number 3, after the two CREATE TABLE statements.
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.gtid_executed WHERE source_uuid = @@GLOBAL.server_uuid AND interval_start <= 3 AND interval_end >= 3] = 1
+--source include/assert.inc
+
+--echo # R4: a member of the large transaction's group holds a lock on mysql.gtid_executed.
+INSERT INTO t_myisam VALUES (2);
+--let $bolt_count_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+--connect (con_small, localhost, root,,)
+--connect (con_big, localhost, root,,)
+--connect (con_member, localhost, root,,)
+
+--connection con_small
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_flush_stage SIGNAL small_enrolled WAIT_FOR small_go';
+SET DEBUG_SYNC = 'bgc_after_flush_stage_before_sync_stage SIGNAL small_fetched WAIT_FOR small_go_on';
+--send INSERT INTO t1 VALUES (10, 'small')
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR small_enrolled';
+
+--connection con_big
+BEGIN;
+INSERT INTO t1 VALUES (11, REPEAT('d', 4000000));
+INSERT INTO t1 VALUES (12, REPEAT('e', 4000000));
+INSERT INTO t1 VALUES (13, REPEAT('f', 4000000));
+SET DEBUG_SYNC = 'bgc_flush_leader_candidate_waiting SIGNAL big_waiting';
+--send COMMIT
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR big_waiting';
+SET DEBUG_SYNC = 'now SIGNAL small_go';
+SET DEBUG_SYNC = 'now WAIT_FOR small_fetched';
+
+--connection con_member
+BEGIN;
+--disable_result_log
+SELECT * FROM mysql.gtid_executed FOR UPDATE;
+--enable_result_log
+INSERT INTO t1 VALUES (14, 'member');
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_flush_stage SIGNAL member_enrolled';
+--send COMMIT
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR member_enrolled';
+SET DEBUG_SYNC = 'now SIGNAL small_go_on';
+
+--connection con_small
+--reap
+SET DEBUG_SYNC = 'RESET';
+--connection con_big
+--reap
+SET DEBUG_SYNC = 'RESET';
+--connection con_member
+--reap
+SET DEBUG_SYNC = 'RESET';
+--connection default
+SET DEBUG_SYNC = 'RESET';
+--disconnect con_small
+--disconnect con_big
+--disconnect con_member
+
+--let $assert_text = R4: the spilled file is promoted.
+--let $assert_cond = [SHOW GLOBAL STATUS LIKE "Binlog_large_transaction_optimization_count", Value, 1] = $bolt_count_before + 1
+--source include/assert.inc
+--let $assert_text = R4: the large transaction and the member commit.
+--let $assert_cond = [SELECT COUNT(*) AS count FROM t1 WHERE id BETWEEN 11 AND 14, count, 1] = 4
+--source include/assert.inc
+--let $promoted_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_gtid_table_lock.dump
+--exec $MYSQL_BINLOG --force-if-open --base64-output=decode-rows -v $MYSQLD_DATADIR/$promoted_file > $bolt_dump
+--let $assert_text = R4: the member is written into the promoted binlog file.
+--let $assert_file = $bolt_dump
+--let $assert_only_after =
+--let $assert_select = ^###   @1=14
+--let $assert_count = 1
+--source include/assert_grep.inc
+--remove_file $bolt_dump
 
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_only_after = CURRENT_TEST: binlog_gtid.binlog_bolt_gtid_table_lock
---let $assert_text = R1: the error log has the GTID persistence reason.
---let $assert_select = Could not optimize large transaction execution in the binlog because mysql\.gtid_executed could not be updated at the rotation. The transaction used the standard commit path instead\.
---let $assert_count = 1
---source include/assert_grep.inc
---let $assert_text = R2: the GTID save does not time out.
---let $assert_select = Unable to create a new binlog file
+--let $assert_text = R2: no GTID save error is logged.
+--let $assert_select = Could not save the GTIDs of the previous binlog file
 --let $assert_count = 0
 --source include/assert_grep.inc
 --let $assert_text = R2: no rotation error is logged.
 --let $assert_select = An error occurred in the binlog rotation that promotes the spill binlog file of a large transaction
 --let $assert_count = 0
 --source include/assert_grep.inc
-
---let $assert_text = R3: the transaction commits.
---let $assert_cond = [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
---source include/assert.inc
---let $bolt_dump = $MYSQLTEST_VARDIR/tmp/bolt_gtid_table_lock.dump
---exec $MYSQL_BINLOG --force-if-open --base64-output=decode-rows -v $MYSQLD_DATADIR/$binlog_file_after > $bolt_dump
---let $assert_text = R3: the transaction's rows are in the active binlog file.
---let $assert_file = $bolt_dump
---let $assert_only_after =
---let $assert_select = ^### INSERT INTO `test`.`t1`
---let $assert_count = 3
---source include/assert_grep.inc
---remove_file $bolt_dump
 
 # Cleanup
 DROP TABLE t1, t_myisam;
