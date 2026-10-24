@@ -355,7 +355,7 @@ SKIP: {
      "T6d': stub written");
   ok(-e "$mf.mtr_stub",
      "T6d': marker present");
-  ok(scalar @warnings > 0 && grep { /moved to/ } @warnings,
+  ok(scalar @warnings > 0 && grep({ /moved to/ } @warnings),
      "T6d': quarantine warning emitted");
 
   @warnings = ();
@@ -681,7 +681,7 @@ SKIP: {
   local $SIG{__WARN__} = sub { push @warnings, $_[0] };
   manifest_restore($mf, $stub_content);
 
-  ok(scalar @warnings > 0 && grep { /changed during the run/ } @warnings,
+  ok(scalar @warnings > 0 && grep({ /changed during the run/ } @warnings),
      "T9a: warning mentions 'changed during the run'");
   ok(grep({ /moved to \Q$mf.mtr_leftover\E/ } @warnings),
      "T9a: warning names the .mtr_leftover destination");
@@ -788,7 +788,7 @@ SKIP: {
 
   ok(-e $mf, "T9c: stub still present (unreadable, kept)");
   ok(-e "$mf.mtr_stub", "T9c: marker still present (state kept for retry)");
-  ok(scalar @warnings > 0 && grep { /Could not read stub/ } @warnings,
+  ok(scalar @warnings > 0 && grep({ /Could not read stub/ } @warnings),
      "T9c: warning mentions 'Could not read stub'");
 
   # Restore permissions so the retry can read and remove the stub.
