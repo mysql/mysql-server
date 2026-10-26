@@ -32,6 +32,7 @@ $SUDO apt-get update
 $SUDO apt-get install -y --no-install-recommends \
   build-essential cmake ninja-build pkg-config bison \
   libssl-dev libncurses-dev libldap2-dev libsasl2-dev libcurl4-openssl-dev libtirpc-dev \
+  libudev-dev \
   ccache git curl
 
 echo "Toolchain ready. Boost is fetched on first configure via -DDOWNLOAD_BOOST=1."
