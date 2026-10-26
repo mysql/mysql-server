@@ -1,0 +1,122 @@
+# BOLT is the binlog large transaction optimization.
+#
+# === Purpose ===
+# Verify that a BOLT session that becomes the flush leader through the leader
+# hand-off does not wait for a commit order leader. On a replica with
+# replica_preserve_commit_order=ON and log_replica_updates=OFF, the applier
+# workers enroll in the commit order flush queue. A worker that enrolls after
+# the BOLT session was appended to the binlog flush queue, and before the
+# BOLT session runs again, becomes a follower, because the binlog flush queue
+# is not empty. No commit order leader then exists to hand over to the BOLT
+# session.
+#
+# === Requirements ===
+# R1. The BOLT session leads its group without waiting for a commit order
+#     leader, and the group commits the worker's transaction too.
+# R2. The spilled file is promoted, and every row is committed on the replica.
+#
+# === Implementation ===
+# On the replica, a small local transaction leads a flush group and pauses
+# before the queue is fetched, so a local large transaction waits as the next
+# leader. When the small group is fetched, the large transaction is appended
+# to the emptied queue and pauses at bgc_assigned_flush_leader_woken, without
+# the flush queue lock. A transaction from the source then reaches the commit
+# order flush stage on a worker and becomes a follower. The large transaction
+# continues. Without the fix, it waits for a commit order leader forever.
+#
+--source include/not_windows.inc
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_replica_preserve_commit_order.inc
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $save_enabled = `SELECT @@GLOBAL.binlog_large_transaction_optimization_enabled`
+--let $save_threshold = `SELECT @@GLOBAL.binlog_large_transaction_optimization_threshold`
+SET GLOBAL binlog_large_transaction_optimization_enabled = ON;
+SET GLOBAL binlog_large_transaction_optimization_threshold = 10485760;
+CREATE TABLE t_local (id INT PRIMARY KEY, data LONGBLOB) ENGINE=InnoDB;
+--let $bolt_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Binlog_large_transaction_optimization_count', Value, 1)
+
+--connect (con_small, 127.0.0.1, root,,test,$SLAVE_MYPORT,)
+--connect (con_big, 127.0.0.1, root,,test,$SLAVE_MYPORT,)
+
+--echo # A small local transaction leads a flush group and pauses before the fetch.
+--connection con_small
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_flush_stage SIGNAL small_enrolled WAIT_FOR small_go';
+--send INSERT INTO t_local VALUES (1, 'small')
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR small_enrolled';
+
+--echo # A local large transaction waits as the next flush leader.
+--connection con_big
+BEGIN;
+--disable_query_log
+INSERT INTO t_local VALUES (11, REPEAT('a', 4000000));
+INSERT INTO t_local VALUES (12, REPEAT('b', 4000000));
+INSERT INTO t_local VALUES (13, REPEAT('c', 4000000));
+--enable_query_log
+SET SESSION DEBUG = '+d,bolt_pause_assigned_flush_leader';
+SET DEBUG_SYNC = 'bgc_flush_leader_candidate_waiting SIGNAL big_waiting';
+SET DEBUG_SYNC = 'bgc_assigned_flush_leader_woken SIGNAL big_assigned WAIT_FOR big_go';
+--send COMMIT
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR big_waiting';
+--echo # The small group is fetched, and the large transaction is assigned as the next leader.
+SET DEBUG_SYNC = 'now SIGNAL small_go';
+SET DEBUG_SYNC = 'now WAIT_FOR big_assigned';
+
+--echo # A worker reaches the commit order flush stage and becomes a follower.
+--let $debug_point = syncpoint_before_follower_wait_100
+--source include/add_debug_point.inc
+--source include/rpl/connection_source.inc
+SET TIMESTAMP = 100;
+INSERT INTO t1 VALUES (1);
+SET TIMESTAMP = DEFAULT;
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR reached_before_follower_wait_100';
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC = 'now SIGNAL continue_before_follower_wait_100';
+
+--echo # R1: the large transaction leads its group without a commit order leader.
+SET DEBUG_SYNC = 'now SIGNAL big_go';
+--connection con_big
+--reap
+SET SESSION DEBUG = '-d,bolt_pause_assigned_flush_leader';
+SET DEBUG_SYNC = 'RESET';
+--connection con_small
+--reap
+SET DEBUG_SYNC = 'RESET';
+--disconnect con_small
+--disconnect con_big
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+SET DEBUG_SYNC = 'RESET';
+--let $assert_text = R1: the worker's transaction is committed.
+--let $assert_cond = [SELECT COUNT(*) FROM t1] = 1
+--source include/assert.inc
+--let $assert_text = R2: the spilled file is promoted.
+--let $assert_cond = [SHOW GLOBAL STATUS LIKE "Binlog_large_transaction_optimization_count", Value, 1] = $bolt_before + 1
+--source include/assert.inc
+--let $assert_text = R2: every local row is committed.
+--let $assert_cond = [SELECT COUNT(*) FROM t_local] = 4
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t_local;
+--disable_query_log
+--eval SET GLOBAL binlog_large_transaction_optimization_enabled = $save_enabled
+--eval SET GLOBAL binlog_large_transaction_optimization_threshold = $save_threshold
+--enable_query_log
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/deinit.inc

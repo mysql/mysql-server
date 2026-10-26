@@ -1,0 +1,4 @@
+--log-replica-updates=OFF
+--replica-preserve-commit-order=ON
+--replica-parallel-workers=4
+--binlog-transaction-compression=OFF

@@ -22,6 +22,8 @@
 
 **FR5.3.** If the directory cannot be created or used at startup, the server must log an error and turn the optimization OFF. When the optimization is OFF, the server logs a warning instead.
 
+**FR5.3.1.** A value of ON set with `SET PERSIST` is the exception to FR5.2 and FR5.3. If the directory cannot be used, the persisted value cannot be applied, and the server does not start, as for any persisted variable that cannot be applied.
+
 **FR5.4.** A write failure on a spilled file during the transaction, such as a full disk, must be handled as on the standard binlog cache. A failure to create the spilled file when the cache is rewritten must fall back to the standard form.
 
 **FR5.5.** A spilled file must be named `bolt_<server start time>_<serial>`, with lowercase hexadecimal numbers.

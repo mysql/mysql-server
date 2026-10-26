@@ -252,8 +252,11 @@ bool Commit_stage_manager::append_to(StageID stage, THD *thd) {
     while (!ctx.is_assigned_flush_leader())
       mysql_cond_wait(&m_stage_cond_flush_queue_fetched,
                       &m_queue_lock[BINLOG_FLUSH_STAGE]);
-    /* Clear the flag for this session's next commit. */
-    ctx.set_assigned_flush_leader(false);
+    DBUG_EXECUTE_IF("bolt_pause_assigned_flush_leader", {
+      mysql_mutex_unlock(&m_queue_lock[BINLOG_FLUSH_STAGE]);
+      DEBUG_SYNC(thd, "bgc_assigned_flush_leader_woken");
+      mysql_mutex_lock(&m_queue_lock[BINLOG_FLUSH_STAGE]);
+    });
     /*
       The leader that fetched the queue put this session first in the queue,
       so this session is the leader.
@@ -286,6 +289,21 @@ bool Commit_stage_manager::enroll_for(StageID stage, THD *thd,
 
   thd->rpl_thd_ctx.binlog_group_commit_ctx().assign_ticket();
   bool leader = this->append_to(stage, thd);
+  /*
+    A BOLT session that the previous group's leader appended to the binlog
+    flush queue (see assign_next_flush_leader()) skips the wait below for a
+    commit order leader to hand over. The previous group's leader emptied the
+    commit order queue when it appended this session. Every commit order
+    thread that enrolled since the assignment sees this BOLT session as the
+    flush leader and joins as a follower, so no commit order leader exists.
+    Every commit order thread that enrolled before the assignment was fetched
+    with the previous group, and a commit order leader among them had already
+    handed over to the previous group's leader.
+  */
+  auto &group_commit_ctx = thd->rpl_thd_ctx.binlog_group_commit_ctx();
+  const bool assigned_flush_leader =
+      group_commit_ctx.is_assigned_flush_leader();
+  group_commit_ctx.set_assigned_flush_leader(false);
 
   /*
    if its FLUSH stage queue (BINLOG_FLUSH_STAGE or COMMIT_ORDER_FLUSH_STAGE)
@@ -295,7 +313,7 @@ bool Commit_stage_manager::enroll_for(StageID stage, THD *thd,
   if (leader) {
     if (stage == COMMIT_ORDER_FLUSH_STAGE) {
       leader = m_queue[BINLOG_FLUSH_STAGE].is_empty();
-    } else if (stage == BINLOG_FLUSH_STAGE &&
+    } else if (stage == BINLOG_FLUSH_STAGE && !assigned_flush_leader &&
                !m_queue[COMMIT_ORDER_FLUSH_STAGE].is_empty()) {
       /*
         The current thread is the first one in the binlog queue, but there is

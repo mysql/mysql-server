@@ -405,8 +405,8 @@ class Binlog_group_commit_ctx {
   /// group. Under the flush queue lock, the current group's leader fetches
   /// the queue, appends this BOLT session to the emptied queue and sets the
   /// flag. This BOLT session waits for the flag in
-  /// Commit_stage_manager::append_to() and clears the flag on wake-up.
-  /// reset() also clears the flag.
+  /// Commit_stage_manager::append_to(), and Commit_stage_manager::enroll_for()
+  /// reads and clears it. reset() also clears the flag.
   void set_assigned_flush_leader(bool value) {
     m_assigned_flush_leader = value;
   }

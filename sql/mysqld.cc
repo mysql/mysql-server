@@ -8404,9 +8404,12 @@ static int init_server_components() {
       directory, regardless of the optimization's setting.
     - create() creates the directory if it does not exist, and is called
       when the optimization is enabled.
-    A problem with the directory never stops the server startup. With the
+    A problem with the directory does not stop the server startup. With the
     optimization enabled, an error is logged and the optimization is turned
-    OFF. With the optimization disabled, a warning is logged.
+    OFF. With the optimization disabled, a warning is logged. A value of ON
+    set with SET PERSIST is the exception: it is applied later, and the
+    server does not start when it cannot be applied, as for any persisted
+    variable.
   */
   if (opt_bin_log && !is_help_or_validate_option()) {
     const bool enabled = opt_binlog_large_transaction_optimization_enabled;

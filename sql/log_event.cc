@@ -13385,10 +13385,11 @@ bool Rows_query_log_event::write_data_body(Basic_ostream *ostream) {
   uchar unused_byte[1];
 
   unused_byte[0] = 0;
-  return (ostream->write(unused_byte, 1) ||
+  return (wrapper_my_b_safe_write(ostream, unused_byte, 1) ||
           (m_rows_query_length > 0 &&
-           ostream->write(pointer_cast<const uchar *>(m_rows_query),
-                          m_rows_query_length)));
+           wrapper_my_b_safe_write(ostream,
+                                   pointer_cast<const uchar *>(m_rows_query),
+                                   m_rows_query_length)));
 }
 
 int Rows_query_log_event::do_apply_event(Relay_log_info const *rli) {
