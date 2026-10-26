@@ -263,13 +263,15 @@ inline uint to_uint(enum_sp_type val) { return static_cast<uint>(val); }
 #define TYPE_ENUM_TRIGGER 3
 #define TYPE_ENUM_PROXY 4
 #define TYPE_ENUM_LIBRARY 5
-#define TYPE_ENUM_INVALID 6
+#define TYPE_ENUM_UDT 6
+#define TYPE_ENUM_INVALID 7
 
 enum class Acl_type {
   TABLE = 0,
   FUNCTION = TYPE_ENUM_FUNCTION,
   PROCEDURE = TYPE_ENUM_PROCEDURE,
   LIBRARY = TYPE_ENUM_LIBRARY,
+  TYPE = TYPE_ENUM_UDT,
   INVALID_TYPE = TYPE_ENUM_INVALID
 };
 
@@ -306,6 +308,16 @@ enum class enum_alter_user_attribute {
 #define TL_OPTION_UPDATING 0x01
 #define TL_OPTION_IGNORE_LEAVES 0x02
 #define TL_OPTION_ALIAS 0x04
+
+class Type_ident {
+ public:
+  LEX_CSTRING db;
+  LEX_CSTRING type;
+
+  Type_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &type_arg)
+      : db(db_arg), type(type_arg) {}
+  Type_ident(const LEX_CSTRING &type_arg) : type(type_arg) { db = NULL_CSTR; }
+};
 
 /* Structure for db & table in sql_yacc */
 class Table_function;

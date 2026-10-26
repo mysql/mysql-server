@@ -1,0 +1,47 @@
+
+--error ER_NO_SUCH_UDT_METHOD
+SELECT test.no_such_type::no_such_method();
+
+--error ER_NO_SUCH_UDT_METHOD
+SELECT no_such_type::no_such_method(1,2);
+
+CREATE SCHEMA math;
+
+CREATE TYPE test.usbn13 AS CHAR(13);
+CREATE TYPE math.complex_number AS BINARY(16);
+
+SELECT * FROM INFORMATION_SCHEMA.TYPES
+  ORDER BY TYPE_SCHEMA, TYPE_NAME;
+
+INSTALL COMPONENT "file://component_udt_example";
+
+delimiter $$;
+
+CREATE PROCEDURE test.complex()
+BEGIN
+  DECLARE a math.complex_number;
+  DECLARE b math.complex_number;
+  DECLARE c math.complex_number;
+  DECLARE s VARCHAR(80);
+
+  SET a = math.complex_number::from_string("1+2i");
+  SET b = math.complex_number::from_string("3+4i");
+  SET c = math.complex_number::`add`(a, b);
+  SET s = complex_number_to_string(c);
+  SELECT s as "result";
+END$$
+
+delimiter ;$$
+
+call test.complex();
+
+select foo.bar.baz() from INFORMATION_SCHEMA.TYPES;
+
+UNINSTALL COMPONENT "file://component_udt_example";
+
+DROP PROCEDURE test.complex;
+
+DROP TYPE test.usbn13;
+DROP TYPE math.complex_number;
+DROP SCHEMA math;
+

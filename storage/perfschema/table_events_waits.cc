@@ -5,7 +5,7 @@
   as published by the Free Software Foundation.
 
   This program is designed to work with certain software (including
-  but not limited to OpenSSL) that is licensed under separate terms,
+
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
@@ -383,7 +383,7 @@ int table_events_waits_common::make_metadata_lock_object_columns(
 
   if (safe_metadata_lock->get_version() == wait->m_weak_version) {
     // TODO: remove code duplication with PFS_column_row::make_row()
-    static_assert(MDL_key::NAMESPACE_END == 19,
+    static_assert(MDL_key::NAMESPACE_END == 20,
                   "Adjust performance schema when changing enum_mdl_namespace");
 
     const MDL_key *mdl = &safe_metadata_lock->m_mdl_key;
@@ -520,6 +520,13 @@ int table_events_waits_common::make_metadata_lock_object_columns(
         m_row.m_object_type_length = 16;
         set_schema_name(&m_row.m_object_schema, mdl);
         m_row.m_object_name_length = mdl->name_length();
+        break;
+      case MDL_key::UDT_TYPE:
+        m_row.m_object_type = "UDT_TYPE";
+        m_row.m_object_type_length = 8;
+        set_schema_name(&m_row.m_object_schema, mdl);
+        m_row.m_object_name_length = mdl->name_length();
+        m_row.m_index_name_length = 0;
         break;
       case MDL_key::NAMESPACE_END:
       default:

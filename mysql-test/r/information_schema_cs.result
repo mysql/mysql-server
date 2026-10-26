@@ -10,6 +10,7 @@ TABLE_NAME	DATA_TYPE	COLUMN_TYPE
 COLUMNS	bigint	bigint unsigned
 PARAMETERS	int	int unsigned
 ROUTINES	int	int unsigned
+TYPES	bigint	bigint unsigned
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -108,6 +109,7 @@ TABLE_CONSTRAINTS
 TABLE_CONSTRAINTS_EXTENSIONS
 TABLE_PRIVILEGES
 TRIGGERS
+TYPES
 USER_ATTRIBUTES
 USER_PRIVILEGES
 VIEWS
@@ -656,6 +658,7 @@ TABLE_CONSTRAINTS
 TABLE_CONSTRAINTS_EXTENSIONS
 TABLE_PRIVILEGES
 TRIGGERS
+TYPES
 create database information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 use information_schema;
@@ -668,6 +671,7 @@ TABLE_CONSTRAINTS	SYSTEM VIEW
 TABLE_CONSTRAINTS_EXTENSIONS	SYSTEM VIEW
 TABLE_PRIVILEGES	SYSTEM VIEW
 TRIGGERS	SYSTEM VIEW
+TYPES	SYSTEM VIEW
 create table t1(a int);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 use test;
@@ -683,6 +687,7 @@ TABLE_CONSTRAINTS
 TABLE_CONSTRAINTS_EXTENSIONS
 TABLE_PRIVILEGES
 TRIGGERS
+TYPES
 select table_name from tables where table_name='user';
 TABLE_NAME
 user
@@ -815,6 +820,7 @@ information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	STATISTICS	EXPRESSION
 information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME
 information_schema	TRIGGERS	ACTION_STATEMENT
+information_schema	TYPES	DATA_TYPE
 information_schema	USER_ATTRIBUTES	ATTRIBUTE
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
@@ -902,7 +908,7 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8mb3_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	53
+information_schema	54
 mysql	35
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1397,6 +1403,7 @@ TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
 TABLE_CONSTRAINTS_EXTENSIONS	information_schema.TABLE_CONSTRAINTS_EXTENSIONS	1
 TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
+TYPES	information_schema.TYPES	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 VIEWS	information_schema.VIEWS	1
 VIEW_ROUTINE_USAGE	information_schema.VIEW_ROUTINE_USAGE	1
@@ -2543,6 +2550,7 @@ TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
 TABLE_CONSTRAINTS_EXTENSIONS	CONSTRAINT_SCHEMA
 TABLE_PRIVILEGES	TABLE_SCHEMA
 TRIGGERS	TRIGGER_SCHEMA
+TYPES	TYPE_SCHEMA
 USER_ATTRIBUTES	USER
 USER_PRIVILEGES	GRANTEE
 VIEWS	TABLE_SCHEMA
@@ -2615,6 +2623,7 @@ TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
 TABLE_CONSTRAINTS_EXTENSIONS	CONSTRAINT_SCHEMA
 TABLE_PRIVILEGES	TABLE_SCHEMA
 TRIGGERS	TRIGGER_SCHEMA
+TYPES	TYPE_SCHEMA
 USER_ATTRIBUTES	USER
 USER_PRIVILEGES	GRANTEE
 VIEWS	TABLE_SCHEMA

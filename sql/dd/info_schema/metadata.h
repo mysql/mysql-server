@@ -303,6 +303,7 @@ namespace info_schema {
   Changes:
   - WL#17054 Introduce Support for CHECK/NO CHECK at Table and Column Level,
   and UPDATE/NO UPDATE at Column Level in JSON Duality View
+  - new view INFORMATION_SCHEMA.TYPES
 */
 
 static const uint IS_DD_VERSION = 261000;

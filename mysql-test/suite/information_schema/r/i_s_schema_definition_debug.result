@@ -103,8 +103,8 @@ CREATE TABLE test.I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-include/assert.inc [There are 50 system views.]
-include/assert.inc [There are 50 I_S system views in total.]
+include/assert.inc [There are 51 system views.]
+include/assert.inc [There are 51 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################
@@ -1630,6 +1630,46 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   tbl.type != 'VIEW'
   AND CAN_ACCESS_TRIGGER(sch.name, tbl.name)
   AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TYPES AS SELECT 
+  cat.name AS TYPE_CATALOG,
+  sch.name AS TYPE_SCHEMA,
+  typ.name AS TYPE_NAME,
+  SUBSTRING_INDEX(SUBSTRING_INDEX(typ.column_type_utf8, '(', 1),' ', 1) AS DATA_TYPE,
+  INTERNAL_DD_CHAR_LENGTH(typ.data_type, typ.char_length, coll.name, 0) AS CHARACTER_MAXIMUM_LENGTH,
+  INTERNAL_DD_CHAR_LENGTH(typ.data_type, typ.char_length, coll.name, 1) AS CHARACTER_OCTET_LENGTH,
+  IF (typ.numeric_precision = 0, NULL, typ.numeric_precision) AS NUMERIC_PRECISION,
+  IF (typ.numeric_scale = 0 && typ.numeric_precision = 0,    NULL, typ.numeric_scale) AS NUMERIC_SCALE,
+  typ.datetime_precision AS DATETIME_PRECISION,
+  cs.name AS CHARACTER_SET_NAME,
+  coll.name AS COLLATION_NAME,
+  typ.column_type_utf8 AS COLUMN_TYPE FROM 
+  mysql.types typ
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  LEFT JOIN mysql.collations coll ON typ.collation_id=coll.id
+  LEFT JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TYPES AS SELECT 
+  cat.name AS TYPE_CATALOG,
+  sch.name AS TYPE_SCHEMA,
+  typ.name AS TYPE_NAME,
+  SUBSTRING_INDEX(SUBSTRING_INDEX(typ.column_type_utf8, '(', 1),' ', 1) AS DATA_TYPE,
+  INTERNAL_DD_CHAR_LENGTH(typ.data_type, typ.char_length, coll.name, 0) AS CHARACTER_MAXIMUM_LENGTH,
+  INTERNAL_DD_CHAR_LENGTH(typ.data_type, typ.char_length, coll.name, 1) AS CHARACTER_OCTET_LENGTH,
+  IF (typ.numeric_precision = 0, NULL, typ.numeric_precision) AS NUMERIC_PRECISION,
+  IF (typ.numeric_scale = 0 && typ.numeric_precision = 0,    NULL, typ.numeric_scale) AS NUMERIC_SCALE,
+  typ.datetime_precision AS DATETIME_PRECISION,
+  cs.name AS CHARACTER_SET_NAME,
+  coll.name AS COLLATION_NAME,
+  typ.column_type_utf8 AS COLUMN_TYPE FROM 
+  mysql.types typ
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  LEFT JOIN mysql.collations coll ON typ.collation_id=coll.id
+  LEFT JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.VIEW_ROUTINE_USAGE AS SELECT 
   cat.name AS TABLE_CATALOG,
