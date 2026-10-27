@@ -319,7 +319,8 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 add_library(${LIB_NAME} ALIAS ${LIB_SELECTED})
-add_library(${PROJECT_NAME}::${LIB_NAME} ALIAS ${LIB_SELECTED})
+# MySQL defines CURL::libcurl as an alias for curl_interface.
+# add_library(${PROJECT_NAME}::${LIB_NAME} ALIAS ${LIB_SELECTED})
 
 if(CURL_ENABLE_EXPORT_TARGET)
   if(NOT CURL_DISABLE_INSTALL AND BUILD_STATIC_LIBS)

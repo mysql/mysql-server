@@ -104,8 +104,10 @@
 typedef long ctx_option_t;
 #elif defined(HAVE_BORINGSSL_LIKE)
 typedef uint32_t ctx_option_t;
-#else
+#elif defined(HAVE_OPENSSL3)
 typedef uint64_t ctx_option_t;
+#else
+typedef unsigned long ctx_option_t;
 #endif
 
 struct alpn_spec;
