@@ -48,6 +48,16 @@ SET(MYSQLSERVICES_SOURCES
   plugin_registry_service.c)
 
 ADD_LIBRARY(mysqlservices STATIC ${MYSQLSERVICES_SOURCES})
+
+# This library is installed for linking by externally built plugins, so it
+# must contain real object code. With -flto (and no -ffat-lto-objects) the
+# objects contain only GIMPLE, which is removed by e.g. Debian's dh_strip,
+# leaving empty objects and "undefined symbol: mysql_malloc_service" etc.
+# The objects only define one variable each, so LTO gains nothing here.
+IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND MY_COMPILER_IS_GNU_OR_CLANG)
+  TARGET_COMPILE_OPTIONS(mysqlservices PRIVATE -fno-lto)
+ENDIF()
+
 IF(INSTALL_STATIC_LIBRARIES)
   INSTALL(TARGETS mysqlservices
     DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
