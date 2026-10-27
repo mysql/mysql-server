@@ -22,7 +22,9 @@
 #
 ###########################################################################
 
-cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
+# MySQL sets the minimum CMake version. The bundled configuration retains
+# compatibility with CMake 3.11.2, including the list operations below.
+# cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 message(STATUS "Using CMake version ${CMAKE_VERSION}")
 
 # Collect command-line arguments for buildinfo.txt.
@@ -45,7 +47,7 @@ if(NOT "$ENV{CURL_BUILDINFO}$ENV{CURL_CI}$ENV{CI}" STREQUAL "")
   endforeach()
 endif()
 
-list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 include(Utilities)
 include(Macros)
 include(CMakeDependentOption)
@@ -347,7 +349,7 @@ endif()
 
 # For debug libs and exes, add "-d" postfix
 if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
-  set(CMAKE_DEBUG_POSTFIX "-d")
+#  set(CMAKE_DEBUG_POSTFIX "-d")
 endif()
 
 set(LIB_STATIC "libcurl_static")
@@ -661,12 +663,12 @@ elseif(AMIGA)
     set(OPENSSL_CRYPTO_LIBRARY "${AMISSL_AUTO_LIBRARY}")
     set(CURL_USE_OPENSSL ON)
     set(CURL_CA_FALLBACK ON CACHE BOOL "")
-    list(PREPEND CURL_NETWORK_AND_TIME_LIBS "${AMISSL_STUBS_LIBRARY}" "${AMISSL_AUTO_LIBRARY}")
+    set(CURL_NETWORK_AND_TIME_LIBS "${AMISSL_STUBS_LIBRARY}" "${AMISSL_AUTO_LIBRARY}" ${CURL_NETWORK_AND_TIME_LIBS})
   endif()
 elseif(NOT WIN32 AND NOT APPLE)
   check_library_exists("socket" "connect" "" HAVE_LIBSOCKET)
   if(HAVE_LIBSOCKET)
-    list(PREPEND CURL_NETWORK_AND_TIME_LIBS "socket")
+    set(CURL_NETWORK_AND_TIME_LIBS "socket" ${CURL_NETWORK_AND_TIME_LIBS})
   endif()
 endif()
 
@@ -813,7 +815,7 @@ if(NOT DEFINED _curl_stdlib_cxx)
 endif()
 
 if(CURL_USE_OPENSSL)
-  find_package(OpenSSL REQUIRED)
+#  find_package(OpenSSL REQUIRED)
   set(_ssl_enabled ON)
   set(USE_OPENSSL ON)
 
@@ -963,7 +965,8 @@ endif()
 # and before calling curl_openssl_check_exists().
 
 set(HAVE_LIBZ OFF)
-curl_dependency_option(CURL_ZLIB ZLIB "ZLIB")
+# Use result from cmake/zlib.cmake
+# curl_dependency_option(CURL_ZLIB ZLIB "ZLIB")
 if(ZLIB_FOUND)
   set(HAVE_LIBZ ON)
   # Depend on ZLIB via imported targets. This allows our dependents to
@@ -972,18 +975,18 @@ if(ZLIB_FOUND)
 endif()
 
 set(HAVE_BROTLI OFF)
-curl_dependency_option(CURL_BROTLI Brotli "brotli")
+# curl_dependency_option(CURL_BROTLI Brotli "brotli")
 if(BROTLI_FOUND)
   set(HAVE_BROTLI ON)
   list(APPEND CURL_LIBS CURL::brotli)
 endif()
 
 set(HAVE_ZSTD OFF)
-curl_dependency_option(CURL_ZSTD Zstd "zstd")
+# curl_dependency_option(CURL_ZSTD Zstd "zstd")
 if(ZSTD_FOUND)
   if(ZSTD_VERSION VERSION_GREATER_EQUAL 1.0.0)
     set(HAVE_ZSTD ON)
-    list(APPEND CURL_LIBS CURL::zstd)
+    list(APPEND CURL_LIBS ext::zstd)
   else()
     message(WARNING "zstd 1.0.0 or greater required, disabling zstd support")
   endif()
@@ -995,7 +998,8 @@ macro(curl_openssl_check_exists)
   if(USE_OPENSSL)
     list(APPEND CMAKE_REQUIRED_LIBRARIES OpenSSL::SSL OpenSSL::Crypto)
     if(HAVE_LIBZ)
-      list(APPEND CMAKE_REQUIRED_LIBRARIES ZLIB::ZLIB)
+      # MySQL's bundled ZLIB::ZLIB target is not available to try_compile().
+      # list(APPEND CMAKE_REQUIRED_LIBRARIES ZLIB::ZLIB)
     endif()
     if(WIN32)
       list(APPEND CMAKE_REQUIRED_LIBRARIES "bcrypt")  # for OpenSSL/LibreSSL BCryptGenRandom()
@@ -1212,7 +1216,7 @@ if(NOT CURL_DISABLE_LDAP)
     find_package(LDAP MODULE)
     if(LDAP_FOUND)
       set(HAVE_LBER_H 1)
-      list(PREPEND CURL_LIBS CURL::ldap)
+      set(CURL_LIBS CURL::ldap ${CURL_LIBS})
 
       # LDAP feature checks
 
@@ -1279,7 +1283,7 @@ set(HAVE_LIBIDN2 OFF)
 if(USE_LIBIDN2 AND NOT USE_APPLE_IDN AND NOT USE_WIN32_IDN)
   find_package(Libidn2 MODULE)
   if(LIBIDN2_FOUND)
-    list(PREPEND CURL_LIBS CURL::libidn2)
+    set(CURL_LIBS CURL::libidn2 ${CURL_LIBS})
     set(HAVE_IDN2_H 1)
     set(HAVE_LIBIDN2 1)
   endif()
@@ -1302,7 +1306,7 @@ set(USE_LIBSSH2 OFF)
 if(CURL_USE_LIBSSH2)
   find_package(Libssh2 MODULE)
   if(LIBSSH2_FOUND)
-    list(PREPEND CURL_LIBS CURL::libssh2)  # keep it before TLS-crypto, compression
+    set(CURL_LIBS CURL::libssh2 ${CURL_LIBS})  # keep it before TLS-crypto, compression
     set(USE_LIBSSH2 ON)
   endif()
 endif()
@@ -1312,7 +1316,7 @@ option(CURL_USE_LIBSSH "Use libssh" OFF)
 mark_as_advanced(CURL_USE_LIBSSH)
 if(NOT USE_LIBSSH2 AND CURL_USE_LIBSSH)
   find_package(Libssh MODULE REQUIRED)
-  list(PREPEND CURL_LIBS CURL::libssh)  # keep it before TLS-crypto, compression
+  set(CURL_LIBS CURL::libssh ${CURL_LIBS})  # keep it before TLS-crypto, compression
   set(USE_LIBSSH ON)
 endif()
 
@@ -1938,7 +1942,8 @@ endif()
 if(Perl_FOUND)
   set(CURL_MANPAGE "${PROJECT_BINARY_DIR}/docs/cmdline-opts/curl.1")
   set(CURL_ASCIIPAGE "${PROJECT_BINARY_DIR}/docs/cmdline-opts/curl.txt")
-  add_subdirectory(docs)
+  # Documentation is omitted from the bundled sources.
+  # add_subdirectory(docs)
 endif()
 
 add_subdirectory(scripts)  # for shell completions
@@ -2062,7 +2067,11 @@ curl_add_if("SSLS-EXPORT"   _ssl_enabled AND USE_SSLS_EXPORT)
 curl_add_if("AppleSecTrust" USE_APPLE_SECTRUST AND _ssl_enabled AND (USE_OPENSSL OR USE_GNUTLS))
 curl_add_if("NativeCA"      NOT USE_APPLE_SECTRUST AND _ssl_enabled AND CURL_CA_NATIVE)
 if(_items)
-  list(SORT _items CASE INSENSITIVE)
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
+    list(SORT _items CASE INSENSITIVE)
+  else()
+    list(SORT _items)
+  endif()
 endif()
 set(CURL_SUPPORTED_FEATURES_LIST "${_items}")
 string(REPLACE ";" " " SUPPORT_FEATURES "${_items}")
@@ -2078,7 +2087,11 @@ curl_add_if("GnuTLS"        _ssl_enabled AND USE_GNUTLS)
 curl_add_if("Rustls"        _ssl_enabled AND USE_RUSTLS)
 
 if(_items)
-  list(SORT _items CASE INSENSITIVE)
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
+    list(SORT _items CASE INSENSITIVE)
+  else()
+    list(SORT _items)
+  endif()
 endif()
 string(REPLACE ";" " " SSL_BACKENDS "${_items}")
 message(STATUS "Enabled SSL backends: ${SSL_BACKENDS}")
