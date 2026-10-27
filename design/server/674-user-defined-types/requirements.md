@@ -11,13 +11,11 @@ Support for User Data Type (UDT) is available in all editions of the server:
 * Enterprise edition
 * Cloud editions
 
-FR:
+NFR:
 
-When a party provides a specific User Data Type implementation, the type delivered is available, at the provider choice, to either:
-
-* All editions (community, enterprise, cloud)
-* Enterprise and cloud only
-* Cloud only
+When a party provides a specific User Data Type implementation,
+the party owns the implementation, and decides how to license the type
+provided.
 
 ## MySQL Versions
 
@@ -33,7 +31,9 @@ when porting fixes from older releases to the main branch.
 Design constraints include:
 
 * to isolate User Defined Type specific code to dedicated files,
-  to prevent merge collisions.
+  to prevent merge collisions (when practical).
+* to isolate User Defined Type specific tests to dedicated files,
+  to prevent merge collisions (when practical).
 
 ## Deployment
 
@@ -58,31 +58,44 @@ Because User Data Types installed in a server are optional, users need to discov
 
 FR:
 
-An interface in SQL is exposed by the server to list all available User Data Types.
+A table INFORMATION_SCHEMA.TYPES is exposed by the server
+to list all available User Data Types.
 
 FR:
 
-An interface in SQL is exposed by the server to list all operations available for a given User Data Type.
+A table INFORMATION_SCHEMA.TYPE_OPERATIONS is exposed by the server
+to list all operations available for a given User Data Type.
 
 FR:
 
-An interface in SQL is exposed by the server to describe the full operation signature for a given operation on a given User Data Type.
+A table INFORMATION_SCHEMA.TYPE_OPERATION_PARAMETERS is exposed by the server
+to describe the full operation signature for a given operation on a given User Data Type.
 
 ### Type usage discoverability
 
-Users need to find out where a given type is in use, to remove references before removing a type.
+Users need to find out where a given type is in use,
+to maintain an application in general.
 
 FR: 
 
-The INFORMATION_SCHEMA is extended to expose:
-
-* the User Data Type used by a column in a table, if applicable
-* the User Data Type used by a parameter in a stored program, if applicable
-* the User Data Type used by the return type of a stored function, if applicable
+The table INFORMATION_SCHEMA.COLUMNS is extended to expose
+the User Data Type used by a column in a table, if applicable
 
 FR:
 
-The INFORMATION_SCHEMA exposes a new view, to find all usages of a given User Data Type in stored programs.
+The table INFORMATION_SCHEMA.ROUTINES is extended to expose
+the User Data Type used by the return type of a stored function, if applicable
+
+FR:
+
+The table INFORMATION_SCHEMA.PARAMETERS is extended to expose
+the User Data Type used by a parameter in a stored program, if applicable
+
+Note:
+
+A type can also be used inside a stored program body.
+Reporting types used by stored programs body was considered,
+but discarded.
 
 ## SQL Language
 
@@ -91,6 +104,7 @@ The INFORMATION_SCHEMA exposes a new view, to find all usages of a given User Da
 FR:
 
 A TYPE is a SQL object.
+It belongs to a SCHEMA.
 
 FR:
 
@@ -126,6 +140,11 @@ except for the following restrictions:
 * User Defined Types can not be used in an PRIMARY KEY
 * User Defined Types can not be used in an FOREIGN KEY
 
+Note:
+
+These restrictions are due to initial project scoping,
+and may be revised later (User Defined Indexes).
+
 ### Type expression validity
 
 FR:
@@ -146,15 +165,38 @@ are detected and reported as errors.
 
 FR:
 
-Verification of the expression validity is performed during parsing,
-not during runtime.
+Verification of the expression validity is NOT performed during parsing.
+
+FR:
+
+Verification of the expression validity is performed during runtime
+execution.
 
 As a consequence:
 
 * an invalid expression that is not reachable (IFNULL, CASE expressions,
-  impossible WHERE clauses) is detected at parse time
-* an invalid expression in a prepared statement is detected during PREPARE
-* in invalid expression in a stored program is detected during CREATE
+  impossible WHERE clauses) is not detected at parse time
+* an invalid expression in a prepared statement is not detected during PREPARE
+* in invalid expression in a stored program is not detected during CREATE
+
+### DDL constraints
+
+FR:
+
+DROP TYPE fails with an error if the type is used by a column in a table.
+
+FR:
+
+DROP TYPE does not enforce that no stored programs uses the type.
+
+This is a deviation from the SQL standard.
+The rationale for this behavior is consistency with other objects in MySQL:
+DROP TABLE is allowed even when a stored program uses the table.
+
+FR:
+
+DROP SCHEMA implicitly executes DROP TYPE
+for all types present in the schema (cascade behavior)
 
 ## Type implementation
 
@@ -184,7 +226,11 @@ NFR:
 The server supports adding a type:
 
 * from a component statically linked with the server.
-  * This allows MySQL to provide additional builtin types.
+  * This allows MySQL to provide additional builtin types,
+    while implementing the builtin using the same infrastructure
+    as user defined types.
+  * This allows MySQL to promote optional types to builtin types,
+    with minimal code changes.
 
 ## Services
 
@@ -237,21 +283,25 @@ TODO
 
 TODO
 
+## Degraded behavior
+
+TODO, behavior when a type is declared, but implementation is not loaded.
+
 ## Observability
 
 At runtime, the server will execute code provided as a User Defined Type to perform operations on a type.
 
 FR:
 
-The server exposes a SQL interface to report statistics about individual operations executions.
+The server exposes a performance_schema table to report statistics about individual operations executions.
 
 FR:
 
-The server exposes a SQL interface to aggregates statistics for all executions of a given operation.
+The server exposes a performance_schema table to aggregates statistics for all executions of a given operation.
 
 FR:
 
-The server exposes a SQL interface to aggregates statistics for all operations on a given type.
+The server exposes a performance_schema table to aggregates statistics for all operations on a given type.
 
 ## Documentation
 
