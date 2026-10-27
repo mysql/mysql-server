@@ -631,6 +631,10 @@ std::string MySQLSession::quote(const std::string &s, char qchar) const {
   r[0] = qchar;
   unsigned long len = mysql_real_escape_string_quote(
       connection_, &r[1], s.c_str(), s.length(), qchar);
+  if (len == static_cast<unsigned long>(-1)) {
+    throw Error(mysql_error(connection_), mysql_errno(connection_),
+                mysql_error(connection_));
+  }
   r.resize(len + 2);
   r[len + 1] = qchar;
   return r;

@@ -1145,6 +1145,7 @@ ulong STDCALL mysql_real_escape_string(MYSQL *mysql, char *to, const char *from,
   binary data.
 
   This function should be used for escaping identifiers and string parameters.
+  Backtick-quoted identifiers with invalid multibyte characters are rejected.
 
   @param [in] mysql   MySQL connection structure.
   @param [out] to     Escaped string output buffer.
@@ -1157,15 +1158,24 @@ ulong STDCALL mysql_real_escape_string(MYSQL *mysql, char *to, const char *from,
   @return Result value.
     @retval != (ulong)-1 Succeeded. Number of bytes written to the output
                          buffer without the '\0' character.
-    @retval (ulong)-1    Failed.
+    @retval (ulong)-1    Failed. Use mysql_error() to get error message.
 */
 
 ulong STDCALL mysql_real_escape_string_quote(MYSQL *mysql, char *to,
                                              const char *from, ulong length,
                                              char quote) {
-  if (quote == '`' || mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
-    return (uint)escape_quotes_for_mysql(mysql->charset, to, 0, from, length,
-                                         quote);
+  if (quote == '`' ||
+      mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES) {
+    const size_t escaped_length =
+        escape_quotes_for_mysql(mysql->charset, to, 0, from, length, quote);
+    if (escaped_length == static_cast<size_t>(-1)) {
+      set_mysql_extended_error(
+          mysql, CR_UNKNOWN_ERROR, unknown_sqlstate,
+          "Cannot escape an invalid multibyte character in an identifier");
+      return static_cast<ulong>(-1);
+    }
+    return static_cast<ulong>(escaped_length);
+  }
   return (uint)escape_string_for_mysql(mysql->charset, to, 0, from, length);
 }
 

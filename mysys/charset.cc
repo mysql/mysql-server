@@ -440,9 +440,12 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info, char *to,
      Without this check, we can create a problem by converting an invalid
      multi-byte character into a valid one. For example, 0xbf27 is not
      a valid GBK character, but 0xbf5c is. (0x27 = ', 0x5c = \)
+
+     Check the first byte only: for GB18030, my_mbcharlen_ptr() returns 0
+     when a valid lead byte is followed by an invalid second byte.
     */
-    tmp_length = use_mb_flag ? my_mbcharlen_ptr(charset_info, from, end) : 0;
-    if (tmp_length > 1)
+    if (use_mb_flag &&
+        my_ismb1st(charset_info, static_cast<unsigned char>(*from)))
       escape = *from;
     else
       switch (*from) {
@@ -532,14 +535,15 @@ CHARSET_INFO *fs_character_set() {
     mean "big enough"
 
   RETURN VALUES
-    ~0          The escaped string did not fit in the to buffer
+    ~0          The escaped string did not fit in the to buffer, or a backtick-
+                quoted identifier contained an invalid multibyte character
     >=0         The length of the escaped string
 */
 
 size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
                                size_t to_length, const char *from,
                                size_t length, char quote) {
-  const char *to_start = to;
+  char *to_start = to;
   const char *end = nullptr;
   const char *to_end = to_start + (to_length ? to_length - 1 : 2 * length);
   bool overflow = false;
@@ -555,11 +559,11 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
       from--;
       continue;
     }
-    /*
-      We don't have the same issue here with a non-multi-byte character being
-      turned into a multi-byte character by the addition of an escaping
-      character, because we are only escaping the ' character with itself.
-     */
+    if (quote == '`' && use_mb_flag &&
+        my_ismb1st(charset_info, static_cast<unsigned char>(*from))) {
+      *to_start = 0;
+      return static_cast<size_t>(-1);
+    }
     if (*from == quote) {
       if (to + 2 > to_end) {
         overflow = true;
@@ -576,7 +580,8 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
     }
   }
   *to = 0;
-  return overflow ? (ulong)~0 : (ulong)(to - to_start);
+  return overflow ? static_cast<size_t>(-1)
+                  : static_cast<size_t>(to - to_start);
 }
 
 void charset_uninit() {
