@@ -1,0 +1,121 @@
+#!/bin/sh
+
+#***************************************************************************
+#                                  _   _ ____  _
+#  Project                     ___| | | |  _ \| |
+#                             / __| | | | |_) | |
+#                            | (__| |_| |  _ <| |___
+#                             \___|\___/|_| \_\_____|
+#
+# Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
+#
+# This software is licensed as described in the file COPYING, which
+# you should have received as part of this distribution. The terms
+# are also available at https://curl.se/docs/copyright.html.
+#
+# You may opt to use, copy, modify, merge, publish, distribute and/or sell
+# copies of the Software, and permit persons to whom the Software is
+# furnished to do so, under the terms of the COPYING file.
+#
+# This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
+# KIND, either express or implied.
+#
+# SPDX-License-Identifier: curl
+#
+###########################################################################
+
+# This script remakes a provided curl release and verifies that the newly
+# built version is identical to the original file.
+#
+# Invoke in a clean directory with the release tarball file (stored in the
+# same directory) as an argument for basic verification.
+#
+# For full verification: run the script in an up-to-date curl git repository.
+#
+
+set -eu
+
+tarball="${1:-}"
+
+if [ -z "$tarball" ]; then
+  echo "Provide a curl release tarball name as argument"
+  exit 1
+fi
+
+i="$(find . -maxdepth 1 -type d -name 'curl-*' | wc -l)"
+
+if test "$i" -gt 1; then
+  echo "multiple curl-* entries found, disambiguate please"
+  exit 1
+fi
+
+# check if this is in a git clone directory
+
+if git log -1 include/curl/curl.h 2>/dev/null >/dev/null; then
+  echo "*** Detected a git checkout, do full verification"
+  withgit=1
+else
+  echo "*** Lacking a full git checkout, do the lesser verification"
+  withgit=0
+fi
+
+mkdir -p _tarballs
+rm -rf _tarballs/*
+
+# checksum the original tarball to compare with later
+sha256sum -- "$tarball" >_tarballs/checksum
+
+# extract version number from filename
+tarver=$(echo "$tarball" | sed 's/curl-\([0-9.]*\)\..*/\1/')
+
+# extract the version from the official header file
+curlver=$(tar xOf "$tarball" "curl-$tarver/include/curl/curlver.h" | grep '#define LIBCURL_VERSION ' | sed 's/[^0-9.]//g')
+
+if test "$tarver" != "$curlver"; then
+  echo "Tarball file version ($tarver) mismatches contents of tarball ($curlver)"
+  exit 1
+fi
+
+timestamp=$(tar xOf "$tarball" "curl-$tarver/docs/RELEASE-TOOLS.md" | grep 'SOURCE_DATE_EPOCH=' | sed 's/[^0-9.]//g')
+
+if test "$withgit" = 0; then
+  # without git
+
+  # extract the release contents
+  tar xf "$tarball"
+
+  # move away the original tarball
+  mv -- "$tarball" "_tarballs/orig-$tarball"
+
+  pwd=$(pwd)
+  cd "curl-$curlver"
+  ./configure --without-ssl --without-libpsl
+  ./scripts/dmaketgz "$curlver" "$timestamp"
+
+  for f in "curl-$curlver.tar.gz" "curl-$curlver.tar.bz2" "curl-$curlver.tar.xz" "curl-$curlver.zip"; do
+    mv "$f" ../_tarballs/
+  done
+  cd "$pwd"
+else
+  tag=$(tar xOf "$tarball" "curl-$tarver/docs/RELEASE-TOOLS.md" | grep 'tag/commit: curl-' | head -n 1 | sed 's/.*\(curl-[0-9_]*\).*/\1/')
+  echo "*** Use git tag $tag"
+
+  # move away the original tarball
+  mv -- "$tarball" "_tarballs/orig-$tarball"
+
+  prevtag=$(git symbolic-ref -q --short HEAD || git rev-parse HEAD)
+  git checkout -f "$tag"
+
+  ./scripts/dmaketgz "$curlver" "$timestamp"
+
+  # switch back to where it was
+  git checkout -f "$prevtag"
+
+  for f in "curl-$curlver.tar.gz" "curl-$curlver.tar.bz2" "curl-$curlver.tar.xz" "curl-$curlver.zip"; do
+    mv "$f" _tarballs/
+  done
+fi
+cd _tarballs
+
+# compare the new tarball against the original
+sha256sum -c checksum
