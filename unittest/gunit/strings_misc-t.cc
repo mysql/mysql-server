@@ -23,6 +23,7 @@
 
 #include <gtest/gtest.h>
 #include <cstring>
+#include <string>
 
 #include "my_sys.h"
 #include "mysql/strings/collations.h"
@@ -64,6 +65,83 @@ TEST(StringsMiscTest, CaseCmpIterate) {
   init_collation("utf8mb4_0900_ai_ci");
   mysql::collation_internals::entry->iterate(
       [](const CHARSET_INFO *cs) { test_caseup_casedn(cs); });
+}
+
+TEST(StringsMiscTest, EscapeGb18030LeadBytes) {
+  for (const char *collation :
+       {"gb18030_chinese_ci", "gb18030_bin", "gb18030_unicode_520_ci"}) {
+    SCOPED_TRACE(collation);
+    const CHARSET_INFO *cs = init_collation(collation);
+    ASSERT_NE(nullptr, cs);
+    for (unsigned lead = 0x81; lead <= 0xfe; ++lead) {
+      SCOPED_TRACE(lead);
+      const char input[] = {
+          static_cast<char>(lead), '\0', '\n', '\r', '\032', '\'', '"'};
+      // Each special character must be tested immediately after the lead byte.
+      const char escapes[] = {'0', 'n', 'r', 'Z', '\'', '"'};
+      for (size_t i = 0; i < sizeof(escapes); ++i) {
+        SCOPED_TRACE(i);
+        const char from[] = {input[0], input[i + 1]};
+        const char expected[] = {'\\', input[0], '\\', escapes[i], '\0'};
+        char to[2 * sizeof(from) + 1];
+        ASSERT_EQ(
+            4, escape_string_for_mysql(cs, to, sizeof(to), from, sizeof(from)));
+        EXPECT_EQ(0, memcmp(to, expected, sizeof(expected)));
+      }
+    }
+  }
+}
+
+TEST(StringsMiscTest, EscapeGb18030Sequences) {
+  const CHARSET_INFO *cs = init_collation("gb18030_chinese_ci");
+  ASSERT_NE(nullptr, cs);
+  const struct {
+    const char *input;
+    const char *expected;
+  } cases[] = {
+      {"", ""},
+      {"ascii", "ascii"},
+      {"\x81", "\\\x81"},
+      {"\xfe", "\\\xfe"},
+      {"\x80\xff", "\x80\xff"},
+      {"\x81\x5c'", "\x81\x5c\\'"},
+      {"\x81\x40\xfe\xfe", "\x81\x40\xfe\xfe"},
+      {"\x81\x30\x81\x30'", "\x81\x30\x81\x30\\'"},
+      {"\xfe\x39\xfe\x39", "\xfe\x39\xfe\x39"},
+      {"\x81\x30", "\\\x81\x30"},
+      {"\x81\x30\x81", "\\\x81\x30\\\x81"},
+      {"\x81\x30\x81'", "\\\x81\x30\\\x81\\'"},
+  };
+  for (const auto &test : cases) {
+    const size_t input_length = strlen(test.input);
+    const size_t expected_length = strlen(test.expected);
+    std::string to(2 * input_length + 1, '\0');
+    EXPECT_EQ(expected_length,
+              escape_string_for_mysql(cs, &to[0], to.size(), test.input,
+                                      input_length));
+    EXPECT_EQ(0, memcmp(to.data(), test.expected, expected_length + 1));
+  }
+}
+
+TEST(StringsMiscTest, EscapeGb18030BufferBoundary) {
+  const CHARSET_INFO *cs = init_collation("gb18030_chinese_ci");
+  ASSERT_NE(nullptr, cs);
+  const char input[] = "\x81'";
+  char to[6];
+  for (size_t capacity = 1; capacity <= 5; ++capacity) {
+    SCOPED_TRACE(capacity);
+    memset(to, 'X', sizeof(to));
+    const size_t length =
+        escape_string_for_mysql(cs, to, capacity, input, sizeof(input) - 1);
+    if (capacity < 5) {
+      EXPECT_EQ(static_cast<size_t>(-1), length);
+      EXPECT_NE(nullptr, memchr(to, '\0', capacity));
+    } else {
+      EXPECT_EQ(4, length);
+      EXPECT_EQ(0, memcmp(to, "\\\x81\\'", 5));
+    }
+    EXPECT_EQ('X', to[capacity]);
+  }
 }
 
 }  // namespace strings_misc_unittest
