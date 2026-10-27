@@ -28,6 +28,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest-param-test.h>
 
+#include <errmsg.h>
 #include <mysql.h>  // SSL_MODE_DISABLED, ...
 
 class MySQLSessionTest : public ::testing::Test {};
@@ -59,6 +60,31 @@ TEST_F(MySQLSessionTest, ssl_mode_to_string) {
             MySQLSession::ssl_mode_to_string(SSL_MODE_VERIFY_CA));
   EXPECT_EQ(MySQLSession::kSslModeVerifyIdentity,
             MySQLSession::ssl_mode_to_string(SSL_MODE_VERIFY_IDENTITY));
+}
+
+TEST_F(MySQLSessionTest, quote_multibyte_identifier) {
+  MySQLSession sess;
+  ASSERT_EQ(0, mysql_set_character_set(sess.get_handle(), "gb18030"));
+
+  EXPECT_EQ("``", sess.quote("", '`'));
+  EXPECT_EQ("`a``b`", sess.quote("a`b", '`'));
+  EXPECT_EQ("`\x81\x40`", sess.quote("\x81\x40", '`'));
+  EXPECT_EQ("`\x81\x30\x81\x30`", sess.quote("\x81\x30\x81\x30", '`'));
+}
+
+TEST_F(MySQLSessionTest, quote_reports_invalid_identifier) {
+  MySQLSession sess;
+  ASSERT_EQ(0, mysql_set_character_set(sess.get_handle(), "gb18030"));
+
+  try {
+    sess.quote("name\x81", '`');
+    FAIL() << "Expected an invalid identifier to be rejected";
+  } catch (const MySQLSession::Error &error) {
+    EXPECT_EQ(CR_UNKNOWN_ERROR, error.code());
+    EXPECT_STREQ(mysql_error(sess.get_handle()), error.what());
+    EXPECT_EQ(mysql_error(sess.get_handle()), error.message());
+  }
+  EXPECT_EQ("`name`", sess.quote("name", '`'));
 }
 
 template <typename T>
