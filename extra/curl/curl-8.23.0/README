@@ -1,0 +1,50 @@
+                                  _   _ ____  _
+                              ___| | | |  _ \| |
+                             / __| | | | |_) | |
+                            | (__| |_| |  _ <| |___
+                             \___|\___/|_| \_\_____|
+
+README
+
+  Curl is a command line tool for transferring data specified with URL
+  syntax. Find out how to use curl by reading the curl.1 man page or the
+  MANUAL document. Find out how to install Curl by reading the INSTALL
+  document.
+
+  libcurl is the library curl is using to do its job. It is readily
+  available to be used by your software. Read the libcurl.3 man page to
+  learn how.
+
+  You find answers to the most frequent questions we get in the FAQ.md
+  document.
+
+  Study the COPYING file for distribution terms.
+
+  Those documents and more can be found in the docs/ directory.
+
+CONTACT
+
+  If you have problems, questions, ideas or suggestions, please contact us
+  by posting to a suitable mailing list. See https://curl.se/mail/
+
+  All contributors to the project are listed in the THANKS document.
+
+WEBSITE
+
+  Visit the curl website for the latest news and downloads:
+
+  https://curl.se/
+
+GIT
+
+  To download the latest source code off the GIT server, do this:
+
+  git clone https://github.com/curl/curl
+
+  (you get a directory named curl, filled with the source code)
+
+SECURITY PROBLEMS
+
+  Report suspected security problems privately and not in public.
+
+  https://curl.se/dev/vuln-disclosure.html
