@@ -91,7 +91,9 @@
 #  endif
 #elif !defined(HAVE_BORINGSSL_LIKE)
 #  ifndef HAVE_OPENSSL3 /* 2021-09-07 */
-#    error "OpenSSL 3.0.0 or greater required"
+#    if OPENSSL_VERSION_NUMBER < 0x1010100fL /* 2018-09-11 */
+#      error "OpenSSL 1.1.1 or greater required"
+#    endif
 #  endif
 #endif
 
@@ -2145,7 +2147,12 @@ static CURLcode ossl_verifyhost(struct Curl_easy *data,
     bool free_cn = FALSE;
 
     /* The following is done because of a bug in 0.9.6b */
+#if defined(HAVE_OPENSSL3) || defined(LIBRESSL_VERSION_NUMBER) || \
+  defined(HAVE_BORINGSSL_LIKE)
     const X509_NAME *name = X509_get_subject_name(server_cert);
+#else /* OpenSSL 1.1.1 */
+    X509_NAME *name = X509_get_subject_name(server_cert);
+#endif
     if(name) {
       int j;
       while((j = X509_NAME_get_index_by_NID(name, NID_commonName, i)) >= 0)
@@ -5469,9 +5476,20 @@ size_t Curl_ossl_version(char *buffer, size_t size)
 #else
   return curl_msnprintf(buffer, size, OSSL_PACKAGE);
 #endif
-#else /* OpenSSL 3+ */
+#elif defined(HAVE_OPENSSL3)
   return curl_msnprintf(buffer, size, "%s/%s",
                         OSSL_PACKAGE, OpenSSL_version(OPENSSL_VERSION_STRING));
+#else /* OpenSSL 1.1.1 */
+  const char *version = OpenSSL_version(OPENSSL_VERSION);
+  const char *number = strchr(version, ' ');
+  size_t length;
+  if(number)
+    ++number;
+  else
+    number = version;
+  length = strcspn(number, " ");
+  return curl_msnprintf(buffer, size, "%s/%.*s",
+                        OSSL_PACKAGE, (int)length, number);
 #endif
 }
 
