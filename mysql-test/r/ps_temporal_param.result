@@ -1,0 +1,402 @@
+prepare time_parts from 'select cast(? as time) as cast_time,
+                               hour(?) as h,
+                               minute(?) as mi,
+                               second(?) as sec,
+                               microsecond(?) as micro';
+prepare tf_parts from 'select time_format(?, ''%H:%i:%s'') as tf';
+prepare extract_parts from 'select extract(hour from ?) as ex_h,
+                                  extract(minute from ?) as ex_mi,
+                                  extract(second from ?) as ex_sec,
+                                  extract(microsecond from ?) as ex_micro,
+                                  extract(hour_second from ?) as ex_hs,
+                                  extract(day_hour from ?) as ex_dh';
+prepare date_parts from 'select extract(year from ?) as ex_year,
+                               extract(month from ?) as ex_month,
+                               extract(day from ?) as ex_day,
+                               date_format(?, ''%H:%i:%s'') as df,
+                               cast(date_add(?, interval 1 day) as datetime)
+                                 as date_add,
+                               to_days(?) as to_days';
+set @v = '02:02:02';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+02:02:02	2	2	2	0
+select cast('02:02:02' as time) as cast_time, hour('02:02:02') as h,
+minute('02:02:02') as mi, second('02:02:02') as sec,
+microsecond('02:02:02') as micro;
+cast_time	h	mi	sec	micro
+02:02:02	2	2	2	0
+execute tf_parts using @v;
+tf
+02:02:02
+select time_format('02:02:02', '%H:%i:%s') as tf;
+tf
+02:02:02
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+2	2	2	0	20202	2
+select extract(hour from '02:02:02') as ex_h,
+extract(minute from '02:02:02') as ex_mi,
+extract(second from '02:02:02') as ex_sec,
+extract(microsecond from '02:02:02') as ex_micro,
+extract(hour_second from '02:02:02') as ex_hs,
+extract(day_hour from '02:02:02') as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+2	2	2	0	20202	2
+execute date_parts using @v, @v, @v, @v, @v, @v;
+ex_year	ex_month	ex_day	df	date_add	to_days
+2002	2	2	00:00:00	2002-02-03 00:00:00	731248
+select extract(year from '02:02:02') as ex_year,
+extract(month from '02:02:02') as ex_month,
+extract(day from '02:02:02') as ex_day,
+date_format('02:02:02', '%H:%i:%s') as df,
+cast(date_add('02:02:02', interval 1 day) as datetime) as date_add,
+to_days('02:02:02') as to_days;
+ex_year	ex_month	ex_day	df	date_add	to_days
+2002	2	2	00:00:00	2002-02-03 00:00:00	731248
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '02:02:02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter ':' in position 2 in datetime value '02:02:02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter ':' in position 2 in datetime value '02:02:02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter ':' in position 2 in datetime value '02:02:02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter ':' in position 2 in datetime value '02:02:02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter ':' in position 2 in datetime value '02:02:02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter ':' in position 2 in datetime value '02:02:02' at row 1 is deprecated. Prefer the standard '-'.
+set @v = '12:11:10';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+12:11:10	12	11	10	0
+select cast('12:11:10' as time) as cast_time, hour('12:11:10') as h,
+minute('12:11:10') as mi, second('12:11:10') as sec,
+microsecond('12:11:10') as micro;
+cast_time	h	mi	sec	micro
+12:11:10	12	11	10	0
+execute tf_parts using @v;
+tf
+12:11:10
+select time_format('12:11:10', '%H:%i:%s') as tf;
+tf
+12:11:10
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+12	11	10	0	121110	12
+select extract(hour from '12:11:10') as ex_h,
+extract(minute from '12:11:10') as ex_mi,
+extract(second from '12:11:10') as ex_sec,
+extract(microsecond from '12:11:10') as ex_micro,
+extract(hour_second from '12:11:10') as ex_hs,
+extract(day_hour from '12:11:10') as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+12	11	10	0	121110	12
+set @v = '12:34:56';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+12:34:56	12	34	56	0
+select cast('12:34:56' as time) as cast_time, hour('12:34:56') as h,
+minute('12:34:56') as mi, second('12:34:56') as sec,
+microsecond('12:34:56') as micro;
+cast_time	h	mi	sec	micro
+12:34:56	12	34	56	0
+execute tf_parts using @v;
+tf
+12:34:56
+select time_format('12:34:56', '%H:%i:%s') as tf;
+tf
+12:34:56
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+12	34	56	0	123456	12
+select extract(hour from '12:34:56') as ex_h,
+extract(minute from '12:34:56') as ex_mi,
+extract(second from '12:34:56') as ex_sec,
+extract(microsecond from '12:34:56') as ex_micro,
+extract(hour_second from '12:34:56') as ex_hs,
+extract(day_hour from '12:34:56') as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+12	34	56	0	123456	12
+set @v = '02:02:02.1';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+02:02:02	2	2	2	100000
+select cast('02:02:02.1' as time) as cast_time, hour('02:02:02.1') as h,
+minute('02:02:02.1') as mi, second('02:02:02.1') as sec,
+microsecond('02:02:02.1') as micro;
+cast_time	h	mi	sec	micro
+02:02:02	2	2	2	100000
+execute tf_parts using @v;
+tf
+02:02:02
+select time_format('02:02:02.1', '%H:%i:%s') as tf;
+tf
+02:02:02
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+2	2	2	100000	20202	2
+select extract(hour from '02:02:02.1') as ex_h,
+extract(minute from '02:02:02.1') as ex_mi,
+extract(second from '02:02:02.1') as ex_sec,
+extract(microsecond from '02:02:02.1') as ex_micro,
+extract(hour_second from '02:02:02.1') as ex_hs,
+extract(day_hour from '02:02:02.1') as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+2	2	2	100000	20202	2
+set @v = '02:02:02.123456';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+02:02:02	2	2	2	123456
+select cast('02:02:02.123456' as time) as cast_time,
+hour('02:02:02.123456') as h, minute('02:02:02.123456') as mi,
+second('02:02:02.123456') as sec,
+microsecond('02:02:02.123456') as micro;
+cast_time	h	mi	sec	micro
+02:02:02	2	2	2	123456
+set @v = '838:59:59';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+838:59:59	838	59	59	0
+select cast('838:59:59' as time) as cast_time, hour('838:59:59') as h,
+minute('838:59:59') as mi, second('838:59:59') as sec,
+microsecond('838:59:59') as micro;
+cast_time	h	mi	sec	micro
+838:59:59	838	59	59	0
+execute tf_parts using @v;
+tf
+838:59:59
+select time_format('838:59:59', '%H:%i:%s') as tf;
+tf
+838:59:59
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+838	59	59	0	8385959	838
+select extract(hour from '838:59:59') as ex_h,
+extract(minute from '838:59:59') as ex_mi,
+extract(second from '838:59:59') as ex_sec,
+extract(microsecond from '838:59:59') as ex_micro,
+extract(hour_second from '838:59:59') as ex_hs,
+extract(day_hour from '838:59:59') as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+838	59	59	0	8385959	838
+set @v = '-01:02:03';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+-01:02:03	1	2	3	0
+select cast('-01:02:03' as time) as cast_time, hour('-01:02:03') as h,
+minute('-01:02:03') as mi, second('-01:02:03') as sec,
+microsecond('-01:02:03') as micro;
+cast_time	h	mi	sec	micro
+-01:02:03	1	2	3	0
+execute tf_parts using @v;
+tf
+-01:02:03
+select time_format('-01:02:03', '%H:%i:%s') as tf;
+tf
+-01:02:03
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+-1	-2	-3	0	-10203	-1
+select extract(hour from '-01:02:03') as ex_h,
+extract(minute from '-01:02:03') as ex_mi,
+extract(second from '-01:02:03') as ex_sec,
+extract(microsecond from '-01:02:03') as ex_micro,
+extract(hour_second from '-01:02:03') as ex_hs,
+extract(day_hour from '-01:02:03') as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+-1	-2	-3	0	-10203	-1
+set @v = '2020-05-06 10:20:30';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+10:20:30	10	20	30	0
+select cast('2020-05-06 10:20:30' as time) as cast_time,
+hour('2020-05-06 10:20:30') as h, minute('2020-05-06 10:20:30') as mi,
+second('2020-05-06 10:20:30') as sec,
+microsecond('2020-05-06 10:20:30') as micro;
+cast_time	h	mi	sec	micro
+10:20:30	10	20	30	0
+execute tf_parts using @v;
+tf
+10:20:30
+select time_format('2020-05-06 10:20:30', '%H:%i:%s') as tf;
+tf
+10:20:30
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+10	20	30	0	102030	610
+select extract(hour from '2020-05-06 10:20:30') as ex_h,
+extract(minute from '2020-05-06 10:20:30') as ex_mi,
+extract(second from '2020-05-06 10:20:30') as ex_sec,
+extract(microsecond from '2020-05-06 10:20:30') as ex_micro,
+extract(hour_second from '2020-05-06 10:20:30') as ex_hs,
+extract(day_hour from '2020-05-06 10:20:30') as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+10	20	30	0	102030	610
+execute date_parts using @v, @v, @v, @v, @v, @v;
+ex_year	ex_month	ex_day	df	date_add	to_days
+2020	5	6	10:20:30	2020-05-07 10:20:30	737916
+select extract(year from '2020-05-06 10:20:30') as ex_year,
+extract(month from '2020-05-06 10:20:30') as ex_month,
+extract(day from '2020-05-06 10:20:30') as ex_day,
+date_format('2020-05-06 10:20:30', '%H:%i:%s') as df,
+cast(date_add('2020-05-06 10:20:30', interval 1 day) as datetime)
+as date_add,
+to_days('2020-05-06 10:20:30') as to_days;
+ex_year	ex_month	ex_day	df	date_add	to_days
+2020	5	6	10:20:30	2020-05-07 10:20:30	737916
+set @v = 20202;
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+02:02:02	2	2	2	0
+select cast(20202 as time) as cast_time, hour(20202) as h, minute(20202) as mi,
+second(20202) as sec, microsecond(20202) as micro;
+cast_time	h	mi	sec	micro
+02:02:02	2	2	2	0
+execute tf_parts using @v;
+tf
+02:02:02
+select time_format(20202, '%H:%i:%s') as tf;
+tf
+02:02:02
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+2	2	2	0	20202	2
+select extract(hour from 20202) as ex_h, extract(minute from 20202) as ex_mi,
+extract(second from 20202) as ex_sec,
+extract(microsecond from 20202) as ex_micro,
+extract(hour_second from 20202) as ex_hs,
+extract(day_hour from 20202) as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+2	2	2	0	20202	2
+set @v = 'abc';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+select cast('abc' as time) as cast_time, hour('abc') as h, minute('abc') as mi,
+second('abc') as sec, microsecond('abc') as micro;
+cast_time	h	mi	sec	micro
+NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+execute tf_parts using @v;
+tf
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: 'abc'
+select time_format('abc', '%H:%i:%s') as tf;
+tf
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'abc'
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+select extract(hour from 'abc') as ex_h, extract(minute from 'abc') as ex_mi,
+extract(second from 'abc') as ex_sec,
+extract(microsecond from 'abc') as ex_micro,
+extract(hour_second from 'abc') as ex_hs,
+extract(day_hour from 'abc') as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+Warning	1292	Truncated incorrect time value: 'abc'
+set @v = '2020-05-06';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+00:20:20	0	20	20	0
+Warnings:
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+select cast('2020-05-06' as time) as cast_time, hour('2020-05-06') as h,
+minute('2020-05-06') as mi, second('2020-05-06') as sec,
+microsecond('2020-05-06') as micro;
+cast_time	h	mi	sec	micro
+00:20:20	0	20	20	0
+Warnings:
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+0	0	0	0	0	600
+select extract(hour from '2020-05-06') as ex_h,
+extract(minute from '2020-05-06') as ex_mi,
+extract(second from '2020-05-06') as ex_sec,
+extract(microsecond from '2020-05-06') as ex_micro,
+extract(hour_second from '2020-05-06') as ex_hs,
+extract(day_hour from '2020-05-06') as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+0	0	0	0	0	600
+set @v = '101010';
+execute time_parts using @v, @v, @v, @v, @v;
+cast_time	h	mi	sec	micro
+10:10:10	10	10	10	0
+select cast('101010' as time) as cast_time, hour('101010') as h,
+minute('101010') as mi, second('101010') as sec,
+microsecond('101010') as micro;
+cast_time	h	mi	sec	micro
+10:10:10	10	10	10	0
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+10	10	10	0	101010	10
+select extract(hour from cast('101010' as time)) as ex_h,
+extract(minute from cast('101010' as time)) as ex_mi,
+extract(second from cast('101010' as time)) as ex_sec,
+extract(microsecond from cast('101010' as time)) as ex_micro,
+extract(hour_second from cast('101010' as time)) as ex_hs,
+extract(day_hour from cast('101010' as time)) as ex_dh;
+ex_h	ex_mi	ex_sec	ex_micro	ex_hs	ex_dh
+10	10	10	0	101010	10
+set @v = '2020-05-06';
+execute tf_parts using @v;
+tf
+00:20:20
+Warnings:
+Warning	1292	Truncated incorrect time value: '2020-05-06'
+select time_format('2020-05-06', '%H:%i:%s') as tf;
+tf
+00:00:00
+set @v = '101010';
+execute tf_parts using @v;
+tf
+10:10:10
+select time_format('101010', '%H:%i:%s') as tf;
+tf
+00:00:00
+prepare time_fn from 'select time(?) as t';
+set @v = '02:02:02';
+execute time_fn using @v;
+t
+02:02:02.000000
+select time('02:02:02') as t;
+t
+02:02:02
+deallocate prepare time_parts;
+deallocate prepare tf_parts;
+deallocate prepare extract_parts;
+deallocate prepare date_parts;
+deallocate prepare time_fn;

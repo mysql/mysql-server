@@ -6769,6 +6769,80 @@ static void test_temporal_functions() {
 
   mysql_stmt_close(stmt);
 
+  /*
+    A string value bound to a parameter that is used as a time value must be
+    read as a time value: '02:02:02' must not be interpreted as the date
+    2002-02-02, which would make all time components 0.
+  */
+  {
+    static constexpr int N_TIME_PARAMS = 3;
+    MYSQL_BIND time_param[N_TIME_PARAMS];
+    MYSQL_BIND time_column[N_TIME_PARAMS];
+    char time_str[] = "02:02:02";
+    ulong time_str_length = sizeof(time_str) - 1;
+    longlong hour_value = -1;
+    longlong extract_value = -1;
+    char cast_value[16];
+    ulong hour_length = 0;
+    ulong extract_length = 0;
+    ulong cast_length = 0;
+    bool time_param_is_null = false;
+    bool hour_is_null = false;
+    bool extract_is_null = false;
+    bool cast_is_null = false;
+
+    memset(time_param, 0, sizeof(time_param));
+    for (int i = 0; i < N_TIME_PARAMS; ++i) {
+      time_param[i].buffer_type = MYSQL_TYPE_STRING;
+      time_param[i].buffer = time_str;
+      time_param[i].buffer_length = time_str_length;
+      time_param[i].length = &time_str_length;
+      time_param[i].is_null = &time_param_is_null;
+    }
+
+    memset(time_column, 0, sizeof(time_column));
+    time_column[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    time_column[0].buffer = &hour_value;
+    time_column[0].length = &hour_length;
+    time_column[0].is_null = &hour_is_null;
+    time_column[1].buffer_type = MYSQL_TYPE_STRING;
+    time_column[1].buffer = cast_value;
+    time_column[1].buffer_length = sizeof(cast_value);
+    time_column[1].length = &cast_length;
+    time_column[1].is_null = &cast_is_null;
+    time_column[2].buffer_type = MYSQL_TYPE_LONGLONG;
+    time_column[2].buffer = &extract_value;
+    time_column[2].length = &extract_length;
+    time_column[2].is_null = &extract_is_null;
+
+    stmt = mysql_simple_prepare(
+        mysql, "SELECT HOUR(?), CAST(? AS TIME), EXTRACT(HOUR FROM ?)");
+    check_stmt(stmt);
+    verify_param_count(stmt, N_TIME_PARAMS);
+
+    rc = mysql_stmt_bind_named_param(stmt, time_param, N_TIME_PARAMS, nullptr);
+    check_execute(stmt, rc);
+
+    rc = mysql_stmt_bind_result(stmt, time_column);
+    check_execute(stmt, rc);
+
+    rc = mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+
+    rc = mysql_stmt_store_result(stmt);
+    check_execute(stmt, rc);
+
+    rc = mysql_stmt_fetch(stmt);
+    check_execute(stmt, rc);
+
+    DIE_UNLESS(!hour_is_null && hour_value == 2);
+    DIE_UNLESS(!cast_is_null && cast_length == 8 &&
+               memcmp(cast_value, "02:02:02", 8) == 0);
+    DIE_UNLESS(!extract_is_null && extract_value == 2);
+
+    mysql_stmt_close(stmt);
+  }
+
   rc = mysql_query(mysql, "SET timestamp=default");
   myquery(rc);
 }

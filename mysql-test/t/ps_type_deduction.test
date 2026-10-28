@@ -1255,7 +1255,7 @@ eval $show_trace;
 prepare s from 'select HOUR(?)';
 eval $show_trace;
 # custom
-# show that even though we assume DATETIME, TIME doesn't cause re-preparation
+# show that TIME and DATETIME values don't cause re-preparation
 set @a= time "10:11:12.345";
 flush status;
 execute s using @a;
