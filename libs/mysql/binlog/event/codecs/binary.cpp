@@ -171,12 +171,11 @@ std::pair<std::size_t, bool> Heartbeat::decode(const unsigned char *from,
 
     switch (type) {
       case OTW_HB_LOG_FILENAME_FIELD: {
-        // read the string
-        std::string name{reader.ptr(), static_cast<size_t>(length)};
-        // advance the cursor
-        reader.ptr(length);
+        // advance the cursor, bounds-checking the length against the buffer
+        const char *name_ptr = reader.ptr(length);
         if ((result = reader.get_error())) return {reader.position(), true};
-        ev.set_log_filename(name);
+        // read the string only after the length has been validated
+        ev.set_log_filename(std::string(name_ptr, static_cast<size_t>(length)));
       } break;
 
       case OTW_HB_LOG_POSITION_FIELD:
