@@ -116,6 +116,7 @@ SET(TESTS
   dbug
   decimal
   dh_ecdh_config
+  discrete_interval
   dns_srv_data
   dphyp
   filesort_buffer

@@ -1,0 +1,30 @@
+# An excluded AUTO_INCREMENT interval bound must not wrap around when all
+# generated values fit in BIGINT UNSIGNED. Commit B before A so that the
+# replica's table counter has reached ULLONG_MAX when it replays A.
+--source include/have_binlog_format_statement.inc
+--source include/rpl/init_source_replica.inc
+
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tag VARCHAR(8)
+) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551610;
+--source include/rpl/sync_to_replica.inc
+
+--connection master
+SET SESSION auto_increment_increment=3, auto_increment_offset=1;
+START TRANSACTION;
+INSERT INTO t1(tag) VALUES ('a1'), ('a2');
+
+--connection master1
+INSERT INTO t1 VALUES (18446744073709551614, 'b');
+
+--connection master
+COMMIT;
+SELECT id, tag FROM t1 ORDER BY id;
+--source include/rpl/sync_to_replica.inc
+SELECT id, tag FROM t1 ORDER BY id;
+
+--connection master
+SET SESSION auto_increment_increment=1, auto_increment_offset=1;
+DROP TABLE t1;
+--source include/rpl/deinit.inc

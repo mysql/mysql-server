@@ -1,0 +1,29 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (
+id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+tag VARCHAR(8)
+) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551610;
+include/rpl/sync_to_replica.inc
+SET SESSION auto_increment_increment=3, auto_increment_offset=1;
+START TRANSACTION;
+INSERT INTO t1(tag) VALUES ('a1'), ('a2');
+INSERT INTO t1 VALUES (18446744073709551614, 'b');
+COMMIT;
+SELECT id, tag FROM t1 ORDER BY id;
+id	tag
+18446744073709551610	a1
+18446744073709551613	a2
+18446744073709551614	b
+include/rpl/sync_to_replica.inc
+SELECT id, tag FROM t1 ORDER BY id;
+id	tag
+18446744073709551610	a1
+18446744073709551613	a2
+18446744073709551614	b
+SET SESSION auto_increment_increment=1, auto_increment_offset=1;
+DROP TABLE t1;
+include/rpl/deinit.inc
