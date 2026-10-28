@@ -52,6 +52,9 @@ struct ROR_SCAN_INFO {
   /** Fields used in the query and covered by this ROR scan. */
   OverflowBitset covered_fields;
 
+  /** Fields equality-constrained (single-point) by this ROR scan. */
+  OverflowBitset constrained_fields;
+
   /**
     Cost of reading all index records with values in sel_arg intervals set
     (assuming there is no need to access full table records)
@@ -93,6 +96,8 @@ class ROR_intersect_plan {
  private:
   /// Bitmap of fields covered by the scans in the plan.
   OverflowBitset m_covered_fields;
+  /// Bitmap of fields equality-constrained (single-point) by the scans.
+  OverflowBitset m_constrained_fields;
   /// Number of rows to be read from indexes that are used for rowid ordered
   /// scans
   ha_rows m_index_records{0};
