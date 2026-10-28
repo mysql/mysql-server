@@ -26,7 +26,10 @@
 # Run scripts/ci/format.sh with no args as a pre-commit hook; pass paths to format specific files.
 set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-CF="$(command -v clang-format-15 || command -v clang-format)"
+if ! CF="$(command -v clang-format-15 || command -v clang-format)"; then
+  echo "format: error: clang-format-15 or clang-format is required but was not found in PATH." >&2
+  exit 1
+fi
 
 if [ "$#" -gt 0 ]; then files="$*";
 else files="$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(c|cc|cpp|h|hpp)$' || true)"; fi
