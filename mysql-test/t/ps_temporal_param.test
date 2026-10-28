@@ -1,0 +1,268 @@
+#
+# Bug#121589: Some problems when using temporal type and prepare protocol
+#
+# A dynamic parameter that is used as a time value must be read as a time
+# value: '02:02:02' was read as the date '2002-02-02', so that all functions
+# extracting a time component returned 0.
+#
+# Every block below executes a prepared statement and then the same
+# statement with literal arguments; both must give the same result.
+#
+
+prepare time_parts from 'select cast(? as time) as cast_time,
+                               hour(?) as h,
+                               minute(?) as mi,
+                               second(?) as sec,
+                               microsecond(?) as micro';
+prepare tf_parts from 'select time_format(?, ''%H:%i:%s'') as tf';
+prepare extract_parts from 'select extract(hour from ?) as ex_h,
+                                  extract(minute from ?) as ex_mi,
+                                  extract(second from ?) as ex_sec,
+                                  extract(microsecond from ?) as ex_micro,
+                                  extract(hour_second from ?) as ex_hs,
+                                  extract(day_hour from ?) as ex_dh';
+prepare date_parts from 'select extract(year from ?) as ex_year,
+                               extract(month from ?) as ex_month,
+                               extract(day from ?) as ex_day,
+                               date_format(?, ''%H:%i:%s'') as df,
+                               cast(date_add(?, interval 1 day) as datetime)
+                                 as date_add,
+                               to_days(?) as to_days';
+
+#
+# '02:02:02' is also valid input for the date parser (2002-02-02).
+#
+set @v = '02:02:02';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('02:02:02' as time) as cast_time, hour('02:02:02') as h,
+       minute('02:02:02') as mi, second('02:02:02') as sec,
+       microsecond('02:02:02') as micro;
+execute tf_parts using @v;
+select time_format('02:02:02', '%H:%i:%s') as tf;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from '02:02:02') as ex_h,
+       extract(minute from '02:02:02') as ex_mi,
+       extract(second from '02:02:02') as ex_sec,
+       extract(microsecond from '02:02:02') as ex_micro,
+       extract(hour_second from '02:02:02') as ex_hs,
+       extract(day_hour from '02:02:02') as ex_dh;
+execute date_parts using @v, @v, @v, @v, @v, @v;
+select extract(year from '02:02:02') as ex_year,
+       extract(month from '02:02:02') as ex_month,
+       extract(day from '02:02:02') as ex_day,
+       date_format('02:02:02', '%H:%i:%s') as df,
+       cast(date_add('02:02:02', interval 1 day) as datetime) as date_add,
+       to_days('02:02:02') as to_days;
+
+#
+# '12:11:10' gives the date 2012-11-10, '12:34:56' is not valid as a date.
+#
+set @v = '12:11:10';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('12:11:10' as time) as cast_time, hour('12:11:10') as h,
+       minute('12:11:10') as mi, second('12:11:10') as sec,
+       microsecond('12:11:10') as micro;
+execute tf_parts using @v;
+select time_format('12:11:10', '%H:%i:%s') as tf;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from '12:11:10') as ex_h,
+       extract(minute from '12:11:10') as ex_mi,
+       extract(second from '12:11:10') as ex_sec,
+       extract(microsecond from '12:11:10') as ex_micro,
+       extract(hour_second from '12:11:10') as ex_hs,
+       extract(day_hour from '12:11:10') as ex_dh;
+
+set @v = '12:34:56';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('12:34:56' as time) as cast_time, hour('12:34:56') as h,
+       minute('12:34:56') as mi, second('12:34:56') as sec,
+       microsecond('12:34:56') as micro;
+execute tf_parts using @v;
+select time_format('12:34:56', '%H:%i:%s') as tf;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from '12:34:56') as ex_h,
+       extract(minute from '12:34:56') as ex_mi,
+       extract(second from '12:34:56') as ex_sec,
+       extract(microsecond from '12:34:56') as ex_micro,
+       extract(hour_second from '12:34:56') as ex_hs,
+       extract(day_hour from '12:34:56') as ex_dh;
+
+#
+# Fractional seconds: the fraction of '02:02:02.1' used to be read as the
+# hour of the date 2002-02-02, the result being 01:00:00.
+#
+set @v = '02:02:02.1';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('02:02:02.1' as time) as cast_time, hour('02:02:02.1') as h,
+       minute('02:02:02.1') as mi, second('02:02:02.1') as sec,
+       microsecond('02:02:02.1') as micro;
+execute tf_parts using @v;
+select time_format('02:02:02.1', '%H:%i:%s') as tf;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from '02:02:02.1') as ex_h,
+       extract(minute from '02:02:02.1') as ex_mi,
+       extract(second from '02:02:02.1') as ex_sec,
+       extract(microsecond from '02:02:02.1') as ex_micro,
+       extract(hour_second from '02:02:02.1') as ex_hs,
+       extract(day_hour from '02:02:02.1') as ex_dh;
+
+set @v = '02:02:02.123456';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('02:02:02.123456' as time) as cast_time,
+       hour('02:02:02.123456') as h, minute('02:02:02.123456') as mi,
+       second('02:02:02.123456') as sec,
+       microsecond('02:02:02.123456') as micro;
+
+#
+# Time values outside of the range of a date value.
+#
+set @v = '838:59:59';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('838:59:59' as time) as cast_time, hour('838:59:59') as h,
+       minute('838:59:59') as mi, second('838:59:59') as sec,
+       microsecond('838:59:59') as micro;
+execute tf_parts using @v;
+select time_format('838:59:59', '%H:%i:%s') as tf;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from '838:59:59') as ex_h,
+       extract(minute from '838:59:59') as ex_mi,
+       extract(second from '838:59:59') as ex_sec,
+       extract(microsecond from '838:59:59') as ex_micro,
+       extract(hour_second from '838:59:59') as ex_hs,
+       extract(day_hour from '838:59:59') as ex_dh;
+
+set @v = '-01:02:03';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('-01:02:03' as time) as cast_time, hour('-01:02:03') as h,
+       minute('-01:02:03') as mi, second('-01:02:03') as sec,
+       microsecond('-01:02:03') as micro;
+execute tf_parts using @v;
+select time_format('-01:02:03', '%H:%i:%s') as tf;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from '-01:02:03') as ex_h,
+       extract(minute from '-01:02:03') as ex_mi,
+       extract(second from '-01:02:03') as ex_sec,
+       extract(microsecond from '-01:02:03') as ex_micro,
+       extract(hour_second from '-01:02:03') as ex_hs,
+       extract(day_hour from '-01:02:03') as ex_dh;
+
+#
+# Values with a date part are still read as date time values.
+#
+set @v = '2020-05-06 10:20:30';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('2020-05-06 10:20:30' as time) as cast_time,
+       hour('2020-05-06 10:20:30') as h, minute('2020-05-06 10:20:30') as mi,
+       second('2020-05-06 10:20:30') as sec,
+       microsecond('2020-05-06 10:20:30') as micro;
+execute tf_parts using @v;
+select time_format('2020-05-06 10:20:30', '%H:%i:%s') as tf;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from '2020-05-06 10:20:30') as ex_h,
+       extract(minute from '2020-05-06 10:20:30') as ex_mi,
+       extract(second from '2020-05-06 10:20:30') as ex_sec,
+       extract(microsecond from '2020-05-06 10:20:30') as ex_micro,
+       extract(hour_second from '2020-05-06 10:20:30') as ex_hs,
+       extract(day_hour from '2020-05-06 10:20:30') as ex_dh;
+execute date_parts using @v, @v, @v, @v, @v, @v;
+select extract(year from '2020-05-06 10:20:30') as ex_year,
+       extract(month from '2020-05-06 10:20:30') as ex_month,
+       extract(day from '2020-05-06 10:20:30') as ex_day,
+       date_format('2020-05-06 10:20:30', '%H:%i:%s') as df,
+       cast(date_add('2020-05-06 10:20:30', interval 1 day) as datetime)
+         as date_add,
+       to_days('2020-05-06 10:20:30') as to_days;
+
+#
+# Numbers and numeric strings, read as time values.
+#
+set @v = 20202;
+execute time_parts using @v, @v, @v, @v, @v;
+select cast(20202 as time) as cast_time, hour(20202) as h, minute(20202) as mi,
+       second(20202) as sec, microsecond(20202) as micro;
+execute tf_parts using @v;
+select time_format(20202, '%H:%i:%s') as tf;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from 20202) as ex_h, extract(minute from 20202) as ex_mi,
+       extract(second from 20202) as ex_sec,
+       extract(microsecond from 20202) as ex_micro,
+       extract(hour_second from 20202) as ex_hs,
+       extract(day_hour from 20202) as ex_dh;
+
+#
+# Invalid values give NULL, with a warning.
+#
+set @v = 'abc';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('abc' as time) as cast_time, hour('abc') as h, minute('abc') as mi,
+       second('abc') as sec, microsecond('abc') as micro;
+execute tf_parts using @v;
+select time_format('abc', '%H:%i:%s') as tf;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from 'abc') as ex_h, extract(minute from 'abc') as ex_mi,
+       extract(second from 'abc') as ex_sec,
+       extract(microsecond from 'abc') as ex_micro,
+       extract(hour_second from 'abc') as ex_hs,
+       extract(day_hour from 'abc') as ex_dh;
+
+#
+# Values that are valid both as a time value and as a date value, but where
+# the time components differ. HOUR() and friends already read the literal
+# argument as a time value, and so does a parameter now.
+#
+set @v = '2020-05-06';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('2020-05-06' as time) as cast_time, hour('2020-05-06') as h,
+       minute('2020-05-06') as mi, second('2020-05-06') as sec,
+       microsecond('2020-05-06') as micro;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+select extract(hour from '2020-05-06') as ex_h,
+       extract(minute from '2020-05-06') as ex_mi,
+       extract(second from '2020-05-06') as ex_sec,
+       extract(microsecond from '2020-05-06') as ex_micro,
+       extract(hour_second from '2020-05-06') as ex_hs,
+       extract(day_hour from '2020-05-06') as ex_dh;
+
+set @v = '101010';
+execute time_parts using @v, @v, @v, @v, @v;
+select cast('101010' as time) as cast_time, hour('101010') as h,
+       minute('101010') as mi, second('101010') as sec,
+       microsecond('101010') as micro;
+execute extract_parts using @v, @v, @v, @v, @v, @v;
+# EXTRACT() with a literal argument reads '101010' as the date 2010-10-10,
+# unlike HOUR(), so the parameter is compared to CAST(... AS TIME) instead.
+select extract(hour from cast('101010' as time)) as ex_h,
+       extract(minute from cast('101010' as time)) as ex_mi,
+       extract(second from cast('101010' as time)) as ex_sec,
+       extract(microsecond from cast('101010' as time)) as ex_micro,
+       extract(hour_second from cast('101010' as time)) as ex_hs,
+       extract(day_hour from cast('101010' as time)) as ex_dh;
+
+#
+# TIME_FORMAT() reads a date-like string with a literal argument as a date
+# value, and only its time part is formatted, while a parameter is a time
+# value. This is a known difference, caused by the literal argument being
+# converted to a date before being converted to a time.
+#
+set @v = '2020-05-06';
+execute tf_parts using @v;
+select time_format('2020-05-06', '%H:%i:%s') as tf;
+set @v = '101010';
+execute tf_parts using @v;
+select time_format('101010', '%H:%i:%s') as tf;
+
+#
+# TIME() detects the number of fractional digits from the argument type; a
+# parameter is TIME(6), so the result has 6 fractional digits. This is a
+# difference in rendering only, which exists independently of this fix.
+#
+prepare time_fn from 'select time(?) as t';
+set @v = '02:02:02';
+execute time_fn using @v;
+select time('02:02:02') as t;
+
+deallocate prepare time_parts;
+deallocate prepare tf_parts;
+deallocate prepare extract_parts;
+deallocate prepare date_parts;
+deallocate prepare time_fn;

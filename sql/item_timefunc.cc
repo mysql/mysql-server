@@ -1700,7 +1700,12 @@ longlong Item_func_quarter::val_int() {
 }
 
 bool Item_func_hour::resolve_type(THD *thd) {
-  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  /*
+    A dynamic parameter is assumed to hold a TIME value: a string like
+    '02:02:02' is a time value, and would be misread as a date value
+    ('2002-02-02') if the parameter were of type DATETIME.
+  */
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_TIME)) return true;
   if (reject_vector_args()) return true;
   // Can have up to three digits (TIME_MAX_HOUR == 838). Add one for the sign.
   fix_char_length(4);
@@ -1716,7 +1721,8 @@ longlong Item_func_hour::val_int() {
 }
 
 bool Item_func_minute::resolve_type(THD *thd) {
-  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
+  // Same reasoning as Item_func_hour::resolve_type().
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_TIME)) return true;
   if (reject_vector_args()) return true;
   // Can have up to two digits [0, 59]. Add one for the sign.
   fix_char_length(3);
@@ -1732,7 +1738,8 @@ longlong Item_func_minute::val_int() {
 }
 
 bool Item_func_second::resolve_type(THD *thd) {
-  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  // Same reasoning as Item_func_hour::resolve_type().
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_TIME)) return true;
   if (reject_vector_args()) return true;
   // Can have up to two digits [0, 59]. Add one for the sign.
   fix_char_length(3);
@@ -2563,7 +2570,13 @@ bool Item_func_sec_to_time::val_time(Time_val *time) {
 }
 
 bool Item_func_date_format::resolve_type(THD *thd) {
-  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  /*
+    TIME_FORMAT() reads a time value and DATE_FORMAT() reads a date value,
+    so a dynamic parameter must be assumed to be of the matching type.
+  */
+  if (param_type_is_default(
+          thd, 0, 1, is_time_format ? MYSQL_TYPE_TIME : MYSQL_TYPE_DATETIME))
+    return true;
   if (param_type_is_default(thd, 1, 2)) return true;
   if (reject_vector_args()) return true;
   /*
@@ -3090,7 +3103,6 @@ void Item_extract::print(const THD *thd, String *str,
 }
 
 bool Item_extract::resolve_type(THD *thd) {
-  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
   if (reject_vector_args()) return true;
   set_nullable(true);  // If wrong date
   switch (int_type) {
@@ -3175,7 +3187,13 @@ bool Item_extract::resolve_type(THD *thd) {
       assert(0);
       break; /* purecov: deadcode */
   }
-  return false;
+  /*
+    A dynamic parameter is assumed to be of the type matching the extracted
+    unit: TIME for time components, so that a string like '02:02:02' is not
+    misread as the date '2002-02-02', and DATETIME for date components.
+  */
+  return param_type_is_default(
+      thd, 0, 1, m_date_value ? MYSQL_TYPE_DATETIME : MYSQL_TYPE_TIME);
 }
 
 longlong Item_extract::val_int() {
@@ -3332,8 +3350,12 @@ bool Item_typecast_datetime::val_datetime(Datetime_val *dt,
 
 bool Item_typecast_time::resolve_type(THD *thd) {
   if (reject_vector_args()) return true;
-  if (args[0]->propagate_type(thd, MYSQL_TYPE_DATETIME, false, true))
-    return true;
+  /*
+    Assume TIME for a dynamic parameter, as the result is a time value: with
+    DATETIME, the string '02:02:02' would be read as the date '2002-02-02'
+    and the time part would be lost.
+  */
+  if (args[0]->propagate_type(thd, MYSQL_TYPE_TIME, false, true)) return true;
   set_data_type_time(detect_precision_from_arg ? args[0]->time_precision()
                                                : decimals);
   set_nullable(true);
@@ -3841,7 +3863,8 @@ longlong Item_func_microsecond::val_int() {
 }
 
 bool Item_func_microsecond::resolve_type(THD *thd) {
-  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
+  // Same reasoning as Item_func_hour::resolve_type().
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_TIME)) return true;
   if (reject_vector_args()) return true;
   set_nullable(true);
   return false;
