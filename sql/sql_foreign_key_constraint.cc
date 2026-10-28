@@ -115,6 +115,12 @@ class Foreign_key_chain {
         Visited_keys::key_type(db_name, tbl_name, key_pos));
   }
 
+  void unmark_child_visited(const char *db_name, const char *tbl_name,
+                            int key_pos) {
+    m_visited_child_keys.erase(m_visited_child_keys.find(
+        Visited_keys::key_type(db_name, tbl_name, key_pos)));
+  }
+
   void mark_parent_visited(const char *db_name, const char *tbl_name,
                            int key_pos) {
     m_visited_parent_keys.insert(
@@ -125,6 +131,12 @@ class Foreign_key_chain {
                          int key_pos) {
     return m_visited_parent_keys.contains(
         Visited_keys::key_type(db_name, tbl_name, key_pos));
+  }
+
+  void unmark_parent_visited(const char *db_name, const char *tbl_name,
+                             int key_pos) {
+    m_visited_parent_keys.erase(m_visited_parent_keys.find(
+        Visited_keys::key_type(db_name, tbl_name, key_pos)));
   }
 
   uint size() const { return m_foreign_keys.size(); }
@@ -1380,6 +1392,8 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
   }
 
   bool fk_added_to_chain = false;
+  bool parent_table_added_to_chain = false;
+  bool child_key_visited = false;
   if (chain) {
     if (table_p->s != table_c->s) {
       // detect circular foreign key references if it is not self referencing
@@ -1418,11 +1432,13 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
         }
         chain->mark_child_visited(table_c->s->db.str,
                                   table_c->s->table_name.str, child_key_idx);
+        child_key_visited = true;
         DBUG_PRINT("fk", ("Foreign_key_chain visiting: %s %d",
                           table_c->s->table_name.str, child_key_idx));
 
         // Add parent table and key info into the chain
         chain->add_parent_table(table_p->s->db.str, table_p->s->table_name.str);
+        parent_table_added_to_chain = true;
         chain->mark_parent_visited(table_p->s->db.str,
                                    table_p->s->table_name.str, parent_key_idx);
         DBUG_PRINT("fk", ("Foreign_key_chain visiting parent: %s %d",
@@ -1439,6 +1455,7 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
         }
         // Add parent table and key info into the chain
         chain->add_parent_table(table_p->s->db.str, table_p->s->table_name.str);
+        parent_table_added_to_chain = true;
         chain->mark_parent_visited(table_p->s->db.str,
                                    table_p->s->table_name.str, parent_key_idx);
         DBUG_PRINT("fk", ("Foreign_key_chain visiting parent: %s %d",
@@ -1451,6 +1468,18 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
     DBUG_PRINT("fk", ("check_child_fk_ref(): Added %s to Foreign_key_chain %d",
                       fk_c->fk_name.str, chain->size()));
   }
+  // Keep only the ancestors of the current cascade path in the chain
+  auto parent_table_guard = create_scope_guard([&] {
+    if (chain && parent_table_added_to_chain) {
+      chain->remove_parent_table(table_p->s->db.str,
+                                 table_p->s->table_name.str);
+      chain->unmark_parent_visited(table_p->s->db.str,
+                                   table_p->s->table_name.str, parent_key_idx);
+    }
+    if (chain && child_key_visited)
+      chain->unmark_child_visited(table_c->s->db.str,
+                                  table_c->s->table_name.str, child_key_idx);
+  });
   auto cleanup_chain_guard = create_scope_guard([&] {
     if (chain && fk_added_to_chain) {
       chain->remove_foreign_key(table_c->s->db.str, fk_c->fk_name.str);
