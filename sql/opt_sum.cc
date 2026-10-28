@@ -295,6 +295,9 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
   table_map removed_tables = 0;
   // The set of inner tables of outer join(s)
   table_map inner_tables = 0;
+  // An empty preserved table makes the entire join empty, even with outer
+  // joins.
+  bool empty_preserved_table = false;
   // The set of tables in the join, excluding the inner tables of outer join
   table_map used_tables = 0;
 
@@ -359,6 +362,9 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
         return true;
       }
       row_count *= tl->table->file->stats.records;
+      if (!tl->is_inner_table_of_outer_join() &&
+          tl->table->file->stats.records == 0)
+        empty_preserved_table = true;
     } else {
       /*
         Note: If at least one of the tables can't be optimized,
@@ -582,10 +588,11 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
                                        ? Aggregator::DISTINCT_AGGREGATOR
                                        : Aggregator::SIMPLE_AGGREGATOR);
           /*
-            If row_count == 0 and there are no outer joins, set to NULL,
-            otherwise set to the constant value.
+            If there are no rows in the join, set to NULL. An empty inner
+            table of an outer join alone does not make the join empty.
           */
-          if (have_exact_count && row_count == 0 && !inner_tables) {
+          if (have_exact_count && row_count == 0 &&
+              (!inner_tables || empty_preserved_table)) {
             item_sum->aggregator_clear();
             // Mark the aggregated value as based on no rows
             item->no_rows_in_result();
