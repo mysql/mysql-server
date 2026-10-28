@@ -41,6 +41,7 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/item_sum.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
@@ -1376,10 +1377,37 @@ bool Condition_pushdown::push_past_group_by() {
   if (m_query_block->is_implicitly_grouped() ||
       m_query_block->is_non_primitive_grouped())
     return false;
+
+  // A predicate on a grouping key does not remove rows from a surviving
+  // group, but it can change the order in which its rows reach SUM. For a
+  // REAL SUM, that can change the value exposed by the derived table (or
+  // tested by its HAVING clause). Keep such predicates after aggregation.
+  const auto has_real_sum = [this](Item *item) {
+    return WalkItem(item, enum_walk::PREFIX, [this](Item *inner_item) {
+      if (inner_item->type() != Item::SUM_FUNC_ITEM) return false;
+      const Item_sum *sum = down_cast<Item_sum *>(inner_item);
+      return !sum->m_is_window_function &&
+             sum->aggr_query_block == m_query_block &&
+             (sum->sum_func() == Item_sum::SUM_FUNC ||
+              sum->sum_func() == Item_sum::SUM_DISTINCT_FUNC) &&
+             sum->result_type() == REAL_RESULT;
+    });
+  };
+  bool has_observable_real_sum = false;
+  for (Item *item : m_query_block->fields) {
+    if (has_real_sum(item)) {
+      has_observable_real_sum = true;
+      break;
+    }
+  }
+  if (!has_observable_real_sum && m_query_block->having_cond() != nullptr)
+    has_observable_real_sum = has_real_sum(m_query_block->having_cond());
+
   m_checking_purpose = CHECK_FOR_WHERE;
   Opt_trace_object step_wrapper(trace, "pushing_past_group_by");
 
-  m_where_cond = extract_cond_for_table(m_having_cond);
+  if (!has_observable_real_sum)
+    m_where_cond = extract_cond_for_table(m_having_cond);
   Item *remainder_cond = nullptr;
   if (m_where_cond != nullptr) {
     if (make_remainder_cond(m_having_cond, &remainder_cond)) return true;
