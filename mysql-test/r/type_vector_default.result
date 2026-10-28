@@ -1,0 +1,37 @@
+#
+# VECTOR columns can't have a constant default value, not even an empty
+# string in non-strict mode, as an empty value is not a valid vector.
+#
+CREATE TABLE t (a INT, v VECTOR(2) NOT NULL DEFAULT '');
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'v' can't have a default value
+CREATE TABLE t (a INT, v VECTOR(2) DEFAULT '');
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'v' can't have a default value
+SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t (a INT, v VECTOR(2) NOT NULL DEFAULT '');
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'v' can't have a default value
+CREATE TABLE t (a INT, v VECTOR(2) DEFAULT '');
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'v' can't have a default value
+CREATE TABLE t (a INT, v VECTOR(2) NOT NULL DEFAULT 'a');
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'v' can't have a default value
+CREATE TABLE t (a INT PRIMARY KEY);
+ALTER TABLE t ADD COLUMN v VECTOR(2) NOT NULL DEFAULT '';
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'v' can't have a default value
+DROP TABLE t;
+SET SESSION sql_mode = DEFAULT;
+# DEFAULT NULL and default expressions are allowed.
+CREATE TABLE t (a INT, v1 VECTOR(2) DEFAULT NULL,
+v2 VECTOR(2) NOT NULL DEFAULT (STRING_TO_VECTOR('[3,4]')));
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int DEFAULT NULL,
+  `v1` vector(2) DEFAULT NULL,
+  `v2` vector(2) NOT NULL DEFAULT (to_vector(_utf8mb4'[3,4]'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t(a) VALUES (1);
+INSERT INTO t VALUES (2, DEFAULT, DEFAULT);
+SELECT a, v1, VECTOR_TO_STRING(v2) FROM t;
+a	v1	VECTOR_TO_STRING(v2)
+1	NULL	[3.00000e+00,4.00000e+00]
+2	NULL	[3.00000e+00,4.00000e+00]
+DROP TABLE t;
