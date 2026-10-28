@@ -1,0 +1,306 @@
+# ==== Purpose ====
+#
+# Test the failure and race paths of the in-memory relay log (IMR) spill-file
+# header rewrap that ALTER INSTANCE ROTATE BINLOG MASTER KEY runs right after
+# reencrypt_relay_logs(), and that a replica without IMR rotates as upstream.
+#
+# ==== Requirements ====
+#
+# R1. A spill file whose new header cannot be written fails the rotation
+#     with ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG, which names
+#     the file. The new key is in use, the file keeps its old header and the
+#     old key is kept (the purge did not run). The next rotation rewraps the
+#     file and purges both older keys.
+# R2. A spill file deleted after the pass listed its directory is skipped:
+#     the rotation succeeds and no file is re-created.
+# R3. On a replica without an IMR runtime the rotation touches no file in the
+#     spill directory and purges every older key.
+#
+# ==== Implementation ====
+#
+#   0. Load the keyring on the replica, enable binlog_encryption (key _1) and
+#      IMR with an 8 MiB spill threshold, start.
+#   1. R1: stop the applier; spill with _1; rotate with
+#      imr_spill_reencrypt_fail_write: 3809 naming the file; the binary log
+#      names _2, the file is unchanged and names _1, _1 is listed. Rotate
+#      again (_3): the file names _3, _1 and _2 are gone; apply.
+#   2. R2: stop the applier; spill with _3; on a second connection rotate
+#      with imr_spill_reencrypt_after_list, which parks after the listing;
+#      start the applier, it applies and deletes the file; release the
+#      rotation (_4): no warning, no imr_sp_* file, _3 is gone.
+#   3. R3: switch the channel to IMR OFF; write a file with a v1 header that
+#      names the current key _4 into the spill directory; rotate with
+#      verify_unusable_encryption_keys_are_purged (_5): no warning, the file
+#      is unchanged, _4 is gone.
+#
+# Negative controls (not part of this test):
+# NC3 adds O_CREAT to the rewrap's open and step 2 fails at "no imr_sp_*
+# file". NC6 makes imr_reencrypt_spill_files() scan the server's spill
+# directory when no IMR runtime exists and step 3 fails at "the file is
+# unchanged".
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# WL#10957: Binary log encryption at rest.
+# CSA (Change Stream Applier): WL#10500.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_component_keyring_file.inc
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+# The spill-file checks need uncompressed transaction payloads.
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source suite/component_keyring_file/inc/rpl_setup_component.inc
+
+--echo
+--echo # 0. Load the keyring on the replica, enable binlog_encryption and IMR.
+--echo
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL binlog_encryption = ON;
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+--source include/rpl/start_replica.inc
+
+--let $sef_spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--let $sef_marker= IMR_SPILL_ENCRYPTION_MARKER
+--let $key_1= `SELECT CONCAT('MySQLReplicationKey_', @@GLOBAL.server_uuid, '_1')`
+--let $key_2= `SELECT CONCAT('MySQLReplicationKey_', @@GLOBAL.server_uuid, '_2')`
+--let $key_3= `SELECT CONCAT('MySQLReplicationKey_', @@GLOBAL.server_uuid, '_3')`
+--let $key_4= `SELECT CONCAT('MySQLReplicationKey_', @@GLOBAL.server_uuid, '_4')`
+
+--let $kc_source= file
+if (`SELECT COUNT(*) = 1 FROM performance_schema.keyring_keys WHERE KEY_ID = '$key_1'`)
+{
+  --let $kc_source= pfs
+}
+--echo # Key check source: $kc_source
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, c LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 1. A header that cannot be written fails the rotation and keeps the
+--echo #    old key (R1).
+--echo
+
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_files.inc
+--let $assert_text= One spill file, encrypted with _1
+--let $assert_cond= $sef_count = 1 AND "$sef_magic_1" = "encrypted" AND "$sef_key_1" = "$key_1"
+--source include/assert.inc
+--let $fi_glob= $sef_spill_dir/imr_sp_*
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_file_info.inc
+--let $saved_md5= $fi_md5
+
+--let $debug_type= SESSION
+--let $debug_point= imr_spill_reencrypt_fail_write
+--source include/add_debug_point.inc
+--replace_regex /'[^']*\/imr_sp_[^']*'/'<spill file>'/
+--error ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--replace_regex /'[^']*\/imr_sp_[^']*'/'<spill file>'/
+SHOW WARNINGS;
+--source include/remove_debug_point.inc
+--let $debug_type=
+
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $rpl_log_file= `SELECT CONCAT(@@GLOBAL.datadir, '$binlog_file')`
+--source include/rpl/get_log_encryption_key_id.inc
+--let $assert_text= The replica binary log names _2
+--let $assert_cond= "$rpl_encryption_key_id" = "$key_2"
+--source include/assert.inc
+
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_file_info.inc
+--let $assert_text= The spill file is unchanged and names _1
+--let $assert_cond= $fi_count = 1 AND "$fi_md5" = "$saved_md5" AND "$fi_key" = "$key_1"
+--source include/assert.inc
+
+--let $kc_key= $key_1
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_key_check.inc
+--let $assert_text= _1 is listed
+--let $assert_cond= $kc_listed = 1
+--source include/assert.inc
+
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--let $warnings= `SELECT @@SESSION.warning_count`
+--let $assert_text= The retried rotation succeeds with no warning
+--let $assert_cond= $warnings = 0
+--source include/assert.inc
+
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_file_info.inc
+--let $assert_text= The spill file names _3
+--let $assert_cond= $fi_count = 1 AND "$fi_key" = "$key_3"
+--source include/assert.inc
+
+--let $kc_key= $key_1
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_key_check.inc
+--let $assert_text= _1 is gone
+--let $assert_cond= $kc_listed = 0
+--source include/assert.inc
+--let $kc_key= $key_2
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_key_check.inc
+--let $assert_text= _2 is gone
+--let $assert_cond= $kc_listed = 0
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $sef_spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 2. A file deleted after the listing is skipped and not re-created
+--echo #    (R2).
+--echo
+
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_file_info.inc
+--let $assert_text= One spill file, encrypted with _3
+--let $assert_cond= $fi_count = 1 AND "$fi_key" = "$key_3"
+--source include/assert.inc
+
+--connect (replica_rotation, 127.0.0.1, root,, test, $SLAVE_MYPORT,)
+SET SESSION debug = '+d,imr_spill_reencrypt_after_list';
+--send ALTER INSTANCE ROTATE BINLOG MASTER KEY
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR imr_reencrypt_listed';
+# The rotation holds only LOCK_rotate_binlog_master_key here, so the applier
+# can start, apply the transaction and delete its spill file.
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $sef_spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+SET DEBUG_SYNC = 'now SIGNAL imr_reencrypt_go';
+
+--connection replica_rotation
+--reap
+--let $warnings= `SELECT @@SESSION.warning_count`
+--let $assert_text= The rotation succeeds with no warning
+--let $assert_cond= $warnings = 0
+--source include/assert.inc
+SET SESSION debug = '-d,imr_spill_reencrypt_after_list';
+--disconnect replica_rotation
+
+--source include/rpl/connection_replica.inc
+--let $fi_glob= $sef_spill_dir/imr_sp_*
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_file_info.inc
+--let $assert_text= No spill file was re-created, not even an empty one
+--let $assert_cond= $fi_count = 0
+--source include/assert.inc
+
+--let $kc_key= $key_3
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_key_check.inc
+--let $assert_text= _3 is gone
+--let $assert_cond= $kc_listed = 0
+--source include/assert.inc
+SET DEBUG_SYNC = 'RESET';
+
+--echo
+--echo # 3. Without an IMR runtime the rotation touches no spill file and
+--echo #    purges every older key (R3).
+--echo
+
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+# A file with a valid header naming the current key _4. A rewrap pass would
+# move it to _5 (it decrypts the random password like any other).
+--let $noimr_file= $sef_spill_dir/imr_sp_zz_noimr
+--let _NOIMR_DIR= $sef_spill_dir
+--let _NOIMR_FILE= $noimr_file
+--let _NOIMR_KEY= $key_4
+perl;
+  my $dir= $ENV{'_NOIMR_DIR'};
+  my $file= $ENV{'_NOIMR_FILE'};
+  my $key_id= $ENV{'_NOIMR_KEY'};
+  mkdir $dir unless -d $dir;
+  my $h= "\xfd\x62\x69\x6e\x01";
+  $h.= "\x01" . chr(length($key_id)) . $key_id;
+  $h.= "\x02" . join('', map { chr(int(rand(256))) } 1 .. 32);
+  $h.= "\x03" . join('', map { chr(int(rand(256))) } 1 .. 16);
+  $h.= "\x00" x (512 - length($h));
+  open F, '>:raw', $file or die "Error opening $file: $!";
+  print F $h . ("\x11" x 100);
+  close F or die "Error closing $file: $!";
+EOF
+--let _NOIMR_DIR=
+--let _NOIMR_FILE=
+--let _NOIMR_KEY=
+--let $fi_glob= $noimr_file
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_file_info.inc
+--let $saved_md5= $fi_md5
+--let $assert_text= The file names _4
+--let $assert_cond= $fi_count = 1 AND "$fi_key" = "$key_4"
+--source include/assert.inc
+
+--let $debug_type= SESSION
+--let $debug_point= verify_unusable_encryption_keys_are_purged
+--source include/add_debug_point.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--let $warnings= `SELECT @@SESSION.warning_count`
+--source include/remove_debug_point.inc
+--let $debug_type=
+--let $assert_text= The rotation succeeds with no warning
+--let $assert_cond= $warnings = 0
+--source include/assert.inc
+
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_file_info.inc
+--let $assert_text= The file is unchanged
+--let $assert_cond= $fi_count = 1 AND "$fi_md5" = "$saved_md5"
+--source include/assert.inc
+
+--let $kc_key= $key_4
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_key_check.inc
+--let $assert_text= _4 is gone
+--let $assert_cond= $kc_listed = 0
+--source include/assert.inc
+
+--remove_file $noimr_file
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $rpl_diff_statement= SELECT id, LENGTH(c) AS len, LEFT(c, 32) AS head, RIGHT(c, 8) AS tail FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+# Cleanup.
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source suite/component_keyring_file/inc/rpl_teardown_component.inc

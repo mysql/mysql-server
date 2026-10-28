@@ -35,8 +35,10 @@
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc
+--source include/rpl/csa_disable_in_memory_relaylog.inc
 
 SET @tmp_max= @@global.replica_max_allowed_packet;
+--let $saved_mem_limit= `SELECT APPLIER_EVENT_MEMORY_LIMIT FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = ''`
 SET @@global.replica_max_allowed_packet=4096;
 
 CHANGE REPLICATION SOURCE TO
@@ -91,6 +93,14 @@ SELECT LENGTH(data) > 5000 FROM t1;  # Verify large event applied
 DROP TABLE t1;
 --source include/rpl/sync_to_replica.inc
 
+# A stored limit below the 1 GiB default fails to load at server start, so
+# restore it. CHANGE REPLICATION SOURCE raises the limit to
+# replica_max_allowed_packet, so restore the packet size first.
+--source include/rpl/stop_replica.inc
 SET @@global.replica_max_allowed_packet=@tmp_max;
+--disable_query_log
+--eval CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = $saved_mem_limit
+--enable_query_log
+--source include/rpl/start_replica.inc
 
 --source include/rpl/deinit.inc

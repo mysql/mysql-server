@@ -1,0 +1,112 @@
+
+# 1. Set up a CSA channel with IMR enabled (8 MiB spill threshold).
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("Disk is full writing");
+CALL mtr.add_suppression("Error writing file .*imr_sp_");
+CALL mtr.add_suppression("Relay log write failure");
+CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk before stopping");
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. The receiver waits for space in a spill append; SHOW REPLICA STATUS
+#    and the metrics answer; writing resumes once space is free.
+
+# Adding debug point 'imr_pause_after_enqueue_publish' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+# Removing debug point 'imr_pause_after_enqueue_publish' from @@GLOBAL.debug
+# Adding debug point 'simulate_io_thd_wait_for_disk_space' to @@GLOBAL.debug
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+include/rpl/wait_for_replica_status.inc [Replica_IO_State]
+include/assert.inc [Receiver PROCESSLIST_STATE is Waiting for disk space in performance_schema.threads]
+include/assert.inc [Receiver STATE is Waiting for disk space in information_schema.processlist]
+include/assert.inc [Only the receiver waits for disk space]
+include/assert.inc [replication_applier_metrics answers and shows the open spill file]
+# Removing debug point 'simulate_io_thd_wait_for_disk_space' from @@GLOBAL.debug
+SET DEBUG_SYNC = 'RESET';
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [The receiver has no error after the wait]
+include/assert.inc [The transaction applied in full after the wait]
+include/rpl/diff.inc
+include/assert_grep.inc [The disk full message names the spill file]
+
+# 3. STOP REPLICA IO_THREAD while the receiver waits warns and waits;
+#    KILL ends the wait; START REPLICA fetches the transaction again.
+
+[connection slave]
+# Adding debug point 'imr_pause_after_enqueue_publish' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+# Removing debug point 'imr_pause_after_enqueue_publish' from @@GLOBAL.debug
+# Adding debug point 'simulate_io_thd_wait_for_disk_space' to @@GLOBAL.debug
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+include/rpl/wait_for_replica_status.inc [Replica_IO_State]
+[connection slave1]
+STOP REPLICA IO_THREAD;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR reached_stopping_io_thread';
+include/assert.inc [The receiver still runs while STOP REPLICA IO_THREAD waits]
+KILL IO_THREAD;
+[connection slave1]
+[connection slave]
+include/rpl/wait_for_receiver_error.inc [errno=13122]
+include/assert.inc [The transaction whose spill write was killed is not applied]
+# Removing debug point 'simulate_io_thd_wait_for_disk_space' from @@GLOBAL.debug
+SET DEBUG_SYNC = 'RESET';
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [After START REPLICA the transaction is fetched again and applied in full]
+include/rpl/diff.inc
+
+# 4. Restart the replica while the receiver waits on the spill file
+#    prefix: the shutdown is prompt.
+
+[connection slave]
+# Adding debug point 'simulate_io_thd_wait_for_disk_space' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+include/rpl/wait_for_replica_status.inc [Replica_IO_State]
+[connection master]
+include/rpl/stop_server.inc [server_number=2]
+include/assert.inc [The replica shut down promptly while the receiver waited for disk space]
+include/assert.inc [The replica shut down cleanly while the receiver waited for disk space]
+include/rpl/start_server.inc [server_number=2]
+[connection slave]
+include/rpl/start_replica.inc
+include/assert_grep.inc [Shutdown logged no warning about the receiver waiting for disk space]
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [After the restart the transaction is fetched again and applied in full]
+include/rpl/diff.inc
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 5. Cleanup.
+
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

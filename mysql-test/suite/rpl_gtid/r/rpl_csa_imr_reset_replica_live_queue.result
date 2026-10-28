@@ -1,0 +1,73 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Set up a CSA channel with IMR and an 8 MiB spill threshold, and
+#    apply two transactions.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+INSERT INTO t1 VALUES (1, 'applied-a');
+include/rpl/sync_to_replica.inc
+
+# 2. With the applier stopped, queue two memory-path transactions and one
+#    spill-path transaction.
+
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 VALUES (10, 'memory-a');
+BEGIN;
+COMMIT;
+INSERT INTO t1 VALUES (20, 'memory-b');
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [The three received transactions are queued]
+include/assert.inc [None of them is applied]
+# The spill-path transaction is held in one spill file:
+imr_sp_<ID>
+
+# 3. A full STOP REPLICA resets the queue: it drops the queued
+#    transactions, the spill file and the received set.
+
+include/rpl/stop_replica.inc
+# No spill file remains:
+include/assert.inc [In_Memory_Queue_Length and In_Memory_Relay_Log_Space are 0]
+include/assert.inc [Retrieved_Gtid_Set is empty]
+include/assert.inc [RECEIVED_TRANSACTION_SET is empty]
+
+# 4. RESET REPLICA keeps the empty state, the channel configuration
+#    and gtid_executed.
+
+RESET REPLICA;
+# No spill file remains:
+include/assert.inc [In_Memory_Queue_Length and In_Memory_Relay_Log_Space are still 0]
+include/assert.inc [Retrieved_Gtid_Set is still empty]
+include/assert.inc [RECEIVED_TRANSACTION_SET is still empty]
+include/assert.inc [gtid_executed is unchanged]
+include/assert.inc [The channel is still on CSA with IMR enabled]
+
+# 5. START REPLICA fetches the dropped transactions again and applies
+#    each one once.
+
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (30, 'after-reset');
+include/rpl/sync_to_replica.inc
+include/assert.inc [All transactions are applied, none twice]
+include/rpl/diff.inc
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

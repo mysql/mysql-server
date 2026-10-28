@@ -8,6 +8,8 @@
 #
 
 --source include/have_debug.inc
+# Error/log text differs with IMR.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 
 # Setup to run ALTER TABLE and ALTER DATABASE in parallel.

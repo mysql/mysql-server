@@ -34,6 +34,8 @@
 # Therefore, cannot run with compression on.
 --source include/not_binlog_transaction_compression_on.inc
 
+# Uses on-disk relay-log files, which IMR does not write.
+--source include/not_csa_imr.inc
 --echo
 --echo # 1. Create a source-replica topology.
 --echo

@@ -95,8 +95,11 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags) {
 
     ToWriteCount = Count;
     DBUG_EXECUTE_IF("force_wait_for_disk_space", { ToWriteCount = 1; });
+    // imr_sp_*: in-memory relay log spill files.
     DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space", {
-      if (strstr(my_filename(Filedes), "slave-relay-bin.0")) ToWriteCount = 1;
+      if (strstr(my_filename(Filedes), "slave-relay-bin.0") ||
+          strstr(my_filename(Filedes), "imr_sp_"))
+        ToWriteCount = 1;
     });
     DBUG_EXECUTE_IF("simulate_random_io_thd_wait_for_disk_space", {
       if (strstr(my_filename(Filedes), "slave-relay-bin.0")) {
@@ -120,7 +123,9 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags) {
     });
     DBUG_EXECUTE_IF("force_wait_for_disk_space", { errno = ENOSPC; });
     DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space", {
-      if (strstr(my_filename(Filedes), "slave-relay-bin.0")) errno = ENOSPC;
+      if (strstr(my_filename(Filedes), "slave-relay-bin.0") ||
+          strstr(my_filename(Filedes), "imr_sp_"))
+        errno = ENOSPC;
     });
     DBUG_EXECUTE_IF("simulate_random_io_thd_wait_for_disk_space", {
       if (strstr(my_filename(Filedes), "slave-relay-bin.0") &&

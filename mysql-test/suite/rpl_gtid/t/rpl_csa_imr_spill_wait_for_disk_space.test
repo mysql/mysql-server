@@ -1,0 +1,334 @@
+# ==== Purpose ====
+#
+# Verify that when the disk is full while the receiver writes an in-memory
+# relay log (IMR) spill file, the receiver waits for free space as it does for
+# the on-disk relay log (see rpl.rpl_io_thd_wait_for_disk_space), instead of
+# stopping with a relay-log write failure.
+#
+# ==== Requirements ====
+#
+# R1. While a spill write waits for space, the receiver state is "Waiting for
+#     disk space" in SHOW REPLICA STATUS, performance_schema.threads and
+#     information_schema.processlist, and no other thread waits.
+# R2. SHOW REPLICA STATUS and performance_schema.replication_applier_metrics
+#     do not block while the receiver waits.
+# R3. Once space is free, writing resumes by itself: the transaction applies,
+#     the tables match and the receiver has no error.
+# R4. STOP REPLICA IO_THREAD while the receiver waits logs
+#     ER_STOP_REPLICA_IO_THREAD_DISK_SPACE and waits; KILL of the receiver ends
+#     the wait with ER_REPLICA_RELAY_LOG_WRITE_FAILURE, the transaction is not
+#     applied, and START REPLICA fetches it again.
+# R5. A replica shutdown while the receiver waits is prompt and logs no
+#     ER_STOP_REPLICA_IO_THREAD_DISK_SPACE.
+#
+# ==== Implementation ====
+#
+# The debug point simulate_io_thd_wait_for_disk_space (the one used by
+# rpl.rpl_io_thd_wait_for_disk_space) also matches files named imr_sp_*: every
+# write to one writes one byte and fails with ENOSPC, so the receiver waits in
+# my_write() with a 1 second retry. STOP REPLICA IO_THREAD then signals
+# reached_stopping_io_thread after its warning.
+#
+#   1. Set up a CSA channel with IMR on and the minimum 8 MiB spill threshold.
+#   2. Park the receiver once the spill file of a ~12 MiB transaction is open
+#      (imr_pause_after_enqueue_publish), simulate a full disk, release it:
+#      the first append waits. Check R1 and R2, free the space, check R3.
+#   3. Same wait, then STOP REPLICA IO_THREAD and KILL (R4).
+#   4. Simulate a full disk before the next spill transaction, so the receiver
+#      waits on the spill file prefix, and restart the replica (R5).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# WL#10406: Improve usability when receiver thread is waiting for disk space.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_component_replication_applier_metrics.inc
+# A compressed payload would stay below the spill threshold.
+--source include/not_binlog_transaction_compression_on.inc
+
+--echo
+--echo # 1. Set up a CSA channel with IMR enabled (8 MiB spill threshold).
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+CALL mtr.add_suppression("Disk is full writing");
+CALL mtr.add_suppression("Error writing file .*imr_sp_");
+CALL mtr.add_suppression("Relay log write failure");
+CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk before stopping");
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. The receiver waits for space in a spill append; SHOW REPLICA STATUS
+--echo #    and the metrics answer; writing resumes once space is free.
+--echo
+
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+# One transaction larger than 8 MiB: 12 rows x ~1 MiB = ~12 MiB > threshold.
+BEGIN;
+--disable_query_log
+--let $i= 1
+while ($i <= 12)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $io_id= `SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/remove_debug_point.inc
+--let $debug_point= simulate_io_thd_wait_for_disk_space
+--source include/add_debug_point.inc
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+
+# R1, R2: wait through SHOW REPLICA STATUS.
+--let $slave_param= Replica_IO_State
+--let $slave_param_value= Waiting for disk space
+--source include/rpl/wait_for_replica_status.inc
+
+--let $io_state= `SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
+--let $assert_text= Receiver PROCESSLIST_STATE is Waiting for disk space in performance_schema.threads
+--let $assert_cond= "$io_state" = "Waiting for disk space"
+--source include/assert.inc
+
+--let $io_state= `SELECT STATE FROM information_schema.processlist WHERE ID = $io_id`
+--let $assert_text= Receiver STATE is Waiting for disk space in information_schema.processlist
+--let $assert_cond= "$io_state" = "Waiting for disk space"
+--source include/assert.inc
+
+--let $waiting= `SELECT COUNT(*) FROM performance_schema.threads WHERE PROCESSLIST_STATE = 'Waiting for disk space'`
+--let $assert_text= Only the receiver waits for disk space
+--let $assert_cond= $waiting = 1
+--source include/assert.inc
+
+--let $sfc= `SELECT SPILL_FILE_COUNT FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''`
+--let $assert_text= replication_applier_metrics answers and shows the open spill file
+--let $assert_cond= $sfc = 1
+--source include/assert.inc
+
+# R3: free the space.
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC = 'RESET';
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $io_errno= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1)
+--let $assert_text= The receiver has no error after the wait
+--let $assert_cond= $io_errno = 0
+--source include/assert.inc
+
+--let $applied= `SELECT COUNT(*) FROM t1 WHERE id BETWEEN 1 AND 12`
+--let $assert_text= The transaction applied in full after the wait
+--let $assert_cond= $applied = 12
+--source include/assert.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_spill_wait_for_disk_space
+--let $assert_select= Disk is full writing .*imr_sp_.* No space left on device
+--let $assert_count_condition= >= 1
+--let $assert_text= The disk full message names the spill file
+--source include/assert_grep.inc
+--let $assert_count_condition=
+
+--echo
+--echo # 3. STOP REPLICA IO_THREAD while the receiver waits warns and waits;
+--echo #    KILL ends the wait; START REPLICA fetches the transaction again.
+--echo
+
+--source include/rpl/connection_replica.inc
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+BEGIN;
+--disable_query_log
+--let $i= 13
+while ($i <= 24)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('y', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $io_id= `SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/remove_debug_point.inc
+--let $debug_point= simulate_io_thd_wait_for_disk_space
+--source include/add_debug_point.inc
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+
+--let $slave_param= Replica_IO_State
+--let $slave_param_value= Waiting for disk space
+--source include/rpl/wait_for_replica_status.inc
+
+--let $stop_warnings= `SELECT COUNT(*) FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-011262'`
+
+--source include/rpl/connection_replica1.inc
+--send STOP REPLICA IO_THREAD
+
+# ER_STOP_REPLICA_IO_THREAD_DISK_SPACE is MY-011262.
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR reached_stopping_io_thread';
+--let $wait_condition= SELECT COUNT(*) > $stop_warnings FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-011262'
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die STOP REPLICA IO_THREAD did not warn that the receiver waits for disk space
+}
+
+--let $io_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
+--let $assert_text= The receiver still runs while STOP REPLICA IO_THREAD waits
+--let $assert_cond= "$io_running" = "Yes"
+--source include/assert.inc
+
+--replace_result $io_id IO_THREAD
+--eval KILL $io_id
+
+--source include/rpl/connection_replica1.inc
+--reap
+
+--source include/rpl/connection_replica.inc
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
+--source include/rpl/wait_for_receiver_error.inc
+
+--let $applied= `SELECT COUNT(*) FROM t1 WHERE id BETWEEN 13 AND 24`
+--let $assert_text= The transaction whose spill write was killed is not applied
+--let $assert_cond= $applied = 0
+--source include/assert.inc
+
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC = 'RESET';
+
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $applied= `SELECT COUNT(*) FROM t1 WHERE id BETWEEN 13 AND 24`
+--let $assert_text= After START REPLICA the transaction is fetched again and applied in full
+--let $assert_cond= $applied = 12
+--source include/assert.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--echo
+--echo # 4. Restart the replica while the receiver waits on the spill file
+--echo #    prefix: the shutdown is prompt.
+--echo
+
+--source include/rpl/connection_replica.inc
+--let $debug_point= simulate_io_thd_wait_for_disk_space
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+BEGIN;
+--disable_query_log
+--let $i= 25
+while ($i <= 36)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('z', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= Replica_IO_State
+--let $slave_param_value= Waiting for disk space
+--source include/rpl/wait_for_replica_status.inc
+
+# A shutdown that does not finish within $shutdown_server_timeout is killed
+# and logs no "Shutdown complete".
+--let SHUTDOWN_COUNT_LOG= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--source suite/rpl_gtid/t/rpl_csa_imr_count_shutdowns.inc
+--let $shutdowns_before= $shutdown_count
+
+--source include/rpl/connection_source.inc
+--let $shutdown_start= `SELECT UNIX_TIMESTAMP()`
+--let $shutdown_server_timeout= 60
+--let $rpl_server_number= 2
+--source include/rpl/stop_server.inc
+--let $shutdown_server_timeout=
+--let $shutdown_seconds= `SELECT UNIX_TIMESTAMP() - $shutdown_start`
+--let $assert_text= The replica shut down promptly while the receiver waited for disk space
+--let $assert_cond= $shutdown_seconds < 30
+--source include/assert.inc
+
+--source suite/rpl_gtid/t/rpl_csa_imr_count_shutdowns.inc
+--let $assert_text= The replica shut down cleanly while the receiver waited for disk space
+--let $assert_cond= $shutdown_count = $shutdowns_before + 1
+--source include/assert.inc
+
+--let $rpl_server_number= 2
+--source include/rpl/start_server.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+
+# Only the STOP REPLICA IO_THREAD of step 3 logged the warning.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_spill_wait_for_disk_space
+--let $assert_select= Waiting until I/O thread for channel
+--let $assert_count= 1
+--let $assert_text= Shutdown logged no warning about the receiver waiting for disk space
+--source include/assert_grep.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $applied= `SELECT COUNT(*) FROM t1 WHERE id BETWEEN 25 AND 36`
+--let $assert_text= After the restart the transaction is fetched again and applied in full
+--let $assert_cond= $applied = 12
+--source include/assert.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 5. Cleanup.
+--echo
+
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

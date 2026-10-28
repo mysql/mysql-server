@@ -1,0 +1,92 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+include/rpl/start_replica.inc
+
+# 0. Create t1, stop the applier and queue S:2-S:6.
+
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 VALUES (2, 'a');
+INSERT INTO t1 VALUES (3, 'b');
+INSERT INTO t1 VALUES (4, 'c');
+INSERT INTO t1 VALUES (5, 'd');
+INSERT INTO t1 VALUES (6, 'e');
+include/rpl/sync_to_replica_received.inc
+
+# A. SQL_BEFORE_GTIDS on a memory-path target.
+
+[connection slave]
+START REPLICA SQL_THREAD UNTIL SQL_BEFORE_GTIDS = 'SOURCE_UUID:4';
+include/rpl/wait_for_applier_to_stop.inc
+include/assert.inc [A: applier stopped without error, receiver running]
+include/assert.inc [A: transactions up to the UNTIL point applied]
+include/assert.inc [A: transaction after the UNTIL point not applied]
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+include/assert_grep.inc [A: one UNTIL stop message in the error log]
+include/assert.inc [A: two rows applied]
+
+# B. SQL_AFTER_GTIDS with the next transaction held back.
+
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_GTIDS = 'SOURCE_UUID:5';
+include/rpl/wait_for_applier_to_stop.inc
+include/assert.inc [B: applier stopped without error, receiver running]
+include/assert.inc [B: transactions up to the UNTIL point applied]
+include/assert.inc [B: transaction after the UNTIL point not applied]
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+include/assert_grep.inc [B: one UNTIL stop message in the error log]
+
+# C. SQL_AFTER_GTIDS with nothing after it (empty-queue check).
+
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_GTIDS = 'SOURCE_UUID:6';
+include/rpl/wait_for_applier_to_stop.inc
+include/assert.inc [C: applier stopped without error, receiver running]
+include/assert.inc [C: transactions up to the UNTIL point applied]
+include/assert.inc [C: nothing applied beyond the target]
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+include/assert_grep.inc [C: one UNTIL stop message in the error log]
+
+# D. SQL_BEFORE_GTIDS on a >8 MiB spilled target.
+
+[connection master]
+BEGIN;
+COMMIT;
+INSERT INTO t1 VALUES (100, 'small');
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+imr_sp_<ID>
+START REPLICA SQL_THREAD UNTIL SQL_BEFORE_GTIDS = 'SOURCE_UUID:7';
+include/rpl/wait_for_applier_to_stop.inc
+include/assert.inc [D: applier stopped without error, receiver running]
+include/assert.inc [D: transactions up to the UNTIL point applied]
+include/assert.inc [D: transaction after the UNTIL point not applied]
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+include/assert_grep.inc [D: one UNTIL stop message in the error log]
+# The declined transaction keeps its spill file.
+imr_sp_<ID>
+
+# E. Plain START applies everything.
+
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

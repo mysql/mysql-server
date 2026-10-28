@@ -1,0 +1,208 @@
+# ==== Purpose ====
+#
+# Verify that when the in-memory relay log (IMR) fails to WRITE a body event to
+# a spill file MID-TRANSACTION (the append stage of a spill-path transaction),
+# the failure is surfaced instead of being silently swallowed: the IO thread
+# stops with a relay-log write failure in Last_IO_Error/Last_IO_Errno, the SQL
+# thread keeps running, and the half-written transaction's GTID is recorded in
+# NEITHER Retrieved_Gtid_Set NOR gtid_executed. Once the failure condition is
+# cleared, START REPLICA IO_THREAD re-fetches and applies the whole transaction.
+#
+# This is the append-stage counterpart of rpl_csa_imr_spill_provision_failure:
+# Streaming_event_sink::append_event() now returns a bool, so a spill write
+# failure in Event_set_fetchable_spill::append_event() propagates through
+# append_transaction_event() -> imr_on_body_event() -> QUEUE_EVENT_ERROR_QUEUING,
+# which routes through queue_event()'s existing write-failure path (truncate +
+# parser rollback + stop). Because queued_ok becomes false, the terminal-event
+# bookkeeping that records the GTID never runs.
+#
+# ==== Requirements ====
+#
+# R1. A mid-transaction spill write failure stops the IO thread with
+#     Last_IO_Errno set and Last_IO_Error carrying a relay-log write failure.
+# R2. The specific write-failure reason is written to the replica error log and
+#     to Last_IO_Error.
+# R3. The SQL (applier) thread keeps running with no SQL error.
+# R4. The transaction is not applied and its GTID is not durably received (the
+#     source's gtid_executed is not a subset of the replica's).
+# R5. After the failure condition is cleared, START REPLICA IO_THREAD re-fetches
+#     the whole transaction; it applies in full, the replica data matches the
+#     source, and no spill file is left behind.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with IMR enabled and the minimum 8 MiB spill
+#      threshold; keep the applier (SQL thread) running throughout.
+#   2. Add the debug point imr_force_spill_append_failure (forces
+#      Spill_file_writer::append_raw() to fail), run one >8 MiB transaction, and
+#      assert the IO thread stopped with Last_IO_Error, the SQL thread is still
+#      running with no error, the rows were not applied, the GTID was not
+#      durably received, and the specific reason was logged.
+#   3. Remove the debug point, START REPLICA IO_THREAD, and assert the
+#      transaction is re-fetched and applied in full, data matches, and no spill
+#      file remains.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo
+--echo # 1. Set up a CSA channel with IMR enabled (8 MiB spill threshold). The
+--echo #    applier stays running for the whole test.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+# The write failure stops the IO thread through the relay-log write failure
+# path; suppress the expected error-log message (the specific reason, which is
+# also in Last_IO_Error).
+CALL mtr.add_suppression("\\[In-memory relay log\\] failed to append event to incoming transaction");
+
+# Derive the channel's spill directory:
+#   <relay-log dir>/#in_memory_relaylog_temp_files
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Force a mid-transaction spill write to fail, then run a >8 MiB
+--echo #    (spill-path) transaction. The receiver fails to write a body event
+--echo #    to the spill file and stops with a relay-log write failure.
+--echo
+
+--source include/rpl/connection_replica.inc
+--let $debug_point= imr_force_spill_append_failure
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+# One transaction larger than 8 MiB: 12 rows x ~1 MiB = ~12 MiB > threshold.
+BEGIN;
+--disable_query_log
+--let $i= 1
+while ($i <= 12)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= No
+--source include/rpl/wait_for_replica_status.inc
+
+# R1: the receiver stopped with a non-zero Last_IO_Errno and a relay-log write
+# failure message.
+--let $io_errno= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1)
+--let $assert_text= The receiver stopped and set Last_IO_Errno (non-zero) for the spill write failure
+--let $assert_cond= $io_errno != 0
+--source include/assert.inc
+
+--let $io_err_has_text= query_get_value(SELECT (LAST_ERROR_MESSAGE LIKE '%Relay log write failure%') AS m FROM performance_schema.replication_connection_status, m, 1)
+--let $assert_text= Last_IO_Error carries the relay-log write-failure message
+--let $assert_cond= $io_err_has_text = 1
+--source include/assert.inc
+
+# R2: Last_IO_Error carries the specific write-failure reason.
+--let $io_err_has_reason= query_get_value(SELECT (LAST_ERROR_MESSAGE LIKE '%failed to append event to incoming transaction%') AS m FROM performance_schema.replication_connection_status, m, 1)
+--let $assert_text= Last_IO_Error carries the specific spill write-failure reason
+--let $assert_cond= $io_err_has_reason = 1
+--source include/assert.inc
+
+# R3: the applier keeps running with no SQL error (the failure is on the
+# receiver side, not the applier side).
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= The SQL thread keeps running after the receiver-side write failure
+--let $assert_cond= "$sql_running" = "Yes"
+--source include/assert.inc
+
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= No SQL error is raised for the receiver-side write failure
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+# R4: none of the transaction's rows were applied.
+--let $applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 1 AND 12, c, 1)
+--let $assert_text= The transaction whose spill write failed was not applied (no rows visible)
+--let $assert_cond= $applied = 0
+--source include/assert.inc
+
+# R4: the transaction is not durably received either -- its GTID is absent from
+# the replica's gtid_executed. Capture the source's executed set and assert it
+# is NOT a subset of the replica's (the replica is missing the transaction).
+--source include/rpl/connection_source.inc
+--let $master_gtid= query_get_value(SELECT @@GLOBAL.gtid_executed AS g, g, 1)
+
+# query_get_value() cannot hold the comma in GTID_SUBSET(a, b), so evaluate it
+# into a session variable first (under disable_query_log so the non-deterministic
+# UUID is not written to the .result).
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET @subset = GTID_SUBSET('$master_gtid', @@GLOBAL.gtid_executed)
+--enable_query_log
+--let $subset= query_get_value(SELECT @subset AS s, s, 1)
+--let $assert_text= The failed transaction's GTID is absent from the replica gtid_executed (source is ahead)
+--let $assert_cond= $subset = 0
+--source include/assert.inc
+
+# R2: the specific write-failure reason is written to the replica error log.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_spill_append_failure
+--let $assert_select= \[In-memory relay log\] failed to append event to incoming transaction
+--let $assert_count_condition= >= 1
+--let $assert_text= The specific spill write-failure reason is logged to the replica error log
+--source include/assert_grep.inc
+
+--echo
+--echo # 3. Clear the failure condition and START REPLICA IO_THREAD: the
+--echo #    transaction is re-fetched from the source and applied in full.
+--echo
+
+--source include/remove_debug_point.inc
+--source include/rpl/start_receiver.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 1 AND 12, c, 1)
+--let $assert_text= After re-fetch the spill-path transaction is applied in full
+--let $assert_cond= $applied = 12
+--source include/assert.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+# The re-fetched spill transaction's file is released once it commits; poll the
+# spill directory until no imr_sp_ file remains.
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 4. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

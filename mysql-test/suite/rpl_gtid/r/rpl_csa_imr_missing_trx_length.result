@@ -1,0 +1,59 @@
+
+# 1. Set up a CSA channel with IMR enabled. The applier stays running for
+#    the whole test.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+CALL mtr.add_suppression("\\[In-memory relay log\\] the source does not send a valid transaction length");
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. Write one transaction whose GTID event has no transaction length.
+
+[connection master]
+# Adding debug point 'do_not_write_rpl_timestamps' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1, REPEAT('x', 1048576));
+# Removing debug point 'do_not_write_rpl_timestamps' from @@GLOBAL.debug
+
+# 3. The receiver stops at the GTID event, before admission.
+
+[connection slave]
+include/rpl/wait_for_receiver_error.inc [errno=13122]
+Last_IO_Error = 'Relay log write failure: [In-memory relay log] the source does not send a valid transaction length in its GTID events (sources older than MySQL 8.0.2 do not send it); set IN_MEMORY_RELAYLOG_ENABLED = OFF for this channel'
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+include/assert.inc [No in-memory relay log space is reserved]
+include/assert.inc [The SQL thread keeps running after the receiver error]
+include/assert.inc [No SQL error is raised for the receiver error]
+include/assert.inc [The transaction without a transaction length was not applied]
+[connection master]
+[connection slave]
+include/assert.inc [The transaction's GTID is absent from the replica gtid_executed (source is ahead)]
+include/assert.inc [The transaction's GTID is absent from the replica Retrieved_Gtid_Set]
+
+# 4. Disable IMR for the channel and restart replication: both
+#    transactions are fetched and applied.
+
+[connection master]
+INSERT INTO t1 VALUES (2, REPEAT('y', 1048576));
+[connection slave]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+include/assert.inc [Both transactions are applied with IMR disabled]
+
+# 5. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -56,6 +56,7 @@
 #include "sql/auth/roles.h"      // Roles::Role_activation
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/changestreams/apply/csa_worker_context.h"
+#include "sql/changestreams/apply/storage/in_memory/imr_service.h"  // Imr_service::remove
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/log_event.h"  // Log_event
@@ -113,7 +114,10 @@ const char *info_rli_fields[] = {"number_of_lines",
                                  "assign_gtids_to_anonymous_transactions_value",
                                  "applier_version",
                                  "applier_worker_count",
-                                 "applier_event_memory_limit"};
+                                 "applier_event_memory_limit",
+                                 "in_memory_relaylog",
+                                 "in_memory_relaylog_limit",
+                                 "in_memory_relaylog_spill_threshold"};
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
@@ -290,6 +294,11 @@ void Relay_log_info::deinit_workers() { workers.clear(); }
 
 Relay_log_info::~Relay_log_info() {
   DBUG_TRACE;
+
+  // Remove the channel's IMR runtime so no teardown path leaves one behind.
+  // A real channel is torn down under the channel_map write lock with both
+  // threads stopped; fake and worker rlis never have a runtime.
+  if (m_imr != nullptr && imr_service != nullptr) imr_service->remove(this);
 
   if (!rli_fake) {
     if (recovery_groups_inited) bitmap_free(&recovery_groups);
@@ -2071,6 +2080,21 @@ bool Relay_log_info::clear_info() {
     return true;
   }
 
+  if (this->handler->set_info((int)this->m_in_memory_relaylog)) {
+    return true;
+  }
+
+  // Lossless cast: both bounds are at most Imr_service::kLimitMax (UINT_MAX).
+  if (this->handler->set_info(
+          static_cast<ulong>(this->get_in_memory_relaylog_limit()))) {
+    return true;
+  }
+
+  if (this->handler->set_info(static_cast<ulong>(
+          this->get_in_memory_relaylog_spill_threshold()))) {
+    return true;
+  }
+
   if (this->handler->flush_info(true)) return true;
 
   this->group_relay_log_name[0] = '\0';
@@ -2349,6 +2373,41 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
     set_applier_event_memory_limit(tmp_applier_ev_mem_limit);
   }
 
+  if (lines >= APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG) {
+    int temp_in_memory_relaylog = 0;
+    if (!!from->get_info(&temp_in_memory_relaylog, 0)) {
+      return true;
+    }
+    set_in_memory_relaylog(temp_in_memory_relaylog != 0);
+  } else {
+    // Metadata written by an older server predates the in-memory relay-log
+    // field; default the selection to OFF without raising an error.
+    set_in_memory_relaylog(false);
+  }
+
+  if (lines >= APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG_LIMIT) {
+    ulong tmp_in_memory_relaylog_limit = 0;
+    if (!!from->get_info(&tmp_in_memory_relaylog_limit, 0UL)) {
+      return true;
+    }
+    set_in_memory_relaylog_limit(tmp_in_memory_relaylog_limit);
+  } else {
+    // Older metadata predates the tunable bound; fall back to the default.
+    set_in_memory_relaylog_limit(0);
+  }
+
+  if (lines >= APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG_SPILL_THRESHOLD) {
+    ulong tmp_in_memory_relaylog_spill_threshold = 0;
+    if (!!from->get_info(&tmp_in_memory_relaylog_spill_threshold, 0UL)) {
+      return true;
+    }
+    set_in_memory_relaylog_spill_threshold(
+        tmp_in_memory_relaylog_spill_threshold);
+  } else {
+    // Older metadata predates the tunable threshold; fall back to the default.
+    set_in_memory_relaylog_spill_threshold(0);
+  }
+
   group_relay_log_pos = temp_group_relay_log_pos;
   group_master_log_pos = temp_group_master_log_pos;
   sql_delay = (int32)temp_sql_delay;
@@ -2454,6 +2513,17 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
     return true;
   }
   if (to->set_info(get_applier_event_memory_limit())) {
+    return true;
+  }
+  if (to->set_info((int)m_in_memory_relaylog)) {
+    return true;
+  }
+  // Lossless cast: both bounds are at most Imr_service::kLimitMax (UINT_MAX).
+  if (to->set_info(static_cast<ulong>(get_in_memory_relaylog_limit()))) {
+    return true;
+  }
+  if (to->set_info(
+          static_cast<ulong>(get_in_memory_relaylog_spill_threshold()))) {
     return true;
   }
 
@@ -3708,6 +3778,49 @@ ulong Relay_log_info::get_applier_event_memory_limit() {
     return m_applier_event_memory_limit;
   }
   return applier_event_memory_limit_default;
+}
+
+void Relay_log_info::set_in_memory_relaylog(bool value) {
+  DBUG_TRACE;
+  this->m_in_memory_relaylog = value;
+}
+
+bool Relay_log_info::is_in_memory_relaylog() const {
+  // group_replication_applier never uses IMR, whatever is stored.
+  if (channel_map.is_group_replication_applier_channel_name(channel))
+    return false;
+  return this->m_in_memory_relaylog;
+}
+
+void Relay_log_info::set_in_memory_relaylog_limit(ulonglong number) {
+  if (number > 0) {
+    m_in_memory_relaylog_limit = number;
+    return;
+  }
+  m_in_memory_relaylog_limit = in_memory_relaylog_limit_default;
+}
+
+ulonglong Relay_log_info::get_in_memory_relaylog_limit() const {
+  if (m_in_memory_relaylog_limit > 0) {
+    return m_in_memory_relaylog_limit;
+  }
+  return in_memory_relaylog_limit_default;
+}
+
+void Relay_log_info::set_in_memory_relaylog_spill_threshold(ulonglong number) {
+  if (number > 0) {
+    m_in_memory_relaylog_spill_threshold = number;
+    return;
+  }
+  m_in_memory_relaylog_spill_threshold =
+      in_memory_relaylog_spill_threshold_default;
+}
+
+ulonglong Relay_log_info::get_in_memory_relaylog_spill_threshold() const {
+  if (m_in_memory_relaylog_spill_threshold > 0) {
+    return m_in_memory_relaylog_spill_threshold;
+  }
+  return in_memory_relaylog_spill_threshold_default;
 }
 
 void Relay_log_info::set_channel_instance_id(std::size_t chid) {

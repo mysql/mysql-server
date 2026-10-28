@@ -23,6 +23,8 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
+# IMR does not rotate the relay log on FLUSH LOGS or a source Rotate.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 
 # Create a table and insert some data

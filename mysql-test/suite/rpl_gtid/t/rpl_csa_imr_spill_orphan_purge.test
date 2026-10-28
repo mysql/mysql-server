@@ -1,0 +1,178 @@
+# ==== Purpose ====
+#
+# Stale spill files left behind by a previous server run are removed at startup,
+# and nothing else in the spill directory is touched.
+#
+# Spill files are unlinked on normal teardown, so anything still present when the
+# server starts is an orphan from a crash or a kill. They cannot be left in
+# place: the spill file name counter restarts at zero every run, so once enough
+# orphans occupy the low name range they exhaust the O_EXCL retry budget in
+# Spill_file_writer::create_unique_file() and spilling stops working entirely.
+#
+# ==== Requirements ====
+#
+# R1. During server startup, before any replication thread can run, files named
+#     "imr_sp_*" in the channel's "#in_memory_relaylog_temp_files" directory are
+#     deleted.
+# R2. Entries whose names do not carry the "imr_sp_" prefix are left alone.
+# R3. A subdirectory is neither entered nor removed, even when its own name
+#     carries the prefix.
+# R4. The spill directory itself survives the purge.
+# R5. Spilling still works after the purge, including reusing the orphans' names.
+#
+# ==== Implementation ====
+#
+#   1. Set up CSA replication and enable IMR with the minimum 8 MiB spill
+#      threshold, so any transaction above 8 MiB takes the spill path.
+#   2. Apply one >threshold transaction. This creates the spill directory and,
+#      on commit, removes its own spill file. Wait for that removal so the
+#      directory is in a known state before orphans are planted.
+#   3. Plant orphans in that directory as a crash would leave them: two
+#      "imr_sp_*" files (taking the names the next run's counter will hand out),
+#      one file without the prefix, and a subdirectory whose name carries the
+#      prefix.
+#   4. Restart the replica. The startup purge runs.
+#   5. With both replication threads still stopped -- so only the startup purge
+#      can have touched anything -- assert the prefixed files are gone and that
+#      the unprefixed file, the prefixed subdirectory with its content, and the
+#      spill directory itself all survive.
+#   6. Start the replica and apply another >threshold transaction to confirm
+#      spilling still works and that the freed "imr_sp_*" names are reusable.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR with the minimum 8 MiB spill threshold and start.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+# Derive the spill directory from the channel's relay-log path:
+#   <relay-log dir>/#in_memory_relaylog_temp_files
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+
+--source include/rpl/start_replica.inc
+
+--echo
+--echo # 2. One >threshold transaction, so the spill directory gets created.
+--echo
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, b LONGBLOB);
+INSERT INTO t1 VALUES (1, REPEAT('x', 10 * 1024 * 1024));
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--echo # The spill directory now exists.
+--file_exists $spill_dir
+# A committed transaction's spill file is deleted when its byte source is
+# released, which is asynchronous to the GTID becoming visible. Wait for it, so
+# the planted orphans below cannot collide with a file that is still on its way
+# out (--write_file dies on an existing file).
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 3. Plant orphans, as an abrupt shutdown would leave them behind.
+--echo
+
+--write_file $spill_dir/imr_sp_0
+stale spill payload
+EOF
+--write_file $spill_dir/imr_sp_1
+stale spill payload
+EOF
+--write_file $spill_dir/keep_me.txt
+not a spill file
+EOF
+--mkdir $spill_dir/imr_sp_subdir
+--write_file $spill_dir/imr_sp_subdir/inner.txt
+inside a subdirectory
+EOF
+--echo # Spill directory contents before the restart:
+--list_files $spill_dir
+
+--echo
+--echo # 4. Restart the replica. The startup purge runs (R1).
+--echo
+
+--let $rpl_server_number= 2
+--source include/rpl/restart_server.inc
+--source include/rpl/connection_replica.inc
+
+--echo
+--echo # 5. The prefixed files are gone. The unprefixed file, the prefixed
+--echo #    subdirectory and the spill directory itself all survive
+--echo #    (R1, R2, R3, R4).
+--echo
+# The suite runs with --skip-replica-start and this test starts the replica
+# explicitly, so the restart leaves both threads stopped. Nothing but the
+# startup purge has looked at this directory yet.
+--let $assert_text= Both replication threads are stopped after the restart
+--let $assert_cond= "[SHOW REPLICA STATUS, Replica_IO_Running, 1]" = "No" AND "[SHOW REPLICA STATUS, Replica_SQL_Running, 1]" = "No"
+--source include/assert.inc
+
+--echo # The spill directory itself survived (R4).
+--file_exists $spill_dir
+--list_files $spill_dir
+--echo # The subdirectory was not entered; its content is intact (R3):
+--list_files $spill_dir/imr_sp_subdir
+
+# The prefixed subdirectory has served its purpose. Remove it now so the
+# spill-file check in step 6 can match on the "imr_sp_" prefix without also
+# matching this directory. The unprefixed file stays, to show that a running
+# server leaves it alone too.
+--remove_file $spill_dir/imr_sp_subdir/inner.txt
+--rmdir $spill_dir/imr_sp_subdir
+
+--echo
+--echo # 6. Spilling still works after the purge, reusing the freed
+--echo #    "imr_sp_" names (R5).
+--echo
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (2, REPEAT('y', 10 * 1024 * 1024));
+--source include/rpl/sync_to_replica.inc
+
+# Project the payload to its length: diff_tables.inc sorts on every selected
+# column and writes them with INTO OUTFILE, which runs out of sort memory on
+# multi-megabyte LONGBLOB values.
+--let $rpl_diff_statement= SELECT a, LENGTH(b) AS len FROM t1 ORDER BY a
+--source include/rpl/diff.inc
+
+--echo # That transaction committed and left no spill file behind.
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+--echo # Only the planted non-spill entry remains (R2):
+--list_files $spill_dir
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--remove_file $spill_dir/keep_me.txt
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

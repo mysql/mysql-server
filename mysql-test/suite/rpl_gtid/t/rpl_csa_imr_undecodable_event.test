@@ -1,0 +1,293 @@
+# ==== Purpose ====
+#
+# An event that the in-memory relay log (IMR) cannot decode stops the
+# applier with a relay log read failure instead of crashing the server.
+#
+# The receiver stores the raw event bytes and the consumer decodes them. When
+# decoding fails, the memory byte source used to dereference the null event
+# on the coordinator, inside the job constructor, and crash. It now reports a
+# byte-source error, which the worker reports as
+# ER_REPLICA_RELAY_LOG_READ_FAILURE, as the spill path and the disk path do.
+# The first event of a transaction is decoded on the coordinator; later events
+# are decoded only on the worker that applies the transaction.
+#
+# ==== Requirements ====
+#
+# R1. Memory path: an undecodable event stops the applier with
+#     Last_SQL_Errno = ER_REPLICA_RELAY_LOG_READ_FAILURE; the worker error
+#     names the event ("could not decode event #0 of the transaction"); the
+#     server stays up, the receiver keeps running, nothing of the
+#     transaction is applied and no GTID stays owned.
+# R2. Spill path: the same corruption on a transaction larger than the spill
+#     threshold takes the spill path, and the spill reader stops the applier
+#     with the same errno; the server stays up.
+# R3. After STOP REPLICA; START REPLICA without the corruption, the
+#     transaction is fetched again and applies.
+# R4. Memory path, later event: when only the Write_rows event (event #3,
+#     after GTID, BEGIN and Table_map) is undecodable, the worker stops the
+#     applier with the same errno and names event #3; the receiver keeps
+#     running, the transaction stays queued, none of its rows is applied, no
+#     GTID stays owned and its GTID is not executed. START REPLICA SQL_THREAD
+#     dispatches the retained transaction again and it fails the same way.
+#
+# ==== Implementation ====
+#
+#   1. Set up CSA replication with IMR and an 8 MiB spill threshold, and
+#      install component_replication_applier_metrics for SPILL_FILE_COUNT.
+#   2. Memory step: restart the receiver with the
+#      simulate_truncated_relay_log_event debug point, which shortens every
+#      queued event by 5 bytes so the header length no longer matches. Commit
+#      one small transaction on the source and check R1. Remove the debug
+#      point, STOP REPLICA; START REPLICA, and check R3.
+#   3. Spill step: the same with a 12 MiB transaction (R2, R3).
+#   4. Later-event step: restart the receiver with the
+#      imr_truncate_queued_rows_event debug point, which shortens only
+#      WRITE_ROWS_EVENT on the in-memory receive path. Commit a small
+#      transaction and check R4, then START REPLICA SQL_THREAD and check the
+#      second failure. Remove the debug point, STOP REPLICA; START REPLICA,
+#      and check R3.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+--source include/have_debug.inc
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+# A compressed 12 MiB transaction would not reach the spill threshold.
+--source include/not_binlog_transaction_compression_on.inc
+# The spill step reads SPILL_FILE_COUNT.
+--source include/have_component_replication_applier_metrics.inc
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR with an 8 MiB spill threshold and start.
+--echo
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("Relay log read failure: In-memory relay log: could not decode event");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+# The spill reader verifies the event checksum, which the shortened event
+# fails.
+CALL mtr.add_suppression("Relay log read failure: Error reading Log_event at position [0-9]+: Failed decoding event: Event crc check failed");
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Memory step: an undecodable event stops the applier.
+--echo
+--source include/rpl/stop_receiver.inc
+--let $debug_point= simulate_truncated_relay_log_event
+--source include/add_debug_point.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (1, 'a');
+--source include/rpl/connection_replica.inc
+--let $slave_sql_errno= convert_error(ER_REPLICA_RELAY_LOG_READ_FAILURE)
+--source include/rpl/wait_for_applier_error.inc
+
+--let $assert_text= A worker reports that event #0 could not be decoded
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_status_by_worker WHERE LAST_ERROR_NUMBER = $slave_sql_errno AND LAST_ERROR_MESSAGE LIKE "%could not decode event #0 of the transaction%"] >= 1
+--source include/assert.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_undecodable_event
+--let $assert_select= Relay log read failure: In-memory relay log: could not decode event #0 of the transaction
+--let $assert_count_condition= >= 1
+--let $assert_text= The error log has the relay log read failure
+--source include/assert_grep.inc
+
+--let $io_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
+--let $assert_text= The receiver keeps running
+--let $assert_cond= "$io_running" = "Yes"
+--source include/assert.inc
+
+--let $assert_text= Nothing of the transaction is applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 0
+--source include/assert.inc
+
+--let $assert_text= No GTID stays owned
+--let $assert_cond= "[SELECT @@GLOBAL.gtid_owned]" = ""
+--source include/assert.inc
+
+--source include/remove_debug_point.inc
+STOP REPLICA;
+--source include/rpl/wait_for_replica_to_stop.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 3. Spill step: the same corruption on a transaction larger than the
+--echo #    spill threshold stops the applier with the same error.
+--echo
+--source include/rpl/stop_receiver.inc
+--let $debug_point= simulate_truncated_relay_log_event
+--source include/add_debug_point.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+# One transaction larger than 8 MiB: 12 rows x ~1 MiB.
+BEGIN;
+--disable_query_log
+--let $i= 101
+while ($i <= 112)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+--source include/rpl/connection_replica.inc
+--let $slave_sql_errno= convert_error(ER_REPLICA_RELAY_LOG_READ_FAILURE)
+--source include/rpl/wait_for_applier_error.inc
+
+# Prove that the transaction took the spill path. SPILL_TRANSACTIONS_COUNT
+# counts only spill transactions the applier commits, and this one never
+# commits, so it would stay 0. SPILL_FILE_COUNT is a live gauge of spill files
+# on disk: the receiver creates the file when it admits the transaction to
+# the spill path, and the file is deleted only when the queued envelope is
+# released. A transaction that fails to decode stays queued, so the gauge
+# reads exactly 1 here (the earlier steps left no spill file). The error text
+# below comes only from the spill reader's checksum check.
+--let $sfc= `SELECT SPILL_FILE_COUNT FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''`
+--let $assert_text= The failed transaction holds one spill file
+--let $assert_cond= $sfc = 1
+--source include/assert.inc
+
+--let $assert_text= A worker reports the spill reader's checksum failure
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_status_by_worker WHERE LAST_ERROR_NUMBER = $slave_sql_errno AND LAST_ERROR_MESSAGE LIKE "%Event crc check failed%"] >= 1
+--source include/assert.inc
+
+--let $io_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
+--let $assert_text= The receiver keeps running
+--let $assert_cond= "$io_running" = "Yes"
+--source include/assert.inc
+
+--let $assert_text= Nothing of the spilled transaction is applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1
+--source include/assert.inc
+
+--let $assert_text= No GTID stays owned
+--let $assert_cond= "[SELECT @@GLOBAL.gtid_owned]" = ""
+--source include/assert.inc
+
+--source include/remove_debug_point.inc
+STOP REPLICA;
+--source include/rpl/wait_for_replica_to_stop.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+# diff_tables.inc sorts by the 1 MiB BLOBs and runs out of sort memory, so
+# compare the lengths and checksums instead.
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len, SHA2(data, 256) AS sha FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 4. Later-event step: an undecodable Write_rows event fails on the
+--echo #    worker, and the retained transaction fails again on restart.
+--echo
+--source include/rpl/stop_receiver.inc
+--let $debug_point= imr_truncate_queued_rows_event
+--source include/add_debug_point.inc
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--let $gtid_before= `SELECT @@GLOBAL.gtid_executed`
+# One Write_rows event: GTID, BEGIN, Table_map, Write_rows (#3), Xid.
+INSERT INTO t1 VALUES (2, 'b'), (3, 'c');
+--let $trx_gtid= `SELECT GTID_SUBTRACT(@@GLOBAL.gtid_executed, '$gtid_before')`
+--source include/rpl/connection_replica.inc
+--let $slave_sql_errno= convert_error(ER_REPLICA_RELAY_LOG_READ_FAILURE)
+--source include/rpl/wait_for_applier_error.inc
+
+--let $assert_text= A worker reports that event #3 could not be decoded
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_status_by_worker WHERE LAST_ERROR_NUMBER = $slave_sql_errno AND LAST_ERROR_MESSAGE LIKE "%could not decode event #3 of the transaction%"] >= 1
+--source include/assert.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_undecodable_event
+--let $assert_select= Relay log read failure: In-memory relay log: could not decode event #3 of the transaction
+--let $assert_count= 1
+--let $assert_count_condition=
+--let $assert_text= The error log has one relay log read failure for event #3
+--source include/assert_grep.inc
+
+--let $io_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
+--let $assert_text= The receiver keeps running
+--let $assert_cond= "$io_running" = "Yes"
+--source include/assert.inc
+
+--let $queue_length= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= The failed transaction stays queued
+--let $assert_cond= $queue_length = 1
+--source include/assert.inc
+
+--let $assert_text= None of the transaction's rows is applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id IN (2, 3)] = 0
+--source include/assert.inc
+
+--let $assert_text= No GTID stays owned
+--let $assert_cond= "[SELECT @@GLOBAL.gtid_owned]" = ""
+--source include/assert.inc
+
+--let $assert_text= The transaction's GTID is not executed
+--let $assert_cond= [SELECT GTID_SUBSET("$trx_gtid", @@GLOBAL.gtid_executed)] = 0
+--source include/assert.inc
+
+# START REPLICA clears the previous error before the applier starts, so the
+# wait below sees the second failure. The error log line count shows that a
+# worker decoded the transaction again.
+START REPLICA SQL_THREAD;
+--source include/rpl/wait_for_applier_error.inc
+
+--let $assert_count= 2
+--let $assert_text= The re-dispatched transaction fails again on event #3
+--source include/assert_grep.inc
+
+--let $queue_length= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= The transaction still stays queued
+--let $assert_cond= $queue_length = 1
+--source include/assert.inc
+
+--let $assert_text= None of the transaction's rows is applied after the retry
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id IN (2, 3)] = 0
+--source include/assert.inc
+
+--let $assert_text= No GTID stays owned after the retry
+--let $assert_cond= "[SELECT @@GLOBAL.gtid_owned]" = ""
+--source include/assert.inc
+
+--let $assert_text= The transaction's GTID is still not executed
+--let $assert_cond= [SELECT GTID_SUBSET("$trx_gtid", @@GLOBAL.gtid_executed)] = 0
+--source include/assert.inc
+
+--source include/remove_debug_point.inc
+STOP REPLICA;
+--source include/rpl/wait_for_replica_to_stop.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+# t1 still holds the spill step's 1 MiB BLOBs, so reuse its comparison.
+--source include/rpl/diff.inc
+
+--echo
+--echo # 5. Cleanup.
+--echo
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/deinit.inc

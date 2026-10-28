@@ -27,6 +27,8 @@
 
 # Validates CSA requirements
 --source include/have_csa.inc
+# The result shows the server default for IMR (ON unless set OFF), so do not set it.
+--let $rpl_in_memory_relaylog= DEFAULT
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc

@@ -1,0 +1,104 @@
+# ==== Purpose ====
+#
+# Verify that a receiver reconnect in the middle of a transaction on an
+# in-memory relay log (IMR) CSA channel does not stall the applier.
+#
+# On a network error the IO thread reconnects without exiting. GTID
+# auto-positioning then makes the source resend the interrupted transaction from
+# its GTID event, preceded by a fake Rotate, the first event of every dump.
+# Before the fix, the partial transaction's group stayed open across the
+# reconnect: the fake Rotate was appended to it and, with the transaction parser
+# reset at reconnect, sealed it as complete. Its job then finished without
+# committing, left an InnoDB transaction open, and kept the transaction's GTID,
+# so the resent copy was never applied and the channel stopped applying with
+# no error. The receiver now truncates an open group when a Rotate arrives (and,
+# defensively, when a new GTID arrives), as the disk-path reader truncates its
+# active transaction.
+#
+# ==== Requirements ====
+#
+# R1. After a mid-transaction reconnect, the resent transaction is applied in
+#     full, with no applier error and no InnoDB transaction left open.
+# R2. R1 holds for the memory path (transaction <= spill threshold).
+# R3. R1 holds for the spill path (transaction > spill threshold), and no spill
+#     file is left behind.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with IMR enabled, the minimum 8 MiB spill threshold,
+#      and SOURCE_CONNECT_RETRY = 1.
+#   2. Memory path: pause the IO thread after the first WRITE_ROWS of a small
+#      transaction, force the next event read to fail so the IO thread
+#      reconnects, then check the transaction is applied in full.
+#   3. Spill path: the same with a transaction of about 12 MiB, then check that
+#      no spill file remains.
+#   4. Cleanup.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo
+--echo # 1. Set up a CSA channel with IMR enabled.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608,
+  SOURCE_CONNECT_RETRY = 1;
+
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Memory path: reconnect after the first WRITE_ROWS of a 2-row
+--echo #    transaction (R1, R2).
+--echo
+
+--let $first_id= 1
+--let $row_count= 2
+--let $row_size= 10
+--source suite/rpl_gtid/t/rpl_csa_imr_reconnect_mid_trx.inc
+
+--echo
+--echo # 3. Spill path: reconnect after the first WRITE_ROWS of a transaction of
+--echo #    about 12 MiB (R1, R3).
+--echo
+
+--let $first_id= 100
+--let $row_count= 12
+--let $row_size= 1048576
+--source suite/rpl_gtid/t/rpl_csa_imr_reconnect_mid_trx.inc
+
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--echo
+--echo # 4. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

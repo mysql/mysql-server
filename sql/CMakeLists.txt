@@ -1128,6 +1128,19 @@ SET(RPL_CSA_SOURCES
   changestreams/apply/storage/relay_log/relay_log_deleter.cpp
   changestreams/apply/storage/relay_log/relay_log_adaptive_reader.cpp
   changestreams/apply/storage/relay_log/sync_transaction_provider.cpp
+  changestreams/apply/storage/in_memory/trx_payload.cc
+  changestreams/apply/storage/in_memory/transaction_envelope.cc
+  changestreams/apply/storage/in_memory/trx_envelope_queue.cc
+  changestreams/apply/storage/in_memory/imr_runtime.cc
+  changestreams/apply/storage/in_memory/imr_service.cc
+  changestreams/apply/storage/in_memory/event_set_fetchable_memory.cc
+  changestreams/apply/storage/in_memory/cached_event_memory.cc
+  changestreams/apply/storage/in_memory/spill_file_writer.cc
+  changestreams/apply/storage/in_memory/spill_directory.cc
+  changestreams/apply/storage/in_memory/spill_encryption.cc
+  changestreams/apply/storage/in_memory/event_set_fetchable_spill.cc
+  changestreams/apply/storage/in_memory/queued_transaction_reader.cc
+  changestreams/apply/storage/in_memory/queued_transaction_writer.cc
   changestreams/apply/resource/applier_channel_monitor.cpp
   changestreams/apply/resource/resource_map.cpp
   changestreams/apply/resource/resource_monitor.cpp

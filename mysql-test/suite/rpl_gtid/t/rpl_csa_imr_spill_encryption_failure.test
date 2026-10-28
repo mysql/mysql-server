@@ -1,0 +1,233 @@
+# ==== Purpose ====
+#
+# Test the failure paths of in-memory relay log (IMR) spill-file encryption
+# on a CSA channel: a keyring that cannot be read while a spilled transaction
+# is applied, and an encryption header that cannot be written when the spill
+# file is created.
+#
+# ==== Requirements ====
+#
+# R1. When the keyring cannot be read, a spilled transaction in an encrypted
+#     spill file stops the applier with ER_REPLICA_RELAY_LOG_READ_FAILURE
+#     (13121), as for an encrypted relay log, and the error text carries the
+#     reader's reason.
+# R2. After the keyring is back, START REPLICA SQL_THREAD applies the
+#     transaction.
+# R3. When the encryption header cannot be written, the receiver stops with
+#     ER_REPLICA_RELAY_LOG_WRITE_FAILURE (13122), the error log names the
+#     cause, no spill file is left, and SPILL_FILE_COUNT and SPILL_BYTES_USED
+#     are 0.
+# R4. After the cause is gone, START REPLICA IO_THREAD receives and applies
+#     the transaction.
+#
+# ==== Implementation ====
+#
+#   1. Load the keyring on the replica, enable binlog_encryption and IMR with
+#      an 8 MiB spill threshold, start, install the metrics component.
+#   2. R1, R2: with the applier running (its group relay log is encrypted, so
+#      starting it with a broken keyring would fail at the relay-log open with
+#      13117 instead), set failed_to_fetch_master_key_seqno_from_keyring and
+#      park the receiver after the first event of the next transaction
+#      (pause_on_queue_event_after_write_buffer); the source commits a
+#      spilled transaction, which the receiver writes with the cached master
+#      key; wait until a worker fails to open the spill file the receiver is
+#      still writing; release the receiver; wait for Last_SQL_Errno 13121;
+#      assert the receiver wrote the whole transaction (a reader error must
+#      not stop the writer); remove the point; START REPLICA SQL_THREAD;
+#      sync. If a reader error stopped the writer, the receiver would drop
+#      the rest of the transaction and the "whole transaction" assertion
+#      would fail.
+#   3. R3, R4: set fail_to_serialize_encryption_header; the source commits a
+#      spilled transaction; wait for Last_IO_Errno 13122; check the error log,
+#      the spill directory and the gauges; remove the point; START REPLICA
+#      IO_THREAD; sync.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# WL#10957: Binary log encryption at rest.
+# CSA (Change Stream Applier): WL#10500.
+
+--source include/have_component_keyring_file.inc
+--source include/have_component_replication_applier_metrics.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+# A compressed payload would stay below the spill threshold.
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source suite/component_keyring_file/inc/rpl_setup_component.inc
+
+--echo
+--echo # 1. Load the keyring on the replica, enable binlog_encryption and IMR.
+--echo
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL binlog_encryption = ON;
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+--source include/rpl/start_replica.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+--let $from_ch= FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+
+CALL mtr.add_suppression("\\[In-memory relay log\\] failed to admit incoming transaction");
+CALL mtr.add_suppression("Relay log write failure");
+CALL mtr.add_suppression("Relay log read failure");
+CALL mtr.add_suppression("Failed to fetch key from keyring");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("Error running query, replica SQL thread aborted");
+
+--let $sef_spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--let $sef_marker= IMR_SPILL_ENCRYPTION_MARKER
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, c LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. The keyring cannot be read while a spilled transaction is applied
+--echo #    (R1, R2).
+--echo
+
+--let $debug_point= failed_to_fetch_master_key_seqno_from_keyring
+--source include/add_debug_point.inc
+
+# Park the receiver after the transaction's first event, so the spill file is
+# still being written when the applier opens it and fails.
+--let $debug_point= pause_on_queue_event_after_write_buffer
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+--let $debug_point= pause_on_queue_event_after_write_buffer
+--source include/remove_debug_point.inc
+
+--let $read_failure_errno= convert_error(ER_REPLICA_RELAY_LOG_READ_FAILURE)
+--let $wait_condition= SELECT COUNT(*) >= 1 FROM performance_schema.replication_applier_status_by_worker WHERE LAST_ERROR_NUMBER = $read_failure_errno
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The worker did not fail to read the spill file
+}
+
+# A reader failure does not stop the writer: the receiver writes and seals
+# the rest of the transaction, as it does for a relay log.
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+--let $slave_sql_errno= $read_failure_errno
+--source include/rpl/wait_for_applier_error.inc
+SET DEBUG_SYNC = 'RESET';
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
+--source include/rpl/connection_replica.inc
+
+# On a CSA channel Last_SQL_Error holds the coordinator's summary; the
+# worker's 13121 error names the spill file and the reader's reason.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text= The 13121 error carries the reader's reason
+--let $assert_select= Relay log read failure: Spill event set: could not open spill file: .*: Cannot get file password for encrypted replication log file
+--let $assert_count= 1
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_spill_encryption_failure
+--source include/assert_grep.inc
+
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_files.inc
+--let $assert_text= The spill file is encrypted and stays while the applier is stopped
+--let $assert_cond= $sef_count = 1 AND "$sef_magic_1" = "encrypted"
+--source include/assert.inc
+
+# The receiver wrote the whole 9 MiB transaction after the reader failure.
+--let $assert_text= The receiver wrote the whole transaction after the reader failure
+--let $assert_cond= $sef_size_1 > 9437184
+--source include/assert.inc
+
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= SPILL_BYTES_USED equals the spill file size
+--let $assert_cond= $sbu = $sef_size_1
+--source include/assert.inc
+
+--let $debug_point= failed_to_fetch_master_key_seqno_from_keyring
+--source include/remove_debug_point.inc
+
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(c) AS len, LEFT(c, 32) AS head FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $sef_spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 3. The encryption header cannot be written (R3, R4).
+--echo
+
+--let $debug_point= fail_to_serialize_encryption_header
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+
+--source include/rpl/connection_replica.inc
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
+--source include/rpl/wait_for_receiver_error.inc
+
+--let $debug_point= fail_to_serialize_encryption_header
+--source include/remove_debug_point.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text= The error log names the spill file encryption header write
+--let $assert_select= failed to admit incoming transaction: Spill_file_writer: could not write the spill file encryption header
+--let $assert_count= 1
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_spill_encryption_failure
+--source include/assert_grep.inc
+
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_files.inc
+--let $assert_text= No spill file is left after the header write failure
+--let $assert_cond= $sef_count = 0
+--source include/assert.inc
+
+--let $sfc= `SELECT SPILL_FILE_COUNT $from_ch`
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= SPILL_FILE_COUNT and SPILL_BYTES_USED are 0 after the header write failure
+--let $assert_cond= $sfc = 0 AND $sbu = 0
+--source include/assert.inc
+
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(c) AS len, LEFT(c, 32) AS head FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $sef_spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+# Cleanup.
+--source include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source suite/component_keyring_file/inc/rpl_teardown_component.inc

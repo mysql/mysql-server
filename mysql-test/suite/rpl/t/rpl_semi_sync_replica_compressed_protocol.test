@@ -13,6 +13,8 @@
 # for testing. Choosing 'Row' format.
 --source include/have_binlog_format_row.inc
 --source include/not_group_replication_plugin.inc
+# IMR does not support semisync.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 --source include/rpl/install_semisync.inc
 

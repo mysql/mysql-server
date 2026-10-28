@@ -1,0 +1,64 @@
+
+# 1. Set up a CSA channel with IMR enabled (8 MiB spill threshold).
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("Relay log read failure");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("Error running query, replica SQL thread aborted");
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. Fail every spill reader open and park the receiver between the
+#    enqueue publish and the provisioning check; a worker fails to open
+#    the spill file meanwhile (R1).
+
+# Adding debug point 'imr_force_spill_reader_open_failure' to @@GLOBAL.debug
+# Adding debug point 'imr_pause_after_enqueue_publish' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+# Removing debug point 'imr_pause_after_enqueue_publish' from @@GLOBAL.debug
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+include/rpl/wait_for_applier_error.inc [errno=13121]
+SET DEBUG_SYNC = 'RESET';
+
+# 3. The receiver did not stop and received the whole transaction (R2).
+
+include/assert.inc [The receiver has no error after a reader failure in the publish window]
+include/assert.inc [The receiver is still running]
+include/assert.inc [The receiver received the whole transaction]
+include/assert_grep.inc [The reader failure was not logged as a provisioning failure]
+include/assert_grep.inc [The worker's 13121 error names the forced spill reader open failure]
+
+# 4. Remove the cause; START REPLICA SQL_THREAD applies the transaction
+#    (R3).
+
+# Removing debug point 'imr_force_spill_reader_open_failure' from @@GLOBAL.debug
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [The spill-path transaction is applied in full]
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 5. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

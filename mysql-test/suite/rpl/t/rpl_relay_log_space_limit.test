@@ -71,6 +71,8 @@
 # This test case requires a deterministic relay log size.
 # Therefore, cannot run with compression on.
 --source include/not_binlog_transaction_compression_on.inc
+# IMR does not apply relay_log_space_limit to memory-path transactions.
+--source include/not_csa_imr.inc
 
 --let $rpl_skip_start_slave=1
 --source include/rpl/init_source_replica.inc

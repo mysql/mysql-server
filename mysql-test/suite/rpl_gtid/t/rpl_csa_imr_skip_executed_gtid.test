@@ -1,0 +1,222 @@
+# ==== Purpose ====
+#
+# Verify that an in-memory relay log (IMR) CSA channel survives a worker that
+# skips an already executed transaction while the receiver still streams it.
+#
+# With IMR a worker starts on a transaction at its GTID event. If that GTID is
+# already in gtid_executed, the worker skips the transaction and commits it at
+# once, while the receiver keeps appending the rest of its events. Before the
+# fix, the commit freed the transaction's byte source (and, on the spill path,
+# deleted its spill file), the sweep then freed its queue entry, and the
+# receiver's next append wrote into freed memory (SIGSEGV in
+# append_transaction_event). The receiver now holds the queue entry from the
+# GTID event until it has written the last event, so neither the commit nor
+# the sweep frees what it still writes.
+#
+# ==== Requirements ====
+#
+# R1. A transaction whose GTID the replica already executed, skipped while the
+#     receiver is in its middle, neither crashes the server nor stops the
+#     channel, and the next transaction replicates.
+# R2. The skipped transaction stays queued (In_Memory_Queue_Length = 1) until
+#     its last event arrives, and is then reclaimed: In_Memory_Queue_Length and
+#     In_Memory_Relay_Log_Space return to 0.
+# R3. The skip is counted in replication_applier_metrics at commit.
+# R4. R1-R3 hold for the memory path (transaction <= spill threshold).
+# R5. R1-R3 hold for the spill path (transaction > spill threshold): the spill
+#     file is kept while the receiver writes it and removed after the last
+#     event.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with IMR enabled, the minimum 8 MiB spill threshold
+#      and the applier metrics component.
+#   2. Memory path:
+#      a. Commit an empty transaction on the replica with the GTID the source
+#         assigns next.
+#      b. Pause the receiver after it queued the next event, and commit a
+#         multi-statement transaction on the source. The receiver pauses after
+#         the GTID event.
+#      c. Wait until the worker skipped and committed the transaction
+#         (IN_MEMORY_TRANSACTIONS_COUNT increased); it is still queued.
+#      d. Let the receiver go on: the server is alive, the queue drains, the
+#         skipped rows are not applied, and a following transaction replicates.
+#   3. Spill path: the same with a ~12 MiB transaction and
+#      SPILL_TRANSACTIONS_COUNT. The spill file exists while the receiver is
+#      paused and is gone at the end.
+#   4. Cleanup.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA is row-based only.
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+# Compressed, a transaction is a single payload event: there is no window in
+# the middle of its stream, and the test payload would not reach the spill
+# threshold.
+--source include/not_binlog_transaction_compression_on.inc
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Set up a CSA channel with IMR enabled and the metrics component.
+--echo
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+--let $from_ch= FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+# Derive the channel's spill directory:
+#   <relay-log dir>/#in_memory_relaylog_temp_files
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Memory path (R1-R4).
+--echo
+--echo # 2.a The replica executes the GTID the source assigns next.
+--source include/rpl/connection_source.inc
+--let $source_uuid= `SELECT @@GLOBAL.server_uuid`
+--let $gno= `SELECT CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.gtid_executed, ':', -1), '-', -1) AS UNSIGNED) + 1`
+--source include/rpl/connection_replica.inc
+--replace_regex /'[^']*'/'SOURCE_UUID:GNO'/
+--eval SET GTID_NEXT = '$source_uuid:$gno'
+BEGIN;
+COMMIT;
+SET GTID_NEXT = AUTOMATIC;
+
+--echo # 2.b Pause the receiver after the GTID event of a multi-statement
+--echo #     transaction.
+--let $count_before= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (2, 'b');
+INSERT INTO t1 VALUES (3, 'c');
+COMMIT;
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+
+--echo # 2.c The worker skips and commits the transaction mid-stream (R3); it
+--echo #     stays queued while the receiver is paused (R2).
+--let $wait_condition= SELECT IN_MEMORY_TRANSACTIONS_COUNT > $count_before $from_ch
+--source include/wait_condition.inc
+--let $qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= The skipped transaction stays queued while the receiver writes it
+--let $assert_cond= $qlen = 1
+--source include/assert.inc
+
+--echo # 2.d The receiver writes the rest of the transaction.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SELECT 1;
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $assert_text= The skipped transaction's rows are not applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 0
+--source include/assert.inc
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (10, 'after');
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= The following transaction replicates
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id = 10] = 1
+--source include/assert.inc
+# Make the source match the replica again.
+--source include/rpl/connection_source.inc
+SET sql_log_bin = 0;
+DELETE FROM t1 WHERE id IN (1, 2, 3);
+SET sql_log_bin = 1;
+
+--echo
+--echo # 3. Spill path (R1-R3, R5).
+--echo
+--echo # 3.a The replica executes the GTID the source assigns next.
+--let $gno= `SELECT CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.gtid_executed, ':', -1), '-', -1) AS UNSIGNED) + 1`
+--source include/rpl/connection_replica.inc
+--replace_regex /'[^']*'/'SOURCE_UUID:GNO'/
+--eval SET GTID_NEXT = '$source_uuid:$gno'
+BEGIN;
+COMMIT;
+SET GTID_NEXT = AUTOMATIC;
+
+--echo # 3.b Pause the receiver after the GTID event of a ~12 MiB transaction.
+--let $count_before= `SELECT SPILL_TRANSACTIONS_COUNT $from_ch`
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+--source include/rpl/connection_source.inc
+BEGIN;
+--disable_query_log
+--let $i= 101
+while ($i <= 112)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+
+--echo # 3.c The worker skips and commits the transaction mid-stream; it stays
+--echo #     queued and its spill file is kept while the receiver is paused.
+--let $wait_condition= SELECT SPILL_TRANSACTIONS_COUNT > $count_before $from_ch
+--source include/wait_condition.inc
+--let $qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= The skipped transaction stays queued while the receiver writes it
+--let $assert_cond= $qlen = 1
+--source include/assert.inc
+--echo # The spill file of the skipped transaction is still present:
+--replace_regex /imr_sp_[0-9a-f]+/imr_sp_<ID>/
+--list_files $spill_dir imr_sp_*
+
+--echo # 3.d The receiver writes the rest of the transaction.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SELECT 1;
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+--let $assert_text= The skipped transaction's rows are not applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id > 100] = 0
+--source include/assert.inc
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (20, 'after');
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= The following transaction replicates
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id = 20] = 1
+--source include/assert.inc
+--source include/rpl/connection_source.inc
+SET sql_log_bin = 0;
+DELETE FROM t1 WHERE id > 100;
+SET sql_log_bin = 1;
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 4. Cleanup.
+--echo
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl/deinit.inc

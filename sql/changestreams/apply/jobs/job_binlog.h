@@ -86,6 +86,10 @@ class Job_binlog : public Job {
   /// @brief Gets the transaction GTID.
   /// @return The transaction GTID.
   const mysql::gtid::Gtid &get_trx_gtid() const { return m_trx_gtid; }
+  /// @brief Gets the decoded first (GTID) event, or nullptr if not decoded.
+  const Log_event *get_first_event() const {
+    return m_first_event.get_event().get();
+  }
   /// @brief Gets the last committed value to determine when this transaction
   /// can run.
   /// @return The transaction's last committed value.

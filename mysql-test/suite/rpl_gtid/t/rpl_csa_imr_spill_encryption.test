@@ -1,0 +1,238 @@
+# ==== Purpose ====
+#
+# Test that in-memory relay log (IMR) spill files of a CSA channel are
+# encrypted when binlog_encryption is ON at the moment the file is created,
+# with the same format and master key as the replica's binary and relay logs,
+# and that the SPILL_BYTES_USED gauge counts the 512-byte encryption header.
+#
+# ==== Requirements ====
+#
+# R1. With binlog_encryption = ON, a new spill file starts with the encryption
+#     magic, names the current replication master key (the key of the
+#     replica's current binary log) and contains no plaintext row data.
+# R2. With binlog_encryption = OFF, a new spill file starts with the plain
+#     binary log magic and contains the plaintext row data, as before this
+#     change. An encrypted spill file is exactly 512 bytes larger than a plain
+#     one holding the same events.
+# R3. SPILL_BYTES_USED equals the sum of the on-disk sizes of the live spill
+#     files, encryption header included.
+# R4. Encrypted and plain spill files apply; the data matches the source;
+#     the files are deleted and the gauge returns to 0.
+# R5. After binlog_encryption is turned ON again, a new spill file is
+#     encrypted with the recovered key _1 and applies.
+#
+# ==== Implementation ====
+#
+#   1. Load the keyring on the replica, enable binlog_encryption and IMR with
+#      an 8 MiB spill threshold, start, install the metrics component.
+#   2. R1, R3: stop the applier; one 9 MiB transaction spills; check the file.
+#   3. R2, R3: binlog_encryption = OFF; the same transaction again; check the
+#      second file against the first.
+#   4. R4: start the applier, sync, compare, no spill files, gauge 0.
+#   5. R5: binlog_encryption = ON; a third spilled transaction is encrypted
+#      with _1 and applies.
+#
+# The 512-byte size comparison relies on both transactions having events of
+# equal byte length: the table has a fixed-width INT key and both rows carry
+# the same fixed-length payload, so the GTID, BEGIN, table map, rows and XID
+# events differ only in fixed-width values.
+#
+# The OFF transaction is the negative control of the encryption checks: its
+# file shows the plain magic and the marker, so the magic and plaintext
+# checks can fail.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# WL#10957: Binary log encryption at rest.
+# CSA (Change Stream Applier): WL#10500.
+
+--source include/have_component_keyring_file.inc
+--source include/have_component_replication_applier_metrics.inc
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+# The plaintext check needs uncompressed transaction payloads.
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source suite/component_keyring_file/inc/rpl_setup_component.inc
+
+--echo
+--echo # 1. Load the keyring on the replica, enable binlog_encryption and IMR.
+--echo
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL binlog_encryption = ON;
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+--source include/rpl/start_replica.inc
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+--let $from_ch= FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+
+--let $sef_spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--let $sef_marker= IMR_SPILL_ENCRYPTION_MARKER
+--let $key_1= `SELECT CONCAT('MySQLReplicationKey_', @@GLOBAL.server_uuid, '_1')`
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, c LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. binlog_encryption = ON: the spill file is encrypted (R1, R3).
+--echo
+
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_files.inc
+
+--let $assert_text= Exactly one spill file exists
+--let $assert_cond= $sef_count = 1
+--source include/assert.inc
+
+--let $assert_text= The spill file starts with the encryption magic
+--let $assert_cond= "$sef_magic_1" = "encrypted"
+--source include/assert.inc
+
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $rpl_log_file= `SELECT CONCAT(@@GLOBAL.datadir, '$binlog_file')`
+--source include/rpl/get_log_encryption_key_id.inc
+
+--let $assert_text= The spill file names master key _1
+--let $assert_cond= "$sef_key_1" = "$key_1"
+--source include/assert.inc
+
+--let $assert_text= The spill file names the key of the replica binary log
+--let $assert_cond= "$sef_key_1" = "$rpl_encryption_key_id"
+--source include/assert.inc
+
+--let $assert_text= The spill file holds no plaintext row data
+--let $assert_cond= $sef_marker_1 = 0
+--source include/assert.inc
+
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= SPILL_BYTES_USED equals the encrypted file size
+--let $assert_cond= $sbu = $sef_size_1
+--source include/assert.inc
+
+--echo
+--echo # 3. binlog_encryption = OFF: the next spill file is plain (R2, R3).
+--echo
+
+SET GLOBAL binlog_encryption = OFF;
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_files.inc
+
+--let $assert_text= Two spill files exist
+--let $assert_cond= $sef_count = 2
+--source include/assert.inc
+
+--let $assert_text= The first spill file is still encrypted
+--let $assert_cond= "$sef_magic_1" = "encrypted"
+--source include/assert.inc
+
+--let $assert_text= The second spill file starts with the plain binary log magic
+--let $assert_cond= "$sef_magic_2" = "plain"
+--source include/assert.inc
+
+--let $assert_text= The second spill file holds the plaintext row data
+--let $assert_cond= $sef_marker_2 = 1
+--source include/assert.inc
+
+--let $assert_text= The encrypted spill file is exactly 512 bytes larger than the plain one
+--let $assert_cond= $sef_size_1 = $sef_size_2 + 512
+--source include/assert.inc
+
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= SPILL_BYTES_USED equals the sum of both file sizes
+--let $assert_cond= $sbu = $sef_size_1 + $sef_size_2
+--source include/assert.inc
+
+--echo
+--echo # 4. Both transactions apply; the files are deleted (R4).
+--echo
+
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(c) AS len, LEFT(c, 32) AS head, RIGHT(c, 8) AS tail FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $sef_spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--let $sfc= `SELECT SPILL_FILE_COUNT $from_ch`
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= SPILL_FILE_COUNT and SPILL_BYTES_USED are 0 once the files are gone
+--let $assert_cond= $sfc = 0 AND $sbu = 0
+--source include/assert.inc
+
+--echo
+--echo # 5. binlog_encryption = ON again: a new spill file is encrypted with
+--echo #    the recovered key _1 and applies (R5).
+--echo
+
+SET GLOBAL binlog_encryption = ON;
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_spill_encryption_files.inc
+
+--let $assert_text= Exactly one spill file exists
+--let $assert_cond= $sef_count = 1
+--source include/assert.inc
+
+--let $assert_text= The third spill file is encrypted with master key _1
+--let $assert_cond= "$sef_magic_1" = "encrypted" AND "$sef_key_1" = "$key_1"
+--source include/assert.inc
+
+--let $assert_text= The third spill file holds no plaintext row data
+--let $assert_cond= $sef_marker_1 = 0
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(c) AS len, LEFT(c, 32) AS head, RIGHT(c, 8) AS tail FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $sef_spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+# Cleanup.
+--source include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source suite/component_keyring_file/inc/rpl_teardown_component.inc

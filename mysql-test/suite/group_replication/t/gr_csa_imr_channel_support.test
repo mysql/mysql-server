@@ -1,0 +1,115 @@
+################################################################################
+# On a CSA-enabled Group Replication channel, the in-memory relay log (IMR):
+#
+#   - is ON by default on group_replication_recovery (a new channel stores
+#     In_memory_relaylog = 1);
+#   - can be enabled on group_replication_recovery, which is a normal
+#     asynchronous channel (it has a receiver/IO thread);
+#   - is REJECTED on group_replication_applier, which applies the group's
+#     certified stream directly and has no receiver thread, with
+#     ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION.
+#
+# The stored setting is mysql.slave_relay_log_info.In_memory_relaylog (1 = ON,
+# 0 = OFF). group_replication_applier stores 1 by default but never uses IMR
+# (P_S shows NO).
+#
+# Steps:
+#   1. Start a single-member group so both GR channels exist, then stop Group
+#      Replication so the channels can be reconfigured.
+#   2. Recreate the recovery channel and switch both channels to CSA; assert
+#      IMR is ON on the recovery channel and OFF on the applier channel.
+#   3. Enable IMR on the recovery channel; assert it is ON.
+#   4. Enabling IMR on the applier channel is rejected; assert it is still OFF.
+#   5. Restore MTA + IMR OFF; a rejected APPLIER_VERSION = 2 + IMR ON on the
+#      applier channel changes nothing; clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+
+--let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+# Stop the group so the GR channels accept CHANGE REPLICATION SOURCE TO.
+--source include/stop_group_replication.inc
+
+# Recreate the recovery channel so it stores the default in every pass.
+--disable_query_log
+--disable_warnings
+--let $pcu= `SELECT IFNULL(PRIVILEGE_CHECKS_USER, 'NULL') FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = 'group_replication_recovery'`
+RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root' FOR CHANNEL 'group_replication_recovery';
+if (`SELECT "$pcu" != "NULL"`)
+{
+  --eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $pcu FOR CHANNEL 'group_replication_recovery'
+}
+--enable_warnings
+--enable_query_log
+
+--echo
+--echo # Switch both GR channels to CSA. The recovery channel's IMR is ON by default; the applier channel's is always OFF.
+--echo
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2 FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2 FOR CHANNEL 'group_replication_applier';
+
+--let $imr= query_get_value(SELECT In_memory_relaylog AS v FROM mysql.slave_relay_log_info WHERE Channel_name = 'group_replication_recovery', v, 1)
+--let $imr_ps= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = 'group_replication_recovery', v, 1)
+--let $assert_text= recovery channel: IMR ON by default under CSA
+--let $assert_cond= $imr = 1 AND "$imr_ps" = "YES"
+--source include/assert.inc
+
+--let $imr= query_get_value(SELECT In_memory_relaylog AS v FROM mysql.slave_relay_log_info WHERE Channel_name = 'group_replication_applier', v, 1)
+--let $imr_ps= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = 'group_replication_applier', v, 1)
+--let $assert_text= applier channel: IMR OFF by default under CSA
+--let $assert_cond= $imr = 1 AND "$imr_ps" = "NO"
+--source include/assert.inc
+
+--echo
+--echo # The recovery channel (a normal async channel) may enable IMR.
+--echo
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'group_replication_recovery';
+--let $imr= query_get_value(SELECT In_memory_relaylog AS v FROM mysql.slave_relay_log_info WHERE Channel_name = 'group_replication_recovery', v, 1)
+--let $assert_text= recovery channel: IMR can be enabled explicitly
+--let $assert_cond= $imr = 1
+--source include/assert.inc
+
+--echo
+--echo # The applier channel has no receiver thread: enabling IMR is rejected.
+--echo
+--error ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'group_replication_applier';
+--let $imr= query_get_value(SELECT In_memory_relaylog AS v FROM mysql.slave_relay_log_info WHERE Channel_name = 'group_replication_applier', v, 1)
+--let $imr_ps= query_get_value(SELECT IN_MEMORY_RELAYLOG_ENABLED AS v FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = 'group_replication_applier', v, 1)
+--let $assert_text= applier channel: IMR still OFF after the rejected enable
+--let $assert_cond= $imr = 1 AND "$imr_ps" = "NO"
+--source include/assert.inc
+
+--echo
+--echo # Restore MTA + IMR OFF on both channels and clean up.
+--echo
+# IMR options are CSA-only, so set OFF before the switch to MTA.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1 FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1 FOR CHANNEL 'group_replication_applier';
+
+# A switch to CSA with IMR ON on the applier channel is rejected and changes nothing.
+--let $e3_ps_query= SELECT CONCAT_WS(',', APPLIER_VERSION, IN_MEMORY_RELAYLOG_ENABLED, IN_MEMORY_RELAYLOG_LIMIT, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD, APPLIER_EVENT_MEMORY_LIMIT) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = 'group_replication_applier'
+--let $e3_repo_query= SELECT CONCAT_WS(',', Applier_version, In_memory_relaylog, In_memory_relaylog_limit, In_memory_relaylog_spill_threshold, Applier_event_memory_limit) FROM mysql.slave_relay_log_info WHERE Channel_name = 'group_replication_applier'
+--let $e3_ps_before= `$e3_ps_query`
+--let $e3_repo_before= `$e3_repo_query`
+--error ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'group_replication_applier';
+--let $e3_ps_after= `$e3_ps_query`
+--let $assert_text= Rejected IMR statement left the applier configuration unchanged
+--let $assert_cond= "$e3_ps_after" = "$e3_ps_before" AND "$e3_ps_before" LIKE "1,NO,%"
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+--let $e3_ps_after= `$e3_ps_query`
+--let $e3_repo_after= `$e3_repo_query`
+--let $assert_text= START ran with and persisted the old configuration
+--let $assert_cond= "$e3_ps_after" = "$e3_ps_before" AND "$e3_repo_after" = "$e3_repo_before" AND "$e3_repo_before" != ""
+--source include/assert.inc
+--source include/group_replication_end.inc

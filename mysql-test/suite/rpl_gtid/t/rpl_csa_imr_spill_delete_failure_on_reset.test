@@ -1,0 +1,185 @@
+# ==== Purpose ====
+#
+# A spill file delete can also fail during a queue reset (a full stop, when both
+# replication threads have stopped), not only at commit time. On the reset path
+# the failure is warning-only: it must NOT stop the applier (there is none
+# running) and must NOT leave a stale error that blocks the next START REPLICA.
+# This is a different code path from the run-time commit delete failure in
+# rpl_csa_imr_spill_delete_failure.test, which raises
+# ER_REPLICA_RELAY_LOG_READ_FAILURE and stops the applier.
+#
+# ==== Requirements ====
+#
+# R1. A spill file that cannot be deleted during queue reset is logged as a
+#     warning naming the file and the error.
+# R2. The reset does not raise an applier/receiver error: after the full stop
+#     Last_SQL_Errno and Last_IO_Errno are 0, and the queue gauges read 0.
+# R3. The file that could not be deleted stays on disk as an orphan.
+# R4. The next START REPLICA has no stale error; it re-fetches the unapplied
+#     transaction by GTID auto-positioning and applies it.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with the in-memory relay log and the minimum 8 MiB
+#      spill threshold.
+#   2. Stop the applier and send one transaction larger than the threshold, so
+#      the receiver queues it in a spill file that is never applied.
+#   3. Make the spill directory read-only and stop the receiver. Both threads
+#      are now stopped, so the queue resets and the spill file delete fails.
+#      Check R1 to R3.
+#   4. Make the directory writable again and START REPLICA: no stale error, the
+#      transaction is re-fetched and applied (R4).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog: FR27 (queue reset deletes
+# spill files), FR21.1/FR21.2 (a reset-time delete failure is warning-only).
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+# A compressed 12 MiB transaction would not reach the spill threshold.
+--source include/not_binlog_transaction_compression_on.inc
+# The delete fails through directory permissions, which root and Windows
+# ignore.
+--source include/not_windows.inc
+--source include/not_as_root.inc
+# SPILL_FILE_COUNT and SPILL_BYTES_USED.
+--source include/have_component_replication_applier_metrics.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. A CSA channel with the in-memory relay log and an 8 MiB spill
+--echo #    threshold.
+--echo
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("\\[In-memory relay log\\] could not delete spill file");
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+# <relay-log dir>/#in_memory_relaylog_temp_files
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Stop the applier and queue one spill transaction (received, not
+--echo #    applied).
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+BEGIN;
+--disable_query_log
+--let $i= 1
+while ($i <= 12)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+--let $use_gtids= 1
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--echo # The received transaction has one spill file.
+--replace_regex /imr_sp_[0-9a-f]+/imr_sp_<ID>/
+--list_files $spill_dir imr_sp_*
+
+--echo
+--echo # 3. Make the spill directory read-only and stop the receiver. Both
+--echo #    threads are now stopped, so the queue resets and the delete fails.
+--echo
+
+--chmod 0500 $spill_dir
+--source include/rpl/stop_receiver.inc
+--chmod 0750 $spill_dir
+
+# R2: the full stop reset raised no applier/receiver error, and the queue
+# gauges read 0.
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= The reset did not set Last_SQL_Errno
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+--let $io_errno= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1)
+--let $assert_text= The reset did not set Last_IO_Errno
+--let $assert_cond= $io_errno = 0
+--source include/assert.inc
+
+--let $qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= The queue is empty after the full stop
+--let $assert_cond= $qlen = 0
+--source include/assert.inc
+
+--let $assert_text= SPILL_FILE_COUNT reads 0 after the full stop
+--let $assert_cond= [SELECT SPILL_FILE_COUNT FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ""] = 0
+--source include/assert.inc
+--let $assert_text= SPILL_BYTES_USED reads 0 after the full stop
+--let $assert_cond= [SELECT SPILL_BYTES_USED FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ""] = 0
+--source include/assert.inc
+
+# R1: the failed delete is logged as a warning naming the file and the error.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_spill_delete_failure_on_reset
+--let $assert_select= \[Warning\] .*\[In-memory relay log\] could not delete spill file '.*#in_memory_relaylog_temp_files/imr_sp_[0-9a-f]+' \(errno 13 - .*\); it is left for the purge at the next server start
+--let $assert_count= 1
+--let $assert_text= The reset-time failed delete is logged with the file and the error
+--source include/assert_grep.inc
+
+# R3: the file that could not be deleted stays on disk as an orphan.
+--echo # The orphan spill file is still on disk after the reset.
+--replace_regex /imr_sp_[0-9a-f]+/imr_sp_<ID>/
+--list_files $spill_dir imr_sp_*
+
+--echo
+--echo # 4. START REPLICA has no stale error; the transaction is re-fetched by
+--echo #    GTID auto-positioning and applied (R4).
+--echo
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $assert_text= The re-fetched transaction is applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 12
+--source include/assert.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= START REPLICA ran with no stale SQL error
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+# Cleanup. Remove the orphan left by the reset, restore the threshold, and
+# uninstall the metrics component.
+--remove_files_wildcard $spill_dir imr_sp_*
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 16777216;
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

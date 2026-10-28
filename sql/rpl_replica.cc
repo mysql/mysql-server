@@ -70,6 +70,7 @@
 #include <atomic>
 #include <deque>
 #include <map>
+#include <optional>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -110,6 +111,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auto_thd.h"
 #include "sql/binlog.h"
+#include "sql/binlog/global.h"
 #include "sql/binlog_reader.h"
 #include "sql/clone_handler.h"  // is_provisioning
 #include "sql/current_thd.h"
@@ -149,6 +151,7 @@
 #include "sql/rpl_rli_pdb.h"  // Slave_worker
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/rpl_utility.h"
+#include "sql/set_var.h"          // System_variable_tracker
 #include "sql/sql_backup_lock.h"  // is_instance_backup_locked
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
@@ -174,6 +177,9 @@
 #include "scope_guard.h"
 
 #include "sql/changestreams/apply/service/csa_service.h"
+#include "sql/changestreams/apply/storage/in_memory/imr_runtime.h"  // Imr_runtime
+#include "sql/changestreams/apply/storage/in_memory/imr_service.h"  // Imr_service
+#include "sql/changestreams/apply/storage/in_memory/queued_transaction_writer.h"
 
 struct mysql_cond_t;
 struct mysql_mutex_t;
@@ -205,6 +211,7 @@ const char *relay_log_index = nullptr;
 const char *relay_log_basename = nullptr;
 
 std::unique_ptr<mysql::csa::Csa_service> csa_service;
+std::unique_ptr<mysql::csa::Imr_service> imr_service;
 
 /*
   MTS load-ballancing parameter.
@@ -302,6 +309,12 @@ enum enum_slave_apply_event_and_update_pos_retval {
 };
 
 static int process_io_rotate(Master_info *mi, Rotate_log_event *rev);
+static void imr_on_truncate(Master_info *mi);
+static bool imr_wait_for_admission(Master_info *mi, std::size_t trx_length);
+static bool imr_report_queue_event_failure(THD *thd, Master_info *mi);
+static bool imr_check_semisync_before_dump(THD *thd, Master_info *mi);
+static void imr_clear_ignored_events_info(Master_info *mi);
+static bool is_semisync_replica_enabled(THD *thd);
 
 /// @brief Checks whether relay log space will be exceeded after queueing
 /// additional 'queued_size' bytes. If yes, function will
@@ -343,6 +356,7 @@ static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 
 static int check_slave_sql_config_conflict(const Relay_log_info *rli);
 static void group_replication_cleanup_after_clone();
+static void imr_purge_stale_relay_logs(THD *thd, Master_info *mi);
 
 static void check_replica_configuration_restrictions();
 static bool check_replica_configuration_errors(Master_info *mi,
@@ -617,6 +631,11 @@ int ReplicaInitializer::init_replica() {
 
   RPL_MASTER_INFO = nullptr;
 
+  // Created before any channel: load_mi_and_rli_from_repositories() reconciles
+  // each channel's IMR runtime through it. Destroyed in
+  // delete_slave_info_objects() after all channels are gone.
+  imr_service.reset(new mysql::csa::Imr_service());
+
   /*
     Create slave info objects by reading repositories of individual
     channels and add them into channel_map
@@ -629,7 +648,29 @@ int ReplicaInitializer::init_replica() {
 
   group_replication_cleanup_after_clone();
 
+  /*
+    In-memory relay log: no replica thread runs yet, so purge the stale
+    relay-log files of each IMR channel. After the clone cleanup above, which
+    may reset the group replication channels.
+  */
+  for (auto channel_type :
+       {SLAVE_REPLICATION_CHANNEL, GROUP_REPLICATION_CHANNEL}) {
+    for (mi_map::iterator it = channel_map.begin(channel_type);
+         it != channel_map.end(channel_type); it++) {
+      if (it->second != nullptr)
+        imr_purge_stale_relay_logs(nullptr /*thd*/, it->second);
+    }
+  }
+
   print_channel_info();
+
+  /*
+    Purge spill files left by a previous run and create the spill directory
+    before any receiver starts. On failure, IMR channels refuse to START (see
+    Imr_service::init_spill_storage()); running before start_replica_threads()
+    covers the channels started at server startup too.
+  */
+  imr_service->init_spill_storage();
 
   check_replica_configuration_restrictions();
   adjust_startup_replication_force_pqc_for_tls_versions();
@@ -1176,6 +1217,77 @@ static void recover_relay_log(Master_info *mi) {
   }
 }
 
+/**
+  In-memory relay log: purge every relay-log file of the channel except the
+  active (last) one, which becomes the group relay log.
+
+  IMR relay-log files hold only the replica's own events, but a new one
+  appears at every server start and binary log master key rotation. Called
+  under the channel_map write lock with both threads stopped (server startup,
+  START REPLICA). Same steps as Rpl_applier_reader::purge_applied_logs().
+  A failure is logged and ignored: the files hold no transaction data.
+
+  @param thd  The session of START REPLICA, or nullptr at server startup (then
+              there is no backup lock to check).
+  @param mi   The channel.
+*/
+static void imr_purge_stale_relay_logs(THD *thd, Master_info *mi) {
+  channel_map.assert_some_wrlock();
+  Relay_log_info *rli = mi->rli;
+  if (rli == nullptr || !rli->inited || rli->imr() == nullptr ||
+      !relay_log_purge)
+    return;
+  assert(!mi->slave_running && !rli->slave_running);
+
+  MUTEX_LOCK(lock, &rli->data_lock);
+  std::optional<Shared_backup_lock_guard> backup_lock;
+  if (thd != nullptr) {
+    backup_lock.emplace(thd);
+    if (static_cast<Shared_backup_lock_guard::Lock_result>(*backup_lock) !=
+        Shared_backup_lock_guard::Lock_result::locked) {
+      LogErr(WARNING_LEVEL, ER_LOG_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK);
+      return;
+    }
+  }
+
+  Log_info linfo;
+  rli->relay_log.get_current_log(&linfo);
+  rli->set_group_relay_log_name(linfo.log_file_name);
+  rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
+  rli->set_event_relay_log_name(linfo.log_file_name);
+  rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
+
+  // Persist the new group relay log, as rli_init_info() does.
+  bool error = is_autocommit_off(thd) && trans_begin(thd);
+  if (!error)
+    error = rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT |
+                            Relay_log_info::RLI_FLUSH_IGNORE_GTID_ONLY) != 0;
+  if (is_autocommit_off(thd) && trans_commit(thd)) error = true;
+
+  if (!error) {
+    DBUG_EXECUTE_IF("imr_relay_log_purge_crash_before_index",
+                    DBUG_SET("+d,crash_purge_before_update_index"););
+    DBUG_EXECUTE_IF("imr_relay_log_purge_crash_after_index",
+                    DBUG_SET("+d,crash_purge_critical_after_update_index"););
+    rli->relay_log.lock_index();
+    mysql_mutex_lock(&rli->log_space_lock);
+    auto log_space = rli->log_space_total.load();
+    error = rli->relay_log.purge_logs(linfo.log_file_name, false /*included*/,
+                                      false /*need_lock_index*/,
+                                      false /*need_update_threads*/, &log_space,
+                                      true /*auto_purge*/) != 0;
+    rli->log_space_total.store(log_space);
+    mysql_mutex_unlock(&rli->log_space_lock);
+    rli->relay_log.unlock_index();
+  }
+
+  if (error) {
+    std::string msg = "could not purge the stale relay-log files of channel '";
+    msg.append(mi->get_channel()).append("'.");
+    LogErr(WARNING_LEVEL, ER_RPL_REPLICA_GENERIC_MESSAGE, msg.c_str());
+  }
+}
+
 /*
   Updates the master info based on the information stored in the
   relay info and ignores relay logs previously retrieved by the IO
@@ -1436,6 +1548,12 @@ end:
   if (!init_error && mi->rli->is_relay_log_recovery &&
       mi->rli->mts_recovery_group_cnt)
     init_error = fill_mts_gaps_and_recover(mi);
+
+  // Create, rebuild or drop the channel's IMR runtime to match the persisted
+  // selection and bounds. Runs on every init path; idempotent, so an
+  // already-running peer thread is never disturbed.
+  if (!init_error && mi->rli->inited) imr_service->reconcile(mi->rli);
+
   return init_error;
 }
 
@@ -1775,9 +1893,21 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
   */
   ulong total_stop_wait_timeout = stop_wait_timeout;
 
+  /*
+    In-memory relay log: this function only requests the stops. Each thread
+    detaches its own IMR role on exit, before it reports itself stopped (see
+    Imr_runtime::detach_role()). Roles are never detached here: with force_all
+    this function continues after a join timeout while the thread still uses
+    its role.
+  */
+
   if (thread_mask & (REPLICA_SQL | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating SQL thread"));
     mi->rli->abort_slave = true;
+    // Wake a coordinator parked in dispatch_next(); applier-scoped, lock-free
+    // and safe before join. A flag set on an unattached role is cleared by the
+    // next attach.
+    mysql::csa::Imr_service::request_applier_stop(mi);
     if (mi->rli->is_csa_enabled()) {
       get_csa_service().stop(mi->get_channel(), force_all);
     }
@@ -1829,6 +1959,10 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
   if (thread_mask & (REPLICA_IO | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating IO thread"));
     mi->abort_slave = true;
+    // Wake a receiver parked in acquire_admission() or
+    // imr_wait_for_admission(); receiver-scoped, lock-free and safe before
+    // join. A flag set on an unattached role is cleared by the next attach.
+    mysql::csa::Imr_service::request_receiver_stop(mi);
     DBUG_EXECUTE_IF("pause_after_queue_event",
                     { rpl_replica_debug_point(DBUG_RPL_S_PAUSE_QUEUE_EV); });
     /*
@@ -1905,6 +2039,8 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
 
     mysql_mutex_unlock(log_lock);
   }
+
+  // No IMR cleanup here: each thread detaches its role on exit (see above).
   return 0;
 }
 
@@ -2162,10 +2298,11 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     lock_cond_sql = &mi->rli->run_lock;
   }
 
-  if (thread_mask & REPLICA_IO)
+  if (thread_mask & REPLICA_IO) {
     is_error = start_slave_thread(key_thread_replica_io, handle_slave_io,
                                   lock_io, lock_cond_io, cond_io,
                                   &mi->slave_running, &mi->slave_run_id, mi);
+  }
 
   if (!is_error && (thread_mask & (REPLICA_IO | SLAVE_MONITOR)) &&
       mi->is_source_connection_auto_failover() &&
@@ -2189,10 +2326,11 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
         my_error(ER_MTA_RECOVERY_FAILURE, MYF(0));
       }
     }
-    if (!is_error)
+    if (!is_error) {
       is_error = start_slave_thread(
           key_thread_replica_sql, handle_slave_sql, lock_sql, lock_cond_sql,
           cond_sql, &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
+    }
     if (is_error)
       terminate_slave_threads(mi, thread_mask & (REPLICA_IO | SLAVE_MONITOR),
                               rpl_stop_replica_timeout, need_lock_slave);
@@ -2273,6 +2411,12 @@ void delete_slave_info_objects() {
   }
 
   channel_map.unlock();
+
+  // Each ~Relay_log_info() above removed its runtime, so the map is empty and
+  // no channel holds a pointer into it. An abort path never reaches here; the
+  // service's destructor then clears any runtime left.
+  assert(imr_service == nullptr || imr_service->runtime_count() == 0);
+  imr_service.reset();
 }
 
 /**
@@ -3218,6 +3362,9 @@ static bool wait_for_relay_log_space(Relay_log_info *rli,
 /*
   Builds a Rotate and writes it to relay log.
 
+  On an in-memory relay log channel the Rotate is not written: the function
+  only updates and flushes the connection metadata.
+
   The caller must hold mi->data_lock.
 
   @param thd pointer to I/O Thread's Thd.
@@ -3258,7 +3405,15 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd, Master_info *mi,
           mi->get_mi_description_event()->common_footer->checksum_alg;
 
     ev->server_id = 0;  // don't be ignored by slave SQL thread
-    if (unlikely(rli->relay_log.write_event(ev, mi) != 0))
+    if (rli->imr() != nullptr) {
+      /*
+        In-memory relay log: the applier never reads the relay log, so the
+        Rotate is not written. Clear the ignored-events info as
+        MYSQL_BIN_LOG::after_write_to_relay_log() does after a write, which
+        write_ignored_events_info_to_relay_log() relies on.
+      */
+      imr_clear_ignored_events_info(mi);
+    } else if (unlikely(rli->relay_log.write_event(ev, mi) != 0))
       mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
                  ER_THD(thd, ER_REPLICA_RELAY_LOG_WRITE_FAILURE),
                  "failed to write a Rotate event"
@@ -3501,6 +3656,14 @@ static void show_slave_status_metadata(mem_root_deque<Item *> *field_list,
                                             sizeof(ulong), MYSQL_TYPE_LONG));
   field_list->push_back(
       new Item_empty_string("Network_Namespace", NAME_LEN + 1));
+  // Bytes held by the channel's in-memory relay-log queue (0 for a classic
+  // channel). Appended at the END so existing columns do not shift.
+  field_list->push_back(new Item_return_int("In_Memory_Relay_Log_Space", 10,
+                                            MYSQL_TYPE_LONGLONG));
+  // Transactions owned by the in-memory relay-log queue (0 for a classic
+  // channel). Appended at the END so existing columns do not shift.
+  field_list->push_back(
+      new Item_return_int("In_Memory_Queue_Length", 10, MYSQL_TYPE_LONGLONG));
 }
 
 /**
@@ -3779,6 +3942,17 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->get_public_key ? 1 : 0);
 
   protocol->store(mi->network_namespace_str(), &my_charset_bin);
+
+  // In_Memory_Relay_Log_Space: same trailing position as in
+  // show_slave_status_metadata().
+  const mysql::csa::Imr_runtime *imr_status = mi->rli->imr();
+  protocol->store(static_cast<ulonglong>(
+      imr_status != nullptr ? imr_status->bytes_used() : 0));
+
+  // In_Memory_Queue_Length: includes dispatched and committed-but-not-yet-swept
+  // entries. Same trailing position as in show_slave_status_metadata().
+  protocol->store(static_cast<ulonglong>(
+      imr_status != nullptr ? imr_status->queue_length() : 0));
 
   rpl_filter->unlock();
   mysql_mutex_unlock(&mi->rli->err_lock);
@@ -5439,6 +5613,9 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 extern "C" void *handle_slave_io(void *arg) {
   THD *thd{nullptr};  // needs to be first for thread_stack
   bool thd_added{false};
+  // Set when the in-memory relay log receiver role is refused at start; the
+  // thread must then exit and never reach connect_init.
+  bool imr_attach_refused{false};
   MYSQL *mysql;
   Master_info *mi = (Master_info *)arg;
   Relay_log_info *rli = mi->rli;
@@ -5456,6 +5633,13 @@ extern "C" void *handle_slave_io(void *arg) {
 
     assert(mi->inited);
     mysql = nullptr;
+
+    // Test hook: hold a new IO thread before its first run-lock section, where
+    // it is created but slave_running is still 0. The thread has no THD yet,
+    // so this polls the global debug keyword instead of using DEBUG_SYNC.
+    while (DBUG_EVALUATE_IF("pause_replica_io_thread_before_run_lock", true,
+                            false))
+      my_sleep(10000);
 
     mysql_mutex_lock(&mi->run_lock);
 
@@ -5482,6 +5666,27 @@ extern "C" void *handle_slave_io(void *arg) {
       mi->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
                  ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                  "Failed during replica I/O thread initialization ");
+      goto err;
+    }
+    /*
+      Attach the IMR receiver role (see Imr_runtime::attach_role()) in the
+      run-lock section that sets slave_running, so for any mi->run_lock holder
+      the role is attached only while this thread runs. It comes right after
+      init_replica_thread() and before every other fallible step. It is refused
+      if another IO thread owns the role; this thread then exits, and
+      imr_attach_refused keeps it out of the async connection failover at err:,
+      which would send it back to connect_init as a second receiver. No-op on a
+      classic channel.
+    */
+    if (mysql::csa::Imr_service::attach_receiver(mi)) {
+      imr_attach_refused = true;
+      mysql_cond_broadcast(&mi->start_cond);
+      mysql_mutex_unlock(&mi->run_lock);
+      mi->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                 ER_THD(thd, ER_REPLICA_FATAL_ERROR),
+                 "Failed during replica I/O thread initialization: the "
+                 "in-memory relay log receiver role is already attached to "
+                 "another thread");
       goto err;
     }
 
@@ -5681,6 +5886,8 @@ extern "C" void *handle_slave_io(void *arg) {
 
     DBUG_PRINT("info", ("Starting reading binary log from source"));
     while (!io_slave_killed(thd, mi)) {
+      // Stop without reconnecting: semisync must not be requested on IMR.
+      if (imr_check_semisync_before_dump(thd, mi)) goto err;
       MYSQL_RPL rpl;
 
       THD_STAGE_INFO(thd, stage_requesting_binlog_dump);
@@ -5787,6 +5994,18 @@ extern "C" void *handle_slave_io(void *arg) {
             goto err;
           }
           queued_size = gtid_ev.get_trx_length();
+          // IMR admission needs the declared transaction length, which sources
+          // older than MySQL 8.0.2 do not send (it reads as 0). Stop before
+          // admission and queue_event(), so nothing is reserved or opened.
+          if (rli->imr() != nullptr && queued_size < event_len) {
+            mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
+                       ER_THD(thd, ER_REPLICA_RELAY_LOG_WRITE_FAILURE),
+                       "[In-memory relay log] the source does not send a valid "
+                       "transaction length in its GTID events (sources older "
+                       "than MySQL 8.0.2 do not send it); set "
+                       "IN_MEMORY_RELAYLOG_ENABLED = OFF for this channel");
+            goto err;
+          }
         }
 
         // If the used space exceeds the relay log limit, and the current
@@ -5799,7 +6018,12 @@ extern "C" void *handle_slave_io(void *arg) {
         // space. But when we write the FD/rotate events, the applier can deduce
         // that the transaction is half-received, and then it can rollback and
         // free disk space as needed.
-        if (rli->log_space_limit && exceeds_relay_log_limit(rli, queued_size) &&
+        //
+        // Skipped on an IMR channel: its transactions are not in the relay log.
+        // There relay_log_space_limit soft-bounds spill disk usage (see
+        // Trx_envelope_queue::acquire_admission()); the next branch waits.
+        if (rli->imr() == nullptr && rli->log_space_limit &&
+            exceeds_relay_log_limit(rli, queued_size) &&
             !mi->transaction_parser.is_inside_transaction() &&
             !(event_buf[EVENT_TYPE_OFFSET] ==
                   mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
@@ -5811,13 +6035,27 @@ extern "C" void *handle_slave_io(void *arg) {
                 ER_RPL_REPLICA_IO_THREAD_ABORTED_WAITING_FOR_RELAY_LOG_SPACE);
             goto err;
           }
+        } else if (rli->imr() != nullptr &&
+                   Log_event_type_helper::is_any_gtid_event(
+                       static_cast<Log_event_type>(
+                           event_buf[EVENT_TYPE_OFFSET]))) {
+          // Wait for queue space before queue_event() takes LOCK_log, so
+          // LOCK_log is never held while waiting for the applier (see
+          // Imr_runtime::wait_for_admission()). A KILL ends the thread.
+          if (imr_wait_for_admission(mi, queued_size) && thd->killed) {
+            LogErr(
+                ERROR_LEVEL,
+                ER_RPL_REPLICA_IO_THREAD_ABORTED_WAITING_FOR_RELAY_LOG_SPACE);
+            goto err;
+          }
         }
 
         QUEUE_EVENT_RESULT queue_res = queue_event(mi, event_buf, event_len);
         if (queue_res == QUEUE_EVENT_ERROR_QUEUING) {
-          mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
-                     ER_THD(thd, ER_REPLICA_RELAY_LOG_WRITE_FAILURE),
-                     "could not queue event from source");
+          if (!imr_report_queue_event_failure(thd, mi))
+            mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
+                       ER_THD(thd, ER_REPLICA_RELAY_LOG_WRITE_FAILURE),
+                       "could not queue event from source");
           goto err;
         }
 
@@ -5930,8 +6168,11 @@ extern "C" void *handle_slave_io(void *arg) {
       enabled, this server is not a Group Replication SECONDARY and
       Replica IO thread is not killed but failed due to network error, or a
       compatibility error, a connection to another source is attempted.
+      Not for a thread whose in-memory relay log receiver attach was refused:
+      the network and compatibility error flags are channel state, possibly
+      left by an earlier session or set by the thread that owns the role.
     */
-    if (mi->is_source_connection_auto_failover() &&
+    if (!imr_attach_refused && mi->is_source_connection_auto_failover() &&
         !is_group_replication_member_secondary() && !io_slave_killed(thd, mi) &&
         (mi->is_network_error() || mi->is_compatibility_error() ||
          quorum_status !=
@@ -6023,6 +6264,14 @@ extern "C" void *handle_slave_io(void *arg) {
            llstr(mi->get_master_log_pos(), llbuff));
     /* At this point the I/O thread will not try to reconnect anymore. */
     mi->atomic_is_stopping = true;
+    /*
+      In-memory relay log: truncate a partially received transaction now
+      (detach_receiver() below would too), so a worker parked in wait_next()
+      rolls back without waiting for the rest of the exit section. The
+      transaction is re-fetched on the next START. No-op when no group is open
+      or this thread does not own the receiver role.
+    */
+    imr_on_truncate(mi);
     (void)RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
     /*
       Pause the IO thread and wait for 'continue_to_stop_io_thread'
@@ -6071,6 +6320,14 @@ extern "C" void *handle_slave_io(void *arg) {
     mi->abort_slave = false;
     mi->slave_running = 0;
     mi->atomic_is_stopping = false;
+    /*
+      Detach the IMR receiver role (see Imr_runtime::detach_role()), however
+      the thread stopped. This is the only detach point, in the run-lock
+      section that clears slave_running and before stop_cond is signalled, so
+      STOP, START, CHANGE REPLICATION SOURCE and RESET REPLICA see a last-out
+      queue reset already done. No-op for a non-owner or a classic channel.
+    */
+    mysql::csa::Imr_service::detach_receiver(mi);
     mysql_mutex_lock(&mi->info_thd_lock);
     mi->info_thd = nullptr;
     mysql_mutex_unlock(&mi->info_thd_lock);
@@ -7158,6 +7415,11 @@ extern "C" void *handle_slave_sql(void *arg) {
                                               .time_scope();
 
       assert(rli->inited);
+      // Test hook: see pause_replica_io_thread_before_run_lock in
+      // handle_slave_io().
+      while (DBUG_EVALUATE_IF("pause_replica_sql_thread_before_run_lock", true,
+                              false))
+        my_sleep(10000);
       mysql_mutex_lock(&rli->run_lock);
       assert(!rli->slave_running);
       errmsg = nullptr;
@@ -7214,6 +7476,21 @@ extern "C" void *handle_slave_sql(void *arg) {
         rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
                     ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                     "Failed during replica thread initialization");
+        goto err;
+      }
+      /*
+        Attach the IMR applier role in the run-lock section that sets
+        slave_running; refused if another SQL thread owns it. See the receiver
+        counterpart in handle_slave_io(). No-op on a classic channel.
+      */
+      if (mysql::csa::Imr_service::attach_applier(rli->mi)) {
+        mysql_cond_broadcast(&rli->start_cond);
+        mysql_mutex_unlock(&rli->run_lock);
+        rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                    ER_THD(thd, ER_REPLICA_FATAL_ERROR),
+                    "Failed during replica thread initialization: the "
+                    "in-memory relay log applier role is already attached to "
+                    "another thread");
         goto err;
       }
       thd->init_query_mem_roots();
@@ -7575,6 +7852,13 @@ extern "C" void *handle_slave_sql(void *arg) {
                ("Signaling possibly waiting source_pos_wait() functions"));
     mysql_cond_broadcast(&rli->data_cond);
     mysql_mutex_unlock(&rli->data_lock);
+    /*
+      Detach the IMR applier role; the worker pool is already gone
+      (csa_service->remove(rli)), so the detach's sweep cannot race a worker.
+      Otherwise as the receiver counterpart in handle_slave_io(): the only
+      detach point, before stop_cond is signalled.
+    */
+    mysql::csa::Imr_service::detach_applier(rli->mi);
     /* we die so won't remember charset - re-update them on next thread start */
     rli->cached_charset_invalidate();
     rli->save_temporary_tables = thd->temporary_tables;
@@ -7637,7 +7921,8 @@ extern "C" void *handle_slave_sql(void *arg) {
 
   Updates the master info with the place in the next binary log where
   we should start reading.  Rotate the relay log to avoid mixed-format
-  relay logs.
+  relay logs, except on an in-memory relay log channel, whose relay log
+  carries no source events.
 
   @param mi master_info for the slave
   @param rev The rotate log event read from the master
@@ -7656,8 +7941,15 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev) {
   /*
     Master will send a FD event immediately after the Roate event, so don't log
     the current FD event.
+
+    In-memory relay log: the relay log carries no transaction data and no
+    source events, so a source Rotate (real or fake) has nothing to separate
+    and the relay log is not rotated. The Master_info update below still
+    happens. rli->imr() does not change while the IO thread runs, because the
+    runtime is only created or destroyed with both threads stopped.
   */
-  int ret = rotate_relay_log(mi, false, false, true);
+  int ret =
+      mi->rli->imr() == nullptr ? rotate_relay_log(mi, false, false, true) : 0;
 
   mysql_mutex_lock(&mi->data_lock);
   /* Safe copy as 'rev' has been "sanitized" in Rotate_log_event's ctor */
@@ -7847,6 +8139,216 @@ static bool is_fd_event_saved_in_context_usable_with_event_type(
 }
 
 /**
+  In-memory relay log receiver adapter: open a transaction group at the GTID
+  event.
+
+  Wrapper over mysql::csa::Imr_runtime::open_transaction(), which admits the
+  group and holds its sink. Called after the server-id filter, so a dropped
+  transaction opens no group. The transaction gets the runtime's FDE
+  snapshot, taken when queue_event() installed the current source FDE
+  (Imr_runtime::set_receiver_fde()).
+
+  @param mi         The Master_info object for this in-memory channel.
+  @param trx_length The transaction's declared byte size, from the GTID event.
+
+  @retval QUEUE_EVENT_OK            the group was opened; the runtime's
+                                    receiver_sink() is non-null.
+  @retval QUEUE_EVENT_ERROR_QUEUING a stop was requested while blocked in
+                                    admission, or the spill file could not be
+                                    provisioned (recorded); the sink stays null.
+*/
+static QUEUE_EVENT_RESULT imr_on_gtid_event(Master_info *mi,
+                                            std::size_t trx_length) {
+  mysql::csa::Imr_runtime *imr = mi->rli->imr();
+  assert(imr != nullptr);
+  if (imr->open_transaction(*mi->get_mi_description_event(), trx_length,
+                            /*is_trx=*/true)) {
+    return QUEUE_EVENT_ERROR_QUEUING;  // stop or spill setup failed; no sink
+  }
+  return QUEUE_EVENT_OK;
+}
+
+/**
+  In-memory relay log receiver adapter: before queue_event() takes LOCK_log
+  for a GTID or anonymous GTID event, wait until the transaction would be
+  admitted without waiting (see mysql::csa::Imr_runtime::wait_for_admission()).
+
+  Called by handle_slave_io() with no lock held. It reserves nothing; the
+  admission in imr_on_gtid_event() reserves. It runs before the server-id
+  filter, so it may also wait for a transaction that is then dropped.
+  While waiting, the stage is "Waiting for the replica SQL thread to free relay
+  log space", as for the classic relay_log_space_limit wait.
+
+  The wait ends when space frees, on a receiver stop
+  (Imr_service::request_receiver_stop()), or on KILL. After a stop,
+  queue_event()'s admission reports the stop; after a KILL the caller exits.
+
+  @param mi         The Master_info object for this in-memory channel.
+  @param trx_length The transaction's declared byte size, from the GTID event.
+  @return true if the wait ended on a receiver stop or a KILL; false if there
+          was no wait or space freed.
+*/
+static bool imr_wait_for_admission(Master_info *mi, std::size_t trx_length) {
+  mysql::csa::Imr_runtime *imr = mi->rli->imr();
+  assert(imr != nullptr);
+  if (imr->is_admissible(trx_length)) return false;  // fits: no wait, no stage
+  THD *thd = mi->info_thd;
+  PSI_stage_info old_stage;
+  thd->enter_stage(&stage_waiting_for_relay_log_space, &old_stage, __func__,
+                   __FILE__, __LINE__);
+  const bool stopped = imr->wait_for_admission(trx_length);
+  DBUG_PRINT("info", ("IMR admission pre-wait for %zu bytes ended: %s",
+                      trx_length, stopped ? "stop or kill" : "space freed"));
+  THD_STAGE_INFO(thd, old_stage);
+  return stopped;
+}
+
+/**
+  In-memory relay log receiver adapter: append one received event's bytes to
+  the open group (body or terminal event).
+
+  Wrapper over mysql::csa::Imr_runtime::append_event(). The terminal event
+  seals the group and discards the runtime's sink.
+
+  @param mi          The Master_info object for this in-memory channel.
+  @param buf         The transient event bytes (copied in by the mechanism).
+  @param len         Number of bytes at @p buf.
+  @param is_terminal Whether this event terminates (seals) the group.
+
+  @retval QUEUE_EVENT_OK            the event was appended.
+  @retval QUEUE_EVENT_ERROR_QUEUING no group was open (defensive), or a
+                                    spill-file write failed (recorded; the group
+                                    is truncated and the sink dropped).
+*/
+static QUEUE_EVENT_RESULT imr_on_body_event(Master_info *mi, const char *buf,
+                                            ulong len, bool is_terminal) {
+  mysql::csa::Imr_runtime *imr = mi->rli->imr();
+  assert(imr != nullptr);
+  if (imr->append_event(buf, len, is_terminal)) {
+    return QUEUE_EVENT_ERROR_QUEUING;  // no open group, or a spill write error
+  }
+  return QUEUE_EVENT_OK;
+}
+
+/**
+  In-memory relay log receiver adapter: truncate the open group on an
+  incomplete transaction (rotate / error / stop mid-transaction).
+
+  Wrapper over mysql::csa::Imr_runtime::truncate_receiver_group(). No-op on a
+  classic channel, when nothing is open, or when this thread does not own the
+  receiver role.
+
+  @param mi The Master_info object for this channel.
+*/
+static void imr_on_truncate(Master_info *mi) {
+  if (mysql::csa::Imr_runtime *imr = mi->rli->imr())
+    imr->truncate_receiver_group();
+}
+
+/**
+  Report a failed queue_event() on an in-memory relay log channel from the
+  receiver's last write failure. A stop requested while waiting for queue
+  admission logs one INFORMATION line and is not an error; any other failure
+  reports ER_REPLICA_RELAY_LOG_WRITE_FAILURE with the recorded reason.
+
+  @param thd The receiver thread.
+  @param mi  The Master_info object for this channel.
+
+  @retval true  handled (in-memory relay log channel)
+  @retval false not an in-memory relay log channel; the caller reports
+*/
+static bool imr_report_queue_event_failure(THD *thd, Master_info *mi) {
+  mysql::csa::Imr_runtime *imr = mi->rli->imr();
+  if (imr == nullptr) return false;
+  const mysql::csa::Receiver_write_failure &failure = imr->last_write_failure();
+  if (failure.stopped) {
+    LogErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+           "[In-memory relay log] receiver stopped while waiting for queue "
+           "admission");
+    return true;
+  }
+  mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
+             ER_THD(thd, ER_REPLICA_RELAY_LOG_WRITE_FAILURE),
+             failure.reason.empty() ? "could not queue event from source"
+                                    : failure.reason.c_str());
+  return true;
+}
+
+/**
+  Refuse a binlog dump request on an in-memory relay log channel while
+  semi-synchronous replication is enabled. Semisync is negotiated per dump
+  request, so this covers auto-start and reconnects, which the START REPLICA
+  check does not see.
+
+  @param thd The receiver thread.
+  @param mi  The Master_info object for this channel.
+
+  @retval true  incompatible; the error is reported and the receiver must stop
+  @retval false not an in-memory relay log channel, or semisync is disabled
+*/
+static bool imr_check_semisync_before_dump(THD *thd, Master_info *mi) {
+  if (mi->rli->imr() == nullptr || !is_semisync_replica_enabled(thd))
+    return false;
+  mi->report(
+      ERROR_LEVEL, ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION,
+      ER_THD(thd, ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION),
+      "semi-synchronous replication");
+  return true;
+}
+
+// On disk, MYSQL_BIN_LOG::after_write_to_relay_log() clears this info.
+static void imr_clear_ignored_events_info(Master_info *mi) {
+  Relay_log_info *rli = mi->rli;
+  if (rli->imr() == nullptr || rli->ign_master_log_name_end[0] == 0) return;
+  mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
+  rli->relay_log.lock_binlog_end_pos();
+  rli->ign_master_log_name_end[0] = 0;
+  rli->relay_log.unlock_binlog_end_pos();
+}
+
+/**
+  Complete receiver bookkeeping after a transaction has been successfully
+  appended to and sealed in the in-memory relay log.
+
+  Called by queue_event() at a terminal transaction boundary, holding
+  Master_info::data_lock. Mirrors the bookkeeping in
+  MYSQL_BIN_LOG::after_write_to_relay_log().
+
+  @param mi The Master_info object for this in-memory channel.
+*/
+static void after_write_to_in_memory_relay_log(Master_info *mi) {
+  assert(mi != nullptr);
+  assert(mi->rli->imr() != nullptr);
+  assert(mi->transaction_parser.is_not_inside_transaction());
+  mysql_mutex_assert_owner(&mi->data_lock);
+
+  const Gtid *last_gtid_queued = mi->get_queueing_trx_gtid();
+  if (!last_gtid_queued->is_empty()) {
+    mi->rli->get_tsid_lock()->rdlock();
+    DBUG_SIGNAL_WAIT_FOR(current_thd, "updating_received_transaction_set",
+                         "reached_updating_received_transaction_set",
+                         "continue_updating_received_transaction_set");
+    mi->rli->add_logged_gtid(last_gtid_queued->sidno, last_gtid_queued->gno);
+    mi->rli->get_tsid_lock()->unlock();
+  }
+
+  if (mi->is_queueing_trx()) {
+    mi->finished_queueing();
+
+    Trx_monitoring_info processing;
+    Trx_monitoring_info last;
+    mi->get_gtid_monitoring_info()->copy_info_to(&processing, &last);
+
+    binlog::global_context.monitoring_context()
+        .transaction_compression()
+        .update(binlog::monitoring::log_type::RELAY, last.compression_type,
+                last.gtid, last.end_time, last.compressed_bytes,
+                last.uncompressed_bytes,
+                mi->rli->get_gtid_set()->get_tsid_map());
+  }
+}
+
+/**
   Store an event received from the master connection into the relay
   log.
 
@@ -7907,6 +8409,10 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   ulonglong compressed_transaction_bytes = 0;
   ulonglong uncompressed_transaction_bytes = 0;
   auto compression_type = mysql::binlog::event::compression::type::NONE;
+  bool in_memory_transaction_completed = false;
+  // In-memory relay log: write this source FDE to the relay log (it changed
+  // the checksum algorithm, see the FORMAT_DESCRIPTION_EVENT case).
+  bool imr_write_source_fde = false;
   Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
 
   assert(checksum_alg == mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF ||
@@ -8175,6 +8681,15 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         Now the I/O thread has just changed its mi->get_master_log_name(), so
         incrementing mi->get_master_log_pos() is nonsense.
       */
+      /*
+        In-memory relay log: the source's real Rotate never arrives inside a
+        transaction. The fake Rotate sent at every (re)connection may find a
+        group left open by the previous connection, which the source is about
+        to resend from its GTID event. Truncate it so its worker rolls back;
+        appended, the Rotate would seal it as complete (the parser was reset).
+        The queuing block below then sees no open group and skips the Rotate.
+      */
+      if (mi->rli->imr() != nullptr) imr_on_truncate(mi);
       inc_pos = 0;
       break;
     }
@@ -8207,10 +8722,25 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
             mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
 
       mi->set_mi_description_event(new_fdle);
+      // In-memory relay log: transactions decode with a copy of this FDE.
+      if (mysql::csa::Imr_runtime *imr = mi->rli->imr())
+        imr->set_receiver_fde(*new_fdle);
 
+      const enum_binlog_checksum_alg old_relay_log_checksum_alg =
+          mi->rli->relay_log.relay_log_checksum_alg;
       /* installing new value of checksum Alg for relay log */
       mi->rli->relay_log.relay_log_checksum_alg =
           new_fdle->common_footer->checksum_alg;
+
+      /*
+        In-memory relay log: source FDEs are not written to the relay log, but
+        its own later events use relay_log_checksum_alg, which follows the
+        source. When the algorithm changes, write this FDE (below) so a reader
+        of the file picks up the new algorithm.
+      */
+      imr_write_source_fde = mi->rli->imr() != nullptr &&
+                             old_relay_log_checksum_alg !=
+                                 mi->rli->relay_log.relay_log_checksum_alg;
 
       /*
          Though this does some conversion to the slave's format, this will
@@ -8481,8 +9011,43 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   } else {
     bool is_error = false;
     DBUG_EXECUTE_IF("simulate_truncated_relay_log_event", { event_len -= 5; });
-    /* write the event to the relay log */
-    if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0)) {
+    /* In-memory relay log: stream the event into the queue instead of the
+       relay-log file. A group is open iff receiver_sink() != nullptr.
+       Inter-group events with no open group are not stored, except a source FDE
+       that changed the checksum algorithm (imr_write_source_fde), which is
+       written to the relay-log file. Classic channels use write_buffer. */
+    bool queued_ok;
+    if (mysql::csa::Imr_runtime *imr = mi->rli->imr(); imr != nullptr) {
+      // Open the group here, so a transaction the filter drops opens none.
+      if (Log_event_type_helper::is_any_gtid_event(event_type) &&
+          imr_on_gtid_event(
+              mi, static_cast<std::size_t>(mi->m_queueing_transaction_size)) !=
+              QUEUE_EVENT_OK)
+        goto err;  // no parser rollback; the caller reports the error
+      if (imr->receiver_sink() != nullptr) {
+        const bool is_terminal =
+            mi->transaction_parser.is_not_inside_transaction();
+        // Test hook: shorten a body event so its in-memory decode fails on a
+        // worker (a later event of the transaction, not the GTID event).
+        DBUG_EXECUTE_IF("imr_truncate_queued_rows_event", {
+          if (event_type == mysql::binlog::event::WRITE_ROWS_EVENT)
+            event_len -= 5;
+        });
+        queued_ok = (imr_on_body_event(mi, buf, event_len, is_terminal) ==
+                     QUEUE_EVENT_OK);
+        in_memory_transaction_completed = queued_ok && is_terminal;
+      } else if (imr_write_source_fde) {
+        // See the FORMAT_DESCRIPTION_EVENT case; no IMR code reads it.
+        queued_ok = (rli->relay_log.write_buffer(buf, event_len, mi) == 0);
+      } else {
+        queued_ok = true;  // inter-group event: nothing to append in memory
+      }
+    } else {
+      /* write the event to the relay log */
+      queued_ok = (rli->relay_log.write_buffer(buf, event_len, mi) == 0);
+    }
+    if (likely(queued_ok)) {
+      imr_clear_ignored_events_info(mi);
       DBUG_SIGNAL_WAIT_FOR(current_thd,
                            "pause_on_queue_event_after_write_buffer",
                            "receiver_reached_pause_on_queue_event",
@@ -8529,6 +9094,13 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
             mysql::binlog::event::compression::type::NONE,
             compressed_transaction_bytes, uncompressed_transaction_bytes);
       }
+
+      /*
+        The in-memory path bypasses after_write_to_relay_log(), so run its
+        bookkeeping once the terminal event sealed the stream.
+      */
+      if (mi->rli->imr() != nullptr && in_memory_transaction_completed)
+        after_write_to_in_memory_relay_log(mi);
     } else {
       /*
         We failed to write the event and didn't updated slave positions.
@@ -8537,6 +9109,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         restarting the I/O thread without GTID auto positing the parser
         would assume the failed event as queued.
       */
+      imr_on_truncate(mi);
       mi->transaction_parser.rollback();
       is_error = true;
     }
@@ -8974,6 +9547,10 @@ int flush_relay_logs(Master_info *mi, THD *thd) {
 
   if (mi) {
     Relay_log_info *rli = mi->rli;
+    // In-memory relay log: FLUSH RELAY LOGS is a no-op, because the relay-log
+    // file carries no transaction data. imr() is non-null only on an inited
+    // channel, so this also implies rli->inited.
+    if (rli->imr() != nullptr) return 0;
     if (rli->inited) {
       // Rotate immediately if one is true:
       if ((!is_group_replication_plugin_loaded() ||  // GR is disabled
@@ -9096,9 +9673,26 @@ bool reencrypt_relay_logs() {
       mi = it->second;
       if (mi != nullptr) {
         Relay_log_info *rli = mi->rli;
-        if (rli != nullptr && rli->inited && rli->relay_log.reencrypt_logs()) {
-          channel_map.unlock();
-          return true;
+        if (rli != nullptr && rli->inited) {
+          /*
+            In-memory relay log: FLUSH RELAY LOGS skipped this channel, so
+            rotate here. reencrypt_logs() skips the last file and old keys are
+            then purged, so the last file must already use the new key. Same
+            lock order as flush_relay_logs(): channel_map, then LOCK_log.
+            LOCK_log does not wait for the applier: the IMR receiver waits for
+            queue space before taking it (see imr_wait_for_admission()).
+          */
+          if (rli->imr() != nullptr && rotate_relay_log(mi)) {
+            if (!current_thd->is_error())
+              my_error(ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_ROTATE_LOGS,
+                       MYF(0));
+            channel_map.unlock();
+            return true;
+          }
+          if (rli->relay_log.reencrypt_logs()) {
+            channel_map.unlock();
+            return true;
+          }
         }
       }
     }
@@ -9177,6 +9771,10 @@ bool start_slave(THD *thd, LEX_REPLICA_CONNECTION *connection_param,
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   // Get a mask of _stopped_ threads
   init_thread_mask(&thread_mask, mi, true /* inverse */);
+  // In-memory relay log: purge only if both threads are stopped, whichever
+  // thread is started (see imr_purge_stale_relay_logs() below).
+  const bool imr_both_stopped =
+      (thread_mask & (REPLICA_IO | REPLICA_SQL)) == (REPLICA_IO | REPLICA_SQL);
   /*
     Below we will start all stopped threads.  But if the user wants to
     start only one thread, do as if the other thread was running (as we
@@ -9275,6 +9873,13 @@ bool start_slave(THD *thd, LEX_REPLICA_CONNECTION *connection_param,
                  master_param->gtid)
         push_warning(thd, Sql_condition::SL_NOTE, ER_UNTIL_COND_IGNORED,
                      ER_THD(thd, ER_UNTIL_COND_IGNORED));
+
+      /*
+        The run locks keep both threads stopped until start_slave_threads(),
+        so nothing reads or writes the relay log, and the SQL thread sets its
+        group relay log (Rpl_applier_reader::open()) only after the purge.
+      */
+      if (!is_error && imr_both_stopped) imr_purge_stale_relay_logs(thd, mi);
 
       if (!is_error)
         is_error =
@@ -9786,7 +10391,12 @@ static bool have_change_replication_source_execute_option(
       lex_mi->applier_worker_count !=
           LEX_SOURCE_INFO::applier_worker_count_unspecified ||
       lex_mi->applier_event_memory_limit !=
-          LEX_SOURCE_INFO::applier_event_memory_limit_unspecified)
+          LEX_SOURCE_INFO::applier_event_memory_limit_unspecified ||
+      lex_mi->in_memory_relaylog != LEX_SOURCE_INFO::LEX_MI_IMR_UNCHANGED ||
+      lex_mi->in_memory_relaylog_limit !=
+          LEX_SOURCE_INFO::in_memory_relaylog_limit_unspecified ||
+      lex_mi->in_memory_relaylog_spill_threshold !=
+          LEX_SOURCE_INFO::in_memory_relaylog_spill_threshold_unspecified)
     have_execute_option = true;
 
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos)
@@ -9819,7 +10429,12 @@ static bool have_change_replication_source_applier_and_receive_option(
       lex_mi->auto_position != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
       lex_mi->m_source_connection_auto_failover !=
           LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->m_gtid_only != LEX_SOURCE_INFO::LEX_MI_UNCHANGED)
+      lex_mi->m_gtid_only != LEX_SOURCE_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->in_memory_relaylog != LEX_SOURCE_INFO::LEX_MI_IMR_UNCHANGED ||
+      lex_mi->in_memory_relaylog_limit !=
+          LEX_SOURCE_INFO::in_memory_relaylog_limit_unspecified ||
+      lex_mi->in_memory_relaylog_spill_threshold !=
+          LEX_SOURCE_INFO::in_memory_relaylog_spill_threshold_unspecified)
     have_applier_receive_option = true;
 
   return have_applier_receive_option;
@@ -10144,11 +10759,11 @@ static bool change_execute_options(THD *thd, LEX_SOURCE_INFO *lex_mi,
 
   if (lex_mi->sql_delay != -1) mi->rli->set_sql_delay(lex_mi->sql_delay);
 
+  // The IMR setting is kept; reconcile() below makes it (in)active.
   if (lex_mi->applier_version !=
       LEX_SOURCE_INFO::Applier_version::unspecified) {
     if (lex_mi->applier_version == LEX_SOURCE_INFO::Applier_version::mta) {
       mi->rli->set_applier_version(cs::apply::Applier_version::mta);
-      ;
     } else if (lex_mi->applier_version ==
                LEX_SOURCE_INFO::Applier_version::csa) {
       mi->rli->set_applier_version(cs::apply::Applier_version::csa);
@@ -10176,16 +10791,41 @@ static bool change_execute_options(THD *thd, LEX_SOURCE_INFO *lex_mi,
       my_error(ER_CRST_APPLIER_EVENT_MEMORY_LIMIT_ONLY_FOR_CSA, MYF(0));
       return true;
     }
+    // No early return: the IMR options below must still be applied.
     if (lex_mi->applier_event_memory_limit < replica_max_allowed_packet) {
       push_warning(
           thd, Sql_condition::SL_WARNING,
           ER_WARN_CRST_APPLIER_EVENT_MEMORY_LIMIT_OUT_OF_RANGE,
           ER_THD(thd, ER_WARN_CRST_APPLIER_EVENT_MEMORY_LIMIT_OUT_OF_RANGE));
       mi->rli->set_applier_event_memory_limit(replica_max_allowed_packet);
-      return false;
+    } else {
+      mi->rli->set_applier_event_memory_limit(
+          lex_mi->applier_event_memory_limit);
     }
-    mi->rli->set_applier_event_memory_limit(lex_mi->applier_event_memory_limit);
   }
+  // IMR options were validated by validate_in_memory_relaylog_options().
+  if (lex_mi->in_memory_relaylog != LEX_SOURCE_INFO::LEX_MI_IMR_UNCHANGED) {
+    assert(mi->rli->is_csa_enabled());
+    mi->rli->set_in_memory_relaylog(lex_mi->in_memory_relaylog ==
+                                    LEX_SOURCE_INFO::LEX_MI_IMR_ENABLE);
+  }
+  if (lex_mi->in_memory_relaylog_limit !=
+      LEX_SOURCE_INFO::in_memory_relaylog_limit_unspecified) {
+    assert(mi->rli->is_csa_enabled());
+    mi->rli->set_in_memory_relaylog_limit(lex_mi->in_memory_relaylog_limit);
+  }
+  if (lex_mi->in_memory_relaylog_spill_threshold !=
+      LEX_SOURCE_INFO::in_memory_relaylog_spill_threshold_unspecified) {
+    assert(mi->rli->is_csa_enabled());
+    mi->rli->set_in_memory_relaylog_spill_threshold(
+        lex_mi->in_memory_relaylog_spill_threshold);
+  }
+
+  // Create, destroy or rebuild the IMR runtime to match the selection and
+  // bounds. The receiver may still run here, but change_master() requires both
+  // threads stopped for every option that changes the IMR selection or bounds,
+  // so a running receiver's runtime is left unchanged.
+  imr_service->reconcile(mi->rli);
 
   return false;
 }
@@ -10420,6 +11060,15 @@ bool is_option_enabled_or_will_be(bool base_value, int option_value) {
       break;
   }
   return var_enabled;
+}
+
+// True if the channel is CSA after this statement.
+static bool is_or_will_csa_be_enabled(const LEX_SOURCE_INFO *lex_mi,
+                                      Master_info *mi) {
+  return lex_mi->applier_version == LEX_SOURCE_INFO::Applier_version::csa ||
+         (lex_mi->applier_version ==
+              LEX_SOURCE_INFO::Applier_version::unspecified &&
+          mi->rli->is_csa_enabled());
 }
 
 /**
@@ -10689,11 +11338,7 @@ int evaluate_inter_option_dependencies(const LEX_SOURCE_INFO *lex_mi,
   if (!channel_map.is_group_replication_channel_name(mi->get_channel())) {
     // Check CSA requirements when CSA is enabled or will be enabled.
     // Skip checks for group replication channels (controlled separately).
-    bool requested_csa =
-        (lex_mi->applier_version == LEX_SOURCE_INFO::Applier_version::csa);
-    if (requested_csa || (lex_mi->applier_version ==
-                              LEX_SOURCE_INFO::Applier_version::unspecified &&
-                          mi->rli->is_csa_enabled())) {
+    if (is_or_will_csa_be_enabled(lex_mi, mi)) {
       // Does not support delayed applier
       bool current_sql_delay_set = mi->rli->get_sql_delay() > 0;
       bool will_set_sql_delay =
@@ -10766,9 +11411,57 @@ static void log_invalid_position_warning(THD *thd,
   }
 }
 
+// Rejects invalid IMR options before CRST changes anything; true on error.
+static bool validate_in_memory_relaylog_options(const LEX_SOURCE_INFO *lex_mi,
+                                                Master_info *mi) {
+  // Unknown versions are rejected later by change_execute_options().
+  if (lex_mi->applier_version >= LEX_SOURCE_INFO::Applier_version::unknown)
+    return false;
+  const bool enabled_specified =
+      lex_mi->in_memory_relaylog != LEX_SOURCE_INFO::LEX_MI_IMR_UNCHANGED;
+  const bool limit_specified =
+      lex_mi->in_memory_relaylog_limit !=
+      LEX_SOURCE_INFO::in_memory_relaylog_limit_unspecified;
+  const bool spill_threshold_specified =
+      lex_mi->in_memory_relaylog_spill_threshold !=
+      LEX_SOURCE_INFO::in_memory_relaylog_spill_threshold_unspecified;
+  if (!enabled_specified && !limit_specified && !spill_threshold_specified)
+    return false;
+  if (!is_or_will_csa_be_enabled(lex_mi, mi)) {
+    my_error(ER_CRST_IN_MEMORY_RELAYLOG_ONLY_FOR_CSA, MYF(0));
+    return true;
+  }
+  // The group_replication_applier channel has no receiver thread.
+  if (lex_mi->in_memory_relaylog == LEX_SOURCE_INFO::LEX_MI_IMR_ENABLE &&
+      channel_map.is_group_replication_applier_channel_name(lex_mi->channel)) {
+    my_error(ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION, MYF(0),
+             "the group_replication_applier channel");
+    return true;
+  }
+  if (!limit_specified && !spill_threshold_specified) return false;
+  // Validate the effective pair: an unspecified bound keeps its current value.
+  const unsigned long long effective_limit =
+      limit_specified ? lex_mi->in_memory_relaylog_limit
+                      : mi->rli->get_in_memory_relaylog_limit();
+  const unsigned long long effective_spill_threshold =
+      spill_threshold_specified
+          ? lex_mi->in_memory_relaylog_spill_threshold
+          : mi->rli->get_in_memory_relaylog_spill_threshold();
+  const mysql::csa::Imr_options_validation validation =
+      mysql::csa::Imr_service::validate_options(
+          limit_specified, effective_limit, spill_threshold_specified,
+          effective_spill_threshold);
+  if (!validation.ok) {
+    my_error(validation.error_code, MYF(0), validation.reason.c_str());
+    return true;
+  }
+  return false;
+}
+
 /**
   This method aggregates the validation checks made for the command
     CHANGE REPLICATION SOURCE
+  Also validates the in-memory relay log options.
 
   @param thd    Pointer to THD object for the client thread executing the
                 statement.
@@ -10841,6 +11534,8 @@ static std::pair<bool, bool> validate_change_replication_source_options(
         lex_mi->privilege_checks_hostname);
     return std::make_pair(true, mta_remove_worker_info);
   }
+  if (validate_in_memory_relaylog_options(lex_mi, mi))
+    return std::make_pair(true, mta_remove_worker_info);
   return std::make_pair(false, mta_remove_worker_info);
 }
 
@@ -10934,6 +11629,8 @@ int change_master(THD *thd, Master_info *mi, LEX_SOURCE_INFO *lex_mi,
   bool have_execute_option = false;
   /* Do we have at least one option that relates to receival and execution? */
   bool have_both_receive_execute_option = false;
+  /* Does APPLIER_VERSION make IMR active, or is IMR active now? */
+  bool have_imr_applier_version_option = false;
   /** Is there a an error during validation */
   bool validation_error = false;
   /* If there are no mts gaps, we delete the rows in this table. */
@@ -11017,6 +11714,13 @@ int change_master(THD *thd, Master_info *mi, LEX_SOURCE_INFO *lex_mi,
    */
   have_both_receive_execute_option =
       have_change_replication_source_applier_and_receive_option(lex_mi);
+  // APPLIER_VERSION needs both threads stopped if IMR is active before/after.
+  have_imr_applier_version_option =
+      lex_mi->applier_version !=
+          LEX_SOURCE_INFO::Applier_version::unspecified &&
+      mi->rli->is_in_memory_relaylog() &&
+      (mi->rli->is_csa_enabled() ||
+       lex_mi->applier_version == LEX_SOURCE_INFO::Applier_version::csa);
 
   /* If either:
       + An option affects both the applier and receiver and one of the threads
@@ -11024,7 +11728,7 @@ int change_master(THD *thd, Master_info *mi, LEX_SOURCE_INFO *lex_mi,
       + There are receiver and applier options and both threads are running
      Then tell the user the replica must stop
    */
-  if ((have_both_receive_execute_option &&
+  if (((have_both_receive_execute_option || have_imr_applier_version_option) &&
        ((thread_mask & REPLICA_IO) || (thread_mask & REPLICA_SQL))) ||
       (have_receive_option && have_execute_option &&
        (thread_mask & REPLICA_IO) && (thread_mask & REPLICA_SQL))) {
@@ -11718,6 +12422,32 @@ static void check_replica_configuration_restrictions() {
 }
 
 /**
+  Whether semi-synchronous replication is enabled on this replica, read from the
+  plugin-provided global system variable @c rpl_semi_sync_replica_enabled.
+
+  Looked up by name, so the server does not link against the plugin. When the
+  plugin is not installed the variable is absent and this returns false. The
+  value is read under @c LOCK_global_system_variables, as @@sysvar reads are.
+
+  @param thd  the START REPLICA command session or the receiver (IO) thread
+              (must be non-null).
+  @return true if semisync is installed and enabled, false otherwise.
+*/
+static bool is_semisync_replica_enabled(THD *thd) {
+  const auto reader = [thd](const System_variable_tracker &,
+                            sys_var *var) -> bool {
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    const bool enabled =
+        *reinterpret_cast<const bool *>(var->value_ptr(thd, OPT_GLOBAL, {}));
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    return enabled;
+  };
+  return System_variable_tracker::make_tracker("rpl_semi_sync_replica_enabled")
+      .access_system_variable<bool>(thd, reader, Suppress_not_found_error::YES)
+      .value_or(false);
+}
+
+/**
   Checks the current replica configuration when starting a replication thread
   If some incompatibility is found an error is thrown.
 
@@ -11728,6 +12458,42 @@ static void check_replica_configuration_restrictions() {
 */
 static bool check_replica_configuration_errors(Master_info *mi,
                                                int thread_mask) {
+  // The in-memory relay log is incompatible with semi-synchronous replication.
+  // Checked at IO-thread start, since semisync is a plugin whose state is not
+  // known at CHANGE time; imr_check_semisync_before_dump() covers server start
+  // and reconnects. The queue is left intact.
+  if ((thread_mask & REPLICA_IO) && mi->rli->imr() != nullptr &&
+      current_thd != nullptr && is_semisync_replica_enabled(current_thd)) {
+    my_error(ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION, MYF(0),
+             "semi-synchronous replication");
+    return true;
+  }
+
+  // The spill directory was found unusable at startup. Refuse to start either
+  // thread of an in-memory relay log channel until the server is restarted with
+  // the path fixed; other channels are not affected. At server startup there is
+  // no session, and the failure was already written to the error log.
+  // Checked first: it is the root cause when the purge failed too.
+  if ((thread_mask & (REPLICA_IO | REPLICA_SQL)) && mi->rli->imr() != nullptr &&
+      imr_service->spill_dir_unusable()) {
+    if (current_thd != nullptr)
+      my_error(ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE, MYF(0),
+               mi->get_channel(),
+               "the spill directory is not a usable directory");
+    return true;
+  }
+
+  // The startup purge could not remove stale spill files, so the spill
+  // storage is not in a known state; same as above.
+  if ((thread_mask & (REPLICA_IO | REPLICA_SQL)) && mi->rli->imr() != nullptr &&
+      imr_service->spill_cleanup_failed()) {
+    if (current_thd != nullptr)
+      my_error(ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE, MYF(0),
+               mi->get_channel(),
+               "stale spill files could not be deleted at server startup");
+    return true;
+  }
+
   if (global_gtid_mode.get() != Gtid_mode::ON) {
     if (mi->is_auto_position() && (thread_mask & REPLICA_IO) &&
         global_gtid_mode.get() == Gtid_mode::OFF) {

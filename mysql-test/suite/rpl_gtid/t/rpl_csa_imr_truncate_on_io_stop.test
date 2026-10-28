@@ -1,0 +1,392 @@
+# ==== Purpose ====
+#
+# Verify that when the replica IO (receiver) thread stops in the MIDDLE of
+# receiving a transaction on an in-memory relay log (IMR) CSA channel, the
+# half-received transaction is TRUNCATED and never applied, and that a later
+# START REPLICA IO_THREAD re-fetches and applies it in full. This is covered for
+# BOTH storage paths of the in-memory queue:
+#
+#   (a) the memory path  (transaction <= IN_MEMORY_RELAYLOG_SPILL_THRESHOLD)
+#   (b) the spill  path  (transaction >  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD)
+#
+# A transaction group is open on the receiver from its GTID event until the
+# terminal (XID) event seals it. If the IO thread stops in between, the IO
+# thread's own cleanup truncates the open group (imr_on_truncate in
+# handle_slave_io): the sink reports end-of-stream, the applier takes its
+# is_truncated() branch and rolls back the partial transaction silently (no SQL
+# error), and the transaction's GTID is added to NEITHER Retrieved_Gtid_Set NOR
+# gtid_executed. GTID auto-positioning then re-fetches the whole transaction on
+# the next START REPLICA IO_THREAD.
+#
+# ==== Requirements ====
+#
+# R1. Stopping the IO thread after the first WRITE_ROWS event of a transaction
+#     (before its terminal event) truncates the open group: the SQL thread keeps
+#     running with no error, and none of the transaction's rows are applied.
+# R2. The truncated transaction is not durably received: it is absent from the
+#     replica's gtid_executed while the IO thread is down.
+# R3. START REPLICA IO_THREAD re-fetches the whole transaction from the source;
+#     it applies in full and the replica data matches the source.
+# R4. R1-R3 hold for both the memory path (small transaction) and the spill path
+#     (transaction larger than the spill threshold); for the spill path the
+#     truncated transaction's spill file is reclaimed once replication resumes
+#     (no imr_sp_* leftover after re-fetch and apply).
+# R5. R1-R4 also hold with replica_preserve_commit_order = OFF (the single-phase
+#     applier commit path). This is a regression guard: before the
+#     Job_binlog::run() fix, re-dispatching a truncated transaction under
+#     RPCO=OFF crashed the applier -- the single-phase path called
+#     commit_register() on a job that prepare() had already moved to `done`,
+#     tripping its phase assertion (job_applier.cpp). Under RPCO=ON each phase
+#     is a separate dispatch, so that path was never exercised.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with IMR enabled and the minimum 8 MiB spill
+#      threshold; keep the applier (SQL thread) running throughout.
+#   2. Memory path: add stop_io_after_reading_write_rows_log_event, run a small
+#      multi-row transaction, and assert the IO thread stopped mid-transaction,
+#      the SQL thread is still running with no error, and none of the rows were
+#      applied (truncated). Remove the debug point, START REPLICA IO_THREAD, and
+#      assert the transaction is re-fetched and applied.
+#   3. Spill path: same shape with a >8 MiB transaction; additionally assert the
+#      truncated spill file is reclaimed and, after re-fetch, the data matches.
+#   4. Cleanup.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo
+--echo # 1. Set up a CSA channel with IMR enabled (8 MiB spill threshold). The
+--echo #    applier stays running for the whole test; only the receiver is
+--echo #    stopped mid-transaction.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+# Killing the IO thread mid-transaction leaves it stopped without a clean
+# disconnect; suppress the expected receiver-stop diagnostics.
+CALL mtr.add_suppression("Replica I/O thread killed");
+CALL mtr.add_suppression("Replica I/O thread .* killed while");
+CALL mtr.add_suppression("Replica I/O for channel '': Relay log write failure");
+CALL mtr.add_suppression("Relay log write failure: could not queue event from source");
+
+# Derive the channel's spill directory:
+#   <relay-log dir>/#in_memory_relaylog_temp_files
+--let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 2. MEMORY PATH: stop the receiver after the first WRITE_ROWS of a small
+--echo #    multi-row transaction (below the spill threshold). The open group is
+--echo #    truncated: the applier rolls it back silently and no row is applied.
+--echo
+
+# The receiver is fully caught up, so the next WRITE_ROWS the IO thread reads is
+# the one from the transaction below; stop right after it (before the XID).
+--let $debug_point= stop_io_after_reading_write_rows_log_event
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (10, 'mem-a');
+INSERT INTO t1 VALUES (11, 'mem-b');
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= No
+--source include/rpl/wait_for_replica_status.inc
+
+# The applier keeps running (truncation is a silent rollback, not an error).
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= The SQL thread keeps running after the receiver was stopped mid-transaction
+--let $assert_cond= "$sql_running" = "Yes"
+--source include/assert.inc
+
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= Truncation is a silent rollback: no SQL error is raised
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+# None of the transaction's rows were applied: the whole (half-received)
+# transaction was truncated and rolled back.
+--let $mem_applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 10 AND 11, c, 1)
+--let $assert_text= The half-received memory-path transaction was truncated, not applied (no rows visible)
+--let $assert_cond= $mem_applied = 0
+--source include/assert.inc
+
+# The truncated transaction is not durably received either: its GTID is not in
+# the replica's gtid_executed while the IO thread is down. Capture the source's
+# executed set and assert it is NOT a subset of the replica's (the replica is
+# missing the truncated transaction).
+--source include/rpl/connection_source.inc
+--let $master_gtid= query_get_value(SELECT @@GLOBAL.gtid_executed AS g, g, 1)
+
+# query_get_value() cannot hold the comma in GTID_SUBSET(a, b), so evaluate it
+# into a session variable first (under disable_query_log so the non-deterministic
+# UUID is not written to the .result).
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET @subset = GTID_SUBSET('$master_gtid', @@GLOBAL.gtid_executed)
+--enable_query_log
+--let $subset= query_get_value(SELECT @subset AS s, s, 1)
+--let $assert_text= The truncated transaction's GTID is absent from the replica gtid_executed (source is ahead)
+--let $assert_cond= $subset = 0
+--source include/assert.inc
+
+--source include/remove_debug_point.inc
+
+--echo
+--echo # 2b. START REPLICA IO_THREAD: the transaction is re-fetched and applied.
+--echo
+
+--source include/rpl/start_receiver.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $mem_applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 10 AND 11, c, 1)
+--let $assert_text= After re-fetch the memory-path transaction is applied in full
+--let $assert_cond= $mem_applied = 2
+--source include/assert.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 3. SPILL PATH: same scenario with a >8 MiB transaction. It is routed to
+--echo #    a spill file; stopping the receiver mid-transaction truncates it, the
+--echo #    spill file is reclaimed, and nothing is applied.
+--echo
+
+--source include/rpl/connection_replica.inc
+--let $debug_point= stop_io_after_reading_write_rows_log_event
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+# One transaction larger than 8 MiB: 12 rows x ~1 MiB = ~12 MiB > threshold.
+BEGIN;
+--disable_query_log
+--let $i= 20
+while ($i <= 31)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= No
+--source include/rpl/wait_for_replica_status.inc
+
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= The SQL thread keeps running after the spill-path receiver stop
+--let $assert_cond= "$sql_running" = "Yes"
+--source include/assert.inc
+
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= Spill-path truncation is a silent rollback: no SQL error
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+# None of the large transaction's rows were applied.
+--let $spill_applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 20 AND 31, c, 1)
+--let $assert_text= The half-received spill-path transaction was truncated, not applied (no rows visible)
+--let $assert_cond= $spill_applied = 0
+--source include/assert.inc
+
+# Note: the truncated spill envelope's file is reclaimed lazily -- the coordinator
+# only sweeps it on its next sweep_and_dispatch pass, which needs a following
+# transaction (or a stop). While the receiver is down and idle no such pass
+# happens, so the file may still be present here; it is reclaimed once
+# replication resumes below. (Any file that ever outlived a run is also removed
+# by the startup orphan purge.)
+
+--source include/remove_debug_point.inc
+
+--echo
+--echo # 3b. START REPLICA IO_THREAD: the spill-path transaction is re-fetched
+--echo #     and applied; no spill file is left behind.
+--echo
+
+--source include/rpl/start_receiver.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $spill_applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 20 AND 31, c, 1)
+--let $assert_text= After re-fetch the spill-path transaction is applied in full
+--let $assert_cond= $spill_applied = 12
+--source include/assert.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 4. Repeat the memory- and spill-path truncation + re-fetch with
+--echo #    replica_preserve_commit_order = OFF (R5). This is the configuration
+--echo #    that crashed the applier before the Job_binlog::run() fix: under
+--echo #    RPCO=OFF the single-phase commit path called commit_register() on the
+--echo #    truncated (already-`done`) job. The applier must instead roll the
+--echo #    transaction back and re-apply it on START REPLICA IO_THREAD, on both
+--echo #    storage paths.
+--echo
+
+# replica_preserve_commit_order can only be changed with the SQL thread stopped.
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+SET @saved_rpco = @@GLOBAL.replica_preserve_commit_order;
+SET GLOBAL replica_preserve_commit_order = OFF;
+--source include/rpl/start_applier.inc
+
+--echo
+--echo # 4a. MEMORY PATH (RPCO=OFF): stop the receiver after the first WRITE_ROWS
+--echo #     of a small transaction; the open group is truncated and rolled back.
+--echo
+
+--let $debug_point= stop_io_after_reading_write_rows_log_event
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (60, 'mem-off-a');
+INSERT INTO t1 VALUES (61, 'mem-off-b');
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= No
+--source include/rpl/wait_for_replica_status.inc
+
+# The applier is still running (no crash, silent rollback, no error). If the
+# truncated job had reached commit_register() and asserted, the server would be
+# down and these SHOW REPLICA STATUS reads would fail with a lost connection.
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= RPCO=OFF memory: the SQL thread keeps running after the mid-transaction receiver stop
+--let $assert_cond= "$sql_running" = "Yes"
+--source include/assert.inc
+
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= RPCO=OFF memory: truncation is a silent rollback (no SQL error)
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+--let $mem_applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 60 AND 61, c, 1)
+--let $assert_text= RPCO=OFF memory: the half-received transaction was truncated, not applied
+--let $assert_cond= $mem_applied = 0
+--source include/assert.inc
+
+--source include/remove_debug_point.inc
+--source include/rpl/start_receiver.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $mem_applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 60 AND 61, c, 1)
+--let $assert_text= RPCO=OFF memory: after re-fetch the transaction is applied in full
+--let $assert_cond= $mem_applied = 2
+--source include/assert.inc
+
+--echo
+--echo # 4b. SPILL PATH (RPCO=OFF): same scenario with a >8 MiB transaction.
+--echo
+
+--let $debug_point= stop_io_after_reading_write_rows_log_event
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+BEGIN;
+--disable_query_log
+--let $i= 70
+while ($i <= 81)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= No
+--source include/rpl/wait_for_replica_status.inc
+
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= RPCO=OFF spill: the SQL thread keeps running after the mid-transaction receiver stop
+--let $assert_cond= "$sql_running" = "Yes"
+--source include/assert.inc
+
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= RPCO=OFF spill: truncation is a silent rollback (no SQL error)
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+--let $spill_applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 70 AND 81, c, 1)
+--let $assert_text= RPCO=OFF spill: the half-received transaction was truncated, not applied
+--let $assert_cond= $spill_applied = 0
+--source include/assert.inc
+
+--source include/remove_debug_point.inc
+--source include/rpl/start_receiver.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $spill_applied= query_get_value(SELECT COUNT(*) AS c FROM t1 WHERE id BETWEEN 70 AND 81, c, 1)
+--let $assert_text= RPCO=OFF spill: after re-fetch the transaction is applied in full
+--let $assert_cond= $spill_applied = 12
+--source include/assert.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $spill_dir_to_check= $spill_dir
+--source include/rpl/wait_for_no_imr_spill_files.inc
+
+--echo
+--echo # 4c. Restore replica_preserve_commit_order.
+--echo
+
+--source include/rpl/stop_applier.inc
+SET GLOBAL replica_preserve_commit_order = @saved_rpco;
+--source include/rpl/start_applier.inc
+
+--echo
+--echo # 5. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

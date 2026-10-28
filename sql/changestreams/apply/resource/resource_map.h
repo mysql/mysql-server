@@ -34,6 +34,16 @@ struct Resource_map {
   /// Declared channel memory. Each transaction declares that it will use this
   /// specific amount of memory during apply phase
   static constexpr auto declared_channel_memory = "declared_channel_memory";
+  /// In-memory relay log memory: the per-channel hard bound
+  /// (IN_MEMORY_RELAYLOG_LIMIT) on memory-path payload bytes. Registered by
+  /// Imr_service::reconcile(); the queue uses the entry, never the name.
+  static constexpr auto in_memory_relaylog_memory = "in_memory_relaylog_memory";
+  /// In-memory relay log spill disk: the per-channel soft bound
+  /// (relay_log_space_limit) on the declared size of spill files still on
+  /// disk. Registered only when the limit is non-zero; see
+  /// Trx_envelope_queue::acquire_admission().
+  static constexpr auto in_memory_relaylog_spill_disk =
+      "in_memory_relaylog_spill_disk";
   /// Registeres named resources for the channel identified by the given
   /// instance_id
   /// @param instance_id Unique id representing a given CSA channel
