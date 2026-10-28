@@ -1963,7 +1963,10 @@ class Sys_var_bit : public Sys_var_typelib {
     return false;
   }
   void session_save_default(THD *, set_var *var) override {
-    var->save_result.ulonglong_value = global_var(ulonglong) & bitmask;
+    // set() expects the logical value of the variable, not the raw bit:
+    // for REVERSE() variables the two differ.
+    var->save_result.ulonglong_value =
+        reverse_semantics ^ ((global_var(ulonglong) & bitmask) != 0);
   }
   void global_save_default(THD *, set_var *var) override {
     var->save_result.ulonglong_value = option.def_value;
