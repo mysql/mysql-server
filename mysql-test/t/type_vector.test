@@ -31,3 +31,62 @@ CREATE TABLE B(b1 INT, b2 VARCHAR(30) CHARACTER SET utf32);
 INSERT INTO B VALUES (1, '[1,2,3]'),(2, ' [1,2,3] ');
 SELECT TO_VECTOR(b2) FROM B;
 DROP TABLE B;
+
+--echo #
+--echo # #849: STRING_TO_VECTOR() refuses valid float32 denormal components
+--echo #
+
+--echo # Smallest normal float32 and denormals are accepted.
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1.2e-38,1]'));
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1.1e-38,1]'));
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1e-39,1]'));
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[-1e-40,1]'));
+--echo # Smallest float32 denormal.
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1e-45,1]'));
+SELECT HEX(STRING_TO_VECTOR('[1.4e-45]'));
+--echo # Values below the smallest denormal underflow to (signed) zero.
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[1e-50,1]'));
+SELECT HEX(STRING_TO_VECTOR('[1e-50,-1e-50]'));
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[0,1]'));
+--echo # Overflow and non-finite values are still refused.
+--error ER_TO_VECTOR_CONVERSION
+SELECT STRING_TO_VECTOR('[3.5e38,1]');
+--error ER_TO_VECTOR_CONVERSION
+SELECT STRING_TO_VECTOR('[-3.5e38,1]');
+--error ER_TO_VECTOR_CONVERSION
+SELECT STRING_TO_VECTOR('[1e39]');
+--error ER_TO_VECTOR_CONVERSION
+SELECT STRING_TO_VECTOR('[inf]');
+--error ER_TO_VECTOR_CONVERSION
+SELECT STRING_TO_VECTOR('[nan]');
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[3.4e38,-3.4e38]'));
+--echo # Unparsable components are refused (strtof() consumes nothing), while an
+--echo # explicit zero is accepted.
+--error ER_TO_VECTOR_CONVERSION
+SELECT STRING_TO_VECTOR('[abc]');
+--error ER_TO_VECTOR_CONVERSION
+SELECT STRING_TO_VECTOR('[1,abc]');
+SELECT VECTOR_TO_STRING(STRING_TO_VECTOR('[0.0,-0.0]'));
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT, v VECTOR(3) NOT NULL);
+INSERT INTO t (v) VALUES (STRING_TO_VECTOR('[0.1,0.2,1e-40]'));
+INSERT INTO t (v) VALUES (STRING_TO_VECTOR('[1e-45,-1e-45,1e-50]'));
+SELECT id, VECTOR_TO_STRING(v), HEX(v) FROM t ORDER BY id;
+DROP TABLE t;
+
+--echo # Refusing denormals in the text conversion never kept them out of
+--echo # VECTOR columns: binary input bypasses it and was always accepted, so
+--echo # functions working on VECTOR values must handle them anyway.
+--echo # X'C2160100' is 1e-40, X'C2160180' is -1e-40, X'01000000' is the
+--echo # smallest float32 denormal.  Both input paths now store the same bytes.
+CREATE TABLE t (id INT PRIMARY KEY, v VECTOR(3) NOT NULL);
+INSERT INTO t VALUES (1, X'C2160100C216018001000000');
+INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1e-40,-1e-40,1.4e-45]'));
+SELECT id, HEX(v), VECTOR_DIM(v), VECTOR_TO_STRING(v) FROM t ORDER BY id;
+SELECT HEX(a.v) = HEX(b.v) AS same_bytes FROM t a, t b
+  WHERE a.id = 1 AND b.id = 2;
+--echo # The text form of a denormal vector converts back to the same bytes,
+--echo # which used to fail with ER_TO_VECTOR_CONVERSION.
+SELECT id, HEX(STRING_TO_VECTOR(VECTOR_TO_STRING(v))) = HEX(v) AS round_trip
+  FROM t ORDER BY id;
+DROP TABLE t;
