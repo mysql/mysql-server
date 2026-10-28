@@ -2190,9 +2190,9 @@ doc->'$.dateField'
 EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
 '2019-2-1' MEMBER OF (doc->'$.dateField');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	dateArrayIndex	dateArrayIndex	4	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where json'"2019-02-01"' member of (cast(json_extract(`doc`,_utf8mb4'$.dateField') as date array))
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where <cache>('2019-2-1') member of (json_extract(`test`.`t1`.`doc`,'$.dateField'))
 SELECT doc->'$.dateField' FROM t1 WHERE
 DATE'2019-2-1' MEMBER OF (doc->'$.dateField');
 doc->'$.dateField'
@@ -2206,14 +2206,11 @@ Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS
 SELECT doc->'$.dateField' FROM t1 WHERE
 'asd2019' MEMBER OF (doc->'$.dateField');
 doc->'$.dateField'
-Warnings:
-Warning	3751	Data truncated for functional index 'dateArrayIndex' at row 1
 EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
 'asd2019' MEMBER OF (doc->'$.dateField');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Warning	3751	Data truncated for functional index 'dateArrayIndex' at row 1
 Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.dateField') AS `doc->'$.dateField'` from `test`.`t1` where <cache>('asd2019') member of (json_extract(`test`.`t1`.`doc`,'$.dateField'))
 # DATETIME
 SELECT doc->'$.datetimeField' FROM t1 WHERE
@@ -2254,9 +2251,9 @@ doc->'$.datetimeField'
 EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
 '2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	datetimeArrayIndex	datetimeArrayIndex	6	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where json'"2017-12-29 23:59:59.000000"' member of (cast(json_extract(`doc`,_utf8mb4'$.datetimeField') as datetime array))
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.datetimeField') AS `doc->'$.datetimeField'` from `test`.`t1` where <cache>('2017-12-29 23:59:59') member of (json_extract(`test`.`t1`.`doc`,'$.datetimeField'))
 SELECT doc->'$.datetimeField' FROM t1 WHERE
 TIMESTAMP'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
 doc->'$.datetimeField'
@@ -2303,9 +2300,9 @@ doc->'$.timeField'
 EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
 '11:11' MEMBER OF (doc->'$.timeField');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	timeArrayIndex	timeArrayIndex	4	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where json'"11:11:00.000000"' member of (cast(json_extract(`doc`,_utf8mb4'$.timeField') as time array))
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`doc`,'$.timeField') AS `doc->'$.timeField'` from `test`.`t1` where <cache>('11:11') member of (json_extract(`test`.`t1`.`doc`,'$.timeField'))
 SELECT doc->'$.timeField' FROM t1 WHERE
 TIME'11:11' MEMBER OF (doc->'$.timeField');
 doc->'$.timeField'
