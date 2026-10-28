@@ -1,0 +1,55 @@
+--echo #
+--echo # Bug#121061 Regression coverage
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+SET @save_transaction_isolation=@@transaction_isolation;
+CREATE DATABASE bug_121061 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_121061;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t1 (id INT PRIMARY KEY,c VARCHAR(2000) CHARACTER SET latin1 NOT NULL,p1 VARCHAR(2000) CHARACTER SET latin1 NOT NULL,p2 VARCHAR(2000) CHARACTER SET latin1 NOT NULL,p3 VARCHAR(2000) CHARACTER SET latin1 NOT NULL,p4 VARCHAR(2000) CHARACTER SET latin1 NOT NULL,p5 VARCHAR(2000) CHARACTER SET latin1 NOT NULL,KEY k_c(c)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+SET @p=REPEAT('b',2000);
+INSERT INTO t1 VALUES (1,REPEAT('a',2000),@p,@p,@p,@p,@p);
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+--sorted_result
+SELECT id,LEFT(p1,1) AS p1_prefix FROM t1 FORCE INDEX(k_c) WHERE c=REPEAT('a',2000);
+PREPARE regression_stmt FROM 'SELECT id,LEFT(p1,1) AS p1_prefix FROM t1 FORCE INDEX(k_c) WHERE c=REPEAT(''a'',2000);';
+--sorted_result
+EXECUTE regression_stmt;
+--sorted_result
+EXECUTE regression_stmt;
+DEALLOCATE PREPARE regression_stmt;
+--sorted_result
+SELECT id,LEFT(p1,1) AS p1_prefix FROM t1 WHERE c=REPEAT('a',2000);
+--sorted_result
+SELECT id,LEFT(p1,1) AS p1_prefix FROM t1 FORCE INDEX(k_c) WHERE NOT (NOT (c=REPEAT('a',2000)));
+--sorted_result
+SELECT d.id,LEFT(d.p1,1) AS p1_prefix FROM (SELECT id,p1,c=REPEAT('a',2000) AS matches_c FROM t1 FORCE INDEX(k_c)) AS d WHERE d.matches_c;
+--sorted_result
+SELECT id,LEFT(p1,1) AS p1_prefix FROM t1 USE INDEX(k_c) WHERE c=REPEAT('a',2000);
+--sorted_result
+SELECT id,LEFT(p1,1) AS p1_prefix FROM t1 FORCE INDEX(k_c) WHERE CASE WHEN c=REPEAT('a',2000) THEN c=REPEAT('a',2000) ELSE c=REPEAT('a',2000) END;
+--sorted_result
+SELECT id,LEFT(p1,1) AS p1_prefix FROM t1 IGNORE INDEX(k_c) WHERE c=REPEAT('a',2000);
+--sorted_result
+SELECT id,LEFT(p1,1) AS p1_prefix FROM t1 FORCE INDEX(PRIMARY) WHERE c=REPEAT('a',2000);
+--sorted_result
+SELECT id,LEFT(p1,1) AS p1_prefix FROM t1 FORCE INDEX(k_c) WHERE NOT NOT (c=REPEAT('a',2000));
+USE test;
+DROP DATABASE bug_121061;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
+SET transaction_isolation=@save_transaction_isolation;

@@ -290,6 +290,27 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       }
     }
 
+    if (ifield->prefix_len == 0 && sec_len != UNIV_SQL_NULL &&
+        !col->is_virtual() && !col->is_multi_value() &&
+        !dict_index_is_spatial(sec_index) &&
+        rec_offs_nth_extern(clust_index, clust_offs, clust_pos)) {
+      /* A fully indexed column can also be stored off-page in the clustered
+      record. Compare its value, not the local external-field reference. */
+      ulint full_len;
+      const byte *full_field = lob::btr_copy_externally_stored_field(
+          trx, clust_index, &full_len, nullptr, clust_field,
+          dict_table_page_size(table), clust_len, dict_table_is_sdi(table->id),
+          heap);
+
+      if (full_len == 0 ||
+          cmp_data_data(col->mtype, col->prtype, true, full_field, full_len,
+                        sec_field, sec_len) != 0) {
+        is_equal = false;
+        goto func_exit;
+      }
+      continue;
+    }
+
     /* For spatial index, the first field is MBR, we check
     if the MBR is equal or not. */
     if (dict_index_is_spatial(sec_index) && i == 0) {
