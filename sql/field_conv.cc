@@ -251,7 +251,12 @@ static void do_copy_null(Copy_field *copy, const Field *from_field,
 static void do_copy_not_null(Copy_field *copy, const Field *from_field,
                              Field *to_field) {
   if (from_field->is_null()) {
-    if (to_field->reset() == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+    /*
+      An empty value is not a valid VECTOR, so NULL can't be converted to it
+      regardless of the SQL mode.
+    */
+    if (to_field->reset() == TYPE_ERR_NULL_CONSTRAINT_VIOLATION ||
+        to_field->type() == MYSQL_TYPE_VECTOR)
       my_error(ER_INVALID_USE_OF_NULL, MYF(0));
     else
       to_field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);

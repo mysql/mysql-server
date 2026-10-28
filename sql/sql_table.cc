@@ -14686,7 +14686,8 @@ static bool mysql_inplace_alter_table(
     if (table_is_empty(table_list->table, &empty_table)) goto cleanup;
     if (!empty_table) {
       if (alter_ctx->error_if_not_empty &
-          Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT) {
+          (Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT |
+           Alter_table_ctx::VECTOR_WITHOUT_DEFAULT)) {
         my_error(ER_INVALID_USE_OF_NULL, MYF(0));
       } else if ((alter_ctx->error_if_not_empty &
                   Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
@@ -16024,6 +16025,19 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           (def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG))) {
         alter_ctx->error_if_not_empty |=
             Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT;
+      }
+
+      /*
+        New VECTOR NOT NULL columns without a default value would get an empty
+        string as value for existing rows, which is not a valid vector. So,
+        similar to GEOMETRY, allow such ALTER TABLE only if the table is empty.
+        Unlike GEOMETRY, VECTOR columns support explicit default expressions,
+        so the restriction applies only when no default value is provided.
+      */
+      if (def->sql_type == MYSQL_TYPE_VECTOR && !def->is_gcol() &&
+          !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG))) {
+        alter_ctx->error_if_not_empty |=
+            Alter_table_ctx::VECTOR_WITHOUT_DEFAULT;
       }
     }
 
@@ -19457,7 +19471,8 @@ err_new_table_cleanup:
   }
 
   if (alter_ctx.error_if_not_empty &
-      Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT) {
+      (Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT |
+       Alter_table_ctx::VECTOR_WITHOUT_DEFAULT)) {
     my_error(ER_INVALID_USE_OF_NULL, MYF(0));
   }
 
@@ -19788,7 +19803,8 @@ static int copy_data_between_tables(
       and No ZERO DATE mode is enabled.
     */
     if ((alter_ctx->error_if_not_empty &
-         Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT) ||
+         (Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT |
+          Alter_table_ctx::VECTOR_WITHOUT_DEFAULT)) ||
         ((alter_ctx->error_if_not_empty &
           Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
          (thd->variables.sql_mode & MODE_NO_ZERO_DATE) &&

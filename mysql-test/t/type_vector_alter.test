@@ -1,0 +1,76 @@
+--echo #
+--echo # Adding a VECTOR NOT NULL column without a default value to a
+--echo # non-empty table must be refused, as existing rows would get an
+--echo # empty (invalid) vector value.
+--echo #
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+                title VARCHAR(50) NOT NULL);
+INSERT INTO t (title) VALUES ('a'), ('b'), ('c');
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t ADD COLUMN embedding VECTOR(4) NOT NULL;
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t ADD COLUMN embedding VECTOR(4) NOT NULL, ALGORITHM=INPLACE;
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t ADD COLUMN embedding VECTOR(4) NOT NULL, ALGORITHM=COPY;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t ADD COLUMN embedding VECTOR(4) NOT NULL, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t;
+--echo # Nullable column and column with a default value are allowed.
+ALTER TABLE t ADD COLUMN e1 VECTOR(4);
+ALTER TABLE t ADD COLUMN e2 VECTOR(4) NOT NULL
+  DEFAULT (STRING_TO_VECTOR('[1,2,3,4]'));
+SELECT id, e1, VECTOR_TO_STRING(e2) FROM t;
+CREATE TABLE t2 AS SELECT * FROM t;
+DROP TABLE t2;
+--echo # Allowed on an empty table.
+DELETE FROM t;
+ALTER TABLE t ADD COLUMN e3 VECTOR(4) NOT NULL;
+ALTER TABLE t DROP COLUMN e3;
+ALTER TABLE t ADD COLUMN e3 VECTOR(4) NOT NULL, ALGORITHM=COPY;
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+--echo # Also refused in non-strict mode.
+SET sql_mode = '';
+CREATE TABLE t (id INT PRIMARY KEY);
+INSERT INTO t VALUES (1);
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t ADD COLUMN v VECTOR(2) NOT NULL;
+DROP TABLE t;
+SET sql_mode = DEFAULT;
+
+--echo #
+--echo # MODIFY/CHANGE of a nullable column holding NULLs to VECTOR NOT NULL
+--echo # must be refused in both strict and non-strict mode, as NULL would be
+--echo # converted to an empty (invalid) vector value.
+--echo #
+let $i = 2;
+while ($i) {
+  if ($i == 2) {
+    SET sql_mode = DEFAULT;
+  }
+  if ($i == 1) {
+    SET sql_mode = '';
+  }
+  SELECT @@sql_mode;
+  CREATE TABLE t (id INT PRIMARY KEY, b VARBINARY(8) NULL, v VECTOR(2) NULL);
+  INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,2]'), STRING_TO_VECTOR('[1,2]'));
+  INSERT INTO t VALUES (2, NULL, NULL);
+  --error ER_INVALID_USE_OF_NULL
+  ALTER TABLE t MODIFY b VECTOR(2) NOT NULL;
+  --error ER_INVALID_USE_OF_NULL
+  ALTER TABLE t CHANGE b b2 VECTOR(2) NOT NULL;
+  --error ER_INVALID_USE_OF_NULL
+  ALTER TABLE t MODIFY v VECTOR(2) NOT NULL;
+  --error ER_INVALID_USE_OF_NULL
+  ALTER TABLE t CHANGE v v2 VECTOR(2) NOT NULL;
+  SELECT id, VECTOR_TO_STRING(b), VECTOR_TO_STRING(v) FROM t;
+  --echo # Allowed once there are no NULL values.
+  DELETE FROM t WHERE id = 2;
+  ALTER TABLE t MODIFY b VECTOR(2) NOT NULL, CHANGE v v2 VECTOR(2) NOT NULL;
+  SELECT id, VECTOR_TO_STRING(b), VECTOR_TO_STRING(v2) FROM t;
+  SHOW CREATE TABLE t;
+  DROP TABLE t;
+  dec $i;
+}
+SET sql_mode = DEFAULT;
