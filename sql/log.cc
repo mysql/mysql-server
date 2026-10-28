@@ -695,7 +695,10 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                                 ulonglong query_utime, ulonglong lock_utime,
                                 bool is_command, const char *sql_text,
                                 size_t sql_text_len) {
-  char buff[80], *end;
+  // Allow for all three SET fields, their 64-bit values, and the terminator.
+  char buff[sizeof(",last_insert_id=,insert_id=,timestamp=;\n") +
+            3 * MY_INT64_NUM_DECIMAL_DIGITS];
+  char *end;
   char query_time_buff[22 + 7], lock_time_buff[22 + 7];
   size_t buff_len;
   end = buff;
@@ -826,6 +829,14 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
           end, -10);
     }
   }
+
+  DBUG_EXECUTE_IF("slow_log_large_insert_ids", {
+    end = buff;
+    end = my_stpcpy(end, ",last_insert_id=");
+    end = longlong10_to_str(LLONG_MIN, end, -10);
+    end = my_stpcpy(end, ",insert_id=");
+    end = longlong10_to_str(LLONG_MIN, end, -10);
+  });
 
   /*
     The timestamp used to only be set when the query had checked the
