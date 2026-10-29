@@ -1,0 +1,175 @@
+# ==== Purpose ====
+#
+# asynchronous_connection_failover_add_managed() must not crash when the
+# managed-type or the managed-name argument is non-constant.
+#
+# The init validation reads the constant values of the managed-type
+# argument (UDF_ARGS::args[1], compared with "GroupReplication") and of
+# the managed-name argument (args[2], parsed as a UUID) from UDF_ARGS.
+# For a non-constant argument the server leaves args[i] == nullptr while
+# args->lengths[i] holds the column maximum length, so a CHAR(16)
+# managed type or a CHAR(36) managed name passed the length checks and
+# the comparison / UUID parser dereferenced a NULL pointer, crashing the
+# server. Init runs before the SUPER / REPLICATION_SLAVE_ADMIN check, so
+# any account able to run the SELECT reaches it; the test exercises the
+# rejected calls from such an account as well.
+#
+# The fix rejects a non-constant (NULL) managed-type or managed-name
+# argument with ER_CANT_INITIALIZE_UDF, the same way the integer
+# arguments are already validated, instead of dereferencing the pointer.
+#
+# The other arguments are exercised here too, so that their behaviour is
+# pinned and a future change cannot reintroduce a dereference in init:
+# channel, hostname and network_namespace are read from the per-row value
+# in the UDF body and accept non-constant values; the integer arguments
+# are rejected when non-constant or NULL; a NULL hostname is rejected; a
+# NULL channel selects the default channel ''.
+#
+# ==== References ====
+#
+# Bug#39603374: Rpl_async_conn_failover_add_managed::add_managed_init
+#               validations (the upstream fix this hardens)
+
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_source.inc
+
+# latin1 so that the column maximum length in bytes equals the character
+# length: 16 for the managed type and 36 for the managed name, which are
+# the lengths that reached the dereference.
+CREATE TABLE t (ch CHAR(8), mt CHAR(16), mn CHAR(36), hn CHAR(20),
+                ns CHAR(10), pt INT, pw INT, sw INT) CHARACTER SET latin1;
+INSERT INTO t VALUES ('chcol', 'GroupReplication',
+                      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'hostcol',
+                      'nscol', 3310, 80, 60);
+
+--echo #
+--echo # 1. Arguments dereferenced during init: a non-constant or NULL value
+--echo #    used to crash the server and must be rejected.
+--echo #
+--echo # Non-constant managed type of length 16.
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', mt,
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60)
+  FROM t;
+--echo # Non-constant managed name of length 36.
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         mn, '127.0.0.1', 3310, '', 80, 60)
+  FROM t;
+--echo # NULL literal managed type and managed name.
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', NULL,
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60);
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         NULL, '127.0.0.1', 3310, '', 80, 60);
+
+--echo #
+--echo # 1b. The init function runs before the SUPER / REPLICATION_SLAVE_ADMIN
+--echo #     check, so an account without those privileges reaches it: the
+--echo #     non-constant calls must be rejected there, and a well-formed call
+--echo #     must still be refused by the privilege check.
+--echo #
+CREATE USER acf_unpriv@localhost;
+GRANT SELECT ON test.t TO acf_unpriv@localhost;
+--connect(con_unpriv,localhost,acf_unpriv,,test)
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', mt,
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60)
+  FROM t;
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         mn, '127.0.0.1', 3310, '', 80, 60)
+  FROM t;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60);
+--disconnect con_unpriv
+--source include/rpl/connection_source.inc
+DROP USER acf_unpriv@localhost;
+
+--echo #
+--echo # 2. Integer arguments: a non-constant or NULL value is rejected.
+--echo #
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', pt, '', 80, 60)
+  FROM t;
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', pw, 60)
+  FROM t;
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, sw)
+  FROM t;
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', NULL, '', 80, 60);
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', NULL, 60);
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, NULL);
+
+--echo #
+--echo # 3. Wrong argument types and a NULL hostname are rejected.
+--echo #
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed(1, 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60);
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 127, 3310, '', 80, 60);
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', '3310', '', 80, 60);
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, 0, 80, 60);
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', NULL, 3310, '', 80, 60);
+
+--echo # Nothing was configured by the rejected calls and the server is up.
+SELECT 1 AS server_alive;
+--let $assert_text = No managed sender is configured after the rejected calls
+--let $assert_cond = [SELECT COUNT(*) c FROM performance_schema.replication_asynchronous_connection_failover_managed, c, 1] = 0
+--source include/assert.inc
+
+--echo #
+--echo # 4. Arguments read per row in the UDF body accept non-constant values,
+--echo #    a NULL channel selects the default channel and a NULL
+--echo #    network_namespace is accepted (the argument is reserved).
+--echo #
+SELECT asynchronous_connection_failover_add_managed(ch, 'GroupReplication',
+         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60)
+  FROM t;
+SELECT asynchronous_connection_failover_add_managed('chB', 'GroupReplication',
+         'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', hn, 3310, '', 80, 60)
+  FROM t;
+SELECT asynchronous_connection_failover_add_managed('chC', 'GroupReplication',
+         'cccccccc-cccc-cccc-cccc-cccccccccccc', '127.0.0.1', 3310, ns, 80, 60)
+  FROM t;
+SELECT asynchronous_connection_failover_add_managed(NULL, 'GroupReplication',
+         'dddddddd-dddd-dddd-dddd-dddddddddddd', '127.0.0.1', 3310, '', 80, 60);
+SELECT asynchronous_connection_failover_add_managed('chE', 'GroupReplication',
+         'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '127.0.0.1', 3310, NULL, 80, 60);
+SELECT CHANNEL_NAME, MANAGED_NAME, MANAGED_TYPE
+  FROM performance_schema.replication_asynchronous_connection_failover_managed
+  ORDER BY CHANNEL_NAME;
+SELECT CHANNEL_NAME, HOST, PORT, NETWORK_NAMESPACE, WEIGHT, MANAGED_NAME
+  FROM performance_schema.replication_asynchronous_connection_failover
+  ORDER BY CHANNEL_NAME;
+
+# Cleanup
+SELECT asynchronous_connection_failover_reset();
+--let $assert_text = No managed sender is configured after the reset
+--let $assert_cond = [SELECT COUNT(*) c FROM performance_schema.replication_asynchronous_connection_failover_managed, c, 1] = 0
+--source include/assert.inc
+DROP TABLE t;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc
