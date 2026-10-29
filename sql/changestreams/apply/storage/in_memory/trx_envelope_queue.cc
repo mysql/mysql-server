@@ -143,6 +143,13 @@ bool Trx_envelope_queue::wait_until_admissible(std::size_t trx_length) const {
   }
 }
 
+bool Trx_envelope_queue::is_coordinator_killed() {
+  // Workers run as SYSTEM_THREAD_SLAVE_WORKER.
+  const THD *thd = current_thd;
+  return thd != nullptr && thd->system_thread == SYSTEM_THREAD_SLAVE_SQL &&
+         thd->is_killed();
+}
+
 Transaction_envelope *Trx_envelope_queue::enqueue(
     std::size_t trx_length, bool is_trx,
     std::shared_ptr<Format_description_log_event> fde, bool receiver_held) {

@@ -1,0 +1,254 @@
+# ==== Purpose ====
+#
+# Verify that KILL of the replica SQL (coordinator) thread of a CSA channel
+# with the in-memory relay log (IMR) is honored while the coordinator waits for
+# the FIRST event of a newly published transaction (PR #743, Codex findings
+# F16 / F18 / F19).
+#
+# The receiver publishes a transaction's envelope (open_transaction() ->
+# Trx_envelope_queue::enqueue()) before it appends the GTID event. The
+# coordinator dispatches the envelope and builds its Job_applier; the
+# Job_binlog constructor peeks at the first event (restart_internal() ->
+# Fetchable_transaction::wait_next()), which waits in the byte source:
+#   - spill path:  Event_set_fetchable_spill::wait_for_event_availability()
+#   - memory path: Event_set_fetchable_memory::wait_next()
+# Before the fix both waits ended only on published bytes or events,
+# seal/truncate, or the queue's applier stop flag. KILL sets only the THD
+# killed flag, so the coordinator kept polling until the receiver made
+# progress or STOP REPLICA set the applier stop flag.
+#
+# ==== Requirements ====
+#
+# R1. KILL of the coordinator while it waits for the first event of a spill
+#     transaction, whose GTID event flush is stalled on a full disk, stops the
+#     applier within 10 s and without an error. The queue keeps the
+#     transaction, and it is applied in full after the next START:
+#     a. START while the disk is still full, then free the space;
+#     b. free the space first, then START.
+# R2. Same for a memory-path transaction whose receiver is held right after
+#     the envelope publish.
+#
+# ==== Implementation ====
+#
+#   0. Set up a CSA channel with IMR enabled (8 MiB spill threshold).
+#   For each scenario:
+#   1. Park the receiver after the envelope publish
+#      (imr_pause_after_enqueue_publish) and the coordinator before it builds
+#      the job (imr_pause_before_job_build). The source commits one
+#      transaction.
+#   2. R1: make the receiver stall on the GTID event flush
+#      (simulate_io_thd_wait_for_disk_space) and release it. R2: keep it
+#      parked.
+#   3. Release the coordinator, KILL it, and wait at most 10 s for it to exit
+#      (rpl_csa_imr_kill_coordinator_first_event.inc). Without the fix it does
+#      not exit; the .inc then stops it with STOP REPLICA SQL_THREAD, so the
+#      test fails on the result file and does not hang.
+#   4. Release the receiver, START the applier, and check the transaction.
+#   5. Compare the tables and clean up.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# mysql/mysql-server PR #743, Codex findings F16, F18, F19.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# A compressed payload would stay below the spill threshold.
+--source include/not_binlog_transaction_compression_on.inc
+
+--echo
+--echo # 0. Set up a CSA channel with IMR enabled (8 MiB spill threshold).
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+CALL mtr.add_suppression("Disk is full writing");
+CALL mtr.add_suppression("Error writing file .*imr_sp_");
+CALL mtr.add_suppression("Relay log write failure");
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--let $exited_query= SELECT COUNT(*) = 0 FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_sql'
+--let $slave_timeout= 60
+
+--echo
+--echo # R1a. Spill path, disk full on the GTID flush; KILL, START while the
+--echo #      disk is still full, then free the space.
+--echo
+
+--let $scenario= R1a
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/add_debug_point.inc
+--let $debug_point= imr_pause_before_job_build
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+BEGIN;
+--disable_query_log
+--let $i= 1
+while ($i <= 12)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('a', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/remove_debug_point.inc
+--let $debug_point= imr_pause_before_job_build
+--source include/remove_debug_point.inc
+--let $debug_point= simulate_io_thd_wait_for_disk_space
+--source include/add_debug_point.inc
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+--let $slave_param= Replica_IO_State
+--let $slave_param_value= Waiting for disk space
+--source include/rpl/wait_for_replica_status.inc
+# The GTID event is not flushed, so nothing of the transaction is readable.
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+--source suite/rpl_gtid/t/rpl_csa_imr_kill_coordinator_first_event.inc
+--let $assert_text= R1a: the killed transaction is not applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id BETWEEN 1 AND 12] = 0
+--source include/assert.inc
+
+# The new coordinator re-dispatches the transaction and waits for its first
+# event again.
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl/start_applier.inc
+--let $assert_text= R1a: the receiver is still stalled after START
+--let $assert_cond= "[SHOW REPLICA STATUS, Replica_IO_State, 1]" = "Waiting for disk space"
+--source include/assert.inc
+--let $debug_point= simulate_io_thd_wait_for_disk_space
+--source include/remove_debug_point.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= R1a: after START the transaction is applied in full
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id BETWEEN 1 AND 12] = 12
+--source include/assert.inc
+
+--echo
+--echo # R1b. Spill path, disk full on the GTID flush; KILL, free the space,
+--echo #      then START.
+--echo
+
+--let $scenario= R1b
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/add_debug_point.inc
+--let $debug_point= imr_pause_before_job_build
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+BEGIN;
+--disable_query_log
+--let $i= 21
+while ($i <= 32)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('b', 1048576))
+  --inc $i
+}
+--enable_query_log
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/remove_debug_point.inc
+--let $debug_point= imr_pause_before_job_build
+--source include/remove_debug_point.inc
+--let $debug_point= simulate_io_thd_wait_for_disk_space
+--source include/add_debug_point.inc
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+--let $slave_param= Replica_IO_State
+--let $slave_param_value= Waiting for disk space
+--source include/rpl/wait_for_replica_status.inc
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+--source suite/rpl_gtid/t/rpl_csa_imr_kill_coordinator_first_event.inc
+
+--let $debug_point= simulate_io_thd_wait_for_disk_space
+--source include/remove_debug_point.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
+--let $assert_text= R1b: the received transaction is not applied while the applier is stopped
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id BETWEEN 21 AND 32] = 0
+--source include/assert.inc
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= R1b: after START the transaction is applied in full
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id BETWEEN 21 AND 32] = 12
+--source include/assert.inc
+
+--echo
+--echo # R2. Memory path, receiver held after the envelope publish; KILL,
+--echo #     release the receiver, then START.
+--echo
+
+--let $scenario= R2
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/add_debug_point.inc
+--let $debug_point= imr_pause_before_job_build
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (100, 'x');
+INSERT INTO t1 VALUES (101, 'y');
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+--let $debug_point= imr_pause_after_enqueue_publish
+--source include/remove_debug_point.inc
+--let $debug_point= imr_pause_before_job_build
+--source include/remove_debug_point.inc
+# The receiver stays parked after the publish: no event is appended yet.
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+--source suite/rpl_gtid/t/rpl_csa_imr_kill_coordinator_first_event.inc
+
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica_received.inc
+--let $assert_text= R2: the received transaction is not applied while the applier is stopped
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id IN (100, 101)] = 0
+--source include/assert.inc
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= R2: after START the transaction is applied in full
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id IN (100, 101)] = 2
+--source include/assert.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--echo
+--echo # 3. Cleanup.
+--echo
+
+--let $slave_timeout=
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

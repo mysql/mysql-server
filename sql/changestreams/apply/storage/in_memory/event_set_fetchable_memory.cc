@@ -224,10 +224,12 @@ bool Event_set_fetchable_memory::wait_next() {
           return false;
         }
         // Contract: returning false while not done and not in error means
-        // the applier stop was requested (Fetchable_transaction::wait_next).
+        // the applier stop was requested or the coordinator was killed
+        // (Fetchable_transaction::wait_next).
         if (m_applier_stop == nullptr) {
           m_stream_cv.wait(lock);
-        } else if (m_applier_stop->load(std::memory_order_acquire)) {
+        } else if (m_applier_stop->load(std::memory_order_acquire) ||
+                   Trx_envelope_queue::is_coordinator_killed()) {
           return false;
         } else {
           m_stream_cv.wait_for(lock,

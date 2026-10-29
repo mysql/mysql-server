@@ -332,6 +332,10 @@ class Trx_envelope_queue {
   /// Poll interval of an IMR batch wait while the applier runs.
   static constexpr std::chrono::milliseconds kApplierStopPollInterval{100};
 
+  /// @brief True if the calling thread is a killed coordinator (replica SQL
+  /// thread). IMR batch waits treat it as an applier stop; workers never match.
+  static bool is_coordinator_killed();
+
   /// The applier stop flag (m_applier_stopped), read lock-free by the IMR
   /// batch waits and the reader's job drop check.
   const std::atomic<bool> *applier_stop_flag() const {

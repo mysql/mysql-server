@@ -1,0 +1,124 @@
+
+# 0. Set up a CSA channel with IMR enabled (8 MiB spill threshold).
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("Disk is full writing");
+CALL mtr.add_suppression("Error writing file .*imr_sp_");
+CALL mtr.add_suppression("Relay log write failure");
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# R1a. Spill path, disk full on the GTID flush; KILL, START while the
+#      disk is still full, then free the space.
+
+# Adding debug point 'imr_pause_after_enqueue_publish' to @@GLOBAL.debug
+# Adding debug point 'imr_pause_before_job_build' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+# Removing debug point 'imr_pause_after_enqueue_publish' from @@GLOBAL.debug
+# Removing debug point 'imr_pause_before_job_build' from @@GLOBAL.debug
+# Adding debug point 'simulate_io_thd_wait_for_disk_space' to @@GLOBAL.debug
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+include/rpl/wait_for_replica_status.inc [Replica_IO_State]
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+R1a: coordinator state before KILL: CSA service: working.
+KILL SQL_THREAD;
+R1a: SQL thread exited within 10 s of KILL: 1
+include/assert.inc [R1a: the KILL raises no applier error]
+include/assert.inc [R1a: the IO thread keeps running]
+include/assert.inc [R1a: the queue keeps the killed transaction]
+include/assert.inc [R1a: the killed transaction is not applied]
+SET DEBUG_SYNC = 'RESET';
+include/rpl/start_applier.inc
+include/assert.inc [R1a: the receiver is still stalled after START]
+# Removing debug point 'simulate_io_thd_wait_for_disk_space' from @@GLOBAL.debug
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [R1a: after START the transaction is applied in full]
+
+# R1b. Spill path, disk full on the GTID flush; KILL, free the space,
+#      then START.
+
+# Adding debug point 'imr_pause_after_enqueue_publish' to @@GLOBAL.debug
+# Adding debug point 'imr_pause_before_job_build' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+# Removing debug point 'imr_pause_after_enqueue_publish' from @@GLOBAL.debug
+# Removing debug point 'imr_pause_before_job_build' from @@GLOBAL.debug
+# Adding debug point 'simulate_io_thd_wait_for_disk_space' to @@GLOBAL.debug
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+include/rpl/wait_for_replica_status.inc [Replica_IO_State]
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+R1b: coordinator state before KILL: CSA service: working.
+KILL SQL_THREAD;
+R1b: SQL thread exited within 10 s of KILL: 1
+include/assert.inc [R1b: the KILL raises no applier error]
+include/assert.inc [R1b: the IO thread keeps running]
+include/assert.inc [R1b: the queue keeps the killed transaction]
+# Removing debug point 'simulate_io_thd_wait_for_disk_space' from @@GLOBAL.debug
+[connection master]
+include/rpl/sync_to_replica_received.inc
+include/assert.inc [R1b: the received transaction is not applied while the applier is stopped]
+SET DEBUG_SYNC = 'RESET';
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [R1b: after START the transaction is applied in full]
+
+# R2. Memory path, receiver held after the envelope publish; KILL,
+#     release the receiver, then START.
+
+# Adding debug point 'imr_pause_after_enqueue_publish' to @@GLOBAL.debug
+# Adding debug point 'imr_pause_before_job_build' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (100, 'x');
+INSERT INTO t1 VALUES (101, 'y');
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_after_enqueue_publish';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+# Removing debug point 'imr_pause_after_enqueue_publish' from @@GLOBAL.debug
+# Removing debug point 'imr_pause_before_job_build' from @@GLOBAL.debug
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+R2: coordinator state before KILL: CSA service: working.
+KILL SQL_THREAD;
+R2: SQL thread exited within 10 s of KILL: 1
+include/assert.inc [R2: the KILL raises no applier error]
+include/assert.inc [R2: the IO thread keeps running]
+include/assert.inc [R2: the queue keeps the killed transaction]
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_after_enqueue_publish';
+[connection master]
+include/rpl/sync_to_replica_received.inc
+include/assert.inc [R2: the received transaction is not applied while the applier is stopped]
+SET DEBUG_SYNC = 'RESET';
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [R2: after START the transaction is applied in full]
+include/rpl/diff.inc
+
+# 3. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

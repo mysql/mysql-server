@@ -179,8 +179,10 @@ Job_ptr Queued_transaction_reader::read() {
     delete job;
     return nullptr;
   }
-  // Applier stop: the first-event peek may have aborted; drop the unrun job.
-  if (m_queue->applier_stop_flag()->load(std::memory_order_acquire)) {
+  // Applier stop or KILL of the coordinator: the first-event peek may have
+  // aborted; drop the unrun job. The next START re-dispatches it.
+  if (m_queue->applier_stop_flag()->load(std::memory_order_acquire) ||
+      is_stopped()) {
     delete job;
     return nullptr;
   }
