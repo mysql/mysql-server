@@ -1,0 +1,12 @@
+# Two sibling branches with children
+include/assert.inc [All five rows must be deleted]
+# A leaf before two nonempty sibling branches
+include/assert.inc [All six rows must be deleted]
+# Delete a subtree and preserve its parent and unrelated sibling
+include/assert.inc [Exactly the parent and unrelated sibling must remain]
+# Repeat after rollback on the same connection
+include/assert.inc [Rollback must restore all five rows]
+include/assert.inc [Retry after rollback must delete all five rows]
+# Bug #121443: a self cascade followed by a second table
+include/assert.inc [All parent rows must be deleted]
+include/assert.inc [All child rows must be deleted]
