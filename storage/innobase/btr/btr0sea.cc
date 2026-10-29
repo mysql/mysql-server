@@ -66,8 +66,13 @@ std::atomic_bool btr_search_enabled = true;
 atomic and thus can be used as SYSVAR. */
 bool srv_btr_search_enabled = true;
 
-/** Protects changes of btr_search_enabled flag. */
+/** Protects changes of btr_search_enabled and the hash table allocation
+state. */
 static ib_mutex_t btr_search_enabled_mutex;
+
+/** Whether the AHI hash tables use the minimal allocation. Protected by
+btr_search_enabled_mutex after the AHI system has been initialized. */
+static bool btr_search_hash_tables_minimized;
 
 /** Number of adaptive hash index partition. */
 ulong btr_ahi_parts = 8;
@@ -187,6 +192,7 @@ void btr_search_sys_create(ulint hash_size) {
   /* Copy the initial SYSVAR value. While the Server is starting, the updater
   for SYSVARs is not called to set their initial value. */
   btr_search_enabled = srv_btr_search_enabled;
+  btr_search_hash_tables_minimized = !srv_btr_search_enabled;
   btr_search_sys = ut::new_withkey<btr_search_sys_t>(
       ut::make_psi_memory_key(mem_key_ahi), hash_size);
   mutex_create(LATCH_ID_AHI_ENABLED, &btr_search_enabled_mutex);
@@ -311,12 +317,14 @@ static void btr_search_await_no_reference(dict_table_t *table) {
   }
 }
 
-bool btr_search_disable() {
+bool btr_search_disable(bool minimize_hash_tables) {
   mutex_enter(&btr_search_enabled_mutex);
   if (!btr_search_enabled) {
     mutex_exit(&btr_search_enabled_mutex);
     return false;
   }
+
+  ut_ad(!btr_search_hash_tables_minimized);
 
   btr_search_x_lock_all(UT_LOCATION_HERE);
 
@@ -350,6 +358,14 @@ bool btr_search_disable() {
     mem_heap_empty(hash_table->heap);
   }
 
+  if (minimize_hash_tables) {
+    /* Release the hash buckets while AHI is disabled. Request one cell per
+    partition so that the hash table objects remain valid; ut::find_prime()
+    rounds this up to 103 cells (~824 bytes) per partition. */
+    btr_search_sys_resize(btr_ahi_parts);
+    btr_search_hash_tables_minimized = true;
+  }
+
   mutex_exit(&btr_search_enabled_mutex);
 
   return true;
@@ -366,14 +382,36 @@ bool btr_search_enable() {
   re-enable AHI again. */
   mutex_enter(&btr_search_enabled_mutex);
 
-  /* srv_btr_search_enabled stores the desired user-visible sysvar state.
-  Re-check it while holding btr_search_enabled_mutex so buffer pool resize
-  completion cannot re-enable AHI after a concurrent SET GLOBAL ... = OFF. */
-  if (!srv_btr_search_enabled) {
+  /* Make enabling idempotent because repeated SET GLOBAL ... = ON invokes the
+  update callback. This also handles a concurrent SET ... = ON in the window
+  between buffer pool resize publishing its completion and re-enabling AHI. */
+  if (btr_search_enabled) {
+    ut_ad(!btr_search_hash_tables_minimized);
     mutex_exit(&btr_search_enabled_mutex);
     return false;
   }
 
+  /* srv_btr_search_enabled stores the desired user-visible sysvar state.
+  Re-check it while holding btr_search_enabled_mutex so buffer pool resize
+  completion cannot re-enable AHI after a concurrent SET GLOBAL ... = OFF. */
+  if (!srv_btr_search_enabled) {
+    if (!btr_search_hash_tables_minimized) {
+      /* If AHI was disabled during buffer pool resizing, request one cell per
+      partition; ut::find_prime() rounds this up to 103 cells (~824 bytes) per
+      partition. */
+      btr_search_sys_resize(btr_ahi_parts);
+      btr_search_hash_tables_minimized = true;
+    }
+    mutex_exit(&btr_search_enabled_mutex);
+    return false;
+  }
+
+  if (btr_search_hash_tables_minimized) {
+    /* Recreate the full-sized tables immediately before making AHI visible to
+    other threads. */
+    btr_search_sys_resize(buf_pool_get_curr_size() / sizeof(void *) / 64);
+    btr_search_hash_tables_minimized = false;
+  }
   btr_search_enabled = true;
   mutex_exit(&btr_search_enabled_mutex);
   return true;
