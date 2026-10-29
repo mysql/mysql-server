@@ -1,0 +1,29 @@
+# log_error_crash_query_format -- values SINGLE_LINE|TAGGED_LINES
+# Can only be set at server start-up (command line, option file or
+# SET PERSIST_ONLY).
+
+--echo Valid values are 'SINGLE_LINE' and 'TAGGED_LINES'
+SELECT @@global.log_error_crash_query_format;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_error_crash_query_format;
+SHOW GLOBAL VARIABLES LIKE 'log_error_crash_query_format';
+--disable_warnings
+SELECT * FROM performance_schema.global_variables
+ WHERE variable_name='log_error_crash_query_format';
+--enable_warnings
+
+# Show that it's read-only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL log_error_crash_query_format=TAGGED_LINES;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION log_error_crash_query_format=TAGGED_LINES;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST log_error_crash_query_format=TAGGED_LINES;
+
+# It can be persisted for the next start-up.
+SET PERSIST_ONLY log_error_crash_query_format=TAGGED_LINES;
+SELECT variable_name, variable_value FROM performance_schema.persisted_variables
+ WHERE variable_name='log_error_crash_query_format';
+RESET PERSIST log_error_crash_query_format;
+SELECT COUNT(*) FROM performance_schema.persisted_variables
+ WHERE variable_name='log_error_crash_query_format';
