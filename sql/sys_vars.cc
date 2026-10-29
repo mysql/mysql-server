@@ -3343,7 +3343,8 @@ static Sys_var_flagset Sys_optimizer_switch(
     ", materialization, semijoin, loosescan, firstmatch, duplicateweedout,"
     " subquery_materialization_cost_based, skip_scan,"
     " block_nested_loop, batched_key_access, use_index_extensions,"
-    " condition_fanout_filter, derived_merge, hash_join,"
+    " condition_fanout_filter, derived_merge, use_invisible_indexes,"
+    " hash_join,"
     " subquery_to_derived, prefer_ordering_index,"
     " derived_condition_pushdown, hash_set_operations} and val is one of "
     "{on, off, default}",
@@ -6575,8 +6576,7 @@ export sys_var *Sys_gtid_next_ptr = &Sys_gtid_next;
 static Sys_var_gtid_executed Sys_gtid_executed(
     "gtid_executed",
     "The global variable contains the set of GTIDs in the "
-    "binary log. The session variable contains the set of GTIDs "
-    "in the current, ongoing transaction.");
+    "binary log.");
 
 static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
   DBUG_TRACE;

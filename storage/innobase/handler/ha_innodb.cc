@@ -22479,8 +22479,8 @@ static MYSQL_SYSVAR_ULONGLONG(
 
 static MYSQL_SYSVAR_BOOL(
     adaptive_hash_index, srv_btr_search_enabled, PLUGIN_VAR_OPCMDARG,
-    "Enable InnoDB adaptive hash index (enabled by default). "
-    " Disable with --skip-innodb-adaptive-hash-index.",
+    "Enable InnoDB adaptive hash index (disabled by default). "
+    " Enable with --innodb-adaptive-hash-index.",
     nullptr, innodb_adaptive_hash_index_update, false);
 
 /** Number of distinct partitions of AHI.
@@ -23194,7 +23194,7 @@ static MYSQL_SYSVAR_STR(
 
 static MYSQL_SYSVAR_ULONGLONG(
     max_undo_log_size, srv_max_undo_tablespace_size, PLUGIN_VAR_OPCMDARG,
-    "Maximum size of an UNDO tablespace in MB (If an UNDO tablespace grows"
+    "Maximum size of an UNDO tablespace in bytes (If an UNDO tablespace grows"
     " beyond this size it will be truncated in due course). ",
     nullptr, nullptr, 1024 * 1024 * 1024L, 10 * 1024 * 1024L, ~0ULL, 0);
 
@@ -23307,7 +23307,7 @@ static MYSQL_SYSVAR_ULONG(api_bk_commit_interval, ib_bk_commit_interval,
 static MYSQL_SYSVAR_ENUM(
     change_buffering, innodb_change_buffering, PLUGIN_VAR_RQCMDARG,
     "Buffer changes to reduce random access:"
-    " OFF (default), ON, inserting, deleting, changing, or purging.",
+    " none, inserts, deletes, changes, purges, or all (default).",
     nullptr, nullptr, IBUF_USE_ALL, &innodb_change_buffering_typelib);
 
 static MYSQL_SYSVAR_UINT(

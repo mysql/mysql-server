@@ -251,7 +251,7 @@ static MYSQL_SYSVAR_BOOL(
     "rpl_semi_sync_source_wait_for_replica_count "
     "replicas have replied when "
     "rpl_semi_sync_source_timeout "
-    "seconds have passed. If disabled, revert to asynchronous "
+    "milliseconds have passed. If disabled, revert to asynchronous "
     "replication also as soon as the number of connected replicas "
     "drops below "
     "rpl_semi_sync_source_wait_for_replica_count.",
