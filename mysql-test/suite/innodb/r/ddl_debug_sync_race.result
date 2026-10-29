@@ -1,0 +1,136 @@
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,1,1,1);
+SET SESSION innodb_ddl_threads = 4;
+#
+# Part 1: two builders of one ALTER wait in one sync point.
+#
+# EXECUTE 2 lets two of the four builders execute the action. On a
+# server that lets them do so concurrently, both wait for ddl_resume,
+# the first one out clears that signal (the default for WAIT_FOR) and
+# the second one waits for it forever: the ALTER below never returns
+# and both waits below run into their TIMEOUT.
+#
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume TIMEOUT 60 EXECUTE 2';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked TIMEOUT 60';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked TIMEOUT 60';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+#
+# Part 2: several builders of one ALTER meet in one sync point.
+#
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl_parked WAIT_FOR ddl_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ADD INDEX i2(c), ADD INDEX i3(d), ADD INDEX i4(e), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl_resume';
+ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
+SET DEBUG_SYNC = 'RESET';
+# The table survived the concurrent builders.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1024
+#
+# Part 3: the serialization must not span connections.
+#
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t2 SELECT a, b FROM t1;
+SET SESSION innodb_ddl_threads = 4;
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl1_parked WAIT_FOR ddl1_resume';
+ALTER TABLE t1 ADD INDEX i1(b), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR ddl1_parked';
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL ddl2_parked WAIT_FOR ddl2_resume';
+ALTER TABLE t2 ADD INDEX j1(b), ALGORITHM=INPLACE, LOCK=NONE;
+# ddl1 is parked inside row_log_apply_before. ddl2 has to be able to
+# reach the very same sync point; this times out if the two statements
+# are serialized against each other instead of per THD.
+SET DEBUG_SYNC = 'now WAIT_FOR ddl2_parked';
+SET DEBUG_SYNC = 'now SIGNAL ddl1_resume';
+SET DEBUG_SYNC = 'now SIGNAL ddl2_resume';
+# Both statements completed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i1` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `j1` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1024
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1024
+#
+# Cleanup
+#
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1, t2;

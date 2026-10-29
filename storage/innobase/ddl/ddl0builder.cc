@@ -30,6 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Created 2020-11-01 by Sunny Bains. */
 
 #include <debug_sync.h>
+#include <mutex>
 #include "clone0api.h"
 #include "ddl0fts.h"
 #include "ddl0impl-builder.h"
@@ -45,6 +46,53 @@ Created 2020-11-01 by Sunny Bains. */
 #include "ut0stage.h"
 
 namespace ddl {
+
+#if defined(ENABLED_DEBUG_SYNC)
+/** Execute a sync point on the DDL context's THD, serialized against the other
+DDL threads sharing that THD.
+
+The tasks that run the builder state machine (Task::operator()) are pulled off
+a shared queue by whichever DDL thread is free, see
+Loader::Task_queue::mt_execute(). An ALTER that builds several indexes
+therefore runs setup_sort()/btree_build()/finalize() for different builders at
+the same time, on different threads, and the sort tasks of a single builder
+are parallel by design. All of those threads pass the *same* THD - the owning
+connection's, m_ctx.thd() - to DEBUG_SYNC, and the worker threads do not even
+have a current_thd (Loader::load() clears it).
+
+debug_sync() does no locking of its own: the facility assumes a sync point is
+only ever hit by the thread owning the THD. It tests action->activation_count
+and only then calls debug_sync_execute(), which asserts the very same thing
+before decrementing it, and removes the action, unsynchronized, once the count
+reaches zero. Two DDL threads racing there corrupt thd->debug_sync_control:
+the server either dies on
+
+  sql/debug_sync.cc: Assertion `action->activation_count' failed
+
+or leaves a DDL thread waiting inside a sync point for a signal that has
+already been consumed, hanging the ALTER.
+
+Take the context's mutex, so the first thread executes the action and the
+ones behind it find it already gone and return without touching the control
+block. The lock is per context, i.e. per DDL statement and hence per THD, and
+must stay that way: a DDL parked inside a sync point may only be released by
+a signal that arrives after another connection's DDL has reached the same
+sync point, so a lock shared between statements would deadlock them.
+
+The mutex is only taken when debug sync is armed, mirroring the DEBUG_SYNC
+macro's own fast path, and the whole thing compiles away without DEBUG_SYNC. */
+#define DDL_DEBUG_SYNC(_ctx_, _sync_point_name_)                           \
+  do {                                                                     \
+    if (unlikely(opt_debug_sync_timeout)) {                                \
+      const std::lock_guard<std::mutex> guard{(_ctx_).m_debug_sync_mutex}; \
+      DEBUG_SYNC((_ctx_).thd(), _sync_point_name_);                        \
+    }                                                                      \
+  } while (false)
+#else
+#define DDL_DEBUG_SYNC(_ctx_, _sync_point_name_) \
+  do {                                           \
+  } while (false)
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
 /** Context for copying cluster index row for the index to being created. */
 struct Copy_ctx {
@@ -1789,7 +1837,7 @@ dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck) noexcept {
 dberr_t Builder::btree_build() noexcept {
   ut_a(!is_skip_file_sort());
 
-  DEBUG_SYNC(m_ctx.thd(), "ddl_btree_build_interrupt");
+  DDL_DEBUG_SYNC(m_ctx, "ddl_btree_build_interrupt");
   if (m_local_stage != nullptr) {
     m_local_stage->begin_phase_insert();
   }
@@ -2004,11 +2052,11 @@ void Builder::finalize() noexcept {
   if (err == DB_SUCCESS) {
     write_redo(m_index);
 
-    DEBUG_SYNC(m_ctx.thd(), "row_log_apply_before");
+    DDL_DEBUG_SYNC(m_ctx, "row_log_apply_before");
 
     err = row_log_apply(m_ctx.m_trx, m_index, m_ctx.m_table, m_local_stage);
 
-    DEBUG_SYNC(m_ctx.thd(), "row_log_apply_after");
+    DDL_DEBUG_SYNC(m_ctx, "row_log_apply_after");
   }
 
   if (err != DB_SUCCESS) {
@@ -2057,7 +2105,7 @@ dberr_t Builder::setup_sort() noexcept {
   ut_a(!is_skip_file_sort());
   ut_a(get_state() == State::SETUP_SORT);
 
-  DEBUG_SYNC(m_ctx.thd(), "ddl_merge_sort_interrupt");
+  DDL_DEBUG_SYNC(m_ctx, "ddl_merge_sort_interrupt");
 
   const auto err = create_merge_sort_tasks();
 
