@@ -4229,6 +4229,10 @@ String *Item_func_from_vector::val_str_ascii(String *str) {
   if (res == nullptr || res->ptr() == nullptr) {
     return error_str();
   }
+  if (res->charset() != &my_charset_bin) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_str();
+  }
 
   uint32 input_dims = get_dimensions(res->length(), Field_vector::precision);
   if (input_dims == UINT32_MAX) {
