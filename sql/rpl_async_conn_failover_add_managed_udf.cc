@@ -119,7 +119,8 @@ bool Rpl_async_conn_failover_add_managed::add_managed_init(UDF_INIT *init_id,
     return true;
   }
 
-  if (args->arg_type[1] != STRING_RESULT || args->lengths[1] == 0) {
+  if (args->arg_type[1] != STRING_RESULT || args->args[1] == nullptr ||
+      args->lengths[1] == 0) {
     my_stpcpy(message, "Wrong arguments: You need to specify managed type.");
     return true;
   }
@@ -131,7 +132,8 @@ bool Rpl_async_conn_failover_add_managed::add_managed_init(UDF_INIT *init_id,
     return true;
   }
 
-  if (args->arg_type[2] != STRING_RESULT || args->lengths[2] == 0) {
+  if (args->arg_type[2] != STRING_RESULT || args->args[2] == nullptr ||
+      args->lengths[2] == 0) {
     my_stpcpy(message, "Wrong arguments: You need to specify managed name.");
     return true;
   }
