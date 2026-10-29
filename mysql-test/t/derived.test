@@ -3646,5 +3646,54 @@ SELECT v1, COUNT(*) AS count FROM v0 GROUP BY v1;
 
 DROP TABLE v0;
 
+--echo #
+--echo # Bug#121574 Wrong result for subquery referencing a constant column of
+--echo # a merged derived table on the inner side of an outer join
+--echo #
+
+CREATE TABLE ta (id INT NOT NULL, c INT, PRIMARY KEY (id));
+CREATE TABLE tb (val INT);
+CREATE TABLE tc (c INT);
+INSERT INTO ta VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+INSERT INTO tb VALUES (1), (2);
+INSERT INTO tc VALUES (1), (2), (3);
+ANALYZE TABLE ta, tb, tc;
+
+--echo # d.c1 must be NULL for the NULL-complemented rows 3 and 4.
+SELECT ta.c, (SELECT d.c1 FROM tc LIMIT 1) AS x
+  FROM ta
+  LEFT JOIN (SELECT tb.val AS c0, 93 AS c1 FROM tb) AS d ON ta.c = d.c0
+ ORDER BY 1;
+
+SELECT /*+ NO_MERGE(d) */ ta.c, (SELECT d.c1 FROM tc LIMIT 1) AS x
+  FROM ta
+  LEFT JOIN (SELECT tb.val AS c0, 93 AS c1 FROM tb) AS d ON ta.c = d.c0
+ ORDER BY 1;
+
+--echo # The NULL-complemented rows 3 and 4 must be filtered out.
+SELECT ta.c
+  FROM ta
+  LEFT JOIN (SELECT tb.val AS c0, 93 AS c1 FROM tb) AS d ON ta.c = d.c0
+ WHERE (SELECT tc.c FROM tc WHERE d.c1 + tc.c LIMIT 1) IS NOT NULL
+ ORDER BY 1;
+
+--echo # Same, with the outer reference inside a semi-join that is pulled out.
+SELECT ta.c
+  FROM ta
+  LEFT JOIN (SELECT tb.val AS c0, 93 AS c1 FROM tb) AS d ON ta.c = d.c0
+ WHERE EXISTS (SELECT 1
+                 FROM tc
+                WHERE (SELECT tb.val FROM tb WHERE d.c1 + tc.c LIMIT 1)
+                      IS NOT NULL)
+ ORDER BY 1;
+
+--echo # With an inner join, every row has a matching d row.
+SELECT ta.c, (SELECT d.c1 FROM tc LIMIT 1) AS x
+  FROM ta
+  JOIN (SELECT tb.val AS c0, 93 AS c1 FROM tb) AS d ON ta.c = d.c0
+ ORDER BY 1;
+
+DROP TABLE ta, tb, tc;
+
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc
