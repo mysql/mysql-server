@@ -260,17 +260,26 @@ bool JOIN::create_intermediate_table(
       new (thd->mem_root) Temp_table_param(thd->mem_root, tmp_table_param);
   tab->tmp_table_param->skip_create_table = true;
 
-  const bool distinct_arg =
-      select_distinct &&
-      // GROUP BY is absent or has been done in a previous step
-      group_list.empty() &&
-      // We can only do DISTINCT in last window's tmp table step
-      (!windowing || (tab->tmp_table_param->m_window &&
-                      tab->tmp_table_param->m_window->is_last()));
+  // DISTINCT must still be required, and GROUP BY must be absent or
+  // already handled.
+  bool distinct_in_tmp_table = select_distinct && group_list.empty();
+
+  if (distinct_in_tmp_table) {
+    if (windowing) {
+      // HAVING is applied before windowing. Enforce DISTINCT only in
+      // the last window's output table.
+      const Window *window = tab->tmp_table_param->m_window;
+      distinct_in_tmp_table = window != nullptr && window->is_last();
+    } else if (query_block->is_grouped() && having_cond != nullptr) {
+      // Grouped rows may be filtered by HAVING after materialization.
+      // Leave DISTINCT for the later duplicate-removal step.
+      distinct_in_tmp_table = false;
+    }
+  }
 
   TABLE *table = create_tmp_table(
       thd, tab->tmp_table_param, tmp_table_fields, tmp_table_group.order,
-      distinct_arg, save_sum_fields, query_block->active_options(),
+      distinct_in_tmp_table, save_sum_fields, query_block->active_options(),
       tmp_rows_limit, (alias != nullptr ? alias : ""));
   if (!table) return true;
   tmp_table_param.using_outer_summary_function =

@@ -1020,3 +1020,25 @@ HAVING INTERVAL(f1,f2) <= 5
 ORDER BY f1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#121046: HAVING applied after SELECT DISTINCT deduplication
+--echo #
+
+CREATE TABLE t1 (a INT, b INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (NULL, 10), (1, 10), (2, 10), (3, 20);
+
+# Case 1: A rejected group must not suppress the qualifying result.
+SELECT DISTINCT CAST(MAX(1) AS SIGNED) AS v
+FROM t1
+GROUP BY a
+HAVING MAX(a) > 0;
+
+# Case 2: Preserve different values and remove qualifying duplicates.
+--sorted_result
+SELECT DISTINCT CAST(MAX(b) AS SIGNED) AS v
+FROM t1
+GROUP BY a
+HAVING MAX(a) > 0;
+
+DROP TABLE t1;
