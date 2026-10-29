@@ -237,6 +237,7 @@ enum enum_ssl_init_error {
   SSL_INITERR_X509_VERIFY_PARAM,
   SSL_INITERR_INVALID_CERTIFICATES,
   SSL_INITERR_SIGALGS,
+  SSL_INITERR_SIGALGS_FLOOR,
   SSL_INITERR_SESSION_ID_CONTEXT,
   SSL_INITERR_LASTERR
 };
@@ -248,6 +249,8 @@ struct st_VioSSLFd {
   bool tls_session_cache_pqc_only{false};
   bool tls_use_pqc_sign{false};
   char *tls_kex{nullptr};
+  char effective_sigalgs[512];
+  char dropped_sigalgs[512];
 };
 
 int sslaccept(struct st_VioSSLFd *, MYSQL_VIO, long timeout,

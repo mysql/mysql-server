@@ -1,0 +1,16 @@
+call mtr.add_suppression("Failed to initialize TLS for channel");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+call mtr.add_suppression("Plugin mysqlx reported.*Failed at SSL configuration");
+call mtr.add_suppression("Signature algorithm .* is not supported by the TLS library and was removed from the preference list");
+# restart: --debug=+d,tls_sigalgs_reject_all_but_pkcs1 --tls-version=TLSv1.3
+include/assert.inc [Ssl_sigalgs_list is empty (TLS disabled by the floor)]
+include/assert.inc [Debug restart logged the SSL_INITERR_SIGALGS_FLOOR error]
+# restart: --debug=+d,tls_sigalgs_reject_all_but_pkcs1 --tls-version=TLSv1.2
+include/assert.inc [TLS 1.2-only server keeps TLS enabled on mysql_main]
+include/assert.inc [TLS 1.2-only server has a non-empty Ssl_sigalgs_list]
+SHOW STATUS LIKE 'Ssl_version';
+Variable_name	Value
+Ssl_version	TLSv1.2
+include/assert.inc [SSL connection to the TLS 1.2-only server negotiated a cipher]
+include/assert.inc [TLS 1.2-only restart logged no SSL_INITERR_SIGALGS_FLOOR error]
+# restart:

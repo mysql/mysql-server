@@ -1,0 +1,125 @@
+--source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
+
+# Test the signature-algorithm floor path using the debug hook
+# tls_sigalgs_reject_all_but_pkcs1, which makes the per-token probe accept
+# only rsa_pkcs1_* / RSA+SHA* tokens and reject everything else.  Because
+# RSASSA-PKCS1-v1_5 is not valid for the TLS 1.3 CertificateVerify message,
+# none of the surviving tokens satisfy the RFC 8446 4.4.3 / 9.1 floor, so
+# TLS context creation fails with SSL_INITERR_SIGALGS_FLOOR and the server
+# starts without TLS on the affected channel.
+
+# Suppress the expected TLS-off messages from the failed channel init.
+call mtr.add_suppression("Failed to initialize TLS for channel");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+call mtr.add_suppression("Plugin mysqlx reported.*Failed at SSL configuration");
+# The TLS 1.2-only case keeps TLS up, so the filter logs each dropped token.
+call mtr.add_suppression("Signature algorithm .* is not supported by the TLS library and was removed from the preference list");
+
+# The error log accumulates across restarts.  Count the floor errors seen
+# so far (the initial start negotiates TLS normally, so this is expected to
+# be zero) and assert on the increase after the debug restart.
+--perl
+  my $log = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+  my $count = 0;
+  if (open(my $fh, '<', $log)) {
+    while (my $line = <$fh>) {
+      $count++ if $line =~ /mandatory-to-implement TLS 1.3 signature algorithms/;
+    }
+    close($fh);
+  }
+  my $tmpf = "$ENV{'MYSQLTEST_VARDIR'}/tmp/floor_err_count.inc";
+  open(my $wfh, '>', $tmpf) or die "Cannot write $tmpf: $!";
+  print $wfh "--let \$floor_err_count = $count\n";
+  close($wfh);
+EOF
+--source $MYSQLTEST_VARDIR/tmp/floor_err_count.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/floor_err_count.inc
+--let $floor_errors_before = $floor_err_count
+
+# Restart the server with the debug hook enabled and TLS 1.3 only.
+--let $restart_parameters = restart: --debug=+d,tls_sigalgs_reject_all_but_pkcs1 --tls-version=TLSv1.3
+--source include/restart_mysqld.inc
+
+# The main channel TLS context must have failed the floor, so the effective
+# signature-algorithm list is empty (TLS disabled on that channel).
+let $sigalgs = `SELECT VALUE FROM performance_schema.tls_channel_status
+WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Ssl_sigalgs_list'`;
+
+--let $assert_text = Ssl_sigalgs_list is empty (TLS disabled by the floor)
+--let $assert_cond = "$sigalgs" = ""
+--source include/assert.inc
+
+# The debug restart must have logged the floor error at least once.
+--perl
+  my $log = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+  my $count = 0;
+  if (open(my $fh, '<', $log)) {
+    while (my $line = <$fh>) {
+      $count++ if $line =~ /mandatory-to-implement TLS 1.3 signature algorithms/;
+    }
+    close($fh);
+  }
+  my $tmpf = "$ENV{'MYSQLTEST_VARDIR'}/tmp/floor_err_count.inc";
+  open(my $wfh, '>', $tmpf) or die "Cannot write $tmpf: $!";
+  print $wfh "--let \$floor_err_count = $count\n";
+  close($wfh);
+EOF
+--source $MYSQLTEST_VARDIR/tmp/floor_err_count.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/floor_err_count.inc
+--let $assert_text = Debug restart logged the SSL_INITERR_SIGALGS_FLOOR error
+--let $assert_cond = $floor_err_count - $floor_errors_before >= 1
+--source include/assert.inc
+
+# The floor protects the TLS 1.3 CertificateVerify message only.  A server
+# restricted to TLS 1.2 may sign ServerKeyExchange with RSASSA-PKCS1-v1_5
+# (RFC 5246 7.4.1.4.1), so the same PKCS#1-only survivors must keep TLS up.
+--let $floor_errors_before = $floor_err_count
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters = restart: --debug=+d,tls_sigalgs_reject_all_but_pkcs1 --tls-version=TLSv1.2
+--source include/restart_mysqld.inc
+
+let $enabled = `SELECT VALUE FROM performance_schema.tls_channel_status
+WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Enabled'`;
+--let $assert_text = TLS 1.2-only server keeps TLS enabled on mysql_main
+--let $assert_cond = "$enabled" = "Yes"
+--source include/assert.inc
+
+let $sigalgs = `SELECT VALUE FROM performance_schema.tls_channel_status
+WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Ssl_sigalgs_list'`;
+--let $assert_text = TLS 1.2-only server has a non-empty Ssl_sigalgs_list
+--let $assert_cond = "$sigalgs" != ""
+--source include/assert.inc
+
+--connect (ssl_con,localhost,root,,,,,SSL)
+SHOW STATUS LIKE 'Ssl_version';
+--let $cipher = query_get_value(SHOW STATUS LIKE 'Ssl_cipher', Value, 1)
+--let $assert_text = SSL connection to the TLS 1.2-only server negotiated a cipher
+--let $assert_cond = "$cipher" != ""
+--source include/assert.inc
+--disconnect ssl_con
+--connection default
+
+--perl
+  my $log = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+  my $count = 0;
+  if (open(my $fh, '<', $log)) {
+    while (my $line = <$fh>) {
+      $count++ if $line =~ /mandatory-to-implement TLS 1.3 signature algorithms/;
+    }
+    close($fh);
+  }
+  my $tmpf = "$ENV{'MYSQLTEST_VARDIR'}/tmp/floor_err_count.inc";
+  open(my $wfh, '>', $tmpf) or die "Cannot write $tmpf: $!";
+  print $wfh "--let \$floor_err_count = $count\n";
+  close($wfh);
+EOF
+--source $MYSQLTEST_VARDIR/tmp/floor_err_count.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/floor_err_count.inc
+--let $assert_text = TLS 1.2-only restart logged no SSL_INITERR_SIGALGS_FLOOR error
+--let $assert_cond = $floor_err_count = $floor_errors_before
+--source include/assert.inc
+
+# Restart clean.
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

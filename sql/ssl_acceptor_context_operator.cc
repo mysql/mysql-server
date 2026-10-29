@@ -90,6 +90,7 @@ bool TLS_channel::singleton_init(Ssl_acceptor_context_container **out,
     news->report_tls_channel_without_force_pqc();
   }
 
+  news->report_dropped_sigalgs();
   *out = new_container;
   return false;
 }
@@ -111,6 +112,7 @@ void TLS_channel::singleton_flush(Ssl_acceptor_context_container *container,
     delete news;
     return;
   }
+  news->report_dropped_sigalgs();
   if (warn_without_force_pqc && news->have_ssl())
     news->report_tls_channel_without_force_pqc();
   (void)container->switch_data(news);
