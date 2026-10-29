@@ -12,6 +12,11 @@
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc
 --source include/not_windows.inc
+# Under ASAN/UBSAN the fatal-signal handling differs, so the error log
+# output checked below is not stable; this applies to every crash case
+# in this file.
+--source include/not_asan.inc
+--source include/not_ubsan.inc
 
 # Only debug-build has self-crash option.
 --source include/have_debug.inc
@@ -116,3 +121,297 @@ SELECT COUNT(*)
 --echo # Clean up.
 --source include/force_restart.inc
 --remove_file $LOG_FILE1
+
+--echo
+--echo ###################################################################
+--echo # Bug#121634: Crash handler writes the query one byte per write(2)
+--echo # Crash handler: format of the query printed after a fatal signal,
+--echo # see log_error_crash_query_format.
+--echo #
+--echo # The statement the crashing thread was executing is printed after
+--echo # "Trying to get some variables.". With the default, SINGLE_LINE,
+--echo # it is printed on one line after "Query (ADDR): ". With
+--echo # TAGGED_LINES, it is printed as complete lines of at most 132 bytes
+--echo # of the statement, each prefixed with "Query (ADDR) +OFFSET: ".
+--echo # In both cases printing stops at the end of the statement and the
+--echo # "Connection ID (thread ID)" line follows.
+--echo ###################################################################
+
+# These crash cases rely on the not_valgrind, not_crashrep, not_windows,
+# not_asan and not_ubsan guards at the top of this file.
+call mtr.add_suppression("mysqld got signal");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+
+# Each crash goes to a private error log of its own, so that greps cannot
+# match lines produced by the other crash, earlier tests or earlier
+# --repeat iterations.
+--let LOG_FILE2= $MYSQLTEST_VARDIR/tmp/crash_query_single_line.err
+--let LOG_FILE3= $MYSQLTEST_VARDIR/tmp/crash_query_tagged_lines.err
+
+# A statement of more than three 132-byte chunks. The whole statement text,
+# including the padding comment, is what the crash handler prints; the
+# padding ends with a marker so the end of the statement is identifiable.
+--let $pad= 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd
+
+--echo #
+--echo # Take down the server and start our own, with the default format,
+--echo # logging to LOG_FILE2.
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+--exec echo "wait" > $_expect_file_name
+--shutdown_server
+--exec_in_background $MYSQLD_CMD --port $MASTER_MYPORT --log-error=$LOG_FILE2 --log-error-verbosity=1
+
+--let $wait_counter=3000
+--source include/wait_until_connected_again.inc
+SELECT @@global.log_error_crash_query_format;
+
+--echo #
+--echo # Crash while the long statement is in flight.
+--source include/expect_crash.inc
+--error 2013
+--eval SET @@session.debug='d,crash_now' /* $pad END_OF_MARKER */
+
+--echo #
+--echo # Restart with TAGGED_LINES, logging to LOG_FILE3.
+--let $restart_parameters= restart: --log-error=$LOG_FILE3 --log-error-verbosity=1 --log-error-crash-query-format=TAGGED_LINES
+--replace_result $LOG_FILE3 LOG_FILE3
+--source include/start_mysqld.inc
+--let $wait_counter=3000
+--source include/wait_until_connected_again.inc
+SELECT @@global.log_error_crash_query_format;
+
+--echo #
+--echo # SINGLE_LINE: the whole statement is on one line after the label.
+--let $assert_file= $LOG_FILE2
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\): SET @@session.debug='d,crash_now' /\* $pad END_OF_MARKER \*/
+--let $assert_text= The statement is printed on one line.
+--source include/assert_grep.inc
+
+--let $assert_file= $LOG_FILE2
+--let $assert_count= 0
+--let $assert_select= ^Query \([0-9a-f]+\) \+[0-9]+: 
+--let $assert_text= No tagged lines are printed by default.
+--source include/assert_grep.inc
+
+--echo # The query line and the line following it, address and thread ID
+--echo # masked.
+--let CRASH_LOG= $LOG_FILE2
+--perl
+  use strict;
+  my $file= $ENV{'CRASH_LOG'} or die "CRASH_LOG not set";
+  open(my $fh, '<', $file) or die "Cannot open $file: $!";
+  my @lines= <$fh>;
+  close($fh);
+  my $last= -1;
+  for (my $i= 0; $i < @lines; $i++) {
+    next unless $lines[$i] =~ /^Query \(/;
+    (my $line= $lines[$i]) =~ s/^Query \([0-9a-f]+\)/Query (ADDR)/;
+    print $line;
+    $last= $i;
+  }
+  die "No query line in $file" if $last < 0;
+  (my $next= $lines[$last + 1]) =~ s/[0-9]+$/N/;
+  print $next;
+EOF
+
+--echo #
+--echo # Crash again while the long statement is in flight.
+--source include/expect_crash.inc
+--error 2013
+--eval SET @@session.debug='d,crash_now' /* $pad END_OF_MARKER */
+
+--echo #
+--echo # Restart with the default format, reusing LOG_FILE3.
+--let $restart_parameters= restart: --log-error=$LOG_FILE3 --log-error-verbosity=1
+--replace_result $LOG_FILE3 LOG_FILE3
+--source include/start_mysqld.inc
+--let $wait_counter=3000
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # TAGGED_LINES: the statement is printed as offset-tagged lines.
+--let $assert_file= $LOG_FILE3
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+0: SET 
+--let $assert_text= The first tagged line is at offset 0.
+--source include/assert_grep.inc
+
+--let $assert_file= $LOG_FILE3
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+132: 
+--let $assert_text= The second tagged line is at offset 132.
+--source include/assert_grep.inc
+
+--let $assert_file= $LOG_FILE3
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+264: 
+--let $assert_text= The third tagged line is at offset 264.
+--source include/assert_grep.inc
+
+--let $assert_file= $LOG_FILE3
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+[0-9]+: .*END_OF_MARKER \*/
+--let $assert_text= The last tagged line ends with the end of the statement.
+--source include/assert_grep.inc
+
+--let $assert_file= $LOG_FILE3
+--let $assert_count= 0
+--let $assert_select= ^Query \([0-9a-f]+\): 
+--let $assert_text= No single-line query is printed with TAGGED_LINES.
+--source include/assert_grep.inc
+
+--echo # The tagged lines and the line following them, address and thread
+--echo # ID masked.
+--let CRASH_LOG= $LOG_FILE3
+--perl
+  use strict;
+  my $file= $ENV{'CRASH_LOG'} or die "CRASH_LOG not set";
+  open(my $fh, '<', $file) or die "Cannot open $file: $!";
+  my @lines= <$fh>;
+  close($fh);
+  my $last= -1;
+  for (my $i= 0; $i < @lines; $i++) {
+    next unless $lines[$i] =~ /^Query \(/;
+    (my $line= $lines[$i]) =~ s/^Query \([0-9a-f]+\)/Query (ADDR)/;
+    print $line;
+    $last= $i;
+  }
+  die "No query line in $file" if $last < 0;
+  (my $next= $lines[$last + 1]) =~ s/[0-9]+$/N/;
+  print $next;
+EOF
+
+--echo #
+--echo # TAGGED_LINES with a multi-byte character, U+00E9, whose lead byte is
+--echo # at offset 131, so it would straddle the end of the first 132-byte
+--echo # line: that line is ended before the character, and the next line,
+--echo # at offset 131, starts with it. At start-up, each line of the crash
+--echo # report is imported on its own into performance_schema.error_log,
+--echo # where a line starting in the middle of a character would lose its
+--echo # payload, so the second line has to arrive intact.
+--let LOG_FILE4= $MYSQLTEST_VARDIR/tmp/crash_query_tagged_utf8.err
+# 93 bytes: with the 37 bytes before the comment text and the '-' that
+# follows, the character starts at offset 131.
+--let $pad93= 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abc
+
+--echo #
+--echo # Restart with TAGGED_LINES, logging to LOG_FILE4.
+--let $restart_parameters= restart: --log-error=$LOG_FILE4 --log-error-verbosity=1 --log-error-crash-query-format=TAGGED_LINES
+--replace_result $LOG_FILE4 LOG_FILE4
+--source include/restart_mysqld.inc
+--let $wait_counter=3000
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # Crash while the statement with the character is in flight.
+--source include/expect_crash.inc
+--error 2013
+--eval SET @@session.debug='d,crash_now' /* $pad93-é AFTER_UTF8_MARKER */
+
+--echo #
+--echo # Restart with the default format, reusing LOG_FILE4, so that the crash
+--echo # report is imported into performance_schema.error_log.
+--let $restart_parameters= restart: --log-error=$LOG_FILE4 --log-error-verbosity=1
+--replace_result $LOG_FILE4 LOG_FILE4
+--source include/start_mysqld.inc
+--let $wait_counter=3000
+--source include/wait_until_connected_again.inc
+
+--let $assert_file= $LOG_FILE4
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+0: SET .* $pad93-\Z
+--let $assert_text= The first tagged line ends before the character.
+--source include/assert_grep.inc
+
+--let $assert_file= $LOG_FILE4
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\) \+131: é AFTER_UTF8_MARKER \*/\Z
+--let $assert_text= The second tagged line starts with the character, at offset 131.
+--source include/assert_grep.inc
+
+--let $err_code= convert_error(ER_STACK_BACKTRACE)
+--replace_regex /=.*/=ER_STACK_BACKTRACE/
+--eval SET @err_code=CONCAT("MY-",LPAD($err_code,6,"0"));
+
+--echo # The imported tagged lines, address masked. The second line still
+--echo # holds the character and the text following it.
+SELECT REGEXP_REPLACE(data, '^Query \\([0-9a-f]+\\)', 'Query (ADDR)') AS data
+  FROM performance_schema.error_log
+ WHERE error_code=@err_code
+   AND data LIKE 'Query (%) +%'
+ ORDER BY logged;
+
+SELECT COUNT(*)
+  FROM performance_schema.error_log
+ WHERE error_code=@err_code
+   AND data LIKE 'Query (%) +131: é AFTER_UTF8_MARKER */';
+
+--echo #
+--echo # SINGLE_LINE with a byte that is not part of a well-formed UTF-8
+--echo # sequence: a latin1 client sends 0xE9 (é in latin1) as a single raw
+--echo # byte, which the statement text keeps. The crash handler prints it
+--echo # as a space, so the line stays well-formed and the text after it,
+--echo # the marker, survives the import into performance_schema.error_log,
+--echo # which keeps only the well-formed prefix of a line.
+--let LOG_FILE5= $MYSQLTEST_VARDIR/tmp/crash_query_single_latin1.err
+
+--echo #
+--echo # Restart with the default format, logging to LOG_FILE5.
+--let $restart_parameters= restart: --log-error=$LOG_FILE5 --log-error-verbosity=1
+--replace_result $LOG_FILE5 LOG_FILE5
+--source include/restart_mysqld.inc
+--let $wait_counter=3000
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # Crash while a statement with the raw byte 0xE9 is in flight. The byte
+--echo # is fetched into a variable over the latin1 connection, so this file
+--echo # stays plain UTF-8 and the query log does not show the raw byte.
+SET NAMES latin1;
+--let $byte_e9= `SELECT CONVERT(X'E9' USING latin1)`
+--source include/expect_crash.inc
+--disable_query_log
+--error 2013
+--eval SET @@session.debug='d,crash_now' /* caf$byte_e9 AFTER_LATIN1_MARKER */
+--enable_query_log
+
+--echo #
+--echo # Restart with the default format, reusing LOG_FILE5, so that the crash
+--echo # report is imported into performance_schema.error_log.
+--let $restart_parameters= restart: --log-error=$LOG_FILE5 --log-error-verbosity=1
+--replace_result $LOG_FILE5 LOG_FILE5
+--source include/start_mysqld.inc
+--let $wait_counter=3000
+--source include/wait_until_connected_again.inc
+
+--let $assert_file= $LOG_FILE5
+--let $assert_count= 1
+--let $assert_select= ^Query \([0-9a-f]+\): SET @@session.debug='d,crash_now' /\* caf  AFTER_LATIN1_MARKER \*/\Z
+--let $assert_text= The raw byte is printed as a space, the marker follows.
+--source include/assert_grep.inc
+
+--let $err_code= convert_error(ER_STACK_BACKTRACE)
+--replace_regex /=.*/=ER_STACK_BACKTRACE/
+--eval SET @err_code=CONCAT("MY-",LPAD($err_code,6,"0"));
+
+--echo # The imported query line, address masked. It still holds the marker.
+SELECT REGEXP_REPLACE(data, '^Query \\([0-9a-f]+\\)', 'Query (ADDR)') AS data
+  FROM performance_schema.error_log
+ WHERE error_code=@err_code
+   AND data LIKE 'Query (%): %'
+ ORDER BY logged;
+
+SELECT COUNT(*)
+  FROM performance_schema.error_log
+ WHERE error_code=@err_code
+   AND data LIKE 'Query (%): %AFTER_LATIN1_MARKER */';
+
+--echo #
+--echo # Clean up.
+--source include/force_restart.inc
+--remove_file $LOG_FILE2
+--remove_file $LOG_FILE3
+--remove_file $LOG_FILE4
+--remove_file $LOG_FILE5

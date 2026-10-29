@@ -59,3 +59,140 @@ COUNT(*)
 1
 #
 # Clean up.
+
+###################################################################
+# Bug#121634: Crash handler writes the query one byte per write(2)
+# Crash handler: format of the query printed after a fatal signal,
+# see log_error_crash_query_format.
+#
+# The statement the crashing thread was executing is printed after
+# "Trying to get some variables.". With the default, SINGLE_LINE,
+# it is printed on one line after "Query (ADDR): ". With
+# TAGGED_LINES, it is printed as complete lines of at most 132 bytes
+# of the statement, each prefixed with "Query (ADDR) +OFFSET: ".
+# In both cases printing stops at the end of the statement and the
+# "Connection ID (thread ID)" line follows.
+###################################################################
+call mtr.add_suppression("mysqld got signal");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+#
+# Take down the server and start our own, with the default format,
+# logging to LOG_FILE2.
+SELECT @@global.log_error_crash_query_format;
+@@global.log_error_crash_query_format
+SINGLE_LINE
+#
+# Crash while the long statement is in flight.
+SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd END_OF_MARKER */;
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Restart with TAGGED_LINES, logging to LOG_FILE3.
+# restart: --log-error=LOG_FILE3 --log-error-verbosity=1 --log-error-crash-query-format=TAGGED_LINES
+SELECT @@global.log_error_crash_query_format;
+@@global.log_error_crash_query_format
+TAGGED_LINES
+#
+# SINGLE_LINE: the whole statement is on one line after the label.
+include/assert_grep.inc [The statement is printed on one line.]
+include/assert_grep.inc [No tagged lines are printed by default.]
+# The query line and the line following it, address and thread ID
+# masked.
+Query (ADDR): SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd END_OF_MARKER */
+Connection ID (thread ID): N
+#
+# Crash again while the long statement is in flight.
+SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd END_OF_MARKER */;
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Restart with the default format, reusing LOG_FILE3.
+# restart: --log-error=LOG_FILE3 --log-error-verbosity=1
+#
+# TAGGED_LINES: the statement is printed as offset-tagged lines.
+include/assert_grep.inc [The first tagged line is at offset 0.]
+include/assert_grep.inc [The second tagged line is at offset 132.]
+include/assert_grep.inc [The third tagged line is at offset 264.]
+include/assert_grep.inc [The last tagged line ends with the end of the statement.]
+include/assert_grep.inc [No single-line query is printed with TAGGED_LINES.]
+# The tagged lines and the line following them, address and thread
+# ID masked.
+Query (ADDR) +0: SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde
+Query (ADDR) +132: f0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef012
+Query (ADDR) +264: 3456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456
+Query (ADDR) +396: 789abcdef0123456789abcd END_OF_MARKER */
+Connection ID (thread ID): N
+#
+# TAGGED_LINES with a multi-byte character, U+00E9, whose lead byte is
+# at offset 131, so it would straddle the end of the first 132-byte
+# line: that line is ended before the character, and the next line,
+# at offset 131, starts with it. At start-up, each line of the crash
+# report is imported on its own into performance_schema.error_log,
+# where a line starting in the middle of a character would lose its
+# payload, so the second line has to arrive intact.
+#
+# Restart with TAGGED_LINES, logging to LOG_FILE4.
+# restart: --log-error=LOG_FILE4 --log-error-verbosity=1 --log-error-crash-query-format=TAGGED_LINES
+#
+# Crash while the statement with the character is in flight.
+SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abc-é AFTER_UTF8_MARKER */;
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Restart with the default format, reusing LOG_FILE4, so that the crash
+# report is imported into performance_schema.error_log.
+# restart: --log-error=LOG_FILE4 --log-error-verbosity=1
+include/assert_grep.inc [The first tagged line ends before the character.]
+include/assert_grep.inc [The second tagged line starts with the character, at offset 131.]
+SET @err_code=ER_STACK_BACKTRACE;
+# The imported tagged lines, address masked. The second line still
+# holds the character and the text following it.
+SELECT REGEXP_REPLACE(data, '^Query \\([0-9a-f]+\\)', 'Query (ADDR)') AS data
+FROM performance_schema.error_log
+WHERE error_code=@err_code
+AND data LIKE 'Query (%) +%'
+ ORDER BY logged;
+data
+Query (ADDR) +0: SET @@session.debug='d,crash_now' /* 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abc-
+Query (ADDR) +131: é AFTER_UTF8_MARKER */
+SELECT COUNT(*)
+FROM performance_schema.error_log
+WHERE error_code=@err_code
+AND data LIKE 'Query (%) +131: é AFTER_UTF8_MARKER */';
+COUNT(*)
+1
+#
+# SINGLE_LINE with a byte that is not part of a well-formed UTF-8
+# sequence: a latin1 client sends 0xE9 (é in latin1) as a single raw
+# byte, which the statement text keeps. The crash handler prints it
+# as a space, so the line stays well-formed and the text after it,
+# the marker, survives the import into performance_schema.error_log,
+# which keeps only the well-formed prefix of a line.
+#
+# Restart with the default format, logging to LOG_FILE5.
+# restart: --log-error=LOG_FILE5 --log-error-verbosity=1
+#
+# Crash while a statement with the raw byte 0xE9 is in flight. The byte
+# is fetched into a variable over the latin1 connection, so this file
+# stays plain UTF-8 and the query log does not show the raw byte.
+SET NAMES latin1;
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Restart with the default format, reusing LOG_FILE5, so that the crash
+# report is imported into performance_schema.error_log.
+# restart: --log-error=LOG_FILE5 --log-error-verbosity=1
+include/assert_grep.inc [The raw byte is printed as a space, the marker follows.]
+SET @err_code=ER_STACK_BACKTRACE;
+# The imported query line, address masked. It still holds the marker.
+SELECT REGEXP_REPLACE(data, '^Query \\([0-9a-f]+\\)', 'Query (ADDR)') AS data
+FROM performance_schema.error_log
+WHERE error_code=@err_code
+AND data LIKE 'Query (%): %'
+ ORDER BY logged;
+data
+Query (ADDR): SET @@session.debug='d,crash_now' /* caf  AFTER_LATIN1_MARKER */
+SELECT COUNT(*)
+FROM performance_schema.error_log
+WHERE error_code=@err_code
+AND data LIKE 'Query (%): %AFTER_LATIN1_MARKER */';
+COUNT(*)
+1
+#
+# Clean up.
