@@ -237,12 +237,6 @@ const ulong mts_coordinator_basic_nap = 5;
 */
 const ulong mts_worker_underrun_level = 10;
 
-/*
-  When slave thread exits, we need to remember the temporary tables so we
-  can re-use them on slave start.
-*/
-static thread_local Master_info *RPL_MASTER_INFO = nullptr;
-
 /**
   Encapsulates the messages and thread stages used for a specific call
   to try_to_reconnect.  Different Reconnect_messages objects may be
@@ -614,8 +608,6 @@ int ReplicaInitializer::init_replica() {
     if (error)
       LogErr(INFORMATION_LEVEL, ER_REPLICA_NOT_STARTED_ON_SOME_CHANNELS);
   });
-
-  RPL_MASTER_INFO = nullptr;
 
   /*
     Create slave info objects by reading repositories of individual
@@ -5496,9 +5488,6 @@ extern "C" void *handle_slave_io(void *arg) {
     DBUG_PRINT("source_info",
                ("log_file_name: '%s'  position: %s", mi->get_master_log_name(),
                 llstr(mi->get_master_log_pos(), llbuff)));
-
-    /* This must be called before run any binlog_relay_io hooks */
-    RPL_MASTER_INFO = mi;
 
     if (RUN_HOOK(binlog_relay_io, thread_start, (thd, mi))) {
       mi->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,

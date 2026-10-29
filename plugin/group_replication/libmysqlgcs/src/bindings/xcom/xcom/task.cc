@@ -902,10 +902,11 @@ task_env *wait_io(task_env *t, int fd, int op) {
   return t;
 }
 
-static uint64_t send_count;
-static uint64_t receive_count;
-static uint64_t send_bytes;
-static uint64_t receive_bytes;
+/* Only read by statistics_task(), which is disabled (#if 0). */
+static uint64_t send_count [[maybe_unused]];
+static uint64_t receive_count [[maybe_unused]];
+static uint64_t send_bytes [[maybe_unused]];
+static uint64_t receive_bytes [[maybe_unused]];
 
 #ifndef XCOM_WITHOUT_OPENSSL
 result con_read(connection_descriptor const *rfd, void *buf, int n) {
@@ -1160,7 +1161,7 @@ static should_exit_getter get_should_exit;
 
 void set_should_exit_getter(should_exit_getter x) { get_should_exit = x; }
 
-static double idle_time = 0.0;
+static double idle_time [[maybe_unused]] = 0.0;
 void task_loop() {
   task_env *t = nullptr;
   /* While there are tasks */
