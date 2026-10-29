@@ -1,0 +1,51 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 4;
+CREATE TABLE t (a INT PRIMARY KEY, b INT);
+include/rpl/sync_to_replica.inc
+#
+# Test case 1: Long transaction blocked on replica, SBM must not
+#   include the time the transaction spent executing on source.
+#   immediate_commit_timestamp records commit time, not start time.
+#
+LOCK TABLE t WRITE;
+INSERT INTO t(a, b) SELECT 1, SLEEP(10);
+SELECT a, b FROM t WHERE a = 1;
+a	b
+1	0
+include/assert.inc [Seconds_Behind_Source must not exceed 9 seconds during blocked long transaction]
+UNLOCK TABLES;
+#
+# Test case 2: MTS checkpoint timing. sbm_block_checkpoint prevents
+#   checkpoint so a completed group stays in GAQ.
+#   sbm_force_checkpoint forces checkpoint on the next QUERY_EVENT.
+#   This verifies the checkpoint path uses immediate_commit_timestamp
+#   and SBM does not spike.
+#
+SET GLOBAL debug= "+d,sbm_block_checkpoint";
+INSERT INTO t(a, b) SELECT 2, 0;
+LOCK TABLE t WRITE;
+SET GLOBAL debug= "+d,sbm_force_checkpoint";
+BEGIN;
+INSERT INTO t(a, b) SELECT 3, 0;
+SELECT SLEEP(10);
+SLEEP(10)
+0
+COMMIT;
+include/assert.inc [Seconds_Behind_Source must not exceed 9 seconds during blocked long transaction under MTS]
+UNLOCK TABLES;
+#
+# Cleanup
+#
+include/rpl/stop_replica.inc
+SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
+include/rpl/start_replica.inc
+DROP TABLE t;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc
