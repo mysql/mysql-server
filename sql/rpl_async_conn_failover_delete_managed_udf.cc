@@ -103,7 +103,8 @@ bool Rpl_async_conn_failover_delete_managed::delete_managed_init(
     return true;
   }
 
-  if (args->arg_type[1] != STRING_RESULT || args->lengths[1] == 0) {
+  if (args->arg_type[1] != STRING_RESULT || args->args[1] == nullptr ||
+      args->lengths[1] == 0) {
     my_stpcpy(message, "Wrong arguments: You need to specify managed_name.");
     return true;
   }
