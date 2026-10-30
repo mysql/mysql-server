@@ -989,6 +989,8 @@ DEFINE_BOOL_METHOD(Event_connection_bridge_implementation::notify,
     plugin_data.ip = TO_LEXCSTRING(data->ip);
     plugin_data.database = TO_LEXCSTRING(data->database);
     plugin_data.connection_type = data->connection_type;
+    plugin_data.port = data->port;
+    plugin_data.tls_version = TO_LEXCSTRING(data->tls_version);
 
     return event_class_dispatch(thd, MYSQL_AUDIT_CONNECTION_CLASS,
                                 &plugin_data);
