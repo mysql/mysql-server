@@ -31,6 +31,7 @@
 #include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
 #include "sql/changestreams/apply/jobs/fetchable_transaction.h"
 #include "sql/changestreams/apply/psi/psi.h"
+#include "sql/changestreams/apply/storage/in_memory/spill_encryption.h"  // Spill_header_read_guard
 #include "sql/changestreams/apply/storage/in_memory/spill_file_writer.h"
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"  // kApplierStopPollInterval
@@ -214,8 +215,16 @@ void Event_set_fetchable_spill::safe_open_reader() {
       DBUG_EVALUATE_IF("imr_force_spill_reader_open_failure", true, false);
   // Open at the first-event offset so read_fdle() consumes the FDE prefix and
   // installs the file's FDE, leaving the reader positioned at the first event.
-  if (forced_failure ||
-      m_reader.open(m_writer->file_name().c_str(), m_start_file_pos)) {
+  bool open_failed = forced_failure;
+  if (!open_failed) {
+    // The open reads the encryption header and then fetches the master key it
+    // names. Keep a key rotation from rewriting the header, and then purging
+    // that key, in between (see Spill_header_read_guard).
+    const Spill_header_read_guard header_guard;
+    open_failed =
+        m_reader.open(m_writer->file_name().c_str(), m_start_file_pos);
+  }
+  if (open_failed) {
     std::stringstream ss;
     ss << "Spill event set: could not open spill file: "
        << m_writer->file_name() << " @ " << m_start_file_pos;

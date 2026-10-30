@@ -38,9 +38,11 @@
 #include "my_thread_local.h"                         // my_errno, set_my_errno
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/my_loglevel.h"                       // WARNING_LEVEL
+#include "mysql/psi/mysql_rwlock.h"  // mysql_rwlock_t, mysql_rwlock_init
 #include "mysqld_error.h"  // ER_LOG_PRINTF_MSG, ER_RPL_ENCRYPTION_KEY_NOT_FOUND
-#include "sql/basic_istream.h"  // Basic_istream
-#include "sql/basic_ostream.h"  // StringBuffer_ostream
+#include "sql/basic_istream.h"                // Basic_istream
+#include "sql/basic_ostream.h"                // StringBuffer_ostream
+#include "sql/changestreams/apply/psi/psi.h"  // key_rwlock_imr_spill_header
 #include "sql/changestreams/apply/storage/in_memory/imr_runtime.h"  // Imr_runtime
 #include "sql/changestreams/apply/storage/in_memory/spill_directory.h"  // join_path, spill_directory_path
 #include "sql/changestreams/apply/storage/in_memory/spill_file_writer.h"  // Spill_file_writer::kFileNamePrefix
@@ -59,6 +61,18 @@
 namespace mysql::csa {
 
 namespace {
+
+/// The lock behind Spill_header_read_guard and Spill_header_write_guard.
+/// Created on first use and never destroyed: a destructor at process exit
+/// could call into performance_schema after it has shut down.
+mysql_rwlock_t &spill_header_lock() {
+  static mysql_rwlock_t *const lock = [] {
+    auto *l = new mysql_rwlock_t;
+    mysql_rwlock_init(key_rwlock_imr_spill_header, l);
+    return l;
+  }();
+  return *lock;
+}
 
 /// Size of the v1 encryption header, the only bytes the pass reads or writes.
 constexpr std::size_t kHeaderSize = Rpl_encryption_header_v1::HEADER_SIZE;
@@ -154,6 +168,9 @@ bool reencrypt_file(const std::string &path, const std::string &current_key_id,
   }
 
   if (write_header) {
+    // Wait for every spill file open in progress, which may have read this
+    // header and not yet fetched its key (see Spill_header_read_guard).
+    const Spill_header_write_guard header_guard;
     // The test point skips the write, so the file keeps its old header.
     const size_t written = DBUG_EVALUATE_IF(
         "imr_spill_reencrypt_fail_write", MY_FILE_ERROR,
@@ -260,6 +277,22 @@ Header_rewrapper server_header_rewrapper(THD *thd) {
 }
 
 }  // namespace
+
+Spill_header_read_guard::Spill_header_read_guard() {
+  mysql_rwlock_rdlock(&spill_header_lock());
+}
+
+Spill_header_read_guard::~Spill_header_read_guard() {
+  mysql_rwlock_unlock(&spill_header_lock());
+}
+
+Spill_header_write_guard::Spill_header_write_guard() {
+  mysql_rwlock_wrlock(&spill_header_lock());
+}
+
+Spill_header_write_guard::~Spill_header_write_guard() {
+  mysql_rwlock_unlock(&spill_header_lock());
+}
 
 Spill_header_kind parse_spill_header(const unsigned char *buf, std::size_t len,
                                      std::string *key_id) {

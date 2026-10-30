@@ -35,6 +35,8 @@ namespace mysql::csa {
 
 /// @brief PSI rwlock key for module locking.
 extern PSI_rwlock_key key_rwlock_module;
+/// @brief PSI rwlock key for the IMR spill header lock (spill_encryption.h).
+extern PSI_rwlock_key key_rwlock_imr_spill_header;
 
 /// @name Mutex Keys
 /// @{

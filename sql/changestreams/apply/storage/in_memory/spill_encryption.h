@@ -38,6 +38,11 @@
 // it for each IMR channel after the new key is current and before this pass.
 // The pass touches only bytes [0, 512), which the writer never writes again,
 // and opens files without O_CREAT, so a deleted file is never re-created.
+//
+// Barrier against spill readers: Spill_header_read_guard and
+// Spill_header_write_guard. A reader's open reads the header and then fetches
+// the key it names; the pass writes a header only while no open is in
+// progress, so the key is fetched before it is purged.
 // =============================================================================
 
 #include <cstddef>
@@ -46,6 +51,33 @@
 #include <vector>
 
 namespace mysql::csa {
+
+/// @brief Shared hold of the spill header lock, one lock for all spill files.
+///
+/// Held by a spill file open across the encryption header read and the fetch
+/// of the master key the header names (Binlog_encryption_istream::open()).
+/// The rotation pass takes the lock exclusive (Spill_header_write_guard) only
+/// while it writes one file's new header, and acquires nothing else meanwhile.
+/// purge_unused_keys() runs after the whole pass, so an open that read the old
+/// header fetches the old key before it is purged, and no open reads a partly
+/// written header.
+class Spill_header_read_guard {
+ public:
+  Spill_header_read_guard();
+  ~Spill_header_read_guard();
+  Spill_header_read_guard(const Spill_header_read_guard &) = delete;
+  Spill_header_read_guard &operator=(const Spill_header_read_guard &) = delete;
+};
+
+/// @brief Exclusive hold of the spill header lock, around one header write.
+class Spill_header_write_guard {
+ public:
+  Spill_header_write_guard();
+  ~Spill_header_write_guard();
+  Spill_header_write_guard(const Spill_header_write_guard &) = delete;
+  Spill_header_write_guard &operator=(const Spill_header_write_guard &) =
+      delete;
+};
 
 /// Classes of the first bytes of an IMR file.
 enum class Spill_header_kind {
@@ -93,7 +125,8 @@ using Header_rewrapper = std::function<Rewrap_result(
 /// @brief Re-encrypts the headers of the encrypted imr_sp_* files in
 /// @p spill_dirs that name a key other than @p current_key_id.
 ///
-/// Takes no lock and touches no THD (except the debug sync hook
+/// Takes only the spill header lock, exclusive, around each header write
+/// (Spill_header_write_guard), and touches no THD (except the debug sync hook
 /// imr_spill_reencrypt_after_list). Touches only bytes [0, 512), opens without
 /// O_CREAT, does not fsync. Skips with a warning a corrupt header or a key not
 /// in the keyring (e.g. another server's key).

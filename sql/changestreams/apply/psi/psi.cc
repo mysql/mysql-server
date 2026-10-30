@@ -39,10 +39,13 @@ static const std::string psi_category = "csa";
 
 // CSA rw locks vars PSI
 PSI_rwlock_key key_rwlock_module;
+PSI_rwlock_key key_rwlock_imr_spill_header;
 
 PSI_rwlock_info all_csa_rwlocks[] = {
     {&key_rwlock_module, "module", PSI_FLAG_SINGLETON, PSI_VOLATILITY_PERMANENT,
-     PSI_DOCUMENT_ME}};
+     PSI_DOCUMENT_ME},
+    {&key_rwlock_imr_spill_header, "imr_spill_header", PSI_FLAG_SINGLETON,
+     PSI_VOLATILITY_PERMANENT, PSI_DOCUMENT_ME}};
 
 static void init_psi_csa_rwlocks() {
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
