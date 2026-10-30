@@ -193,8 +193,11 @@ TEST(QueuedTransactionWriterTest, OpenGroupPublishesSink) {
   ASSERT_NE(fetchable, nullptr);
   EXPECT_EQ(drain(fetchable), 0);
   fetchable->set_success();
-  EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_FALSE(queue.sweep_committed());
+  // The consumer's copy is the byte source's last owner; it holds the bytes.
+  EXPECT_EQ(queue.bytes_used(), kTrxLength);
+  fetchable.reset();
+  EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
 // open-after-stop: once the queue is stopped, open_transaction reports the
@@ -301,6 +304,10 @@ TEST(QueuedTransactionWriterTest, OpenGroupWhileOpenTruncatesPreviousGroup) {
   // Commit the second; the sweep reclaims the truncated head and then it.
   second_fetchable->set_success();
   EXPECT_FALSE(queue.sweep_committed());
+  // The consumers' copies still hold both byte sources and their bytes.
+  EXPECT_EQ(queue.bytes_used(), 2 * kTrxLength);
+  first_fetchable.reset();
+  second_fetchable.reset();
   EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_EQ(queue.queue_length(), 0u);
 }
@@ -345,11 +352,13 @@ TEST(QueuedTransactionWriterTest, AppendOrderAndTerminalSeal) {
   EXPECT_TRUE(fetchable->is_fetching_done());
   EXPECT_FALSE(fetchable->is_fetching_error());
 
-  // Commit + sweep so the queue destructor invariant holds.
+  // Commit + sweep so the queue destructor invariant holds. Dropping the
+  // consumer's copy, the byte source's last owner, returns the bytes.
   fetchable->set_success();
   EXPECT_TRUE(env->is_committed());
-  EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_FALSE(queue.sweep_committed());
+  fetchable.reset();
+  EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
 // atomic-DDL single event: a group opened by open_transaction and terminated by
@@ -385,11 +394,13 @@ TEST(QueuedTransactionWriterTest, AtomicDdlSingleEventOpensAndSealsOnce) {
   EXPECT_TRUE(fetchable->is_fetching_done());
   EXPECT_FALSE(fetchable->is_fetching_error());
 
-  // Commit + sweep so the queue destructor invariant holds.
+  // Commit + sweep so the queue destructor invariant holds. Dropping the
+  // consumer's copy, the byte source's last owner, returns the bytes.
   fetchable->set_success();
   EXPECT_TRUE(env->is_committed());
-  EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_FALSE(queue.sweep_committed());
+  fetchable.reset();
+  EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
 // append defensive: append_event with a closed group is a no-op that
@@ -454,11 +465,14 @@ TEST(QueuedTransactionWriterTest,
   // A worker applying a truncated stream rolls back and never calls
   // set_success(): a truncated transaction is a terminal, rolled-back state and
   // is never committed (commit() and truncation are mutually exclusive).
-  // Truncation alone does not release the payload, so the reserved bytes stay
-  // charged until the committed-head sweep drops the dispatched, truncated
-  // envelope (reclaimed exactly like a committed one), releasing its bytes.
-  // After the sweep env dangles - do not touch it.
+  // Truncation alone does not release the payload. The committed-head sweep
+  // drops the dispatched, truncated envelope (reclaimed exactly like a
+  // committed one), but the consumer's copy keeps the byte source and its
+  // bytes until it is dropped (F20). After the sweep env dangles - do not
+  // touch it.
   EXPECT_FALSE(queue.sweep_committed());
+  EXPECT_EQ(queue.bytes_used(), kTrxLength);
+  fetchable.reset();
   EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
@@ -552,11 +566,13 @@ TEST(QueuedTransactionWriterTest, PropertySealExactlyOnce) {
         << "seed=" << kSeed << " trial=" << trial;
 
     // Commit + sweep so the queue destructor invariant (empty deque,
-    // bytes_used()==0) holds this trial.
+    // bytes_used()==0) holds this trial. The consumer's copy is the last
+    // owner of the byte source, so dropping it returns the bytes.
     fetchable->set_success();
-    EXPECT_EQ(queue.bytes_used(), 0u) << "seed=" << kSeed << " trial=" << trial;
     ASSERT_FALSE(queue.sweep_committed())
         << "seed=" << kSeed << " trial=" << trial;
+    fetchable.reset();
+    EXPECT_EQ(queue.bytes_used(), 0u) << "seed=" << kSeed << " trial=" << trial;
   }
 }
 
@@ -686,13 +702,14 @@ TEST(QueuedTransactionWriterTest, PropertyTruncateOnIncompleteAndSinkCleared) {
     // holds this trial. Mode A (terminal) is committed by the worker's success
     // hook; mode B (truncated) is rolled back and never committed (commit() and
     // truncation are mutually exclusive). Either terminal state is reclaimed by
-    // the committed-head sweep, so bytes_used() returns to 0 once the envelope
-    // is swept -- released at commit for mode A, at sweep for mode B.
+    // the committed-head sweep. In both modes the bytes are released when the
+    // consumer's copy, the byte source's last owner, is dropped.
     if (!mode_truncate) {
       fetchable->set_success();
     }
     ASSERT_FALSE(queue.sweep_committed())
         << "seed=" << kSeed << " trial=" << trial;
+    fetchable.reset();
     EXPECT_EQ(queue.bytes_used(), 0u) << "seed=" << kSeed << " trial=" << trial;
   }
 }

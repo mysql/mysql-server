@@ -22,7 +22,7 @@ The size of a transaction in bytes as declared by its GTID event (`Gtid_log_even
 A `Transaction_envelope`: the lightweight queue entry of one transaction. It carries `trx_length`, the store path, the commit and truncate flags, the receiver hold, and the reference to its payload.
 
 **Payload**
-A `Trx_payload`: the heavy part of a transaction. It owns the `Fetchable_transaction` that holds the encoded events and, on the memory path, the memory reservation of the transaction.
+A `Trx_payload`: the heavy part of a transaction. It owns the envelope's share of the `Fetchable_transaction` that holds the encoded events. The transaction's reservation is owned by its byte source.
 
 **Byte source**
 The `Event_set_fetchable` object that stores the events of a transaction and serves them to a worker: `Event_set_fetchable_memory` on the memory path, `Event_set_fetchable_spill` on the spill path. Each byte source is also the `Streaming_event_sink` the receiver writes into.
@@ -46,7 +46,7 @@ The coordinator operation that removes the contiguous run of committed or trunca
 The decision taken at the GTID event of every transaction: choose the store path, then reserve `trx_length` against the memory limit (memory path) or the spill disk limit (spill path), waiting while the limit is reached.
 
 **Memory-usage counter**
-The per-channel count of bytes reserved by memory path payloads. The count is stored in the channel's existing CSA resource monitor (`Resource_instance_monitor`), as resource `in_memory_relaylog_memory` with limit `IN_MEMORY_RELAYLOG_LIMIT`.
+The per-channel count of bytes reserved by memory path byte sources. The count is stored in the channel's existing CSA resource monitor (`Resource_instance_monitor`), as resource `in_memory_relaylog_memory` with limit `IN_MEMORY_RELAYLOG_LIMIT`.
 
 **Role**
 The receiver role (IO thread, producer) or the applier role (SQL thread, consumer) on a channel's queue. A thread attaches its role when it starts and detaches it when it exits.
@@ -208,7 +208,7 @@ Use by the layer above. The queue layer creates exactly one byte source per tran
 
 Purpose. Keep the transactions of a channel in source order from their GTID event until they are committed, bound the memory they hold, and track how far the coordinator and the workers have got.
 
-Classes. `Trx_payload` owns the `Fetchable_transaction` and the memory reservation of one transaction (RAII). `Transaction_envelope` is the queue entry; it owns the payload through a `unique_ptr` and keeps the commit, truncate and receiver-hold flags under its own mutex. `Trx_envelope_queue` owns the envelopes in a `std::deque<std::unique_ptr<Transaction_envelope>>`, keeps the three cursors under one queue mutex, and runs admission against two `Resource_entry` objects of the channel's `Resource_instance_monitor`.
+Classes. `Trx_payload` owns the envelope's share of one transaction's `Fetchable_transaction`, its sink and its FDE snapshot; the byte source (`Event_set_fetchable_memory`, or `Event_set_fetchable_spill` through its `Spill_file_writer`) owns the reservation (RAII). `Transaction_envelope` is the queue entry; it owns the payload through a `unique_ptr` and keeps the commit, truncate and receiver-hold flags under its own mutex. `Trx_envelope_queue` owns the envelopes in a `std::deque<std::unique_ptr<Transaction_envelope>>`, keeps the three cursors under one queue mutex, and runs admission against two `Resource_entry` objects of the channel's `Resource_instance_monitor`.
 
 Interfaces. Producer: `classify()`, `is_admissible()`, `wait_until_admissible()`, `acquire_admission()`, `enqueue()`. Consumer: `sweep_and_dispatch()`, `dispatch_next()`, `sweep_committed()`. Accounting: `release_bytes()`, `bytes_used()`, `release_spill_reservation()`, the spill gauges. Lifecycle: `stop()`, `resume()`, `reset()`.
 
@@ -257,7 +257,7 @@ Relay_log_info::m_imr : non-owning pointer to the runtime (nullptr without IMR)
 
 Runtime. Owned by `Imr_service`. Created and destroyed only by `reconcile()` and `remove()`, under the `channel_map` write lock and with both roles detached (see the shutdown case below). Thread start and stop only attach and detach roles. `Relay_log_info` caches a non-owning pointer, set through `set_imr_ptr()`, and every receiver, applier and status path reaches the runtime through `rli->imr()`. The pointer cannot change while a replication thread of the channel runs, because every option that changes the selection or the bounds needs both threads stopped. A stop request only sets the stop flags. The queue is reset only by the last owner thread to detach, and `reconcile()` leaves the runtime in place if a role is still attached. At server shutdown, `delete_slave_info_objects()` destroys the `Relay_log_info`, and with it the runtime, only after `wait_till_no_thd()` has seen every replication thread leave the thread list.
 
-Queue. A member of the runtime, so its address is stable for the runtime's lifetime. Every `Trx_payload` keeps a plain back-pointer to the queue to release its bytes; the queue is destroyed only after it has been reset, when no payload is left.
+Queue. A member of the runtime, so its address is stable for the runtime's lifetime. Every memory byte source and spill writer keeps a plain back-pointer to the queue to release its reservation; the queue is reset only when both roles are detached, after `Csa_service::remove()` has destroyed the workers and every job, so no byte source outlives the reset (debug builds assert `bytes_used() == 0` there), and it is destroyed only after that.
 
 Envelope. Owned by the queue from `enqueue()` until a sweep or a queue reset pops it. The receiver (`Open_group::envelope`), the coordinator (the return value of `sweep_and_dispatch()`) and the byte source (`m_envelope`) hold non-owning pointers. The receiver keeps the envelope in the queue while the receiver writes; a sweep removes only envelopes that are committed or truncated and that the coordinator has already dispatched past, and a queue reset runs only after both roles have detached. A committed envelope without a payload can stay in the queue behind an uncommitted head. This allows memory to be released out of source order. The coordinator is the only sweeper, so the envelope it gets from `sweep_and_dispatch()` stays valid until its next call.
 
@@ -275,7 +275,7 @@ Payload and Fetchable_transaction. The payload is owned by the envelope and rese
 | Rolled back by an applier stop | the payload; the job is dropped, and a later dispatch builds a new `Job_applier` on the same object |
 | Retried after a transient error | the payload and the same `Job_applier`, which resets the byte source and reads it again from the start |
 
-Memory reservation. Taken at admission and owned by the payload; released by `~Trx_payload()`. Every way an envelope ends (commit, sweep, queue reset, runtime destruction) destroys the payload, so a reservation is released exactly once. The encoded bytes belong to the byte source and are freed with the last reference to the `Fetchable_transaction`. That is usually the same moment, but when a truncated envelope is swept while a job applies it, the reservation is released while the job still holds the bytes.
+Memory reservation. Taken at admission and owned by the memory byte source, like the spill disk reservation is owned by the spill writer; released by `~Event_set_fetchable_memory()`. The encoded bytes belong to the same byte source, which is destroyed with the last reference to the `Fetchable_transaction`: the payload's, or a job's. So the reservation is released exactly once, right after the bytes are freed. When a truncated envelope is swept while a job applies it, the job keeps the bytes and the reservation until it is dropped.
 
 FDE. Each transaction's payload holds a `shared_ptr` to a read-only snapshot of the receiver's FDE (`Format_description_log_event`). The runtime takes the snapshot in `set_receiver_fde()`, which `queue_event()` calls under `LOCK_log` right after it installs each source Format_description event as the receiver's FDE. The source sends one at the start of every binlog file, so every connection and every source binlog rotation has one before its first transaction. `open_transaction()` shares the snapshot with every transaction until the next one. Workers decode and apply with the snapshot and never with the receiver's object, which is written in place under `LOCK_log` during relaylog rotation and while a source Rotate is decoded. `detach_role(RECEIVER)` releases the runtime's references; each transaction keeps its own.
 Spill file and spill disk reservation. Owned by the `Spill_file_writer`, which is owned by the spill byte source, which is owned by the `Fetchable_transaction`. The writer deletes the file and returns the reservation when it is destroyed, that is when the last reference to the `Fetchable_transaction` goes away after commit, sweep or queue reset. Files left by a crash are deleted at the next startup.
@@ -545,7 +545,7 @@ If a spill file cannot be deleted at run time, a warning with the path and errno
 
 Two budgets apply to an IMR channel. Both count sizes taken from the replication stream (the declared `trx_length`, and the length of each received event).
 
-`IN_MEMORY_RELAYLOG_LIMIT` is a ledger of the `trx_length` reserved by memory path payloads: the reservation is taken at admission and returned by `~Trx_payload()`. It does not count the envelope, container and FDE overhead, the events the worker decodes and decompresses, the spill reader and writer buffers, or the encoded bytes that a job still holds after the sweep destroyed a truncated payload.
+`IN_MEMORY_RELAYLOG_LIMIT` is a ledger of the `trx_length` reserved by memory path byte sources: the reservation is taken at admission and returned by `~Event_set_fetchable_memory()`, so it also covers the encoded bytes that a job still holds after the sweep destroyed a truncated payload. It does not count the envelope, container and FDE overhead, the events the worker decodes and decompresses, or the spill reader and writer buffers.
 
 `APPLIER_EVENT_MEMORY_LIMIT` is the existing CSA budget (resource `declared_channel_memory`), unchanged by IMR. Before each fetch, `Job_applier::run_phase()` reserves the largest on-wire event length received so far for the transaction (`Fetchable_transaction::get_max_event_length()`, which both byte sources update on append) and releases it at the end of that loop iteration, so the reservation is per fetched event, not per transaction. For a compressed transaction that length is the compressed `Transaction_payload_event`, not the decompressed size. Its rule admits a request larger than the limit when the whole budget is free.
 
@@ -564,7 +564,7 @@ The memory entry `in_memory_relaylog_memory` is registered by reconcile with `IN
 
 #### Release at commit
 
-The reservation is part of the payload. `~Trx_payload()` releases exactly `trx_length` with one atomic operation when the payload is destroyed, normally at commit. A committed envelope behind an uncommitted head no longer holds memory, so out-of-order commits with `replica_preserve_commit_order = OFF` free memory at once.
+The reservation is part of the memory byte source. `~Event_set_fetchable_memory()` releases exactly `trx_length` with one atomic operation when the last owner drops it, normally right after commit, when the commit hook has reset the payload and `Job_binlog::set_success()` drops the job's reference. A committed envelope behind an uncommitted head no longer holds memory, so out-of-order commits with `replica_preserve_commit_order = OFF` free memory at once.
 
 ### Configuration and Persistence
 
@@ -694,6 +694,7 @@ Key members:
 * `m_envelope`, `m_fetchable_trx`: non-owning back-pointers to the owning envelope and `Fetchable_transaction`.
 * `m_stats_instance_id`: the channel instance id for the statistics.
 * `m_applier_stop`: pointer to the queue's atomic applier stop flag.
+* `m_owner_queue`, `m_reserved_bytes`: the queue (non-owning) and the memory reservation taken at admission. The destructor clears `m_events` and then calls `m_owner_queue->release_bytes(m_reserved_bytes)`, so the reservation is returned when the last owner of the `Fetchable_transaction` (the payload or a job) drops it, after the event buffers are freed.
 
 Methods:
 
@@ -763,14 +764,14 @@ Owns one spill file. It does not touch the filesystem until `open()`.
 
 ##### Trx_payload
 
-Key members: `m_trx` (`std::shared_ptr<Fetchable_transaction>`), `m_trx_length` (the bytes reserved; 0 for a spill payload), `m_owner_queue` (non-owning), `m_sink` (non-owning pointer to the byte source as `Streaming_event_sink`), `m_fde` (the runtime's read-only FDE snapshot when the transaction was opened). The class is neither copyable nor movable.
+Key members: `m_trx` (`std::shared_ptr<Fetchable_transaction>`), `m_trx_length` (the memory bytes the destructor releases; 0 for both factories, whose byte sources own the reservation), `m_owner_queue` (non-owning), `m_sink` (non-owning pointer to the byte source as `Streaming_event_sink`), `m_fde` (the runtime's read-only FDE snapshot when the transaction was opened). The class is neither copyable nor movable.
 
 Factories:
 
-* `create_memory(is_trx, fde, trx_length, owner_queue, owner_envelope)`: calls `owner_queue->acquire_admission(trx_length, MEMORY)`, which reserves `trx_length` on the memory resource. It then builds an empty `Event_set_fetchable_memory`, wraps it as the single batch of a new `Fetchable_transaction`, links them, and returns the payload. It returns null if a receiver stop was requested during admission; nothing is then reserved.
+* `create_memory(is_trx, fde, trx_length, owner_queue, owner_envelope)`: calls `owner_queue->acquire_admission(trx_length, MEMORY)`, which reserves `trx_length` on the memory resource. It then builds an empty `Event_set_fetchable_memory` that takes over that reservation, wraps it as the single batch of a new `Fetchable_transaction`, links them, and returns the payload. It returns null if a receiver stop was requested during admission; nothing is then reserved.
 * `create_spill(...)`: calls `acquire_admission(trx_length, SPILL)`, which reserves `trx_length` on the spill disk resource, builds an `Event_set_fetchable_spill` that takes over that reservation, and returns a payload that reserves 0 memory bytes.
 
-Destructor: `m_owner_queue->release_bytes(m_trx_length)`. The release is a single atomic operation with no lock and no notify; a receiver waiting for space sees it on its next poll. The payload is the RAII owner of the memory reservation.
+Destructor: `m_owner_queue->release_bytes(m_trx_length)`, which is 0 for a factory-built payload. The byte sources are the RAII owners of the reservations, because a job may hold the byte source after the payload is gone. `release_bytes()` is a single atomic operation with no lock and no notify; a receiver waiting for space sees it on its next poll.
 
 `fetchable()` returns a copy of the `shared_ptr`, which the CSA reader puts in the `Job_applier`.
 
@@ -826,7 +827,7 @@ Lifecycle methods:
 
 * `stop(scope)`: RECEIVER sets `m_receiver_stopped` (release store). APPLIER sets `m_applier_stopped` under the queue mutex and then calls `notify_all()`; workers waiting in a byte source read the same flag on their next poll. A stop of one role does not disturb the other. `scope` is `RECEIVER` or `APPLIER`; every caller names one role, and there is no default.
 * `resume(scope)`: RECEIVER clears its flag. APPLIER clears `m_applier_stopped`, `m_applier_error` and `m_spill_delete_failed`, and sets `dispatch_seqno = commit_seqno`, all under the queue mutex, so every retained uncommitted envelope is dispatched again.
-* `reset()`: clears the deque and zeroes the cursors. Destroying the envelopes destroys the payloads, which releases the memory reservations and deletes the spill files. It then clears `m_spill_delete_failed`.
+* `reset()`: clears the deque and zeroes the cursors. Destroying the envelopes destroys the payloads and, with no job left, the byte sources, which releases the memory reservations and deletes the spill files. It then clears `m_spill_delete_failed`.
 
 Accounting methods: `release_bytes(n)` releases on the memory entry; `bytes_used()` returns `clamp(limit - available, 0, limit)` from the memory entry, so there is no second counter to keep in sync; `release_spill_reservation(n)` releases on the spill disk entry; `add_spill_bytes()`, `release_spill_bytes()`, `inc_spill_files()`, `dec_spill_files()` maintain the gauges, called by `Spill_file_writer`; `set_spill_delete_failed()` and `take_spill_delete_failed()` set and consume `m_spill_delete_failed`.
 
@@ -913,7 +914,7 @@ When a worker finishes a transaction successfully, `Task_exec_job` calls `Job::s
 3. reads `trx_length` and the instance id, then calls `m_envelope->commit()`;
 4. if `commit()` returned false, calls `Statistics_map::count_imr_completed(instance_id, spill_path, trx_length)`.
 
-`commit()` resets the payload. That releases the memory reservation at once (`~Trx_payload()`) and drops the envelope's reference to the `Fetchable_transaction`. Right after the hook returns, `Job_binlog::set_success()` drops the job's reference (`m_fetch_metadata.reset()`). That is normally the last reference, so the `Fetchable_transaction` and its byte source are destroyed there, on the worker thread. On the spill path this deletes the spill file and returns the spill disk reservation (`~Spill_file_writer()`). If the receiver still holds the envelope, `commit()` keeps the payload, and `release_receiver()` resets it later. A transaction that the worker skips because its GTID is already in `gtid_executed` (`is_already_logged_transaction()`) still ends successfully and runs the commit hook, so its envelope is committed and counted too.
+`commit()` resets the payload, which drops the envelope's reference to the `Fetchable_transaction`. Right after the hook returns, `Job_binlog::set_success()` drops the job's reference (`m_fetch_metadata.reset()`). That is normally the last reference, so the `Fetchable_transaction` and its byte source are destroyed there, on the worker thread. On the memory path this frees the events and returns the memory reservation (`~Event_set_fetchable_memory()`). On the spill path this deletes the spill file and returns the spill disk reservation (`~Spill_file_writer()`). If the receiver still holds the envelope, `commit()` keeps the payload, and `release_receiver()` resets it later. A transaction that the worker skips because its GTID is already in `gtid_executed` (`is_already_logged_transaction()`) still ends successfully and runs the commit hook, so its envelope is committed and counted too.
 
 ##### Server receiver adapters
 

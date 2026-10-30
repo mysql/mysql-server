@@ -97,8 +97,9 @@ class Trx_envelope_queue {
   Trx_envelope_queue(Trx_envelope_queue &&) = delete;
   Trx_envelope_queue &operator=(Trx_envelope_queue &&) = delete;
 
-  /// @brief Destroy the queue. It must outlive its payloads, which call
-  /// release_bytes() on it when destroyed.
+  /// @brief Destroy the queue. It must outlive its payloads' byte sources,
+  /// which call release_bytes() on it when the last owner (payload or job)
+  /// drops them.
   ~Trx_envelope_queue();
 
   // --- Producer (receiver) admission API ---
@@ -252,9 +253,9 @@ class Trx_envelope_queue {
   /// notify: a receiver polling in admission sees the freed budget next poll.
   void release_bytes(std::size_t n);
 
-  /// @brief Bytes held by admitted memory-path payloads, derived from the
-  /// memory entry as clamp(limit - available, 0..limit). 0 when tracking is
-  /// off.
+  /// @brief Bytes held by admitted memory-path byte sources (queued, or still
+  /// referenced by a job), derived from the memory entry as
+  /// clamp(limit - available, 0..limit). 0 when tracking is off.
   std::size_t bytes_used() const;
 
   /// @brief Live number of the channel's spill files on disk

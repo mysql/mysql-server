@@ -28,7 +28,7 @@
 #include "sql/changestreams/apply/psi/psi.h"
 #include "sql/changestreams/apply/storage/in_memory/cached_event_memory.h"
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"  // kApplierStopPollInterval
+#include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"  // kApplierStopPollInterval, release_bytes()
 #include "sql/psi_memory_resource.h"
 
 using namespace mysql::binlog::event::compression;
@@ -39,12 +39,15 @@ namespace mysql::csa {
 Event_set_fetchable_memory::Event_set_fetchable_memory(
     bool is_trx, Event_set_fetchable::Log_event_ptr fde,
     Transaction_envelope *owner_envelope, bool streaming_open,
-    std::size_t stats_instance_id, const std::atomic<bool> *applier_stop)
+    std::size_t stats_instance_id, const std::atomic<bool> *applier_stop,
+    Trx_envelope_queue *owner_queue, std::size_t reserved_bytes)
     : m_is_trx(is_trx),
       m_fde_base(std::move(fde)),
       m_envelope(owner_envelope),
       m_stats_instance_id(stats_instance_id),
       m_applier_stop(applier_stop),
+      m_owner_queue(owner_queue),
+      m_reserved_bytes(reserved_bytes),
       m_stream_open(streaming_open),
       m_stream_sealed(!streaming_open),
       m_stream_truncated(false) {
@@ -321,7 +324,12 @@ bool Event_set_fetchable_memory::is_error() const {
   return m_status == Return_status::error;
 }
 
-Event_set_fetchable_memory::~Event_set_fetchable_memory() {}
+Event_set_fetchable_memory::~Event_set_fetchable_memory() {
+  // The last owner (payload or job) is gone. Free the event buffers first, so
+  // the receiver cannot admit into the budget while they are still resident.
+  m_events.clear();
+  if (m_owner_queue != nullptr) m_owner_queue->release_bytes(m_reserved_bytes);
+}
 
 void Event_set_fetchable_memory::reset(bool reset_events) {
   std::lock_guard<std::mutex> lock(m_stream_mutex);

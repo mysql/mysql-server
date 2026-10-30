@@ -567,8 +567,9 @@ TEST(ImrQueueLifecycleTest, SweepReclaimsContiguousCommittedAndTruncated) {
 
 // Lifetime: the sweep may destroy a truncated envelope while an in-flight
 // worker still references the transaction via its
-// shared_ptr<Fetchable_transaction>. Dropping the envelope releases the payload
-// bytes but must not invalidate the still-held byte source. The truncated path
+// shared_ptr<Fetchable_transaction>. Dropping the envelope must not invalidate
+// the still-held byte source, which keeps its memory reservation until the
+// worker drops it (F20). The truncated path
 // never calls the sink's set_success() (the only m_envelope deref), so the
 // dangling back-pointer is never followed -- exercised here by keeping the
 // fetchable alive across the sweep and using it afterwards.
@@ -595,13 +596,15 @@ TEST(ImrQueueLifecycleTest,
   EXPECT_FALSE(queue.sweep_committed());
   EXPECT_EQ(queue.commit_seqno(), 1u);
   EXPECT_EQ(queue.queue_length(), 0u);
-  EXPECT_EQ(queue.bytes_used(), 0u);  // payload bytes released exactly once
+  // The worker's byte source still holds the event buffers and the bytes.
+  EXPECT_EQ(queue.bytes_used(), 11u);
 
   // The byte source is still alive through worker_ref and safely usable; this
   // touches the sink WITHOUT going through set_success()/m_envelope.
   EXPECT_TRUE(worker_ref->is_trx());
 
   worker_ref.reset();  // last reference: byte source destroyed cleanly.
+  EXPECT_EQ(queue.bytes_used(), 0u);  // released exactly once
 }
 
 }  // namespace mysql::csa::unittests

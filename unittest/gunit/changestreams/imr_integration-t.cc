@@ -354,12 +354,12 @@ TEST_F(Imr_integration_test, EndToEndMemoryPathDispatchCommitSweep) {
 
   // 6) Fire the commit hook via the Fetchable_transaction, which fans out to
   //    the single byte source's set_success() and drives env->commit(): the
-  //    envelope becomes committed, its payload is nulled, and the reserved
-  //    bytes are released back to the queue counter.
+  //    envelope becomes committed and its payload is nulled. The byte source,
+  //    and so its reservation, lives on in the job's and our copies.
   fetchable->set_success();
   EXPECT_TRUE(env->is_committed());
   EXPECT_EQ(env->payload(), nullptr);
-  EXPECT_EQ(queue.bytes_used(), 0u);
+  EXPECT_EQ(queue.bytes_used(), kTrxLength);
 
   // The Job_applier still holds its own shared_ptr copy of the
   // Fetchable_transaction, independent of the now-dropped envelope payload.
@@ -369,14 +369,15 @@ TEST_F(Imr_integration_test, EndToEndMemoryPathDispatchCommitSweep) {
   //    commit_seqno advances. After the sweep, env dangles — do not touch it.
   EXPECT_FALSE(queue.sweep_committed());
   EXPECT_EQ(queue.commit_seqno(), 1u);
-
-  // The byte counter has returned to zero and the queue is drained, so the
-  // queue destructor's "empty deque / bytes_used() == 0" invariant holds.
-  EXPECT_EQ(queue.bytes_used(), 0u);
+  EXPECT_EQ(queue.bytes_used(), kTrxLength);
 
   // Releasing the job drops its reference; only our local copy remains.
   delete job;
   EXPECT_EQ(fetchable.use_count(), 1);
+
+  // The last copy frees the event buffers and returns the reservation.
+  fetchable.reset();
+  EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
 // Concurrency property test for out-of-order commit. This mirrors the real
@@ -576,8 +577,8 @@ TEST_F(Imr_integration_test, ConcurrentOutOfOrderCommitSweep) {
 // echoed in every assertion so any failure reproduces exactly.
 //
 // Property — every appended event is consumed exactly once and in append order
-// regardless of producer/consumer interleaving; after commit + sweep
-// bytes_used() returns to 0.
+// regardless of producer/consumer interleaving; once the consumer drops its
+// copy after the commit, bytes_used() returns to 0.
 TEST_F(Imr_integration_test, ConcurrentStreamingIntoOpenEnvelope) {
   // Generous bounds so enqueue() takes the MEMORY path and never blocks in
   // admission — the property under test is streaming/consumption ordering, not
@@ -617,6 +618,7 @@ TEST_F(Imr_integration_test, ConcurrentStreamingIntoOpenEnvelope) {
   std::vector<Log_event *> fetched;
   std::atomic<bool> consumer_saw_committed{false};
   std::atomic<std::size_t> bytes_after_commit{~std::size_t{0}};
+  std::atomic<std::size_t> bytes_after_drop{~std::size_t{0}};
   std::atomic<bool> consumer_fetch_done{false};
   std::atomic<bool> consumer_fetch_error{true};
 
@@ -686,12 +688,15 @@ TEST_F(Imr_integration_test, ConcurrentStreamingIntoOpenEnvelope) {
                                std::memory_order_relaxed);
 
     // Commit through the byte-source commit hook: set_success() fans out to the
-    // single batch, driving env->commit() (mark committed + reset payload,
-    // releasing the reserved bytes) under only the per-envelope mutex.
+    // single batch, driving env->commit() (mark committed + reset payload)
+    // under only the per-envelope mutex. The reservation follows the byte
+    // source, so it is released only when this copy, the last owner, goes.
     fetchable->set_success();
     consumer_saw_committed.store(env->is_committed(),
                                  std::memory_order_relaxed);
     bytes_after_commit.store(queue.bytes_used(), std::memory_order_relaxed);
+    fetchable.reset();
+    bytes_after_drop.store(queue.bytes_used(), std::memory_order_relaxed);
   });
 
   producer.join();
@@ -707,9 +712,11 @@ TEST_F(Imr_integration_test, ConcurrentStreamingIntoOpenEnvelope) {
       << "seed=" << kSeed << " (stream must reach clean end-of-stream)";
   EXPECT_FALSE(consumer_fetch_error.load()) << "seed=" << kSeed;
 
-  // The commit hook committed the envelope and released the reserved bytes.
+  // The commit hook committed the envelope; the consumer's copy kept the bytes
+  // reserved until it was dropped.
   EXPECT_TRUE(consumer_saw_committed.load()) << "seed=" << kSeed;
-  EXPECT_EQ(bytes_after_commit.load(), 0u) << "seed=" << kSeed;
+  EXPECT_EQ(bytes_after_commit.load(), kTrxLength) << "seed=" << kSeed;
+  EXPECT_EQ(bytes_after_drop.load(), 0u) << "seed=" << kSeed;
 
   // Coordinator sweep drains the committed head; bytes stay at 0 and the queue
   // empties (all three cursors reach 1). After the sweep env dangles — do not
@@ -801,18 +808,20 @@ TEST_F(Imr_integration_test, ReceiverHooksToCoordinatorCommitSweep) {
   // a shared reference to the same Fetchable_transaction, so the byte source
   // is alive here.
   static_cast<Event_set_fetchable_memory *>(byte_source)->set_success();
-  EXPECT_EQ(queue.bytes_used(), 0u)
-      << "commit resets the payload, releasing the reserved bytes";
+  EXPECT_EQ(queue.bytes_used(), kTrxLength)
+      << "commit resets the payload, but the job still holds the byte source "
+         "and its reservation";
 
   // --- coordinator sweep ---
   // The contiguous committed head is dequeued and commit_seqno advances. After
   // the sweep the envelope dangles -- do not touch it.
   EXPECT_FALSE(queue.sweep_committed());
   EXPECT_EQ(queue.commit_seqno(), 1u) << "the committed head is swept";
-  EXPECT_EQ(queue.bytes_used(), 0u);
+  EXPECT_EQ(queue.bytes_used(), kTrxLength);
 
-  // Queue is empty with bytes_used()==0, so the destructor invariant holds.
+  // The finished job is dropped: the byte source returns the reservation.
   delete job;
+  EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
 // Truncation: a transaction cut short mid-stream is truncated (never

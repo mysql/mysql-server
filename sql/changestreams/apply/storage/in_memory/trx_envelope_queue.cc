@@ -64,8 +64,8 @@ Trx_envelope_queue::Trx_envelope_queue(std::size_t memory_limit,
 }
 
 Trx_envelope_queue::~Trx_envelope_queue() {
-  // No memory-bytes assert here: m_envelopes.empty() implies every Trx_payload
-  // (and its reservation) is gone.
+  // No memory-bytes assert here; reset() checks that no byte source outlived
+  // the envelopes.
   assert(m_envelopes.empty());
 }
 
@@ -336,8 +336,8 @@ void Trx_envelope_queue::add_bytes(std::size_t n) {
 }
 
 void Trx_envelope_queue::release_bytes(std::size_t n) {
-  // Called by ~Trx_payload, possibly on the applier thread; a spill payload
-  // passes 0.
+  // Called by ~Event_set_fetchable_memory on whichever thread drops the last
+  // owner: the coordinator (sweep, dropped job) or a worker (finished job).
   if (m_memory_resource == nullptr) return;  // tracking off
   Resource_instance_monitor::release_resource(*m_memory_resource, n);
 }
@@ -397,9 +397,11 @@ void Trx_envelope_queue::reset() {
   // A failed delete during the clear above only logs its warning.
   m_spill_delete_failed.store(false);
   assert_cursor_invariant();  // empty deque with 0/0/0 cursors
-  // Clearing m_envelopes destroyed every payload, releasing its reservation,
-  // and every spill writer, which updated the spill gauges. So the gauges are
-  // not force-zeroed: a non-zero value means a lost decrement.
+  // With both roles detached no job is left, so clearing m_envelopes dropped
+  // the last owner of every byte source: each memory source released its
+  // reservation and each spill writer updated the spill gauges. So nothing is
+  // force-zeroed: a non-zero value means a lost release or a leaked owner.
+  assert(bytes_used() == 0);
   assert(m_spill_bytes_used.load() == 0);
   assert(m_spill_file_count.load() == 0);
 }

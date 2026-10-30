@@ -460,10 +460,8 @@ TEST(ImrTransactionEnvelopeTest, CreateSpillDestinationLiveSinkNoReservation) {
   EXPECT_FALSE(spill->is_error()) << spill->get_error_str();
   EXPECT_FALSE(spill->spill_file_name().empty());
 
-  // The spill path reserves zero bytes — the counter is unchanged and
-  // the payload's accounted size is zero.
+  // The spill path reserves zero memory bytes: the counter is unchanged.
   EXPECT_EQ(queue.bytes_used(), before);
-  EXPECT_EQ(env.payload()->byte_size(), static_cast<std::size_t>(0));
 
   // Committing the (unheld) spill envelope drops its payload, which releases
   // zero memory bytes, leaving the counter at zero.

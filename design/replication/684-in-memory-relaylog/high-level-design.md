@@ -27,7 +27,7 @@ Trx_payload {                      // heavy — carries the encoded events, live
 }
 ```
 
-`Transaction_envelope` is the lightweight entry used for ordering and re-dispatch. `Trx_payload` is the heavy object that wraps the existing CSA `Fetchable_transaction`. The encoded bytes are held in the `Event_set_fetchable` batch. The per-channel memory usage is tracked by the channel's `Resource_instance_monitor`, on a resource dedicated to the in-memory relaylog. `Trx_payload` ties the accounting to its lifetime with RAII: admission reserves `trx_length` on that resource when the payload is built, and the payload's destructor releases it at commit.
+`Transaction_envelope` is the lightweight entry used for ordering and re-dispatch. `Trx_payload` is the heavy object that wraps the existing CSA `Fetchable_transaction`. The encoded bytes are held in the `Event_set_fetchable` batch. The per-channel memory usage is tracked by the channel's `Resource_instance_monitor`, on a resource dedicated to the in-memory relaylog. The transaction's byte source ties the accounting to its lifetime with RAII: admission reserves `trx_length` on that resource before the byte source is built, and the byte source's destructor releases it when the last owner of the `Fetchable_transaction` (the payload or a worker's job) drops it.
 The `Transaction_envelope` slot holds its `payload` reference until commit. After commit, the memory allocation ends, and the payload is reset while the empty `Transaction_envelope` slot lingers in the queue until the commit low-water mark advances. This avoids head-of-line memory blocking when transactions commit with `replica_preserve_commit_order=OFF`.
 
 Receiver (IO thread)
@@ -80,7 +80,7 @@ Ownership
 
 Trx_payload
 
-`Trx_payload` carries the byte stream `Fetchable_transaction` of each transaction with RAII (Resource Acquisition Is Initialization) memory-usage accounting. The owner of the `Fetchable_transaction` changes as the transaction moves through different phases:
+`Trx_payload` carries the byte stream `Fetchable_transaction` of each transaction; its byte source holds the RAII (Resource Acquisition Is Initialization) memory-usage accounting. The owner of the `Fetchable_transaction` changes as the transaction moves through different phases:
 Open (IO thread still receiving): held by the `Transaction_envelope` entry in the queue. The receiver keeps non-owning pointers to the envelope and its byte source while it appends, and its hold on the envelope keeps both alive.
 Sealed, not yet dispatched (fully received, waiting in the deque): held by the `Transaction_envelope` entry only; the receiver released its hold after sealing the byte source.
 Dispatched, applying (in-flight): held by the `Transaction_envelope` entry and the `Job_applier` (a copy taken at dispatch).

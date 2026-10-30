@@ -54,8 +54,9 @@ class Streaming_event_sink;
 /// exists exactly when the channel's persisted IMR selection is ON and the
 /// channel is CSA-enabled.
 ///
-/// The queue is held by value for a stable address, so every Trx_payload keeps
-/// a plain back-pointer to it without reference counting. The runtime is
+/// The queue is held by value for a stable address, so every memory byte
+/// source and spill file writer keeps a plain back-pointer to it without
+/// reference counting. The runtime is
 /// rebuilt only with both roles detached and the queue empty.
 class Imr_runtime {
  public:

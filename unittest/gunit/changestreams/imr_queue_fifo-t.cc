@@ -542,7 +542,6 @@ TEST(ImrQueueFifoTest, EnqueueSpillCreatesSpillDestinationNoReservation) {
 
   // The spill path never charges the memory budget.
   EXPECT_EQ(queue.bytes_used(), 0u);
-  EXPECT_EQ(env->payload()->byte_size(), static_cast<std::size_t>(0));
 
   drain_queue(queue, {env});
   EXPECT_EQ(queue.bytes_used(), 0u);

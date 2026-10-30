@@ -33,18 +33,9 @@
 namespace mysql::csa {
 
 Trx_payload::Trx_payload(std::shared_ptr<Fetchable_transaction> trx,
-                         std::size_t trx_length,
-                         Trx_envelope_queue *owner_queue)
-    : m_trx(std::move(trx)),
-      m_trx_length(trx_length),
-      m_owner_queue(owner_queue) {
-  // The reservation was taken at admission; nothing to reserve here.
-}
-
-Trx_payload::~Trx_payload() {
-  // Release the reservation taken at admission (0 bytes for spill).
-  m_owner_queue->release_bytes(m_trx_length);
-}
+                         Streaming_event_sink *sink,
+                         std::shared_ptr<Format_description_log_event> fde)
+    : m_trx(std::move(trx)), m_sink(sink), m_fde(std::move(fde)) {}
 
 std::unique_ptr<Trx_payload> Trx_payload::create_memory(
     bool is_trx, std::shared_ptr<Format_description_log_event> fde,
@@ -54,9 +45,12 @@ std::unique_ptr<Trx_payload> Trx_payload::create_memory(
   if (owner_queue->acquire_admission(trx_length, Envelope_path::MEMORY)) {
     return nullptr;
   }
+  // The byte source owns the reservation, as the spill writer owns its disk
+  // reservation: a job may hold the events after the sweep drops the payload.
   auto src = std::make_unique<Event_set_fetchable_memory>(
       is_trx, fde, owner_envelope, /*streaming_open=*/true,
-      owner_queue->channel_instance_id(), owner_queue->applier_stop_flag());
+      owner_queue->channel_instance_id(), owner_queue->applier_stop_flag(),
+      owner_queue, /*reserved_bytes=*/trx_length);
   // Keep both pointers before the unique_ptr is moved.
   Event_set_fetchable_memory *mem_src = src.get();
   Streaming_event_sink *sink = mem_src;
@@ -69,11 +63,7 @@ std::unique_ptr<Trx_payload> Trx_payload::create_memory(
   // Link the batch back to its transaction so truncating the stream
   // also marks the transaction truncated.
   mem_src->set_owning_fetchable(trx.get());
-  auto payload =
-      std::make_unique<Trx_payload>(std::move(trx), trx_length, owner_queue);
-  payload->m_sink = sink;
-  payload->m_fde = std::move(fde);
-  return payload;
+  return std::make_unique<Trx_payload>(std::move(trx), sink, std::move(fde));
 }
 
 std::unique_ptr<Trx_payload> Trx_payload::create_spill(
@@ -84,8 +74,9 @@ std::unique_ptr<Trx_payload> Trx_payload::create_spill(
   if (owner_queue->acquire_admission(trx_length, Envelope_path::SPILL)) {
     return nullptr;
   }
-  // owner_queue lets the writer keep the spill gauges current. The writer owns
-  // the disk reservation and releases it after deleting the file.
+  // owner_queue lets the writer keep the spill gauges current. The byte source
+  // hands the disk reservation to its writer, which releases it after deleting
+  // the file.
   auto src = std::make_unique<Event_set_fetchable_spill>(
       is_trx, fde, owner_queue->relay_log_dir(), owner_envelope,
       /*streaming_open=*/true, owner_queue->channel_name(), owner_queue,
@@ -98,12 +89,7 @@ std::unique_ptr<Trx_payload> Trx_payload::create_spill(
   // See create_memory(): completeness is signalled at the normal seal, not
   // here.
   spill_src->set_owning_fetchable(trx.get());
-  // A spill payload holds no memory reservation.
-  auto payload = std::make_unique<Trx_payload>(std::move(trx), /*trx_length=*/0,
-                                               owner_queue);
-  payload->m_sink = sink;
-  payload->m_fde = std::move(fde);
-  return payload;
+  return std::make_unique<Trx_payload>(std::move(trx), sink, std::move(fde));
 }
 
 }  // namespace mysql::csa

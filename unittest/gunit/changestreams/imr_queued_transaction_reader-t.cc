@@ -23,6 +23,7 @@
 */
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <chrono>
 #include <future>
 #include <memory>
@@ -153,12 +154,14 @@ class Queued_transaction_reader_test : public ::testing::Test {
 
   // Commits the envelope and drains the queue so the queue destructor's "no
   // live payloads / bytes_used()==0" invariant holds when the local queue goes
-  // out of scope. commit() releases the reserved bytes; reset() then drops the
-  // entry. reset() (the production full-stop drain) is used rather than
-  // sweep_committed() because some callers never dispatch the envelope (e.g. a
-  // reader stopped before read()), and sweep_committed() refuses to advance the
-  // commit mark past the dispatch cursor -- it would leave an undispatched
-  // envelope in place. After this call env dangles - do not touch it.
+  // out of scope. commit() drops the payload and reset() the entry; the bytes
+  // return when the byte source's last owner goes, so callers drop their jobs
+  // and copies first. reset() (the production full-stop drain) is used rather
+  // than sweep_committed() because some callers never dispatch the envelope
+  // (e.g. a reader stopped before read()), and sweep_committed() refuses to
+  // advance the commit mark past the dispatch cursor -- it would leave an
+  // undispatched envelope in place. After this call env dangles - do not touch
+  // it.
   void drain(Trx_envelope_queue *queue, Transaction_envelope *env) {
     EXPECT_FALSE(env->commit());
     queue->reset();
@@ -201,6 +204,7 @@ TEST_F(Queued_transaction_reader_test, ReadBuildsJobAndAdvancesCursor) {
   EXPECT_FALSE(fetchable->is_fetching_error());
 
   delete job;
+  fetchable.reset();  // the last owner: reset() asserts no byte source is left
   drain(&queue, env);
 }
 
@@ -330,6 +334,9 @@ TEST_F(Queued_transaction_reader_test, ReadSkipsCommittedOutOfOrderEnvelope) {
   EXPECT_FALSE(e1->commit());
   EXPECT_FALSE(e3->commit());
   EXPECT_FALSE(queue.sweep_committed());
+  // f3, the last owner of e3's byte source, holds e3's bytes until dropped.
+  EXPECT_EQ(queue.bytes_used(), kTrxLength);
+  f3.reset();
   EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
@@ -445,6 +452,7 @@ TEST_F(Queued_transaction_reader_test,
       << fetchable->get_fetch_error_msg();
 
   delete job;
+  fetchable.reset();  // the last owner: reset() asserts no byte source is left
   drain(&queue, env);
 }
 
@@ -520,6 +528,132 @@ TEST_F(Queued_transaction_reader_test, SpillDeleteFailureStopsReaderOnce) {
 
   delete job;
   drain(&queue, env);
+}
+
+// F20, end to end through the real receiver helpers and read(). The memory
+// limit fits exactly one transaction. read() builds a Job_applier for it; the
+// job stands in for a worker blocked inside apply_event() (for example on a
+// row lock). The receiver then truncates the open group (STOP REPLICA
+// IO_THREAD, or a new GTID on reconnect), and the next read() sweeps the
+// envelope. While the job still holds the transaction and its event buffers,
+// the reservation must stay charged, so In_Memory_Relay_Log_Space keeps
+// counting it and a replacement transaction is not admitted beyond
+// IN_MEMORY_RELAYLOG_LIMIT.
+TEST_F(Queued_transaction_reader_test,
+       TruncatedJobKeepsMemoryReservationAfterSweep) {
+  constexpr std::size_t kLimit = kTrxLength;
+  Trx_envelope_queue queue(kLimit, kSpillThreshold,
+                           test_memory_resource(kLimit));
+  // mi-owned queue defaults to stopped; arm it for the test.
+  resume_both_roles(queue);
+
+  // The receiver opens e1 and streams its first event, as raw bytes copied
+  // into the byte source (Cached_event_memory).
+  Open_group group;
+  ASSERT_FALSE(open_transaction(queue, group, make_fde(), kTrxLength));
+  Transaction_envelope *e1 = group.envelope;
+  ASSERT_NE(e1, nullptr);
+  const auto bytes = serialize_event();
+  ASSERT_FALSE(append_transaction_event(
+      group, reinterpret_cast<const char *>(bytes.data()), bytes.size(),
+      /*is_terminal=*/false));
+  ASSERT_EQ(queue.bytes_used(), kTrxLength);
+  std::weak_ptr<Fetchable_transaction> f1 = e1->payload()->fetchable();
+
+  // The coordinator dispatches e1 and hands the job to a worker.
+  auto reader = make_reader(&queue);
+  Job_ptr job = reader->read();
+  ASSERT_NE(job, nullptr);
+  EXPECT_EQ(queue.dispatch_seqno(), 1u);
+
+  // The receiver truncates the open group and releases its hold.
+  truncate_transaction(group);
+  ASSERT_EQ(group.envelope, nullptr);
+
+  // The coordinator's next read() sweeps the truncated head. Nothing else is
+  // queued, so it returns no job after one idle poll.
+  EXPECT_EQ(reader->read(), nullptr);
+  EXPECT_EQ(queue.queue_length(), 0u) << "the truncated envelope is swept";
+  EXPECT_EQ(queue.commit_seqno(), 1u);
+
+  // The job still owns the transaction and its event buffers.
+  ASSERT_FALSE(f1.expired()) << "the job keeps the transaction alive";
+  EXPECT_TRUE(f1.lock()->is_truncated());
+
+  // In_Memory_Relay_Log_Space (Imr_runtime::bytes_used()) must still count it.
+  EXPECT_EQ(queue.bytes_used(), kTrxLength)
+      << "In_Memory_Relay_Log_Space dropped while the job still holds the "
+         "transaction's event buffers";
+  // The receiver must not admit a replacement into the budget the job still
+  // occupies.
+  EXPECT_FALSE(queue.is_admissible(kTrxLength))
+      << "a new memory transaction is admissible while the job still holds "
+         "the full limit";
+
+  // The worker notices the truncation, rolls back and drops the job.
+  delete job;
+  EXPECT_TRUE(f1.expired());
+  EXPECT_EQ(queue.bytes_used(), 0u);
+  EXPECT_EQ(queue.queue_length(), 0u);
+}
+
+// F20: the reservation of a truncated, swept transaction is released when its
+// job is dropped, which may happen on a worker thread. A receiver blocked in
+// admission for that budget must then proceed. Admission polls (see
+// kAdmissionPollInterval), so no notify is needed; this pins that.
+TEST_F(Queued_transaction_reader_test,
+       ReceiverAdmissionProceedsWhenTruncatedJobIsDropped) {
+  constexpr std::size_t kLimit = kTrxLength;
+  Trx_envelope_queue queue(kLimit, kSpillThreshold,
+                           test_memory_resource(kLimit));
+  resume_both_roles(queue);
+
+  // e1 fills the limit, is dispatched to a job, truncated and swept.
+  Open_group group;
+  ASSERT_FALSE(open_transaction(queue, group, make_fde(), kTrxLength));
+  const auto bytes = serialize_event();
+  ASSERT_FALSE(append_transaction_event(
+      group, reinterpret_cast<const char *>(bytes.data()), bytes.size(),
+      /*is_terminal=*/false));
+  auto reader = make_reader(&queue);
+  Job_ptr job = reader->read();
+  ASSERT_NE(job, nullptr);
+  truncate_transaction(group);
+  EXPECT_EQ(reader->read(), nullptr);
+  ASSERT_EQ(queue.queue_length(), 0u);
+  ASSERT_EQ(queue.bytes_used(), kTrxLength);
+
+  // The receiver's next transaction waits for the budget the job holds.
+  Open_group group2;
+  std::atomic<bool> admitted{false};
+  std::thread receiver([&] {
+    const bool stopped =
+        open_transaction(queue, group2, make_fde(), kTrxLength);
+    EXPECT_FALSE(stopped);
+    admitted.store(true);
+  });
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_FALSE(admitted.load())
+      << "admitted while the job still holds the whole limit";
+
+  // A worker drops the job: its byte source releases the reservation.
+  std::thread worker([&] { delete job; });
+  worker.join();
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  while (!admitted.load() && std::chrono::steady_clock::now() < deadline)
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  EXPECT_TRUE(admitted.load())
+      << "the receiver did not proceed after the job was dropped";
+  if (!admitted.load())
+    queue.stop(Trx_envelope_queue::Scope::RECEIVER);  // no hang
+  receiver.join();
+
+  // Only the new transaction is charged; dropping it balances to 0.
+  EXPECT_EQ(queue.bytes_used(), kTrxLength);
+  truncate_transaction(group2);
+  queue.reset();
+  EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
 }  // namespace mysql::csa::unittests

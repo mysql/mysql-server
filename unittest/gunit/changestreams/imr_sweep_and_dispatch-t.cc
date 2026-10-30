@@ -45,6 +45,8 @@
 #include <memory>
 #include <thread>
 
+#include "sql/changestreams/apply/jobs/fetchable_transaction.h"
+#include "sql/changestreams/apply/storage/common/streaming_event_sink.h"
 #include "sql/changestreams/apply/storage/in_memory/imr_types.h"
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
@@ -332,6 +334,80 @@ TEST(ImrSweepAndDispatchTest, HeldTruncatedHeadIsNotSweptUntilReleased) {
   EXPECT_FALSE(queue.sweep_committed());
   EXPECT_EQ(queue.queue_length(), 0u);
   EXPECT_EQ(queue.commit_seqno(), 1u);
+  EXPECT_EQ(queue.bytes_used(), 0u);
+}
+
+// F20: a dispatched memory transaction whose job still holds the
+// Fetchable_transaction (a worker blocked in apply_event()) is truncated by the
+// receiver and released. The sweep then reclaims the envelope, but the job's
+// copy still owns the byte source and every event buffer, so the memory
+// reservation must stay charged until that copy is dropped.
+TEST(ImrSweepAndDispatchTest, TruncatedHeadKeepsReservationWhileJobHoldsIt) {
+  Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
+                           test_memory_resource(kMemoryLimit));
+  resume_both_roles(queue);
+
+  constexpr std::size_t kTrxLength = 11;
+  Transaction_envelope *env =
+      queue.enqueue(kTrxLength, true, make_fde(), /*receiver_held=*/true);
+  ASSERT_NE(env, nullptr);
+  ASSERT_EQ(queue.dispatch_next(), env);
+  ASSERT_NE(env->payload(), nullptr);
+  // The job's copy (Queued_transaction_reader::read() hands one to the
+  // Job_applier).
+  std::shared_ptr<Fetchable_transaction> job_copy = env->payload()->fetchable();
+  ASSERT_NE(job_copy, nullptr);
+  ASSERT_EQ(queue.bytes_used(), kTrxLength);
+
+  // The receiver truncates the open group and releases its hold, as
+  // truncate_transaction() does on STOP REPLICA IO_THREAD or a reconnect.
+  ASSERT_NE(env->current_sink(), nullptr);
+  env->current_sink()->set_stream_truncated();
+  env->release_receiver();
+
+  // The coordinator's sweep reclaims the dispatched, truncated head.
+  EXPECT_FALSE(queue.sweep_committed());
+  EXPECT_EQ(queue.queue_length(), 0u) << "the truncated head is swept";
+  EXPECT_EQ(queue.commit_seqno(), 1u);
+  // The job's copy is now the only owner of the byte source and its buffers.
+  EXPECT_EQ(job_copy.use_count(), 1);
+  EXPECT_TRUE(job_copy->is_truncated());
+  EXPECT_EQ(queue.bytes_used(), kTrxLength)
+      << "the reservation was released while a job still holds the "
+         "transaction's event buffers";
+
+  // The worker notices the truncation, rolls back and drops the job.
+  job_copy.reset();
+  EXPECT_EQ(queue.bytes_used(), 0u);
+}
+
+// F20, commit path: the commit hook drops the payload, but the worker's job
+// still holds the byte source until the task ends. The reservation follows the
+// buffers, so it is released when the job's copy goes, and balances to 0.
+TEST(ImrSweepAndDispatchTest, CommittedHeadKeepsReservationUntilJobDrops) {
+  Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
+                           test_memory_resource(kMemoryLimit));
+  resume_both_roles(queue);
+
+  constexpr std::size_t kTrxLength = 11;
+  Transaction_envelope *env =
+      queue.enqueue(kTrxLength, true, make_fde(), /*receiver_held=*/false);
+  ASSERT_NE(env, nullptr);
+  ASSERT_EQ(queue.dispatch_next(), env);
+  std::shared_ptr<Fetchable_transaction> job_copy = env->payload()->fetchable();
+  ASSERT_NE(job_copy, nullptr);
+
+  ASSERT_FALSE(env->commit());
+  EXPECT_EQ(env->payload(), nullptr) << "commit drops the unheld payload";
+  EXPECT_EQ(job_copy.use_count(), 1);
+  EXPECT_EQ(queue.bytes_used(), kTrxLength)
+      << "released before the job dropped the event buffers";
+
+  EXPECT_FALSE(queue.sweep_committed());
+  EXPECT_EQ(queue.queue_length(), 0u);
+  EXPECT_EQ(queue.bytes_used(), kTrxLength);
+
+  job_copy.reset();
   EXPECT_EQ(queue.bytes_used(), 0u);
 }
 

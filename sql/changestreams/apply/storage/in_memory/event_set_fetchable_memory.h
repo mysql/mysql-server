@@ -44,11 +44,14 @@ namespace mysql::csa {
 
 class Transaction_envelope;
 class Fetchable_transaction;
+class Trx_envelope_queue;
 
 /// @brief In-memory transaction byte source with a commit hook.
 ///
 /// Memory-path counterpart of Event_set_fetchable_cache: holds a transaction's
-/// encoded events in RAM and serves them through Event_set_fetchable.
+/// encoded events in RAM and serves them through Event_set_fetchable. It owns
+/// the transaction's memory reservation, so the reservation lives as long as
+/// the event buffers, whoever (payload or job) drops them last.
 class Event_set_fetchable_memory : public Event_set_fetchable,
                                    public Streaming_event_sink {
  public:
@@ -71,11 +74,17 @@ class Event_set_fetchable_memory : public Event_set_fetchable,
   /// @param streaming_open If true, appends are accepted until seal/truncate.
   /// @param stats_instance_id Channel whose CSA statistics count the commit.
   /// @param applier_stop Polled by wait_next(); nullptr waits untimed.
+  /// @param owner_queue Queue charged for @p reserved_bytes; nullable (tests).
+  ///        Must outlive this byte source.
+  /// @param reserved_bytes Admission's memory reservation, released to
+  ///        @p owner_queue by the destructor after the event buffers are freed.
   Event_set_fetchable_memory(bool is_trx, Log_event_ptr fde,
                              Transaction_envelope *owner_envelope,
                              bool streaming_open = true,
                              std::size_t stats_instance_id = 0,
-                             const std::atomic<bool> *applier_stop = nullptr);
+                             const std::atomic<bool> *applier_stop = nullptr,
+                             Trx_envelope_queue *owner_queue = nullptr,
+                             std::size_t reserved_bytes = 0);
 
   bool wait_next() override;
   std::optional<Managed_event> fetch_next() override;
@@ -178,6 +187,11 @@ class Event_set_fetchable_memory : public Event_set_fetchable,
 
   /// @brief Non-owning pointer to the owning queue's applier stop flag.
   const std::atomic<bool> *m_applier_stop{nullptr};
+
+  /// @brief Non-owning pointer to the queue charged for m_reserved_bytes.
+  Trx_envelope_queue *m_owner_queue{nullptr};
+  /// @brief Memory reservation taken at admission, released by the destructor.
+  std::size_t m_reserved_bytes{0};
 
   /// @brief Stream synchronization state.
   mutable std::mutex m_stream_mutex;

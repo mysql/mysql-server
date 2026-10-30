@@ -23,10 +23,10 @@
 */
 
 /// @file
-/// Unit tests for mysql::csa::Trx_payload, the RAII memory-accounted holder of
-/// one transaction's byte stream. The tests use a real Trx_envelope_queue as
-/// the accounting backend and a default-constructed Fetchable_transaction as
-/// the wrapped byte source.
+/// Unit tests for mysql::csa::Trx_payload, the envelope's reference to one
+/// transaction's byte stream, and for the admission reservation that its
+/// factories hand to the byte source. The tests use a real Trx_envelope_queue
+/// as the accounting backend.
 
 #include <gtest/gtest.h>
 
@@ -46,6 +46,7 @@
 #include "mysql/scheduler/statistics_monitor.h"  // Statistics_monitor
 #include "sql/changestreams/apply/jobs/fetchable_transaction.h"
 #include "sql/changestreams/apply/resource/statistics_map.h"  // Statistics_map
+#include "sql/changestreams/apply/storage/in_memory/event_set_fetchable_memory.h"
 #include "sql/changestreams/apply/storage/in_memory/event_set_fetchable_spill.h"
 #include "sql/changestreams/apply/storage/in_memory/spill_directory.h"  // ensure_spill_directory
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
@@ -97,26 +98,33 @@ std::shared_ptr<Format_description_log_event> make_fde() {
 }
 
 /// Reserve @p trx_length on @p queue's memory path, the same step
-/// Trx_payload::create_memory() performs before constructing a payload. The
-/// Trx_payload constructor does no accounting but its destructor releases
-/// trx_length, so a directly constructed payload must be backed by this
-/// reservation. The reservation must fit (the call is the non-blocking fast
-/// path here) and the queue must be resumed, since admission rejects on a
-/// receiver stop.
+/// Trx_payload::create_memory() performs before building the byte source. The
+/// reservation must fit (the call is the non-blocking fast path here) and the
+/// queue must be resumed, since admission rejects on a receiver stop.
 void reserve(Trx_envelope_queue &queue, std::size_t trx_length) {
   ASSERT_FALSE(queue.acquire_admission(trx_length, Envelope_path::MEMORY))
       << "memory admission of " << trx_length << " bytes must succeed";
 }
+
+/// A memory byte source that owns @p trx_length of @p queue's budget, as
+/// create_memory() builds it after reserve(). Its destructor releases it.
+std::unique_ptr<Event_set_fetchable_memory> reserved_source(
+    Trx_envelope_queue &queue, std::size_t trx_length) {
+  return std::make_unique<Event_set_fetchable_memory>(
+      /*is_trx=*/true, make_fde(), /*owner_envelope=*/nullptr,
+      /*streaming_open=*/true, /*stats_instance_id=*/0,
+      /*applier_stop=*/nullptr, &queue, trx_length);
+}
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// Unit tests: Trx_payload accounting.
+// Unit tests: memory-path accounting (the byte source owns the reservation).
 // ---------------------------------------------------------------------------
 
-// Memory admission reserves exactly trx_length bytes, and the payload
-// built on that reservation holds it for its lifetime. The constructor itself
-// adds nothing (admission already did).
-TEST(ImrTrxPayloadTest, AdmissionReservesTrxLengthHeldByPayload) {
+// Memory admission reserves exactly trx_length bytes, and the byte source
+// built on that reservation holds it for its lifetime. Its constructor adds
+// nothing (admission already did).
+TEST(ImrTrxPayloadTest, AdmissionReservesTrxLengthHeldBySource) {
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
                            test_memory_resource(kMemoryLimit));
   // admission rejects on a receiver stop; arm the queue.
@@ -128,14 +136,13 @@ TEST(ImrTrxPayloadTest, AdmissionReservesTrxLengthHeldByPayload) {
   // Admission took the reservation.
   ASSERT_EQ(queue.bytes_used(), before + trx_length);
   {
-    auto ft = std::make_shared<Fetchable_transaction>();
-    Trx_payload payload(ft, trx_length, &queue);
+    auto src = reserved_source(queue, trx_length);
     // Construction adds nothing on top of the admission reservation.
     EXPECT_EQ(queue.bytes_used(), before + trx_length);
   }
 }
 
-// Destroying a payload releases exactly the reserved amount, so the
+// Destroying the byte source releases exactly the reserved amount, so the
 // counter returns to its value before admission.
 TEST(ImrTrxPayloadTest, DestructionReleasesTrxLength) {
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
@@ -147,8 +154,7 @@ TEST(ImrTrxPayloadTest, DestructionReleasesTrxLength) {
 
   reserve(queue, trx_length);
   {
-    auto ft = std::make_shared<Fetchable_transaction>();
-    Trx_payload payload(ft, trx_length, &queue);
+    auto src = reserved_source(queue, trx_length);
     ASSERT_EQ(queue.bytes_used(), before + trx_length);
   }
 
@@ -156,7 +162,7 @@ TEST(ImrTrxPayloadTest, DestructionReleasesTrxLength) {
   EXPECT_EQ(queue.bytes_used(), before);
 }
 
-// A payload's destruction frees budget that a receiver parked in
+// A byte source's destruction frees budget that a receiver parked in
 // acquire_admission then takes. The release is wait-free (no condition
 // variable); the parked receiver sees the freed budget on its next 1 ms poll.
 // Verified behaviorally.
@@ -166,12 +172,11 @@ TEST(ImrTrxPayloadTest, DestructionUnblocksParkedAdmission) {
   // admission rejects on a receiver stop; arm the queue.
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
 
-  // Fill the budget to exactly the limit with one payload, leaving no room.
-  // A request for trx_length bytes then parks until this payload is destroyed.
+  // Fill the budget to exactly the limit with one byte source, leaving no
+  // room. A request for trx_length bytes then parks until it is destroyed.
   const std::size_t trx_length = kMemoryLimit / 2;
   reserve(queue, kMemoryLimit);
-  auto ft = std::make_shared<Fetchable_transaction>();
-  auto payload = std::make_unique<Trx_payload>(ft, kMemoryLimit, &queue);
+  auto src = reserved_source(queue, kMemoryLimit);
   ASSERT_EQ(queue.bytes_used(), kMemoryLimit);
 
   std::atomic<bool> returned{false};
@@ -189,49 +194,30 @@ TEST(ImrTrxPayloadTest, DestructionUnblocksParkedAdmission) {
   EXPECT_EQ(result_future.wait_for(kShortWait), std::future_status::timeout);
   EXPECT_FALSE(returned.load());
 
-  // Destroying the payload releases kMemoryLimit bytes; the parked waiter's
-  // next poll then fits and acquires admission.
-  payload.reset();
+  // Destroying the byte source releases kMemoryLimit bytes; the parked
+  // waiter's next poll then fits and acquires admission.
+  src.reset();
 
   ASSERT_EQ(result_future.wait_for(kLongWait), std::future_status::ready)
-      << "payload destruction must unblock the parked admission";
+      << "byte source destruction must unblock the parked admission";
   // false == success (admission acquired).
   EXPECT_FALSE(result_future.get());
 
   waiter.join();
   // The waiter's successful admission now holds its own reservation.
   EXPECT_EQ(queue.bytes_used(), trx_length);
-  queue.release_bytes(trx_length);  // no payload owns it; undo by hand.
+  queue.release_bytes(trx_length);  // no byte source owns it; undo by hand.
   EXPECT_EQ(queue.bytes_used(), 0u);
-}
-
-// byte_size() returns the trx_length the payload was constructed with.
-TEST(ImrTrxPayloadTest, ByteSizeReturnsConstructedLength) {
-  Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit));
-  // admission rejects on a receiver stop; arm the queue.
-  queue.resume(Trx_envelope_queue::Scope::RECEIVER);
-  const std::size_t trx_length = 12345;
-  reserve(queue, trx_length);  // the destructor releases trx_length.
-  auto ft = std::make_shared<Fetchable_transaction>();
-  Trx_payload payload(ft, trx_length, &queue);
-
-  EXPECT_EQ(payload.byte_size(), trx_length);
 }
 
 // fetchable() returns a non-null shared_ptr that shares ownership of
 // the same Fetchable_transaction the payload was constructed with.
 TEST(ImrTrxPayloadTest, FetchableSharesOwnership) {
-  Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit));
-  // mi-owned queue defaults to stopped; arm it for the test.
-  queue.resume(Trx_envelope_queue::Scope::RECEIVER);
   auto ft = std::make_shared<Fetchable_transaction>();
   const long use_count_before = ft.use_count();
 
   {
-    reserve(queue, 1024);  // the destructor releases 1024.
-    Trx_payload payload(ft, 1024, &queue);
+    Trx_payload payload(ft, /*sink=*/nullptr, make_fde());
     // Holding the payload adds a shared owner.
     EXPECT_GT(ft.use_count(), use_count_before);
 
@@ -265,11 +251,11 @@ TEST(ImrTrxPayloadTest, CopyAndMoveAreDeleted) {
   EXPECT_FALSE(std::is_move_assignable_v<Trx_payload>);
 }
 
-// A payload releases its bytes exactly once, only on destruction.
-// Since the payload is neither copyable nor movable and owns its reservation
-// for its whole lifetime, a single admit/construct/destruct cycle returns the
-// counter to its baseline with no residual and no double release. (Repeated
-// across a batch of payloads to guard against any drift.)
+// A memory byte source releases its bytes exactly once, only on destruction.
+// It is neither copyable nor movable and owns its reservation for its whole
+// lifetime, so a single admit/construct/destruct cycle returns the counter to
+// its baseline with no residual and no double release. (Repeated across a
+// batch of byte sources to guard against any drift.)
 TEST(ImrTrxPayloadTest, ReleaseHappensExactlyOnceOnDestruction) {
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
                            test_memory_resource(kMemoryLimit));
@@ -281,8 +267,7 @@ TEST(ImrTrxPayloadTest, ReleaseHappensExactlyOnceOnDestruction) {
     const std::size_t trx_length = 1024 * (i + 1);
     {
       reserve(queue, trx_length);
-      auto ft = std::make_shared<Fetchable_transaction>();
-      Trx_payload payload(ft, trx_length, &queue);
+      auto src = reserved_source(queue, trx_length);
       ASSERT_EQ(queue.bytes_used(), baseline + trx_length);
     }
     // Destruction released exactly trx_length: back to baseline every cycle.
@@ -294,22 +279,22 @@ TEST(ImrTrxPayloadTest, ReleaseHappensExactlyOnceOnDestruction) {
 // Property test: counter conservation.
 // ---------------------------------------------------------------------------
 
-// Counter conservation property: over a randomized multiset of Trx_payload
-// lifetimes created and destroyed in RANDOM order, each admission reserves
-// exactly its trx_length (the payload is then built on that reservation, as
-// create_memory() does) and each destruction releases exactly the amount its
-// payload held - independent of the order in which payloads are created versus
-// destroyed. The queue's bytes_used() therefore always
-// equals the sum of the byte_size() of the currently-live payloads, and once
-// every payload has been destroyed bytes_used() returns to 0.
+// Counter conservation property: over a randomized multiset of memory byte
+// source lifetimes created and destroyed in RANDOM order, each admission
+// reserves exactly its trx_length (the byte source is then built on that
+// reservation, as create_memory() does) and each destruction releases exactly
+// the amount its byte source held - independent of the order in which they are
+// created versus destroyed. The queue's bytes_used() therefore always equals
+// the sum of the reservations of the currently-live byte sources, and once
+// every one has been destroyed bytes_used() returns to 0.
 //
 // The MySQL tree does not integrate a property-testing library, so the property
 // is expressed as a deterministically seeded randomized-sequence generator run
 // over many trials. The seed is fixed and echoed in every assertion message so
-// any failure reproduces exactly. Because Trx_payload is neither copyable nor
-// movable, live payloads are pinned on the heap and held via a movable
-// unique_ptr handle so they can be stored in a vector and erased in random
-// order.
+// any failure reproduces exactly. Because the byte source is neither copyable
+// nor movable, live ones are pinned on the heap and held via a movable
+// unique_ptr handle, next to the amount each one reserved, so they can be
+// stored in a vector and erased in random order.
 TEST(ImrTrxPayloadTest, PropertyCounterConservation) {
   // Fixed, deterministic seed so any failure reproduces exactly.
   constexpr std::uint32_t kSeed = 0x5EED1A9Cu;
@@ -333,10 +318,12 @@ TEST(ImrTrxPayloadTest, PropertyCounterConservation) {
   // mi-owned queue defaults to stopped; arm it for the test.
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
 
-  // Live payloads, pinned on the heap. The independent model `expected` mirrors
-  // the sum of the live payloads' byte_size() and must equal bytes_used() after
-  // every single operation.
-  std::vector<std::unique_ptr<Trx_payload>> live;
+  // Live byte sources, pinned on the heap, each with the amount it reserved.
+  // The independent model `expected` mirrors the sum of those amounts and must
+  // equal bytes_used() after every single operation.
+  std::vector<
+      std::pair<std::unique_ptr<Event_set_fetchable_memory>, std::size_t>>
+      live;
   std::size_t expected = 0;
 
   ASSERT_EQ(queue.bytes_used(), expected) << "seed=" << kSeed;
@@ -351,8 +338,7 @@ TEST(ImrTrxPayloadTest, PropertyCounterConservation) {
       const std::size_t before = queue.bytes_used();
 
       reserve(queue, len);
-      auto ft = std::make_shared<Fetchable_transaction>();
-      live.push_back(std::make_unique<Trx_payload>(ft, len, &queue));
+      live.emplace_back(reserved_source(queue, len), len);
       expected += len;
 
       ASSERT_EQ(queue.bytes_used(), before + len)
@@ -360,16 +346,16 @@ TEST(ImrTrxPayloadTest, PropertyCounterConservation) {
       ASSERT_EQ(queue.bytes_used(), expected)
           << "seed=" << kSeed << " trial=" << trial << " len=" << len;
     } else {
-      // DESTROY a random live payload: destruction must lower bytes_used() by
-      // exactly the amount that payload reserved at construction,
-      // regardless of construction order.
+      // DESTROY a random live byte source: destruction must lower bytes_used()
+      // by exactly the amount it reserved at construction, regardless of
+      // construction order.
       std::uniform_int_distribution<std::size_t> idx_dist(0, live.size() - 1);
       const std::size_t idx = idx_dist(rng);
-      const std::size_t amount = live[idx]->byte_size();
+      const std::size_t amount = live[idx].second;
       const std::size_t before = queue.bytes_used();
 
       // Swap-and-pop: moving the unique_ptr handle does not move the pinned
-      // payload; popping it destroys the payload and releases its bytes.
+      // byte source; popping it destroys it and releases its bytes.
       live[idx] = std::move(live.back());
       live.pop_back();
       expected -= amount;
@@ -381,8 +367,8 @@ TEST(ImrTrxPayloadTest, PropertyCounterConservation) {
     }
   }
 
-  // Destroy everything that remains: with no live payloads the counter must be
-  // fully reclaimed to zero.
+  // Destroy everything that remains: with no live byte sources the counter
+  // must be fully reclaimed to zero.
   live.clear();
   expected = 0;
   ASSERT_EQ(queue.bytes_used(), expected) << "seed=" << kSeed;
@@ -393,9 +379,9 @@ TEST(ImrTrxPayloadTest, PropertyCounterConservation) {
 // ---------------------------------------------------------------------------
 
 // create_spill() builds a live spill payload whose sink is reachable and whose
-// backing file exists, reserves ZERO bytes against the queue counter,
-// reports byte_size() == 0, and — on destruction — releases zero (the counter
-// never moves off its prior value).
+// backing file exists, reserves ZERO bytes against the queue's memory counter,
+// and on destruction releases zero (the counter never moves off its prior
+// value).
 TEST(ImrTrxPayloadTest, CreateSpillReservesZeroAndExposesSink) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
@@ -414,8 +400,7 @@ TEST(ImrTrxPayloadTest, CreateSpillReservesZeroAndExposesSink) {
         &env);
     ASSERT_NE(payload, nullptr);
 
-    // Zero reservation.
-    EXPECT_EQ(payload->byte_size(), static_cast<std::size_t>(0));
+    // No memory reservation.
     EXPECT_EQ(queue.bytes_used(), before);
 
     // Reachable, healthy spill sink over a real file.
