@@ -182,7 +182,7 @@ class Event_set_fetchable_memory : public Event_set_fetchable,
   std::size_t m_stats_instance_id{0};
 
   /// @brief Non-owning pointer to the Fetchable_transaction that owns this
-  /// batch (set by Trx_payload::create_memory()).
+  /// batch (set by Transaction_envelope::create_payload()).
   Fetchable_transaction *m_fetchable_trx{nullptr};
 
   /// @brief Non-owning pointer to the owning queue's applier stop flag.

@@ -66,7 +66,6 @@
 #include "sql/changestreams/apply/storage/in_memory/imr_types.h"
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/changestreams/apply/storage/relay_log/ireader_event.h"
 #include "sql/log_event.h"
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
@@ -650,7 +649,7 @@ constexpr std::size_t kSpillThreshold = 1u << 16;  // 64 KiB
 constexpr std::size_t kTrxLength = 4096;
 
 // Enqueue a memory-path envelope. enqueue() itself creates the empty
-// single-batch destination and attaches a Trx_payload reserving kTrxLength
+// single-batch destination and attaches the payload reserving kTrxLength
 // bytes, so the returned envelope is already ready for the commit hook. The
 // commit-hook tests drive commit through a SEPARATE Event_set_fetchable_memory
 // (also owning this envelope); its set_success() commits the envelope and
@@ -693,7 +692,7 @@ TEST(ImrEventSetFetchableMemoryTest,
 
   // The envelope committed exactly once: committed, payload nulled, bytes back.
   EXPECT_TRUE(env->is_committed());
-  EXPECT_EQ(env->payload(), nullptr);
+  EXPECT_EQ(env->fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), 0u);
 
   // Drain so the queue destructor invariant (empty deque, bytes_used() == 0)
@@ -943,10 +942,10 @@ TEST(ImrEventSetFetchableMemoryTest, TruncatedStreamIsNeverMarkedComplete) {
 
 // The completion race, made deterministic: a worker fetches the terminal
 // event inside the hook window, between the moment it becomes visible and the
-// notify. The sink is wired as Trx_payload::create_memory() wires it. The
-// worker must read the event as the last of the transaction; with the old
-// order (seal, then complete) it read false and applied a non-atomic DDL as
-// an ordinary event (job_applier.cpp:418).
+// notify. The sink is wired as Transaction_envelope::create_payload() wires
+// it. The worker must read the event as the last of the transaction; with the
+// old order (seal, then complete) it read false and applied a non-atomic DDL
+// as an ordinary event (job_applier.cpp:418).
 TEST(ImrEventSetFetchableMemoryTest,
      ConsumerInSealWindowSeesLastInTransaction) {
   auto batch = std::make_unique<Event_set_fetchable_memory>(

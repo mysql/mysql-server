@@ -74,7 +74,6 @@
 #include "sql/changestreams/apply/storage/in_memory/spill_directory.h"  // ensure_spill_directory
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/changestreams/apply/storage/relay_log/ireader_event.h"
 #include "sql/log_event.h"
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
@@ -493,7 +492,7 @@ TEST(ImrQueueFifoTest, EnqueueCreatesMemoryDestination) {
   EXPECT_EQ(env->path(), Envelope_path::MEMORY);
 
   // enqueue() attached the payload, so it is non-null on return.
-  ASSERT_NE(env->payload(), nullptr);
+  ASSERT_NE(env->fetchable(), nullptr);
 
   // Exactly trx_length bytes are reserved at enqueue time.
   EXPECT_EQ(queue.bytes_used(), kLen);
@@ -505,7 +504,7 @@ TEST(ImrQueueFifoTest, EnqueueCreatesMemoryDestination) {
       << "the single memory batch must be the enqueue-created sink";
 
   // The wrapped Fetchable_transaction is present and carries is_trx=true.
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   EXPECT_TRUE(fetchable->is_trx());
 
@@ -532,7 +531,7 @@ TEST(ImrQueueFifoTest, EnqueueSpillCreatesSpillDestinationNoReservation) {
   EXPECT_EQ(queue.insert_seqno(), 1u);
 
   // A payload and a reachable spill sink now exist.
-  ASSERT_NE(env->payload(), nullptr);
+  ASSERT_NE(env->fetchable(), nullptr);
   Streaming_event_sink *sink = env->current_sink();
   ASSERT_NE(sink, nullptr);
   auto *spill = dynamic_cast<Event_set_fetchable_spill *>(sink);
@@ -602,14 +601,14 @@ TEST(ImrQueueFifoTest, EnqueueIsTrxFalsePropagates) {
   Transaction_envelope *env = queue.enqueue(kLen, /*is_trx=*/false, make_fde());
   ASSERT_NE(env, nullptr);
   EXPECT_EQ(env->path(), Envelope_path::MEMORY);
-  ASSERT_NE(env->payload(), nullptr);
+  ASSERT_NE(env->fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), kLen);
 
   Streaming_event_sink *sink = env->current_sink();
   ASSERT_NE(sink, nullptr);
   EXPECT_NE(dynamic_cast<Event_set_fetchable_memory *>(sink), nullptr);
 
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   EXPECT_FALSE(fetchable->is_trx());
 
@@ -621,7 +620,7 @@ TEST(ImrQueueFifoTest, EnqueueIsTrxFalsePropagates) {
 // on the terminal event, then drive the fetchable consumer to completion: the
 // events come back in append order and the stream reaches a CLEAN end
 // (is_fetching_done() true, is_fetching_error() false) — proving there is
-// exactly one batch that terminates. create_memory() already sealed the
+// exactly one batch that terminates. create_payload() already sealed the
 // (single-batch) metadata stream via set_fetching_complete(), so it is NOT
 // called again here.
 TEST(ImrQueueFifoTest, EnqueueSingleBatchDrainsCleanly) {
@@ -653,8 +652,8 @@ TEST(ImrQueueFifoTest, EnqueueSingleBatchDrainsCleanly) {
   }
 
   // Drive the consumer surface via the enqueue-created Fetchable_transaction.
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   std::vector<Log_event *> fetched;
@@ -1062,7 +1061,7 @@ TEST(ImrQueueFifoTest, PropertySetBeforeObservableAndSingleBatch) {
         // Set-before-observable: the destination + sink are already
         // present the moment the envelope is observable from the returned
         // pointer — no observable window without a payload/sink.
-        ASSERT_NE(env->payload(), nullptr)
+        ASSERT_NE(env->fetchable(), nullptr)
             << "seed=" << kSeed << " trial=" << trial << " step=" << step
             << " (payload missing on observable envelope)";
         Streaming_event_sink *sink = env->current_sink();
@@ -1076,7 +1075,7 @@ TEST(ImrQueueFifoTest, PropertySetBeforeObservableAndSingleBatch) {
             << " (current sink is not the memory batch)";
 
         // The wrapped Fetchable_transaction exists and round-trips is_trx.
-        auto fetchable = env->payload()->fetchable();
+        auto fetchable = env->fetchable();
         ASSERT_NE(fetchable, nullptr)
             << "seed=" << kSeed << " trial=" << trial << " step=" << step;
         ASSERT_EQ(fetchable->is_trx(), is_trx)
@@ -1183,14 +1182,14 @@ TEST(ImrQueueFifoTest, SweepAndDispatchSkipsCommittedOutOfOrder) {
   // its payload is reset to null. The dispatch cursor now points at e2.
   ASSERT_EQ(queue.dispatch_next(), e1);
   ASSERT_FALSE(e2->commit());
-  ASSERT_EQ(e2->payload(), nullptr);
+  ASSERT_EQ(e2->fetchable(), nullptr);
   ASSERT_EQ(queue.dispatch_seqno(), 1u);
 
   // sweep_and_dispatch() skips the committed e2 and returns e3, advancing the
   // dispatch cursor past BOTH.
   Transaction_envelope *got = queue.sweep_and_dispatch();
   ASSERT_EQ(got, e3);
-  EXPECT_NE(got->payload(), nullptr)
+  EXPECT_NE(got->fetchable(), nullptr)
       << "a dispatched envelope must have a payload";
   EXPECT_EQ(queue.dispatch_seqno(), 3u);
 

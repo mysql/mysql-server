@@ -190,7 +190,7 @@ class Event_set_fetchable_spill : public Event_set_fetchable,
   /// @brief Channel instance id whose CSA statistics set_success() updates.
   std::size_t m_stats_instance_id{0};
   /// @brief Non-owning pointer to the owning Fetchable_transaction (truncate
-  /// propagation), set by Trx_payload::create_spill().
+  /// propagation), set by Transaction_envelope::create_payload().
   Fetchable_transaction *m_fetchable_trx{nullptr};
   /// @brief Non-owning pointer to the owning queue's applier stop flag.
   const std::atomic<bool> *m_applier_stop{nullptr};

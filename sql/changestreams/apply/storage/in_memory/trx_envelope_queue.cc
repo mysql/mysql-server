@@ -277,7 +277,7 @@ bool Trx_envelope_queue::sweep_committed_locked() {
       assert(false);  // still aborts loudly in debug builds
       return true;
     }
-    // Dropping the entry destroys the envelope (and its Trx_payload, if any).
+    // Dropping the entry destroys the envelope (and its payload, if any).
     m_envelopes.pop_front();
     ++m_commit_seqno;
     assert_cursor_invariant();

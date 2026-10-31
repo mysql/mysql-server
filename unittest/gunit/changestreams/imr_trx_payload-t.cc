@@ -23,10 +23,10 @@
 */
 
 /// @file
-/// Unit tests for mysql::csa::Trx_payload, the envelope's reference to one
-/// transaction's byte stream, and for the admission reservation that its
-/// factories hand to the byte source. The tests use a real Trx_envelope_queue
-/// as the accounting backend.
+/// Unit tests for the payload built by Transaction_envelope::create_payload(),
+/// the envelope's reference to one transaction's byte stream, and for the
+/// admission reservation that it hands to the byte source. The tests use a real
+/// Trx_envelope_queue as the accounting backend.
 
 #include <gtest/gtest.h>
 
@@ -40,7 +40,6 @@
 #include <random>
 #include <string>
 #include <thread>
-#include <type_traits>
 #include <vector>
 
 #include "mysql/scheduler/statistics_monitor.h"  // Statistics_monitor
@@ -51,7 +50,6 @@
 #include "sql/changestreams/apply/storage/in_memory/spill_directory.h"  // ensure_spill_directory
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/log_event.h"  // Format_description_log_event
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
 
@@ -98,16 +96,18 @@ std::shared_ptr<Format_description_log_event> make_fde() {
 }
 
 /// Reserve @p trx_length on @p queue's memory path, the same step
-/// Trx_payload::create_memory() performs before building the byte source. The
-/// reservation must fit (the call is the non-blocking fast path here) and the
-/// queue must be resumed, since admission rejects on a receiver stop.
+/// Transaction_envelope::create_payload() performs before building the byte
+/// source. The reservation must fit (the call is the non-blocking fast path
+/// here) and the queue must be resumed, since admission rejects on a receiver
+/// stop.
 void reserve(Trx_envelope_queue &queue, std::size_t trx_length) {
   ASSERT_FALSE(queue.acquire_admission(trx_length, Envelope_path::MEMORY))
       << "memory admission of " << trx_length << " bytes must succeed";
 }
 
 /// A memory byte source that owns @p trx_length of @p queue's budget, as
-/// create_memory() builds it after reserve(). Its destructor releases it.
+/// Transaction_envelope::create_payload() builds it after reserve(). Its
+/// destructor releases it.
 std::unique_ptr<Event_set_fetchable_memory> reserved_source(
     Trx_envelope_queue &queue, std::size_t trx_length) {
   return std::make_unique<Event_set_fetchable_memory>(
@@ -210,47 +210,6 @@ TEST(ImrTrxPayloadTest, DestructionUnblocksParkedAdmission) {
   EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
-// fetchable() returns a non-null shared_ptr that shares ownership of
-// the same Fetchable_transaction the payload was constructed with.
-TEST(ImrTrxPayloadTest, FetchableSharesOwnership) {
-  auto ft = std::make_shared<Fetchable_transaction>();
-  const long use_count_before = ft.use_count();
-
-  {
-    Trx_payload payload(ft, /*sink=*/nullptr, make_fde());
-    // Holding the payload adds a shared owner.
-    EXPECT_GT(ft.use_count(), use_count_before);
-
-    std::shared_ptr<Fetchable_transaction> got = payload.fetchable();
-    ASSERT_NE(got, nullptr);
-    // Same underlying object.
-    EXPECT_EQ(got.get(), ft.get());
-  }
-
-  // The payload dropped its reference; only the test's `ft` remains.
-  EXPECT_EQ(ft.use_count(), use_count_before);
-}
-
-// Compile-time: copy and move are deleted. The payload is pinned
-// inside its owning envelope, so none of these operations may be available.
-static_assert(!std::is_copy_constructible_v<Trx_payload>,
-              "Trx_payload must not be copy constructible");
-static_assert(!std::is_copy_assignable_v<Trx_payload>,
-              "Trx_payload must not be copy assignable");
-static_assert(!std::is_move_constructible_v<Trx_payload>,
-              "Trx_payload must not be move constructible");
-static_assert(!std::is_move_assignable_v<Trx_payload>,
-              "Trx_payload must not be move assignable");
-
-// A runtime test carrying the same static assertions so the check is visible in
-// the test report as well.
-TEST(ImrTrxPayloadTest, CopyAndMoveAreDeleted) {
-  EXPECT_FALSE(std::is_copy_constructible_v<Trx_payload>);
-  EXPECT_FALSE(std::is_copy_assignable_v<Trx_payload>);
-  EXPECT_FALSE(std::is_move_constructible_v<Trx_payload>);
-  EXPECT_FALSE(std::is_move_assignable_v<Trx_payload>);
-}
-
 // A memory byte source releases its bytes exactly once, only on destruction.
 // It is neither copyable nor movable and owns its reservation for its whole
 // lifetime, so a single admit/construct/destruct cycle returns the counter to
@@ -282,11 +241,12 @@ TEST(ImrTrxPayloadTest, ReleaseHappensExactlyOnceOnDestruction) {
 // Counter conservation property: over a randomized multiset of memory byte
 // source lifetimes created and destroyed in RANDOM order, each admission
 // reserves exactly its trx_length (the byte source is then built on that
-// reservation, as create_memory() does) and each destruction releases exactly
-// the amount its byte source held - independent of the order in which they are
-// created versus destroyed. The queue's bytes_used() therefore always equals
-// the sum of the reservations of the currently-live byte sources, and once
-// every one has been destroyed bytes_used() returns to 0.
+// reservation, as Transaction_envelope::create_payload() does) and each
+// destruction releases exactly the amount its byte source held - independent
+// of the order in which they are created versus destroyed. The queue's
+// bytes_used() therefore always equals the sum of the reservations of the
+// currently-live byte sources, and once every one has been destroyed
+// bytes_used() returns to 0.
 //
 // The MySQL tree does not integrate a property-testing library, so the property
 // is expressed as a deterministically seeded randomized-sequence generator run
@@ -375,54 +335,12 @@ TEST(ImrTrxPayloadTest, PropertyCounterConservation) {
 }
 
 // ---------------------------------------------------------------------------
-// Zero-reservation spill payload.
+// Spill payload built by create_payload().
 // ---------------------------------------------------------------------------
 
-// create_spill() builds a live spill payload whose sink is reachable and whose
-// backing file exists, reserves ZERO bytes against the queue's memory counter,
-// and on destruction releases zero (the counter never moves off its prior
-// value).
-TEST(ImrTrxPayloadTest, CreateSpillReservesZeroAndExposesSink) {
-  Scoped_temp_dir relay_dir;
-  Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
-  // create_spill() runs spill admission, which rejects on a receiver stop; a
-  // new queue starts receiver-stopped, so arm it first.
-  queue.resume(Trx_envelope_queue::Scope::RECEIVER);
-  const std::size_t before = queue.bytes_used();
-
-  // A standalone owning envelope for the spill source's commit/truncate target.
-  Transaction_envelope env(/*trx_length=*/0, Envelope_path::SPILL);
-
-  {
-    auto payload = Trx_payload::create_spill(
-        /*is_trx=*/true, make_fde(), /*trx_length=*/kSpillThreshold + 1, &queue,
-        &env);
-    ASSERT_NE(payload, nullptr);
-
-    // No memory reservation.
-    EXPECT_EQ(queue.bytes_used(), before);
-
-    // Reachable, healthy spill sink over a real file.
-    Streaming_event_sink *sink = payload->sink();
-    ASSERT_NE(sink, nullptr);
-    auto *spill = dynamic_cast<Event_set_fetchable_spill *>(sink);
-    ASSERT_NE(spill, nullptr);
-    EXPECT_FALSE(spill->is_error()) << spill->get_error_str();
-    EXPECT_FALSE(spill->spill_file_name().empty());
-
-    // A live wrapped Fetchable_transaction is shared out.
-    EXPECT_NE(payload->fetchable(), nullptr);
-  }
-
-  // Payload destroyed: released zero, so the counter is unchanged.
-  EXPECT_EQ(queue.bytes_used(), before);
-}
-
-// With a spill disk limit, create_spill() reserves the declared size on the
-// spill disk entry, the reservation is held while the spill file exists, and
-// it is returned when the payload (and so the file) is destroyed. The memory
-// budget is never touched.
+// create_payload() on a SPILL envelope reserves the declared size on the spill
+// disk entry, holds it while the spill file exists, and returns it when the
+// envelope (and so the file) is destroyed. The memory budget is never touched.
 TEST(ImrTrxPayloadTest, CreateSpillHoldsDiskReservationWhileFileExists) {
   Scoped_temp_dir relay_dir;
   const std::size_t disk_limit = 4 * kSpillThreshold;
@@ -431,15 +349,13 @@ TEST(ImrTrxPayloadTest, CreateSpillHoldsDiskReservationWhileFileExists) {
                            test_memory_resource(kMemoryLimit), relay_dir.path,
                            /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
-  Transaction_envelope env(/*trx_length=*/0, Envelope_path::SPILL);
   const std::size_t trx_length = kSpillThreshold + 1;
 
   std::string file_name;
   {
-    auto payload = Trx_payload::create_spill(/*is_trx=*/true, make_fde(),
-                                             trx_length, &queue, &env);
-    ASSERT_NE(payload, nullptr);
-    auto *spill = dynamic_cast<Event_set_fetchable_spill *>(payload->sink());
+    Transaction_envelope env(trx_length, Envelope_path::SPILL);
+    ASSERT_FALSE(env.create_payload(/*is_trx=*/true, make_fde(), &queue));
+    auto *spill = dynamic_cast<Event_set_fetchable_spill *>(env.current_sink());
     ASSERT_NE(spill, nullptr);
     file_name = spill->spill_file_name();
     ASSERT_TRUE(std::filesystem::exists(file_name));
@@ -499,8 +415,8 @@ void complete_through_hook(Trx_envelope_queue &queue, std::size_t trx_length,
                            Envelope_path path, int calls = 1) {
   Transaction_envelope env(trx_length, path);
   ASSERT_FALSE(env.create_payload(/*is_trx=*/true, make_fde(), &queue));
-  ASSERT_NE(env.payload(), nullptr);
-  std::shared_ptr<Fetchable_transaction> fetchable = env.payload()->fetchable();
+  ASSERT_NE(env.fetchable(), nullptr);
+  std::shared_ptr<Fetchable_transaction> fetchable = env.fetchable();
   ASSERT_NE(fetchable, nullptr);
   for (int i = 0; i < calls; ++i) fetchable->set_success();
   EXPECT_TRUE(env.is_committed());

@@ -69,7 +69,8 @@ namespace fs = std::filesystem;
 namespace {
 
 /// A fresh relay-log FDE, upcast to the Log_event_ptr the sink constructor
-/// takes (matching how the payload factory hands the sink its FDE).
+/// takes (matching how Transaction_envelope::create_payload() hands the sink
+/// its FDE).
 std::shared_ptr<Log_event> make_fde() {
   return std::make_shared<Format_description_log_event>();
 }
@@ -946,8 +947,9 @@ TEST_F(ImrSpillSinkTest, TerminalWriteFailureIsNeverMarkedComplete) {
 
 // The completion race on the spill sink, made deterministic: a worker fetches
 // the terminal event inside the hook window, between the moment it becomes
-// visible and the notify, with the sink wired as Trx_payload::create_spill()
-// wires it. The worker must read the event as the last of the transaction.
+// visible and the notify, with the sink wired as
+// Transaction_envelope::create_payload() wires it. The worker must read the
+// event as the last of the transaction.
 TEST_F(ImrSpillSinkTest, ConsumerInSealWindowSeesLastInTransaction) {
   auto batch = std::make_unique<Event_set_fetchable_spill>(
       /*is_trx=*/true, make_fde(), m_relay_log_dir,

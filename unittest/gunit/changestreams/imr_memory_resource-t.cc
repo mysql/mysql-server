@@ -37,11 +37,10 @@
 ///     without reserving.
 ///
 /// Every test drives the real admission path, Trx_envelope_queue::enqueue()
-/// -> Transaction_envelope::create_payload() -> Trx_payload::create_memory() ->
-/// acquire_admission(), and reads the monitor directly as well as through
-/// bytes_used(). Each test registers the resource with its queue's limit, as
-/// Imr_service::reconcile() does, which resets the entry's available count to
-/// that limit.
+/// -> Transaction_envelope::create_payload() -> acquire_admission(), and reads
+/// the monitor directly as well as through bytes_used(). Each test registers
+/// the resource with its queue's limit, as Imr_service::reconcile() does, which
+/// resets the entry's available count to that limit.
 
 #include <gtest/gtest.h>
 

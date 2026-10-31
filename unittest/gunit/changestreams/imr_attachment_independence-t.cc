@@ -87,7 +87,6 @@
 #include "sql/changestreams/apply/storage/in_memory/imr_types.h"
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/log_event.h"  // Format_description_log_event
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
 #include "unittest/gunit/test_utils.h"  // my_testing::Server_initializer
@@ -765,9 +764,8 @@ TEST(ImrFdeSnapshotTest, TransactionGetsCopyOfReceiverFde) {
   ASSERT_FALSE(imr.attach_role(kApplier));
   Transaction_envelope *env = imr.queue()->dispatch_next();
   ASSERT_NE(env, nullptr);
-  ASSERT_NE(env->payload(), nullptr);
-  const std::shared_ptr<Format_description_log_event> snap =
-      env->payload()->fde();
+  ASSERT_NE(env->fetchable(), nullptr);
+  const std::shared_ptr<Format_description_log_event> snap = env->fde();
   ASSERT_NE(snap, nullptr);
 
   EXPECT_NE(snap.get(), &rfde) << "must not be the receiver's object";
@@ -825,8 +823,8 @@ TEST(ImrFdeSnapshotTest, SnapshotReusedUntilNextSetReceiverFde) {
   for (int i = 0; i < 4; ++i) {
     Transaction_envelope *env = imr.queue()->dispatch_next();
     ASSERT_NE(env, nullptr);
-    ASSERT_NE(env->payload(), nullptr);
-    snaps.push_back(env->payload()->fde());
+    ASSERT_NE(env->fetchable(), nullptr);
+    snaps.push_back(env->fde());
   }
 
   EXPECT_EQ(snaps[0].get(), snaps[1].get())
@@ -861,9 +859,8 @@ TEST(ImrFdeSnapshotTest, ReceiverDetachReleasesFdeSnapshot) {
   ASSERT_FALSE(imr.attach_role(kApplier));
   Transaction_envelope *env = imr.queue()->dispatch_next();
   ASSERT_NE(env, nullptr);
-  ASSERT_NE(env->payload(), nullptr);
-  const std::weak_ptr<Format_description_log_event> snap =
-      env->payload()->fde();
+  ASSERT_NE(env->fetchable(), nullptr);
+  const std::weak_ptr<Format_description_log_event> snap = env->fde();
   // The runtime's reference and the transaction's (payload and byte source).
   const long held = snap.use_count();
 
@@ -933,8 +930,8 @@ TEST(ImrFdeSnapshotTest, OpenTransactionWithoutSnapshotCopiesReceiverFde) {
   for (int i = 0; i < 2; ++i) {
     Transaction_envelope *env = imr.queue()->dispatch_next();
     ASSERT_NE(env, nullptr);
-    ASSERT_NE(env->payload(), nullptr);
-    snaps.push_back(env->payload()->fde());
+    ASSERT_NE(env->fetchable(), nullptr);
+    snaps.push_back(env->fde());
   }
 
   ASSERT_NE(snaps[0], nullptr);
@@ -987,10 +984,9 @@ TEST_F(ImrFdeSnapshotDecodeTest,
   ASSERT_FALSE(imr.attach_role(kApplier));
   Transaction_envelope *env = imr.queue()->dispatch_next();
   ASSERT_NE(env, nullptr);
-  ASSERT_NE(env->payload(), nullptr);
+  ASSERT_NE(env->fetchable(), nullptr);
   {
-    std::shared_ptr<Fetchable_transaction> fetchable =
-        env->payload()->fetchable();
+    std::shared_ptr<Fetchable_transaction> fetchable = env->fetchable();
     ASSERT_NE(fetchable, nullptr);
     // Check every event that decodes, so a failure shows each damaged one.
     std::vector<std::shared_ptr<Log_event>> events;

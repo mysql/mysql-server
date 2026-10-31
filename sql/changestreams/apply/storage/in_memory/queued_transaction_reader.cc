@@ -35,7 +35,6 @@
 #include "sql/changestreams/apply/psi/stage.h"  // concurrency::set_thd_stage
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/debug_sync.h"   // DBUG_SIGNAL_WAIT_FOR
 #include "sql/derror.h"       // ER_THD
@@ -153,9 +152,10 @@ Job_ptr Queued_transaction_reader::read() {
                          "coordinator_continue_job_build");
   }
 
-  // A dispatched ACTIVE envelope always has a payload.
-  Trx_payload *payload = envelope->payload();
-  if (payload == nullptr) {
+  // A dispatched ACTIVE envelope always has a payload. Take a shared ownership
+  // copy of the transaction.
+  std::shared_ptr<Fetchable_transaction> fetchable = envelope->fetchable();
+  if (fetchable == nullptr) {
     assert(false);
     // Stop the applier with an error instead of building a job without data.
     m_is_error = true;
@@ -166,8 +166,6 @@ Job_ptr Queued_transaction_reader::read() {
     }
     return nullptr;
   }
-  // Take a shared ownership copy of the transaction
-  std::shared_ptr<Fetchable_transaction> fetchable = payload->fetchable();
 
   Job_applier *job =
       new Job_applier(m_channel.get(), slave_trans_retries, fetchable,
@@ -205,8 +203,9 @@ Job_ptr Queued_transaction_reader::read() {
       const_cast<Log_event *>(job->get_first_event()));
   if (gtid_ev != nullptr) {
     // A source Rotate resets on disk; here, the new source FDE after it.
-    if (payload->fde() != m_prev_fde) {
-      m_prev_fde = payload->fde();
+    std::shared_ptr<Format_description_log_event> fde = envelope->fde();
+    if (fde != m_prev_fde) {
+      m_prev_fde = std::move(fde);
       m_prev_seq = -1;
     }
     warn_on_inconsistent_logical_clock(gtid_ev, m_prev_seq);

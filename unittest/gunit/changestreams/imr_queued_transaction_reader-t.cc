@@ -42,7 +42,6 @@
 #include "sql/changestreams/apply/storage/in_memory/queued_transaction_writer.h"
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/changestreams/apply/storage/relay_log/ireader_event.h"
 #include "sql/log_event.h"
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
@@ -144,7 +143,7 @@ class Queued_transaction_reader_test : public ::testing::Test {
   // Enqueue one OPEN memory-path envelope. enqueue() itself creates the empty
   // single-batch destination and attaches the payload (reserving kTrxLength
   // bytes), so the returned envelope already owns a Fetchable_transaction
-  // reachable via env->payload()->fetchable(). Returns the envelope
+  // reachable via env->fetchable(). Returns the envelope
   // (non-owning).
   Transaction_envelope *enqueue_memory(Trx_envelope_queue *queue) {
     Transaction_envelope *env = queue->enqueue(kTrxLength, true, make_fde());
@@ -178,8 +177,8 @@ TEST_F(Queued_transaction_reader_test, ReadBuildsJobAndAdvancesCursor) {
   Transaction_envelope *env = enqueue_memory(&queue);
   ASSERT_NE(env, nullptr);
   // Use the enqueue-created Fetchable_transaction (a shared_ptr copy).
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   // Stream ONE event into the enqueue-created sink before read(). The
@@ -240,9 +239,9 @@ TEST_F(Queued_transaction_reader_test, ReadKeepsFetchableAliveViaJob) {
   Transaction_envelope *env = enqueue_memory(&queue);
   ASSERT_NE(env, nullptr);
   // Take an independent shared_ptr copy of the enqueue-created
-  // Fetchable_transaction (payload()->fetchable() returns by value).
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  // Fetchable_transaction (fetchable() returns by value).
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   // Stream ONE event into the enqueue-created sink before read() so the
@@ -268,7 +267,7 @@ TEST_F(Queued_transaction_reader_test, ReadKeepsFetchableAliveViaJob) {
   // Commit drops the envelope's payload reference; the job's copy must keep the
   // Fetchable_transaction alive on its own.
   EXPECT_FALSE(env->commit());
-  EXPECT_EQ(env->payload(), nullptr);
+  EXPECT_EQ(env->fetchable(), nullptr);
   EXPECT_EQ(fetchable.use_count(), before);  // ours + job's copy
 
   // Deleting the job releases its reference; only our copy remains.
@@ -308,12 +307,12 @@ TEST_F(Queued_transaction_reader_test, ReadSkipsCommittedOutOfOrderEnvelope) {
   // points at e2.
   ASSERT_EQ(queue.dispatch_next(), e1);
   ASSERT_FALSE(e2->commit());
-  ASSERT_EQ(e2->payload(), nullptr);
+  ASSERT_EQ(e2->fetchable(), nullptr);
   ASSERT_EQ(queue.dispatch_seqno(), 1u);
 
   // Track e3's transaction to prove the job wraps e3, not the skipped e2.
-  ASSERT_NE(e3->payload(), nullptr);
-  auto f3 = e3->payload()->fetchable();
+  ASSERT_NE(e3->fetchable(), nullptr);
+  auto f3 = e3->fetchable();
   ASSERT_NE(f3, nullptr);
   const long before = f3.use_count();  // ours + e3's payload == 2
 
@@ -362,7 +361,7 @@ TEST_F(Queued_transaction_reader_test, ReadDropsJobTruncatedBeforeBuilt) {
   ASSERT_FALSE(open_transaction(queue, group, make_fde(), kTrxLength));
   Transaction_envelope *e1 = group.envelope;
   ASSERT_NE(e1, nullptr);
-  auto f1 = e1->payload()->fetchable();
+  auto f1 = e1->fetchable();
   ASSERT_NE(f1, nullptr);
 
   // e2 has a first event, so its job's peek returns at once.
@@ -370,7 +369,7 @@ TEST_F(Queued_transaction_reader_test, ReadDropsJobTruncatedBeforeBuilt) {
   ASSERT_NE(e2, nullptr);
   static_cast<Event_set_fetchable_memory *>(e2->current_sink())
       ->append_reader_event(make_fake(make_event()));
-  auto f2 = e2->payload()->fetchable();
+  auto f2 = e2->fetchable();
   ASSERT_NE(f2, nullptr);
   const long f2_before = f2.use_count();  // ours + e2's payload == 2
 
@@ -424,8 +423,8 @@ TEST_F(Queued_transaction_reader_test,
   resume_both_roles(queue);
   Transaction_envelope *env = enqueue_memory(&queue);
   ASSERT_NE(env, nullptr);
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   // 5 bytes shorter than the header length, as the debug point makes it.
@@ -558,7 +557,7 @@ TEST_F(Queued_transaction_reader_test,
       group, reinterpret_cast<const char *>(bytes.data()), bytes.size(),
       /*is_terminal=*/false));
   ASSERT_EQ(queue.bytes_used(), kTrxLength);
-  std::weak_ptr<Fetchable_transaction> f1 = e1->payload()->fetchable();
+  std::weak_ptr<Fetchable_transaction> f1 = e1->fetchable();
 
   // The coordinator dispatches e1 and hands the job to a worker.
   auto reader = make_reader(&queue);

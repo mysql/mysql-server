@@ -50,7 +50,6 @@
 #include "sql/changestreams/apply/storage/in_memory/imr_types.h"
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/log_event.h"
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
 
@@ -352,10 +351,10 @@ TEST(ImrSweepAndDispatchTest, TruncatedHeadKeepsReservationWhileJobHoldsIt) {
       queue.enqueue(kTrxLength, true, make_fde(), /*receiver_held=*/true);
   ASSERT_NE(env, nullptr);
   ASSERT_EQ(queue.dispatch_next(), env);
-  ASSERT_NE(env->payload(), nullptr);
+  ASSERT_NE(env->fetchable(), nullptr);
   // The job's copy (Queued_transaction_reader::read() hands one to the
   // Job_applier).
-  std::shared_ptr<Fetchable_transaction> job_copy = env->payload()->fetchable();
+  std::shared_ptr<Fetchable_transaction> job_copy = env->fetchable();
   ASSERT_NE(job_copy, nullptr);
   ASSERT_EQ(queue.bytes_used(), kTrxLength);
 
@@ -394,11 +393,11 @@ TEST(ImrSweepAndDispatchTest, CommittedHeadKeepsReservationUntilJobDrops) {
       queue.enqueue(kTrxLength, true, make_fde(), /*receiver_held=*/false);
   ASSERT_NE(env, nullptr);
   ASSERT_EQ(queue.dispatch_next(), env);
-  std::shared_ptr<Fetchable_transaction> job_copy = env->payload()->fetchable();
+  std::shared_ptr<Fetchable_transaction> job_copy = env->fetchable();
   ASSERT_NE(job_copy, nullptr);
 
   ASSERT_FALSE(env->commit());
-  EXPECT_EQ(env->payload(), nullptr) << "commit drops the unheld payload";
+  EXPECT_EQ(env->fetchable(), nullptr) << "commit drops the unheld payload";
   EXPECT_EQ(job_copy.use_count(), 1);
   EXPECT_EQ(queue.bytes_used(), kTrxLength)
       << "released before the job dropped the event buffers";

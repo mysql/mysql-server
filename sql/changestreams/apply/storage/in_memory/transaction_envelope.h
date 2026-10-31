@@ -28,9 +28,9 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <optional>
 
 #include "sql/changestreams/apply/storage/in_memory/imr_types.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 
 // Only passed by shared_ptr, so a forward declaration is enough.
 class Format_description_log_event;
@@ -122,13 +122,13 @@ class Transaction_envelope {
   /// For asserts and tests.
   bool is_receiver_held() const;
 
-  // --- Payload handoff (serialized under m_mutex) ---
+  // --- Payload (serialized under m_mutex) ---
 
-  /// @brief Admit this envelope's transaction and build its empty destination,
-  ///        storing it under @c m_mutex.
+  /// @brief Admit the transaction, then build its empty byte source (memory or
+  ///        spill, by @c m_path) and store it under @c m_mutex.
   ///
-  /// Uses Trx_payload::create_memory() or create_spill() by @c m_path; the
-  /// factory performs admission (see Trx_envelope_queue::acquire_admission()).
+  /// Admission (Trx_envelope_queue::acquire_admission()) may wait, so it runs
+  /// before @c m_mutex. The byte source owns the reservation.
   ///
   /// @param is_trx Whether the admitted unit is a real transaction.
   /// @param fde The active Format_description_log_event (shared ownership).
@@ -148,9 +148,14 @@ class Transaction_envelope {
   /// the sweep; the receiver still reports the failure and stops the IO thread.
   void validate_payload();
 
-  /// @brief Non-owning peek at the payload.
-  /// @return The stored payload pointer, or nullptr once it has been reset.
-  Trx_payload *payload();
+  /// @brief The envelope's share of the transaction, copied under @c m_mutex.
+  /// @return nullptr once commit() or release_receiver() reset the payload.
+  std::shared_ptr<Fetchable_transaction> fetchable() const;
+
+  /// @brief The FDE snapshot the transaction was opened with, copied under
+  ///        @c m_mutex (shared ownership keeps its identity comparable).
+  /// @return nullptr once the payload is reset.
+  std::shared_ptr<Format_description_log_event> fde() const;
 
   // --- Sink handle (delegates to the payload) ---
 
@@ -161,15 +166,24 @@ class Transaction_envelope {
   Streaming_event_sink *current_sink() const;
 
  private:
-  mutable std::mutex m_mutex;  ///< Guards state, hold flag + payload reference.
+  /// One transaction's byte stream as held by the envelope; its fields are
+  /// reset together. commit() or release_receiver() resets it; a truncated
+  /// envelope keeps it until the envelope is destroyed. Holds no reservation:
+  /// the byte source does.
+  struct Payload {
+    std::shared_ptr<Fetchable_transaction> trx;  ///< Shared with the job.
+    Streaming_event_sink *sink{nullptr};         ///< The byte source in @c trx.
+    std::shared_ptr<Format_description_log_event> fde;  ///< Read-only snapshot.
+  };
+
+  mutable std::mutex m_mutex;      ///< Guards state, hold flag and payload.
   const std::size_t m_trx_length;  ///< From the GTID event.
   const Envelope_path m_path;      ///< MEMORY | SPILL.
   /// ACTIVE until commit() or set_truncated(); the first final state wins.
   Envelope_state m_state{Envelope_state::ACTIVE};
   bool m_receiver_held{false};  ///< The receiver still writes the payload.
-  /// Heavy bytes; reset at commit, or at release_receiver() if the commit came
-  /// while the receiver held the envelope.
-  std::unique_ptr<Trx_payload> m_payload;
+  /// Reset at commit, or at release_receiver() if the commit came while held.
+  std::optional<Payload> m_payload;
 };
 
 /// Worker commit hook shared by the memory and spill byte sources.

@@ -52,7 +52,6 @@
 #include "sql/changestreams/apply/storage/in_memory/imr_types.h"
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/log_event.h"
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
 
@@ -581,12 +580,11 @@ TEST(ImrQueueLifecycleTest,
 
   Transaction_envelope *e1 = queue.enqueue(11, true, make_fde());
   ASSERT_NE(e1, nullptr);
-  ASSERT_NE(e1->payload(), nullptr);
+  ASSERT_NE(e1->fetchable(), nullptr);
 
   // A worker would hold a shared-ownership copy of the byte source; take one
   // here so it outlives the envelope the sweep is about to destroy.
-  std::shared_ptr<Fetchable_transaction> worker_ref =
-      e1->payload()->fetchable();
+  std::shared_ptr<Fetchable_transaction> worker_ref = e1->fetchable();
   ASSERT_NE(worker_ref, nullptr);
 
   ASSERT_EQ(queue.dispatch_next(), e1);

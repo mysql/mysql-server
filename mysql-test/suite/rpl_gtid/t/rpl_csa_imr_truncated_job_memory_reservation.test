@@ -8,7 +8,7 @@
 # A memory-path transaction is dispatched, and its worker blocks on a row lock
 # held by a replica session. STOP REPLICA IO_THREAD truncates the open group
 # and releases the receiver's hold. The coordinator then sweeps the truncated
-# head and destroys its Trx_payload, while the worker still owns the
+# head and destroys the envelope's payload, while the worker still owns the
 # Fetchable_transaction and every Cached_event_memory buffer. The reservation
 # is owned by the byte source, so In_Memory_Relay_Log_Space keeps counting the
 # stale copy, and after START REPLICA IO_THREAD the receiver admits new

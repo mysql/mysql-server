@@ -22,7 +22,7 @@ The size of a transaction in bytes as declared by its GTID event (`Gtid_log_even
 A `Transaction_envelope`: the lightweight queue entry of one transaction. It carries `trx_length`, the store path, the commit and truncate flags, the receiver hold, and the reference to its payload.
 
 **Payload**
-A `Trx_payload`: the heavy part of a transaction. It owns the envelope's share of the `Fetchable_transaction` that holds the encoded events. The transaction's reservation is owned by its byte source.
+The private `Payload` of a `Transaction_envelope` (`std::optional<Payload> m_payload`): the heavy part of a transaction. It holds the envelope's share of the `Fetchable_transaction`, its sink and its FDE snapshot. The transaction's reservation is owned by its byte source.
 
 **Byte source**
 The `Event_set_fetchable` object that stores the events of a transaction and serves them to a worker: `Event_set_fetchable_memory` on the memory path, `Event_set_fetchable_spill` on the spill path. Each byte source is also the `Streaming_event_sink` the receiver writes into.
@@ -70,7 +70,7 @@ The directory that holds spill files, `#in_memory_relaylog_temp_files` (`Spill_f
 The feature is built in five layers. The byte-source, queue, runtime, and service layers are new IMR code, almost all under `sql/changestreams/apply/storage/in_memory/`. The integration layer is `Queued_transaction_reader` plus changes to existing server and CSA files.
 
 1. **Byte-source layer.** Stores the encoded events of one transaction and serves them to one worker. Memory path: `Event_set_fetchable_memory` and `Cached_event_memory`. Spill path: `Event_set_fetchable_spill`, `Spill_file_writer`, the spill directory functions and the spill encryption pass.
-2. **Queue layer.** Orders transactions, enforces the memory/spill bounds and tracks progress: `Trx_payload`, `Transaction_envelope`, `Trx_envelope_queue`, and the two IMR resources of the channel's `Resource_instance_monitor`.
+2. **Queue layer.** Orders transactions, enforces the memory/spill bounds and tracks progress: `Transaction_envelope`, `Trx_envelope_queue`, and the two IMR resources of the channel's `Resource_instance_monitor`.
 3. **Runtime layer.** One `Imr_runtime` per channel. It owns the queue, controls which thread holds each role, runs queue reset, and keeps the receiver's open transaction. The receiver write functions (`open_transaction()`, `append_transaction_event()`, `truncate_transaction()`) belong to this layer.
 4. **Service layer.** One `Imr_service` per server. It validates the CRST options, owns the runtimes and reconciles them with the channel configuration, forwards the role attach and detach calls of the replication threads, and provisions the spill storage at startup.
 5. **Integration layer.** The server side (receiver `handle_slave_io()` and `queue_event()`, `CHANGE REPLICATION SOURCE TO`, START and STOP, `Relay_log_info` persistence, `SHOW REPLICA STATUS`, key rotation) and the CSA side (`Sync_transaction_provider`, `Queued_transaction_reader`, `Job_applier`, the commit hook, statistics).
@@ -82,7 +82,7 @@ The feature is built in five layers. The byte-source, queue, runtime, and servic
 | Byte source | `Event_set_fetchable_memory`, `Cached_event_memory` | `in_memory/event_set_fetchable_memory.{h,cc}`, `in_memory/cached_event_memory.{h,cc}` |
 | Byte source | `Event_set_fetchable_spill`, `Spill_file_writer` | `in_memory/event_set_fetchable_spill.{h,cc}`, `in_memory/spill_file_writer.{h,cc}` |
 | Byte source | spill directory, spill encryption | `in_memory/spill_directory.{h,cc}`, `in_memory/spill_encryption.{h,cc}` |
-| Queue | `Trx_payload`, `Transaction_envelope`, `Trx_envelope_queue`, `Envelope_path` | `in_memory/trx_payload.{h,cc}`, `in_memory/transaction_envelope.{h,cc}`, `in_memory/trx_envelope_queue.{h,cc}`, `in_memory/imr_types.h` |
+| Queue | `Transaction_envelope`, `Trx_envelope_queue`, `Envelope_path` | `in_memory/transaction_envelope.{h,cc}`, `in_memory/trx_envelope_queue.{h,cc}`, `in_memory/imr_types.h` |
 | Queue | IMR resources | `apply/resource/resource_map.h` (`in_memory_relaylog_memory`, `in_memory_relaylog_spill_disk`), `apply/resource/resource_monitor.h` |
 | Runtime | `Imr_runtime`, `Open_group`, `Receiver_write_failure`, writer functions | `in_memory/imr_runtime.{h,cc}`, `in_memory/queued_transaction_writer.{h,cc}` |
 | Service | `Imr_service`, `Imr_config`, `Imr_options_validation` | `in_memory/imr_service.{h,cc}`, `in_memory/imr_types.h` |
@@ -126,7 +126,7 @@ Paths starting with `in_memory/` are under `sql/changestreams/apply/storage/`; p
 | Queue layer: Trx_envelope_queue                                              |
 |  deque<unique_ptr<Transaction_envelope>>  commit <= dispatch <= insert       |
 |  admission -> Resource_entry in_memory_relaylog_memory / _spill_disk         |
-|  Transaction_envelope -> unique_ptr<Trx_payload>                             |
+|  Transaction_envelope -> optional<Payload>                                   |
 |                           -> shared_ptr<Fetchable_transaction> (one batch)   |
 +-------------------------------------+----------------------------------------+
                                       | the batch
@@ -158,7 +158,7 @@ Paths starting with `in_memory/` are under `sql/changestreams/apply/storage/`; p
      FDE event    -> Imr_runtime::set_receiver_fde (copy of the new receiver FDE)
      GTID event   -> imr_on_gtid_event -> Imr_runtime::open_transaction
                      -> Trx_envelope_queue::enqueue:
-                        classify -> create_payload (factory: acquire_admission)
+                        classify -> create_payload (acquire_admission, byte source)
                         -> validate_payload -> hold_for_receiver
                         -> push_back, ++insert_seqno,
                         notify m_not_empty_cv
@@ -208,7 +208,7 @@ Use by the layer above. The queue layer creates exactly one byte source per tran
 
 Purpose. Keep the transactions of a channel in source order from their GTID event until they are committed, bound the memory they hold, and track how far the coordinator and the workers have got.
 
-Classes. `Trx_payload` owns the envelope's share of one transaction's `Fetchable_transaction`, its sink and its FDE snapshot; the byte source (`Event_set_fetchable_memory`, or `Event_set_fetchable_spill` through its `Spill_file_writer`) owns the reservation (RAII). `Transaction_envelope` is the queue entry; it owns the payload through a `unique_ptr` and keeps the commit, truncate and receiver-hold flags under its own mutex. `Trx_envelope_queue` owns the envelopes in a `std::deque<std::unique_ptr<Transaction_envelope>>`, keeps the three cursors under one queue mutex, and runs admission against two `Resource_entry` objects of the channel's `Resource_instance_monitor`.
+Classes. `Transaction_envelope` is the queue entry. It keeps the commit, truncate and receiver-hold flags and its payload (the share of `Fetchable_transaction`, the sink and the FDE snapshot, reset as one unit) under its own mutex. The byte source (`Event_set_fetchable_memory`, or `Event_set_fetchable_spill` through its `Spill_file_writer`) owns the reservation (RAII). `Trx_envelope_queue` owns the envelopes in a `std::deque<std::unique_ptr<Transaction_envelope>>`, keeps the three cursors under one queue mutex, and runs admission against two `Resource_entry` objects of the channel's `Resource_instance_monitor`.
 
 Interfaces. Producer: `classify()`, `is_admissible()`, `wait_until_admissible()`, `acquire_admission()`, `enqueue()`. Consumer: `sweep_and_dispatch()`, `dispatch_next()`, `sweep_committed()`. Accounting: `release_bytes()`, `bytes_used()`, `release_spill_reservation()`, the spill gauges. Lifecycle: `stop()`, `resume()`, `reset()`.
 
@@ -247,8 +247,8 @@ Imr_service (server lifetime, global imr_service)
   └─ m_runtimes[channel id] : unique_ptr<Imr_runtime>                    (channel + config lifetime)
         └─ m_queue : Trx_envelope_queue (by value)
               └─ m_envelopes : deque<unique_ptr<Transaction_envelope>>   (GTID event -> sweep)
-                    └─ m_payload : unique_ptr<Trx_payload>               (admission -> commit)
-                          └─ m_trx : shared_ptr<Fetchable_transaction>   (shared with Job_applier)
+                    └─ m_payload : optional<Payload>                     (admission -> commit)
+                          └─ trx : shared_ptr<Fetchable_transaction>     (shared with Job_applier)
                                 └─ batch : unique_ptr<Event_set_fetchable_memory | _spill>
                                       └─ (spill) m_writer : unique_ptr<Spill_file_writer>
                                             └─ imr_sp_* file on disk
@@ -762,26 +762,13 @@ Owns one spill file. It does not touch the filesystem until `open()`.
 
 `enum class Envelope_state { ACTIVE, COMMITTED, TRUNCATED }` is the final result of an envelope, kept in `Transaction_envelope::m_state` under the envelope's `m_mutex`. It is ACTIVE until `commit()` or `set_truncated()` runs; COMMITTED and TRUNCATED are final, and the first one set wins.
 
-##### Trx_payload
-
-Key members: `m_trx` (`std::shared_ptr<Fetchable_transaction>`), `m_trx_length` (the memory bytes the destructor releases; 0 for both factories, whose byte sources own the reservation), `m_owner_queue` (non-owning), `m_sink` (non-owning pointer to the byte source as `Streaming_event_sink`), `m_fde` (the runtime's read-only FDE snapshot when the transaction was opened). The class is neither copyable nor movable.
-
-Factories:
-
-* `create_memory(is_trx, fde, trx_length, owner_queue, owner_envelope)`: calls `owner_queue->acquire_admission(trx_length, MEMORY)`, which reserves `trx_length` on the memory resource. It then builds an empty `Event_set_fetchable_memory` that takes over that reservation, wraps it as the single batch of a new `Fetchable_transaction`, links them, and returns the payload. It returns null if a receiver stop was requested during admission; nothing is then reserved.
-* `create_spill(...)`: calls `acquire_admission(trx_length, SPILL)`, which reserves `trx_length` on the spill disk resource, builds an `Event_set_fetchable_spill` that takes over that reservation, and returns a payload that reserves 0 memory bytes.
-
-Destructor: `m_owner_queue->release_bytes(m_trx_length)`, which is 0 for a factory-built payload. The byte sources are the RAII owners of the reservations, because a job may hold the byte source after the payload is gone. `release_bytes()` is a single atomic operation with no lock and no notify; a receiver waiting for space sees it on its next poll.
-
-`fetchable()` returns a copy of the `shared_ptr`, which the CSA reader puts in the `Job_applier`.
-
 ##### Transaction_envelope
 
-Key members: `m_mutex`, `m_trx_length`, `m_path`, `m_state` (`Envelope_state`: ACTIVE, COMMITTED or TRUNCATED), `m_receiver_held`, `m_payload` (`std::unique_ptr<Trx_payload>`). `trx_length()` and `path()` are immutable and read without the lock. `m_state`, `m_receiver_held` and the payload reference are read and written only under `m_mutex`.
+Key members: `m_mutex`, `m_trx_length`, `m_path`, `m_state` (`Envelope_state`: ACTIVE, COMMITTED or TRUNCATED), `m_receiver_held`, `m_payload` (`std::optional<Payload>`: `trx`, `sink`, `fde`). `trx_length()` and `path()` are immutable and read without the lock. `m_state`, `m_receiver_held` and the payload are read and written only under `m_mutex`.
 
 Methods:
 
-* `create_payload(is_trx, fde, owner_queue)`: calls the factory of `m_path`, then stores the payload under `m_mutex`. Returns true on a receiver stop during admission.
+* `create_payload(is_trx, fde, owner_queue)`: calls `owner_queue->acquire_admission(m_trx_length, m_path)` before taking `m_mutex`, and returns true with nothing reserved on a receiver stop. Otherwise it builds the empty byte source of `m_path` (`Event_set_fetchable_memory`, which takes over the memory reservation, or `Event_set_fetchable_spill`, whose writer takes over the disk reservation), wraps it as the single batch of a new `Fetchable_transaction`, links them, and stores the payload under `m_mutex`.
 * `validate_payload()`: marks the envelope truncated if the new sink reports `has_io_error()` (only a spill file can fail to provision). It runs before the envelope is published, so the coordinator never dispatches a broken transaction.
 * `hold_for_receiver()`: sets `m_receiver_held`; called by `enqueue()` before the push.
 * `release_receiver()`: clears the hold and, if the envelope is already committed, resets the payload. This is the receiver's last access to the envelope.
@@ -789,7 +776,7 @@ Methods:
 * `set_truncated()`: sets `m_state` to TRUNCATED only if it is ACTIVE; a committed envelope stays committed. The first final state wins.
 * `is_reclaimable()`: `!m_receiver_held && m_state != ACTIVE`, under one lock.
 * `state()`, `is_committed()`, `is_truncated()`: read `m_state` under `m_mutex`. Dispatch skips an envelope whose `state()` is not ACTIVE.
-* `payload()`, `reset_payload()`, `current_sink()`: payload access under `m_mutex`.
+* `fetchable()`, `fde()`: `shared_ptr` copies taken under `m_mutex`, null once the payload is reset. `current_sink()`: the byte source as `Streaming_event_sink`, under `m_mutex`.
 
 ##### Trx_envelope_queue
 
@@ -898,9 +885,9 @@ Implements the CSA `Reader` interface (`read()`, `is_stopped()`, `is_error()`, `
 
 1. Return null if stopped. If `m_queue->take_spill_delete_failed()` returns true, report `ER_REPLICA_RELAY_LOG_READ_FAILURE`, set `m_is_error` and return null. This runs on every call, including idle polls, so a failure from the last transaction stops the applier too. Set the coordinator stage to "Replica has read all relay log; waiting for more updates".
 2. `m_queue->sweep_and_dispatch()`. On null: if the queue reports `applier_error()`, report `ER_REPLICA_RELAY_LOG_READ_FAILURE` once; if a `START REPLICA UNTIL` condition is met with an empty queue, stop for UNTIL; return null. The run loop calls `read()` again, so the coordinator wakes at least every 100 ms.
-3. Set the stage back to working. Take `envelope->payload()->fetchable()` and build `new Job_applier(m_channel.get(), slave_trans_retries, fetchable, m_stat_monitor, m_resource_monitor)`.
+3. Set the stage back to working. Take `envelope->fetchable()` (a copy under the envelope mutex). If it is null, report `ER_REPLICA_RELAY_LOG_READ_FAILURE` and return null. Build `new Job_applier(m_channel.get(), slave_trans_retries, fetchable, m_stat_monitor, m_resource_monitor)`.
 4. Drop the job without running it if the transaction is already truncated, if the applier stop flag is set, or if `START REPLICA UNTIL` excludes it. The envelope stays in the queue. If the UNTIL condition is met after this transaction, the reader returns the job and stops for UNTIL after it, as the disk reader does.
-5. Run the same logical clock consistency check as the disk reader, with "in-memory relay log" as the file name; a new FDE snapshot (taken for each source Format_description event) resets it.
+5. Run the same logical clock consistency check as the disk reader, with "in-memory relay log" as the file name; a new FDE snapshot (taken for each source Format_description event) resets it. The snapshot is read with `envelope->fde()` (a copy under the envelope mutex) only when the job's first event is a GTID event.
 6. Return the job.
 
 `stop()` sets `m_stopped` and calls `m_queue->stop(APPLIER)`. `is_stopped()` is true on an error, a local stop, or `sql_slave_killed()`, as for the disk reader. It does not read the queue's stop flags: `stop()` sets `m_stopped` first, STOP and shutdown set `abort_slave` before they set the applier flag, and a structural error sets `m_is_error` in the same `read()`.

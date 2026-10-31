@@ -28,6 +28,9 @@
 #include "sql/changestreams/apply/jobs/fetchable_transaction.h"
 #include "sql/changestreams/apply/resource/statistics_map.h"  // Statistics_map
 #include "sql/changestreams/apply/storage/common/streaming_event_sink.h"
+#include "sql/changestreams/apply/storage/in_memory/event_set_fetchable_memory.h"
+#include "sql/changestreams/apply/storage/in_memory/event_set_fetchable_spill.h"
+#include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/sql_class.h"    // THD
 
@@ -99,22 +102,42 @@ bool Transaction_envelope::is_receiver_held() const {
 bool Transaction_envelope::create_payload(
     bool is_trx, std::shared_ptr<Format_description_log_event> fde,
     Trx_envelope_queue *owner_queue) {
-  // The factory admits; nullptr means a receiver stop, nothing reserved.
-  std::unique_ptr<Trx_payload> payload;
+  // Admission may wait, so it runs before m_mutex. On a receiver stop nothing
+  // is reserved: return true so enqueue() aborts.
+  if (owner_queue->acquire_admission(m_trx_length, m_path)) return true;
+  // The byte source takes over the reservation (the spill source hands it to
+  // its writer): a job may hold the events after the payload is reset. Each
+  // arm wraps the source as the transaction's single batch and links it back,
+  // so truncating the stream also marks the transaction truncated. Completion
+  // is set at seal time, not here, so a truncated transaction rolls back.
+  std::shared_ptr<Fetchable_transaction> trx;
+  Streaming_event_sink *sink = nullptr;
   if (m_path == Envelope_path::SPILL) {
-    // Reserves spill disk space, held by the spill file's writer.
-    payload = Trx_payload::create_spill(is_trx, std::move(fde), m_trx_length,
-                                        owner_queue, this);
+    // owner_queue lets the writer keep the spill gauges current.
+    auto src = std::make_unique<Event_set_fetchable_spill>(
+        is_trx, fde, owner_queue->relay_log_dir(), this,
+        /*streaming_open=*/true, owner_queue->channel_name(), owner_queue,
+        /*reserved_disk_bytes=*/m_trx_length,
+        owner_queue->channel_instance_id(), owner_queue->applier_stop_flag());
+    Event_set_fetchable_spill *spill_src = src.get();
+    trx = std::make_shared<Fetchable_transaction>();
+    trx->append_batch(std::move(src));
+    spill_src->set_owning_fetchable(trx.get());
+    sink = spill_src;
   } else {
-    payload = Trx_payload::create_memory(is_trx, std::move(fde), m_trx_length,
-                                         owner_queue, this);
-  }
-  if (payload == nullptr) {
-    return true;  // receiver stop during admission: abort, nothing reserved.
+    auto src = std::make_unique<Event_set_fetchable_memory>(
+        is_trx, fde, this, /*streaming_open=*/true,
+        owner_queue->channel_instance_id(), owner_queue->applier_stop_flag(),
+        owner_queue, /*reserved_bytes=*/m_trx_length);
+    Event_set_fetchable_memory *mem_src = src.get();
+    trx = std::make_shared<Fetchable_transaction>();
+    trx->append_batch(std::move(src));
+    mem_src->set_owning_fetchable(trx.get());
+    sink = mem_src;
   }
   // Serialized against commit() and current_sink().
   std::lock_guard<std::mutex> lock(m_mutex);
-  m_payload = std::move(payload);
+  m_payload = Payload{std::move(trx), sink, std::move(fde)};
   return false;
 }
 
@@ -127,14 +150,20 @@ void Transaction_envelope::validate_payload() {
   }
 }
 
-Trx_payload *Transaction_envelope::payload() {
+std::shared_ptr<Fetchable_transaction> Transaction_envelope::fetchable() const {
   std::lock_guard<std::mutex> lock(m_mutex);
-  return m_payload.get();
+  return m_payload ? m_payload->trx : nullptr;
+}
+
+std::shared_ptr<Format_description_log_event> Transaction_envelope::fde()
+    const {
+  std::lock_guard<std::mutex> lock(m_mutex);
+  return m_payload ? m_payload->fde : nullptr;
 }
 
 Streaming_event_sink *Transaction_envelope::current_sink() const {
   std::lock_guard<std::mutex> lock(m_mutex);
-  return m_payload ? m_payload->sink() : nullptr;
+  return m_payload ? m_payload->sink : nullptr;
 }
 
 void commit_envelope_on_success(Transaction_envelope *envelope,

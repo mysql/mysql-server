@@ -153,7 +153,7 @@ TEST(ImrQueueAdmissionTest, ClassifyIsPure) {
 
 // acquire_admission succeeds immediately (returns false) when
 // the reservation fits, and the successful call itself takes the reservation
-// (create_memory() then builds the payload that owns and later releases it).
+// (create_payload() then builds the payload that owns and later releases it).
 TEST(ImrQueueAdmissionTest, AcquireAdmissionSucceedsWhenItFits) {
   const std::size_t memory_limit = 1000;
   const std::size_t spill_threshold = 500;

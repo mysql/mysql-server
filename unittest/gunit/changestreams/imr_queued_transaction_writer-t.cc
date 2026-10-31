@@ -70,7 +70,6 @@
 #include "sql/changestreams/apply/storage/in_memory/spill_directory.h"  // ensure_spill_directory
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/log_event.h"
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
 
@@ -188,8 +187,8 @@ TEST(QueuedTransactionWriterTest, OpenGroupPublishesSink) {
   held->release_receiver();
   Transaction_envelope *env = queue.dispatch_next();
   ASSERT_NE(env, nullptr);
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   EXPECT_EQ(drain(fetchable), 0);
   fetchable->set_success();
@@ -283,7 +282,7 @@ TEST(QueuedTransactionWriterTest, OpenGroupWhileOpenTruncatesPreviousGroup) {
   Transaction_envelope *first = queue.dispatch_next();
   ASSERT_NE(first, nullptr);
   EXPECT_TRUE(first->is_truncated());
-  auto first_fetchable = first->payload()->fetchable();
+  auto first_fetchable = first->fetchable();
   ASSERT_NE(first_fetchable, nullptr);
   EXPECT_EQ(drain(first_fetchable), 0);
   EXPECT_TRUE(first_fetchable->is_truncated());
@@ -296,7 +295,7 @@ TEST(QueuedTransactionWriterTest, OpenGroupWhileOpenTruncatesPreviousGroup) {
   Transaction_envelope *second = queue.dispatch_next();
   ASSERT_NE(second, nullptr);
   EXPECT_FALSE(second->is_truncated());
-  auto second_fetchable = second->payload()->fetchable();
+  auto second_fetchable = second->fetchable();
   ASSERT_NE(second_fetchable, nullptr);
   EXPECT_EQ(drain(second_fetchable), 1);
   EXPECT_TRUE(second_fetchable->is_fetching_done());
@@ -344,8 +343,8 @@ TEST(QueuedTransactionWriterTest, AppendOrderAndTerminalSeal) {
   // Drive the consumer: all three events come back, then a clean end.
   Transaction_envelope *env = queue.dispatch_next();
   ASSERT_NE(env, nullptr);
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   EXPECT_EQ(drain(fetchable), 3);
@@ -386,8 +385,8 @@ TEST(QueuedTransactionWriterTest, AtomicDdlSingleEventOpensAndSealsOnce) {
   // Drive the consumer: exactly one event comes back, then a clean end.
   Transaction_envelope *env = queue.dispatch_next();
   ASSERT_NE(env, nullptr);
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   EXPECT_EQ(drain(fetchable), 1);
@@ -453,8 +452,8 @@ TEST(QueuedTransactionWriterTest,
   // delivered, and it surfaces truncation rather than a clean done.
   Transaction_envelope *env = queue.dispatch_next();
   ASSERT_NE(env, nullptr);
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   EXPECT_EQ(drain(fetchable), 0);
@@ -553,9 +552,9 @@ TEST(QueuedTransactionWriterTest, PropertySealExactlyOnce) {
     // post-seal appends delivered nothing, and the stream ends cleanly.
     Transaction_envelope *env = queue.dispatch_next();
     ASSERT_NE(env, nullptr) << "seed=" << kSeed << " trial=" << trial;
-    ASSERT_NE(env->payload(), nullptr)
+    ASSERT_NE(env->fetchable(), nullptr)
         << "seed=" << kSeed << " trial=" << trial;
-    auto fetchable = env->payload()->fetchable();
+    auto fetchable = env->fetchable();
     ASSERT_NE(fetchable, nullptr) << "seed=" << kSeed << " trial=" << trial;
 
     EXPECT_EQ(drain(fetchable), n + 1)
@@ -676,9 +675,9 @@ TEST(QueuedTransactionWriterTest, PropertyTruncateOnIncompleteAndSinkCleared) {
     // (not done, not error) so the worker takes its rollback-and-replay branch.
     Transaction_envelope *env = queue.dispatch_next();
     ASSERT_NE(env, nullptr) << "seed=" << kSeed << " trial=" << trial;
-    ASSERT_NE(env->payload(), nullptr)
+    ASSERT_NE(env->fetchable(), nullptr)
         << "seed=" << kSeed << " trial=" << trial;
-    auto fetchable = env->payload()->fetchable();
+    auto fetchable = env->fetchable();
     ASSERT_NE(fetchable, nullptr) << "seed=" << kSeed << " trial=" << trial;
 
     EXPECT_EQ(drain(fetchable), expected_count)
@@ -740,7 +739,7 @@ TEST(QueuedTransactionWriterTest, OpenTransactionReturnsHeldEnvelope) {
   EXPECT_FALSE(env->is_receiver_held());
 
   ASSERT_EQ(queue.dispatch_next(), env);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   EXPECT_EQ(drain(fetchable), 1);
   fetchable->set_success();
@@ -773,13 +772,13 @@ TEST(QueuedTransactionWriterTest, SkipMidStreamKeepsPayloadUntilTerminal) {
   // models Job_binlog::set_success releasing the job's reference, so only the
   // payload (kept by the hold) still owns the transaction and its sink.
   ASSERT_EQ(queue.dispatch_next(), env);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   fetchable->set_success();
   fetchable.reset();
 
   EXPECT_TRUE(env->is_committed());
-  EXPECT_NE(env->payload(), nullptr);
+  EXPECT_NE(env->fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), kTrxLength);
   EXPECT_FALSE(queue.sweep_committed());
   EXPECT_EQ(queue.queue_length(), 1u) << "the held envelope is not swept";
@@ -798,7 +797,7 @@ TEST(QueuedTransactionWriterTest, SkipMidStreamKeepsPayloadUntilTerminal) {
 
   // The terminal event closed the group; the release freed the payload.
   EXPECT_TRUE(is_closed(group));
-  EXPECT_EQ(env->payload(), nullptr);
+  EXPECT_EQ(env->fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_FALSE(queue.sweep_committed());
   EXPECT_EQ(queue.queue_length(), 0u);
@@ -826,7 +825,7 @@ TEST(QueuedTransactionWriterTest, CommitAfterSealBeforeCloseKeepsPayload) {
 
   // The worker drains and commits inside the window.
   ASSERT_EQ(queue.dispatch_next(), env);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   EXPECT_EQ(drain(fetchable), 1);
   EXPECT_TRUE(fetchable->is_fetching_done());
@@ -834,7 +833,7 @@ TEST(QueuedTransactionWriterTest, CommitAfterSealBeforeCloseKeepsPayload) {
   fetchable.reset();
 
   EXPECT_TRUE(env->is_committed());
-  EXPECT_NE(env->payload(), nullptr);
+  EXPECT_NE(env->fetchable(), nullptr);
   EXPECT_EQ(env->current_sink(), group.sink) << "the sink is still alive";
   EXPECT_EQ(queue.bytes_used(), kTrxLength);
   EXPECT_FALSE(queue.sweep_committed());
@@ -844,7 +843,7 @@ TEST(QueuedTransactionWriterTest, CommitAfterSealBeforeCloseKeepsPayload) {
   Transaction_envelope *held = group.envelope;
   group = {};
   held->release_receiver();
-  EXPECT_EQ(env->payload(), nullptr);
+  EXPECT_EQ(env->fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_FALSE(queue.sweep_committed());
   EXPECT_EQ(queue.queue_length(), 0u);
@@ -867,7 +866,7 @@ TEST(QueuedTransactionWriterTest, CommitThenTruncateIsNoOp) {
                                         /*is_terminal=*/false));
 
   ASSERT_EQ(queue.dispatch_next(), env);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   fetchable->set_success();
   fetchable.reset();
@@ -877,7 +876,7 @@ TEST(QueuedTransactionWriterTest, CommitThenTruncateIsNoOp) {
   EXPECT_TRUE(is_closed(group));
   EXPECT_TRUE(env->is_committed());
   EXPECT_FALSE(env->is_truncated());
-  EXPECT_EQ(env->payload(), nullptr) << "freed at the release";
+  EXPECT_EQ(env->fetchable(), nullptr) << "freed at the release";
   EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_FALSE(queue.sweep_committed());
   EXPECT_EQ(queue.queue_length(), 0u);
@@ -901,7 +900,7 @@ TEST(QueuedTransactionWriterTest, TruncateThenCommitIsNoOp) {
                                         /*is_terminal=*/false));
 
   ASSERT_EQ(queue.dispatch_next(), env);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   truncate_transaction(group);
@@ -939,7 +938,7 @@ TEST(QueuedTransactionWriterTest, TruncateSweepThenCommitSkipsEnvelope) {
                                         /*is_terminal=*/false));
 
   ASSERT_EQ(queue.dispatch_next(), env);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   truncate_transaction(group);
@@ -971,7 +970,7 @@ TEST(QueuedTransactionWriterTest, SpillTruncateSweepThenCommitSkipsEnvelope) {
                                         /*is_terminal=*/false));
 
   ASSERT_EQ(queue.dispatch_next(), env);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   truncate_transaction(group);
@@ -1005,7 +1004,7 @@ void expect_truncation_survives_reset(Trx_envelope_queue &queue,
                                         /*is_terminal=*/false));
 
   ASSERT_EQ(queue.dispatch_next(), env);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   truncate_transaction(group);
@@ -1080,12 +1079,12 @@ TEST(QueuedTransactionWriterTest, SpillSkipMidStreamKeepsFileUntilTerminal) {
 
   // Skip commit while the receiver still streams.
   ASSERT_EQ(queue.dispatch_next(), env);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   fetchable->set_success();
   fetchable.reset();
   EXPECT_TRUE(env->is_committed());
-  EXPECT_NE(env->payload(), nullptr);
+  EXPECT_NE(env->fetchable(), nullptr);
   EXPECT_TRUE(std::filesystem::exists(file_name)) << "held: file kept";
   EXPECT_EQ(queue.spill_file_count(), 1u);
   EXPECT_FALSE(queue.sweep_committed());
@@ -1100,7 +1099,7 @@ TEST(QueuedTransactionWriterTest, SpillSkipMidStreamKeepsFileUntilTerminal) {
 
   // The release at the terminal event deleted the file, before any sweep.
   EXPECT_TRUE(is_closed(group));
-  EXPECT_EQ(env->payload(), nullptr);
+  EXPECT_EQ(env->fetchable(), nullptr);
   EXPECT_FALSE(std::filesystem::exists(file_name));
   EXPECT_EQ(queue.spill_file_count(), 0u);
   EXPECT_EQ(queue.spill_bytes_used(), 0u);

@@ -9,9 +9,9 @@ Workflow
 There are four roles in the end-to-end workflow. The receiver (IO thread) reads events off the network, parses the GTID header, assembles each transaction into a `Transaction_envelope` object, and enqueues it into a queue, replacing the `write_buffer()` write to the relaylog files.
 The queue (`Trx_envelope_queue`) is a deque implementation with `Transaction_envelope` in source order. The queue retains each transaction until it commits. The coordinator (CSA / SQL thread) reads `Transaction_envelope` objects in order, builds them into `Job_applier` objects, schedules and dispatches them to the worker pool without decoding. The workers decode and apply each transaction's events, unchanged from today.
 
-Envelope structure: `Transaction_envelope` and `Trx_payload`
+Envelope structure: `Transaction_envelope` and its payload
 
-The envelope is split into two objects with different lifetimes, so that memory can be reclaimed as soon as a transaction commits rather than when its entry is dequeued.
+The envelope keeps the transaction's heavy part in a separate payload member that is reset at commit, so memory is reclaimed as soon as a transaction commits rather than when its entry is dequeued.
 
 ```
 Transaction_envelope {             // queue entry — lightweight, lives until dequeued
@@ -19,20 +19,22 @@ Transaction_envelope {             // queue entry — lightweight, lives until d
   trx_length                       // header metadata (from GTID event)
   path                             // MEMORY | SPILL
   state                            // open | committed | truncated
-  unique_ptr<Trx_payload> payload  // reset at commit (memory path)
+  optional<Payload> payload        // reset at commit
 }
 
-Trx_payload {                      // heavy — carries the encoded events, lives until commit
-  shared_ptr<Fetchable_transaction> // the CSA trx object consumed by workers
+Payload {                          // heavy — carries the encoded events, lives until commit
+  shared_ptr<Fetchable_transaction> trx  // the CSA trx object consumed by workers
+  sink                                   // the byte source the receiver writes into
+  shared_ptr<FDE> fde                    // the FDE snapshot
 }
 ```
 
-`Transaction_envelope` is the lightweight entry used for ordering and re-dispatch. `Trx_payload` is the heavy object that wraps the existing CSA `Fetchable_transaction`. The encoded bytes are held in the `Event_set_fetchable` batch. The per-channel memory usage is tracked by the channel's `Resource_instance_monitor`, on a resource dedicated to the in-memory relaylog. The transaction's byte source ties the accounting to its lifetime with RAII: admission reserves `trx_length` on that resource before the byte source is built, and the byte source's destructor releases it when the last owner of the `Fetchable_transaction` (the payload or a worker's job) drops it.
+`Transaction_envelope` is the lightweight entry used for ordering and re-dispatch. Its payload is the heavy part: the envelope's share of the existing CSA `Fetchable_transaction`, with the sink and the FDE snapshot. The encoded bytes are held in the `Event_set_fetchable` batch. The per-channel memory usage is tracked by the channel's `Resource_instance_monitor`, on a resource dedicated to the in-memory relaylog. The transaction's byte source ties the accounting to its lifetime with RAII: admission reserves `trx_length` on that resource before the byte source is built, and the byte source's destructor releases it when the last owner of the `Fetchable_transaction` (the payload or a worker's job) drops it.
 The `Transaction_envelope` slot holds its `payload` reference until commit. After commit, the memory allocation ends, and the payload is reset while the empty `Transaction_envelope` slot lingers in the queue until the commit low-water mark advances. This avoids head-of-line memory blocking when transactions commit with `replica_preserve_commit_order=OFF`.
 
 Receiver (IO thread)
 
-At the GTID event, the receiver reads `trx_length`, chooses the path, creates the envelope, and enqueues it immediately. As body events arrive, it appends successive events to the envelope's `Trx_payload` and publishes the new end position, waking any waiting worker. At the transaction boundary it stops appending and marks the underlying `Event_set_fetchable` `sealed`. Control events that are not part of a transaction (Format_description, Rotate, heartbeat) are not turned into envelopes. GTID tracking is unchanged. A GTID enters `Retrieved_Gtid_Set` only after the transaction's last event is published.
+At the GTID event, the receiver reads `trx_length`, chooses the path, creates the envelope, and enqueues it immediately. As body events arrive, it appends successive events to the envelope's byte source and publishes the new end position, waking any waiting worker. At the transaction boundary it stops appending and marks the underlying `Event_set_fetchable` `sealed`. Control events that are not part of a transaction (Format_description, Rotate, heartbeat) are not turned into envelopes. GTID tracking is unchanged. A GTID enters `Retrieved_Gtid_Set` only after the transaction's last event is published.
 The change to the IO thread is localized. Instead of writing each event to the relaylog file (`queue_event()` → `write_buffer()`), the receiver now passes transaction events to a different destination. Encoded events are appended into a new in-memory byte source, `Event_set_fetchable_memory`, an implementation similar to `Event_set_fetchable_cache`, that reuses the streaming and synchronization functions (`append_event()` / `seal_stream()`, `wait_next()` / `fetch_next()`) and adds a commit hook in `set_success()` to mark the envelope committed, and release the transaction payload. Because it exposes the same `Event_set_fetchable` interface, the decode and apply path is unchanged.
 
 Queue
@@ -74,17 +76,17 @@ The coordinator consumes transactions through the existing `Transaction_provider
 A new reader `Queued_transaction_reader` is introduced as a memory path counterpart of `Relay_log_adaptive_reader`. Its `read()` takes the envelope at `dispatch_seqno` from the `Trx_envelope_queue`, advances the cursor, and wraps the envelope's `Fetchable_transaction` into a fresh `Job_applier` using the same constructor the relaylog reader uses today.
 Everything downstream is untouched. The coordinator obtains the next transaction from the provider, computes scheduling dependencies from the logical clock and commit-order inputs, and dispatches it to the worker thread pool exactly as today.
 The coordinator also tries to advance `commit_seqno` in the queue over a contiguous run of committed transactions at the head and dequeues each. A transaction that commits behind an uncommitted head is only marked committed and swept later when the head commits.
-Workers apply exactly as today. Each worker pulls events from the transaction byte source via `wait_next()` / `fetch_next()`, decodes them, and applies them, blocking only when it catches up to the last published event of a still-receiving transaction. For the memory path, the bytes come from the in-memory segment, and for the spill path, they are read from the disk file. The decode and execution path remains unchanged. On commit, the worker's `set_success()` fires the commit hook that marks the envelope committed and releases its `Trx_payload`.
+Workers apply exactly as today. Each worker pulls events from the transaction byte source via `wait_next()` / `fetch_next()`, decodes them, and applies them, blocking only when it catches up to the last published event of a still-receiving transaction. For the memory path, the bytes come from the in-memory segment, and for the spill path, they are read from the disk file. The decode and execution path remains unchanged. On commit, the worker's `set_success()` fires the commit hook that marks the envelope committed and resets its payload.
 
 Ownership
 
-Trx_payload
+Payload
 
-`Trx_payload` carries the byte stream `Fetchable_transaction` of each transaction; its byte source holds the RAII (Resource Acquisition Is Initialization) memory-usage accounting. The owner of the `Fetchable_transaction` changes as the transaction moves through different phases:
+The envelope's payload carries the byte stream `Fetchable_transaction` of each transaction; its byte source holds the RAII (Resource Acquisition Is Initialization) memory-usage accounting. The owner of the `Fetchable_transaction` changes as the transaction moves through different phases:
 Open (IO thread still receiving): held by the `Transaction_envelope` entry in the queue. The receiver keeps non-owning pointers to the envelope and its byte source while it appends, and its hold on the envelope keeps both alive.
 Sealed, not yet dispatched (fully received, waiting in the deque): held by the `Transaction_envelope` entry only; the receiver released its hold after sealing the byte source.
 Dispatched, applying (in-flight): held by the `Transaction_envelope` entry and the `Job_applier` (a copy taken at dispatch).
-Committed: the commit hook resets the envelope's `Trx_payload` pointer, and the `Job_applier` drops its reference right after the hook returns. With the last reference gone, `Fetchable_transaction` is freed on the worker thread. For a spill path transaction, its spill file is deleted at that point. The empty `Transaction_envelope` entry lingers behind an uncommitted head.
+Committed: the commit hook resets the envelope's payload, and the `Job_applier` drops its reference right after the hook returns. With the last reference gone, `Fetchable_transaction` is freed on the worker thread. For a spill path transaction, its spill file is deleted at that point. The empty `Transaction_envelope` entry lingers behind an uncommitted head.
 Rolled back (stop or retry): the `Job_applier` is dropped by the workers but the `Transaction_envelope` entry keeps its reference, so the uncommitted payload stays alive and re-dispatch can hand it to a fresh `Job_applier`.
 
 Queue

@@ -1128,7 +1128,6 @@ SET(RPL_CSA_SOURCES
   changestreams/apply/storage/relay_log/relay_log_deleter.cpp
   changestreams/apply/storage/relay_log/relay_log_adaptive_reader.cpp
   changestreams/apply/storage/relay_log/sync_transaction_provider.cpp
-  changestreams/apply/storage/in_memory/trx_payload.cc
   changestreams/apply/storage/in_memory/transaction_envelope.cc
   changestreams/apply/storage/in_memory/trx_envelope_queue.cc
   changestreams/apply/storage/in_memory/imr_runtime.cc

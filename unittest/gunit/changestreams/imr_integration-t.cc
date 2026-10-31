@@ -23,13 +23,13 @@
 */
 
 /// @file
-/// End-to-end in-memory harness test wiring the five core in-memory-relaylog
-/// classes together: Trx_envelope_queue, Transaction_envelope, Trx_payload,
-/// Event_set_fetchable_memory, and Queued_transaction_reader.
+/// End-to-end in-memory harness test wiring the four core in-memory-relaylog
+/// classes together: Trx_envelope_queue, Transaction_envelope (with its
+/// payload), Event_set_fetchable_memory, and Queued_transaction_reader.
 ///
 /// The flow mirrors the runtime memory path: admit + enqueue an envelope, build
 /// a single-batch Event_set_fetchable_memory byte source owned by a
-/// Fetchable_transaction, wrap that in a Trx_payload attached to the envelope,
+/// Fetchable_transaction, store that as the envelope's payload,
 /// stream a few events into the byte source and seal the byte stream (the
 /// single authoritative "fully received" signal), dispatch the fully-received
 /// transaction through the real Queued_transaction_reader::read() path (which
@@ -85,7 +85,6 @@
 #include "sql/changestreams/apply/storage/in_memory/spill_directory.h"  // ensure_spill_directory
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/changestreams/apply/storage/relay_log/ireader_event.h"
 #include "sql/log_event.h"
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
@@ -293,7 +292,7 @@ TEST_F(Imr_integration_test, EndToEndMemoryPathDispatchCommitSweep) {
   // 3) Stream a few events into the already-attached destination via the sink,
   //    then seal the byte stream. Reception is sealed on the SINK (byte source)
   //    — the single source of truth for "fully received". No
-  //    set_fetching_complete() here: create_memory() already sealed the
+  //    set_fetching_complete() here: create_payload() already sealed the
   //    (single-batch) metadata stream.
   //
   //    This MUST happen before dispatch (step 4). Building the Job_applier in
@@ -321,9 +320,9 @@ TEST_F(Imr_integration_test, EndToEndMemoryPathDispatchCommitSweep) {
 
   // Grab a shared_ptr copy of the enqueue-created Fetchable_transaction to
   // drive the consumer surface and fire the commit hook. It is created and
-  // sealed by create_memory(), so it is non-null and already trx-typed.
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  // sealed by create_payload(), so it is non-null and already trx-typed.
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   ASSERT_TRUE(fetchable->is_trx());
 
@@ -358,7 +357,7 @@ TEST_F(Imr_integration_test, EndToEndMemoryPathDispatchCommitSweep) {
   //    and so its reservation, lives on in the job's and our copies.
   fetchable->set_success();
   EXPECT_TRUE(env->is_committed());
-  EXPECT_EQ(env->payload(), nullptr);
+  EXPECT_EQ(env->fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), kTrxLength);
 
   // The Job_applier still holds its own shared_ptr copy of the
@@ -394,7 +393,7 @@ TEST_F(Imr_integration_test, EndToEndMemoryPathDispatchCommitSweep) {
 // Queued_transaction_reader, NO Job_applier, and NO Event_set_fetchable_memory
 // byte source is attached. Building a Job peeks the transaction's first event
 // (which would block an empty stream), and the byte source is irrelevant to the
-// memory-accounting / cursor-ordering properties under test. Plain Trx_payloads
+// memory-accounting / cursor-ordering properties under test. Plain payloads
 // therefore stand in for the heavy byte source: each reserves its bytes at
 // attach and releases them on commit() with no seal.
 //
@@ -552,7 +551,7 @@ TEST_F(Imr_integration_test, ConcurrentOutOfOrderCommitSweep) {
 
 // Concurrency property test for streaming into an OPEN envelope. One
 // producer thread and one consumer thread share a single Trx_envelope_queue.
-// The producer enqueues an envelope, attaches a Trx_payload wrapping an
+// The producer enqueues an envelope, attaches a payload wrapping an
 // Event_set_fetchable_memory-backed Fetchable_transaction, then streams events
 // over time (append_transaction_event) into the still-OPEN (unsealed) stream
 // and finally seal_stream(). The consumer dispatch_next()s the envelope and
@@ -648,7 +647,7 @@ TEST_F(Imr_integration_test, ConcurrentStreamingIntoOpenEnvelope) {
     }
     // Seal the byte stream — the single authoritative "fully received" signal;
     // wait_next() reports end-of-stream after the last event. The
-    // (single-batch) metadata stream was already sealed by create_memory(), so
+    // (single-batch) metadata stream was already sealed by create_payload(), so
     // no set_fetching_complete() is needed here for the consumer's wait_next()
     // loop to finish.
     sink->seal_stream();
@@ -666,11 +665,9 @@ TEST_F(Imr_integration_test, ConcurrentStreamingIntoOpenEnvelope) {
     // becomes observable, so by the time dispatch_next() returns it the payload
     // is guaranteed attached (happens-before via the queue mutex). No publish
     // gate is needed.
-    Trx_payload *payload = env->payload();
-    ASSERT_NE(payload, nullptr);
     // Hold an independent shared_ptr copy so the Fetchable_transaction (and its
     // byte source) survives the commit that nulls the envelope's payload.
-    std::shared_ptr<Fetchable_transaction> fetchable = payload->fetchable();
+    std::shared_ptr<Fetchable_transaction> fetchable = env->fetchable();
     ASSERT_NE(fetchable, nullptr);
 
     // Drain: this is where the consumer blocks on the OPEN stream and wakes on
@@ -1074,8 +1071,8 @@ TEST_F(Imr_integration_test, EndToEndSpillPathDispatchCommitSweepAndCleanup) {
 
   // A shared handle to the enqueue-created Fetchable_transaction to drive the
   // consumer and fire the commit hook.
-  ASSERT_NE(env->payload(), nullptr);
-  auto fetchable = env->payload()->fetchable();
+  ASSERT_NE(env->fetchable(), nullptr);
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   ASSERT_TRUE(fetchable->is_trx());
 
@@ -1103,7 +1100,7 @@ TEST_F(Imr_integration_test, EndToEndSpillPathDispatchCommitSweepAndCleanup) {
   //    are released (spill never charged the counter).
   fetchable->set_success();
   EXPECT_TRUE(env->is_committed());
-  EXPECT_EQ(env->payload(), nullptr);
+  EXPECT_EQ(env->fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), 0u);
 
   // The spill file is still present: the Job and our local handle keep the byte
@@ -1237,7 +1234,7 @@ TEST_F(Imr_integration_test, ApplierStopAbortsParkedMemoryConsumer) {
   std::shared_ptr<void> drain(nullptr, [&queue](void *) { queue.reset(); });
   auto *sink = static_cast<Event_set_fetchable_memory *>(env->current_sink());
   ASSERT_NE(sink, nullptr);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   // Parked before the first event.
@@ -1293,7 +1290,7 @@ TEST_F(Imr_integration_test, ApplierStopAbortsParkedSpillConsumer) {
   std::shared_ptr<void> drain(nullptr, [&queue](void *) { queue.reset(); });
   Streaming_event_sink *sink = env->current_sink();
   ASSERT_NE(sink, nullptr);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
   const std::vector<unsigned char> bytes = serialize_event();
 
@@ -1354,9 +1351,9 @@ TEST_F(Imr_integration_test, StructuralFailureEndsParkedConsumers) {
   ASSERT_NE(mem_sink, nullptr);
   Streaming_event_sink *spill_sink = spill_env->current_sink();
   ASSERT_NE(spill_sink, nullptr);
-  auto mem_fetchable = mem_env->payload()->fetchable();
+  auto mem_fetchable = mem_env->fetchable();
   ASSERT_NE(mem_fetchable, nullptr);
-  auto spill_fetchable = spill_env->payload()->fetchable();
+  auto spill_fetchable = spill_env->fetchable();
   ASSERT_NE(spill_fetchable, nullptr);
 
   {
@@ -1417,7 +1414,7 @@ TEST_F(Imr_integration_test, TruncationSurvivesResetFetchingNotAborted) {
   std::shared_ptr<void> drain(nullptr, [&queue](void *) { queue.reset(); });
   auto *sink = static_cast<Event_set_fetchable_memory *>(env->current_sink());
   ASSERT_NE(sink, nullptr);
-  auto fetchable = env->payload()->fetchable();
+  auto fetchable = env->fetchable();
   ASSERT_NE(fetchable, nullptr);
 
   sink->append_reader_event(make_fake(make_event()));
@@ -1461,7 +1458,7 @@ TEST_F(Imr_integration_test, SinkAppendsRaiseFetchableMaxEventLengthBothPaths) {
     ASSERT_EQ(env->path(), path);
     Streaming_event_sink *sink = env->current_sink();
     ASSERT_NE(sink, nullptr);
-    auto fetchable = env->payload()->fetchable();
+    auto fetchable = env->fetchable();
     ASSERT_NE(fetchable, nullptr);
     EXPECT_EQ(fetchable->get_max_event_length(), 0u);
 

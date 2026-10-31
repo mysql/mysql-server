@@ -25,7 +25,7 @@
 /// @file
 /// Unit tests for mysql::csa::Transaction_envelope, the lightweight FIFO-queue
 /// entry that tracks a single transaction's COMMIT flag (uncommitted ->
-/// committed) and owns its heavy Trx_payload. The envelope tracks only the
+/// committed) and owns its heavy payload. The envelope tracks only the
 /// commit axis; reception ("fully received") is owned by the byte source, not
 /// the envelope. The tests use a real Trx_envelope_queue as the byte-accounting
 /// backend and a default-constructed Fetchable_transaction as the wrapped byte
@@ -51,7 +51,6 @@
 #include "sql/changestreams/apply/storage/in_memory/spill_directory.h"  // ensure_spill_directory
 #include "sql/changestreams/apply/storage/in_memory/transaction_envelope.h"
 #include "sql/changestreams/apply/storage/in_memory/trx_envelope_queue.h"
-#include "sql/changestreams/apply/storage/in_memory/trx_payload.h"
 #include "sql/log_event.h"  // Format_description_log_event
 #include "unittest/gunit/changestreams/imr_test_memory_resource.h"
 
@@ -137,13 +136,13 @@ TEST(ImrTransactionEnvelopeTest, CommitReleasesPayloadBytesAndNullsPayload) {
 
   ASSERT_FALSE(env.create_payload(/*is_trx=*/true, make_fde(), &queue));
   ASSERT_EQ(queue.bytes_used(), kTrxLength);
-  ASSERT_NE(env.payload(), nullptr);
+  ASSERT_NE(env.fetchable(), nullptr);
 
   // Commit from uncommitted succeeds: false == success.
   EXPECT_FALSE(env.commit());
 
   EXPECT_TRUE(env.is_committed());
-  EXPECT_EQ(env.payload(), nullptr);
+  EXPECT_EQ(env.fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
@@ -164,14 +163,14 @@ TEST(ImrTransactionEnvelopeTest, ReCommitRejectedNoDoubleRelease) {
   // First commit: succeeds (false), releasing the reserved bytes.
   ASSERT_FALSE(env.commit());
   ASSERT_TRUE(env.is_committed());
-  ASSERT_EQ(env.payload(), nullptr);
+  ASSERT_EQ(env.fetchable(), nullptr);
   ASSERT_EQ(queue.bytes_used(), 0u);
 
   // Re-commit: rejected (true == failure), no state change, no payload change,
   // no further byte release.
   EXPECT_TRUE(env.commit());
   EXPECT_TRUE(env.is_committed());
-  EXPECT_EQ(env.payload(), nullptr);
+  EXPECT_EQ(env.fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), 0u);
 }
 
@@ -202,7 +201,7 @@ TEST(ImrTransactionEnvelopeTest, SetTruncatedMarksTruncatedAndKeepsPayload) {
   // Truncated is mutually exclusive with committed.
   EXPECT_FALSE(env.is_committed());
   // Payload (and its reserved bytes) is retained; not released by truncation.
-  EXPECT_NE(env.payload(), nullptr);
+  EXPECT_NE(env.fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), kTrxLength);
 
   // set_truncated() is idempotent: a second call is a no-op.
@@ -214,8 +213,8 @@ TEST(ImrTransactionEnvelopeTest, SetTruncatedMarksTruncatedAndKeepsPayload) {
 
 // A truncated envelope releases its reserved bytes when it is destroyed — this
 // is how the coordinator's sweep reclaims a truncated head: dropping
-// the envelope runs the Trx_payload destructor, which returns the bytes to the
-// queue counter. (For a committed envelope the release happens earlier, at
+// the envelope destroys its payload, whose byte source returns the bytes to
+// the queue counter. (For a committed envelope the release happens earlier, at
 // commit(); for a truncated one it happens here, at sweep/destruction.)
 TEST(ImrTransactionEnvelopeTest, TruncatedEnvelopeReleasesBytesOnDestruction) {
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
@@ -377,7 +376,7 @@ TEST(ImrTransactionEnvelopeTest, PropertyPayloadLifetime) {
 
       // Non-null payload from admission, and bytes_used rose by
       // exactly this envelope's declared length.
-      ASSERT_NE(env->payload(), nullptr)
+      ASSERT_NE(env->fetchable(), nullptr)
           << "seed=" << kSeed << " trial=" << trial << " i=" << i;
       ASSERT_EQ(queue.bytes_used(), before + len)
           << "seed=" << kSeed << " trial=" << trial << " i=" << i
@@ -403,7 +402,7 @@ TEST(ImrTransactionEnvelopeTest, PropertyPayloadLifetime) {
       const std::size_t before = queue.bytes_used();
 
       // Non-null right up to the commit call.
-      ASSERT_NE(env->payload(), nullptr)
+      ASSERT_NE(env->fetchable(), nullptr)
           << "seed=" << kSeed << " trial=" << trial << " k=" << k;
       ASSERT_FALSE(env->is_committed())
           << "seed=" << kSeed << " trial=" << trial << " k=" << k;
@@ -416,7 +415,7 @@ TEST(ImrTransactionEnvelopeTest, PropertyPayloadLifetime) {
       // were released (bytes_used dropped by exactly this envelope's length).
       ASSERT_TRUE(env->is_committed())
           << "seed=" << kSeed << " trial=" << trial << " k=" << k;
-      ASSERT_EQ(env->payload(), nullptr)
+      ASSERT_EQ(env->fetchable(), nullptr)
           << "seed=" << kSeed << " trial=" << trial << " k=" << k;
       ASSERT_EQ(queue.bytes_used(), before - len)
           << "seed=" << kSeed << " trial=" << trial << " k=" << k
@@ -452,7 +451,7 @@ TEST(ImrTransactionEnvelopeTest, CreateSpillDestinationLiveSinkNoReservation) {
   ASSERT_FALSE(env.create_payload(/*is_trx=*/true, make_fde(), &queue));
 
   // A payload and a reachable sink now exist.
-  ASSERT_NE(env.payload(), nullptr);
+  ASSERT_NE(env.fetchable(), nullptr);
   Streaming_event_sink *sink = env.current_sink();
   ASSERT_NE(sink, nullptr);
   auto *spill = dynamic_cast<Event_set_fetchable_spill *>(sink);
@@ -466,7 +465,7 @@ TEST(ImrTransactionEnvelopeTest, CreateSpillDestinationLiveSinkNoReservation) {
   // Committing the (unheld) spill envelope drops its payload, which releases
   // zero memory bytes, leaving the counter at zero.
   ASSERT_FALSE(env.commit());
-  EXPECT_EQ(env.payload(), nullptr);
+  EXPECT_EQ(env.fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), before);
 }
 
@@ -489,12 +488,12 @@ TEST(ImrTransactionEnvelopeTest, HeldCommitKeepsPayloadReleaseFreesIt) {
   // The commit succeeds (false: counted) but keeps the payload.
   EXPECT_FALSE(env.commit());
   EXPECT_TRUE(env.is_committed());
-  EXPECT_NE(env.payload(), nullptr);
+  EXPECT_NE(env.fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), kTrxLength);
   EXPECT_FALSE(env.is_reclaimable());
 
   env.release_receiver();
-  EXPECT_EQ(env.payload(), nullptr);
+  EXPECT_EQ(env.fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_TRUE(env.is_reclaimable());
   EXPECT_FALSE(env.is_receiver_held());
@@ -512,13 +511,13 @@ TEST(ImrTransactionEnvelopeTest, ReleaseThenCommitFreesAtCommit) {
   env.hold_for_receiver();
   env.release_receiver();
   // Releasing an uncommitted envelope keeps its payload for the commit.
-  ASSERT_NE(env.payload(), nullptr);
+  ASSERT_NE(env.fetchable(), nullptr);
   ASSERT_EQ(queue.bytes_used(), kTrxLength);
   ASSERT_FALSE(env.is_reclaimable());
 
   EXPECT_FALSE(env.commit());
   EXPECT_TRUE(env.is_committed());
-  EXPECT_EQ(env.payload(), nullptr);
+  EXPECT_EQ(env.fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_TRUE(env.is_reclaimable());
 }
@@ -558,7 +557,7 @@ TEST(ImrTransactionEnvelopeTest, CommitAfterTruncateOnHeldEnvelope) {
     EXPECT_TRUE(env.commit());  // no assert, not counted
     EXPECT_FALSE(env.is_committed());
     EXPECT_TRUE(env.is_truncated());
-    EXPECT_NE(env.payload(), nullptr);
+    EXPECT_NE(env.fetchable(), nullptr);
     EXPECT_FALSE(env.is_reclaimable());
 
     env.release_receiver();
@@ -566,7 +565,7 @@ TEST(ImrTransactionEnvelopeTest, CommitAfterTruncateOnHeldEnvelope) {
     EXPECT_FALSE(env.is_committed());
     EXPECT_TRUE(env.is_truncated());
     // A truncated envelope keeps its payload until it is destroyed.
-    EXPECT_NE(env.payload(), nullptr);
+    EXPECT_NE(env.fetchable(), nullptr);
     EXPECT_EQ(queue.bytes_used(), kTrxLength);
   }
   EXPECT_EQ(queue.bytes_used(), 0u);
@@ -610,7 +609,7 @@ TEST(ImrTransactionEnvelopeTest, ReleaseIsIdempotentAndNoOpWhenNeverHeld) {
     Transaction_envelope env(kTrxLength, Envelope_path::MEMORY);
     ASSERT_FALSE(env.create_payload(/*is_trx=*/true, make_fde(), &queue));
     env.release_receiver();
-    EXPECT_NE(env.payload(), nullptr);
+    EXPECT_NE(env.fetchable(), nullptr);
     EXPECT_EQ(queue.bytes_used(), kTrxLength);
     EXPECT_FALSE(env.is_receiver_held());
     EXPECT_FALSE(env.is_committed());
@@ -626,10 +625,10 @@ TEST(ImrTransactionEnvelopeTest, ReleaseIsIdempotentAndNoOpWhenNeverHeld) {
   env.hold_for_receiver();
   ASSERT_FALSE(env.commit());
   env.release_receiver();
-  ASSERT_EQ(env.payload(), nullptr);
+  ASSERT_EQ(env.fetchable(), nullptr);
   ASSERT_EQ(queue.bytes_used(), 0u);
   env.release_receiver();
-  EXPECT_EQ(env.payload(), nullptr);
+  EXPECT_EQ(env.fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), 0u);
   EXPECT_FALSE(env.is_receiver_held());
   EXPECT_TRUE(env.is_committed());
@@ -641,7 +640,7 @@ TEST(ImrTransactionEnvelopeTest, ReleaseIsIdempotentAndNoOpWhenNeverHeld) {
   open_env.hold_for_receiver();
   open_env.release_receiver();
   open_env.release_receiver();
-  EXPECT_NE(open_env.payload(), nullptr);
+  EXPECT_NE(open_env.fetchable(), nullptr);
   EXPECT_EQ(queue.bytes_used(), kTrxLength);
   EXPECT_FALSE(open_env.is_receiver_held());
   EXPECT_FALSE(open_env.is_reclaimable());
