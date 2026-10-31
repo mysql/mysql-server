@@ -1515,13 +1515,14 @@ struct dict_index_t {
   @param[in]	phy_pos	physical position of field
   @return logical position of field */
   uint16_t get_logical_pos(uint16_t phy_pos) const {
-    for (size_t i = 0; i < n_def; i++) {
-      if (get_field(i)->get_phy_pos() == phy_pos) {
-        return i;
-      }
+    ut_ad(phy_pos < n_def);
+    ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+    if (has_row_versions()) {
+      return fields_array[phy_pos];
     }
-    ut_ad(false);
-    return UINT16_UNDEFINED;
+
+    return phy_pos;
   }
 
   /** Get the physical position of a field on a row. For table having INSTANT
