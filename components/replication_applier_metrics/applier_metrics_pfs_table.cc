@@ -227,13 +227,15 @@ class Applier_metrics_table_with_cursor {
         {waits_due_to_commit_order_sum_time_t,
          longlong_type},  // WAITS_DUE_TO_COMMIT_ORDER_SUM_TIME
         {time_to_read_from_relay_log_t,
-         longlong_type},                          // TIME_TO_READ_FROM_RELAY_LOG_SUM_TIME
+         longlong_type},  // TIME_TO_READ_FROM_RELAY_LOG_SUM_TIME
         {imr_memory_bytes_used_t, longlong_type},  // IN_MEMORY_BYTES_USED
-        {imr_queue_length_t, longlong_type},        // IN_MEMORY_QUEUE_LENGTH
-        {imr_memory_trx_count_t, longlong_type},  // IN_MEMORY_TRANSACTIONS_COUNT
-        {imr_memory_trx_bytes_t, longlong_type},  // IN_MEMORY_TRANSACTIONS_BYTES
-        {imr_spill_trx_count_t, longlong_type},   // SPILL_TRANSACTIONS_COUNT
-        {imr_spill_trx_bytes_t, longlong_type},   // SPILL_TRANSACTIONS_BYTES
+        {imr_queue_length_t, longlong_type},       // IN_MEMORY_QUEUE_LENGTH
+        {imr_memory_trx_count_t,
+         longlong_type},  // IN_MEMORY_TRANSACTIONS_COUNT
+        {imr_memory_trx_bytes_t,
+         longlong_type},                         // IN_MEMORY_TRANSACTIONS_BYTES
+        {imr_spill_trx_count_t, longlong_type},  // SPILL_TRANSACTIONS_COUNT
+        {imr_spill_trx_bytes_t, longlong_type},  // SPILL_TRANSACTIONS_BYTES
         {imr_spill_file_count_t, longlong_type},  // SPILL_FILE_COUNT
         {imr_spill_bytes_used_t, longlong_type}   // SPILL_BYTES_USED
     }};

@@ -30,7 +30,7 @@
 #include "sql/changestreams/apply/service/csa_service.h"
 #include "sql/changestreams/apply/storage/in_memory/imr_runtime.h"  // Imr_runtime
 #include "sql/changestreams/apply/storage/in_memory/queued_transaction_reader.h"  // Queued_transaction_reader
-#include "sql/mysqld.h"  // slave_trans_retries
+#include "sql/mysqld.h"   // slave_trans_retries
 #include "sql/rpl_mi.h"   // Master_info
 #include "sql/rpl_rli.h"  // Relay_log_info
 

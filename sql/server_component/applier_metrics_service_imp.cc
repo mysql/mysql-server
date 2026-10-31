@@ -24,8 +24,8 @@
 #include "applier_metrics_service_imp.h"
 #include <mysql/components/services/rpl_applier_metrics_service.h>  // Enum_applier_metric_type
 #include <cassert>                                                  // assert
-#include "my_dbug.h"                   // DBUG_EVALUATE_IF
-#include "mysql/abi_helpers/packet.h"  // Packet_builder
+#include "my_dbug.h"                                      // DBUG_EVALUATE_IF
+#include "mysql/abi_helpers/packet.h"                     // Packet_builder
 #include "sql/changestreams/apply/service/csa_service.h"  // Csa_service
 #include "sql/changestreams/apply/storage/in_memory/imr_runtime.h"  // Imr_runtime
 #include "sql/psi_memory_key.h"  // key_memory_applier_metric_service
@@ -249,10 +249,8 @@ DEFINE_BOOL_METHOD(Applier_metrics_service_handler::get_applier_metrics,
     builder.push_int(imr_memory_trx_bytes_t, imr_stats.memory_trx_bytes);
     builder.push_int(imr_spill_trx_count_t, imr_stats.spill_trx_count);
     builder.push_int(imr_spill_trx_bytes_t, imr_stats.spill_trx_bytes);
-    builder.push_int(imr_spill_file_count_t,
-                     imr ? imr->spill_file_count() : 0);
-    builder.push_int(imr_spill_bytes_used_t,
-                     imr ? imr->spill_bytes_used() : 0);
+    builder.push_int(imr_spill_file_count_t, imr ? imr->spill_file_count() : 0);
+    builder.push_int(imr_spill_bytes_used_t, imr ? imr->spill_bytes_used() : 0);
 
     assert(builder.get_position() == number_of_applier_metrics);
     assert(builder.get_position() == row.size());

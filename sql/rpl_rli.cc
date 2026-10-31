@@ -2090,8 +2090,8 @@ bool Relay_log_info::clear_info() {
     return true;
   }
 
-  if (this->handler->set_info(static_cast<ulong>(
-          this->get_in_memory_relaylog_spill_threshold()))) {
+  if (this->handler->set_info(
+          static_cast<ulong>(this->get_in_memory_relaylog_spill_threshold()))) {
     return true;
   }
 

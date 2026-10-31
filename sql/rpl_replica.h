@@ -94,7 +94,7 @@ typedef enum {
 
 #define MAX_SLAVE_ERROR 14000
 
-#define MTS_WORKER_UNDEF ((ulong) - 1)
+#define MTS_WORKER_UNDEF ((ulong)-1)
 #define MTS_MAX_WORKERS 1024
 #define MAX_SLAVE_RETRY_PAUSE 5
 
