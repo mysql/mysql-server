@@ -3540,6 +3540,43 @@ bool Item_field::used_tables_for_level(uchar *arg) {
   return false;
 }
 
+/**
+  Return the tables of query block 'level' that the outer reference 'item'
+  depends on, to be accumulated into the used tables of the subquery that
+  contains the reference.
+
+  Item::used_tables_for_level() only reports Item_field columns. A column of a
+  merged derived table or view on the inner side of an outer join whose
+  expression uses no tables (e.g. '93 AS c') has none, yet it must read as NULL
+  on NULL-complemented rows, so it depends on its first inner table (see
+  Item_view_ref::used_tables()). Without that dependency the subquery looks
+  uncorrelated and is evaluated only once.
+*/
+static table_map used_tables_for_subquery_level(Item *item,
+                                                Query_block *level) {
+  Used_tables ut(level);
+  (void)item->walk(&Item::used_tables_for_level, enum_walk::SUBQUERY_POSTFIX,
+                   pointer_cast<uchar *>(&ut));
+  // Add the first inner table of view references that have no table column
+  // below them, which the walk above cannot see.
+  WalkItem(item, enum_walk::SUBQUERY_POSTFIX, [&ut](Item *inner) {
+    if (inner->type() != Item::REF_ITEM ||
+        down_cast<Item_ref *>(inner)->ref_type() != Item_ref::VIEW_REF)
+      return false;
+    auto *view_ref = down_cast<Item_view_ref *>(inner);
+    const Table_ref *first_inner = view_ref->get_first_inner_table();
+    if (first_inner == nullptr ||
+        (view_ref->ref_item()->used_tables() & ~INNER_TABLE_BIT) != 0)
+      return false;
+    if (first_inner->query_block == ut.select)
+      ut.used_tables |= first_inner->map();
+    else if (ut.select->nest_level > first_inner->query_block->nest_level)
+      ut.used_tables |= OUTER_REF_TABLE_BIT;
+    return false;
+  });
+  return ut.used_tables;
+}
+
 void Item_ident::fix_after_pullout(Query_block *parent_query_block,
                                    Query_block *removed_query_block) {
   /*
@@ -3598,11 +3635,8 @@ void Item_ident::fix_after_pullout(Query_block *parent_query_block,
       level. Now, locate the subquery predicate that contains this query_block
       and update used tables information.
     */
-    Used_tables ut(depended_from);
-    (void)walk(&Item::used_tables_for_level, enum_walk::SUBQUERY_POSTFIX,
-               pointer_cast<uchar *>(&ut));
     child_query_block->master_query_expression()->accumulate_used_tables(
-        ut.used_tables);
+        used_tables_for_subquery_level(this, depended_from));
   }
 }
 
@@ -5999,11 +6033,8 @@ bool Item_field::fix_outer_field(THD *thd, Field **base_field,
       break;
     } else if (result == VIEW_FIELD_FOUND) {
       assert(*ref_field != nullptr);
-      Used_tables ut(select);
-      (void)(*ref_field)
-          ->walk(&Item::used_tables_for_level, enum_walk::SUBQUERY_POSTFIX,
-                 pointer_cast<uchar *>(&ut));
-      cur_query_expression->accumulate_used_tables(ut.used_tables);
+      cur_query_expression->accumulate_used_tables(
+          used_tables_for_subquery_level(*ref_field, select));
 
       if (select->is_explicitly_grouped() &&
           (place == CTX_HAVING || place == CTX_QUALIFY)) {
