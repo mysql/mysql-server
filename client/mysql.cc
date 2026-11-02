@@ -2814,14 +2814,12 @@ static bool add_line(String &buffer, char *line, size_t line_length,
               discard all characters in the comment after the macro (that is,
               until the end of the comment rather than the next delimiter)
             */
-            for (pos++; *pos && (*pos != '*' || *(pos + 1) != '/'); pos++)
-              ;
+            for (pos++; *pos && (*pos != '*' || *(pos + 1) != '/'); pos++);
             pos--;
           } else {
             for (pos++; *pos && (*pos != *delimiter ||
                                  !is_prefix(pos + 1, delimiter + 1));
-                 pos++)
-              ;  // Remove parameters
+                 pos++);  // Remove parameters
             if (!*pos)
               pos--;
             else
@@ -3495,8 +3493,9 @@ static int com_server_help(String *buffer [[maybe_unused]],
   if (result) {
     const unsigned int num_fields = mysql_num_fields(result);
     const uint64_t num_rows = mysql_num_rows(result);
-    mysql_fetch_fields(result);
-    if (num_fields == 3 && num_rows == 1) {
+    MYSQL_FIELD *fields = mysql_fetch_fields(result);
+    if (num_fields == 3 && num_rows == 1 &&
+        strcmp(fields[0].name, "name") == 0) {
       cur = mysql_fetch_row(result);
       if (!cur) {
         error = -1;
@@ -4901,8 +4900,7 @@ char *get_arg(char *line, bool get_next_arg) {
 
   ptr = line;
   if (get_next_arg) {
-    for (; *ptr; ptr++)
-      ;
+    for (; *ptr; ptr++);
     if (*(ptr + 1)) ptr++;
   } else {
     /* skip leading white spaces */
