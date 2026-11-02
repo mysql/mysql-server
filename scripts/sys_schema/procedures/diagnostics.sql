@@ -116,6 +116,7 @@ BEGIN
     -- The width of each of the status outputs in the summery
     DECLARE v_status_summary_width TINYINT UNSIGNED DEFAULT 50;
     DECLARE v_done BOOLEAN DEFAULT FALSE;
+    DECLARE v_log_bin BOOLEAN;
     -- Do not include the following ndbinfo views:
     --    'blocks'                    Static
     --    'config_params'             Static
@@ -144,6 +145,13 @@ BEGIN
           FROM tmp_sys_views_delta
          ORDER BY table_name;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = TRUE;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF (@@sql_log_bin <> v_log_bin) THEN
+            SET sql_log_bin = v_log_bin;
+        END IF;
+        RESIGNAL;
+    END;
 
     -- Do not track the current thread - no reason to clutter the output
     SELECT INSTRUMENTED INTO v_this_thread_enabled FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID();
@@ -180,8 +188,8 @@ BEGIN
     END IF;
 
     -- Temporary table are used - disable sql_log_bin if necessary to prevent them replicating
-    SET @log_bin := @@sql_log_bin;
-    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+    SET v_log_bin = @@sql_log_bin;
+    IF ((v_log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
         SET sql_log_bin = 0;
     END IF;
 
@@ -1017,8 +1025,8 @@ BEGIN
 
     IF (in_auto_config <> 'current') THEN
         CALL sys.ps_setup_reload_saved();
-        IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
-            SET sql_log_bin = @log_bin;
+        IF ((v_log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+            SET sql_log_bin = v_log_bin;
         END IF;
     END IF;
 
@@ -1035,8 +1043,8 @@ BEGIN
         CALL sys.ps_setup_enable_thread(CONNECTION_ID());
     END IF;
 
-    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
-        SET sql_log_bin = @log_bin;
+    IF ((v_log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+        SET sql_log_bin = v_log_bin;
     END IF;
 END$$
 

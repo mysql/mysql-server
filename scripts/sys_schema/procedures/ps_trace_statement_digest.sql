@@ -155,8 +155,16 @@ BEGIN
     DECLARE v_runtime INT DEFAULT 0;
     DECLARE v_start INT DEFAULT 0;
     DECLARE v_found_stmts INT;
+    DECLARE v_log_bin BOOLEAN;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF (@@sql_log_bin <> v_log_bin) THEN
+            SET sql_log_bin = v_log_bin;
+        END IF;
+        RESIGNAL;
+    END;
 
-    SET @log_bin := @@sql_log_bin;
+    SET v_log_bin = @@sql_log_bin;
     SET sql_log_bin = 0;
 
     -- Do not track the current thread, it will kill the stack
@@ -318,7 +326,7 @@ BEGIN
         CALL sys.ps_setup_enable_thread(CONNECTION_ID());
     END IF;
 
-    SET sql_log_bin = @log_bin;
+    SET sql_log_bin = v_log_bin;
 END$$
 
 DELIMITER ;
