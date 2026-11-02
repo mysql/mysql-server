@@ -66,6 +66,22 @@ class Sql_cmd_create_type final : public Sql_cmd_ddl_type {
   PT_type *m_type;
 };
 
+class Sql_cmd_alter_type final : public Sql_cmd_ddl_type {
+ public:
+  Sql_cmd_alter_type(Type_ident *type_ident)
+      : Sql_cmd_ddl_type(type_ident) {}
+
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_ALTER_TYPE;
+  }
+
+  bool execute(THD *thd) override;
+
+ private:
+  // FIXME: or TypeDescriptor + do_contextualize()
+  PT_type *m_type;
+};
+
 class Sql_cmd_drop_type final : public Sql_cmd_ddl_type {
  public:
   Sql_cmd_drop_type(Type_ident *type_ident, bool if_exists)

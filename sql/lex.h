@@ -836,6 +836,14 @@ static const SYMBOL symbols[] = {
     {SYM("ZEROFILL", ZEROFILL_SYM)},
     {SYM("ZONE", ZONE_SYM)},
     {SYM("||", OR_OR_SYM)},
+
+    // Added for User Defined Types
+    {SYM("STATIC", STATIC_SYM)},
+    {SYM("CONSTRUCTOR", CONSTRUCTOR_SYM)},
+    {SYM("METHOD", METHOD_SYM)},
+    {SYM("CALLED", CALLED_SYM)},
+    {SYM("INPUT", INPUT_SYM)},
+
     /*
       Place keywords that accept optimizer hints below this comment.
     */

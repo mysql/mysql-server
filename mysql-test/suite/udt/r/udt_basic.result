@@ -1,9 +1,9 @@
 CREATE TYPE test.usbn13 AS CHAR(13);
 Warnings:
-Warning	6914	The following code is not implemented: Sql_cmd_create_type::execute()
+Warning	6924	The following code is not implemented: Sql_cmd_create_type::execute()
 CREATE TYPE test.complex_number AS BINARY(16);
 Warnings:
-Warning	6914	The following code is not implemented: Sql_cmd_create_type::execute()
+Warning	6924	The following code is not implemented: Sql_cmd_create_type::execute()
 SELECT * FROM INFORMATION_SCHEMA.TYPES
 ORDER BY TYPE_SCHEMA, TYPE_NAME;
 TYPE_CATALOG	TYPE_SCHEMA	TYPE_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
@@ -23,14 +23,14 @@ CREATE PROCEDURE test.broken2()
 BEGIN
 DECLARE var test.broken;
 END$$
-ERROR HY000: User defined type 'test.broken' doesn't exist
+ERROR HY000: User defined type 'test.broken' does not exist
 CREATE PROCEDURE test.demo2()
 BEGIN
 DECLARE var test.usbn13;
 SET var = "FIXME";
 END$$
 Warnings:
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
 SHOW PROCEDURE CODE test.demo1;
 Pos	Instruction
 0	set var@0 NULL
@@ -40,7 +40,7 @@ Pos	Instruction
 0	set var@0 NULL
 1	set var@0 'FIXME'
 Warnings:
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
 CALL test.demo1();
 title
 Demo
@@ -62,23 +62,23 @@ SELECT s as "result";
 SELECT complex_number_to_string(c) as "result 2";
 END$$
 Warnings:
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
 call test.complex();
 result
 4.000000+6.000000i
 result 2
 4.000000+6.000000i
 Warnings:
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
 UNINSTALL COMPONENT "file://component_udt_example";
 DROP PROCEDURE test.complex;
 DROP TYPE test.usbn13;
 Warnings:
-Warning	6914	The following code is not implemented: Sql_cmd_drop_type::execute()
+Warning	6924	The following code is not implemented: Sql_cmd_drop_type::execute()
 DROP TYPE test.complex_number;
 Warnings:
-Warning	6914	The following code is not implemented: Sql_cmd_drop_type::execute()
+Warning	6924	The following code is not implemented: Sql_cmd_drop_type::execute()

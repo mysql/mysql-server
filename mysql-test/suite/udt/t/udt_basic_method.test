@@ -35,6 +35,7 @@ delimiter ;$$
 
 call test.complex();
 
+--error ER_BAD_FIELD_ERROR
 select foo.bar.baz() from INFORMATION_SCHEMA.TYPES;
 
 UNINSTALL COMPONENT "file://component_udt_example";

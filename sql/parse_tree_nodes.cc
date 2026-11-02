@@ -5879,6 +5879,12 @@ Sql_cmd *PT_create_type_stmt::make_cmd(THD *thd) {
   return new (thd->mem_root) Sql_cmd_create_type(m_type_name, m_type);
 }
 
+Sql_cmd *PT_alter_type_stmt::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_ALTER_TYPE;
+
+  return new (thd->mem_root) Sql_cmd_alter_type(m_type_name);
+}
+
 Sql_cmd *PT_drop_type_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_DROP_TYPE;
 

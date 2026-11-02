@@ -1,6 +1,6 @@
 CREATE TYPE test.complex_number AS BINARY(16);
 Warnings:
-Warning	6914	The following code is not implemented: Sql_cmd_create_type::execute()
+Warning	6924	The following code is not implemented: Sql_cmd_create_type::execute()
 SELECT * FROM INFORMATION_SCHEMA.TYPES;
 TYPE_CATALOG	TYPE_SCHEMA	TYPE_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
 def	test	complex_number	FIXME	16	16	NULL	NULL	0	binary	binary	FIXME
@@ -10,9 +10,9 @@ col_a test.complex_number,
 col_b test.complex_number,
 col_c test.complex_number);
 Warnings:
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
-Warning	6914	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
 SHOW CREATE TABLE test.complex_demo;
 Table	Create Table
 complex_demo	CREATE TABLE `complex_demo` (
@@ -34,5 +34,5 @@ A	B	C
 DROP TABLE test.complex_demo;
 DROP TYPE test.complex_number;
 Warnings:
-Warning	6914	The following code is not implemented: Sql_cmd_drop_type::execute()
+Warning	6924	The following code is not implemented: Sql_cmd_drop_type::execute()
 UNINSTALL COMPONENT "file://component_udt_example";

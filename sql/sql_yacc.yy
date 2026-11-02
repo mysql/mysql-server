@@ -1499,7 +1499,13 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> APPLIER_WORKER_COUNT_SYM       1244     /* MYSQL */
 %token<lexer.keyword> APPLIER_EVENT_MEMORY_LIMIT_SYM 1245     /* MYSQL */
 
+/* USER DEFINED TYPES */
 %token DOUBLE_COLON_SYM 1246 /* OPERATOR */
+%token STATIC_SYM 1247
+%token CONSTRUCTOR_SYM 1248
+%token METHOD_SYM 1249
+%token CALLED_SYM 1250
+%token INPUT_SYM 1251
 
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
@@ -2021,6 +2027,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         alter_library_stmt
         alter_resource_group_stmt
         alter_table_stmt
+        alter_type_stmt
         analyze_table_stmt
         call_stmt
         check_table_stmt
@@ -2517,6 +2524,7 @@ simple_statement:
         | alter_tablespace_stmt         { $$= nullptr; }
         | alter_undo_tablespace_stmt    { $$= nullptr; }
         | alter_table_stmt
+        | alter_type_stmt
         | alter_user_stmt               { $$= nullptr; }
         | alter_view_stmt               { $$= nullptr; }
         | analyze_table_stmt
@@ -3371,9 +3379,106 @@ type_ident:
 
 create_type_stmt:
           CREATE TYPE_SYM type_ident AS builtin_type
+          opt_method_specification_list
           {
             $$= NEW_PTN PT_create_type_stmt(@$, $3, $5);
           }
+        ;
+
+opt_method_specification_list:
+          %empty
+        | method_specification_list
+        ;
+
+method_specification_list:
+          method_specification
+        | method_specification_list method_specification
+        ;
+
+opt_method_kind:
+          %empty
+        | method_kind
+        ;
+
+method_kind:
+          INSTANCE_SYM
+        | STATIC_SYM
+        | CONSTRUCTOR_SYM
+        ;
+
+method_specification:
+          partial_method_specification opt_method_characteristics
+        ;
+
+partial_method_specification:
+          opt_method_kind METHOD_SYM IDENT_sys sql_parameter_declaration_list
+          returns_clause
+        ;
+
+sql_parameter_declaration_list:
+          '(' opt_sql_parameter_declaration_list ')'
+        ;
+
+opt_sql_parameter_declaration_list:
+          %empty
+        | sql_parameter_declaration_list
+        ;
+
+sql_parameter_declaration_list:
+          sql_parameter_declaration
+        | sql_parameter_declaration_list ',' sql_parameter_declaration
+        ;
+
+sql_parameter_declaration:
+          broken_type
+        ;
+
+returns_clause:
+          RETURNS_SYM broken_type
+        ;
+opt_method_characteristics:
+          %empty
+        | method_characteristics
+        ;
+
+method_characteristics:
+          method_characteristic
+        | method_characteristics method_characteristic
+        ;
+
+method_characteristic:
+          null_call_clause
+        ;
+
+null_call_clause:
+          RETURN_SYM NULL_SYM ON_SYM NULL_SYM INPUT_SYM
+        | CALLED_SYM ON_SYM NULL_SYM INPUT_SYM
+        ;
+
+alter_type_stmt:
+          ALTER TYPE_SYM type_ident alter_type_action
+          {
+            $$ = nullptr;
+          }
+        ;
+
+alter_type_action:
+          ADD method_specification
+        | DROP specific_method_specification_designator RESTRICT
+        ;
+
+specific_method_specification_designator:
+          opt_method_kind METHOD_SYM IDENT_sys '(' opt_data_type_list ')'
+        ;
+
+opt_data_type_list:
+          %empty
+        | data_type_list
+        ;
+
+data_type_list:
+          broken_type
+        | data_type_list ',' broken_type
         ;
 
 create_table_stmt:
