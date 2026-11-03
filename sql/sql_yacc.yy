@@ -3420,15 +3420,11 @@ method_specification:
         ;
 
 partial_method_specification:
-          opt_method_kind METHOD_SYM IDENT_sys sql_parameter_declaration_list
+          opt_method_kind METHOD_SYM IDENT_sys '(' opt_sql_parameter_declaration_list ')'
           returns_clause
           {
             $$= NEW_PTN PT_type_add_method_def($3);
           }
-        ;
-
-sql_parameter_declaration_list:
-          '(' opt_sql_parameter_declaration_list ')'
         ;
 
 opt_sql_parameter_declaration_list:
