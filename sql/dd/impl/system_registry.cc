@@ -66,6 +66,7 @@
 #include "sql/dd/impl/system_views/table_constraints.h"    // Table_constraints
 #include "sql/dd/impl/system_views/tables.h"               // Tables
 #include "sql/dd/impl/system_views/triggers.h"             // Triggers
+#include "sql/dd/impl/system_views/udt_methods.h"          // Methods
 #include "sql/dd/impl/system_views/udt_types.h"            // Types
 #include "sql/dd/impl/system_views/user_attributes.h"
 #include "sql/dd/impl/system_views/view_routine_usage.h"  // View_routine_usage
@@ -103,6 +104,7 @@
 #include "sql/dd/impl/tables/tablespace_files.h"        // Tablespace_files
 #include "sql/dd/impl/tables/tablespaces.h"             // Tablespaces
 #include "sql/dd/impl/tables/triggers.h"                // Triggers
+#include "sql/dd/impl/tables/udt_methods.h"             // Methods
 #include "sql/dd/impl/tables/udt_types.h"               // Types
 #include "sql/dd/impl/tables/view_routine_usage.h"      // View_routine_usage
 #include "sql/dd/impl/tables/view_table_usage.h"        // View_table_usage
@@ -204,6 +206,7 @@ void System_tables::add_remaining_dd_tables() {
   register_table<Tablespaces>(core);
   register_table<Triggers>(core);
   register_table<UDT_Types>(second);
+  register_table<UDT_Methods>(second);
   register_table<View_routine_usage>(core);
   register_table<View_table_usage>(core);
 
@@ -325,6 +328,7 @@ void System_views::init() {
   register_view<dd::system_views::Tablespaces_extensions>(is);
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::UDT_Types>(is);
+  register_view<dd::system_views::UDT_Methods>(is);
   register_view<dd::system_views::View_routine_usage>(is);
   register_view<dd::system_views::View_table_usage>(is);
   register_view<dd::system_views::Views>(is);
