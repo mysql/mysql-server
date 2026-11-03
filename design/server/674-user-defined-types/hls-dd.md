@@ -115,7 +115,7 @@ column `type_id` represents the type used.
 Add in KEY definition for `type_id`,
 and a FOREIGN KEY constraint referencing mysql.types.
 
-### Table mysql.methods;
+### Table mysql.type_methods;
 
 New table.
 
@@ -123,7 +123,7 @@ Represents all the methods declared for a type.
 
 TODO.
 
-### Table mysql.method_parameters;
+### Table mysql.type_method_parameters;
 
 New table.
 
@@ -205,13 +205,13 @@ to represent the user defined type used by a parameter, if any.
 
 This view now also joins TABLE `mysql`.`types`.
 
-### View INFORMATION_SCHEMA.METHODS
+### View INFORMATION_SCHEMA.TYPE_METHODS
 
 This is a new view.
 
 TODO.
 
-### View INFORMATION_SCHEMA.METHOD_PARAMETERS
+### View INFORMATION_SCHEMA.TYPE_METHOD_PARAMETERS
 
 This is a new view.
 
