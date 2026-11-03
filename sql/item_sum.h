@@ -2004,6 +2004,13 @@ class Item_udf_sum : public Item_sum {
   }
   enum Sumfunctype sum_func() const override { return UDF_SUM_FUNC; }
 
+  // Item_sum::is_null() reads null_value without evaluating, which holds for
+  // the native aggregates because each either sets it in clear() or cannot
+  // return NULL at all. A UDF aggregate does neither: null_value is only set
+  // once a val_*() runs, so IS NULL would answer against a stale value, unless
+  // it were evaluated first, just as Item_sum_num_field::is_null() does.
+  bool is_null() override { return update_null_value() || null_value; }
+
   void clear() override;
   bool add() override;
   void reset_field() override {}
