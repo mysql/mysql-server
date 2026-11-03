@@ -2020,7 +2020,12 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <text_literal> text_literal
 
+/* UDT */
 %type <type_ident> type_ident
+%type <alter_type_action> alter_type_action
+%type <null_call_option> null_call_clause
+%type <add_method_def> method_specification partial_method_specification
+%type <drop_method_def> specific_method_specification_designator
 
 %type <top_level_node>
         alter_instance_stmt
@@ -3408,11 +3413,18 @@ method_kind:
 
 method_specification:
           partial_method_specification opt_method_characteristics
+          {
+            $$= $1;
+            // TODO: $$->set_characteristics($2);
+          }
         ;
 
 partial_method_specification:
           opt_method_kind METHOD_SYM IDENT_sys sql_parameter_declaration_list
           returns_clause
+          {
+            $$= NEW_PTN PT_type_add_method_def($3);
+          }
         ;
 
 sql_parameter_declaration_list:
@@ -3436,6 +3448,7 @@ sql_parameter_declaration:
 returns_clause:
           RETURNS_SYM broken_type
         ;
+
 opt_method_characteristics:
           %empty
         | method_characteristics
@@ -3452,23 +3465,38 @@ method_characteristic:
 
 null_call_clause:
           RETURN_SYM NULL_SYM ON_SYM NULL_SYM INPUT_SYM
+          {
+            $$= enum_null_call_option::NULL_ON_NULL_INPUT;
+          }
         | CALLED_SYM ON_SYM NULL_SYM INPUT_SYM
+          {
+            $$= enum_null_call_option::CALLED_ON_NULL_INPUT;
+          }
         ;
 
 alter_type_stmt:
           ALTER TYPE_SYM type_ident alter_type_action
           {
-            $$ = nullptr;
+            $$= NEW_PTN PT_alter_type_stmt(@$, $3, $4);
           }
         ;
 
 alter_type_action:
           ADD method_specification
-        | DROP specific_method_specification_designator RESTRICT
+          {
+            $$= NEW_PTN PT_alter_type_add_method(@$, $2);
+          }
+        | DROP specific_method_specification_designator /* RESTRICT */
+          {
+            $$= NEW_PTN PT_alter_type_drop_method(@$, $2);
+          }
         ;
 
 specific_method_specification_designator:
           opt_method_kind METHOD_SYM IDENT_sys '(' opt_data_type_list ')'
+          {
+            $$= NEW_PTN PT_type_drop_method_def($3);
+          }
         ;
 
 opt_data_type_list:

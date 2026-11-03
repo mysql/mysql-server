@@ -43,6 +43,7 @@
 #include "sql/key_spec.h"       // keytype, fk_option
 #include "sql/lexer_yystype.h"  // Lexer_yystype
 #include "sql/mem_root_array.h"
+#include "sql/null_call_option.h"
 #include "sql/olap.h"
 #include "sql/opt_hints.h"  // opt_hints_enum
 #include "sql/parse_tree_hints.h"
@@ -147,7 +148,13 @@ class PT_with_list;
 class Parse_tree_root;
 class Query_block;
 class String;
+
+/* UDT */
 class Type_ident;
+class PT_alter_type_action;
+class PT_type_add_method_def;
+class PT_type_drop_method_def;
+
 class Table_ident;
 class sp_condition_value;
 class sp_head;
@@ -518,7 +525,14 @@ union MY_SQL_PARSER_STYPE {
   } lead_lag_info;
   PT_insert_values_list *values_list;
   Parse_tree_root *top_level_node;
+
+  /* UDT */
   Type_ident *type_ident;
+  PT_alter_type_action *alter_type_action;
+  PT_type_add_method_def *add_method_def;
+  PT_type_drop_method_def *drop_method_def;
+  enum enum_null_call_option null_call_option;
+
   Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;

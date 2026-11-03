@@ -195,8 +195,6 @@ bool Sql_cmd_create_type::execute(THD *thd) {
 
 bool Sql_cmd_alter_type::execute(THD *thd) {
 #ifdef WITH_EXPERIMENTAL_UDT
-  WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_alter_type::execute()");
-
   if (use_default_db(thd)) {
     return true;
   }
@@ -224,14 +222,24 @@ bool Sql_cmd_alter_type::execute(THD *thd) {
   }
 
   const dd::UDT_Type *udt = acquire_dd_type(thd);
-
   if (udt == nullptr) {
-    my_error(ER_UDT_TYPE_EXISTS, MYF(0), db_name, type_name);
+    my_error(ER_NO_SUCH_UDT_TYPE, MYF(0), db_name, type_name);
     return true;
   }
 
   // ALTER TYPE
 
+  if (m_add_method != nullptr) {
+    WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_alter_type::execute(add_method)");
+  }
+
+  if (m_drop_method != nullptr) {
+    WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_alter_type::execute(drop_method)");
+
+    const char *method_name = m_drop_method->m_method_def->m_method_name.str;
+    my_error(ER_NO_SUCH_UDT_METHOD, MYF(0), type_name, method_name);
+    return true;
+  }
 
   if (trans_commit_stmt(thd) || trans_commit(thd)) {
     return true;
@@ -278,7 +286,7 @@ bool Sql_cmd_drop_type::execute(THD *thd) {
   const dd::UDT_Type *udt = acquire_dd_type(thd);
 
   if ((udt == nullptr) && !m_if_exists) {
-    my_error(ER_UDT_TYPE_EXISTS, MYF(0), db_name, type_name);
+    my_error(ER_NO_SUCH_UDT_TYPE, MYF(0), db_name, type_name);
     return true;
   }
 

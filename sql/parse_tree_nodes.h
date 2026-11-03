@@ -75,6 +75,8 @@
 #include "string_with_len.h"
 #include "thr_lock.h"
 
+#include "sql/null_call_option.h"
+
 class Item;
 class Item_cache;
 class Json_table_column;
@@ -6131,32 +6133,99 @@ PT_set_operation *flatten_equal_set_ops(MEM_ROOT *mem_root, const POS &pos,
 
 // -- BEGIN POC
 
+class PT_alter_type_action;
+class PT_alter_type_add_method;
+class PT_alter_type_drop_method;
+
+class PT_type_add_method_def {
+ public:
+  PT_type_add_method_def(const LEX_STRING &method_name)
+      : m_method_name(method_name) {}
+
+  LEX_STRING m_method_name;
+};
+
+class PT_type_drop_method_def {
+ public:
+  PT_type_drop_method_def(const LEX_STRING &method_name)
+      : m_method_name(method_name) {}
+
+  LEX_STRING m_method_name;
+};
+
 class PT_create_type_stmt : public Parse_tree_root {
   Type_ident *m_type_name;
   PT_type *m_type;
-  POS m_columns_end_pos;
+  POS m_end_pos;
 
  public:
   PT_create_type_stmt(const POS &pos, Type_ident *type_name, PT_type *type,
-                      const POS &columns_end_pos = POS())
+                      const POS &end_pos = POS())
       : Parse_tree_root(pos),
         m_type_name(type_name),
         m_type(type),
-        m_columns_end_pos(columns_end_pos) {}
+        m_end_pos(end_pos) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 };
 
+class PT_alter_type_action_visitor {
+ public:
+  virtual void visit_add_method(PT_alter_type_add_method *action) = 0;
+  virtual void visit_drop_method(PT_alter_type_drop_method *action) = 0;
+};
+
+class PT_alter_type_action {
+  POS m_pos;
+  POS m_end_pos;
+
+ public:
+  PT_alter_type_action(const POS &pos, const POS &end_pos = POS())
+      : m_pos(pos), m_end_pos(end_pos) {}
+
+  virtual void accept(PT_alter_type_action_visitor &visitor) = 0;
+};
+
+class PT_alter_type_add_method : public PT_alter_type_action {
+  typedef PT_alter_type_action super;
+
+ public:
+  PT_alter_type_add_method(const POS &pos, PT_type_add_method_def *method_def)
+      : super(pos), m_method_def(method_def) {}
+
+  void accept(PT_alter_type_action_visitor &visitor) override {
+    visitor.visit_add_method(this);
+  }
+
+  PT_type_add_method_def *m_method_def;
+};
+
+class PT_alter_type_drop_method : public PT_alter_type_action {
+  typedef PT_alter_type_action super;
+
+ public:
+  PT_alter_type_drop_method(const POS &pos, PT_type_drop_method_def *method_def)
+      : super(pos), m_method_def(method_def) {}
+
+  void accept(PT_alter_type_action_visitor &visitor) override {
+    visitor.visit_drop_method(this);
+  }
+
+  PT_type_drop_method_def *m_method_def;
+};
+
 class PT_alter_type_stmt : public Parse_tree_root {
   Type_ident *m_type_name;
-  POS m_columns_end_pos;
+  PT_alter_type_action *m_action;
+  POS m_end_pos;
 
  public:
   PT_alter_type_stmt(const POS &pos, Type_ident *type_name,
-                      const POS &columns_end_pos = POS())
+                     PT_alter_type_action *action, const POS &end_pos = POS())
       : Parse_tree_root(pos),
         m_type_name(type_name),
-        m_columns_end_pos(columns_end_pos) {}
+        m_action(action),
+        m_end_pos(end_pos) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 };

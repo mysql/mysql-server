@@ -26,6 +26,7 @@
 
 #include "lex_string.h"
 #include "my_sqlcommand.h"
+#include "sql/parse_tree_nodes.h"
 #include "sql/sql_cmd_ddl.h"
 
 #include "sql/dd/dd_udt_type.h"
@@ -33,6 +34,8 @@
 class THD;
 class Type_ident;
 class PT_type;
+class PT_alter_type_add_method;
+class PT_alter_type_drop_method;
 
 class Sql_cmd_ddl_type : public Sql_cmd_ddl {
  public:
@@ -68,8 +71,17 @@ class Sql_cmd_create_type final : public Sql_cmd_ddl_type {
 
 class Sql_cmd_alter_type final : public Sql_cmd_ddl_type {
  public:
-  Sql_cmd_alter_type(Type_ident *type_ident)
-      : Sql_cmd_ddl_type(type_ident) {}
+  Sql_cmd_alter_type(Type_ident *type_ident,
+                     PT_alter_type_add_method *add_method)
+      : Sql_cmd_ddl_type(type_ident),
+        m_add_method(add_method),
+        m_drop_method(nullptr) {}
+
+  Sql_cmd_alter_type(Type_ident *type_ident,
+                     PT_alter_type_drop_method *drop_method)
+      : Sql_cmd_ddl_type(type_ident),
+        m_add_method(nullptr),
+        m_drop_method(drop_method) {}
 
   enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_TYPE;
@@ -77,9 +89,10 @@ class Sql_cmd_alter_type final : public Sql_cmd_ddl_type {
 
   bool execute(THD *thd) override;
 
- private:
   // FIXME: or TypeDescriptor + do_contextualize()
   PT_type *m_type;
+  PT_alter_type_add_method *m_add_method;
+  PT_alter_type_drop_method *m_drop_method;
 };
 
 class Sql_cmd_drop_type final : public Sql_cmd_ddl_type {

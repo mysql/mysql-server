@@ -5879,10 +5879,33 @@ Sql_cmd *PT_create_type_stmt::make_cmd(THD *thd) {
   return new (thd->mem_root) Sql_cmd_create_type(m_type_name, m_type);
 }
 
+class Sql_cmd_alter_type_builder : public PT_alter_type_action_visitor {
+ public:
+  Sql_cmd_alter_type_builder(THD *thd, Type_ident *type_name)
+      : m_thd(thd), m_type_name(type_name) {}
+
+  void visit_add_method(PT_alter_type_add_method *add_method) override {
+    m_result =
+        new (m_thd->mem_root) Sql_cmd_alter_type(m_type_name, add_method);
+  }
+
+  void visit_drop_method(PT_alter_type_drop_method *drop_method) override {
+    m_result =
+        new (m_thd->mem_root) Sql_cmd_alter_type(m_type_name, drop_method);
+  }
+
+  THD *m_thd;
+  Type_ident *m_type_name;
+  Sql_cmd *m_result;
+};
+
 Sql_cmd *PT_alter_type_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_ALTER_TYPE;
 
-  return new (thd->mem_root) Sql_cmd_alter_type(m_type_name);
+  Sql_cmd_alter_type_builder builder(thd, m_type_name);
+  m_action->accept(builder);
+
+  return builder.m_result;
 }
 
 Sql_cmd *PT_drop_type_stmt::make_cmd(THD *thd) {

@@ -1,0 +1,21 @@
+CREATE SCHEMA math;
+CREATE TYPE math.complex_number AS BINARY(16);
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_create_type::execute()
+ALTER TYPE no_such_db.complex_number DROP METHOD foo();
+ERROR 42Y07: Database 'no_such_db' doesn't exist
+ALTER TYPE math.no_such_type DROP METHOD foo();
+ERROR HY000: User defined type 'math.no_such_type' does not exist
+ALTER TYPE math.complex_number DROP METHOD foo();
+ERROR HY000: User defined type method 'complex_number.foo' does not exist
+ALTER TYPE math.complex_number DROP STATIC METHOD s_foo();
+ERROR HY000: User defined type method 'complex_number.s_foo' does not exist
+ALTER TYPE math.complex_number DROP INSTANCE METHOD i_foo();
+ERROR HY000: User defined type method 'complex_number.i_foo' does not exist
+ALTER TYPE math.complex_number ADD METHOD foo() RETURNS INTEGER;
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_alter_type::execute(add_method)
+DROP TYPE math.complex_number;
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_drop_type::execute()
+DROP SCHEMA math;

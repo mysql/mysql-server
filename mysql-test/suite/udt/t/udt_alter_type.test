@@ -1,0 +1,25 @@
+
+CREATE SCHEMA math;
+CREATE TYPE math.complex_number AS BINARY(16);
+
+--error ER_NO_SUCH_DB
+ALTER TYPE no_such_db.complex_number DROP METHOD foo();
+
+--error ER_NO_SUCH_UDT_TYPE
+ALTER TYPE math.no_such_type DROP METHOD foo();
+
+--error ER_NO_SUCH_UDT_METHOD
+ALTER TYPE math.complex_number DROP METHOD foo();
+
+--error ER_NO_SUCH_UDT_METHOD
+ALTER TYPE math.complex_number DROP STATIC METHOD s_foo();
+
+--error ER_NO_SUCH_UDT_METHOD
+ALTER TYPE math.complex_number DROP INSTANCE METHOD i_foo();
+
+ALTER TYPE math.complex_number ADD METHOD foo() RETURNS INTEGER;
+
+
+DROP TYPE math.complex_number;
+DROP SCHEMA math;
+
