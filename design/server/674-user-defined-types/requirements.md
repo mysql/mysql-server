@@ -172,7 +172,21 @@ Invoking an operation on a type is a valid SQL expression.
 New expressions supported are:
 
 * Invoking a static method on a TYPE
+  * `schema.type::method()`
 * Invoking a dynamic method on a TYPE
+  * `table.column.method()`
+  * `column.method()`
+
+FR:
+
+In some cases, the syntax of an expression like `foo.bar()`
+can be ambiguous, because the syntax can refer to:
+
+* a call to a stored function, `schema.function()`
+* a call to a dynamic method on a column, `column.method()`
+
+When such a name collision exists, the server raises a warning
+when resolving the syntax.
 
 ### Type usage
 
