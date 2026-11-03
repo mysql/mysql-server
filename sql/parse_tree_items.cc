@@ -362,8 +362,7 @@ bool PTI_function_call_generic_3d::do_itemize(Parse_context *pc, Item **res) {
 
   THD *thd = pc->thd;
 
-  WARN_NOT_IMPLEMENTED(thd,
-                       "PTI_function_call_generic_3d::do_itemize()");
+  WARN_NOT_IMPLEMENTED(thd, "PTI_function_call_generic_3d::do_itemize()");
 
   /*
    * When `table`.`column` is a column that exists

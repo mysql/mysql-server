@@ -172,6 +172,7 @@
 #include "sql/sql_table.h"          // mysql_create_table
 #include "sql/sql_trigger.h"        // add_table_for_trigger
 #include "sql/sql_udf.h"
+#include "sql/sql_user_defined_type.h"
 #include "sql/sql_view.h"  // mysql_create_view
 #include "sql/strfunc.h"
 #include "sql/system_variables.h"  // System_status_var
@@ -180,7 +181,6 @@
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_implicit
 #include "sql/transaction_info.h"
-#include "sql/sql_user_defined_type.h"
 #include "sql_string.h"
 #include "string_with_len.h"
 #include "strmake.h"
@@ -2549,7 +2549,7 @@ done:
   else
     thd->mem_root->Clear();
 
-    /* SHOW PROFILE instrumentation, end */
+  /* SHOW PROFILE instrumentation, end */
 #if defined(ENABLED_PROFILING)
   thd->profiling->finish_current_query();
 #endif
@@ -4540,7 +4540,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         my_ok(thd);
       }
       break; /* break super switch */
-    }        /* end case group bracket */
+    } /* end case group bracket */
 
     case SQLCOM_ALTER_PROCEDURE:
     case SQLCOM_ALTER_FUNCTION: {
@@ -5592,8 +5592,7 @@ bool mysql_test_parse_for_slave(THD *thd) {
 */
 bool Alter_info::add_field(
     THD *thd, const LEX_STRING *field_name,
-    const Type_ident * type_ident [[maybe_unused]],
-    enum_field_types type,
+    const Type_ident *type_ident [[maybe_unused]], enum_field_types type,
     const char *length, const char *decimals, uint type_modifier,
     Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
     const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
@@ -5697,10 +5696,9 @@ bool Alter_info::add_field(
     return true;
   }
 
+  // === UDT, prototyping (begin)
 
-// === UDT, prototyping (begin)
-
-// #define OLD_WAY
+  // #define OLD_WAY
 
 #ifdef OLD_WAY
   Create_field *new_field = new (thd->mem_root) Create_field();
@@ -5773,14 +5771,13 @@ bool Alter_info::add_field(
     fd.m_hidden = hidden;
     fd.m_is_array = is_array;
 
-    if (new_field->init_from_type_descriptor(thd, field_name->str, &td, &fd))
-    {
+    if (new_field->init_from_type_descriptor(thd, field_name->str, &td, &fd)) {
       return true;
     }
   }
 #endif
 
-// === UDT, prototyping (end)
+  // === UDT, prototyping (end)
 
   for (const auto &a : cf_appliers) {
     if (a(new_field, this)) return true;

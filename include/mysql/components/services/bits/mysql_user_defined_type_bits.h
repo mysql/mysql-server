@@ -78,7 +78,7 @@ typedef int (*register_function_t)(mysql_function_descriptor_t *fd,
 typedef int (*unregister_function_t)(mysql_function_descriptor_t *fd);
 
 typedef int (*register_method_t)(mysql_method_descriptor_t *md,
-                                   eval_function_t impl);
+                                 eval_function_t impl);
 typedef int (*unregister_method_t)(mysql_method_descriptor_t *md);
 
 #endif /* COMPONENTS_SERVICES_BITS_MYSQL_USER_DEFINED_TYPE_BITS_H */
