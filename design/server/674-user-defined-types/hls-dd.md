@@ -7,6 +7,8 @@
 
 This is a new table.
 
+TODO: revise data_type enum, restrain to builtin types only.
+
 ```sql
 CREATE TABLE `mysql`.`types` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
@@ -69,6 +71,8 @@ This table stores the type definition provided by the CREATE TYPE statement.
 
 This is an existing table.
 
+TODO: revise constraints, use SCHEMA and TYPE instead of TYPE_ID
+
 Add a column:
 
 - `type_id bigint unsigned DEFAULT NULL`
@@ -82,6 +86,8 @@ and a FOREIGN KEY constraint referencing mysql.types.
 ### Table mysql.routines;
 
 This is an existing table.
+
+TODO: revise constraints, use SCHEMA and TYPE instead of TYPE_ID
 
 Add a column:
 
@@ -97,6 +103,8 @@ and a FOREIGN KEY constraint referencing mysql.types.
 
 This is an existing table.
 
+TODO: revise constraints, use SCHEMA and TYPE instead of TYPE_ID
+
 Add a column:
 
 - `type_id bigint unsigned DEFAULT NULL`
@@ -107,25 +115,22 @@ column `type_id` represents the type used.
 Add in KEY definition for `type_id`,
 and a FOREIGN KEY constraint referencing mysql.types.
 
-### Table mysql.routines_body_types;
+### Table mysql.methods;
 
-This is a new table.
+New table.
 
-This table implement the many to many relation between routines and types,
-to represent which types are used in a routine body.
+Represents all the methods declared for a type.
 
-```sql
-CREATE TABLE `mysql`.`routines_body_types` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `routine_id` bigint unsigned NOT NULL,
-  `type_id` bigint unsigned NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `routine_id` (`routine_id`),
-  KEY `type_id` (`type_id`),
-  CONSTRAINT `routines_body_types_ibfk_1` FOREIGN KEY (`routine_id`) REFERENCES `routines` (`id`),
-  CONSTRAINT `routines_body_types_ibfk_2` FOREIGN KEY (`type_id`) REFERENCES `types` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-```
+TODO.
+
+### Table mysql.method_parameters;
+
+New table.
+
+Represents all the parameters declared for a method.
+Represents all the return type declared for a method.
+
+TODO.
 
 ## INFORMATION_SCHEMA
 
@@ -200,14 +205,15 @@ to represent the user defined type used by a parameter, if any.
 
 This view now also joins TABLE `mysql`.`types`.
 
-### View INFORMATION_SCHEMA.ROUTINE_BODY_TYPES
+### View INFORMATION_SCHEMA.METHODS
 
 This is a new view.
 
-This view displays the many to many relation between routines and types,
-to represent which types are used in a routine body.
+TODO.
 
-This view allows:
+### View INFORMATION_SCHEMA.METHOD_PARAMETERS
 
-- to find all the user defined types used by a given routine body
-- to find all the routines which body uses a given user defined type
+This is a new view.
+
+TODO.
+

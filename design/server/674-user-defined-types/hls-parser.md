@@ -68,12 +68,19 @@ In the SQL specification, ALTER TYPE is used to:
 
 We do not have attributes, since composite types are not supported.
 
-For methods available on a type, these are not declared using the SQL
-language, but provided by the component implementing a type directly,
-using a service exposed by the MySQL server.
+FR:
 
-As a result, there is no ALTER TYPE statement implemented,
-as there is nothing to alter currently.
+ALTER TYPE supports a ADD METHOD clause, to add a method to an existing
+type.
+
+TODO: syntax.
+
+FR:
+
+ALTER TYPE supports a DROP METHOD clause, to add a method to an existing
+type.
+
+TODO: syntax.
 
 # DROP TYPE statement
 

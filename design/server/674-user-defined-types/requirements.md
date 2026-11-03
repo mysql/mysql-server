@@ -3,7 +3,7 @@
 
 ## MySQL Editions
 
-FR:
+NFR:
 
 Support for User Data Type (UDT) is available in all editions of the server:
 
@@ -99,6 +99,53 @@ but discarded.
 
 ## SQL Language
 
+### Privileges
+
+FR:
+
+The GRANT statement allows a clause to grant
+
+* ALL PRIVILEGES
+* CREATE
+* ALTER
+* DROP
+
+on a user defined type.
+
+FR:
+
+The REVOKE statement allows a clause to revoke
+
+* ALL PRIVILEGES
+* CREATE
+* ALTER
+* DROP
+* USAGE
+
+on a user defined type.
+
+FR:
+
+The CREATE privilege on a TYPE is required to execute the CREATE TYPE statement.
+
+FR:
+
+The ALTER privilege on a TYPE is required to execute the ALTER TYPE statement.
+
+FR:
+
+The DROP privilege on a TYPE is required to execute the DROP TYPE statement.
+
+FR:
+
+The USAGE privilege on a TYPE is required to create a field (a column in a
+table) using the TYPE.
+
+FR:
+
+The ALL PRIVILEGES privilege on a TYPE is equivalent to CREATE, ALTER, DROP
+and USAGE.
+
 ### Type DDL
 
 FR:
@@ -113,6 +160,7 @@ The syntax for DDL operations on a type is a subset of the ANSI SQL syntax.
 New statements supported are:
 
 * CREATE TYPE
+* ALTER TYPE
 * DROP TYPE
 
 ### Type DML
@@ -120,9 +168,6 @@ New statements supported are:
 FR:
 
 Invoking an operation on a type is a valid SQL expression.
-
-The syntax for method invocations on a type is a subset of the ANSI SQL
-syntax.
 
 New expressions supported are:
 
@@ -215,7 +260,7 @@ execution, to prevent failures caused by third party code.
 
 FR:
 
-The server supports adding a type:
+The server supports adding a type implementation:
 
 * from a component dynamically installed, using INSTALL COMPONENT.
   * This allows a third party to provide optional types.
@@ -223,7 +268,7 @@ The server supports adding a type:
 
 NFR:
 
-The server supports adding a type:
+The server supports adding a type implementation:
 
 * from a component statically linked with the server.
   * This allows MySQL to provide additional builtin types,
@@ -231,6 +276,19 @@ The server supports adding a type:
     as user defined types.
   * This allows MySQL to promote optional types to builtin types,
     with minimal code changes.
+
+FR:
+
+When loading a type implementation from a component,
+the server verifies that:
+
+* the type, methods, signatures provided by a component
+* the type, methods, signatures declared by CREATE TYPE
+
+are consistent.
+
+This enforces that the component implementation loaded is
+compatible with the type declarations known to the server.
 
 ## Services
 
