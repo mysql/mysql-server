@@ -244,6 +244,14 @@ BEGIN
     -- Maximum supported length for MESSAGE_TEXT with the SIGNAL command is 128 chars.
     DECLARE v_error_msg VARCHAR(128);
     DECLARE v_old_group_concat_max_len INT UNSIGNED DEFAULT 0;
+    DECLARE v_log_bin BOOLEAN;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF (@@sql_log_bin <> v_log_bin) THEN
+            SET sql_log_bin = v_log_bin;
+        END IF;
+        RESIGNAL;
+    END;
 
 
     -- Don't instrument this thread
@@ -253,8 +261,8 @@ BEGIN
     END IF;
 
     -- Temporary table are used - disable sql_log_bin if necessary to prevent them replicating
-    SET @log_bin := @@sql_log_bin;
-    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+    SET v_log_bin = @@sql_log_bin;
+    IF ((v_log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
         SET sql_log_bin = 0;
     END IF;
 
@@ -738,8 +746,8 @@ HAVING percentile > 0.95
         CALL sys.ps_setup_enable_thread(CONNECTION_ID());
     END IF;
 
-    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
-        SET sql_log_bin = @log_bin;
+    IF ((v_log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+        SET sql_log_bin = v_log_bin;
     END IF;
 END$$
 
