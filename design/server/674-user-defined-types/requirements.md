@@ -109,6 +109,7 @@ The GRANT statement allows a clause to grant
 * CREATE
 * ALTER
 * DROP
+* USAGE
 
 on a user defined type.
 
