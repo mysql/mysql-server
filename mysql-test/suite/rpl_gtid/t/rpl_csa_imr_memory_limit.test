@@ -1,0 +1,279 @@
+# ==== Purpose ====
+#
+# Memory-limit back-pressure on a CSA (Change Stream Applier) channel with the
+# in-memory relay log (IMR) enabled: the hard per-channel memory limit
+# (IN_MEMORY_RELAYLOG_LIMIT) bounds the bytes held by memory-path transactions.
+# When the queue fills, the receiver (IO thread) blocks on enqueue instead of
+# exceeding the limit, and no data is lost once the applier drains the queue.
+#
+# ==== Requirements ====
+#
+# R1. The bytes held by memory-path transactions never exceed
+#     IN_MEMORY_RELAYLOG_LIMIT.
+# R2. When the queue is full, the receiver cannot buffer the whole workload:
+#     back-pressure holds it below the full set of source transactions while
+#     the applier is paused.
+# R3. Committing a transaction frees its reserved memory; once the applier
+#     drains the queue, all data applies with no loss and the memory usage
+#     returns to 0.
+# R4. The receiver does not hold the relay log's LOCK_log while it waits for
+#     queue memory: SET GLOBAL max_relay_log_size, which takes the channel_map
+#     write lock and then LOCK_log, returns while the receiver waits.
+# R5. While it waits, the IO thread's stage is 'Waiting for the replica SQL
+#     thread to free relay log space', and it leaves that stage once the queue
+#     drains.
+# R6. STOP REPLICA IO_THREAD while the receiver waits for queue memory stops
+#     it with no IO error (Last_IO_Errno = 0) and logs one INFORMATION line,
+#     no relay log write failure.
+#
+# ==== Implementation ====
+#
+#   1. Set up CSA replication (applier stopped), enable IMR at the 32 MiB limit
+#      floor with an 8 MiB spill threshold (so ~1 MiB transactions stay on the
+#      memory path), and start.
+#   2. Pause the applier and run a workload larger than the memory limit.
+#   3. The receiver fills the queue toward the limit and blocks: assert the
+#      usage stays within the limit and fewer than the whole workload is queued.
+#      Then SET GLOBAL max_relay_log_size (sent, with a bounded wait for it to
+#      finish) and check the IO thread's stage.
+#   4. Resume the applier: the queue drains, the receiver unblocks, all data
+#      applies (no loss), and the memory usage returns to 0.
+#   5. Stop the applier, refill the queue, STOP the receiver while it waits
+#      (R6), restart and sync.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+# Memory accounting is driven by the transaction's on-the-wire byte length. With
+# binlog transaction compression on, the highly compressible test payload would
+# not fill the limit, so this back-pressure test requires compression off.
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR at the 32 MiB limit floor with an 8 MiB spill threshold
+--echo #    (transactions below 8 MiB stay on the memory path) and start.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_LIMIT = 33554432,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Pause the applier and run a workload larger than the memory limit.
+--echo #    40 x ~1 MiB memory-path transactions (~40 MiB) exceed the 32 MiB
+--echo #    limit, so the receiver cannot hold them all at once.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+--let $trx_count= 40
+--disable_query_log
+--let $i= 1
+while ($i <= $trx_count)
+{
+  --eval INSERT INTO t1 (data) VALUES (REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+
+--echo
+--echo # 3. The receiver fills the queue toward the limit and blocks (applier
+--echo #    paused). Usage stays within the limit; not all transactions fit.
+--echo
+
+--source include/rpl/connection_replica.inc
+
+# Poll until the queue is saturated near the limit. The receiver blocks in
+# admission with the applier paused, so the usage rises and then holds steady;
+# the SELECT uses unquoted operands for a numeric (not string) comparison.
+--let $limit= 33554432
+--let $watermark= 25165824
+--let $space= 0
+--let $iter= 0
+while (`SELECT $space < $watermark`)
+{
+  --sleep 0.2
+  --let $space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+  --inc $iter
+  if ($iter > 150)
+  {
+    --die Timed out waiting for the in-memory queue to saturate near the limit
+  }
+}
+
+# R1: the memory usage never exceeds the configured hard limit.
+--let $assert_text= In_Memory_Relay_Log_Space stays within IN_MEMORY_RELAYLOG_LIMIT while the queue is saturated
+--let $assert_cond= $space <= $limit
+--source include/assert.inc
+
+# R2: back-pressure held the receiver below the full workload -- fewer than
+# $trx_count transactions are queued while the applier is paused.
+--let $qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= Back-pressure kept fewer than the whole workload queued while the applier was paused
+--let $assert_cond= $qlen < $trx_count
+--source include/assert.inc
+
+--echo
+--echo # 3b. While the receiver waits for queue memory, SET GLOBAL
+--echo #     max_relay_log_size returns (R4), and the IO thread shows the
+--echo #     relay-log-space stage (R5).
+--echo
+
+# Wait until the next ~1 MiB transaction cannot fit, then until the receiver
+# is in the admission wait for it.
+--let $blocked_watermark= `SELECT $limit - 1048576`
+--let $iter= 0
+while (`SELECT $space <= $blocked_watermark`)
+{
+  --sleep 0.2
+  --let $space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+  --inc $iter
+  if ($iter > 150)
+  {
+    --die Timed out waiting for the in-memory queue to reach the limit
+  }
+}
+--let $io_stage_waiting= SELECT COUNT(*) FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io' AND PROCESSLIST_STATE = 'Waiting for the replica SQL thread to free relay log space'
+--let $wait_condition= SELECT ($io_stage_waiting) = 1
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The receiver did not reach the admission wait before R4
+}
+
+# R4: SET GLOBAL max_relay_log_size takes the channel_map write lock and then
+# the relay log's LOCK_log. It must not wait for the receiver.
+--let $saved_max_relay_log_size= `SELECT @@GLOBAL.max_relay_log_size`
+--source include/rpl/connection_replica1.inc
+--send SET GLOBAL max_relay_log_size = 8192
+--source include/rpl/connection_replica.inc
+--let $imr_statement_pattern= SET GLOBAL max_relay_log_size%
+--let $imr_statement_timeout= 30
+--source suite/rpl_gtid/t/rpl_csa_imr_wait_statement_done.inc
+--source include/rpl/connection_replica1.inc
+--reap
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET GLOBAL max_relay_log_size = $saved_max_relay_log_size
+--enable_query_log
+
+# R5: the waiting receiver shows the classic relay-log-space stage.
+--let $wait_condition= SELECT ($io_stage_waiting) = 1
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The waiting receiver did not show the relay-log-space stage
+}
+
+--echo
+--echo # 4. Resume the applier: the queue drains, the receiver unblocks, all
+--echo #    data applies with no loss, and the memory usage returns to 0.
+--echo
+
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $count= `SELECT COUNT(*) FROM t1`
+--let $assert_text= All 40 transactions were applied on the replica
+--let $assert_cond= $count = 40
+--source include/assert.inc
+
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+
+# R5: once it no longer waits, the receiver leaves the relay-log-space stage.
+--let $stage_waiting= `$io_stage_waiting`
+--let $assert_text= The receiver left the relay-log-space stage once the queue drained
+--let $assert_cond= $stage_waiting = 0
+--source include/assert.inc
+
+--echo
+--echo # 5. Stop the applier, refill the queue, STOP the receiver while it
+--echo #    waits (R6), restart and sync.
+--echo
+
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+--disable_query_log
+--let $i= 1
+while ($i <= $trx_count)
+{
+  --eval INSERT INTO t1 (data) VALUES (REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+
+--source include/rpl/connection_replica.inc
+--let $wait_condition= SELECT ($io_stage_waiting) = 1
+--let $wait_timeout= 60
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The receiver did not wait for queue memory before the stop
+}
+
+# Mark the error log, so the checks below see only this stop.
+--let IMR_ERR_LOG= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--perl
+  open(my $fh, '>>', $ENV{'IMR_ERR_LOG'}) or die "open: $!";
+  print $fh "IMR_STOP_IN_ADMISSION_MARKER\n";
+  close($fh);
+EOF
+
+--source include/rpl/stop_receiver.inc
+
+--let $io_errno= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1)
+--let $assert_text= A stop in admission reports no IO error (Last_IO_Errno = 0)
+--let $assert_cond= $io_errno = 0
+--source include/assert.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= IMR_STOP_IN_ADMISSION_MARKER
+--let $assert_select= Relay log write failure
+--let $assert_count= 0
+--let $assert_text= A stop in admission logs no relay log write failure
+--source include/assert_grep.inc
+--let $assert_select= \[In-memory relay log\] receiver stopped while waiting for queue admission
+--let $assert_count= 1
+--let $assert_text= A stop in admission logs one INFORMATION line
+--source include/assert_grep.inc
+--let $assert_only_after=
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

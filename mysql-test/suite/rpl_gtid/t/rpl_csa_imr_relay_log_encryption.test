@@ -1,0 +1,304 @@
+# ==== Purpose ====
+#
+# Test binary log master key rotation on a replica whose in-memory relay log
+# (IMR) CSA channel has encrypted relay-log files.
+#
+# An IMR channel does not rotate its relay log on source Rotates and FLUSH
+# RELAY LOGS is a no-op on it, so its last relay-log file only changes at
+# server start, RESET REPLICA and CHANGE REPLICATION SOURCE. Key rotation
+# re-encrypts every relay-log file except the last one, then purges the keys
+# no file uses any more. Without rotating the IMR relay log during the key
+# rotation, the last file kept a purged key, and:
+#   (a) START REPLICA after a key rotation could stop the SQL thread with
+#       error 13117 (cannot get the relay-log file password);
+#   (b) once that file was no longer the last one, every later key rotation
+#       failed with ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG;
+#   (c) after a restart the channel could not initialize (MY-010606).
+#
+# ==== Requirements ====
+#
+# R1. ALTER INSTANCE ROTATE BINLOG MASTER KEY rotates the relay log of an IMR
+#     channel; the new last file uses the new master key.
+# R2. Key rotations keep succeeding after source binary log rotations and a
+#     receiver restart, which do not create relay-log files.
+# R3. After STOP REPLICA and a key rotation, START REPLICA succeeds, the SQL
+#     thread runs and the channel replicates.
+# R4. After a key rotation and a restart, the channel initializes, START
+#     REPLICA succeeds and the channel replicates.
+# R5. FLUSH RELAY LOGS stays a no-op on the IMR channel.
+# R6. A key rotation while the receiver waits for queue memory (applier
+#     stopped, queue full) returns without waiting for the applier, rotates
+#     the relay log, and START REPLICA SQL_THREAD then drains the queue.
+#
+# ==== Implementation ====
+#
+#   1. Load the keyring on the replica, enable IMR and binlog_encryption.
+#   2. R1, R2: START; key rotation 1, then source FLUSH BINARY LOGS and a
+#      receiver restart, then key rotations 2 and 3.
+#   3. R3: STOP, key rotation, START, replicate.
+#   4. R4: STOP, key rotation, restart with binlog_encryption = ON, START,
+#      replicate.
+#   5. R5: FLUSH RELAY LOGS leaves the relay-log files unchanged.
+#   6. R6: 32 MiB IMR limit, applier stopped, 40 x 1 MiB transactions; send
+#      the key rotation and wait (bounded) for it to finish; START the
+#      applier, sync, diff.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# WL#10957: Binary log encryption at rest.
+# CSA (Change Stream Applier): WL#10500.
+
+--source include/have_component_keyring_file.inc
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source suite/component_keyring_file/inc/rpl_setup_component.inc
+
+--echo
+--echo # 1. Load the keyring on the replica, enable IMR and binlog_encryption.
+--echo
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL binlog_encryption = ON;
+# Enabling IMR purges the relay logs and opens a new first relay-log file,
+# encrypted now. It stays the applier's group relay log, which START REPLICA
+# opens, so a key rotation that purges its key makes the SQL thread fail.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+--echo
+--echo # 2. Key rotations with source binary log rotations and a receiver
+--echo #    restart in between (R1, R2).
+--echo
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+--source include/rpl/sync_to_replica.inc
+
+--let $rlf_mode= save
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+
+--echo # Key rotation 1 rotates the relay log (R1).
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+
+--let $rlf_mode= key
+--let $rlf_what= after key rotation 1
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= Key rotation 1 rotated the relay log
+--let $assert_cond= "$relay_log_file" <> "$rlf_saved_file"
+--source include/assert.inc
+
+--echo # Source binary log rotation and receiver restart create no relay-log
+--echo # file (R2).
+--let $rlf_mode= save
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+
+--source include/rpl/connection_source.inc
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (2);
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_receiver.inc
+--source include/rpl/start_receiver.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (3);
+--source include/rpl/sync_to_replica.inc
+
+--let $rlf_mode= assert
+--let $rlf_what= after a source binary log rotation and a receiver restart
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+
+--echo # Key rotations 2 and 3 succeed (R2).
+--let $i= 2
+while ($i <= 3)
+{
+  ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+  --let $rlf_mode= key
+  --let $rlf_what= after key rotation $i
+  --source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+  --inc $i
+}
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (4);
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 3. STOP REPLICA, key rotation, START REPLICA (R3).
+--echo
+
+# RESET REPLICA is left out on purpose: RESET REPLICA + key rotation + START
+# fails with error 13117 on every channel, classic ones included, because
+# RESET leaves the channel uninitialized and key rotation skips it. That is a
+# pre-existing limitation outside this test.
+--source include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--let $rlf_mode= key
+--let $rlf_what= after STOP REPLICA and a key rotation
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+
+--source include/rpl/start_replica.inc
+
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= The applier started without error after the key rotation
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (5);
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 4. Key rotation, restart, START REPLICA (R4).
+--echo
+
+--source include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl/restart_server.inc
+--source include/rpl/connection_replica.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text= The replica initialized the channel's relay log at startup
+--let $assert_select= MY-010606
+--let $assert_count= 0
+--source include/assert_grep.inc
+
+START REPLICA;
+--source include/rpl/wait_for_replica_to_start.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (6);
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--let $io_errno= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1)
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= The channel has no receiver or applier error after the restart
+--let $assert_cond= $io_errno = 0 AND $sql_errno = 0
+--source include/assert.inc
+
+--echo
+--echo # 5. FLUSH RELAY LOGS is a no-op on the IMR channel (R5).
+--echo
+
+--let $rlf_mode= save
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+FLUSH RELAY LOGS;
+--let $rlf_mode= assert
+--let $rlf_what= after FLUSH RELAY LOGS
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+
+--echo
+--echo # 6. Key rotation while the receiver waits for queue memory (R6).
+--echo
+
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_LIMIT = 33554432,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+--source include/rpl/start_receiver.inc
+
+# 40 x ~1 MiB memory-path transactions exceed the 32 MiB limit. Compression
+# off, so the payload fills the limit.
+--source include/rpl/connection_source.inc
+SET SESSION binlog_transaction_compression = OFF;
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, data LONGBLOB);
+--disable_query_log
+--let $i= 1
+while ($i <= 40)
+{
+  --eval INSERT INTO t2 (data) VALUES (REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+SET SESSION binlog_transaction_compression = DEFAULT;
+
+# Wait until the next ~1 MiB transaction cannot fit, then until the receiver
+# is in the admission wait for it.
+--source include/rpl/connection_replica.inc
+--let $blocked_watermark= `SELECT 33554432 - 1048576`
+--let $space= 0
+--let $iter= 0
+while (`SELECT $space <= $blocked_watermark`)
+{
+  --sleep 0.2
+  --let $space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+  --inc $iter
+  if ($iter > 150)
+  {
+    --die Timed out waiting for the in-memory queue to reach the limit
+  }
+}
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io' AND PROCESSLIST_STATE = 'Waiting for the replica SQL thread to free relay log space'
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The receiver did not reach the admission wait before the key rotation
+}
+
+# The key rotation rotates the IMR relay log, which takes LOCK_log. It must not
+# wait for the receiver, which waits for the stopped applier.
+--source include/rpl/connection_replica1.inc
+--send ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--source include/rpl/connection_replica.inc
+--let $imr_statement_pattern= ALTER INSTANCE ROTATE BINLOG MASTER KEY
+--let $imr_statement_timeout= 60
+--source suite/rpl_gtid/t/rpl_csa_imr_wait_statement_done.inc
+--source include/rpl/connection_replica1.inc
+--reap
+--source include/rpl/connection_replica.inc
+
+# The receiver is still waiting: nothing has freed queue memory.
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io' AND PROCESSLIST_STATE = 'Waiting for the replica SQL thread to free relay log space'
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The receiver was not waiting for queue memory during the key rotation
+}
+
+--let $rlf_mode= key
+--let $rlf_what= after a key rotation while the receiver waited for queue memory
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+
+# START REPLICA SQL_THREAD, which needs the channel_map write lock, drains the
+# queue.
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t2 ORDER BY id
+--source include/rpl/diff.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+# Cleanup.
+--source include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1, t2;
+--source include/rpl/sync_to_replica.inc
+
+--source suite/component_keyring_file/inc/rpl_teardown_component.inc

@@ -1,0 +1,127 @@
+# ==== Purpose ====
+#
+# A channel on MTA (APPLIER_VERSION = 1) has received transactions that its
+# applier has not applied yet: they are only in the disk relay log. The
+# channel is switched to CSA (Change Stream Applier) with both threads
+# stopped, and the stored IN_MEMORY_RELAYLOG_ENABLED = ON makes it use the
+# in-memory relay log (IMR), which never reads the disk relay log. The switch
+# clears Retrieved_Gtid_Set, so START REPLICA fetches the backlog again from
+# the source and the IMR applier applies all of it.
+#
+# ==== Requirements ====
+#
+# R1. A new MTA channel stores IN_MEMORY_RELAYLOG_ENABLED = ON, inactive.
+# R2. With both threads stopped, CHANGE REPLICATION SOURCE TO
+#     APPLIER_VERSION = 2 (no IMR option) puts the channel on CSA with IMR
+#     active and clears Retrieved_Gtid_Set.
+# R3. After START REPLICA, every transaction of the relay-log backlog is
+#     applied through the in-memory relay log, and the replica matches the
+#     source. Nothing is lost.
+#
+# ==== Implementation ====
+#
+#   1. On MTA, set REQUIRE_ROW_FORMAT = 1 and GTID_ONLY = 1 (needed by CSA),
+#      start the channel and replicate a table.
+#   2. Stop the applier, commit 5 transactions on the source, wait until the
+#      receiver has them, and stop the receiver.
+#   3. Switch to APPLIER_VERSION = 2 and check the configuration and the empty
+#      Retrieved_Gtid_Set.
+#   4. Start the channel: the 5 transactions are applied, and the metrics
+#      component counts exactly 5 memory-path transactions.
+#
+# The channel must start on MTA, so the test runs only in the default (MTA)
+# pass, and skips in the CSA and CSA-with-IMR passes (have_mta.inc).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+
+--source include/have_binlog_format_row.inc
+--source include/have_mta.inc
+--source include/have_component_replication_applier_metrics.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Start the channel on MTA with the options CSA needs.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+--let $assert_text= The MTA channel stores IN_MEMORY_RELAYLOG_ENABLED = ON
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = "" AND APPLIER_VERSION = 1 AND IN_MEMORY_RELAYLOG_ENABLED = "YES"] = 1
+--source include/assert.inc
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, payload VARCHAR(32)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 'a');
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Leave 5 received transactions unapplied in the relay log.
+--echo
+
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (2, 'b');
+INSERT INTO t1 VALUES (3, 'c');
+INSERT INTO t1 VALUES (4, 'd');
+INSERT INTO t1 VALUES (5, 'e');
+INSERT INTO t1 VALUES (6, 'f');
+--source include/rpl/save_server_position.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/sync_received_with_saved.inc
+--source include/rpl/stop_receiver.inc
+--let $assert_text= The backlog is not applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1
+--source include/assert.inc
+
+--echo
+--echo # 3. Switch to CSA: IMR becomes active and Retrieved_Gtid_Set is cleared.
+--echo
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2;
+--let $assert_text= The channel is on CSA with IMR enabled
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = "" AND APPLIER_VERSION = 2 AND IN_MEMORY_RELAYLOG_ENABLED = "YES"] = 1
+--source include/assert.inc
+--let $retrieved= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= Retrieved_Gtid_Set is empty after the switch
+--let $assert_cond= "$retrieved" = ""
+--source include/assert.inc
+
+--echo
+--echo # 4. START REPLICA applies the whole backlog through the in-memory relay
+--echo #    log.
+--echo
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/start_replica.inc
+--source include/rpl/sync_with_saved.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+--let $assert_text= All 6 rows are on the replica
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 6
+--source include/assert.inc
+# Counted at commit, which may follow the GTID becoming visible.
+--let $wait_condition= SELECT IN_MEMORY_TRANSACTIONS_COUNT = 5 FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+--source include/wait_condition.inc
+
+--echo
+--echo # Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl/deinit.inc

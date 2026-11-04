@@ -1,0 +1,87 @@
+
+# 1. Set up the diamond 1->2, 1->3, 2->3 with CSA and IMR on server 3.
+
+include/rpl/init.inc [topology=1->2,1->3,2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server_3]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'channel_2';
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_all_replicas.inc
+[connection server_1]
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(20));
+include/rpl/save_server_position.inc
+[connection server_2]
+include/rpl/sync_with_saved.inc
+[connection server_3]
+include/rpl/sync_with_saved.inc
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length FOR CHANNEL 'channel_2']
+
+# 2. On server 3, stop channel_1's receiver and channel_2's applier.
+
+[connection server_3]
+include/rpl/stop_receiver.inc [FOR CHANNEL 'channel_1']
+include/rpl/stop_applier.inc [FOR CHANNEL 'channel_2']
+
+# 3. Pause channel_2's receiver after the GTID event of T.
+
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+[connection server_1]
+BEGIN;
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (2, 'b');
+INSERT INTO t1 VALUES (3, 'c');
+COMMIT;
+[connection server_3]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+
+# 4. Channel_1 receives and commits T.
+
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+include/rpl/start_receiver.inc [FOR CHANNEL 'channel_1']
+
+# 5. Channel_2's worker skips T while its receiver is paused.
+
+include/rpl/start_applier.inc [FOR CHANNEL 'channel_2']
+include/assert.inc [The skipped transaction stays queued on channel_2 while its receiver writes it]
+
+# 6. Channel_2's receiver writes the rest of T (R1-R3).
+
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SELECT 1;
+1
+1
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length FOR CHANNEL 'channel_2']
+include/rpl/wait_for_replica_status.inc [In_Memory_Relay_Log_Space FOR CHANNEL 'channel_2']
+[connection server_1]
+include/rpl/save_server_position.inc
+[connection server_2]
+include/rpl/sync_with_saved.inc
+[connection server_3]
+include/rpl/sync_with_saved.inc
+include/diff_tables.inc [server_1:t1, server_2:t1, server_3:t1]
+[connection server_3]
+SET DEBUG_SYNC = 'RESET';
+
+# 7. Cleanup.
+
+[connection server_1]
+DROP TABLE t1;
+include/rpl/save_server_position.inc
+[connection server_2]
+include/rpl/sync_with_saved.inc
+[connection server_3]
+include/rpl/sync_with_saved.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/deinit.inc
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_2';

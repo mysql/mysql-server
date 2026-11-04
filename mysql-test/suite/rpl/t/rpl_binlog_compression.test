@@ -5,6 +5,8 @@
 #
 
 --let $$use_gtids=1
+# Uses on-disk relay-log files, which IMR does not write.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 

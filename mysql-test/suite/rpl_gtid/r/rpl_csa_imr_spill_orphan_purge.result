@@ -1,0 +1,71 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Enable IMR with the minimum 8 MiB spill threshold and start.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+include/rpl/start_replica.inc
+
+# 2. One >threshold transaction, so the spill directory gets created.
+
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY, b LONGBLOB);
+INSERT INTO t1 VALUES (1, REPEAT('x', 10 * 1024 * 1024));
+include/rpl/sync_to_replica.inc
+[connection slave]
+# The spill directory now exists.
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 3. Plant orphans, as an abrupt shutdown would leave them behind.
+
+# Spill directory contents before the restart:
+imr_sp_0
+imr_sp_1
+imr_sp_subdir
+keep_me.txt
+
+# 4. Restart the replica. The startup purge runs (R1).
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+
+# 5. The prefixed files are gone. The unprefixed file, the prefixed
+#    subdirectory and the spill directory itself all survive
+#    (R1, R2, R3, R4).
+
+include/assert.inc [Both replication threads are stopped after the restart]
+# The spill directory itself survived (R4).
+imr_sp_subdir
+keep_me.txt
+# The subdirectory was not entered; its content is intact (R3):
+inner.txt
+
+# 6. Spilling still works after the purge, reusing the freed
+#    "imr_sp_" names (R5).
+
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (2, REPEAT('y', 10 * 1024 * 1024));
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+# That transaction committed and left no spill file behind.
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+# Only the planted non-spill entry remains (R2):
+keep_me.txt
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

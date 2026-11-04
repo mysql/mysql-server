@@ -16,6 +16,8 @@
 # 7. Clean up.
 ################################################################################
 --source include/have_debug.inc
+# Skipped with IMR: received events are not written to the relay log.
+--source include/not_csa_imr.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc

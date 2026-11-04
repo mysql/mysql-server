@@ -1,0 +1,137 @@
+# ==== Purpose ====
+#
+# Verify that when the CSA applier (SQL thread) is stopped with STOP REPLICA
+# SQL_THREAD while a worker is in the MIDDLE of applying a transaction on an
+# in-memory relay log (IMR) channel, the applier recovers with NO GAP after
+# START REPLICA SQL_THREAD: the interrupted transaction is rolled back (never
+# partially applied), retained in the in-memory queue (the receiver keeps
+# running), re-dispatched on restart, and applied in full, leaving the replica
+# consistent with the source.
+#
+# This is covered across the full matrix:
+#
+#   replica_preserve_commit_order = ON  x  memory path (trx < spill threshold)
+#   replica_preserve_commit_order = ON  x  spill  path (trx > spill threshold)
+#   replica_preserve_commit_order = OFF x  memory path
+#   replica_preserve_commit_order = OFF x  spill  path
+#
+# The mid-transaction pause is produced with the pause_csa_before_releasing_
+# event_memory debug point, which parks a worker right after it applies an event
+# larger than 3000 bytes (so every scenario uses rows > 3000 bytes).
+#
+# ==== Requirements ====
+#
+# R1. STOP REPLICA SQL_THREAD issued while a worker is mid-transaction stops the
+#     applier cleanly (no Last_SQL_Errno) and rolls the transaction back: none
+#     of its rows are applied and its GTID is not in gtid_executed while stopped.
+# R2. START REPLICA SQL_THREAD re-dispatches the retained transaction from the
+#     in-memory queue and applies it in full; the replica gtid_executed then
+#     covers the source (no gap) and the data matches.
+# R3. R1-R2 hold for both the memory and spill storage paths and for both
+#     replica_preserve_commit_order = ON and OFF.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo
+--echo # Set up a CSA channel with the in-memory relay log enabled (8 MiB spill
+--echo # threshold). The receiver runs throughout; only the applier is stopped
+--echo # and started, mid-transaction, in each scenario below.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_extra_connections_per_server= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+# Stopping the applier mid-transaction kills a clean worker session; suppress
+# the expected diagnostics.
+CALL mtr.add_suppression("Replica SQL thread .* killed");
+CALL mtr.add_suppression("Worker .* stopped");
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # ===================================================================
+--echo # replica_preserve_commit_order = ON (default)
+--echo # ===================================================================
+--echo
+
+# Memory path: a small transaction (rows > 3000 bytes but total well below the
+# 8 MiB spill threshold).
+--let $csa_mid_trx_label= RPCO=ON memory
+--let $csa_mid_trx_id_start= 100
+--let $csa_mid_trx_rows= 3
+--let $csa_mid_trx_bytes= 4000
+--source include/rpl/csa_stop_sql_thread_mid_trx.inc
+
+# Spill path: a transaction larger than the 8 MiB spill threshold
+# (12 rows x ~1 MiB = ~12 MiB).
+--let $csa_mid_trx_label= RPCO=ON spill
+--let $csa_mid_trx_id_start= 200
+--let $csa_mid_trx_rows= 12
+--let $csa_mid_trx_bytes= 1048576
+--source include/rpl/csa_stop_sql_thread_mid_trx.inc
+
+--echo
+--echo # ===================================================================
+--echo # replica_preserve_commit_order = OFF
+--echo # ===================================================================
+--echo
+
+# replica_preserve_commit_order can only be changed with the SQL thread stopped.
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+SET @saved_rpco = @@GLOBAL.replica_preserve_commit_order;
+SET GLOBAL replica_preserve_commit_order = OFF;
+--source include/rpl/start_applier.inc
+
+# Memory path.
+--let $csa_mid_trx_label= RPCO=OFF memory
+--let $csa_mid_trx_id_start= 300
+--let $csa_mid_trx_rows= 3
+--let $csa_mid_trx_bytes= 4000
+--source include/rpl/csa_stop_sql_thread_mid_trx.inc
+
+# Spill path.
+--let $csa_mid_trx_label= RPCO=OFF spill
+--let $csa_mid_trx_id_start= 400
+--let $csa_mid_trx_rows= 12
+--let $csa_mid_trx_bytes= 1048576
+--source include/rpl/csa_stop_sql_thread_mid_trx.inc
+
+--echo
+--echo # Restore replica_preserve_commit_order.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+SET GLOBAL replica_preserve_commit_order = @saved_rpco;
+--source include/rpl/start_applier.inc
+
+--echo
+--echo # Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

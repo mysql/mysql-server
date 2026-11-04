@@ -18,6 +18,7 @@
 # [--let $rpl_require_row_format= *:0,1:0,2:1]
 # [--let $rpl_gtid_only= *:0,1:0,2:1]
 # [--let $rpl_applier_version=*:1,1:1,2:2]
+# [--let $rpl_in_memory_relaylog= ON|OFF|DEFAULT]
 # --let $rpl_source_file= rpl/impl/change_topology_helper.inc
 # --source include/rpl/for_each_connection.inc
 #
@@ -28,6 +29,15 @@
 #   $_rpl_old_connection_list
 #     The $rpl_connection_list corresponding to the topology before
 #     this call.
+#
+#   $rpl_in_memory_relaylog
+#     Only for a replica whose applier version is not 1 (CSA). ON or OFF adds
+#     IN_MEMORY_RELAYLOG_ENABLED = ON|OFF. Empty or DEFAULT adds nothing (the
+#     server default applies). Any other value makes the test die. When not
+#     set, the RPL_IN_MEMORY_RELAYLOG environment variable is used. An
+#     explicitly empty `--let $rpl_in_memory_relaylog=` hides the environment
+#     value, because mysqltest reads the environment only for a variable that
+#     does not exist.
 #
 #   other parameters
 #     See rpl/change_topology.inc
@@ -221,6 +231,26 @@ if (!$_rpl_change_topology_helper_skip)
   if ($_rpl_change_topology_helper_applier_version != 1)
   {
     --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position APPLIER_VERSION = $_rpl_change_topology_helper_applier_version, GTID_ONLY = 1, REQUIRE_ROW_FORMAT = 1,
+
+    # Set IN_MEMORY_RELAYLOG_ENABLED from $rpl_in_memory_relaylog, else from
+    # the RPL_IN_MEMORY_RELAYLOG environment variable. Read the environment
+    # variable first: mysqltest variable names are case-insensitive, so a
+    # lookup of $rpl_in_memory_relaylog that misses would hide the
+    # environment variable from a later $RPL_IN_MEMORY_RELAYLOG lookup.
+    --let $_rpl_change_topology_helper_imr= $RPL_IN_MEMORY_RELAYLOG
+    if (`SELECT "$rpl_in_memory_relaylog" != ""`)
+    {
+      --let $_rpl_change_topology_helper_imr= $rpl_in_memory_relaylog
+    }
+    if (`SELECT "$_rpl_change_topology_helper_imr" NOT IN ("", "ON", "OFF", "DEFAULT")`)
+    {
+      --echo ERROR IN TEST: invalid \$rpl_in_memory_relaylog / RPL_IN_MEMORY_RELAYLOG value '$_rpl_change_topology_helper_imr'
+      --die ERROR IN TEST: $rpl_in_memory_relaylog must be ON, OFF, DEFAULT or empty
+    }
+    if (`SELECT "$_rpl_change_topology_helper_imr" IN ("ON", "OFF")`)
+    {
+      --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position IN_MEMORY_RELAYLOG_ENABLED = $_rpl_change_topology_helper_imr,
+    }
   }
 
   # Get APPLIER_WORKER_COUNT for current `$rpl_slave`

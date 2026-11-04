@@ -1,0 +1,110 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Enable IMR with an 8 MiB spill threshold and start.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("Relay log read failure: In-memory relay log: could not decode event");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("Relay log read failure: Error reading Log_event at position [0-9]+: Failed decoding event: Event crc check failed");
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. Memory step: an undecodable event stops the applier.
+
+include/rpl/stop_receiver.inc
+# Adding debug point 'simulate_truncated_relay_log_event' to @@GLOBAL.debug
+include/rpl/start_receiver.inc
+[connection master]
+INSERT INTO t1 VALUES (1, 'a');
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13121]
+include/assert.inc [A worker reports that event #0 could not be decoded]
+include/assert_grep.inc [The error log has the relay log read failure]
+include/assert.inc [The receiver keeps running]
+include/assert.inc [Nothing of the transaction is applied]
+include/assert.inc [No GTID stays owned]
+# Removing debug point 'simulate_truncated_relay_log_event' from @@GLOBAL.debug
+STOP REPLICA;
+include/rpl/wait_for_replica_to_stop.inc
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t1, slave:t1]
+
+# 3. Spill step: the same corruption on a transaction larger than the
+#    spill threshold stops the applier with the same error.
+
+include/rpl/stop_receiver.inc
+# Adding debug point 'simulate_truncated_relay_log_event' to @@GLOBAL.debug
+include/rpl/start_receiver.inc
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13121]
+include/assert.inc [The failed transaction holds one spill file]
+include/assert.inc [A worker reports the spill reader's checksum failure]
+include/assert.inc [The receiver keeps running]
+include/assert.inc [Nothing of the spilled transaction is applied]
+include/assert.inc [No GTID stays owned]
+# Removing debug point 'simulate_truncated_relay_log_event' from @@GLOBAL.debug
+STOP REPLICA;
+include/rpl/wait_for_replica_to_stop.inc
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 4. Later-event step: an undecodable Write_rows event fails on the
+#    worker, and the retained transaction fails again on restart.
+
+include/rpl/stop_receiver.inc
+# Adding debug point 'imr_truncate_queued_rows_event' to @@GLOBAL.debug
+include/rpl/start_receiver.inc
+[connection master]
+INSERT INTO t1 VALUES (2, 'b'), (3, 'c');
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13121]
+include/assert.inc [A worker reports that event #3 could not be decoded]
+include/assert_grep.inc [The error log has one relay log read failure for event #3]
+include/assert.inc [The receiver keeps running]
+include/assert.inc [The failed transaction stays queued]
+include/assert.inc [None of the transaction's rows is applied]
+include/assert.inc [No GTID stays owned]
+include/assert.inc [The transaction's GTID is not executed]
+START REPLICA SQL_THREAD;
+include/rpl/wait_for_applier_error.inc [errno=13121]
+include/assert_grep.inc [The re-dispatched transaction fails again on event #3]
+include/assert.inc [The transaction still stays queued]
+include/assert.inc [None of the transaction's rows is applied after the retry]
+include/assert.inc [No GTID stays owned after the retry]
+include/assert.inc [The transaction's GTID is still not executed]
+# Removing debug point 'imr_truncate_queued_rows_event' from @@GLOBAL.debug
+STOP REPLICA;
+include/rpl/wait_for_replica_to_stop.inc
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+
+# 5. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+[connection slave]
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/deinit.inc

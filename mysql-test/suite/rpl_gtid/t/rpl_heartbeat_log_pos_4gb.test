@@ -44,6 +44,8 @@
 # this test requires certain events to appear in sequence in binary log.
 # With compression enabled, this is not the case.
 --source include/not_binlog_transaction_compression_on.inc
+# Counts received events in the relay log, which IMR does not write.
+--source include/not_csa_imr.inc
 
 --let $rpl_skip_start_slave = 1
 --let $rpl_extra_connections_per_server = 2

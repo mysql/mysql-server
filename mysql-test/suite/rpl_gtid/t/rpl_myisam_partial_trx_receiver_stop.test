@@ -1,0 +1,171 @@
+# ==== Purpose ====
+#
+# Pin the expected behavior of a non-transactional (MyISAM) statement that a
+# receiver stop cuts in the middle, after the applier has applied part of it,
+# and check that every applier path gives the same result: MTA, CSA
+# (Change Stream Applier) on the disk relay log, and CSA with the in-memory
+# relay log (IMR). This test does not check convergence: MyISAM rows cannot
+# be rolled back, so the replica keeps the rows applied before the stop and
+# loses the rest.
+#
+# The statement is a 40-row INSERT ... SELECT into a MyISAM table, logged as
+# one transaction with 5 Write_rows events of 8 rows each. The receiver stops
+# right after Write_rows #1, once the applier has applied a row of it. The
+# applier rolls the cut transaction back. The rollback binlogs the rows
+# already applied under the transaction's GTID, so the GTID becomes executed
+# and the copy fetched again after the reconnect is skipped. The paths differ
+# only in when the rollback happens (IMR on the receiver stop, the others
+# when the next GTID arrives after the reconnect), not in the result.
+#
+# ==== Requirements ====
+#
+# R1. On every path, after the receiver restarts and the replica syncs, the
+#     replica has the 8 rows of Write_rows #1 and the source has 40.
+# R2. On every path, the GTID of the cut transaction is in the replica's
+#     gtid_executed, and the applier has no error.
+# R3. On every path, replication goes on: a following transaction applies.
+#
+# ==== Implementation ====
+#
+#   1. Create a MyISAM table t2 and an InnoDB source table of 40 rows.
+#   2. Arm, on the replica, pause_after_queue_event (the receiver waits after
+#      each queued event), stop_io_after_reading_write_rows_log_event (the
+#      receiver stops after the first Write_rows event) and
+#      dbug.rpl_apply_sync_barrier (the applier waits after each applied row).
+#   3. Run the INSERT ... SELECT. Let the receiver queue the GTID, BEGIN and
+#      Table_map events, and Write_rows #1. With the receiver still waiting,
+#      wait until the applier has applied the first row.
+#   4. Let the receiver go on and stop, then let the applier go on.
+#   5. Restart the receiver, sync, and check R1-R3.
+#
+# The test has no applier restriction and one result file, so it runs the
+# same way in the default (MTA), CSA and CSA-with-IMR passes, and any
+# difference between the paths fails it.
+#
+# A receiver stop before any row is applied is not tested: on MTA and on the
+# disk relay log the applier always applies the received Write_rows #1 before
+# it sees the next GTID, so only IMR can reach that state.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_myisam.inc
+# Compressed, the transaction is one payload event with no Write_rows to stop at.
+--source include/not_binlog_transaction_compression_on.inc
+
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Create the MyISAM table and the 40 source rows.
+--echo
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t2 (i INT, pad VARCHAR(2000)) ENGINE = MyISAM;
+CREATE TABLE src (i INT PRIMARY KEY, pad VARCHAR(2000)) ENGINE = InnoDB;
+CREATE TABLE t3 (i INT PRIMARY KEY) ENGINE = InnoDB;
+--disable_query_log
+--let $k= 1
+while ($k <= 40)
+{
+  --eval INSERT INTO src VALUES ($k, REPEAT('p', 1000))
+  --inc $k
+}
+--enable_query_log
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Arm the receiver pause, the receiver stop and the row barrier.
+--echo
+
+--let $debug_point= pause_after_queue_event
+--source include/add_debug_point.inc
+--let $debug_point= stop_io_after_reading_write_rows_log_event
+--source include/add_debug_point.inc
+--let $debug_point= dbug.rpl_apply_sync_barrier
+--source include/add_debug_point.inc
+
+--echo
+--echo # 3. The receiver queues Write_rows #1 and waits; the applier applies a
+--echo #    row of it.
+--echo
+
+--source include/rpl/connection_source.inc
+# 40 rows of ~1 KiB: 5 Write_rows events of 8 rows (binlog_row_event_max_size).
+INSERT INTO t2 SELECT i, pad FROM src ORDER BY i;
+--let $source_gtids= `SELECT @@GLOBAL.gtid_executed`
+--let $source_rows= `SELECT COUNT(*) FROM t2`
+
+--source include/rpl/connection_replica.inc
+# The GTID, BEGIN and Table_map events.
+--let $n= 3
+while ($n)
+{
+  SET DEBUG_SYNC = 'now WAIT_FOR reached_after_queue_event';
+  SET DEBUG_SYNC = 'now SIGNAL continue_after_queue_event';
+  --dec $n
+}
+# Write_rows #1 is queued; the receiver waits with the transaction open.
+SET DEBUG_SYNC = 'now WAIT_FOR reached_after_queue_event';
+SET DEBUG_SYNC = 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+
+--echo
+--echo # 4. The receiver stops after Write_rows #1, then the applier goes on.
+--echo
+
+--let $debug_point= dbug.rpl_apply_sync_barrier
+--source include/remove_debug_point.inc
+--let $debug_point= pause_after_queue_event
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC = 'now SIGNAL continue_after_queue_event';
+--let $slave_param= Replica_IO_Running
+--let $slave_param_value= No
+--source include/rpl/wait_for_replica_status.inc
+SET DEBUG_SYNC = 'now SIGNAL signal.rpl_row_apply_process_next_row';
+--let $debug_point= stop_io_after_reading_write_rows_log_event
+--source include/remove_debug_point.inc
+
+--echo
+--echo # 5. Restart the receiver: every path ends with the same state.
+--echo
+
+--source include/rpl/start_receiver.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $assert_text= The source has 40 rows
+--let $assert_cond= $source_rows = 40
+--source include/assert.inc
+--let $assert_text= The replica keeps the 8 rows of Write_rows #1 only
+--let $assert_cond= [SELECT COUNT(*) FROM t2] = 8 AND [SELECT MAX(i) FROM t2] = 8
+--source include/assert.inc
+--let $assert_text= The cut transaction's GTID is executed on the replica
+--let $assert_cond= GTID_SUBSET("$source_gtids", @@GLOBAL.gtid_executed)
+--source include/assert.inc
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= The applier runs without error
+--let $assert_cond= $sql_errno = 0 AND "$sql_running" = "Yes"
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t3 VALUES (1);
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= A following transaction applies
+--let $assert_cond= [SELECT COUNT(*) FROM t3] = 1
+--source include/assert.inc
+
+--echo
+--echo # Cleanup.
+--echo
+
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl/connection_source.inc
+DROP TABLE t2, src, t3;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

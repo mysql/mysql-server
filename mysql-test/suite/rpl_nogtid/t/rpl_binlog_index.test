@@ -200,8 +200,8 @@ DROP TABLE t1;
 --source include/rpl/relocate_binlogs.inc
 
 --echo # remove tmpdir
---remove_files_wildcard $tmpdir *
---rmdir $tmpdir
+# Also removes the in-memory relay log spill directory created there.
+--force-rmdir $tmpdir
 
 --echo # restarted with previous slave settings
 --let $rpl_server_parameters=--log-bin=$slave_datadir/slave-bin --relay-log=$slave_datadir/slave-relay-bin

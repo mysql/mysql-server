@@ -1,0 +1,192 @@
+# ==== Purpose ====
+#
+# Verify that a multi-source replica whose channels run the in-memory relay log
+# (IMR) with CSA survives the same transaction arriving on two channels, when
+# one channel's worker skips its copy while that channel's receiver still
+# streams it.
+#
+# In a diamond topology (1->2, 1->3, 2->3) every transaction of server 1 reaches
+# server 3 twice: on channel_1 directly and on channel_2 through server 2. When
+# channel_1 commits it first, channel_2's worker finds the GTID executed at the
+# GTID event, skips the transaction and commits it at once, while channel_2's
+# receiver keeps appending the rest of its events. Before the fix the commit
+# and the sweep freed the transaction while the receiver still wrote it
+# (SIGSEGV in append_transaction_event). The receiver now holds the queue entry
+# until it has written the last event.
+#
+# ==== Requirements ====
+#
+# R1. A transaction that channel_2's worker skips mid-stream, because channel_1
+#     already committed it, neither crashes server 3 nor stops a channel.
+# R2. Channel_2's queue drains once the transaction's last event arrives:
+#     In_Memory_Queue_Length and In_Memory_Relay_Log_Space return to 0.
+# R3. All three servers end with the same data.
+#
+# ==== Implementation ====
+#
+#   1. Set up the diamond. Server 3 runs CSA with IMR on channel_1 and
+#      channel_2, and the applier metrics component.
+#   2. On server 3, stop channel_1's receiver and channel_2's applier. Channel_2's
+#      applier must stay stopped until channel_1 has committed the GTID: with
+#      IMR a worker starts at the GTID event, so a running channel_2 applier
+#      would take the GTID's ownership first and park on the paused receiver,
+#      and no skip would happen. The pause point is global, so channel_1's
+#      receiver is stopped while it is set.
+#   3. Pause channel_2's receiver after the GTID event of a multi-statement
+#      transaction T committed on server 1.
+#   4. Start channel_1's receiver; wait until T's GTID is executed on server 3.
+#   5. Start channel_2's applier; wait until its worker skipped and committed T.
+#   6. Let channel_2's receiver go on; check R1-R3.
+#   7. Cleanup.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA is row-based only.
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+# Compressed, a transaction is a single payload event: there is no window in
+# the middle of its stream.
+--source include/not_binlog_transaction_compression_on.inc
+
+--echo
+--echo # 1. Set up the diamond 1->2, 1->3, 2->3 with CSA and IMR on server 3.
+--echo
+--let $rpl_topology= 1->2,1->3,2->3
+--let $rpl_multi_source= 1
+--let $rpl_skip_start_slave= 1
+# Server 2 stays classic. change_topology_helper.inc passes the raw option
+# string to a replica the list does not name, so server 2 is listed too.
+--let $rpl_applier_version= 2:1,3:2
+--source include/rpl/init.inc
+# Multi-source forbids rpl/sync.inc: sync servers 2 and 3 on server 1's GTIDs.
+--let $use_gtids= 1
+
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'channel_2';
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+--let $from_ch2= FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = 'channel_2'
+--source include/rpl/start_all_replicas.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(20));
+--let $s1_uuid= `SELECT @@GLOBAL.server_uuid`
+--let $gno= `SELECT CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(@@GLOBAL.gtid_executed, ':', -1), '-', -1) AS UNSIGNED) + 1`
+--source include/rpl/save_server_position.inc
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--source include/rpl/sync_with_saved.inc
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+--source include/rpl/sync_with_saved.inc
+# Either channel's copy of CREATE TABLE satisfies the GTID sync. Wait until
+# channel_2 has also completed its own copy and drained its queue, so the
+# baseline below counts it and step 5 counts only T.
+--let $wait_condition= SELECT IN_MEMORY_TRANSACTIONS_COUNT >= 1 $from_ch2
+--source include/wait_condition.inc
+--let $rpl_channel_name= 'channel_2'
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $rpl_channel_name=
+
+--echo
+--echo # 2. On server 3, stop channel_1's receiver and channel_2's applier.
+--echo
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+--let $rpl_channel_name= 'channel_1'
+--source include/rpl/stop_receiver.inc
+--let $rpl_channel_name= 'channel_2'
+--source include/rpl/stop_applier.inc
+--let $rpl_channel_name=
+--let $count_before= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch2`
+
+--echo
+--echo # 3. Pause channel_2's receiver after the GTID event of T.
+--echo
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+BEGIN;
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (2, 'b');
+INSERT INTO t1 VALUES (3, 'c');
+COMMIT;
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+
+--echo
+--echo # 4. Channel_1 receives and commits T.
+--echo
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+--let $rpl_channel_name= 'channel_1'
+--source include/rpl/start_receiver.inc
+--let $rpl_channel_name=
+--let $wait_condition= SELECT GTID_SUBSET('$s1_uuid:$gno', @@GLOBAL.gtid_executed)
+--source include/wait_condition.inc
+
+--echo
+--echo # 5. Channel_2's worker skips T while its receiver is paused.
+--echo
+--let $rpl_channel_name= 'channel_2'
+--source include/rpl/start_applier.inc
+--let $rpl_channel_name=
+--let $wait_condition= SELECT IN_MEMORY_TRANSACTIONS_COUNT > $count_before $from_ch2
+--source include/wait_condition.inc
+--let $qlen= query_get_value(SHOW REPLICA STATUS FOR CHANNEL 'channel_2', In_Memory_Queue_Length, 1)
+--let $assert_text= The skipped transaction stays queued on channel_2 while its receiver writes it
+--let $assert_cond= $qlen = 1
+--source include/assert.inc
+
+--echo
+--echo # 6. Channel_2's receiver writes the rest of T (R1-R3).
+--echo
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SELECT 1;
+--let $rpl_channel_name= 'channel_2'
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $rpl_channel_name=
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--source include/rpl/save_server_position.inc
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--source include/rpl/sync_with_saved.inc
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+--source include/rpl/sync_with_saved.inc
+--let $diff_tables= server_1:t1, server_2:t1, server_3:t1
+--source include/diff_tables.inc
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+SET DEBUG_SYNC = 'RESET';
+
+--echo
+--echo # 7. Cleanup.
+--echo
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+DROP TABLE t1;
+--source include/rpl/save_server_position.inc
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--source include/rpl/sync_with_saved.inc
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+--source include/rpl/sync_with_saved.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+# Already synced above; rpl/sync.inc is not allowed with multi-source.
+--let $rpl_skip_sync= 1
+--source include/rpl/deinit.inc

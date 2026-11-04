@@ -72,6 +72,9 @@
 --source include/not_windows.inc
 --source include/have_debug.inc
 --source include/rpl/init_source_replica.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/csa_disable_in_memory_relaylog.inc
+--source include/rpl/connection_source.inc
 
 # this test case requires that certain events appear in a given
 # order in the relay log. With compression, only GTID and a

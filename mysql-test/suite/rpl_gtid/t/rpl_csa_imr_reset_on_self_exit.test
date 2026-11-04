@@ -1,0 +1,128 @@
+# ==== Purpose ====
+#
+# When both replication threads of an in-memory relay log (IMR) channel end
+# without a STOP REPLICA statement, the thread that exits last resets the
+# queue and the Retrieved_Gtid_Set.
+#
+# Here the SQL thread stops on an apply error and the IO thread is then
+# killed. The reset runs in the IO thread's own exit path. Before, it ran only
+# inside STOP REPLICA, so after such an exit the queue and the
+# Retrieved_Gtid_Set were kept. A later CHANGE REPLICATION SOURCE that rebuilt
+# or dropped the runtime then discarded the queued transactions while the
+# Retrieved_Gtid_Set still listed them, so the receiver never asked the
+# source for them again.
+#
+# ==== Requirements ====
+#
+# R1. While the IO thread runs after the SQL thread stopped on an error, the
+#     queue keeps the unapplied transactions.
+# R2. When the IO thread is then killed, it is the last role out:
+#     In_Memory_Queue_Length is 0 and the Retrieved_Gtid_Set is empty.
+# R3. A CHANGE REPLICATION SOURCE that rebuilds the runtime
+#     (IN_MEMORY_RELAYLOG_LIMIT) then succeeds, and after the conflict is
+#     removed, START REPLICA fetches and applies every transaction again.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+CALL mtr.add_suppression("Duplicate entry");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Worker .* failed executing transaction");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 1. R1: the SQL thread stops on an apply error; the IO thread keeps
+--echo #    the queue.
+--echo
+
+# A row that makes the source's INSERT of 2 fail on the replica.
+SET SESSION sql_log_bin= 0;
+INSERT INTO t1 VALUES (2);
+SET SESSION sql_log_bin= 1;
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+--source include/rpl/sync_to_replica_received.inc
+
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+--source include/rpl/wait_for_applier_error.inc
+
+--let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= The queue keeps the unapplied transactions while the IO thread runs
+--let $assert_cond= $imr_qlen > 0
+--source include/assert.inc
+
+--echo
+--echo # 2. R2: the IO thread is killed and, as the last role out, resets the
+--echo #    queue.
+--echo
+
+--let $io_id= `SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
+--replace_result $io_id IO_THREAD
+--eval KILL $io_id
+--source include/rpl/wait_for_receiver_to_stop.inc
+
+# The thread shows as stopped before its exit path runs the reset, so wait.
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $slave_param= Retrieved_Gtid_Set
+--let $slave_param_value=
+--source include/rpl/wait_for_replica_status.inc
+
+--let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $retrieved= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= The IO thread's exit reset the queue and the Retrieved_Gtid_Set
+--let $assert_cond= $imr_qlen = 0 AND "$retrieved" = ""
+--source include/assert.inc
+
+--echo
+--echo # 3. R3: CHANGE REPLICATION SOURCE rebuilds the runtime; START REPLICA
+--echo #    fetches and applies everything again.
+--echo
+
+# Rebuilding the runtime requires a detached, empty queue (checked by an
+# assert in debug builds).
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 67108864;
+
+SET SESSION sql_log_bin= 0;
+DELETE FROM t1 WHERE id = 2;
+SET SESSION sql_log_bin= 1;
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 134217728;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

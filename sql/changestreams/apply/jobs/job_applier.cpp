@@ -396,9 +396,11 @@ bool Job_applier::run_phase(Thread_id thread_id) {
     is_error = true;
     set_fatal_error();
     m_phase = Transaction_phase::done;
-  } else if (m_fetch_metadata->is_truncated()) {
+  } else if (m_fetch_metadata->is_truncated() ||
+             m_fetch_metadata->is_aborted()) {
     // Truncation means the IO thread cut the metadata stream. Roll back
     // silently and let the next job replay the transaction from source.
+    // An abort is an applier stop; the job is re-dispatched at next START.
     m_relay_context->get_relay_log_info()->cleanup_context(thd, true);
     sync_rows_query_event_retention();
     thd->clear_error();

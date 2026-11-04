@@ -1,0 +1,93 @@
+# ----------------------------------------------------------------------
+# Setup
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+
+# 0. Load the keyring on the replica, enable binlog_encryption and IMR.
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+
+# 1. Crash in the purge at START REPLICA (R1).
+
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/stop_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The relay-log index has stale files before the crash]
+SET SESSION debug = '+d,imr_relay_log_purge_crash_after_index';
+START REPLICA;
+ERROR HY000: Lost connection to MySQL server during query
+include/wait_for_pattern_in_file.inc [SIGKILL myself]
+# After the crash the index has one file, and purged files are still on disk.
+# Restart after the crash.
+include/rpl/start_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [The replica initialized the channel's relay log after crash 1]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [One relay-log file is in the index after crash 1]
+include/assert.inc [One relay-log file is on disk after crash 1]
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (1 + 1);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/assert.inc [The applier runs without error after crash 1]
+
+# 2. Crash in the purge at server startup (R2).
+
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/stop_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The relay-log index has stale files before the crash]
+include/rpl/stop_server.inc [server_number=2]
+include/wait_for_pattern_in_file.inc [SIGKILL myself]
+# After the crash the index has several files, and every file on disk is in the index.
+# Restart after the crash.
+include/rpl/start_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [The replica initialized the channel's relay log after crash 2]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [One relay-log file is in the index after crash 2]
+include/assert.inc [One relay-log file is on disk after crash 2]
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (2 + 1);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/assert.inc [The applier runs without error after crash 2]
+include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl/deinit.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

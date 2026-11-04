@@ -1,0 +1,345 @@
+# ==== Purpose ====
+#
+# Test that the relay-log files of an in-memory relay log (IMR) CSA channel
+# are purged, down to the active (last) file, when the channel starts while
+# both of its threads are stopped: at server startup and at START REPLICA.
+#
+# An IMR channel's relay-log files hold only the replica's own events, but a
+# new file appears at every server start and at every binary log master key
+# rotation, so the relay-log index grew without bound. The purge uses the
+# shared, crash-safe MYSQL_BIN_LOG::purge_logs().
+#
+# ==== Requirements ====
+#
+# R1. After a server restart, the IMR channel has one relay-log file. It is
+#     the group relay log (Relay_Log_File and mysql.slave_relay_log_info name
+#     it), Relay_Log_Space is its size, and the channel replicates.
+# R2. START REPLICA with both threads stopped purges to the active file.
+#     So does START REPLICA SQL_THREAD while the receiver is stopped.
+# R3. START REPLICA SQL_THREAD while the receiver runs, and START REPLICA
+#     IO_THREAD while the applier runs, do not purge.
+# R4. relay_log_purge = OFF disables the purge, at startup and at START
+#     REPLICA. While another session holds LOCK INSTANCE FOR BACKUP, START
+#     REPLICA skips the purge with a warning.
+# R5. Classic (MTA) channels and CSA channels without IMR keep their
+#     relay-log files at startup and at START REPLICA.
+#
+# ==== Implementation ====
+#
+#   0. Load the keyring on the replica, enable binlog_encryption and IMR.
+#      Key rotations then add one relay-log file each.
+#   1. R1: three times STOP, key rotation, restart; check the relay-log state
+#      before START, then START and replicate.
+#   2. R2: two key rotations while replicating, STOP/START REPLICA; then STOP,
+#      key rotation, START REPLICA SQL_THREAD.
+#   3. R3: key rotation, STOP/START REPLICA SQL_THREAD; key rotation,
+#      STOP/START REPLICA IO_THREAD.
+#   4. R4: restart with relay_log_purge = OFF, key rotation, START; then a
+#      key rotation and START while another session holds the backup lock.
+#   5. R5: for an MTA channel and a CSA channel without IMR, two restarts and
+#      START REPLICA IO_THREAD with both threads stopped.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# WL#10957: Binary log encryption at rest.
+# CSA (Change Stream Applier): WL#10500.
+
+--source include/have_component_keyring_file.inc
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source suite/component_keyring_file/inc/rpl_setup_component.inc
+
+--echo
+--echo # 0. Load the keyring on the replica, enable binlog_encryption and IMR.
+--echo
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl/restart_server.inc
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP");
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+
+--let $rlf_mode= count
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= starting as process
+
+--echo
+--echo # 1. STOP, key rotation, restart, three times (R1).
+--echo
+
+--let $i= 1
+while ($i <= 3)
+{
+  ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+  --source include/rpl/restart_server.inc
+  --source include/rpl/connection_replica.inc
+
+  --let $assert_text= The replica initialized the channel's relay log at restart $i
+  --let $assert_select= MY-010606
+  --let $assert_count= 0
+  --source include/assert_grep.inc
+
+  --source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+  --let $assert_text= One relay-log file is left after restart $i
+  --let $assert_cond= $rlf_count = 1
+  --source include/assert.inc
+
+  --let $group_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
+  --let $assert_text= Relay_Log_File is the active file after restart $i
+  --let $assert_cond= "$group_file" = "$relay_log_file"
+  --source include/assert.inc
+
+  # $relay_log_size excludes the 512-byte encryption header.
+  --let $space= query_get_value(SHOW REPLICA STATUS, Relay_Log_Space, 1)
+  --let $assert_text= Relay_Log_Space is the size of the active file after restart $i
+  --let $assert_cond= $space = $relay_log_size + 512
+  --source include/assert.inc
+
+  --let $rli_name= `SELECT Relay_log_name FROM mysql.slave_relay_log_info WHERE Channel_name = ''`
+  --let $assert_text= mysql.slave_relay_log_info names the active file after restart $i
+  --let $assert_cond= "$rli_name" LIKE "%$relay_log_file"
+  --source include/assert.inc
+
+  --source include/rpl/start_replica.inc
+  --source include/rpl/connection_source.inc
+  --eval INSERT INTO t1 VALUES ($i + 1)
+  --source include/rpl/sync_to_replica.inc
+  --let $diff_tables= master:test.t1, slave:test.t1
+  --source include/diff_tables.inc
+
+  --let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+  --let $assert_text= The applier runs without error after restart $i
+  --let $assert_cond= $sql_errno = 0
+  --source include/assert.inc
+
+  --let $rlf_mode= key
+  --let $rlf_what= after restart $i
+  --source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+  --let $rlf_mode= count
+
+  --source include/rpl/stop_replica.inc
+  --inc $i
+}
+
+--echo
+--echo # 2. START with both threads stopped purges (R2).
+--echo
+
+--source include/rpl/start_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= Two key rotations while replicating add two relay-log files
+--let $assert_cond= $rlf_count = 3
+--source include/assert.inc
+
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= START REPLICA with both threads stopped leaves one file
+--let $assert_cond= $rlf_count = 1
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (10);
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/rpl/start_applier.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= START REPLICA SQL_THREAD with the receiver stopped leaves one file
+--let $assert_cond= $rlf_count = 1
+--source include/assert.inc
+
+--source include/rpl/start_receiver.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= START REPLICA IO_THREAD with the applier running keeps one file
+--let $assert_cond= $rlf_count = 1
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (11);
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= The applier runs without error after the purges at START
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+--echo
+--echo # 3. No purge while the other thread runs (R3).
+--echo
+
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/rpl/stop_applier.inc
+--source include/rpl/start_applier.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= START REPLICA SQL_THREAD with the receiver running keeps the files
+--let $assert_cond= $rlf_count = 2
+--source include/assert.inc
+
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/rpl/stop_receiver.inc
+--source include/rpl/start_receiver.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= START REPLICA IO_THREAD with the applier running keeps the files
+--let $assert_cond= $rlf_count = 3
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (12);
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 4. relay_log_purge = OFF and the backup lock (R4).
+--echo
+
+--source include/rpl/stop_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $count_before= $rlf_count
+
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON --relay_log_purge=OFF
+--source include/rpl/restart_server.inc
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON
+--source include/rpl/connection_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= A restart with relay_log_purge = OFF keeps the files
+--let $assert_cond= $rlf_count = $count_before + 1
+--source include/assert.inc
+
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/rpl/start_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= START REPLICA with relay_log_purge = OFF keeps the files
+--let $assert_cond= $rlf_count = $count_before + 2
+--source include/assert.inc
+
+--source include/rpl/stop_replica.inc
+SET GLOBAL relay_log_purge = ON;
+--source include/rpl/start_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= START REPLICA with relay_log_purge = ON leaves one file
+--let $assert_cond= $rlf_count = 1
+--source include/assert.inc
+
+--source include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--source include/rpl/connection_replica1.inc
+LOCK INSTANCE FOR BACKUP;
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= START REPLICA under another session's backup lock keeps the files
+--let $assert_cond= $rlf_count = 2
+--source include/assert.inc
+
+--let $assert_text= START REPLICA under the backup lock logged that it skipped the purge
+--let $assert_select= Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--source include/rpl/connection_replica1.inc
+UNLOCK INSTANCE;
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
+--source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+--let $assert_text= START REPLICA after UNLOCK INSTANCE leaves one file
+--let $assert_cond= $rlf_count = 1
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (13);
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 5. MTA channels and CSA channels without IMR keep their files (R5).
+--echo
+
+--source include/rpl/stop_replica.inc
+--let $variant= 1
+while ($variant <= 2)
+{
+  if ($variant == 1)
+  {
+    --echo # MTA channel.
+    CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+    CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1;
+  }
+  if ($variant == 2)
+  {
+    --echo # CSA channel without IMR.
+    CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2;
+    CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+  }
+  --let $imr_off= `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = '' AND APPLIER_VERSION = $variant AND IN_MEMORY_RELAYLOG_ENABLED = 'NO'`
+  --let $assert_text= The channel uses APPLIER_VERSION $variant with IMR off
+  --let $assert_cond= $imr_off = 1
+  --source include/assert.inc
+
+  --source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+  --let $count_before= $rlf_count
+  --let $first_before= `SELECT SUBSTRING_INDEX(LOAD_FILE(@@GLOBAL.relay_log_index), '\n', 1)`
+
+  --source include/rpl/restart_server.inc
+  --source include/rpl/restart_server.inc
+  --source include/rpl/connection_replica.inc
+
+  --source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+  --let $first_now= `SELECT SUBSTRING_INDEX(LOAD_FILE(@@GLOBAL.relay_log_index), '\n', 1)`
+  --let $assert_text= Two restarts keep the relay-log files (variant $variant)
+  --let $assert_cond= $rlf_count >= $count_before + 2 AND "$first_now" = "$first_before" AND "$first_before" LIKE "%-relay-bin.0%"
+  --source include/assert.inc
+  --let $count_before= $rlf_count
+
+  --source include/rpl/start_receiver.inc
+  --source suite/rpl_gtid/t/rpl_csa_imr_relay_log_files.inc
+  --let $first_now= `SELECT SUBSTRING_INDEX(LOAD_FILE(@@GLOBAL.relay_log_index), '\n', 1)`
+  --let $assert_text= START REPLICA IO_THREAD keeps the relay-log files (variant $variant)
+  --let $assert_cond= $rlf_count >= $count_before AND "$first_now" = "$first_before"
+  --source include/assert.inc
+  --source include/rpl/stop_receiver.inc
+
+  --inc $variant
+}
+
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (14);
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+# Cleanup.
+--let $assert_only_after=
+--source include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source suite/component_keyring_file/inc/rpl_teardown_component.inc

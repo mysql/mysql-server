@@ -28,6 +28,7 @@
 --echo #
 
 --source include/rpl/connection_replica.inc
+--source include/rpl/csa_disable_in_memory_relaylog.inc
 --let $MYSQLD_SLAVE_DATADIR = `select @@datadir`
 --source include/save_error_log_position.inc
 LOCK INSTANCE FOR BACKUP;

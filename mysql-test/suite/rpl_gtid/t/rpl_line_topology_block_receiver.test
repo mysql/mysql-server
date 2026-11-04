@@ -19,6 +19,8 @@
 --let $rpl_gtid_utils=1
 --let $rpl_skip_start_slave=1
 --let $rpl_topology=1->2,2->3
+# IMR hands a transaction to the applier before its GTID is added to Retrieved_Gtid_Set.
+--source include/not_csa_imr.inc
 --source include/rpl/init.inc
 
 --let $rpl_connection_name= server_1

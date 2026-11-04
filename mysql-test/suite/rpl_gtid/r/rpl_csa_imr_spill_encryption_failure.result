@@ -1,0 +1,102 @@
+# ----------------------------------------------------------------------
+# Setup
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+
+# 1. Load the keyring on the replica, enable binlog_encryption and IMR.
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+SET GLOBAL binlog_encryption = ON;
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+include/rpl/start_replica.inc
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+CALL mtr.add_suppression("\\[In-memory relay log\\] failed to admit incoming transaction");
+CALL mtr.add_suppression("Relay log write failure");
+CALL mtr.add_suppression("Relay log read failure");
+CALL mtr.add_suppression("Failed to fetch key from keyring");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("Error running query, replica SQL thread aborted");
+[connection master]
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, c LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. The keyring cannot be read while a spilled transaction is applied
+#    (R1, R2).
+
+# Adding debug point 'failed_to_fetch_master_key_seqno_from_keyring' to @@GLOBAL.debug
+# Adding debug point 'pause_on_queue_event_after_write_buffer' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+# Removing debug point 'pause_on_queue_event_after_write_buffer' from @@GLOBAL.debug
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+include/rpl/wait_for_applier_error.inc [errno=13121]
+SET DEBUG_SYNC = 'RESET';
+[connection master]
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert_grep.inc [The 13121 error carries the reader's reason]
+include/assert.inc [The spill file is encrypted and stays while the applier is stopped]
+include/assert.inc [The receiver wrote the whole transaction after the reader failure]
+include/assert.inc [SPILL_BYTES_USED equals the spill file size]
+# Removing debug point 'failed_to_fetch_master_key_seqno_from_keyring' from @@GLOBAL.debug
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 3. The encryption header cannot be written (R3, R4).
+
+# Adding debug point 'fail_to_serialize_encryption_header' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+[connection slave]
+include/rpl/wait_for_receiver_error.inc [errno=13122]
+# Removing debug point 'fail_to_serialize_encryption_header' from @@GLOBAL.debug
+include/assert_grep.inc [The error log names the spill file encryption header write]
+include/assert.inc [No spill file is left after the header write failure]
+include/assert.inc [SPILL_FILE_COUNT and SPILL_BYTES_USED are 0 after the header write failure]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl/deinit.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

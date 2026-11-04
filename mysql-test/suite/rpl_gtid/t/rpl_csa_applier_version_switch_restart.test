@@ -9,6 +9,10 @@
 # Test steps
 # 1. Set up source/replica replication with GTID and row-format requirements
 #    compatible with CSA, while initially running with `APPLIER_VERSION=1`.
+#    IN_MEMORY_RELAYLOG_ENABLED = OFF is set together with a temporary
+#    APPLIER_VERSION = 2 (the option is CSA-only) and kept on MTA, so the
+#    later switch to CSA with the IO thread running is allowed and CSA reads
+#    the relay log that MTA left.
 # 2. Apply enough transactions to move the replica SQL thread beyond the
 #    relay-log file header in the current file.
 # 3. Stop only the replica SQL thread, generate more transactions on the
@@ -35,7 +39,8 @@
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc
-CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1, IN_MEMORY_RELAYLOG_ENABLED = OFF;
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1;
 --source include/rpl/start_replica.inc
 
 --source include/rpl/connection_source.inc

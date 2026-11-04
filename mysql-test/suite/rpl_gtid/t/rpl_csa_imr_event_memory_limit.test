@@ -1,0 +1,228 @@
+# ==== Purpose ====
+#
+# Verify that APPLIER_EVENT_MEMORY_LIMIT is effective on a CSA (Change Stream
+# Applier) channel with the in-memory relay log (IMR) enabled, on the memory
+# path: workers reserve event memory per event, as on the disk path, so a
+# worker waits while others hold the budget, and a STOP while a worker waits
+# completes cleanly.
+#
+# ==== Requirements ====
+#
+# R1. With APPLIER_EVENT_MEMORY_LIMIT=5000 and 4 workers, one worker holding
+#     a ~4 KB event makes the other three wait in the stage "Waiting for
+#     Replica Workers to free pending events"; after it releases, all rows
+#     apply. (AC-1)
+# R2. A transaction whose event is larger than the limit waits while another
+#     worker holds memory, then applies in full. (AC-2)
+# R3. STOP REPLICA SQL_THREAD, issued while one worker holds event memory and
+#     another waits for it, ends both waits and completes with no SQL error,
+#     and both transactions apply exactly once after START. (AC-5)
+#
+# ==== Implementation ====
+#
+#   1. Set up an IMR channel with 4 workers, replica_max_allowed_packet=4096
+#      and APPLIER_EVENT_MEMORY_LIMIT=5000.
+#   2. Six independent ~6 KB transactions: 3 workers wait while one is paused
+#      at pause_csa_before_releasing_event_memory (R1).
+#   3. A 3000-byte row is held while a transaction with a 10000-byte row
+#      waits (R2).
+#   4. STOP REPLICA SQL_THREAD with a paused holder and a waiter, and no
+#      signal sent: the hard stop kills both sessions. The debug point is
+#      removed first, so no session can park again (R3).
+#   5. Restore the packet size and the limit, so a later server restart can
+#      load the channel's metadata.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# CSA (Change Stream Applier): WL#10500.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+# A compressed transaction reserves only its compressed payload length.
+--source include/not_binlog_transaction_compression_on.inc
+
+--echo
+--echo # 1. Set up an IMR channel with a 5000-byte event memory limit.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_extra_connections_per_server= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $saved_packet= `SELECT @@GLOBAL.replica_max_allowed_packet`
+--let $saved_mem_limit= `SELECT APPLIER_EVENT_MEMORY_LIMIT FROM performance_schema.replication_applier_configuration`
+
+# Stopping the applier while workers hold or wait for event memory kills
+# clean worker sessions; suppress the expected diagnostics.
+CALL mtr.add_suppression("Replica SQL thread .* killed");
+CALL mtr.add_suppression("Worker .* stopped");
+
+SET @@GLOBAL.replica_max_allowed_packet = 4096;
+CHANGE REPLICATION SOURCE TO
+  APPLIER_WORKER_COUNT = 4,
+  APPLIER_EVENT_MEMORY_LIMIT = 5000,
+  IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+--let $assert_text= The channel uses the in-memory relay log
+--let $assert_cond= "[SELECT IN_MEMORY_RELAYLOG_ENABLED FROM performance_schema.replication_applier_configuration]" = "YES"
+--source include/assert.inc
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. One worker holds a ~4 KB event; the other three wait.
+--echo
+
+--let $debug_point= pause_csa_before_releasing_event_memory
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+--disable_query_log
+--let $i= 1
+while ($i <= 12)
+{
+  BEGIN;
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('A', 4000))
+  --inc $i
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('A', 2000))
+  COMMIT;
+  --inc $i
+}
+--enable_query_log
+
+--source include/rpl/connection_replica.inc
+--let $wait_condition= SELECT COUNT(*) = 3 FROM information_schema.processlist WHERE STATE = 'Waiting for Replica Workers to free pending events'
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $assert_text= All six transactions applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 12
+--source include/assert.inc
+
+--echo
+--echo # 3. A transaction with an event larger than the limit waits, then
+--echo #    applies.
+--echo
+
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (101, REPEAT('A', 3000));
+BEGIN;
+INSERT INTO t1 VALUES (102, REPEAT('A', 10000));
+COMMIT;
+
+--source include/rpl/connection_replica.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE STATE = 'Waiting for Replica Workers to free pending events'
+--source include/wait_condition.inc
+# Consume the paused signal, so step 4 does not see a stale one.
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $assert_text= Both transactions applied
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id IN (101, 102)] = 2
+--source include/assert.inc
+--let $assert_text= The event larger than the limit applied in full
+--let $assert_cond= [SELECT LENGTH(data) FROM t1 WHERE id = 102] = 10000
+--source include/assert.inc
+
+--echo
+--echo # 4. STOP REPLICA SQL_THREAD while one worker holds event memory and
+--echo #    another waits for it.
+--echo
+
+# Each row event is about 4050 bytes against the 5000-byte limit, so exactly
+# one worker can hold and the other must wait. No signal is sent: the hard
+# stop's KILL_CONNECTION ends both the holder's debug-sync wait and the
+# waiter's event-memory wait. The holder resumes with a killed THD before it
+# applies its row event; the apply may fail under the kill, or it may reach
+# the commit event and stop on the killed session. Any error is downgraded by
+# the stop-error suppression the stop enables before it kills the sessions.
+# The stop kills each worker session once, and a waiter's BEGIN can clear that
+# kill, so the debug point is removed before the stop: a waiter that gets the
+# memory later applies its transaction instead of parking again. Whether it
+# commits before the stop takes effect depends on timing, so the test checks
+# only that the stop is clean and that both transactions apply exactly once
+# after START.
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC= 'RESET';
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (201, REPEAT('A', 4000));
+INSERT INTO t1 VALUES (202, REPEAT('A', 4000));
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE STATE = 'Waiting for Replica Workers to free pending events'
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+--source include/remove_debug_point.inc
+
+# Hard stop: the kill ends both waits; no signal is sent. A STOP that hangs
+# shows that a wait was not ended by the kill.
+--source include/rpl/connection_replica1.inc
+STOP REPLICA SQL_THREAD;
+
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC= 'RESET';
+--source include/rpl/assert_replica_no_error.inc
+
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $assert_text= Both transactions applied after START
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE id IN (201, 202)] = 2
+--source include/assert.inc
+
+# No gap: the source's executed set is a subset of the replica's.
+--source include/rpl/connection_source.inc
+--let $source_gtid= query_get_value(SELECT @@GLOBAL.gtid_executed AS g, g, 1)
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET @gtid_subset = GTID_SUBSET('$source_gtid', @@GLOBAL.gtid_executed)
+--enable_query_log
+--let $assert_text= Replica gtid_executed covers the source after START
+--let $assert_cond= [SELECT @gtid_subset] = 1
+--source include/assert.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--echo
+--echo # 5. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+# A stored limit below the 1 GiB default fails to load at server start.
+--disable_query_log
+--eval SET @@GLOBAL.replica_max_allowed_packet = $saved_packet
+--eval CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = $saved_mem_limit
+--enable_query_log
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

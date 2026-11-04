@@ -72,6 +72,8 @@
 # This test does not depend on binlog format
 --source include/have_binlog_format_row.inc
 
+# T1 injects a GTID decode error on the applier side only; with IMR the receiver has already validated the GTID event (see T2).
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 
 --echo

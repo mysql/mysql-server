@@ -1,0 +1,81 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. A CSA channel with the in-memory relay log replicates a table.
+
+[connection slave]
+CALL mtr.add_suppression("\\[In-memory relay log\\] the spill file directory '.*' cannot be used");
+CALL mtr.add_suppression("\\[In-memory relay log\\] the spill file directory is not usable");
+CALL mtr.add_suppression("Failed to start replica threads for channel");
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+
+# 2. Replace the spill directory with a regular file and restart with
+#    replica start enabled.
+
+include/rpl/stop_replica.inc
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start=0]
+[connection slave]
+include/assert_grep.inc [The regular file is logged with its path and cause (R1)]
+include/assert_grep.inc [The summary error is logged (R1)]
+# The regular file is still in place (R1).
+include/assert_grep.inc [The startup start of the channel is refused (R2)]
+include/assert.inc [Both replication threads are stopped after the restart (R2)]
+
+# 3. Every START form is refused (R3).
+
+START REPLICA;
+ERROR HY000: The in-memory relay log cannot be used on channel '': the spill directory is not a usable directory. Check the error log.
+START REPLICA IO_THREAD;
+ERROR HY000: The in-memory relay log cannot be used on channel '': the spill directory is not a usable directory. Check the error log.
+START REPLICA SQL_THREAD;
+ERROR HY000: The in-memory relay log cannot be used on channel '': the spill directory is not a usable directory. Check the error log.
+include/assert.inc [Both replication threads are still stopped]
+
+# 4. Without the in-memory relay log the channel replicates. Enabling it
+#    again is refused again (R4).
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (2);
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+START REPLICA;
+ERROR HY000: The in-memory relay log cannot be used on channel '': the spill directory is not a usable directory. Check the error log.
+
+# 5. A symbolic link to a directory at the path is refused too (R5).
+
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [The symbolic link is logged with its path and cause (R5)]
+START REPLICA;
+ERROR HY000: The in-memory relay log cannot be used on channel '': the spill directory is not a usable directory. Check the error log.
+
+# 6. After a restart with the path removed, the channel starts with the
+#    in-memory relay log and replicates (R6).
+
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [No new error is logged for the restored path (R6)]
+# The spill directory is created again (R6).
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (3);
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

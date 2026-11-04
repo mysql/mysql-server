@@ -46,6 +46,7 @@
 #include "sql/changestreams/apply/service/session_legacy_stats.h"
 #include "sql/changestreams/apply/session/session_service.h"
 #include "sql/changestreams/apply/session/session_service_bounded_queue.h"
+#include "sql/changestreams/apply/storage/in_memory/imr_applier_stats.h"
 #include "sql/changestreams/apply/util/module.h"
 
 namespace mysql::csa {
@@ -103,6 +104,14 @@ class Csa_service : public Module {
   /// unavailable due to e.g. channel reconfiguration, returns an empty object
   std::optional<Session_legacy_stats> get_session_legacy_stats(
       const char *channel, std::size_t worker_id);
+
+  /// @brief Reads the in-memory relay log counters of a channel from its CSA
+  /// statistics. The service read lock keeps the applier from registering or
+  /// clearing them during the read.
+  /// @param channel Channel id
+  /// @return The counters; all 0 when the channel's applier is not running,
+  ///         or when applier metric collection was off when it started.
+  Imr_applier_stats get_imr_applier_stats(const char *channel);
   /// Checks whether applier for the channel has applied all of the work and
   /// is waiting for more tasks
   /// @param channel Applier channel name

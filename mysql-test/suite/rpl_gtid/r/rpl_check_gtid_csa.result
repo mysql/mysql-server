@@ -3,6 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection slave]
+include/rpl/csa_disable_in_memory_relaylog.inc
+[connection master]
 call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Failed to read information on Previous GTIDs.");

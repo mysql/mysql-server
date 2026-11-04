@@ -1,0 +1,60 @@
+
+# 1. Set up a CSA channel with IMR enabled (8 MiB spill threshold). The
+#    applier stays running for the whole test.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("\\[In-memory relay log\\] failed to append event to incoming transaction");
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. Force a mid-transaction spill write to fail, then run a >8 MiB
+#    (spill-path) transaction. The receiver fails to write a body event
+#    to the spill file and stops with a relay-log write failure.
+
+[connection slave]
+# Adding debug point 'imr_force_spill_append_failure' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
+include/assert.inc [The receiver stopped and set Last_IO_Errno (non-zero) for the spill write failure]
+include/assert.inc [Last_IO_Error carries the relay-log write-failure message]
+include/assert.inc [Last_IO_Error carries the specific spill write-failure reason]
+include/assert.inc [The SQL thread keeps running after the receiver-side write failure]
+include/assert.inc [No SQL error is raised for the receiver-side write failure]
+include/assert.inc [The transaction whose spill write failed was not applied (no rows visible)]
+[connection master]
+[connection slave]
+include/assert.inc [The failed transaction's GTID is absent from the replica gtid_executed (source is ahead)]
+include/assert_grep.inc [The specific spill write-failure reason is logged to the replica error log]
+
+# 3. Clear the failure condition and START REPLICA IO_THREAD: the
+#    transaction is re-fetched from the source and applied in full.
+
+# Removing debug point 'imr_force_spill_append_failure' from @@GLOBAL.debug
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [After re-fetch the spill-path transaction is applied in full]
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 4. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

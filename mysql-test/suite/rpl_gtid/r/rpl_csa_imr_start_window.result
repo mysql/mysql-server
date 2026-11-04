@@ -1,0 +1,90 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'a');
+[connection slave]
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+
+# 1. R1: the IO thread is held before it starts; STOP REPLICA runs.
+
+# Adding debug point 'pause_replica_io_thread_before_run_lock' to @@GLOBAL.debug
+START REPLICA IO_THREAD;
+[connection slave1]
+KILL QUERY START_ID;
+[connection slave]
+ERROR 70100: Query execution was interrupted
+include/assert.inc [The held IO thread is reported as not running]
+STOP REPLICA;
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+# Removing debug point 'pause_replica_io_thread_before_run_lock' from @@GLOBAL.debug
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/start_applier.inc
+[connection master]
+INSERT INTO t1 VALUES (2, 'b');
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/rpl/stop_replica.inc
+
+# 2. R2: the IO thread is held; CHANGE REPLICATION SOURCE rebuilds the
+#    runtime.
+
+# Adding debug point 'pause_replica_io_thread_before_run_lock' to @@GLOBAL.debug
+START REPLICA IO_THREAD;
+[connection slave1]
+KILL QUERY START_ID;
+[connection slave]
+ERROR 70100: Query execution was interrupted
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 67108864;
+include/assert.inc [The new limit is in effect]
+# Removing debug point 'pause_replica_io_thread_before_run_lock' from @@GLOBAL.debug
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/start_applier.inc
+[connection master]
+INSERT INTO t1 VALUES (3, 'c');
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 3. R3: the SQL thread is held while the IO thread runs; STOP REPLICA
+#    stops the IO thread, which resets the queue.
+
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 VALUES (4, 'd');
+[connection slave]
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+# Adding debug point 'pause_replica_sql_thread_before_run_lock' to @@GLOBAL.debug
+START REPLICA SQL_THREAD;
+[connection slave1]
+KILL QUERY START_ID;
+[connection slave]
+ERROR 70100: Query execution was interrupted
+STOP REPLICA;
+include/rpl/wait_for_receiver_to_stop.inc
+include/assert.inc [The IO thread's exit reset the queue and the Retrieved_Gtid_Set]
+# Removing debug point 'pause_replica_sql_thread_before_run_lock' from @@GLOBAL.debug
+include/rpl/wait_for_applier_to_start.inc
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 134217728;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

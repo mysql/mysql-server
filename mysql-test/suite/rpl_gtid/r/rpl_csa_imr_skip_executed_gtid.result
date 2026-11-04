@@ -1,0 +1,108 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Set up a CSA channel with IMR enabled and the metrics component.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. Memory path (R1-R4).
+
+# 2.a The replica executes the GTID the source assigns next.
+[connection master]
+[connection slave]
+SET GTID_NEXT = 'SOURCE_UUID:GNO';
+BEGIN;
+COMMIT;
+SET GTID_NEXT = AUTOMATIC;
+# 2.b Pause the receiver after the GTID event of a multi-statement
+#     transaction.
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (2, 'b');
+INSERT INTO t1 VALUES (3, 'c');
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+# 2.c The worker skips and commits the transaction mid-stream (R3); it
+#     stays queued while the receiver is paused (R2).
+include/assert.inc [The skipped transaction stays queued while the receiver writes it]
+# 2.d The receiver writes the rest of the transaction.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SELECT 1;
+1
+1
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+include/rpl/wait_for_replica_status.inc [In_Memory_Relay_Log_Space]
+include/assert.inc [The skipped transaction's rows are not applied]
+[connection master]
+INSERT INTO t1 VALUES (10, 'after');
+include/rpl/sync_to_replica.inc
+include/assert.inc [The following transaction replicates]
+[connection master]
+SET sql_log_bin = 0;
+DELETE FROM t1 WHERE id IN (1, 2, 3);
+SET sql_log_bin = 1;
+
+# 3. Spill path (R1-R3, R5).
+
+# 3.a The replica executes the GTID the source assigns next.
+[connection slave]
+SET GTID_NEXT = 'SOURCE_UUID:GNO';
+BEGIN;
+COMMIT;
+SET GTID_NEXT = AUTOMATIC;
+# 3.b Pause the receiver after the GTID event of a ~12 MiB transaction.
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+# 3.c The worker skips and commits the transaction mid-stream; it stays
+#     queued and its spill file is kept while the receiver is paused.
+include/assert.inc [The skipped transaction stays queued while the receiver writes it]
+# The spill file of the skipped transaction is still present:
+imr_sp_<ID>
+# 3.d The receiver writes the rest of the transaction.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SELECT 1;
+1
+1
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+include/rpl/wait_for_replica_status.inc [In_Memory_Relay_Log_Space]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+include/assert.inc [The skipped transaction's rows are not applied]
+[connection master]
+INSERT INTO t1 VALUES (20, 'after');
+include/rpl/sync_to_replica.inc
+include/assert.inc [The following transaction replicates]
+[connection master]
+SET sql_log_bin = 0;
+DELETE FROM t1 WHERE id > 100;
+SET sql_log_bin = 1;
+include/diff_tables.inc [master:t1, slave:t1]
+
+# 4. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+SET DEBUG_SYNC = 'RESET';
+include/rpl/deinit.inc

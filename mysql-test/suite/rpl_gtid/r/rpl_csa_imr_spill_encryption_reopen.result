@@ -1,0 +1,105 @@
+# ----------------------------------------------------------------------
+# Setup
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+
+# 1. Load the keyring on the replica, enable binlog_encryption and IMR.
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+SET GLOBAL binlog_encryption = ON;
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("Replica SQL thread .* killed");
+CALL mtr.add_suppression("Worker .* stopped");
+include/save_sysvars.inc [
+"GLOBAL.replica_transaction_retries",
+"GLOBAL.innodb_lock_wait_timeout"
+]
+SET @@GLOBAL.replica_transaction_retries = 50;
+SET @@GLOBAL.innodb_lock_wait_timeout = 5;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+INSERT INTO t1 VALUES (1000, 'source');
+include/rpl/sync_to_replica.inc
+
+# 2. Worker retry on an encrypted spill file (R1).
+
+[connection slave1]
+BEGIN;
+UPDATE t1 SET data = 'replica' WHERE id = 1000;
+[connection master]
+BEGIN;
+UPDATE t1 SET data = 'retried' WHERE id = 1000;
+COMMIT;
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [The retried transaction's spill file is encrypted with master key _1 and holds no plaintext]
+include/assert.inc [The worker retried the spilled transaction after a lock wait timeout]
+[connection slave1]
+ROLLBACK;
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 3. Re-dispatch after STOP REPLICA SQL_THREAD mid-transaction (R2).
+
+# Adding debug point 'pause_csa_before_releasing_event_memory' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+include/assert.inc [The interrupted transaction's spill file is encrypted with master key _1 and holds no plaintext]
+[connection slave1]
+STOP REPLICA SQL_THREAD;
+[connection slave]
+# Removing debug point 'pause_csa_before_releasing_event_memory' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+[connection slave1]
+[connection slave]
+SET DEBUG_SYNC= 'RESET';
+include/rpl/assert_replica_no_error.inc
+include/assert.inc [The interrupted transaction rolled back, not partially applied]
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/assert.inc [The transaction applied in full after START REPLICA SQL_THREAD]
+include/rpl/diff.inc
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+include/rpl/stop_replica.inc
+include/restore_sysvars.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl/deinit.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

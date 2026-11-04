@@ -61,6 +61,8 @@
 # by altering the length of the Query_log_event. These events are enclosed in
 # a Transaction_payload event when compression is on.
 --source include/not_binlog_transaction_compression_on.inc
+# Uses on-disk relay-log files, which IMR does not write.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 
 --echo

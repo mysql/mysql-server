@@ -50,6 +50,41 @@ void Resource_instance_monitor::register_resource(const std::string &name,
   m_resources[name] = std::move(entry);
 }
 
+Resource_entry *Resource_instance_monitor::get_resource_entry(
+    const std::string &name) {
+  if (!tune::enabled_resource_tracking) {
+    return nullptr;
+  }
+  auto it = m_resources.find(name);
+  return it == m_resources.end() ? nullptr : it->second.get();
+}
+
+bool Resource_instance_monitor::try_lock_resource(Resource_entry &resource,
+                                                  std::size_t amount) {
+  return try_lock_resource_internal(resource, amount);
+}
+
+bool Resource_instance_monitor::try_lock_resource_soft(Resource_entry &resource,
+                                                       std::size_t amount) {
+  const auto requested = static_cast<long long>(amount);
+  long long prev = resource.m_available.load();
+  // Retry only while still under the limit; a failed exchange reloads prev.
+  // Keep this rule in step with would_lock_soft() below.
+  while (prev > 0) {
+    if (resource.m_available.compare_exchange_weak(prev, prev - requested))
+      return true;
+  }
+  return false;
+}
+
+bool Resource_instance_monitor::would_lock_soft(const Resource_entry &resource,
+                                                std::size_t /*amount*/) {
+  // The rule of try_lock_resource_soft() above, without the reservation: the
+  // size of the request never matters, only whether the resource is still
+  // under its limit.
+  return resource.m_available.load() > 0;
+}
+
 void Resource_instance_monitor::release_resource(Resource_entry &resource,
                                                  std::size_t amount) {
   resource.m_available.fetch_add(static_cast<long long>(amount));
@@ -102,11 +137,22 @@ bool Resource_instance_monitor::try_lock_resource_internal(
   long long requested = static_cast<long long>(amount);
   long long limit = resource_entry.m_limit.load();
   long long prev = resource_entry.m_available.fetch_sub(requested);
+  // Keep this rule in step with would_lock() below.
   if (prev >= requested || prev == limit) {
     return true;
   }
   resource_entry.m_available.fetch_add(requested);
   return false;
+}
+
+bool Resource_instance_monitor::would_lock(const Resource_entry &resource,
+                                           std::size_t amount) {
+  // The rule of try_lock_resource_internal() above, without the reservation.
+  // The limit is read only when the request does not fit, so a request that
+  // fits costs one atomic load.
+  const auto requested = static_cast<long long>(amount);
+  const long long available = resource.m_available.load();
+  return available >= requested || available == resource.m_limit.load();
 }
 
 void Resource_instance_monitor::release_resource(const std::string &name,

@@ -128,9 +128,24 @@ while ($_rpl_server)
   {
     --error 0, ER_REPLICA_CHANNEL_DOES_NOT_EXIST
     RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
+    # On CSA, honor RPL_IN_MEMORY_RELAYLOG=OFF (or $rpl_in_memory_relaylog =
+    # OFF) as change_topology_helper.inc does; otherwise IMR is ON by default.
+    --let $_gr_configuration_imr_option=
+    if ($applier_version_val != 1)
+    {
+      --let $_gr_configuration_imr= $RPL_IN_MEMORY_RELAYLOG
+      if (`SELECT "$rpl_in_memory_relaylog" != ""`)
+      {
+        --let $_gr_configuration_imr= $rpl_in_memory_relaylog
+      }
+      if (`SELECT "$_gr_configuration_imr" = "OFF"`)
+      {
+        --let $_gr_configuration_imr_option= , IN_MEMORY_RELAYLOG_ENABLED = OFF
+      }
+    }
     # Set distributed recovery user.
     --disable_warnings
-    --eval CHANGE REPLICATION SOURCE TO SOURCE_USER="root", APPLIER_VERSION = $applier_version_val FOR CHANNEL "group_replication_recovery";
+    --eval CHANGE REPLICATION SOURCE TO SOURCE_USER="root", APPLIER_VERSION = $applier_version_val$_gr_configuration_imr_option FOR CHANNEL "group_replication_recovery";
     --enable_warnings
   }
 

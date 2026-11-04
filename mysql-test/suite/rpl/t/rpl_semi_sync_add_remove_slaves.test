@@ -26,6 +26,8 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
+# IMR does not support semisync.
+--source include/not_csa_imr.inc
 
 #
 # One Master and 8 Slaves in the semi sync topology.

@@ -32,7 +32,8 @@ namespace mysql::csa {
 
 bool Statistics_map::init_statistics(std::size_t instance_id,
                                      std::size_t num_threads,
-                                     bool enable_extended_statistics) {
+                                     bool enable_extended_statistics,
+                                     bool enable_imr_statistics) {
   assert(instance_id < Constants::max_instances);
   if (instance_id >= Constants::max_instances) {
     return true;
@@ -58,7 +59,30 @@ bool Statistics_map::init_statistics(std::size_t instance_id,
                              enable_extended_statistics);
   stat_monitor.register_stat(Statistics_map::applied_events_cnt, num_threads,
                              true);
+  // In-memory relay log counters: one shard, since the IMR commit hook that
+  // updates them has no worker id (see count_imr_completed()).
+  for (const char *name :
+       {Statistics_map::imr_mem_trx_cnt, Statistics_map::imr_mem_trx_len,
+        Statistics_map::imr_spl_trx_cnt, Statistics_map::imr_spl_trx_len})
+    stat_monitor.register_stat(name, 1, enable_imr_statistics);
   return false;
+}
+
+void Statistics_map::count_imr_completed(std::size_t instance_id,
+                                         bool spill_path,
+                                         std::size_t trx_length) {
+  if (instance_id >= Constants::max_instances) return;
+  auto &stat_monitor = mysql::scheduler::Statistics_monitor::get(instance_id);
+  // find_stat(), not get_stat(): get_stat() would insert a missing name.
+  auto count =
+      stat_monitor.find_stat(spill_path ? Statistics_map::imr_spl_trx_cnt
+                                        : Statistics_map::imr_mem_trx_cnt);
+  auto bytes =
+      stat_monitor.find_stat(spill_path ? Statistics_map::imr_spl_trx_len
+                                        : Statistics_map::imr_mem_trx_len);
+  if (count.has_value()) count->get().add(1, 0);
+  if (bytes.has_value())
+    bytes->get().add(static_cast<long long>(trx_length), 0);
 }
 
 }  // namespace mysql::csa

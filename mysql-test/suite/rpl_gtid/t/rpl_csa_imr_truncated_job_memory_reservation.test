@@ -1,0 +1,262 @@
+# ==== Purpose ====
+#
+# Regression test for PR #743 finding F20: the memory reservation of an
+# in-memory relay log (IMR) transaction must stay charged while a worker's job
+# still holds the transaction's event buffers, even after the envelope is
+# swept.
+#
+# A memory-path transaction is dispatched, and its worker blocks on a row lock
+# held by a replica session. STOP REPLICA IO_THREAD truncates the open group
+# and releases the receiver's hold. The coordinator then sweeps the truncated
+# head and destroys the envelope's payload, while the worker still owns the
+# Fetchable_transaction and every Cached_event_memory buffer. The reservation
+# is owned by the byte source, so In_Memory_Relay_Log_Space keeps counting the
+# stale copy, and after START REPLICA IO_THREAD the receiver admits new
+# memory-path transactions only into the budget that is really free.
+#
+# Before the fix, the sweep released the reservation: In_Memory_Relay_Log_Space
+# dropped to 0 while the worker held the buffers, and the receiver admitted
+# about one stale copy of T1 (7 MiB) beyond IN_MEMORY_RELAYLOG_LIMIT.
+#
+# ==== Implementation ====
+#
+#   1. IMR at the 32 MiB limit floor, 8 MiB spill threshold.
+#   2. A replica session holds a row lock on t1.id = 1. The source commits T1:
+#      a 7 MiB row with id = 1, then a small row. The receiver pauses after the
+#      first WRITE_ROWS event; the worker applies it and waits for the lock.
+#   3. STOP REPLICA IO_THREAD while the receiver is paused: the open group is
+#      truncated, and the coordinator sweeps the envelope. The worker is still
+#      blocked and still holds T1's buffers, which stay charged.
+#   4. START REPLICA IO_THREAD: T1 is fetched again (both copies charged), and
+#      30 x 1 MiB more transactions are sent until the receiver waits at the
+#      limit; the charged bytes cover the stale copy and every queued one.
+#   5. Release the row lock, sync, wait until the stale job is gone and the
+#      queue drains to 0 bytes, compare, clean up.
+#
+# Optional evidence (not part of the result file):
+#   F20_EVIDENCE=<file>  status / threads / lock-wait rows are appended to it
+#                        (default $MYSQLTEST_VARDIR/tmp/f20_evidence.txt, which
+#                        is removed at the end).
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# CSA (Change Stream Applier): WL#10500. CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# Memory accounting uses the on-the-wire transaction length.
+--source include/not_binlog_transaction_compression_on.inc
+
+--let $evidence= $F20_EVIDENCE
+--let $evidence_is_default= 0
+if (!$evidence)
+{
+  --let $evidence= $MYSQLTEST_VARDIR/tmp/f20_evidence.txt
+  --let $evidence_is_default= 1
+}
+--exec echo "==== F20 evidence ====" > $evidence
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--let $limit= 33554432
+--let $status_fields= Replica_IO_State|Replica_IO_Running|Replica_SQL_Running|Last_IO_Errno|Last_SQL_Errno|In_Memory_Relay_Log_Space|In_Memory_Queue_Length
+--let $threads_query= SELECT t.THREAD_ID, t.NAME, t.PROCESSLIST_ID, t.PROCESSLIST_STATE, (SELECT COUNT(*) FROM performance_schema.data_lock_waits w WHERE w.REQUESTING_THREAD_ID = t.THREAD_ID) AS LOCK_WAITS FROM performance_schema.threads t WHERE t.NAME IN ('thread/sql/replica_io', 'thread/sql/replica_sql') OR t.THREAD_ID IN (SELECT REQUESTING_THREAD_ID FROM performance_schema.data_lock_waits)
+--let $lock_wait_query= SELECT w.REQUESTING_THREAD_ID, t.NAME, w.BLOCKING_THREAD_ID, l.LOCK_MODE, l.LOCK_STATUS, l.LOCK_DATA FROM performance_schema.data_lock_waits w JOIN performance_schema.threads t ON t.THREAD_ID = w.REQUESTING_THREAD_ID JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID = w.REQUESTING_ENGINE_LOCK_ID
+
+--echo
+--echo # 1. IMR at the 32 MiB limit floor with an 8 MiB spill threshold.
+--echo
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_LIMIT = 33554432,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("Replica I/O thread killed");
+CALL mtr.add_suppression("Replica I/O thread .* killed while");
+# The worker waits on the replica session's row lock for the whole test.
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+# Long enough for the whole test (about 20 s), so the worker never times
+# out: a lock wait timeout of the truncated job is a different path.
+SET GLOBAL innodb_lock_wait_timeout = 120;
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. A replica session holds the row lock on id = 1. The receiver pauses
+--echo #    after T1's first WRITE_ROWS; the worker applies it and blocks.
+--echo
+--source include/rpl/connection_replica1.inc
+BEGIN;
+INSERT INTO t1 VALUES (1, 'replica-blocker');
+--source include/rpl/connection_replica.inc
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+--source include/rpl/connection_source.inc
+BEGIN;
+--disable_query_log
+INSERT INTO t1 VALUES (1, REPEAT('a', 7340032));
+--enable_query_log
+INSERT INTO t1 VALUES (2, 'b');
+COMMIT;
+--source include/rpl/connection_replica.inc
+# Let GTID, BEGIN and TABLE_MAP through; stop after the first WRITE_ROWS.
+--let $n= 1
+while ($n <= 3)
+{
+  SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+  SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+  --inc $n
+}
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+# No more pauses: the next events after the restart must flow.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+--let $wait_timeout= 30
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.data_lock_waits
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The worker did not block on the replica session's row lock
+}
+--let $t1_reserved= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $is_memory_path= `SELECT $t1_reserved > 7340032 AND $t1_reserved <= 8388608`
+--echo T1 is reserved on the memory path (7 MiB < reservation <= 8 MiB): $is_memory_path
+--echo In_Memory_Queue_Length with T1 dispatched: $qlen
+--exec echo "==== 2. worker blocked on the row lock, receiver paused after WRITE_ROWS (T1 reservation = $t1_reserved) ====" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+--exec echo "$threads_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
+--exec echo "$lock_wait_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
+
+--echo
+--echo # 3. STOP REPLICA IO_THREAD while the receiver is paused: the open group
+--echo #    is truncated and the coordinator sweeps it, while the worker is
+--echo #    still blocked and still holds T1's event buffers.
+--echo
+# STOP wakes threads with awake(NOT_KILLED), which does not end a DEBUG_SYNC
+# wait. So send the STOP first, wait until it has set abort_slave, then let
+# the receiver finish queuing the WRITE_ROWS event: it then sees the stop at
+# the top of its read loop, before the rest of T1 is read, and its exit path
+# truncates the open group (Imr_runtime::detach_role(RECEIVER)).
+--connect (replica2, 127.0.0.1, root, , test, $SLAVE_MYPORT, )
+--send STOP REPLICA IO_THREAD
+--connection slave
+--let $wait_timeout= 30
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE INFO = 'STOP REPLICA IO_THREAD' AND STATE = 'Killing replica'
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die STOP REPLICA IO_THREAD did not start
+}
+# abort_slave is set right after the stage; give it a moment.
+--sleep 1
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+--connection replica2
+--reap
+--disconnect replica2
+--connection slave
+--source include/rpl/wait_for_receiver_to_stop.inc
+SET DEBUG_SYNC = 'RESET';
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 0
+--let $slave_timeout= 30
+--source include/rpl/wait_for_replica_status.inc
+--let $space_after_sweep= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $still_blocked= `SELECT COUNT(*) FROM performance_schema.data_lock_waits`
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--echo Worker still blocked on the row lock after the sweep: $still_blocked
+--echo Replica_SQL_Running: $sql_running
+--let $counts_job= `SELECT $space_after_sweep >= $t1_reserved`
+--echo In_Memory_Relay_Log_Space still counts the blocked job's transaction: $counts_job
+--exec echo "==== 3. after STOP REPLICA IO_THREAD and the sweep (In_Memory_Relay_Log_Space = $space_after_sweep, worker lock waits = $still_blocked) ====" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+--exec echo "$threads_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
+--exec echo "$lock_wait_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
+
+--echo
+--echo # 4. START REPLICA IO_THREAD: T1 is fetched again and more memory-path
+--echo #    transactions are admitted until the receiver waits at the limit.
+--echo
+--source include/rpl/start_receiver.inc
+# T1 alone first: the new copy is admitted and charged on top of the old copy.
+# The reservation is taken at admission, so one queued envelope is enough.
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 1
+--let $slave_timeout= 30
+--source include/rpl/wait_for_replica_status.inc
+--let $space_refetch= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $two_copies= `SELECT $space_refetch = 2 * $t1_reserved`
+--echo In_Memory_Relay_Log_Space after T1 is fetched again counts both copies of T1: $two_copies
+--exec echo "==== 4a. T1 fetched again; the old copy is still held by the blocked worker (In_Memory_Relay_Log_Space = $space_refetch) ====" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+--exec echo "$threads_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
+
+--source include/rpl/connection_source.inc
+--disable_query_log
+--let $i= 100
+while ($i < 130)
+{
+  --eval INSERT INTO t1 VALUES ($i, REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+--source include/rpl/connection_replica.inc
+--let $wait_timeout= 60
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io' AND PROCESSLIST_STATE = 'Waiting for the replica SQL thread to free relay log space'
+--source include/wait_condition.inc
+if (!$success)
+{
+  --die The receiver did not reach the admission wait
+}
+--let $space_full= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $qlen_full= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $still_blocked= `SELECT COUNT(*) >= 1 FROM performance_schema.data_lock_waits WHERE REQUESTING_THREAD_ID IN (SELECT THREAD_ID FROM performance_schema.threads WHERE NAME LIKE '%replica_worker')`
+--echo The stale worker is still blocked while the receiver waits at the limit: $still_blocked
+--let $within_limit= `SELECT $space_full <= $limit`
+--echo In_Memory_Relay_Log_Space is within IN_MEMORY_RELAYLOG_LIMIT: $within_limit
+# Queued: the new T1 and ($qlen_full - 1) transactions of more than 1 MiB
+# each. Held by the stale job: the old T1. Before the fix the charged bytes
+# covered only the queued ones, so this read 0.
+--let $covers= `SELECT $space_full >= 2 * $t1_reserved + ($qlen_full - 1) * 1048576`
+--echo In_Memory_Relay_Log_Space covers the stale copy of T1 and every queued transaction: $covers
+--exec echo "==== 4b. receiver waits at the limit (In_Memory_Relay_Log_Space = $space_full, In_Memory_Queue_Length = $qlen_full, stale copy of T1 = $t1_reserved, limit = $limit) ====" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+--exec echo "$threads_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
+--exec echo "$lock_wait_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
+
+--echo
+--echo # 5. Release the row lock: the stale worker rolls back, T1 and the rest
+--echo #    apply. Compare and clean up.
+--echo
+--source include/rpl/connection_replica1.inc
+ROLLBACK;
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= No applier error
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+# The last reservations are returned when the jobs drop their byte sources,
+# which may be just after the GTIDs are executed.
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--let $slave_timeout= 30
+--source include/rpl/wait_for_replica_status.inc
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+--exec echo "==== 5. after release and sync ====" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+if ($evidence_is_default)
+{
+  --remove_file $evidence
+}
+--source include/rpl/deinit.inc

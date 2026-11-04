@@ -1,0 +1,67 @@
+
+# 0. Set up 1->2,2->3; server_2 uses the CSA with IMR.
+
+include/rpl/init.inc [topology=1->2,2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server_2]
+include/assert.inc [server_2's channel uses the in-memory relay log]
+
+# 1. Create and populate t1 on server_1; server_2 replicates it.
+
+[connection server_1]
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+[connection server_2]
+include/rpl/start_replica.inc
+[connection server_1]
+include/rpl/sync_to_replica.inc
+
+# 2. Pause server_2's receiver when it adds a received GTID.
+
+# Adding debug point 'updating_received_transaction_set' to @@GLOBAL.debug
+
+# 3. Insert on server_1; server_2's receiver reaches the sync point.
+
+[connection server_1]
+INSERT INTO t1 VALUES (2);
+[connection server_2]
+SET DEBUG_SYNC = "now WAIT_FOR reached_updating_received_transaction_set";
+
+# 4. Commit a local transaction on server_2 (R1).
+
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t1 VALUES (3);
+SET GTID_NEXT = AUTOMATIC;
+include/assert.inc [server_2 has the 3 rows]
+
+# 5. server_3 replicates from server_2 while server_2's receiver is
+#    paused (R2).
+
+[connection server_3]
+include/rpl/start_replica.inc
+[connection server_2]
+include/rpl/sync_to_replica.inc
+include/assert.inc [server_3 has the 3 rows]
+include/assert.inc [server_3 executed the same GTIDs as server_2]
+
+# 6. Let server_2's receiver continue; the received set gets the paused
+#    GTID and server_3 syncs again (R3).
+
+[connection server_2]
+# Removing debug point 'updating_received_transaction_set' from @@GLOBAL.debug
+SET DEBUG_SYNC = "now SIGNAL continue_updating_received_transaction_set";
+include/rpl/sync_to_replica.inc
+
+# 7. Cleanup.
+
+[connection server_2]
+SET DEBUG_SYNC = 'RESET';
+[connection server_1]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

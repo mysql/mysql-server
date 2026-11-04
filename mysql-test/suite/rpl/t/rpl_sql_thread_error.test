@@ -22,6 +22,8 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --let rpl_skip_start_slave=1
+# Injects the error in the on-disk relay-log reader, which IMR does not use.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 
 # Step 1) Set a simulation on Slave SQL thread so that it enters

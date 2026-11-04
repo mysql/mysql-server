@@ -1,0 +1,313 @@
+# ==== Purpose ====
+#
+# The in-memory relay log (IMR) metrics that require a heavy, large-payload
+# workload, exercised on one CSA channel and surfaced in
+# performance_schema.replication_applier_metrics:
+#
+#   Memory-limit back-pressure (receiver blocked on the memory limit):
+#     - IN_MEMORY_BYTES_USED / In_Memory_Relay_Log_Space parity at the limit
+#   Spill path (> spill threshold):
+#     - SPILL_TRANSACTIONS_COUNT -- spill-path transactions completed by the
+#                                   applier in its current run
+#     - SPILL_TRANSACTIONS_BYTES -- sum of their declared size
+#     - SPILL_FILE_COUNT         -- live gauge: current spill temp files on disk
+#     - SPILL_BYTES_USED         -- live gauge: current on-disk bytes of those files
+#
+# The test name predates the removal of the receiver block metrics
+# (RECEIVER_BLOCK_COUNT / RECEIVER_BLOCK_SUM_TIME); the back-pressure scenario
+# is kept for the memory accounting it checks.
+#
+# A single channel config drives both: IN_MEMORY_RELAYLOG_LIMIT = 32 MiB bounds
+# the memory path (so ~1 MiB memory-path transactions can saturate it and block
+# the receiver), and IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8 MiB routes larger
+# transactions to the spill path.
+#
+# The lighter memory gauges/counters (IN_MEMORY_QUEUE_LENGTH,
+# IN_MEMORY_TRANSACTIONS_COUNT/BYTES) are covered without a large workload in
+# rpl_csa_imr_metrics.test.
+#
+# ==== Requirements ====
+#
+# R1. Saturating the memory limit with the applier paused blocks the receiver
+#     within one transaction of the limit: In_Memory_Relay_Log_Space equals
+#     IN_MEMORY_BYTES_USED, is not above the limit, and the spill columns stay
+#     0. Once the applier resumes it applies them all, and the memory-path
+#     counter counts exactly those transactions.
+# R2. N transactions above the spill threshold (and some below) are counted at
+#     apply time: SPILL_TRANSACTIONS_COUNT reads 0 while the applier is
+#     stopped, even though the live gauges show the N spill files on disk;
+#     after the applier applies them it reads exactly N (and the memory-path
+#     counter the others), and the live gauges return to 0.
+# R3. The cumulative counters reset when the applier restarts and read
+#     0 while it is stopped.
+# R4. A channel that does not use the in-memory relay log reports 0 for all of
+#     these columns.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# Back-pressure mirrors rpl_csa_imr_memory_limit.test; spill routing mirrors
+# rpl_csa_imr_spill_orphan_purge.test.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+# Memory accounting and spill routing key off the transaction's on-the-wire
+# declared size; with binlog transaction compression on the compressible payload
+# would neither fill the limit nor exceed the threshold, so this test requires
+# compression off.
+--source include/not_binlog_transaction_compression_on.inc
+# Requires that the metrics component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR at the 32 MiB limit floor with an 8 MiB spill threshold,
+--echo #    install the metrics component, and start.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO
+  IN_MEMORY_RELAYLOG_ENABLED = ON,
+  IN_MEMORY_RELAYLOG_LIMIT = 33554432,
+  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+
+# Installing the component enables applier metric collection; the replica
+# starts after it, so the applier registers its counters enabled.
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--let $from_ch= FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $sc= `SELECT SPILL_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= SPILL_TRANSACTIONS_COUNT is 0 before any spilled transaction
+--let $assert_cond= $sc = 0
+--source include/assert.inc
+
+--echo
+--echo # 2. Memory-limit back-pressure. Pause the applier and run ~40 MiB of
+--echo #    ~1 MiB memory-path transactions (below the 8 MiB spill threshold),
+--echo #    which exceeds the 32 MiB limit, so the receiver blocks (R1).
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+--let $trx_count= 40
+--disable_query_log
+--let $i= 1
+while ($i <= $trx_count)
+{
+  --eval INSERT INTO t1 (data) VALUES (REPEAT('x', 1048576))
+  --inc $i
+}
+--enable_query_log
+
+--source include/rpl/connection_replica.inc
+
+# Wait until the memory path is within one transaction of the limit. Each
+# transaction declares more than 1 MiB, so once less than 1 MiB is free the
+# receiver cannot admit the next one: it is blocked, and with the applier
+# paused nothing is released, so every value below is stable.
+--let $limit= 33554432
+--let $space= 0
+--let $iter= 0
+while (`SELECT $space <= $limit - 1048576`)
+{
+  --sleep 0.2
+  --let $space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+  --inc $iter
+  if ($iter > 150)
+  {
+    --die Timed out waiting for the receiver to fill the memory limit
+  }
+}
+
+--let $space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $tbl_used= `SELECT IN_MEMORY_BYTES_USED $from_ch`
+--let $assert_text= IN_MEMORY_BYTES_USED matches In_Memory_Relay_Log_Space while the receiver is blocked
+--let $assert_cond= $tbl_used = $space
+--source include/assert.inc
+--let $assert_text= In_Memory_Relay_Log_Space is within one transaction of IN_MEMORY_RELAYLOG_LIMIT and not above it while blocked
+--let $assert_cond= $space <= $limit AND $space > $limit - 2097152
+--source include/assert.inc
+
+--let $qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $tbl_qlen= `SELECT IN_MEMORY_QUEUE_LENGTH $from_ch`
+--let $assert_text= IN_MEMORY_QUEUE_LENGTH matches In_Memory_Queue_Length while the receiver is blocked
+--let $assert_cond= $tbl_qlen = $qlen
+--source include/assert.inc
+
+# Memory-limit back-pressure involves no spill-path activity; and the applier
+# is stopped, so the cumulative counters read 0 (R3).
+--let $mc= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $sc= `SELECT SPILL_TRANSACTIONS_COUNT $from_ch`
+--let $sfc= `SELECT SPILL_FILE_COUNT $from_ch`
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= Spill columns and the cumulative counters are 0 while the receiver is blocked with the applier stopped
+--let $assert_cond= $mc = 0 AND $sc = 0 AND $sfc = 0 AND $sbu = 0
+--source include/assert.inc
+
+# The restarted applier starts its counters from 0 and applies all of them.
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+
+--let $mc= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $sc= `SELECT SPILL_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= IN_MEMORY_TRANSACTIONS_COUNT counts exactly the $trx_count applied memory-path transactions, SPILL_TRANSACTIONS_COUNT none
+--let $assert_cond= $mc = $trx_count AND $sc = 0
+--source include/assert.inc
+
+--echo
+--echo # 3. Spill path. With the applier stopped, send 3 transactions above the
+--echo #    8 MiB threshold (spill) and 2 below it (memory). While they sit on
+--echo #    disk the live gauges show 3 files and > 0 bytes, but nothing is
+--echo #    counted yet; once applied, the counters show exactly the 3 spilled
+--echo #    and 2 memory-path transactions, and the live gauges return to 0 (R2).
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+# 3 x ~10 MiB -> spill path.
+INSERT INTO t1 (data) VALUES (REPEAT('s', 10 * 1024 * 1024));
+INSERT INTO t1 (data) VALUES (REPEAT('s', 10 * 1024 * 1024));
+INSERT INTO t1 (data) VALUES (REPEAT('s', 10 * 1024 * 1024));
+# 2 small -> memory path (must NOT be counted as spilled).
+INSERT INTO t1 (data) VALUES (REPEAT('y', 100));
+INSERT INTO t1 (data) VALUES (REPEAT('z', 100));
+
+# The applier is stopped, so the spill files are created and fully written but
+# nothing commits or is unlinked.
+--source include/rpl/sync_to_replica_received.inc
+
+--source include/rpl/connection_replica.inc
+--let $sfc= `SELECT SPILL_FILE_COUNT $from_ch`
+--let $assert_text= SPILL_FILE_COUNT shows the 3 spill files currently on disk
+--let $assert_cond= $sfc = 3
+--source include/assert.inc
+
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= SPILL_BYTES_USED exceeds 3 * the spill threshold while the files are on disk
+--let $assert_cond= $sbu > 25165824
+--source include/assert.inc
+
+--let $sc= `SELECT SPILL_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= SPILL_TRANSACTIONS_COUNT does not count received, unapplied spill-path transactions
+--let $assert_cond= $sc = 0
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $sc= `SELECT SPILL_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= SPILL_TRANSACTIONS_COUNT counts exactly the 3 applied above-threshold transactions
+--let $assert_cond= $sc = 3
+--source include/assert.inc
+
+--let $sb= `SELECT SPILL_TRANSACTIONS_BYTES $from_ch`
+--let $assert_text= SPILL_TRANSACTIONS_BYTES exceeds 3 * the spill threshold
+--let $assert_cond= $sb > 25165824
+--source include/assert.inc
+
+--let $mc= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= IN_MEMORY_TRANSACTIONS_COUNT counts exactly the 2 applied below-threshold transactions
+--let $assert_cond= $mc = 2
+--source include/assert.inc
+
+# Spill files are unlinked when a committed transaction's byte source is
+# released, which is asynchronous to the GTID becoming visible -- poll until the
+# live file gauge falls back to 0.
+--let $sfc= 1
+--let $iter= 0
+while (`SELECT $sfc <> 0`)
+{
+  --sleep 0.2
+  --let $sfc= query_get_value(SELECT SPILL_FILE_COUNT FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = '', SPILL_FILE_COUNT, 1)
+  --inc $iter
+  if ($iter > 150)
+  {
+    --die Timed out waiting for the spill files to be unlinked
+  }
+}
+
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= SPILL_BYTES_USED returns to 0 once every spill file is unlinked
+--let $assert_cond= $sbu = 0
+--source include/assert.inc
+
+--echo
+--echo # 4. The cumulative counters read 0 while the applier is stopped and
+--echo #    restart from 0 when it restarts (R3).
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+--let $sc= `SELECT SPILL_TRANSACTIONS_COUNT $from_ch`
+--let $sb= `SELECT SPILL_TRANSACTIONS_BYTES $from_ch`
+--let $mc= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= The cumulative counters read 0 while the applier is stopped
+--let $assert_cond= $sc = 0 AND $sb = 0 AND $mc = 0
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+--let $sc= `SELECT SPILL_TRANSACTIONS_COUNT $from_ch`
+--let $mc= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= The cumulative counters restart from 0 with the applier
+--let $assert_cond= $sc = 0 AND $mc = 0
+--source include/assert.inc
+
+--echo
+--echo # 5. A channel that does not use the in-memory relay log reports 0 for all
+--echo #    of these columns. Disable IMR on the channel and restart it (R4).
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--let $sc= `SELECT SPILL_TRANSACTIONS_COUNT $from_ch`
+--let $sb= `SELECT SPILL_TRANSACTIONS_BYTES $from_ch`
+--let $sfc= `SELECT SPILL_FILE_COUNT $from_ch`
+--let $sbu= `SELECT SPILL_BYTES_USED $from_ch`
+--let $assert_text= All spill columns are 0 for a non-IMR channel
+--let $assert_cond= $sc = 0 AND $sb = 0 AND $sfc = 0 AND $sbu = 0
+--source include/assert.inc
+
+--echo
+--echo # 6. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/rpl/deinit.inc

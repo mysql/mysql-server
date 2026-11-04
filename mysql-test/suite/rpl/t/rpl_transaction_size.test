@@ -34,6 +34,8 @@
 # this test uses large transactions, tence cannot use compression
 --source include/not_binlog_transaction_compression_on.inc
 --let $rpl_skip_start_slave=1
+# Uses on-disk relay-log files, which IMR does not write.
+--source include/not_csa_imr.inc
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc

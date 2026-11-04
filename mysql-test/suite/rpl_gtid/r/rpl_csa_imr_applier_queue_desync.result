@@ -1,0 +1,45 @@
+
+# 1. Set up a CSA channel with IMR enabled; the applier stays running.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+CALL mtr.add_suppression("\\[In-memory relay log\\] applier queue structural inconsistency");
+CALL mtr.add_suppression("Relay log read failure: in-memory relay log queue structural inconsistency");
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+
+# 2. Inject an applier queue desync, then drive one transaction so the
+#    coordinator's next sweep trips the fail-safe.
+
+[connection slave]
+# Adding debug point 'imr_force_applier_queue_desync' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 VALUES (2);
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=13121]
+include/assert.inc [The receiver (IO thread) keeps running after the applier-side fail-safe]
+include/assert_grep.inc [The applier queue structural inconsistency is logged to the replica error log]
+include/assert_grep.inc [The read-failure reason (Last_SQL_Error) is logged to the replica error log]
+
+# 3. Clear the (simulated) fault and restart the applier: it catches up.
+
+# Removing debug point 'imr_force_applier_queue_desync' from @@GLOBAL.debug
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+
+# 4. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -1,0 +1,77 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("Plugin semisync reported.*Source server does not support semi-sync.*");
+
+# 1. Install and enable the replica-side semisync plugin (threads stopped).
+
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'semisync_replica.so';
+SET GLOBAL rpl_semi_sync_replica_enabled = 1;
+
+# 2. Enable IMR on the CSA channel.
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+# 3. START REPLICA IO_THREAD is rejected (R1).
+
+START REPLICA IO_THREAD;
+ERROR HY000: The in-memory relay log is incompatible with semi-synchronous replication and cannot be used while it is active.
+
+# 4. START REPLICA (both threads) is rejected for the same reason (R2).
+
+START REPLICA;
+ERROR HY000: The in-memory relay log is incompatible with semi-synchronous replication and cannot be used while it is active.
+
+# 5. Disabling IMR clears the incompatibility: the channel starts even
+#    with the semisync replica plugin still enabled (R3).
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
+
+# 6. Restart with semisync enabled and the IMR channel auto-starting: the
+#    receiver stops before the dump request, the applier runs (R4).
+
+CALL mtr.add_suppression("The in-memory relay log is incompatible with semi-synchronous replication");
+CALL mtr.add_suppression("Error reading packet from server for channel .*Lost connection to MySQL server during query");
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/rpl/restart_server.inc [server_number=2 parameters: --skip-replica-start=0 --rpl-semi-sync-replica-enabled=1]
+[connection slave]
+include/rpl/wait_for_receiver_error.inc [errno=6925]
+include/assert.inc [Last_IO_Errno is the IMR incompatibility error after restart]
+include/assert.inc [The applier keeps running after restart]
+SET GLOBAL rpl_semi_sync_replica_enabled = 0;
+include/rpl/start_receiver.inc
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+include/assert.inc [The transaction is replicated after semisync is turned off]
+
+# 7. Enable semisync with the receiver running and force a reconnect: the
+#    receiver stops before the dump request, the applier runs (R5).
+
+SET GLOBAL rpl_semi_sync_replica_enabled = 1;
+[connection master]
+include/rpl/stop_dump_threads.inc
+[connection slave]
+include/rpl/wait_for_receiver_error.inc [errno=6925]
+include/assert.inc [Last_IO_Errno is the IMR incompatibility error after reconnect]
+include/assert.inc [The applier keeps running after reconnect]
+
+# 8. Cleanup.
+
+SET GLOBAL rpl_semi_sync_replica_enabled = 0;
+include/rpl/start_receiver.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+include/rpl/deinit.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.

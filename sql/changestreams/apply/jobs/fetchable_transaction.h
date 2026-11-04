@@ -72,6 +72,8 @@ class Fetchable_transaction {
   /// truncated.
   /// @return True when fetching stopped on truncation, false otherwise
   bool is_truncated() const;
+  /// True when the last wait ended on an applier stop; lock-free.
+  bool is_aborted() const;
   /// Returns the maximum event length published for this transaction.
   std::size_t get_max_event_length() const;
 
@@ -134,6 +136,8 @@ class Fetchable_transaction {
   std::atomic<std::size_t> m_max_event_length{0};
   /// True when reader marked metadata stream as truncated.
   std::atomic<bool> m_is_truncated{false};
+  /// True when wait_next() ended on an applier stop (consumer state).
+  std::atomic<bool> m_is_aborted{false};
   /// Guard for concurrent producer (reader) and consumer (worker).
   mutable std::mutex m_mutex;
   /// Notification for appended batches / terminal state updates.

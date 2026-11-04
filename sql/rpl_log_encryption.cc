@@ -656,6 +656,7 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
         /* Rotate relay logs and re-encrypt previous existent relay logs. */
         if (flush_relay_logs_cmd(current_thd)) goto err2;
         if (reencrypt_relay_logs()) return true;
+        if (imr_reencrypt_spill_files()) return true;
       }
     }
       [[fallthrough]];

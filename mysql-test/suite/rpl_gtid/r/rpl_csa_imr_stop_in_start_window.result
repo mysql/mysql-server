@@ -1,0 +1,47 @@
+
+# 0. Set up a CSA channel with IMR enabled.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+SET @saved_stop_timeout = @@GLOBAL.rpl_stop_replica_timeout;
+SET @saved_init_replica = @@GLOBAL.init_replica;
+SET GLOBAL rpl_stop_replica_timeout = 10;
+SET GLOBAL init_replica = 'DO SLEEP(1)';
+
+# 1. START REPLICA then STOP REPLICA at once (R1).
+
+START REPLICA;
+STOP REPLICA;
+include/assert.inc [1: both threads are stopped]
+
+# 2. With the IO thread running, START REPLICA SQL_THREAD then STOP
+#    REPLICA SQL_THREAD at once (R2).
+
+include/rpl/start_receiver.inc
+START REPLICA SQL_THREAD;
+STOP REPLICA SQL_THREAD;
+include/assert.inc [2: the SQL thread is stopped, the IO thread runs]
+include/assert.inc [2: the channel uses the in-memory relay log]
+
+# 3. Restore the variables and replicate one transaction (R3).
+
+SET GLOBAL init_replica = @saved_init_replica;
+SET GLOBAL rpl_stop_replica_timeout = @saved_stop_timeout;
+include/rpl/start_applier.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+include/assert.inc [3: the row was replicated]
+
+# Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

@@ -11100,6 +11100,18 @@ ER_MRS_UDFS_REGISTER_ERROR
 ER_MRS_BACKEND_INIT_ERROR
   eng "Failed to initialize backend."
 
+ER_CRST_IN_MEMORY_RELAYLOG_ONLY_FOR_CSA
+  eng "The in-memory relay log is only available on a CSA-enabled channel."
+
+ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION
+  eng "The in-memory relay log is incompatible with %s and cannot be used while it is active."
+
+ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG
+  eng "Invalid in-memory relay log configuration: %s"
+
+ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE
+  eng "The in-memory relay log cannot be used on channel '%.192s': %s. Check the error log."
+
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #

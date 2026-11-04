@@ -7,6 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Lock replica for backup
 #
 [connection slave]
+include/rpl/csa_disable_in_memory_relaylog.inc
 include/save_error_log_position.inc
 LOCK INSTANCE FOR BACKUP;
 include/rpl/start_replica.inc

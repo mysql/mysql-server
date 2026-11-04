@@ -1,0 +1,188 @@
+# ==== Purpose ====
+#
+# A statement that runs while a replication thread is created but has not
+# started yet leaves that thread's in-memory relay log (IMR) role intact.
+#
+# Each replication thread attaches its own IMR role in its first run-lock
+# section, where it also sets slave_running. Before that, the thread exists but
+# SHOW REPLICA STATUS and every statement that takes the run locks see it as
+# stopped. A START that is killed while it waits for the thread returns with
+# the thread in that state. The test holds a new thread there with a debug
+# point, ends the START with KILL QUERY, runs another statement, then releases
+# the thread and checks that it attaches its role and replicates.
+#
+# ==== Requirements ====
+#
+# R1. IO thread held; STOP REPLICA runs (it sees nothing to stop). Once
+#     released, the IO thread runs and the channel replicates.
+# R2. IO thread held; CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT
+#     rebuilds the channel's runtime. Once released, the IO thread attaches to
+#     the new runtime and the channel replicates.
+# R3. SQL thread held while the IO thread runs; STOP REPLICA stops the IO
+#     thread, which is the last role out and resets the queue. Once released,
+#     the SQL thread attaches after that reset and the channel replicates.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--let $start_id= `SELECT CONNECTION_ID()`
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'a');
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+
+--echo
+--echo # 1. R1: the IO thread is held before it starts; STOP REPLICA runs.
+--echo
+
+--let $debug_point= pause_replica_io_thread_before_run_lock
+--source include/add_debug_point.inc
+--send START REPLICA IO_THREAD
+
+--source include/rpl/connection_replica1.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.processlist WHERE ID = $start_id AND STATE = 'Waiting for replica thread to start'
+--source include/wait_condition.inc
+--replace_result $start_id START_ID
+--eval KILL QUERY $start_id
+
+--source include/rpl/connection_replica.inc
+--error ER_QUERY_INTERRUPTED
+--reap
+
+--let $io_running= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
+--let $assert_text= The held IO thread is reported as not running
+--let $assert_cond= "$io_running" = "No"
+--source include/assert.inc
+
+STOP REPLICA;
+
+--let $debug_point= pause_replica_io_thread_before_run_lock
+--source include/remove_debug_point.inc
+--source include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (2, 'b');
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--source include/rpl/stop_replica.inc
+
+--echo
+--echo # 2. R2: the IO thread is held; CHANGE REPLICATION SOURCE rebuilds the
+--echo #    runtime.
+--echo
+
+--let $debug_point= pause_replica_io_thread_before_run_lock
+--source include/add_debug_point.inc
+--send START REPLICA IO_THREAD
+
+--source include/rpl/connection_replica1.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.processlist WHERE ID = $start_id AND STATE = 'Waiting for replica thread to start'
+--source include/wait_condition.inc
+--replace_result $start_id START_ID
+--eval KILL QUERY $start_id
+
+--source include/rpl/connection_replica.inc
+--error ER_QUERY_INTERRUPTED
+--reap
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 67108864;
+
+--let $count= `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = '' AND IN_MEMORY_RELAYLOG_LIMIT = 67108864`
+--let $assert_text= The new limit is in effect
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--let $debug_point= pause_replica_io_thread_before_run_lock
+--source include/remove_debug_point.inc
+--source include/rpl/wait_for_receiver_to_start.inc
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (3, 'c');
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 3. R3: the SQL thread is held while the IO thread runs; STOP REPLICA
+--echo #    stops the IO thread, which resets the queue.
+--echo
+
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (4, 'd');
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 1
+--source include/rpl/wait_for_replica_status.inc
+
+--let $debug_point= pause_replica_sql_thread_before_run_lock
+--source include/add_debug_point.inc
+--send START REPLICA SQL_THREAD
+
+--source include/rpl/connection_replica1.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.processlist WHERE ID = $start_id AND STATE = 'Waiting for replica thread to start'
+--source include/wait_condition.inc
+--replace_result $start_id START_ID
+--eval KILL QUERY $start_id
+
+--source include/rpl/connection_replica.inc
+--error ER_QUERY_INTERRUPTED
+--reap
+
+STOP REPLICA;
+--source include/rpl/wait_for_receiver_to_stop.inc
+
+# The IO thread was the last role out: no applier role is attached yet.
+--let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $retrieved= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= The IO thread's exit reset the queue and the Retrieved_Gtid_Set
+--let $assert_cond= $imr_qlen = 0 AND "$retrieved" = ""
+--source include/assert.inc
+
+--let $debug_point= pause_replica_sql_thread_before_run_lock
+--source include/remove_debug_point.inc
+--source include/rpl/wait_for_applier_to_start.inc
+--source include/rpl/start_receiver.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 134217728;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc
