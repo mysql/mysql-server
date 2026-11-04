@@ -33,6 +33,7 @@
 #include <rapidjson/prettywriter.h>
 
 #include "m_string.h"
+#include "sql/dd/dd.h"                     // create_object
 #include "sql/dd/dd_utility.h"             // normalize_string()
 #include "sql/dd/impl/dictionary_impl.h"   // Dictionary_impl
 #include "sql/dd/impl/raw/raw_record.h"    // Raw_record
@@ -41,6 +42,7 @@
 #include "sql/dd/impl/tables/udt_types.h"  // Spatial_reference_sy...
 #include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
 #include "sql/dd/impl/utils.h"             // is_string_in_lowercase
+#include "sql/dd/types/udt_method.h"
 #include "string_with_len.h"
 
 namespace dd {
@@ -178,6 +180,36 @@ bool UDT_Type::update_id_key(Id_key *key, Object_id id) {
 bool UDT_Type::update_name_key(Name_key *key, Object_id schema_id,
                                const String_type &name) {
   return UDT_Types::update_object_key(key, schema_id, name);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+UDT_Method *UDT_Type_impl::create_udt_method(THD *thd) const {
+// Creating UDT_Method requires an IX meta data lock on the UDT_Type.
+
+// FIXME
+#ifdef LATER
+#ifndef NDEBUG
+  char name_buf[NAME_LEN + 1];
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::SCHEMA,
+      dd::Object_table_definition_impl::fs_name_case(name(), name_buf), "",
+      MDL_INTENTION_EXCLUSIVE));
+#endif
+#endif
+
+  std::unique_ptr<UDT_Method> obj(dd::create_object<UDT_Method>());
+  obj->set_type_id(this->id());
+
+  // Get statement start time.
+  ulonglong ull_curtime =
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs());
+
+  // Set new table start time.
+  obj->set_created(ull_curtime);
+  obj->set_last_altered(ull_curtime);
+
+  return obj.release();
 }
 
 ///////////////////////////////////////////////////////////////////////////

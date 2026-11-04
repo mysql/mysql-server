@@ -229,6 +229,8 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
     Entity_object_impl::set_name(name);
   }
 
+  UDT_Method *create_udt_method(THD *thd) const override;
+
  public:
   void debug_print(String_type &outb) const override {
     char outbuf[1024];

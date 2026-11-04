@@ -24,7 +24,9 @@
 #include "sql/sql_cmd_ddl_type.h"
 #include "sql/create_field.h"
 #include "sql/dd/cache/dictionary_client.h"  // Dictionary_client
+#include "sql/dd/dd_udt_method.h"
 #include "sql/dd/dd_udt_type.h"
+#include "sql/dd/types/udt_method.h"
 #include "sql/mysqld.h"  // lower_case_table_names
 #include "sql/parse_tree_column_attrs.h"
 #include "sql/sql_lex.h"
@@ -123,6 +125,21 @@ const dd::UDT_Type *Sql_cmd_ddl_type::acquire_dd_type(THD *thd) {
   }
 
   return udt;
+}
+
+const dd::UDT_Method *Sql_cmd_ddl_type::acquire_dd_method(
+    THD *thd, const dd::UDT_Type *udt_type, const char *name) {
+  dd::String_type method_name{name};
+  dd::UDT_Method::Name_key method_key;
+  dd::UDT_Method::update_name_key(&method_key, udt_type->id(), method_name);
+
+  const dd::UDT_Method *udt_method{nullptr};
+  dd::cache::Dictionary_client &dc = *thd->dd_client();
+  if (dc.acquire(method_key, &udt_method)) {
+    return nullptr;
+  }
+
+  return udt_method;
 }
 
 bool Sql_cmd_create_type::execute(THD *thd) {
@@ -237,7 +254,13 @@ bool Sql_cmd_alter_type::execute(THD *thd) {
     WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_alter_type::execute(drop_method)");
 
     const char *method_name = m_drop_method->m_method_def->m_method_name.str;
-    my_error(ER_NO_SUCH_UDT_METHOD, MYF(0), type_name, method_name);
+
+    const dd::UDT_Method *method = acquire_dd_method(thd, udt, method_name);
+    if (method == nullptr) {
+      my_error(ER_NO_SUCH_UDT_METHOD, MYF(0), type_name, method_name);
+      return true;
+    }
+
     return true;
   }
 

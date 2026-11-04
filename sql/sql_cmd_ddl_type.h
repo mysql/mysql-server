@@ -29,6 +29,7 @@
 #include "sql/parse_tree_nodes.h"
 #include "sql/sql_cmd_ddl.h"
 
+#include "sql/dd/dd_udt_method.h"
 #include "sql/dd/dd_udt_type.h"
 
 class THD;
@@ -49,6 +50,9 @@ class Sql_cmd_ddl_type : public Sql_cmd_ddl {
   bool acquire_mdl_type(THD *thd);
   const dd::Schema *acquire_dd_schema(THD *thd);
   const dd::UDT_Type *acquire_dd_type(THD *thd);
+  const dd::UDT_Method *acquire_dd_method(THD *thd,
+                                          const dd::UDT_Type *udt_type,
+                                          const char *method_name);
 
   Type_ident *m_type_ident;
 };

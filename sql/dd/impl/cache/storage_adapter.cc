@@ -618,6 +618,18 @@ template bool Storage_adapter::get<UDT_Type::Aux_key, UDT_Type>(
 template bool Storage_adapter::drop(THD *, const UDT_Type *);
 template bool Storage_adapter::store(THD *, UDT_Type *);
 
+template bool Storage_adapter::get<UDT_Method::Id_key, UDT_Method>(
+    THD *, const UDT_Method::Id_key &, enum_tx_isolation, bool,
+    const UDT_Method **);
+template bool Storage_adapter::get<UDT_Method::Name_key, UDT_Method>(
+    THD *, const UDT_Method::Name_key &, enum_tx_isolation, bool,
+    const UDT_Method **);
+template bool Storage_adapter::get<UDT_Method::Aux_key, UDT_Method>(
+    THD *, const UDT_Method::Aux_key &, enum_tx_isolation, bool,
+    const UDT_Method **);
+template bool Storage_adapter::drop(THD *, const UDT_Method *);
+template bool Storage_adapter::store(THD *, UDT_Method *);
+
 /*
   DD objects dd::Table_stat and dd::Index_stat are not cached,
   because these objects are only updated and never read by DD

@@ -42,6 +42,7 @@
 #include "sql/dd/impl/tables/spatial_reference_systems.h"
 #include "sql/dd/impl/tables/tables.h"
 #include "sql/dd/impl/tables/tablespaces.h"
+#include "sql/dd/impl/tables/udt_methods.h"
 #include "sql/dd/impl/tables/udt_types.h"
 #include "sql/log.h"        // sql_print_warning()
 #include "sql/mdl.h"        // MDL_request
@@ -710,6 +711,27 @@ template void Shared_multi_map<UDT_Type>::put<UDT_Type::Aux_key>(
     const UDT_Type::Aux_key *, const UDT_Type *, Cache_element<UDT_Type> **);
 template void Shared_multi_map<UDT_Type>::drop_if_present<UDT_Type::Id_key>(
     const UDT_Type::Id_key &);
+
+template class Shared_multi_map<UDT_Method>;
+template bool Shared_multi_map<UDT_Method>::get<const UDT_Method *>(
+    const UDT_Method *const &, Cache_element<UDT_Method> **);
+template bool Shared_multi_map<UDT_Method>::get<UDT_Method::Id_key>(
+    const UDT_Method::Id_key &, Cache_element<UDT_Method> **);
+template bool Shared_multi_map<UDT_Method>::get<UDT_Method::Name_key>(
+    const UDT_Method::Name_key &, Cache_element<UDT_Method> **);
+template bool Shared_multi_map<UDT_Method>::get<UDT_Method::Aux_key>(
+    const UDT_Method::Aux_key &, Cache_element<UDT_Method> **);
+template void Shared_multi_map<UDT_Method>::put<UDT_Method::Id_key>(
+    const UDT_Method::Id_key *, const UDT_Method *,
+    Cache_element<UDT_Method> **);
+template void Shared_multi_map<UDT_Method>::put<UDT_Method::Name_key>(
+    const UDT_Method::Name_key *, const UDT_Method *,
+    Cache_element<UDT_Method> **);
+template void Shared_multi_map<UDT_Method>::put<UDT_Method::Aux_key>(
+    const UDT_Method::Aux_key *, const UDT_Method *,
+    Cache_element<UDT_Method> **);
+template void Shared_multi_map<UDT_Method>::drop_if_present<UDT_Method::Id_key>(
+    const UDT_Method::Id_key &);
 
 }  // namespace cache
 }  // namespace dd
