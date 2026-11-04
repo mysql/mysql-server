@@ -5885,13 +5885,13 @@ class Sql_cmd_alter_type_builder : public PT_alter_type_action_visitor {
       : m_thd(thd), m_type_name(type_name) {}
 
   void visit_add_method(PT_alter_type_add_method *add_method) override {
-    m_result =
-        new (m_thd->mem_root) Sql_cmd_alter_type(m_type_name, add_method);
+    m_result = new (m_thd->mem_root)
+        Sql_cmd_alter_type(m_type_name, add_method->m_method_def);
   }
 
   void visit_drop_method(PT_alter_type_drop_method *drop_method) override {
-    m_result =
-        new (m_thd->mem_root) Sql_cmd_alter_type(m_type_name, drop_method);
+    m_result = new (m_thd->mem_root)
+        Sql_cmd_alter_type(m_type_name, drop_method->m_method_def);
   }
 
   THD *m_thd;

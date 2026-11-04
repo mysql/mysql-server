@@ -76,16 +76,16 @@ class Sql_cmd_create_type final : public Sql_cmd_ddl_type {
 class Sql_cmd_alter_type final : public Sql_cmd_ddl_type {
  public:
   Sql_cmd_alter_type(Type_ident *type_ident,
-                     PT_alter_type_add_method *add_method)
+                     PT_type_add_method_def *add_method_def)
       : Sql_cmd_ddl_type(type_ident),
-        m_add_method(add_method),
-        m_drop_method(nullptr) {}
+        m_add_method_def(add_method_def),
+        m_drop_method_def(nullptr) {}
 
   Sql_cmd_alter_type(Type_ident *type_ident,
-                     PT_alter_type_drop_method *drop_method)
+                     PT_type_drop_method_def *drop_method_def)
       : Sql_cmd_ddl_type(type_ident),
-        m_add_method(nullptr),
-        m_drop_method(drop_method) {}
+        m_add_method_def(nullptr),
+        m_drop_method_def(drop_method_def) {}
 
   enum_sql_command sql_command_code() const override {
     return SQLCOM_ALTER_TYPE;
@@ -93,10 +93,14 @@ class Sql_cmd_alter_type final : public Sql_cmd_ddl_type {
 
   bool execute(THD *thd) override;
 
-  // FIXME: or TypeDescriptor + do_contextualize()
-  PT_type *m_type;
-  PT_alter_type_add_method *m_add_method;
-  PT_alter_type_drop_method *m_drop_method;
+  PT_type_add_method_def *m_add_method_def;
+  PT_type_drop_method_def *m_drop_method_def;
+
+ private:
+  bool execute_add_method(THD *thd, const dd::UDT_Type *udt_type,
+                          PT_type_add_method_def *method_def);
+  bool execute_drop_method(THD *thd, const dd::UDT_Type *udt_type,
+                           PT_type_drop_method_def *method_def);
 };
 
 class Sql_cmd_drop_type final : public Sql_cmd_ddl_type {

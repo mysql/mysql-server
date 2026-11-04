@@ -2,6 +2,8 @@
 CREATE SCHEMA math;
 CREATE TYPE math.complex_number AS BINARY(16);
 
+SELECT * FROM INFORMATION_SCHEMA.TYPES;
+
 --error ER_NO_SUCH_DB
 ALTER TYPE no_such_db.complex_number DROP METHOD foo();
 
@@ -19,6 +21,11 @@ ALTER TYPE math.complex_number DROP INSTANCE METHOD i_foo();
 
 ALTER TYPE math.complex_number ADD METHOD foo() RETURNS INTEGER;
 
+SELECT * FROM INFORMATION_SCHEMA.TYPE_METHODS;
+
+ALTER TYPE math.complex_number DROP METHOD foo();
+
+SELECT * FROM INFORMATION_SCHEMA.TYPE_METHODS;
 
 DROP TYPE math.complex_number;
 DROP SCHEMA math;

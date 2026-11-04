@@ -90,9 +90,9 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   // type.
   /////////////////////////////////////////////////////////////////////////
 
-  enum_column_types type() const override { return m_type; }
+  enum_column_builtin_types type() const override { return m_type; }
 
-  void set_type(enum_column_types type) override { m_type = type; }
+  void set_type(enum_column_builtin_types type) override { m_type = type; }
 
   /////////////////////////////////////////////////////////////////////////
   // is_unsigned.
@@ -108,10 +108,16 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   // char_length.
   /////////////////////////////////////////////////////////////////////////
 
-  size_t char_length() const override { return m_char_length; }
+  size_t char_max_length() const override { return m_char_max_length; }
 
-  void set_char_length(size_t char_length) override {
-    m_char_length = char_length;
+  void set_char_max_length(size_t char_max_length) override {
+    m_char_max_length = char_max_length;
+  }
+
+  size_t char_octet_length() const override { return m_char_octet_length; }
+
+  void set_char_octet_length(size_t char_octet_length) override {
+    m_char_octet_length = char_octet_length;
   }
 
   /////////////////////////////////////////////////////////////////////////
@@ -244,9 +250,10 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
  private:
   // Fields
 
-  enum_column_types m_type;
+  enum_column_builtin_types m_type;
   bool m_is_unsigned;
-  size_t m_char_length;
+  size_t m_char_max_length;
+  size_t m_char_octet_length;
   uint m_numeric_precision;
   uint m_numeric_scale;
   bool m_numeric_scale_null;

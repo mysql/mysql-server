@@ -32,6 +32,7 @@
 #include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/impl/types/udt_type_impl.h"  // dd::UDT_type_impl
+#include "sql/dd/impl/tables/builtin_type_enum.h"
 
 namespace dd::tables {
 
@@ -61,30 +62,14 @@ UDT_Types::UDT_Types() {
 
   // FIXME: revise enum
   m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",
-                         "data_type ENUM(\n"
-                         "    'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',\n"
-                         "    'MYSQL_TYPE_SHORT',  'MYSQL_TYPE_LONG',\n"
-                         "    'MYSQL_TYPE_FLOAT',  'MYSQL_TYPE_DOUBLE',\n"
-                         "    'MYSQL_TYPE_NULL', 'MYSQL_TYPE_TIMESTAMP',\n"
-                         "    'MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24',\n"
-                         "    'MYSQL_TYPE_DATE',   'MYSQL_TYPE_TIME',\n"
-                         "    'MYSQL_TYPE_DATETIME', 'MYSQL_TYPE_YEAR',\n"
-                         "    'MYSQL_TYPE_NEWDATE', 'MYSQL_TYPE_VARCHAR',\n"
-                         "    'MYSQL_TYPE_BIT', 'MYSQL_TYPE_TIMESTAMP2',\n"
-                         "    'MYSQL_TYPE_DATETIME2', 'MYSQL_TYPE_TIME2',\n"
-                         "    'MYSQL_TYPE_NEWDECIMAL', 'MYSQL_TYPE_ENUM',\n"
-                         "    'MYSQL_TYPE_SET', 'MYSQL_TYPE_TINY_BLOB',\n"
-                         "    'MYSQL_TYPE_MEDIUM_BLOB', "
-                         "'MYSQL_TYPE_LONG_BLOB',\n"
-                         "    'MYSQL_TYPE_BLOB', 'MYSQL_TYPE_VAR_STRING',\n"
-                         "    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',\n"
-                         "    'MYSQL_TYPE_JSON', 'MYSQL_TYPE_VECTOR' \n"
-                         "  ) NOT NULL");
+                         "data_type " MYSQL_BUILTIN_TYPE_ENUM_STRING " NOT NULL");
 
   m_target_def.add_field(FIELD_IS_UNSIGNED, "FIELD_IS_UNSIGNED",
                          "is_unsigned BOOL");
-  m_target_def.add_field(FIELD_CHAR_LENGTH, "FIELD_CHAR_LENGTH",
-                         "char_length INT UNSIGNED");
+  m_target_def.add_field(FIELD_CHAR_MAX_LENGTH, "FIELD_CHAR_MAX_LENGTH",
+                         "char_max_length INT UNSIGNED");
+  m_target_def.add_field(FIELD_CHAR_OCTET_LENGTH, "FIELD_CHAR_OCTET_LENGTH",
+                         "char_octet_length INT UNSIGNED");
   m_target_def.add_field(FIELD_NUMERIC_PRECISION, "FIELD_NUMERIC_PRECISION",
                          "numeric_precision INT UNSIGNED");
   m_target_def.add_field(FIELD_NUMERIC_SCALE, "FIELD_NUMERIC_SCALE",

@@ -43,6 +43,7 @@
 #include "sql/key_spec.h"       // keytype, fk_option
 #include "sql/lexer_yystype.h"  // Lexer_yystype
 #include "sql/mem_root_array.h"
+#include "sql/method_call_option.h"
 #include "sql/null_call_option.h"
 #include "sql/olap.h"
 #include "sql/opt_hints.h"  // opt_hints_enum
@@ -532,6 +533,7 @@ union MY_SQL_PARSER_STYPE {
   PT_type_add_method_def *add_method_def;
   PT_type_drop_method_def *drop_method_def;
   enum enum_null_call_option null_call_option;
+  enum enum_method_call_option method_call_option;
 
   Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;

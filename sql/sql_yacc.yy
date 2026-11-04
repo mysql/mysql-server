@@ -2024,6 +2024,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %type <type_ident> type_ident
 %type <alter_type_action> alter_type_action
 %type <null_call_option> null_call_clause
+%type <method_call_option> method_kind opt_method_kind
 %type <add_method_def> method_specification partial_method_specification
 %type <drop_method_def> specific_method_specification_designator
 
@@ -2249,7 +2250,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %type <int_type> int_type
 
 %type <type> spatial_type broken_type builtin_type user_defined_type
-       enum_type set_type
+       enum_type set_type returns_clause
 
 %type <numeric_type> real_type numeric_type
 
@@ -3402,13 +3403,25 @@ method_specification_list:
 
 opt_method_kind:
           %empty
+          {
+            $$= enum_method_call_option::INSTANCE_METHOD;
+          }
         | method_kind
         ;
 
 method_kind:
           INSTANCE_SYM
+          {
+            $$= enum_method_call_option::INSTANCE_METHOD;
+          }
         | STATIC_SYM
+          {
+            $$= enum_method_call_option::STATIC_METHOD;
+          }
         | CONSTRUCTOR_SYM
+          {
+            $$= enum_method_call_option::CONSTRUCTOR_METHOD;
+          }
         ;
 
 method_specification:
@@ -3423,7 +3436,7 @@ partial_method_specification:
           opt_method_kind METHOD_SYM IDENT_sys '(' opt_sql_parameter_declaration_list ')'
           returns_clause
           {
-            $$= NEW_PTN PT_type_add_method_def($3);
+            $$= NEW_PTN PT_type_add_method_def($3, $1, $7);
           }
         ;
 
@@ -3443,6 +3456,9 @@ sql_parameter_declaration:
 
 returns_clause:
           RETURNS_SYM broken_type
+          {
+            $$= $2;
+          }
         ;
 
 opt_method_characteristics:

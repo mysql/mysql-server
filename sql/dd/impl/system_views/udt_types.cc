@@ -45,10 +45,10 @@ UDT_Types::UDT_Types() {
       "SUBSTRING_INDEX(SUBSTRING_INDEX(typ.column_type_utf8, '(', 1),' ', 1)");
   m_target_def.add_field(
       FIELD_CHARACTER_MAXIMUM_LENGTH, "CHARACTER_MAXIMUM_LENGTH",
-      "INTERNAL_DD_CHAR_LENGTH(typ.data_type, typ.char_length, coll.name, 0)");
+      "typ.char_max_length");
   m_target_def.add_field(
       FIELD_CHARACTER_OCTET_LENGTH, "CHARACTER_OCTET_LENGTH",
-      "INTERNAL_DD_CHAR_LENGTH(typ.data_type, typ.char_length, coll.name, 1)");
+      "typ.char_octet_length");
   m_target_def.add_field(
       FIELD_NUMERIC_PRECISION, "NUMERIC_PRECISION",
       "IF (typ.numeric_precision = 0, NULL, typ.numeric_precision)");

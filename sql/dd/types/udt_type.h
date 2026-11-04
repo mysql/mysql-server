@@ -29,7 +29,7 @@
 
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
-#include "sql/dd/types/column.h"
+#include "sql/dd/types/builtin_types.h"
 #include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 class THD;
@@ -90,8 +90,8 @@ class UDT_Type : virtual public Entity_object {
   // type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_column_types type() const = 0;
-  virtual void set_type(enum_column_types type) = 0;
+  virtual enum_column_builtin_types type() const = 0;
+  virtual void set_type(enum_column_builtin_types type) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // is_unsigned.
@@ -104,8 +104,11 @@ class UDT_Type : virtual public Entity_object {
   // char_length.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual size_t char_length() const = 0;
-  virtual void set_char_length(size_t char_length) = 0;
+  virtual size_t char_max_length() const = 0;
+  virtual void set_char_max_length(size_t char_max_length) = 0;
+
+  virtual size_t char_octet_length() const = 0;
+  virtual void set_char_octet_length(size_t char_octet_length) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // numeric_precision.

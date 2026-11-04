@@ -81,7 +81,7 @@
 namespace dd {
 
 #ifdef LATER
-bool udt_method_exists(dd::cache::Dictionary_client *client,
+bool udt_method_exists(dd::cache::Dictionary_client *dc,
                        const char *schema_name, const char *type_name,
                        const char *method_name, bool *exists) {
   DBUG_TRACE;
@@ -107,7 +107,7 @@ bool create_udt_method(THD *thd, const dd::UDT_Type &typ_obj,
   return thd->dd_client()->store(obj.get());
 }
 
-bool drop_udt_methd(THD *thd, const dd::UDT_Method &method_def) {
+bool drop_udt_method(THD *thd, const dd::UDT_Method &method_def) {
   return thd->dd_client()->drop(&method_def);
 }
 

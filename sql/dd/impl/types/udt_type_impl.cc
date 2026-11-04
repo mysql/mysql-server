@@ -59,9 +59,10 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 UDT_Type_impl::UDT_Type_impl()
-    : m_type(enum_column_types::LONG),
+    : m_type(enum_column_builtin_types::LONG),
       m_is_unsigned(false),
-      m_char_length(0),
+      m_char_max_length(0),
+      m_char_octet_length(0),
       m_numeric_precision(0),
       m_numeric_scale(0),
       m_numeric_scale_null(true),
@@ -83,9 +84,10 @@ bool UDT_Type_impl::restore_attributes(const Raw_record &r) {
   m_schema_id = r.read_ref_id(UDT_Types::FIELD_SCHEMA_ID);
   m_collation_id = r.read_ref_id(UDT_Types::FIELD_COLLATION_ID);
 
-  m_type = (enum_column_types)r.read_int(UDT_Types::FIELD_TYPE);
+  m_type = (enum_column_builtin_types)r.read_int(UDT_Types::FIELD_TYPE);
   m_is_unsigned = r.read_bool(UDT_Types::FIELD_IS_UNSIGNED);
-  m_char_length = r.read_uint(UDT_Types::FIELD_CHAR_LENGTH);
+  m_char_max_length = r.read_uint(UDT_Types::FIELD_CHAR_MAX_LENGTH);
+  m_char_octet_length = r.read_uint(UDT_Types::FIELD_CHAR_OCTET_LENGTH);
   m_numeric_precision = r.read_uint(UDT_Types::FIELD_NUMERIC_PRECISION);
   m_numeric_scale = r.read_uint(UDT_Types::FIELD_NUMERIC_SCALE);
   m_numeric_scale_null = r.is_null(UDT_Types::FIELD_NUMERIC_SCALE);
@@ -109,8 +111,10 @@ bool UDT_Type_impl::store_attributes(Raw_record *r) {
          r->store_ref_id(UDT_Types::FIELD_COLLATION_ID, m_collation_id) ||
          r->store(UDT_Types::FIELD_TYPE, static_cast<int>(m_type)) ||
          r->store(UDT_Types::FIELD_IS_UNSIGNED, m_is_unsigned) ||
-         r->store(UDT_Types::FIELD_CHAR_LENGTH,
-                  static_cast<uint>(m_char_length)) ||
+         r->store(UDT_Types::FIELD_CHAR_MAX_LENGTH,
+                  static_cast<uint>(m_char_max_length)) ||
+         r->store(UDT_Types::FIELD_CHAR_OCTET_LENGTH,
+                  static_cast<uint>(m_char_octet_length)) ||
          r->store(UDT_Types::FIELD_NUMERIC_PRECISION, m_numeric_precision) ||
          r->store(UDT_Types::FIELD_NUMERIC_SCALE, m_numeric_scale,
                   m_numeric_scale_null) ||
@@ -124,7 +128,7 @@ bool UDT_Type_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(UDT_Types::NUMBER_OF_FIELDS == 14,
+static_assert(UDT_Types::NUMBER_OF_FIELDS == 15,
               "UDT_Types definition has changed, check if "
               "serialize() and deserialize() need to be updated!");
 void UDT_Type_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
@@ -132,7 +136,8 @@ void UDT_Type_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   Entity_object_impl::serialize(wctx, w);
   write_enum(w, m_type, STRING_WITH_LEN("type"));
   write(w, m_is_unsigned, STRING_WITH_LEN("is_unsigned"));
-  write(w, m_char_length, STRING_WITH_LEN("char_length"));
+  write(w, m_char_max_length, STRING_WITH_LEN("char_max_length"));
+  write(w, m_char_octet_length, STRING_WITH_LEN("char_octet_length"));
   write(w, m_numeric_precision, STRING_WITH_LEN("numeric_precision"));
   write(w, m_numeric_scale, STRING_WITH_LEN("numeric_scale"));
   write(w, m_numeric_scale_null, STRING_WITH_LEN("numeric_scale_null"));
@@ -153,7 +158,8 @@ bool UDT_Type_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   Entity_object_impl::deserialize(rctx, val);
   read_enum(&m_type, val, "type");
   read(&m_is_unsigned, val, "is_unsigned");
-  read(&m_char_length, val, "char_length");
+  read(&m_char_max_length, val, "char_max_length");
+  read(&m_char_octet_length, val, "char_octet_length");
   read(&m_numeric_precision, val, "numeric_precision");
   read(&m_numeric_scale, val, "numeric_scale");
   read(&m_numeric_scale_null, val, "numeric_scale_null");

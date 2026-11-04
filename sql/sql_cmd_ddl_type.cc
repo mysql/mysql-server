@@ -228,7 +228,8 @@ bool Sql_cmd_alter_type::execute(THD *thd) {
     return true;
   }
 
-  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  auto *dc = thd->dd_client();
+  const dd::cache::Dictionary_client::Auto_releaser releaser(dc);
   const char *db_name = m_type_ident->db.str;
   const char *type_name = m_type_ident->type.str;
 
@@ -246,22 +247,16 @@ bool Sql_cmd_alter_type::execute(THD *thd) {
 
   // ALTER TYPE
 
-  if (m_add_method != nullptr) {
-    WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_alter_type::execute(add_method)");
-  }
-
-  if (m_drop_method != nullptr) {
-    WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_alter_type::execute(drop_method)");
-
-    const char *method_name = m_drop_method->m_method_def->m_method_name.str;
-
-    const dd::UDT_Method *method = acquire_dd_method(thd, udt, method_name);
-    if (method == nullptr) {
-      my_error(ER_NO_SUCH_UDT_METHOD, MYF(0), type_name, method_name);
+  if (m_add_method_def != nullptr) {
+    if (execute_add_method(thd, udt, m_add_method_def)) {
       return true;
     }
+  }
 
-    return true;
+  if (m_drop_method_def != nullptr) {
+    if (execute_drop_method(thd, udt, m_drop_method_def)) {
+      return true;
+    }
   }
 
   if (trans_commit_stmt(thd) || trans_commit(thd)) {
@@ -274,6 +269,40 @@ bool Sql_cmd_alter_type::execute(THD *thd) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TYPE");
   return true;
 #endif
+}
+
+bool Sql_cmd_alter_type::execute_add_method(
+    THD *thd, const dd::UDT_Type *udt_type,
+    PT_type_add_method_def *method_def) {
+  dd::String_type method_name(method_def->m_method_name.str);
+
+  if (create_udt_method(thd, *udt_type, method_name)) {
+    return true;
+  }
+
+  // dd::UDT_Method *udt_method{nullptr};
+  // my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TYPE ADD METHOD");
+  return false;
+}
+
+bool Sql_cmd_alter_type::execute_drop_method(
+    THD *thd, const dd::UDT_Type *udt_type,
+    PT_type_drop_method_def *method_def) {
+  const char *type_name = udt_type->name().c_str();
+  const char *method_name = method_def->m_method_name.str;
+
+  const dd::UDT_Method *udt_method =
+      acquire_dd_method(thd, udt_type, method_name);
+  if (udt_method == nullptr) {
+    my_error(ER_NO_SUCH_UDT_METHOD, MYF(0), type_name, method_name);
+    return true;
+  }
+
+  if (drop_udt_method(thd, *udt_method)) {
+    return true;
+  }
+
+  return false;
 }
 
 bool Sql_cmd_drop_type::execute(THD *thd) {

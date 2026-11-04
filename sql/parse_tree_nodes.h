@@ -75,6 +75,7 @@
 #include "string_with_len.h"
 #include "thr_lock.h"
 
+#include "sql/method_call_option.h"
 #include "sql/null_call_option.h"
 
 class Item;
@@ -6139,10 +6140,15 @@ class PT_alter_type_drop_method;
 
 class PT_type_add_method_def {
  public:
-  PT_type_add_method_def(const LEX_STRING &method_name)
-      : m_method_name(method_name) {}
+  PT_type_add_method_def(const LEX_STRING &method_name,
+                         enum_method_call_option option, PT_type *return_type)
+      : m_method_name(method_name),
+        m_option(option),
+        m_return_type(return_type) {}
 
   LEX_STRING m_method_name;
+  enum_method_call_option m_option;
+  PT_type *m_return_type;
 };
 
 class PT_type_drop_method_def {
