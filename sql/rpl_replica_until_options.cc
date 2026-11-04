@@ -264,7 +264,8 @@ bool Until_after_gtids::check_at_start_slave() {
 bool Until_after_gtids::check_before_dispatching_event(const Log_event *ev) {
   DBUG_TRACE;
 
-  if (ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT) {
+  if (mysql::binlog::event::Log_event_type_helper::is_assigned_gtid_event(
+          ev->get_type_code())) {
     global_tsid_lock->wrlock();
     /*
      Below check is needed when last transaction is received from other source

@@ -1,0 +1,98 @@
+# ==== Purpose ====
+#
+# This test verifies that START REPLICA UNTIL SQL_AFTER_GTIDS stops exactly
+# after the target when the target set contains tagged GTIDs.
+#
+# ==== Implementation ====
+#
+# 1. On the replica: Stop the applier. On the source: Execute 4 inserts
+#    with GTID_NEXT=AUTOMATIC:tag1
+# 2. On the replica: START REPLICA SQL_THREAD UNTIL
+#    SQL_AFTER_GTIDS=UUID:tag1:1-2 and assert that only 2 rows are applied
+# 3. On the replica: Stop the applier. On the source: Execute 4 CREATE TABLE
+#    with GTID_NEXT=AUTOMATIC:tag2
+# 4. On the replica: START REPLICA SQL_THREAD UNTIL
+#    SQL_AFTER_GTIDS=UUID:tag2:1-2 and assert that only 2 tables are created
+# 5. Clean up
+#
+# In each case all transactions are received before the applier starts, so
+# the stop point does not depend on timing.
+#
+
+--source include/rpl/init_source_replica.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+--let $uuid= `SELECT @@global.server_uuid`
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 1. On the replica: Stop the applier. On the source: Execute 4 inserts
+--echo #    with GTID_NEXT=AUTOMATIC:tag1
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+--source include/rpl/connection_source.inc
+SET gtid_next = 'AUTOMATIC:tag1';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+SET gtid_next = 'AUTOMATIC';
+--source include/rpl/sync_to_replica_received.inc
+
+--echo
+--echo # 2. On the replica: START REPLICA SQL_THREAD UNTIL
+--echo #    SQL_AFTER_GTIDS=UUID:tag1:1-2 and assert that only 2 rows are applied
+--echo
+
+--replace_result $uuid UUID
+eval START REPLICA SQL_THREAD UNTIL SQL_AFTER_GTIDS = '$uuid:tag1:1-2';
+--source include/rpl/wait_for_applier_to_stop.inc
+
+--let $assert_text= Applier stopped exactly after tag1:1-2
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 2
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 3. On the replica: Stop the applier. On the source: Execute 4 CREATE TABLE
+--echo #    with GTID_NEXT=AUTOMATIC:tag2
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+--source include/rpl/connection_source.inc
+SET gtid_next = 'AUTOMATIC:tag2';
+CREATE TABLE v1 (a INT);
+CREATE TABLE v2 (a INT);
+CREATE TABLE v3 (a INT);
+CREATE TABLE v4 (a INT);
+SET gtid_next = 'AUTOMATIC';
+--source include/rpl/sync_to_replica_received.inc
+
+--echo
+--echo # 4. On the replica: START REPLICA SQL_THREAD UNTIL
+--echo #    SQL_AFTER_GTIDS=UUID:tag2:1-2 and assert that only 2 tables are created
+--echo
+
+--replace_result $uuid UUID
+eval START REPLICA SQL_THREAD UNTIL SQL_AFTER_GTIDS = '$uuid:tag2:1-2';
+--source include/rpl/wait_for_applier_to_stop.inc
+
+--let $assert_text= Applier stopped exactly after tag2:1-2
+--let $assert_cond= [SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = "test" AND table_name LIKE "v_"] = 2
+--source include/assert.inc
+
+--source include/rpl/start_applier.inc
+
+--echo
+--echo # 5. Clean up
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1, v1, v2, v3, v4;
+--source include/rpl/deinit.inc
