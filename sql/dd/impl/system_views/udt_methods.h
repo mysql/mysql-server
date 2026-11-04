@@ -52,7 +52,7 @@ class UDT_Methods
   static const UDT_Methods &instance();
 
   static const String_type &view_name() {
-    static String_type s_view_name("METHODS");
+    static String_type s_view_name("TYPE_METHODS");
     return s_view_name;
   }
 

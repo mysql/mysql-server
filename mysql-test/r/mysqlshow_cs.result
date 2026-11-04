@@ -159,6 +159,7 @@ Database: information_schema
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
 | TYPES                                 |
+| TYPE_METHODS                          |
 | USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
@@ -249,6 +250,7 @@ Database: INFORMATION_SCHEMA
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
 | TYPES                                 |
+| TYPE_METHODS                          |
 | USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |

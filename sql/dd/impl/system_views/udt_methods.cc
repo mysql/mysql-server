@@ -42,7 +42,7 @@ UDT_Methods::UDT_Methods() {
 
   m_target_def.add_field(FIELD_METHOD_NAME, "METHOD_NAME", "met.name");
 
-  m_target_def.add_from("mysql.methods met");
+  m_target_def.add_from("mysql.type_methods met");
   m_target_def.add_from("JOIN mysql.types typ ON met.type_id=typ.id");
   m_target_def.add_from("JOIN mysql.schemata sch ON typ.schema_id=sch.id");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
