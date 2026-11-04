@@ -311,6 +311,15 @@ mysql_mutex_t resume_encryption_cond_m;
 os_event_t recovery_lock_taken;
 static bool innodb_inited = false;
 
+/** Statistics for recovered prepared DML transactions handed off to the
+background rollback thread. Transaction-coordinator recovery and
+innobase_post_recover() run serially on the startup thread, before the recovery
+rollback thread is started. */
+static struct {
+  size_t transactions{};
+  undo_no_t rows_to_undo{};
+} recovered_rollback_handoff_stats;
+
 [[maybe_unused]] static inline bool EQ_CURRENT_THD(THD *thd) {
   return thd == current_thd;
 }
@@ -1567,6 +1576,16 @@ static xa_status_code innobase_rollback_by_xid(
     handlerton *hton, /*!< in: InnoDB handlerton */
     XID *xid);        /*!< in: X/Open XA transaction
                       identification */
+/** Resolve an internal prepared transaction selected for rollback during
+transaction-coordinator recovery. DDL transactions are rolled back
+synchronously. DML transactions are durably changed from prepared to active
+and handed off to the InnoDB recovery rollback thread.
+@param[in] hton InnoDB handlerton
+@param[in] xid  internal MySQL XID identifier
+@return XA_OK on synchronous rollback or successful handoff, XAER_NOTA if the
+XID is not found, or XAER_RMERR if synchronous rollback fails */
+static xa_status_code innobase_recover_rollback_by_xid(handlerton *hton,
+                                                       XID *xid);
 /** This function is used to write mark an X/Open XA distributed transaction
 as been prepared in the server transaction coordinator
 @param[in]     hton InnoDB handlerton
@@ -4115,6 +4134,17 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
 
 /** DDL crash recovery: process the records recovered from "log_ddl" table */
 static void innobase_post_recover() {
+  if (recovered_rollback_handoff_stats.transactions > 0) {
+    ib::info(ER_IB_MSG_1198)
+        << recovered_rollback_handoff_stats.transactions
+        << " recovered prepared transaction(s) which must be rolled back in"
+           " total "
+        << recovered_rollback_handoff_stats.rows_to_undo
+        << " row operations to undo. Changed their state from prepared to"
+           " active for background rollback";
+    recovered_rollback_handoff_stats = {};
+  }
+
   if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
     DBUG_EXECUTE_IF("DDL_Log_remove_inject_startup_error_2",
                     srv_inject_too_many_concurrent_trxs = true;);
@@ -5467,6 +5497,7 @@ static int innodb_init(void *p) {
   innobase_hton->recover_prepared_in_tc = innobase_xa_recover_prepared_in_tc;
   innobase_hton->commit_by_xid = innobase_commit_by_xid;
   innobase_hton->rollback_by_xid = innobase_rollback_by_xid;
+  innobase_hton->recover_rollback_by_xid = innobase_recover_rollback_by_xid;
   innobase_hton->set_prepared_in_tc = innobase_set_prepared_in_tc;
   innobase_hton->set_prepared_in_tc_by_xid = innobase_set_prepared_in_tc_by_xid;
   innobase_hton->create = innobase_create_handler;
@@ -20458,6 +20489,24 @@ static xa_status_code innobase_commit_by_xid(
   }
 }
 
+/** Roll back and release a prepared transaction.
+@param[in,out] trx transaction selected for rollback
+@return XA_OK or XAER_RMERR */
+static xa_status_code innobase_rollback_prepared_trx(trx_t *trx) {
+  int ret;
+  {
+    TrxInInnoDB trx_in_innodb(trx);
+
+    ret = innobase_rollback_trx(trx);
+  }
+
+  trx_deregister_from_2pc(trx);
+  ut_ad(!trx->will_lock);
+  trx_free_for_background(trx);
+
+  return (ret != 0 ? XAER_RMERR : XA_OK);
+}
+
 /** This function is used to rollback one X/Open XA distributed transaction
  which is in the prepared state
  @return 0 or error number */
@@ -20470,22 +20519,42 @@ static xa_status_code innobase_rollback_by_xid(
 
   trx_t *trx = trx_get_trx_by_xid(xid);
 
-  if (trx != nullptr) {
-    int ret;
-    {
-      TrxInInnoDB trx_in_innodb(trx);
+  return trx == nullptr ? XAER_NOTA : innobase_rollback_prepared_trx(trx);
+}
 
-      ret = innobase_rollback_trx(trx);
-    }
+static xa_status_code innobase_recover_rollback_by_xid(
+    handlerton *hton, /*!< in: InnoDB handlerton */
+    XID *xid)         /*!< in: X/Open XA transaction identification */
+{
+  assert(hton == innodb_hton_ptr);
 
-    trx_deregister_from_2pc(trx);
-    ut_ad(!trx->will_lock);
-    trx_free_for_background(trx);
+  /*
+    trx_get_trx_by_xid() sets trx's xid to null. Thus only one call for any
+    given XID can find the transaction. Subsequent calls by other threads
+    would return nullptr. That is what guarantees that no other thread can be
+    modifying the state of the transaction at this point.
+  */
+  trx_t *trx = trx_get_trx_by_xid(xid);
 
-    return (ret != 0 ? XAER_RMERR : XA_OK);
-  } else {
-    return (XAER_NOTA);
+  if (trx == nullptr) {
+    return XAER_NOTA;
   }
+
+  /* TC recovery runs after InnoDB redo recovery has finished, so the recovered
+  transaction itself is the appropriate recovery-context invariant. */
+  ut_ad(trx->is_recovered);
+  ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
+
+  if (trx->ddl_operation) {
+    return innobase_rollback_prepared_trx(trx);
+  }
+
+  const undo_no_t rows_to_undo = trx->undo_no;
+  trx_schedule_recovered_for_rollback(trx);
+  ++recovered_rollback_handoff_stats.transactions;
+  recovered_rollback_handoff_stats.rows_to_undo += rows_to_undo;
+
+  return XA_OK;
 }
 
 static int innobase_set_prepared_in_tc(handlerton *hton, THD *thd) {

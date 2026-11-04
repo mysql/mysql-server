@@ -98,6 +98,7 @@ class Rpl_info_table : public Rpl_info_handler {
   int do_init_info(uint instance) override;
   int do_init_info(enum_find_method method, uint instance);
   enum_return_check do_check_info() override;
+  enum_return_check do_check_info_with_error(int *handler_error) override;
   enum_return_check do_check_info(uint instance) override;
   void do_end_info() override;
 

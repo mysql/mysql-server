@@ -79,13 +79,17 @@ class Rpl_info_handler {
     depend on other components (e.g. mutexes) should be placed in the
     object's constructor though.
 
-    @retval false success,
-    @retval true  otherwise error.
+    @retval 0        Success.
+    @retval non-zero Error; table repositories may return a storage-engine
+                      error code.
   */
   int init_info() { return do_init_info(); }
 
   /**
     Checks the repository's status.
+
+    @param[out] handler_error Storage-engine error returned while checking the
+                              repository, or zero if none. May be null.
 
     @retval REPOSITORY_EXISTS         reposistory is ready to
                                       be used.
@@ -94,7 +98,9 @@ class Rpl_info_handler {
     @retval ERROR_CHECKING_REPOSITORY error while checking the
                                       reposistory.
   */
-  enum_return_check check_info() { return do_check_info(); }
+  enum_return_check check_info(int *handler_error = nullptr) {
+    return do_check_info_with_error(handler_error);
+  }
 
   /**
     Flushes and syncs in-memory information into a stable storage (i.e.
@@ -399,6 +405,10 @@ class Rpl_info_handler {
   virtual int do_init_info() = 0;
   virtual int do_init_info(uint instance) = 0;
   virtual enum_return_check do_check_info() = 0;
+  virtual enum_return_check do_check_info_with_error(int *handler_error) {
+    if (handler_error != nullptr) *handler_error = 0;
+    return do_check_info();
+  }
   virtual enum_return_check do_check_info(uint instance) = 0;
   virtual int do_flush_info(const bool force) = 0;
   virtual int do_remove_info() = 0;

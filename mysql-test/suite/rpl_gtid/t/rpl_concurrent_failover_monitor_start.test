@@ -1,0 +1,76 @@
+# Both channels reach shared monitor startup before either can launch it.
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--let $use_gtids= 1
+--let $rpl_server_count= 3
+--source include/rpl/init_source_replica.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
+--disable_query_log
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'second'
+--enable_query_log
+--let $rpl_connection_name= second_control
+--let $rpl_server_number= 2
+--source include/rpl/connect.inc
+--connection slave
+SET DEBUG_SYNC='before_start_failover_monitor SIGNAL first_ready WAIT_FOR launch_first';
+--send START REPLICA IO_THREAD FOR CHANNEL ''
+--connection second_control
+SET DEBUG_SYNC='now WAIT_FOR first_ready';
+SET DEBUG_SYNC='before_start_failover_monitor SIGNAL second_ready WAIT_FOR launch_second';
+--send START REPLICA IO_THREAD FOR CHANNEL 'second'
+--let $rpl_connection_name= monitor_control
+--source include/rpl/connect.inc
+--connection monitor_control
+SET DEBUG_SYNC='now WAIT_FOR second_ready';
+SET DEBUG_SYNC='now SIGNAL launch_first';
+SET DEBUG_SYNC='now SIGNAL launch_second';
+--connection slave
+--reap
+--connection second_control
+--reap
+--connection monitor_control
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_connection_status WHERE SERVICE_STATE='ON'
+--source include/wait_condition.inc
+SELECT COUNT(*) FROM performance_schema.threads WHERE NAME='thread/sql/replica_monitor';
+SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE SERVICE_STATE='ON';
+STOP REPLICA IO_THREAD FOR CHANNEL 'second';
+STOP REPLICA IO_THREAD FOR CHANNEL '';
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME='thread/sql/replica_monitor'
+--source include/wait_condition.inc
+--echo #
+--echo # START must not reuse a monitor that another channel is stopping.
+--echo #
+--connection slave
+START REPLICA IO_THREAD FOR CHANNEL '';
+SET DEBUG_SYNC='after_deciding_to_stop_failover_monitor SIGNAL stop_decided WAIT_FOR finish_stop';
+--send STOP REPLICA IO_THREAD FOR CHANNEL ''
+--connection second_control
+SET DEBUG_SYNC='now WAIT_FOR stop_decided';
+SET DEBUG_SYNC='before_start_failover_monitor SIGNAL restart_ready';
+--send START REPLICA IO_THREAD FOR CHANNEL 'second'
+--connection monitor_control
+SET DEBUG_SYNC='now WAIT_FOR restart_ready';
+SET DEBUG_SYNC='now SIGNAL finish_stop';
+--connection slave
+--reap
+--connection second_control
+--reap
+--connection monitor_control
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE SERVICE_STATE='ON'
+--source include/wait_condition.inc
+SELECT COUNT(*) FROM performance_schema.threads WHERE NAME='thread/sql/replica_monitor';
+SELECT CHANNEL_NAME, SERVICE_STATE FROM performance_schema.replication_connection_status ORDER BY CHANNEL_NAME;
+STOP REPLICA IO_THREAD FOR CHANNEL 'second';
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE NAME='thread/sql/replica_monitor'
+--source include/wait_condition.inc
+RESET REPLICA ALL FOR CHANNEL 'second';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+SET DEBUG_SYNC='RESET';
+--disconnect second_control
+--disconnect monitor_control
+--connection slave
+SET DEBUG_SYNC='RESET';
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

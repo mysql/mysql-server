@@ -1,0 +1,299 @@
+# Verify that a replica can start while crash recovery rolls back a prepared
+# applier transaction in the background. With GTID_ONLY=0, the transaction can
+# retain a record lock on mysql.slave_worker_info. Worker initialization must
+# retry a lock wait timeout until recovery rollback has released that lock,
+# STOP REPLICA is requested, or the server shuts down.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+--let $rpl_gtid_only= 0
+--source include/rpl/init_source_replica.inc
+
+# Make every parallel worker checkpoint update durable so that the prepared
+# applier transaction is guaranteed to modify mysql.slave_worker_info.
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--let $sysvars_to_save = [ "GLOBAL.replica_parallel_workers", "GLOBAL.sync_relay_log_info" ]
+--source include/save_sysvars.inc
+SET GLOBAL replica_parallel_workers = 4;
+SET GLOBAL sync_relay_log_info = 1;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 1);
+--source include/rpl/sync_to_replica.inc
+
+--echo #
+--echo # Test 1: STOP REPLICA cancels the worker repository retry
+--echo #
+
+# Crash the replica after InnoDB has prepared and flushed both the row change
+# and its mysql.slave_worker_info update, but before the transaction is written
+# to the replica's binary log.
+--source include/rpl/connection_replica.inc
+--source include/expect_crash.inc
+--disable_query_log
+SET GLOBAL debug = '+d,crash_after_flush_engine_log';
+--enable_query_log
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (2, 2);
+--source include/rpl/connection_replica.inc
+--source include/wait_until_disconnected.inc
+
+# Keep the recovered transaction and its record locks alive while the applier
+# starts automatically. Server startup must complete even though worker
+# initialization has to retry the repository read.
+--let $restart_parameters= restart: --skip-replica-start=0 --innodb-lock-wait-timeout=1 --debug=d,wait_in_recv_rollback
+--source include/start_mysqld.inc
+--source include/rpl/reconnect.inc
+
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.innodb_trx WHERE trx_state = 'ROLLING BACK'
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= rollback_control
+--let $rpl_server_number= 2
+--source include/rpl/connect.inc
+
+# Waiting for the row lock proves that the automatically started coordinator
+# reached the worker repository read after server startup completed.
+--connection rollback_control
+--let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.data_lock_waits AS w JOIN performance_schema.data_locks AS l ON l.ENGINE_LOCK_ID = w.REQUESTING_ENGINE_LOCK_ID AND l.ENGINE = w.ENGINE WHERE l.OBJECT_SCHEMA = 'mysql' AND l.OBJECT_NAME = 'slave_worker_info'
+--source include/wait_condition.inc
+
+# STOP REPLICA must cancel the automatically started coordinator's otherwise
+# unbounded retry loop after the current one-second lock wait returns.
+--source include/save_error_log_position.inc
+# The coordinator may observe pending_stop_requests and exit before STOP
+# REPLICA checks whether the SQL thread is still running. Suppress the valid
+# ER_REPLICA_CHANNEL_WAS_NOT_RUNNING note from that race.
+--disable_warnings ER_REPLICA_CHANNEL_WAS_NOT_RUNNING ONCE
+STOP REPLICA SQL_THREAD;
+
+# All initialization layers report the failure. pending_stop_requests only
+# terminates the timeout retry; it does not suppress error reporting.
+--let $error_pattern = Error reading replica worker configuration\nError creating applier metadata: Failed to create the worker metadata repository structure\nFailed during replica worker thread creation for channel ''\nFailed during replica workers initialization
+--source include/assert_error_log.inc
+
+# Repeat the check for an explicit START REPLICA. The row-lock wait identifies
+# this new coordinator.
+--connection slave
+--send START REPLICA
+--connection rollback_control
+--let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.data_lock_waits AS w JOIN performance_schema.data_locks AS l ON l.ENGINE_LOCK_ID = w.REQUESTING_ENGINE_LOCK_ID AND l.ENGINE = w.ENGINE WHERE l.OBJECT_SCHEMA = 'mysql' AND l.OBJECT_NAME = 'slave_worker_info'
+--source include/wait_condition.inc
+--source include/save_error_log_position.inc
+--disable_warnings ER_REPLICA_CHANNEL_WAS_NOT_RUNNING ONCE
+STOP REPLICA SQL_THREAD;
+--connection slave
+--reap
+--let $error_pattern = Error reading replica worker configuration\nError creating applier metadata: Failed to create the worker metadata repository structure\nFailed during replica worker thread creation for channel ''\nFailed during replica workers initialization
+--source include/assert_error_log.inc
+
+# Finish the recovered transaction so the next scenario starts with a normally
+# running applier and no locks inherited from this scenario.
+--connection slave
+--disable_query_log
+SET GLOBAL debug = '-d,wait_in_recv_rollback';
+--enable_query_log
+--let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.innodb_trx
+--source include/wait_condition.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+SELECT * FROM t1 ORDER BY id;
+--disconnect rollback_control
+
+--echo #
+--echo # Test 2: Server shutdown cancels the worker repository retry
+--echo #
+
+# Create an independent recovered prepared transaction for the shutdown case.
+--source include/expect_crash.inc
+--disable_query_log
+SET GLOBAL debug = '+d,crash_after_flush_engine_log';
+--enable_query_log
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (3, 3);
+--source include/rpl/connection_replica.inc
+--source include/wait_until_disconnected.inc
+
+--let $restart_parameters= restart: --skip-replica-start --innodb-lock-wait-timeout=1 --debug=d,wait_in_recv_rollback
+--source include/start_mysqld.inc
+--source include/rpl/reconnect.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.innodb_trx WHERE trx_state = 'ROLLING BACK'
+--source include/wait_condition.inc
+
+# Start while the recovered transaction still owns the worker-info lock.
+--send START REPLICA
+--let $rpl_connection_name= shutdown_control
+--let $rpl_server_number= 2
+--source include/rpl/connect.inc
+--connection shutdown_control
+--let $wait_condition= SELECT COUNT(*) > 0 FROM performance_schema.data_lock_waits AS w JOIN performance_schema.data_locks AS l ON l.ENGINE_LOCK_ID = w.REQUESTING_ENGINE_LOCK_ID AND l.ENGINE = w.ENGINE WHERE l.OBJECT_SCHEMA = 'mysql' AND l.OBJECT_NAME = 'slave_worker_info'
+--source include/wait_condition.inc
+
+SELECT COUNT(*) FROM information_schema.innodb_trx
+WHERE trx_state = 'ROLLING BACK';
+
+# A normal shutdown must not hang on the coordinator's repository retry.
+--source include/save_error_log_position.inc
+--let $rpl_server_number= 2
+--source include/rpl/stop_server.inc
+--connection slave
+--error 0,CR_SERVER_LOST,ER_SERVER_SHUTDOWN
+--reap
+
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--let $restart_parameters= restart: --skip-replica-start --innodb-lock-wait-timeout=1
+--source include/start_mysqld.inc
+--let $rpl_server_number= 2
+--source include/rpl/reconnect.inc
+--let $error_pattern = Error reading replica worker configuration\nError creating applier metadata: Failed to create the worker metadata repository structure\nFailed during replica worker thread creation for channel ''\nFailed during replica workers initialization\nError writing source configuration
+--source include/assert_error_log.inc
+
+# Recovery rollback completed during shutdown or restart, so the applier can
+# start normally and reapply the transaction absent from its binary log.
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/wait_for_replica_to_start.inc
+
+# The transaction that was absent from the replica binlog must be received and
+# applied again without another manual START REPLICA.
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+SELECT * FROM t1 ORDER BY id;
+--disconnect shutdown_control
+
+--echo #
+--echo # Test 3: Worker initialization succeeds after recovery rollback
+--echo #
+
+# Create another recovered prepared transaction. This time, after observing a
+# worker repository lock timeout, let recovery rollback finish and verify that
+# the same coordinator retry succeeds without another START REPLICA command.
+# A full rollback requested on timeout must also be completed before init_replica.
+--source include/rpl/connection_replica.inc
+--source include/expect_crash.inc
+--disable_query_log
+SET GLOBAL debug = '+d,crash_after_flush_engine_log';
+--enable_query_log
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (4, 4);
+--source include/rpl/connection_replica.inc
+--source include/wait_until_disconnected.inc
+
+--let $restart_parameters= restart: --skip-replica-start --innodb-lock-wait-timeout=1 --innodb-rollback-on-timeout=ON --debug=d,wait_in_recv_rollback
+--source include/start_mysqld.inc
+--source include/rpl/reconnect.inc
+--disable_query_log
+SET GLOBAL debug = '+d,sync_worker_info_lock_wait_timeout';
+SET GLOBAL init_replica = 'SET @retry_initialized=1';
+--enable_query_log
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.innodb_trx WHERE trx_state = 'ROLLING BACK'
+--source include/wait_condition.inc
+
+--send START REPLICA
+--let $rpl_connection_name= recovery_control
+--let $rpl_server_number= 2
+--source include/rpl/connect.inc
+--connection recovery_control
+--disable_query_log
+SET DEBUG_SYNC = 'now WAIT_FOR worker_info_lock_wait_timeout';
+SET GLOBAL debug = '-d,sync_worker_info_lock_wait_timeout';
+SET GLOBAL debug = '-d,wait_in_recv_rollback';
+--enable_query_log
+
+# After observing a repository timeout, let the recovered transaction finish
+# and release mysql.slave_worker_info. The pending START REPLICA must then
+# succeed through the coordinator's retry loop.
+--let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.innodb_trx
+--source include/wait_condition.inc
+--connection slave
+--reap
+--source include/rpl/wait_for_replica_to_start.inc
+
+# The retried initialization must apply both the transaction rolled back during
+# recovery and a new transaction received after the applier started normally.
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (5, 5);
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+SELECT * FROM t1 ORDER BY id;
+SET GLOBAL init_replica = '';
+--disconnect recovery_control
+
+--echo #
+--echo # Test 4: Automatic file-position gap recovery does not block startup
+--echo #
+
+# Unlike GTID auto-position, file-position replication must read the recovered
+# parallel-worker metadata to identify MTS gaps. Run the applier in that mode so
+# the crash below exercises mts_recovery_groups().
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (6, 6);
+--source include/rpl/sync_to_replica.inc
+
+# Leave another prepared applier transaction holding the worker-info row lock.
+--source include/rpl/connection_replica.inc
+--source include/expect_crash.inc
+--disable_query_log
+SET GLOBAL debug = '+d,crash_after_flush_engine_log';
+--enable_query_log
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (7, 7);
+--source include/rpl/connection_replica.inc
+--source include/wait_until_disconnected.inc
+
+# start_mysqld.inc must return while the recovered transaction is paused. The
+# automatically started coordinator, rather than the server startup thread,
+# performs MTS gap recovery and retries the blocked worker metadata read.
+--let $restart_parameters= restart: --skip-replica-start=0 --innodb-lock-wait-timeout=1 --debug=d,wait_in_recv_rollback,sync_worker_info_lock_wait_timeout
+--source include/start_mysqld.inc
+--source include/rpl/reconnect.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.innodb_trx WHERE trx_state = 'ROLLING BACK'
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= gap_recovery_control
+--let $rpl_server_number= 2
+--source include/rpl/connect.inc
+--connection gap_recovery_control
+--disable_query_log
+SET DEBUG_SYNC = 'now WAIT_FOR worker_info_lock_wait_timeout';
+SET GLOBAL debug = '-d,sync_worker_info_lock_wait_timeout';
+SET GLOBAL debug = '-d,wait_in_recv_rollback';
+--enable_query_log
+
+# Once rollback releases mysql.slave_worker_info, the same coordinator must
+# finish gap recovery and resume applying transactions without a manual START.
+--let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.innodb_trx
+--source include/wait_condition.inc
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (8, 8);
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+SELECT * FROM t1 ORDER BY id;
+--disconnect gap_recovery_control
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--source include/restore_sysvars.inc
+--let $rpl_skip_sync = 1
+--let $rpl_skip_stop_slave = 1
+--source include/rpl/deinit.inc

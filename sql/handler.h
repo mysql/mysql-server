@@ -1491,6 +1491,8 @@ typedef xa_status_code (*commit_by_xid_t)(handlerton *hton, XID *xid);
 
 typedef xa_status_code (*rollback_by_xid_t)(handlerton *hton, XID *xid);
 
+typedef xa_status_code (*recover_rollback_by_xid_t)(handlerton *hton, XID *xid);
+
 /**
   Instructs the storage engine to mark the externally coordinated
   transactions identified by the XID parameters as prepared in the server
@@ -2898,6 +2900,17 @@ struct handlerton {
   recover_prepared_in_tc_t recover_prepared_in_tc;
   commit_by_xid_t commit_by_xid;
   rollback_by_xid_t rollback_by_xid;
+  /*
+    recover_rollback_by_xid is optional. If set, it will be called instead of
+    rollback_by_xid when transactions should be rolled back at server startup.
+
+    This function should just change the transaction's state from prepared to
+    active before returning. The actual rollback should then happen
+    asynchronously, for example in a background thread. This way, rollbacks
+    that take a long time to complete will not block server startup, and the
+    database becomes available sooner to serve user queries.
+  */
+  recover_rollback_by_xid_t recover_rollback_by_xid;
   set_prepared_in_tc_t set_prepared_in_tc;
   set_prepared_in_tc_by_xid_t set_prepared_in_tc_by_xid;
   create_t create;
