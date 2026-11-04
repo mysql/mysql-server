@@ -7,12 +7,13 @@
 # helper polls the directory so tests can deterministically assert that spill
 # files are reclaimed after commit.
 #
-# The enclosing "#in_memory_relaylog_temp_files" directory itself persists and
-# is not removed by this check.
+# The enclosing "#in_memory_relaylog_temp_files.<leaf>" directory itself
+# persists and is not removed by this check.
 #
 # ==== Usage ====
 #
-# --let $spill_dir_to_check= /path/to/.../#in_memory_relaylog_temp_files
+# --let $spill_dir_to_check= /path/to/.../#in_memory_relaylog_temp_files.<leaf>
+#   (for example the $spill_dir set by include/rpl/get_imr_spill_dir.inc)
 # [--let $spill_wait_timeout= 30]   # seconds; default 30
 # --source include/rpl/wait_for_no_imr_spill_files.inc
 

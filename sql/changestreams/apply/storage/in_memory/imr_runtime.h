@@ -63,9 +63,9 @@ class Imr_runtime {
   /// @brief Build the runtime and its empty queue.
   ///
   /// @param config Validated configuration: memory limit and spill threshold.
-  /// @param relay_log_dir The server's relay log directory; spill files go to
-  ///        its @c \#in_memory_relaylog_temp_files subdirectory. Empty in unit
-  ///        tests that never spill.
+  /// @param relay_log_basename The server's relay_log_basename; spill files go
+  ///        to the spill directory derived from it (see
+  ///        spill_directory_path()). Empty in unit tests that never spill.
   /// @param memory_resource The channel's memory resource entry; nullptr when
   ///        resource tracking is off.
   /// @param channel_name Embedded in spill file names (see
@@ -75,12 +75,12 @@ class Imr_runtime {
   ///        so passed separately from @p config.
   /// @param channel_instance_id For the CSA statistics the commit hooks
   ///        update. 0 for unit tests.
-  Imr_runtime(const Imr_config &config, std::string relay_log_dir,
+  Imr_runtime(const Imr_config &config, std::string relay_log_basename,
               Resource_entry *memory_resource, std::string channel_name = {},
               Resource_entry *spill_disk_resource = nullptr,
               std::size_t channel_instance_id = 0)
       : m_queue(config.memory_limit, config.spill_threshold, memory_resource,
-                std::move(relay_log_dir), std::move(channel_name),
+                std::move(relay_log_basename), std::move(channel_name),
                 spill_disk_resource, channel_instance_id) {}
 
   /// @brief Destroy the runtime and its queue. Both roles must be detached and

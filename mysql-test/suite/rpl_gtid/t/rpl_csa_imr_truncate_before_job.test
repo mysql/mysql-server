@@ -73,7 +73,7 @@ CHANGE REPLICATION SOURCE TO
   IN_MEMORY_RELAYLOG_ENABLED = ON,
   IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608,
   SOURCE_CONNECT_RETRY = 1;
---let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/get_imr_spill_dir.inc
 --source include/rpl/start_replica.inc
 --source include/rpl/connection_source.inc
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);

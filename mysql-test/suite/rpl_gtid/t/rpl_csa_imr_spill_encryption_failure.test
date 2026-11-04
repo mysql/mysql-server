@@ -88,7 +88,8 @@ CALL mtr.add_suppression("The replica coordinator and worker threads are stopped
 CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
 CALL mtr.add_suppression("Error running query, replica SQL thread aborted");
 
---let $sef_spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/get_imr_spill_dir.inc
+--let $sef_spill_dir= $spill_dir
 --let $sef_marker= IMR_SPILL_ENCRYPTION_MARKER
 
 --source include/rpl/connection_source.inc

@@ -123,9 +123,11 @@ bool is_closed(const Open_group &group) {
 constexpr std::size_t kSpillTrxLength = kSpillThreshold + 1;
 
 /// RAII private "relay log directory" for the spill-path tests; removed on
-/// scope exit (with the spill files and temp-files subdir under it).
+/// scope exit (with the spill files and spill directory under it).
 struct Scoped_temp_dir {
   std::string path;
+  /// The relay log basename "<path>/relay-bin" that the queue is given.
+  std::string relay_log_basename;
   Scoped_temp_dir() {
     static std::atomic<unsigned> counter{0};
     path = (std::filesystem::temp_directory_path() /
@@ -136,7 +138,8 @@ struct Scoped_temp_dir {
     // The spill-files subdirectory is provisioned once at server start by
     // ensure_spill_directory() (from init_replica). This harness bypasses
     // server startup, so provision it here through the same entry point.
-    (void)ensure_spill_directory(path);
+    relay_log_basename = (std::filesystem::path(path) / "relay-bin").string();
+    (void)ensure_spill_directory(relay_log_basename);
   }
   ~Scoped_temp_dir() {
     std::error_code ec;
@@ -957,7 +960,8 @@ TEST(QueuedTransactionWriterTest, TruncateSweepThenCommitSkipsEnvelope) {
 TEST(QueuedTransactionWriterTest, SpillTruncateSweepThenCommitSkipsEnvelope) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   resume_both_roles(queue);
 
   Open_group group;
@@ -1043,7 +1047,8 @@ TEST(QueuedTransactionWriterTest, TruncationSurvivesConsumerReset) {
 TEST(QueuedTransactionWriterTest, SpillTruncationSurvivesConsumerReset) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   resume_both_roles(queue);
   expect_truncation_survives_reset(queue, kSpillTrxLength);
   EXPECT_EQ(queue.spill_file_count(), 0u);
@@ -1057,7 +1062,8 @@ TEST(QueuedTransactionWriterTest, SpillTruncationSurvivesConsumerReset) {
 TEST(QueuedTransactionWriterTest, SpillSkipMidStreamKeepsFileUntilTerminal) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   resume_both_roles(queue);
 
   Open_group group;
@@ -1111,7 +1117,7 @@ TEST(QueuedTransactionWriterTest, SpillSkipMidStreamKeepsFileUntilTerminal) {
 // failure with the group closed, and the envelope it enqueued (truncated by
 // validate_payload()) is released and reclaimable.
 TEST(QueuedTransactionWriterTest, ProvisioningFailureReleasesEnvelope) {
-  // No relay-log directory, so the spill writer cannot create its file.
+  // No relay log basename, so the spill writer cannot create its file.
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
                            test_memory_resource(kMemoryLimit));
   resume_both_roles(queue);
@@ -1145,7 +1151,8 @@ TEST(QueuedTransactionWriterTest, ProvisioningFailureReleasesEnvelope) {
 TEST(QueuedTransactionWriterTest, AppendFailureFillsReason) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   resume_both_roles(queue);
 
   Open_group group;

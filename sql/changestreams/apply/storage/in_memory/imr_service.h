@@ -198,13 +198,14 @@ class Imr_service {
   /// channel configuration is loaded and before any receiver can spill.
   ///
   /// Purges orphan spill files (prefix @c imr_sp_, non-recursive; a missing
-  /// directory is not an error) from the server's single spill directory under
-  /// the relay_log_basename directory, then ensures that directory exists,
-  /// whether or not any channel selects IMR. If the purge cannot list the
-  /// directory or delete a stale file, spill_cleanup_failed() becomes true; if
-  /// the directory is unusable, spill_dir_unusable() does. Either way the cause
-  /// is logged and START of an IMR channel is rejected until the server is
-  /// restarted with the problem fixed. The server itself still starts.
+  /// directory is not an error) from the server's spill directory, which
+  /// spill_directory_path() derives from relay_log_basename, then ensures that
+  /// directory exists, whether or not any channel selects IMR. If the purge
+  /// cannot list the directory or delete a stale file, spill_cleanup_failed()
+  /// becomes true; if the directory is unusable, spill_dir_unusable() does.
+  /// Either way the cause is logged and START of an IMR channel is rejected
+  /// until the server is restarted with the problem fixed. The server itself
+  /// still starts.
   ///
   /// The caller must hold channel_map's write lock (init_replica() does).
   void init_spill_storage();

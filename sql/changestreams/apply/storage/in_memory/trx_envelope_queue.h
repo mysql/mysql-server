@@ -69,9 +69,10 @@ class Trx_envelope_queue {
   ///        (IN_MEMORY_RELAYLOG_LIMIT).
   /// @param spill_threshold Transactions larger than this take the spill path
   ///        (IN_MEMORY_RELAYLOG_SPILL_THRESHOLD).
-  /// @param relay_log_dir The server's relay log directory; spill files go in
-  ///        its @c \#in_memory_relaylog_temp_files subdirectory. Empty only
-  ///        for callers that never spill (memory-only unit tests).
+  /// @param relay_log_basename The server's relay_log_basename; spill files go
+  ///        in the spill directory derived from it (see
+  ///        spill_directory_path()). Empty only for callers that never spill
+  ///        (memory-only unit tests).
   /// @param channel_name The owning channel's name, embedded in spill file
   ///        names (see Spill_file_writer::kFileNamePrefix).
   /// @param spill_disk_resource The channel's @c in_memory_relaylog_spill_disk
@@ -87,7 +88,7 @@ class Trx_envelope_queue {
   ///        hook to count the transaction in CSA statistics. 0 for unit tests.
   Trx_envelope_queue(std::size_t memory_limit, std::size_t spill_threshold,
                      Resource_entry *memory_resource,
-                     std::string relay_log_dir = {},
+                     std::string relay_log_basename = {},
                      std::string channel_name = {},
                      Resource_entry *spill_disk_resource = nullptr,
                      std::size_t channel_instance_id = 0);
@@ -298,9 +299,9 @@ class Trx_envelope_queue {
   /// @brief The per-channel spill threshold. Immutable.
   std::size_t spill_threshold() const { return m_spill_threshold; }
 
-  /// @brief The server's relay log directory, parent of the spill directory.
+  /// @brief The server's relay log basename, which names the spill directory.
   /// Immutable; empty when none was supplied.
-  const std::string &relay_log_dir() const { return m_relay_log_dir; }
+  const std::string &relay_log_basename() const { return m_relay_log_basename; }
 
   /// @brief The owning channel's name, used in spill file names. Immutable;
   /// empty for the default channel.
@@ -407,8 +408,8 @@ class Trx_envelope_queue {
   const std::size_t m_memory_limit;
   /// Size above which a trx spills to disk.
   const std::size_t m_spill_threshold;
-  /// Channel relay log dir (spill file parent).
-  const std::string m_relay_log_dir;
+  /// Server relay log basename (names the spill directory).
+  const std::string m_relay_log_basename;
   /// Owning channel name (spill file name part).
   const std::string m_channel_name;
   /// The channel's memory entry; nullptr when tracking is off. Held directly

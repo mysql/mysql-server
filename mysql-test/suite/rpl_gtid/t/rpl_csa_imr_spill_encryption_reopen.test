@@ -75,7 +75,8 @@ SET @@GLOBAL.replica_transaction_retries = 50;
 SET @@GLOBAL.innodb_lock_wait_timeout = 5;
 --source include/rpl/start_replica.inc
 
---let $sef_spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/get_imr_spill_dir.inc
+--let $sef_spill_dir= $spill_dir
 --let $sef_marker= IMR_SPILL_ENCRYPTION_MARKER
 --let $key_1= `SELECT CONCAT('MySQLReplicationKey_', @@GLOBAL.server_uuid, '_1')`
 

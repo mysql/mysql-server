@@ -74,7 +74,7 @@ CALL mtr.add_suppression("Change Stream Applier channel stopped because of error
 # The spill reader verifies the event checksum, which the shortened event
 # fails.
 CALL mtr.add_suppression("Relay log read failure: Error reading Log_event at position [0-9]+: Failed decoding event: Event crc check failed");
---let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/get_imr_spill_dir.inc
 INSTALL COMPONENT 'file://component_replication_applier_metrics';
 --source include/rpl/start_replica.inc
 --source include/rpl/connection_source.inc

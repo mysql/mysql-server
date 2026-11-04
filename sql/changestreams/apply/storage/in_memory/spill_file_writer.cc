@@ -57,12 +57,13 @@ std::atomic<std::uint64_t> g_spill_seq{0};
 
 }  // namespace
 
-Spill_file_writer::Spill_file_writer(Fde_ptr fde, std::string relay_log_dir,
+Spill_file_writer::Spill_file_writer(Fde_ptr fde,
+                                     std::string relay_log_basename,
                                      std::string channel_name,
                                      Trx_envelope_queue *owner_queue,
                                      std::size_t reserved_disk_bytes)
     : m_fde(std::move(fde)),
-      m_relay_log_dir(std::move(relay_log_dir)),
+      m_relay_log_basename(std::move(relay_log_basename)),
       m_channel_name(std::move(channel_name)),
       m_owner_queue(owner_queue),
       m_reserved_disk_bytes(reserved_disk_bytes) {}
@@ -139,13 +140,13 @@ bool Spill_file_writer::open() {
     return true;
   });
 
-  if (m_relay_log_dir.empty()) {
-    m_error.assign("Spill_file_writer: empty relay log directory");
+  if (m_relay_log_basename.empty()) {
+    m_error.assign("Spill_file_writer: empty relay log basename");
     return true;
   }
 
   // Created once at server startup by Imr_service::init_spill_storage().
-  m_temp_dir = spill_directory_path(m_relay_log_dir);
+  m_temp_dir = spill_directory_path(m_relay_log_basename);
 
   // Create a uniquely named "imr_sp_[<channel>_]<unique_id>" file there.
   if (create_unique_file()) {

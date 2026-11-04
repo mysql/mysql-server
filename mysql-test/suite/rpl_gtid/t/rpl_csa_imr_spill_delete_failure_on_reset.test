@@ -63,8 +63,7 @@ CHANGE REPLICATION SOURCE TO
   IN_MEMORY_RELAYLOG_ENABLED = ON,
   IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
 
-# <relay-log dir>/#in_memory_relaylog_temp_files
---let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/get_imr_spill_dir.inc
 INSTALL COMPONENT 'file://component_replication_applier_metrics';
 --source include/rpl/start_replica.inc
 
@@ -135,7 +134,7 @@ COMMIT;
 # R1: the failed delete is logged as a warning naming the file and the error.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_spill_delete_failure_on_reset
---let $assert_select= \[Warning\] .*\[In-memory relay log\] could not delete spill file '.*#in_memory_relaylog_temp_files/imr_sp_[0-9a-f]+' \(errno 13 - .*\); it is left for the purge at the next server start
+--let $assert_select= \[Warning\] .*\[In-memory relay log\] could not delete spill file '.*#in_memory_relaylog_temp_files\.slave-relay-bin/imr_sp_[0-9a-f]+' \(errno 13 - .*\); it is left for the purge at the next server start
 --let $assert_count= 1
 --let $assert_text= The reset-time failed delete is logged with the file and the error
 --source include/assert_grep.inc

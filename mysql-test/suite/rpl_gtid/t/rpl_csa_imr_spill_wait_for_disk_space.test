@@ -71,7 +71,7 @@ CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk bef
 
 INSTALL COMPONENT 'file://component_replication_applier_metrics';
 
---let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/get_imr_spill_dir.inc
 
 --source include/rpl/start_replica.inc
 

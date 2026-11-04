@@ -33,7 +33,7 @@
 #include "my_dbug.h"  // DBUG_EVALUATE_IF
 #include "my_dir.h"   // my_dir, my_dirend, my_stat, MY_S_ISDIR, MY_DONT_SORT
 #include "my_io.h"    // FN_LIBCHAR, MYSYS_STRERROR_SIZE, R_OK, W_OK
-#include "my_sys.h"   // my_delete, my_errno, my_access, my_is_symlink
+#include "my_sys.h"  // my_delete, my_errno, my_access, my_is_symlink, dirname_length
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/my_loglevel.h"                       // ERROR_LEVEL
 #include "mysqld_error.h"  // ER_LOG_PRINTF_MSG, ER_BINLOG_CANT_DELETE_FILE
@@ -59,15 +59,23 @@ std::string join_path(const std::string &dir, const std::string &leaf) {
   return dir + FN_LIBCHAR + leaf;
 }
 
-std::string spill_directory_path(const std::string &relay_log_dir) {
-  if (relay_log_dir.empty()) return {};
-  return join_path(relay_log_dir, Spill_file_writer::kTempSubdirName);
+std::string spill_directory_path(const std::string &relay_log_basename) {
+  if (relay_log_basename.empty()) return {};
+  // dirname_length() keeps the trailing separator, so no join_path() is
+  // needed. The leaf has no '.': rpl_make_log_name() cuts the name at its
+  // first '.', so '.' cannot be confused with part of the basename.
+  const std::size_t dir_length = dirname_length(relay_log_basename.c_str());
+  std::string path = relay_log_basename.substr(0, dir_length);
+  path += Spill_file_writer::kTempSubdirName;
+  path += '.';
+  path += relay_log_basename.substr(dir_length);
+  return path;
 }
 
-bool ensure_spill_directory(const std::string &relay_log_dir) {
-  const std::string dir = spill_directory_path(relay_log_dir);
-  // No relay log directory is known for this channel yet, so there is no spill
-  // directory to create. Not an error.
+bool ensure_spill_directory(const std::string &relay_log_basename) {
+  const std::string dir = spill_directory_path(relay_log_basename);
+  // No relay log basename is known yet, so there is no spill directory to
+  // create. Not an error.
   if (dir.empty()) return false;
 
   // Log why the path cannot hold spill files and report it.
@@ -106,10 +114,9 @@ bool ensure_spill_directory(const std::string &relay_log_dir) {
   return false;
 }
 
-bool purge_orphan_spill_files(const std::string &relay_log_dir) {
-  const std::string dir = spill_directory_path(relay_log_dir);
-  // No relay log directory is known for this channel yet, so it cannot own a
-  // spill directory.
+bool purge_orphan_spill_files(const std::string &relay_log_basename) {
+  const std::string dir = spill_directory_path(relay_log_basename);
+  // No relay log basename is known yet, so there is no spill directory.
   if (dir.empty()) return false;
   // Never purge through a symlink; ensure_spill_directory() rejects it.
   if (my_is_symlink(dir.c_str(), nullptr)) return false;

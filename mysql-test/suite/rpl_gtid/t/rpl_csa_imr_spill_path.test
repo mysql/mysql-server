@@ -10,9 +10,10 @@
 #
 # R1. A transaction whose size exceeds IN_MEMORY_RELAYLOG_SPILL_THRESHOLD takes
 #     the spill path.
-# R2. The spill store is a dedicated "#in_memory_relaylog_temp_files"
-#     subdirectory under the channel's relay-log directory, one self-contained
-#     "imr_sp_<id>" file per transaction.
+# R2. The spill store is a dedicated
+#     "#in_memory_relaylog_temp_files.<relay log basename>" subdirectory of the
+#     relay-log directory, one self-contained "imr_sp_<id>" file per
+#     transaction.
 # R3. The spill file persists while the transaction is uncommitted and is
 #     deleted once the transaction commits.
 # R4. A mixed small (memory-path) + large (spill-path) workload replicates
@@ -57,9 +58,7 @@ CHANGE REPLICATION SOURCE TO
   IN_MEMORY_RELAYLOG_ENABLED = ON,
   IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
 
-# Derive the spill directory from the channel's relay-log path:
-#   <relay-log dir>/#in_memory_relaylog_temp_files
---let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/get_imr_spill_dir.inc
 
 --source include/rpl/start_replica.inc
 
@@ -98,7 +97,7 @@ COMMIT;
 
 # R5: the spill directory, here in the data directory, is not a schema.
 --let $assert_text= R5: the spill directory is in the data directory
---let $assert_cond= "$spill_dir" = CONCAT(@@GLOBAL.datadir, "#in_memory_relaylog_temp_files")
+--let $assert_cond= "$spill_dir" = CONCAT(@@GLOBAL.datadir, "#in_memory_relaylog_temp_files.slave-relay-bin")
 --source include/assert.inc
 --let $assert_text= R5: information_schema.SCHEMATA does not list the spill directory
 --let $assert_cond= [SELECT COUNT(*) AS count FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE "%in\\_memory\\_relaylog\\_temp\\_files%", count, 1] = 0

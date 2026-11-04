@@ -26,8 +26,9 @@
 
 // =============================================================================
 // Directory-level operations for the in-memory relay log's spill store: the
-// Spill_file_writer::kTempSubdirName subdirectory of the relay log directory.
-// Spill_file_writer owns the files; this module owns the directory.
+// server's spill directory, named after relay_log_basename (see
+// spill_directory_path()). Spill_file_writer owns the files; this module owns
+// the directory.
 // =============================================================================
 
 #include <string>
@@ -38,28 +39,36 @@ namespace mysql::csa {
 /// double separator when @p dir already ends with one.
 std::string join_path(const std::string &dir, const std::string &leaf);
 
-/// @brief Full path of the spill-file subdirectory for a channel.
+/// @brief Full path of the server's spill-file directory.
 ///
-/// @param relay_log_dir A relay log directory, with or without a trailing
-///        separator.
-/// @return @p relay_log_dir joined with Spill_file_writer::kTempSubdirName, or
-///         an empty string when @p relay_log_dir is empty.
-std::string spill_directory_path(const std::string &relay_log_dir);
+/// The directory sits next to the relay log files and is named after the
+/// file-name part of the relay log basename, so servers that share a relay
+/// log directory with different basenames do not share spill files:
+/// "/logs/a-relay" gives "/logs/\#in_memory_relaylog_temp_files.a-relay".
+/// The '.' separator cannot occur in that part, because rpl_make_log_name()
+/// cuts the name at its first '.'.
+///
+/// @param relay_log_basename The server's relay_log_basename.
+/// @return The spill directory path, or an empty string when
+///         @p relay_log_basename is empty.
+std::string spill_directory_path(const std::string &relay_log_basename);
 
-/// @brief Create the spill-file subdirectory for a channel if it is absent.
+/// @brief Create the server's spill-file directory if it is absent.
 ///
 /// Called once at startup from Imr_service::init_spill_storage(), so failures
 /// surface at setup time, not mid-stream. An existing directory or an empty
-/// @p relay_log_dir is success. The path is unusable when it cannot be
+/// @p relay_log_basename is success. The path is unusable when it cannot be
 /// created, is a symbolic link, is not a directory, or lacks read, write and
 /// search permission. That is logged and returned; the caller then keeps
 /// in-memory relay log channels from starting, but the server starts.
 ///
-/// @param relay_log_dir The server's relay log directory.
+/// @param relay_log_basename The server's relay_log_basename; empty means
+///        nothing to do.
 /// @retval false The directory is usable (created now, already present, or
-///         nothing to do for an empty @p relay_log_dir).
+///         nothing to do for an empty @p relay_log_basename).
 /// @retval true  The directory is unusable (error logged).
-[[nodiscard]] bool ensure_spill_directory(const std::string &relay_log_dir);
+[[nodiscard]] bool ensure_spill_directory(
+    const std::string &relay_log_basename);
 
 /// @brief Delete stale spill files that a previous server run left behind.
 ///
@@ -74,11 +83,13 @@ std::string spill_directory_path(const std::string &relay_log_dir);
 /// as ER_BINLOG_CANT_DELETE_FILE and the purge goes on. Delete and listing
 /// failures are returned, so the caller keeps IMR channels from starting.
 ///
-/// @param relay_log_dir A relay log directory; empty means nothing to do.
+/// @param relay_log_basename The server's relay_log_basename; empty means
+///        nothing to do.
 /// @retval false Every stale spill file was deleted, or there was none.
 /// @retval true  The directory could not be listed, or at least one stale
 ///         spill file could not be deleted.
-[[nodiscard]] bool purge_orphan_spill_files(const std::string &relay_log_dir);
+[[nodiscard]] bool purge_orphan_spill_files(
+    const std::string &relay_log_basename);
 
 }  // namespace mysql::csa
 

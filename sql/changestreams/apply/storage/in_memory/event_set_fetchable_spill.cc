@@ -50,7 +50,7 @@ const std::string kEmptyString{};
 
 Event_set_fetchable_spill::Event_set_fetchable_spill(
     bool is_trx, Event_set_fetchable::Log_event_ptr fde,
-    std::string relay_log_dir, Transaction_envelope *owner_envelope,
+    std::string relay_log_basename, Transaction_envelope *owner_envelope,
     bool streaming_open, std::string channel_name,
     Trx_envelope_queue *owner_queue, std::size_t reserved_disk_bytes,
     std::size_t stats_instance_id, const std::atomic<bool> *applier_stop)
@@ -73,8 +73,8 @@ Event_set_fetchable_spill::Event_set_fetchable_spill(
   // The writer takes over the spill disk reservation at once, so it is
   // released with the file even if provisioning fails below.
   m_writer = std::make_unique<Spill_file_writer>(
-      std::move(typed_fde), std::move(relay_log_dir), std::move(channel_name),
-      owner_queue, reserved_disk_bytes);
+      std::move(typed_fde), std::move(relay_log_basename),
+      std::move(channel_name), owner_queue, reserved_disk_bytes);
   if (m_writer->open() || m_writer->flush()) {
     // Leave the stream closed so append_event() short-circuits. The receiver
     // sees the failure through has_io_error() (see

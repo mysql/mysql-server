@@ -51,8 +51,8 @@ CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
 --let $new_dir= $MYSQL_TMP_DIR/imr_relay_log_new
 --mkdir $old_dir
 --mkdir $new_dir
---let OLD_SPILL_DIR= $old_dir/#in_memory_relaylog_temp_files
---let NEW_SPILL_DIR= $new_dir/#in_memory_relaylog_temp_files
+--let OLD_SPILL_DIR= $old_dir/#in_memory_relaylog_temp_files.relay-bin
+--let NEW_SPILL_DIR= $new_dir/#in_memory_relaylog_temp_files.relay-bin
 --let $rpl_server_number= 2
 --let $rpl_omit_print_server_parameters= 1
 

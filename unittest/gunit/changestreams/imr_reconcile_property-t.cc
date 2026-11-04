@@ -47,14 +47,14 @@
 ///
 ///   - the runtime exists exactly when selection is ON and the channel is
 ///     CSA-enabled (want_runtime),
-///   - when it exists its queue bounds and spill directory equal the requested
-///     values, and
+///   - when it exists its queue bounds and relay log basename equal the
+///     requested values, and
 ///   - an unchanged configuration leaves the runtime object identity intact.
 ///
-/// The spill directory is fixed for the server's lifetime, so it is not treated
-/// as a changing dimension by reconcile; it is held constant
-/// here and covered separately only to confirm it participates in the
-/// bounds-match comparison.
+/// The relay log basename is fixed for the server's lifetime, so it is not
+/// treated as a changing dimension by reconcile; it is held constant here and
+/// covered separately only to confirm it participates in the bounds-match
+/// comparison.
 
 #include <gtest/gtest.h>
 
@@ -77,10 +77,10 @@ using Action = Imr_runtime::Reconcile_action;
 /// A requested per-channel configuration: the reconcile() inputs a channel
 /// supplies through its rli.
 struct Channel_config {
-  bool want{false};      ///< selection ON and CSA-enabled
-  std::size_t limit{0};  ///< IN_MEMORY_RELAYLOG_LIMIT
-  std::size_t spill{0};  ///< IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
-  std::string dir;       ///< relay-log-derived spill directory
+  bool want{false};                ///< selection ON and CSA-enabled
+  std::size_t limit{0};            ///< IN_MEMORY_RELAYLOG_LIMIT
+  std::size_t spill{0};            ///< IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
+  std::string relay_log_basename;  ///< server relay log basename
 };
 
 /// Mirror of Imr_service::reconcile()'s tail: decide via the production
@@ -93,9 +93,10 @@ struct Channel_config {
 void apply_reconcile(std::unique_ptr<Imr_runtime> &slot,
                      const Channel_config &c, bool fail_build = false) {
   const bool has = slot != nullptr;
-  const bool matches = has && slot->queue()->memory_limit() == c.limit &&
-                       slot->queue()->spill_threshold() == c.spill &&
-                       slot->queue()->relay_log_dir() == c.dir;
+  const bool matches =
+      has && slot->queue()->memory_limit() == c.limit &&
+      slot->queue()->spill_threshold() == c.spill &&
+      slot->queue()->relay_log_basename() == c.relay_log_basename;
 
   Imr_config cfg;
   cfg.memory_limit = c.limit;
@@ -111,7 +112,7 @@ void apply_reconcile(std::unique_ptr<Imr_runtime> &slot,
     case Action::kCreate: {
       slot.reset();  // a rebuild drops the old runtime first
       if (fail_build) throw std::bad_alloc();
-      slot = std::make_unique<Imr_runtime>(cfg, c.dir,
+      slot = std::make_unique<Imr_runtime>(cfg, c.relay_log_basename,
                                            /*memory_resource=*/nullptr);
       return;
     }
@@ -143,18 +144,19 @@ TEST(ImrReconcilePropertyTest, DecisionTableIsExhaustiveAndCorrect) {
   EXPECT_EQ(Imr_runtime::reconcile_action(true, true, false), Action::kRebuild);
 }
 
-// A runtime built from a config exposes exactly those bounds and spill
-// directory through its queue (the "bounds equal the requested values" half of
+// A runtime built from a config exposes exactly those bounds and relay log
+// basename through its queue (the "bounds equal the requested values" half of
 // the property, isolated).
 TEST(ImrReconcilePropertyTest, CreatePropagatesRequestedBounds) {
   Imr_config cfg;
   cfg.memory_limit = std::size_t{64} << 20;
   cfg.spill_threshold = std::size_t{8} << 20;
-  Imr_runtime imr(cfg, "/tmp/relay/", /*memory_resource=*/nullptr);
+  Imr_runtime imr(cfg, "/tmp/relay/relay-bin", /*memory_resource=*/nullptr);
 
   EXPECT_EQ(imr.queue()->memory_limit(), cfg.memory_limit);
   EXPECT_EQ(imr.queue()->spill_threshold(), cfg.spill_threshold);
-  EXPECT_EQ(imr.queue()->relay_log_dir(), std::string("/tmp/relay/"));
+  EXPECT_EQ(imr.queue()->relay_log_basename(),
+            std::string("/tmp/relay/relay-bin"));
 }
 
 // A rebuild drops the old runtime before it builds the replacement, so a
@@ -162,9 +164,9 @@ TEST(ImrReconcilePropertyTest, CreatePropagatesRequestedBounds) {
 // next reconcile with the same configuration then creates a runtime again.
 TEST(ImrReconcilePropertyTest, RebuildFailureLeavesNoRuntime) {
   const Channel_config old_cfg{true, std::size_t{128} << 20,
-                               std::size_t{16} << 20, "/tmp/relay/"};
+                               std::size_t{16} << 20, "/tmp/relay/relay-bin"};
   const Channel_config new_cfg{true, std::size_t{64} << 20,
-                               std::size_t{8} << 20, "/tmp/relay/"};
+                               std::size_t{8} << 20, "/tmp/relay/relay-bin"};
 
   std::unique_ptr<Imr_runtime> slot;
   apply_reconcile(slot, old_cfg);
@@ -195,7 +197,7 @@ TEST(ImrReconcilePropertyTest, RebuildFailureLeavesNoRuntime) {
 TEST(ImrReconcilePropertyTest, UnchangedConfigLeavesRuntimeIdentityIntact) {
   std::unique_ptr<Imr_runtime> slot;
   const Channel_config c{true, std::size_t{128} << 20, std::size_t{16} << 20,
-                         "/tmp/relay/"};
+                         "/tmp/relay/relay-bin"};
 
   apply_reconcile(slot, c);
   ASSERT_NE(slot, nullptr);
@@ -218,12 +220,14 @@ TEST(ImrReconcilePropertyTest, ConvergesOverRandomConfigSequences) {
   const std::size_t limits[] = {std::size_t{32} << 20, std::size_t{64} << 20,
                                 std::size_t{128} << 20, std::size_t{256} << 20};
   const std::size_t spills[] = {std::size_t{8} << 20, std::size_t{16} << 20};
-  const char *dirs[] = {"", "/tmp/a/", "/tmp/b/"};
+  // Two basenames in one directory: a basename change in the same directory
+  // is a mismatch too.
+  const char *basenames[] = {"", "/tmp/a/relay-bin", "/tmp/a/other-relay-bin"};
 
   std::uniform_int_distribution<int> want_dist(0, 1);
   std::uniform_int_distribution<std::size_t> limit_dist(0, 3);
   std::uniform_int_distribution<std::size_t> spill_dist(0, 1);
-  std::uniform_int_distribution<std::size_t> dir_dist(0, 2);
+  std::uniform_int_distribution<std::size_t> basename_dist(0, 2);
 
   std::unique_ptr<Imr_runtime> slot;
   bool have_prev = false;
@@ -234,13 +238,13 @@ TEST(ImrReconcilePropertyTest, ConvergesOverRandomConfigSequences) {
     c.want = want_dist(rng) != 0;
     c.limit = limits[limit_dist(rng)];
     c.spill = spills[spill_dist(rng)];
-    c.dir = dirs[dir_dist(rng)];
+    c.relay_log_basename = basenames[basename_dist(rng)];
 
     // Capture identity before, to check the "unchanged config" leg.
     const Imr_runtime *before = slot.get();
     const bool same_as_prev = have_prev && prev.want == c.want &&
                               prev.limit == c.limit && prev.spill == c.spill &&
-                              prev.dir == c.dir;
+                              prev.relay_log_basename == c.relay_log_basename;
 
     apply_reconcile(slot, c);
 
@@ -248,10 +252,11 @@ TEST(ImrReconcilePropertyTest, ConvergesOverRandomConfigSequences) {
     EXPECT_EQ(slot != nullptr, c.want) << "iteration " << i;
 
     if (slot != nullptr) {
-      // Bounds and spill dir equal the request.
+      // Bounds and relay log basename equal the request.
       EXPECT_EQ(slot->queue()->memory_limit(), c.limit) << "iteration " << i;
       EXPECT_EQ(slot->queue()->spill_threshold(), c.spill) << "iteration " << i;
-      EXPECT_EQ(slot->queue()->relay_log_dir(), c.dir) << "iteration " << i;
+      EXPECT_EQ(slot->queue()->relay_log_basename(), c.relay_log_basename)
+          << "iteration " << i;
 
       // An unchanged configuration on an existing runtime is left untouched:
       // identity preserved.

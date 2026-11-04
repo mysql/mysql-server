@@ -31,7 +31,6 @@
 #include <string>
 
 #include "my_dbug.h"                                 // DBUG_TRACE
-#include "my_sys.h"                                  // dirname_length
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/my_loglevel.h"                       // ERROR_LEVEL
 #include "mysqld_error.h"  // ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG, ER_LOG_PRINTF_MSG
@@ -49,13 +48,12 @@ namespace mysql::csa {
 
 namespace {
 
-/// The server's relay log directory: the directory part of the read-only
-/// relay_log_basename, with its trailing separator. Every channel creates its
-/// new relay log files there, and init_spill_storage() creates the spill
-/// directory under it. Empty while relay_log_basename is not set.
-std::string server_relay_log_dir() {
+/// The server's read-only relay_log_basename. Every channel creates its new
+/// relay log files from it, and init_spill_storage() derives the spill
+/// directory from it. Empty while relay_log_basename is not set.
+std::string server_relay_log_basename() {
   if (relay_log_basename == nullptr || relay_log_basename[0] == '\0') return {};
-  return std::string(relay_log_basename, dirname_length(relay_log_basename));
+  return std::string(relay_log_basename);
 }
 
 }  // namespace
@@ -128,20 +126,20 @@ void Imr_service::reconcile(Relay_log_info *rli) {
   config.memory_limit = rli->get_in_memory_relaylog_limit();
   config.spill_threshold = rli->get_in_memory_relaylog_spill_threshold();
 
-  // The server's spill directory, not the directory of the channel's saved
-  // relay log position, which can name an older --relay-log directory.
-  std::string relay_log_dir = server_relay_log_dir();
+  // The server's relay log basename, not the channel's saved relay log
+  // position, which can name an older --relay-log.
+  std::string server_basename = server_relay_log_basename();
 
   // Embedded in spill file names (see Spill_file_writer::kFileNamePrefix).
   // Immutable, so it never affects the rebuild decision.
   const char *channel = rli->get_channel();
   std::string channel_name(channel != nullptr ? channel : "");
 
-  // The spill directory is fixed for the server's lifetime, so only the bounds
-  // can cause a rebuild.
+  // The relay log basename is fixed for the server's lifetime, so only the
+  // bounds can cause a rebuild.
   Imr_runtime *current = rli->imr();
   assert(current == nullptr ||
-         current->queue()->relay_log_dir() == relay_log_dir);
+         current->queue()->relay_log_basename() == server_basename);
   const bool config_matches =
       current != nullptr &&
       current->queue()->memory_limit() == config.memory_limit &&
@@ -202,7 +200,7 @@ void Imr_service::reconcile(Relay_log_info *rli) {
             Resource_map::in_memory_relaylog_spill_disk);
       }
       auto runtime = std::make_unique<Imr_runtime>(
-          config, std::move(relay_log_dir), memory_resource,
+          config, std::move(server_basename), memory_resource,
           std::move(channel_name), spill_disk_resource, key);
       Imr_runtime *p = runtime.get();
       m_runtimes[key] = std::move(runtime);
@@ -272,9 +270,9 @@ void Imr_service::init_spill_storage() {
   // A stale file that cannot be deleted stays in the spill name space, so IMR
   // channels are then not started (check_replica_configuration_errors()). The
   // purge goes on for the other files, and the server still starts.
-  const std::string relay_log_dir = server_relay_log_dir();
+  const std::string server_basename = server_relay_log_basename();
   const bool delete_failed =
-      !relay_log_dir.empty() && purge_orphan_spill_files(relay_log_dir);
+      !server_basename.empty() && purge_orphan_spill_files(server_basename);
 
   if (delete_failed) {
     m_spill_cleanup_failed = true;
@@ -288,9 +286,9 @@ void Imr_service::init_spill_storage() {
 
   // Create the directory even if no channel uses IMR yet: CHANGE REPLICATION
   // SOURCE can enable it later, and the writer does not create it.
-  if (relay_log_dir.empty()) return;
+  if (server_basename.empty()) return;
   // An unusable directory also keeps IMR channels from starting.
-  if (ensure_spill_directory(relay_log_dir)) {
+  if (ensure_spill_directory(server_basename)) {
     m_spill_dir_unusable = true;
     LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
            "[In-memory relay log] the spill file directory is not usable (see "

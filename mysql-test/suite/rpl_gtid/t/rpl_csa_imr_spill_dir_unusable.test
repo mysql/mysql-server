@@ -57,8 +57,7 @@ CALL mtr.add_suppression("\\[In-memory relay log\\] the spill file directory is 
 CALL mtr.add_suppression("Failed to start replica threads for channel");
 CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
 
-# <relay-log dir>/#in_memory_relaylog_temp_files
---let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/get_imr_spill_dir.inc
 --let $link_target= $MYSQLTEST_VARDIR/tmp/imr_spill_dir_target
 
 --source include/rpl/start_replica.inc
@@ -86,7 +85,7 @@ EOF
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_csa_imr_spill_dir_unusable
---let $assert_select= \[In-memory relay log\] the spill file directory '.*#in_memory_relaylog_temp_files' cannot be used: it exists but is not a directory
+--let $assert_select= \[In-memory relay log\] the spill file directory '.*#in_memory_relaylog_temp_files\.slave-relay-bin' cannot be used: it exists but is not a directory
 --let $assert_count= 1
 --let $assert_text= The regular file is logged with its path and cause (R1)
 --source include/assert_grep.inc
@@ -156,7 +155,7 @@ EOF
 # The startup purge does not delete through the symbolic link.
 --file_exists $link_target/imr_sp_victim
 
---let $assert_select= \[In-memory relay log\] the spill file directory '.*#in_memory_relaylog_temp_files' cannot be used: it is a symbolic link, not a directory
+--let $assert_select= \[In-memory relay log\] the spill file directory '.*#in_memory_relaylog_temp_files\.slave-relay-bin' cannot be used: it is a symbolic link, not a directory
 --let $assert_count= 1
 --let $assert_text= The symbolic link is logged with its path and cause (R5)
 --source include/assert_grep.inc

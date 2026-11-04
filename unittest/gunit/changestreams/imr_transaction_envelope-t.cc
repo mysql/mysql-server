@@ -66,9 +66,11 @@ constexpr std::size_t kSpillThreshold = 1u << 16;  // 64 KiB
 constexpr std::size_t kTrxLength = 4096;
 
 /// RAII private "relay log directory" for spill-path tests; removed on scope
-/// exit (along with the spill files and temp-files subdir under it).
+/// exit (along with the spill files and spill directory under it).
 struct Scoped_temp_dir {
   std::string path;
+  /// The relay log basename "<path>/relay-bin" that the queue is given.
+  std::string relay_log_basename;
   Scoped_temp_dir() {
     static std::atomic<unsigned> counter{0};
     path = (std::filesystem::temp_directory_path() /
@@ -80,7 +82,8 @@ struct Scoped_temp_dir {
     // ensure_spill_directory() (from init_replica); the queue no longer creates
     // it lazily on the first spill. This harness bypasses server startup, so
     // provision it here through the same production entry point.
-    (void)ensure_spill_directory(path);
+    relay_log_basename = (std::filesystem::path(path) / "relay-bin").string();
+    (void)ensure_spill_directory(relay_log_basename);
   }
   ~Scoped_temp_dir() {
     std::error_code ec;
@@ -442,7 +445,8 @@ TEST(ImrTransactionEnvelopeTest, PropertyPayloadLifetime) {
 TEST(ImrTransactionEnvelopeTest, CreateSpillDestinationLiveSinkNoReservation) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   // spill admission also rejects on a receiver stop.
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
   const std::size_t before = queue.bytes_used();

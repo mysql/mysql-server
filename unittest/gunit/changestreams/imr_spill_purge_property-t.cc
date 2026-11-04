@@ -27,8 +27,8 @@
 ///
 /// **Property: The purge removes only prefixed files.**
 ///
-/// mysql::csa::purge_orphan_spill_files(relay_log_dir) deletes stale spill
-/// files from the channel's "#in_memory_relaylog_temp_files" subdirectory. It
+/// mysql::csa::purge_orphan_spill_files(relay_log_basename) deletes stale spill
+/// files from the server's spill directory. It
 /// must remove only regular entries whose names begin with Spill_file_writer::
 /// kFileNamePrefix ("imr_sp_"), must not touch unrelated files, and must
 /// neither recurse into nor remove subdirectories -- even a subdirectory that
@@ -39,7 +39,8 @@
 /// prefixed subdirectory holding a file, this asserts that exactly the prefixed
 /// regular files are removed and everything else survives.
 ///
-/// The ImrSpillDirectoryTest cases check ensure_spill_directory().
+/// The ImrSpillDirectoryTest cases check spill_directory_path() and
+/// ensure_spill_directory().
 
 #include <gtest/gtest.h>
 
@@ -70,7 +71,15 @@ void touch(const fs::path &path) {
   out << "x";  // a byte, so the entry is unambiguously a regular file
 }
 
-/// A fresh, private relay-log directory with its spill subdirectory provisioned
+/// File-name part of the relay log basename the tests use.
+constexpr const char *kRelayLogLeaf = "relay-bin";
+
+/// The relay log basename "<dir>/relay-bin".
+std::string basename_in(const fs::path &dir) {
+  return (dir / kRelayLogLeaf).string();
+}
+
+/// A fresh, private relay-log directory with its spill directory provisioned
 /// through the production entry point, torn down by the caller.
 fs::path make_relay_log_dir() {
   static std::atomic<unsigned> counter{0};
@@ -78,11 +87,11 @@ fs::path make_relay_log_dir() {
       fs::temp_directory_path() / ("imr_purge_" + std::to_string(::getpid()) +
                                    "_" + std::to_string(counter.fetch_add(1)));
   fs::create_directories(dir);
-  (void)ensure_spill_directory(dir.string());
+  (void)ensure_spill_directory(basename_in(dir));
   return dir;
 }
 
-/// A fresh, private relay-log directory without a spill subdirectory.
+/// A fresh, private relay-log directory without a spill directory.
 fs::path make_bare_relay_log_dir() {
   static std::atomic<unsigned> counter{0};
   fs::path dir = fs::temp_directory_path() /
@@ -115,7 +124,7 @@ TEST(ImrSpillPurgePropertyTest, RemovesOnlyPrefixedRegularFiles) {
 
   for (int iter = 0; iter < kIterations; ++iter) {
     const fs::path relay_dir = make_relay_log_dir();
-    const fs::path spill_dir = spill_directory_path(relay_dir.string());
+    const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
 
     std::vector<fs::path> should_be_removed;
     std::vector<fs::path> should_survive;
@@ -152,7 +161,7 @@ TEST(ImrSpillPurgePropertyTest, RemovesOnlyPrefixedRegularFiles) {
     }
 
     // The operation under test. Every stale file is deletable here.
-    EXPECT_FALSE(purge_orphan_spill_files(relay_dir.string()));
+    EXPECT_FALSE(purge_orphan_spill_files(basename_in(relay_dir)));
 
     for (const auto &p : should_be_removed)
       EXPECT_FALSE(fs::exists(p)) << "prefixed spill file survived: " << p;
@@ -172,19 +181,18 @@ TEST(ImrSpillPurgePropertyTest, RemovesOnlyPrefixedRegularFiles) {
   }
 }
 
-// A repeated purge of the same directory (the shared-relay-log-directory case)
-// is harmless and idempotent.
+// A repeated purge of the same directory is harmless and idempotent.
 TEST(ImrSpillPurgePropertyTest, RepeatedPurgeIsIdempotent) {
   const fs::path relay_dir = make_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
   const std::string prefix = Spill_file_writer::kFileNamePrefix;
 
   touch(spill_dir / (prefix + "a"));
   touch(spill_dir / "keep.me");
 
-  EXPECT_FALSE(purge_orphan_spill_files(relay_dir.string()));
+  EXPECT_FALSE(purge_orphan_spill_files(basename_in(relay_dir)));
   // The second visit finds nothing.
-  EXPECT_FALSE(purge_orphan_spill_files(relay_dir.string()));
+  EXPECT_FALSE(purge_orphan_spill_files(basename_in(relay_dir)));
 
   EXPECT_FALSE(fs::exists(spill_dir / (prefix + "a")));
   EXPECT_TRUE(fs::exists(spill_dir / "keep.me"));
@@ -199,11 +207,11 @@ TEST(ImrSpillPurgePropertyTest, MissingSpillDirectoryIsNoError) {
   fs::path relay_dir = fs::temp_directory_path() /
                        ("imr_purge_missing_" + std::to_string(::getpid()) +
                         "_" + std::to_string(counter.fetch_add(1)));
-  fs::create_directories(relay_dir);  // relay dir exists, spill subdir does not
+  fs::create_directories(relay_dir);  // relay dir exists, spill dir does not
 
   // Must not throw or crash, and is not a failure.
-  EXPECT_FALSE(purge_orphan_spill_files(relay_dir.string()));
-  EXPECT_FALSE(fs::exists(spill_directory_path(relay_dir.string())));
+  EXPECT_FALSE(purge_orphan_spill_files(basename_in(relay_dir)));
+  EXPECT_FALSE(fs::exists(spill_directory_path(basename_in(relay_dir))));
 
   std::error_code ec;
   fs::remove_all(relay_dir, ec);
@@ -217,19 +225,19 @@ TEST(ImrSpillPurgePropertyTest, MissingSpillDirectoryIsNoError) {
 TEST(ImrSpillPurgePropertyTest, UndeletableFileIsReported) {
   if (::geteuid() == 0) GTEST_SKIP() << "root can delete from a read-only dir";
   const fs::path relay_dir = make_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
   const fs::path stale =
       spill_dir / (std::string(Spill_file_writer::kFileNamePrefix) + "stuck");
   touch(stale);
 
   fs::permissions(spill_dir, fs::perms::owner_read | fs::perms::owner_exec,
                   fs::perm_options::replace);
-  EXPECT_TRUE(purge_orphan_spill_files(relay_dir.string()));
+  EXPECT_TRUE(purge_orphan_spill_files(basename_in(relay_dir)));
   fs::permissions(spill_dir, fs::perms::owner_all, fs::perm_options::replace);
 
   EXPECT_TRUE(fs::exists(stale));
   // Once the file can be deleted, the purge succeeds again.
-  EXPECT_FALSE(purge_orphan_spill_files(relay_dir.string()));
+  EXPECT_FALSE(purge_orphan_spill_files(basename_in(relay_dir)));
   EXPECT_FALSE(fs::exists(stale));
 
   std::error_code ec;
@@ -238,15 +246,15 @@ TEST(ImrSpillPurgePropertyTest, UndeletableFileIsReported) {
 #endif  // _WIN32
 
 // ensure_spill_directory() creates the directory and accepts an
-// existing one; an empty relay log directory is nothing to do.
+// existing one; an empty relay log basename is nothing to do.
 TEST(ImrSpillDirectoryTest, CreatesAndAcceptsDirectory) {
   EXPECT_FALSE(ensure_spill_directory(""));
 
   const fs::path relay_dir = make_bare_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
-  EXPECT_FALSE(ensure_spill_directory(relay_dir.string()));
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
+  EXPECT_FALSE(ensure_spill_directory(basename_in(relay_dir)));
   EXPECT_TRUE(fs::is_directory(spill_dir));
-  EXPECT_FALSE(ensure_spill_directory(relay_dir.string()));
+  EXPECT_FALSE(ensure_spill_directory(basename_in(relay_dir)));
 
   std::error_code ec;
   fs::remove_all(relay_dir, ec);
@@ -256,12 +264,12 @@ TEST(ImrSpillDirectoryTest, CreatesAndAcceptsDirectory) {
 // purge then has no directory to read, which is not a failure.
 TEST(ImrSpillDirectoryTest, RejectsRegularFile) {
   const fs::path relay_dir = make_bare_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
   touch(spill_dir);
 
-  EXPECT_TRUE(ensure_spill_directory(relay_dir.string()));
+  EXPECT_TRUE(ensure_spill_directory(basename_in(relay_dir)));
   EXPECT_TRUE(fs::is_regular_file(spill_dir));
-  EXPECT_FALSE(purge_orphan_spill_files(relay_dir.string()));
+  EXPECT_FALSE(purge_orphan_spill_files(basename_in(relay_dir)));
 
   std::error_code ec;
   fs::remove_all(relay_dir, ec);
@@ -272,11 +280,58 @@ TEST(ImrSpillDirectoryTest, RejectsUncreatableDirectory) {
   const fs::path relay_dir = make_bare_relay_log_dir();
   const fs::path missing = relay_dir / "missing";
 
-  EXPECT_TRUE(ensure_spill_directory(missing.string()));
+  EXPECT_TRUE(ensure_spill_directory(basename_in(missing)));
   EXPECT_FALSE(fs::exists(missing));
 
   std::error_code ec;
   fs::remove_all(relay_dir, ec);
+}
+
+// The spill directory is named after the file-name part of the relay log
+// basename, so two basenames in one directory get different spill directories.
+TEST(ImrSpillDirectoryTest, PathIsNamedAfterRelayLogBasename) {
+  EXPECT_EQ(spill_directory_path("/logs/a-relay"),
+            "/logs/#in_memory_relaylog_temp_files.a-relay");
+  EXPECT_EQ(spill_directory_path("/logs/b-relay"),
+            "/logs/#in_memory_relaylog_temp_files.b-relay");
+  EXPECT_NE(spill_directory_path("/logs/a-relay"),
+            spill_directory_path("/logs/b-relay"));
+  EXPECT_EQ(spill_directory_path(""), "");
+  // Relative basenames keep their (possibly empty) directory part.
+  EXPECT_EQ(spill_directory_path("relay-bin"),
+            "#in_memory_relaylog_temp_files.relay-bin");
+  EXPECT_EQ(spill_directory_path("sub/relay-bin"),
+            "sub/#in_memory_relaylog_temp_files.relay-bin");
+  // A basename with an empty file-name part gets an empty leaf.
+  EXPECT_EQ(spill_directory_path("/logs/"),
+            "/logs/#in_memory_relaylog_temp_files.");
+}
+
+// Two servers whose relay log basenames share a directory: purging one
+// server's spill directory leaves the other's spill files in place, even with
+// the same file name.
+TEST(ImrSpillPurgePropertyTest, PurgeIsScopedToRelayLogBasename) {
+  const fs::path dir = make_bare_relay_log_dir();
+  const std::string a = (dir / "a-relay").string();
+  const std::string b = (dir / "b-relay").string();
+  EXPECT_FALSE(ensure_spill_directory(a));
+  EXPECT_FALSE(ensure_spill_directory(b));
+  const fs::path a_spill_dir = spill_directory_path(a);
+  const fs::path b_spill_dir = spill_directory_path(b);
+  EXPECT_NE(a_spill_dir, b_spill_dir);
+
+  const std::string name =
+      std::string(Spill_file_writer::kFileNamePrefix) + "1";
+  touch(a_spill_dir / name);
+  touch(b_spill_dir / name);
+
+  EXPECT_FALSE(purge_orphan_spill_files(a));
+  EXPECT_FALSE(fs::exists(a_spill_dir / name));
+  EXPECT_TRUE(fs::exists(b_spill_dir / name));
+  EXPECT_TRUE(fs::is_directory(b_spill_dir));
+
+  std::error_code ec;
+  fs::remove_all(dir, ec);
 }
 
 #ifndef _WIN32
@@ -284,17 +339,17 @@ TEST(ImrSpillDirectoryTest, RejectsUncreatableDirectory) {
 // a directory or nowhere. POSIX-only: the test creates the links with symlink.
 TEST(ImrSpillDirectoryTest, RejectsSymbolicLink) {
   const fs::path relay_dir = make_bare_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
   const fs::path target = relay_dir / "target";
   fs::create_directory(target);
 
   fs::create_directory_symlink(target, spill_dir);
-  EXPECT_TRUE(ensure_spill_directory(relay_dir.string()));
+  EXPECT_TRUE(ensure_spill_directory(basename_in(relay_dir)));
   EXPECT_TRUE(fs::is_symlink(spill_dir));
 
   fs::remove(spill_dir);
   fs::create_directory_symlink(relay_dir / "dangling", spill_dir);
-  EXPECT_TRUE(ensure_spill_directory(relay_dir.string()));
+  EXPECT_TRUE(ensure_spill_directory(basename_in(relay_dir)));
   EXPECT_TRUE(fs::is_symlink(fs::symlink_status(spill_dir)));
 
   std::error_code ec;
@@ -304,14 +359,14 @@ TEST(ImrSpillDirectoryTest, RejectsSymbolicLink) {
 // The purge never deletes through a symbolic link at the spill path.
 TEST(ImrSpillPurgePropertyTest, DoesNotPurgeThroughSymbolicLink) {
   const fs::path relay_dir = make_bare_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
   const fs::path target = relay_dir / "target";
   fs::create_directory(target);
   const fs::path victim = target / "imr_sp_victim";
   touch(victim);
   fs::create_directory_symlink(target, spill_dir);
 
-  EXPECT_FALSE(purge_orphan_spill_files(relay_dir.string()));
+  EXPECT_FALSE(purge_orphan_spill_files(basename_in(relay_dir)));
   EXPECT_TRUE(fs::exists(victim));
 
   std::error_code ec;
@@ -321,12 +376,12 @@ TEST(ImrSpillPurgePropertyTest, DoesNotPurgeThroughSymbolicLink) {
 // A stale spill file without the owner read bit is deleted too.
 TEST(ImrSpillPurgePropertyTest, RemovesFileWithoutReadPermission) {
   const fs::path relay_dir = make_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
   const fs::path stale = spill_dir / "imr_sp_mode000";
   touch(stale);
   fs::permissions(stale, fs::perms::none, fs::perm_options::replace);
 
-  EXPECT_FALSE(purge_orphan_spill_files(relay_dir.string()));
+  EXPECT_FALSE(purge_orphan_spill_files(basename_in(relay_dir)));
   EXPECT_FALSE(fs::exists(stale));
 
   std::error_code ec;
@@ -338,13 +393,13 @@ TEST(ImrSpillPurgePropertyTest, RemovesFileWithoutReadPermission) {
 TEST(ImrSpillDirectoryTest, RejectsReadOnlyDirectory) {
   if (::geteuid() == 0) GTEST_SKIP() << "root can write a read-only dir";
   const fs::path relay_dir = make_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
 
   fs::permissions(spill_dir, fs::perms::owner_read | fs::perms::owner_exec,
                   fs::perm_options::replace);
-  EXPECT_TRUE(ensure_spill_directory(relay_dir.string()));
+  EXPECT_TRUE(ensure_spill_directory(basename_in(relay_dir)));
   fs::permissions(spill_dir, fs::perms::owner_all, fs::perm_options::replace);
-  EXPECT_FALSE(ensure_spill_directory(relay_dir.string()));
+  EXPECT_FALSE(ensure_spill_directory(basename_in(relay_dir)));
 
   std::error_code ec;
   fs::remove_all(relay_dir, ec);
@@ -355,13 +410,13 @@ TEST(ImrSpillDirectoryTest, RejectsReadOnlyDirectory) {
 TEST(ImrSpillDirectoryTest, RejectsUnreadableDirectory) {
   if (::geteuid() == 0) GTEST_SKIP() << "root can read a write-only dir";
   const fs::path relay_dir = make_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
 
   fs::permissions(spill_dir, fs::perms::owner_write | fs::perms::owner_exec,
                   fs::perm_options::replace);
-  EXPECT_TRUE(ensure_spill_directory(relay_dir.string()));
+  EXPECT_TRUE(ensure_spill_directory(basename_in(relay_dir)));
   fs::permissions(spill_dir, fs::perms::owner_all, fs::perm_options::replace);
-  EXPECT_FALSE(ensure_spill_directory(relay_dir.string()));
+  EXPECT_FALSE(ensure_spill_directory(basename_in(relay_dir)));
 
   std::error_code ec;
   fs::remove_all(relay_dir, ec);
@@ -372,19 +427,19 @@ TEST(ImrSpillDirectoryTest, RejectsUnreadableDirectory) {
 TEST(ImrSpillPurgePropertyTest, UnreadableDirectoryIsReported) {
   if (::geteuid() == 0) GTEST_SKIP() << "root can read a write-only dir";
   const fs::path relay_dir = make_relay_log_dir();
-  const fs::path spill_dir = spill_directory_path(relay_dir.string());
+  const fs::path spill_dir = spill_directory_path(basename_in(relay_dir));
   const fs::path stale =
       spill_dir / (std::string(Spill_file_writer::kFileNamePrefix) + "hidden");
   touch(stale);
 
   fs::permissions(spill_dir, fs::perms::owner_write | fs::perms::owner_exec,
                   fs::perm_options::replace);
-  EXPECT_TRUE(purge_orphan_spill_files(relay_dir.string()));
+  EXPECT_TRUE(purge_orphan_spill_files(basename_in(relay_dir)));
   fs::permissions(spill_dir, fs::perms::owner_all, fs::perm_options::replace);
 
   EXPECT_TRUE(fs::exists(stale));
   // Once the directory can be read, the purge succeeds again.
-  EXPECT_FALSE(purge_orphan_spill_files(relay_dir.string()));
+  EXPECT_FALSE(purge_orphan_spill_files(basename_in(relay_dir)));
   EXPECT_FALSE(fs::exists(stale));
 
   std::error_code ec;

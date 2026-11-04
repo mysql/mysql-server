@@ -68,9 +68,11 @@ constexpr std::size_t kMemoryLimit = 1u << 20;     // 1 MiB
 constexpr std::size_t kSpillThreshold = 1u << 16;  // 64 KiB
 
 /// RAII private "relay log directory" for spill-path tests; removed on scope
-/// exit (with the spill files and temp-files subdir under it).
+/// exit (with the spill files and spill directory under it).
 struct Scoped_temp_dir {
   std::string path;
+  /// The relay log basename "<path>/relay-bin" that the queue is given.
+  std::string relay_log_basename;
   Scoped_temp_dir() {
     static std::atomic<unsigned> counter{0};
     path = (std::filesystem::temp_directory_path() /
@@ -82,7 +84,8 @@ struct Scoped_temp_dir {
     // ensure_spill_directory() (from init_replica); the queue no longer creates
     // it lazily on the first spill. This harness bypasses server startup, so
     // provision it here through the same production entry point.
-    (void)ensure_spill_directory(path);
+    relay_log_basename = (std::filesystem::path(path) / "relay-bin").string();
+    (void)ensure_spill_directory(relay_log_basename);
   }
   ~Scoped_temp_dir() {
     std::error_code ec;
@@ -346,7 +349,8 @@ TEST(ImrTrxPayloadTest, CreateSpillHoldsDiskReservationWhileFileExists) {
   const std::size_t disk_limit = 4 * kSpillThreshold;
   Resource_entry *disk = test_spill_disk_resource(disk_limit);
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path,
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename,
                            /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
   const std::size_t trx_length = kSpillThreshold + 1;
@@ -375,14 +379,17 @@ TEST(ImrTrxPayloadTest, CreateSpillHoldsDiskReservationWhileFileExists) {
 TEST(ImrTrxPayloadTest, FailedSpillProvisioningReturnsDiskReservation) {
   const std::size_t disk_limit = 4 * kSpillThreshold;
   Resource_entry *disk = test_spill_disk_resource(disk_limit);
-  // A relay log directory that does not exist: opening the spill file fails.
+  // A relay log basename in a directory that does not exist: opening the spill
+  // file fails.
   const std::string missing_dir =
       (std::filesystem::temp_directory_path() /
        ("imr_payload_missing_" + std::to_string(::getpid())))
           .string();
   ASSERT_FALSE(std::filesystem::exists(missing_dir));
+  const std::string missing_basename =
+      (std::filesystem::path(missing_dir) / "relay-bin").string();
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), missing_dir,
+                           test_memory_resource(kMemoryLimit), missing_basename,
                            /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
   const std::size_t trx_length = kSpillThreshold + 1;
@@ -390,7 +397,7 @@ TEST(ImrTrxPayloadTest, FailedSpillProvisioningReturnsDiskReservation) {
   EXPECT_EQ(disk->m_available.load(),
             static_cast<long long>(disk_limit - trx_length));
   {
-    Event_set_fetchable_spill src(/*is_trx=*/true, make_fde(), missing_dir,
+    Event_set_fetchable_spill src(/*is_trx=*/true, make_fde(), missing_basename,
                                   /*owner_envelope=*/nullptr,
                                   /*streaming_open=*/true, /*channel_name=*/{},
                                   &queue, trx_length);
@@ -432,10 +439,10 @@ TEST(ImrTrxPayloadTest, CommitHookCountsCompletedTransactionsByPath) {
       kInstance, /*num_threads=*/1, /*enable_extended_statistics=*/false,
       /*enable_imr_statistics=*/true));
   Scoped_temp_dir relay_dir;
-  Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path,
-                           /*channel_name=*/{}, /*spill_disk_resource=*/nullptr,
-                           kInstance);
+  Trx_envelope_queue queue(
+      kMemoryLimit, kSpillThreshold, test_memory_resource(kMemoryLimit),
+      relay_dir.relay_log_basename,
+      /*channel_name=*/{}, /*spill_disk_resource=*/nullptr, kInstance);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
 
   complete_through_hook(queue, 100, Envelope_path::MEMORY);
@@ -458,10 +465,10 @@ TEST(ImrTrxPayloadTest, CommitHookCountsNothingWhenCollectionIsOff) {
       kInstance, /*num_threads=*/1, /*enable_extended_statistics=*/false,
       /*enable_imr_statistics=*/false));
   Scoped_temp_dir relay_dir;
-  Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path,
-                           /*channel_name=*/{}, /*spill_disk_resource=*/nullptr,
-                           kInstance);
+  Trx_envelope_queue queue(
+      kMemoryLimit, kSpillThreshold, test_memory_resource(kMemoryLimit),
+      relay_dir.relay_log_basename,
+      /*channel_name=*/{}, /*spill_disk_resource=*/nullptr, kInstance);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
 
   complete_through_hook(queue, 100, Envelope_path::MEMORY);

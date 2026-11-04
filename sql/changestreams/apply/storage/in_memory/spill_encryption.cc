@@ -394,8 +394,9 @@ bool reencrypt_spill_files_in_dirs(const std::vector<std::string> &spill_dirs,
 
 std::vector<std::string> spill_dirs_of_live_runtimes() {
   std::vector<std::string> dirs;
-  // Runtimes change only under the channel_map write lock and relay_log_dir()
-  // is fixed at construction, so the read lock suffices. No file I/O under it.
+  // Runtimes change only under the channel_map write lock and
+  // relay_log_basename() is fixed at construction, so the read lock suffices.
+  // No file I/O under it.
   channel_map.rdlock();
   const enum_channel_type channel_types[] = {SLAVE_REPLICATION_CHANNEL,
                                              GROUP_REPLICATION_CHANNEL};
@@ -406,7 +407,7 @@ std::vector<std::string> spill_dirs_of_live_runtimes() {
       if (mi == nullptr || mi->rli == nullptr || mi->rli->imr() == nullptr)
         continue;
       dirs.push_back(
-          spill_directory_path(mi->rli->imr()->queue()->relay_log_dir()));
+          spill_directory_path(mi->rli->imr()->queue()->relay_log_basename()));
     }
   }
   channel_map.unlock();

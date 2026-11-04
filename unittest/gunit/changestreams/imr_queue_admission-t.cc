@@ -291,9 +291,9 @@ TEST(ImrQueueAdmissionTest, SpillAdmissionSoftLimit) {
   const std::size_t spill_threshold = 500;
   const std::size_t disk_limit = 1000;
   Resource_entry *disk = test_spill_disk_resource(disk_limit);
-  Trx_envelope_queue queue(memory_limit, spill_threshold,
-                           test_memory_resource(memory_limit),
-                           /*relay_log_dir=*/{}, /*channel_name=*/{}, disk);
+  Trx_envelope_queue queue(
+      memory_limit, spill_threshold, test_memory_resource(memory_limit),
+      /*relay_log_basename=*/{}, /*channel_name=*/{}, disk);
   // mi-owned queue defaults to stopped; arm it for the test.
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
 
@@ -336,7 +336,8 @@ TEST(ImrQueueAdmissionTest, SpillAdmissionFailsOnStop) {
   const std::size_t disk_limit = 1000;
   Resource_entry *disk = test_spill_disk_resource(disk_limit);
   Trx_envelope_queue queue(/*memory_limit=*/1000, /*spill_threshold=*/500,
-                           test_memory_resource(1000), /*relay_log_dir=*/{},
+                           test_memory_resource(1000),
+                           /*relay_log_basename=*/{},
                            /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
 
@@ -421,9 +422,9 @@ TEST(ImrQueueAdmissionTest, WaitUntilAdmissibleFitsReservesNothing) {
   const std::size_t memory_limit = 1000;
   const std::size_t spill_threshold = 500;
   Resource_entry *disk = test_spill_disk_resource(1000);
-  Trx_envelope_queue queue(memory_limit, spill_threshold,
-                           test_memory_resource(memory_limit),
-                           /*relay_log_dir=*/{}, /*channel_name=*/{}, disk);
+  Trx_envelope_queue queue(
+      memory_limit, spill_threshold, test_memory_resource(memory_limit),
+      /*relay_log_basename=*/{}, /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
 
   queue.add_bytes(400);
@@ -588,7 +589,8 @@ TEST(ImrQueueAdmissionTest, WaitUntilAdmissibleSpillSoftRule) {
   const std::size_t disk_limit = 1000;
   Resource_entry *disk = test_spill_disk_resource(disk_limit);
   Trx_envelope_queue queue(/*memory_limit=*/1000, /*spill_threshold=*/500,
-                           test_memory_resource(1000), /*relay_log_dir=*/{},
+                           test_memory_resource(1000),
+                           /*relay_log_basename=*/{},
                            /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
 

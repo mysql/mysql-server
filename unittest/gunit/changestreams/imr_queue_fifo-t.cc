@@ -110,9 +110,11 @@ constexpr std::size_t kMemoryLimit = std::size_t{1} << 30;     // 1 GiB
 constexpr std::size_t kSpillThreshold = std::size_t{1} << 20;  // 1 MiB
 
 /// RAII private "relay log directory" for spill-path enqueue tests; removed on
-/// scope exit (with the spill files and temp-files subdir under it).
+/// scope exit (with the spill files and spill directory under it).
 struct Scoped_temp_dir {
   std::string path;
+  /// The relay log basename "<path>/relay-bin" that the queue is given.
+  std::string relay_log_basename;
   Scoped_temp_dir() {
     static std::atomic<unsigned> counter{0};
     path = (std::filesystem::temp_directory_path() /
@@ -124,7 +126,8 @@ struct Scoped_temp_dir {
     // ensure_spill_directory() (from init_replica); the queue no longer creates
     // it lazily on the first spill. This harness bypasses server startup, so
     // provision it here through the same production entry point.
-    (void)ensure_spill_directory(path);
+    relay_log_basename = (std::filesystem::path(path) / "relay-bin").string();
+    (void)ensure_spill_directory(relay_log_basename);
   }
   ~Scoped_temp_dir() {
     std::error_code ec;
@@ -519,7 +522,8 @@ TEST(ImrQueueFifoTest, EnqueueCreatesMemoryDestination) {
 TEST(ImrQueueFifoTest, EnqueueSpillCreatesSpillDestinationNoReservation) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   // mi-owned queue defaults to stopped; arm it for the test.
   resume_both_roles(queue);
 
@@ -552,7 +556,8 @@ TEST(ImrQueueFifoTest, EnqueueSpillCreatesSpillDestinationNoReservation) {
 TEST(ImrQueueFifoTest, EnqueueMixMemoryAndSpill) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   // mi-owned queue defaults to stopped; arm it for the test.
   resume_both_roles(queue);
 

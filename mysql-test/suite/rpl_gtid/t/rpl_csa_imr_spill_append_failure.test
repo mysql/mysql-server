@@ -72,9 +72,7 @@ CHANGE REPLICATION SOURCE TO
 # also in Last_IO_Error).
 CALL mtr.add_suppression("\\[In-memory relay log\\] failed to append event to incoming transaction");
 
-# Derive the channel's spill directory:
-#   <relay-log dir>/#in_memory_relaylog_temp_files
---let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+--source include/rpl/get_imr_spill_dir.inc
 
 --source include/rpl/start_replica.inc
 

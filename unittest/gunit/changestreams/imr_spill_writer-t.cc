@@ -24,9 +24,9 @@
 
 /// @file
 /// Unit tests for mysql::csa::Spill_file_writer: the private
-/// on-disk spill-file writer. The writer provisions a spill file under an
-/// "#in_memory_relaylog_temp_files" subdirectory of the channel's relay log
-/// directory, names it "imr_sp_<lowercase-unique-id>", lays down
+/// on-disk spill-file writer. The writer provisions a spill file in the
+/// server's "#in_memory_relaylog_temp_files.<leaf>" spill directory, next to
+/// the relay log files, names it "imr_sp_<lowercase-unique-id>", lays down
 /// the relay-log prefix (BINLOG_MAGIC + serialized FDE), appends raw event
 /// bytes, flushes without fsync, tracks a monotonically advancing end position,
 /// and deletes the file on destruction. These tests exercise the write side
@@ -107,23 +107,24 @@ bool is_all_lowercase(const std::string &s) {
 
 }  // namespace
 
-/// Fixture that gives each test a private, empty "relay log directory" and
-/// tears the whole tree down afterwards (including the spill files and the
-/// temp-files subdirectory the writer creates inside it).
+/// Fixture that gives each test a private relay log directory with a relay log
+/// basename in it, and tears the whole tree down afterwards (including the
+/// spill files and the spill directory created inside it).
 class ImrSpillWriterTest : public ::testing::Test {
  protected:
   void SetUp() override {
     static std::atomic<unsigned> counter{0};
-    m_relay_log_dir = (fs::temp_directory_path() /
-                       ("imr_relaylog_" + std::to_string(::getpid()) + "_" +
-                        std::to_string(counter.fetch_add(1))))
-                          .string();
-    fs::create_directories(m_relay_log_dir);
+    m_dir = (fs::temp_directory_path() /
+             ("imr_relaylog_" + std::to_string(::getpid()) + "_" +
+              std::to_string(counter.fetch_add(1))))
+                .string();
+    m_relay_log_basename = (fs::path(m_dir) / "relay-bin").string();
+    fs::create_directories(m_dir);
     // The spill-files subdirectory is provisioned once at server start by
     // ensure_spill_directory() (from init_replica); Spill_file_writer::open()
     // no longer creates it lazily. This harness bypasses server startup, so
     // provision it here through the same production entry point.
-    (void)ensure_spill_directory(m_relay_log_dir);
+    (void)ensure_spill_directory(m_relay_log_basename);
     // The writer encodes channel names from the server's system charset.
     m_charset = system_charset_info;
     system_charset_info = &my_charset_utf8mb3_general_ci;
@@ -132,10 +133,13 @@ class ImrSpillWriterTest : public ::testing::Test {
   void TearDown() override {
     system_charset_info = m_charset;
     std::error_code ec;
-    fs::remove_all(m_relay_log_dir, ec);
+    fs::remove_all(m_dir, ec);
   }
 
-  std::string m_relay_log_dir;
+  /// The relay log directory; removed with everything in it.
+  std::string m_dir;
+  /// The relay log basename "<m_dir>/relay-bin".
+  std::string m_relay_log_basename;
   CHARSET_INFO *m_charset{nullptr};
 };
 
@@ -143,15 +147,17 @@ class ImrSpillWriterTest : public ::testing::Test {
 // Location and naming.
 // ---------------------------------------------------------------------------
 
-// The spill file lives in "<relay_log_dir>/#in_memory_relaylog_temp_files/" and
-// is named "imr_sp_<lowercase-unique-id>".
+// The spill file lives in "<dir>/#in_memory_relaylog_temp_files.relay-bin/" for
+// the relay log basename "<dir>/relay-bin", and is named
+// "imr_sp_<lowercase-unique-id>".
 TEST_F(ImrSpillWriterTest, PlacesFileInTempSubdirWithExpectedName) {
-  Spill_file_writer writer(make_fde(), m_relay_log_dir);
+  Spill_file_writer writer(make_fde(), m_relay_log_basename);
   ASSERT_FALSE(writer.open()) << writer.get_error_str();
 
   const fs::path temp_dir = writer.temp_dir();
-  EXPECT_EQ(temp_dir.filename().string(), "#in_memory_relaylog_temp_files");
-  EXPECT_EQ(temp_dir.parent_path(), fs::path(m_relay_log_dir));
+  EXPECT_EQ(temp_dir.filename().string(),
+            "#in_memory_relaylog_temp_files.relay-bin");
+  EXPECT_EQ(temp_dir.parent_path(), fs::path(m_dir));
   EXPECT_TRUE(fs::is_directory(temp_dir));
 
   const fs::path file = writer.file_name();
@@ -165,8 +171,8 @@ TEST_F(ImrSpillWriterTest, PlacesFileInTempSubdirWithExpectedName) {
 
 // Each writer gets its own distinct file within the same channel's temp dir.
 TEST_F(ImrSpillWriterTest, DistinctFilesPerWriter) {
-  Spill_file_writer a(make_fde(), m_relay_log_dir);
-  Spill_file_writer b(make_fde(), m_relay_log_dir);
+  Spill_file_writer a(make_fde(), m_relay_log_basename);
+  Spill_file_writer b(make_fde(), m_relay_log_basename);
   ASSERT_FALSE(a.open()) << a.get_error_str();
   ASSERT_FALSE(b.open()) << b.get_error_str();
   EXPECT_EQ(a.temp_dir(), b.temp_dir());  // same subdirectory
@@ -177,7 +183,7 @@ TEST_F(ImrSpillWriterTest, DistinctFilesPerWriter) {
 // "imr_sp_<channel>_<unique_id>", so spill files of concurrently running
 // channels sharing the one server-level spill directory do not collide.
 TEST_F(ImrSpillWriterTest, NamedChannelEmbedsChannelInFileName) {
-  Spill_file_writer writer(make_fde(), m_relay_log_dir, "ch1");
+  Spill_file_writer writer(make_fde(), m_relay_log_basename, "ch1");
   ASSERT_FALSE(writer.open()) << writer.get_error_str();
 
   const std::string base = fs::path(writer.file_name()).filename().string();
@@ -189,7 +195,7 @@ TEST_F(ImrSpillWriterTest, NamedChannelEmbedsChannelInFileName) {
 
 // A channel name with a path separator is encoded as in relay log file names.
 TEST_F(ImrSpillWriterTest, ChannelWithSlashIsEncodedInFileName) {
-  Spill_file_writer writer(make_fde(), m_relay_log_dir, "a/b");
+  Spill_file_writer writer(make_fde(), m_relay_log_basename, "a/b");
   ASSERT_FALSE(writer.open()) << writer.get_error_str();
 
   const std::string base = fs::path(writer.file_name()).filename().string();
@@ -200,7 +206,8 @@ TEST_F(ImrSpillWriterTest, ChannelWithSlashIsEncodedInFileName) {
 // The default channel (empty name) keeps the unqualified "imr_sp_<unique_id>"
 // form: no channel segment, and in particular no doubled underscore.
 TEST_F(ImrSpillWriterTest, DefaultChannelHasNoChannelSegment) {
-  Spill_file_writer writer(make_fde(), m_relay_log_dir, /*channel_name=*/"");
+  Spill_file_writer writer(make_fde(), m_relay_log_basename,
+                           /*channel_name=*/"");
   ASSERT_FALSE(writer.open()) << writer.get_error_str();
 
   const std::string base = fs::path(writer.file_name()).filename().string();
@@ -212,8 +219,8 @@ TEST_F(ImrSpillWriterTest, DefaultChannelHasNoChannelSegment) {
       << "name must carry a non-empty unique id";
 }
 
-// An empty relay log directory is rejected.
-TEST_F(ImrSpillWriterTest, EmptyRelayLogDirIsError) {
+// An empty relay log basename is rejected.
+TEST_F(ImrSpillWriterTest, EmptyRelayLogBasenameIsError) {
   Spill_file_writer writer(make_fde(), "");
   EXPECT_TRUE(writer.open());
   EXPECT_FALSE(writer.is_open());
@@ -227,7 +234,7 @@ TEST_F(ImrSpillWriterTest, EmptyRelayLogDirIsError) {
 // After open(): a backing file exists, the stream is open, the file starts with
 // the 4-byte magic, and the end position equals the on-disk prefix length.
 TEST_F(ImrSpillWriterTest, OpenWritesRelayLogPrefix) {
-  Spill_file_writer writer(make_fde(), m_relay_log_dir);
+  Spill_file_writer writer(make_fde(), m_relay_log_basename);
   ASSERT_FALSE(writer.open()) << writer.get_error_str();
 
   EXPECT_TRUE(writer.is_open());
@@ -251,7 +258,7 @@ TEST_F(ImrSpillWriterTest, OpenWritesRelayLogPrefix) {
 // ---------------------------------------------------------------------------
 
 TEST_F(ImrSpillWriterTest, AppendAdvancesEndPositionMonotonically) {
-  Spill_file_writer writer(make_fde(), m_relay_log_dir);
+  Spill_file_writer writer(make_fde(), m_relay_log_basename);
   ASSERT_FALSE(writer.open()) << writer.get_error_str();
 
   const std::vector<std::string> chunks = {"a", "bcbcbc", "1234567890",
@@ -275,7 +282,7 @@ TEST_F(ImrSpillWriterTest, AppendAdvancesEndPositionMonotonically) {
 // ---------------------------------------------------------------------------
 
 TEST_F(ImrSpillWriterTest, RawRoundTripBytes) {
-  Spill_file_writer writer(make_fde(), m_relay_log_dir);
+  Spill_file_writer writer(make_fde(), m_relay_log_basename);
   ASSERT_FALSE(writer.open()) << writer.get_error_str();
 
   // Capture the prefix length (magic + FDE) so we can slice the body out.
@@ -311,7 +318,7 @@ TEST_F(ImrSpillWriterTest, RawRoundTripBytes) {
 TEST_F(ImrSpillWriterTest, DestructionRemovesFile) {
   std::string name;
   {
-    Spill_file_writer writer(make_fde(), m_relay_log_dir);
+    Spill_file_writer writer(make_fde(), m_relay_log_basename);
     ASSERT_FALSE(writer.open()) << writer.get_error_str();
     name = writer.file_name();
     ASSERT_FALSE(name.empty());
@@ -334,8 +341,8 @@ TEST_F(ImrSpillWriterTest, SpillBytesGaugeEqualsFileSize) {
                            /*spill_threshold=*/1u << 16,
                            test_memory_resource(1u << 20));
   {
-    Spill_file_writer writer(make_fde(), m_relay_log_dir, /*channel_name=*/"",
-                             &queue);
+    Spill_file_writer writer(make_fde(), m_relay_log_basename,
+                             /*channel_name=*/"", &queue);
     ASSERT_FALSE(writer.open()) << writer.get_error_str();
     ASSERT_FALSE(writer.flush()) << writer.get_error_str();
     EXPECT_EQ(queue.spill_file_count(), 1u);
@@ -362,17 +369,17 @@ TEST_F(ImrSpillWriterTest, CloseStreamKeepsFileAndAccounting) {
   const std::size_t disk_limit = 1u << 20;
   const std::size_t trx_length = 1u << 17;
   Resource_entry *disk = test_spill_disk_resource(disk_limit);
-  Trx_envelope_queue queue(/*memory_limit=*/1u << 20,
-                           /*spill_threshold=*/1u << 16,
-                           test_memory_resource(1u << 20),
-                           /*relay_log_dir=*/{}, /*channel_name=*/{}, disk);
+  Trx_envelope_queue queue(
+      /*memory_limit=*/1u << 20,
+      /*spill_threshold=*/1u << 16, test_memory_resource(1u << 20),
+      /*relay_log_basename=*/{}, /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
   ASSERT_FALSE(queue.acquire_admission(trx_length, Envelope_path::SPILL));
 
   std::string name;
   {
-    Spill_file_writer writer(make_fde(), m_relay_log_dir, /*channel_name=*/"",
-                             &queue, trx_length);
+    Spill_file_writer writer(make_fde(), m_relay_log_basename,
+                             /*channel_name=*/"", &queue, trx_length);
     ASSERT_FALSE(writer.open()) << writer.get_error_str();
     const auto ev = serialize_event();
     ASSERT_FALSE(writer.append_raw(as_char(ev), ev.size()))
@@ -410,10 +417,10 @@ TEST_F(ImrSpillWriterTest, FailedDeleteReleasesAccountingAndFlagsQueue) {
   const std::size_t disk_limit = 1u << 20;
   const std::size_t trx_length = 1u << 17;
   Resource_entry *disk = test_spill_disk_resource(disk_limit);
-  Trx_envelope_queue queue(/*memory_limit=*/1u << 20,
-                           /*spill_threshold=*/1u << 16,
-                           test_memory_resource(1u << 20),
-                           /*relay_log_dir=*/{}, /*channel_name=*/{}, disk);
+  Trx_envelope_queue queue(
+      /*memory_limit=*/1u << 20,
+      /*spill_threshold=*/1u << 16, test_memory_resource(1u << 20),
+      /*relay_log_basename=*/{}, /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
   ASSERT_FALSE(queue.acquire_admission(trx_length, Envelope_path::SPILL));
   ASSERT_EQ(disk->m_available.load(),
@@ -422,8 +429,8 @@ TEST_F(ImrSpillWriterTest, FailedDeleteReleasesAccountingAndFlagsQueue) {
   std::string name;
   std::string spill_dir;
   {
-    Spill_file_writer writer(make_fde(), m_relay_log_dir, /*channel_name=*/"",
-                             &queue, trx_length);
+    Spill_file_writer writer(make_fde(), m_relay_log_basename,
+                             /*channel_name=*/"", &queue, trx_length);
     ASSERT_FALSE(writer.open()) << writer.get_error_str();
     const auto ev = serialize_event();
     ASSERT_FALSE(writer.append_raw(as_char(ev), ev.size()))
@@ -453,18 +460,18 @@ TEST_F(ImrSpillWriterTest, FailedSetupDiscardDoesNotFlagQueue) {
   const std::size_t disk_limit = 1u << 20;
   const std::size_t trx_length = 1u << 17;
   Resource_entry *disk = test_spill_disk_resource(disk_limit);
-  Trx_envelope_queue queue(/*memory_limit=*/1u << 20,
-                           /*spill_threshold=*/1u << 16,
-                           test_memory_resource(1u << 20),
-                           /*relay_log_dir=*/{}, /*channel_name=*/{}, disk);
+  Trx_envelope_queue queue(
+      /*memory_limit=*/1u << 20,
+      /*spill_threshold=*/1u << 16, test_memory_resource(1u << 20),
+      /*relay_log_basename=*/{}, /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
   ASSERT_FALSE(queue.acquire_admission(trx_length, Envelope_path::SPILL));
 
   std::string name;
   std::string spill_dir;
   {
-    Spill_file_writer writer(make_fde(), m_relay_log_dir, /*channel_name=*/"",
-                             &queue, trx_length);
+    Spill_file_writer writer(make_fde(), m_relay_log_basename,
+                             /*channel_name=*/"", &queue, trx_length);
     ASSERT_FALSE(writer.open()) << writer.get_error_str();
     name = writer.file_name();
     spill_dir = writer.temp_dir();
@@ -490,10 +497,10 @@ TEST_F(ImrSpillWriterTest, SetupFailureReleasesAccountingAtOnce) {
   const std::size_t disk_limit = 1u << 20;
   const std::size_t trx_length = 1u << 17;
   Resource_entry *disk = test_spill_disk_resource(disk_limit);
-  Trx_envelope_queue queue(/*memory_limit=*/1u << 20,
-                           /*spill_threshold=*/1u << 16,
-                           test_memory_resource(1u << 20),
-                           /*relay_log_dir=*/{}, /*channel_name=*/{}, disk);
+  Trx_envelope_queue queue(
+      /*memory_limit=*/1u << 20,
+      /*spill_threshold=*/1u << 16, test_memory_resource(1u << 20),
+      /*relay_log_basename=*/{}, /*channel_name=*/{}, disk);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
   const auto full = static_cast<long long>(disk_limit);
 
@@ -502,8 +509,9 @@ TEST_F(ImrSpillWriterTest, SetupFailureReleasesAccountingAtOnce) {
     ASSERT_FALSE(queue.acquire_admission(trx_length, Envelope_path::SPILL));
     ASSERT_EQ(disk->m_available.load(),
               static_cast<long long>(disk_limit - trx_length));
-    Spill_file_writer writer(make_fde(), m_relay_log_dir + "/missing",
-                             /*channel_name=*/"", &queue, trx_length);
+    Spill_file_writer writer(
+        make_fde(), (fs::path(m_dir) / "missing" / "relay-bin").string(),
+        /*channel_name=*/"", &queue, trx_length);
     ASSERT_TRUE(writer.open());
     writer.discard_after_setup_failure();
     EXPECT_EQ(queue.spill_file_count(), 0u);
@@ -518,8 +526,8 @@ TEST_F(ImrSpillWriterTest, SetupFailureReleasesAccountingAtOnce) {
   std::string name;
   {
     ASSERT_FALSE(queue.acquire_admission(trx_length, Envelope_path::SPILL));
-    Spill_file_writer writer(make_fde(), m_relay_log_dir, /*channel_name=*/"",
-                             &queue, trx_length);
+    Spill_file_writer writer(make_fde(), m_relay_log_basename,
+                             /*channel_name=*/"", &queue, trx_length);
     ASSERT_FALSE(writer.open()) << writer.get_error_str();
     name = writer.file_name();
     EXPECT_EQ(queue.spill_file_count(), 1u);

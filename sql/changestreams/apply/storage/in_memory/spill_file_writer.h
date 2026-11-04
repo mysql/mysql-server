@@ -50,7 +50,9 @@ class Spill_file_writer {
   /// file's prefix and used by the reader to decode subsequent events.
   using Fde_ptr = std::shared_ptr<Format_description_log_event>;
 
-  /// @brief Name of the server's single subdirectory that holds spill files.
+  /// @brief Prefix of the server's spill directory name. The directory is
+  /// "<prefix>.<file-name part of relay_log_basename>" (see
+  /// spill_directory_path()).
   static constexpr const char *kTempSubdirName =
       "#in_memory_relaylog_temp_files";
 
@@ -64,9 +66,9 @@ class Spill_file_writer {
   /// @brief Constructs a writer. Does not touch the filesystem until open().
   ///
   /// @param fde The FDE serialized into the file prefix; non-null at open().
-  /// @param relay_log_dir The server's relay log directory; non-empty at
-  ///        open(). Its @c \#in_memory_relaylog_temp_files subdirectory must
-  ///        exist (see ensure_spill_directory()).
+  /// @param relay_log_basename The server's relay_log_basename; non-empty at
+  ///        open(). Its spill directory must exist (see
+  ///        ensure_spill_directory()).
   /// @param channel_name Embedded in the file name (see kFileNamePrefix).
   /// @param owner_queue Queue whose spill gauges (SPILL_FILE_COUNT /
   ///        SPILL_BYTES_USED) this writer keeps; nullptr disables accounting.
@@ -74,7 +76,7 @@ class Spill_file_writer {
   ///        the writer. The destructor or discard_after_setup_failure()
   ///        releases it after the delete attempt, whether or not open()
   ///        succeeded. 0 when none was taken.
-  Spill_file_writer(Fde_ptr fde, std::string relay_log_dir,
+  Spill_file_writer(Fde_ptr fde, std::string relay_log_basename,
                     std::string channel_name = {},
                     Trx_envelope_queue *owner_queue = nullptr,
                     std::size_t reserved_disk_bytes = 0);
@@ -158,8 +160,9 @@ class Spill_file_writer {
 
   /// @brief FDE serialized into the file prefix.
   Fde_ptr m_fde;
-  /// @brief The server's relay log directory (parent of the temp subdir).
-  std::string m_relay_log_dir;
+  /// @brief The server's relay log basename; spill_directory_path() derives
+  /// the spill directory from it.
+  std::string m_relay_log_basename;
   /// @brief The owning channel's name, embedded in the spill file name. Empty
   /// for the default channel.
   std::string m_channel_name;

@@ -169,9 +169,11 @@ const char *as_char(const std::vector<unsigned char> &v) {
 constexpr std::size_t kSpillTrxLength = kSpillThreshold + 1;
 
 /// RAII private "relay log directory" for the spill-path integration tests;
-/// removed on scope exit (with the spill files and temp-files subdir under it).
+/// removed on scope exit (with the spill files and spill directory under it).
 struct Scoped_temp_dir {
   std::string path;
+  /// The relay log basename "<path>/relay-bin" that the queue is given.
+  std::string relay_log_basename;
   Scoped_temp_dir() {
     static std::atomic<unsigned> counter{0};
     path = (std::filesystem::temp_directory_path() /
@@ -183,7 +185,8 @@ struct Scoped_temp_dir {
     // ensure_spill_directory() (from init_replica); the queue no longer creates
     // it lazily on the first spill. This harness bypasses server startup, so
     // provision it here through the same production entry point.
-    (void)ensure_spill_directory(path);
+    relay_log_basename = (std::filesystem::path(path) / "relay-bin").string();
+    (void)ensure_spill_directory(relay_log_basename);
   }
   ~Scoped_temp_dir() {
     std::error_code ec;
@@ -1034,7 +1037,8 @@ TEST_F(Imr_integration_test, OverLimitTransactionClassifiesSpillNotBlock) {
 TEST_F(Imr_integration_test, EndToEndSpillPathDispatchCommitSweepAndCleanup) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   // mi-owned queue defaults to stopped; arm it for the test.
   resume_both_roles(queue);
 
@@ -1048,7 +1052,7 @@ TEST_F(Imr_integration_test, EndToEndSpillPathDispatchCommitSweepAndCleanup) {
   EXPECT_EQ(queue.bytes_used(), 0u) << "spill is outside the memory budget";
 
   // 2) The enqueue-created spill destination is reachable, healthy, over a real
-  //    file on the channel's relay log directory.
+  //    file in the server's spill directory.
   Streaming_event_sink *sink = env->current_sink();
   ASSERT_NE(sink, nullptr);
   auto *spill = dynamic_cast<Event_set_fetchable_spill *>(sink);
@@ -1130,7 +1134,8 @@ TEST_F(Imr_integration_test,
        EndToEndSpillPathTruncatedRollbackSweepAndCleanup) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   // mi-owned queue defaults to stopped; arm it for the test.
   resume_both_roles(queue);
 
@@ -1281,7 +1286,8 @@ TEST_F(Imr_integration_test, ApplierStopAbortsParkedMemoryConsumer) {
 TEST_F(Imr_integration_test, ApplierStopAbortsParkedSpillConsumer) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   resume_both_roles(queue);
   Transaction_envelope *env =
       queue.enqueue(kSpillTrxLength, /*is_trx=*/true, make_fde());
@@ -1334,7 +1340,8 @@ TEST_F(Imr_integration_test, ApplierStopAbortsParkedSpillConsumer) {
 TEST_F(Imr_integration_test, StructuralFailureEndsParkedConsumers) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   resume_both_roles(queue);
   Transaction_envelope *mem_env = queue.enqueue(kTrxLength, true, make_fde());
   ASSERT_NE(mem_env, nullptr);
@@ -1443,7 +1450,8 @@ TEST_F(Imr_integration_test, TruncationSurvivesResetFetchingNotAborted) {
 TEST_F(Imr_integration_test, SinkAppendsRaiseFetchableMaxEventLengthBothPaths) {
   Scoped_temp_dir relay_dir;
   Trx_envelope_queue queue(kMemoryLimit, kSpillThreshold,
-                           test_memory_resource(kMemoryLimit), relay_dir.path);
+                           test_memory_resource(kMemoryLimit),
+                           relay_dir.relay_log_basename);
   queue.resume(Trx_envelope_queue::Scope::RECEIVER);
   std::shared_ptr<void> drain(nullptr, [&queue](void *) { queue.reset(); });
 

@@ -70,7 +70,8 @@ class Event_set_fetchable_spill : public Event_set_fetchable,
   ///
   /// @param is_trx Whether this set represents a real transaction.
   /// @param fde The FDE; also serialized into the spill file prefix.
-  /// @param relay_log_dir The server's relay log directory.
+  /// @param relay_log_basename The server's relay log basename; names the
+  ///        spill directory.
   /// @param owner_envelope Envelope truncated/committed; nullptr in tests.
   /// @param streaming_open If true, appends are accepted until seal/truncate.
   /// @param channel_name Embedded in the spill file name (see
@@ -81,7 +82,7 @@ class Event_set_fetchable_spill : public Event_set_fetchable,
   /// @param stats_instance_id Channel whose CSA statistics count the commit.
   /// @param applier_stop Polled by the consumer wait; nullptr waits untimed.
   Event_set_fetchable_spill(
-      bool is_trx, Log_event_ptr fde, std::string relay_log_dir,
+      bool is_trx, Log_event_ptr fde, std::string relay_log_basename,
       Transaction_envelope *owner_envelope, bool streaming_open = true,
       std::string channel_name = {}, Trx_envelope_queue *owner_queue = nullptr,
       std::size_t reserved_disk_bytes = 0, std::size_t stats_instance_id = 0,

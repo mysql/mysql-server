@@ -214,30 +214,35 @@ std::vector<unsigned char> serialize_payload(
 
 }  // namespace
 
-/// Fixture that gives each test a private, empty "relay log directory" and
-/// tears the whole tree down afterwards (spill files + temp-files subdir).
+/// Fixture that gives each test a private relay log directory with a relay log
+/// basename in it, and tears the whole tree down afterwards (spill files and
+/// the spill directory).
 class ImrSpillSinkTest : public ::testing::Test {
  protected:
   void SetUp() override {
     static std::atomic<unsigned> counter{0};
-    m_relay_log_dir = (fs::temp_directory_path() /
-                       ("imr_spillsink_" + std::to_string(::getpid()) + "_" +
-                        std::to_string(counter.fetch_add(1))))
-                          .string();
-    fs::create_directories(m_relay_log_dir);
+    m_dir = (fs::temp_directory_path() /
+             ("imr_spillsink_" + std::to_string(::getpid()) + "_" +
+              std::to_string(counter.fetch_add(1))))
+                .string();
+    m_relay_log_basename = (fs::path(m_dir) / "relay-bin").string();
+    fs::create_directories(m_dir);
     // The spill-files subdirectory is provisioned once at server start by
     // ensure_spill_directory() (from init_replica); the spill sink no longer
     // creates it lazily. This harness bypasses server startup, so provision it
     // here through the same production entry point.
-    (void)ensure_spill_directory(m_relay_log_dir);
+    (void)ensure_spill_directory(m_relay_log_basename);
   }
 
   void TearDown() override {
     std::error_code ec;
-    fs::remove_all(m_relay_log_dir, ec);
+    fs::remove_all(m_dir, ec);
   }
 
-  std::string m_relay_log_dir;
+  /// The relay log directory; removed with everything in it.
+  std::string m_dir;
+  /// The relay log basename "<m_dir>/relay-bin".
+  std::string m_relay_log_basename;
 };
 
 // ---------------------------------------------------------------------------
@@ -246,7 +251,8 @@ class ImrSpillSinkTest : public ::testing::Test {
 // ---------------------------------------------------------------------------
 
 TEST_F(ImrSpillSinkTest, ConstructionOpensFileAndPublishesPrefix) {
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
 
@@ -269,7 +275,8 @@ TEST_F(ImrSpillSinkTest, ConstructionOpensFileAndPublishesPrefix) {
 // ---------------------------------------------------------------------------
 
 TEST_F(ImrSpillSinkTest, AppendAdvancesPublishedPositionAndSealsOnce) {
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -303,7 +310,8 @@ TEST_F(ImrSpillSinkTest, AppendAdvancesPublishedPositionAndSealsOnce) {
 // ---------------------------------------------------------------------------
 
 TEST_F(ImrSpillSinkTest, SealStreamRejectsFurtherAppends) {
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -330,7 +338,8 @@ TEST_F(ImrSpillSinkTest, TruncatePropagatesToOwners) {
   Transaction_envelope env(/*trx_length=*/128, Envelope_path::SPILL);
   Fetchable_transaction ft;
 
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/&env,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -358,7 +367,8 @@ TEST_F(ImrSpillSinkTest, TruncatePropagatesToOwners) {
 
 // A truncate with no wired owners is safe (nullptr owners are simply skipped).
 TEST_F(ImrSpillSinkTest, TruncateWithoutOwnersIsSafe) {
-  Event_set_fetchable_spill sink(/*is_trx=*/false, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/false, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -378,7 +388,8 @@ TEST_F(ImrSpillSinkTest, TruncateWithoutOwnersIsSafe) {
 // through the consumer interface, decoding to the same events in order, then
 // the consumer terminates cleanly (is_done, not error).
 TEST_F(ImrSpillSinkTest, StreamsBackEventsInOrder) {
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -411,7 +422,8 @@ TEST_F(ImrSpillSinkTest, StreamsBackEventsInOrder) {
 // longer) and corrupting every event.
 TEST_F(ImrSpillSinkTest, Crc32EventsRoundTripWithMatchingChecksumFde) {
   Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde_crc32(),
-                                 m_relay_log_dir, /*owner_envelope=*/nullptr,
+                                 m_relay_log_basename,
+                                 /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
 
@@ -450,7 +462,8 @@ TEST_F(ImrSpillSinkTest, Crc32EventsRoundTripWithMatchingChecksumFde) {
 // outer event, then the inner events in order (not the payload wrapper), and
 // the inner Xid ends the transaction cleanly.
 TEST_F(ImrSpillSinkTest, CompressedPayloadStreamsBackDecompressed) {
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -503,7 +516,8 @@ TEST_F(ImrSpillSinkTest, CompressedPayloadStreamsBackDecompressed) {
 // A mid-stream wait_next() blocks until the writer publishes more bytes, then
 // unblocks and delivers them (streaming read-back, not seal-gated).
 TEST_F(ImrSpillSinkTest, WaitBlocksUntilPublishedThenUnblocks) {
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -556,7 +570,8 @@ TEST_F(ImrSpillSinkTest, TruncateMidStreamStopsAfterAvailable) {
   Transaction_envelope env(/*trx_length=*/128, Envelope_path::SPILL);
   Fetchable_transaction ft;
 
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/&env,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -582,7 +597,8 @@ TEST_F(ImrSpillSinkTest, TruncateUnblocksParkedConsumer) {
   Transaction_envelope env(/*trx_length=*/128, Envelope_path::SPILL);
   Fetchable_transaction ft;
 
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/&env,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -629,7 +645,8 @@ TEST_F(ImrSpillSinkTest, TruncateUnblocksParkedConsumer) {
 // stays clean, the writer keeps writing and sealing, and a consumer
 // reset clears the reader failure so a retry reads the whole transaction.
 TEST_F(ImrSpillSinkTest, ReaderFailureLeavesWriterErrorStateUnchanged) {
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -674,7 +691,8 @@ TEST_F(ImrSpillSinkTest, ReaderFailureLeavesWriterErrorStateUnchanged) {
 TEST_F(ImrSpillSinkTest, WriterFailureIsVisibleToConsumer) {
   Transaction_envelope env(/*trx_length=*/128, Envelope_path::SPILL);
   Fetchable_transaction ft;
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/&env,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -721,7 +739,7 @@ TEST_F(ImrSpillSinkTest, WriterFailureIsVisibleToConsumer) {
 TEST_F(ImrSpillSinkTest, WriterFailureIsTruncationNotReadError) {
   Transaction_envelope env(/*trx_length=*/128, Envelope_path::SPILL);
   auto batch = std::make_unique<Event_set_fetchable_spill>(
-      /*is_trx=*/true, make_fde(), m_relay_log_dir, &env,
+      /*is_trx=*/true, make_fde(), m_relay_log_basename, &env,
       /*streaming_open=*/true);
   ASSERT_FALSE(batch->is_error()) << batch->get_error_str();
   Event_set_fetchable_spill *sink = batch.get();
@@ -781,7 +799,8 @@ TEST_F(ImrSpillSinkTest, WriterFailureIsTruncationNotReadError) {
 // (possible because a reader failure does not stop the writer): each side
 // keeps its own message.
 TEST_F(ImrSpillSinkTest, ReaderAndWriterFailuresKeepSeparateMessages) {
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -824,7 +843,8 @@ TEST_F(ImrSpillSinkTest, ReaderAndWriterFailuresKeepSeparateMessages) {
 // and the seal become visible; non-terminal appends never mark it complete.
 TEST_F(ImrSpillSinkTest, TerminalAppendMarksCompleteBeforeVisible) {
   Fetchable_transaction owner;
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -863,7 +883,8 @@ TEST_F(ImrSpillSinkTest, TerminalAppendMarksCompleteBeforeVisible) {
 // seal_stream() uses the same order: complete, then the seal.
 TEST_F(ImrSpillSinkTest, SealStreamMarksCompleteBeforeVisible) {
   Fetchable_transaction owner;
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -890,7 +911,8 @@ TEST_F(ImrSpillSinkTest, SealStreamMarksCompleteBeforeVisible) {
 TEST_F(ImrSpillSinkTest, TruncatedStreamIsNeverMarkedComplete) {
   Fetchable_transaction owner;
   Fetchable_transaction later_owner;
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -917,7 +939,8 @@ TEST_F(ImrSpillSinkTest, TruncatedStreamIsNeverMarkedComplete) {
 TEST_F(ImrSpillSinkTest, TerminalWriteFailureIsNeverMarkedComplete) {
   Fetchable_transaction owner;
   Fetchable_transaction later_owner;
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -952,7 +975,7 @@ TEST_F(ImrSpillSinkTest, TerminalWriteFailureIsNeverMarkedComplete) {
 // event as the last of the transaction.
 TEST_F(ImrSpillSinkTest, ConsumerInSealWindowSeesLastInTransaction) {
   auto batch = std::make_unique<Event_set_fetchable_spill>(
-      /*is_trx=*/true, make_fde(), m_relay_log_dir,
+      /*is_trx=*/true, make_fde(), m_relay_log_basename,
       /*owner_envelope=*/nullptr, /*streaming_open=*/true);
   ASSERT_FALSE(batch->is_error()) << batch->get_error_str();
   Event_set_fetchable_spill *sink = batch.get();
@@ -1032,7 +1055,8 @@ constexpr std::chrono::seconds kStopWait{1};
 TEST_F(ImrSpillSinkTest, ApplierStopFlagEndsParkedWait) {
   std::atomic<bool> applier_stop{false};
   Event_set_fetchable_spill sink(
-      /*is_trx=*/true, make_fde(), m_relay_log_dir, /*owner_envelope=*/nullptr,
+      /*is_trx=*/true, make_fde(), m_relay_log_basename,
+      /*owner_envelope=*/nullptr,
       /*streaming_open=*/true, /*channel_name=*/{}, /*owner_queue=*/nullptr,
       /*reserved_disk_bytes=*/0, /*stats_instance_id=*/0, &applier_stop);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -1076,7 +1100,8 @@ TEST_F(ImrSpillSinkTest, ApplierStopFlagEndsParkedWait) {
 // On an open stream, fetch_next() past the published end returns "nothing
 // yet" (not done, no error); only the seal makes the batch done.
 TEST_F(ImrSpillSinkTest, FetchPastPublishedEndOnOpenStreamIsNotDone) {
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -1108,7 +1133,8 @@ TEST_F(ImrSpillSinkTest, FetchPastPublishedEndOnOpenStreamIsNotDone) {
 // because the stream is sealed does not raise it.
 TEST_F(ImrSpillSinkTest, AppendRaisesOwnerMaxEventLength) {
   Fetchable_transaction owner;
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -1140,7 +1166,8 @@ TEST_F(ImrSpillSinkTest, AppendRaisesOwnerMaxEventLength) {
 // A failed write truncates the stream and does not raise the value.
 TEST_F(ImrSpillSinkTest, FailedWriteDoesNotRaiseMaxEventLength) {
   Fetchable_transaction owner;
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
@@ -1192,19 +1219,19 @@ std::size_t count_spill_fds(const std::string &dir) {
 // deleted only when the byte sources are destroyed.
 TEST_F(ImrSpillSinkTest, SealedSinkClosesItsDescriptor) {
   if (!fs::exists("/proc/self/fd")) GTEST_SKIP() << "needs /proc/self/fd";
-  const std::size_t before = count_spill_fds(m_relay_log_dir);
+  const std::size_t before = count_spill_fds(m_dir);
 
   constexpr int kSinkCount = 200;
   std::vector<std::unique_ptr<Event_set_fetchable_spill>> sinks;
   for (int i = 0; i < kSinkCount; ++i) {
     sinks.push_back(std::make_unique<Event_set_fetchable_spill>(
-        /*is_trx=*/true, make_fde(), m_relay_log_dir,
+        /*is_trx=*/true, make_fde(), m_relay_log_basename,
         /*owner_envelope=*/nullptr, /*streaming_open=*/true));
     ASSERT_FALSE(sinks.back()->is_error()) << sinks.back()->get_error_str();
     append_rotate(*sinks.back(), 1, /*seal_after=*/true);
     ASSERT_TRUE(sinks.back()->is_sealed());
   }
-  EXPECT_EQ(count_spill_fds(m_relay_log_dir), before)
+  EXPECT_EQ(count_spill_fds(m_dir), before)
       << "a sealed transaction must not hold its spill file descriptor";
 
   std::vector<std::string> names;
@@ -1215,7 +1242,7 @@ TEST_F(ImrSpillSinkTest, SealedSinkClosesItsDescriptor) {
   for (const auto &sink : sinks) {
     EXPECT_EQ(drain_positions(*sink), (std::vector<unsigned long long>{1}));
   }
-  EXPECT_EQ(count_spill_fds(m_relay_log_dir), before)
+  EXPECT_EQ(count_spill_fds(m_dir), before)
       << "a drained reader must close its descriptor";
 
   sinks.clear();
@@ -1227,14 +1254,15 @@ TEST_F(ImrSpillSinkTest, SealedSinkClosesItsDescriptor) {
 // descriptor, and its file stays until the byte source is destroyed.
 TEST_F(ImrSpillSinkTest, FailedAppendClosesItsDescriptor) {
   if (!fs::exists("/proc/self/fd")) GTEST_SKIP() << "needs /proc/self/fd";
-  const std::size_t before = count_spill_fds(m_relay_log_dir);
+  const std::size_t before = count_spill_fds(m_dir);
 
-  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(), m_relay_log_dir,
+  Event_set_fetchable_spill sink(/*is_trx=*/true, make_fde(),
+                                 m_relay_log_basename,
                                  /*owner_envelope=*/nullptr,
                                  /*streaming_open=*/true);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
   append_rotate(sink, 1);
-  EXPECT_EQ(count_spill_fds(m_relay_log_dir), before + 1)
+  EXPECT_EQ(count_spill_fds(m_dir), before + 1)
       << "the stream stays open while the transaction is written";
 
   const auto second = serialize_rotate(2);
@@ -1242,7 +1270,7 @@ TEST_F(ImrSpillSinkTest, FailedAppendClosesItsDescriptor) {
   const bool failed = sink.append_event(as_char(second), second.size());
   DBUG_SET("-d,imr_force_spill_append_failure");
   ASSERT_TRUE(failed);
-  EXPECT_EQ(count_spill_fds(m_relay_log_dir), before)
+  EXPECT_EQ(count_spill_fds(m_dir), before)
       << "a failed transaction must not hold its spill file descriptor";
   EXPECT_TRUE(fs::exists(sink.spill_file_name()));
 }

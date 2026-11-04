@@ -61,7 +61,7 @@ The per-channel `Imr_runtime` object. It owns the queue and the receiver's write
 The `Imr_service::reconcile()` operation that creates, rebuilds, destroys or leaves a channel's runtime so that it matches the channel's configuration.
 
 **Spill directory**
-The directory that holds spill files, `#in_memory_relaylog_temp_files` (`Spill_file_writer::kTempSubdirName`), under the relaylog directory.
+The server's directory that holds spill files, `#in_memory_relaylog_temp_files.<leaf>` (`Spill_file_writer::kTempSubdirName` followed by `.` and the file-name part of `relay_log_basename`), in the relaylog directory.
 
 ### Summary of the Approach
 
@@ -198,7 +198,7 @@ This section describes the layers bottom-up. The byte-source layer knows nothing
 
 Purpose. Hold the encoded events of one transaction and serve them to a worker through the existing `Event_set_fetchable` interface, while the receiver may still be appending.
 
-Classes. `Event_set_fetchable_memory` keeps the events in memory as a vector of `Cached_event_memory`, each an owning copy of the received bytes. `Event_set_fetchable_spill` streams the events to a private spill file through `Spill_file_writer` and reads them back through a `Relaylog_file_reader`. The free functions `ensure_spill_directory()`, `purge_orphan_spill_files()` and `spill_directory_path()` manage the spill directory. `imr_reencrypt_spill_files()` handles master key rotation for encrypted spill files.
+Classes. `Event_set_fetchable_memory` keeps the events in memory as a vector of `Cached_event_memory`, each an owning copy of the received bytes. `Event_set_fetchable_spill` streams the events to a private spill file through `Spill_file_writer` and reads them back through a `Relaylog_file_reader`. The free functions `ensure_spill_directory()`, `purge_orphan_spill_files()` and `spill_directory_path()` manage the spill directory; `spill_directory_path()` derives the server's spill directory from `relay_log_basename`. `imr_reencrypt_spill_files()` handles master key rotation for encrypted spill files.
 
 Interfaces. Each byte source implements two interfaces. As `Streaming_event_sink`, the byte source offers `append_event()`, `seal_stream()` and `set_stream_truncated()`. The receiver seals with `append_event(..., seal_after = true)` on the last event, truncates with `set_stream_truncated()`, and reads `has_io_error()` / `io_error_message()`. As `Event_set_fetchable`, a worker calls `wait_next()`, `fetch_next()`, `is_done()`, `is_error()`, `get_error_str()` and `reset()`, and the commit path calls `set_success()`. Both byte sources decompress a `Transaction_payload_event` on the read side, as the disk path does.
 
@@ -278,7 +278,7 @@ Payload and Fetchable_transaction. The payload is owned by the envelope and rese
 Memory reservation. Taken at admission and owned by the memory byte source, like the spill disk reservation is owned by the spill writer; released by `~Event_set_fetchable_memory()`. The encoded bytes belong to the same byte source, which is destroyed with the last reference to the `Fetchable_transaction`: the payload's, or a job's. So the reservation is released exactly once, right after the bytes are freed. When a truncated envelope is swept while a job applies it, the job keeps the bytes and the reservation until it is dropped.
 
 FDE. Each transaction's payload holds a `shared_ptr` to a read-only snapshot of the receiver's FDE (`Format_description_log_event`). The runtime takes the snapshot in `set_receiver_fde()`, which `queue_event()` calls under `LOCK_log` right after it installs each source Format_description event as the receiver's FDE. The source sends one at the start of every binlog file, so every connection and every source binlog rotation has one before its first transaction. `open_transaction()` shares the snapshot with every transaction until the next one. Workers decode and apply with the snapshot and never with the receiver's object, which is written in place under `LOCK_log` during relaylog rotation and while a source Rotate is decoded. `detach_role(RECEIVER)` releases the runtime's references; each transaction keeps its own.
-Spill file and spill disk reservation. Owned by the `Spill_file_writer`, which is owned by the spill byte source, which is owned by the `Fetchable_transaction`. The writer deletes the file and returns the reservation when it is destroyed, that is when the last reference to the `Fetchable_transaction` goes away after commit, sweep or queue reset. Files left by a crash are deleted at the next startup.
+Spill file and spill disk reservation. Owned by the `Spill_file_writer`, which is owned by the spill byte source, which is owned by the `Fetchable_transaction`. The writer deletes the file and returns the reservation when it is destroyed, that is when the last reference to the `Fetchable_transaction` goes away after commit, sweep or queue reset. Files left by a crash are deleted at the next startup of the same server, from its own spill directory.
 
 ### Threads and Synchronization
 
@@ -432,7 +432,7 @@ A role is attached only while its thread runs; the thread detaches it in its exi
 
 * `want_runtime = rli->is_in_memory_relaylog() && rli->is_csa_enabled()`;
 * `has_runtime = rli->imr() != nullptr`;
-* `config_matches` = the existing queue's `memory_limit()` and `spill_threshold()` equal `rli->get_in_memory_relaylog_limit()` and `rli->get_in_memory_relaylog_spill_threshold()`. The queue's `relay_log_dir()` is always the directory of `relay_log_basename`, which is read-only, so it never causes a rebuild.
+* `config_matches` = the existing queue's `memory_limit()` and `spill_threshold()` equal `rli->get_in_memory_relaylog_limit()` and `rli->get_in_memory_relaylog_spill_threshold()`. The queue's `relay_log_basename()` is always the server's `relay_log_basename`, which is read-only, so it never causes a rebuild.
 
 | want_runtime | has_runtime | config_matches | Action |
 |---|---|---|---|
@@ -452,7 +452,7 @@ A role is attached only while its thread runs; the thread detaches it in its exi
 1. creates `imr_service`;
 2. loads every channel (`create_slave_info_objects()`); for each channel, `load_mi_and_rli_from_repositories()` ends with `reconcile()`, which creates the runtime of each IMR channel with an empty queue and an empty `Retrieved_Gtid_Set`;
 3. for each IMR channel, `imr_purge_stale_relay_logs()` purges the relaylog files except the active one (only if `relay_log_purge` is ON);
-4. `imr_service->init_spill_storage()` deletes orphan spill files in the spill directory and ensures it exists;
+4. `imr_service->init_spill_storage()` deletes orphan spill files in this server's spill directory and ensures it exists;
 5. starts the replication threads of the channels configured to start.
 
 #### Crash recovery
@@ -511,11 +511,13 @@ The stored IMR settings are kept when `APPLIER_VERSION` changes; they take effec
 
 #### Directory
 
-The spill directory is named `#in_memory_relaylog_temp_files` on disk. It lives in the relaylog directory, the directory part of `relay_log_basename`, so it is on the same filesystem as the relaylog files. `Imr_service::init_spill_storage()` creates it at startup whether or not any channel uses the feature, because a CRST can enable the feature later. `Spill_file_writer::open()` never creates it. If the path is unusable, the cause and a summary are logged and every IMR channel is refused at START with `ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE` until the server is restarted with the path fixed. The directory is not a schema: `SHOW DATABASES` and `information_schema` list the schemas of the data dictionary, and IMR adds no schema.
+The spill directory is `<relaylog directory>/#in_memory_relaylog_temp_files.<leaf>`, where the relaylog directory is the directory part of `relay_log_basename` and `<leaf>` is its file-name part. For example `relay_log_basename = /logs/a-relay` gives `/logs/#in_memory_relaylog_temp_files.a-relay`, and the default `<datadir>/<hostname>-relay-bin` gives `<datadir>/#in_memory_relaylog_temp_files.<hostname>-relay-bin`. The directory is on the same filesystem as the relaylog files. A server has one spill directory, shared by all its channels. Two servers whose relaylogs share a directory with different basenames have separate spill directories, so neither server's startup purge or key rotation touches the other's files. The separator is `.` because `rpl_make_log_name()` builds `relay_log_basename` with `fn_format(..., MY_REPLACE_EXT)`, which cuts the file name at its first `.`, so the leaf never contains `.` or a directory separator. `-` is not used because it separates the channel name in relaylog names (`<basename>-<channel>`). `Imr_service::init_spill_storage()` creates it at startup whether or not any channel uses the feature, because a CRST can enable the feature later. `Spill_file_writer::open()` never creates it. If the path is unusable, the cause and a summary are logged and every IMR channel is refused at START with `ER_REPLICA_IN_MEMORY_RELAYLOG_SPILL_STORAGE_UNUSABLE` until the server is restarted with the path fixed. The directory is not a schema: `SHOW DATABASES` and `information_schema` list the schemas of the data dictionary, and IMR adds no schema.
+
+Limitations. (1) Two servers configured with the same full `relay_log_basename` share the spill directory. They already share the relaylog files and the index, which is not a working configuration, so IMR does not make it worse. (2) When `relay_log_basename` changes (the default follows the host name, or `relay_log` is edited), the old spill directory is left behind and never purged, like the old relaylog files. (3) IMR has not been released, so the earlier shared `#in_memory_relaylog_temp_files` directory is no longer used and needs no migration. (4) A leaf longer than about 224 bytes makes the directory name exceed `NAME_MAX`. The directory then cannot be created, which is reported as an unusable spill directory and keeps IMR channels from starting.
 
 #### File naming and format
 
-Each spill path transaction has its own file, named `imr_sp_<channel>_<id>` (`imr_sp_<id>` for the default channel). `<channel>` is the channel name encoded in the filename charset, as in relaylog file names (`ch-1` gives `imr_sp_ch@002d1_<id>`), which keeps the files of concurrent channels apart in the shared directory, and `<id>` is a lowercase hex number from a process-global counter. The file is in standard relaylog format: `BINLOG_MAGIC`, the transaction's FDE marked as a relaylog event, then the received events as raw bytes. A worker reads it with the normal `Relaylog_file_reader`, so the decode path is the disk path's.
+Each spill path transaction has its own file, named `imr_sp_<channel>_<id>` (`imr_sp_<id>` for the default channel). `<channel>` is the channel name encoded in the filename charset, as in relaylog file names (`ch-1` gives `imr_sp_ch@002d1_<id>`), which keeps the files of concurrent channels apart in the server's spill directory, and `<id>` is a lowercase hex number from a process-global counter. The file is in standard relaylog format: `BINLOG_MAGIC`, the transaction's FDE marked as a relaylog event, then the received events as raw bytes. A worker reads it with the normal `Relaylog_file_reader`, so the decode path is the disk path's.
 
 #### Write, read and publish
 
@@ -537,7 +539,7 @@ On an IMR channel `relay_log_space_limit` bounds the spill files instead of the 
 
 #### Deletion
 
-A spill file is deleted when its `Spill_file_writer` is destroyed: after commit (when the last reference to the `Fetchable_transaction` goes), when a truncated envelope is swept, and at queue reset. Files left by a crash are deleted at startup by `purge_orphan_spill_files()`, which matches only names starting with `imr_sp_`.
+A spill file is deleted when its `Spill_file_writer` is destroyed: after commit (when the last reference to the `Fetchable_transaction` goes), when a truncated envelope is swept, and at queue reset. Files left by a crash are deleted at the next startup by `purge_orphan_spill_files()`, which looks only in this server's spill directory and matches only names starting with `imr_sp_`.
 
 If a spill file cannot be deleted at run time, a warning with the path and errno is logged. The writer has already returned the file's bytes, its file count and its spill disk reservation, so the file no longer counts toward `relay_log_space_limit` or the `SPILL_FILE_COUNT` and `SPILL_BYTES_USED` columns. The writer then sets the queue's `m_spill_delete_failed`, whichever thread destroys it, and the coordinator's next `read()` stops the applier with `ER_REPLICA_RELAY_LOG_READ_FAILURE`, as the relay log does when it cannot purge a relay log file. The record is cleared when the applier starts, so START REPLICA SQL_THREAD works again, and the startup purge removes the file. A failed delete during queue reset or after a spill-file setup failure (in `open()` or the first `flush()`) only logs the warning.
 
@@ -732,7 +734,7 @@ A worker can start applying a spill path transaction while the receiver is still
 
 Owns one spill file. It does not touch the filesystem until `open()`.
 
-* `kTempSubdirName = "#in_memory_relaylog_temp_files"` and `kFileNamePrefix = "imr_sp_"`.
+* `kTempSubdirName = "#in_memory_relaylog_temp_files"` (the spill directory name prefix) and `kFileNamePrefix = "imr_sp_"`.
 * `open()`: composes the path under the spill directory (which must exist) and creates the file with `create_unique_file()`. The file name is `imr_sp_<channel>_<id>` for a named channel and `imr_sp_<id>` for the default channel, where `<channel>` is the channel name converted with `strconvert()` from `system_charset_info` to `my_charset_filename` (as `Relay_log_info::add_channel_to_relay_log_name()` does) and `<id>` is the next value of a process-global atomic counter in lowercase hex. The file is created with `O_CREAT | O_EXCL`; a name that exists is skipped, up to 1024 attempts. `open()` then opens an `IO_CACHE_ostream` with `MY_WME | MY_NABP | MY_WAIT_IF_FULL | MY_REPORT_WAITING_IF_FULL`, the flags of the relaylog file. If `rpl_encryption.is_enabled()`, it puts a `Binlog_encryption_ostream` on top, which writes the 512-byte encryption header, and flushes the header. Then it writes `BINLOG_MAGIC` and a private copy of the FDE marked as a relaylog event, and registers the file in the channel's spill gauges.
 * `append_raw(buf, len)`: writes the bytes and advances `m_end_pos` and the byte gauge.
 * `flush()`: flushes the `IO_CACHE` to the file so a concurrent reader sees the bytes. It does not fsync.
@@ -744,13 +746,13 @@ Owns one spill file. It does not touch the filesystem until `open()`.
 
 ##### Spill directory functions
 
-* `spill_directory_path(relay_log_dir)`: the relaylog directory joined with `kTempSubdirName`.
-* `ensure_spill_directory(relay_log_dir)`: creates the directory with mode `S_IRWXU | S_IRGRP | S_IXGRP` (the mode `mysqld --initialize` gives the data directory) if it is absent. The path is unusable if it cannot be created, is a symbolic link, is not a directory, or lacks read, write and search permission for the server. An unusable path is logged as an error naming the directory and the cause, and returned to the caller.
-* `purge_orphan_spill_files(relay_log_dir)`: deletes every entry whose name starts with `imr_sp_`, never enters or removes a directory, and leaves every other entry alone. It lists the directory without `MY_WANT_STAT`, because with it `my_dir()` drops entries that lack the owner-read bit, and calls `my_stat()` on each prefixed entry to skip directories. A file that cannot be deleted is logged as `ER_BINLOG_CANT_DELETE_FILE` and the purge goes on. A missing directory is not an error. A listing failure other than a missing or non-directory path is logged as an error with the errno and counts as a purge failure. A spill path that is a symbolic link is skipped without reading it and is not an error; `ensure_spill_directory()`, which runs after the purge, rejects it.
+* `spill_directory_path(relay_log_basename)`: the directory part of the basename, then `kTempSubdirName`, `.` and the file-name part; empty for an empty basename.
+* `ensure_spill_directory(relay_log_basename)`: creates the directory with mode `S_IRWXU | S_IRGRP | S_IXGRP` (the mode `mysqld --initialize` gives the data directory) if it is absent. The path is unusable if it cannot be created, is a symbolic link, is not a directory, or lacks read, write and search permission for the server. An unusable path is logged as an error naming the directory and the cause, and returned to the caller.
+* `purge_orphan_spill_files(relay_log_basename)`: deletes every entry whose name starts with `imr_sp_`, never enters or removes a directory, and leaves every other entry alone. It lists the directory without `MY_WANT_STAT`, because with it `my_dir()` drops entries that lack the owner-read bit, and calls `my_stat()` on each prefixed entry to skip directories. A file that cannot be deleted is logged as `ER_BINLOG_CANT_DELETE_FILE` and the purge goes on. A missing directory is not an error. A listing failure other than a missing or non-directory path is logged as an error with the errno and counts as a purge failure. A spill path that is a symbolic link is skipped without reading it and is not an error; `ensure_spill_directory()`, which runs after the purge, rejects it.
 
 ##### Spill encryption functions
 
-`imr_reencrypt_spill_files()` is declared in `sql/rpl_replica.h` and called by `ALTER INSTANCE ROTATE BINLOG MASTER KEY` right after `reencrypt_relay_logs()`. It lists the spill directories of the channels that have a runtime (`spill_dirs_of_live_runtimes()`, under the `channel_map` read lock) and calls `reencrypt_spill_files_in_dirs()`. For every `imr_sp_*` file whose header names a key other than the current master key (`parse_spill_header()` reads the key id, because `Rpl_encryption_header` has no accessor for it), the pass decrypts the file password with that key and writes a new 512-byte header with the same password, the current master key and a new initialization vector, in place at offset 0 (`Header_rewrapper`). It opens files without `O_CREAT`, so a file deleted meanwhile is skipped. It reads and writes only bytes [0, 512). A header that is corrupt, or names a key that is not in the keyring (which includes a key of another server), is skipped with a warning.
+`imr_reencrypt_spill_files()` is declared in `sql/rpl_replica.h` and called by `ALTER INSTANCE ROTATE BINLOG MASTER KEY` right after `reencrypt_relay_logs()`. It lists the spill directories of the channels that have a runtime (`spill_dirs_of_live_runtimes()`, under the `channel_map` read lock; all channels of a server share one, so this is the server's spill directory once) and calls `reencrypt_spill_files_in_dirs()`. For every `imr_sp_*` file whose header names a key other than the current master key (`parse_spill_header()` reads the key id, because `Rpl_encryption_header` has no accessor for it), the pass decrypts the file password with that key and writes a new 512-byte header with the same password, the current master key and a new initialization vector, in place at offset 0 (`Header_rewrapper`). It opens files without `O_CREAT`, so a file deleted meanwhile is skipped. It reads and writes only bytes [0, 512). A header that is corrupt, or names a key that is not in the keyring (which includes a key of another server), is skipped with a warning.
 
 #### Queue layer classes
 
@@ -785,7 +787,7 @@ Key members:
 * `m_queue_mutex`, `m_not_empty_cv`: the queue mutex and the consumer condition variable.
 * `m_envelopes`: `std::deque<std::unique_ptr<Transaction_envelope>>`. The `unique_ptr` keeps each envelope's address stable from enqueue until it is popped.
 * `m_commit_seqno`, `m_dispatch_seqno`, `m_insert_seqno`: the cursors, counted in envelopes since the last reset.
-* `m_memory_limit`, `m_spill_threshold`, `m_relay_log_dir`, `m_channel_name`, `m_channel_instance_id`: immutable after construction.
+* `m_memory_limit`, `m_spill_threshold`, `m_relay_log_basename`, `m_channel_name`, `m_channel_instance_id`: immutable after construction.
 * `m_memory_resource`, `m_spill_disk_resource`: `Resource_entry *const`, the channel's `in_memory_relaylog_memory` and `in_memory_relaylog_spill_disk` entries; null means the limit is off.
 * `m_receiver_stopped` (atomic), `m_applier_stopped` (atomic, starts set, written only under the queue mutex), `m_applier_error` (under the queue mutex): stop and error flags. `applier_stop_flag()` returns `&m_applier_stopped` for the byte sources and the reader.
 * `m_spill_file_count`, `m_spill_bytes_used` (atomics): the live spill gauges.
@@ -837,7 +839,7 @@ The receiver holds at most one envelope, and it releases that envelope before it
 
 Key members: `m_queue` (`Trx_envelope_queue`, by value), `m_role_mutex`, `m_receiver_group`, `m_last_write_failure`, `m_fde_snapshot` (the read-only copy of the last source FDE), `m_receiver_owner` and `m_applier_owner` (`std::atomic<std::thread::id>`).
 
-The constructor takes an `Imr_config`, the relaylog directory, the memory resource entry, the channel name, the spill disk resource entry and the channel instance id, and constructs the queue with them. The destructor asserts that both roles are detached and no group is open.
+The constructor takes an `Imr_config`, the relay log basename, the memory resource entry, the channel name, the spill disk resource entry and the channel instance id, and constructs the queue with them. The destructor asserts that both roles are detached and no group is open.
 
 Role methods:
 
@@ -873,7 +875,7 @@ Methods:
 * `attach_receiver(mi)`, `attach_applier(mi)` (static): `rli->imr()->attach_role(...)`; no-op (false) on a channel without a runtime.
 * `request_receiver_stop(mi)`, `request_applier_stop(mi)` (static): `rli->imr()->request_stop(...)`.
 * `detach_receiver(mi)`, `detach_applier(mi)` (static): `rli->imr()->detach_role(..., mi)`.
-* `init_spill_storage()`: at startup, purges orphan spill files in the spill directory derived from the server-global `relay_log_basename`, then ensures that directory exists. A purge failure sets `m_spill_cleanup_failed`; an unusable directory sets `m_spill_dir_unusable`. Each also logs a summary error. Both flags are written once before any replication thread runs and never cleared, so they are read without a lock.
+* `init_spill_storage()`: at startup, purges orphan spill files in the server's spill directory, which `spill_directory_path()` derives from the server-global `relay_log_basename`, then ensures that directory exists. A purge failure sets `m_spill_cleanup_failed`; an unusable directory sets `m_spill_dir_unusable`. Each also logs a summary error. Both flags are written once before any replication thread runs and never cleared, so they are read without a lock.
 
 #### Integration layer classes and functions
 

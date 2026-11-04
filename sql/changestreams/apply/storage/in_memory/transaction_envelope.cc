@@ -115,7 +115,7 @@ bool Transaction_envelope::create_payload(
   if (m_path == Envelope_path::SPILL) {
     // owner_queue lets the writer keep the spill gauges current.
     auto src = std::make_unique<Event_set_fetchable_spill>(
-        is_trx, fde, owner_queue->relay_log_dir(), this,
+        is_trx, fde, owner_queue->relay_log_basename(), this,
         /*streaming_open=*/true, owner_queue->channel_name(), owner_queue,
         /*reserved_disk_bytes=*/m_trx_length,
         owner_queue->channel_instance_id(), owner_queue->applier_stop_flag());

@@ -48,8 +48,8 @@
 CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
 --source include/rpl/sync_to_replica.inc
 
-# <relay-log dir>/#in_memory_relaylog_temp_files, created at server start.
---let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files')`
+# The server's spill directory, created at server start.
+--source include/rpl/get_imr_spill_dir.inc
 --let $spill_ls_file= $MYSQL_TMP_DIR/imr_own_server_id_ls.txt
 
 --let $slave_param= In_Memory_Queue_Length

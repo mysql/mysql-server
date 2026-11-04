@@ -124,8 +124,8 @@ Transactions stored through the spill path are written in standard relaylog form
 
 Dedicated directory
 
-The spill files live in a dedicated directory named `#in_memory_relaylog_temp_files`, created in the same directory as the channel's relaylog files. Placing it alongside the relaylog keeps the files on the same filesystem and lets them get the same permissions, ownership, and encryption options. The directory is created during server initialization, and is excluded from schema-visible listings (`SHOW DATABASES`, `information_schema`). If the path exists but is not a directory, or cannot be created or secured, the feature logs an error and rejects replication start when the feature is enabled.
-File lifecycle. Each spill file has a unique name to avoid conflicts. It is retained until its transaction commits, and then deleted. On startup, any leftover uncommitted spill path files in `#in_memory_relaylog_temp_files` are discarded, and their transactions are re-fetched by GTID auto-positioning. Workers read and decode the spill path file exactly as they read the relaylog today.
+The spill files live in a dedicated directory named `#in_memory_relaylog_temp_files.<leaf>`, where `<leaf>` is the file-name part of the relaylog basename, created in the same directory as the server's relaylog files. Naming it after the basename gives each server its own spill directory, so servers whose relaylog files share a directory never see each other's spill files. Placing it alongside the relaylog keeps the files on the same filesystem and lets them get the same permissions, ownership, and encryption options. The directory is created during server initialization, and is excluded from schema-visible listings (`SHOW DATABASES`, `information_schema`). If the path exists but is not a directory, or cannot be created or secured, the feature logs an error and rejects replication start when the feature is enabled.
+File lifecycle. Each spill file has a unique name to avoid conflicts. It is retained until its transaction commits, and then deleted. On startup, any leftover uncommitted spill path files in the server's spill directory are discarded, and their transactions are re-fetched by GTID auto-positioning. Workers read and decode the spill path file exactly as they read the relaylog today.
 
 Diagnosability
 
@@ -235,7 +235,7 @@ N/A
 
 ### Security Context
 
-The `#in_memory_relaylog_temp_files` directory is server-managed storage of uncommitted transaction data. Files within it contain relaylog-equivalent data and use the same file permissions, ownership, and encryption as the channel's relaylog files. Cleanup at startup follows the existing directory-scoped deletion pattern, so only files managed by the feature are removed.
+The spill directory is server-managed storage of uncommitted transaction data. Files within it contain relaylog-equivalent data and use the same file permissions, ownership, and encryption as the channel's relaylog files. Cleanup at startup follows the existing directory-scoped deletion pattern, so only this server's spill files are removed.
 
 On the memory path, transaction data resides in process memory and is never persisted. It is discarded on replication stop, server restart, or crash, so the feature does not widen on-disk exposure of replicated data.
 
