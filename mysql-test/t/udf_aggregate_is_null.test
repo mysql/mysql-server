@@ -1,0 +1,26 @@
+--source include/have_udf.inc
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE AGGREGATE FUNCTION my_median
+        RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+
+CREATE TABLE t1 (grp INT, val INT);
+
+SELECT my_median(val) AS v,
+       my_median(val) IS NULL AS is_null,
+       my_median(val) IS NOT NULL AS is_not_null,
+       my_median(val) <=> NULL AS null_safe_eq,
+       IFNULL(my_median(val), -1) AS ifnull_v,
+       COALESCE(my_median(val), -1) AS coalesce_v
+FROM t1;
+
+INSERT INTO t1 VALUES (1, NULL), (1, NULL), (2, 10), (2, 20), (2, 30);
+
+SELECT grp, my_median(val) AS v
+FROM t1
+GROUP BY grp
+HAVING my_median(val) IS NOT NULL
+ORDER BY grp;
+
+DROP TABLE t1;
+DROP FUNCTION my_median;
