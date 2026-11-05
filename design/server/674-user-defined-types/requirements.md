@@ -258,6 +258,138 @@ FR:
 DROP SCHEMA implicitly executes DROP TYPE
 for all types present in the schema (cascade behavior)
 
+## Type metadata
+
+### TYPE properties
+
+FR:
+
+A type belongs to a schema, so it has SCHEMA_NAME property.
+The schema name follows existing rules for schemas
+(length, character set, case sensitivity).
+
+FR:
+
+A type is a SQL object, it has a TYPE_NAME property.
+The type name follows existing rules for stored program names
+(length, character set, case sensitivity).
+
+FR:
+
+A type uses an underlying storage type.
+The storage type is restricted to only MySQL basic builtin types.
+
+TODO: list explicitly basic types supported.
+
+As a result, a type can NOT use the following for storage, as these types
+are not basic builtins:
+
+* ENUM
+* SET
+* JSON
+* GEOMETRY
+* VECTOR
+* any user defined type
+
+FR:
+
+A type has a collection of METHODS.
+
+Declaring a type with 0 METHODS is legal,
+this is a forward declaration.
+
+### METHODS properties
+
+FR:
+
+A method has a METHOD_NAME property.
+The method name follows existing rules for stored program names
+(length, character set, case sensitivity).
+
+FR:
+
+A method has a RETURNS_TYPE property.
+A method return type is mandatory (no "void" methods).
+A method return type can be any type, including user defined types.
+
+FR:
+
+A method has a NULL_CALL_OPTION property, with two possible values:
+
+* NULL_ON_NULL_INPUT
+* CALLED_ON_NULL_INPUT
+
+A method declared as NULL_ON_NULL_INPUT is not invoked during execution,
+when a parameter is NULL, the server considers the result is NULL.
+This shortcut allows the method implementation to be simpler.
+
+A method declared as CALLED_ON_NULL_INPUT is invoked during execution,
+even when a parameter is NULL.
+This is helpful for optional arguments to a method.
+
+FR:
+
+A method has a METHOD_CALL_OPTION property, with possible values:
+
+* STATIC
+* INSTANCE
+
+A static method can be invoked without an object holding a user defined type value.
+This helps to define global functions, including functions to create a user
+defined value.
+
+An instance method can be invoked only on an object holding a user defined
+value.
+
+TODO: The ANSI spec also defines CONSTRUCTOR, investigate if we need this.
+
+FR:
+
+A method has a DETERMINISTIC property, with possible values:
+
+* DETERMINISTIC
+* NOT DETERMINISTIC
+
+FR:
+
+A method has a SQL_DATA_ACCESS property, with possible values:
+
+* NO SQL
+* CONTAINS SQL
+* READS SQL DATA
+* MODIFIES SQL DATA
+
+Only NO SQL is supported.
+
+Support for other options is deferred.
+
+FR:
+
+A method has a list of parameters, possibly empty.
+
+Note:
+
+Variadic arguments are not supported.
+
+### PARAMETER properties
+
+FR:
+
+A method parameter has a PARAMETER_NAME property.
+The parameter name follows existing rules for stored program parameter names
+(length, character set, case sensitivity).
+
+FR:
+
+A method parameter has an ORDINAL_POSITION property.
+
+Parameters are assigned by position, not by name.
+
+FR:
+
+A method parameter has a PARAMETER_TYPE property.
+The parameter type can be any type, including user defined types.
+
 ## Type implementation
 
 ### Components
