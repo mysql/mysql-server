@@ -3075,6 +3075,8 @@ template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
 template bool Dictionary_client::acquire_uncached_uncommitted(
     Object_id, std::unique_ptr<UDT_Type> *);
 template bool Dictionary_client::acquire(Object_id, const UDT_Type **);
+template bool Dictionary_client::acquire(dd::UDT_Type::Name_key const &,
+                                         dd::UDT_Type const **);
 template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           UDT_Type **);
 template bool Dictionary_client::acquire(const String_type &,

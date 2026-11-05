@@ -142,6 +142,20 @@ const dd::UDT_Method *Sql_cmd_ddl_type::acquire_dd_method(
   return udt_method;
 }
 
+bool Sql_cmd_ddl_type::execute_add_method(
+    THD *thd, const dd::UDT_Type *udt_type,
+    const PT_type_add_method_def *method_def) {
+  dd::String_type method_name(method_def->m_method_name.str);
+
+  if (create_udt_method(thd, *udt_type, method_name)) {
+    return true;
+  }
+
+  // dd::UDT_Method *udt_method{nullptr};
+  // my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TYPE ADD METHOD");
+  return false;
+}
+
 bool Sql_cmd_create_type::execute(THD *thd) {
 #ifdef WITH_EXPERIMENTAL_UDT
   WARN_NOT_IMPLEMENTED(thd, "Sql_cmd_create_type::execute()");
@@ -162,7 +176,8 @@ bool Sql_cmd_create_type::execute(THD *thd) {
     return true;
   }
 
-  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  auto *dc = thd->dd_client();
+  const dd::cache::Dictionary_client::Auto_releaser releaser(dc);
   const char *db_name = m_type_ident->db.str;
   const char *type_name = m_type_ident->type.str;
 
@@ -196,6 +211,22 @@ bool Sql_cmd_create_type::execute(THD *thd) {
 
   if (dd::create_udt_type(thd, *schema, type_name, td)) {
     return true;
+  }
+
+  const dd::UDT_Type *udt_type = nullptr;
+  dd::String_type type_name_str(type_name);
+  dd::UDT_Type::Name_key type_key;
+  dd::UDT_Type::update_name_key(&type_key, schema->id(), type_name_str);
+  if (dc->acquire(type_key, &udt_type)) {
+    return true;
+  }
+
+  if (m_methods != nullptr) {
+    for (const auto *method_def : *m_methods) {
+      if (execute_add_method(thd, udt_type, method_def)) {
+        return true;
+      }
+    }
   }
 
   if (trans_commit_stmt(thd) || trans_commit(thd)) {
@@ -269,20 +300,6 @@ bool Sql_cmd_alter_type::execute(THD *thd) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TYPE");
   return true;
 #endif
-}
-
-bool Sql_cmd_alter_type::execute_add_method(
-    THD *thd, const dd::UDT_Type *udt_type,
-    PT_type_add_method_def *method_def) {
-  dd::String_type method_name(method_def->m_method_name.str);
-
-  if (create_udt_method(thd, *udt_type, method_name)) {
-    return true;
-  }
-
-  // dd::UDT_Method *udt_method{nullptr};
-  // my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TYPE ADD METHOD");
-  return false;
 }
 
 bool Sql_cmd_alter_type::execute_drop_method(

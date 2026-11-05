@@ -5876,7 +5876,8 @@ Sql_cmd *PT_install_component::make_cmd(THD *thd) {
 Sql_cmd *PT_create_type_stmt::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_CREATE_TYPE;
 
-  return new (thd->mem_root) Sql_cmd_create_type(m_type_name, m_type);
+  return new (thd->mem_root)
+      Sql_cmd_create_type(m_type_name, m_type, m_methods);
 }
 
 class Sql_cmd_alter_type_builder : public PT_alter_type_action_visitor {

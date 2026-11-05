@@ -534,6 +534,7 @@ union MY_SQL_PARSER_STYPE {
   PT_type_drop_method_def *drop_method_def;
   enum enum_null_call_option null_call_option;
   enum enum_method_call_option method_call_option;
+  Mem_root_array<PT_type_add_method_def *> *add_method_def_list;
 
   Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;

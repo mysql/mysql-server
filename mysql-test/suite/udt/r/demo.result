@@ -1,0 +1,59 @@
+CREATE SCHEMA math;
+CREATE TYPE math.complex_number AS BINARY(16)
+STATIC METHOD `from_string` ( TEXT )
+RETURNS math.complex_number
+STATIC METHOD `add` ( math.complex_number, math.complex_number )
+RETURNS math.complex_number
+STATIC METHOD `mul` ( math.complex_number, math.complex_number )
+RETURNS math.complex_number
+RETURN NULL ON NULL INPUT
+INSTANCE METHOD `real` ()
+RETURNS DOUBLE
+INSTANCE METHOD `imaginary` ()
+RETURNS DOUBLE
+;
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_create_type::execute()
+ALTER TYPE math.complex_number ADD
+STATIC METHOD `sub` ( math.complex_number, math.complex_number )
+RETURNS math.complex_number;
+SELECT * FROM INFORMATION_SCHEMA.TYPES;
+TYPE_CATALOG	TYPE_SCHEMA	TYPE_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
+def	math	complex_number	FIXME	16	16	NULL	NULL	0	binary	binary	FIXME
+SELECT * FROM INFORMATION_SCHEMA.TYPE_METHODS;
+TYPE_CATALOG	TYPE_SCHEMA	TYPE_NAME	METHOD_NAME
+def	math	complex_number	add
+def	math	complex_number	from_string
+def	math	complex_number	imaginary
+def	math	complex_number	mul
+def	math	complex_number	real
+def	math	complex_number	sub
+CREATE TABLE test.t1(a math.complex_number, b math.complex_number);
+Warnings:
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+INSTALL COMPONENT "file://component_udt_example";
+INSERT INTO test.t1 VALUES(
+math.complex_number::from_string("1+2i"),
+math.complex_number::from_string("3+4i"));
+Warnings:
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+SELECT math.complex_number::to_string(a), math.complex_number::to_string(b) from test.t1;
+math.complex_number::to_string(a)	math.complex_number::to_string(b)
+1.000000+2.000000i	3.000000+4.000000i
+Warnings:
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+SELECT math.complex_number::to_string(math.complex_number::`add`(a, b)) from test.t1;
+math.complex_number::to_string(math.complex_number::`add`(a, b))
+4.000000+6.000000i
+Warnings:
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+UNINSTALL COMPONENT "file://component_udt_example";
+DROP TABLE test.t1;
+DROP TYPE math.complex_number;
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_drop_type::execute()
+DROP SCHEMA math;

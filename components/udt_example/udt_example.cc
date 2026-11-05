@@ -151,6 +151,7 @@ static int complex_number_from_string(UDT_value_out *result,
 }
 
 // FUNCTION complex_number_to_string
+// METHOD complex_number.to_string
 
 struct mysql_type_descriptor_t *TO_STRING_ARGS[] = {
     &COMPLEX_NUMBER_TYPE_DESCRIPTOR};
@@ -160,6 +161,15 @@ struct mysql_function_descriptor_t TO_STRING = {
     &VARCHAR_TYPE_DESCRIPTOR,    // return_type
     1,                           // arguments
     &TO_STRING_ARGS[0]           // argument_type_array
+};
+
+struct mysql_method_descriptor_t TO_STRING_METHOD = {
+    &COMPLEX_NUMBER_TYPE_NAME,  // type_ident
+    "to_string",                // name
+    true,                       // is_static
+    &VARCHAR_TYPE_DESCRIPTOR,   // return_type
+    1,                          // arguments
+    &TO_STRING_ARGS[0]          // argument_type_array
 };
 
 static int complex_number_to_string(UDT_value_out *result,
@@ -297,6 +307,7 @@ static mysql_service_status_t udt_example_init() {
 
   udt_srv->register_method(&ADD_METHOD, complex_number_add);
   udt_srv->register_method(&FROM_STRING_METHOD, complex_number_from_string);
+  udt_srv->register_method(&TO_STRING_METHOD, complex_number_to_string);
 
   log_info("%s: Started.", component_name);
   return 0;
@@ -307,6 +318,7 @@ static mysql_service_status_t udt_example_deinit() {
 
   udt_srv->unregister_method(&ADD_METHOD);
   udt_srv->unregister_method(&FROM_STRING_METHOD);
+  udt_srv->unregister_method(&TO_STRING_METHOD);
 
   udt_srv->unregister_function(&ADD);
   udt_srv->unregister_function(&FROM_STRING);

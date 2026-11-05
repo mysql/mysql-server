@@ -2027,6 +2027,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %type <method_call_option> method_kind opt_method_kind
 %type <add_method_def> method_specification partial_method_specification
 %type <drop_method_def> specific_method_specification_designator
+%type <add_method_def_list> method_specification_list opt_method_specification_list
 
 %type <top_level_node>
         alter_instance_stmt
@@ -3387,18 +3388,33 @@ create_type_stmt:
           CREATE TYPE_SYM type_ident AS builtin_type
           opt_method_specification_list
           {
-            $$= NEW_PTN PT_create_type_stmt(@$, $3, $5);
+            $$= NEW_PTN PT_create_type_stmt(@$, $3, $5, $6);
           }
         ;
 
 opt_method_specification_list:
           %empty
+          {
+            $$= nullptr;
+          }
         | method_specification_list
         ;
 
 method_specification_list:
           method_specification
+          {
+            $$= NEW_PTN Mem_root_array<PT_type_add_method_def *>(YYMEM_ROOT);
+            if (($$ == nullptr) || $$->push_back($1)) {
+              MYSQL_YYABORT;
+            }
+          }
         | method_specification_list method_specification
+          {
+            $$= $1;
+            if ($$->push_back($2)) {
+              MYSQL_YYABORT;
+            }
+          }
         ;
 
 opt_method_kind:

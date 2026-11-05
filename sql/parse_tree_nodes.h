@@ -6162,14 +6162,17 @@ class PT_type_drop_method_def {
 class PT_create_type_stmt : public Parse_tree_root {
   Type_ident *m_type_name;
   PT_type *m_type;
+  Mem_root_array<PT_type_add_method_def *> *m_methods;
   POS m_end_pos;
 
  public:
   PT_create_type_stmt(const POS &pos, Type_ident *type_name, PT_type *type,
+                      Mem_root_array<PT_type_add_method_def *> *methods,
                       const POS &end_pos = POS())
       : Parse_tree_root(pos),
         m_type_name(type_name),
         m_type(type),
+        m_methods(methods),
         m_end_pos(end_pos) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
