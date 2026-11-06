@@ -28,7 +28,7 @@
   <Package
     UpgradeCode="@UPGRADE_CODE@"
     Name="@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@"
-    Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
+    Version="@ROUTER_MSI_VERSION@"
     Language="1033"
     Manufacturer="@MANUFACTURER@"
     InstallerVersion="200">
@@ -42,18 +42,18 @@
 
     <!-- Upgrade -->
     <Upgrade Id="@UPGRADE_CODE@">
-      <?if '@PATCH_VERSION@' != '0'?>
+      <?if '@ROUTER_MSI_PATCH_VERSION@' != '0'?>
       <UpgradeVersion
-        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
+        Minimum="@ROUTER_MSI_UPGRADE_MIN_VERSION@"
         IncludeMinimum="yes"
-        Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
+        Maximum="@ROUTER_MSI_VERSION@"
         IncludeMaximum="yes"
         Property="OLDERVERSIONBEINGUPGRADED"
         MigrateFeatures="yes"
         />
       <?endif?>
       <UpgradeVersion
-        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
+        Minimum="@ROUTER_MSI_VERSION@"
         IncludeMinimum="no"
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />

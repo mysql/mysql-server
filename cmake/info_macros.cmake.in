@@ -31,6 +31,12 @@
 # If further variables are used in this file, add them to this list.
 
 SET(VERSION "@VERSION@")
+SET(INFO_SRC_VERSION "@MYSQL_VERSION_WITH_UPDATE@")
+# INFO_SRC intentionally uses the default three-part version when the update
+# component is absent, empty or explicitly zero.
+IF("@UPDATE_VERSION@" STREQUAL "0")
+  SET(INFO_SRC_VERSION "${VERSION}")
+ENDIF()
 SET(MAJOR_VERSION "@MAJOR_VERSION@")
 SET(MINOR_VERSION "@MINOR_VERSION@")
 SET(PATCH_VERSION "@PATCH_VERSION@")
@@ -69,7 +75,7 @@ MACRO(STRING_APPEND STRING_VAR INPUT)
 ENDMACRO()
 
 # Create an "INFO_SRC" file with information about the source (only).
-# We use "git log", if possible, and the "VERSION" contents.
+# We use "git log", if possible, and the configured MySQL release version.
 #
 # Outside development (git tree), the "INFO_SRC" file will not be modified
 # provided it exists (from "make dist" or a source tarball creation).
@@ -105,10 +111,7 @@ MACRO(CREATE_INFO_SRC target_dir)
     # to debug, add: FILE(APPEND ${INFO_SRC} "\nResult ${RESULT}\n")
     # For better readability ...
     FILE(APPEND ${INFO_SRC}
-      "MySQL source ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}")
-    IF(DEFINED EXTRA_VERSION)
-      FILE(APPEND ${INFO_SRC} "${EXTRA_VERSION}")
-    ENDIF()
+      "MySQL source ${INFO_SRC_VERSION}")
       IF(DEFINED MYSQL_VERSION_MATURITY)
         FILE(APPEND ${INFO_SRC} "\nMySQL release maturity ${MYSQL_VERSION_MATURITY}")
       ENDIF()
@@ -130,7 +133,7 @@ MACRO(CREATE_INFO_SRC target_dir)
     FILE(WRITE ${INFO_SRC} "${SOURCE_INFO}\n")
   ELSE()
     # This is a fall-back.
-    FILE(WRITE ${INFO_SRC} "\nMySQL source ${VERSION}\n")
+    FILE(WRITE ${INFO_SRC} "\nMySQL source ${INFO_SRC_VERSION}\n")
   ENDIF()
 ENDMACRO(CREATE_INFO_SRC)
 
