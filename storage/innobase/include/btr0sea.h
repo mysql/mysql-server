@@ -134,8 +134,14 @@ void btr_search_sys_resize(ulint hash_size);
 void btr_search_sys_free();
 
 /** Disable the adaptive hash search system and empty the index.
+@param[in]      minimize_hash_tables    whether the full-sized hash tables are
+                                        replaced with minimal ones. Buffer pool
+                                        resize passes false because AHI is only
+                                        temporarily disabled; therefore, an
+                                        unnecessary minimize-and-restore cycle
+                                        is avoided.
 @returns true if the AHI system was enabled and became disabled. */
-bool btr_search_disable();
+bool btr_search_disable(bool minimize_hash_tables);
 /** Enable the adaptive hash search system if buffer pool resize is not in
 progress and the AHI sysvar is ON.
 @returns true if enable was actually performed. */
