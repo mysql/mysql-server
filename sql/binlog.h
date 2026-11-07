@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <functional>
 #include <string_view>
 #include <utility>
 
@@ -201,6 +202,95 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   mysql_cond_t m_prep_xids_cond;
   std::atomic<int32> m_atomic_prep_xids{0};
+
+  /*
+    Support for START TRANSACTION WITH CONSISTENT SNAPSHOT returning the
+    GTID set that matches its read view. See start_consistent_snapshot().
+
+    With binlog_order_commits=1 the storage engine commit and the
+    GTID_EXECUTED update happen together under LOCK_commit. With
+    binlog_order_commits=0 each session does both by itself in
+    finish_commit(), outside LOCK_commit. These two counters make such
+    groups take the ordered path while a snapshot is being taken, the
+    same idea as Clone_handler::need_commit_order().
+
+    Both sides write their own counter first and then read the other one,
+    so at least one of them sees the other:
+    - a commit group that sees m_snapshot_requests > 0 takes the ordered
+      path;
+    - a snapshot that sees m_unordered_commits_in_flight > 0 waits.
+  */
+  /** Number of snapshots waiting for, or holding, ordered commits. */
+  std::atomic<uint64> m_snapshot_requests{0};
+  /** Sessions committing outside LOCK_commit, not done with GTID_EXECUTED. */
+  std::atomic<uint64> m_unordered_commits_in_flight{0};
+  /**
+    Sessions that take the ordered path (commit stage), not yet committed
+    in the engines. While it is not zero, groups with
+    binlog_order_commits=0 also take the ordered path, so they cannot
+    become visible before an earlier group, even when the option changed
+    in between: the binary log position reported by a snapshot then
+    always ends a committed prefix. Incremented by register_commit_group()
+    under LOCK_sync, decremented by the commit stage once per queue.
+  */
+  std::atomic<uint64> m_ordered_commits{0};
+  /** Protects COND_unordered_commits. */
+  mysql_mutex_t LOCK_unordered_commits;
+  /** Signaled when m_unordered_commits_in_flight reaches zero. */
+  mysql_cond_t COND_unordered_commits;
+
+  /**
+    Decides whether a commit group may skip the commit stage. Each session
+    of the group is counted in m_ordered_commits until it is committed in
+    the engines, or in m_unordered_commits_in_flight until it updates
+    GTID_EXECUTED.
+
+    @param queue          The group of sessions to commit.
+    @param order_commits  The value of binlog_order_commits for the group.
+    @retval true  The group may commit outside LOCK_commit.
+    @retval false binlog_order_commits=1, a consistent snapshot or Clone
+                  needs commit order, or an earlier group is still on the
+                  ordered path: the group must take the ordered path.
+  */
+  bool register_commit_group(THD *queue, bool order_commits);
+
+  /**
+    Called by register_commit_group() when the group commits outside
+    LOCK_commit: moves the unordered snapshot coordinates and flags the
+    sessions.
+  */
+  bool register_unordered_commit_group(THD *queue);
+
+  /**
+    Removes sessions from m_unordered_commits_in_flight and wakes a waiting
+    snapshot when the counter reaches zero.
+
+    @param count  Number of sessions to remove.
+  */
+  void release_unordered_commits(uint64 count);
+
+  /**
+    Binary log coordinates of the end of the last transaction made visible
+    in the engines. START TRANSACTION WITH CONSISTENT SNAPSHOT reports the
+    later of the two pairs, read under LOCK_commit.
+
+    - m_ordered_snapshot_*: written by the commit stage, under LOCK_commit.
+
+    - m_unordered_snapshot_*: written by register_unordered_commit_group(),
+      under LOCK_sync, only when the group commits outside LOCK_commit.
+      The snapshot reads it without LOCK_sync. This is safe because it
+      reads only after m_unordered_commits_in_flight reached 0 while its
+      own m_snapshot_requests increment is visible, and from then on no
+      group can pass the check in register_commit_group() (see
+      m_snapshot_requests). Do not write it anywhere else.
+
+    Both pairs are also set by reset_snapshot_coordinates(), which holds
+    LOCK_sync and LOCK_commit.
+  */
+  char m_ordered_snapshot_file[FN_REFLEN]{};
+  my_off_t m_ordered_snapshot_pos{0};
+  char m_unordered_snapshot_file[FN_REFLEN]{};
+  my_off_t m_unordered_snapshot_pos{0};
 
   /**
     Increment the prepared XID counter.
@@ -889,6 +979,45 @@ class MYSQL_BIN_LOG : public TC_LOG {
   inline mysql_mutex_t *get_log_lock() { return &LOCK_log; }
   [[nodiscard]] inline mysql_mutex_t *get_sync_lock() { return &LOCK_sync; }
   inline mysql_mutex_t *get_commit_lock() { return &LOCK_commit; }
+
+  /**
+    Takes a consistent snapshot in the storage engines and, at the same
+    point in time, captures the binary log coordinates of the last visible
+    transaction and, with GTID_MODE=ON, GTID_EXECUTED. Commits cannot make
+    transactions visible nor change GTID_EXECUTED in between.
+
+    It holds LOCK_commit while running take_snapshot. With
+    binlog_order_commits=0 it first makes new commit groups take the
+    ordered path and waits for groups already committing outside
+    LOCK_commit.
+
+    Known limitations, the same as reading GTID_EXECUTED under
+    FLUSH TABLES WITH READ LOCK:
+    - Transactions that own a GTID but are not written to the binary log
+      (sql_log_bin=0 with gtid_next set, or a replica applier with
+      log_replica_updates=OFF) update GTID_EXECUTED outside LOCK_commit.
+    - An XA transaction between XA PREPARE and XA COMMIT has its PREPARE
+      GTID in GTID_EXECUTED, and its PREPARE events before the reported
+      binary log position, while its changes are not visible.
+
+    @param thd            The session starting the transaction.
+    @param take_snapshot  Creates the read views in the storage engines.
+    @retval false Success.
+    @retval true  The session was killed while waiting.
+  */
+  bool start_consistent_snapshot(THD *thd,
+                                 const std::function<void()> &take_snapshot);
+
+  /**
+    Sets the coordinates reported by consistent snapshots to the current
+    end of the binary log. Called when every transaction written to the
+    binary log is visible: at startup, by RESET BINARY LOGS AND GTIDS, and
+    after a rotation (which waits for prepared transactions), so the
+    coordinates never point into a purged file.
+
+    The caller must hold LOCK_log. Takes LOCK_sync and LOCK_commit.
+  */
+  void reset_snapshot_coordinates();
   inline mysql_mutex_t *get_after_commit_lock() { return &LOCK_after_commit; }
   inline mysql_cond_t *get_log_cond() { return &update_cond; }
   inline Binlog_ofile *get_binlog_file() { return m_binlog_file; }

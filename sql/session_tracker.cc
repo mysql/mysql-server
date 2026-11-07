@@ -276,9 +276,14 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
   ulonglong encoding_specification() override { return 0; }
 
   bool encode(THD *thd, String &buf) override {
-    const Gtid_set *state = thd->rpl_thd_ctx.session_gtids_ctx().state();
+    Session_consistency_gtids_ctx &ctx = thd->rpl_thd_ctx.session_gtids_ctx();
+    const Gtid_set *state = ctx.state();
 
-    if (!state->is_empty()) {
+    /*
+      An empty set is sent only for a consistent snapshot, so the client
+      knows the snapshot contains no GTIDs.
+    */
+    if (!state->is_empty() || ctx.consistent_snapshot_collected()) {
       /*
         No need to use net_length_size in the following two fields.
         These are constants in this class and will both be encoded using

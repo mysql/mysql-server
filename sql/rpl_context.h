@@ -118,6 +118,13 @@ class Session_consistency_gtids_ctx {
   */
   ulong m_curr_session_track_gtids;
 
+  /**
+   True when START TRANSACTION WITH CONSISTENT SNAPSHOT collected its GTID
+   set for the current response packet. The set is then sent even when it
+   is empty, so the client can tell an empty snapshot set from no set.
+  */
+  bool m_consistent_snapshot_collected{false};
+
  protected:
   /*
      Auxiliary function to determine if GTID collection should take place
@@ -173,6 +180,14 @@ class Session_consistency_gtids_ctx {
   inline Gtid_set *state() { return m_gtid_set; }
 
   /**
+    @return true if the current response packet carries the GTID set of
+            START TRANSACTION WITH CONSISTENT SNAPSHOT, even if empty.
+  */
+  bool consistent_snapshot_collected() const {
+    return m_consistent_snapshot_collected;
+  }
+
+  /**
      This function MUST be called after the response packet is set to the
      client connected. The implementation may act on the collected state
      for instance to do garbage collection.
@@ -210,6 +225,34 @@ class Session_consistency_gtids_ctx {
   virtual bool notify_after_xa_prepare(const THD *thd) {
     return notify_after_transaction_commit(thd);
   }
+
+  /**
+    Tells whether START TRANSACTION WITH CONSISTENT SNAPSHOT shall capture
+    the GTID set that matches its read view, so it can be returned to the
+    client in the response packet.
+
+    This is the case when the session tracks ALL_GTIDS.
+
+    @param thd    The thread context.
+    @return true if the snapshot GTID set shall be captured, false otherwise.
+  */
+  bool shall_collect_consistent_snapshot_gtids(const THD *thd);
+
+  /**
+    This function MUST be called while START TRANSACTION WITH CONSISTENT
+    SNAPSHOT creates its read view, while holding the lock that keeps
+    commits from changing the storage engine visibility and GTID_EXECUTED.
+    The caller must also hold global_tsid_lock in write mode.
+
+    It replaces the collected set with the current GTID_EXECUTED, so the
+    response packet carries exactly the GTIDs that are visible in the
+    snapshot. Anything collected earlier in the same statement (e.g., by
+    the implicit commit) is discarded.
+
+    @param thd    The thread context.
+    @return true on error, false otherwise.
+  */
+  bool notify_after_consistent_snapshot(const THD *thd);
 
   /**
     Update session tracker (m_curr_session_track_gtids) from thd.
