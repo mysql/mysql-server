@@ -85,41 +85,39 @@ struct type_map {
 };
 
 static const type_map map[] = {
-  { enum_column_types::DECIMAL, enum_column_builtin_types::DECIMAL},
-  { enum_column_types::TINY, enum_column_builtin_types::TINY},
-  { enum_column_types::SHORT, enum_column_builtin_types::SHORT},
-  { enum_column_types::LONG, enum_column_builtin_types::LONG},
-  { enum_column_types::FLOAT, enum_column_builtin_types::FLOAT},
-  { enum_column_types::DOUBLE, enum_column_builtin_types::DOUBLE},
-  { enum_column_types::TIMESTAMP, enum_column_builtin_types::TIMESTAMP},
-  { enum_column_types::LONGLONG, enum_column_builtin_types::LONGLONG},
-  { enum_column_types::INT24, enum_column_builtin_types::INT24},
-  { enum_column_types::DATE, enum_column_builtin_types::DATE},
-  { enum_column_types::TIME, enum_column_builtin_types::TIME},
-  { enum_column_types::DATETIME, enum_column_builtin_types::DATETIME},
-  { enum_column_types::YEAR, enum_column_builtin_types::YEAR},
-  { enum_column_types::NEWDATE, enum_column_builtin_types::NEWDATE},
-  { enum_column_types::VARCHAR, enum_column_builtin_types::VARCHAR},
-  { enum_column_types::BIT, enum_column_builtin_types::BIT},
-  { enum_column_types::TIMESTAMP2, enum_column_builtin_types::TIMESTAMP2},
-  { enum_column_types::DATETIME2, enum_column_builtin_types::DATETIME2},
-  { enum_column_types::TIME2, enum_column_builtin_types::TIME2},
-  { enum_column_types::NEWDECIMAL, enum_column_builtin_types::NEWDECIMAL},
-  { enum_column_types::TINY_BLOB, enum_column_builtin_types::TINY_BLOB},
-  { enum_column_types::MEDIUM_BLOB, enum_column_builtin_types::MEDIUM_BLOB},
-  { enum_column_types::LONG_BLOB, enum_column_builtin_types::LONG_BLOB},
-  { enum_column_types::BLOB, enum_column_builtin_types::BLOB},
-  { enum_column_types::VAR_STRING, enum_column_builtin_types::VAR_STRING},
-  { enum_column_types::STRING, enum_column_builtin_types::STRING}
-};
+    {enum_column_types::DECIMAL, enum_column_builtin_types::DECIMAL},
+    {enum_column_types::TINY, enum_column_builtin_types::TINY},
+    {enum_column_types::SHORT, enum_column_builtin_types::SHORT},
+    {enum_column_types::LONG, enum_column_builtin_types::LONG},
+    {enum_column_types::FLOAT, enum_column_builtin_types::FLOAT},
+    {enum_column_types::DOUBLE, enum_column_builtin_types::DOUBLE},
+    {enum_column_types::TIMESTAMP, enum_column_builtin_types::TIMESTAMP},
+    {enum_column_types::LONGLONG, enum_column_builtin_types::LONGLONG},
+    {enum_column_types::INT24, enum_column_builtin_types::INT24},
+    {enum_column_types::DATE, enum_column_builtin_types::DATE},
+    {enum_column_types::TIME, enum_column_builtin_types::TIME},
+    {enum_column_types::DATETIME, enum_column_builtin_types::DATETIME},
+    {enum_column_types::YEAR, enum_column_builtin_types::YEAR},
+    {enum_column_types::NEWDATE, enum_column_builtin_types::NEWDATE},
+    {enum_column_types::VARCHAR, enum_column_builtin_types::VARCHAR},
+    {enum_column_types::BIT, enum_column_builtin_types::BIT},
+    {enum_column_types::TIMESTAMP2, enum_column_builtin_types::TIMESTAMP2},
+    {enum_column_types::DATETIME2, enum_column_builtin_types::DATETIME2},
+    {enum_column_types::TIME2, enum_column_builtin_types::TIME2},
+    {enum_column_types::NEWDECIMAL, enum_column_builtin_types::NEWDECIMAL},
+    {enum_column_types::TINY_BLOB, enum_column_builtin_types::TINY_BLOB},
+    {enum_column_types::MEDIUM_BLOB, enum_column_builtin_types::MEDIUM_BLOB},
+    {enum_column_types::LONG_BLOB, enum_column_builtin_types::LONG_BLOB},
+    {enum_column_types::BLOB, enum_column_builtin_types::BLOB},
+    {enum_column_types::VAR_STRING, enum_column_builtin_types::VAR_STRING},
+    {enum_column_types::STRING, enum_column_builtin_types::STRING}};
 
 bool convert_types_to_builtin_types(const enum_column_types &from,
                                     enum_column_builtin_types &to) {
-
-  size_t size = sizeof(map)/sizeof(map[0]);
+  size_t size = sizeof(map) / sizeof(map[0]);
   size_t i;
 
-  for (i = 0; i< size; i++) {
+  for (i = 0; i < size; i++) {
     if (map[i].col_type == from) {
       to = map[i].builtin_type;
       return false;
@@ -131,11 +129,10 @@ bool convert_types_to_builtin_types(const enum_column_types &from,
 
 bool convert_types_to_builtin_types(const enum_column_builtin_types &from,
                                     enum_column_types &to) {
-
-  size_t size = sizeof(map)/sizeof(map[0]);
+  size_t size = sizeof(map) / sizeof(map[0]);
   size_t i;
 
-  for (i = 0; i< size; i++) {
+  for (i = 0; i < size; i++) {
     if (map[i].builtin_type == from) {
       to = map[i].col_type;
       return false;
@@ -175,11 +172,14 @@ bool create_udt_type(THD *thd, const dd::Schema &sch_obj,
   std::unique_ptr<dd::UDT_Type> obj(sch_obj.create_udt_type(thd));
   obj->set_name(type_name);
   obj->set_type(storage_type);
+  obj->set_ordering_form(NO_ORDER);
+  obj->set_ordering_category(NO_CATEGORY);
+  // obj->set_ordering_method_id(0);
   obj->set_unsigned(td.m_type_flags & UNSIGNED_FLAG);
-  obj->set_char_max_length(td.m_length);  // FIXME length_specified
+  obj->set_char_max_length(td.m_length);    // FIXME length_specified
   obj->set_char_octet_length(td.m_length);  // FIXME length_specified
-  obj->set_numeric_precision(0);      // FIXME
-  obj->set_numeric_scale(0);          // FIXME
+  obj->set_numeric_precision(0);            // FIXME
+  obj->set_numeric_scale(0);                // FIXME
   obj->set_numeric_scale_null(false);
   obj->set_datetime_precision(0);  // FIXME
   obj->set_datetime_precision_null(false);

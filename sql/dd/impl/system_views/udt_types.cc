@@ -43,12 +43,17 @@ UDT_Types::UDT_Types() {
   m_target_def.add_field(
       FIELD_DATA_TYPE, "DATA_TYPE",
       "SUBSTRING_INDEX(SUBSTRING_INDEX(typ.column_type_utf8, '(', 1),' ', 1)");
-  m_target_def.add_field(
-      FIELD_CHARACTER_MAXIMUM_LENGTH, "CHARACTER_MAXIMUM_LENGTH",
-      "typ.char_max_length");
-  m_target_def.add_field(
-      FIELD_CHARACTER_OCTET_LENGTH, "CHARACTER_OCTET_LENGTH",
-      "typ.char_octet_length");
+
+  m_target_def.add_field(FIELD_ORDERING_FORM, "ORDERING_FORM",
+                         "typ.ordering_form");
+
+  m_target_def.add_field(FIELD_ORDERING_CATEGORY, "ORDERING_CATEGORY",
+                         "typ.ordering_category");
+
+  m_target_def.add_field(FIELD_CHARACTER_MAXIMUM_LENGTH,
+                         "CHARACTER_MAXIMUM_LENGTH", "typ.char_max_length");
+  m_target_def.add_field(FIELD_CHARACTER_OCTET_LENGTH, "CHARACTER_OCTET_LENGTH",
+                         "typ.char_octet_length");
   m_target_def.add_field(
       FIELD_NUMERIC_PRECISION, "NUMERIC_PRECISION",
       "IF (typ.numeric_precision = 0, NULL, typ.numeric_precision)");

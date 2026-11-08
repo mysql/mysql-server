@@ -6255,6 +6255,91 @@ class PT_drop_type_stmt : public Parse_tree_root {
   Sql_cmd *make_cmd(THD *thd) override;
 };
 
+class PT_specific_method_designator {
+ public:
+  POS m_pos;
+  LEX_STRING m_method_name;
+  enum_method_call_option m_option;
+  Type_ident *m_type_name;
+  POS m_end_pos;
+
+ public:
+  PT_specific_method_designator(const POS &pos, const LEX_STRING &method_name,
+                                enum_method_call_option option,
+                                Type_ident *type_name,
+                                const POS &end_pos = POS())
+      : m_pos(pos),
+        m_method_name(method_name),
+        m_option(option),
+        m_type_name(type_name),
+        m_end_pos(end_pos) {}
+};
+
+class PT_create_cast_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  POS m_columns_end_pos;
+
+ public:
+  PT_create_cast_stmt(const POS &pos, Type_ident *type_name,
+                      const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_drop_cast_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  POS m_columns_end_pos;
+
+ public:
+  PT_drop_cast_stmt(const POS &pos, Type_ident *type_name,
+                    const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_create_ordering_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  enum_ordering_form m_ordering_form;
+  enum_ordering_category m_ordering_category;
+  PT_specific_method_designator *m_method_designator;
+  POS m_columns_end_pos;
+
+ public:
+  PT_create_ordering_stmt(const POS &pos, Type_ident *type_name,
+                          enum_ordering_form ordering_form,
+                          enum_ordering_category ordering_category,
+                          PT_specific_method_designator *method_designator,
+                          const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_ordering_form(ordering_form),
+        m_ordering_category(ordering_category),
+        m_method_designator(method_designator),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_drop_ordering_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  POS m_columns_end_pos;
+
+ public:
+  PT_drop_ordering_stmt(const POS &pos, Type_ident *type_name,
+                        const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
 // -- END POC
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

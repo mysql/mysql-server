@@ -5914,3 +5914,29 @@ Sql_cmd *PT_drop_type_stmt::make_cmd(THD *thd) {
 
   return new (thd->mem_root) Sql_cmd_drop_type(m_type_name, m_if_exists);
 }
+
+Sql_cmd *PT_create_cast_stmt::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_CREATE_CAST;
+
+  return new (thd->mem_root) Sql_cmd_create_cast(m_type_name);
+}
+
+Sql_cmd *PT_drop_cast_stmt::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_DROP_CAST;
+
+  return new (thd->mem_root) Sql_cmd_drop_cast(m_type_name);
+}
+
+Sql_cmd *PT_create_ordering_stmt::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_CREATE_ORDERING;
+
+  return new (thd->mem_root) Sql_cmd_create_ordering(
+      m_type_name, m_ordering_form, m_ordering_category,
+      m_method_designator->m_method_name.str, m_method_designator->m_option);
+}
+
+Sql_cmd *PT_drop_ordering_stmt::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_DROP_ORDERING;
+
+  return new (thd->mem_root) Sql_cmd_drop_ordering(m_type_name);
+}

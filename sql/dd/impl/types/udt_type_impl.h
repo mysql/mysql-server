@@ -95,6 +95,24 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   void set_type(enum_column_builtin_types type) override { m_type = type; }
 
   /////////////////////////////////////////////////////////////////////////
+  // ordering.
+  /////////////////////////////////////////////////////////////////////////
+
+  enum_ordering_form get_ordering_form() const override {
+    return m_ordering_form;
+  }
+  void set_ordering_form(enum_ordering_form form) override {
+    m_ordering_form = form;
+  }
+
+  enum_ordering_category get_ordering_category() const override {
+    return m_ordering_category;
+  }
+  void set_ordering_category(enum_ordering_category category) override {
+    m_ordering_category = category;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
   // is_unsigned.
   /////////////////////////////////////////////////////////////////////////
 
@@ -251,6 +269,9 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   // Fields
 
   enum_column_builtin_types m_type;
+  enum_ordering_form m_ordering_form;
+  enum_ordering_category m_ordering_category;
+  Object_id m_ordering_method_id;
   bool m_is_unsigned;
   size_t m_char_max_length;
   size_t m_char_octet_length;

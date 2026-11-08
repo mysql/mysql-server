@@ -24,6 +24,24 @@ SELECT * FROM INFORMATION_SCHEMA.TYPES;
 
 SELECT * FROM INFORMATION_SCHEMA.TYPE_METHODS;
 
+CREATE ORDERING FOR math.complex_number
+  EQUALS ONLY BY
+  RELATIVE WITH
+  STATIC METHOD compare FOR math.complex_number
+  ;
+
+--error ER_NOT_SUPPORTED_YET
+DROP ORDERING FOR math.complex_number;
+
+--error ER_NOT_SUPPORTED_YET
+CREATE CAST ( DOUBLE AS math.complex_number ) WITH
+  STATIC METHOD from_double FOR math.complex_number
+  AS ASSIGNMENT
+  ;
+
+--error ER_NOT_SUPPORTED_YET
+DROP CAST ( DOUBLE AS math.complex_number );
+
 CREATE TABLE test.t1(a math.complex_number, b math.complex_number);
 
 INSTALL COMPONENT "file://component_udt_example";

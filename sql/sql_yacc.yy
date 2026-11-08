@@ -1506,6 +1506,11 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token METHOD_SYM 1249
 %token CALLED_SYM 1250
 %token INPUT_SYM 1251
+%token ORDERING_SYM 1252
+%token EQUALS_SYM 1253
+%token RELATIVE_SYM 1254
+%token MAP_SYM 1255
+%token ASSIGNMENT_SYM 1256
 
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
@@ -2024,17 +2029,19 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %type <type_ident> type_ident
 %type <alter_type_action> alter_type_action
 %type <null_call_option> null_call_clause
+%type <ordering_form> ordering_form
+%type <ordering_category> ordering_category
 %type <method_call_option> method_kind opt_method_kind
 %type <add_method_def> method_specification partial_method_specification
 %type <drop_method_def> specific_method_specification_designator
 %type <add_method_def_list> method_specification_list opt_method_specification_list
+%type <specific_method_designator> specific_routine_designator
 
 %type <top_level_node>
         alter_instance_stmt
         alter_library_stmt
         alter_resource_group_stmt
         alter_table_stmt
-        alter_type_stmt
         analyze_table_stmt
         call_stmt
         check_table_stmt
@@ -2045,7 +2052,6 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         create_role_stmt
         create_srs_stmt
         create_table_stmt
-        create_type_stmt
         delete_stmt
         describe_stmt
         do_stmt
@@ -2055,7 +2061,6 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         drop_resource_group_stmt
         drop_role_stmt
         drop_srs_stmt
-        drop_type_stmt
         explain_stmt
         handler_stmt
         insert_stmt
@@ -2123,6 +2128,16 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         truncate_stmt
         update_stmt
         install_stmt
+
+// UDT
+%type <top_level_node>
+        create_type_stmt
+        alter_type_stmt
+        drop_type_stmt
+        create_ordering_stmt
+        drop_ordering_stmt
+        create_cast_stmt
+        drop_cast_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -2531,7 +2546,6 @@ simple_statement:
         | alter_tablespace_stmt         { $$= nullptr; }
         | alter_undo_tablespace_stmt    { $$= nullptr; }
         | alter_table_stmt
-        | alter_type_stmt
         | alter_user_stmt               { $$= nullptr; }
         | alter_view_stmt               { $$= nullptr; }
         | analyze_table_stmt
@@ -2550,7 +2564,6 @@ simple_statement:
         | create_role_stmt
         | create_srs_stmt
         | create_table_stmt
-        | create_type_stmt
         | deallocate                    { $$= nullptr; }
         | delete_stmt
         | describe_stmt
@@ -2571,7 +2584,6 @@ simple_statement:
         | drop_undo_tablespace_stmt     { $$= nullptr; }
         | drop_table_stmt               { $$= nullptr; }
         | drop_trigger_stmt             { $$= nullptr; }
-        | drop_type_stmt
         | drop_user_stmt                { $$= nullptr; }
         | drop_view_stmt                { $$= nullptr; }
         | execute                       { $$= nullptr; }
@@ -2666,6 +2678,15 @@ simple_statement:
         | update_stmt
         | use                           { $$= nullptr; }
         | xa                            { $$= nullptr; }
+
+// UDT
+        | create_type_stmt
+        | alter_type_stmt
+        | drop_type_stmt
+        | create_ordering_stmt
+        | drop_ordering_stmt
+        | create_cast_stmt
+        | drop_cast_stmt
         ;
 
 deallocate:
@@ -3535,6 +3556,80 @@ opt_data_type_list:
 data_type_list:
           broken_type
         | data_type_list ',' broken_type
+        ;
+
+create_ordering_stmt:
+          CREATE ORDERING_SYM FOR_SYM type_ident
+          ordering_form ordering_category specific_routine_designator
+          {
+            $$= NEW_PTN PT_create_ordering_stmt(@$, $4, $5, $6, $7);
+          }
+        ;
+
+ordering_form:
+          EQUALS_SYM ONLY_SYM BY
+          {
+            $$= enum_ordering_form::EQUAL_ONLY;
+          }
+        | ORDER_SYM FULL BY
+          {
+            $$= enum_ordering_form::ORDER_FULL;
+          }
+        ;
+
+/*
+  STATE is for structured type
+*/
+ordering_category:
+          RELATIVE_SYM WITH
+          {
+            $$= enum_ordering_category::RELATIVE;
+          }
+        | MAP_SYM WITH
+          {
+            $$= enum_ordering_category::MAP;
+          }
+        ;
+
+/*
+  Ignoring:
+  - SPECIFIC <routine type>
+  - ROUTINE
+  - FUNCTION
+  - PROCEDURE
+*/
+specific_routine_designator:
+          opt_method_kind METHOD_SYM ident FOR_SYM type_ident
+          {
+            $$= NEW_PTN PT_specific_method_designator(@$, $3, $1, $5);
+          }
+        ;
+
+drop_ordering_stmt:
+          DROP ORDERING_SYM FOR_SYM type_ident
+          {
+            $$= NEW_PTN PT_drop_ordering_stmt(@$, $4);
+          }
+        ;
+
+create_cast_stmt:
+          CREATE CAST_SYM '(' broken_type AS broken_type ')'
+          WITH specific_routine_designator opt_as_assignment
+          {
+            $$= NEW_PTN PT_create_cast_stmt(@$, nullptr);
+          }
+        ;
+
+opt_as_assignment:
+          %empty
+        | AS ASSIGNMENT_SYM
+        ;
+
+drop_cast_stmt:
+          DROP CAST_SYM '(' broken_type AS broken_type ')'
+          {
+            $$= NEW_PTN PT_drop_cast_stmt(@$, nullptr);
+          }
         ;
 
 create_table_stmt:

@@ -103,7 +103,7 @@ bool Sql_cmd_ddl_type::acquire_mdl_type(THD *thd) {
 }
 
 const dd::Schema *Sql_cmd_ddl_type::acquire_dd_schema(THD *thd) {
-  const dd::Schema *schema;
+  const dd::Schema *schema{nullptr};
 
   dd::cache::Dictionary_client &dc = *thd->dd_client();
   dd::String_type schema_name{m_type_ident->db.str};
@@ -115,12 +115,25 @@ const dd::Schema *Sql_cmd_ddl_type::acquire_dd_schema(THD *thd) {
 }
 
 const dd::UDT_Type *Sql_cmd_ddl_type::acquire_dd_type(THD *thd) {
-  const dd::UDT_Type *udt;
+  const dd::UDT_Type *udt{nullptr};
 
   dd::cache::Dictionary_client &dc = *thd->dd_client();
   dd::String_type schema_name{m_type_ident->db.str};
   dd::String_type type_name{m_type_ident->type.str};
   if (dc.acquire(schema_name, type_name, &udt)) {
+    return nullptr;
+  }
+
+  return udt;
+}
+
+dd::UDT_Type *Sql_cmd_ddl_type::acquire_for_modification_dd_type(THD *thd) {
+  dd::UDT_Type *udt{nullptr};
+
+  dd::cache::Dictionary_client &dc = *thd->dd_client();
+  dd::String_type schema_name{m_type_ident->db.str};
+  dd::String_type type_name{m_type_ident->type.str};
+  if (dc.acquire_for_modification(schema_name, type_name, &udt)) {
     return nullptr;
   }
 
@@ -151,8 +164,6 @@ bool Sql_cmd_ddl_type::execute_add_method(
     return true;
   }
 
-  // dd::UDT_Method *udt_method{nullptr};
-  // my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TYPE ADD METHOD");
   return false;
 }
 
@@ -375,4 +386,76 @@ bool Sql_cmd_drop_type::execute(THD *thd) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "DROP TYPE");
   return true;
 #endif
+}
+
+bool Sql_cmd_create_cast::execute(THD * /* thd */) {
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "CREATE CAST");
+  return true;
+}
+
+bool Sql_cmd_drop_cast::execute(THD * /* thd */) {
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "DROP CAST");
+  return true;
+}
+
+bool Sql_cmd_create_ordering::execute(THD *thd) {
+#ifdef WITH_EXPERIMENTAL_UDT
+  if (use_default_db(thd)) {
+    return true;
+  }
+
+  if (check_privileges(thd)) {
+    return true;
+  }
+
+  if (acquire_mdl_schema(thd)) {
+    return true;
+  }
+
+  if (acquire_mdl_type(thd)) {
+    return true;
+  }
+
+  auto *dc = thd->dd_client();
+  const dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+  const char *db_name = m_type_ident->db.str;
+  const char *type_name = m_type_ident->type.str;
+
+  const dd::Schema *schema = acquire_dd_schema(thd);
+  if (schema == nullptr) {
+    my_error(ER_NO_SUCH_DB, MYF(0), db_name);
+    return true;
+  }
+
+  dd::UDT_Type *udt = acquire_for_modification_dd_type(thd);
+  if (udt == nullptr) {
+    my_error(ER_NO_SUCH_UDT_TYPE, MYF(0), db_name, type_name);
+    return true;
+  }
+
+  // CREATE ORDERING
+
+  if (udt->get_ordering_form() != enum_ordering_form::NO_ORDER) {
+    my_error(ER_UDT_ORDERING_EXISTS, MYF(0), db_name, type_name);
+  }
+
+  udt->set_ordering_form(m_ordering_form);
+  udt->set_ordering_category(m_ordering_category);
+  // udt->set_ordering_method_id();
+
+  if (trans_commit_stmt(thd) || trans_commit(thd)) {
+    return true;
+  }
+
+  my_ok(thd);
+  return false;
+#else
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "CREATE ORDERING");
+  return true;
+#endif
+}
+
+bool Sql_cmd_drop_ordering::execute(THD * /* thd */) {
+  my_error(ER_NOT_SUPPORTED_YET, MYF(0), "DROP ORDERING");
+  return true;
 }

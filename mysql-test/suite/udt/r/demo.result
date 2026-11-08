@@ -18,8 +18,8 @@ ALTER TYPE math.complex_number ADD
 STATIC METHOD `sub` ( math.complex_number, math.complex_number )
 RETURNS math.complex_number;
 SELECT * FROM INFORMATION_SCHEMA.TYPES;
-TYPE_CATALOG	TYPE_SCHEMA	TYPE_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
-def	math	complex_number	FIXME	16	16	NULL	NULL	0	binary	binary	FIXME
+TYPE_CATALOG	TYPE_SCHEMA	TYPE_NAME	DATA_TYPE	ORDERING_FORM	ORDERING_CATEGORY	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
+def	math	complex_number	FIXME	NO_ORDER	NO_CATEGORY	16	16	NULL	NULL	0	binary	binary	FIXME
 SELECT * FROM INFORMATION_SCHEMA.TYPE_METHODS;
 TYPE_CATALOG	TYPE_SCHEMA	TYPE_NAME	METHOD_NAME
 def	math	complex_number	add
@@ -28,6 +28,20 @@ def	math	complex_number	imaginary
 def	math	complex_number	mul
 def	math	complex_number	real
 def	math	complex_number	sub
+CREATE ORDERING FOR math.complex_number
+EQUALS ONLY BY
+RELATIVE WITH
+STATIC METHOD compare FOR math.complex_number
+;
+DROP ORDERING FOR math.complex_number;
+ERROR 42000: This version of MySQL doesn't yet support 'DROP ORDERING'
+CREATE CAST ( DOUBLE AS math.complex_number ) WITH
+STATIC METHOD from_double FOR math.complex_number
+AS ASSIGNMENT
+;
+ERROR 42000: This version of MySQL doesn't yet support 'CREATE CAST'
+DROP CAST ( DOUBLE AS math.complex_number );
+ERROR 42000: This version of MySQL doesn't yet support 'DROP CAST'
 CREATE TABLE test.t1(a math.complex_number, b math.complex_number);
 Warnings:
 Warning	6924	The following code is not implemented: resolve_type_descriptor()

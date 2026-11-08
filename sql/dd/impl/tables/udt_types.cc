@@ -29,10 +29,10 @@
 #include "mysql/strings/m_ctype.h"
 #include "sql/dd/impl/raw/object_keys.h"  // Parent_id_range_key
 #include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/tables/builtin_type_enum.h"
 #include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/impl/types/udt_type_impl.h"  // dd::UDT_type_impl
-#include "sql/dd/impl/tables/builtin_type_enum.h"
 
 namespace dd::tables {
 
@@ -62,7 +62,21 @@ UDT_Types::UDT_Types() {
 
   // FIXME: revise enum
   m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",
-                         "data_type " MYSQL_BUILTIN_TYPE_ENUM_STRING " NOT NULL");
+                         "data_type " MYSQL_BUILTIN_TYPE_ENUM_STRING
+                         " NOT NULL");
+
+  m_target_def.add_field(FIELD_ORDERING_FORM, "FIELD_ORDERING_FORM",
+                         "ordering_form "
+                         "ENUM('NO_ORDER', 'EQUAL_ONLY', 'ORDER_FULL') "
+                         "NOT NULL");
+
+  m_target_def.add_field(FIELD_ORDERING_CATEGORY, "FIELD_ORDERING_CATEGORY",
+                         "ordering_category "
+                         "ENUM('NO_CATEGORY', 'RELATIVE', 'MAP', 'STATE') "
+                         "NOT NULL");
+
+  m_target_def.add_field(FIELD_ORDERING_METHOD_ID, "FIELD_ORDERING_METHOD_ID",
+                         "ordering_method_id BIGINT UNSIGNED NULL");
 
   m_target_def.add_field(FIELD_IS_UNSIGNED, "FIELD_IS_UNSIGNED",
                          "is_unsigned BOOL");

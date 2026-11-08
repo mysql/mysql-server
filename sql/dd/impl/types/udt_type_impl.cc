@@ -60,6 +60,9 @@ namespace dd {
 
 UDT_Type_impl::UDT_Type_impl()
     : m_type(enum_column_builtin_types::LONG),
+      m_ordering_form(NO_ORDER),
+      m_ordering_category(NO_CATEGORY),
+      m_ordering_method_id(INVALID_OBJECT_ID),
       m_is_unsigned(false),
       m_char_max_length(0),
       m_char_octet_length(0),
@@ -85,6 +88,11 @@ bool UDT_Type_impl::restore_attributes(const Raw_record &r) {
   m_collation_id = r.read_ref_id(UDT_Types::FIELD_COLLATION_ID);
 
   m_type = (enum_column_builtin_types)r.read_int(UDT_Types::FIELD_TYPE);
+  m_ordering_form =
+      (enum_ordering_form)r.read_int(UDT_Types::FIELD_ORDERING_FORM);
+  m_ordering_category =
+      (enum_ordering_category)r.read_int(UDT_Types::FIELD_ORDERING_CATEGORY);
+  m_ordering_method_id = r.read_ref_id(UDT_Types::FIELD_ORDERING_METHOD_ID);
   m_is_unsigned = r.read_bool(UDT_Types::FIELD_IS_UNSIGNED);
   m_char_max_length = r.read_uint(UDT_Types::FIELD_CHAR_MAX_LENGTH);
   m_char_octet_length = r.read_uint(UDT_Types::FIELD_CHAR_OCTET_LENGTH);
@@ -110,6 +118,12 @@ bool UDT_Type_impl::store_attributes(Raw_record *r) {
          r->store_ref_id(UDT_Types::FIELD_SCHEMA_ID, m_schema_id) ||
          r->store_ref_id(UDT_Types::FIELD_COLLATION_ID, m_collation_id) ||
          r->store(UDT_Types::FIELD_TYPE, static_cast<int>(m_type)) ||
+         r->store(UDT_Types::FIELD_ORDERING_FORM,
+                  static_cast<int>(m_ordering_form)) ||
+         r->store(UDT_Types::FIELD_ORDERING_CATEGORY,
+                  static_cast<int>(m_ordering_category)) ||
+         r->store_ref_id(UDT_Types::FIELD_ORDERING_METHOD_ID,
+                         m_ordering_method_id) ||
          r->store(UDT_Types::FIELD_IS_UNSIGNED, m_is_unsigned) ||
          r->store(UDT_Types::FIELD_CHAR_MAX_LENGTH,
                   static_cast<uint>(m_char_max_length)) ||
@@ -128,13 +142,16 @@ bool UDT_Type_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(UDT_Types::NUMBER_OF_FIELDS == 15,
+static_assert(UDT_Types::NUMBER_OF_FIELDS == 18,
               "UDT_Types definition has changed, check if "
               "serialize() and deserialize() need to be updated!");
 void UDT_Type_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   w->StartObject();
   Entity_object_impl::serialize(wctx, w);
   write_enum(w, m_type, STRING_WITH_LEN("type"));
+  write_enum(w, m_ordering_form, STRING_WITH_LEN("ordering_form"));
+  write_enum(w, m_ordering_category, STRING_WITH_LEN("ordering_category"));
+  write(w, m_ordering_method_id, STRING_WITH_LEN("ordering_method_id"));
   write(w, m_is_unsigned, STRING_WITH_LEN("is_unsigned"));
   write(w, m_char_max_length, STRING_WITH_LEN("char_max_length"));
   write(w, m_char_octet_length, STRING_WITH_LEN("char_octet_length"));
@@ -157,6 +174,9 @@ void UDT_Type_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
 bool UDT_Type_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   Entity_object_impl::deserialize(rctx, val);
   read_enum(&m_type, val, "type");
+  read_enum(&m_ordering_form, val, "ordering_form");
+  read_enum(&m_ordering_category, val, "ordering_category");
+  read(&m_ordering_method_id, val, "ordering_method_id");
   read(&m_is_unsigned, val, "is_unsigned");
   read(&m_char_max_length, val, "char_max_length");
   read(&m_char_octet_length, val, "char_octet_length");

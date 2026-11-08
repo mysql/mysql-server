@@ -50,6 +50,7 @@ class Sql_cmd_ddl_type : public Sql_cmd_ddl {
   bool acquire_mdl_type(THD *thd);
   const dd::Schema *acquire_dd_schema(THD *thd);
   const dd::UDT_Type *acquire_dd_type(THD *thd);
+  dd::UDT_Type *acquire_for_modification_dd_type(THD *thd);
   const dd::UDT_Method *acquire_dd_method(THD *thd,
                                           const dd::UDT_Type *udt_type,
                                           const char *method_name);
@@ -118,6 +119,66 @@ class Sql_cmd_drop_type final : public Sql_cmd_ddl_type {
 
  private:
   bool m_if_exists;
+};
+
+class Sql_cmd_create_cast final : public Sql_cmd_ddl_type {
+ public:
+  Sql_cmd_create_cast(Type_ident *type_ident) : Sql_cmd_ddl_type(type_ident) {}
+
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_CREATE_CAST;
+  }
+
+  bool execute(THD *thd) override;
+};
+
+class Sql_cmd_drop_cast final : public Sql_cmd_ddl_type {
+ public:
+  Sql_cmd_drop_cast(Type_ident *type_ident) : Sql_cmd_ddl_type(type_ident) {}
+
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_DROP_CAST;
+  }
+
+  bool execute(THD *thd) override;
+};
+
+class Sql_cmd_create_ordering final : public Sql_cmd_ddl_type {
+ public:
+  Sql_cmd_create_ordering(Type_ident *type_ident,
+                          enum_ordering_form ordering_form,
+                          enum_ordering_category ordering_category,
+                          const char *method_name,
+                          enum_method_call_option method_call_option)
+      : Sql_cmd_ddl_type(type_ident),
+        m_ordering_form(ordering_form),
+        m_ordering_category(ordering_category),
+        m_method_name(method_name),
+        m_method_call_option(method_call_option) {}
+
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_CREATE_ORDERING;
+  }
+
+  bool execute(THD *thd) override;
+
+ private:
+  enum_ordering_form m_ordering_form;
+  enum_ordering_category m_ordering_category;
+  const char *m_method_name;
+  enum_method_call_option m_method_call_option;
+};
+
+class Sql_cmd_drop_ordering final : public Sql_cmd_ddl_type {
+ public:
+  Sql_cmd_drop_ordering(Type_ident *type_ident)
+      : Sql_cmd_ddl_type(type_ident) {}
+
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_DROP_ORDERING;
+  }
+
+  bool execute(THD *thd) override;
 };
 
 #endif /* SQL_CMD_DDL_TYPE_INCLUDED */

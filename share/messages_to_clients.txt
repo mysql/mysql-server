@@ -11125,6 +11125,12 @@ ER_UDT_METHOD_NOT_STATIC
 ER_UDT_METHOD_NOT_DYNAMIC
   eng "User defined type method '%-.192s.%-.192s' is not dynamic"
 
+ER_UDT_ORDERING_EXISTS
+  eng "User defined type '%-.192s.%-.192s' ordering already exists"
+
+ER_NO_SUCH_UDT_ORDERING
+  eng "User defined type '%-.192s.%-.192s' ordering does not exist"
+
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #

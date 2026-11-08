@@ -47,6 +47,7 @@
 #include "sql/null_call_option.h"
 #include "sql/olap.h"
 #include "sql/opt_hints.h"  // opt_hints_enum
+#include "sql/ordering_option.h"
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/resourcegroups/platform/thread_attrs_api.h"  // ...::cpu_id_t
@@ -155,6 +156,7 @@ class Type_ident;
 class PT_alter_type_action;
 class PT_type_add_method_def;
 class PT_type_drop_method_def;
+class PT_specific_method_designator;
 
 class Table_ident;
 class sp_condition_value;
@@ -534,7 +536,10 @@ union MY_SQL_PARSER_STYPE {
   PT_type_drop_method_def *drop_method_def;
   enum enum_null_call_option null_call_option;
   enum enum_method_call_option method_call_option;
+  enum enum_ordering_form ordering_form;
+  enum enum_ordering_category ordering_category;
   Mem_root_array<PT_type_add_method_def *> *add_method_def_list;
+  PT_specific_method_designator *specific_method_designator;
 
   Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;

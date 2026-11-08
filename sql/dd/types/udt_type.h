@@ -31,6 +31,7 @@
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/types/builtin_types.h"
 #include "sql/dd/types/entity_object.h"  // dd::Entity_object
+#include "sql/ordering_option.h"
 
 class THD;
 struct MDL_key;
@@ -92,6 +93,16 @@ class UDT_Type : virtual public Entity_object {
 
   virtual enum_column_builtin_types type() const = 0;
   virtual void set_type(enum_column_builtin_types type) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // ordering.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual enum_ordering_form get_ordering_form() const = 0;
+  virtual void set_ordering_form(enum_ordering_form form) = 0;
+
+  virtual enum_ordering_category get_ordering_category() const = 0;
+  virtual void set_ordering_category(enum_ordering_category category) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // is_unsigned.
