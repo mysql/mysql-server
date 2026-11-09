@@ -33,22 +33,40 @@ const UDT_Types &UDT_Types::instance() {
 UDT_Types::UDT_Types() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_TYPE_CATALOG, "TYPE_CATALOG",
+  m_target_def.add_field(FIELD_USER_DEFINED_TYPE_CATALOG,
+                         "USER_DEFINED_TYPE_CATALOG",
                          "cat.name" + m_target_def.fs_name_collation());
-  m_target_def.add_field(FIELD_TYPE_SCHEMA, "TYPE_SCHEMA",
+  m_target_def.add_field(FIELD_USER_DEFINED_TYPE_SCHEMA,
+                         "USER_DEFINED_TYPE_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
-  m_target_def.add_field(FIELD_TYPE_NAME, "TYPE_NAME",
+  m_target_def.add_field(FIELD_USER_DEFINED_TYPE_NAME, "USER_DEFINED_TYPE_NAME",
                          "typ.name" + m_target_def.fs_name_collation());
 
-  m_target_def.add_field(
-      FIELD_DATA_TYPE, "DATA_TYPE",
-      "SUBSTRING_INDEX(SUBSTRING_INDEX(typ.column_type_utf8, '(', 1),' ', 1)");
+  m_target_def.add_field(FIELD_USER_DEFINED_TYPE_CATEGORY,
+                         "USER_DEFINED_TYPE_CATEGORY", "typ.type_category");
+
+  m_target_def.add_field(FIELD_IS_INSTANTIABLE, "IS_INSTANTIABLE",
+                         "typ.is_instantiable");
+
+  m_target_def.add_field(FIELD_IS_FINAL, "IS_FINAL", "typ.is_final");
 
   m_target_def.add_field(FIELD_ORDERING_FORM, "ORDERING_FORM",
                          "typ.ordering_form");
 
   m_target_def.add_field(FIELD_ORDERING_CATEGORY, "ORDERING_CATEGORY",
                          "typ.ordering_category");
+
+#ifdef LATER
+  m_target_def.add_field(FIELD_ORDERING_METHOD_SPECIFIC_NAME,
+                         "ORDERING_METHOD_SPECIFIC_NAME",
+                         "typ.ordering_method_specific_name");
+#endif
+
+#ifdef LATER
+  m_target_def.add_field(
+      FIELD_DATA_TYPE, "DATA_TYPE",
+      "SUBSTRING_INDEX(SUBSTRING_INDEX(typ.column_type_utf8, '(', 1),' ', 1)");
+#endif
 
   m_target_def.add_field(FIELD_CHARACTER_MAXIMUM_LENGTH,
                          "CHARACTER_MAXIMUM_LENGTH", "typ.char_max_length");
@@ -66,8 +84,6 @@ UDT_Types::UDT_Types() {
   m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
                          "cs.name");
   m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
-  m_target_def.add_field(FIELD_COLUMN_TYPE, "COLUMN_TYPE",
-                         "typ.column_type_utf8");
 
   m_target_def.add_from("mysql.types typ");
   m_target_def.add_from("JOIN mysql.schemata sch ON typ.schema_id=sch.id");

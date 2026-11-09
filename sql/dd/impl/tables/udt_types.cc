@@ -65,6 +65,16 @@ UDT_Types::UDT_Types() {
                          "data_type " MYSQL_BUILTIN_TYPE_ENUM_STRING
                          " NOT NULL");
 
+  m_target_def.add_field(FIELD_TYPE_CATEGORY, "FIELD_TYPE_CATEGORY",
+                         "type_category "
+                         "ENUM('DISTINCT', 'STRUCTURED') "
+                         "NOT NULL");
+
+  m_target_def.add_field(FIELD_IS_INSTANTIABLE, "FIELD_IS_INSTANTIABLE",
+                         "is_instantiable BOOL");
+
+  m_target_def.add_field(FIELD_IS_FINAL, "FIELD_IS_FINAL", "is_final BOOL");
+
   m_target_def.add_field(FIELD_ORDERING_FORM, "FIELD_ORDERING_FORM",
                          "ordering_form "
                          "ENUM('NO_ORDER', 'EQUAL_ONLY', 'ORDER_FULL') "

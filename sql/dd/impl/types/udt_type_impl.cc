@@ -59,7 +59,10 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 UDT_Type_impl::UDT_Type_impl()
-    : m_type(enum_column_builtin_types::LONG),
+    : m_type_category(enum_udt_type_category::DISTINCT),
+      m_is_instantiable(false),
+      m_is_final(false),
+      m_type(enum_column_builtin_types::LONG),
       m_ordering_form(NO_ORDER),
       m_ordering_category(NO_CATEGORY),
       m_ordering_method_id(INVALID_OBJECT_ID),
@@ -87,6 +90,10 @@ bool UDT_Type_impl::restore_attributes(const Raw_record &r) {
   m_schema_id = r.read_ref_id(UDT_Types::FIELD_SCHEMA_ID);
   m_collation_id = r.read_ref_id(UDT_Types::FIELD_COLLATION_ID);
 
+  m_type_category =
+      (enum_udt_type_category)r.read_int(UDT_Types::FIELD_TYPE_CATEGORY);
+  m_is_instantiable = r.read_bool(UDT_Types::FIELD_IS_INSTANTIABLE);
+  m_is_final = r.read_bool(UDT_Types::FIELD_IS_FINAL);
   m_type = (enum_column_builtin_types)r.read_int(UDT_Types::FIELD_TYPE);
   m_ordering_form =
       (enum_ordering_form)r.read_int(UDT_Types::FIELD_ORDERING_FORM);
@@ -117,6 +124,10 @@ bool UDT_Type_impl::store_attributes(Raw_record *r) {
          store_name(r, UDT_Types::FIELD_NAME) ||
          r->store_ref_id(UDT_Types::FIELD_SCHEMA_ID, m_schema_id) ||
          r->store_ref_id(UDT_Types::FIELD_COLLATION_ID, m_collation_id) ||
+         r->store(UDT_Types::FIELD_TYPE_CATEGORY,
+                  static_cast<int>(m_type_category)) ||
+         r->store(UDT_Types::FIELD_IS_INSTANTIABLE, m_is_instantiable) ||
+         r->store(UDT_Types::FIELD_IS_FINAL, m_is_final) ||
          r->store(UDT_Types::FIELD_TYPE, static_cast<int>(m_type)) ||
          r->store(UDT_Types::FIELD_ORDERING_FORM,
                   static_cast<int>(m_ordering_form)) ||
@@ -142,12 +153,15 @@ bool UDT_Type_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(UDT_Types::NUMBER_OF_FIELDS == 18,
+static_assert(UDT_Types::NUMBER_OF_FIELDS == 21,
               "UDT_Types definition has changed, check if "
               "serialize() and deserialize() need to be updated!");
 void UDT_Type_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   w->StartObject();
   Entity_object_impl::serialize(wctx, w);
+  write_enum(w, m_type_category, STRING_WITH_LEN("type_category"));
+  write(w, m_is_instantiable, STRING_WITH_LEN("is_instantiable"));
+  write(w, m_is_final, STRING_WITH_LEN("is_final"));
   write_enum(w, m_type, STRING_WITH_LEN("type"));
   write_enum(w, m_ordering_form, STRING_WITH_LEN("ordering_form"));
   write_enum(w, m_ordering_category, STRING_WITH_LEN("ordering_category"));
@@ -173,6 +187,9 @@ void UDT_Type_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
 
 bool UDT_Type_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   Entity_object_impl::deserialize(rctx, val);
+  read_enum(&m_type_category, val, "type_category");
+  read(&m_is_instantiable, val, "is_instantiable");
+  read(&m_is_final, val, "is_final");
   read_enum(&m_type, val, "type");
   read_enum(&m_ordering_form, val, "ordering_form");
   read_enum(&m_ordering_category, val, "ordering_category");

@@ -87,6 +87,36 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   void set_schema_id(Object_id schema_id) override { m_schema_id = schema_id; }
 
   /////////////////////////////////////////////////////////////////////////
+  // type_category.
+  /////////////////////////////////////////////////////////////////////////
+
+  enum_udt_type_category type_category() const override {
+    return m_type_category;
+  }
+
+  void set_type_category(enum_udt_type_category type_category) override {
+    m_type_category = type_category;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_instantiable.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_instantiable() const override { return m_is_instantiable; }
+
+  void set_instantiable(bool is_instantiable) override {
+    m_is_instantiable = is_instantiable;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_final.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_final() const override { return m_is_final; }
+
+  void set_final(bool is_final) override { m_is_final = is_final; }
+
+  /////////////////////////////////////////////////////////////////////////
   // type.
   /////////////////////////////////////////////////////////////////////////
 
@@ -268,6 +298,9 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
  private:
   // Fields
 
+  enum_udt_type_category m_type_category;
+  bool m_is_instantiable;
+  bool m_is_final;
   enum_column_builtin_types m_type;
   enum_ordering_form m_ordering_form;
   enum_ordering_category m_ordering_category;

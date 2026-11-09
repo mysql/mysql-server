@@ -10,8 +10,8 @@ CREATE SCHEMA math;
 CREATE TYPE test.usbn13 AS CHAR(13);
 CREATE TYPE math.complex_number AS BINARY(16);
 
-SELECT * FROM INFORMATION_SCHEMA.TYPES
-  ORDER BY TYPE_SCHEMA, TYPE_NAME;
+SELECT * FROM INFORMATION_SCHEMA.USER_DEFINED_TYPES
+  ORDER BY USER_DEFINED_TYPE_SCHEMA, USER_DEFINED_TYPE_NAME;
 
 INSTALL COMPONENT "file://component_udt_example";
 
@@ -36,7 +36,7 @@ delimiter ;$$
 call test.complex();
 
 --error ER_BAD_FIELD_ERROR
-select foo.bar.baz() from INFORMATION_SCHEMA.TYPES;
+select foo.bar.baz() from INFORMATION_SCHEMA.USER_DEFINED_TYPES;
 
 UNINSTALL COMPONENT "file://component_udt_example";
 

@@ -443,6 +443,10 @@ bool Sql_cmd_create_ordering::execute(THD *thd) {
   udt->set_ordering_category(m_ordering_category);
   // udt->set_ordering_method_id();
 
+  if (dc->update(udt)) {
+    return true;
+  }
+
   if (trans_commit_stmt(thd) || trans_commit(thd)) {
     return true;
   }

@@ -32,6 +32,7 @@
 #include "sql/dd/types/builtin_types.h"
 #include "sql/dd/types/entity_object.h"  // dd::Entity_object
 #include "sql/ordering_option.h"
+#include "sql/udt_type_category.h"
 
 class THD;
 struct MDL_key;
@@ -86,6 +87,27 @@ class UDT_Type : virtual public Entity_object {
 
   virtual Object_id schema_id() const = 0;
   virtual void set_schema_id(Object_id schema_id) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // type_category.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual enum_udt_type_category type_category() const = 0;
+  virtual void set_type_category(enum_udt_type_category type_category) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_instantiable.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_instantiable() const = 0;
+  virtual void set_instantiable(bool is_instantiable) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_final.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_final() const = 0;
+  virtual void set_final(bool is_final) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // type.

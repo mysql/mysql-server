@@ -20,7 +20,7 @@ ALTER TYPE math.complex_number ADD
   STATIC METHOD `sub` ( math.complex_number, math.complex_number )
     RETURNS math.complex_number;
 
-SELECT * FROM INFORMATION_SCHEMA.TYPES;
+SELECT * FROM INFORMATION_SCHEMA.USER_DEFINED_TYPES;
 
 SELECT * FROM INFORMATION_SCHEMA.TYPE_METHODS;
 
@@ -29,6 +29,8 @@ CREATE ORDERING FOR math.complex_number
   RELATIVE WITH
   STATIC METHOD compare FOR math.complex_number
   ;
+
+SELECT * FROM INFORMATION_SCHEMA.USER_DEFINED_TYPES;
 
 --error ER_NOT_SUPPORTED_YET
 DROP ORDERING FOR math.complex_number;
