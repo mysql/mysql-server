@@ -1,0 +1,16 @@
+# ==== Purpose ====
+#
+# Basic checks of @@binlog_snapshot_position: session only, read only, and empty outside
+# START TRANSACTION WITH CONSISTENT SNAPSHOT. The values inside a snapshot
+# are tested in binlog_gtid.binlog_gtid_consistent_snapshot_coordinates.
+
+SELECT @@session.binlog_snapshot_position;
+SELECT @@binlog_snapshot_position;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@global.binlog_snapshot_position;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.binlog_snapshot_position = 1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.binlog_snapshot_position = 1;

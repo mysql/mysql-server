@@ -1,0 +1,104 @@
+# ==== Purpose ====
+#
+# Verify that START TRANSACTION WITH CONSISTENT SNAPSHOT returns the GTID
+# set that matches its read view when binlog_order_commits=0.
+#
+# ==== Requirements ====
+#
+# R1. A session that commits outside the binlog commit stage, and is
+#     visible in InnoDB but not yet in GTID_EXECUTED, makes the snapshot
+#     wait until GTID_EXECUTED is updated.
+# R2. While a snapshot is being taken, new commit groups take the ordered
+#     path and the snapshot does not see them.
+#
+# ==== Implementation ====
+#
+# R1: pause a commit in finish_commit(), after the engines and before
+#     GTID_EXECUTED, then start the snapshot.
+# R2: pause the snapshot while it holds LOCK_commit, then commit from
+#     another session.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/count_sessions.inc
+
+--let $saved_order_commits = `SELECT @@GLOBAL.binlog_order_commits`
+SET GLOBAL binlog_order_commits = 0;
+
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--echo #
+--echo # R1: snapshot waits for a commit done outside LOCK_commit
+--echo #
+--connection con1
+SET DEBUG_SYNC = 'unordered_commit_after_engines_before_gtid_update SIGNAL engines_done WAIT_FOR continue_commit';
+--send INSERT INTO t1 VALUES (1)
+
+--connection con2
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+SET DEBUG_SYNC = 'now WAIT_FOR engines_done';
+SET DEBUG_SYNC = 'consistent_snapshot_before_wait_unordered SIGNAL snapshot_waiting';
+--enable_session_track_info
+--send START TRANSACTION WITH CONSISTENT SNAPSHOT
+
+--connection default
+--echo # The snapshot waits for the commit in flight. It holds
+--echo # LOCK_unordered_commits until it waits, so con1 cannot wake it early.
+SET DEBUG_SYNC = 'now WAIT_FOR snapshot_waiting';
+SET DEBUG_SYNC = 'now SIGNAL continue_commit';
+
+--connection con1
+--reap
+
+--echo # Must return GTID:1-2 and see the row
+--connection con2
+--reap
+--disable_session_track_info
+SELECT * FROM t1;
+COMMIT;
+
+--echo #
+--echo # R2: a commit during the snapshot takes the ordered path
+--echo #
+--connection con2
+SET DEBUG_SYNC = 'consistent_snapshot_under_lock_commit SIGNAL snapshot_locked WAIT_FOR continue_snapshot';
+--enable_session_track_info
+--send START TRANSACTION WITH CONSISTENT SNAPSHOT
+
+--connection con1
+--let $con1_id = `SELECT CONNECTION_ID()`
+SET DEBUG_SYNC = 'now WAIT_FOR snapshot_locked';
+--send INSERT INTO t1 VALUES (2)
+
+--connection default
+--echo # The commit took the ordered path: it waits for LOCK_commit, so the
+--echo # row is not visible yet
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.threads T, performance_schema.events_waits_current W WHERE T.THREAD_ID = W.THREAD_ID AND W.EVENT_NAME LIKE '%MYSQL_BIN_LOG::LOCK_commit' AND T.PROCESSLIST_ID = $con1_id
+--source include/wait_condition.inc
+SELECT COUNT(*) FROM t1 WHERE c1 = 2;
+SET DEBUG_SYNC = 'now SIGNAL continue_snapshot';
+
+--echo # Must return GTID:1-2 and not see the new row
+--connection con2
+--reap
+--disable_session_track_info
+SELECT * FROM t1;
+COMMIT;
+
+--connection con1
+--reap
+
+# Cleanup
+--connection default
+--disconnect con1
+--disconnect con2
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+--eval SET GLOBAL binlog_order_commits = $saved_order_commits
+RESET BINARY LOGS AND GTIDS;
+--source include/wait_until_count_sessions.inc

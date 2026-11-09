@@ -1963,6 +1963,9 @@ ON a.variable_name=b.variable_name
 WHERE b.variable_name IS NULL
 AND a.variable_name NOT IN ('debug_sync')
 ORDER BY a.variable_name;
+SET SESSION binlog_snapshot_file = @@session.binlog_snapshot_file;
+SET SESSION binlog_snapshot_gtid_executed = @@session.binlog_snapshot_gtid_executed;
+SET SESSION binlog_snapshot_position = @@session.binlog_snapshot_position;
 SET SESSION error_count = @@session.error_count;
 SET SESSION external_user = @@session.external_user;
 SET SESSION gtid_next = @@session.gtid_next;

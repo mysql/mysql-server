@@ -1,0 +1,55 @@
+SET GLOBAL binlog_order_commits = 0;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+#
+# R1: snapshot waits for a commit done outside LOCK_commit
+#
+SET DEBUG_SYNC = 'unordered_commit_after_engines_before_gtid_update SIGNAL engines_done WAIT_FOR continue_commit';
+INSERT INTO t1 VALUES (1);
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+SET DEBUG_SYNC = 'now WAIT_FOR engines_done';
+SET DEBUG_SYNC = 'consistent_snapshot_before_wait_unordered SIGNAL snapshot_waiting';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+# The snapshot waits for the commit in flight. It holds
+# LOCK_unordered_commits until it waits, so con1 cannot wake it early.
+SET DEBUG_SYNC = 'now WAIT_FOR snapshot_waiting';
+SET DEBUG_SYNC = 'now SIGNAL continue_commit';
+# Must return GTID:1-2 and see the row
+-- Tracker : SESSION_TRACK_GTIDS
+-- 00000000-1111-0000-1111-000000000000:1-2
+
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T_R_____
+
+SELECT * FROM t1;
+c1
+1
+COMMIT;
+#
+# R2: a commit during the snapshot takes the ordered path
+#
+SET DEBUG_SYNC = 'consistent_snapshot_under_lock_commit SIGNAL snapshot_locked WAIT_FOR continue_snapshot';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SET DEBUG_SYNC = 'now WAIT_FOR snapshot_locked';
+INSERT INTO t1 VALUES (2);
+# The commit took the ordered path: it waits for LOCK_commit, so the
+# row is not visible yet
+SELECT COUNT(*) FROM t1 WHERE c1 = 2;
+COUNT(*)
+0
+SET DEBUG_SYNC = 'now SIGNAL continue_snapshot';
+# Must return GTID:1-2 and not see the new row
+-- Tracker : SESSION_TRACK_GTIDS
+-- 00000000-1111-0000-1111-000000000000:1-2
+
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T_R_____
+
+SELECT * FROM t1;
+c1
+1
+COMMIT;
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+SET GLOBAL binlog_order_commits = 1;
+RESET BINARY LOGS AND GTIDS;

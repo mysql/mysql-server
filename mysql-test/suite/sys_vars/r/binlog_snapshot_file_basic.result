@@ -1,0 +1,12 @@
+SELECT @@session.binlog_snapshot_file;
+@@session.binlog_snapshot_file
+NULL
+SELECT @@binlog_snapshot_file;
+@@binlog_snapshot_file
+NULL
+SELECT @@global.binlog_snapshot_file;
+ERROR HY000: Variable 'binlog_snapshot_file' is a SESSION variable
+SET @@session.binlog_snapshot_file = 1;
+ERROR HY000: Variable 'binlog_snapshot_file' is a read only variable
+SET @@global.binlog_snapshot_file = 1;
+ERROR HY000: Variable 'binlog_snapshot_file' is a read only variable

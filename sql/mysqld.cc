@@ -8891,6 +8891,7 @@ static int init_server_components() {
       mysql_mutex_unlock(log_lock);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
+    mysql_bin_log.reset_snapshot_coordinates();
     mysql_mutex_unlock(log_lock);
   }
 

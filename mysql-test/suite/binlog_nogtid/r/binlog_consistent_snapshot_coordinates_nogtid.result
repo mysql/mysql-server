@@ -1,0 +1,8 @@
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+include/assert.inc [R1: file is the current binary log]
+include/assert.inc [R1: position is the current end]
+include/assert.inc [R2: no GTID set]
+COMMIT;
+DROP TABLE t1;

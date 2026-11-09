@@ -1,0 +1,285 @@
+# ==== Purpose ====
+#
+# Verify @@binlog_snapshot_file and @@binlog_snapshot_position: the binary
+# log coordinates that match the read view of START TRANSACTION WITH
+# CONSISTENT SNAPSHOT (the end of the last transaction it can see).
+#
+# ==== Requirements ====
+#
+# R1. With no transaction in the binary log (after RESET), the snapshot
+#     reports the current end of the binary log.
+# R2. With no commit in progress, the snapshot reports the current end of
+#     the binary log.
+# R3. binlog_order_commits=1: a transaction written and synced to the
+#     binary log, but not yet visible, is not included.
+# R4. binlog_order_commits=0: a transaction committed outside LOCK_commit
+#     is included.
+# R5. binlog_order_commits=0: the snapshot waits for a commit in flight and
+#     includes it.
+# R6. After a rotation with no new commit, the snapshot reports the start
+#     of the new file, also after the previous files are purged.
+# R7. The values are cleared when the transaction ends.
+# R8. binlog_order_commits=0: when a snapshot forces a transaction A onto
+#     the ordered path, a later transaction B also takes the ordered path
+#     while A is not committed, so a second snapshot cannot report a
+#     position after B while A is not visible.
+# R9. A transaction A takes the ordered path with binlog_order_commits=1,
+#     then the option is set to 0 before A is committed: a later
+#     transaction B also takes the ordered path, so a snapshot cannot
+#     report a position after B while A is not visible.
+#
+# ==== Implementation ====
+#
+# Compare the variables with SHOW BINARY LOG STATUS. For R3, pause the
+# snapshot while it holds LOCK_commit and commit from another session.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/count_sessions.inc
+
+--let $saved_order_commits = `SELECT @@GLOBAL.binlog_order_commits`
+RESET BINARY LOGS AND GTIDS;
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+--connect (con3,localhost,root,,)
+--connection con3
+--let $con3_id = `SELECT CONNECTION_ID()`
+--connection con1
+--let $con1_id = `SELECT CONNECTION_ID()`
+
+--echo #
+--echo # R1: nothing committed after RESET
+--echo #
+--connection con2
+--let $file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--let $assert_text = R1: file is the current binary log
+--let $assert_cond = @@binlog_snapshot_file = "$file"
+--source include/assert.inc
+--let $assert_text = R1: position is the current end
+--let $assert_cond = @@binlog_snapshot_position = $pos
+--source include/assert.inc
+COMMIT;
+
+--echo #
+--echo # R2: no commit in progress
+--echo #
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+--let $pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--let $assert_text = R2: position is the current end
+--let $assert_cond = @@binlog_snapshot_position = $pos
+--source include/assert.inc
+COMMIT;
+
+--echo #
+--echo # R3: binlog_order_commits=1, a synced transaction waiting for
+--echo #     LOCK_commit is not included
+--echo #
+SET GLOBAL binlog_order_commits = 1;
+--let $pos_before = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+SET DEBUG_SYNC = 'consistent_snapshot_under_lock_commit SIGNAL snapshot_locked WAIT_FOR continue_snapshot';
+--send START TRANSACTION WITH CONSISTENT SNAPSHOT
+
+--connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR snapshot_locked';
+--send INSERT INTO t1 VALUES (2)
+
+--connection default
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.threads T, performance_schema.events_waits_current W WHERE T.THREAD_ID = W.THREAD_ID AND W.EVENT_NAME LIKE '%MYSQL_BIN_LOG::LOCK_commit' AND T.PROCESSLIST_ID = $con1_id
+--source include/wait_condition.inc
+--let $pos_after = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $assert_text = R3: the transaction is already in the binary log
+--let $assert_cond = $pos_after > $pos_before
+--source include/assert.inc
+SET DEBUG_SYNC = 'now SIGNAL continue_snapshot';
+
+--connection con2
+--reap
+SELECT * FROM t1;
+--let $assert_text = R3: position does not include the transaction
+--let $assert_cond = @@binlog_snapshot_position = $pos_before
+--source include/assert.inc
+COMMIT;
+
+--connection con1
+--reap
+
+--echo #
+--echo # R4: binlog_order_commits=0, a transaction committed outside
+--echo #     LOCK_commit is included
+--echo #
+--connection default
+SET GLOBAL binlog_order_commits = 0;
+--connection con1
+INSERT INTO t1 VALUES (3);
+--connection con2
+--let $pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+--let $assert_text = R4: position includes the transaction
+--let $assert_cond = @@binlog_snapshot_position = $pos
+--source include/assert.inc
+COMMIT;
+
+--echo #
+--echo # R5: binlog_order_commits=0, the snapshot waits for a commit in
+--echo #     flight and includes it
+--echo #
+--connection con1
+SET DEBUG_SYNC = 'unordered_commit_after_engines_before_gtid_update SIGNAL engines_done WAIT_FOR continue_commit';
+--send INSERT INTO t1 VALUES (4)
+
+--connection con2
+SET DEBUG_SYNC = 'now WAIT_FOR engines_done';
+--let $pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+SET DEBUG_SYNC = 'consistent_snapshot_before_wait_unordered SIGNAL snapshot_waiting';
+--send START TRANSACTION WITH CONSISTENT SNAPSHOT
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR snapshot_waiting';
+SET DEBUG_SYNC = 'now SIGNAL continue_commit';
+
+--connection con1
+--reap
+
+--connection con2
+--reap
+SELECT * FROM t1;
+--let $assert_text = R5: position includes the transaction
+--let $assert_cond = @@binlog_snapshot_position = $pos
+--source include/assert.inc
+COMMIT;
+
+--echo #
+--echo # R6: rotation without a new commit
+--echo #
+--connection default
+--eval SET GLOBAL binlog_order_commits = $saved_order_commits
+--connection con2
+FLUSH BINARY LOGS;
+--let $file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--eval PURGE BINARY LOGS TO '$file'
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--let $assert_text = R6: file is the new binary log
+--let $assert_cond = @@binlog_snapshot_file = "$file"
+--source include/assert.inc
+--let $assert_text = R6: position is the start of the new file
+--let $assert_cond = @@binlog_snapshot_position = $pos
+--source include/assert.inc
+
+--echo #
+--echo # R7: cleared when the transaction ends
+--echo #
+COMMIT;
+SELECT @@binlog_snapshot_file, @@binlog_snapshot_position;
+
+--echo #
+--echo # R8: binlog_order_commits=0, a later transaction stays behind a
+--echo #     transaction forced onto the ordered path
+--echo #
+--connection default
+SET GLOBAL binlog_order_commits = 0;
+
+--echo # Snapshot S1 holds LOCK_commit
+--connection con2
+SET DEBUG_SYNC = 'consistent_snapshot_under_lock_commit SIGNAL s1_locked WAIT_FOR s1_continue';
+--send START TRANSACTION WITH CONSISTENT SNAPSHOT
+
+--echo # A is forced onto the ordered path; pause it before LOCK_commit
+--connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR s1_locked';
+--let $pos_before_a = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_commit_stage SIGNAL a_enrolled WAIT_FOR a_continue';
+--send INSERT INTO t1 VALUES (5)
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR a_enrolled';
+SET DEBUG_SYNC = 'now SIGNAL s1_continue';
+--connection con2
+--reap
+COMMIT;
+
+--echo # B: no snapshot is running, but A is not committed yet
+--connection con3
+--send INSERT INTO t1 VALUES (6)
+
+--connection default
+--echo # B either waits behind A in the commit queue, or (bug) commits
+--let $wait_condition = SELECT (SELECT COUNT(*) FROM t1 WHERE c1 = 6) + (SELECT COUNT(*) FROM performance_schema.threads T, performance_schema.events_waits_current W WHERE T.THREAD_ID = W.THREAD_ID AND W.EVENT_NAME LIKE '%MYSQL_BIN_LOG::COND_done' AND T.PROCESSLIST_ID = $con3_id) = 1
+--source include/wait_condition.inc
+
+--echo # Snapshot S2 while A is not visible
+--connection con2
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+--let $assert_text = R8: position ends before A
+--let $assert_cond = @@binlog_snapshot_position = $pos_before_a
+--source include/assert.inc
+COMMIT;
+
+--connection default
+SET DEBUG_SYNC = 'now SIGNAL a_continue';
+--connection con1
+--reap
+--connection con3
+--reap
+
+--echo #
+--echo # R9: binlog_order_commits changes from 1 to 0 while a transaction is
+--echo #     on the ordered path
+--echo #
+--connection default
+SET GLOBAL binlog_order_commits = 1;
+
+--echo # A takes the ordered path; pause it before LOCK_commit
+--connection con1
+--let $pos_before_a = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_commit_stage SIGNAL a_enrolled WAIT_FOR a_continue';
+--send INSERT INTO t1 VALUES (7)
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR a_enrolled';
+SET GLOBAL binlog_order_commits = 0;
+
+--echo # B: binlog_order_commits=0, but A is not committed yet
+--connection con3
+--send INSERT INTO t1 VALUES (8)
+
+--connection default
+--echo # B either waits behind A in the commit queue, or (bug) commits
+--let $wait_condition = SELECT (SELECT COUNT(*) FROM t1 WHERE c1 = 8) + (SELECT COUNT(*) FROM performance_schema.threads T, performance_schema.events_waits_current W WHERE T.THREAD_ID = W.THREAD_ID AND W.EVENT_NAME LIKE '%MYSQL_BIN_LOG::COND_done' AND T.PROCESSLIST_ID = $con3_id) = 1
+--source include/wait_condition.inc
+
+--echo # Snapshot while A is not visible
+--connection con2
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+--let $assert_text = R9: position ends before A
+--let $assert_cond = @@binlog_snapshot_position = $pos_before_a
+--source include/assert.inc
+COMMIT;
+
+--connection default
+SET DEBUG_SYNC = 'now SIGNAL a_continue';
+--connection con1
+--reap
+--connection con3
+--reap
+--connection default
+--eval SET GLOBAL binlog_order_commits = $saved_order_commits
+
+# Cleanup
+--connection default
+--disconnect con1
+--disconnect con2
+--disconnect con3
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;
+--source include/wait_until_count_sessions.inc

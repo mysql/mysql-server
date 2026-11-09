@@ -3274,6 +3274,8 @@ void MYSQL_BIN_LOG::cleanup() {
     mysql_mutex_destroy(&LOCK_log_info);
     mysql_cond_destroy(&update_cond);
     mysql_cond_destroy(&m_prep_xids_cond);
+    mysql_mutex_destroy(&LOCK_unordered_commits);
+    mysql_cond_destroy(&COND_unordered_commits);
     if (!is_relay_log) {
       Commit_stage_manager::get_instance().deinit();
     }
@@ -3299,6 +3301,9 @@ void MYSQL_BIN_LOG::init_pthread_objects() {
   mysql_mutex_init(m_key_LOCK_log_info, &LOCK_log_info, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond);
+  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &LOCK_unordered_commits,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(PSI_NOT_INSTRUMENTED, &COND_unordered_commits);
   if (!is_relay_log) {
     Commit_stage_manager::get_instance().init(
         m_key_LOCK_flush_queue, m_key_LOCK_sync_queue, m_key_LOCK_commit_queue,
@@ -5014,6 +5019,8 @@ err:
     name = const_cast<char *>(save_name);  // restore old file-name
   tsid_lock->unlock();
   m_binlog_index_monitor.unlock();
+  // The old files are gone: consistent snapshots start from the new one.
+  if (!delete_only && !error && !is_relay_log) reset_snapshot_coordinates();
   mysql_mutex_unlock(&LOCK_log);
   return error;
 }
@@ -5617,6 +5624,12 @@ end:
   }
 
   m_binlog_index_monitor.unlock();
+  /*
+    wait_for_prep_xids() above made every transaction of the old file
+    visible: consistent snapshots can start from the new file, so they
+    never report a file that PURGE BINARY LOGS may remove.
+  */
+  if (!error && !is_relay_log) reset_snapshot_coordinates();
   if (need_lock_log) mysql_mutex_unlock(&LOCK_log);
 
   DEBUG_SYNC(current_thd, "after_disable_binlog");
@@ -7175,6 +7188,41 @@ void MYSQL_BIN_LOG::init_thd_variables(THD *thd, bool all, bool skip_commit) {
   @param first First thread in the queue of threads to commit
  */
 
+/**
+  @return true if binary log coordinates (file_a, pos_a) come after
+          (file_b, pos_b). An empty file name comes before any other.
+*/
+static bool binlog_coordinates_after(const char *file_a, my_off_t pos_a,
+                                     const char *file_b, my_off_t pos_b) {
+  // Same base name, the number grows: a longer name is a later file.
+  const size_t length_a = strlen(file_a);
+  const size_t length_b = strlen(file_b);
+  if (length_a != length_b) return length_a > length_b;
+  const int cmp = strcmp(file_a, file_b);
+  if (cmp != 0) return cmp > 0;
+  return pos_a > pos_b;
+}
+
+/**
+  Moves (file, pos) to the end of the last transaction of the queue that
+  was written to the binary log without error.
+*/
+static void advance_snapshot_coordinates(THD *queue, char *file,
+                                         my_off_t *pos) {
+  for (THD *head = queue; head != nullptr; head = head->next_to_commit) {
+    const char *trans_file = nullptr;
+    my_off_t trans_pos = 0;
+    head->get_trans_fixed_pos(&trans_file, &trans_pos);
+    if (head->commit_error != THD::CE_NONE || trans_file == nullptr ||
+        trans_pos == 0)
+      continue;
+    if (binlog_coordinates_after(trans_file, trans_pos, file, *pos)) {
+      strmake(file, trans_file, FN_REFLEN - 1);
+      *pos = trans_pos;
+    }
+  }
+}
+
 void MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first) {
   mysql_mutex_assert_owner(&LOCK_commit);
 #ifndef NDEBUG
@@ -7218,6 +7266,22 @@ void MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first) {
     DBUG_PRINT("debug", ("commit_error: %d, commit_pending: %s",
                          head->commit_error, YESNO(head->tx_commit_pending)));
   }
+
+  // The queue is now visible in the engines: move the snapshot coordinates.
+  advance_snapshot_coordinates(first, m_ordered_snapshot_file,
+                               &m_ordered_snapshot_pos);
+
+  // Later groups may now skip the commit stage: see m_ordered_commits.
+  uint64 ordered = 0;
+  for (THD *head = first; head; head = head->next_to_commit) {
+    if (head->get_transaction()->m_flags.ordered_commit_tracked) {
+      head->get_transaction()->m_flags.ordered_commit_tracked = false;
+      ++ordered;
+    }
+  }
+  if (ordered > 0) m_ordered_commits.fetch_sub(ordered);
+
+  DEBUG_SYNC(thd, "bgc_after_commit_in_engines_before_gtid_update");
 
   /*
     Handle the GTID of the threads.
@@ -7396,10 +7460,24 @@ int MYSQL_BIN_LOG::finish_commit(THD *thd) {
   // at process_commit_stage_queue (i.e. --binlog-order-commits=0)
   // the thd still has the ownership of a GTID and we must handle it.
   if (!thd->owned_gtid_is_empty()) {
+    if (thd->get_transaction()->m_flags.unordered_commit_tracked)
+      DEBUG_SYNC(thd, "unordered_commit_after_engines_before_gtid_update");
     if (thd->commit_error == THD::CE_NONE) {
       gtid_state->update_on_commit(thd);
     } else
       gtid_state->update_on_rollback(thd);
+  }
+
+  // Engines and GTID_EXECUTED are now updated: a waiting consistent
+  // snapshot no longer needs to wait for this session.
+  if (thd->get_transaction()->m_flags.unordered_commit_tracked) {
+    thd->get_transaction()->m_flags.unordered_commit_tracked = false;
+    release_unordered_commits(1);
+  }
+  // Not released by the commit stage (it did not run for this session).
+  if (thd->get_transaction()->m_flags.ordered_commit_tracked) {
+    thd->get_transaction()->m_flags.ordered_commit_tracked = false;
+    m_ordered_commits.fetch_sub(1);
   }
 
   // If not yet done, mark transaction as prepared in TC, if applicable and
@@ -7432,6 +7510,154 @@ int MYSQL_BIN_LOG::finish_commit(THD *thd) {
     (using binlog_error_action). Hence treat only COMMIT_ERRORs as errors.
   */
   return thd->commit_error == THD::CE_COMMIT_ERROR;
+}
+
+bool MYSQL_BIN_LOG::register_commit_group(THD *queue, bool order_commits) {
+  uint64 count = 0;
+  for (THD *head = queue; head != nullptr; head = head->next_to_commit) ++count;
+  if (count == 0) return !order_commits;
+
+  if (!order_commits) {
+    // Announce first, then check: see the comment on m_snapshot_requests.
+    m_unordered_commits_in_flight.fetch_add(count);
+    if (m_snapshot_requests.load() == 0 && m_ordered_commits.load() == 0 &&
+        !Clone_handler::need_commit_order())
+      return register_unordered_commit_group(queue);
+    release_unordered_commits(count);
+  }
+
+  /*
+    Keep later groups on the ordered path until this one is committed in
+    the engines, so none of them becomes visible before it, even when
+    binlog_order_commits changes in between. Registration runs in binary
+    log order under LOCK_sync, so the next group sees this.
+  */
+  m_ordered_commits.fetch_add(count);
+  for (THD *head = queue; head != nullptr; head = head->next_to_commit)
+    head->get_transaction()->m_flags.ordered_commit_tracked = true;
+  return false;
+}
+
+bool MYSQL_BIN_LOG::register_unordered_commit_group(THD *queue) {
+  /*
+    The leader still holds LOCK_sync here, and no session of the group is
+    released yet. (When the binary log is closed it holds LOCK_log instead,
+    but then no session has a position, so nothing is written.)
+  */
+  advance_snapshot_coordinates(queue, m_unordered_snapshot_file,
+                               &m_unordered_snapshot_pos);
+
+  /*
+    The followers are waiting for the leader to signal them, so they
+    cannot reach finish_commit() before the flags are set.
+  */
+  for (THD *head = queue; head != nullptr; head = head->next_to_commit)
+    head->get_transaction()->m_flags.unordered_commit_tracked = true;
+  return true;
+}
+
+void MYSQL_BIN_LOG::release_unordered_commits(uint64 count) {
+  const uint64 previous = m_unordered_commits_in_flight.fetch_sub(count);
+  assert(previous >= count);
+  if (previous == count && m_snapshot_requests.load() > 0) {
+    mysql_mutex_lock(&LOCK_unordered_commits);
+    mysql_cond_broadcast(&COND_unordered_commits);
+    mysql_mutex_unlock(&LOCK_unordered_commits);
+  }
+}
+
+bool MYSQL_BIN_LOG::start_consistent_snapshot(
+    THD *thd, const std::function<void()> &take_snapshot) {
+  DBUG_TRACE;
+  bool error = false;
+
+  /*
+    From now on, new commit groups take the ordered path. Then wait for the
+    groups that already chose to commit outside LOCK_commit.
+  */
+  m_snapshot_requests.fetch_add(1);
+
+  if (m_unordered_commits_in_flight.load() > 0) {
+    mysql_mutex_lock(&LOCK_unordered_commits);
+    /*
+      LOCK_unordered_commits is held until the wait below releases it, so
+      a commit cannot broadcast before this thread is waiting.
+    */
+    DEBUG_SYNC(thd, "consistent_snapshot_before_wait_unordered");
+    while (m_unordered_commits_in_flight.load() > 0) {
+      if (thd->killed) {
+        error = true;
+        break;
+      }
+      struct timespec abstime;
+      set_timespec_nsec(&abstime, 100 * 1000 * 1000ULL);  // 100ms
+      mysql_cond_timedwait(&COND_unordered_commits, &LOCK_unordered_commits,
+                           &abstime);
+    }
+    mysql_mutex_unlock(&LOCK_unordered_commits);
+  }
+
+  if (!error) {
+    /*
+      Under LOCK_commit no transaction is visible in the engines without
+      its GTID in GTID_EXECUTED, and the other way around, so the read
+      views and the captured set match.
+    */
+    mysql_mutex_lock(&LOCK_commit);
+    DEBUG_SYNC(thd, "consistent_snapshot_under_lock_commit");
+    take_snapshot();
+
+    // See m_unordered_snapshot_file: no group can write it now.
+    if (binlog_coordinates_after(
+            m_unordered_snapshot_file, m_unordered_snapshot_pos,
+            m_ordered_snapshot_file, m_ordered_snapshot_pos))
+      thd->get_transaction()->set_consistent_snapshot_coordinates(
+          m_unordered_snapshot_file, m_unordered_snapshot_pos);
+    else
+      thd->get_transaction()->set_consistent_snapshot_coordinates(
+          m_ordered_snapshot_file, m_ordered_snapshot_pos);
+
+    if (global_gtid_mode.get() == Gtid_mode::ON) {
+      // Write lock: the session tracker may add TSIDs to global_tsid_map.
+      global_tsid_lock->wrlock();
+      char *gtids = nullptr;
+      if (gtid_state->get_executed_gtids()->to_string(&gtids) < 0) {
+        error = true;
+      } else {
+        thd->get_transaction()->set_consistent_snapshot_gtids(gtids);
+        error = thd->rpl_thd_ctx.session_gtids_ctx()
+                    .notify_after_consistent_snapshot(thd);
+      }
+      my_free(gtids);
+      global_tsid_lock->unlock();
+    }
+    mysql_mutex_unlock(&LOCK_commit);
+  }
+
+  m_snapshot_requests.fetch_sub(1);
+
+  if (error && thd->killed) thd->send_kill_message();
+  return error;
+}
+
+void MYSQL_BIN_LOG::reset_snapshot_coordinates() {
+  mysql_mutex_assert_owner(&LOCK_log);
+  if (!is_open()) return;
+
+  Log_info log_info;
+  raw_get_current_log(&log_info);
+  const char *file =
+      log_info.log_file_name + dirname_length(log_info.log_file_name);
+
+  // Same order as the commit pipeline: LOCK_log, LOCK_sync, LOCK_commit.
+  mysql_mutex_lock(&LOCK_sync);
+  mysql_mutex_lock(&LOCK_commit);
+  strmake(m_ordered_snapshot_file, file, FN_REFLEN - 1);
+  m_ordered_snapshot_pos = log_info.pos;
+  strmake(m_unordered_snapshot_file, file, FN_REFLEN - 1);
+  m_unordered_snapshot_pos = log_info.pos;
+  mysql_mutex_unlock(&LOCK_commit);
+  mysql_mutex_unlock(&LOCK_sync);
 }
 
 void MYSQL_BIN_LOG::finish_transaction_in_engines(THD *thd, bool all,
@@ -7718,9 +7944,13 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     commit stage if binlog_error_action is ABORT_SERVER.
   */
 commit_stage:
-  /* Clone needs binlog commit order. */
-  if ((opt_binlog_order_commits || Clone_handler::need_commit_order()) &&
-      (sync_error == 0 || binlog_error_action != ABORT_SERVER)) {
+  /*
+    With binlog_order_commits=0, Clone, consistent snapshots (see
+    start_consistent_snapshot()) and earlier ordered groups can still
+    require binlog commit order: register_commit_group() decides.
+  */
+  if ((sync_error == 0 || binlog_error_action != ABORT_SERVER) &&
+      !register_commit_group(final_queue, opt_binlog_order_commits)) {
     if (change_stage(thd, Commit_stage_manager::COMMIT_STAGE, final_queue,
                      leave_mutex_before_commit_stage, get_commit_lock())) {
       DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d", thd->thread_id(),

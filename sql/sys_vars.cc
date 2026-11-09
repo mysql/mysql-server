@@ -6688,6 +6688,80 @@ static Sys_var_gtid_owned Sys_gtid_owned(
     "The global variable lists all GTIDs owned by all threads. "
     "The session variable lists all GTIDs owned by the current thread.");
 
+/**
+  GTID_EXECUTED captured with the read view of the current session's
+  START TRANSACTION WITH CONSISTENT SNAPSHOT. NULL outside such a
+  transaction.
+
+  Only the session itself can read the value: other sessions (e.g.
+  performance_schema.variables_by_thread) get NULL, because the owner
+  changes it without a lock.
+*/
+class Sys_var_binlog_snapshot_gtid_executed : public Sys_var_charptr_func {
+ public:
+  Sys_var_binlog_snapshot_gtid_executed(const char *name_arg,
+                                        const char *comment_arg)
+      : Sys_var_charptr_func(name_arg, comment_arg, ONLY_SESSION) {}
+
+  const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                                 std::string_view) override {
+    if (running_thd != target_thd) return nullptr;
+    const Transaction_ctx *trn_ctx = target_thd->get_transaction();
+    if (!trn_ctx->has_consistent_snapshot_gtids()) return nullptr;
+    return pointer_cast<const uchar *>(
+        trn_ctx->consistent_snapshot_gtids().c_str());
+  }
+};
+
+static Sys_var_binlog_snapshot_gtid_executed Sys_binlog_snapshot_gtid_executed(
+    "binlog_snapshot_gtid_executed",
+    "The GTID set that matches the read view of the current START "
+    "TRANSACTION WITH CONSISTENT SNAPSHOT. NULL outside such a transaction.");
+
+/**
+  Binary log file and position that match the read view of the current
+  session's START TRANSACTION WITH CONSISTENT SNAPSHOT: the end of the last
+  transaction the snapshot can see. The file is NULL and the position 0
+  outside such a transaction, and for other sessions.
+*/
+class Sys_var_binlog_snapshot_file : public Sys_var_charptr_func {
+ public:
+  Sys_var_binlog_snapshot_file(const char *name_arg, const char *comment_arg)
+      : Sys_var_charptr_func(name_arg, comment_arg, ONLY_SESSION) {}
+
+  const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                                 std::string_view) override {
+    if (running_thd != target_thd) return nullptr;
+    const Transaction_ctx *trn_ctx = target_thd->get_transaction();
+    if (!trn_ctx->has_consistent_snapshot()) return nullptr;
+    return pointer_cast<const uchar *>(
+        trn_ctx->consistent_snapshot_file().c_str());
+  }
+};
+
+static Sys_var_binlog_snapshot_file Sys_binlog_snapshot_file(
+    "binlog_snapshot_file",
+    "The binary log file that matches the read view of the current START "
+    "TRANSACTION WITH CONSISTENT SNAPSHOT. NULL outside such a "
+    "transaction.");
+
+static ulonglong read_binlog_snapshot_position(THD *thd) {
+  // Only the session itself: the owner changes the value without a lock.
+  if (thd != current_thd) return 0;
+  const Transaction_ctx *trn_ctx = thd->get_transaction();
+  return trn_ctx->has_consistent_snapshot() ? trn_ctx->consistent_snapshot_pos()
+                                            : 0;
+}
+
+static Sys_var_session_special Sys_binlog_snapshot_position(
+    "binlog_snapshot_position",
+    "The binary log position that matches the read view of the current "
+    "START TRANSACTION WITH CONSISTENT SNAPSHOT: the end of the last "
+    "transaction the snapshot can see. 0 outside such a transaction.",
+    READ_ONLY sys_var::ONLY_SESSION, NO_CMD_LINE, VALID_RANGE(0, ULLONG_MAX),
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), ON_READ(read_binlog_snapshot_position));
+
 static Sys_var_gtid_mode Sys_gtid_mode(
     "gtid_mode",
     "Controls whether Global Transaction Identifiers (GTIDs) are "

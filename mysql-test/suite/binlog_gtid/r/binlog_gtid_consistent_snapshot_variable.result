@@ -1,0 +1,95 @@
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION session_track_gtids = 'OFF';
+#
+# R1: no snapshot
+#
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+NULL
+#
+# R2, R3: the value is the snapshot set and stays the same
+#
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+00000000-1111-0000-1111-000000000000:1
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+c1
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+00000000-1111-0000-1111-000000000000:1
+#
+# R4: COMMIT and ROLLBACK clear the value
+#
+COMMIT;
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+NULL
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+00000000-1111-0000-1111-000000000000:1-2
+ROLLBACK;
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+NULL
+#
+# R5: plain transaction and READ COMMITTED
+#
+BEGIN;
+SELECT * FROM t1;
+c1
+1
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+NULL
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+Warnings:
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+NULL
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+#
+# R6: a commit is visible in InnoDB, its GTID is not in GTID_EXECUTED yet
+#
+SET DEBUG_SYNC = 'bgc_after_commit_in_engines_before_gtid_update SIGNAL engines_done WAIT_FOR continue_commit';
+INSERT INTO t1 VALUES (2);
+SET DEBUG_SYNC = 'now WAIT_FOR engines_done';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+# The snapshot cannot finish while the commit holds LOCK_commit
+SET DEBUG_SYNC = 'now SIGNAL continue_commit';
+# Must show GTID:1-3 and see both rows
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+00000000-1111-0000-1111-000000000000:1-3
+SELECT * FROM t1;
+c1
+1
+2
+COMMIT;
+#
+# R7: a set longer than 1024 bytes
+#
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT LENGTH(@@binlog_snapshot_gtid_executed) > 1024 AS long_set;
+long_set
+1
+SELECT @@binlog_snapshot_gtid_executed = @@global.gtid_executed AS full_set;
+full_set
+1
+#
+# R8: other sessions get NULL
+#
+SELECT THREAD_ID, VARIABLE_VALUE FROM performance_schema.variables_by_thread WHERE VARIABLE_NAME = 'binlog_snapshot_gtid_executed' AND THREAD_ID = (SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CON2_ID);
+THREAD_ID	VARIABLE_VALUE
+#	
+COMMIT;
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;
